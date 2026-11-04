@@ -4,6 +4,7 @@ import { Check, Copy, FileText, Play, Shield } from 'lucide-react';
 import { CodeRefs } from './code-refs.js';
 import { colorLine } from './code.jsx';
 import { MathText, tokenizeMath } from './MathText.jsx';
+import MermaidDiagram from './MermaidDiagram.jsx';
 import { FILE_TOKEN, INLINE_PARTS, citedSources, linkable, referenceLabel, sourceReference, singleSourcePath } from './source-references.js';
 import { cn } from './ui.jsx';
 
@@ -99,7 +100,7 @@ export function splitBlocks(text) {
 // colorLine reads # as a comment, so languages where # means something else stay untinted.
 // ponytail: one Python-flavoured tokenizer for every language; a per-language grammar when answers need one.
 const UNTINTED = /^(css|scss|less|html|xml|svg|md|markdown|text|txt|plain|plaintext)$/i;
-export function Code({ lang, lines }) {
+export function Code({ lang, lines, diagram = false }) {
   const [copied, setCopied] = useState(null);
   useEffect(() => {
     if (!copied) return;
@@ -108,14 +109,16 @@ export function Code({ lang, lines }) {
   }, [copied]);
   const copy = async () => { try { await navigator.clipboard.writeText(lines.join('\n')); setCopied('Copied'); } catch { setCopied('Copy failed'); } };
   return (
-    <div data-code-block className="my-1.5 min-w-0 rounded-sm bg-code">
+    <div data-code-block {...(diagram ? { 'data-md-diagram': '' } : {})} className="my-1.5 min-w-0 rounded-sm bg-code">
       <div className="flex items-center gap-2 px-3 pt-1.5 text-xs text-ink-3">
         <span data-code-lang className="min-w-0 flex-1 truncate font-mono">{lang}</span>
         <button type="button" data-code-copy aria-label="Copy code" title="Copy code" onClick={copy} className={cn('flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-sm px-1.5 hover:bg-hover hover:text-ink', copied === 'Copy failed' && 'text-danger')}>
           {copied === 'Copied' ? <Check size={12} /> : <Copy size={12} />}<span role="status">{copied || 'Copy'}</span>
         </button>
       </div>
-      <pre className="overflow-x-auto px-3 pt-1 pb-3 font-mono text-xs leading-normal whitespace-pre text-ink">{lines.map((l, j) => <div key={j}>{UNTINTED.test(lang) ? l || ' ' : colorLine(l)}</div>)}</pre>
+      {diagram
+        ? <div className="overflow-auto bg-white px-2 py-2 dark:bg-side"><MermaidDiagram code={lines.join('\n')} /></div>
+        : <pre className="overflow-x-auto px-3 pt-1 pb-3 font-mono text-xs leading-normal whitespace-pre text-ink">{lines.map((l, j) => <div key={j}>{UNTINTED.test(lang) ? l || ' ' : colorLine(l)}</div>)}</pre>}
     </div>
   );
 }
@@ -142,9 +145,18 @@ const LIST_ITEM = /^(\s*)([-*+]|\d{1,9}[.)])\s+(.*)$/;
 // canvas cards, lesson readers and sheets, which keep their body-sized headings: a 20px title in a small card overwhelms it.
 const HEADING_SIZE = { 1: 'text-xl', 2: 'text-lg', 3: 'text-base' };
 
+// A closed fence: code, except where the caller asks for rich fences (a file card's Markdown): a math, latex or tex fence is display
+// math (the same MathText as $$...$$, whose KaTeX shows its own error for a bad formula) and a mermaid fence is the diagram.
+const MATH_FENCE = /^(math|latex|tex)$/i;
+function fenceOf(fence, key, rich) {
+  if (rich && MATH_FENCE.test(fence.lang)) return <MathText key={key} expression={fence.lines.join('\n')} display />;
+  if (rich && /^mermaid$/i.test(fence.lang)) return <Code key={key} {...fence} diagram />;
+  return <Code key={key} {...fence} />;
+}
+
 // One block's lines (a blockquote's lines recurse). first: nothing is drawn above, so a heading gets no section rule.
 function lines(ls, ctx, first) {
-  const { math, onFile, onRun, has, sourcePath, doc } = ctx;
+  const { math, onFile, onRun, has, sourcePath, doc, fences } = ctx;
   const md = s => inline(s, math, onFile, sourcePath, has);
   const out = [];
   let fence = null; // collecting a ``` block
@@ -161,7 +173,7 @@ function lines(ls, ctx, first) {
   };
   ls.forEach((l, i) => {
     if (fence) {
-      if (/^\s*```/.test(l)) { out.push(<Code key={`f${i}`} {...fence} />); fence = null; }
+      if (/^\s*```/.test(l)) { out.push(fenceOf(fence, `f${i}`, fences)); fence = null; }
       else fence.lines.push(l);
       return;
     }
@@ -219,7 +231,8 @@ export function MdInline({ text, onFile, sourcePath, mathOnly = false }) {
 }
 
 // doc: the text is a document in its own pane (a Chat answer), so headings get sizes; everywhere else they stay body-sized.
-export function Md({ text, onRun, onFile: given, sourcePath = singleSourcePath(text), doc = false }) {
+// fences: also draw math and mermaid fences as math and diagrams (a file card's Markdown); a chat answer keeps them as code.
+export function Md({ text, onRun, onFile: given, sourcePath = singleSourcePath(text), doc = false, fences = false }) {
   const refs = useContext(CodeRefs);
   // Where the caller links files at all (an onFile), a repository context's own reader takes the click and its snapshot decides.
   const onFile = given && refs ? refs.open : given, has = given && refs ? refs.has : null;
@@ -232,7 +245,7 @@ export function Md({ text, onRun, onFile: given, sourcePath = singleSourcePath(t
   const cited = onFile ? citedSources(text).filter(c => linkable(c, has)) : [];
   return (
     <div className="min-w-0 text-sm leading-normal">
-      {blocks.map((src, i) => <Block key={i} src={src} first={i === 0} onFile={onFile ? open.file : null} onRun={onRun ? open.run : null} has={has} sourcePath={sourcePath} doc={doc} />)}
+      {blocks.map((src, i) => <Block key={i} src={src} first={i === 0} onFile={onFile ? open.file : null} onRun={onRun ? open.run : null} has={has} sourcePath={sourcePath} doc={doc} fences={fences} />)}
       {cited.length > 0 && <details key="cited" data-cited-sources className="mt-2 text-xs"><summary className="cursor-pointer text-ink-2 hover:text-ink">Sources ({cited.length})</summary>
         <div className="mt-1.5 flex flex-wrap gap-1">{cited.map(c => <EvidencePill key={`${c.path}:${c.start}-${c.end}`} type="button" data-cited-source aria-label={referenceLabel(c)} title={referenceLabel(c)} onClick={() => onFile(c.path, c.start, c.end)}>{c.path}:{c.start}{c.end > c.start ? `-${c.end}` : ''}</EvidencePill>)}</div></details>}
     </div>

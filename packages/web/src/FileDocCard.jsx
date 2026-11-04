@@ -216,7 +216,7 @@ function TextBody({ block, blob, onChange, setMeta, onUnits, onStatus }) {
     return () => { active = false; };
   }, [blob, block.encoding, block.label]);
   useEffect(() => { onStatus?.(decoded.status); }, [decoded.status, onStatus]);
-  const view = useMemo(() => (decoded.status === 'ready' ? textChunks(decoded.text) : null), [decoded]);
+  const view = useMemo(() => (decoded.status === 'ready' ? textChunks(decoded.text, undefined, undefined, { fences: block.kind === 'markdown' }) : null), [decoded]);
   useExcerpt(block, decoded.status === 'ready' ? { ...textExcerpt(decoded.text), where: `${decoded.encoding.toUpperCase()}, ${count(decoded.text.length)} characters` } : null);
   useEffect(() => { if (decoded.status === 'ready') onUnits?.(lineUnits(decoded.text)); }, [decoded]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (decoded.status === 'ready') setMeta(`${decoded.encoding.toUpperCase()}${decoded.newline !== 'none' && decoded.newline !== 'lf' ? ` · ${decoded.newline.toUpperCase()} line ends` : ''}`); }, [decoded]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -228,7 +228,7 @@ function TextBody({ block, blob, onChange, setMeta, onUnits, onStatus }) {
   return <>
     <div data-scroll data-file-doc-text className="pointer-events-auto min-h-0 flex-1 overflow-auto px-3 py-2" onPointerDown={stop}>
       {block.kind === 'markdown'
-        ? <div className="text-sm text-ink"><Md text={chunks.join('')} doc /></div>
+        ? <div data-file-doc-md className="text-sm text-ink"><Md text={chunks.join('')} doc fences /></div>
         : chunks.map((chunk, i) => <pre key={i} className="font-mono text-[12px] leading-5 break-words whitespace-pre-wrap text-ink">{chunk}</pre>)}
       {more && <button type="button" data-file-doc-more className={cn(BUTTON, 'mt-2')} onClick={() => setShown(n => n + 1)}>Show more</button>}
     </div>

@@ -63,12 +63,25 @@ export function newlineOf(text) {
 // PREVIEW_CHARS in all; the rest stays in the stored original (Download) and the card says how much is shown.
 export const CHUNK = 64 * 1024;
 export const PREVIEW_CHARS = 2 * 1024 * 1024;
-export function textChunks(text, limit = PREVIEW_CHARS, size = CHUNK) {
+// fences (Markdown): a chunk never ends inside a ``` block; one that would is extended to the line that closes the fence (to the
+// preview bound at most). A fence that never closes is left alone: the cut stays where it fell.
+const FENCE_LINE = /^[ \t]*```.*$/gm;
+function closeFence(text, at, to, end) {
+  const inside = (text.slice(at, to).match(FENCE_LINE) || []).length % 2 === 1;
+  if (!inside) return to;
+  FENCE_LINE.lastIndex = 0;
+  const rest = text.slice(0, end);
+  FENCE_LINE.lastIndex = to;
+  const closing = FENCE_LINE.exec(rest);
+  return closing ? Math.min(end, closing.index + closing[0].length + 1) : to;
+}
+export function textChunks(text, limit = PREVIEW_CHARS, size = CHUNK, { fences = false } = {}) {
   const end = Math.min(text.length, limit);
   const chunks = [];
   for (let at = 0; at < end;) {
     let to = Math.min(end, at + size);
     if (to < end) { const line = text.lastIndexOf('\n', to); if (line > at + size / 2) to = line + 1; }
+    if (fences && to < end) to = closeFence(text, at, to, end);
     chunks.push(text.slice(at, to));
     at = to;
   }

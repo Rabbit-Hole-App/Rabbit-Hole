@@ -151,3 +151,34 @@ test('a malformed answer_meta never takes the page down: bad records are skipped
   assert.equal(B.renderToStaticMarkup(boundary.render()), '<div data-answer="true" class="min-w-0 whitespace-pre-wrap text-sm">Plain **answer**</div>');
   assert.match(read('ChatMessages.jsx'), /<AnswerBoundary key=\{m\.messageId \?\? i\} text=\{m\.content\}>\n\s*<div data-answer className="group\/answer min-w-0">/);
 });
+
+// Rich fences (a file card's Markdown, Md `fences`): math, latex and tex fences are display math, a mermaid fence is the diagram,
+// every other fence stays code; without `fences` (a chat answer) nothing changes.
+const FENCES = '```math\nE = mc^2\n```\n\n```latex\n\frac{a}{b}\n```\n\n```tex\n\sqrt{x}\n```\n\n```mermaid\ngraph TD; A-->B\n```\n\n```python\nprint(1)\n```';
+test('fences: math, latex and tex render as display math, mermaid as the diagram, a plain fence stays code', () => {
+  const html = md(FENCES, { doc: true, fences: true });
+  assert.equal((html.match(/data-chat-math="display"/g) || []).length, 3, 'three display formulas');
+  assert.match(html, /katex-display|class="katex"/);
+  assert.equal((html.match(/data-md-diagram/g) || []).length, 1, 'one diagram');
+  assert.equal((html.match(/data-code-block/g) || []).length, 2, 'the diagram keeps the code block\'s Copy, and the python fence is code');
+  assert.match(html, /data-mermaid/);
+  assert.ok(visible(html).includes('print(1)'), 'the python fence keeps its source');
+  assert.equal((html.match(/<code/g) || []).length, 0);
+});
+test('fences: a bad formula shows KaTeX\'s own error and does not throw', () => {
+  const html = md('```math\n\frac{\n```', { doc: true, fences: true });
+  assert.match(html, /data-chat-math="display"/);
+  assert.match(html, /katex-error|ParseError|color:#cc0000/);
+});
+test('fences: without the prop (a chat answer, doc or not) every fence is code, as before', () => {
+  for (const props of [{}, { doc: true }]) {
+    const html = md(FENCES, props);
+    assert.equal((html.match(/data-code-block/g) || []).length, 5, JSON.stringify(props));
+    assert.ok(!html.includes('data-chat-math') && !html.includes('data-md-diagram'));
+  }
+});
+test('fences: an unclosed math fence (still streaming) stays a growing code block', () => {
+  const html = md('```math\nE = mc^2', { doc: true, fences: true });
+  assert.equal((html.match(/data-code-block/g) || []).length, 1);
+  assert.ok(!html.includes('data-chat-math'));
+});
