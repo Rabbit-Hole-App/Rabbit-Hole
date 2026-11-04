@@ -6,7 +6,7 @@
 // afterwards:  node scripts/animation/ladder-smoke.mjs mvp3 --live-only --origin https://rabbit-hole-web-dev-<worktree>.tryrabbithole.workers.dev
 //
 //   node scripts/animation/ladder-smoke.mjs <mvp2b|mvp3|mvp4|mvp5> [--sha <40hex>] [--origin <url>] [--cookie-file <file>] [--stack <persist dir>]
-//        [--gate2-result <Gate 2 result json or folder>] [--browser] [--strict] [--require-live] [--require-browser] [--live-only] [--config <json>] [--gate2-args "<flags of sgd-qualify --check>"]
+//        [--gate2-result <Gate 2 result json or folder> | --gate2-pending] [--browser] [--strict] [--require-live] [--require-browser] [--live-only] [--config <json>] [--gate2-args "<flags of sgd-qualify --check>"]
 // SKIP is never a PASS. Reasons: missing (an optional file or test that is not in this candidate; --strict fails it), live (no --origin;
 // --require-live fails it), browser (the browser check was not run; --require-browser fails it). No model call, no write, no deploy.
 import { spawnSync } from 'node:child_process';
@@ -76,6 +76,8 @@ const handlers = {
   // to a frozen file (the release candidate is the tested one plus only the copy and claim commit, scripts and docs).
   gate2: (item, ctx) => {
     const target = ctx.opts.gate2Result;
+    // --gate2-pending: Gate 2 is still running, so this run is reported PENDING (exit 3, never a release pass) instead of failing on the absent table
+    if (!target && ctx.opts.gate2Pending) return { status: 'SKIP', skip: 'pending', detail: 'PENDING: Gate 2 has not finished, so its result is NOT checked by this run and this run is NOT a release pass. Rerun without --gate2-pending and with --gate2-result when the table exists' };
     if (!target) return { status: 'SKIP', skip: 'missing', detail: 'no --gate2-result <result-*.json or its folder>: the recorded Gate 2 table of the frozen candidate is the MVP5 smoke input' };
     let file = target;
     if (!/\.json$/.test(target)) {
@@ -198,7 +200,7 @@ export async function runSmoke(slice, opts = {}, io = realIo) {
   if (!SLICES.includes(slice) || !config[slice]) throw new Error(`slice must be one of ${SLICES.join(', ')}`);
   const vars = { flags: config.flags, golden: config.golden, stack: opts.stack, origin: opts.origin, sha: opts.sha, gate2args: opts.gate2Args?.split(/\s+/).filter(Boolean) };
   const ctx = { io, opts, vars: Object.fromEntries(Object.entries(vars).filter(([, v]) => v !== undefined)) };
-  const lines = [], counts = { PASS: 0, FAIL: 0, SKIP: 0, INFO: 0 }, fatal = [];
+  const lines = [], counts = { PASS: 0, FAIL: 0, SKIP: 0, INFO: 0 }, fatal = [], pending = [];
   const say = (status, id, text) => lines.push(`${status.padEnd(4)} ${id}: ${text}`);
   const head = io.head();
   lines.push(`ladder smoke ${slice}: ${config[slice].title}; checkout ${head ? head.slice(0, 12) : 'unknown'}`);
@@ -210,19 +212,23 @@ export async function runSmoke(slice, opts = {}, io = realIo) {
     try { r = await handlers[item.kind](item, ctx); } catch (e) { r = { status: 'FAIL', detail: `the check itself failed: ${e.message}` }; }
     counts[r.status]++;
     const reason = r.skip ? `[${r.skip}]` : '';
+    if (r.skip === 'pending') pending.push(item.id);
     if (r.status === 'SKIP' && ((r.skip === 'missing' && opts.strict) || (r.skip === 'live' && opts.requireLive) || (r.skip === 'browser' && opts.requireBrowser))) { fatal.push(item.id); }
     say(r.status, `${item.id}${reason}`, `${item.label} | ${r.detail}`);
   }
   const failed = counts.FAIL + fatal.length > 0;
   if (counts.SKIP) lines.push(`SKIPPED ITEMS ARE NOT PASSES (${counts.SKIP}): read the SKIP lines above${fatal.length ? `; ${fatal.join(', ')} are required by your flags and count as FAIL` : ''}`);
-  lines.push(`SMOKE ${slice} ${failed ? 'FAIL' : counts.SKIP ? 'PASS WITH SKIPS' : 'PASS'}: ${counts.PASS} pass, ${counts.FAIL + fatal.length} fail, ${counts.SKIP - fatal.length} skip`);
-  return { lines, counts, code: failed ? 1 : 0 };
+  if (opts.liveOnly) lines.push('LIVE ITEMS ONLY: the local list (tests, built bundle, harness) and the Gate 2 result are NOT part of this run; this is not a release pass');
+  const verdict = failed ? 'FAIL' : pending.length ? 'PENDING GATE 2 (not a release pass)' : opts.liveOnly ? 'LIVE ITEMS ONLY (not a release pass)' : counts.SKIP ? 'PASS WITH SKIPS' : 'PASS';
+  lines.push(`SMOKE ${slice} ${verdict}: ${counts.PASS} pass, ${counts.FAIL + fatal.length} fail, ${counts.SKIP - fatal.length} skip`);
+  // exit 0 pass, 1 fail, 3 no failure but Gate 2 pending: a pending run can never be taken for the fast path's --smoke pass
+  return { lines, counts, code: failed ? 1 : pending.length ? 3 : 0 };
 }
 
 export function parseArgs(argv) {
   const [slice, ...rest] = argv, o = { slice };
   const value = new Set(['--sha', '--origin', '--cookie-file', '--stack', '--config', '--gate2-args', '--gate2-result']);
-  const flag = { '--browser': 'browser', '--strict': 'strict', '--require-live': 'requireLive', '--require-browser': 'requireBrowser', '--live-only': 'liveOnly' };
+  const flag = { '--browser': 'browser', '--strict': 'strict', '--require-live': 'requireLive', '--require-browser': 'requireBrowser', '--live-only': 'liveOnly', '--gate2-pending': 'gate2Pending' };
   for (let i = 0; i < rest.length; i++) {
     if (value.has(rest[i])) { const v = rest[++i]; if (v === undefined) throw new Error(`${rest[i - 1]} needs a value`); o[rest[i - 1].slice(2).replace(/-(\w)/g, (_, c) => c.toUpperCase())] = v; } else if (flag[rest[i]]) o[flag[rest[i]]] = true; else throw new Error(`unknown argument ${rest[i]}`);
   }
