@@ -54,18 +54,23 @@ repairs, accepted or not. **No retry beyond the product's own automatic one**: t
 | Candidate | What it is | What runs on it |
 |---|---|---|
 | **C3** | the frozen candidate that holds MVP2b and MVP3 | **Gate 1** (lane (d)'s harness, author-only) on C3's preview. The Gate 1 table records three identities: the C3 SHA, the prompt-files hash and the golden-artifact hash |
-| **C4** | C3 plus the AN-20 prompt commits | **Gate 2** (this script) on C4's preview. Gate 2 starts the moment C4's preview is up; Parallel deploys it and announces the batch size and cost |
-| **C5** | C4 plus **only** a copy and claim-list commit, and scripts and docs | the release candidate, on the fast path (plan 13.4; the owner sets `MVP_ALLOWED_SHA` to C5 and runs the `!` command) |
+| **C4** | C3 plus the AN-20 prompt commits plus the product copy-and-claim commit (below) | **Gate 2** (this script) on C4's preview. Gate 2 starts the moment C4's preview is up; Parallel deploys it and announces the batch size and cost |
+| **C5** | **C5 = C4**, plus scripts and docs only | the release candidate, on the fast path (plan 13.4; the owner sets `MVP_ALLOWED_SHA` to C5 and runs the `!` command) |
 
 - **Both gates must pass.** If Gate 1 or Gate 2 fails, the whole candidate is held: nothing is released and the SGD claim stays out. There is no
   partial release of MVP2b, MVP3 or MVP4 on its own.
 - **Gate 2 compares C4 against Gate 1's three identities** (the next section): the Gate 1 candidate (C3) SHA must be an ancestor of C4, and C4's
   prompt-files hash and golden-artifact hash must equal the recorded ones. Any difference means Gate 1 reruns on the real candidate.
-- **C5 is C4 plus only** MVP5's product slice (remove the "not yet supported" copy, add the loss-surface line to the claimed capabilities), which is
-  copy and claim-list work, plus scripts and docs (this lane's files, the checklist, the spend rows). If C5 touches `contract.js`, `scene.js`, the
-  prompts, the capture text, the golden artifact or any file the identity check hashes, it is not C5: the gate it was in restarts. (Explore Top is not
-  part of AN-21; it rides in MVP2a.)
-- The receipt names C3, C4 and C5, lists the files changed between C4 and C5, the Gate 1 table, the Gate 2 table (job ids, credits) and the fast-path
+- **C5 = C4 (owner).** MVP5's product slice is in the tree **before** the gates, because it ships only if both gates pass, so carrying it costs
+  nothing. It is one plain commit on branch `feat/an21-copy` (three files: `packages/web/src/agent/slash.js`, its test `slash.test.mjs`, and the
+  step that pins the line in `packages/web/e2e/animation-mvp-check.mjs`): it removes "Loss surfaces and optimizers are not supported yet." from the
+  `/animation` description and puts in its place the single sentence "Also draws gradient descent on a loss surface, with a marker and its path."
+  The claim is deliberately gradient descent on a loss surface, not optimizers in general: Gate 2's control (the 2 sigma problem of optimizers) must
+  not become SGD. After the gates only scripts and docs (this lane's files, the checklist, the spend rows) may be added. If C5 touches `contract.js`,
+  `scene.js`, `framing.js`, `capabilities.js`, `review.js`, `renderer.js`, `session.js`, the golden artifact, `agents/**`, the animation brief, author,
+  review or render modules, or any file the identity check hashes, it is not C5: the gate it was in restarts. (Explore Top is not part of AN-21; it
+  rides in MVP2a.)
+- The receipt names C3 and C4 (= C5), the Gate 1 table, the Gate 2 table (job ids, credits) and the fast-path
   evidence of plan 13.4 for C5: successful build, affected tests, the focused smoke (lane (g)'s combined smoke reads `gate2-result.json`, below),
   exact commit and build identity, correct target, a recovery path. Broad checks that the fast path bypasses are recorded as bypassed, never as passed.
 - After the release: the owner's one real SGD request in production (`post-release-verify.mjs`), and the weekly canary below.
