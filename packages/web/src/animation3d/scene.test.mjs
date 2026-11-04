@@ -488,3 +488,21 @@ test('the golden SGD arrows keep their tails at the offset whatever length a fra
   }
   scene.dispose();
 });
+
+// FX-AN-092: a lit tube needs vertex normals; with none, MeshStandardMaterial draws it pure black. Every vertex of the drawn rings has a unit normal pointing away from the path.
+test('a trail tube has a unit normal on every drawn vertex, pointing out from its path; a ghost too', () => {
+  const scene = built();
+  scene.apply({ nodes: { trail: { points: trailPoints(21) }, ghost: { points: [[0, 1, 0], [1, 1, 0], [1, 1, 1], [1, 1, 1], [0, 1, 1]] } } }); // the ghost turns a corner and repeats a point
+  for (const [id, count] of [['trail', 21], ['ghost', 5]]) {
+    const geometry = drawn(scene, id).geometry, normal = geometry.attributes.normal, position = geometry.attributes.position;
+    assert.ok(normal && normal.itemSize === 3 && normal.count === position.count, `${id} has a normal for every vertex`);
+    for (let i = 0; i < count * 8; i += 1) {
+      const n = new THREE.Vector3().fromBufferAttribute(normal, i);
+      assert.ok(Math.abs(n.length() - 1) < 1e-5, `${id} vertex ${i}: normal length ${n.length()}`);
+    }
+  }
+  const geometry = drawn(scene, 'trail').geometry, ring = i => Array.from({ length: 8 }, (_, s) => new THREE.Vector3().fromBufferAttribute(geometry.attributes.position, i * 8 + s));
+  const centre = ring(5).reduce((sum, v) => sum.add(v), new THREE.Vector3()).divideScalar(8);
+  ring(5).forEach((vertex, s) => assert.ok(new THREE.Vector3().fromBufferAttribute(geometry.attributes.normal, 5 * 8 + s).dot(vertex.clone().sub(centre)) > 0, `ring 5 vertex ${s} faces out`));
+  scene.dispose();
+});
