@@ -150,12 +150,15 @@ test('the shipped ladder-smoke.json: four slices, unique ids, known kinds, and e
   const config = JSON.parse(readFileSync(join(HERE, 'ladder-smoke.json'), 'utf8'));
   assert.deepEqual(config.flags, LADDER_FEATURES);
   const kinds = new Set(['note', 'exists', 'tests', 'script', 'bundle', 'copy', 'route', 'browser']);
+  const lands = Object.values(config.landsWith).flat(); // required files that arrive with a lane that is not on main yet
+  for (const p of lands) assert.equal(existsSync(join(ROOT, p)), false, `${p} is in main now: remove it from landsWith`);
   for (const slice of SLICES) {
     const ids = config[slice].items.map(i => i.id);
     assert.equal(new Set(ids).size, ids.length, `${slice}: ids unique`);
     for (const item of config[slice].items) {
       assert.ok(kinds.has(item.kind), `${slice}.${item.id}: kind ${item.kind}`);
-      if (item.kind === 'tests' && !item.optional) for (const f of item.files) if (!f.includes('*')) assert.ok(existsSync(join(ROOT, item.cwd, f)), `${slice}.${item.id}: ${item.cwd}/${f} must exist (or mark the item optional until its lane lands it)`);
+      const required = item.kind === 'tests' && !item.optional ? item.files.filter(f => !f.includes('*')).map(f => `${item.cwd}/${f}`.replace(/^\.\//, '')) : item.kind === 'exists' ? item.paths.map(p => p.replace('${golden}', config.golden)) : [];
+      for (const p of required) assert.ok(existsSync(join(ROOT, p)) || lands.includes(p), `${slice}.${item.id}: ${p} must exist (or be listed in landsWith with its lane, or mark the item optional)`);
     }
   }
   assert.ok(config.mvp3.items.some(i => i.id === 'old-client-409'), 'MVP3 always includes the old-client 409 path');
@@ -186,4 +189,14 @@ test('bundle probe: walks a built directory, finds the card chunk and the declar
     const none = await probeBundle({ read: dirReader(join(dir, 'missing')), entry: 'index.html' });
     assert.equal(none.noEntry, true);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('script items: ${gate2args} expands to separate arguments, and the item is a SKIP without --gate2-args', async () => {
+  const items = [{ id: 'g', label: 'gate2 check', kind: 'script', cmd: 'node', args: ['q.mjs', '--check', '${gate2args}'], file: 'q.mjs' }];
+  const io = fakeIo({ files: ['/r/q.mjs'] });
+  let r = await run(items, { gate2Args: '--base https://x --cap 10' }, io);
+  assert.equal(r.code, 0); assert.deepEqual(io.runs[0].args, ['q.mjs', '--check', '--base', 'https://x', '--cap', '10']);
+  r = await run(items, {}, fakeIo({ files: ['/r/q.mjs'] }));
+  assert.match(line(r, 'g[live]'), /^SKIP.*needs \$\{gate2args\}/);
+  assert.equal(parseArgs(['mvp5', '--gate2-args', '--base x']).gate2Args, '--base x');
 });

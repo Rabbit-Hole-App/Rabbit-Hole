@@ -4,11 +4,12 @@
 //   node recovery-steps.mjs apply --slice mvp3 --recipes <json> --cand <sha> --prev <sha>      prints one "TOUCHED <path>" line per file
 //   node recovery-steps.mjs message|allow --slice mvp3 --recipes <json>                       prints the commit message / the allow globs
 //   node recovery-steps.mjs check --slice mvp3 --recipes <json>  < paths                      prints every path (stdin, one per line) the recipe does not allow; exit 1 if any
+//   node recovery-steps.mjs release-check --cand <sha> --tip <sha>                          asks the tree's own prod-release.mjs checkCandidate to release the tip over the candidate
 //   node recovery-steps.mjs verify --slice mvp3 --recipes <json>                              runs the recipe's node --test sets in this tree; a set that runs 0 tests fails
 // Step ops (all exact, none silent):
 //   replace          {file, pattern, with}   the regular expression must match exactly once; $1.. are the capture groups
 //   restore          {paths[]}               each path goes back to its text at PREV; a path that did not exist at PREV is removed
-//   restoreMatching  {under[], suffix?[], candMatches?, prevMatches?, required?}
+//   restoreMatching  {under[], suffix?[], candMatches?, prevMatches?, required?, added?}   (added: only files the candidate added, which are removed)
 //                    every file changed between PREV and the candidate under a listed prefix, and (when given) whose text at the candidate
 //                    matches candMatches or whose text at PREV matches prevMatches, goes back to PREV (or is removed when added since)
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -46,7 +47,8 @@ export function applyRecipe(recipe, { cand, prev, cwd = process.cwd() }) {
       }
     } else if (step.op === 'restoreMatching') {
       const cm = step.candMatches && new RegExp(step.candMatches, 'i'), pm = step.prevMatches && new RegExp(step.prevMatches, 'i');
-      const hits = diff().filter(({ path }) => step.under.some(u => path === u || path.startsWith(u.endsWith('/') ? u : `${u}/`)) && (!step.suffix || step.suffix.some(s => path.endsWith(s))))
+      const hits = diff().filter(({ status }) => !step.added || status === 'A') // added: only files the candidate ADDED (they are removed)
+        .filter(({ path }) => step.under.some(u => path === u || path.startsWith(u.endsWith('/') ? u : `${u}/`)) && (!step.suffix || step.suffix.some(s => path.endsWith(s))))
         .filter(({ status, path }) => !cm && !pm || (cm && status !== 'D' && cm.test(show(cand, path) ?? '')) || (pm && status !== 'A' && pm.test(show(prev, path) ?? '')));
       if (step.required && !hits.length) throw new Error(`${where}: no changed file under ${step.under.join(', ')} matches ${step.candMatches ?? step.prevMatches}; the candidate does not contain what this recovery undoes (wrong --prev, or the recipe is stale)`);
       hits.forEach(h => restoreOne(h.path));
@@ -57,6 +59,19 @@ export function applyRecipe(recipe, { cand, prev, cwd = process.cwd() }) {
   const list = git('diff', '--cached', '--name-only').split('\n').filter(Boolean).sort();
   if (!list.length) throw new Error('the recipe changes nothing: the candidate already matches the previous release for these files');
   return list;
+}
+
+// Would the real release check accept the recovery tip as a release over the served candidate? scripts/prod-release.mjs checkCandidate (loaded from the
+// current tree, which is the recovery branch) refuses a tree that stops declaring a client feature the served release declares. The feature reader is the
+// same regular expression prod-release.mjs uses (its local clientFeatures). -> { ok } | { ok: false, message } | { skipped }
+export async function releaseCheck({ cand, tip, cwd = process.cwd() }) {
+  const file = resolve(cwd, 'scripts/prod-release.mjs');
+  if (!existsSync(file)) return { skipped: 'no scripts/prod-release.mjs in this tree' };
+  const { checkCandidate } = await import(pathToFileURL(file).href);
+  const features = rev => { try { return [...git('show', `${rev}:packages/web/src/animation3d/capabilities.js`).matchAll(/ANIMATION_CLIENT_FEATURES\s*=\s*Object\.freeze\(\[([^\]]*)\]/g)].flatMap(m => [...m[1].matchAll(/'([a-z_]+)'/g)].map(x => x[1])); } catch { return null; } };
+  const isAncestor = (a, b) => { try { git('merge-base', '--is-ancestor', a, b); return true; } catch { return false; } };
+  const verdict = checkCandidate({ sha: tip, mainTip: tip, cp: { sha12: cand.slice(0, 12) }, app: { sha12: cand.slice(0, 12) }, isAncestor, clientFeatures: features });
+  return verdict === null ? { ok: true } : { ok: false, message: verdict.noop ?? String(verdict) };
 }
 
 // The recipe's own tests, run on the recovery branch itself so a broken cut is found when it is cut, not when it is needed.
@@ -82,6 +97,12 @@ if (isMain) {
       const bad = readFileSync(0, 'utf8').split('\n').filter(Boolean).filter(p => !allowed(p, recipe.allow));
       if (bad.length) { console.log(bad.join('\n')); process.exit(1); }
     } else if (cmd === 'verify') verifyTests(recipe);
-    else throw new Error('usage: recovery-steps.mjs apply|allow|message|check|verify --slice <s> --recipes <json> [--cand <sha> --prev <sha>]');
+    else if (cmd === 'release-check') {
+      const r = await releaseCheck({ cand: arg('--cand'), tip: arg('--tip') });
+      if (r.skipped) console.log(`skipped (${r.skipped})`);
+      else if (r.ok) console.log(`checkCandidate accepts ${arg('--tip').slice(0, 12)} as a release over the served ${arg('--cand').slice(0, 12)}`);
+      else { console.log(r.message); process.exit(1); }
+    }
+    else throw new Error('usage: recovery-steps.mjs apply|allow|message|check|verify|release-check --slice <s> --recipes <json> [--cand <sha> --prev <sha>]');
   } catch (e) { console.error(`STOP: ${e.message}`); process.exit(1); }
 }

@@ -24,7 +24,8 @@ const GOLDEN = process.env.LADDER_GOLDEN || 'packages/web/src/animation3d/testda
 const goldenPath = isAbsolute(GOLDEN) ? GOLDEN : resolve(ROOT, GOLDEN);
 const ALL = [...ANIMATION_CLIENT_FEATURES];
 const BASE = ALL.filter(f => !FLAGS.includes(f)); // what the build before MVP3 declares
-const golden = existsSync(goldenPath) ? JSON.parse(readFileSync(goldenPath, 'utf8')) : null;
+const raw = existsSync(goldenPath) ? JSON.parse(readFileSync(goldenPath, 'utf8')) : null;
+const golden = raw && (raw.artifact ?? raw); // sgd-golden.json wraps the artifact: { note, plan, artifact }
 
 // A stack holding one saved result and the browser's fetch for it (animation-old-client.test.js stackWith, same shape).
 async function stackWith(t, artifact) {

@@ -78,10 +78,12 @@ DIFF=$(git diff --name-only "$CAND" "$BRANCH" | sort)
 [ -n "$DIFF" ] || die "$BRANCH changes nothing against the candidate"
 BAD=$(printf '%s\n' "$DIFF" | $STEPS check --slice "$SLICE" --recipes "$RECIPES") || die "the diff against the candidate touches files outside the $SLICE allow list: $(echo $BAD)"
 [ -z "$TOUCHED" ] || [ "$DIFF" = "$TOUCHED" ] || die "the diff against the candidate is not exactly what the recipe touched (recipe: $(echo $TOUCHED); diff: $(echo $DIFF))"
+git switch -q "$BRANCH" 2>/dev/null || true
 if [ "$VERIFY" = 1 ]; then
-  git switch -q "$BRANCH" 2>/dev/null || true
   $STEPS verify --slice "$SLICE" --recipes "$RECIPES" || die "the recipe's tests fail on the recovery branch (see above)"
 fi
+# the real release check, from the recovery branch's own scripts/prod-release.mjs: would it release this tip over the served candidate?
+RELCHECK=$($STEPS release-check --slice "$SLICE" --recipes "$RECIPES" --cand "$CAND" --tip "$TIP") || die "scripts/prod-release.mjs checkCandidate would REFUSE this recovery: $RELCHECK"
 git switch -q "$ORIG" 2>/dev/null || git checkout -q "$ORIG"
 
 PUSHED=no
@@ -103,6 +105,6 @@ echo "RECOVERY BRANCH $BRANCH @ $TIP"
 echo "  slice $SLICE: $SWITCH"
 echo "  contains candidate ${CAND:0:12}; strict descendant; previous release ${PREV:0:12}"
 echo "  diff against the candidate: $(printf '%s\n' "$DIFF" | wc -l | tr -d ' ') file(s): $(echo $DIFF)"
-echo "  recipe tests: $([ "$VERIFY" = 1 ] && echo passed || echo SKIPPED --no-verify); pushed: $PUSHED"
+echo "  recipe tests: $([ "$VERIFY" = 1 ] && echo passed || echo SKIPPED --no-verify); release check: $RELCHECK; pushed: $PUSHED"
 [ "$PUSHED" != no ] || echo "  not pushed. mvp-fast-path --recovery needs it on $REMOTE: rerun with --push"
 echo "RECOVERY READY ($SLICE): pass --recovery $BRANCH to the mvp preview"

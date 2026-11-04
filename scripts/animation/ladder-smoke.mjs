@@ -6,7 +6,7 @@
 // afterwards:  node scripts/animation/ladder-smoke.mjs mvp3 --live-only --origin https://rabbit-hole-web-dev-<worktree>.tryrabbithole.workers.dev
 //
 //   node scripts/animation/ladder-smoke.mjs <mvp2b|mvp3|mvp4|mvp5> [--sha <40hex>] [--origin <url>] [--cookie-file <file>] [--stack <persist dir>]
-//        [--browser] [--strict] [--require-live] [--require-browser] [--live-only] [--config <json>]
+//        [--browser] [--strict] [--require-live] [--require-browser] [--live-only] [--config <json>] [--gate2-args "<flags of sgd-qualify --check>"]
 // SKIP is never a PASS. Reasons: missing (an optional file or test that is not in this candidate; --strict fails it), live (no --origin;
 // --require-live fails it), browser (the browser check was not run; --require-browser fails it). No model call, no write, no deploy.
 import { spawnSync } from 'node:child_process';
@@ -88,7 +88,7 @@ const handlers = {
 
   script: (item, ctx) => {
     if (item.file && !ctx.io.exists(join(ctx.io.root, item.file))) return { status: 'SKIP', skip: 'missing', detail: `${item.file} is not in this candidate` };
-    const args = item.args.map(a => fill(a, ctx.vars));
+    const args = item.args.flatMap(a => { const v = fill(a, ctx.vars); return Array.isArray(v) ? v : [v]; });
     const need = unresolved(args);
     if (need) return { status: 'SKIP', skip: 'live', detail: `needs ${need} on the command line` };
     const r = ctx.io.run(item.cmd, args, { cwd: ctx.io.root, env: item.env });
@@ -142,7 +142,7 @@ const handlers = {
 export async function runSmoke(slice, opts = {}, io = realIo) {
   const config = opts.config ?? JSON.parse(readFileSync(opts.configPath ?? join(HERE, 'ladder-smoke.json'), 'utf8'));
   if (!SLICES.includes(slice) || !config[slice]) throw new Error(`slice must be one of ${SLICES.join(', ')}`);
-  const vars = { flags: config.flags, golden: config.golden, stack: opts.stack, origin: opts.origin, sha: opts.sha };
+  const vars = { flags: config.flags, golden: config.golden, stack: opts.stack, origin: opts.origin, sha: opts.sha, gate2args: opts.gate2Args?.split(/\s+/).filter(Boolean) };
   const ctx = { io, opts, vars: Object.fromEntries(Object.entries(vars).filter(([, v]) => v !== undefined)) };
   const lines = [], counts = { PASS: 0, FAIL: 0, SKIP: 0, INFO: 0 }, fatal = [];
   const say = (status, id, text) => lines.push(`${status.padEnd(4)} ${id}: ${text}`);
@@ -167,7 +167,7 @@ export async function runSmoke(slice, opts = {}, io = realIo) {
 
 export function parseArgs(argv) {
   const [slice, ...rest] = argv, o = { slice };
-  const value = new Set(['--sha', '--origin', '--cookie-file', '--stack', '--config']);
+  const value = new Set(['--sha', '--origin', '--cookie-file', '--stack', '--config', '--gate2-args']);
   const flag = { '--browser': 'browser', '--strict': 'strict', '--require-live': 'requireLive', '--require-browser': 'requireBrowser', '--live-only': 'liveOnly' };
   for (let i = 0; i < rest.length; i++) {
     if (value.has(rest[i])) { const v = rest[++i]; if (v === undefined) throw new Error(`${rest[i - 1]} needs a value`); o[rest[i - 1].slice(2).replace(/-(\w)/g, (_, c) => c.toUpperCase())] = v; } else if (flag[rest[i]]) o[flag[rest[i]]] = true; else throw new Error(`unknown argument ${rest[i]}`);

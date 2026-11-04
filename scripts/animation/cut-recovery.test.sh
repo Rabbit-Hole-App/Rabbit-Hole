@@ -16,7 +16,9 @@ git init -q -b main "$W" && git init -q --bare -b main "$R"
 cd "$W"; git config user.name harness; git config user.email harness@example.test; git remote add rabbit-hole "$R"
 F=packages/web/src/animation3d/capabilities.js; CT=packages/web/src/animation3d/client.test.mjs; OC=packages/control-plane/test/animation-old-client.test.js
 PA=packages/control-plane/src/agents/animation-author.js; PB=packages/control-plane/src/agents/animation-brief.js; FIT=packages/control-plane/test/animation-fit.test.js
-UI=packages/web/src/Animation3DCard.jsx; E2E=packages/web/e2e/animation-mvp-check.mjs; ASK=packages/control-plane/src/ask.js; ST=packages/control-plane/test/animation-stream.test.js
+UI=packages/web/src/Animation3DCard.jsx; E2E=packages/web/e2e/animation-mvp-check.mjs
+BR=packages/control-plane/src/animation-brief.js; CF=packages/control-plane/test/animation-client-features.test.js
+WR=packages/web/wrangler.rabbit-hole-prod.jsonc; PC=packages/control-plane/test/rabbit-hole-prod-config.test.js
 UN=packages/web/src/unrelated.js
 w() { mkdir -p "$(dirname "$1")"; printf '%s\n' "$2" > "$1"; }
 # ---- previous release (PREV) ----
@@ -28,7 +30,15 @@ w $PB "export const ANIMATION_BRIEF_SYSTEM = 'planner v1';"
 w $FIT "// pins prompt v1"
 w $UI "const copy = 'Works best for mechanisms, loops and small games; loss surfaces and optimizers are not supported yet.';"
 w $E2E "// copy step: loss surfaces and optimizers are not supported yet"
-w $ASK "export const transport = () => fetch(url, { body });"
+w $BR "export const clientFeatures = value => (Array.isArray(value) ? ANIMATION_CLIENT_FEATURES.filter(f => value.includes(f)) : []);"
+w $WR '{ "vars": {
+    "ANIMATION_ENABLED": "true",
+    "ANIMATION_EXECUTION_KILL": "false",
+    "IMAGE_GENERATE_ENABLED": "true" } }'
+w $PC "assert.deepEqual(Object.keys(app.vars).filter(k => k.startsWith('ANIMATION_')).sort(), ['ANIMATION_ENABLED', 'ANIMATION_EXECUTION_KILL'], 'no ANIMATION_DIAGNOSTICS or other Animation var');"
+# the REAL checkCandidate, extracted from this repository's scripts/prod-release.mjs, stands in for the tree's own release check
+mkdir -p scripts; { echo "// extracted from the real scripts/prod-release.mjs"; sed -n '/^export function checkCandidate/,/^}/p' "$HERE/../prod-release.mjs"; } > scripts/prod-release.mjs
+grep -q "stored scenes that use it would stop opening" scripts/prod-release.mjs || { echo "could not extract checkCandidate"; exit 2; }
 w $UN "export const a = 1;"
 w packages/web/src/same.js "export const s = 1;"
 git add -A && git commit -q -m prev && PREV=$(git rev-parse HEAD)
@@ -42,8 +52,7 @@ w $PB "export const ANIMATION_BRIEF_SYSTEM = 'planner v2';"
 w $FIT "// pins prompt v2"
 w $UI "const copy = 'Works best for mechanisms, loops, small games and loss surfaces.';"
 w $E2E "// copy step: loss surfaces are claimed"
-w $ASK "export const transport = () => fetch(url, { body, stream: true });"
-w $ST "// streaming: stream: true accumulates the events"
+w $CF "// pins ANIMATION_CLIENT_FEATURES: the server keeps the five it knows"
 w $UN "export const a = 2; // unrelated change in the candidate"
 git add -A && git commit -q -m cand && CAND=$(git rev-parse HEAD)
 START=$(git rev-parse --abbrev-ref HEAD)
@@ -57,8 +66,11 @@ echo "== each slice with the shipped recipes"
 CUT mvp3 $CAND --prev $PREV --no-verify
 B=recovery/animation-mvp3-${CAND:0:8}
 [ $RC -eq 0 ] && has "RECOVERY READY (mvp3)" && ok "mvp3 cut" || { bad "mvp3 cut (rc=$RC)"; echo "$OUT" | tail -5; }
-[ "$(files $B)" = "$(printf '%s\n' $F $CT $OC | sort | tr '\n' ' ')" ] && ok "mvp3 diff is exactly capabilities.js and the two tests that pinned the list" || bad "mvp3 diff: $(files $B)"
-git show $B:$F | grep -q "Object.freeze(\['curve_radius', 'action_motion'\])" && ! git show $B:$F | grep -q surface_grid && ok "mvp3: the five flags are out of the declared registry" || bad "mvp3 registry"
+[ "$(files $B)" = "$(printf '%s\n' $BR $CF | sort | tr '\n' ' ')" ] && ok "mvp3 diff is exactly animation-brief.js and the test file the candidate added for the five" || bad "mvp3 diff: $(files $B)"
+git show $B:$BR | grep -q "value.includes(f) && !\['surface_grid', 'trail_points', 'text_readout', 'arrow_anchor', 'clamp'\].includes(f)" && ok "mvp3: the server filters the five out of any declared list" || bad "mvp3 filter"
+[ "$(git show $B:$F)" = "$(git show $CAND:$F)" ] && git show $B:$F | grep -q surface_grid && ok "mvp3: capabilities.js is untouched, the browser still declares all seven (checkCandidate keeps passing)" || bad "mvp3 registry touched"
+git cat-file -e $B:$OC 2>/dev/null && [ "$(git show $B:$OC)" = "$(git show $CAND:$OC)" ] && ok "mvp3: a test the candidate only modified keeps the candidate's text" || bad "modified test touched"
+has "checkCandidate accepts" && ok "mvp3: the real checkCandidate accepts the recovery tip over the served candidate" || bad "release check line"
 git merge-base --is-ancestor $CAND $B && [ "$(tip $B)" != "$CAND" ] && ok "mvp3: strict descendant of the candidate" || bad "mvp3 ancestry"
 [ "$(git show $B:$UN)" = "$(git show $CAND:$UN)" ] && ok "mvp3: the unrelated change in the candidate is untouched" || bad "unrelated"
 git ls-remote --heads rabbit-hole "$B" | grep -q . && bad "mvp3: pushed without --push" || ok "mvp3: nothing pushed by default"
@@ -70,7 +82,7 @@ CUT mvp4 $CAND --prev $PREV --no-verify; B4=recovery/animation-mvp4-${CAND:0:8}
 CUT mvp5 $CAND --prev $PREV --no-verify; B5=recovery/animation-mvp5-${CAND:0:8}
 [ $RC -eq 0 ] && [ "$(files $B5)" = "$(printf '%s\n' $UI $E2E | sort | tr '\n' ' ')" ] && git show $B5:$UI | grep -q "not supported yet" && ok "mvp5: the copy line is back in the card and the e2e step" || { bad "mvp5 ($RC) $(files $B5)"; echo "$OUT" | tail -3; }
 CUT mvp2b $CAND --prev $PREV --no-verify; B2=recovery/animation-mvp2b-${CAND:0:8}
-[ $RC -eq 0 ] && [ "$(files $B2)" = "$(printf '%s\n' $ASK $ST | sort | tr '\n' ' ')" ] && ! git cat-file -e $B2:$ST 2>/dev/null && git show $B2:$ASK | grep -qv "stream: true" && ok "mvp2b: ask.js non-streaming again, the streaming test removed" || { bad "mvp2b ($RC) $(files $B2)"; echo "$OUT" | tail -3; }
+[ $RC -eq 0 ] && [ "$(files $B2)" = "$(printf '%s\n' $WR $PC | sort | tr '\n' ' ')" ] && git show $B2:$WR | grep -q '"ANIMATION_STREAMING": "false"' && git show $B2:$PC | grep -q "'ANIMATION_STREAMING'\]" && ok "mvp2b: ANIMATION_STREAMING false added to the production vars and to the config test, nothing else" || { bad "mvp2b ($RC) $(files $B2)"; echo "$OUT" | tail -3; }
 back && ok "back on the starting branch after four cuts" || bad "not back after four cuts"
 
 echo "== default previous release, idempotence and push"
@@ -116,11 +128,12 @@ r.moved={...r.mvp3,steps:[{op:"replace",file:"packages/web/src/animation3d/capab
 r.nothing={...r.mvp3,steps:[{op:"restore",paths:["packages/web/src/same.js"]}],allow:["packages/web/src/same.js"]};
 r.nopath={...r.mvp3,steps:[{op:"restore",paths:["no/such/file.js"]}]};
 r.outside={...r.mvp3,steps:[{op:"restore",paths:["packages/web/src/unrelated.js"]}],allow:["packages/web/src/animation3d/*"]};
+r.naive={...r.mvp3,steps:[{op:"replace",file:"packages/web/src/animation3d/capabilities.js",pattern:"Object[.]freeze[(].*[)]",with:"Object.freeze(['curve_radius', 'action_motion'])"}],allow:["packages/web/src/animation3d/capabilities.js"],verify:[]};
 r.good={...r.mvp4,verify:[{cwd:".",files:["v/pass.test.mjs"]}]};
 r.failing={...r.mvp4,verify:[{cwd:".",files:["v/fail.test.mjs"]}]};
 fs.writeFileSync(process.argv[1],JSON.stringify(r));' "$T/r.json"
-for s in twice moved nothing nopath outside; do
-  case $s in twice) sub="matches 2 time(s)";; moved) sub="matches 0 time(s)";; nothing) sub="the recipe changes nothing";; nopath) sub="in neither the previous release nor the candidate";; outside) sub="outside the outside allow list";; esac
+for s in twice moved nothing nopath outside naive; do
+  case $s in twice) sub="matches 2 time(s)";; moved) sub="matches 0 time(s)";; nothing) sub="the recipe changes nothing";; nopath) sub="in neither the previous release nor the candidate";; outside) sub="outside the outside allow list";; naive) sub="checkCandidate would REFUSE this recovery: refused: production serves";; esac
   CUT $s $CAND --prev $PREV --recipes "$T/r.json" --no-verify
   if [ $RC -ne 0 ] && has "$sub" && ! git rev-parse -q --verify refs/heads/recovery/animation-$s-${CAND:0:8} >/dev/null && back; then ok "recipe fault '$s' stops, leaves no branch, restores the checkout"; else bad "recipe fault $s (rc=$RC)"; printf '%s\n' "$OUT" | tail -2; fi
 done
