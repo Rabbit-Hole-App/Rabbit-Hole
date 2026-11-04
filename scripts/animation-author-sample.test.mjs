@@ -178,6 +178,14 @@ test('the pinned plans are real plans: each validates under the plan contract, a
   }
 });
 
+test('the Gate 1 plan is the one the control-plane tests hold (no drift), when that fixture is in the tree', async t => {
+  const { existsSync } = await import('node:fs');
+  const fixtureUrl = new URL('../packages/control-plane/test/fixtures/animation-sgd-loss-surface-plan.json', import.meta.url);
+  if (!existsSync(fixtureUrl)) return t.skip('the prompt-only branch (which holds the fixture) is not in this tree');
+  const pinned = JSON.parse(readFileSync(new URL('./animation/plans/sgd-loss-surface.json', import.meta.url), 'utf8')).plan;
+  assert.deepEqual(pinned, JSON.parse(readFileSync(fixtureUrl, 'utf8')));
+});
+
 test('the table and the folders carry the three identities', async () => {
   const dir = tmp(), run = planRuns([pin], 2)[0], ids = { candidate: 'abc1234', prompts: 'a'.repeat(64), golden: 'b'.repeat(64) };
   const out = await sampleOnce(run, { transport: fakeTransport(fixture.repairedDraft), signal: undefined, ids });
