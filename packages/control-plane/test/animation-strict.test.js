@@ -44,7 +44,7 @@ test('the checker accepts a schema inside the documented subset and names what a
   assert.deepEqual(strictViolations(bad), { keywords: { maxLength: 1, maxItems: 1, 'minItems>1': 1, minimum: 1 }, optional: 4, unions: 1, open: 1 });
 });
 
-test('the repair tool is outside the strict subset in a way no keyword move fixes: 44 optional parameters against a limit of 24; strict is not enabled', () => {
+test('the repair tool is outside the strict subset in a way no keyword move fixes: 54 optional parameters (44 before the AN-18 contract fields) against a limit of 24; strict is not enabled', () => {
   for (const tool of [REPAIR_TOOL, repairTool({ program: true }), AUTHOR_TOOL]) {
     const found = strictViolations(tool.input_schema);
     // Strippable into descriptions (the SDK helpers' transformation), local validation kept: every one of these is rejected by the API as it stands.
@@ -53,7 +53,7 @@ test('the repair tool is outside the strict subset in a way no keyword move fixe
     assert.ok(found.optional > STRICT_LIMITS.optional, `${tool.name} has ${found.optional} optional parameters`);
     assert.ok(found.unions <= STRICT_LIMITS.unions && found.open === 0, 'unions and closed objects are inside the limits');
   }
-  assert.deepEqual([strictViolations(REPAIR_TOOL.input_schema).optional, strictViolations(repairTool({ program: true }).input_schema).optional], [45, 44]);
+  assert.deepEqual([strictViolations(REPAIR_TOOL.input_schema).optional, strictViolations(repairTool({ program: true }).input_schema).optional], [55, 54]); // [45, 44] on the MVP2b lane alone; the AN-18/AN-19 contract fields add ten optional parameters
   // So no request carries the flag: the model's reply is checked locally, as before (FX-AN-043 asks again once for a missing program).
   for (const [role, tool] of [['repair', repairTool({ program: true })], ['author', AUTHOR_TOOL]]) assert.equal('strict' in animationRequest({}, role, { system: 's', tool, content: 'x' }, TASKS).tools[0], false);
 });
