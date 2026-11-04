@@ -56,6 +56,10 @@ Name by session (the worktree directory), kebab-case: `rabbit-hole-web-dev-momen
   (or a legacy `small-cp-dev-<name>` clone you own)
 - Live (`small-cp`) is untouched by all of this and keeps its own rules.
 
+## MVP-labelled work
+
+`node scripts/mvp-fast-path.mjs preview --mvp --sha <sha> --smoke "<command>"` builds, runs the affected tests and the focused smoke, then deploys this clone as above and writes a record production can accept (owner policy, 2026-11-03; [mvp-fast-path.md](mvp-fast-path.md)). It refuses the stable preview and every non-clone name.
+
 ## Why not version preview URLs
 
 `wrangler versions upload` would be lighter (no worker sprawl, one upload per

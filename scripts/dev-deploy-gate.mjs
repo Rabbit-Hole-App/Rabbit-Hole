@@ -1,8 +1,9 @@
 // The dev workflow's gate step (.github/workflows/deploy-dev.yml): turns the pushed commit's gates note into the
 // dev-deploy.mjs arguments and runs it.
 //   node scripts/dev-deploy-gate.mjs --sha <commit> --gate <its gates note> --dev-deploys <refs/notes/dev-deploys ref> [--verify <its refs/notes/verify note>] --runs <verify-evidence.mjs runs output>
-// Always (OPS-04, owner 2026-10-21): the newest fast-e2e and verify runs of this exact commit completed successfully, or
-// nothing deploys, whether the commit has its own full gate or reuses one.
+// For every ordinary deploy (OPS-04, owner 2026-10-21; MVP-labelled work never comes through here, CLAUDE.md#mvp-fast-path):
+// the newest fast-e2e and verify runs of this exact commit completed successfully, or nothing deploys, whether the commit
+// has its own full gate or reuses one.
 // With --verify (the dev workflow always passes it): the keyless verify run's evidence must be a passing one for this
 // exact commit, tree and lockfiles (scripts/verify-evidence.mjs), or nothing deploys. Gate reuse is judged after it.
 // The note is either a full gate record of the commit's tree, or (owner 2026-10-09: reuse a gate for script-only

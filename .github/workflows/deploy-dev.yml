@@ -2,6 +2,8 @@
 # Only a commit whose gate record is attached as a git note (refs/notes/gates, pushed before dev) deploys;
 # scripts/dev-deploy.mjs checks it, deploys forward only, smoke-tests and rolls back on failure.
 # OPS-04 (owner 2026-10-21): only after the newest fast-e2e and verify runs of the exact commit completed successfully.
+# This is the ordinary path. MVP-labelled work (owner policy 2026-11-03, CLAUDE.md#mvp-fast-path) previews on its own clone with
+# scripts/mvp-fast-path.mjs and never needs this workflow; nothing here changes for it.
 name: deploy dev preview
 on:
   push:
