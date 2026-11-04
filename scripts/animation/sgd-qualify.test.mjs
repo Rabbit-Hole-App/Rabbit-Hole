@@ -10,7 +10,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONTROL, PHRASINGS, TYPICAL, classify, decide, latestPerJob, machineResult, main, parse, parseTypical, resultTable, runQualify, sgdMarkers, verdictOf } from './sgd-qualify.mjs';
 import { DRY_RUN, FAKE_GOLDEN, SCENARIOS, createFake, fakeReviewer } from './sgd-qualify-fake.mjs';
-import { loadProduct, providerReview, readManifest, relabel } from './gate2-controls.mjs';
+import { KEY_PARTS, controlsKey, loadProduct, providerReview, readManifest, relabel, rememberedPass, writeControls } from './gate2-controls.mjs';
+import { createHash } from 'node:crypto';
 
 const PRODUCT = await loadProduct(fileURLToPath(new URL('../..', import.meta.url))); // the product's own review code, from this repository's tree
 
@@ -249,9 +250,10 @@ test('command line: usage errors refuse before anything; the dry run passes agai
 });
 
 // A fetch that serves the fake preview: the cookie decides the user, so the real makeCall, sessions file and headers are exercised.
+const GOLDEN_TEXT = JSON.stringify(FAKE_GOLDEN); // the golden of the fake candidate tree; the calibration manifests pin its sha256
 // A sessions file as `dev-test-session.mjs --mint --fresh` writes it; the cookie value n is the fake preview's user n.
 const sessionsFileOf = (file, emails) => writeFileSync(file, JSON.stringify({ cookie: 'small_session', sessions: emails.map((email, i) => ({ email, value: `cookie-${i + 1}` })) }));
-function world({ mismatch = false, extraFlags = [], env = { PREVIEW_VERSION: VERSION, PREVIEW_SHA: SHA }, files = {}, emails = Array.from({ length: 5 }, (_, i) => `gate2-${i + 1}@example.com`), verdict, diagnostics = true } = {}) {
+function world({ mismatch = false, extraFlags = [], env = { PREVIEW_VERSION: VERSION, PREVIEW_SHA: SHA }, files = {}, emails = Array.from({ length: 5 }, (_, i) => `gate2-${i + 1}@example.com`), verdict, diagnostics = true, calibrate = null } = {}) {
   const fake = createFake({ scenarioFor: DRY_RUN, diagnostics }), dir = tmp(), seen = [];
   const creds = join(dir, 'creds.env'), reviewed = [], reviewer = fakeReviewer(verdict);
   writeFileSync(creds, 'ANTHROPIC_API_KEY=fake-reviewer-key-not-real\n');
@@ -270,7 +272,9 @@ function world({ mismatch = false, extraFlags = [], env = { PREVIEW_VERSION: VER
   mkdirSync(join(cand, 'packages', 'web', 'src', 'animation3d'), { recursive: true });
   writeFileSync(join(cand, 'scripts', 'animation', 'author-sample.mjs'), '');
   mkdirSync(join(cand, 'packages', 'web', 'src', 'animation3d', 'testdata'), { recursive: true });
-  writeFileSync(join(cand, 'packages', 'web', 'src', 'animation3d', 'testdata', 'sgd-golden.json'), JSON.stringify(FAKE_GOLDEN));
+  writeFileSync(join(cand, 'packages', 'web', 'src', 'animation3d', 'testdata', 'sgd-golden.json'), GOLDEN_TEXT);
+  mkdirSync(join(cand, 'packages', 'web', 'render'), { recursive: true });
+  writeFileSync(join(cand, 'packages', 'web', 'render', 'animation3d-render.js'), 'the review page, version 1\n');
   writeFileSync(join(cand, 'packages', 'web', 'src', 'animation3d', 'capabilities.js'), "export const ANIMATION_CLIENT_FEATURES = Object.freeze(['curve_radius', 'action_motion', 'surface_grid']);\n");
   const spawn = (cmd, args) => {
     if (cmd === 'git') { const rest = args.slice(2); return { status: 0, stdout: rest[0] === 'rev-parse' && rest[1] === 'HEAD' ? `${SHA}\n` : '' }; }
@@ -283,7 +287,7 @@ function world({ mismatch = false, extraFlags = [], env = { PREVIEW_VERSION: VER
       gOk ? `PASS golden-artifact: ${computedGolden}` : `FAIL golden-artifact: expected ${flag('--golden')}, computed ${computedGolden}`, `RESULT ${pOk && gOk ? 'PASS' : 'FAIL'} (worktree ${flag('--worktree')})`].join('\n') + '\n' };
   };
   const argv = ['--base', 'https://preview.test', '--cap', '2000', '--prior', '100', '--candidate-worktree', cand, '--mvp3-sha', 'b'.repeat(40), '--prompts-hash', 'ab'.repeat(16), '--golden-hash', 'cd'.repeat(16),
-    '--sessions-file', sessionsFile, '--out', join(dir, 'out'), '--credentials', creds, '--concurrency', '5', ...extraFlags];
+    '--sessions-file', sessionsFile, '--out', join(dir, 'out'), '--credentials', creds, '--concurrency', '5', ...(calibrate ? ['--calibrate', calibrate.file] : []), ...extraFlags];
   const lines = [];
   return { fake, seen, argv, lines, dir, cand, harness, reviewed, run: (flags = argv) => main(flags, { env, out: line => lines.push(line), deps: { spawn, fetchImpl, product: PRODUCT, review: async (role, spec) => { reviewed.push(spec); return reviewer(role, spec); }, sleep: async () => { await new Promise(resolve => setImmediate(resolve)); } } }) };
 }
@@ -420,51 +424,84 @@ test('--check validates the identity and the configuration and creates no job; t
   assert.equal(process.listenerCount('SIGINT'), 0, 'the handler is removed when the run ends');
 });
 
-// ---- controls: job 0 (the golden) and the reviewer calibration set ----
+// ---- controls: job 0 (the golden) and the reviewer calibration set (lane (d)'s animation-calibration/1) ----
 const FX025 = JSON.parse(readFileSync(new URL('../../packages/web/src/animation3d/testdata/fx025-game-candidate.json', import.meta.url), 'utf8')); // a real retained draft with its plan
-function calibrationDir(extra = {}) {
-  const dir = tmp(), second = { ...FX025.draft, title: 'Second retained draft' };
-  writeFileSync(join(dir, 'plan.json'), JSON.stringify(FX025.plan));
-  writeFileSync(join(dir, 'draft-a.json'), JSON.stringify(FX025.draft));
-  writeFileSync(join(dir, 'diagnostics-b.json'), JSON.stringify({ job: { planHash: FX025.planHash }, diagnostics: { plan: FX025.plan, draft: FX025.draft, candidates: [{ repairs: 1, previousDraft: second }] } }));
-  const manifest = { schema: 'gate2-calibration/1', items: [
-    { name: 'floating ball (draft a)', expect: 'fail', request: FX025.prompt, artifact: 'draft-a.json', plan: 'plan.json', knownFindings: ['floats above the bowl', 'frame'] },
-    { name: 'second draft before its repair', expect: 'fail', diagnostics: 'diagnostics-b.json', draft: 'before-repair-1', knownFindings: ['trail markers'] }], ...extra };
+const sha256 = text => createHash('sha256').update(text).digest('hex');
+// A repository laid out as lane (d)'s branch is (scripts/animation/calibration/manifest.json + one fixture file per case, repo-relative paths, the golden pinned by
+// sha256), with the fields the real files carry. -> { root, dir, file }
+function calibrationDir({ goldenText = GOLDEN_TEXT, falsePositives = true, extra = {} } = {}) {
+  const root = tmp(), dir = join(root, 'scripts', 'animation', 'calibration');
+  mkdirSync(dir, { recursive: true });
+  const known = [{ capture: 'v0-s0', object: 'ball', severity: 'major', category: 'spec', message: 'The ball floats above the bowl.', c9Renderer: 'persists' }];
+  const fixture = (id, draft, more) => {
+    writeFileSync(join(dir, `${id}.json`), JSON.stringify({ id, kind: 'a kind', candidate: 'c7-951288c09', candidateSha: '951288c09', job: 'aj_x', request: FX025.prompt, review: { artifactHash: 'h' }, whyItMustFail: 'because', knownFindings: known, plan: FX025.plan, draft, ...more }));
+    return `scripts/animation/calibration/${id}.json`;
+  };
+  const manifest = { schema: 'animation-calibration/1',
+    golden: { path: 'packages/web/src/animation3d/testdata/sgd-golden.json', sha256: sha256(goldenText), mustPass: true, use: 'the file holds { plan, artifact }' },
+    mustFail: [
+      { id: 'floating-ball', kind: 'geometry', artifact: fixture('floating-ball', FX025.draft, { mustMention: ['floats above', 'frame'] }), candidate: 'c7-951288c09', job: 'aj_x', reviewArtifactHash: 'h1', request: FX025.prompt, knownFindings: known, mustMention: ['floats above', 'frame'] },
+      { id: 'trail-markers', kind: 'trail', artifact: fixture('trail-markers', { ...FX025.draft, title: 'Second retained draft' }, { mustMention: ['trail markers'] }), candidate: 'c6-x', job: 'aj_y', reviewArtifactHash: 'h2', request: 'SGD on a bowl-shaped loss', knownFindings: known, mustMention: ['trail markers'] }],
+    ...(falsePositives ? { falsePositives: [{ id: 'offset-shrinks', artifact: fixture('offset-shrinks', { ...FX025.draft, title: 'False positive draft' }, { mustNotMention: ['shrinks into the ball'] }), candidate: 'c9-x', job: 'aj_z', request: 'a ball rolling down a loss surface, step by step', mustNotMention: ['shrinks into the ball'], note: 'C9 job 1: the offset arrow was said to shrink into the ball' }] } : {}),
+    matching: 'A case passes calibration when the review REJECTS the draft and one such finding matches mustMention.', ...extra };
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest));
-  return { dir, file: join(dir, 'manifest.json') };
+  return { root, dir, file: join(dir, 'manifest.json') };
 }
-// The reviewer the calibration expects: the golden passes, draft a floats and is out of frame, the second draft has trail markers piled up.
+// The reviewer the calibration expects: the golden passes, the floating draft floats, the trail draft has piled up markers, and the false-positive draft is rejected
+// for ANOTHER, real reason only.
 const CALIBRATED = title => {
   if (title.includes(FX025.draft.title.slice(0, 20))) return { accepted: false, findings: [{ message: 'The ball floats above the bowl and the bowl shrinks in the frame.', category: 'renderer' }] };
   if (title.includes('Second retained draft')) return { accepted: false, findings: [{ message: 'Trail markers pile up and the current path cannot be told from the kept one.' }] };
+  if (title.includes('False positive draft')) return { accepted: false, findings: [{ message: 'The legend text is too small to read.' }] };
   return { accepted: true, findings: [] };
 };
 const controlsOf = dir => JSON.parse(readFileSync(join(dir, 'out', 'controls-result.json'), 'utf8'));
 
-test('readManifest: both item forms, the draft selectors, and every refusal before any spend', () => {
-  const { dir, file } = calibrationDir();
-  const items = readManifest(file);
-  assert.deepEqual(items.map(i => [i.name, i.expect, i.knownFindings.length, i.kind]), [['floating ball (draft a)', 'fail', 2, 'draft'], ['second draft before its repair', 'fail', 1, 'draft']]);
-  assert.equal(items[0].draft.title, FX025.draft.title);
-  assert.equal(items[1].draft.title, 'Second retained draft', 'before-repair-1 is the draft the repair replaced');
-  assert.equal(items[1].planHash, FX025.planHash);
-  const bad = manifest => { const f = join(dir, 'bad.json'); writeFileSync(f, JSON.stringify(manifest)); return () => readManifest(f); };
-  const ok = { name: 'x', artifact: 'draft-a.json', plan: 'plan.json', knownFindings: ['a'] };
-  assert.throws(bad({ schema: 'nope', items: [ok] }), /is not a gate2-calibration\/1 manifest/);
-  assert.throws(bad({ schema: 'gate2-calibration/1', items: [] }), /with items/);
-  assert.throws(bad({ schema: 'gate2-calibration/1', items: [{ ...ok, knownFindings: [] }] }), /needs knownFindings/);
-  assert.throws(bad({ schema: 'gate2-calibration/1', items: [{ ...ok, knownFindings: ['('] }] }), /Invalid regular expression/);
-  assert.throws(bad({ schema: 'gate2-calibration/1', items: [ok, ok] }), /a distinct name is required/);
-  assert.throws(bad({ schema: 'gate2-calibration/1', items: [{ ...ok, expect: 'maybe' }] }), /expect is pass or fail/);
-  assert.throws(bad({ schema: 'gate2-calibration/1', items: [{ name: 'x', knownFindings: ['a'] }] }), /give diagnostics \+ draft, or artifact \+ plan/);
-  assert.throws(bad({ schema: 'gate2-calibration/1', items: [{ name: 'x', diagnostics: 'diagnostics-b.json', draft: 'before-repair-9', knownFindings: ['a'] }] }), /has no draft "before-repair-9"/);
+test('readManifest reads lane (d)\'s real shape: mustFail with mustMention, the optional falsePositives with mustNotMention, a hash over the manifest and its fixtures, the pinned golden', () => {
+  const { root, file } = calibrationDir();
+  const golden = join(root, 'g.json');
+  writeFileSync(golden, GOLDEN_TEXT);
+  const m = readManifest(file, { goldenFile: golden });
+  assert.deepEqual(m.items.map(i => [i.name, i.kind, i.expect]), [['floating-ball', 'mustFail', 'fail'], ['trail-markers', 'mustFail', 'fail'], ['offset-shrinks', 'falsePositive', 'noFalseFinding']]);
+  assert.deepEqual(m.items[0].mustMention, ['floats above', 'frame']);
+  assert.deepEqual(m.items[2].mustNotMention, ['shrinks into the ball']);
+  assert.equal(m.items[0].request, FX025.prompt);
+  assert.equal(m.items[0].draft.title, FX025.draft.title);
+  assert.equal(m.goldenPinned, sha256(GOLDEN_TEXT));
+  assert.match(m.hash, /^[0-9a-f]{64}$/);
+  // a changed fixture is a changed manifest (the manifest file itself is the same)
+  const fixtureFile = join(root, 'scripts', 'animation', 'calibration', 'trail-markers.json');
+  writeFileSync(fixtureFile, readFileSync(fixtureFile, 'utf8').replace('trail markers', 'trail dots'));
+  assert.notEqual(readManifest(file).hash, m.hash);
+  // the falsePositives section may be absent
+  assert.deepEqual(readManifest(calibrationDir({ falsePositives: false }).file).items.map(i => i.kind), ['mustFail', 'mustFail']);
+  // the pinned golden must be the golden in use (retuning it is a deliberate change of the set)
+  writeFileSync(golden, GOLDEN_TEXT.replace('bowl', 'bowls'));
+  assert.throws(() => readManifest(file, { goldenFile: golden }), /is not the one the calibration set pins/);
+  writeFileSync(golden, GOLDEN_TEXT.replaceAll('\n', '\r\n'));
+  assert.doesNotThrow(() => readManifest(file, { goldenFile: golden }), 'a Windows checkout of the same golden is the same golden');
+  // fixtures are found under the candidate worktree too, and every refusal comes before any spend
+  const elsewhere = join(tmp(), 'manifest.json');
+  writeFileSync(elsewhere, readFileSync(file, 'utf8'));
+  assert.throws(() => readManifest(elsewhere), /the fixture scripts\/animation\/calibration\/floating-ball\.json is not under/);
+  assert.equal(readManifest(elsewhere, { worktree: root }).items.length, 3);
+  const bad = manifest => { const f = join(root, 'scripts', 'animation', 'calibration', 'bad.json'); writeFileSync(f, JSON.stringify(manifest)); return () => readManifest(f); };
+  const base = JSON.parse(readFileSync(file, 'utf8'));
+  assert.throws(bad({ ...base, schema: 'gate2-calibration/1' }), /is not a animation-calibration\/1 manifest with mustFail items/);
+  assert.throws(bad({ ...base, mustFail: [] }), /with mustFail items/);
+  assert.throws(bad({ ...base, mustFail: [{ ...base.mustFail[0], mustMention: [] }] }), /floating-ball\.mustMention: a non-empty list of regular expressions is required/);
+  assert.throws(bad({ ...base, mustFail: [{ ...base.mustFail[0], mustMention: ['('] }] }), /Invalid regular expression/);
+  assert.throws(bad({ ...base, mustFail: [base.mustFail[0], base.mustFail[0]] }), /a distinct id is required/);
+  assert.throws(bad({ ...base, falsePositives: [{ ...base.falsePositives[0], mustNotMention: undefined }] }), /offset-shrinks\.mustNotMention: a non-empty list/);
+  assert.throws(bad({ ...base, falsePositives: 'no' }), /falsePositives must be a list/);
+  assert.throws(bad({ ...base, mustFail: [{ ...base.mustFail[0], artifact: 'scripts/animation/calibration/nope.json' }] }), /the fixture scripts\/animation\/calibration\/nope\.json is not under/);
   assert.deepEqual(relabel({ title: 'T', description: 'D' }), { title: 'Offline fixture: T', description: 'OFFLINE FIXTURE, not generated by a model. D' });
   const labelled = relabel({ title: 'Offline fixture: T', description: 'OFFLINE FIXTURE, not generated by a model. D' });
   assert.deepEqual(relabel(labelled), labelled, 'a fixture already labelled is left alone');
   assert.equal(relabel({ title: 'x'.repeat(300), description: 'y'.repeat(900) }).title.length, 120);
 });
 
-test('job 0: the golden goes through the preview\'s seed-fixture and render-result and the product\'s own review; accepted means the run goes on', async () => {
+test('job 0: the golden goes through the preview\'s seed-fixture and render-result and the product\'s own review; accepted means the run goes on; repair is never reached', async () => {
   const w = world();
   assert.equal(await noNetwork(() => w.run()), 0, w.lines.join('\n'));
   assert.equal(w.reviewed.length, 1, 'one review call: the golden');
@@ -475,66 +512,113 @@ test('job 0: the golden goes through the preview\'s seed-fixture and render-resu
   assert.equal(w.fake.seeded.size, 1);
   assert.ok(w.fake.requests.some(r => /POST \/api\/learn\/animation\/diagnostics\/seed-fixture$/.test(r)) && w.fake.requests.some(r => /POST \/api\/learn\/animation\/diagnostics\/render-result$/.test(r)));
   const c = controlsOf(w.dir);
-  assert.deepEqual([c.schema, c.candidateSha, c.verdict, c.goldenAccepted, c.items.length, c.items[0].outcome, c.items[0].accepted], ['gate2-controls/1', SHA, 'PASS', true, 1, 'accepted', true]);
-  assert.equal(c.items[0].credits, 14.6, 'priced by the product\'s own costUsd');
+  assert.deepEqual([c.schema, c.candidateSha, c.verdict, c.goldenAccepted, c.items.length, c.items[0].kind, c.items[0].outcome, c.items[0].accepted], ['gate2-controls/1', SHA, 'PASS', true, 1, 'golden', 'accepted', true]);
+  assert.equal(c.items[0].credits, 14.6, 'priced by the product\'s own costUsd, and carried in the result');
+  assert.equal(c.spentCredits, 14.6);
+  assert.deepEqual(Object.keys(c.key), ['candidateSha', 'manifestHash', 'promptsHash', 'reviewPageHash']);
+  assert.equal(c.key.reviewPageHash, sha256('the review page, version 1\n'));
   assert.equal(readFileSync(join(w.dir, 'out', 'controls-result.json'), 'utf8').trim().split('\n').length, 1, 'one compact line, next to gate2-result.json');
   assert.match(readFileSync(join(w.dir, 'out', 'spend-rows.md'), 'utf8'), /\| c0 \| .* \| CONTROL: golden SGD artifact \(job 0\) \(direct review call, outside the ledger\) \| - \| accepted \| 0 \| 14\.60 \|/);
   assert.equal(w.fake.jobs.size, 10, 'the ten phrasings ran after the control');
+  assert.match(w.lines.join('\n'), /controls key: candidate SHA aaaaaaaaaaaa \| manifest hash none \| prompt-files hash abababababab \| review-page hash [0-9a-f]{12}/);
+  assert.match(w.lines.join('\n'), /outside the ledger and outside the platform day cap/);
   assert.match(w.lines.join('\n'), /Settled by this run: 459\.00 credits/);
-  assert.match(w.lines.join('\n'), /cumulative 573\.60 of cap 2000/, 'the control\'s spend counts against the cap');
+  assert.match(w.lines.join('\n'), /cumulative 573\.60 of cap 2000/, 'the control\'s spend counts against the cap and the ladder total');
 });
 
-test('a rejected golden is a harness bug: exit 5, the findings printed, no author job and no test user marked as used', async () => {
+test('a rejected golden is a harness bug: exit 5 before any repair or author spend, the findings printed, no author job and no test user marked as used', async () => {
   const w = world({ verdict: () => ({ accepted: false, findings: [{ message: 'The ball floats above the bowl.', category: 'renderer' }] }) });
   assert.equal(await noNetwork(() => w.run()), 5);
   const text = w.lines.join('\n');
-  assert.match(text, /FAIL golden SGD artifact \(job 0\): rejected \(expected pass\); DRIFT: rejected, but this must pass: major\/renderer The ball floats above the bowl\./);
+  assert.match(text, /FAIL golden SGD artifact \(job 0\): rejected \(expected pass\); DRIFT: rejected, but this must pass: major\/renderer "The ball floats above the bowl\."/);
   assert.match(text, /    major\/renderer The ball floats above the bowl\./);
   assert.match(text, /CONTROLS FAILED \(the golden was rejected or could not be reviewed: a harness bug/);
-  assert.equal(w.fake.jobs.size, 0, 'no author job, no plan job');
+  assert.equal(w.fake.jobs.size, 0, 'no author job, no plan job, nothing to repair');
   assert.equal(creates(w.fake).length, 0);
   assert.equal(existsSync(join(w.dir, 'out', 'used-prefixes.json')), false, 'the test users were not spent');
   const c = controlsOf(w.dir);
   assert.deepEqual([c.verdict, c.goldenAccepted, c.items[0].outcome, c.items[0].findings.length], ['FAIL', false, 'rejected', 1]);
   assert.equal(existsSync(join(w.dir, 'out', 'gate2-result.json')), false, 'no Gate 2 result');
-  // the same candidate again is reviewed again (only a PASS is remembered)
+  assert.equal(existsSync(join(w.dir, 'out', 'controls-passed.json')), false, 'a failure is never remembered');
   assert.equal(await noNetwork(() => w.run()), 5);
-  assert.equal(w.reviewed.length, 2);
+  assert.equal(w.reviewed.length, 2, 'the same candidate is reviewed again: only a PASS is remembered');
 });
 
-test('--calibrate: the golden passes and the retained drafts fail with their known findings; drift either way is named, and a PASS is remembered for the candidate', async () => {
-  const { file } = calibrationDir();
-  const good = world({ verdict: CALIBRATED, extraFlags: ['--calibrate', file, '--controls'] });
+test('--calibrate: the golden passes, each must-fail draft is rejected for a finding that matches mustMention, a false-positive draft may be rejected for other reasons; every drift is named', async () => {
+  const good = world({ verdict: CALIBRATED, calibrate: calibrationDir(), extraFlags: ['--controls'] });
   assert.equal(await noNetwork(() => good.run()), 0, good.lines.join('\n'));
-  assert.equal(good.reviewed.length, 3, 'golden and two drafts');
+  assert.equal(good.reviewed.length, 4, 'golden, two must-fail drafts and the false-positive draft');
   assert.equal(good.fake.jobs.size, 0, '--controls stops before any job');
+  assert.match(good.lines.join('\n'), /controls: job 0 is the golden SGD artifact, with 2 must-fail and 1 false-positive draft\(s\) from .*manifest\.json; about 80 credits/);
   assert.match(good.lines.join('\n'), /--controls: stopping here, no author job was started/);
   const c = controlsOf(good.dir);
-  assert.deepEqual(c.items.map(i => [i.kind, i.expect, i.outcome, i.drift]), [['golden', 'pass', 'accepted', null], ['draft', 'fail', 'rejected', null], ['draft', 'fail', 'rejected', null]]);
+  assert.deepEqual(c.items.map(i => [i.kind, i.outcome, i.drift]), [['golden', 'accepted', null], ['mustFail', 'rejected', null], ['mustFail', 'rejected', null], ['falsePositive', 'rejected', null]]);
   assert.match(c.manifest.hash, /^[0-9a-f]{64}$/);
-  assert.deepEqual([...good.fake.seeded.values()].map(f => f.artifact.title.startsWith('Offline fixture') && /^OFFLINE FIXTURE, not generated by a model/.test(f.artifact.description)), [true, true, true], 'every seeded draft says it is a fixture');
-  // reviewed once per candidate: the same candidate and manifest is not reviewed again, and the run goes on
-  const again = await noNetwork(() => good.run([...good.argv.filter(a => a !== '--controls')]));
-  assert.equal(again, 0, good.lines.join('\n'));
-  assert.equal(good.reviewed.length, 3, 'no review call the second time');
-  assert.match(good.lines.join('\n'), /controls: already PASS for this candidate/);
-  assert.equal(good.fake.jobs.size, 10);
-  // drift 1: a retained draft that now PASSES (the reviewer became lenient)
-  const lenient = world({ verdict: title => (title.includes('Second retained draft') ? { accepted: true, findings: [] } : CALIBRATED(title)), extraFlags: ['--calibrate', file] });
+  assert.deepEqual([...good.fake.seeded.values()].map(f => f.artifact.title.startsWith('Offline fixture') && /^OFFLINE FIXTURE, not generated by a model/.test(f.artifact.description)), [true, true, true, true], 'every seeded draft says it is a fixture');
+  // drift: a must-fail draft that now PASSES (the reviewer became lenient)
+  const lenient = world({ verdict: title => (title.includes('Second retained draft') ? { accepted: true, findings: [] } : CALIBRATED(title)), calibrate: calibrationDir() });
   assert.equal(await noNetwork(() => lenient.run()), 5);
-  assert.match(lenient.lines.join('\n'), /FAIL second draft before its repair: accepted \(expected fail\); DRIFT: accepted, but this retained draft must fail review \(the reviewer has become more lenient\)/);
+  assert.match(lenient.lines.join('\n'), /FAIL trail-markers: accepted \(expected fail\); DRIFT: accepted, but this retained draft must fail review \(the reviewer has become more lenient\)/);
   assert.equal(lenient.fake.jobs.size, 0);
-  // drift 2: it still fails but no longer for its known finding
-  const changed = world({ verdict: title => (title.includes('Second retained draft') ? { accepted: false, findings: [{ message: 'The legend is hard to read.' }] } : CALIBRATED(title)), extraFlags: ['--calibrate', file] });
+  // drift: it still fails but no blocker or major finding mentions what it must
+  const changed = world({ verdict: title => (title.includes('Second retained draft') ? { accepted: false, findings: [{ message: 'The legend is hard to read.' }, { message: 'Trail markers are mentioned only by a minor finding.', severity: 'minor' }] } : CALIBRATED(title)), calibrate: calibrationDir() });
   assert.equal(await noNetwork(() => changed.run()), 5);
-  assert.match(changed.lines.join('\n'), /FAIL second draft before its repair: rejected \(expected fail\); DRIFT: rejected, but the known finding\(s\) \/trail markers\/ were not reported/);
-  assert.match(changed.lines.join('\n'), /PASS floating ball \(draft a\)/);
-  assert.equal(controlsOf(changed.dir).items[2].drift.includes('/trail markers/'), true);
-  // a different manifest is a different control set: it is reviewed again
-  const other = calibrationDir({ note: 'a different set' });
-  const before = good.reviewed.length;
-  assert.equal(await noNetwork(() => good.run(good.argv.map((arg, i) => (good.argv[i - 1] === '--calibrate' ? other.file : arg)))), 0, good.lines.slice(-6).join('\n'));
-  assert.equal(good.reviewed.length, before + 3, 'a different manifest is reviewed again');
+  assert.match(changed.lines.join('\n'), /FAIL trail-markers: rejected \(expected fail\); DRIFT: rejected, but no blocker or major finding mentions any of \/trail markers\//);
+  assert.match(changed.lines.join('\n'), /PASS floating-ball/);
+  assert.match(controlsOf(changed.dir).items[2].drift, /\/trail markers\//);
+  // drift: the false finding is back (a major finding that matches mustNotMention), which prints the finding
+  const falsePositive = world({ verdict: title => (title.includes('False positive draft') ? { accepted: false, findings: [{ message: 'The offset arrow shrinks into the ball.' }] } : CALIBRATED(title)), calibrate: calibrationDir() });
+  assert.equal(await noNetwork(() => falsePositive.run()), 5);
+  assert.match(falsePositive.lines.join('\n'), /FAIL offset-shrinks: rejected \(expected noFalseFinding\); DRIFT: false positive persists: the reviewer is not calibrated \(major\/spec "The offset arrow shrinks into the ball\."\)/);
+  assert.equal(controlsOf(falsePositive.dir).items[3].kind, 'falsePositive');
+  // a minor finding that matches does not count, and a draft that is now simply accepted is fine for a false-positive case
+  const fine = world({ verdict: title => (title.includes('False positive draft') ? { accepted: true, findings: [] } : CALIBRATED(title)), calibrate: calibrationDir(), extraFlags: ['--controls'] });
+  assert.equal(await noNetwork(() => fine.run()), 0, fine.lines.join('\n'));
+});
+
+test('the controls memory is keyed by candidate SHA, manifest hash, prompt-files hash and review-page hash: a pass is reused, and each changed part invalidates it and is named', async () => {
+  const w = world({ verdict: CALIBRATED, calibrate: calibrationDir(), extraFlags: ['--controls'] });
+  assert.equal(await noNetwork(() => w.run()), 0, w.lines.join('\n'));
+  assert.equal(w.reviewed.length, 4);
+  const run = async () => { w.lines.length = 0; const code = await noNetwork(() => w.run()); return { code, text: w.lines.join('\n') }; };
+  // unchanged: reused, and the four parts of the key are printed
+  const reuse = await run();
+  assert.equal(reuse.code, 0);
+  assert.equal(w.reviewed.length, 4, 'no review call for an unchanged key');
+  assert.match(reuse.text, /controls: a PASS is remembered for this key/);
+  assert.match(reuse.text, /controls: PASS reused, not reviewed again\. key: candidate SHA aaaaaaaaaaaa \| manifest hash [0-9a-f]{12} \| prompt-files hash abababababab \| review-page hash [0-9a-f]{12}/);
+  // the review page changed (FX-AN-098 lived in that file): the control runs again
+  writeFileSync(join(w.cand, 'packages', 'web', 'render', 'animation3d-render.js'), 'the review page, version 2\n');
+  const page = await run();
+  assert.equal(page.code, 0);
+  assert.equal(w.reviewed.length, 8, 'reviewed again');
+  assert.match(page.text, /the remembered pass \(.*\) is stale: review-page hash changed \([0-9a-f]{12} -> [0-9a-f]{12}\); they run again/);
+  assert.doesNotMatch(page.text, /candidate SHA changed|manifest hash changed|prompt-files hash changed/);
+  assert.equal((await run()).text.includes('PASS reused'), true, 'and the new pass is remembered');
+  // a fixture of the calibration set changed: the manifest hash changed
+  const other = calibrationDir();
+  const swapped = w.argv.map((arg, i) => (w.argv[i - 1] === '--calibrate' ? other.file : arg));
+  writeFileSync(join(other.dir, 'floating-ball.json'), readFileSync(join(other.dir, 'floating-ball.json'), 'utf8').replace('floats above', 'floats over'));
+  w.lines.length = 0;
+  assert.equal(await noNetwork(() => w.run(swapped)), 0);
+  assert.match(w.lines.join('\n'), /is stale: manifest hash changed/);
+  assert.equal(w.reviewed.length, 12);
+});
+
+test('rememberedPass names every part that changed: the candidate SHA and the prompt-files hash too', () => {
+  const out = tmp(), key = controlsKey({ candidateSha: 'a'.repeat(40), manifestHash: 'b'.repeat(64), promptsHash: 'c'.repeat(64), reviewPageHash: 'd'.repeat(64) });
+  assert.deepEqual(rememberedPass(out, key), { reuse: null, stale: null }, 'nothing remembered yet');
+  writeControls(out, { key, version: '0fd062bf-f9e4-4099-8894-2d2924e94d6b', manifest: null, result: { verdict: 'FAIL', goldenAccepted: false, spentCredits: 1, items: [] }, at: new Date(0) });
+  assert.equal(rememberedPass(out, key).reuse, null, 'a failure is not remembered');
+  writeControls(out, { key, version: '0fd062bf-f9e4-4099-8894-2d2924e94d6b', manifest: null, result: { verdict: 'PASS', goldenAccepted: true, spentCredits: 14.6, items: [] }, at: new Date(0) });
+  assert.equal(rememberedPass(out, key).reuse.spentCredits, 14.6);
+  for (const [part, value] of [['candidateSha', 'e'.repeat(40)], ['manifestHash', null], ['promptsHash', 'f'.repeat(64)], ['reviewPageHash', 'absent']]) {
+    const r = rememberedPass(out, { ...key, [part]: value });
+    assert.equal(r.reuse, null, part);
+    assert.match(r.stale, new RegExp(`stale: ${KEY_PARTS[part]} changed \\(`), part);
+    assert.equal((r.stale.match(/changed/g) || []).length, 1, 'only the part that changed');
+  }
+  assert.match(rememberedPass(out, { ...key, candidateSha: 'e'.repeat(40), reviewPageHash: 'x' }).stale, /candidate SHA changed \(aaaaaaaaaaaa -> eeeeeeeeeeee\); review-page hash changed/);
 });
 
 test('controls errors are not passes: a preview without diagnostics, a failed review call, and bad configuration all stop before any author job', async () => {
@@ -557,10 +641,15 @@ test('controls errors are not passes: a preview without diagnostics, a failed re
   const tight = world();
   assert.equal(await noNetwork(() => tight.run(tight.argv.map((arg, i) => (tight.argv[i - 1] === '--cap' ? '110' : arg)))), 2);
   assert.match(tight.lines.join('\n'), /leaves no room for the controls \(about 20 credits\)/);
-  const checked = world({ extraFlags: ['--calibrate', calibrationDir().file, '--check'] });
+  const checked = world({ calibrate: calibrationDir(), extraFlags: ['--check'] });
   assert.equal(await noNetwork(() => checked.run()), 0, checked.lines.join('\n'));
-  assert.match(checked.lines.join('\n'), /controls: job 0 is the golden SGD artifact, with 2 calibration draft\(s\) from .*manifest\.json; about 60 credits/);
+  assert.match(checked.lines.join('\n'), /controls: job 0 is the golden SGD artifact, with 2 must-fail and 1 false-positive draft\(s\) from .*manifest\.json; about 80 credits/);
+  assert.match(checked.lines.join('\n'), /controls key: candidate SHA aaaaaaaaaaaa \| manifest hash [0-9a-f]{12} \| prompt-files hash abababababab \| review-page hash [0-9a-f]{12}/);
+  assert.match(checked.lines.join('\n'), /controls: no pass is remembered for this key; they run before any author job/);
   assert.equal(checked.seen.length, 0, 'a check makes no request');
+  const pinned = world({ calibrate: calibrationDir({ goldenText: 'another golden' }), extraFlags: ['--check'] });
+  assert.equal(await noNetwork(() => pinned.run()), 2);
+  assert.match(pinned.lines.join('\n'), /USAGE: controls: the golden at .* is not the one the calibration set pins/);
   const badManifest = world({ extraFlags: ['--calibrate', join(tmp(), 'nope.json'), '--check'] });
   assert.equal(await noNetwork(() => badManifest.run()), 2);
 });

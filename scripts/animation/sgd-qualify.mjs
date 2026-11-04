@@ -23,7 +23,7 @@ import { spawnSync } from 'node:child_process';
 import { CREDENTIALS, PACING, RUN_OUT, insideRepo, makeCall, markUsed, prefixOf, readKey, readSessions, readUsage, readUsed, usable } from './dev-test-session.mjs';
 import { MUST_RERUN, inputProblem, realDeps, runGate } from './sgd-qualify-gate.mjs';
 import { DRY_RUN, FAKE_GOLDEN, createFake, fakeReviewer } from './sgd-qualify-fake.mjs';
-import { REVIEW_CREDITS_EXPECTED, appendSpend, loadProduct, manifestInfo, passedBefore, providerReview, readGolden, readManifest, runControls, spendLine, writeControls } from './gate2-controls.mjs';
+import { REVIEW_CREDITS_EXPECTED, appendSpend, controlsKey, keyLine, loadProduct, providerReview, readGolden, readManifest, rememberedPass, reviewPageHash, runControls, spendLine, writeControls } from './gate2-controls.mjs';
 
 // Plan section 8, "Gate 2 phrasings", exactly. The tenth is the wrong-subject control.
 export const PHRASINGS = Object.freeze([
@@ -388,14 +388,21 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
   const state = existsSync(statePath) ? JSON.parse(readFileSync(statePath, 'utf8')) : { sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, rows: [] };
   out(`candidate ${pin.PREVIEW_SHA.slice(0, 9)} preview ${pin.PREVIEW_VERSION}; ${sessions.length} session(s) ${sessions.map(s => s.email).join(', ')}; concurrency ${o.concurrency}; cap ${o.cap}, prior ${o.prior}; features ${features.join(',')}`);
   out(`output ${outDir}; stop file ${stopFile}; ${state.rows.length ? `resuming: ${state.rows.length} earlier row(s), ${verdictOf(state.rows).why}` : 'a fresh run for this candidate'}`);
-  // Controls (owner standing rules): job 0, the golden, and with --calibrate the retained drafts that must fail. Free configuration checks here, the review below.
-  let golden, calibration;
+  // Controls (owner standing rules): job 0, the golden, and with --calibrate the retained drafts that must fail or must not be falsely rejected. Free configuration
+  // checks here, the review below. The tree the review page and the golden are read from is the candidate worktree (this repository's, in the dry run).
+  const tree = dry ? fileURLToPath(new URL('../..', import.meta.url)) : gateOpts.worktree;
+  let golden, manifest = null;
   try {
-    golden = dry ? { ...readGolden(null, FAKE_GOLDEN) } : readGolden(o.golden ?? join(gateOpts.worktree, 'packages', 'web', 'src', 'animation3d', 'testdata', 'sgd-golden.json'));
-    calibration = o.calibrate ? readManifest(o.calibrate) : [];
+    const goldenFile = o.golden ?? join(tree, 'packages', 'web', 'src', 'animation3d', 'testdata', 'sgd-golden.json');
+    golden = dry ? { ...readGolden(null, FAKE_GOLDEN) } : readGolden(goldenFile);
+    manifest = o.calibrate ? readManifest(o.calibrate, { worktree: tree, goldenFile: dry ? null : goldenFile }) : null;
   } catch (error) { out(`USAGE: controls: ${error.message}`); return 2; }
-  const manifest = o.calibrate ? manifestInfo(o.calibrate) : null, controlsCredits = (1 + calibration.length) * REVIEW_CREDITS_EXPECTED;
-  out(`controls: job 0 is the golden SGD artifact${calibration.length ? `, with ${calibration.length} calibration draft(s) from ${manifest.path}` : ''}; about ${controlsCredits} credits as direct review calls outside the ledger`);
+  const calibration = manifest?.items ?? [], controlsCredits = (1 + calibration.length) * REVIEW_CREDITS_EXPECTED;
+  const key = controlsKey({ candidateSha: pin.PREVIEW_SHA, manifestHash: manifest?.hash ?? null, promptsHash: gateOpts.promptsHash, reviewPageHash: reviewPageHash(tree) });
+  const remembered = rememberedPass(outDir, key);
+  out(`controls: job 0 is the golden SGD artifact${calibration.length ? `, with ${calibration.filter(c => c.kind === 'mustFail').length} must-fail and ${calibration.filter(c => c.kind === 'falsePositive').length} false-positive draft(s) from ${manifest.path}` : ''}; about ${controlsCredits} credits as direct review calls outside the ledger and outside the platform day cap`);
+  out(`controls key: ${keyLine(key)}`);
+  out(remembered.reuse ? `controls: a PASS is remembered for this key (${remembered.reuse.finishedAt}); it will not be reviewed again` : remembered.stale ? `controls: ${remembered.stale}; they run again` : 'controls: no pass is remembered for this key; they run before any author job');
   if (!dry && o.cap - o.prior < controlsCredits) { out(`USAGE: --cap ${o.cap} minus --prior ${o.prior} leaves no room for the controls (about ${controlsCredits} credits)`); return 2; }
   if (o.check) {
     if (!dry && !readKey(o.credentials, 'ANTHROPIC_API_KEY')) { out(`USAGE: ANTHROPIC_API_KEY is missing from ${o.credentials} (key name only); the controls call the reviewer`); return 2; }
@@ -403,9 +410,8 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
   }
 
   // 3. controls, then the run. A rejected golden is a harness bug: nothing paid is started (exit 5).
-  const before = passedBefore(outDir, pin.PREVIEW_SHA, pin.PREVIEW_VERSION, manifest?.hash);
-  let controlsSpent = before?.spentCredits ?? 0;
-  if (before) out(`controls: already PASS for this candidate (${before.finishedAt}); not reviewed again`);
+  let controlsSpent = remembered.reuse?.spentCredits ?? 0;
+  if (remembered.reuse) out(`controls: PASS reused, not reviewed again. key: ${keyLine(key)}`);
   else {
     const apiKey = dry ? 'dry-run' : readKey(o.credentials, 'ANTHROPIC_API_KEY');
     if (!apiKey) { out(`USAGE: ANTHROPIC_API_KEY is missing from ${o.credentials} (key name only); the controls call the reviewer`); return 2; }
@@ -414,7 +420,7 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
     if (!existsSync(join(outDir, 'spend-rows.md'))) writeFileSync(join(outDir, 'spend-rows.md'), SPEND_HEAD);
     const result = await runControls({ golden, items: calibration, session: sessions[0], product, sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, concurrency: o.concurrency }, { review: injected.review ?? (dry ? fakeReviewer() : providerReview({ product, apiKey })), log: out });
     controlsSpent = result.spentCredits;
-    writeControls(outDir, { sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, manifest, result, at: new Date() });
+    writeControls(outDir, { key, version: pin.PREVIEW_VERSION, manifest, result, at: new Date() });
     appendSpend(outDir, result.items.map((item, i) => spendLine(item, i, pin.PREVIEW_SHA, pin.PREVIEW_VERSION, o.prior + controlsSpent, ptClock())));
     for (const item of result.items) out(`${item.drift || item.outcome === 'error' ? 'FAIL' : 'PASS'} ${item.name}: ${item.outcome} (expected ${item.expect})${item.drift ? `; DRIFT: ${item.drift}` : ''}${item.note ? `; ${item.note}` : ''}${item.findings.length ? `\n${item.findings.map(f => `    ${f.severity}/${f.category} ${f.message}`).join('\n')}` : ''}`);
     if (result.verdict !== 'PASS') {

@@ -163,45 +163,61 @@ worker is 10; the gate prints the clone's own value only when `versions view` sh
 
 ## Controls: job 0 and the reviewer calibration set (owner standing rules, from C10)
 
-**Job 0.** The golden SGD artifact (`packages/web/src/animation3d/testdata/sgd-golden.json`, read from the candidate worktree) is reviewed first in
-every Gate 2. It must be **accepted**. If the reviewer rejects it, the candidate is a harness bug by definition: `sgd-qualify.mjs` prints the findings,
-writes the result and **exits 5 before any paid author job** and without marking the test users as used.
+**The controls are a mandatory first step of every Gate 2.** A normal `sgd-qualify.mjs` run (no extra flag) runs them itself before it creates any canvas or
+job for the ten phrasings, unless a PASS is remembered for the same key (below), and it **will not start an author job unless the controls for this key have
+passed**: a rejected golden or any drift exits 5 first. `--controls` runs only the controls (exit 0, or 5); do that first, on the fresh sessions file, so the
+cost and the result are known before the batch is announced. `--check` validates the golden, the manifest and the cap without any request.
 
-**Calibration set** (`--calibrate <manifest.json>`, once per candidate, when the review prompt or the review page changes): the golden must pass and
-each listed retained draft must **fail with its known findings**. A draft that passes (the reviewer became lenient) or that fails without a known finding
-(the reviewer sees something else now) is a *drift*, named in the output, and also exits 5. A PASS is remembered per candidate and manifest
-(`<out>/controls-<sha7>-<version8>.json`): a later run of the same candidate does not review again (a changed manifest does).
+**Job 0.** The golden SGD artifact (`packages/web/src/animation3d/testdata/sgd-golden.json`, read from the candidate worktree) is reviewed first. It must be
+**accepted**. If the reviewer rejects it, the candidate is a harness bug by definition: the script prints the findings, writes the result and **exits 5 before any
+repair or author spend**, and without marking the test users as used. The owner's wording is "render, review, repair"; in the control the **repair stage only
+runs if the reviewer rejects, and a rejected golden stops the run first**, so repair is not exercised for an accepted golden (and there is no job for it to repair:
+see below).
 
-Manifest (lane (d) picks the drafts from the retained evidence; paths are relative to the manifest):
+**Calibration set** (`--calibrate <manifest.json>`, lane (d)'s `scripts/animation/calibration/manifest.json`, schema `animation-calibration/1`):
+- `golden`: `{ path, sha256, mustPass }`. The golden used for job 0 must be that file (sha256 pinned; a line-ending-normalized copy counts as the same file); a
+  retuned golden without a regenerated manifest is refused (exit 2).
+- `mustFail[]`: `{ id, artifact, request, mustMention: [regex], knownFindings (advisory), ... }`. The review must **reject** the draft (a blocker or major finding)
+  AND at least one blocker or major finding must match one of `mustMention` (case-insensitive, any of). A draft that is accepted (the reviewer became lenient),
+  or rejected with no such finding (the reviewer sees something else now), is a drift.
+- `falsePositives[]` (optional): `{ id, artifact, request, mustNotMention: [regex], note }`: a draft the reviewer once rejected with a **false** finding. The review
+  may reject it for other reasons (those findings are real); it passes calibration unless a blocker or major finding matches a `mustNotMention` pattern. If one
+  does, that is the drift "false positive persists: the reviewer is not calibrated", with the matching finding printed. (Field names are as lane (d)'s commit
+  on `feat/an20-c10` has them; the reader is in `readManifest` and `judge` of `gate2-controls.mjs`.)
+- `artifact` points at a fixture file `{ plan, draft, request? }`, relative to the repository that holds the manifest (else the candidate worktree). Drift of any
+  kind exits 5, with the item's name and which way it drifted.
 
-    { "schema": "gate2-calibration/1", "items": [
-      { "name": "floating diverged ball", "expect": "fail", "request": "show me why a high learning rate diverges",
-        "diagnostics": "evidence/c6/aj_0123/diagnostics-detail1.json", "draft": "last",
-        "knownFindings": ["floats above", "frame"] },
-      { "name": "...", "artifact": "draft.json", "plan": "plan.json", "knownFindings": ["trail markers"] } ] }
+**The remembered pass.** "Reviewed once per candidate" is keyed by **four parts**: the candidate SHA, the manifest hash (the manifest, every fixture and the pinned
+golden), the prompt-files hash (Gate 1's `--prompts-hash`) and the **review-page hash** (sha256 of `packages/web/render/animation3d-render.js` in the candidate
+worktree, line endings normalized; FX-AN-098 lived in that file, so a change to it re-runs the control). A PASS is written to `<out>/controls-passed.json`. Every run
+prints the four parts (`controls key: candidate SHA ... | manifest hash ... | prompt-files hash ... | review-page hash ...`). With the same key the run says
+`controls: PASS reused, not reviewed again` and shows the key; with any part changed it says `the remembered pass (...) is stale: review-page hash changed (x -> y)`
+(naming every part that changed) and reviews again. Only a PASS is remembered.
 
-`diagnostics` takes a job export's plan and one retained draft (`last`, or `before-repair-N`, the draft repair N replaced). `knownFindings` are case-insensitive
-patterns; each must match some message of the reviewer's findings. `request` is what the reviewer is told the learner asked (default: "stochastic gradient descent").
+**How an artifact gets reviewed (read from the code, not assumed).** No dev route runs the product's render, review and repair stages on a *given* artifact:
+`seed-outcomes` writes canned failed jobs; `seed-fixture` stores the artifact as a **saved result** for the canvas owner (no job, no stage, no model call, and the
+title and description must say "Offline fixture"); `render-fixture` draws only the bundled fixtures; `render-result` draws a saved result through the review's own
+capture path and returns the PNGs and traces; `render-candidate` replays a real job's last draft. So each control item is: seed-fixture, then render-result (both
+free; the preview's own deployed render page), then the candidate's own `reviewStage` from the candidate worktree (its prompt, tool, request builder, one-retry rule
+and acceptance rule) with its single model call sent straight to the provider using the dev key (`ANTHROPIC_API_KEY`, read by name from the credentials file, held in
+memory, never printed). Consequences: a draft is shown with an "Offline fixture" title and description prefix; the capture inputs come from the trace. A
+job-shaped path (a real job record reviewed and repaired by the Durable Object, billed through the ledger) would need a dev route in the candidate tree; there is none.
 
-**How an artifact gets reviewed (read from the code, not assumed).** No dev route runs the product's render, review and repair stages on a *given*
-artifact: `seed-outcomes` writes canned failed jobs; `seed-fixture` stores the artifact as a **saved result** for the canvas owner (no job, no stage, no
-model call, and the title and description must say "Offline fixture"); `render-fixture` draws only the bundled fixtures; `render-result` draws a saved
-result through the review's own capture path and returns the PNGs and traces; `render-candidate` replays a real job's last draft. So each control item is:
-seed-fixture, then render-result (both free; the preview's own deployed render page), then the candidate's own `reviewStage` from the candidate worktree
-(its prompt, tool, request builder, one-retry rule and acceptance rule) with its single model call sent straight to the provider using the dev key
-(`ANTHROPIC_API_KEY`, read by name from the credentials file, held in memory, never printed). Consequences: a draft is shown with an "Offline fixture"
-title and description prefix; the capture inputs come from the trace; and these calls are **outside the product's ledger** (not in a test user's
-allowance, not in the platform day cap), recorded in `spend-rows.md` as `c0`, `c1`, ... rows and in the cap arithmetic. A job-shaped path (a real job record
-reviewed and repaired by the Durable Object, billed through the ledger) would need a dev route in the candidate tree; there is none.
+**Money.** The controls' review calls are **outside the product ledger**: they are not in any test user's allowance and the **platform day cap does not see them**.
+Their credits are kept in `spend-rows.md` as rows `c0`, `c1`, ... (one per item, with the item's name) **and** counted in the ladder total: they are added to the
+cumulative spend that `--cap` is checked against and to `settledCredits` of `gate2-result.json`, so the total stays honest. Each item in `controls-result.json` carries its `credits`.
+One review is 12 to 16 credits (US$0.12 to 0.16) typical; the product's worst-case bound for one review call is about US$0.46, and the stage retries once on a
+malformed reply. The golden alone: about US$0.15 (worst US$0.93). The golden plus a calibration set of three drafts: about US$0.6. The script needs `--cap` minus
+`--prior` to cover 20 credits per item before it starts.
 
-**Cost.** One review is 12 to 16 credits (US$0.12 to 0.16) typical; the product's worst-case bound for one review call is about US$0.46, and the stage
-retries once on a malformed reply. The golden alone: about US$0.15 (worst US$0.93). Golden plus three drafts: about US$0.6 (worst about US$3.7, practically
-never). The script needs `--cap` minus `--prior` to cover 20 credits per item before it starts. It uses no test-user allowance.
+**Result.** `<out>/controls-result.json`, one compact line next to `gate2-result.json` (and a per-candidate copy): `{ schema: "gate2-controls/1", candidateSha,
+previewVersion, key: { candidateSha, manifestHash, promptsHash, reviewPageHash }, manifest: { path, hash } | null, verdict, goldenAccepted, spentCredits, items: [{
+name, kind: "golden" | "mustFail" | "falsePositive", expect, outcome, accepted, drift, findings: [{ severity, category, verdict, message }], credits, resultId,
+artifactHash }], finishedAt }`.
 
-`--controls` runs only the controls (exit 0, or 5) and stops before any job; do it first, on the fresh sessions file, then run Gate 2. `--check` validates
-the golden, the manifest and the cap without any request. The result is `<out>/controls-result.json`, one compact line next to `gate2-result.json`:
-`{ schema: "gate2-controls/1", candidateSha, previewVersion, manifest: { path, hash } | null, verdict, goldenAccepted, spentCredits, items: [{ name, kind,
-expect, outcome, accepted, drift, findings: [{ severity, category, verdict, message }], credits, resultId, artifactHash }], finishedAt }`.
+**Checked offline against the real files** (a free check, scripted reviewer, nothing sent): lane (d)'s real manifest at `aea00fef9` and the real golden (sha256
+`1837a72b6366`, equal to the manifest's pin) read without change; the three real drafts seal under the candidate tree's own `sealArtifact`; the real golden validates
+under the candidate contract and builds a review request of about 21 KB of text with 6 images that passes the product's request-size check.
 
 ## Running Gate 2
 
@@ -211,7 +227,9 @@ expect, outcome, accepted, drift, findings: [{ severity, category, verdict, mess
    the release, not of starting Gate 2; if Gate 1 fails, the whole candidate is held and a running Gate 2 is stopped (stop file).
 1. **Sessions (fresh for this run).** `dev-test-session.mjs --check --fresh --count 5`, then `--mint --fresh --count 5` (it prints the announce line for the
    dev D1 rows, then the per-run file), then `--allowance --base <preview> --file <that file>`.
-1b. **Controls.** `sgd-qualify.mjs ... --controls [--calibrate <manifest>]` (same flags as the run): job 0, and the calibration drafts. Exit 5 means stop.
+1b. **Controls (mandatory).** `sgd-qualify.mjs ... --controls --calibrate <lane (d)'s manifest.json>` (same flags as the run): job 0 and the calibration drafts. Exit 5
+   means stop: a rejected golden is a harness bug and a drift is a bug in the review; fix it before any author job. A normal run does this itself, unless a PASS is
+   remembered for the same four-part key.
 2. **Dry run (free, offline).** `node scripts/animation/sgd-qualify.mjs --dry-run` runs the whole script against an in-memory fake preview with canned
    job states (8 of 9 accepted, one repaired, one rejected, the control reports a gap): no network, no credential, a temp output folder.
 3. **Check (read-only).** Same flags as the run plus `--check`: validates the arguments, the sessions file, the candidate's client features, the
@@ -245,7 +263,7 @@ expect, outcome, accepted, drift, findings: [{ severity, category, verdict, mess
 | `--job-worst-case` | credits a session must have free for one more job (default 140) |
 | `--poll-ms`, `--plan-timeout-min`, `--job-timeout-min`, `--settle-wait-min` | 4000, 6, 20, 3 |
 | `--worker`, `--credentials`, `--verify-script` | wrangler Worker name (default from `--base`), credentials file, optional preview verifier |
-| `--controls`, `--calibrate <manifest.json>`, `--golden <file>` | only the controls (job 0 and the calibration drafts) and stop; the calibration manifest; the golden (default: the candidate worktree's `testdata/sgd-golden.json`) |
+| `--controls`, `--calibrate <manifest.json>`, `--golden <file>` | only the controls (job 0 and the calibration drafts) and stop; lane (d)'s calibration manifest (`animation-calibration/1`: mustFail, optional falsePositives); the golden (default: the candidate worktree's `testdata/sgd-golden.json`) |
 | `--check`, `--dry-run` | read-only validation; offline fake run (a scripted reviewer, never the network) |
 
 Exit codes: 0 PASS, 1 FAIL, 2 usage or configuration, 3 halted or incomplete, 4 refused before any spend (identity or preview-pin gate), 5 the controls
@@ -274,7 +292,9 @@ only cancels), generalised to every running job at once. At every poll of every 
 ### Where things go
 
 - `<out>/spend-rows.md`: one markdown row per job, appended the moment it ends (candidate SHA, preview version, phrasing, job id, outcome, repairs,
-  settled credits, credits charged to the test user, artifact hash, running total). Parallel copies these into `spend.md`.
+  settled credits, credits charged to the test user, artifact hash, running total). Parallel copies these into `spend.md`. The controls add rows `c0`, `c1`, ...
+  (the golden, then each calibration draft): their review calls are **outside the product ledger**, so the platform day cap does not see them, and the rows
+  are what keep them in the record; their credits are also in the running total and in `settledCredits`, so the ladder total stays honest.
 - `<out>/<job id>/`: `diagnostics-detail1.json` (job and diagnostics as served), `job.json`, `plan.json`, `reviews.json`, `program-last-draft.js`,
   `program-before-repair-N.js`, `chat-messages.json`, `artifact.json` (accepted jobs, with its SHA-256 in `summary.json`), `summary.json`. Same names as the earlier export script.
 - `<out>/result-<sha7>-<stamp>.md`: the result table, the verdict, halts, skipped sessions, the settled total and each session's allowance after the run.
