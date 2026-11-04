@@ -35,3 +35,11 @@ Runs on a candidate cannot be inside that candidate's own commit. They are commi
 | Folder | Candidate | Contents |
 |---|---|---|
 | `c8-7bb1a0ef4/` | C8 `7bb1a0ef4211ea45ecd3a53ccd6770d76080e8d3`, preview `7c545e95-ecef-4418-a070-0709ef1ddec7` | Gate 1 (SGD 20 of 20, regression 9 of 9); Gate 2 rerun on fresh users `gate4-1..5` (verdict FAIL, 3 of the first 7); `gate2-aborted-first-start-429/` is the first start, stopped by the operator after job 2's approve returned HTTP 429 (the escrow's cap of 5 free failed attempts per learner per day, reached by the reused `gate2-*` test users): it counts for nothing. |
+
+## Capture images (added 4 November 2026, 9:35 PM PT)
+
+The images do exist: every review render writes each capture PNG to the dev R2 bucket `rabbit-hole-dev-learn-media` at `animation/<job id>/<first 16 hex of artifactHash>-<capture id>.png`, and nothing deletes them. The earlier statement above that none are stored was wrong. They are fetched with `C:/s/spec/animation/release/ladder/fetch-captures.mjs` (read-only GETs; the keys come from each export's `diagnostics-detail1.json` captures and from each review round's `artifactHash`).
+
+- `c8-7bb1a0ef4/gate2/<job id>/captures/` holds every capture of every C8 Gate 2 job (66 PNGs, 4.5 MB, all valid PNG files; repair rounds included) and a `manifest.json` per job.
+- **Hash caveat:** for the final round, the SHA-256 of the downloaded file does NOT equal the `sha256` recorded in the job's diagnostics (42 of 42 final-round files differ; the 24 earlier-round files have no recorded hash to compare). The files are the right capture ids for the right artifact hashes, and they are real renders of the scene, but they are not proven byte-identical to the images the reviewer model received (rendering may not be byte-deterministic, or the object was written again by a later render of the same artifact). Read them as the same scene and state, not as the reviewer's exact bytes.
+- **FX-AN-098 check against an image (C8, job `aj_a43c70b6269e4e04976d882faaa986b3`, `692b401ca03ebced-v0-s0.png`):** the readout strip at the bottom now reads `Loss (true value): 8.500 · Distance to minimum: 3.05 · Steps taken: 0 · Status: paused`, so the Status word appears in the review picture on C8. The C7 captures that the reviewer judged are fetched in the next commit if still in the bucket.
