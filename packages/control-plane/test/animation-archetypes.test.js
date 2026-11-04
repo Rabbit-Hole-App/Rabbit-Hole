@@ -35,8 +35,10 @@ test('loss_surface says what the plan\'s table says, in the contract\'s own word
   assert.ok(TRAIL_STYLES.includes('trail') && TRAIL_STYLES.includes('ghost') && LABEL_ANCHORS.includes('tip') && READOUT_KINDS.includes('text'), 'the words are the contract\'s');
 });
 
-test('archetypeRules("loss_surface") contains no number other than 24 by 24 and 6 to 8', () => {
-  assert.deepEqual(text.match(/\d+(\.\d+)?/g), ['24', '24', '6', '8'], 'only the 24 by 24 grid and the 6 to 8 contours, in that order');
+test('archetypeRules("loss_surface") contains no number other than 24 by 24, 6 to 8 and the camera 30 to 65 degrees', () => {
+  assert.deepEqual(text.match(/\d+(\.\d+)?/g), ['24', '24', '6', '8', '30', '65'], 'only the 24 by 24 grid, the 6 to 8 contours and the owner 30 to 65 degrees, in that order');
+  assert.match(text, /The arrow scale factor keeps the largest typical step at the default rate under a quarter of the surface width\./);
+  assert.match(text, /The camera looks from 30 to 65 degrees above and keeps the whole surface and the path in view\./);
 });
 
 test('it is data about primitives, not a scene: no code, formula or bowl, and short', () => {
@@ -44,10 +46,13 @@ test('it is data about primitives, not a scene: no code, formula or bowl, and sh
   assert.ok(!/[{}[\]=]|=>|function|loss\s*=|bowl/i.test(text), 'no code, formula or bowl');
   const keys = Object.keys(ARCHETYPES.loss_surface);
   assert.deepEqual(keys, ['when', 'rules', 'comparison'], 'the shape lane d imports');
-  assert.ok(typeof ARCHETYPES.loss_surface.when === 'string' && typeof ARCHETYPES.loss_surface.comparison === 'string' && ARCHETYPES.loss_surface.rules.length === 5 && ARCHETYPES.loss_surface.rules.every(rule => typeof rule === 'string'));
+  assert.ok(typeof ARCHETYPES.loss_surface.when === 'string' && typeof ARCHETYPES.loss_surface.comparison === 'string' && ARCHETYPES.loss_surface.rules.length === 7 && ARCHETYPES.loss_surface.rules.every(rule => typeof rule === 'string'));
 });
 
 test('the golden artifact is an instance of it', () => {
+  const [px, py, pz] = artifact.camera.position, [tx, ty, tz] = artifact.camera.target;
+  const elevation = Math.atan2(py - ty, Math.hypot(px - tx, pz - tz)) * 180 / Math.PI;
+  assert.ok(elevation >= 30 && elevation <= 65, `the golden camera is ${elevation.toFixed(1)} degrees above the target, inside the rule's 30 to 65`);
   const geometry = id => artifact.scene.geometries.find(g => g.id === id), nodes = artifact.scene.nodes;
   const surface = artifact.scene.geometries.find(g => g.kind === 'surface');
   assert.ok(surface.heights.length >= 24 && surface.heights[0].length >= 24 && surface.contours >= 6 && surface.contours <= 8);
