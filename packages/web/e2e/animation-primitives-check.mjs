@@ -62,7 +62,11 @@ const step = async (name, fn) => {
     await current?.screenshot({ path: `${SHOTS}/fail-${results.length}.png` }).catch(() => {});
   }
 };
-const until = async (fn, label, ms = 20000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn().catch(() => false)) return; await new Promise(r => setTimeout(r, 100)); } throw Error(label); };
+// A card whose scene stopped (runtime failure) shows [data-animation-failure] and disables its controls: every wait and press names that cause at once, instead of timing out 15 s on a disabled control (C9, fast-e2e 41779710894).
+const stopped = async () => { if (!await card.locator('[data-animation-failure]').count()) return ''; const text = await card.locator('[data-animation-failure]').first().innerText({ timeout: 500 }).catch(() => 'a failure'); return text ? `the card stopped: "${text.replace(/\s+/g, ' ').trim()}" (runtime notes: ${runtimeNotes.slice(-3).join(' | ') || 'none'})` : ''; };
+const alive = async () => { const why = await stopped(); if (why) throw Error(why); };
+const until = async (fn, label, ms = 20000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn().catch(() => false)) return; await alive(); await new Promise(r => setTimeout(r, 100)); } await alive(); throw Error(label); };
+const press = async id => { await alive(); await action(id).click(); };
 
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, colorScheme: 'light' });
@@ -79,6 +83,8 @@ const page = await context.newPage();
 page.setDefaultTimeout(15000);
 current = page;
 page.on('pageerror', error => errors.push(error.message));
+const runtimeNotes = []; // session.js logRuntime: console.warn "animation runtime: <code> / <diagnostic> / <phase>", the only place the code of a stopped scene is readable
+page.on('console', message => { if (/animation runtime/.test(message.text())) runtimeNotes.push(message.text().slice(0, 240)); });
 page.on('console', message => { if (message.type() === 'error' && !/Failed to load resource/.test(message.text())) consoleErrors.push(message.text().slice(0, 300)); });
 const scratch = await context.newPage(); // a blank page that decodes screenshots; it never loads the app
 
@@ -89,7 +95,7 @@ const frame = async () => JSON.parse(await viewport.getAttribute('data-animation
 const word = async () => ((await readout('status').textContent()) || '').trim().toLowerCase();
 const more = () => card.locator('details[data-animation-more]:not([open]) > summary').evaluateAll(nodes => nodes.forEach(node => node.click()));
 const shot = async name => { await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
-const setRate = async value => { await card.locator('input[data-animation-number="learningRate"]').fill(String(value)); await card.locator('input[data-animation-number="learningRate"]').press('Enter'); await page.waitForTimeout(3500); }; // the camera refits once the controls settle (REFIT_MS 300 ms, then the sampler's budget of up to 2 s)
+const setRate = async value => { await alive(); await card.locator('input[data-animation-number="learningRate"]').fill(String(value)); await card.locator('input[data-animation-number="learningRate"]').press('Enter'); await page.waitForTimeout(3500); }; // the camera refits once the controls settle (REFIT_MS 300 ms, then the sampler's budget of up to 2 s)
 
 // What the scene looks like, by colour, in the host's screenshot (the primary readout laid over it is masked). The corner pixel is the background.
 // covered: the share of pixels that differ from it. orange / blue / red: saturated pixels by hue (the path, the kept path, the ball); box: the red blob's bounds.
@@ -160,7 +166,7 @@ try {
     await more(); // Batch size is a secondary setting, under More settings
     await card.locator('[data-animation-parameter="batchSize"] select').selectOption('256');
     await page.waitForTimeout(3000); // the camera refits once the controls settle (REFIT_MS and the sampler's budget)
-    for (let i = 0; i < 5; i += 1) await action('step').click();
+    for (let i = 0; i < 5; i += 1) await press('step');
     await until(async () => (await frame()).readouts.steps === 5, 'five steps');
     const f = await frame();
     assert.equal(f.nodes.trail.points.length, 6);
@@ -168,9 +174,14 @@ try {
     assert.equal(await word(), 'paused', 'a step leaves the run paused');
   });
   await step('Run: the word is running, then converged; the true loss is under 0.02 and the path has 21 points', async () => {
-    await action('run').click();
+    const began = Date.now();
+    await press('run');
     await until(async () => (await word()) === 'running', 'the word running');
     await until(async () => (await word()) === 'converged', 'the word converged', 40000);
+    const took = Date.now() - began;
+    measured('run', { msToConverged: took, notes: runtimeNotes.length });
+    assert.ok(took < 20000, `fifteen steps at five a second took ${took} ms: the host's 30 ticks a second are costing more than their 33 ms each`);
+    assert.deepEqual(runtimeNotes, [], 'the scene logged no runtime failure');
     const f = await frame();
     assert.ok(f.readouts.loss < 0.02 && f.readouts.loss >= 0, `loss ${f.readouts.loss}`);
     assert.equal(f.readouts.steps, 20, 'twenty steps from (0.3, 1.6) at rate 0.1');
@@ -185,7 +196,7 @@ try {
     await shot('B-converged');
   });
   await step('New run keeps the old path as the ghost: 21 ghost points, a one-point path, and the picture differs from the same scene with the ghost cleared', async () => {
-    await action('newRun').click();
+    await press('newRun');
     await until(async () => (await frame()).nodes.ghost.points.length === 21, 'the kept path');
     const f = await frame();
     assert.equal(f.nodes.trail.points.length, 1);
@@ -213,7 +224,7 @@ try {
   });
   await step('learning rate 1.5: diverged, the Loss readout keeps the true value, and the clamped ball stays inside the frame', async () => {
     await setRate(1.5);
-    await action('run').click();
+    await press('run');
     await until(async () => (await word()) === 'diverged', 'the word diverged', 15000);
     const f = await frame();
     assert.ok(Math.abs(f.readouts.loss - bowl(1.5, 2)) < 1e-9, `the true loss ${f.readouts.loss}, closed form ${bowl(1.5, 2)}`);

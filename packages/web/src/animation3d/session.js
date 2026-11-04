@@ -49,13 +49,19 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
   const saveSimulation = snapshot => { if (snapshot) persist.simulation?.(snapshot); };
   const saveView = () => persist.view?.({ camera: state.camera, selection: state.selected });
   const dropRuntime = () => { const old = runtime; runtime = null; try { old?.dispose(); } catch { /* already gone */ } };
-  const dropRenderer = () => { abortRenderer?.abort(); abortRenderer = null; const old = renderer; renderer = null; try { old?.dispose(); } catch { /* already gone */ } };
+  const dropRenderer = () => { abortRenderer?.abort(); abortRenderer = null; const old = renderer; renderer = null; drawn = null; try { old?.dispose(); } catch { /* already gone */ } };
+  // FX-AN-107: the renderer is given a frame only when it differs from the one it was last given. A stepped scene ticks at 30 Hz and sends a frame every tick although it changes
+  // a few times a second, and each applyFrame is a label layout and a render: on software GL the redundant ones overran the 33 ms a tick has and the run stopped as overloaded.
+  // redraw(): anything else that may change what is shown (a camera move, a label toggle, a learner event, a reset, a recovery, a new renderer) draws the next frame whatever it is.
+  let drawn = null;
+  const redraw = () => { drawn = null; };
   const snapshot = () => { try { return runtime?.snapshot() ?? null; } catch { return null; } };
   const defaults = () => resolveAnimationInputs(state.artifact, {});
 
   function showFrame(frame, meta) {
     const view = frameView(frame, state.model);
-    try { renderer?.applyFrame(frame); } catch (error) { rendererFailed(error); }
+    const key = JSON.stringify(frame);
+    try { if (renderer && key !== drawn) drawn = renderer.applyFrame(frame)?.ok === false ? null : key; } catch (error) { drawn = null; rendererFailed(error); }
     // A loop that ran to its end stopped itself (runtime.js): the shown play state follows the runtime's own.
     const stopped = state.playing && snapshot()?.paused === true;
     set({ frame, time: Number.isFinite(meta?.time) ? meta.time : state.time, readouts: view.readouts, goal: view.goal, ...(stopped ? { playing: false } : {}) });
@@ -122,7 +128,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
       container,
       onSelect: id => { if (own()) select(id); },
       onGesture: event => { if (own()) gesture(event); },
-      onCameraChange: camera => { if (own()) { follow = false; cancelRefit(); state = { ...state, camera }; saveView(); } },
+      onCameraChange: camera => { if (own()) { redraw(); follow = false; cancelRefit(); state = { ...state, camera }; saveView(); } },
       onLost: () => { if (own()) rendererFailed(Object.assign(new Error('The graphics context was lost.'), { code: 'context_lost' })); },
     });
     renderer = created;
@@ -133,7 +139,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
       if (out && out.ok === false) throw Object.assign(new Error(out.issues?.[0]?.message || 'The scene could not be drawn.'), { code: out.code });
       if (state.camera) created.setCamera(state.camera);
       else if (fitted) created.setCamera(fitted);
-      if (state.frame) created.applyFrame(state.frame);
+      if (state.frame) { created.applyFrame(state.frame); drawn = JSON.stringify(state.frame); }
       const optional = typeof created.hasOptionalLabels === 'function' && !!created.hasOptionalLabels();
       if (optional && typeof created.setOptionalLabels === 'function') created.setOptionalLabels(state.labels);
       set({ renderer: 'ready', optionalLabels: optional });
@@ -174,6 +180,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
 
   async function dispatch(event, { input = null } = {}) {
     if (!runtime || state.runtime !== 'ready') return false;
+    redraw();
     const from = runtime, mine = ++ticket;
     let result;
     try { result = await from.dispatch(event); } catch (error) { result = { accepted: false, reason: error?.message }; }
@@ -200,6 +207,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
   // program is never left mid-drag.
   async function gesture(event, tries = 0) {
     if (!runtime || state.runtime !== 'ready') return;
+    redraw();
     const from = runtime;
     let result;
     try { result = await from.dispatch(event); } catch { return; }
@@ -211,6 +219,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
   // Scene Reset: the declared starting conditions and seed; the camera stays. A failed reset keeps the last good state.
   async function resetScene() {
     if (!runtime || state.runtime !== 'ready') return false;
+    redraw();
     const from = runtime;
     ticket += 1; // a pending change from before the reset no longer decides the controls
     let result;
@@ -248,6 +257,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
     },
     // Retry repeats only the stage that failed: never a page reload, never a new generation request.
     retry() {
+      redraw();
       const stage = state.failure?.stage;
       set({ failure: null, notice: '' });
       if (stage === 'artifact') return loadStage(generation);
@@ -276,11 +286,13 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
     // reset() always returns to the defaults), so it offers no Restart and this does nothing there.
     async restart() {
       if (!runtime || state.runtime !== 'ready' || !state.model?.loop?.seekable) return;
+      redraw();
       const result = await runtime.seek(0);
       if (!accepted(result)) set({ notice: 'Restart was not possible.' });
     },
     setSpeed(speed) {
       if (!runtime || !state.model?.loop?.speeds.includes(speed)) return;
+      redraw();
       if (accepted(runtime.setSpeed(speed))) set({ speed }); else set({ notice: 'That speed is not supported for this scene.' });
     },
     reset: resetScene,
@@ -289,6 +301,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
       if (!renderer || !camera) return;
       try { renderer.setCamera(camera); } catch (error) { rendererFailed(error); return; }
       follow = true;
+      redraw();
       set({ camera });
       saveView();
     },
@@ -298,6 +311,7 @@ export function createCardSession({ loadScene, createRuntime, createRenderer = n
     releaseGestures(active) { try { renderer?.interact(false); if (active) renderer?.interact(true); } catch { /* nothing held */ } },
     // Optional labels on or off: the renderer's own toggle (renderer.js setOptionalLabels); measurements and instructions stay.
     setLabels(visible) {
+      redraw();
       set({ labels: !!visible });
       try { if (typeof renderer?.setOptionalLabels === 'function') renderer.setOptionalLabels(!!visible); } catch (error) { rendererFailed(error); }
     },
