@@ -98,8 +98,7 @@
         "paths": [
           "packages/control-plane/src/agents/animation-author.js",
           "packages/control-plane/src/agents/animation-brief.js",
-          "packages/control-plane/src/agents/animation-archetypes.js",
-          "packages/control-plane/test/animation-fit.test.js"
+          "packages/control-plane/src/agents/animation-archetypes.js"
         ],
         "from": "prompts"
       },
@@ -112,6 +111,10 @@
           ".test.js"
         ],
         "candMatches": "wireframe|SIZE_RULES|ANIMATION_AUTHOR_SYSTEM|ANIMATION_REPAIR_SYSTEM|ANIMATION_REVIEW_SYSTEM|ANIMATION_BRIEF_SYSTEM|COMPACT_RULES|ARCHETYPES",
+        "exclude": [
+          "packages/control-plane/test/animation-fit.test.js",
+          "packages/control-plane/test/animation-pipeline.test.js"
+        ],
         "from": "prompts"
       },
       {
@@ -129,18 +132,11 @@
       {
         "op": "dropTest",
         "optional": true,
-        "file": "packages/control-plane/test/animation-pipeline.test.js",
-        "titles": [
-          "a repair must return the program: the tool requires it and the prompt says so",
-          "a repair that returns the program beside the artifact, or as a bare source string, keeps its program"
-        ]
-      },
-      {
-        "op": "dropTest",
-        "optional": true,
         "file": "packages/control-plane/test/animation-fit.test.js",
         "titles": [
-          "the author runs at medium effort with 24,000 output tokens, and the build worst case and credits follow the pricing registry"
+          "AN-20 measurement: the system prompts are shorter than at",
+          "the diagnosed SGD causes, as general rules",
+          "the shared estimate holds on the representative plan"
         ]
       }
     ],

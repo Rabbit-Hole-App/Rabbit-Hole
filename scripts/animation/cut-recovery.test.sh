@@ -95,7 +95,7 @@ git ls-remote --heads rabbit-hole "$B" | grep -q . && bad "mvp3: pushed without 
 back && ok "mvp3: back on the starting branch, tree clean" || bad "not back"
 
 CUT mvp4 $CAND --prev $PREV --no-verify; B4=recovery/animation-mvp4-${CAND:0:8}
-[ $RC -eq 0 ] && [ "$(files $B4)" = "$(printf '%s\n' $PA $PB $FIT $AR | sort | tr '\n' ' ')" ] && git show $B4:$PA | grep -q "prompt v1" && git show $B4:$AR | grep -q "rules v1" && ok "mvp4: the two prompt files, the archetype rules and the fit test, back to PREV" || { bad "mvp4 ($RC) $(files $B4)"; echo "$OUT" | tail -3; }
+[ $RC -eq 0 ] && [ "$(files $B4)" = "$(printf '%s\n' $PA $PB $AR | sort | tr '\n' ' ')" ] && git show $B4:$PA | grep -q "prompt v1" && git show $B4:$AR | grep -q "rules v1" && [ "$(git show $B4:$FIT)" = "$(git show $CAND:$FIT)" ] && ok "mvp4: the two prompt files and the archetype rules back to PREV; the fit test keeps the candidate's text (excluded, so what it pins besides the prompts stays covered)" || { bad "mvp4 ($RC) $(files $B4)"; echo "$OUT" | tail -3; }
 CUT mvp5 $CAND --prev $PREV --no-verify; B5=recovery/animation-mvp5-${CAND:0:8}
 [ $RC -eq 0 ] && [ "$(files $B5)" = "$(printf '%s\n' $UI $E2E | sort | tr '\n' ' ')" ] && git show $B5:$UI | grep -q "not supported yet" && ok "mvp5: the copy line is back in the card and the e2e step" || { bad "mvp5 ($RC) $(files $B5)"; echo "$OUT" | tail -3; }
 CUT mvp2b $CAND --prev $PREV --no-verify; B2=recovery/animation-mvp2b-${CAND:0:8}
@@ -140,7 +140,7 @@ back && ok "still back on the starting branch" || bad "not back after refusals"
 echo "== combined (one release carries all four slices)"
 git branch -q -D recovery/animation-combined-${CAND:0:8} 2>/dev/null
 CUT combined $CAND --prev $PREV --prompts-from $MID --no-verify; BC=recovery/animation-combined-${CAND:0:8}
-[ $RC -eq 0 ] && [ "$(files $BC)" = "$(printf '%s\n' $AR $BR $CF $OC $FIT $PA $PB $PC $UI $WR $E2E | sort | tr '\n' ' ')" ] && ok "combined: one branch, exactly the union of the four slices' files" || { bad "combined ($RC) $(files $BC)"; echo "$OUT" | tail -3; }
+[ $RC -eq 0 ] && [ "$(files $BC)" = "$(printf '%s\n' $AR $BR $CF $OC $PA $PB $PC $UI $WR $E2E | sort | tr '\n' ' ')" ] && ok "combined: one branch, exactly the union of the four slices' files" || { bad "combined ($RC) $(files $BC)"; echo "$OUT" | tail -3; }
 git show $BC:$PA | grep -q "prompt v1.5" && ! git show $BC:$PA | grep -q "ARCHETYPES" && ok "combined: the prompts come back from --prompts-from (the tested C3), not from the previous release" || bad "combined prompts"
 git show $BC:$WR | grep -q '"ANIMATION_STREAMING": "false"' && git show $BC:$BR | grep -q "arrow_anchor" && git show $BC:$UI | grep -q "not supported yet" && ok "combined: streaming flag, five-feature filter and copy line are all in" || bad "combined switches"
 [ "$(git show $BC:$F)" = "$(git show $CAND:$F)" ] && has "checkCandidate accepts" && ok "combined: capabilities.js untouched and the real checkCandidate accepts the tip" || bad "combined release check"

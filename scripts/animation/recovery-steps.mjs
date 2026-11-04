@@ -10,7 +10,7 @@
 //   replace          {file, pattern, with, optional?}   the regular expression must match exactly once ($1.. are the capture groups); optional: zero matches is fine
 //   dropTest         {file, titles[], optional?}   removes the top-level test(...) blocks whose title contains each substring (exactly one test each; optional: absent is fine)
 //   restore          {paths[]}              each path goes back to its text at PREV; a path that did not exist at PREV is removed
-//   restoreMatching  {under[], suffix?[], candMatches?, prevMatches?, required?, added?}   (added: only files the candidate added, which are removed)
+//   restoreMatching  {under[], suffix?[], candMatches?, prevMatches?, required?, added?, exclude?[]}   (added: only files the candidate added, which are removed)
 //                    every file changed between PREV and the candidate under a listed prefix, and (when given) whose text at the candidate
 //                    matches candMatches or whose text at PREV matches prevMatches, goes back to PREV (or is removed when added since)
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -75,7 +75,8 @@ export function applyRecipe(recipe, { cand, prev, promptsFrom, cwd = process.cwd
       const cm = step.candMatches && new RegExp(step.candMatches, 'i'), pm = step.prevMatches && new RegExp(step.prevMatches, 'i');
       const hits = diff(ref).filter(({ status }) => !step.added || status === 'A') // added: only files the candidate ADDED (they are removed)
         .filter(({ path }) => step.under.some(u => path === u || path.startsWith(u.endsWith('/') ? u : `${u}/`)) && (!step.suffix || step.suffix.some(s => path.endsWith(s))))
-        .filter(({ status, path }) => !cm && !pm || (cm && status !== 'D' && cm.test(show(cand, path) ?? '')) || (pm && status !== 'A' && pm.test(show(ref, path) ?? '')));
+        .filter(({ status, path }) => !cm && !pm || (cm && status !== 'D' && cm.test(show(cand, path) ?? '')) || (pm && status !== 'A' && pm.test(show(ref, path) ?? '')))
+        .filter(({ path }) => !(step.exclude ?? []).includes(path)); // exclude: tests that keep the candidate's text (they also pin things this recovery does not undo)
       if (step.required && !hits.length) throw new Error(`${where}: no changed file under ${step.under.join(', ')} matches ${step.candMatches ?? step.prevMatches}; the candidate does not contain what this recovery undoes (wrong --prev, or the recipe is stale)`);
       hits.forEach(h => restoreOne(h.path, ref));
     } else throw new Error(`${where}: unknown op ${step.op}`);
