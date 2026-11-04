@@ -206,7 +206,7 @@ test('the diagnosed SGD causes, as general rules: event shape, merged findings, 
   const base = 'export function evaluate(){return {}}\nexport function initialState(){return {}}\nexport function reduce({state,event}){';
   assert.ok(programProblems(withSource(`${base}if(event.id==='keepPath')return state;return state}`)).some(p => /read event\.action/.test(p)));
   assert.equal(programProblems(withSource(`${base}if(event.action==='keepPath')return state;return state}`)).some(p => /event\.action/.test(p)), false);
-  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) { assert.match(system, /An action is named by event\.action, never event\.id/); assert.match(system, /moving a camera closer does not enlarge anything/); assert.match(system, /A curved surface is drawn as capabilities.surfaces says/); } // aj_086fd46: filled discs hid what moved inside a bowl
+  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) { assert.match(system, /An action is named by event\.action, never event\.id/); assert.match(system, /moving a camera closer does not enlarge anything/); assert.match(system, /A curved surface is a `surface` geometry; a path is a `trail`; a changing word is a text readout\./); } // AN-20 (owner decisions 11, 12): replaces the tube-surface sentence (aj_086fd46: filled discs hid what moved inside a bowl)
   assert.equal(ANIMATION_REPAIR_SYSTEM.includes('move the camera closer'), false);
   // 4b: a finding repeated across captures goes to the repair once, with its captures, so distinct ones are not cut.
   const same = c => ({ category: 'spec', severity: 'major', target: { capture: c }, message: 'no batch-noise readout' });
@@ -229,4 +229,23 @@ test('a non-SGD scene keeps the shared changes: a game reading event.action pass
   const f = c => ({ category: 'spec', severity: 'major', target: { capture: c }, message: 'robot label overlaps the goal' });
   const sent = JSON.parse(repairContent(jobOf(fixture.repairedDraft), { findings: [f('v0-s0'), f('v1-s0')] }, fixture.repairedDraft)[0].text);
   assert.deepEqual([sent.findings.length, sent.findings[0].targets.map(t => t.capture)], [1, ['v0-s0', 'v1-s0']]);
+});
+
+// AN-20 (plan section 8, owner decisions 11 to 13): the prompt cut shortens the universal prompts and leaves the largest reviewable draft
+// no smaller. BEFORE is measured at caf7ee9bc on this fixture's plan (the review request binds, then the repair request). This is a
+// regression guard as well as the recorded measurement: a prompt that grows back past the baseline fails here, not in a paid job.
+test('AN-20 measurement: the system prompts are shorter than at caf7ee9bc and the largest reviewable draft is not smaller', async t => {
+  const BEFORE = Object.freeze({ author: 13382, repair: 13473, review: 4955, reviewableDraft: 14832 });
+  const bytes = s => new TextEncoder().encode(s).length;
+  const { ANIMATION_AUTHOR_SYSTEM } = await import('../src/agents/animation-author.js');
+  const after = { author: bytes(ANIMATION_AUTHOR_SYSTEM), repair: bytes(ANIMATION_REPAIR_SYSTEM), review: bytes(ANIMATION_REVIEW_SYSTEM) };
+  for (const role of Object.keys(after)) assert.ok(after[role] < BEFORE[role], `${role} system ${after[role]} B must be under ${BEFORE[role]} B (caf7ee9bc)`);
+  const draft = fixture.repairedDraft, padded = n => ({ ...draft, program: { source: `${draft.program.source}\n//${'x'.repeat(n)}` } });
+  const fits = async n => { const d = padded(n), a = await sealedOf(d); return fitProblems(env, a, jobOf(d), undefined, d).length === 0; };
+  let low = 0, high = 3000; // the program source limit (16 KiB) is far above this fixture's 2.2 KB source
+  while (high - low > 1) { const mid = Math.floor((low + high) / 2); if (await fits(mid)) low = mid; else high = mid; }
+  const largest = bytes(JSON.stringify(padded(low)));
+  t.diagnostic(`system B before -> after: author ${BEFORE.author} -> ${after.author}; repair ${BEFORE.repair} -> ${after.repair}; review ${BEFORE.review} -> ${after.review}; largest reviewable draft ${BEFORE.reviewableDraft} -> ${largest}; ANIMATION_DRAFT_BYTES ${ANIMATION_DRAFT_BYTES}`);
+  assert.ok(largest >= BEFORE.reviewableDraft, `the largest reviewable draft ${largest} B must not fall below ${BEFORE.reviewableDraft} B`);
+  assert.ok(ANIMATION_DRAFT_BYTES <= largest, 'the shared estimate stays at or under what the real requests fit on this plan');
 });
