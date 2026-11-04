@@ -259,7 +259,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
       drawable = new THREE.Group();
       drawable.userData.arrow = g.length;
       for (const part of shapeOf(g)) drawable.add(new THREE.Mesh(part, surfaces.get(node.material) ?? fallback));
-    } else if (g) drawable = new THREE.Mesh(shapeOf(g), surfaces.get(node.material) ?? fallback);
+    } else if (g && g.kind !== 'surface' && g.kind !== 'trail') drawable = new THREE.Mesh(shapeOf(g), surfaces.get(node.material) ?? fallback); // ponytail: surface and trail are drawn from AN-19 on; until then a node with one is an empty group
     if (drawable) {
       drawable.traverse(child => { child.userData.nodeId = node.id; });
       holder.add(drawable);
