@@ -235,9 +235,9 @@ try {
     await page.evaluate(() => document.activeElement?.blur());
   });
 
-  // AN-17 copy line (owner plan v3.1): the request says what /animation works best for and what is not supported yet.
-  await step('typing /animation shows what it works best for and what is not supported yet, in the picker row and in the Slash Commands description', async () => {
-    const LINE = 'Works best for mechanisms, loops and small games. Loss surfaces and optimizers are not supported yet.', before = stray.length;
+  // AN-17 copy line (owner plan v3.1), replaced by the AN-21 loss-surface claim: the request says what /animation works best for and what it also draws.
+  await step('typing /animation shows what it works best for and that it also draws gradient descent on a loss surface, in the picker row and in the Slash Commands description', async () => {
+    const LINE = 'Works best for mechanisms, loops and small games. Also draws gradient descent on a loss surface, with a marker and its path.', before = stray.length;
     await composer(page).click();
     await composer(page).fill('/anim');
     const row = page.locator('[data-slash-picker] [data-slash-command="animation"]');
