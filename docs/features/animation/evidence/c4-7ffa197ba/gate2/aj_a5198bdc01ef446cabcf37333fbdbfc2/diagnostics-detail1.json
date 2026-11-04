@@ -1,0 +1,4402 @@
+{
+ "job": {
+  "id": "aj_a5198bdc01ef446cabcf37333fbdbfc2",
+  "version": 1,
+  "boardId": "bc8844af-9437-4eaa-8e00-f83f981b7a26",
+  "cardId": "ca97fb7d-cbe9-44bd-9962-7a5cc26c7b3c",
+  "stage": "ready",
+  "attempt": 1,
+  "terminal": true,
+  "repairs": 1,
+  "stopReason": "accepted",
+  "failure": null,
+  "recovery": [],
+  "outcome": "supported",
+  "choiceOpen": false,
+  "threadId": "canvaschat-b91401a5-5b84-473d-b087-0a9394b14529",
+  "chatPending": false,
+  "usage": {
+   "credits": 108,
+   "unknown": false
+  },
+  "result": {
+   "jobId": "aj_a5198bdc01ef446cabcf37333fbdbfc2",
+   "resultId": "ar_60f49294351a48daab97fab42a1ae750",
+   "cardId": "ca97fb7d-cbe9-44bd-9962-7a5cc26c7b3c",
+   "canvas": {
+    "boardId": "bc8844af-9437-4eaa-8e00-f83f981b7a26"
+   },
+   "requestRef": "0feac6663913233c",
+   "revision": "av_23628e58618d4ff9b2f6277132aa5eb8",
+   "planHash": "9bceb57746b0864684d33152d013f533d4162f111a5345ef26fe46931282ba62",
+   "sources": "643d5437104296e2",
+   "artifactHash": "d93386dbcf8a85142ee9500c47b51d2b723bfd05c6c934303e5af91c03244441",
+   "experience": "experiment",
+   "capabilityVersion": "animation-capabilities/1",
+   "policyVersion": 1
+  },
+  "plan": {
+   "schema": "animation-plan/1",
+   "title": "Gradient descent: a ball stepping down a loss surface",
+   "description": "A curved bowl-shaped surface stands for a loss surface, with its lowest point marked. A ball sits on the surface. With each step it jumps downhill and leaves a trail of its path. An arrow on the ball points in the steepest downhill direction, and its length shows how far the next step will go. You can take one step at a time or let it run. You can also change the step size (the learning rate) to see the ball creep, zigzag across the valley or fly off the surface.",
+   "experience": "experiment",
+   "reason": "Stepping one jump at a time shows that gradient descent is a series of separate moves, not a smooth roll. Changing the step size shows why the learning rate matters so much.",
+   "behavior": "rules",
+   "controlProfile": "manipulate",
+   "sourceRefs": [],
+   "parameters": [
+    {
+     "type": "number",
+     "id": "learningRate",
+     "label": "Step size (learning rate)",
+     "min": 0.05,
+     "max": 0.8,
+     "step": 0.05,
+     "default": 0.15
+    },
+    {
+     "type": "toggle",
+     "id": "showArrow",
+     "label": "Show downhill arrow",
+     "default": true
+    }
+   ],
+   "interactions": [
+    "Take one step: the ball moves once by the step size times the downhill slope, and the trail grows by one point",
+    "Press play to let steps repeat automatically. Pause at any time",
+    "Drag the ball to pick a new starting point. This clears the trail and the step count",
+    "Change the step size. Small values make short, slow steps. Values above about 0.67 make the ball overshoot across the narrow valley farther each time, until it leaves the surface",
+    "Readouts show the step count, the loss at the ball and the steepness of the slope there"
+   ],
+   "assumptions": [
+    "Illustration: the surface is an example formula, not a trained model's real loss.",
+    "The loss is 0.5·x² + 1.5·y². This makes a valley that is steeper across one direction than along the other. Its lowest point is at the centre, where the loss is 0.",
+    "Each step moves the ball by the learning rate times the negative gradient (the steepest-downhill direction), computed exactly from the formula. There is no momentum or noise.",
+    "The ball is drawn on the surface at its current loss. The height is scaled down so the whole bowl fits on screen.",
+    "A run stops when the slope is almost flat (the ball has settled), after 100 steps, or when the ball leaves the edge of the surface. A readout then says it diverged."
+   ],
+   "limitations": [
+    "The ball does not really roll. It has no speed or momentum and jumps straight from point to point, as plain gradient descent does.",
+    "This surface has only one lowest point, so it cannot show the ball getting stuck in a local minimum (a dip that is not the lowest point).",
+    "The surface has only two adjustable values, so you can see it. Real models have millions."
+   ],
+   "learningGoal": "See that gradient descent moves step by step against the slope, and that the learning rate decides whether it settles slowly, zigzags or diverges.",
+   "requiredCapabilities": [
+    "step",
+    "actions",
+    "parameters",
+    "drag",
+    "readouts",
+    "labels"
+   ],
+   "archetype": "loss_surface",
+   "assertions": [
+    {
+     "kind": "clamp"
+    },
+    {
+     "kind": "compare",
+     "parameter": "learningRate",
+     "values": [
+      0.15,
+      0.8
+     ]
+    },
+    {
+     "kind": "pathLength",
+     "min": 2
+    }
+   ]
+  },
+  "planHash": "9bceb57746b0864684d33152d013f533d4162f111a5345ef26fe46931282ba62",
+  "timing": {
+   "requestClass": "simple",
+   "cache": null,
+   "firstFeedbackMs": 50,
+   "proposalMs": 22564,
+   "generateToResultMs": 389269,
+   "processingMs": 411783,
+   "approvalWaitMs": 1100,
+   "calls": 7,
+   "repairs": 1,
+   "stages": [
+    {
+     "stage": "preparing",
+     "ms": 22514,
+     "calls": 1,
+     "inputTokens": 377,
+     "outputTokens": 2087,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "awaiting_approval",
+     "ms": 1100,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": null
+    },
+    {
+     "stage": "authoring",
+     "ms": 149691,
+     "calls": 2,
+     "inputTokens": 14949,
+     "outputTokens": 18216,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "validating",
+     "ms": 15,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "rendering",
+     "ms": 32204,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 6,
+     "outcome": "done"
+    },
+    {
+     "stage": "reviewing",
+     "ms": 45192,
+     "calls": 1,
+     "inputTokens": 12592,
+     "outputTokens": 4367,
+     "images": 6,
+     "captures": 0,
+     "outcome": "rejected"
+    },
+    {
+     "stage": "repairing",
+     "ms": 89424,
+     "calls": 2,
+     "inputTokens": 17702,
+     "outputTokens": 12071,
+     "images": 4,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "validating",
+     "ms": 25,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "rendering",
+     "ms": 34680,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 6,
+     "outcome": "done"
+    },
+    {
+     "stage": "reviewing",
+     "ms": 38038,
+     "calls": 1,
+     "inputTokens": 12772,
+     "outputTokens": 3679,
+     "images": 6,
+     "captures": 0,
+     "outcome": "accepted"
+    }
+   ]
+  },
+  "createdAt": 1793763409523,
+  "updatedAt": 1793763822456
+ },
+ "block": {
+  "type": "animation3d",
+  "id": "ca97fb7d-cbe9-44bd-9962-7a5cc26c7b3c",
+  "title": "Gradient descent: a ball stepping down a loss surface",
+  "animation3d": {
+   "resultId": "ar_60f49294351a48daab97fab42a1ae750",
+   "artifactHash": "d93386dbcf8a85142ee9500c47b51d2b723bfd05c6c934303e5af91c03244441",
+   "revision": "av_23628e58618d4ff9b2f6277132aa5eb8",
+   "experience": "experiment"
+  }
+ },
+ "diagnostics": {
+  "plan": {
+   "schema": "animation-plan/1",
+   "title": "Gradient descent: a ball stepping down a loss surface",
+   "description": "A curved bowl-shaped surface stands for a loss surface, with its lowest point marked. A ball sits on the surface. With each step it jumps downhill and leaves a trail of its path. An arrow on the ball points in the steepest downhill direction, and its length shows how far the next step will go. You can take one step at a time or let it run. You can also change the step size (the learning rate) to see the ball creep, zigzag across the valley or fly off the surface.",
+   "experience": "experiment",
+   "reason": "Stepping one jump at a time shows that gradient descent is a series of separate moves, not a smooth roll. Changing the step size shows why the learning rate matters so much.",
+   "behavior": "rules",
+   "controlProfile": "manipulate",
+   "sourceRefs": [],
+   "parameters": [
+    {
+     "type": "number",
+     "id": "learningRate",
+     "label": "Step size (learning rate)",
+     "min": 0.05,
+     "max": 0.8,
+     "step": 0.05,
+     "default": 0.15
+    },
+    {
+     "type": "toggle",
+     "id": "showArrow",
+     "label": "Show downhill arrow",
+     "default": true
+    }
+   ],
+   "interactions": [
+    "Take one step: the ball moves once by the step size times the downhill slope, and the trail grows by one point",
+    "Press play to let steps repeat automatically. Pause at any time",
+    "Drag the ball to pick a new starting point. This clears the trail and the step count",
+    "Change the step size. Small values make short, slow steps. Values above about 0.67 make the ball overshoot across the narrow valley farther each time, until it leaves the surface",
+    "Readouts show the step count, the loss at the ball and the steepness of the slope there"
+   ],
+   "assumptions": [
+    "Illustration: the surface is an example formula, not a trained model's real loss.",
+    "The loss is 0.5·x² + 1.5·y². This makes a valley that is steeper across one direction than along the other. Its lowest point is at the centre, where the loss is 0.",
+    "Each step moves the ball by the learning rate times the negative gradient (the steepest-downhill direction), computed exactly from the formula. There is no momentum or noise.",
+    "The ball is drawn on the surface at its current loss. The height is scaled down so the whole bowl fits on screen.",
+    "A run stops when the slope is almost flat (the ball has settled), after 100 steps, or when the ball leaves the edge of the surface. A readout then says it diverged."
+   ],
+   "limitations": [
+    "The ball does not really roll. It has no speed or momentum and jumps straight from point to point, as plain gradient descent does.",
+    "This surface has only one lowest point, so it cannot show the ball getting stuck in a local minimum (a dip that is not the lowest point).",
+    "The surface has only two adjustable values, so you can see it. Real models have millions."
+   ],
+   "learningGoal": "See that gradient descent moves step by step against the slope, and that the learning rate decides whether it settles slowly, zigzags or diverges.",
+   "requiredCapabilities": [
+    "step",
+    "actions",
+    "parameters",
+    "drag",
+    "readouts",
+    "labels"
+   ],
+   "archetype": "loss_surface",
+   "assertions": [
+    {
+     "kind": "clamp"
+    },
+    {
+     "kind": "compare",
+     "parameter": "learningRate",
+     "values": [
+      0.15,
+      0.8
+     ]
+    },
+    {
+     "kind": "pathLength",
+     "min": 2
+    }
+   ]
+  },
+  "draft": {
+   "title": "Gradient descent: a ball stepping down a loss surface",
+   "description": "A blue bowl-shaped surface stands for the loss 0.5·x² + 1.5·y². Its lowest point is marked at the centre. A red ball sits on the surface. Each step makes it jump downhill by the step size times the slope, and an orange trail records the path. An orange arrow on the ball shows the next step. Drag the ball along the side to choose a new start. Raise the step size to see the ball zigzag across the narrow valley or fly off the surface.",
+   "experience": "experiment",
+   "behavior": "rules",
+   "controlProfile": "manipulate",
+   "stepped": true,
+   "scene": {
+    "materials": [
+     {
+      "id": "bowlBlue",
+      "color": "#8fa8c8"
+     },
+     {
+      "id": "ballRed",
+      "color": "#d23c2a"
+     },
+     {
+      "id": "pathOrange",
+      "color": "#e8731a"
+     },
+     {
+      "id": "arrowDark",
+      "color": "#b8500c"
+     },
+     {
+      "id": "markDark",
+      "color": "#333a44"
+     }
+    ],
+    "geometries": [
+     {
+      "id": "bowlGrid",
+      "kind": "surface",
+      "width": 4,
+      "depth": 4,
+      "contours": 8,
+      "heights": [
+       [
+        2,
+        1.92,
+        1.84,
+        1.77,
+        1.71,
+        1.66,
+        1.61,
+        1.58,
+        1.55,
+        1.52,
+        1.51,
+        1.5,
+        1.5,
+        1.51,
+        1.52,
+        1.55,
+        1.58,
+        1.61,
+        1.66,
+        1.71,
+        1.77,
+        1.84,
+        1.92,
+        2
+       ],
+       [
+        1.75,
+        1.67,
+        1.59,
+        1.52,
+        1.46,
+        1.41,
+        1.37,
+        1.33,
+        1.3,
+        1.28,
+        1.26,
+        1.25,
+        1.25,
+        1.26,
+        1.28,
+        1.3,
+        1.33,
+        1.37,
+        1.41,
+        1.46,
+        1.52,
+        1.59,
+        1.67,
+        1.75
+       ],
+       [
+        1.52,
+        1.44,
+        1.36,
+        1.3,
+        1.24,
+        1.18,
+        1.14,
+        1.1,
+        1.07,
+        1.05,
+        1.03,
+        1.02,
+        1.02,
+        1.03,
+        1.05,
+        1.07,
+        1.1,
+        1.14,
+        1.18,
+        1.24,
+        1.3,
+        1.36,
+        1.44,
+        1.52
+       ],
+       [
+        1.32,
+        1.24,
+        1.16,
+        1.09,
+        1.03,
+        0.98,
+        0.93,
+        0.9,
+        0.87,
+        0.84,
+        0.83,
+        0.82,
+        0.82,
+        0.83,
+        0.84,
+        0.87,
+        0.9,
+        0.93,
+        0.98,
+        1.03,
+        1.09,
+        1.16,
+        1.24,
+        1.32
+       ],
+       [
+        1.14,
+        1.06,
+        0.98,
+        0.91,
+        0.85,
+        0.8,
+        0.75,
+        0.72,
+        0.68,
+        0.66,
+        0.65,
+        0.64,
+        0.64,
+        0.65,
+        0.66,
+        0.68,
+        0.72,
+        0.75,
+        0.8,
+        0.85,
+        0.91,
+        0.98,
+        1.06,
+        1.14
+       ],
+       [
+        0.98,
+        0.9,
+        0.82,
+        0.75,
+        0.69,
+        0.64,
+        0.59,
+        0.56,
+        0.53,
+        0.5,
+        0.49,
+        0.48,
+        0.48,
+        0.49,
+        0.5,
+        0.53,
+        0.56,
+        0.59,
+        0.64,
+        0.69,
+        0.75,
+        0.82,
+        0.9,
+        0.98
+       ],
+       [
+        0.84,
+        0.76,
+        0.68,
+        0.62,
+        0.56,
+        0.5,
+        0.46,
+        0.42,
+        0.39,
+        0.37,
+        0.35,
+        0.34,
+        0.34,
+        0.35,
+        0.37,
+        0.39,
+        0.42,
+        0.46,
+        0.5,
+        0.56,
+        0.62,
+        0.68,
+        0.76,
+        0.84
+       ],
+       [
+        0.73,
+        0.65,
+        0.57,
+        0.5,
+        0.44,
+        0.39,
+        0.34,
+        0.31,
+        0.28,
+        0.25,
+        0.24,
+        0.23,
+        0.23,
+        0.24,
+        0.25,
+        0.28,
+        0.31,
+        0.34,
+        0.39,
+        0.44,
+        0.5,
+        0.57,
+        0.65,
+        0.73
+       ],
+       [
+        0.64,
+        0.56,
+        0.48,
+        0.41,
+        0.35,
+        0.3,
+        0.25,
+        0.22,
+        0.19,
+        0.16,
+        0.15,
+        0.14,
+        0.14,
+        0.15,
+        0.16,
+        0.19,
+        0.22,
+        0.25,
+        0.3,
+        0.35,
+        0.41,
+        0.48,
+        0.56,
+        0.64
+       ],
+       [
+        0.57,
+        0.49,
+        0.41,
+        0.34,
+        0.28,
+        0.23,
+        0.19,
+        0.15,
+        0.12,
+        0.1,
+        0.08,
+        0.07,
+        0.07,
+        0.08,
+        0.1,
+        0.12,
+        0.15,
+        0.19,
+        0.23,
+        0.28,
+        0.34,
+        0.41,
+        0.49,
+        0.57
+       ],
+       [
+        0.53,
+        0.44,
+        0.37,
+        0.3,
+        0.24,
+        0.19,
+        0.14,
+        0.1,
+        0.07,
+        0.05,
+        0.04,
+        0.03,
+        0.03,
+        0.04,
+        0.05,
+        0.07,
+        0.1,
+        0.14,
+        0.19,
+        0.24,
+        0.3,
+        0.37,
+        0.44,
+        0.53
+       ],
+       [
+        0.5,
+        0.42,
+        0.34,
+        0.28,
+        0.22,
+        0.16,
+        0.12,
+        0.08,
+        0.05,
+        0.03,
+        0.01,
+        0,
+        0,
+        0.01,
+        0.03,
+        0.05,
+        0.08,
+        0.12,
+        0.16,
+        0.22,
+        0.28,
+        0.34,
+        0.42,
+        0.5
+       ],
+       [
+        0.5,
+        0.42,
+        0.34,
+        0.28,
+        0.22,
+        0.16,
+        0.12,
+        0.08,
+        0.05,
+        0.03,
+        0.01,
+        0,
+        0,
+        0.01,
+        0.03,
+        0.05,
+        0.08,
+        0.12,
+        0.16,
+        0.22,
+        0.28,
+        0.34,
+        0.42,
+        0.5
+       ],
+       [
+        0.53,
+        0.44,
+        0.37,
+        0.3,
+        0.24,
+        0.19,
+        0.14,
+        0.1,
+        0.07,
+        0.05,
+        0.04,
+        0.03,
+        0.03,
+        0.04,
+        0.05,
+        0.07,
+        0.1,
+        0.14,
+        0.19,
+        0.24,
+        0.3,
+        0.37,
+        0.44,
+        0.53
+       ],
+       [
+        0.57,
+        0.49,
+        0.41,
+        0.34,
+        0.28,
+        0.23,
+        0.19,
+        0.15,
+        0.12,
+        0.1,
+        0.08,
+        0.07,
+        0.07,
+        0.08,
+        0.1,
+        0.12,
+        0.15,
+        0.19,
+        0.23,
+        0.28,
+        0.34,
+        0.41,
+        0.49,
+        0.57
+       ],
+       [
+        0.64,
+        0.56,
+        0.48,
+        0.41,
+        0.35,
+        0.3,
+        0.25,
+        0.22,
+        0.19,
+        0.16,
+        0.15,
+        0.14,
+        0.14,
+        0.15,
+        0.16,
+        0.19,
+        0.22,
+        0.25,
+        0.3,
+        0.35,
+        0.41,
+        0.48,
+        0.56,
+        0.64
+       ],
+       [
+        0.73,
+        0.65,
+        0.57,
+        0.5,
+        0.44,
+        0.39,
+        0.34,
+        0.31,
+        0.28,
+        0.25,
+        0.24,
+        0.23,
+        0.23,
+        0.24,
+        0.25,
+        0.28,
+        0.31,
+        0.34,
+        0.39,
+        0.44,
+        0.5,
+        0.57,
+        0.65,
+        0.73
+       ],
+       [
+        0.84,
+        0.76,
+        0.68,
+        0.62,
+        0.56,
+        0.5,
+        0.46,
+        0.42,
+        0.39,
+        0.37,
+        0.35,
+        0.34,
+        0.34,
+        0.35,
+        0.37,
+        0.39,
+        0.42,
+        0.46,
+        0.5,
+        0.56,
+        0.62,
+        0.68,
+        0.76,
+        0.84
+       ],
+       [
+        0.98,
+        0.9,
+        0.82,
+        0.75,
+        0.69,
+        0.64,
+        0.59,
+        0.56,
+        0.53,
+        0.5,
+        0.49,
+        0.48,
+        0.48,
+        0.49,
+        0.5,
+        0.53,
+        0.56,
+        0.59,
+        0.64,
+        0.69,
+        0.75,
+        0.82,
+        0.9,
+        0.98
+       ],
+       [
+        1.14,
+        1.06,
+        0.98,
+        0.91,
+        0.85,
+        0.8,
+        0.75,
+        0.72,
+        0.68,
+        0.66,
+        0.65,
+        0.64,
+        0.64,
+        0.65,
+        0.66,
+        0.68,
+        0.72,
+        0.75,
+        0.8,
+        0.85,
+        0.91,
+        0.98,
+        1.06,
+        1.14
+       ],
+       [
+        1.32,
+        1.24,
+        1.16,
+        1.09,
+        1.03,
+        0.98,
+        0.93,
+        0.9,
+        0.87,
+        0.84,
+        0.83,
+        0.82,
+        0.82,
+        0.83,
+        0.84,
+        0.87,
+        0.9,
+        0.93,
+        0.98,
+        1.03,
+        1.09,
+        1.16,
+        1.24,
+        1.32
+       ],
+       [
+        1.52,
+        1.44,
+        1.36,
+        1.3,
+        1.24,
+        1.18,
+        1.14,
+        1.1,
+        1.07,
+        1.05,
+        1.03,
+        1.02,
+        1.02,
+        1.03,
+        1.05,
+        1.07,
+        1.1,
+        1.14,
+        1.18,
+        1.24,
+        1.3,
+        1.36,
+        1.44,
+        1.52
+       ],
+       [
+        1.75,
+        1.67,
+        1.59,
+        1.52,
+        1.46,
+        1.41,
+        1.37,
+        1.33,
+        1.3,
+        1.28,
+        1.26,
+        1.25,
+        1.25,
+        1.26,
+        1.28,
+        1.3,
+        1.33,
+        1.37,
+        1.41,
+        1.46,
+        1.52,
+        1.59,
+        1.67,
+        1.75
+       ],
+       [
+        2,
+        1.92,
+        1.84,
+        1.77,
+        1.71,
+        1.66,
+        1.61,
+        1.58,
+        1.55,
+        1.52,
+        1.51,
+        1.5,
+        1.5,
+        1.51,
+        1.52,
+        1.55,
+        1.58,
+        1.61,
+        1.66,
+        1.71,
+        1.77,
+        1.84,
+        1.92,
+        2
+       ]
+      ]
+     },
+     {
+      "id": "runPath",
+      "kind": "trail",
+      "max": 128,
+      "radius": 0.035,
+      "style": "trail"
+     },
+     {
+      "id": "ballGeo",
+      "kind": "sphere",
+      "radius": 0.14,
+      "widthSegments": 32,
+      "heightSegments": 24
+     },
+     {
+      "id": "dotGeo",
+      "kind": "sphere",
+      "radius": 0.06,
+      "widthSegments": 16,
+      "heightSegments": 12
+     },
+     {
+      "id": "stepArrowGeo",
+      "kind": "arrow",
+      "length": 1,
+      "offset": 0.14
+     },
+     {
+      "id": "lowText",
+      "kind": "label",
+      "text": "Lowest point",
+      "placement": "below"
+     },
+     {
+      "id": "stepText",
+      "kind": "label",
+      "text": "Next step",
+      "anchor": "tip"
+     },
+     {
+      "id": "statusText",
+      "kind": "label",
+      "text": "Settled",
+      "placement": "above"
+     }
+    ],
+    "nodes": [
+     {
+      "id": "bowl",
+      "geometry": "bowlGrid",
+      "material": "bowlBlue",
+      "name": "Loss surface"
+     },
+     {
+      "id": "trail",
+      "geometry": "runPath",
+      "material": "pathOrange",
+      "name": "Path so far"
+     },
+     {
+      "id": "lowest",
+      "geometry": "dotGeo",
+      "material": "markDark",
+      "position": [
+       0,
+       0.03,
+       0
+      ]
+     },
+     {
+      "id": "lowTag",
+      "parent": "lowest",
+      "geometry": "lowText",
+      "position": [
+       0,
+       -0.04,
+       0.1
+      ]
+     },
+     {
+      "id": "ball",
+      "geometry": "ballGeo",
+      "material": "ballRed",
+      "name": "Current guess",
+      "clampTo": {
+       "node": "bowl",
+       "max": 2.2
+      },
+      "position": [
+       1.6,
+       1,
+       1.2
+      ],
+      "drag": {
+       "axis": "x",
+       "min": -1.9,
+       "max": 1.9
+      }
+     },
+     {
+      "id": "stepArrow",
+      "parent": "ball",
+      "geometry": "stepArrowGeo",
+      "material": "arrowDark"
+     },
+     {
+      "id": "stepTag",
+      "parent": "stepArrow",
+      "geometry": "stepText"
+     },
+     {
+      "id": "statusTag",
+      "parent": "ball",
+      "geometry": "statusText",
+      "position": [
+       0,
+       0.16,
+       0
+      ],
+      "visible": false
+     }
+    ]
+   },
+   "parameters": [
+    {
+     "type": "number",
+     "id": "learningRate",
+     "label": "Step size (learning rate)",
+     "min": 0.05,
+     "max": 0.8,
+     "step": 0.05,
+     "default": 0.15
+    },
+    {
+     "type": "toggle",
+     "id": "showArrow",
+     "label": "Show downhill arrow",
+     "default": true
+    }
+   ],
+   "actions": [
+    {
+     "id": "run",
+     "label": "Play steps"
+    },
+    {
+     "id": "pause",
+     "label": "Pause",
+     "startsMotion": false
+    },
+    {
+     "id": "stepOnce",
+     "label": "Take one step",
+     "startsMotion": false
+    }
+   ],
+   "readouts": [
+    {
+     "id": "loss",
+     "label": "Loss at ball",
+     "decimals": 3
+    },
+    {
+     "id": "steps",
+     "label": "Steps taken",
+     "decimals": 0
+    },
+    {
+     "id": "slope",
+     "label": "Slope steepness",
+     "decimals": 3
+    },
+    {
+     "id": "status",
+     "label": "Status",
+     "kind": "text"
+    }
+   ],
+   "seed": 1,
+   "camera": {
+    "position": [
+     2.2,
+     7.2,
+     4.6
+    ],
+    "target": [
+     0,
+     0.5,
+     0
+    ],
+    "fov": 40
+   },
+   "assumptions": [
+    "Illustration: the surface is an example formula, not a trained model's real loss.",
+    "Loss = 0.5·x² + 1.5·y² (y is drawn front to back). It is steeper across one direction than the other. The lowest point is at the centre, where the loss is 0.",
+    "Each step moves the ball by the learning rate times the negative gradient (x, 3y), computed exactly. There is no momentum or noise. Above 2/3 ≈ 0.67 the steeper direction overshoots farther each time.",
+    "The surface is drawn at 0.25 times the loss so the bowl fits. The arrow is the true next step, drawn at the same scale as the floor distances; its name tag hides when the step is too short to see.",
+    "A run stops when the slope is below 0.02 (converged), after 100 steps, or when the ball leaves the drawn square |x|, |y| ≤ 2 (diverged). A tag on the ball and the Status readout then say so.",
+    "Dragging moves the starting point sideways (along x) with y set to 1.2. This clears the trail and the step count."
+   ],
+   "program": {
+    "source": "const K=0.25,R=0.14,H=2,FLAT=0.02,MAX=100,Z0=1.2,X0=1.6;\nconst loss=(x,z)=>0.5*x*x+1.5*z*z;\nconst slope=s=>Math.hypot(s.x,3*s.z);\nconst word=s=>Math.abs(s.x)>H||Math.abs(s.z)>H?'diverged':slope(s)<FLAT?'converged':s.step>=MAX?'100-step limit':s.on?'running':'paused';\nconst over=s=>{const w=word(s);return w!=='running'&&w!=='paused';};\nconst TAG={diverged:'Diverged',converged:'Settled','100-step limit':'Step limit'};\nconst fresh=x=>({x,z:Z0,step:0,on:false,path:[[x,Z0]]});\nfunction advance(s,lr){if(over(s))return {...s,on:false};const x=s.x-lr*s.x,z=s.z-lr*3*s.z;return {...s,x,z,step:s.step+1,path:s.path.concat([[x,z]])};}\nexport function initialState(){return fresh(X0);}\nexport function reduce({state:s,event:e,inputs}){\n if(e.type==='step'){if(!s.on)return s;if(over(s))return {...s,on:false};return e.tick%6?s:advance(s,inputs.learningRate);}\n if(e.type==='action'){\n  if(e.action==='run')return over(s)?s:{...s,on:true};\n  if(e.action==='pause')return {...s,on:false};\n  if(e.action==='stepOnce')return advance({...s,on:false},inputs.learningRate);\n  return s;}\n if(e.type==='drag_start'||e.type==='drag_move'||e.type==='drag_end'){const v=Math.max(-1.9,Math.min(1.9,Number(e.value)||0));return fresh(v);}\n return s;}\nconst lift=p=>[p[0],Math.min(K*loss(p[0],p[1]),2.2)+0.04,p[1]];\nfunction aim(dx,dz,shown){const l=Math.hypot(dx,dz),h=Math.SQRT1_2;return shown&&l>1e-6?{visible:true,quaternion:[dz/l*h,0,-dx/l*h,h],scale:[1,l,1]}:{visible:false};}\nexport function evaluate({inputs,state}){\n const s=state||initialState(),L=loss(s.x,s.z),lr=inputs.learningRate,w=word(s),done=over(s),live=!done&&inputs.showArrow,len=lr*slope(s);\n return {nodes:{ball:{position:[s.x,Math.min(K*L,2.2)+R,s.z]},stepArrow:aim(-lr*s.x,-lr*3*s.z,live),stepTag:{visible:live&&len>0.3},statusTag:{visible:done,text:TAG[w]||'Settled'},trail:{points:s.path.map(lift)}},\n  readouts:{status:w,loss:L,steps:s.step,slope:slope(s)}};}\n"
+   }
+  },
+  "artifactHash": "d93386dbcf8a85142ee9500c47b51d2b723bfd05c6c934303e5af91c03244441",
+  "artifact": {
+   "schema": "animation-scene/1",
+   "artifactId": "ar_60f49294351a48daab97fab42a1ae750",
+   "revision": 1,
+   "planHash": "9bceb57746b0864684d33152d013f533d4162f111a5345ef26fe46931282ba62",
+   "capabilityVersion": "animation-capabilities/1",
+   "title": "Gradient descent: a ball stepping down a loss surface",
+   "description": "A blue bowl-shaped surface stands for the loss 0.5·x² + 1.5·y². Its lowest point is marked at the centre. A red ball sits on the surface. Each step makes it jump downhill by the step size times the slope, and an orange trail records the path. An orange arrow on the ball shows the next step. Drag the ball along the side to choose a new start. Raise the step size to see the ball zigzag across the narrow valley or fly off the surface.",
+   "experience": "experiment",
+   "behavior": "rules",
+   "controlProfile": "manipulate",
+   "sourceRefs": [],
+   "scene": {
+    "materials": [
+     {
+      "id": "bowlBlue",
+      "color": "#8fa8c8",
+      "opacity": 1
+     },
+     {
+      "id": "ballRed",
+      "color": "#d23c2a",
+      "opacity": 1
+     },
+     {
+      "id": "pathOrange",
+      "color": "#e8731a",
+      "opacity": 1
+     },
+     {
+      "id": "arrowDark",
+      "color": "#b8500c",
+      "opacity": 1
+     },
+     {
+      "id": "markDark",
+      "color": "#333a44",
+      "opacity": 1
+     }
+    ],
+    "geometries": [
+     {
+      "id": "bowlGrid",
+      "kind": "surface",
+      "heights": [
+       [
+        2,
+        1.92,
+        1.84,
+        1.77,
+        1.71,
+        1.66,
+        1.61,
+        1.58,
+        1.55,
+        1.52,
+        1.51,
+        1.5,
+        1.5,
+        1.51,
+        1.52,
+        1.55,
+        1.58,
+        1.61,
+        1.66,
+        1.71,
+        1.77,
+        1.84,
+        1.92,
+        2
+       ],
+       [
+        1.75,
+        1.67,
+        1.59,
+        1.52,
+        1.46,
+        1.41,
+        1.37,
+        1.33,
+        1.3,
+        1.28,
+        1.26,
+        1.25,
+        1.25,
+        1.26,
+        1.28,
+        1.3,
+        1.33,
+        1.37,
+        1.41,
+        1.46,
+        1.52,
+        1.59,
+        1.67,
+        1.75
+       ],
+       [
+        1.52,
+        1.44,
+        1.36,
+        1.3,
+        1.24,
+        1.18,
+        1.14,
+        1.1,
+        1.07,
+        1.05,
+        1.03,
+        1.02,
+        1.02,
+        1.03,
+        1.05,
+        1.07,
+        1.1,
+        1.14,
+        1.18,
+        1.24,
+        1.3,
+        1.36,
+        1.44,
+        1.52
+       ],
+       [
+        1.32,
+        1.24,
+        1.16,
+        1.09,
+        1.03,
+        0.98,
+        0.93,
+        0.9,
+        0.87,
+        0.84,
+        0.83,
+        0.82,
+        0.82,
+        0.83,
+        0.84,
+        0.87,
+        0.9,
+        0.93,
+        0.98,
+        1.03,
+        1.09,
+        1.16,
+        1.24,
+        1.32
+       ],
+       [
+        1.14,
+        1.06,
+        0.98,
+        0.91,
+        0.85,
+        0.8,
+        0.75,
+        0.72,
+        0.68,
+        0.66,
+        0.65,
+        0.64,
+        0.64,
+        0.65,
+        0.66,
+        0.68,
+        0.72,
+        0.75,
+        0.8,
+        0.85,
+        0.91,
+        0.98,
+        1.06,
+        1.14
+       ],
+       [
+        0.98,
+        0.9,
+        0.82,
+        0.75,
+        0.69,
+        0.64,
+        0.59,
+        0.56,
+        0.53,
+        0.5,
+        0.49,
+        0.48,
+        0.48,
+        0.49,
+        0.5,
+        0.53,
+        0.56,
+        0.59,
+        0.64,
+        0.69,
+        0.75,
+        0.82,
+        0.9,
+        0.98
+       ],
+       [
+        0.84,
+        0.76,
+        0.68,
+        0.62,
+        0.56,
+        0.5,
+        0.46,
+        0.42,
+        0.39,
+        0.37,
+        0.35,
+        0.34,
+        0.34,
+        0.35,
+        0.37,
+        0.39,
+        0.42,
+        0.46,
+        0.5,
+        0.56,
+        0.62,
+        0.68,
+        0.76,
+        0.84
+       ],
+       [
+        0.73,
+        0.65,
+        0.57,
+        0.5,
+        0.44,
+        0.39,
+        0.34,
+        0.31,
+        0.28,
+        0.25,
+        0.24,
+        0.23,
+        0.23,
+        0.24,
+        0.25,
+        0.28,
+        0.31,
+        0.34,
+        0.39,
+        0.44,
+        0.5,
+        0.57,
+        0.65,
+        0.73
+       ],
+       [
+        0.64,
+        0.56,
+        0.48,
+        0.41,
+        0.35,
+        0.3,
+        0.25,
+        0.22,
+        0.19,
+        0.16,
+        0.15,
+        0.14,
+        0.14,
+        0.15,
+        0.16,
+        0.19,
+        0.22,
+        0.25,
+        0.3,
+        0.35,
+        0.41,
+        0.48,
+        0.56,
+        0.64
+       ],
+       [
+        0.57,
+        0.49,
+        0.41,
+        0.34,
+        0.28,
+        0.23,
+        0.19,
+        0.15,
+        0.12,
+        0.1,
+        0.08,
+        0.07,
+        0.07,
+        0.08,
+        0.1,
+        0.12,
+        0.15,
+        0.19,
+        0.23,
+        0.28,
+        0.34,
+        0.41,
+        0.49,
+        0.57
+       ],
+       [
+        0.53,
+        0.44,
+        0.37,
+        0.3,
+        0.24,
+        0.19,
+        0.14,
+        0.1,
+        0.07,
+        0.05,
+        0.04,
+        0.03,
+        0.03,
+        0.04,
+        0.05,
+        0.07,
+        0.1,
+        0.14,
+        0.19,
+        0.24,
+        0.3,
+        0.37,
+        0.44,
+        0.53
+       ],
+       [
+        0.5,
+        0.42,
+        0.34,
+        0.28,
+        0.22,
+        0.16,
+        0.12,
+        0.08,
+        0.05,
+        0.03,
+        0.01,
+        0,
+        0,
+        0.01,
+        0.03,
+        0.05,
+        0.08,
+        0.12,
+        0.16,
+        0.22,
+        0.28,
+        0.34,
+        0.42,
+        0.5
+       ],
+       [
+        0.5,
+        0.42,
+        0.34,
+        0.28,
+        0.22,
+        0.16,
+        0.12,
+        0.08,
+        0.05,
+        0.03,
+        0.01,
+        0,
+        0,
+        0.01,
+        0.03,
+        0.05,
+        0.08,
+        0.12,
+        0.16,
+        0.22,
+        0.28,
+        0.34,
+        0.42,
+        0.5
+       ],
+       [
+        0.53,
+        0.44,
+        0.37,
+        0.3,
+        0.24,
+        0.19,
+        0.14,
+        0.1,
+        0.07,
+        0.05,
+        0.04,
+        0.03,
+        0.03,
+        0.04,
+        0.05,
+        0.07,
+        0.1,
+        0.14,
+        0.19,
+        0.24,
+        0.3,
+        0.37,
+        0.44,
+        0.53
+       ],
+       [
+        0.57,
+        0.49,
+        0.41,
+        0.34,
+        0.28,
+        0.23,
+        0.19,
+        0.15,
+        0.12,
+        0.1,
+        0.08,
+        0.07,
+        0.07,
+        0.08,
+        0.1,
+        0.12,
+        0.15,
+        0.19,
+        0.23,
+        0.28,
+        0.34,
+        0.41,
+        0.49,
+        0.57
+       ],
+       [
+        0.64,
+        0.56,
+        0.48,
+        0.41,
+        0.35,
+        0.3,
+        0.25,
+        0.22,
+        0.19,
+        0.16,
+        0.15,
+        0.14,
+        0.14,
+        0.15,
+        0.16,
+        0.19,
+        0.22,
+        0.25,
+        0.3,
+        0.35,
+        0.41,
+        0.48,
+        0.56,
+        0.64
+       ],
+       [
+        0.73,
+        0.65,
+        0.57,
+        0.5,
+        0.44,
+        0.39,
+        0.34,
+        0.31,
+        0.28,
+        0.25,
+        0.24,
+        0.23,
+        0.23,
+        0.24,
+        0.25,
+        0.28,
+        0.31,
+        0.34,
+        0.39,
+        0.44,
+        0.5,
+        0.57,
+        0.65,
+        0.73
+       ],
+       [
+        0.84,
+        0.76,
+        0.68,
+        0.62,
+        0.56,
+        0.5,
+        0.46,
+        0.42,
+        0.39,
+        0.37,
+        0.35,
+        0.34,
+        0.34,
+        0.35,
+        0.37,
+        0.39,
+        0.42,
+        0.46,
+        0.5,
+        0.56,
+        0.62,
+        0.68,
+        0.76,
+        0.84
+       ],
+       [
+        0.98,
+        0.9,
+        0.82,
+        0.75,
+        0.69,
+        0.64,
+        0.59,
+        0.56,
+        0.53,
+        0.5,
+        0.49,
+        0.48,
+        0.48,
+        0.49,
+        0.5,
+        0.53,
+        0.56,
+        0.59,
+        0.64,
+        0.69,
+        0.75,
+        0.82,
+        0.9,
+        0.98
+       ],
+       [
+        1.14,
+        1.06,
+        0.98,
+        0.91,
+        0.85,
+        0.8,
+        0.75,
+        0.72,
+        0.68,
+        0.66,
+        0.65,
+        0.64,
+        0.64,
+        0.65,
+        0.66,
+        0.68,
+        0.72,
+        0.75,
+        0.8,
+        0.85,
+        0.91,
+        0.98,
+        1.06,
+        1.14
+       ],
+       [
+        1.32,
+        1.24,
+        1.16,
+        1.09,
+        1.03,
+        0.98,
+        0.93,
+        0.9,
+        0.87,
+        0.84,
+        0.83,
+        0.82,
+        0.82,
+        0.83,
+        0.84,
+        0.87,
+        0.9,
+        0.93,
+        0.98,
+        1.03,
+        1.09,
+        1.16,
+        1.24,
+        1.32
+       ],
+       [
+        1.52,
+        1.44,
+        1.36,
+        1.3,
+        1.24,
+        1.18,
+        1.14,
+        1.1,
+        1.07,
+        1.05,
+        1.03,
+        1.02,
+        1.02,
+        1.03,
+        1.05,
+        1.07,
+        1.1,
+        1.14,
+        1.18,
+        1.24,
+        1.3,
+        1.36,
+        1.44,
+        1.52
+       ],
+       [
+        1.75,
+        1.67,
+        1.59,
+        1.52,
+        1.46,
+        1.41,
+        1.37,
+        1.33,
+        1.3,
+        1.28,
+        1.26,
+        1.25,
+        1.25,
+        1.26,
+        1.28,
+        1.3,
+        1.33,
+        1.37,
+        1.41,
+        1.46,
+        1.52,
+        1.59,
+        1.67,
+        1.75
+       ],
+       [
+        2,
+        1.92,
+        1.84,
+        1.77,
+        1.71,
+        1.66,
+        1.61,
+        1.58,
+        1.55,
+        1.52,
+        1.51,
+        1.5,
+        1.5,
+        1.51,
+        1.52,
+        1.55,
+        1.58,
+        1.61,
+        1.66,
+        1.71,
+        1.77,
+        1.84,
+        1.92,
+        2
+       ]
+      ],
+      "width": 4,
+      "depth": 4,
+      "contours": 8
+     },
+     {
+      "id": "runPath",
+      "kind": "trail",
+      "max": 128,
+      "radius": 0.035,
+      "style": "trail"
+     },
+     {
+      "id": "ballGeo",
+      "kind": "sphere",
+      "radius": 0.14,
+      "widthSegments": 32,
+      "heightSegments": 24
+     },
+     {
+      "id": "dotGeo",
+      "kind": "sphere",
+      "radius": 0.06,
+      "widthSegments": 16,
+      "heightSegments": 12
+     },
+     {
+      "id": "stepArrowGeo",
+      "kind": "arrow",
+      "length": 1,
+      "offset": 0.14
+     },
+     {
+      "id": "lowText",
+      "kind": "label",
+      "text": "Lowest point",
+      "size": 0.3,
+      "placement": "below"
+     },
+     {
+      "id": "stepText",
+      "kind": "label",
+      "text": "Next step",
+      "size": 0.3,
+      "placement": "above",
+      "anchor": "tip"
+     },
+     {
+      "id": "statusText",
+      "kind": "label",
+      "text": "Settled",
+      "size": 0.3,
+      "placement": "above"
+     }
+    ],
+    "nodes": [
+     {
+      "id": "bowl",
+      "name": "Loss surface",
+      "parent": null,
+      "geometry": "bowlGrid",
+      "material": "bowlBlue",
+      "position": [
+       0,
+       0,
+       0
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       1,
+       1
+      ],
+      "visible": true,
+      "selectable": false
+     },
+     {
+      "id": "trail",
+      "name": "Path so far",
+      "parent": null,
+      "geometry": "runPath",
+      "material": "pathOrange",
+      "position": [
+       0,
+       0,
+       0
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       1,
+       1
+      ],
+      "visible": true,
+      "selectable": false
+     },
+     {
+      "id": "lowest",
+      "parent": null,
+      "geometry": "dotGeo",
+      "material": "markDark",
+      "position": [
+       0,
+       0.03,
+       0
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       1,
+       1
+      ],
+      "visible": true,
+      "selectable": false
+     },
+     {
+      "id": "lowTag",
+      "parent": "lowest",
+      "geometry": "lowText",
+      "position": [
+       0,
+       -0.04,
+       0.1
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       1,
+       1
+      ],
+      "visible": true,
+      "selectable": false
+     },
+     {
+      "id": "ball",
+      "name": "Current guess",
+      "parent": null,
+      "geometry": "ballGeo",
+      "material": "ballRed",
+      "position": [
+       1.6,
+       1,
+       1.2
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       1,
+       1
+      ],
+      "visible": true,
+      "selectable": false,
+      "drag": {
+       "axis": "x",
+       "min": -1.9,
+       "max": 1.9
+      },
+      "clampTo": {
+       "node": "bowl",
+       "max": 2.2
+      }
+     },
+     {
+      "id": "stepArrow",
+      "parent": "ball",
+      "geometry": "stepArrowGeo",
+      "material": "arrowDark",
+      "position": [
+       0,
+       0,
+       0
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       1,
+       1
+      ],
+      "visible": true,
+      "selectable": false
+     },
+     {
+      "id": "stepTag",
+      "parent": "stepArrow",
+      "geometry": "stepText",
+      "position": [
+       0,
+       0,
+       0
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       1,
+       1
+      ],
+      "visible": true,
+      "selectable": false
+     },
+     {
+      "id": "statusTag",
+      "parent": "ball",
+      "geometry": "statusText",
+      "position": [
+       0,
+       0.16,
+       0
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       1,
+       1
+      ],
+      "visible": false,
+      "selectable": false
+     }
+    ]
+   },
+   "parameters": [
+    {
+     "type": "number",
+     "id": "learningRate",
+     "label": "Step size (learning rate)",
+     "min": 0.05,
+     "max": 0.8,
+     "step": 0.05,
+     "default": 0.15
+    },
+    {
+     "type": "toggle",
+     "id": "showArrow",
+     "label": "Show downhill arrow",
+     "default": true
+    }
+   ],
+   "actions": [
+    {
+     "id": "run",
+     "label": "Play steps"
+    },
+    {
+     "id": "pause",
+     "label": "Pause",
+     "startsMotion": false
+    },
+    {
+     "id": "stepOnce",
+     "label": "Take one step",
+     "startsMotion": false
+    }
+   ],
+   "readouts": [
+    {
+     "id": "loss",
+     "label": "Loss at ball",
+     "decimals": 3
+    },
+    {
+     "id": "steps",
+     "label": "Steps taken",
+     "decimals": 0
+    },
+    {
+     "id": "slope",
+     "label": "Slope steepness",
+     "decimals": 3
+    },
+    {
+     "id": "status",
+     "label": "Status",
+     "kind": "text"
+    }
+   ],
+   "stepped": true,
+   "program": {
+    "bytes": 1916,
+    "sourceHash": "3c13c1179faaf96efc9a990f4006b16341315fefa61c9554336f39dbaa780b3f"
+   },
+   "seed": 1,
+   "camera": {
+    "position": [
+     2.2,
+     7.2,
+     4.6
+    ],
+    "target": [
+     0,
+     0.5,
+     0
+    ],
+    "fov": 40
+   },
+   "assumptions": [
+    "Illustration: the surface is an example formula, not a trained model's real loss.",
+    "Loss = 0.5·x² + 1.5·y² (y is drawn front to back). It is steeper across one direction than the other. The lowest point is at the centre, where the loss is 0.",
+    "Each step moves the ball by the learning rate times the negative gradient (x, 3y), computed exactly. There is no momentum or noise. Above 2/3 ≈ 0.67 the steeper direction overshoots farther each time.",
+    "The surface is drawn at 0.25 times the loss so the bowl fits. The arrow is the true next step, drawn at the same scale as the floor distances; its name tag hides when the step is too short to see.",
+    "A run stops when the slope is below 0.02 (converged), after 100 steps, or when the ball leaves the drawn square |x|, |y| ≤ 2 (diverged). A tag on the ball and the Status readout then say so.",
+    "Dragging moves the starting point sideways (along x) with y set to 1.2. This clears the trail and the step count."
+   ],
+   "provenance": {
+    "origin": "generated",
+    "model": "claude-opus-5-5",
+    "createdAt": "2026-11-04T03:37:13.187Z"
+   }
+  },
+  "findings": [
+   {
+    "repairs": 0,
+    "stage": "reviewing",
+    "accepted": false,
+    "findings": [
+     {
+      "version": 1,
+      "id": "rf1",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "major",
+      "target": {
+       "capture": "v0-s0",
+       "object": "ball"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "In the default view at the initial state, the red ball (the main subject) is almost entirely hidden behind the near rim of the bowl. The camera at [3.6,4.4,5.4] looks across the steep front wall: the line of sight to the ball at (1.6, 1.0, 1.2) crosses the surface near z=2, where the surface is at height ≈2.0 and the line of sight only at ≈1.65. Only a red sliver shows. Raise the camera or move it"
+     },
+     {
+      "version": 1,
+      "id": "rf2",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "major",
+      "target": {
+       "capture": "v0-s0",
+       "object": "stepArrow"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "The 'Next step' arrow points almost straight at the camera, so it shows as a small orange blob. Its direction and length, which the plan says show the next step, cannot be read in the default view. The view needs to look down on the floor plane so the arrow's direction is visible."
+     },
+     {
+      "version": 1,
+      "id": "rf3",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "minor",
+      "target": {
+       "capture": "v0-s0",
+       "object": "bowl"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "The bowl fills only about half the frame width, with wide empty margins. Framing it tighter would help."
+     },
+     {
+      "version": 1,
+      "id": "rf4",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "major",
+      "target": {
+       "capture": "v0-s1",
+       "object": "stepTag"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "Near convergence the true next step is about 0.014 units long, so the arrow cannot be seen, yet the 'Next step' label stays on screen, much bigger than what it names. Hide the label (or arrow and label) when the arrow is too short to see, or give it a minimum visibility rule."
+     },
+     {
+      "version": 1,
+      "id": "rf5",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "minor",
+      "target": {
+       "capture": "v0-s1",
+       "object": "lowTag"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "The 'Lowest point' label touches and partly crowds the ball once the ball reaches the minimum."
+     },
+     {
+      "version": 1,
+      "id": "rf6",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "major",
+      "target": {
+       "capture": "v0-s2",
+       "object": "trail"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "The start of the trail and the first jump go behind the near rim in the default view. The first overshoot, which shows the zigzag, is partly hidden. This has the same cause as the initial-state occlusion: the camera looks across the steep front wall."
+     },
+     {
+      "version": 1,
+      "id": "rf7",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "major",
+      "target": {
+       "capture": "v0-s2",
+       "object": "status"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "The plan says a readout then says the run diverged, but the rendered readout line shows only loss, steps and slope. The 'diverged' status is not visible, so the learner cannot tell that the run has stopped. Show the status in a visible readout or a scene label."
+     },
+     {
+      "version": 1,
+      "id": "rf8",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "major",
+      "target": {
+       "capture": "v1-s1",
+       "object": "stepTag"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "Here too the 'Next step' label stays visible while the arrow it names is too short to see (about 0.014 units), and the label sits right over the ball and the minimum."
+     },
+     {
+      "version": 1,
+      "id": "rf9",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "major",
+      "target": {
+       "capture": "v1-s2",
+       "object": "status"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "The 'diverged' status text readout does not appear in the rendered readout line, so the stop condition is not shown even though the ball has left the surface."
+     }
+    ]
+   },
+   {
+    "repairs": 1,
+    "stage": "reviewing",
+    "accepted": true,
+    "findings": [
+     {
+      "version": 1,
+      "id": "rf1",
+      "verdict": "semantic",
+      "category": "spec",
+      "severity": "minor",
+      "target": {
+       "capture": "v0-s0",
+       "object": "ball"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "Dragging only moves the start along x with z fixed at 1.2, narrower than the plan's 'drag the ball to pick a new starting point' (disclosed in assumptions). Allowing a 2D drag would match the plan."
+     },
+     {
+      "version": 1,
+      "id": "rf2",
+      "verdict": "semantic",
+      "category": "spec",
+      "severity": "minor",
+      "target": {
+       "capture": "v0-s0"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "Not sampled: the zigzag range (learning rate about 0.34–0.67), the low end 0.05, dragging and showArrow off. The program logic for them looks correct but was not seen rendered."
+     },
+     {
+      "version": 1,
+      "id": "rf3",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "minor",
+      "target": {
+       "capture": "v0-s2",
+       "object": "status"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "The Status text readout does not appear in the readout strip (only loss, steps and slope are shown). The Diverged tag on the ball conveys it, but the plan promised a readout."
+     }
+    ]
+   }
+  ],
+  "reviews": [
+   {
+    "at": 1793763660289,
+    "attempt": 1,
+    "repairs": 0,
+    "artifactHash": "8c939a6ecd6a8b26038cb56da6c5be3296b558924d4ae9d80ebc8a173d9f3f2b",
+    "retry": false,
+    "raw": {
+     "captures": [
+      {
+       "id": "v0-s0",
+       "semantic": "pass",
+       "visual": "fail",
+       "findings": [
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "major",
+         "object": "ball",
+         "message": "In the default view at the initial state, the red ball (the main subject) is almost entirely hidden behind the near rim of the bowl. The camera at [3.6,4.4,5.4] looks across the steep front wall: the line of sight to the ball at (1.6, 1.0, 1.2) crosses the surface near z=2, where the surface is at height ≈2.0 and the line of sight only at ≈1.65. Only a red sliver shows. Raise the camera or move it to look down into the bowl from the shallow x side, or choose a start the camera can see.",
+         "repairable": true
+        },
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "major",
+         "object": "stepArrow",
+         "message": "The 'Next step' arrow points almost straight at the camera, so it shows as a small orange blob. Its direction and length, which the plan says show the next step, cannot be read in the default view. The view needs to look down on the floor plane so the arrow's direction is visible.",
+         "repairable": true
+        },
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "minor",
+         "object": "bowl",
+         "message": "The bowl fills only about half the frame width, with wide empty margins. Framing it tighter would help.",
+         "repairable": true
+        }
+       ]
+      },
+      {
+       "id": "v0-s1",
+       "semantic": "pass",
+       "visual": "fail",
+       "findings": [
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "major",
+         "object": "stepTag",
+         "message": "Near convergence the true next step is about 0.014 units long, so the arrow cannot be seen, yet the 'Next step' label stays on screen, much bigger than what it names. Hide the label (or arrow and label) when the arrow is too short to see, or give it a minimum visibility rule.",
+         "repairable": true
+        },
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "minor",
+         "object": "lowTag",
+         "message": "The 'Lowest point' label touches and partly crowds the ball once the ball reaches the minimum.",
+         "repairable": true
+        }
+       ]
+      },
+      {
+       "id": "v0-s2",
+       "semantic": "pass",
+       "visual": "fail",
+       "findings": [
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "major",
+         "object": "trail",
+         "message": "The start of the trail and the first jump go behind the near rim in the default view. The first overshoot, which shows the zigzag, is partly hidden. This has the same cause as the initial-state occlusion: the camera looks across the steep front wall.",
+         "repairable": true
+        },
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "major",
+         "object": "status",
+         "message": "The plan says a readout then says the run diverged, but the rendered readout line shows only loss, steps and slope. The 'diverged' status is not visible, so the learner cannot tell that the run has stopped. Show the status in a visible readout or a scene label.",
+         "repairable": true
+        }
+       ]
+      },
+      {
+       "id": "v1-s0",
+       "semantic": "pass",
+       "visual": "pass",
+       "findings": []
+      },
+      {
+       "id": "v1-s1",
+       "semantic": "pass",
+       "visual": "fail",
+       "findings": [
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "major",
+         "object": "stepTag",
+         "message": "Here too the 'Next step' label stays visible while the arrow it names is too short to see (about 0.014 units), and the label sits right over the ball and the minimum.",
+         "repairable": true
+        }
+       ]
+      },
+      {
+       "id": "v1-s2",
+       "semantic": "pass",
+       "visual": "fail",
+       "findings": [
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "major",
+         "object": "status",
+         "message": "The 'diverged' status text readout does not appear in the rendered readout line, so the stop condition is not shown even though the ball has left the surface.",
+         "repairable": true
+        }
+       ]
+      }
+     ]
+    },
+    "verdicts": [
+     {
+      "id": "v0-s0",
+      "semantic": "pass",
+      "visual": "fail"
+     },
+     {
+      "id": "v0-s1",
+      "semantic": "pass",
+      "visual": "fail"
+     },
+     {
+      "id": "v0-s2",
+      "semantic": "pass",
+      "visual": "fail"
+     },
+     {
+      "id": "v1-s0",
+      "semantic": "pass",
+      "visual": "pass"
+     },
+     {
+      "id": "v1-s1",
+      "semantic": "pass",
+      "visual": "fail"
+     },
+     {
+      "id": "v1-s2",
+      "semantic": "pass",
+      "visual": "fail"
+     }
+    ],
+    "problems": [],
+    "usage": {
+     "input_tokens": 12592,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2103,
+     "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+     },
+     "output_tokens": 4367,
+     "output_tokens_details": {
+      "thinking_tokens": 3098
+     },
+     "service_tier": "standard",
+     "inference_geo": "global",
+     "speed": "standard"
+    },
+    "stopReason": "tool_use",
+    "error": null,
+    "call": {
+     "key": "aj_a5198bdc01ef446cabcf37333fbdbfc2-review-4",
+     "status": "settled",
+     "costMicros": 138129,
+     "served": "claude-opus-5-5"
+    }
+   },
+   {
+    "at": 1793763822456,
+    "attempt": 1,
+    "repairs": 1,
+    "artifactHash": "d93386dbcf8a85142ee9500c47b51d2b723bfd05c6c934303e5af91c03244441",
+    "retry": false,
+    "raw": {
+     "captures": [
+      {
+       "id": "v0-s0",
+       "semantic": "pass",
+       "visual": "pass",
+       "findings": [
+        {
+         "verdict": "semantic",
+         "category": "spec",
+         "severity": "minor",
+         "message": "Dragging only moves the start along x with z fixed at 1.2, narrower than the plan's 'drag the ball to pick a new starting point' (disclosed in assumptions). Allowing a 2D drag would match the plan.",
+         "object": "ball",
+         "repairable": true
+        },
+        {
+         "verdict": "semantic",
+         "category": "spec",
+         "severity": "minor",
+         "message": "Not sampled: the zigzag range (learning rate about 0.34–0.67), the low end 0.05, dragging and showArrow off. The program logic for them looks correct but was not seen rendered.",
+         "repairable": true
+        }
+       ]
+      },
+      {
+       "id": "v0-s1",
+       "semantic": "pass",
+       "visual": "pass",
+       "findings": []
+      },
+      {
+       "id": "v0-s2",
+       "semantic": "pass",
+       "visual": "pass",
+       "findings": [
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "minor",
+         "message": "The Status text readout does not appear in the readout strip (only loss, steps and slope are shown). The Diverged tag on the ball conveys it, but the plan promised a readout.",
+         "object": "status",
+         "repairable": true
+        }
+       ]
+      },
+      {
+       "id": "v1-s0",
+       "semantic": "pass",
+       "visual": "pass",
+       "findings": []
+      },
+      {
+       "id": "v1-s1",
+       "semantic": "pass",
+       "visual": "pass",
+       "findings": []
+      },
+      {
+       "id": "v1-s2",
+       "semantic": "pass",
+       "visual": "pass",
+       "findings": []
+      }
+     ]
+    },
+    "verdicts": [
+     {
+      "id": "v0-s0",
+      "semantic": "pass",
+      "visual": "pass"
+     },
+     {
+      "id": "v0-s1",
+      "semantic": "pass",
+      "visual": "pass"
+     },
+     {
+      "id": "v0-s2",
+      "semantic": "pass",
+      "visual": "pass"
+     },
+     {
+      "id": "v1-s0",
+      "semantic": "pass",
+      "visual": "pass"
+     },
+     {
+      "id": "v1-s1",
+      "semantic": "pass",
+      "visual": "pass"
+     },
+     {
+      "id": "v1-s2",
+      "semantic": "pass",
+      "visual": "pass"
+     }
+    ],
+    "problems": [],
+    "usage": {
+     "input_tokens": 12772,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2103,
+     "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+     },
+     "output_tokens": 3679,
+     "output_tokens_details": {
+      "thinking_tokens": 2199
+     },
+     "service_tier": "standard",
+     "inference_geo": "global",
+     "speed": "standard"
+    },
+    "stopReason": "tool_use",
+    "error": null,
+    "call": {
+     "key": "aj_a5198bdc01ef446cabcf37333fbdbfc2-review-7",
+     "status": "settled",
+     "costMicros": 125089,
+     "served": "claude-opus-5-5"
+    }
+   }
+  ],
+  "candidates": [
+   {
+    "stage": "preparing",
+    "input": {
+     "title": "Gradient descent: a ball stepping down a loss surface",
+     "description": "A curved bowl-shaped surface stands for a loss surface, with its lowest point marked. A ball sits on the surface. With each step it jumps downhill and leaves a trail of its path. An arrow on the ball points in the steepest downhill direction, and its length shows how far the next step will go. You can take one step at a time or let it run. You can also change the step size (the learning rate) to see the ball creep, zigzag across the valley or fly off the surface.",
+     "experience": "experiment",
+     "reason": "Stepping one jump at a time shows that gradient descent is a series of separate moves, not a smooth roll. Changing the step size shows why the learning rate matters so much.",
+     "behavior": "rules",
+     "controlProfile": "manipulate",
+     "archetype": "loss_surface",
+     "parameters": [
+      {
+       "type": "number",
+       "id": "learningRate",
+       "label": "Step size (learning rate)",
+       "min": 0.05,
+       "max": 0.8,
+       "default": 0.15,
+       "step": 0.05
+      },
+      {
+       "type": "toggle",
+       "id": "showArrow",
+       "label": "Show downhill arrow",
+       "default": true
+      }
+     ],
+     "interactions": [
+      "Take one step: the ball moves once by the step size times the downhill slope, and the trail grows by one point",
+      "Press play to let steps repeat automatically. Pause at any time",
+      "Drag the ball to pick a new starting point. This clears the trail and the step count",
+      "Change the step size. Small values make short, slow steps. Values above about 0.67 make the ball overshoot across the narrow valley farther each time, until it leaves the surface",
+      "Readouts show the step count, the loss at the ball and the steepness of the slope there"
+     ],
+     "assumptions": [
+      "Illustration: the surface is an example formula, not a trained model's real loss.",
+      "The loss is 0.5·x² + 1.5·y². This makes a valley that is steeper across one direction than along the other. Its lowest point is at the centre, where the loss is 0.",
+      "Each step moves the ball by the learning rate times the negative gradient (the steepest-downhill direction), computed exactly from the formula. There is no momentum or noise.",
+      "The ball is drawn on the surface at its current loss. The height is scaled down so the whole bowl fits on screen.",
+      "A run stops when the slope is almost flat (the ball has settled), after 100 steps, or when the ball leaves the edge of the surface. A readout then says it diverged."
+     ],
+     "limitations": [
+      "The ball does not really roll. It has no speed or momentum and jumps straight from point to point, as plain gradient descent does.",
+      "This surface has only one lowest point, so it cannot show the ball getting stuck in a local minimum (a dip that is not the lowest point).",
+      "The surface has only two adjustable values, so you can see it. Real models have millions."
+     ],
+     "requiredCapabilities": [
+      "step",
+      "actions",
+      "parameters",
+      "drag",
+      "readouts",
+      "labels"
+     ],
+     "requested": {
+      "features": [
+       "step"
+      ]
+     },
+     "learningGoal": "See that gradient descent moves step by step against the slope, and that the learning rate decides whether it settles slowly, zigzags or diverges.",
+     "assertions": [
+      {
+       "kind": "clamp"
+      },
+      {
+       "kind": "compare",
+       "parameter": "learningRate",
+       "values": [
+        0.15,
+        0.8
+       ]
+      },
+      {
+       "kind": "pathLength",
+       "min": 2
+      }
+     ]
+    },
+    "issues": []
+   },
+   {
+    "repairs": 1,
+    "previousDraft": {
+     "title": "Gradient descent: a ball stepping down a loss surface",
+     "description": "A blue bowl-shaped surface stands for the loss 0.5·x² + 1.5·y². Its lowest point is marked at the centre. A red ball sits on the surface. Each step makes it jump downhill by the step size times the slope, and an orange trail records the path. An orange arrow on the ball shows the next step. Drag the ball along the side to choose a new start. Raise the step size to see the ball zigzag across the narrow valley or fly off the surface.",
+     "experience": "experiment",
+     "behavior": "rules",
+     "controlProfile": "manipulate",
+     "stepped": true,
+     "scene": {
+      "materials": [
+       {
+        "id": "bowlBlue",
+        "color": "#8fa8c8"
+       },
+       {
+        "id": "ballRed",
+        "color": "#d23c2a"
+       },
+       {
+        "id": "pathOrange",
+        "color": "#e8731a"
+       },
+       {
+        "id": "arrowDark",
+        "color": "#b8500c"
+       },
+       {
+        "id": "markDark",
+        "color": "#333a44"
+       }
+      ],
+      "geometries": [
+       {
+        "id": "bowlGrid",
+        "kind": "surface",
+        "width": 4,
+        "depth": 4,
+        "contours": 8,
+        "heights": [
+         [
+          2,
+          1.92,
+          1.84,
+          1.77,
+          1.71,
+          1.66,
+          1.61,
+          1.58,
+          1.55,
+          1.52,
+          1.51,
+          1.5,
+          1.5,
+          1.51,
+          1.52,
+          1.55,
+          1.58,
+          1.61,
+          1.66,
+          1.71,
+          1.77,
+          1.84,
+          1.92,
+          2
+         ],
+         [
+          1.75,
+          1.67,
+          1.59,
+          1.52,
+          1.46,
+          1.41,
+          1.37,
+          1.33,
+          1.3,
+          1.28,
+          1.26,
+          1.25,
+          1.25,
+          1.26,
+          1.28,
+          1.3,
+          1.33,
+          1.37,
+          1.41,
+          1.46,
+          1.52,
+          1.59,
+          1.67,
+          1.75
+         ],
+         [
+          1.52,
+          1.44,
+          1.36,
+          1.3,
+          1.24,
+          1.18,
+          1.14,
+          1.1,
+          1.07,
+          1.05,
+          1.03,
+          1.02,
+          1.02,
+          1.03,
+          1.05,
+          1.07,
+          1.1,
+          1.14,
+          1.18,
+          1.24,
+          1.3,
+          1.36,
+          1.44,
+          1.52
+         ],
+         [
+          1.32,
+          1.24,
+          1.16,
+          1.09,
+          1.03,
+          0.98,
+          0.93,
+          0.9,
+          0.87,
+          0.84,
+          0.83,
+          0.82,
+          0.82,
+          0.83,
+          0.84,
+          0.87,
+          0.9,
+          0.93,
+          0.98,
+          1.03,
+          1.09,
+          1.16,
+          1.24,
+          1.32
+         ],
+         [
+          1.14,
+          1.06,
+          0.98,
+          0.91,
+          0.85,
+          0.8,
+          0.75,
+          0.72,
+          0.68,
+          0.66,
+          0.65,
+          0.64,
+          0.64,
+          0.65,
+          0.66,
+          0.68,
+          0.72,
+          0.75,
+          0.8,
+          0.85,
+          0.91,
+          0.98,
+          1.06,
+          1.14
+         ],
+         [
+          0.98,
+          0.9,
+          0.82,
+          0.75,
+          0.69,
+          0.64,
+          0.59,
+          0.56,
+          0.53,
+          0.5,
+          0.49,
+          0.48,
+          0.48,
+          0.49,
+          0.5,
+          0.53,
+          0.56,
+          0.59,
+          0.64,
+          0.69,
+          0.75,
+          0.82,
+          0.9,
+          0.98
+         ],
+         [
+          0.84,
+          0.76,
+          0.68,
+          0.62,
+          0.56,
+          0.5,
+          0.46,
+          0.42,
+          0.39,
+          0.37,
+          0.35,
+          0.34,
+          0.34,
+          0.35,
+          0.37,
+          0.39,
+          0.42,
+          0.46,
+          0.5,
+          0.56,
+          0.62,
+          0.68,
+          0.76,
+          0.84
+         ],
+         [
+          0.73,
+          0.65,
+          0.57,
+          0.5,
+          0.44,
+          0.39,
+          0.34,
+          0.31,
+          0.28,
+          0.25,
+          0.24,
+          0.23,
+          0.23,
+          0.24,
+          0.25,
+          0.28,
+          0.31,
+          0.34,
+          0.39,
+          0.44,
+          0.5,
+          0.57,
+          0.65,
+          0.73
+         ],
+         [
+          0.64,
+          0.56,
+          0.48,
+          0.41,
+          0.35,
+          0.3,
+          0.25,
+          0.22,
+          0.19,
+          0.16,
+          0.15,
+          0.14,
+          0.14,
+          0.15,
+          0.16,
+          0.19,
+          0.22,
+          0.25,
+          0.3,
+          0.35,
+          0.41,
+          0.48,
+          0.56,
+          0.64
+         ],
+         [
+          0.57,
+          0.49,
+          0.41,
+          0.34,
+          0.28,
+          0.23,
+          0.19,
+          0.15,
+          0.12,
+          0.1,
+          0.08,
+          0.07,
+          0.07,
+          0.08,
+          0.1,
+          0.12,
+          0.15,
+          0.19,
+          0.23,
+          0.28,
+          0.34,
+          0.41,
+          0.49,
+          0.57
+         ],
+         [
+          0.53,
+          0.44,
+          0.37,
+          0.3,
+          0.24,
+          0.19,
+          0.14,
+          0.1,
+          0.07,
+          0.05,
+          0.04,
+          0.03,
+          0.03,
+          0.04,
+          0.05,
+          0.07,
+          0.1,
+          0.14,
+          0.19,
+          0.24,
+          0.3,
+          0.37,
+          0.44,
+          0.53
+         ],
+         [
+          0.5,
+          0.42,
+          0.34,
+          0.28,
+          0.22,
+          0.16,
+          0.12,
+          0.08,
+          0.05,
+          0.03,
+          0.01,
+          0,
+          0,
+          0.01,
+          0.03,
+          0.05,
+          0.08,
+          0.12,
+          0.16,
+          0.22,
+          0.28,
+          0.34,
+          0.42,
+          0.5
+         ],
+         [
+          0.5,
+          0.42,
+          0.34,
+          0.28,
+          0.22,
+          0.16,
+          0.12,
+          0.08,
+          0.05,
+          0.03,
+          0.01,
+          0,
+          0,
+          0.01,
+          0.03,
+          0.05,
+          0.08,
+          0.12,
+          0.16,
+          0.22,
+          0.28,
+          0.34,
+          0.42,
+          0.5
+         ],
+         [
+          0.53,
+          0.44,
+          0.37,
+          0.3,
+          0.24,
+          0.19,
+          0.14,
+          0.1,
+          0.07,
+          0.05,
+          0.04,
+          0.03,
+          0.03,
+          0.04,
+          0.05,
+          0.07,
+          0.1,
+          0.14,
+          0.19,
+          0.24,
+          0.3,
+          0.37,
+          0.44,
+          0.53
+         ],
+         [
+          0.57,
+          0.49,
+          0.41,
+          0.34,
+          0.28,
+          0.23,
+          0.19,
+          0.15,
+          0.12,
+          0.1,
+          0.08,
+          0.07,
+          0.07,
+          0.08,
+          0.1,
+          0.12,
+          0.15,
+          0.19,
+          0.23,
+          0.28,
+          0.34,
+          0.41,
+          0.49,
+          0.57
+         ],
+         [
+          0.64,
+          0.56,
+          0.48,
+          0.41,
+          0.35,
+          0.3,
+          0.25,
+          0.22,
+          0.19,
+          0.16,
+          0.15,
+          0.14,
+          0.14,
+          0.15,
+          0.16,
+          0.19,
+          0.22,
+          0.25,
+          0.3,
+          0.35,
+          0.41,
+          0.48,
+          0.56,
+          0.64
+         ],
+         [
+          0.73,
+          0.65,
+          0.57,
+          0.5,
+          0.44,
+          0.39,
+          0.34,
+          0.31,
+          0.28,
+          0.25,
+          0.24,
+          0.23,
+          0.23,
+          0.24,
+          0.25,
+          0.28,
+          0.31,
+          0.34,
+          0.39,
+          0.44,
+          0.5,
+          0.57,
+          0.65,
+          0.73
+         ],
+         [
+          0.84,
+          0.76,
+          0.68,
+          0.62,
+          0.56,
+          0.5,
+          0.46,
+          0.42,
+          0.39,
+          0.37,
+          0.35,
+          0.34,
+          0.34,
+          0.35,
+          0.37,
+          0.39,
+          0.42,
+          0.46,
+          0.5,
+          0.56,
+          0.62,
+          0.68,
+          0.76,
+          0.84
+         ],
+         [
+          0.98,
+          0.9,
+          0.82,
+          0.75,
+          0.69,
+          0.64,
+          0.59,
+          0.56,
+          0.53,
+          0.5,
+          0.49,
+          0.48,
+          0.48,
+          0.49,
+          0.5,
+          0.53,
+          0.56,
+          0.59,
+          0.64,
+          0.69,
+          0.75,
+          0.82,
+          0.9,
+          0.98
+         ],
+         [
+          1.14,
+          1.06,
+          0.98,
+          0.91,
+          0.85,
+          0.8,
+          0.75,
+          0.72,
+          0.68,
+          0.66,
+          0.65,
+          0.64,
+          0.64,
+          0.65,
+          0.66,
+          0.68,
+          0.72,
+          0.75,
+          0.8,
+          0.85,
+          0.91,
+          0.98,
+          1.06,
+          1.14
+         ],
+         [
+          1.32,
+          1.24,
+          1.16,
+          1.09,
+          1.03,
+          0.98,
+          0.93,
+          0.9,
+          0.87,
+          0.84,
+          0.83,
+          0.82,
+          0.82,
+          0.83,
+          0.84,
+          0.87,
+          0.9,
+          0.93,
+          0.98,
+          1.03,
+          1.09,
+          1.16,
+          1.24,
+          1.32
+         ],
+         [
+          1.52,
+          1.44,
+          1.36,
+          1.3,
+          1.24,
+          1.18,
+          1.14,
+          1.1,
+          1.07,
+          1.05,
+          1.03,
+          1.02,
+          1.02,
+          1.03,
+          1.05,
+          1.07,
+          1.1,
+          1.14,
+          1.18,
+          1.24,
+          1.3,
+          1.36,
+          1.44,
+          1.52
+         ],
+         [
+          1.75,
+          1.67,
+          1.59,
+          1.52,
+          1.46,
+          1.41,
+          1.37,
+          1.33,
+          1.3,
+          1.28,
+          1.26,
+          1.25,
+          1.25,
+          1.26,
+          1.28,
+          1.3,
+          1.33,
+          1.37,
+          1.41,
+          1.46,
+          1.52,
+          1.59,
+          1.67,
+          1.75
+         ],
+         [
+          2,
+          1.92,
+          1.84,
+          1.77,
+          1.71,
+          1.66,
+          1.61,
+          1.58,
+          1.55,
+          1.52,
+          1.51,
+          1.5,
+          1.5,
+          1.51,
+          1.52,
+          1.55,
+          1.58,
+          1.61,
+          1.66,
+          1.71,
+          1.77,
+          1.84,
+          1.92,
+          2
+         ]
+        ]
+       },
+       {
+        "id": "runPath",
+        "kind": "trail",
+        "max": 128,
+        "radius": 0.035,
+        "style": "trail"
+       },
+       {
+        "id": "ballGeo",
+        "kind": "sphere",
+        "radius": 0.14,
+        "widthSegments": 32,
+        "heightSegments": 24
+       },
+       {
+        "id": "dotGeo",
+        "kind": "sphere",
+        "radius": 0.06,
+        "widthSegments": 16,
+        "heightSegments": 12
+       },
+       {
+        "id": "stepArrowGeo",
+        "kind": "arrow",
+        "length": 1,
+        "offset": 0.14
+       },
+       {
+        "id": "lowText",
+        "kind": "label",
+        "text": "Lowest point",
+        "placement": "right"
+       },
+       {
+        "id": "stepText",
+        "kind": "label",
+        "text": "Next step",
+        "anchor": "tip"
+       }
+      ],
+      "nodes": [
+       {
+        "id": "bowl",
+        "geometry": "bowlGrid",
+        "material": "bowlBlue",
+        "name": "Loss surface"
+       },
+       {
+        "id": "trail",
+        "geometry": "runPath",
+        "material": "pathOrange",
+        "name": "Path so far"
+       },
+       {
+        "id": "lowest",
+        "geometry": "dotGeo",
+        "material": "markDark",
+        "position": [
+         0,
+         0.03,
+         0
+        ]
+       },
+       {
+        "id": "lowTag",
+        "parent": "lowest",
+        "geometry": "lowText",
+        "position": [
+         0.08,
+         0,
+         0
+        ]
+       },
+       {
+        "id": "ball",
+        "geometry": "ballGeo",
+        "material": "ballRed",
+        "name": "Current guess",
+        "clampTo": {
+         "node": "bowl",
+         "max": 2.2
+        },
+        "position": [
+         1.6,
+         1,
+         1.2
+        ],
+        "drag": {
+         "axis": "x",
+         "min": -1.9,
+         "max": 1.9
+        }
+       },
+       {
+        "id": "stepArrow",
+        "parent": "ball",
+        "geometry": "stepArrowGeo",
+        "material": "arrowDark"
+       },
+       {
+        "id": "stepTag",
+        "parent": "stepArrow",
+        "geometry": "stepText"
+       }
+      ]
+     },
+     "parameters": [
+      {
+       "type": "number",
+       "id": "learningRate",
+       "label": "Step size (learning rate)",
+       "min": 0.05,
+       "max": 0.8,
+       "step": 0.05,
+       "default": 0.15
+      },
+      {
+       "type": "toggle",
+       "id": "showArrow",
+       "label": "Show downhill arrow",
+       "default": true
+      }
+     ],
+     "actions": [
+      {
+       "id": "run",
+       "label": "Play steps"
+      },
+      {
+       "id": "pause",
+       "label": "Pause",
+       "startsMotion": false
+      },
+      {
+       "id": "stepOnce",
+       "label": "Take one step",
+       "startsMotion": false
+      }
+     ],
+     "readouts": [
+      {
+       "id": "loss",
+       "label": "Loss at ball",
+       "decimals": 3
+      },
+      {
+       "id": "steps",
+       "label": "Steps taken",
+       "decimals": 0
+      },
+      {
+       "id": "slope",
+       "label": "Slope steepness",
+       "decimals": 3
+      },
+      {
+       "id": "status",
+       "label": "Status",
+       "kind": "text"
+      }
+     ],
+     "seed": 1,
+     "camera": {
+      "position": [
+       3.6,
+       4.4,
+       5.4
+      ],
+      "target": [
+       0,
+       0.5,
+       0
+      ],
+      "fov": 45
+     },
+     "assumptions": [
+      "Illustration: the surface is an example formula, not a trained model's real loss.",
+      "Loss = 0.5·x² + 1.5·y² (y is drawn front to back). It is steeper across one direction than the other. The lowest point is at the centre, where the loss is 0.",
+      "Each step moves the ball by the learning rate times the negative gradient (x, 3y), computed exactly. There is no momentum or noise. Above 2/3 ≈ 0.67 the steeper direction overshoots farther each time.",
+      "The surface is drawn at 0.25 times the loss so the bowl fits. The arrow is the true next step, drawn at the same scale as the floor distances.",
+      "A run stops when the slope is below 0.02 (converged), after 100 steps, or when the ball leaves the drawn square |x|, |y| ≤ 2 (diverged). The loss readout keeps the true value.",
+      "Dragging moves the starting point sideways (along x) with y set to 1.2. This clears the trail and the step count."
+     ],
+     "program": {
+      "source": "const K=0.25,R=0.14,H=2,FLAT=0.02,MAX=100,Z0=1.2,X0=1.6;\nconst loss=(x,z)=>0.5*x*x+1.5*z*z;\nconst slope=s=>Math.hypot(s.x,3*s.z);\nconst word=s=>Math.abs(s.x)>H||Math.abs(s.z)>H?'diverged':slope(s)<FLAT?'converged':s.step>=MAX?'100-step limit':s.on?'running':'paused';\nconst over=s=>{const w=word(s);return w!=='running'&&w!=='paused';};\nconst fresh=x=>({x,z:Z0,step:0,on:false,path:[[x,Z0]]});\nfunction advance(s,lr){if(over(s))return {...s,on:false};const x=s.x-lr*s.x,z=s.z-lr*3*s.z;return {...s,x,z,step:s.step+1,path:s.path.concat([[x,z]])};}\nexport function initialState(){return fresh(X0);}\nexport function reduce({state:s,event:e,inputs}){\n if(e.type==='step'){if(!s.on)return s;if(over(s))return {...s,on:false};return e.tick%6?s:advance(s,inputs.learningRate);}\n if(e.type==='action'){\n  if(e.action==='run')return over(s)?s:{...s,on:true};\n  if(e.action==='pause')return {...s,on:false};\n  if(e.action==='stepOnce')return advance({...s,on:false},inputs.learningRate);\n  return s;}\n if(e.type==='drag_start'||e.type==='drag_move'||e.type==='drag_end'){const v=Math.max(-1.9,Math.min(1.9,Number(e.value)||0));return fresh(v);}\n return s;}\nconst lift=p=>[p[0],Math.min(K*loss(p[0],p[1]),2.2)+0.04,p[1]];\nfunction aim(dx,dz,shown){const l=Math.hypot(dx,dz),h=Math.SQRT1_2;return shown&&l>1e-6?{visible:true,quaternion:[dz/l*h,0,-dx/l*h,h],scale:[1,l,1]}:{visible:false};}\nexport function evaluate({inputs,state}){\n const s=state||initialState(),L=loss(s.x,s.z),lr=inputs.learningRate,live=!over(s)&&inputs.showArrow;\n return {nodes:{ball:{position:[s.x,K*L+R,s.z]},stepArrow:aim(-lr*s.x,-lr*3*s.z,live),stepTag:{visible:live},trail:{points:s.path.map(lift)}},\n  readouts:{loss:L,steps:s.step,slope:slope(s),status:word(s)}};}\n"
+     }
+    },
+    "operation": "artifact",
+    "progress": true,
+    "draftHash": "1f0e82f239f8baf9",
+    "hasProgram": true,
+    "inputKeys": [
+     "operation",
+     "artifact"
+    ],
+    "artifactKeys": [
+     "title",
+     "description",
+     "experience",
+     "behavior",
+     "controlProfile",
+     "stepped",
+     "scene",
+     "parameters",
+     "actions",
+     "readouts",
+     "seed",
+     "camera",
+     "assumptions",
+     "program"
+    ],
+    "forwarded": {
+     "findings": 9,
+     "problems": 0
+    },
+    "programRetried": true,
+    "rawReplies": [
+     {
+      "requested": "claude-opus-5-5",
+      "served": "claude-opus-5-5",
+      "settings": {
+       "maxTokens": 24000,
+       "effort": "medium",
+       "thinking": "model default",
+       "toolChoice": "auto"
+      },
+      "stopReason": "tool_use",
+      "usage": {
+       "input_tokens": 8825,
+       "cache_creation_input_tokens": 0,
+       "cache_read_input_tokens": 8061,
+       "cache_creation": {
+        "ephemeral_5m_input_tokens": 0,
+        "ephemeral_1h_input_tokens": 0
+       },
+       "output_tokens": 5915,
+       "service_tier": "standard",
+       "inference_geo": "global",
+       "speed": "standard",
+       "output_tokens_details": {
+        "thinking_tokens": 730
+       }
+      },
+      "blocks": [
+       {
+        "type": "thinking"
+       },
+       {
+        "type": "tool_use",
+        "name": "repair_animation",
+        "chars": 8815
+       }
+      ],
+      "partialTool": "{\"operation\":\"artifact\",\"artifact\":{\"title\":\"Gradient descent: a ball stepping down a loss surface\",\"description\":\"A blue bowl-shaped surface stands for the loss 0.5·x² + 1.5·y². Its lowest point is marked at the centre. A red ball sits on the surface. Each step makes it jump downhill by the step size times the slope, and an orange trail records the path. An orange arrow on the ball shows the next step. Drag the ball along the side to choose a new start. Raise the step size to see the ball zigzag across the narrow valley or fly off the surface.\",\"experience\":\"experiment\",\"behavior\":\"rules\",\"controlProfile\":\"manipulate\",\"stepped\":true,\"scene\":{\"materials\":[{\"id\":\"bowlBlue\",\"color\":\"#8fa8c8\"},{\"id\":\"ballRed\",\"color\":\"#d23c2a\"},{\"id\":\"pathOrange\",\"color\":\"#e8731a\"},{\"id\":\"arrowDark\",\"color\":\"#b8500c\"},{\"id\":\"markDark\",\"color\":\"#333a44\"}],\"geometries\":[{\"id\":\"bowlGrid\",\"kind\":\"surface\",\"width\":4,\"depth\":4,\"contours\":8,\"heights\":[[2,1.92,1.84,1.77,1.71,1.66,1.61,1.58,1.55,1.52,1.51,1.5,1.5,1.51,1.52,1.55,1.58,1.61,1.66,1.71,1.77,1.84,1.92,2],[1.75,1.67,1.59,1.52,1.46,1.41,1.37,1.33,1.3,1.28,1.26,1.25,1.25,1.26,1.28,1.3,1.33,1.37,1.41,1.46,1.52,1.59,1.67,1.75],[1.52,1.44,1.36,1.3,1.24,1.18,1.14,1.1,1.07,1.05,1.03,1.02,1.02,1.03,1.05,1.07,1.1,1.14,1.18,1.24,1.3,1.36,1.44,1.52],[1.32,1.24,1.16,1.09,1.03,0.98,0.93,0.9,0.87,0.84,0.83,0.82,0.82,0.83,0.84,0.87,0.9,0.93,0.98,1.03,1.09,1.16,1.24,1.32],[1.14,1.06,0.98,0.91,0.85,0.8,0.75,0.72,0.68,0.66,0.65,0.64,0.64,0.65,0.66,0.68,0.72,0.75,0.8,0.85,0.91,0.98,1.06,1.14],[0.98,0.9,0.82,0.75,0.69,0.64,0.59,0.56,0.53,0.5,0.49,0.48,0.48,0.49,0.5,0.53,0.56,0.59,0.64,0.69,0.75,0.82,0.9,0.98],[0.84,0.76,0.68,0.62,0.56,0.5,0.46,0.42,0.39,0.37,0.35,0.34,0.34,0.35,0.37,0.39,0.42,0.46,0.5,0.56,0.62,0.68,0.76,0.84],[0.73,0.65,0.57,0.5,0.44,0.39,0.34,0.31,0.28,0.25,0.24,0.23,0.23,0.24,0.25,0.28,0.31,0.34,0.39,0.44,0.5,0.57,0.65,0.73],[0.64,0.56,0.48,0.41,0.35,0.3,0.25,0.22,0.19,0.16,0.15,0.14,0.14,0.15,0.16,0.19,0.22,0.25,0.3,0.35,0.41,0.48,0.56,0.64],[0.57,0.49,0.41,0.34,0.28,0.23,0.19,0.15,0.12,0.1,0.08,0.07,0.07,0.08,0.1,0.12,0.15,0.19,0.23,0.28,0.34,0.41,0.49,0.57],[0.53,0.44,0.37,0.3,0.24,0.19,0.14,0.1,0.07,0.05,0.04,0.03,0.03,0.04,0.05,0.07,0.1,0.14,0.19,0.24,0.3,0.37,0.44,0.53],[0.5,0.42,0.34,0.28,0.22,0.16,0.12,0.08,0.05,0.03,0.01,0,0,0.01,0.03,0.05,0.08,0.12,0.16,0.22,0.28,0.34,0.42,0.5],[0.5,0.42,0.34,0.28,0.22,0.16,0.12,0.08,0.05,0.03,0.01,0,0,0.01,0.03,0.05,0.08,0.12,0.16,0.22,0.28,0.34,0.42,0.5],[0.53,0.44,0.37,0.3,0.24,0.19,0.14,0.1,0.07,0.05,0.04,0.03,0.03,0.04,0.05,0.07,0.1,0.14,0.19,0.24,0.3,0.37,0.44,0.53],[0.57,0.49,0.41,0.34,0.28,0.23,0.19,0.15,0.12,0.1,0.08,0.07,0.07,0.08,0.1,0.12,0.15,0.19,0.23,0.28,0.34,0.41,0.49,0.57],[0.64,0.56,0.48,0.41,0.35,0.3,0.25,0.22,0.19,0.16,0.15,0.14,0.14,0.15,0.16,0.19,0.22,0.25,0.3,0.35,0.41,0.48,0.56,0.64],[0.73,0.65,0.57,0.5,0.44,0.39,0.34,0.31,0.28,0.25,0.24,0.23,0.23,0.24,0.25,0.28,0.31,0.34,0.39,0.44,0.5,0.57,0.65,0.73],[0.84,0.76,0.68,0.62,0.56,0.5,0.46,0.42,0.39,0.37,0.35,0.34,0.34,0.35,0.37,0.39,0.42,0.46,0.5,0.56,0.62,0.68,0.76,0.84],[0.98,0.9,0.82,0.75,0.69,0.64,0.59,0.56,0.53,0.5,0.49,0.48,0.48,0.49,0.5,0.53,0.56,0.59,0.64,0.69,0.75,0.82,0.9,0.98],[1.14,1.06,0.98,0.91,0.85,0.8,0.75,0.72,0.68,0.66,0.65,0.64,0.64,0.65,0.66,0.68,0.72,0.75,0.8,0.85,0.91,0.98,1.06,1.14],[1.32,1.24,1.16,1.09,1.03,0.98,0.93,0.9,0.87,0.84,0.83,0.82,0.82,0.83,0.84,0.87,0.9,0.93,0.98,1.03,1.09,1.16,1.24,1.32],[1.52,1.44,1.36,1.3,1.24,1.18,1.14,1.1,1.07,1.05,1.03,1.02,1.02,1.03,1.05,1.07,1.1,1.14,1.18,1.24,1.3,1.36,1.44,1.52],[1.75,1.67,1.59,1.52,1.46,1.41,1.37,1.33,1.3,1.28,1.26,1.25,1.25,1.26,1.28,1.3,1.33,1.37,1.41,1.46,1.52,1.59,1.67,1.75],[2,1.92,1.84,1.77,1.71,1.66,1.61,1.58,1.55,1.52,1.51,1.5,1.5,1.51,1.52,1.55,1.58,1.61,1.66,1.71,1.77,1.84,1.92,2]]},{\"id\":\"runPath\",\"kind\":\"trail\",\"max\":128,\"radius\":0.035,\"style\":\"trail\"},{\"id\":\"ballGeo\",\"kind\":\"sphere\",\"radius\":0.14,\"widthSegments\":32,\"heightSegments\":24},{\"id\":\"dotGeo\",\"kind\":\"sphere\",\"radius\":0.06,\"widthSegments\":16,\"heightSegments\":12},{\"id\":\"stepArrowGeo\",\"kind\":\"arrow\",\"length\":1,\"offset\":0.14},{\"id\":\"lowText\",\"kind\":\"label\",\"text\":\"Lowest point\",\"placement\":\"left\"},{\"id\":\"stepText\",\"kind\":\"label\",\"text\":\"Next step\",\"anchor\":\"tip\"},{\"id\":\"statusText\",\"kind\":\"label\",\"text\":\"Run ended\",\"placement\":\"above\"}],\"nodes\":[{\"id\":\"bowl\",\"geometry\":\"bowlGrid\",\"material\":\"bowlBlue\",\"name\":\"Loss surface\"},{\"id\":\"trail\",\"geometry\":\"runPath\",\"material\":\"pathOrange\",\"name\":\"Path so far\"},{\"id\":\"lowest\",\"geometry\":\"dotGeo\",\"material\":\"markDark\",\"position\":[0,0.03,0]},{\"id\":\"lowTag\",\"parent\":\"lowest\",\"geometry\":\"lowText\",\"position\":[-0.08,0,0]},{\"id\":\"ball\",\"geometry\":\"ballGeo\",\"material\":\"ballRed\",\"name\":\"Current guess\",\"clampTo\":{\"node\":\"bowl\",\"max\":2.2},\"position\":[1.6,1,1.2],\"drag\":{\"axis\":\"x\",\"min\":-1.9,\"max\":1.9}},{\"id\":\"stepArrow\",\"parent\":\"ball\",\"geometry\":\"stepArrowGeo\",\"material\":\"arrowDark\"},{\"id\":\"stepTag\",\"parent\":\"stepArrow\",\"geometry\":\"stepText\"},{\"id\":\"statusTag\",\"parent\":\"ball\",\"geometry\":\"statusText\",\"position\":[0,0.16,0],\"visible\":false}]},\"parameters\":[{\"type\":\"number\",\"id\":\"learningRate\",\"label\":\"Step size (learning rate)\",\"min\":0.05,\"max\":0.8,\"step\":0.05,\"default\":0.15},{\"type\":\"toggle\",\"id\":\"showArrow\",\"label\":\"Show downhill arrow\",\"default\":true}],\"actions\":[{\"id\":\"run\",\"label\":\"Play steps\"},{\"id\":\"pause\",\"label\":\"Pause\",\"startsMotion\":false},{\"id\":\"stepOnce\",\"label\":\"Take one step\",\"startsMotion\":false}],\"readouts\":[{\"id\":\"loss\",\"label\":\"Loss at ball\",\"decimals\":3},{\"id\":\"status\",\"label\":\"Status\",\"kind\":\"text\"},{\"id\":\"steps\",\"label\":\"Steps taken\",\"decimals\":0},{\"id\":\"slope\",\"label\":\"Slope steepness\",\"decimals\":3}],\"seed\":1,\"camera\":{\"position\":[2.2,7.2,4.2],\"target\":[0,0.4,0],\"fov\":40},\"assumptions\":[\"Illustration: the surface is an example formula, not a trained model's real loss.\",\"Loss = 0.5·x² + 1.5·y² (y is drawn front to back). It is steeper across one direction than the other. The lowest point is at the centre, where the loss is 0.\",\"Each step moves the ball by the learning rate times the negative gradient (x, 3y), computed exactly. There is no momentum or noise. Above 2/3 ≈ 0.67 the steeper direction overshoots farther each time.\",\"The surface is drawn at 0.25 times the loss so the bowl fits. The arrow is the true next step, drawn at the same scale as the floor distances; its label hides when the step is too short to see.\",\"A run stops when the slope is below 0.02 (converged), after 100 steps (limit), or when the ball leaves the drawn square |x|, |y| ≤ 2 (diverged). The loss readout keeps the true value.\",\"Dragging moves the starting point sideways (along x) with y set to 1.2. This clears the trail and the step count.\"]},\"artifact.program.source\":\"const K=0.25,R=0.14,H=2,FLAT=0.02,MAX=100,Z0=1.2,X0=1.6;\\nconst loss=(x,z)=>0.5*x*x+1.5*z*z;\\nconst slope=s=>Math.hypot(s.x,3*s.z);\\nconst word=s=>Math.abs(s.x)>H||Math.abs(s.z)>H?'diverged':slope(s)<FLAT?'converged':s.step>=MAX?'limit':s.on?'running':'paused';\\nconst over=s=>{const w=word(s);return w!=='running'&&w!=='paused';};\\nconst fresh=x=>({x,z:Z0,step:0,on:false,path:[[x,Z0]]});\\nfunction advance(s,lr){if(over(s))return {...s,on:false};const x=s.x-lr*s.x,z=s.z-lr*3*s.z;return {...s,x,z,step:s.step+1,path:s.path.concat([[x,z]])};}\\nexport function initialState(){return fresh(X0);}\\nexport function reduce({state:s,event:e,inputs}){\\n if(e.type==='step'){if(!s.on)return s;if(over(s))return {...s,on:false};return e.tick%6?s:advance(s,inputs.learningRate);}\\n if(e.type==='action'){\\n  if(e.action==='run')return over(s)?s:{...s,on:true};\\n  if(e.action==='pause')return {...s,on:false};\\n  if(e.action==='stepOnce')return advance({...s,on:false},inputs.learningRate);\\n  return s;}\\n if(e.type==='drag_start'||e.type==='drag_move'||e.type==='drag_end'){const v=Math.max(-1.9,Math.min(1.9,Number(e.value)||0));return fresh(v);}\\n return s;}\\nconst lift=p=>[p[0],Math.min(K*loss(p[0],p[1]),2.2)+0.04,p[1]];\\nfunction aim(dx,dz,shown){const l=Math.hypot(dx,dz),h=Math.SQRT1_2;return shown&&l>1e-6?{visible:true,quaternion:[dz/l*h,0,-dx/l*h,h],scale:[1,l,1]}:{visible:false};}\\nexport function evaluate({inputs,state}){\\n const s=state||initialState(),L=loss(s.x,s.z),lr=inputs.learningRate,end=over(s),live=!end&&inputs.showArrow,w=word(s);\\n const len=lr*slope(s);\\n return {nodes:{ball:{position:[s.x,K*L+R,s.z]},stepArrow:aim(-lr*s.x,-lr*3*s.z,live),stepTag:{visible:live&&len>0.3},statusTag:{visible:end,text:'Run '+w},trail:{points:s.path.map(lift)}},\\n  readouts:{loss:L,status:w,steps:s.step,slope:slope(s)}};}\",\"reason\":\"Camera raised to look down into the bowl so the ball, trail and arrow direction are visible. Next-step label hides when the step is short. Status readout listed second, with single words, plus an end-of-run label on the ball. Lowest-point label moved to the left.\"}"
+     }
+    ]
+   }
+  ],
+  "calls": [
+   {
+    "key": "aj_a5198bdc01ef446cabcf37333fbdbfc2-brief-1",
+    "role": "brief",
+    "phase": "preparation",
+    "attempt": 1,
+    "streamed": false,
+    "requested": "claude-opus-5-5",
+    "served": "claude-opus-5-5",
+    "status": "settled",
+    "boundMicros": 156250,
+    "images": 0,
+    "costMicros": 67013,
+    "inputTokens": 377,
+    "outputTokens": 2087,
+    "startedAt": 1793763410573,
+    "endedAt": 1793763432020,
+    "stopReason": "tool_use",
+    "error": null,
+    "blocks": [
+     {
+      "type": "thinking"
+     },
+     {
+      "type": "tool_use",
+      "name": "animation_plan",
+      "chars": 3122
+     }
+    ]
+   },
+   {
+    "key": "aj_a5198bdc01ef446cabcf37333fbdbfc2-author-2",
+    "role": "author",
+    "phase": "generation",
+    "attempt": 1,
+    "streamed": true,
+    "requested": "claude-opus-5-5",
+    "served": "claude-opus-5-5",
+    "status": "settled",
+    "boundMicros": 675275,
+    "images": 0,
+    "costMicros": 226433,
+    "inputTokens": 7454,
+    "outputTokens": 9750,
+    "startedAt": 1793763433358,
+    "endedAt": 1793763513612,
+    "stopReason": "tool_use",
+    "error": null,
+    "blocks": [
+     {
+      "type": "thinking"
+     },
+     {
+      "type": "tool_use",
+      "name": "animation_artifact",
+      "chars": 9175
+     }
+    ]
+   },
+   {
+    "key": "aj_a5198bdc01ef446cabcf37333fbdbfc2-author-3",
+    "role": "author",
+    "phase": "generation",
+    "attempt": 1,
+    "streamed": true,
+    "requested": "claude-opus-5-5",
+    "served": "claude-opus-5-5",
+    "status": "settled",
+    "boundMicros": 676060,
+    "images": 0,
+    "costMicros": 200917,
+    "inputTokens": 7495,
+    "outputTokens": 8466,
+    "startedAt": 1793763513612,
+    "endedAt": 1793763582878,
+    "stopReason": "tool_use",
+    "error": null,
+    "blocks": [
+     {
+      "type": "thinking"
+     },
+     {
+      "type": "tool_use",
+      "name": "animation_artifact",
+      "chars": 8227
+     }
+    ]
+   },
+   {
+    "key": "aj_a5198bdc01ef446cabcf37333fbdbfc2-review-4",
+    "role": "review",
+    "phase": "generation",
+    "attempt": 1,
+    "streamed": false,
+    "requested": "claude-opus-5-5",
+    "served": "claude-opus-5-5",
+    "status": "settled",
+    "boundMicros": 390925,
+    "images": 6,
+    "costMicros": 138129,
+    "inputTokens": 12592,
+    "outputTokens": 4367,
+    "startedAt": 1793763615352,
+    "endedAt": 1793763660289,
+    "stopReason": "tool_use",
+    "error": null,
+    "blocks": [
+     {
+      "type": "thinking"
+     },
+     {
+      "type": "tool_use",
+      "name": "report_review",
+      "chars": 3429
+     }
+    ]
+   },
+   {
+    "key": "aj_a5198bdc01ef446cabcf37333fbdbfc2-repair-5",
+    "role": "repair",
+    "phase": "generation",
+    "attempt": 1,
+    "streamed": true,
+    "requested": "claude-opus-5-5",
+    "served": "claude-opus-5-5",
+    "status": "settled",
+    "boundMicros": 725635,
+    "images": 2,
+    "costMicros": 155213,
+    "inputTokens": 8825,
+    "outputTokens": 5915,
+    "startedAt": 1793763660511,
+    "endedAt": 1793763703972,
+    "stopReason": "tool_use",
+    "error": null,
+    "blocks": [
+     {
+      "type": "thinking"
+     },
+     {
+      "type": "tool_use",
+      "name": "repair_animation",
+      "chars": 8815
+     }
+    ]
+   },
+   {
+    "key": "aj_a5198bdc01ef446cabcf37333fbdbfc2-repair-6",
+    "role": "repair",
+    "phase": "generation",
+    "attempt": 1,
+    "streamed": true,
+    "requested": "claude-opus-5-5",
+    "served": "claude-opus-5-5",
+    "status": "settled",
+    "boundMicros": 726615,
+    "images": 2,
+    "costMicros": 160241,
+    "inputTokens": 8877,
+    "outputTokens": 6156,
+    "startedAt": 1793763703972,
+    "endedAt": 1793763749713,
+    "stopReason": "tool_use",
+    "error": null,
+    "blocks": [
+     {
+      "type": "thinking"
+     },
+     {
+      "type": "tool_use",
+      "name": "repair_animation",
+      "chars": 8658
+     }
+    ]
+   },
+   {
+    "key": "aj_a5198bdc01ef446cabcf37333fbdbfc2-review-7",
+    "role": "review",
+    "phase": "generation",
+    "attempt": 1,
+    "streamed": false,
+    "requested": "claude-opus-5-5",
+    "served": "claude-opus-5-5",
+    "status": "settled",
+    "boundMicros": 393215,
+    "images": 6,
+    "costMicros": 125089,
+    "inputTokens": 12772,
+    "outputTokens": 3679,
+    "startedAt": 1793763784642,
+    "endedAt": 1793763822456,
+    "stopReason": "tool_use",
+    "error": null,
+    "blocks": [
+     {
+      "type": "thinking"
+     },
+     {
+      "type": "text",
+      "chars": 2364,
+      "text": "I found no blocker or major problems, so all six captures pass on both verdicts. Three minor issues are worth fixing if there's a repair round.\n\n**What checks out**\n- **Starting state is correct.** The ball starts at (1.6, 1.2). The loss there is 0.5·1.6² + 1.5·1.2² = 3.44, and the slope steepness is √(1.6² + 3.6²) ≈ 3.940. Both match the readouts.\n- **Surface matches the formula.** The drawn heights are 0.25 × the loss (corner 2.0, edge midpoints 0.5 and 1.5), as the assumptions disclose.\n- **Stepped run at step size 0.2 (v0-s1, v1-s1).** One step every 6 ticks gives 8 steps, plus one single step, plus 5 more after play is pressed again: 14 steps. After 14 steps x = 1.6 × 0.8¹⁴ ≈ 0.0704, so the loss is about 0.00248 and the slope 0.070, matching the readouts. The trail curves into the valley as expected, and the arrow is correctly hidden because the next step (about 0.014) is too short to see.\n- **Divergence at step size 0.8 (v0-s2, v1-s2).** The ball goes (1.6, 1.2) → (0.32, −1.68) → (0.064, 2.352). That leaves the drawn square, so it stops after 2 steps with a loss of 8.300 and a \"Diverged\" tag. The trail shows the overshoot across the valley. The ball being drawn at height 2.2 is the host's clamp, not a fault in the scene.\n- **Arrow is honest.** It is the true next step, 0.15 × (−1.6, −3.6), about 0.59 long, drawn at the same scale as floor distances as disclosed. It points towards the valley floor.\n- **Layout works.** Step size is the first control and loss is the first readout. The labels are readable and don't cover the ball or the lowest-point marker, and the bowl fills the default view well.\n\n**Minor issues**\n1. **Dragging only moves the start along one line** (sideways, with the depth fixed at 1.2). The plan says \"pick a new starting point\". This is disclosed in the assumptions but narrower than promised; allowing a free drag across the surface would fix it.\n2. **The Status readout doesn't appear in the readout strip.** Only loss, steps and slope are shown"
+     },
+     {
+      "type": "tool_use",
+      "name": "report_review",
+      "chars": 1242
+     }
+    ]
+   }
+  ],
+  "captures": [
+   {
+    "id": "v0-s0",
+    "artifactHash": "d93386dbcf8a85142ee9500c47b51d2b723bfd05c6c934303e5af91c03244441",
+    "view": "default",
+    "label": "initial",
+    "inputs": {
+     "learningRate": 0.15,
+     "showArrow": true
+    },
+    "time": 0,
+    "events": [],
+    "ticks": 0,
+    "seed": 1,
+    "trace": {
+     "inputs": {
+      "learningRate": 0.15,
+      "showArrow": true
+     },
+     "time": 0,
+     "events": [],
+     "ticks": 0,
+     "readouts": {
+      "status": "paused",
+      "loss": 3.44,
+      "steps": 0,
+      "slope": 3.9395431207184415
+     },
+     "stateHash": "334d3e03c8264e10eda80b49ce5d5269bf76de860bea9de8eb72ceaccf3b7336"
+    },
+    "sha256": "960cd58f29523f4828bb8fdb699011e0e48ac3c2fc75a59d30d4b5986a26b3b3",
+    "mediaType": "image/png",
+    "key": "animation/aj_a5198bdc01ef446cabcf37333fbdbfc2/d93386dbcf8a8514-v0-s0.png"
+   },
+   {
+    "id": "v0-s1",
+    "artifactHash": "d93386dbcf8a85142ee9500c47b51d2b723bfd05c6c934303e5af91c03244441",
+    "view": "default",
+    "label": "learningRate at 0.2: run, 48 steps, then pause, stepOnce, then run if idle, then 30 steps",
+    "inputs": {
+     "learningRate": 0.2,
+     "showArrow": true
+    },
+    "time": 0,
+    "events": [
+     {
+      "type": "action",
+      "action": "run"
+     },
+     {
+      "type": "advance",
+      "ticks": 48
+     },
+     {
+      "type": "action",
+      "action": "pause"
+     },
+     {
+      "type": "action",
+      "action": "stepOnce"
+     },
+     {
+      "type": "resume",
+      "action": "run",
+      "probe": 12
+     }
+    ],
+    "ticks": 30,
+    "seed": 1,
+    "trace": {
+     "inputs": {
+      "learningRate": 0.2,
+      "showArrow": true
+     },
+     "time": 3,
+     "events": [
+      {
+       "type": "action",
+       "action": "run"
+      },
+      {
+       "type": "advance",
+       "ticks": 48
+      },
+      {
+       "type": "action",
+       "action": "pause"
+      },
+      {
+       "type": "action",
+       "action": "stepOnce"
+      },
+      {
+       "type": "resume",
+       "action": "run",
+       "probe": 12
+      }
+     ],
+     "ticks": 90,
+     "readouts": {
+      "status": "running",
+      "loss": 0.002475880094135201,
+      "steps": 14,
+      "slope": 0.070368744841216
+     },
+     "stateHash": "f5f6f019bb72fbf8444dc6a53a46de576a7e2e556624757f1dfbc3ecc21e667a"
+    },
+    "sha256": "82aa7db4a4f2c3f42c0f5f77b695eb5a716fbd02af3b03ddac55b63beab3dec7",
+    "mediaType": "image/png",
+    "key": "animation/aj_a5198bdc01ef446cabcf37333fbdbfc2/d93386dbcf8a8514-v0-s1.png"
+   },
+   {
+    "id": "v0-s2",
+    "artifactHash": "d93386dbcf8a85142ee9500c47b51d2b723bfd05c6c934303e5af91c03244441",
+    "view": "default",
+    "label": "learningRate at its high end (0.8), after run, then 90 steps",
+    "inputs": {
+     "learningRate": 0.8,
+     "showArrow": true
+    },
+    "time": 0,
+    "events": [
+     {
+      "type": "action",
+      "action": "run"
+     }
+    ],
+    "ticks": 90,
+    "seed": 1,
+    "trace": {
+     "inputs": {
+      "learningRate": 0.8,
+      "showArrow": true
+     },
+     "time": 3,
+     "events": [
+      {
+       "type": "action",
+       "action": "run"
+      }
+     ],
+     "ticks": 90,
+     "readouts": {
+      "status": "diverged",
+      "loss": 8.299904000000009,
+      "steps": 2,
+      "slope": 7.056290243463632
+     },
+     "stateHash": "6ce2f4679014a7984a25f6adcfcd297ffb564cb50aee19db112c2790fb8f837f",
+     "clamped": [
+      {
+       "node": "ball",
+       "trueY": 2.215,
+       "y": 2.2
+      }
+     ]
+    },
+    "sha256": "4b01fd237592ddb5c78b91b06a5838c46884c63f4d07c98500a004be285d335e",
+    "mediaType": "image/png",
+    "key": "animation/aj_a5198bdc01ef446cabcf37333fbdbfc2/d93386dbcf8a8514-v0-s2.png"
+   },
+   {
+    "id": "v1-s0",
+    "artifactHash": "d93386dbcf8a85142ee9500c47b51d2b723bfd05c6c934303e5af91c03244441",
+    "view": "side",
+    "label": "initial",
+    "inputs": {
+     "learningRate": 0.15,
+     "showArrow": true
+    },
+    "time": 0,
+    "events": [],
+    "ticks": 0,
+    "seed": 1,
+    "trace": {
+     "inputs": {
+      "learningRate": 0.15,
+      "showArrow": true
+     },
+     "time": 0,
+     "events": [],
+     "ticks": 0,
+     "readouts": {
+      "status": "paused",
+      "loss": 3.44,
+      "steps": 0,
+      "slope": 3.9395431207184415
+     },
+     "stateHash": "334d3e03c8264e10eda80b49ce5d5269bf76de860bea9de8eb72ceaccf3b7336"
+    },
+    "sha256": "edde1f6780b58cac8c9b3ae3840155a9657984c36b78096c8dcfd7a114b870a6",
+    "mediaType": "image/png",
+    "key": "animation/aj_a5198bdc01ef446cabcf37333fbdbfc2/d93386dbcf8a8514-v1-s0.png"
+   },
+   {
+    "id": "v1-s1",
+    "artifactHash": "d93386dbcf8a85142ee9500c47b51d2b723bfd05c6c934303e5af91c03244441",
+    "view": "side",
+    "label": "learningRate at 0.2: run, 48 steps, then pause, stepOnce, then run if idle, then 30 steps",
+    "inputs": {
+     "learningRate": 0.2,
+     "showArrow": true
+    },
+    "time": 0,
+    "events": [
+     {
+      "type": "action",
+      "action": "run"
+     },
+     {
+      "type": "advance",
+      "ticks": 48
+     },
+     {
+      "type": "action",
+      "action": "pause"
+     },
+     {
+      "type": "action",
+      "action": "stepOnce"
+     },
+     {
+      "type": "resume",
+      "action": "run",
+      "probe": 12
+     }
+    ],
+    "ticks": 30,
+    "seed": 1,
+    "trace": {
+     "inputs": {
+      "learningRate": 0.2,
+      "showArrow": true
+     },
+     "time": 3,
+     "events": [
+      {
+       "type": "action",
+       "action": "run"
+      },
+      {
+       "type": "advance",
+       "ticks": 48
+      },
+      {
+       "type": "action",
+       "action": "pause"
+      },
+      {
+       "type": "action",
+       "action": "stepOnce"
+      },
+      {
+       "type": "resume",
+       "action": "run",
+       "probe": 12
+      }
+     ],
+     "ticks": 90,
+     "readouts": {
+      "status": "running",
+      "loss": 0.002475880094135201,
+      "steps": 14,
+      "slope": 0.070368744841216
+     },
+     "stateHash": "f5f6f019bb72fbf8444dc6a53a46de576a7e2e556624757f1dfbc3ecc21e667a"
+    },
+    "sha256": "677d273fb4f465cb301f932f978934a346e26c52b863226c7c0322d98b15db46",
+    "mediaType": "image/png",
+    "key": "animation/aj_a5198bdc01ef446cabcf37333fbdbfc2/d93386dbcf8a8514-v1-s1.png"
+   },
+   {
+    "id": "v1-s2",
+    "artifactHash": "d93386dbcf8a85142ee9500c47b51d2b723bfd05c6c934303e5af91c03244441",
+    "view": "side",
+    "label": "learningRate at its high end (0.8), after run, then 90 steps",
+    "inputs": {
+     "learningRate": 0.8,
+     "showArrow": true
+    },
+    "time": 0,
+    "events": [
+     {
+      "type": "action",
+      "action": "run"
+     }
+    ],
+    "ticks": 90,
+    "seed": 1,
+    "trace": {
+     "inputs": {
+      "learningRate": 0.8,
+      "showArrow": true
+     },
+     "time": 3,
+     "events": [
+      {
+       "type": "action",
+       "action": "run"
+      }
+     ],
+     "ticks": 90,
+     "readouts": {
+      "status": "diverged",
+      "loss": 8.299904000000009,
+      "steps": 2,
+      "slope": 7.056290243463632
+     },
+     "stateHash": "6ce2f4679014a7984a25f6adcfcd297ffb564cb50aee19db112c2790fb8f837f",
+     "clamped": [
+      {
+       "node": "ball",
+       "trueY": 2.215,
+       "y": 2.2
+      }
+     ]
+    },
+    "sha256": "1311bd178c57e693feca6ed6137893d743a27e1233caf70119228071930da820",
+    "mediaType": "image/png",
+    "key": "animation/aj_a5198bdc01ef446cabcf37333fbdbfc2/d93386dbcf8a8514-v1-s2.png"
+   }
+  ],
+  "coverage": {
+   "views": [
+    "default",
+    "side"
+   ],
+   "sampled": [
+    {
+     "label": "initial",
+     "time": 0,
+     "events": 0,
+     "ticks": 0
+    },
+    {
+     "label": "learningRate at 0.2: run, 48 steps, then pause, stepOnce, then run if idle, then 30 steps",
+     "time": 0,
+     "events": 4,
+     "ticks": 30
+    },
+    {
+     "label": "learningRate at its high end (0.8), after run, then 90 steps",
+     "time": 0,
+     "events": 1,
+     "ticks": 90
+    }
+   ],
+   "omitted": [
+    "learningRate at its low end (0.05), after run, then 90 steps",
+    "every parameter at its low end",
+    "every parameter at its high end",
+    "60 steps, then action run, then 30 steps",
+    "sequence of 4 events"
+   ]
+  },
+  "gap": null,
+  "estimate": {
+   "bytes": 13280,
+   "limit": 15280
+  },
+  "counts": {
+   "brief": 1,
+   "author": 2,
+   "review": 2,
+   "repair": 2
+  },
+  "bounds": {
+   "preparation": 156250,
+   "generation": 3587725
+  },
+  "timing": {
+   "requestClass": "simple",
+   "cache": null,
+   "marks": {
+    "submitted": 1793763409523,
+    "firstFeedback": 1793763409573,
+    "proposalReady": 1793763432087,
+    "generate": 1793763433187,
+    "result": 1793763822456
+   },
+   "stages": [
+    {
+     "stage": "preparing",
+     "startedAt": 1793763409573,
+     "endedAt": 1793763432087,
+     "calls": 1,
+     "inputTokens": 377,
+     "outputTokens": 2087,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "awaiting_approval",
+     "startedAt": 1793763432087,
+     "endedAt": 1793763433187,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": null
+    },
+    {
+     "stage": "authoring",
+     "startedAt": 1793763433187,
+     "endedAt": 1793763582878,
+     "calls": 2,
+     "inputTokens": 14949,
+     "outputTokens": 18216,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "validating",
+     "startedAt": 1793763582878,
+     "endedAt": 1793763582893,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "rendering",
+     "startedAt": 1793763582893,
+     "endedAt": 1793763615097,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 6,
+     "outcome": "done"
+    },
+    {
+     "stage": "reviewing",
+     "startedAt": 1793763615097,
+     "endedAt": 1793763660289,
+     "calls": 1,
+     "inputTokens": 12592,
+     "outputTokens": 4367,
+     "images": 6,
+     "captures": 0,
+     "outcome": "rejected"
+    },
+    {
+     "stage": "repairing",
+     "startedAt": 1793763660289,
+     "endedAt": 1793763749713,
+     "calls": 2,
+     "inputTokens": 17702,
+     "outputTokens": 12071,
+     "images": 4,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "validating",
+     "startedAt": 1793763749713,
+     "endedAt": 1793763749738,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "rendering",
+     "startedAt": 1793763749738,
+     "endedAt": 1793763784418,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 6,
+     "outcome": "done"
+    },
+    {
+     "stage": "reviewing",
+     "startedAt": 1793763784418,
+     "endedAt": 1793763822456,
+     "calls": 1,
+     "inputTokens": 12772,
+     "outputTokens": 3679,
+     "images": 6,
+     "captures": 0,
+     "outcome": "accepted"
+    }
+   ]
+  }
+ }
+}

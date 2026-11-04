@@ -1,0 +1,24 @@
+candidate 7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0   prompt-files aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4   golden 1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc
+transport dev-key   concurrency 5   cap 700 credits   plans sgd-loss-surface
+run                   session  bytes  tokens in/out  validator  assertions  credits  seconds  status                                                               
+sgd-loss-surface-r01  -        9395   15799/22460    PASS       PASS        55.44    186.3    valid (asked again)                                                  
+sgd-loss-surface-r02  -        8911   7879/11126     PASS       PASS        29.44    93.6     valid                                                                
+sgd-loss-surface-r03  -        9293   15799/19455    PASS       PASS        49.43    160.3    valid (asked again)                                                  
+sgd-loss-surface-r04  -        8881   7879/9954      PASS       PASS        27.10    82.7     valid                                                                
+sgd-loss-surface-r05  -        9523   7879/12052     PASS       PASS        31.30    102.2    valid                                                                
+sgd-loss-surface-r06  -        9067   7879/10304     PASS       PASS        23.92    84.7     valid                                                                
+sgd-loss-surface-r07  -        -      15799/19001    -          n/a         44.64    155.2    error: invalid_turn: The author returned no artifact.                
+sgd-loss-surface-r08  -        9342   7879/11283     PASS       PASS        25.88    89.8     valid                                                                
+sgd-loss-surface-r09  -        9336   15799/18074    PASS       PASS        42.79    144.7    valid (asked again)                                                  
+sgd-loss-surface-r10  -        8996   7879/8046      PASS       PASS        19.41    65       valid                                                                
+sgd-loss-surface-r11  -        9595   15799/20913    PASS       PASS        48.47    171.4    valid (asked again)                                                  
+sgd-loss-surface-r12  -        9550   15799/18528    PASS       PASS        43.70    152.9    valid (asked again)                                                  
+sgd-loss-surface-r13  -        9485   7879/8255      PASS       PASS        19.82    66.6     valid                                                                
+sgd-loss-surface-r14  -        9429   7879/12030     PASS       PASS        27.37    98.6     valid                                                                
+sgd-loss-surface-r15  -        9110   7879/11177     PASS       PASS        25.67    92.3     valid                                                                
+sgd-loss-surface-r16  -        9508   15799/21262    PASS       PASS        49.17    175.6    valid (asked again)                                                  
+sgd-loss-surface-r17  -        9795   15799/21736    PASS       PASS        50.11    179.2    valid (asked again)                                                  
+sgd-loss-surface-r18  -        -      -              -          n/a         0.00     -        not run: cap reached: 613.67 of 700 credits settled and the next call
+sgd-loss-surface-r19  -        -      -              -          n/a         0.00     -        not run: cap reached: 613.67 of 700 credits settled and the next call
+sgd-loss-surface-r20  -        -      -              -          n/a         0.00     -        not run: cap reached: 613.67 of 700 credits settled and the next call
+settled 613.67 credits (computed from provider usage at registry rates, US$6.14); valid 16 of 20   STOPPED: cap reached: 613.67 of 700 credits settled and the next call can cost up to 136.30

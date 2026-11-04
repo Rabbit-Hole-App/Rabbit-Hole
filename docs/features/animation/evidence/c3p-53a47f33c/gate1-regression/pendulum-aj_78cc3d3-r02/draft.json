@@ -1,0 +1,279 @@
+{
+  "title": "Pendulum length and period",
+  "description": "A metal stand holds a pivot. Below it a dark string hangs with a red bob on the end, swinging gently left and right. A slider sets the string length from 0.5 to 3 metres. A faint vertical line shows where the string hangs at rest. Readouts show the period in seconds, worked out from the length, and the current length.",
+  "experience": "experiment",
+  "behavior": "analytical",
+  "controlProfile": "inspect",
+  "scene": {
+    "materials": [
+      {
+        "id": "metal",
+        "color": "#b8bcc2"
+      },
+      {
+        "id": "base",
+        "color": "#8a8f96"
+      },
+      {
+        "id": "floor",
+        "color": "#d9dbd6"
+      },
+      {
+        "id": "string",
+        "color": "#2b2b2b"
+      },
+      {
+        "id": "bob",
+        "color": "#d6452f"
+      },
+      {
+        "id": "guide",
+        "color": "#5a7fb0",
+        "opacity": 0.4
+      }
+    ],
+    "geometries": [
+      {
+        "id": "floorG",
+        "kind": "box",
+        "size": [
+          3.2,
+          0.04,
+          1.6
+        ]
+      },
+      {
+        "id": "baseG",
+        "kind": "box",
+        "size": [
+          0.8,
+          0.1,
+          0.8
+        ]
+      },
+      {
+        "id": "postG",
+        "kind": "cylinder",
+        "radius": 0.05,
+        "height": 3.5,
+        "radialSegments": 24
+      },
+      {
+        "id": "beamG",
+        "kind": "box",
+        "size": [
+          1.5,
+          0.1,
+          0.1
+        ]
+      },
+      {
+        "id": "pinG",
+        "kind": "cylinder",
+        "radius": 0.04,
+        "height": 0.16,
+        "radialSegments": 24
+      },
+      {
+        "id": "strG",
+        "kind": "cylinder",
+        "radius": 0.022,
+        "height": 1,
+        "radialSegments": 16
+      },
+      {
+        "id": "bobG",
+        "kind": "sphere",
+        "radius": 0.13,
+        "widthSegments": 32,
+        "heightSegments": 24
+      },
+      {
+        "id": "restG",
+        "kind": "line",
+        "points": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            -3.2,
+            0
+          ]
+        ]
+      },
+      {
+        "id": "bobL",
+        "kind": "label",
+        "text": "Bob",
+        "placement": "right"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "floor",
+        "geometry": "floorG",
+        "material": "floor",
+        "position": [
+          -0.2,
+          -0.02,
+          0
+        ]
+      },
+      {
+        "id": "base",
+        "geometry": "baseG",
+        "material": "base",
+        "position": [
+          -1.2,
+          0.05,
+          0
+        ]
+      },
+      {
+        "id": "post",
+        "geometry": "postG",
+        "material": "metal",
+        "position": [
+          -1.2,
+          1.85,
+          0
+        ]
+      },
+      {
+        "id": "beam",
+        "geometry": "beamG",
+        "material": "metal",
+        "position": [
+          -0.5,
+          3.55,
+          0
+        ]
+      },
+      {
+        "id": "pin",
+        "geometry": "pinG",
+        "material": "metal",
+        "position": [
+          0,
+          3.45,
+          0
+        ],
+        "quaternion": [
+          0.7071068,
+          0,
+          0,
+          0.7071068
+        ]
+      },
+      {
+        "id": "rest",
+        "geometry": "restG",
+        "material": "guide",
+        "position": [
+          0,
+          3.45,
+          0
+        ]
+      },
+      {
+        "id": "arm",
+        "parent": null,
+        "position": [
+          0,
+          3.45,
+          0
+        ]
+      },
+      {
+        "id": "str",
+        "parent": "arm",
+        "geometry": "strG",
+        "material": "string",
+        "position": [
+          0,
+          -0.5,
+          0
+        ]
+      },
+      {
+        "id": "bobN",
+        "name": "Bob",
+        "parent": "arm",
+        "geometry": "bobG",
+        "material": "bob",
+        "position": [
+          0,
+          -1,
+          0
+        ]
+      },
+      {
+        "id": "bobLabel",
+        "parent": "bobN",
+        "geometry": "bobL",
+        "position": [
+          0.15,
+          0,
+          0
+        ]
+      }
+    ]
+  },
+  "parameters": [
+    {
+      "type": "number",
+      "id": "length",
+      "label": "Pendulum length",
+      "unit": "m",
+      "min": 0.5,
+      "max": 3,
+      "step": 0.1,
+      "default": 1
+    }
+  ],
+  "actions": [],
+  "readouts": [
+    {
+      "id": "period",
+      "label": "Period",
+      "unit": "s",
+      "decimals": 2
+    },
+    {
+      "id": "len",
+      "label": "Length",
+      "unit": "m",
+      "decimals": 1
+    }
+  ],
+  "seed": 0,
+  "camera": {
+    "position": [
+      1.2,
+      2.3,
+      6.2
+    ],
+    "target": [
+      -0.2,
+      1.8,
+      0
+    ]
+  },
+  "timeline": {
+    "duration": 30,
+    "loop": true
+  },
+  "assumptions": [
+    "Idealized model: small swings, period T = 2π√(L/g) with g = 9.81 m/s²; exact in the model, approximately true of a real pendulum.",
+    "The string is light and doesn't stretch, and the bob is treated as a point at the string's end.",
+    "No air resistance or friction, so the swing never dies down. The starting angle is fixed at 10°.",
+    "Changing the length recomputes the swing from the current time, so the bob may jump to a new point in its swing. The loop restarts every 30 s.",
+    "Large-angle swings, where the real period grows slightly, and damping are not shown."
+  ],
+  "program": {
+    "source": "export function evaluate({ inputs, time }) {\n  const L = inputs.length;\n  const T = 2 * Math.PI * Math.sqrt(L / 9.81);\n  const th = 0.1745 * Math.cos(2 * Math.PI * time / T);\n  return {\n    nodes: {\n      arm: { quaternion: [0, 0, Math.sin(th / 2), Math.cos(th / 2)] },\n      str: { position: [0, -L / 2, 0], scale: [1, L, 1] },\n      bobN: { position: [0, -L, 0] }\n    },\n    readouts: { period: T, len: L }\n  };\n}"
+  }
+}

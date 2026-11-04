@@ -1,0 +1,345 @@
+[
+ {
+  "at": 1793767394405,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "f479aa9299d14ca65b6149856560f3cf7a772f48bd279516bbad13c8cd1c451f",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "startPin",
+       "message": "In the default view the grey start-handle box (x=1.75, just outside the surface edge and between the camera and the ball) covers the lower half of the red ball and the base of both arrows at the initial state. The learner's first view of the current guess is blocked. Move the handle to the far side or off the camera line, or make it smaller or partly see-through, so the ball and arrow tails stay clear.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "camera",
+       "message": "The default camera is low and almost along the narrow (x) axis, so the across-valley direction is strongly foreshortened. The zig-zag across the narrow side, which the plan promises, is much easier to read in the side view. A higher, more top-down default angle would show the valley shape and the path better.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "trueArrow",
+       "message": "Near the minimum, the true arrow (0.49 × 0.15 ≈ 0.07) and the noisy arrow (≈0.15) are shorter than or similar to the ball's radius. The 'True downhill' and 'Noisy estimate' labels point to arrows you can barely see, so it is hard to compare them late in a run. The scale is honest, single and disclosed. Hiding the labels when the arrows are this short would help.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "trail",
+       "message": "The plan's trail drew one marker every 4 steps, at most 50. The artifact draws every step and says so in its assumptions. This is a disclosed change, and it adds to the clutter at high learning rates (see v0-s2).",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: dragging the start marker, 'Return ball to start, keep trail' and the kept blue path, full batch and batch 1, and the 0.01 learning rate. The program logic for these looks correct, but the captures do not confirm it.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "trail",
+       "message": "At learning rate 0.45, 30 thick trail segments (each step drawn) form a dense tangle around the minimum. The ball's two arrows are buried in it, and the 'Minimum', 'True downhill' and 'Noisy estimate' labels sit on top of the tangle. The learner cannot see the arrows or follow the zig-zag. Use a thinner trail, fade older segments or follow the plan's sparser markers, and keep the labels clear of the path.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "status",
+       "message": "The 'Status' text readout (running, converged, diverged, finished) is not shown in the readout line, so the learner does not see when the run stops itself.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "startPin",
+       "message": "The grey drag handle floats in mid-air beside the surface edge, with nothing visibly connecting it to the green start cone. It looks like a stray object.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "trail",
+       "message": "From this angle the high-learning-rate tangle is easier to read as a zig-zag across the valley, but the labels still overlap the trail.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 14319,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4489,
+   "output_tokens_details": {
+    "thinking_tokens": 3099
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_5a74239824c6488aa1813e465d5e3c20-review-4",
+   "status": "settled",
+   "costMicros": 147477,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793767540530,
+  "attempt": 1,
+  "repairs": 2,
+  "artifactHash": "c0ef09153a768f987b6243328596eb472a5bfac413ee1e043c47461efb9a6ee0",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "startTip",
+       "message": "At the start state the green start cone sits at about the same height as the ball centre (K·loss+0.19 against about K·loss+0.17), so it is buried inside the red ball. Only a green speck shows, and the 'Start (drag)' label seems to point at the ball. Raise the cone above the ball or offset it so the drag handle can be seen and grabbed.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "startPin",
+       "message": "The grey box on the far rim is the z-drag handle for the start, but it has no label or explanation. A learner will not know what it does.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "trail",
+       "message": "The trail draws every step instead of the approved plan's one marker every 4 steps (at most 50 markers). The change is disclosed and it helps the zig-zag show, but it is a departure from the plan.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "noisyArrow",
+       "message": "Near the minimum both arrows use the 0.15 scale: true length 0.07 and noisy length 0.15, both shorter than the ball's diameter. Their labels are hidden, so the comparison between the noisy and true arrows, which is the point of the scene, can hardly be seen in this phase. This is consistent with the disclosed single scale but weak for teaching.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "status",
+       "message": "The 'Status' text readout (running/converged/finished/diverged) does not appear in the captured readout line, so a learner cannot see when a run ends.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "noisyTag",
+       "message": "At learning rate 0.45 the thin straight trail segments form a dense tangle around the minimum. The 'Noisy estimate' and 'True downhill' labels sit on top of it, so the arrows at the ball are hard to pick out.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "status",
+       "message": "Not sampled: with batch 1 at a high learning rate, the noise carries the ball past |x|=1.5, and the status then reads 'diverged'. The run is still stable in expectation (the assumptions say 0.45 shrinks without noise), so 'diverged' misnames leaving the drawn surface. 'Left surface' would be more honest.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 14464,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4912,
+   "output_tokens_details": {
+    "thinking_tokens": 3812
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_5a74239824c6488aa1813e465d5e3c20-review-6",
+   "status": "settled",
+   "costMicros": 156517,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

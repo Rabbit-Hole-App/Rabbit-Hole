@@ -1,0 +1,17 @@
+{
+ "n": 2,
+ "phrasing": "SGD on a bowl-shaped loss",
+ "session": "gate2-2@example.com",
+ "sha": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+ "version": "ac467072-cacc-4b9d-bb37-61cbc5c79ea1",
+ "jobId": "aj_c087a3db58204a32bd90e6714ff978e1",
+ "outcome": "rejected",
+ "repairs": 2,
+ "credits": 98.8204,
+ "charged": 5,
+ "artifactHash": null,
+ "note": "rounds: The visual review found 2 serious problems with how the scene is drawn or computed. You have not been charged. It was corrected automatically twice, but it stil",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 7:44 PM"
+}

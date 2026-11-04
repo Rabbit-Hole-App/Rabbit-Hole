@@ -1,0 +1,146 @@
+[
+ {
+  "messageId": "230",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-2f0626ccfe5557b4",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient descent with two learning rates on a stretched bowl",
+    "description": "A stretched bowl-shaped surface stands for a loss: steep across, gentle along its length, lowest at the centre. Two coloured balls start at the same point. Each step, every ball moves downhill by the slope times its own learning rate (the step size) and leaves a trail. A slow ball creeps toward the bottom. A ball with a large learning rate zig-zags across the steep direction, and above a threshold it bounces higher each step and leaves the bowl. Readouts show each ball's step count and current loss.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-9385f1b5",
+     "job": "aj_2f17bed198df4482b5e2e7e170dcdd31",
+     "plan_hash": "7a1bf934031dcacec23bcbc9af9e473f628a9c93fd450e9de663749458714b54",
+     "request": "gradient descent with two learning rates",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate A (blue ball)",
+        "min": 0.01,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.05
+       },
+       {
+        "type": "number",
+        "label": "Learning rate B (orange ball)",
+        "min": 0.01,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.4
+       },
+       {
+        "type": "toggle",
+        "label": "Show downhill arrows",
+        "default": true
+       }
+      ],
+      "interactions": [
+       "Press step, or let the host keep stepping, to move both balls one gradient-descent step at a time, up to 60 steps.",
+       "Change learning rate A or B to change how far that ball moves each step. Its trail then shows a slow creep, a zig-zag or a runaway.",
+       "Use the restart-walkers action to send both balls back to the start point and clear their trails, keeping your learning-rate settings.",
+       "Turn the downhill arrows on or off. Each arrow points along the negative slope at its ball, the direction that ball steps in."
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793853550,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "gradient descent with two learning rates",
+    "prompt": "A stretched bowl-shaped surface stands for a loss: steep across, gentle along its length, lowest at the centre. Two coloured balls start at the same point. Each step, every ball moves downhill by the slope times its own learning rate (the step size) and leaves a trail. A slow ball creeps toward the bottom. A ball with a large learning rate zig-zags across the steep direction, and above a threshold it bounces higher each step and leaves the bowl. Readouts show each ball's step count and current loss.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Running both learning rates side by side from the same start lets you compare their paths directly. You can see that too small a step is slow and too large a step overshoots or even blows up.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Press step, or let the host keep stepping, to move both balls one gradient-descent step at a time, up to 60 steps.",
+     "Interaction: Change learning rate A or B to change how far that ball moves each step. Its trail then shows a slow creep, a zig-zag or a runaway.",
+     "Interaction: Use the restart-walkers action to send both balls back to the start point and clear their trails, keeping your learning-rate settings.",
+     "Interaction: Turn the downhill arrows on or off. Each arrow points along the negative slope at its ball, the direction that ball steps in.",
+     "Parameter: Learning rate A (blue ball), 0.01 to 0.6, default 0.05",
+     "Parameter: Learning rate B (orange ball), 0.01 to 0.6, default 0.4",
+     "Parameter: Show downhill arrows",
+     "Goal: The learning rate sets the step size. Too small converges slowly, moderate converges well, larger zig-zags in steep directions, and past a limit set by the steepest direction the steps diverge."
+    ],
+    "assumptions": [
+     "Illustration: a made-up bowl-shaped loss, not a trained model.",
+     "The loss is half of (x squared plus 4 times y squared), so it is 4 times steeper across than along. The minimum is at the centre, where the loss is 0.",
+     "Each step is exact plain gradient descent: new position = old position − learning rate × slope. There is no momentum and no noise.",
+     "In this model, steps across the bowl overshoot and zig-zag when the learning rate is above 0.25 and grow without limit above 0.5. Along the bowl, steps overshoot only above 1, so that never happens in this range.",
+     "Both balls start at the same point, x = −2.5 and y = 1.5. The run stops after 60 steps."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "A ball that leaves the drawn surface stops at the edge and is marked as diverged. Its true position keeps growing beyond what is drawn.",
+     "Real loss surfaces have many dimensions and are bumpy, so their safe learning rates are not known in advance the way they are for this bowl."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-9385f1b5"
+    },
+    "quote": null,
+    "review_hash": "d22c0c7a851a6a0656c47fe4fb4a1f27c44c01c680dadffef57d985be5a6e839",
+    "sig": "v3.c01b8222691356d972688ee32084b1d39d8bcaed8c48c37343f7731fc80ad126",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 373,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.c01b8222691356d972688ee32084b1d39d8bcaed8c48c37343f7731fc80ad126",
+    "used": {
+     "version": 1,
+     "key": "aj_2f17bed198df4482b5e2e7e170dcdd31"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "230"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "238",
+  "role": "assistant",
+  "content": "\"Gradient descent with two learning rates on a stretched bowl\" was not finished. The scene did not pass its structure checks. You have not been charged. It was corrected automatically twice, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate. Your request and plan are kept.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_2f17bed198df4482b5e2e7e170dcdd31:1",
+   "alternativeOf": null,
+   "alternatives": [
+    "238"
+   ],
+   "feedback": null
+  }
+ }
+]

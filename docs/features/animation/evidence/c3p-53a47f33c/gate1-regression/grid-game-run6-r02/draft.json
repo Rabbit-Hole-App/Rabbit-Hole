@@ -1,0 +1,314 @@
+{
+  "title": "Token to Goal: 3 by 3 Grid Puzzle",
+  "description": "A flat 3 by 3 board of grey tiles seen from above and in front. A red sphere token starts on the bottom-left square. A gold disc labelled Goal marks the top-right square. Up, Down, Left and Right buttons move the token one square. Hint shows a blue arrow on the board pointing to a square one step closer to the goal. Readouts show moves made and steps to goal.",
+  "experience": "game",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "game": {
+    "objective": "Move the token from the bottom-left square to the gold goal square at the top-right.",
+    "hint": "Each move changes only the row or only the column. The goal is up and to the right, so every Up or Right move brings you one step closer."
+  },
+  "keys": {
+    "up": "up",
+    "down": "down",
+    "left": "left",
+    "right": "right"
+  },
+  "scene": {
+    "materials": [
+      {
+        "id": "tile",
+        "color": "#c9ccd1"
+      },
+      {
+        "id": "base",
+        "color": "#7d838c"
+      },
+      {
+        "id": "token",
+        "color": "#d63a3a"
+      },
+      {
+        "id": "goal",
+        "color": "#e8b52a"
+      },
+      {
+        "id": "hint",
+        "color": "#2f6fd6"
+      }
+    ],
+    "geometries": [
+      {
+        "id": "gTile",
+        "kind": "box",
+        "size": [
+          0.95,
+          0.1,
+          0.95
+        ]
+      },
+      {
+        "id": "gBase",
+        "kind": "box",
+        "size": [
+          3.4,
+          0.12,
+          3.4
+        ]
+      },
+      {
+        "id": "gToken",
+        "kind": "sphere",
+        "radius": 0.3,
+        "widthSegments": 32,
+        "heightSegments": 24
+      },
+      {
+        "id": "gGoal",
+        "kind": "cylinder",
+        "radius": 0.38,
+        "height": 0.06,
+        "radialSegments": 32
+      },
+      {
+        "id": "gArrow",
+        "kind": "arrow",
+        "length": 0.95,
+        "offset": 0.35
+      },
+      {
+        "id": "lGoal",
+        "kind": "label",
+        "text": "Goal",
+        "placement": "right"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "board",
+        "parent": null,
+        "position": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "id": "base",
+        "parent": "board",
+        "geometry": "gBase",
+        "material": "base",
+        "position": [
+          0,
+          -0.06,
+          0
+        ]
+      },
+      {
+        "id": "t00",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          -1.05,
+          0.05,
+          1.05
+        ]
+      },
+      {
+        "id": "t10",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          0,
+          0.05,
+          1.05
+        ]
+      },
+      {
+        "id": "t20",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          1.05,
+          0.05,
+          1.05
+        ]
+      },
+      {
+        "id": "t01",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          -1.05,
+          0.05,
+          0
+        ]
+      },
+      {
+        "id": "t11",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          0,
+          0.05,
+          0
+        ]
+      },
+      {
+        "id": "t21",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          1.05,
+          0.05,
+          0
+        ]
+      },
+      {
+        "id": "t02",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          -1.05,
+          0.05,
+          -1.05
+        ]
+      },
+      {
+        "id": "t12",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          0,
+          0.05,
+          -1.05
+        ]
+      },
+      {
+        "id": "t22",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          1.05,
+          0.05,
+          -1.05
+        ]
+      },
+      {
+        "id": "goal",
+        "name": "Goal square",
+        "parent": "board",
+        "geometry": "gGoal",
+        "material": "goal",
+        "position": [
+          1.05,
+          0.13,
+          -1.05
+        ]
+      },
+      {
+        "id": "goalLabel",
+        "parent": "goal",
+        "geometry": "lGoal",
+        "position": [
+          0.4,
+          0.05,
+          0
+        ]
+      },
+      {
+        "id": "token",
+        "name": "Token",
+        "parent": "board",
+        "geometry": "gToken",
+        "material": "token",
+        "position": [
+          -1.05,
+          0.4,
+          1.05
+        ]
+      },
+      {
+        "id": "hintArrow",
+        "name": "Hint arrow",
+        "parent": "board",
+        "geometry": "gArrow",
+        "material": "hint",
+        "position": [
+          -1.05,
+          0.2,
+          1.05
+        ],
+        "visible": false
+      }
+    ]
+  },
+  "parameters": [],
+  "actions": [
+    {
+      "id": "up",
+      "label": "Up"
+    },
+    {
+      "id": "down",
+      "label": "Down"
+    },
+    {
+      "id": "left",
+      "label": "Left"
+    },
+    {
+      "id": "right",
+      "label": "Right"
+    },
+    {
+      "id": "hint",
+      "label": "Hint"
+    }
+  ],
+  "readouts": [
+    {
+      "id": "moves",
+      "label": "Moves made",
+      "decimals": 0
+    },
+    {
+      "id": "steps",
+      "label": "Steps to goal",
+      "decimals": 0
+    }
+  ],
+  "seed": 1,
+  "camera": {
+    "position": [
+      0,
+      5.2,
+      5.2
+    ],
+    "target": [
+      0,
+      0,
+      0
+    ],
+    "fov": 45
+  },
+  "assumptions": [
+    "This is a simple made-up puzzle, not a model of anything real.",
+    "The token moves only up, down, left or right, never diagonally, so 'steps to goal' counts the up/down steps plus the left/right steps (taxicab distance).",
+    "The token starts on the bottom-left square and the goal is the top-right square, so the shortest route takes 4 moves.",
+    "Once the token reaches the goal, the game is won and the move buttons stop working until you press Reset.",
+    "A move that would leave the board does not move the token and is not counted. The start and goal never change; Reset returns to the same start."
+  ],
+  "program": {
+    "source": "const D={up:[0,1],down:[0,-1],left:[-1,0],right:[1,0]};\nconst Q={up:[-0.7071,0,0,0.7071],down:[0.7071,0,0,0.7071],left:[0,0,0.7071,0.7071],right:[0,0,-0.7071,0.7071]};\nconst px=c=>(c-1)*1.05,pz=r=>(1-r)*1.05;\nconst dist=s=>(2-s.c)+(2-s.r);\nfunction hintDir(s){return s.r<2?'up':'right';}\nexport function initialState(){return {c:0,r:0,moves:0,msg:'Reach the gold goal square.',hint:false,won:false};}\nexport function reduce({state,event}){\nif(event.type!=='action')return state;\nconst a=event.action,s={...state};\nif(s.won){s.msg='You already reached the goal in '+s.moves+' moves. Press Reset to play again.';return s;}\nif(a==='hint'){s.hint=true;s.msg='Hint: move '+hintDir(s)+' to get one step closer.';return s;}\nconst d=D[a];if(!d)return state;\nconst c=s.c+d[0],r=s.r+d[1];\nif(c<0||c>2||r<0||r>2){s.msg='Cannot move '+a+': that would leave the board.';return s;}\ns.c=c;s.r=r;s.moves++;s.hint=false;\nif(c===2&&r===2){s.won=true;s.msg='You reached the goal in '+s.moves+' moves! The shortest route is 4 moves.'+(s.moves===4?' Perfect!':'');}\nelse s.msg='Moved '+a+'. '+dist(s)+' steps to go.';\nreturn s;}\nexport function evaluate({state}){\nconst s=state||initialState();\nconst h=hintDir(s);\nreturn {nodes:{token:{position:[px(s.c),0.4,pz(s.r)]},hintArrow:{visible:s.hint&&!s.won,position:[px(s.c),0.2,pz(s.r)],quaternion:Q[h]}},\nreadouts:{moves:s.moves,steps:dist(s)},\ngoal:{status:s.won?'won':'playing',message:s.msg}};}"
+  }
+}

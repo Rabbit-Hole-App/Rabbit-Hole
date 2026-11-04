@@ -1,0 +1,10 @@
+{
+  "id": "sgd-loss-surface-r20",
+  "plan": "sgd-loss-surface",
+  "session": null,
+  "status": "not run",
+  "credits": 0,
+  "problems": [],
+  "error": "cap reached: 613.67 of 700 credits settled and the next call can cost up to 136.30",
+  "transport": "dev-key"
+}

@@ -1,0 +1,13 @@
+candidate 53a47f33ca90f3f18144ea2b196be4a724f3d10f   prompt-files b6a6ecf83647f06e9dd9f2c01e6b6136298591c510623274a055d3ddcf902f24   golden 1245b7f4d7b3da6f321195401d9787a3ed2cf52c1c818f93bfa9ab730b90565a
+transport dev-key   concurrency 3   cap 250 credits   plans grid-game-run6, pendulum-aj_78cc3d3, projectile-aj_54eec6a
+run                        session  bytes  tokens in/out  validator  assertions  credits  seconds  status
+grid-game-run6-r01         -        5441   1253/3720      PASS       n/a         8.10     32.1     valid 
+grid-game-run6-r02         -        5272   1253/3288      PASS       n/a         7.24     28.3     valid 
+grid-game-run6-r03         -        5375   1253/3595      PASS       n/a         7.85     32.1     valid 
+pendulum-aj_78cc3d3-r01    -        3421   1052/2345      PASS       n/a         5.27     20.9     valid 
+pendulum-aj_78cc3d3-r02    -        3505   1052/2342      PASS       n/a         5.26     21.2     valid 
+pendulum-aj_78cc3d3-r03    -        3315   1052/2237      PASS       n/a         5.05     20.2     valid 
+projectile-aj_54eec6a-r01  -        8232   1605/6317      PASS       n/a         13.44    56.4     valid 
+projectile-aj_54eec6a-r02  -        8061   1605/6418      PASS       n/a         13.64    56.3     valid 
+projectile-aj_54eec6a-r03  -        8102   1605/6723      PASS       n/a         14.25    59.6     valid 
+settled 80.10 credits (computed from provider usage at registry rates, US$0.80); valid 9 of 9

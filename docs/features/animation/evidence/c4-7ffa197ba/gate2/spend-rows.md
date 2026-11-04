@@ -1,0 +1,10 @@
+| # | Time (PT) | Candidate SHA | Preview version | Phrasing | Job id | Outcome | Repairs | Settled credits | Charged credits | Artifact hash | Run total credits |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 3 | 11/3, 7:41 PM | 7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0 | ac467072-cacc-4b9d-bb37-61cbc5c79ea1 | gradient descent with two learning rates | aj_8d7563c87bf9411b91f5cf87ed8c2049 | accepted | 1 | 71.13 | 72 | 7590585cbdec0206 | 71.13 |
+| 5 | 11/3, 7:43 PM | 7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0 | ac467072-cacc-4b9d-bb37-61cbc5c79ea1 | a ball rolling down a loss surface, step by step | aj_a5198bdc01ef446cabcf37333fbdbfc2 | accepted | 1 | 107.30 | 108 | d93386dbcf8a8514 | 178.44 |
+| 2 | 11/3, 7:44 PM | 7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0 | ac467072-cacc-4b9d-bb37-61cbc5c79ea1 | SGD on a bowl-shaped loss | aj_c087a3db58204a32bd90e6714ff978e1 | rejected | 2 | 98.82 | 5 | - | 277.26 |
+| 4 | 11/3, 7:44 PM | 7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0 | ac467072-cacc-4b9d-bb37-61cbc5c79ea1 | show me why a high learning rate diverges | aj_74a8e1f190ff4402b2ee7ad703e41ab2 | rejected | 1 | 108.48 | 11 | - | 385.73 |
+| 1 | 11/3, 7:44 PM | 7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0 | ac467072-cacc-4b9d-bb37-61cbc5c79ea1 | stochastic gradient descent | aj_b4a74470acdb443fa48a1ddc1b654ace | rejected | 1 | 105.96 | 5 | - | 491.70 |
+| 6 | 11/3, 7:47 PM | 7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0 | ac467072-cacc-4b9d-bb37-61cbc5c79ea1 | minimize a quadratic loss with gradient steps | aj_aab59198c5e24bf58cbe7300f82ad578 | failed | 1 | 101.44 | 5 | - | 593.14 |
+| 7 | 11/3, 7:48 PM | 7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0 | ac467072-cacc-4b9d-bb37-61cbc5c79ea1 | compare learning rate 0.1 and 1.5 on the same surface | aj_462b979918d4439989b40eed018420db | accepted | 1 | 69.13 | 70 | 3d0e2115db908e76 | 662.27 |
+| 8 | 11/3, 7:49 PM | 7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0 | ac467072-cacc-4b9d-bb37-61cbc5c79ea1 | gradient descent that overshoots the minimum | aj_111d6daa534e4b7d8d456f9c5bab7a83 | accepted | 1 | 72.47 | 73 | ec170b1cc29634af | 734.74 |

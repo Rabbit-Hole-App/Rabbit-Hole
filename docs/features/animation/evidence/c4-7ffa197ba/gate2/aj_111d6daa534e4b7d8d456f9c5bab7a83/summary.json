@@ -1,0 +1,18 @@
+{
+ "n": 8,
+ "phrasing": "gradient descent that overshoots the minimum",
+ "session": "gate2-3@example.com",
+ "sha": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+ "version": "ac467072-cacc-4b9d-bb37-61cbc5c79ea1",
+ "jobId": "aj_111d6daa534e4b7d8d456f9c5bab7a83",
+ "outcome": "accepted",
+ "repairs": 1,
+ "credits": 72.4742,
+ "charged": 73,
+ "artifactHash": "ec170b1cc29634af4d99ecee86ea139058b75f0aeae0ed6c6b045f6edcdd4c63",
+ "note": "",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 7:49 PM",
+ "fileSha256": "625fe6eeea34ece4d1ddb327cb994cb73f2c0045451d504355cb022a5a64512d"
+}

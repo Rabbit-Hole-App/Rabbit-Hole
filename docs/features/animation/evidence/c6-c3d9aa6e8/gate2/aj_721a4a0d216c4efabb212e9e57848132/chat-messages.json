@@ -1,0 +1,178 @@
+[
+ {
+  "messageId": "215",
+  "role": "assistant",
+  "content": "\"Gradient descent: a ball stepping down a loss surface\" needs a change before it can be made. By our estimate this plan is too large to build and check: it draws a trail of 200 markers. An estimate can be wrong. Nothing has been built, and no AI credits have been used on building. Choose below: each option says exactly what changes, and nothing is built until you press Generate.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_721a4a0d216c4efabb212e9e57848132:choice:c25e46fe4e4a4235ffe3eeb39d15c549887700937e89ebe9f416ef8145ac4ce2",
+   "animationChoice": {
+    "jobId": "aj_721a4a0d216c4efabb212e9e57848132",
+    "attempt": 1,
+    "kind": "size",
+    "key": "aj_721a4a0d216c4efabb212e9e57848132:choice:c25e46fe4e4a4235ffe3eeb39d15c549887700937e89ebe9f416ef8145ac4ce2",
+    "alternatives": [
+     {
+      "id": "fewer_markers",
+      "title": "Draw a shorter trail",
+      "changes": [
+       "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs."
+      ]
+     }
+    ],
+    "chosen": "fewer_markers"
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "215"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "216",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. It differs from what you asked: Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-bac9ea03dac1ac4e",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient descent: a ball stepping down a loss surface",
+    "description": "A curved loss surface with contour lines holds a ball. An arrow on the ball points straight downhill, against the gradient (the slope direction), and a trail marks every position the ball has been. Each step moves the ball a distance set by the learning rate times the slope, in the arrow's direction. You can step one at a time or let it run, drag the ball to a new start, and change the learning rate to see small careful steps, zig-zagging, or overshooting that runs off the surface.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-a318ff85",
+     "job": "aj_721a4a0d216c4efabb212e9e57848132",
+     "plan_hash": "858a9747fee5ea0fbe1139ac4f71d07c072a888e9bd515f2a0aa3b7ca3f7772f",
+     "request": "a ball rolling down a loss surface, step by step",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate (step size)",
+        "min": 0.02,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.1
+       },
+       {
+        "type": "select",
+        "label": "Loss surface",
+        "options": [
+         {
+          "value": "bowl",
+          "label": "Stretched bowl (one lowest point)"
+         },
+         {
+          "value": "twoValleys",
+          "label": "Two valleys (two low points)"
+         }
+        ],
+        "default": "bowl"
+       },
+       {
+        "type": "toggle",
+        "label": "Show downhill arrow",
+        "default": true
+       }
+      ],
+      "interactions": [
+       "Take one step: the ball moves once along the downhill arrow and the trail grows by one point",
+       "Let the host's play button run the steps continuously, and pause at any time",
+       "Drag the ball to any point on the surface to choose a new start; the trail starts again from there",
+       "Change the learning rate: small values give many short steps, larger values zig-zag across the narrow bowl, and values above 0.5 on the bowl overshoot and run off the edge",
+       "Switch surface to see that the starting point decides which valley the ball ends in",
+       "Readouts show the step count, the current loss (height) and the steepness of the slope"
+      ],
+      "notices": [
+       "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs."
+      ],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793851799,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "a ball rolling down a loss surface, step by step",
+    "prompt": "A curved loss surface with contour lines holds a ball. An arrow on the ball points straight downhill, against the gradient (the slope direction), and a trail marks every position the ball has been. Each step moves the ball a distance set by the learning rate times the slope, in the arrow's direction. You can step one at a time or let it run, drag the ball to a new start, and change the learning rate to see small careful steps, zig-zagging, or overshooting that runs off the surface.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Watching each step one at a time, then changing the step size and starting point, shows how gradient descent finds a low point and when it fails.",
+     "Behavior: rules",
+     "Controls: manipulate",
+     "Interaction: Take one step: the ball moves once along the downhill arrow and the trail grows by one point",
+     "Interaction: Let the host's play button run the steps continuously, and pause at any time",
+     "Interaction: Drag the ball to any point on the surface to choose a new start; the trail starts again from there",
+     "Interaction: Change the learning rate: small values give many short steps, larger values zig-zag across the narrow bowl, and values above 0.5 on the bowl overshoot and run off the edge",
+     "Interaction: Switch surface to see that the starting point decides which valley the ball ends in",
+     "Interaction: Readouts show the step count, the current loss (height) and the steepness of the slope",
+     "Parameter: Learning rate (step size), 0.02 to 0.6, default 0.1",
+     "Parameter: Loss surface, one of Stretched bowl (one lowest point), Two valleys (two low points)",
+     "Parameter: Show downhill arrow",
+     "Goal: Gradient descent repeatedly steps against the slope. The learning rate controls whether it settles slowly, zig-zags, or overshoots, and the starting point can decide which low point it finds."
+    ],
+    "assumptions": [
+     "Illustration: a made-up surface with a simple formula, not a loss from a real trained model.",
+     "Each step is plain gradient descent: new position = old position − learning rate × slope, computed exactly from the surface formula.",
+     "The bowl is loss = ½(x² + 4y²); it is steeper across than along, which causes zig-zagging. Steps are stable only for learning rates below 0.5.",
+     "The two-valley surface is loss = (x² − 1)² + y², with equally low points at x = −1 and x = +1.",
+     "Running stops on its own when the slope is almost zero (the ball has settled), when the ball leaves the surface area, or after 200 steps.",
+     "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+     "The ball doesn't roll with momentum or speed like a real ball. It jumps from point to point, one gradient step at a time, so it can't coast over a hump.",
+     "A single step can go uphill when the learning rate is too large. Loss only falls reliably when the steps are small enough for the surface.",
+     "The surfaces have two inputs so they can be drawn. Real models have millions of inputs, and their loss can't be shown as a surface."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-a318ff85"
+    },
+    "quote": null,
+    "review_hash": "40e174238ec684f5115e8fc9f093249fe1bcd355f86b9dcc57f478b62619b64f",
+    "sig": "v3.4137e8a2172d9a20a048704c7e39c251097dfb1f9f9ff83b391f4a58909c9293",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 373,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.4137e8a2172d9a20a048704c7e39c251097dfb1f9f9ff83b391f4a58909c9293",
+    "used": {
+     "version": 1,
+     "key": "aj_721a4a0d216c4efabb212e9e57848132"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "216"
+   ],
+   "feedback": null
+  }
+ }
+]

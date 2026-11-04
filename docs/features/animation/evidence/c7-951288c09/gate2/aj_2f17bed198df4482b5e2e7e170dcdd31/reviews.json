@@ -1,0 +1,190 @@
+[
+ {
+  "at": 1793767334675,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "03d667024f6e39261cd272e8e05bf0916a7818eae750563dca69bfccee818d95",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "bowlG",
+       "message": "The bowl's heights grid is 0.25×loss, not the disclosed 0.125×loss. For example, x=±3, z≈0 is drawn at 1.13, where 0.125×4.5 is 0.56; z=±2 is drawn at 2.0, where 0.125×8 is 1.0. The program lifts balls and trails with K=0.125, so they sit below the drawn surface. Either regenerate the heights at 0.125×loss or set K to match the heights, and keep the assumption in step with that choice.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ballA",
+       "message": "At the start, both balls are at the same point. The orange ball fully covers the blue one, and the orange arrow covers the blue arrow, so the learner sees one ball carrying two labels. Offset or outline the shared start (for example, a ring or a half-transparent ball) so both walkers can be seen.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "statusA",
+       "message": "The Status A and Status B readouts do not appear in the visible readout line.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "trailA",
+       "message": "Because the surface is drawn at twice the height the program uses, the trails and early path segments float off the bowl, below or in front of it. The first long orange and blue segments run outside the surface outline, so the paths do not read as walking on the loss surface.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The readouts match the formulas (lrB=0.4 gives loss 0.00077 at 9 steps). Ball A at 0.08 is creeping as expected. The low end of lrA and the 0.51–0.6 bouncing runaway were not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ballA",
+       "message": "The diverged blue ball cannot be seen. Its 'Rate A' label floats in mid-bowl with no ball. The ball is clamped to the back edge at 0.125×loss, which is below the surface drawn at 0.25×loss, so the surface hides it. The diverged state needs a visible ball and a visible divergence marker.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Loss 9.32 after one step at lrA=0.6 is correct (x=−1, y=−2.1). The ball leaves the bowl after a single step, so the plan's 'bounces higher each step' is only seen for rates just above 0.5, and those were not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ballB",
+       "message": "In the side view, neither ball can be seen at the start. Only the labels and an arrow tip show, because the balls sit below the surface, which is drawn at twice the height the program uses. This confirms the scale mismatch.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "trailB",
+       "message": "The trails are partly buried in the surface and broken up: segments disappear where the path runs under the drawn bowl. This comes from the same height mismatch.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ballA",
+       "message": "In the side view, the diverged blue ball is still missing: its label floats with no ball under it, and its trail end is hidden under the surface.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13156,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4067,
+   "output_tokens_details": {
+    "thinking_tokens": 2637
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_2f17bed198df4482b5e2e7e170dcdd31-review-4",
+   "status": "settled",
+   "costMicros": 134385,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

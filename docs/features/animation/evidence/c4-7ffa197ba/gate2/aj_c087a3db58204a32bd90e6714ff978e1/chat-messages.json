@@ -1,0 +1,193 @@
+[
+ {
+  "messageId": "205",
+  "role": "assistant",
+  "content": "\"Stochastic gradient descent on a bowl-shaped loss\" needs a change before it can be made. By our estimate this plan is too large to build and check: it draws a trail of 200 markers. An estimate can be wrong. Nothing has been built, and no AI credits have been used on building. Choose below: each option says exactly what changes, and nothing is built until you press Generate.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_c087a3db58204a32bd90e6714ff978e1:choice:7beb2cc685b57ceb46bba576a4937180f00f60ab9552511793d7e5d8b9974e36",
+   "animationChoice": {
+    "jobId": "aj_c087a3db58204a32bd90e6714ff978e1",
+    "attempt": 1,
+    "kind": "size",
+    "key": "aj_c087a3db58204a32bd90e6714ff978e1:choice:7beb2cc685b57ceb46bba576a4937180f00f60ab9552511793d7e5d8b9974e36",
+    "alternatives": [
+     {
+      "id": "fewer_markers",
+      "title": "Draw a shorter trail",
+      "changes": [
+       "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs."
+      ]
+     }
+    ],
+    "chosen": "fewer_markers"
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "205"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "206",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. It differs from what you asked: Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-41ac48a1a23f1b3b",
+    "version": 1,
+    "command": "animation",
+    "title": "Stochastic gradient descent on a bowl-shaped loss",
+    "description": "A smooth bowl-shaped surface shows the loss over two model weights. Its lowest point, the minimum, is marked with a flag. A ball starts on the slope and takes one step per tick of the host's step control, leaving a trail. Two arrows sit at the ball: the true downhill direction (minus the gradient) and the noisy step it actually takes. The noise makes the path wobble. You can change the learning rate, the noise and how stretched the bowl is, then watch the path settle, zig-zag or fly off the bowl.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-6dffc16c",
+     "job": "aj_c087a3db58204a32bd90e6714ff978e1",
+     "plan_hash": "6a4e80bdca7fdff99ce04072a14573f86da0747b1d9c6e9a9ebc5eac3c83c068",
+     "request": "SGD on a bowl-shaped loss",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate (step size)",
+        "min": 0.01,
+        "max": 1,
+        "step": 0.01,
+        "default": 0.1
+       },
+       {
+        "type": "number",
+        "label": "Gradient noise (spread)",
+        "min": 0,
+        "max": 2,
+        "step": 0.1,
+        "default": 0.5
+       },
+       {
+        "type": "number",
+        "label": "Bowl stretch (steepness along one weight)",
+        "min": 1,
+        "max": 4,
+        "step": 0.5,
+        "default": 2
+       }
+      ],
+      "interactions": [
+       "Press step or play so the ball takes noisy gradient steps. Each new position is added to the trail.",
+       "Drag the ball to a new starting point on the surface. The run starts again from there.",
+       "Clear the trail: this erases the drawn path but keeps the ball where it is, the step count and all settings.",
+       "Raise the learning rate until the path zig-zags across the steep direction, and then until it flies off the bowl.",
+       "Set the noise to zero to see plain gradient descent follow a smooth path."
+      ],
+      "notices": [
+       "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs."
+      ],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793849839,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "SGD on a bowl-shaped loss",
+    "prompt": "A smooth bowl-shaped surface shows the loss over two model weights. Its lowest point, the minimum, is marked with a flag. A ball starts on the slope and takes one step per tick of the host's step control, leaving a trail. Two arrows sit at the ball: the true downhill direction (minus the gradient) and the noisy step it actually takes. The noise makes the path wobble. You can change the learning rate, the noise and how stretched the bowl is, then watch the path settle, zig-zag or fly off the bowl.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. In SGD, the learning rate and gradient noise together decide how the path behaves. Changing them and replaying the walk on the same bowl shows this more clearly than one fixed animation.",
+     "Behavior: rules",
+     "Controls: manipulate",
+     "Interaction: Press step or play so the ball takes noisy gradient steps. Each new position is added to the trail.",
+     "Interaction: Drag the ball to a new starting point on the surface. The run starts again from there.",
+     "Interaction: Clear the trail: this erases the drawn path but keeps the ball where it is, the step count and all settings.",
+     "Interaction: Raise the learning rate until the path zig-zags across the steep direction, and then until it flies off the bowl.",
+     "Interaction: Set the noise to zero to see plain gradient descent follow a smooth path.",
+     "Parameter: Learning rate (step size), 0.01 to 1, default 0.1",
+     "Parameter: Gradient noise (spread), 0 to 2, default 0.5",
+     "Parameter: Bowl stretch (steepness along one weight), 1 to 4, default 2",
+     "Goal: See that SGD follows noisy downhill directions. Small steps settle near the minimum with some jitter, larger steps zig-zag along the steep direction, and steps that are too large diverge. Noise affects only how much the path wanders around the minimum."
+    ],
+    "assumptions": [
+     "This is an illustration: the bowl is a simple formula, not a loss from a trained model on real data.",
+     "The loss is half of (x² + stretch × y²). Its gradient is computed exactly, and its minimum is at the centre, where the loss is zero.",
+     "Mini-batch sampling is imitated by adding random noise with the chosen spread to the gradient at each step. The noise comes from a fixed seed, so a run repeats exactly after Reset.",
+     "Each step moves the ball by minus learning rate × noisy gradient. The ball is then placed back on the surface at its new position.",
+     "Without noise, the steep direction settles if learning rate × stretch is below 2, zig-zags forever when it equals 2, and diverges above 2. The gentle direction follows the same rule with stretch replaced by 1.",
+     "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+     "With noise turned on, any single step can raise the loss. SGD only lowers the loss on average, and the ball keeps jittering near the minimum instead of stopping on it.",
+     "A run ends after 200 steps, or when the ball leaves the edge of the drawn surface (from −3 to 3 on each weight). Divergence is shown as the ball leaving the bowl, not as an unbounded climb.",
+     "A real loss surface has many dimensions and is rarely a perfect bowl. This shows only two weights, with no learning-rate schedule and no momentum."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-6dffc16c"
+    },
+    "quote": null,
+    "review_hash": "7beb840d542f48392b6de71594d66659699c15047d2da7e9f0ea27f949c635c6",
+    "sig": "v3.0c1eea787613b0bbfba8775aea749e866ee1d15491a077e6b71f3bf962cd2344",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 373,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.0c1eea787613b0bbfba8775aea749e866ee1d15491a077e6b71f3bf962cd2344",
+    "used": {
+     "version": 1,
+     "key": "aj_c087a3db58204a32bd90e6714ff978e1"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "206"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "209",
+  "role": "assistant",
+  "content": "\"Stochastic gradient descent on a bowl-shaped loss\" was not finished. The visual review found 2 serious problems with how the scene is drawn or computed. You have not been charged. It was corrected automatically twice, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate. Your request and plan are kept.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_c087a3db58204a32bd90e6714ff978e1:1",
+   "alternativeOf": null,
+   "alternatives": [
+    "209"
+   ],
+   "feedback": null
+  }
+ }
+]
