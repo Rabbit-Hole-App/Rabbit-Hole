@@ -57,14 +57,14 @@ The images do exist: every review render writes each capture PNG to the dev R2 b
 
 `c11-28294cce9/` (C11 `28294cce9904138dcbb9c1ddec7176045f87690f` = C10 + the retuned golden `ae82facb429a` + exemplar pin; preview `1fc859c6-00a2-4697-b298-a399b7e4ba98`): `controls/` the job-0 control PASSED (golden accepted by the product's review); `gate1-sgd/` SGD 20 of 20 valid; `gate1-regression-voided-provider-limit/` and `gate2-voided-provider-limit/` are NOT results: from about 10:50 PM PT every model call failed because the dev Anthropic workspace reached its API usage limit ("You have reached your specified workspace API usage limits. You will regain access on 2026-12-01"). Jobs that completed before that (accepted jobs 3 and 5, 0 repairs) are real; the failed ones are provider_unavailable, not product outcomes. Both are to be rerun when the limit is raised.
 
-## C11 second attempt (5 November 2026, 8:22 AM PT) and the first-round correction
+## C11 second attempt (4 November 2026, 8:22 AM PT) and the first-round correction
 
 - `c11-28294cce9/gate2-rerun-0821/` (release-gate2-c11r; fresh users `g2-202611041621-1..5`; job 0 passed, 11 credits): **FAIL, 4 of the first 7 accepted** (jobs 3, 5, 6, 7 accepted; jobs 1, 2, 4 rejected; jobs 8 and 9 not run). First-round (first draft) outcomes: job 6 accepted at first review with 0 repairs; job 3 and 7 rejected at first review (twin balls hide each other) and accepted after 2 repairs; job 5 rejected by the render check (trail below the surface) and accepted after 1 repair; job 1 failed validation (unknown geometry `dotM`) and then its first review had 4 majors, rejected after 2 repairs; job 2 rejected at first review (arrow 4x long runs through the bowl wall), 1 repair, rejected; job 4 rejected at first review with a renderer finding no repair can fix (the held diverged ball floats at height 2.7 above the 2.16 rim) .
 - `c11-28294cce9/gate1-regression/`: 9 of 9 valid (91 credits). With the SGD 20 of 20 this is C11's full Gate 1.
-- Correction (owner, 5 Nov 2026): the night attempt (`gate2-voided-provider-limit/`) was not wholly void: jobs 1, 2 and 4 were rejected on their first review there too; only their repair reviews hit the provider workspace limit. First-round score on C11's night attempt: 2 of 5 reviewed jobs accepted (jobs 3 and 5).
+- Correction (owner, 4 Nov 2026): the night attempt (`gate2-voided-provider-limit/`) was not wholly void: jobs 1, 2 and 4 were rejected on their first review there too; only their repair reviews hit the provider workspace limit. First-round score on C11's night attempt: 2 of 5 reviewed jobs accepted (jobs 3 and 5).
 - Captures (PNG + manifest) are under each job's `captures/`; the same hash caveat applies.
 
-## C12 golden controls (5 November 2026, about 9:50 AM PT)
+## C12 golden controls (4 November 2026, about 9:50 AM PT)
 
 `c12-7fdbae422/controls/` holds every job-0 control run on the C12 golden rounds, and the three golden files. All are exploratory runs of the product's own review (direct review call, about 11 to 15 credits each) except the C12 Gate 2 job 0, which is the gate's own control and stopped that gate (exit 5, no author job ran; Gate 1 on C12 was stopped by the operator before any run).
 
@@ -84,7 +84,7 @@ What the record shows, and what it does not:
 - Golden files: `golden-06cadd3f-r1.json`, `golden-72f091f7-r2.json`, `golden-4f7f80ba-r3.json`.
 - A local workspace path in `c12-preview-golden-72f091f7-REJECTED.json` was replaced by `<workspace>/`.
 
-### Golden round 4 (`48a5b7e4`, 5 November 2026, about 10:05 AM PT)
+### Golden round 4 (`48a5b7e4`, 4 November 2026, about 10:05 AM PT)
 
 Round 4 narrows the converged band (the ball must be at the lowest point within the noise before the status reads "converged"; the run stays "running" until then), the finding run B raised on round 3. Three runs on the C12 preview (`bf1f5c5a`, review identity `687d4661`), back to back:
 
@@ -96,7 +96,7 @@ Round 4 narrows the converged band (the ball must be at the lowest point within 
 
 Golden file: `golden-48a5b7e4-r4.json`. Two accepted verdicts of the same artifact on one identity; one infrastructure error is recorded and not counted either way.
 
-## C13 (5 November 2026, about 11:25 AM PT)
+## C13 (4 November 2026, about 11:25 AM PT)
 
 `c13-2c90f9d9d/` (C13 `2c90f9d9d8762d7d46836d6f1ecdf84be01e2cd7` = C12 + golden rounds 3 and 4 `48a5b7e4` + exemplar pin + primitives-check recalibration + evidence + plan note; preview `846574ba-c14d-4b0f-8a1a-f22f97697241`, prompt-files hash `365a5aef`, review identity `687d4661`; CI verify 41889947337 and fast-e2e 41889947226 both green; recovery branch `recovery/animation-combined-2c90f9d9` at `6062f5e91`):
 
@@ -122,7 +122,7 @@ First round: 2 of 4 reviewed jobs accepted; the other five accepted jobs and job
 
 **Job 10 (control phrasing "the 2 sigma problem of optimizers"):** the harness recorded `plan-sgd (the plan has SGD markers: sgd, gradient, loss surface, learning rate, descent, loss_surface archetype)` and "the control plan was not approved". The pipeline planned the control phrasing as an SGD-like plan and the harness stopped before approval, so no author job ran for it. It is logged as a harness observation, not a gate result.
 
-## C14 (5 November 2026, about 12:20 PM PT)
+## C14 (4 November 2026, about 12:20 PM PT)
 
 `c14-985872c69/` (C14 `985872c6939b83adcfc9f106e7b3e9e89b125618` = C13 + FX-AN-125; preview `1ad1061b-977b-4240-9c83-87c89e4f6805`, prompt-files hash `39cd0f57`, golden `48a5b7e4`; CI verify 41895661177 and fast-e2e 41895661318 green; recovery `recovery/animation-combined-985872c6`):
 

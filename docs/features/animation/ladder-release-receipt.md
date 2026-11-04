@@ -1,4 +1,4 @@
-# Animation SGD ladder: release receipt (5 November 2026)
+# Animation SGD ladder: release receipt (4 November 2026)
 
 Owner decision 38 closed the ladder. This receipt records what was released, what the gates measured, and what was waived. It does not claim that Gate 2 passed. It did not.
 

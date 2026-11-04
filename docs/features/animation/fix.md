@@ -464,7 +464,7 @@ row in [spend.md](spend.md).
 
 ## SGD ladder: parked 4 Nov
 
-The SGD ladder is parked (owner decision 38, 5 Nov 2026). C14b `18d92571f7c286043d1dc92547d09529a8d22ffd` was released to production on 5 Nov at 12:08 PM PT under the fast path, without a Gate 2 pass; see `docs/features/animation/ladder-release-receipt.md`. The `/animation` request-box line carries no sentence about loss surfaces. Decision 36 (C14 = C13 + the check (ii) fix, a targeted rerun of jobs 1 and 5 in place of a full Gate 2) ran; both rerun jobs were rejected on other causes, and decision 38 closed the ladder. No further gate, candidate, template lane or golden round is scheduled.
+The SGD ladder is parked (owner decision 38, 4 Nov 2026). C14b `18d92571f7c286043d1dc92547d09529a8d22ffd` was released to production on 4 Nov at 12:08 PM PT under the fast path, without a Gate 2 pass; see `docs/features/animation/ladder-release-receipt.md`. The `/animation` request-box line carries no sentence about loss surfaces. Decision 36 (C14 = C13 + the check (ii) fix, a targeted rerun of jobs 1 and 5 in place of a full Gate 2) ran; both rerun jobs were rejected on other causes, and decision 38 closed the ladder. No further gate, candidate, template lane or golden round is scheduled.
 
 OPEN, to be picked up later:
 

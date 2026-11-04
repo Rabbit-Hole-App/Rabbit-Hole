@@ -1104,3 +1104,19 @@ Implement box/sphere/capsule/cylinder colliders first; static triangle meshes on
 
 Keep Rapier/WASM out of ordinary watch/experiment bundles until requested. Test actual deployed lazy loading and disposal. Scientific labels/readouts must state whether they are analytical, measured from the simulation, authored or illustrative.
 
+
+## SGD ladder: parked 4 Nov
+
+The SGD ladder is parked (owner decision 38, 4 Nov 2026). C14b `18d92571f7c286043d1dc92547d09529a8d22ffd` was released to production on 4 Nov at 12:08 PM PT under the fast path, without a Gate 2 pass; see `docs/features/animation/ladder-release-receipt.md`. The `/animation` request-box line carries no sentence about loss surfaces. Decision 36 (C14 = C13 + the check (ii) fix, a targeted rerun of jobs 1 and 5 in place of a full Gate 2) ran; both rerun jobs were rejected on other causes, and decision 38 closed the ladder. No further gate, candidate, template lane or golden round is scheduled.
+
+OPEN, to be picked up later:
+
+1. **The pre-review checks (i), (e) and (e2) misfire and spend repairs.** Decision pending whether to remove them. Check (i), "a diverging run makes at least 4 steps", failed C14's job 5 in all three render rounds; check (e), an arrow through the surface, failed job 1's round 2; (e2) hides arrows shorter than their sphere's diameter and raises no problem. In C13 and C14 they, and (ii) before FX-AN-125, turned first drafts into repair rounds: only 2 of 9 C13 jobs were accepted at the first draft or the first review.
+2. **`shrunk()` does not rewrite the plan's `pathLength` assertion when it thins the trail.** Job 1's plan draws at most 60 markers (one every 5 steps) while its assertion still says `min` 100, so the author is told to allocate a trail the plan will never draw (`assertionProblems`, FX-AN-111). FX-AN-125 reads the rule only to relax the floor from the step count; the stale assertion remains.
+3. **The template design for `loss_surface`.** Today the author copies a golden exemplar and tunes it; a fixed scene template with a small parameter set would remove most of the first-draft variance (golden control verdicts also varied run to run, see the evidence README).
+4. **The catalog idea for vague prompts.** A short list of known scenes the planner can offer when the prompt is vague ("a ball rolling down a loss surface") instead of planning from nothing.
+5. **The C13 and C14 evidence folders are the baseline:** `docs/features/animation/evidence/c13-2c90f9d9d/` (Gate 1, Gate 2 per job with captures) and `c14-985872c69/` (Gate 1, control, the two-job rerun with captures), with first-round and post-repair outcomes apart.
+
+Also open: the scheduled canary description (weekly, SGD, two failures in a row) was never created (post-release verify: UNKNOWN); strict output remains parked with AN-22 (55 optional parameters against the limit of 24); the control phrasing "the 2 sigma problem of optimizers" is planned as an SGD-like plan by the planner (harness observation).
+
+**Decision 36 (owner, 4 Nov 2026).** C14 = C13 + the check (ii) fix only (`trailRule` in animation-feasibility.js; check (ii) in animation-render.js reads it; FX-AN-111 in animation-author.js reads it); it releases on C13's evidence plus a targeted rerun (Gate 1 SGD 20 and regression 9, Gate 2 = the control as job 0 and only jobs 1 and 5 on fresh test users), not a full Gate 2. **Decision 38 (owner, 4 Nov 2026).** The ladder closes; C14 is released as it is, with the `/animation` about text reduced to its two sentences, ending "Works best for mechanisms, loops and small games." (C14b). No more gates, no C15, no template lane, no further golden rounds.
