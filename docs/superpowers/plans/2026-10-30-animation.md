@@ -79,6 +79,8 @@ Candidate lineage (4 November 2026): C9 = C8 + evidence + the owner's C9 list: t
 
 Candidate lineage (4 November 2026): C10 = C9 + decision 29 azimuth line + decision 30 rim hold + label distance cap + primitives-check CI fix; platform day cap raised on the clone (decision 31); primitives-check fix: identical-frame redraw skip in session.js (FX-AN-107), fail-fast check. The prompt-files hash changes with the archetype file; the golden hash `1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc` does not.
 
+Candidate lineage (4 November 2026): C11 = C10 + decision 34: the golden (the exemplar) retuned after the job-0 control rejected it (arrow scale, Full-batch step arrow and label, arrow colours, rim-consistent path); exemplar pin re-pinned (golden file ae82facb429a..., exemplar draft 9ae7fe47...); C10 CI green; golden and prompt-files hashes change; primitives check renamed slopeArrow->fullArrow.
+
 ### Product boundaries
 
 | Capability | Purpose |
