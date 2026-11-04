@@ -280,3 +280,19 @@ test('layout: a status label over bunched dots keeps off every dot but its own b
     scene.dispose();
   }
 });
+
+// FX-AN-040 (sketch): a live value or a caption "always shows" (contract.js), but the layout drew only labels whose point is inside the view. A diverged ball above
+// the frame took its "Diverged" label with it: at learning rate 0.9 to 1 with an early-stopped frame sampler (aj_0b6ca2b5) the ball and its status plate were off screen
+// and the learner saw only the numeric status readout. An essential label whose point is off screen but in front of the camera is drawn at the viewport edge nearest it;
+// an optional one (an object name) is still left out.
+test('layout: an essential label whose point has left the view is drawn at the nearest viewport edge; an optional name is not', () => {
+  const [W, H] = [606, 240], view = viewOf(W, H);
+  const scene = sceneWith({ names: [['n', 'Lowest point', 'right', 0, 6, -3]], live: [['v', 'Diverged', 'above', 0, 6, -3]] });
+  const point = spriteOf(scene, 'v').getWorldPosition(new THREE.Vector3()).project(view);
+  assert.ok(Math.abs(point.y) > 1, 'the status label\'s point is above the view');
+  scene.layoutLabels({ width: W, height: H, camera: view });
+  assert.equal(spriteOf(scene, 'v').visible, true, 'the live value is drawn');
+  assert.ok(inside(plateBox(spriteOf(scene, 'v'), view, W, H), W, H), 'inside the viewport, at its top edge');
+  assert.equal(spriteOf(scene, 'n').visible, false, 'an object name whose point is off screen is still left out');
+  scene.dispose();
+});

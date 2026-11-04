@@ -337,9 +337,13 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
           let shown = true;
           drawable.traverseAncestors(ancestor => { if (!ancestor.visible) shown = false; });
           drawable.getWorldPosition(point).project(camera);
-          if (!shown || point.z < -1 || point.z > 1 || Math.abs(point.x) > 1 || Math.abs(point.y) > 1) continue;
-          const sx = (point.x + 1) / 2 * w0, sy = (1 - point.y) / 2 * h0;
-          candidates.push({ id, drawable, x: sx - cx * w, y: sy - (1 - cy) * h, w, h, sx, sy, z: point.z, placement: tag.placement, size: tag.size, essential: tag.essential });
+          // An essential label (a live value or a caption: always shown) whose point has left the view but is in front of the camera is drawn at the viewport
+          // edge nearest it (a diverged ball above the frame keeps its "Diverged"); an optional one (an object name) is left out as before. FX-AN-040.
+          const off = Math.abs(point.x) > 1 || Math.abs(point.y) > 1;
+          if (!shown || point.z < -1 || point.z > 1 || (off && !tag.essential)) continue;
+          const tx = (point.x + 1) / 2 * w0, ty = (1 - point.y) / 2 * h0; // where the point really projects (the sprite stays anchored there)
+          const sx = Math.min(w0 - inset, Math.max(inset, tx)), sy = Math.min(h0 - inset, Math.max(inset, ty)); // where the plate is laid out: the point, or the edge nearest it
+          candidates.push({ id, drawable, x: sx - cx * w, y: sy - (1 - cy) * h, w, h, sx, sy, tx, ty, z: point.z, placement: tag.placement, size: tag.size, essential: tag.essential });
         }
         // Arrow shafts, base to tip on screen (userData.arrow is the arrow's length), thickened by the head's half width: plates keep off them.
         const obstacles = [], head = new THREE.Vector3(), tail = new THREE.Vector3();
@@ -373,11 +377,11 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
         const left = new Set(candidates.filter(plate => !plates.includes(plate)));
         left.forEach(({ id, drawable, x, y, w, h, essential }) => boxes.push({ id, text: drawable.userData.label.text, essential, shown: false, x, y, w, h }));
         declutterLabels(plates, { bounds, obstacles }).forEach((offset, index) => {
-          const { id, drawable, x, y, w, h, sx, sy, z, essential } = plates[index], { leader } = drawable.userData.label;
+          const { id, drawable, x, y, w, h, sx, sy, tx, ty, z, essential } = plates[index], { leader } = drawable.userData.label;
           if (!offset) { boxes.push({ id, text: drawable.userData.label.text, essential, shown: false, x, y, w, h }); return; }
           const at = Math.round((x + offset.dx) * ratio) / ratio, top = Math.round((y + offset.dy) * ratio) / ratio;
           boxes.push({ id, text: drawable.userData.label.text, essential, shown: true, x: at, y: top, w, h });
-          drawable.center.set((sx - at) / w, 1 - (sy - top) / h);
+          drawable.center.set((tx - at) / w, 1 - (ty - top) / h);
           drawable.visible = true;
           if (!offset.dx && !offset.dy) return;
           // Moved away: a leader from the point to the nearest edge of its plate, at the point's depth, in the node's own space.
