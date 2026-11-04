@@ -837,7 +837,7 @@ export class AnimationJobs {
       // Unique per call record: a refused call gives its count back, so the count alone would name the retried call like the refused one.
       const callKey = `${current.id}-${role}-${current.calls.length + 1}`;
       current.inFlight = { key: callKey, role, at: Date.now() };
-      current.calls.push({ key: callKey, role, phase, attempt: current.attempt, requested: null, served: null, status: 'running', boundMicros, images, costMicros: null, inputTokens: null, outputTokens: null, startedAt: Date.now(), endedAt: null });
+      current.calls.push({ key: callKey, role, phase, attempt: current.attempt, streamed: animationStreaming(this.env, role)?.stream === true, requested: null, served: null, status: 'running', boundMicros, images, costMicros: null, inputTokens: null, outputTokens: null, startedAt: Date.now(), endedAt: null });
       await this.save(current);
       return callKey;
     });

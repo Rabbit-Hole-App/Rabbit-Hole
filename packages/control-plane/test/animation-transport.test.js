@@ -140,8 +140,10 @@ test('a job streams its author and repair and settles the same as one that does 
   const byRole = Object.fromEntries(on.model.calls.map(c => [c.role, [c.stream, c.signal]]));
   assert.deepEqual(byRole, { brief: [false, true], author: [true, true], review: [false, true] });
   assert.deepEqual(onDone.calls.map(c => [c.role, c.status, c.inputTokens, c.outputTokens]), [['brief', 'settled', 1000, 500], ['author', 'settled', 1000, 500], ['review', 'settled', 1000, 500]]);
+  assert.deepEqual(onDone.calls.map(c => [c.role, c.streamed]), [['brief', false], ['author', true], ['review', false]], 'each call record says whether it streamed (diagnostics: what the focused smoke reads)');
   const off = animationStack(t, { ...PAIDLESS, env: { ANIMATION_STREAMING: 'false' } }), offDone = (await off.generated()).done;
   assert.equal(offDone.stage, 'ready');
+  assert.deepEqual(offDone.calls.map(c => c.streamed), [false, false, false]);
   assert.deepEqual(off.model.calls.map(c => [c.role, c.stream, c.signal]), [['brief', false, false], ['author', false, false], ['review', false, false]]);
   assert.equal(credits(on), credits(off), 'the learner is charged the same either way');
 });
