@@ -2,7 +2,10 @@
 //   node --test scripts/animation/sgd-qualify-gate.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MUST_RERUN, inputProblem, readBack, realDeps, runGate, sameSha } from './sgd-qualify-gate.mjs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { MUST_RERUN, inputProblem, parseVerifyCandidate, readBack, realDeps, runGate, sameSha } from './sgd-qualify-gate.mjs';
 
 const HEAD = 'a'.repeat(40), MVP3 = 'b'.repeat(40), VERSION = '0fd062bf-f9e4-4099-8894-2d2924e94d6b', PROMPTS = 'c1'.repeat(16), GOLDEN = 'd2'.repeat(16);
 const env = { PREVIEW_VERSION: VERSION, PREVIEW_SHA: HEAD.slice(0, 12) };
@@ -21,7 +24,7 @@ function world(over = {}) {
       if (args[0] === 'merge-base') return { status: w.ancestor ? 0 : 1, stdout: '' };
       throw new Error(`unexpected git ${args}`);
     },
-    candidateHashes: async sha => { w.calls.push(`hashes ${sha}`); if (w.hashes instanceof Error) throw w.hashes; return w.hashes; },
+    candidateHashes: async (sha, recorded) => { w.calls.push(`hashes ${sha} ${recorded.promptsHash} ${recorded.goldenHash}`); if (w.hashes instanceof Error) throw w.hashes; return w.hashes; },
     wrangler: args => { w.calls.push(`wrangler ${args.join(' ')}`); if (w.wranglerError) throw new Error(w.wranglerError); return args[0] === 'deployments' ? w.deployments : w.view; },
   };
   return w;
@@ -32,6 +35,7 @@ test('the real candidate passes: ancestor, clean tree, both Gate 1 hashes, the l
   assert.equal(r.ok, true, r.lines.join('\n'));
   assert.equal(r.refusal, null);
   assert.equal(r.head, HEAD, 'the full HEAD is returned for the result file');
+  assert.ok(w.calls.includes(`hashes ${MVP3} ${PROMPTS} ${GOLDEN}`), 'the harness is handed the values Gate 1 recorded');
   assert.deepEqual([r.mismatches, r.problems], [[], []]);
   assert.match(r.lines.join('\n'), /is an ancestor of the candidate HEAD/);
   assert.match(r.lines.join('\n'), /INFO USAGE_PLATFORM_DAY_USD on the preview: 40/);
@@ -104,17 +108,58 @@ test('sameSha is a 7-or-more-hex prefix match either way; readBack reads the 100
   assert.equal(MUST_RERUN, 'GATE 1 MUST RERUN ON THE REAL CANDIDATE');
 });
 
-test('realDeps: git and the harness run in the candidate worktree; credentials go only to wrangler\'s environment; a missing harness is a mismatch, not a pass', async () => {
-  const seen = [];
-  const spawn = (cmd, args, options) => { seen.push({ cmd, args, cwd: options.cwd, env: options.env }); return { status: 0, stdout: cmd === 'git' ? 'ok' : JSON.stringify({ head: HEAD, promptsHash: PROMPTS, goldenHash: GOLDEN }), stderr: '' }; };
-  const deps = realDeps({ worktree: 'C:/definitely/not/here', worker: 'rabbit-hole-web-dev-x', credentials: 'creds', readKey: (_file, name) => `value-of-${name}`, spawn });
-  assert.equal(deps.git(['rev-parse', 'HEAD']).stdout, 'ok');
-  assert.deepEqual(seen[0].args.slice(0, 3), ['-C', 'C:/definitely/not/here', 'rev-parse']);
-  assert.match((await deps.candidateHashes(MVP3)).missing, /author-sample\.mjs does not exist/);
-  deps.wrangler(['deployments', 'list']);
-  const w = seen.at(-1);
-  assert.deepEqual(w.args, ['wrangler', 'deployments', 'list', '--name', 'rabbit-hole-web-dev-x', '--config', 'wrangler.dev.jsonc']);
-  assert.match(w.cwd.replaceAll('\\', '/'), /not\/here\/packages\/web$/);
-  assert.deepEqual([w.env.CLOUDFLARE_API_TOKEN, w.env.CLOUDFLARE_ACCOUNT_ID], ['value-of-CLOUDFLARE_API_TOKEN', 'value-of-CLOUDFLARE_ACCOUNT_ID']);
-  assert.throws(() => realDeps({ worktree: 'w', worker: 'x', credentials: 'c', readKey: () => 's', spawn: () => ({ status: 1, stdout: 'account detail', stderr: '' }) }).wrangler(['versions', 'view', 'v']), /wrangler versions exit 1$/);
+// The harness's real output (author-sample.mjs verifyCandidate, lines as it prints them) and the way the adapter reads it.
+const P64 = 'a0'.repeat(32), G64 = 'b1'.repeat(32);
+const REAL_PASS = `PASS mvp3-ancestor: 9d3c1e2f4 is an ancestor of HEAD 7ffa197ba\nPASS prompt-files: ${P64}\nPASS golden-artifact: ${G64}\nRESULT PASS (worktree C:\\Users\\cyudhist\\Desktop\\workspace\\animation-ladder)\n`;
+const REAL_FAIL = `PASS mvp3-ancestor: 9d3c1e2f4 is an ancestor of HEAD 7ffa197ba\nFAIL prompt-files: expected ${P64}, computed ${'c2'.repeat(32)}\nFAIL golden-artifact: expected ${G64}, computed absent\nRESULT FAIL (worktree C:\\w)\n`;
+
+test('parseVerifyCandidate reads the harness\'s real PASS and FAIL lines: the computed hashes, "absent", and the RESULT line; no RESULT line is no answer', () => {
+  assert.deepEqual(parseVerifyCandidate(REAL_PASS), { promptsHash: P64, goldenHash: G64, result: 'RESULT PASS (worktree C:\\Users\\cyudhist\\Desktop\\workspace\\animation-ladder)' });
+  assert.deepEqual(parseVerifyCandidate(REAL_FAIL), { promptsHash: 'c2'.repeat(32), goldenHash: 'absent', result: 'RESULT FAIL (worktree C:\\w)' });
+  assert.deepEqual(parseVerifyCandidate(REAL_PASS.replaceAll('\n', '\r\n')).promptsHash, P64, 'a Windows console writes CRLF');
+  assert.deepEqual(parseVerifyCandidate(''), { promptsHash: null, goldenHash: null, result: null });
+  assert.deepEqual(parseVerifyCandidate('verify-candidate needs --prompts\n'), { promptsHash: null, goldenHash: null, result: null });
+});
+
+test('realDeps: git and the harness run in the candidate worktree and the harness gets the recorded values as --prompts and --golden; credentials go only to wrangler; a missing harness is a mismatch', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gate-realdeps-'));
+  try {
+    mkdirSync(join(dir, 'scripts', 'animation'), { recursive: true });
+    writeFileSync(join(dir, 'scripts', 'animation', 'author-sample.mjs'), '');
+    const seen = [];
+    let answer = { status: 0, stdout: REAL_PASS, stderr: '' };
+    const spawn = (cmd, args, options) => { seen.push({ cmd, args, cwd: options.cwd, env: options.env }); return cmd === 'git' ? { status: 0, stdout: 'ok' } : cmd === 'npx' ? { status: 0, stdout: '', stderr: '' } : answer; };
+    const deps = realDeps({ worktree: dir, worker: 'rabbit-hole-web-dev-x', credentials: 'creds', readKey: (_file, name) => `value-of-${name}`, spawn });
+    assert.equal(deps.git(['rev-parse', 'HEAD']).stdout, 'ok');
+    assert.deepEqual(seen[0].args.slice(0, 3), ['-C', dir, 'rev-parse']);
+    const hashes = await deps.candidateHashes(MVP3, { promptsHash: P64, goldenHash: G64 });
+    assert.deepEqual([hashes.promptsHash, hashes.goldenHash], [P64, G64]);
+    const h = seen.at(-1);
+    assert.deepEqual(h.args, [join(dir, 'scripts', 'animation', 'author-sample.mjs'), 'verify-candidate', '--mvp3-sha', MVP3, '--prompts', P64, '--golden', G64, '--worktree', dir]);
+    assert.equal(h.cwd, dir);
+    // the whole gate with the harness's real PASS text, and with its real FAIL text (exit 1): the computed hashes drive the existing messages
+    const w = world(), gate = o => runGate(o, { ...w.deps, candidateHashes: deps.candidateHashes });
+    const passed = await gate(opts({ promptsHash: P64, goldenHash: G64 }));
+    assert.deepEqual([passed.ok, passed.mismatches], [true, []], passed.lines.join('\n'));
+    answer = { status: 1, stdout: REAL_FAIL, stderr: '' };
+    const failed = await gate(opts({ promptsHash: P64, goldenHash: G64 }));
+    assert.equal(failed.refusal, 'mismatch');
+    assert.match(failed.mismatches.join('\n'), /the prompt files hash is c2c2c2c2c2c2, Gate 1 recorded a0a0a0a0a0a0/);
+    assert.match(failed.mismatches.join('\n'), /the golden artifact hash is absent, Gate 1 recorded b1b1b1b1b1b1/);
+    // a refusal of the harness itself (a missing flag) has no RESULT line: no usable answer, never a pass
+    answer = { status: 1, stdout: '', stderr: 'verify-candidate needs --prompts\n' };
+    assert.deepEqual(await deps.candidateHashes(MVP3, { promptsHash: P64, goldenHash: G64 }), { error: 'exit 1: verify-candidate needs --prompts' });
+    const unusable = await gate(opts({ promptsHash: P64, goldenHash: G64 }));
+    assert.deepEqual([unusable.ok, unusable.refusal], [false, 'unverifiable']);
+    assert.match(unusable.problems.join('\n'), /verify-candidate gave no usable hashes: exit 1: verify-candidate needs --prompts/);
+    // wrangler: the Worker name, the dev config, the credentials by name in the child's environment only
+    deps.wrangler(['deployments', 'list']);
+    const wr = seen.at(-1);
+    assert.deepEqual(wr.args, ['wrangler', 'deployments', 'list', '--name', 'rabbit-hole-web-dev-x', '--config', 'wrangler.dev.jsonc']);
+    assert.equal(wr.cwd, join(dir, 'packages', 'web'));
+    assert.deepEqual([wr.env.CLOUDFLARE_API_TOKEN, wr.env.CLOUDFLARE_ACCOUNT_ID], ['value-of-CLOUDFLARE_API_TOKEN', 'value-of-CLOUDFLARE_ACCOUNT_ID']);
+    assert.throws(() => realDeps({ worktree: 'w', worker: 'x', credentials: 'c', readKey: () => 's', spawn: () => ({ status: 1, stdout: 'account detail', stderr: '' }) }).wrangler(['versions', 'view', 'v']), /wrangler versions exit 1$/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+  const none = realDeps({ worktree: 'C:/definitely/not/here', worker: 'x', credentials: 'c', readKey: () => 's', spawn: () => ({ status: 0, stdout: '' }) });
+  assert.match((await none.candidateHashes(MVP3, { promptsHash: P64, goldenHash: G64 })).missing, /author-sample\.mjs does not exist/);
 });

@@ -2,11 +2,12 @@
 // serves it. Every check is read-only: git in the candidate worktree, the candidate's own Gate 1 harness (verify-candidate), and wrangler's read
 // commands on the dev preview. Any DIFFERENCE prints MUST_RERUN: Gate 1's result does not describe this candidate.
 //
-// Interface with lane (d)'s harness (scripts/animation/author-sample.mjs, in the candidate worktree, not yet on main when this was written):
-//   node <worktree>/scripts/animation/author-sample.mjs verify-candidate --worktree <worktree> --mvp3-sha <sha>
-//   -> stdout one JSON object { "head": "<40 hex>", "promptsHash": "<hex>", "goldenHash": "<hex>" }, exit 0
-// The two hashes are computed by that harness, so Gate 1 and Gate 2 hash the prompt files and the golden artifact the same way. candidateHashes()
-// below is the only place that knows this; an unusable answer refuses (fail closed).
+// Interface with lane (d)'s harness (scripts/animation/author-sample.mjs verifyCandidate, run from the candidate worktree):
+//   node <worktree>/scripts/animation/author-sample.mjs verify-candidate --mvp3-sha S --prompts HASH --golden HASH --worktree PATH
+//   -> stdout  PASS|FAIL mvp3-ancestor: ...  /  PASS prompt-files: <hash>  or  FAIL prompt-files: expected <E>, computed <C>  /  the same for
+//      golden-artifact  /  RESULT PASS|FAIL (worktree ...); exit 0 on PASS, 1 on any FAIL or a missing flag.
+// The harness is given the Gate 1 values and computes the two hashes itself, so Gate 1 and Gate 2 hash the prompt files and the golden artifact the
+// same way. parseVerifyCandidate() and candidateHashes() are the only places that know this; an output without a RESULT line refuses (fail closed).
 import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
@@ -29,6 +30,17 @@ export function inputProblem({ env = process.env, mvp3Sha, promptsHash, goldenHa
   return null;
 }
 
+// The harness's stdout -> { promptsHash, goldenHash, result }: the hashes it COMPUTED (the PASS line carries the hash, the FAIL line says "computed <hash>";
+// "absent" when the file is missing), null for a part it did not print, and its RESULT line.
+export function parseVerifyCandidate(stdout) {
+  const lines = String(stdout).split('\n').map(l => l.trim());
+  const computed = name => {
+    const m = lines.map(l => l.match(new RegExp(`^(PASS|FAIL) ${name}:\s*(.*)$`))).find(Boolean);
+    return !m ? null : m[1] === 'PASS' ? m[2].trim() : m[2].match(/computed\s+(\S+)/)?.[1] ?? null;
+  };
+  return { promptsHash: computed('prompt-files'), goldenHash: computed('golden-artifact'), result: lines.find(l => /^RESULT (PASS|FAIL)\b/.test(l)) ?? null };
+}
+
 // What wrangler printed -> { latest, flag(name), named: [hex tokens in the tag, message or annotations] }. The formats are the ones verify-preview.mjs
 // has parsed on this preview since 2 November.
 export function readBack(deployments, view) {
@@ -39,7 +51,7 @@ export function readBack(deployments, view) {
 }
 
 // -> { ok, refusal: 'input' | 'mismatch' | 'unverifiable' | null, mismatches: [], problems: [], lines: [], head }. deps: git(args) -> { status, stdout },
-// candidateHashes(mvp3Sha) -> { head, promptsHash, goldenHash }, wrangler(args) -> stdout.
+// candidateHashes(mvp3Sha, { promptsHash, goldenHash }) -> { promptsHash, goldenHash } as COMPUTED by the harness, wrangler(args) -> stdout.
 export async function runGate(opts, deps) {
   const { env = process.env, mvp3Sha, promptsHash, goldenHash, worktree } = opts, lines = [], mismatches = [], problems = [];
   const bad = inputProblem(opts);
@@ -55,9 +67,9 @@ export async function runGate(opts, deps) {
   else differ(`the Gate 1 candidate (MVP3/C3) SHA ${mvp3Sha.slice(0, 9)} is not an ancestor of the candidate HEAD ${head.slice(0, 9)}`);
 
   let hashes;
-  try { hashes = await deps.candidateHashes(mvp3Sha); } catch (error) { hashes = { error: error.message }; }
+  try { hashes = await deps.candidateHashes(mvp3Sha, { promptsHash, goldenHash }); } catch (error) { hashes = { error: error.message }; }
   if (hashes?.missing) differ(`the candidate has no Gate 1 harness (${hashes.missing}), so Gate 1 cannot have measured it`);
-  else if (!hashes || hashes.error || !HEX.test(hashes.promptsHash || '') || !HEX.test(hashes.goldenHash || '')) problems.push(`verify-candidate gave no usable hashes${hashes?.error ? `: ${hashes.error}` : ''}`);
+  else if (!hashes || hashes.error || ![hashes.promptsHash, hashes.goldenHash].every(h => HEX.test(h || '') || h === 'absent')) problems.push(`verify-candidate gave no usable hashes${hashes?.error ? `: ${hashes.error}` : ''}`);
   else {
     if (hashes.head && !sameSha(hashes.head, head)) differ(`verify-candidate reports HEAD ${hashes.head.slice(0, 9)}, git says ${head.slice(0, 9)}`);
     for (const [name, got, recorded] of [['prompt files', hashes.promptsHash, promptsHash], ['golden artifact', hashes.goldenHash, goldenHash]]) {
@@ -86,12 +98,12 @@ export function realDeps({ worktree, worker, credentials, readKey, spawn = spawn
   const run = (cmd, args, options) => spawn(cmd, args, { encoding: 'utf8', timeout: 120000, ...options });
   return {
     git: args => { const r = run('git', ['-C', worktree, ...args], {}); return { status: r.status, stdout: r.stdout || '' }; },
-    candidateHashes: async mvp3Sha => {
+    candidateHashes: async (mvp3Sha, recorded) => {
       const script = join(worktree, 'scripts', 'animation', 'author-sample.mjs');
       if (!existsSync(script)) return { missing: `${script} does not exist` };
-      const r = run(process.execPath, [script, 'verify-candidate', '--worktree', worktree, '--mvp3-sha', mvp3Sha], { cwd: worktree });
-      if (r.status !== 0) return { error: `exit ${r.status}: ${(r.stderr || '').trim().split('\n').at(-1) || 'no output'}` };
-      try { return JSON.parse(r.stdout); } catch { return { error: 'its output is not one JSON object' }; }
+      const r = run(process.execPath, [script, 'verify-candidate', '--mvp3-sha', mvp3Sha, '--prompts', recorded.promptsHash, '--golden', recorded.goldenHash, '--worktree', worktree], { cwd: worktree });
+      const parsed = parseVerifyCandidate(r.stdout); // a FAIL exits 1 too: what matters is the computed hashes it printed, so the exit code alone decides nothing
+      return parsed.result ? parsed : { error: `exit ${r.status}: ${(r.stderr || r.stdout || '').trim().split('\n').at(-1) || 'no output'}` };
     },
     wrangler: args => {
       const r = run('npx', ['wrangler', ...args, '--name', worker, '--config', 'wrangler.dev.jsonc'], { cwd: join(worktree, 'packages', 'web'), shell: true,

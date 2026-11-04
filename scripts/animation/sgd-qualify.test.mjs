@@ -4,7 +4,7 @@
 //   node --test scripts/animation/sgd-qualify.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -256,12 +256,26 @@ function world({ mismatch = false, extraFlags = [], env = { PREVIEW_VERSION: VER
     const r = await fake.callFor(email)(init.method, u.pathname + u.search, init.body ? JSON.parse(init.body) : undefined);
     return Response.json(r.data, { status: r.status });
   };
-  const gate = { git: args => ({ status: 0, stdout: args[0] === 'rev-parse' && args[1] === 'HEAD' ? `${SHA}\n` : '' }), candidateHashes: async () => ({ head: SHA, promptsHash: mismatch ? '9'.repeat(32) : 'ab'.repeat(16), goldenHash: 'cd'.repeat(16) }),
-    wrangler: args => (args[0] === 'deployments' ? `Created: x\nVersion(s):  (100%) ${VERSION}\n  Tag: ${SHA.slice(0, 9)}\n` : `Tag: ${SHA.slice(0, 9)}\nenv.ANIMATION_ENABLED ("true")\nenv.ANIMATION_DIAGNOSTICS ("true")\n`) };
-  const argv = ['--base', 'https://preview.test', '--cap', '2000', '--prior', '100', '--candidate-worktree', REPO, '--mvp3-sha', 'b'.repeat(40), '--prompts-hash', 'ab'.repeat(16), '--golden-hash', 'cd'.repeat(16),
+  // The candidate checkout (the files the real adapters look for) and a spawn that answers git, the candidate's harness in its REAL output format, and wrangler.
+  const cand = join(dir, 'candidate'), harness = [];
+  mkdirSync(join(cand, 'scripts', 'animation'), { recursive: true });
+  mkdirSync(join(cand, 'packages', 'web', 'src', 'animation3d'), { recursive: true });
+  writeFileSync(join(cand, 'scripts', 'animation', 'author-sample.mjs'), '');
+  writeFileSync(join(cand, 'packages', 'web', 'src', 'animation3d', 'capabilities.js'), "export const ANIMATION_CLIENT_FEATURES = Object.freeze(['curve_radius', 'action_motion', 'surface_grid']);\n");
+  const spawn = (cmd, args) => {
+    if (cmd === 'git') { const rest = args.slice(2); return { status: 0, stdout: rest[0] === 'rev-parse' && rest[1] === 'HEAD' ? `${SHA}\n` : '' }; }
+    if (cmd === 'npx') return { status: 0, stdout: args[1] === 'deployments' ? `Created: x\nVersion(s):  (100%) ${VERSION}\n  Tag: ${SHA.slice(0, 9)}\n` : `Tag: ${SHA.slice(0, 9)}\nenv.ANIMATION_ENABLED ("true")\nenv.ANIMATION_DIAGNOSTICS ("true")\n`, stderr: '' };
+    harness.push(args);
+    const flag = name => args[args.indexOf(name) + 1], computedPrompts = mismatch ? '9'.repeat(32) : 'ab'.repeat(16), computedGolden = 'cd'.repeat(16);
+    const pOk = flag('--prompts') === computedPrompts, gOk = flag('--golden') === computedGolden;
+    return { status: pOk && gOk ? 0 : 1, stderr: '', stdout: [`PASS mvp3-ancestor: ${flag('--mvp3-sha').slice(0, 9)} is an ancestor of HEAD ${SHA.slice(0, 9)}`,
+      pOk ? `PASS prompt-files: ${computedPrompts}` : `FAIL prompt-files: expected ${flag('--prompts')}, computed ${computedPrompts}`,
+      gOk ? `PASS golden-artifact: ${computedGolden}` : `FAIL golden-artifact: expected ${flag('--golden')}, computed ${computedGolden}`, `RESULT ${pOk && gOk ? 'PASS' : 'FAIL'} (worktree ${flag('--worktree')})`].join('\n') + '\n' };
+  };
+  const argv = ['--base', 'https://preview.test', '--cap', '2000', '--prior', '100', '--candidate-worktree', cand, '--mvp3-sha', 'b'.repeat(40), '--prompts-hash', 'ab'.repeat(16), '--golden-hash', 'cd'.repeat(16),
     '--sessions-file', sessionsFile, '--out', join(dir, 'out'), '--concurrency', '5', ...extraFlags];
   const lines = [];
-  return { fake, seen, argv, lines, dir, run: (flags = argv) => main(flags, { env, out: line => lines.push(line), deps: { gate, fetchImpl, sleep: async () => { await new Promise(resolve => setImmediate(resolve)); } } }) };
+  return { fake, seen, argv, lines, dir, cand, harness, run: (flags = argv) => main(flags, { env, out: line => lines.push(line), deps: { spawn, fetchImpl, sleep: async () => { await new Promise(resolve => setImmediate(resolve)); } } }) };
 }
 const noNetwork = async fn => { const real = globalThis.fetch; globalThis.fetch = () => { throw new Error('unexpected real network'); }; try { return await fn(); } finally { globalThis.fetch = real; } };
 
@@ -272,7 +286,9 @@ test('main end to end over a fake fetch: sessions file, cookies per user, origin
   assert.ok(w.seen.filter(x => x.method === 'POST').every(x => x.origin === 'https://preview.test'));
   const resultReads = w.seen.filter(x => /\/results\//.test(x.path));
   assert.equal(resultReads.length, 8, 'one result read per accepted job');
-  assert.ok(resultReads.every(x => x.search.includes('features=curve_radius%2Caction_motion')), 'the features come from the candidate worktree\'s capabilities.js');
+  assert.ok(resultReads.every(x => x.search.includes('features=curve_radius%2Caction_motion%2Csurface_grid')), 'the features come from the candidate worktree\'s capabilities.js');
+  assert.deepEqual(w.harness, [[join(w.cand, 'scripts', 'animation', 'author-sample.mjs'), 'verify-candidate', '--mvp3-sha', 'b'.repeat(40), '--prompts', 'ab'.repeat(16), '--golden', 'cd'.repeat(16), '--worktree', w.cand]],
+    'the real harness command line, with the Gate 1 values passed through');
   assert.match(w.lines.join('\n'), /VERDICT: PASS/);
   assert.match(w.lines.join('\n'), /Settled by this run: 459\.00 credits/);
   assert.match(w.lines.join('\n'), /ROLLING 24 hours/);

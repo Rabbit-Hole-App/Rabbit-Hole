@@ -94,13 +94,16 @@ job created, `sgd-qualify.mjs` **refuses (exit 4, nothing spent)** unless all of
 | That version's tag, message or annotation **names the candidate SHA** | `wrangler versions view` (read-only) | Cloudflare does not say which commit the preview serves; an untagged version is refused (the older "stated by the integrator" allowance is gone) |
 | `ANIMATION_ENABLED` and `ANIMATION_DIAGNOSTICS` are `true` on the version | `wrangler versions view` | the spend guard reads the job diagnostics; without them it cannot run (refusal, not a difference) |
 
-The two hash values are the ones recorded in the Gate 1 table. **Interface with lane (d)** (`scripts/animation/author-sample.mjs`, not on `main`
-when this was written; the call is isolated in `candidateHashes` in `sgd-qualify-gate.mjs`): the runner executes, in the candidate worktree,
+The two hash values are the ones recorded in the Gate 1 table. **Interface with lane (d)** (`verifyCandidate` in the candidate's
+`scripts/animation/author-sample.mjs`; the call and its parsing are isolated in `candidateHashes` and `parseVerifyCandidate` in `sgd-qualify-gate.mjs`):
+the runner executes, from the candidate worktree, with the Gate 1 values it holds,
 
-    node scripts/animation/author-sample.mjs verify-candidate --worktree <dir> --mvp3-sha <sha>
+    node scripts/animation/author-sample.mjs verify-candidate --mvp3-sha <C3 sha> --prompts <prompts hash> --golden <golden hash> --worktree <dir>
 
-and expects stdout to be one JSON object `{ "head": "<40 hex>", "promptsHash": "<hex>", "goldenHash": "<hex>" }` with exit 0. Anything else is an
-unusable answer and refuses (fail closed). If the real command line or output keys differ, change `candidateHashes` and its test, nothing else.
+and reads stdout: `PASS|FAIL mvp3-ancestor: ...`, `PASS prompt-files: <hash>` or `FAIL prompt-files: expected <E>, computed <C>`, the same for
+`golden-artifact`, and `RESULT PASS|FAIL (worktree ...)`. The harness exits 1 on any FAIL, so the exit code decides nothing: the **computed** hashes it
+printed are compared with the recorded ones in the gate's own messages (`absent` means the file is missing). Output without a RESULT line (a missing
+flag, a crash) is no answer and refuses (fail closed, exit 4, no MUST RERUN sentence because nothing was shown to differ).
 The Worker name is the first label of `--base` (`rabbit-hole-web-dev-<name>.tryrabbithole.workers.dev` gives `rabbit-hole-web-dev-<name>`) unless
 `--worker` says otherwise; wrangler runs in `<worktree>/packages/web` with `--config wrangler.dev.jsonc`, `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID` read by name from the credentials file and handed to that child process only.

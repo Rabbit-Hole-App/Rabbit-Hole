@@ -338,7 +338,7 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
   const gateDeps = injected.gate ?? (dry ? { git: args => ({ status: 0, stdout: args[0] === 'rev-parse' && args[1] === 'HEAD' ? `${pin.PREVIEW_SHA}\n` : '' }),
     candidateHashes: async () => ({ head: pin.PREVIEW_SHA, promptsHash: gateOpts.promptsHash, goldenHash: gateOpts.goldenHash }),
     wrangler: args => (args[0] === 'deployments' ? `Created: x\nVersion(s):  (100%) ${pin.PREVIEW_VERSION}\n  Tag: ${pin.PREVIEW_SHA.slice(0, 9)}\n` : 'Tag: dddddddd\nenv.ANIMATION_ENABLED ("true")\nenv.ANIMATION_DIAGNOSTICS ("true")\nenv.USAGE_PLATFORM_DAY_USD ("40")\n') }
-    : realDeps({ worktree: gateOpts.worktree, worker, credentials: o.credentials, readKey }));
+    : realDeps({ worktree: gateOpts.worktree, worker, credentials: o.credentials, readKey, spawn: injected.spawn }));
   const gate = await runGate(gateOpts, gateDeps);
   for (const line of gate.lines) out(line);
   if (!gate.ok) {
