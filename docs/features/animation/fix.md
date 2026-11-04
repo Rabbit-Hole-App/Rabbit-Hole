@@ -83,6 +83,18 @@ row in [spend.md](spend.md).
 - Status: implemented and fixture-tested; not live. Needs the integrator's measurement fix for this request to build, then a
   preview deploy for owner review.
 
+### FX-AN-070 — the golden SGD artifact: no exemplar and no fixture of the five primitives (SGD ladder AN-19; branch `feat/golden-sgd`)
+- Task / phase: AN-19 (golden artifact, unit test, archetype data, browser check). Owner decisions 11 to 13. Plan section 8.
+- Symptom: nothing showed the contract's five primitives working together, so nothing could be rendered, reviewed or given to the author as the one exemplar.
+- Fix: `testdata/sgd-golden.json`, built by `testdata/build-sgd-golden.mjs` from run 2's repaired draft (`aj_0b6ca2b`): a 24 x 24 height-grid surface with 8 contours (heights `0.25 (3 x^2 + z^2)`, top 4), one ball with `clampTo` the surface, a `trail` and a `ghost` node, a text readout `status` (running, paused, converged, diverged), a number readout for the true loss, two arrows (next step, downhill) with `offset` = the ball radius and tip-anchored labels, learning rate 0.01 to 2 (0.1 default) and batch size, actions Run, Pause, Step once, New run (old path kept as the ghost). 10 nodes (run 2's draft had 93); 3,872 triangles, 1,600 line points; program 3.2 KB; as an author draft 9.7 KB (the budget is 14,500), 14.6 KB as the file with its plan. Title and description say OFFLINE FIXTURE, so the dev `seed-fixture` route accepts it. It is a fixture and an exemplar, never served as a result.
+- Checks: `sgd-golden.test.mjs` (12 tests: the JSON equals its builder's output; the plan's table; the contract, including every frame of the 0.1 and 1.5 runs; the program in the pinned engine against closed-form values), `animation-golden-sgd.test.js` (control-plane: intact, seeded, served with all seven features, 409 for a client missing any of the five), `animation-archetypes.test.js`. Browser: `e2e/animation-primitives-check.mjs` (needs AN-19; syntax-checked only here).
+- Status: fixed-unverified. Validated against the real AN-18 contract; not yet rendered (AN-19) and not yet reviewed (the one review call is Parallel's).
+
+### FX-AN-071 — a text readout cannot reach the card: `frameView` drops it (found writing the primitives check; AN-19 must fix before MVP3)
+- Symptom: `card.js` `frameView` keeps a readout only when `finite(values[item.id])`, and `Controls.jsx` `readoutText` formats numbers. A text readout's frame value is a string, so the status word would never appear on the card, and `animation-primitives-check.mjs` step 2 fails until it does.
+- Needed: `frameView` passes a text readout's string (at most 40 characters) through, `readoutText` shows it as is (no decimals, no unit), and the same `data-animation-readout` element carries it (`data-value` the word). Not done here: card.js, Controls.jsx and renderer.js are lane U's / AN-19's files.
+- Status: open.
+
 ## Deferred
 
 ### FX-AN-008 — changing a rate mid-play restarts analytical motion
@@ -244,6 +256,31 @@ row in [spend.md](spend.md).
 - Severity: cosmetic, only for a path with an abrupt reversal (a ball bouncing back along its own path). Blocks nothing.
 - Next concrete action: look at the golden fixture's diverged state on the preview; if it shows, carry the previous ring's frame forward (parallel transport) instead of rebuilding it from the up vector. Owner action needed: the preview look.
 - Status: deferred
+
+### FX-AN-072 — DEFERRED, a contract question: does an arrow's `offset` scale with its node? (AN-18/AN-19)
+- A magnitude arrow is a unit arrow whose node `scale` is `[1, length, 1]` (the golden does this; one scale for both arrows). If the renderer composes `offset` inside the node's scaled frame, the tail sits at `offset x length` from the ball's centre: inside the ball when the step is short, off it when long, so the fix for "arrows start inside the ball" holds only at length 1.
+- Recommended: `offset` is applied outside the node's scale (a world distance along the arrow's axis), and the tip anchor is `offset + length x scale`. If not, say so in the contract text so the author puts the arrow under an unscaled aim group. The golden assumes the first and is otherwise correct under either (it only sets `scale[1]`).
+- Status: deferred (cosmetic if wrong; checked by eye on the AN-19 fixture).
+
+### FX-AN-073 — DEFERRED: a stepped scene's own Pause is invisible to the program, so a status word can say running while the clock is paused
+- The card's transport Pause stops the host clock; the program is told nothing (`evaluate` has no playing flag), so a program-level `status` of running stays until the learner presses the scene's own Pause. The golden declares Run, Pause, Step once and New run as actions and keeps its own `on`; the transport buttons duplicate Run and Pause.
+- Options: give `evaluate` a `playing` boolean, or hide the transport when the scene declares a pause action. Neither is in this slice.
+- Status: deferred (cosmetic; the learner sees the ball stop).
+
+### FX-AN-074 — DEFERRED: trail vertices are not clamped, and the camera fit sees them
+- `clampTo` holds only a sphere node's world y. A diverged ball's trail vertex would be drawn at its true height and widen the fit by itself, so the golden's program keeps its trail vertices at the surface top (`lift` in its source, marked there) while the ball keeps its true height for the renderer to clamp. An author following the archetype ("the program clamps nothing") will not do this for the trail.
+- Options for AN-19: let a trail node name the surface it follows (same `clampTo`), or have `subjectPoints` ignore trail points above the surface top the way it ignores a clamped ball's true position.
+- Status: deferred; the golden is correct either way.
+
+### FX-AN-075 — DEFERRED: the golden JSON is a frozen identity (owner decision 22) and a Windows checkout can change its bytes
+- The AN-20 harness hashes `sgd-golden.json` by its bytes. With `core.autocrlf=true` a fresh Windows checkout writes it with CRLF, a different hash from the LF file Linux and the builder write (the same hazard `.gitattributes` already closes for the Motion fixtures).
+- Fix, one line in `.gitattributes`: `packages/web/src/animation3d/testdata/sgd-golden.json text eol=lf`. Not applied here (a shared file); apply it before the golden is frozen. Any later edit to the golden (rebuild with `build-sgd-golden.mjs`) changes the hash and restarts the gate that froze it.
+- Status: deferred, but do it before Gate 1.
+
+### FX-AN-076 — how the golden is shown on the dev preview (AN-19 task 5), and what the check needs
+- Two ways, neither needs a model call. (a) `docs/features/animation/golden-fixture-card.patch` (one hunk in `Animation3DCard.jsx`: a card whose `fixtureId` is `sgd-golden` loads the JSON as its own chunk; the card then shows the Example pill and note like every built-in example; it is in no picker and no Slash window, so `slash-sheet.test.mjs` is unaffected; `Animation3DCard.test.mjs` passes with it applied). The primitives check seeds exactly such a card. (b) With no code change, the dev-only `seed-fixture` route stores the golden as a saved result (`animation-golden-sgd.test.js` runs that route), and the owner launcher `C:/s/spec/animation/open-correction-fixture.mjs` shows it if pointed at `sgd-golden.json`'s `artifact` instead of the correction artifact.
+- Apply the patch with `git apply docs/features/animation/golden-fixture-card.patch` in the AN-19 branch (checked against `caf7ee9bc`'s file). Until it is applied and the renderer draws the five kinds, `animation-primitives-check.mjs` fails in `fast-e2e`; that is its job.
+- Status: patch ready; not applied.
 
 ## Resolved
 
