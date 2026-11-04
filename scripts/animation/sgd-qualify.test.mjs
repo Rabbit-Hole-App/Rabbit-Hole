@@ -278,6 +278,16 @@ test('main end to end over a fake fetch: sessions file, cookies per user, origin
   assert.match(w.lines.join('\n'), /ROLLING 24 hours/);
   assert.match(w.lines.join('\n'), /Allowance after the run, gate2-1@example\.com: used 86\.4 \(\+86\.40 this run\), left 2413\.6/);
   assert.ok(readdirSync(join(w.dir, 'out')).some(f => /^result-aaaaaaa-\d+\.md$/.test(f)));
+  // the compact machine-readable result for the combined smoke
+  const machineText = readFileSync(join(w.dir, 'out', 'gate2-result.json'), 'utf8'), machine = JSON.parse(machineText);
+  assert.equal(machineText.trim().split('\n').length, 1, 'one compact line');
+  assert.deepEqual([machine.schema, machine.candidateSha, machine.previewVersion, machine.verdict, machine.accepted, machine.lost], ['sgd-gate2-result/1', SHA, VERSION, 'PASS', 8, 1]);
+  assert.deepEqual(machine.identities, { mvp3Sha: 'b'.repeat(40), promptsHash: 'ab'.repeat(16), goldenHash: 'cd'.repeat(16) });
+  assert.deepEqual(machine.control, { outcome: 'gap', silentSgd: false, markers: [] });
+  assert.equal(machine.rows.length, 10);
+  assert.deepEqual(Object.keys(machine.rows[0]), ['n', 'phrasing', 'jobId', 'outcome', 'repairs', 'settledCredits', 'chargedCredits', 'artifactHash', 'session', 'note']);
+  assert.deepEqual([machine.rows[3].repairs, machine.rows[6].outcome, machine.settledCredits, machine.cap, machine.prior], [1, 'rejected', 459, 2000, 100]);
+  assert.ok(readdirSync(join(w.dir, 'out')).some(f => /^result-aaaaaaa-\d+\.json$/.test(f)), 'a stamped copy stays');
   const state = JSON.parse(readFileSync(join(w.dir, 'out', `state-aaaaaaa-0fd062bf.json`), 'utf8'));
   assert.equal(state.rows.length, 10);
   // a second invocation for the same candidate runs nothing: one job per phrasing, no retry

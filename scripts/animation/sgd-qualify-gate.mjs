@@ -24,7 +24,7 @@ export function inputProblem({ env = process.env, mvp3Sha, promptsHash, goldenHa
   if (!UUID.test(env.PREVIEW_VERSION)) return 'PREVIEW_VERSION is not a Cloudflare version id (a UUID)';
   if (!/^[0-9a-f]{7,40}$/i.test(env.PREVIEW_SHA)) return 'PREVIEW_SHA is not a git SHA (7 to 40 hex)';
   if (!worktree) return '--candidate-worktree is required (the checkout of the candidate under test)';
-  if (!/^[0-9a-f]{7,40}$/i.test(mvp3Sha || '')) return '--mvp3-sha is required (MVP3\'s release SHA, 7 to 40 hex)';
+  if (!/^[0-9a-f]{7,40}$/i.test(mvp3Sha || '')) return '--mvp3-sha is required (the MVP3/C3 candidate SHA recorded in the Gate 1 table, 7 to 40 hex)';
   if (!HEX.test(promptsHash || '') || !HEX.test(goldenHash || '')) return '--prompts-hash and --golden-hash are required (the values recorded in the Gate 1 table)';
   return null;
 }
@@ -38,7 +38,7 @@ export function readBack(deployments, view) {
     named: tagged.join(' ').match(/\b[0-9a-f]{7,40}\b/gi) || [], tagged };
 }
 
-// -> { ok, refusal: 'input' | 'mismatch' | 'unverifiable' | null, mismatches: [], problems: [], lines: [] }. deps: git(args) -> { status, stdout },
+// -> { ok, refusal: 'input' | 'mismatch' | 'unverifiable' | null, mismatches: [], problems: [], lines: [], head }. deps: git(args) -> { status, stdout },
 // candidateHashes(mvp3Sha) -> { head, promptsHash, goldenHash }, wrangler(args) -> stdout.
 export async function runGate(opts, deps) {
   const { env = process.env, mvp3Sha, promptsHash, goldenHash, worktree } = opts, lines = [], mismatches = [], problems = [];
@@ -50,9 +50,9 @@ export async function runGate(opts, deps) {
   if (sameSha(head, sha)) pass(`the candidate worktree HEAD ${head.slice(0, 9)} is PREVIEW_SHA`); else differ(`the candidate worktree HEAD is ${head.slice(0, 9)}, PREVIEW_SHA is ${sha}`);
   if (!(deps.git(['status', '--porcelain', '--untracked-files=no']).stdout || '').trim()) pass('the candidate worktree has no uncommitted change to a tracked file');
   else differ('the candidate worktree has uncommitted changes to tracked files, so it is not the committed candidate');
-  if (deps.git(['rev-parse', '--verify', '--quiet', `${mvp3Sha}^{commit}`]).status !== 0) differ(`MVP3's release SHA ${mvp3Sha} is not a commit in the candidate worktree`);
-  else if (deps.git(['merge-base', '--is-ancestor', mvp3Sha, head]).status === 0) pass(`MVP3's release SHA ${mvp3Sha.slice(0, 9)} is an ancestor of the candidate HEAD`);
-  else differ(`MVP3's release SHA ${mvp3Sha.slice(0, 9)} is not an ancestor of the candidate HEAD ${head.slice(0, 9)}`);
+  if (deps.git(['rev-parse', '--verify', '--quiet', `${mvp3Sha}^{commit}`]).status !== 0) differ(`the Gate 1 candidate (MVP3/C3) SHA ${mvp3Sha} is not a commit in the candidate worktree`);
+  else if (deps.git(['merge-base', '--is-ancestor', mvp3Sha, head]).status === 0) pass(`the Gate 1 candidate (MVP3/C3) SHA ${mvp3Sha.slice(0, 9)} is an ancestor of the candidate HEAD`);
+  else differ(`the Gate 1 candidate (MVP3/C3) SHA ${mvp3Sha.slice(0, 9)} is not an ancestor of the candidate HEAD ${head.slice(0, 9)}`);
 
   let hashes;
   try { hashes = await deps.candidateHashes(mvp3Sha); } catch (error) { hashes = { error: error.message }; }
@@ -78,7 +78,7 @@ export async function runGate(opts, deps) {
     lines.push(`INFO USAGE_PLATFORM_DAY_USD on the preview: ${back.flag('USAGE_PLATFORM_DAY_USD') ?? 'not readable (a secret binding)'}`);
   }
   const refusal = mismatches.length ? 'mismatch' : problems.length ? 'unverifiable' : null;
-  return { ok: !refusal, refusal, mismatches, problems, lines };
+  return { ok: !refusal, refusal, mismatches, problems, lines, head };
 }
 
 // The real dependencies. Credentials are read BY NAME from the credentials file and passed only to the wrangler child process.

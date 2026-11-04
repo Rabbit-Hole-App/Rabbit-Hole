@@ -110,6 +110,15 @@ export function resultTable(rows) {
 const SPEND_HEAD = '| # | Time (PT) | Candidate SHA | Preview version | Phrasing | Job id | Outcome | Repairs | Settled credits | Charged credits | Artifact hash | Run total credits |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n';
 export const spendRow = (r, total) => `| ${r.n} | ${r.time} | ${r.sha} | ${r.version} | ${cell(r.phrasing)} | ${cell(r.jobId ?? '-')} | ${cell(r.outcome)} | ${r.repairs} | ${r.credits.toFixed(2)} | ${r.charged} | ${r.artifactHash ? r.artifactHash.slice(0, 16) : '-'} | ${total.toFixed(2)} |\n`;
 
+// The compact result for another program: the candidate, the three identities Gate 1 recorded and the gate verified, the verdict and one row per job.
+export function machineResult({ candidateSha, version, identities, result, cap, prior, at }) {
+  const rows = latestPerJob(result.rows), control = rows.find(r => r.n === CONTROL), v = result.verdict;
+  return { schema: 'sgd-gate2-result/1', candidateSha, previewVersion: version, identities, verdict: v.verdict, why: v.why, accepted: v.accepted, lost: v.lost,
+    control: control ? { outcome: control.outcome, silentSgd: control.silentSgd, markers: control.markers } : null, halt: result.halt, notRun: result.notRun,
+    rows: rows.map(r => ({ n: r.n, phrasing: r.phrasing, jobId: r.jobId, outcome: r.outcome, repairs: r.repairs, settledCredits: Number(r.credits.toFixed(2)), chargedCredits: r.charged, artifactHash: r.artifactHash, session: r.session, note: r.note })),
+    settledCredits: Number(result.finished.toFixed(2)), cap, prior, finishedAt: at.toISOString() };
+}
+
 class Stopped extends Error { constructor(outcome, note) { super(note); this.outcome = outcome; this.note = note; } }
 
 // ---- the run ----
@@ -388,7 +397,10 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
     `Settled by this run: ${settledNow.toFixed(2)} credits (about US$${(settledNow / 100).toFixed(2)} at 100 credits to the dollar); charged to the test users: ${charged}; cumulative ${(o.prior + result.finished).toFixed(2)} of cap ${o.cap}.`, PACING].join('\n');
   const stamp = new Date(deps.now()).toISOString().replace(/\D/g, '').slice(0, 14);
   writeFileSync(join(outDir, `result-${pin.PREVIEW_SHA.slice(0, 7)}-${stamp}.md`), `${text}\n`);
-  writeFileSync(join(outDir, `result-${pin.PREVIEW_SHA.slice(0, 7)}-${stamp}.json`), JSON.stringify({ sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, verdict, why, halt: result.halt, rows: latestPerJob(result.rows), cap: o.cap, prior: o.prior }, null, 1));
+  // The machine-readable result (lane g's combined smoke reads gate2-result.json): one compact line. A reader must check candidateSha and verdict PASS; an absent file is no result.
+  const machine = `${JSON.stringify(machineResult({ candidateSha: gate.head ?? pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, identities: { mvp3Sha: gateOpts.mvp3Sha, promptsHash: gateOpts.promptsHash, goldenHash: gateOpts.goldenHash }, result, cap: o.cap, prior: o.prior, at: new Date(deps.now()) }))}\n`;
+  writeFileSync(join(outDir, 'gate2-result.json'), machine);
+  writeFileSync(join(outDir, `result-${pin.PREVIEW_SHA.slice(0, 7)}-${stamp}.json`), machine);
   out(`\n${text}\n\nspend rows: ${join(outDir, 'spend-rows.md')}; exports: ${outDir}/<job id>/ (the repo's spend.md edit is done by Parallel from the spend rows)`);
   return verdict === 'PASS' ? 0 : verdict === 'FAIL' ? 1 : 3;
 }

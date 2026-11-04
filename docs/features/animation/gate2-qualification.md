@@ -1,15 +1,15 @@
 # /animation Gate 2: full-pipeline SGD qualification (AN-21)
 
-Plan section 8 (AN-21, "Gate 2 phrasings", "Gates and budget") and section 13.2 and 13.5. Owner decisions 11 to 17 and 20 (3 November 2026),
-the owner's re-scoping of 3 November about 5 PM PT (several test sessions, five jobs at a time), and decision 22 (the candidate identity check).
+Plan section 8 (AN-21, "Gate 2 phrasings", "Gates and budget") and section 13.2 and 13.5. Owner decisions 11 to 17 and 20 to 22 (3 November 2026),
+the owner's re-scoping of 3 November about 5 PM PT (several test sessions, five jobs at a time), and decision 23 (one combined fast-path release).
 This file says how to run Gate 2. It is an operator guide; dollar figures appear here and in the spend ledger only.
 
-Gate 2 is **paid**: ten real jobs on the dev clone's model key. Parallel announces the batch size and cost before running it and then proceeds.
+Gate 2 is **paid**: ten real jobs on the dev clone's model key. Parallel deploys C4's preview, announces the batch size and cost, and then proceeds.
 Nothing in this lane's code has been run against the real dev server.
 
 ## What Gate 2 is
 
-Ten requests, one job each, on the frozen candidate's dev preview, through the whole product path a learner uses: plan, Generate, author, review,
+Ten requests, one job each, on C4's dev preview (the frozen candidate), through the whole product path a learner uses: plan, Generate, author, review,
 repairs, accepted or not. **No retry beyond the product's own automatic one**: the script never calls the retry, refine or revise routes.
 
 | # | Phrasing (exactly) |
@@ -47,36 +47,42 @@ repairs, accepted or not. **No retry beyond the product's own automatic one**: t
   job is cancelled. A false positive (a plan that says "gradient" about a colour) fails the control; the exported plan shows the matched markers and
   the owner can read it. Markers are a floor, not a judgement of quality.
 
-## Candidate: MVP4's frozen candidate; MVP4 and MVP5 release as one
+## Candidates and the one combined release (decision 23)
 
-Gate 2 runs on **MVP4's frozen candidate** (owner, 3 November about 5 PM): MVP3's release plus the AN-20 branch. The rules of section 8 stand: the
-candidate is frozen before Gate 1 and before Gate 2, and a change to `contract.js`, `scene.js`, the prompts or the capture text restarts the gate it
-was in.
+**One combined fast-path release carries MVP2b, MVP3, MVP4 and MVP5.** Three candidates, in order:
 
-**Single-release collapse.** If Gate 2 passes **the same day** as Gate 1 on the same candidate, MVP4 (AN-20) and MVP5 (AN-21) are released as one
-release instead of two:
+| Candidate | What it is | What runs on it |
+|---|---|---|
+| **C3** | the frozen candidate that holds MVP2b and MVP3 | **Gate 1** (lane (d)'s harness, author-only) on C3's preview. The Gate 1 table records three identities: the C3 SHA, the prompt-files hash and the golden-artifact hash |
+| **C4** | C3 plus the AN-20 prompt commits | **Gate 2** (this script) on C4's preview. Gate 2 starts the moment C4's preview is up; Parallel deploys it and announces the batch size and cost |
+| **C5** | C4 plus **only** a copy and claim-list commit, and scripts and docs | the release candidate, on the fast path (plan 13.4; the owner sets `MVP_ALLOWED_SHA` to C5 and runs the `!` command) |
 
-- The release candidate is the Gate 1 and Gate 2 tested candidate **plus only** MVP5's product slice (remove the "not yet supported" copy, add the
-  loss-surface line to the claimed capabilities, let Explore Top go out), which is copy and claim-list work and does not touch the files the
-  identity check hashes. If it touches `contract.js`, `scene.js`, the prompts, the capture text or the golden artifact, it is not a collapse: Gate 1
-  and Gate 2 restart.
-- The receipt names both SHAs: the tested candidate X (Gate 1 and Gate 2) and the release SHA R, and lists the files changed between X and R. Evidence
-  for R follows the repository's existing reuse rules (`CLAUDE.md`, "Full-gate reuse for eligible UI and copy changes": eligibility is decided by
-  `notReusableBetween` in `scripts/dev-deploy.mjs`; do not restate it here). Exact-SHA `verify` and `fast-e2e` still run on R.
-- One production activation and one verification: the owner's `!` command to `main`, then one real SGD request as the signed-in user (`post-release-verify.mjs`).
-- If Gate 2 does not pass the same day, MVP4 releases on its own as the plan says (prompt-only, fast path when it exists) and MVP5 follows later.
-  A Gate 2 FAIL never releases the SGD claim.
+- **Both gates must pass.** If Gate 1 or Gate 2 fails, the whole candidate is held: nothing is released and the SGD claim stays out. There is no
+  partial release of MVP2b, MVP3 or MVP4 on its own.
+- **Gate 2 compares C4 against Gate 1's three identities** (the next section): the Gate 1 candidate (C3) SHA must be an ancestor of C4, and C4's
+  prompt-files hash and golden-artifact hash must equal the recorded ones. Any difference means Gate 1 reruns on the real candidate.
+- **C5 is C4 plus only** MVP5's product slice (remove the "not yet supported" copy, add the loss-surface line to the claimed capabilities), which is
+  copy and claim-list work, plus scripts and docs (this lane's files, the checklist, the spend rows). If C5 touches `contract.js`, `scene.js`, the
+  prompts, the capture text, the golden artifact or any file the identity check hashes, it is not C5: the gate it was in restarts. (Explore Top is not
+  part of AN-21; it rides in MVP2a.)
+- The receipt names C3, C4 and C5, lists the files changed between C4 and C5, the Gate 1 table, the Gate 2 table (job ids, credits) and the fast-path
+  evidence of plan 13.4 for C5: successful build, affected tests, the focused smoke (lane (g)'s combined smoke reads `gate2-result.json`, below),
+  exact commit and build identity, correct target, a recovery path. Broad checks that the fast path bypasses are recorded as bypassed, never as passed.
+- After the release: the owner's one real SGD request in production (`post-release-verify.mjs`), and the weekly canary below.
+- The rules of section 8 stand: the candidate is frozen before Gate 1 and before Gate 2, and a change to `contract.js`, `scene.js`, the prompts or
+  the capture text restarts the gate it was in.
 
-## The candidate identity check (decision 22)
+## The candidate identity check (decisions 22 and 23)
 
-Before any session is read or any job created, `sgd-qualify.mjs` **refuses (exit 4, nothing spent)** unless all of these hold. Any *difference* prints
+C4 is checked against Gate 1's three identities (the C3 SHA, the prompt-files hash, the golden-artifact hash). Before any session is read or any
+job created, `sgd-qualify.mjs` **refuses (exit 4, nothing spent)** unless all of these hold. Any *difference* prints
 `GATE 1 MUST RERUN ON THE REAL CANDIDATE`. A missing or malformed input is a usage error (exit 2) and prints no such sentence.
 
 | Check | Source | Difference means |
 |---|---|---|
 | `--candidate-worktree` HEAD is `PREVIEW_SHA` | `git rev-parse HEAD` | the checkout under test is not the candidate the preview was told about |
 | The worktree has no uncommitted change to a tracked file | `git status --porcelain --untracked-files=no` | not the committed candidate |
-| `--mvp3-sha` is a commit and an ancestor of HEAD | `git merge-base --is-ancestor` | the candidate is not MVP3 plus the AN-20 branch |
+| `--mvp3-sha` (the C3 candidate SHA from the Gate 1 table; the flag keeps its earlier name) is a commit and an ancestor of HEAD | `git merge-base --is-ancestor` | C4 is not C3 plus the AN-20 prompt commits |
 | The prompt-files hash equals `--prompts-hash` | the candidate's own `scripts/animation/author-sample.mjs verify-candidate` | the prompts are not the ones Gate 1 measured |
 | The golden-artifact hash equals `--golden-hash` | the same command | the golden artifact is not the one Gate 1 measured |
 | The latest deployment of the preview Worker is `PREVIEW_VERSION` at 100% | `wrangler deployments list` (read-only) | another build is live |
@@ -141,24 +147,25 @@ worker is 10; the gate prints the clone's own value only when `versions view` sh
 
 ## Running Gate 2
 
-0. **Before anything.** Gate 1 has passed on the frozen MVP4 candidate. Record from its table: the candidate SHA, MVP3's release SHA, the prompt-files
-   hash and the golden-artifact hash. The integrator gives the preview's `PREVIEW_VERSION` (the Cloudflare version id) and `PREVIEW_SHA`, and the
-   candidate is deployed through the normal dev deployment with the SHA in the version's tag or message.
+0. **Before anything.** Gate 1 has run on C3's preview. Record from its table the three identities: the C3 SHA, the prompt-files hash and the
+   golden-artifact hash. Gate 2 starts the moment **C4's preview** is up: Parallel deploys it through the normal dev deployment with C4's SHA in
+   the version's tag or message and gives `PREVIEW_VERSION` (the Cloudflare version id) and `PREVIEW_SHA` (C4). Gate 1's result is a condition of
+   the release, not of starting Gate 2; if Gate 1 fails, the whole candidate is held and a running Gate 2 is stopped (stop file).
 1. **Sessions.** `dev-test-session.mjs --check --count 5`, then `--mint --count 5` (announce the dev D1 rows), then `--allowance --base <preview>`.
 2. **Dry run (free, offline).** `node scripts/animation/sgd-qualify.mjs --dry-run` runs the whole script against an in-memory fake preview with canned
    job states (8 of 9 accepted, one repaired, one rejected, the control reports a gap): no network, no credential, a temp output folder.
 3. **Check (read-only).** Same flags as the run plus `--check`: validates the arguments, the sessions file, the candidate's client features, the
    identity and preview-pin gate (git, the harness, wrangler reads), and the stop file. It creates no canvas and no job and writes nothing.
-4. **Announce** the batch: ten jobs, up to five at a time, cumulative cap, expected 1,000 to 1,350 credits.
+4. **Announce** the batch (Parallel does, then proceeds): ten jobs, up to five at a time, cumulative cap, expected 1,000 to 1,350 credits.
 5. **Run.**
 
        PREVIEW_VERSION=<version id> PREVIEW_SHA=<candidate sha> node scripts/animation/sgd-qualify.mjs \
          --base https://rabbit-hole-web-dev-<name>.tryrabbithole.workers.dev --candidate-worktree <candidate checkout> \
-         --mvp3-sha <sha> --prompts-hash <hex> --golden-hash <hex> --cap <credits> --prior <credits> --concurrency 5
+         --mvp3-sha <C3 sha> --prompts-hash <hex> --golden-hash <hex> --cap <credits> --prior <credits> --concurrency 5
 
 6. **Stop** at any time: create the stop file (`<out>/STOP` by default; `--stop-file`) or press Ctrl+C. Every running job is cancelled through the
    product's cancel route and no other job starts. A second Ctrl+C quits at once. Remove the stop file before the next run.
-7. **After**: record the spend rows in the repository's `spend.md` (Parallel does this, not the script), the result in `checklist.md`, and any defect
+7. **After**: hand lane (g)'s combined smoke `<out>/gate2-result.json` (below); record the spend rows in the repository's `spend.md` (Parallel does this, not the script), the result in `checklist.md`, and any defect
    in `fix.md` (FX-AN-060 and up). Remove the dev clone or leave it per the owner.
 
 ### Flags
@@ -166,7 +173,7 @@ worker is 10; the gate prints the clone's own value only when `versions view` sh
 | Flag | Meaning |
 |---|---|
 | `--base` | the preview origin (required; no default, so a spend never goes to a guessed Worker) |
-| `--candidate-worktree`, `--mvp3-sha`, `--prompts-hash`, `--golden-hash` | the identity check; all required |
+| `--candidate-worktree` (the C4 checkout), `--mvp3-sha` (the C3 SHA), `--prompts-hash`, `--golden-hash` (the Gate 1 table's values) | the identity check; all required |
 | `--cap`, `--prior` / `PRIOR_CREDITS` | the **cumulative** cap in credits and the credits already spent against it before this batch; both required, no default, `prior` must be under `cap` |
 | `--sessions-file` | default `C:/s/spec/animation/sgd-mvp1-acceptance/gate2-sessions.json` |
 | `--concurrency` | 1 to 5, default 1 |
@@ -208,7 +215,24 @@ only cancels), generalised to every running job at once. At every poll of every 
   settled credits, credits charged to the test user, artifact hash, running total). Parallel copies these into `spend.md`.
 - `<out>/<job id>/`: `diagnostics-detail1.json` (job and diagnostics as served), `job.json`, `plan.json`, `reviews.json`, `program-last-draft.js`,
   `program-before-repair-N.js`, `chat-messages.json`, `artifact.json` (accepted jobs, with its SHA-256 in `summary.json`), `summary.json`. Same names as the earlier export script.
-- `<out>/result-<sha7>-<stamp>.md` and `.json`: the result table, the verdict, halts, skipped sessions, the settled total and each session's allowance after the run.
+- `<out>/result-<sha7>-<stamp>.md`: the result table, the verdict, halts, skipped sessions, the settled total and each session's allowance after the run.
+- **`<out>/gate2-result.json`** (also kept as `result-<sha7>-<stamp>.json`): the compact machine-readable result, one line, for lane (g)'s combined
+  smoke. Written when a run ends, whatever the verdict, and overwritten by the next run in the same `<out>`; no file is written when the run is
+  refused before any spend. A reader must check `candidateSha` against C4 and require `verdict` `PASS`; an absent file, a stale `candidateSha` or any
+  other verdict means Gate 2 has not passed. Fields:
+
+  | Field | Content |
+  |---|---|
+  | `schema` | `sgd-gate2-result/1` |
+  | `candidateSha`, `previewVersion` | C4's full 40-hex HEAD from the verified worktree, and the Cloudflare version id |
+  | `identities` | `{ mvp3Sha, promptsHash, goldenHash }`: the C3 SHA and the two hashes Gate 1 recorded, which the identity check verified |
+  | `verdict`, `why` | `PASS`, `FAIL` or `INCOMPLETE`, and the reason in words |
+  | `accepted`, `lost` | counts among jobs 1 to 9 |
+  | `control` | `{ outcome, silentSgd, markers }` for job 10, or `null` if it has no result |
+  | `halt`, `notRun` | why the run was halted (`{ kind, reason }` or `null`) and the job numbers without a final result |
+  | `rows` | one per job: `n`, `phrasing`, `jobId`, `outcome`, `repairs`, `settledCredits`, `chargedCredits`, `artifactHash`, `session`, `note` |
+  | `settledCredits`, `cap`, `prior`, `finishedAt` | the candidate's cumulative settled credits across every invocation, the cap and prior arguments, an ISO time |
+
 - Artifact hash column: the host's `artifactHash` (first 16 hex in the tables, full value in `summary.json`). The earlier receipts used the SHA-256 of the
   fetched `artifact.json`; that value is `fileSha256` in `summary.json`.
 - Settled credits are the provider cost from the job's calls. After AN-17 a rejected job charges the learner zero while the platform ledger keeps the
@@ -224,7 +248,8 @@ session is needed), its spend approval (production spend is not authorized until
 
 ## Not verified here
 
-Nothing was run against the real dev server, Cloudflare, the real credentials file or lane (d)'s harness. Verified offline only: the fake server,
+Nothing was run against the real dev server, Cloudflare, the real credentials file or lane (d)'s harness, and lane (g)'s smoke has not read
+`gate2-result.json` yet (its fields are fixed by `machineResult` and a test). Verified offline only: the fake server,
 the runner, the guard, the gate (with stub git, harness and wrangler), the session minting (fake control plane), the exports and the command line.
 The wrangler output formats are the ones `verify-preview.mjs` has parsed on this preview since 2 November; the real routes and Chat message shapes
 are ported from the acceptance driver `choose-generate-features6.mjs`. The first real use should be `--check`, then the run.

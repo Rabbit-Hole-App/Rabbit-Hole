@@ -31,6 +31,7 @@ test('the real candidate passes: ancestor, clean tree, both Gate 1 hashes, the l
   const w = world(), r = await runGate(opts(), w.deps);
   assert.equal(r.ok, true, r.lines.join('\n'));
   assert.equal(r.refusal, null);
+  assert.equal(r.head, HEAD, 'the full HEAD is returned for the result file');
   assert.deepEqual([r.mismatches, r.problems], [[], []]);
   assert.match(r.lines.join('\n'), /is an ancestor of the candidate HEAD/);
   assert.match(r.lines.join('\n'), /INFO USAGE_PLATFORM_DAY_USD on the preview: 40/);
