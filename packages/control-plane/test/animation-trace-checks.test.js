@@ -2,7 +2,9 @@
 // is paid, through the existing repair path (no correction ask). Job shapes are small inline fixtures from the C11 Gate 2 evidence, not machine-local files.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { ANIMATION_CAPTURE, renderStage, traceProblems } from '../src/animation-render.js';
+import { ruleSentence, trailRule } from '../src/animation-feasibility.js';
 import { artifactHashOf } from '../src/animation-author.js';
 import { primitivesFixture } from '../../web/src/animation3d/fixtures.js';
 
@@ -46,6 +48,43 @@ test('(ii) a run still going after K steps whose path holds fewer than K points 
   assert.deepEqual(traceProblems({ ...sgd, readouts: [{ id: 'status', label: 'Status', kind: 'text' }, { id: 'moves', label: 'Moves made' }] }, [shot('v0-s1', {}, { readouts: { status: 'running', moves: 12 }, trails: { trail: 5 } })]), [], 'no step count reported: nothing to compare');
 });
 
+// C14 (FX-AN-125, owner decision 36): (ii) holds the trail to the APPROVED plan's own rule sentence. C13 Gate 2 jobs 5 and 1 followed their plans and were rejected by the check.
+// test/fixtures/animation-c13-job5-plan.json and ...job1-plan.json are those jobs' real approved plans (aj_adb387ce...: every 4 steps, at most 50 markers; aj_8c02d10a...: every 2 steps, at most 100).
+const job5 = JSON.parse(readFileSync(new URL('./fixtures/animation-c13-job5-plan.json', import.meta.url), 'utf8'));
+const job1 = JSON.parse(readFileSync(new URL('./fixtures/animation-c13-job1-plan.json', import.meta.url), 'utf8'));
+const planned = (...assumptions) => ({ title: 'Gradient descent', description: 'A ball walks down a bowl.', assumptions, limitations: [] });
+const running = (steps, points) => shot('v0-s1', {}, { readouts: { status: 'running', loss: 0.1, steps }, trails: { trail: points } });
+
+test('trailRule reads the server\'s own rule sentence from the real plans of jobs 5 and 1, from what feasibility writes, and from nothing else', () => {
+  assert.deepEqual(trailRule(job5), { every: 4, shown: 50, unit: 'step' });
+  assert.deepEqual(trailRule(job1), { every: 2, shown: 100, unit: 'step' });
+  assert.deepEqual(trailRule(planned(ruleSentence(7, 20, 'frame'))), { every: 7, shown: 20, unit: 'frame' }, 'an assumption, in the sentence feasibility writes');
+  assert.deepEqual(trailRule({ ...planned(), description: `A ball walks down a bowl. ${ruleSentence(3, 10)}` }), { every: 3, shown: 10, unit: 'step' }, 'the description');
+  assert.deepEqual(trailRule({ ...planned(), limitations: [`Changed: ${ruleSentence(5, 8)}`] }), { every: 5, shown: 8, unit: 'step' }, 'a Changed: notice');
+  assert.equal(trailRule({ ...planned(), limitations: [ruleSentence(4, 5)] }), null, 'a limitation that is not a Changed: notice');
+  assert.equal(trailRule(planned('Adds one trail point every step.', 'The planner says one marker every 3rd step.', 'Changed: the trail draws 50 markers, one every 4 steps, instead of 200; every step still runs.')), null, 'other words are not parsed: every step');
+  assert.equal(trailRule(null), null);
+});
+
+test('(ii) does not fire against the approved plans of jobs 5 and 1 with the points their runs drew', () => {
+  for (const [steps, points] of [[40, 16], [69, 21], [79, 31]]) assert.deepEqual(traceProblems(sgd, [running(steps, points)], job5), [], `job 5: ${points} points after ${steps} steps`);
+  assert.deepEqual(traceProblems(sgd, [running(27, 15)], job1), [], 'job 1: 15 points after 27 steps');
+  assert.deepEqual(traceProblems(sgd, [running(40, 10)], job5), [], 'one marker every 4 steps and no start marker: 10, one under the 11 the rule counts, is the slack');
+  assert.deepEqual(traceProblems(sgd, [running(400, 50)], job5), [], 'the plan\'s cap of 50 markers');
+  const out = traceProblems(sgd, [running(40, 16)]);
+  assert.equal(out.length, 1, 'the same trace with no rule is the C12 finding');
+  assert.match(out[0], /^the trail marks every 3rd step: it holds 16 points after 40 steps in capture v0-s1: add a point for every step, so the path shows each one$/);
+});
+
+test('(ii) still fires when the trail is thinner than the plan\'s rule, naming the rule, and when the plan has none', () => {
+  const out = traceProblems(sgd, [running(40, 9)], job5);
+  assert.equal(out.length, 1, JSON.stringify(out));
+  assert.match(out[0], /^the trail marks every 5th step: it holds 9 points after 40 steps in capture v0-s1: the approved plan says one marker every 4 steps, at most 50 markers: add a point at least that often$/);
+  assert.equal(traceProblems(sgd, [running(30, 10)], planned('The trail draws one point per step.')).length, 1, 'a trail of every 3rd step against a plan that says every step');
+  assert.equal(traceProblems(sgd, [running(30, 10)], planned('The ball moves down.')).length, 1, 'a plan with no rule sentence');
+  assert.equal(traceProblems(sgd, [running(30, 10)], planned(ruleSentence(3, 40))).length, 0, 'the same trail against a plan that says every 3rd step');
+});
+
 test('(iii) at the initial capture two markers within half a radius of each other are a problem naming both', () => {
   const twins = (id, extra) => shot(id, { ticks: 0, events: [], ...extra }, { overlaps: [{ a: 'ball', b: 'minimumDot', distance: 0.02 }] }); // C11 jobs 3 and 7: twin balls
   const out = traceProblems(sgd, [twins('v0-s0'), twins('v1-s0')]);
@@ -74,7 +113,7 @@ function fakeBrowser(extra) {
   return { newPage: async () => page, close: async () => {} };
 }
 const env = { ASSETS: { fetch: async () => new Response('ok') }, BROWSER: {}, LEARN_MEDIA: media() };
-const stage = async extra => renderStage({ browser: fakeBrowser(extra) })({ id: 'aj_1', artifact: primitivesFixture.artifact, artifactHash: await artifactHashOf(primitivesFixture.artifact) }, { env });
+const stage = async (extra, plan) => renderStage({ browser: fakeBrowser(extra) })({ id: 'aj_1', artifact: primitivesFixture.artifact, artifactHash: await artifactHashOf(primitivesFixture.artifact), plan }, { env });
 
 test('the render stage answers a trace check as one repairable spec problem list; a buried marker comes first; a clean trace renders as before', async () => {
   const twins = { overlaps: [{ a: 'ball', b: 'twin', distance: 0.03 }] };
@@ -89,4 +128,16 @@ test('the render stage answers a trace check as one repairable spec problem list
   const clean = await stage(() => ({}));
   assert.equal(clean.problems, undefined);
   assert.ok(clean.captures.length > 0);
+});
+
+test('the render stage holds the trail to the approved plan of the job: job 5 numbers pass with its plan and are the C12 finding without one', async () => {
+  const counted = structuredClone(primitivesFixture.artifact); // the stage reads the step count and the run path from the trace: 16 points after 40 steps
+  counted.readouts.push({ id: 'steps', label: 'Steps taken', decimals: 0 });
+  const run = async plan => renderStage({ browser: fakeBrowser(() => ({ readouts: { status: 'running', steps: 40 }, trails: { trail: 16 } })) })({ id: 'aj_5', artifact: counted, artifactHash: await artifactHashOf(counted), plan }, { env });
+  const withPlan = await run(job5);
+  assert.equal(withPlan.problems, undefined);
+  assert.ok(withPlan.captures.length > 0);
+  const without = await run(undefined);
+  assert.equal(without.problems.length, 1, JSON.stringify(without));
+  assert.match(without.problems[0], /^the trail marks every 3rd step: it holds 16 points after 40 steps in captures v0-s0, v0-s1, v0-s2, v1-s0: add a point for every step/);
 });

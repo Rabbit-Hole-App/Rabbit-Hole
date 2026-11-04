@@ -15,6 +15,7 @@ import { resolveAnimationInputs } from '../../web/src/animation3d/contract.js';
 import { ANIMATION_LIMITS } from './animation-policy.js';
 import { learnMedia } from './learn-storage.js';
 import { ANIMATION_REVIEW_LIMITS } from './animation-review.js';
+import { trailRule } from './animation-feasibility.js';
 
 export const ANIMATION_RENDER_ENTRY = '/render/animation3d.html';
 // Loop sample times as fractions of the duration, chosen so a motion repeating k = 1..12 times per loop is never back at the same phase:
@@ -214,15 +215,16 @@ export async function renderProbe(env, artifact, artifactHash, deps = {}, states
 // C12 (b) and (e): what the capture traces say about the run path, the markers and the arrows, as problems of the same kind as a buried marker: the candidate's own disagreement, told to the repair
 // before any review is spent (the repair path of the render stage; no correction ask). One line each, naming the captures it holds in:
 //   (i)   at the high end of the main control (the first parameter's max), a run that reads diverged with fewer than 4 trail points since the run started;
-//   (ii)  a run still going after K steps whose run path holds fewer than K points (K is read from a steps readout: id steps, stepCount or iterations, or the label Steps taken; none, nothing is said);
+//   (ii)  a run still going after K steps whose run path holds fewer than the plan allows: K points, or one marker every N steps (at most M markers) when the APPROVED plan's own rule sentence says so
+//         (trailRule; C14, FX-AN-125, owner decision 36), with one point of slack for the start marker; K is read from a steps readout: id steps, stepCount or iterations, or the label Steps taken; none, nothing is said;
 //   (iii) at the initial capture, two sphere markers within half a radius of each other, neither a ghost;
 //   (e)   an arrow whose tip or middle is drawn under the surface.
 // ponytail: (ii) cannot see a step count the program does not report; (i) and (ii) need the capture's trace to carry the run path's points (trace.trails).
 const nth = n => `${n}${[, 'st', 'nd', 'rd'][n % 10 > 3 || Math.floor(n / 10) === 1 ? 0 : n % 10] ?? 'th'}`;
 const STEP_COUNT_ID = /^(steps?|stepCount|iterations?)$/i, STEP_COUNT_LABEL = /^(steps|iterations)( taken| so far| done| count)?$/i;
-export function traceProblems(artifact, captures) {
+export function traceProblems(artifact, captures, plan = null) {
   const lines = [], ids = list => `capture${list.length > 1 ? 's' : ''} ${list.slice(0, 4).join(', ')}`, plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
-  const [main] = artifact.parameters ?? [], counter = (artifact.readouts ?? []).find(r => r.kind !== 'text' && (STEP_COUNT_ID.test(r.id) || STEP_COUNT_LABEL.test(r.label ?? '')));
+  const [main] = artifact.parameters ?? [], rule = trailRule(plan), counter = (artifact.readouts ?? []).find(r => r.kind !== 'text' && (STEP_COUNT_ID.test(r.id) || STEP_COUNT_LABEL.test(r.label ?? '')));
   const stepsOf = trace => (Number.isInteger(trace?.readouts?.[counter?.id]) ? trace.readouts[counter.id] : null);
   const said = trace => Object.values(trace?.readouts ?? {}).filter(value => typeof value === 'string').map(value => value.toLowerCase());
   const fullest = trace => { // the run path holding the most points: { points, max }, or null when the trace carries none
@@ -236,10 +238,10 @@ export function traceProblems(artifact, captures) {
       lines.push(`at the highest ${main.id} (${main.max}) the run diverges in ${plural(steps, 'step')} in ${ids(short.map(c => c.id))}: its path holds ${plural(points, 'trail point')} since the run started and a diverging run makes at least 4: have it take at least 4 steps to leave the surface, so the path shows the swing`);
     }
   }
-  const sparse = captures.filter(c => { const steps = stepsOf(c.trace), counted = fullest(c.trace); return steps !== null && counted && !said(c.trace).some(w => w === 'converged' || w === 'diverged') && counted.points < Math.min(steps, counted.max); });
+  const sparse = captures.filter(c => { const steps = stepsOf(c.trace), counted = fullest(c.trace); return steps !== null && counted && !said(c.trace).some(w => w === 'converged' || w === 'diverged') && counted.points < Math.min(Math.floor(steps / (rule?.every ?? 1)) + 1, rule?.shown ?? Infinity, counted.max) - 1; });
   if (sparse.length) {
     const steps = stepsOf(sparse[0].trace), { points } = fullest(sparse[0].trace);
-    lines.push(`the trail marks every ${nth(Math.max(2, Math.round(steps / Math.max(1, points - 1))))} step: it holds ${plural(points, 'point')} after ${plural(steps, 'step')} in ${ids(sparse.map(c => c.id))}: add a point for every step, so the path shows each one`);
+    lines.push(`the trail marks every ${nth(Math.max(2, Math.round(steps / Math.max(1, points - 1))))} step: it holds ${plural(points, 'point')} after ${plural(steps, 'step')} in ${ids(sparse.map(c => c.id))}: ${rule ? `the approved plan says one marker every ${rule.every} ${rule.unit}s, at most ${rule.shown} markers: add a point at least that often` : 'add a point for every step, so the path shows each one'}`);
   }
   const pairs = new Map();
   for (const c of captures.filter(item => item.time === 0 && !item.ticks && !item.leadTicks && !item.events?.length)) {
@@ -287,7 +289,7 @@ export const renderStage = (deps = {}) => async (job, ctx) => {
     }
   }
   const buriedLines = [...buried].map(([node, seen]) => `${node} is drawn below the surface it sits on in capture${seen.ids.length > 1 ? 's' : ''} ${seen.ids.slice(0, 4).join(', ')} (${seen.depth.toFixed(2)} under it: its y is ${seen.y} where the surface is ${seen.surfaceY}): make the program's heights and the surface's heights follow the same heights, so the marker and the path are drawn on the surface`);
-  const problems = [...buriedLines, ...traceProblems(job.artifact, out.captures)].slice(0, 6); // a buried marker first, then what the traces say about the trail, the markers and the arrows
+  const problems = [...buriedLines, ...traceProblems(job.artifact, out.captures, job.plan)].slice(0, 6); // a buried marker first, then what the traces say about the trail, the markers and the arrows
   if (problems.length) return { problems, category: 'spec', repairable: true, renders };
   return { captures: out.captures.map(({ png: _bytes, ...capture }) => capture), renders, coverage: manifest.coverage };
 };

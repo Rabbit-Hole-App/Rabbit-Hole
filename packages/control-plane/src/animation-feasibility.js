@@ -92,7 +92,17 @@ const SINGLE_ADD = new RegExp(String.raw`\b(adds|leaves|drops|draws|places) (?:o
 // A marker said to come with each step (or frame, tick), within one clause ("one for each step", "adds a point per frame"); "every point is
 // used, so each step" is not.
 const PER_STEP_CLAIM = new RegExp(String.raw`\b(?:points?|markers?|dots?|one)\b[^.,;]{0,40}\b(?:for each|per|each|every) ${UNIT}\b|\b(?:for each|per|each|every) ${UNIT}\b[^.,;]{0,40}\b(?:points?|markers?|dots?)\b`, 'i');
-const ruleSentence = (every, shown, unit = 'step') => `The trail draws one marker every ${every} ${unit}s, at most ${shown} markers; every ${unit} still runs.`;
+export const ruleSentence = (every, shown, unit = 'step') => `The trail draws one marker every ${every} ${unit}s, at most ${shown} markers; every ${unit} still runs.`;
+// The rule sentence above, read back (C14, owner decision 36): { every, shown, unit } from "one marker every N <unit>s, at most M markers", or null (the trail marks every step). Searched in the
+// description, the assumptions (where shrunk puts it) and the "Changed:" notices; nothing else is parsed, so a plan worded any other way declares no rule and is held to every step.
+const RULE_SENTENCE = new RegExp(String.raw`\bone marker every (\d+) (${UNIT})s, at most (\d+) markers\b`, 'i');
+export function trailRule(plan) {
+  for (const text of [plan?.description, ...(plan?.assumptions ?? []), ...(plan?.limitations ?? []).filter(item => typeof item === 'string' && item.startsWith(CHANGED))]) {
+    const found = typeof text === 'string' ? RULE_SENTENCE.exec(text) : null;
+    if (found) return { every: Number(found[1]), shown: Number(found[3]), unit: found[2].toLowerCase() };
+  }
+  return null;
+}
 const splitSentences = text => String(text).split(/(?<=[.!?])\s+/);
 // Every trail sentence restated for the new density and count, by rule; anything the rules cannot restate is left for trailConflicts to find.
 function rewriteTrail(text, from, every, shown, unit = 'step') {
