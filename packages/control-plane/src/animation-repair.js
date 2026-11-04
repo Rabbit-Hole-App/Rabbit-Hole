@@ -3,7 +3,8 @@
 // nothing, or that is not allowed for the failure, stops the job instead of spending. Also the request-fit preflight: an artifact the
 // review or the repair could not receive within their roles' limits is a problem found before any review is spent.
 import { canonicalJson } from '../../web/src/explain-program/contract.js';
-import { ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM, planNeedsProgram, repairTool } from './agents/animation-author.js';
+import { ANIMATION_REPAIR_SYSTEM, planNeedsProgram, repairTool } from './agents/animation-author.js';
+import { ANIMATION_REVIEW_SYSTEM } from './agents/animation-review.js';
 import { REVIEW_TOOL } from './explain-review.js';
 import { ANIMATION_ROLES, animationRequest } from './animation-policy.js';
 import { ANIMATION_REVIEW_LIMITS, CORRECTION_WORST, buildReviewContent, correctionBlock, loadCaptures, repairableFindings, reviewArtifactView } from './animation-review.js';

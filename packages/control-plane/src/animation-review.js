@@ -5,7 +5,7 @@
 // with no image is never an image review, and a failed call is never an acceptance. The verdict format and its parsing are /explain's
 // (explain-review.js REVIEW_TOOL, parseReview): one semantic and one visual verdict per capture.
 import { REVIEW_LIMITS, REVIEW_TOOL, ReviewError, parseReview, reviewProblems } from './explain-review.js';
-import { ANIMATION_REVIEW_SYSTEM } from './agents/animation-author.js';
+import { ANIMATION_REVIEW_SYSTEM } from './agents/animation-review.js';
 import { ANIMATION_LIMITS, ANIMATION_ROLES, AnimationPolicyError } from './animation-policy.js';
 import { learnMedia } from './learn-storage.js';
 import { canonicalJson } from '../../web/src/explain-program/contract.js';

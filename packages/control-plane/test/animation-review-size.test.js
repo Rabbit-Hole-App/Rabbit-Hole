@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { sealArtifact, validateStage } from '../src/animation-author.js';
-import { ANIMATION_REVIEW_SYSTEM } from '../src/agents/animation-author.js';
+import { ANIMATION_REVIEW_SYSTEM } from '../src/agents/animation-review.js';
 import { REVIEW_ENTRIES, buildReviewContent } from '../src/animation-review.js';
 import { worstReviewContent } from '../src/animation-repair.js';
 import { ANIMATION_MODEL, animationRequest, roleBoundMicros } from '../src/animation-policy.js';

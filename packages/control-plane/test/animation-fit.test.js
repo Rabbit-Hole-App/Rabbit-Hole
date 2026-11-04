@@ -5,7 +5,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { sealArtifact, validateStage } from '../src/animation-author.js';
-import { ANIMATION_DRAFT_BYTES, ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM, repairTool } from '../src/agents/animation-author.js';
+import { ANIMATION_DRAFT_BYTES, ANIMATION_REPAIR_SYSTEM, repairTool } from '../src/agents/animation-author.js';
+import { ANIMATION_REVIEW_SYSTEM } from '../src/agents/animation-review.js';
 import { CORRECTION_WORST, OMITTED_DEFAULTS, buildReviewContent, correctionBlock, reviewArtifactView, reviewStage, ANIMATION_REVIEW_LIMITS, artifactView } from '../src/animation-review.js';
 import { REPAIR_FORWARD, draftOf, fitProblems, repairContent, repairStage } from '../src/animation-repair.js';
 import { ANIMATION_LIMITS, ANIMATION_ROLES, animationRequest, animationReservation, roleBoundMicros } from '../src/animation-policy.js';
@@ -197,7 +198,7 @@ test('the author runs at medium effort with 24,000 output tokens, and the build 
 });
 
 test("the author and repair follow the plan's formula and convention, and the review reports every serious problem at once (aj_ba11d5a, aj_ad936ec)", async () => {
-  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM } = await import('../src/agents/animation-author.js');
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js'), { ANIMATION_REVIEW_SYSTEM } = await import('../src/agents/animation-review.js');
   for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /the 1\/2 in a half mean squared error/);
   assert.match(ANIMATION_REVIEW_SYSTEM, /a problem left out now is never fixed/);
   assert.match(ANIMATION_REVIEW_SYSTEM, /judge the scene against the formula/);
@@ -205,7 +206,7 @@ test("the author and repair follow the plan's formula and convention, and the re
 
 test('the diagnosed SGD causes, as general rules: event shape, merged findings, unrepairable plan findings, sizes and surfaces', async () => {
   const { programProblems } = await import('../src/animation-author.js');
-  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM } = await import('../src/agents/animation-author.js');
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js'), { ANIMATION_REVIEW_SYSTEM } = await import('../src/agents/animation-review.js');
   const { repairableFindings } = await import('../src/animation-review.js');
   // 4a: a program that names actions by event.id is caught before any review; event.action passes.
   const withSource = source => ({ actions: [{ id: 'keepPath', label: 'Keep this path' }], program: { source } });

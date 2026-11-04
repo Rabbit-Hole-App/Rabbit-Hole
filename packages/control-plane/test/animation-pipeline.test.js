@@ -294,7 +294,7 @@ test('the artifact keeps the reviewed plan\'s parameter range, unit, default and
 });
 
 test('every prompt carries the visual standard, the control order and the request\'s own values', async () => {
-  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM } = await import('../src/agents/animation-author.js');
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js'), { ANIMATION_REVIEW_SYSTEM } = await import('../src/agents/animation-review.js');
   const { ANIMATION_BRIEF_SYSTEM, PLAN_TOOL } = await import('../src/agents/animation-brief.js');
   for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) {
     assert.match(system, /subject is large in frame/);
@@ -508,7 +508,7 @@ test('the result probe renders a stored accepted result for its owner, through t
 });
 
 test('author, repair and review rules: no attempt result before an attempt; marks line up with what they measure', async () => {
-  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM } = await import('../src/agents/animation-author.js');
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js'), { ANIMATION_REVIEW_SYSTEM } = await import('../src/agents/animation-review.js');
   for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) {
     assert.match(system, /measures an attempt[^.]*is left out of frame\.readouts until the first attempt has finished; never a 0/);
     assert.match(system, /Distance marks, scales and ticks lie on the same line and in the same plane as what they measure/);
@@ -560,7 +560,7 @@ test('the saved FX-AN-025 game candidate fits its repair request as drafted; the
 // effects that happen, picture and numbers from one state; the review checks the same.
 test('brief, author, repair and review share the honesty rules, with no subject named', async () => {
   const { ANIMATION_BRIEF_SYSTEM, HONESTY_RULES } = await import('../src/agents/animation-brief.js');
-  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM } = await import('../src/agents/animation-author.js');
+  const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js'), { ANIMATION_REVIEW_SYSTEM } = await import('../src/agents/animation-review.js');
   for (const system of [ANIMATION_BRIEF_SYSTEM, ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.ok(system.includes(HONESTY_RULES));
   for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) assert.match(system, /from the same state in one evaluate/);
   assert.match(ANIMATION_REVIEW_SYSTEM, /a promised control effect that does not happen within its range, or a picture that disagrees with the readouts is major/);
