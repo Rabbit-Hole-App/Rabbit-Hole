@@ -82,7 +82,7 @@ the most that attempt may use ("using up to N AI credits"), which is still what 
 ## The cost guard (owner confirmed)
 
 A failed generation is free to the learner and costs the platform its model price (observed US$0.18 to 0.80, worst case about
-US$3.2 to 4.2). `ANIMATION_BILLING.freeFailuresPerDay` (5) caps the failed attempts refunded to one learner in a rolling 24 hours:
+US$3.7 to 4.8 since the repair went to 24,000 tokens, FX-AN-045). `ANIMATION_BILLING.freeFailuresPerDay` (5) caps the failed attempts refunded to one learner in a rolling 24 hours:
 past it, Generate (and a paid Try again) is refused with "You have reached today's limit of free retries. Try again tomorrow."
 (429, code `spend_limited`, reason `free_retries_exhausted`, the shared refusal body and toast). It counts distinct (job, attempt)
 pairs from `usage_adjustments`, so a job that failed twice and then succeeded counts two, and an attempt that never cost the learner

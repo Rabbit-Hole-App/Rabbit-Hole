@@ -177,11 +177,17 @@ test('the author and repair are told the names the card keeps for itself and the
 test('the author runs at medium effort with 24,000 output tokens, and the build worst case and credits follow the pricing registry', async () => {
   const { LEARN_TASKS, MODEL_PRICES } = await import('../src/learn-models.js');
   assert.deepEqual([LEARN_TASKS.animation_author.effort, LEARN_TASKS.animation_author.maxTokens], ['medium', 24000]);
-  assert.deepEqual([LEARN_TASKS.animation_repair.effort, LEARN_TASKS.animation_repair.maxTokens, LEARN_TASKS.animation_review.maxTokens], ['low', 12000, 6000]);
+  assert.deepEqual([LEARN_TASKS.animation_repair.effort, LEARN_TASKS.animation_repair.maxTokens, LEARN_TASKS.animation_review.maxTokens], ['medium', 24000, 6000]); // owner decision 16 (3 Nov 2026): repair 24,000 at medium, up from 12,000 at low
   const [, output] = MODEL_PRICES['claude-opus-5-5'];
   assert.equal(roleBoundMicros('author') - Math.ceil(60000 * MODEL_PRICES['claude-opus-5-5'][0] * 1.25 + 16000 * output), 8000 * output, '8,000 more output tokens at the registry price');
   assert.equal(8000 * output, 160000, 'US$0.16');
-  assert.equal(Math.ceil(animationReservation().generationMicros / 10000), 325, 'displayed maximum: 309 + 16 credits');
+  // Decision 16: the repair's bound is (50,000 + 2 x 4,784) x $4 x 1.25 + 24,000 x $20 = 297,840 + 480,000, up from 537,840; two repairs add 480,000 micros (48 credits).
+  assert.equal(roleBoundMicros('repair'), 777840);
+  assert.equal(animationReservation().generationMicros, 780000 + 3 * 463520 + 2 * 777840);
+  assert.equal(animationReservation().generationMicros, 3246240 + 480000);
+  assert.equal(Math.ceil(animationReservation().generationMicros / 10000), 373, 'displayed maximum: 325 + 48 credits');
+  const { proposalUsage } = await import('../src/generation-proposal.js');
+  assert.equal(proposalUsage({}, 'animation').max_credits, 373, 'the figure the proposal shows and Generate checks');
 });
 
 test("the author and repair follow the plan's formula and convention, and the review reports every serious problem at once (aj_ba11d5a, aj_ad936ec)", async () => {

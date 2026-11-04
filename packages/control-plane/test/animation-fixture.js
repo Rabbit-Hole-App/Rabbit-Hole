@@ -25,6 +25,34 @@ export const PLAN = Object.freeze({ schema: 'animation-plan/1', title: 'Lever ba
   experience: 'experiment', reason: 'Changing the masses shows the torque rule directly.', behavior: 'analytical', controlProfile: 'inspect', sourceRefs: [],
   parameters: [{ id: 'mass', label: 'Left mass', type: 'number', unit: 'kg', min: 1, max: 5, step: 1, default: 2 }], interactions: ['Change the left mass.'], assumptions: ['The beam is massless.'], limitations: [], requiredCapabilities: ['parameters', 'readouts'] });
 
+// A message as the Messages API streams it (message_start, one block start/deltas/stop per content block, message_delta, message_stop), and
+// as a byte stream cut every `size` bytes, so an event and a multi-byte character can be split across chunks.
+export function sseOf(message) {
+  const events = [{ type: 'message_start', message: { ...message, content: [], stop_reason: null, stop_sequence: null, usage: { ...message.usage, output_tokens: 1 } } }];
+  const piece = (text, size) => Array.from(text).reduce((parts, char) => { if (parts.at(-1)?.length < size) parts[parts.length - 1] += char; else parts.push(char); return parts; }, []);
+  message.content.forEach((block, index) => {
+    if (block.type === 'tool_use') {
+      events.push({ type: 'content_block_start', index, content_block: { ...block, input: {} } });
+      for (const part of piece(JSON.stringify(block.input), 5)) events.push({ type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: part } });
+    } else if (block.type === 'thinking') {
+      events.push({ type: 'content_block_start', index, content_block: { type: 'thinking', thinking: '', signature: '' } });
+      for (const part of piece(block.thinking, 4)) events.push({ type: 'content_block_delta', index, delta: { type: 'thinking_delta', thinking: part } });
+      events.push({ type: 'content_block_delta', index, delta: { type: 'signature_delta', signature: block.signature } });
+    } else {
+      events.push({ type: 'content_block_start', index, content_block: { type: 'text', text: '' } });
+      for (const part of piece(block.text, 3)) events.push({ type: 'content_block_delta', index, delta: { type: 'text_delta', text: part } });
+    }
+    events.push({ type: 'content_block_stop', index });
+    if (index === 0) events.push({ type: 'ping' });
+  });
+  events.push({ type: 'message_delta', delta: { stop_reason: message.stop_reason, stop_sequence: message.stop_sequence ?? null }, usage: { output_tokens: message.usage.output_tokens } }, { type: 'message_stop' });
+  return events.map(e => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join('');
+}
+export function chunked(text, size) {
+  const bytes = new TextEncoder().encode(text);
+  return new ReadableStream({ start(controller) { for (let i = 0; i < bytes.length; i += size) controller.enqueue(bytes.slice(i, i + size)); controller.close(); } });
+}
+
 // The provider: replies to each request with one call of the offered tool. role: the real stages' tool names, else the stub stages' system text.
 const TOOL_ROLES = { animation_plan: 'brief', animation_artifact: 'author', report_review: 'review', repair_animation: 'repair' };
 export function provider(t, { reply = () => ({}), status = () => 200 } = {}) {
@@ -33,12 +61,14 @@ export function provider(t, { reply = () => ({}), status = () => 200 } = {}) {
   t.after(() => { globalThis.fetch = original; });
   globalThis.fetch = async (url, options = {}) => {
     const body = JSON.parse(options.body), role = TOOL_ROLES[body.tools[0].name] || body.system[0]?.text || body.system;
-    calls.push({ host: new URL(url).host, model: body.model, role, toolChoice: body.tool_choice, maxTokens: body.max_tokens, images: body.messages[0].content.filter(b => b.type === 'image').length, tool: body.tools[0], system: body.system[0]?.text ?? body.system });
+    calls.push({ host: new URL(url).host, model: body.model, role, toolChoice: body.tool_choice, maxTokens: body.max_tokens, images: body.messages[0].content.filter(b => b.type === 'image').length, tool: body.tools[0], system: body.system[0]?.text ?? body.system, stream: body.stream === true, signal: !!options.signal });
     if (gate) { const wait = gate; gate = null; await wait.promise; }
     const code = status(role, calls.filter(c => c.role === role).length);
     if (code !== 200) return Response.json({ type: 'error', error: { type: code === 529 ? 'overloaded_error' : 'api_error', message: 'x' } }, { status: code });
     const input = { n: calls.length, ...reply(role, calls.filter(c => c.role === role).length, body) };
-    return Response.json({ model: body.model, content: [{ type: 'tool_use', id: `t${calls.length}`, name: body.tools[0].name, input }], stop_reason: 'tool_use', usage: { input_tokens: 1000, output_tokens: 500 } });
+    const message = { id: `msg_${calls.length}`, type: 'message', role: 'assistant', model: body.model, content: [{ type: 'tool_use', id: `t${calls.length}`, name: body.tools[0].name, input }], stop_reason: 'tool_use', stop_sequence: null, usage: { input_tokens: 1000, output_tokens: 500 } };
+    // A streamed request (AN-17: the animation author and repair) is answered as the Messages API streams it, in small pieces.
+    return body.stream === true ? new Response(chunked(sseOf(message), 16), { headers: { 'Content-Type': 'text/event-stream' } }) : Response.json(message);
   };
   return { calls, roles: () => calls.map(c => c.role), hold() { let release; const promise = new Promise(r => { release = r; }); gate = { promise }; return () => release(); } };
 }

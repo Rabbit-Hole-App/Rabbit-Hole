@@ -46,7 +46,9 @@ export const ANIMATION_LIMITS = Object.freeze({
   // Review captures: up to 2 declared views at up to 3 parameter/time states per round, one browser per job, platform-paid; a round
   // per candidate (the first and both repairs).
   render: Object.freeze({ views: 2, states: 3, capturesPerRound: 6, rounds: 3 }),
-  deadlines: Object.freeze({ callMs: 120000, preparationMs: 180000, jobMs: 600000 }),
+  // callMs: the longest one brief or review call may take; authorCallMs: the author's and the repair's (they write the whole artifact; measured author calls
+  // ran 87 to 126 s and a repair may use 24,000 tokens, about 210 s). Enforced by the streaming transport (animationStreaming); FX-AN-041 found callMs read nowhere.
+  deadlines: Object.freeze({ callMs: 120000, authorCallMs: 300000, preparationMs: 180000, jobMs: 600000 }),
   // A transient failure (provider busy, a sample render failed) runs its stage once more after a pause, once per attempt, before the
   // deadline. It adds no call to the ceiling: a refused call gave its count back, and renders are platform compute.
   autoRetry: Object.freeze({ delayMs: 15000 }),
@@ -58,6 +60,16 @@ export const ANIMATION_LIMITS = Object.freeze({
 // job too. freeFailuresPerDay: DEFAULT 5, how many generations a learner may have refunded in a rolling 24 hours before Generate is
 // refused (each costs the platform its model price). Both are owner decisions, flagged in the doc.
 export const ANIMATION_BILLING = Object.freeze({ planPhaseRefunded: false, freeFailuresPerDay: 5 });
+
+// How a role's call is sent (owner decision 20.5, AN-17, FX-AN-044): the author and repair answer as a stream, put back together as the one message the
+// call returns (anthropic-stream.js), so no gateway waits on a silent connection; every animation role is aborted at its deadline. The flag
+// ANIMATION_STREAMING=false returns null: the single non-streaming request with no deadline, exactly as before this existed (the recovery lever).
+// Read by the job's transport and handed to ask.js as env.MODEL_STREAM; no other feature sets it.
+export function animationStreaming(env, role) {
+  if (env.ANIMATION_STREAMING === 'false') return null;
+  const stream = role === 'author' || role === 'repair';
+  return { stream, deadlineMs: stream ? ANIMATION_LIMITS.deadlines.authorCallMs : ANIMATION_LIMITS.deadlines.callMs };
+}
 
 export const PROVIDER_UNAVAILABLE = 'Animations are temporarily unavailable. Your request is saved. Try again in a few minutes.';
 
@@ -154,13 +166,16 @@ export function animationToolInput(role, result, tool) {
 export const animationModelConfigured = env => env.SUBSCRIPTION_ONLY === 'true' || !!env.ANTHROPIC_API_KEY;
 export const modelNotConfigured = () => new AnimationPolicyError('model_not_configured', MODEL_NOT_CONFIGURED, { status: 503 });
 
+// The provider, or the gateway in front of it, did not answer (FX-AN-041: the author's 524 after 126 s was a failure with no name and no way on): the same as
+// an overload. The call is refused, gives its count back and the job runs the stage once more. 504 is our own deadline (anthropic-stream.js).
+const NOT_ANSWERING = new Set([502, 503, 504, 524]);
 async function roleFailure(role, response, tasks) {
   if (await notConfiguredMessage(response)) return modelNotConfigured();
   if ([429, 503].includes(response.status)) {
     const body = await response.clone().json().catch(() => null);
     if (['allowance_limited', 'spend_limited'].includes(body?.code)) return new AnimationPolicyError('spend_refused', body.error || 'AI is not available right now.', { status: response.status, reason: body.reason ?? null });
   }
-  if (await providerUnavailable(response)) return new AnimationPolicyError('provider_unavailable', PROVIDER_UNAVAILABLE, { providerStatus: response.status });
+  if (await providerUnavailable(response) || NOT_ANSWERING.has(response.status)) return new AnimationPolicyError('provider_unavailable', PROVIDER_UNAVAILABLE, { providerStatus: response.status });
   if (response.status === 404) {
     const body = await response.clone().json().catch(() => null);
     if (body?.error?.type === 'not_found_error') return new AnimationPolicyError('model_unavailable', `${animationModel(role, undefined, tasks)} is not available for /animation right now. Nothing else was used.`);
@@ -172,15 +187,15 @@ async function roleFailure(role, response, tasks) {
 // A reply that was refused after the provider answered, as it came and bounded (diagnostics only): what was asked for, what answered, why
 // it stopped, its usage as billed, the blocks it returned and whatever tool input arrived. Effort omitted is the model's default: the
 // provider does not report the effective value.
-const PARTIAL_TOOL_CHARS = 8000;
+const PARTIAL_TOOL_CHARS = 8000, REPAIR_TOOL_CHARS = 16000, TEXT_CHARS = 2000; // a repair's whole answer is kept for FX-AN-043 (its artifact without the program is about 12,000)
 const toolText = input => (typeof input === 'string' ? input : JSON.stringify(input ?? null));
-function replyDiagnostics(role, body, result, tasks) {
+function replyDiagnostics(role, body, result, tasks, toolChars = PARTIAL_TOOL_CHARS) {
   const r = animationRole(role, tasks), content = Array.isArray(result?.content) ? result.content : [], tool = content.find(block => block?.type === 'tool_use');
   return { requested: animationModel(role, undefined, tasks), served: typeof result?.model === 'string' ? result.model : null,
     settings: { maxTokens: body.max_tokens, effort: body.output_config?.effort ?? 'model default', thinking: r.thinking ?? null, toolChoice: body.tool_choice?.type ?? null },
     stopReason: result?.stop_reason ?? null, usage: result?.usage ?? null,
-    blocks: content.map(block => ({ type: block?.type ?? null, ...(block?.name ? { name: block.name } : {}), ...(block?.type === 'text' ? { chars: String(block.text ?? '').length } : {}), ...(block?.type === 'tool_use' ? { chars: toolText(block.input).length } : {}) })),
-    partialTool: tool ? toolText(tool.input).slice(0, PARTIAL_TOOL_CHARS) : null };
+    blocks: content.map(block => ({ type: block?.type ?? null, ...(block?.name ? { name: block.name } : {}), ...(block?.type === 'text' ? { chars: String(block.text ?? '').length, text: String(block.text ?? '').slice(0, TEXT_CHARS) } : {}), ...(block?.type === 'tool_use' ? { chars: toolText(block.input).length } : {}) })),
+    partialTool: tool ? toolText(tool.input).slice(0, toolChars) : null };
 }
 
 // One role call: build and check the request, send it through the injected (admitted) callModel, check the served model and the
@@ -197,6 +212,7 @@ export async function callAnimationRole(env, role, { system, tool, content }, { 
     const identity = servedIdentity(role, result, tasks);
     // accept-5: the author spent all 10,000 output tokens and never finished its tool call. That is the output limit, not a malformed turn.
     if (result?.stop_reason === 'max_tokens') throw new AnimationPolicyError('output_limit', `/animation ${role} reached its output limit (${animationRole(role, tasks).maxTokens} tokens) before finishing its ${tool.name} call.`);
-    return { input: animationToolInput(role, result, tool), identity, ...billed };
+    const reply = replyDiagnostics(role, body, result, tasks, role === 'repair' ? REPAIR_TOOL_CHARS : PARTIAL_TOOL_CHARS);
+    return { input: animationToolInput(role, result, tool), identity, ...billed, blocks: reply.blocks, reply };
   } catch (error) { throw Object.assign(error, { billed, reply: replyDiagnostics(role, body, result, tasks) }); }
 }
