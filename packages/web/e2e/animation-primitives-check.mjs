@@ -1,6 +1,6 @@
 // The five /animation primitives in the real app (AN-19, MVP3; owner decisions 11 to 13 of 3 Nov 2026), against the LOCAL stack only: local D1, a
 // fresh browser profile, no model call. A canvas is seeded with ONE card naming the golden SGD artifact as a built-in example (block.fixtureId
-// 'sgd-golden', registered by docs/features/animation/golden-fixture-card.patch; test data, not generation evidence), the way animation-mvp-check
+// 'sgd-golden', which Animation3DCard.jsx sceneLoader resolves (goldenFixture, from docs/features/animation/golden-fixture-card.patch); test data, not generation evidence), the way animation-mvp-check
 // seeds its fixtures. Expected numbers are hand-written below from the bowl's own formula, never read from the program.
 // Covers: the card loads labelled as an example and draws; the surface draws (a share of the view differs from the background); the status
 // readout shows a WORD (paused, then running, then converged), not a code; Step once five times makes a six-point path whose true loss equals the
@@ -32,7 +32,7 @@ const SHOTS = process.argv[2] || 'animation-primitives-shots';
 mkdirSync(SHOTS, { recursive: true });
 const TOTAL = 9; // bump with the steps below; the printed line is what CI reads
 const GOLDEN = JSON.parse(readFileSync(new URL('../src/animation3d/testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
-const FIXTURE_ID = 'sgd-golden'; // the name docs/features/animation/golden-fixture-card.patch gives the example
+const FIXTURE_ID = 'sgd-golden'; // Animation3DCard.jsx goldenFixture: the one name that loads testdata/sgd-golden.json
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `prim-${run}@example.com`, secret, handle: `prim_${run}` }) })).json();
@@ -84,7 +84,7 @@ const frame = async () => JSON.parse(await viewport.getAttribute('data-animation
 const word = async () => ((await readout('status').textContent()) || '').trim().toLowerCase();
 const more = () => card.locator('details[data-animation-more]:not([open]) > summary').evaluateAll(nodes => nodes.forEach(node => node.click()));
 const shot = async name => { await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
-const setRate = async value => { await card.locator('input[data-animation-number="learningRate"]').fill(String(value)); await card.locator('input[data-animation-number="learningRate"]').press('Enter'); await page.waitForTimeout(2600); }; // the camera refits once the controls settle
+const setRate = async value => { await card.locator('input[data-animation-number="learningRate"]').fill(String(value)); await card.locator('input[data-animation-number="learningRate"]').press('Enter'); await page.waitForTimeout(3500); }; // the camera refits once the controls settle (REFIT_MS 300 ms, then the sampler's budget of up to 2 s)
 
 // What the scene looks like, by colour, in the host's screenshot (the primary readout laid over it is masked). The corner pixel is the background.
 // covered: the share of pixels that differ from it. orange / blue / red: saturated pixels by hue (the path, the kept path, the ball); box: the red blob's bounds.
@@ -149,8 +149,9 @@ try {
     assert.equal((await frame()).nodes.trail.points.length, 1, 'a path of one point, before any step');
   });
   await step('Step once five times: a six-point path, and the true loss is the closed form', async () => {
+    await more(); // Batch size is a secondary setting, under More settings
     await card.locator('[data-animation-parameter="batchSize"] select').selectOption('256');
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(3000); // the camera refits once the controls settle (REFIT_MS and the sampler's budget)
     for (let i = 0; i < 5; i += 1) await action('step').click();
     await until(async () => (await frame()).readouts.steps === 5, 'five steps');
     const f = await frame();
@@ -184,8 +185,9 @@ try {
     const withGhost = await sceneShot();
     await card.locator('[data-animation-reset]').click(); // clears the ghost; the camera stays, the settings return to their defaults
     await until(async () => (await frame()).nodes.ghost.points.length === 0, 'the kept path cleared');
+    await more();
     await card.locator('[data-animation-parameter="batchSize"] select').selectOption('256');
-    await page.waitForTimeout(2600); // the same settings as before, so the arrows are the same; the camera refits only on a substantial change
+    await page.waitForTimeout(3500); // the same settings as before, so the arrows are the same; the camera refits only on a substantial change
     const without = await sceneShot();
     const changed = await differ(withGhost, without);
     assert.ok(changed >= 60, `the kept path draws: ${changed} pixels differ with and without it (about 250 expected)`);
