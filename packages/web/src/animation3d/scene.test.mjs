@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { triangleCost, validateAnimationArtifact } from './contract.js';
-import { ANIMATION_FIXTURES, INVALID_ANIMATION_FIXTURES, watchFixture } from './fixtures.js';
+import { linePoints, triangleCost, validateAnimationArtifact } from './contract.js';
+import { ANIMATION_FIXTURES, INVALID_ANIMATION_FIXTURES, primitivesFixture, watchFixture } from './fixtures.js';
 import { buildAnimationScene, declutterLabels, LABEL_PIXELS, labelPixels } from './scene.js';
 
 // Real Three.js objects, no WebGL: labels get a plain Texture in place of the browser's canvas texture.
@@ -281,4 +281,210 @@ test('a curve with a radius is a shaded tube the contract charges exactly: the s
     assert.equal(trianglesOf(built.scene.root), charged, `${name} triangles`);
     built.scene.dispose();
   }
+});
+
+// ---- AN-19: the five client features drawn (surface_grid, trail_points, arrow_anchor, clamp; text readouts are the card's) ----
+const primitives = () => structuredClone(primitivesFixture.artifact);
+const built = (artifact = primitives()) => { const out = buildAnimationScene(artifact, { labelTexture }); assert.equal(out.ok, true, JSON.stringify(out.issues)); return out.scene; };
+const holderOf = (scene, id) => scene.objects.get(id);
+const drawn = (scene, id) => holderOf(scene, id).children.find(child => child.userData.nodeId === id);
+const trailPoints = count => Array.from({ length: count }, (_, i) => [2 - i / 10, (2 - i / 10) ** 2 / 4 + 0.02, 0]);
+
+test('the primitives compile to exactly the triangles and line points the contract charges for, and dispose frees them all', () => {
+  const scene = built(), { counts } = primitivesFixture;
+  assert.equal(trianglesOf(scene.root), counts.triangles, 'surface 40 + trail tube 1,584 + ghost tube 784 + ball 224 + arrow 48 + label 2');
+  let lines = 0;
+  scene.root.traverse(object => { if (object.isLine && !object.userData.leader) lines += object.geometry.attributes.position.count; });
+  assert.ok(lines > 0 && lines <= 108, `the contours (${lines} points) stay within the 3 x 36 charged to them; a trail line has none here (both have radii)`);
+  assert.equal(drawn(scene, 'bowl').children.length, 2, 'the surface mesh and its contour lines');
+  scene.dispose();
+  assert.equal(scene.owned(), 0);
+});
+
+test('surface_grid: vertex (r, c) sits at x = (c / (cols - 1) - 1/2) width, y = heights[r][c], z = (r / (rows - 1) - 1/2) depth, facing up; the contours lie on the surface at their levels', () => {
+  const scene = built(), mesh = drawn(scene, 'bowl').children[0], position = mesh.geometry.attributes.position, heights = primitivesFixture.artifact.scene.geometries[0].heights;
+  for (const [r, c] of [[0, 0], [0, 5], [4, 0], [4, 5], [2, 2]]) {
+    const i = r * 6 + c;
+    [position.getX(i), position.getY(i), position.getZ(i)].forEach((value, axis) => assert.ok(Math.abs(value - [(c / 5 - 0.5) * 5, heights[r][c], (r / 4 - 0.5) * 4][axis]) < 1e-6, `vertex ${r},${c} axis ${axis}: ${value}`));
+  }
+  const index = mesh.geometry.index, [a, b, c] = [0, 1, 2].map(k => new THREE.Vector3().fromBufferAttribute(position, index.getX(k)));
+  assert.ok(new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a)).y > 0, 'the first triangle faces +Y');
+  const lines = drawn(scene, 'bowl').children[1].geometry.attributes.position, flat = heights.flat(), lo = Math.min(...flat), hi = Math.max(...flat);
+  const expected = [1, 2, 3].map(k => lo + (k / 4) * (hi - lo) + (hi - lo) * 0.003); // evenly spaced strictly between lowest and highest, lifted by 0.003 of the range
+  assert.ok(lines.count > 0 && lines.count % 2 === 0);
+  for (let i = 0; i < lines.count; i += 1) assert.ok(expected.some(level => Math.abs(lines.getY(i) - level) < 1e-5), `point ${i} at ${lines.getY(i)}`);
+  assert.ok(expected.every(level => Array.from({ length: lines.count }, (_, i) => lines.getY(i)).some(y => Math.abs(y - level) < 1e-5)), 'every level is drawn');
+  scene.dispose();
+});
+
+test('a surface with no contours has no lines, and a flat one has none to draw', () => {
+  const none = primitives(); delete none.scene.geometries[0].contours;
+  const scene = built(none);
+  assert.equal(drawn(scene, 'bowl').children.length, 1);
+  scene.dispose();
+  const level = primitives(); level.scene.geometries[0].heights = level.scene.geometries[0].heights.map(row => row.map(() => 1));
+  const flatScene = built(level);
+  assert.equal(drawn(flatScene, 'bowl').children.length, 1, 'the highest equals the lowest: no level to draw');
+  flatScene.dispose();
+});
+
+test('contour lines are held to the charge even on a surface that crosses a level in every cell', () => {
+  const noisy = primitives();
+  noisy.scene.geometries[0].heights = Array.from({ length: 12 }, (_, r) => Array.from({ length: 12 }, (_, c) => ((r + c) % 2 ? 1 : 0))); // a checkerboard: saddles everywhere
+  noisy.scene.geometries[0].contours = 1;
+  const scene = built(noisy), lines = drawn(scene, 'bowl').children[1].geometry.attributes.position.count;
+  assert.equal(lines, 4 * (12 + 12 - 2), 'one level draws at most 4 (rows + cols - 2) points');
+  scene.dispose();
+});
+
+test('trail_points: nothing is drawn until a frame carries points; then exactly those, as a tube; fewer points shrink it; none hides it', () => {
+  const scene = built(), trail = drawn(scene, 'trail');
+  assert.equal(trail.visible, false);
+  assert.equal(trail.userData.empty, true);
+  assert.deepEqual(scene.apply({ nodes: { trail: { points: trailPoints(21) } } }).clamped, []);
+  assert.equal(trail.visible, true);
+  assert.equal(trail.geometry.drawRange.count, 20 * 8 * 6, '21 points: 20 segments of 8 quads');
+  assert.equal(trail.geometry.index.count, 99 * 8 * 6, 'the buffer is allocated once for max, the contract\'s 2 x 8 x (max - 1) triangles');
+  const box = trail.geometry.boundingBox;
+  assert.ok(Math.abs(box.max.x - 2.02) < 1e-6 && Math.abs(box.min.x - 0) < 0.021, 'the box covers the points plus the radius, not the unused buffer');
+  assert.ok(box.min.x > -0.03, 'the zero-filled tail of the buffer does not reach the box');
+  scene.apply({ nodes: { trail: { points: trailPoints(3) } } });
+  assert.equal(trail.geometry.drawRange.count, 2 * 8 * 6);
+  scene.apply({ nodes: { trail: { points: [] } } });
+  assert.deepEqual([trail.visible, trail.userData.empty], [false, true]);
+  scene.apply({ nodes: { trail: { points: trailPoints(1) } } });
+  assert.equal(trail.visible, false, 'a tube needs two points');
+  assert.equal(scene.apply({ nodes: { trail: { points: trailPoints(101) } } }).ok, false, 'more than max is refused and changes nothing');
+  assert.equal(trail.visible, false);
+  scene.dispose();
+});
+
+test('trail_points: a ghost is the same path at 40% opacity and half the radius; a trail with no radius is a line', () => {
+  const scene = built();
+  scene.apply({ nodes: { trail: { points: trailPoints(10) }, ghost: { points: trailPoints(10) } } });
+  const trail = drawn(scene, 'trail'), ghost = drawn(scene, 'ghost');
+  assert.deepEqual([trail.material.opacity, ghost.material.opacity, ghost.material.transparent], [1, 0.4, true]);
+  const spread = mesh => { const p = mesh.geometry.attributes.position; return new THREE.Vector3(p.getX(0), p.getY(0), p.getZ(0)).distanceTo(new THREE.Vector3(...trailPoints(10)[0])); };
+  assert.ok(Math.abs(spread(trail) - 0.02) < 1e-5 && Math.abs(spread(ghost) - 0.005) < 1e-5, `ring radius 0.02, and half of the ghost's declared 0.01: ${spread(trail)}, ${spread(ghost)}`);
+  scene.dispose();
+  assert.equal(scene.owned(), 0, 'the ghost material is freed too');
+  const lined = primitives();
+  lined.scene.geometries[1] = { id: 'pathTrail', kind: 'trail', max: 100, style: 'trail' };
+  lined.scene.geometries[2] = { id: 'pathGhost', kind: 'trail', max: 50, style: 'ghost' };
+  const lines = built(lined);
+  assert.equal(drawn(lines, 'trail').isLine, true);
+  lines.apply({ nodes: { trail: { points: trailPoints(7) }, ghost: { points: trailPoints(7) } } });
+  assert.deepEqual([drawn(lines, 'trail').geometry.drawRange.count, drawn(lines, 'ghost').material.opacity], [7, 0.4]);
+  lines.dispose();
+});
+
+test('arrow_anchor: an arrow with an offset starts that far up +Y and keeps its length; a tip label sits at the tip and stays there after a frame moves it', () => {
+  const scene = built();
+  scene.root.updateWorldMatrix(true, true);
+  const box = new THREE.Box3().setFromObject(drawn(scene, 'slope')); // the ball (the arrow's parent) is at y 1.1
+  assert.ok(Math.abs(box.min.y - 1.2) < 1e-6 && Math.abs(box.max.y - 1.7) < 1e-6, `from the ball's centre + 0.1 to + 0.1 + 0.5: ${box.min.y} to ${box.max.y}`);
+  assert.equal(drawn(scene, 'slope').userData.arrowOffset, 0.1);
+  const tag = holderOf(scene, 'slopeTag');
+  assert.deepEqual(tag.position.toArray().map(v => Math.round(v * 1e9) / 1e9), [0, 0.6, 0]);
+  scene.apply({ nodes: { slopeTag: { position: [0.2, 0, 0] } } });
+  assert.deepEqual(tag.position.toArray().map(v => Math.round(v * 1e9) / 1e9), [0.2, 0.6, 0], 'the program\'s position is kept and the tip anchor added');
+  scene.dispose();
+  const origin = primitives(); origin.scene.geometries[5].anchor = 'origin';
+  const plain = built(origin);
+  assert.deepEqual(holderOf(plain, 'slopeTag').position.toArray(), [0, 0, 0]);
+  plain.dispose();
+  const none = primitives(); delete none.scene.geometries[4].offset;
+  const bare = built(none);
+  assert.equal(drawn(bare, 'slope').userData.arrowOffset, 0);
+  assert.deepEqual(holderOf(bare, 'slopeTag').position.toArray().map(v => Math.round(v * 1e9) / 1e9), [0, 0.5, 0], 'no offset: the tip is at the length');
+  bare.dispose();
+});
+
+test('clamp: after the program\'s frame a sphere bound to a surface is held at the surface top or max, the node is marked diverged, and both y values are reported', () => {
+  const scene = built(), ball = holderOf(scene, 'ball');
+  // The fixture clamps at max 2.
+  let result = scene.apply({ nodes: { ball: { position: [0, 5.6, 0] } }, readouts: { loss: 5.6 } });
+  assert.deepEqual(result.clamped, [{ node: 'ball', trueY: 5.6, y: 2 }]);
+  assert.deepEqual([ball.position.y, ball.userData.diverged], [2, true]);
+  assert.equal(result.value.readouts.loss, 5.6, 'readouts keep the true value');
+  result = scene.apply({ nodes: {} });
+  assert.deepEqual(result.clamped, [{ node: 'ball', trueY: 5.6, y: 2 }], 'a frame that does not move it clamps the position the program last gave');
+  result = scene.apply({ nodes: { ball: { position: [1, 1.5, 0] } } });
+  assert.deepEqual([result.clamped, ball.position.y, ball.userData.diverged], [[], 1.5, false]);
+  scene.dispose();
+  const open = primitives(); delete open.scene.nodes[3].clampTo.max;
+  const top = built(open);
+  const surfaceTop = Math.max(...primitivesFixture.artifact.scene.geometries[0].heights.flat());
+  assert.deepEqual(top.apply({ nodes: { ball: { position: [0, 5.6, 0] } } }).clamped, [{ node: 'ball', trueY: 5.6, y: surfaceTop }], 'without max, the top of the surface');
+  top.dispose();
+});
+
+test('clamp: world y, through a moved and scaled parent, and through a surface that is itself moved', () => {
+  const artifact = primitives();
+  artifact.scene.nodes.splice(3, 1, { id: 'rig', position: [0, 1, 0], scale: [2, 2, 2] }, { ...artifact.scene.nodes[3], parent: 'rig', position: [0, 0, 0] });
+  artifact.scene.nodes[artifact.scene.nodes.findIndex(n => n.id === 'slope')].parent = 'ball';
+  const scene = built(artifact);
+  // rig at y 1 scaled x2: a ball at local y 3 is at world y 7; held at world 2 means local (2 - 1) / 2 = 0.5.
+  const result = scene.apply({ nodes: { ball: { position: [0, 3, 0] } } });
+  assert.deepEqual(result.clamped, [{ node: 'ball', trueY: 7, y: 2 }]);
+  assert.ok(Math.abs(holderOf(scene, 'ball').position.y - 0.5) < 1e-9);
+  scene.dispose();
+});
+
+// FX-AN-072: an arrow's offset is a distance outside the node's scale. A magnitude arrow is a unit arrow whose node scale is [1, length, 1]; its tail still starts `offset`
+// from the node's origin and its tip, where a tip label sits, is offset + length x scale. A frame that rescales the arrow moves the tip, never the tail.
+test('arrow_anchor: under a scaled arrow node the offset stays a distance and the tip is offset + length x scale, before and after a frame rescales it', () => {
+  const artifact = primitives();
+  artifact.scene.geometries[4] = { id: 'slopeArrow', kind: 'arrow', length: 1, offset: 0.1 };
+  artifact.scene.nodes.find(n => n.id === 'slope').scale = [1, 2, 1];
+  const scene = built(artifact);
+  const world = () => { scene.root.updateWorldMatrix(true, true); const ball = holderOf(scene, 'ball').getWorldPosition(new THREE.Vector3()); const box = new THREE.Box3().setFromObject(drawn(scene, 'slope')); const tag = holderOf(scene, 'slopeTag').getWorldPosition(new THREE.Vector3()); return { tail: box.min.y - ball.y, tip: box.max.y - ball.y, tag: tag.y - ball.y }; };
+  const near = (value, expected, what) => assert.ok(Math.abs(value - expected) < 1e-6, `${what}: ${value} != ${expected}`);
+  let at = world();
+  near(at.tail, 0.1, 'tail at the offset, not 0.2'); near(at.tip, 0.1 + 2, 'tip at offset + length x scale'); near(at.tag, 0.1 + 2, 'the tip label at the tip');
+  scene.apply({ nodes: { slope: { scale: [1, 4, 1] } } });
+  at = world();
+  near(at.tail, 0.1, 'rescaled: the tail has not moved'); near(at.tip, 0.1 + 4, 'rescaled tip'); near(at.tag, 0.1 + 4, 'the label follows the tip');
+  scene.apply({ nodes: { slopeTag: { position: [0.3, 0, 0] } } });
+  assert.ok(Math.abs(holderOf(scene, 'slopeTag').position.x - 0.3) < 1e-9 && Math.abs(world().tag - 4.1) < 1e-6, 'a moved label keeps its program position and its tip');
+  scene.dispose();
+});
+
+// The golden SGD artifact (testdata/sgd-golden.json, built by build-sgd-golden.mjs against the AN-18 contract) through this renderer.
+test('the golden SGD artifact compiles to the charged counts, its surface sits where the builder puts it (row along z, column along x, centred), and a diverged ball is clamped', () => {
+  const golden = JSON.parse(readFileSync(new URL('./testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
+  const scene = built(golden), geometries = new Map(golden.scene.geometries.map(g => [g.id, g]));
+  const charged = golden.scene.nodes.reduce((sum, node) => sum + (node.geometry ? triangleCost(geometries.get(node.geometry)) : 0), 0);
+  assert.equal(trianglesOf(scene.root), charged);
+  let lines = 0;
+  scene.root.traverse(object => { if (object.isLine && !object.userData.leader) lines += object.geometry.attributes.position.count; });
+  assert.ok(lines > 0 && lines <= golden.scene.nodes.reduce((sum, node) => sum + (node.geometry ? linePoints(geometries.get(node.geometry)) : 0), 0), `${lines} line points within the charge`);
+  const bowl = golden.scene.nodes.find(node => geometries.get(node.geometry)?.kind === 'surface'), surface = geometries.get(bowl.geometry);
+  const position = drawn(scene, bowl.id).children[0].geometry.attributes.position, rows = surface.heights.length, cols = surface.heights[0].length;
+  for (const [r, c] of [[0, 0], [0, cols - 1], [rows - 1, 0], [rows - 1, cols - 1], [5, 17]]) {
+    const i = r * cols + c, expected = [(c / (cols - 1) - 0.5) * surface.width, surface.heights[r][c], (r / (rows - 1) - 0.5) * surface.depth];
+    [position.getX(i), position.getY(i), position.getZ(i)].forEach((value, axis) => assert.ok(Math.abs(value - expected[axis]) < 1e-5, `vertex ${r},${c} axis ${axis}: ${value} != ${expected[axis]}`));
+  }
+  const ball = golden.scene.nodes.find(node => node.clampTo), top = ball.clampTo.max ?? Math.max(...surface.heights.flat());
+  const result = scene.apply({ nodes: { [ball.id]: { position: [0, 10, 0] } } });
+  assert.deepEqual(result.clamped.map(({ node, trueY }) => [node, trueY]), [[ball.id, 10]]);
+  assert.ok(Math.abs(result.clamped[0].y - top) < 1e-5, `held at the surface top ${top}, not ${result.clamped[0].y}`);
+  scene.dispose();
+});
+
+// FX-AN-072 on the real golden: its variable-length arrows are unit arrows under scale [1, length, 1] with offset = the ball radius; the tail stays that far from the arrow's origin at any length.
+test('the golden SGD arrows keep their tails at the offset whatever length a frame scales them to', () => {
+  const golden = JSON.parse(readFileSync(new URL('./testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
+  const geometries = new Map(golden.scene.geometries.map(g => [g.id, g])), scene = built(golden);
+  const arrows = golden.scene.nodes.filter(node => geometries.get(node.geometry)?.kind === 'arrow' && geometries.get(node.geometry).offset > 0);
+  assert.ok(arrows.length >= 2, 'the golden has its two offset arrows');
+  for (const length of [0.05, 0.4, 1, 3]) {
+    scene.apply({ nodes: Object.fromEntries(arrows.map(node => [node.id, { scale: [1, length, 1] }])) });
+    scene.root.updateWorldMatrix(true, true);
+    for (const node of arrows) {
+      const tail = drawn(scene, node.id).getWorldPosition(new THREE.Vector3()), origin = holderOf(scene, node.id).getWorldPosition(new THREE.Vector3());
+      assert.ok(Math.abs(tail.distanceTo(origin) - geometries.get(node.geometry).offset) < 1e-6, `${node.id} at length ${length}: the tail is ${tail.distanceTo(origin)} from the origin`);
+    }
+  }
+  scene.dispose();
 });

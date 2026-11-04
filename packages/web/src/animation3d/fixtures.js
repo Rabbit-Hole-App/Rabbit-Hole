@@ -197,6 +197,74 @@ export const gameFixture = {
 
 export const ANIMATION_FIXTURES = Object.freeze([watchFixture, experimentFixture, gameFixture]);
 
+// ---- AN-18 primitives: a ball slides down a bowl (watch; all five client features) -----------------------------------------
+// Not in ANIMATION_FIXTURES: it needs a client that declares surface_grid, trail_points, text_readout, arrow_anchor and clamp
+// (capabilities.js ANIMATION_CLIENT_FEATURES) and nothing draws it before AN-19. Rule: the bowl is y = (x^2 + z^2) / 4 on a 5-row by
+// 6-column grid (x = c - 2.5, z = r - 2); the ball (radius 0.1) slides along z = 0 from x = 2 to x = -2 in 4 s at x = 2 - t, so its centre is
+// at y = x^2 / 4 + 0.1; the trail keeps one point every 0.1 s (21 points at t = 2) at y = x^2 / 4 + 0.02; the readout loss = x^2 / 4;
+// status is running before t = 2, converged at t = 2 and overshoot after. The counts below are by hand, not from the code:
+//   triangles  surface 2(5-1)(6-1) = 40; trail tube 2 x 8 x (100-1) = 1584; ghost tube 2 x 8 x (50-1) = 784; ball 2 x 16 x (8-1) = 224;
+//              arrow 4 x 8 + 2 x 8 = 48; label 2  -> 2,682
+//   line points  contours 3 x 4 x (5 + 6 - 2) = 108; trail max 100; ghost max 50  -> 258
+//   labels and readouts  1 label + 2 readouts = 3; nodes 7
+const bowlHeights = Array.from({ length: 5 }, (_, r) => Array.from({ length: 6 }, (_, c) => ((c - 2.5) ** 2 + (r - 2) ** 2) / 4));
+const bowlSource = `export function evaluate({ time }) {
+  const x = 2 - time, y = x * x / 4;
+  const points = Array.from({ length: Math.round(time * 10) + 1 }, (_, i) => { const px = 2 - i / 10; return [px, px * px / 4 + 0.02, 0]; });
+  return {
+    nodes: { ball: { position: [x, y + 0.1, 0] }, trail: { points } },
+    readouts: { loss: y, status: time < 2 ? 'running' : time === 2 ? 'converged' : 'overshoot' },
+  };
+}
+`;
+const bowlPlan = {
+  schema: PLAN_SCHEMA, title: 'Ball in a bowl', description: 'A ball slides down a bowl-shaped surface and past its lowest point, leaving a path behind it.',
+  experience: 'watch', reason: 'One continuous run shows the height falling to the minimum and rising again.', behavior: 'prescribed', controlProfile: 'inspect',
+  sourceRefs: [], parameters: [], interactions: [], assumptions: ['The ball slides at constant speed along the line through the lowest point.'], limitations: ['Not a physical simulation.'],
+  requiredCapabilities: ['loop', 'speed', 'seek', 'labels', 'readouts'], duration: 4,
+};
+export const primitivesFixture = {
+  name: 'bowl-primitives',
+  plan: bowlPlan,
+  artifact: {
+    ...base, artifactId: 'fixture-bowl-primitives', planHash: 'f8a48222c43c17b846ed51e7ae2e8440baebc1e3d7140b1ab82719befebd9b42',
+    title: bowlPlan.title, description: 'A bowl drawn as a grid with contour lines, a ball sliding across it leaving a path, a short arrow on the ball and a status word.',
+    experience: 'watch', behavior: 'prescribed', controlProfile: 'inspect',
+    scene: {
+      materials: [{ id: 'bowlBlue', color: '#6f8fd8' }, { id: 'ballRed', color: '#d64545' }, { id: 'pathDark', color: '#333333' }],
+      geometries: [
+        { id: 'bowlGrid', kind: 'surface', heights: bowlHeights, width: 5, depth: 4, contours: 3 },
+        { id: 'pathTrail', kind: 'trail', max: 100, radius: 0.02, style: 'trail' },
+        { id: 'pathGhost', kind: 'trail', max: 50, radius: 0.01, style: 'ghost' },
+        { id: 'ballBall', kind: 'sphere', radius: 0.1, widthSegments: 16, heightSegments: 8 },
+        { id: 'slopeArrow', kind: 'arrow', length: 0.5, offset: 0.1 },
+        { id: 'slopeText', kind: 'label', text: 'Slope', anchor: 'tip' },
+      ],
+      nodes: [
+        { id: 'bowl', geometry: 'bowlGrid', material: 'bowlBlue', name: 'Bowl' },
+        { id: 'trail', geometry: 'pathTrail', material: 'pathDark', name: 'Path' },
+        { id: 'ghost', geometry: 'pathGhost', material: 'pathDark', name: 'Kept path' },
+        { id: 'ball', geometry: 'ballBall', material: 'ballRed', position: [2, 1.1, 0], name: 'Ball', clampTo: { node: 'bowl', max: 2 } },
+        { id: 'slope', parent: 'ball', geometry: 'slopeArrow', material: 'ballRed' },
+        { id: 'slopeTag', parent: 'slope', geometry: 'slopeText' },
+        { id: 'group' },
+      ],
+    },
+    parameters: [], actions: [],
+    readouts: [{ id: 'loss', label: 'Loss', decimals: 2 }, { id: 'status', label: 'Status', kind: 'text' }],
+    timeline: { duration: 4, loop: true },
+    program: program(bowlSource, 'ad8a48581b860e2aaa2f6cc58bb66b89337086042e4a373c0d3a434875cedfad'),
+    seed: 1, camera: { position: [0, 5, 6], target: [0, 0.5, 0] }, assumptions: ['The ball slides at constant speed along the line through the lowest point.'],
+  },
+  expected: [
+    { label: 'start', time: 0, frame: { nodes: { ball: { position: [2, 1.1, 0] }, trail: { points: { length: 1, 0: [2, 1.02, 0] } } }, readouts: { loss: 1, status: 'running' } } },
+    { label: 'lowest point', time: 2, frame: { nodes: { ball: { position: [0, 0.1, 0] }, trail: { points: { length: 21, 0: [2, 1.02, 0], 20: [0, 0.02, 0] } } }, readouts: { loss: 0, status: 'converged' } } },
+    { label: 'overshoot', time: 4, frame: { nodes: { ball: { position: [-2, 1.1, 0] }, trail: { points: { length: 41, 40: [-2, 1.02, 0] } } }, readouts: { loss: 1, status: 'overshoot' } } },
+  ],
+  // By hand, from the comment above.
+  counts: { triangles: 2682, linePoints: 258, labels: 3, nodes: 7 },
+};
+
 // ---- invalid cases ------------------------------------------------------------------------------------------------------
 // { name, kind: 'plan' | 'artifact' | 'frame' | 'event', value, artifact? (frame/event), code, path }: the validator must
 // return ok: false with an issue of exactly this code at this path.

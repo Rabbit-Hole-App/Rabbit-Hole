@@ -277,3 +277,45 @@ run('the saved scenes keep their fit: none of them has an arrow that dwarfs its 
     for (const [got, want] of [[fit.position, position], [fit.target, target]]) assert.ok(got.every((v, i) => Math.abs(v - want[i]) < 1e-6), `${artifact.title}: ${got} is not ${want}`);
   }
 });
+
+// AN-19 (owner decision 11): a sphere bound to a surface is clamped by the renderer after the program's frame, so the camera fits the clamped box.
+const BOWL = [{ id: 'bowlGeo', kind: 'surface', heights: [[2, 1, 1, 2], [1, 0, 0, 1], [1, 0, 0, 1], [2, 1, 1, 2]], width: 4, depth: 4 }, { id: 'ballGeo', kind: 'sphere', radius: 0.2 }];
+const bowlNodes = clampTo => [{ id: 'bowl', geometry: 'bowlGeo' }, { id: 'ball', geometry: 'ballGeo', ...(clampTo ? { clampTo } : {}) }];
+const ballAt = y => ({ nodes: { ball: { position: [0, y, 0] } } });
+const topOf = points => Math.max(...points.map(point => point.y));
+
+test('a clamped marker contributes its clamped box: a ball at 5.6 against a rim at 2 does not widen the fit', () => {
+  const clamped = sceneArtifact(BOWL, bowlNodes({ node: 'bowl' }));
+  const high = fitOf(clamped, [ballAt(5.6)]), atRim = fitOf(clamped, [ballAt(2)]);
+  assert.ok(Math.abs(topOf(high.points) - 2.2) < 1e-6, `the subject reaches the rim plus the ball radius, not 5.8 (${topOf(high.points)})`);
+  assert.deepEqual(high.camera, atRim.camera, 'the view is the one with the ball at the rim');
+  // Without the clamp the same frame is drawn where it is and the view follows it: this is what the clamp changes.
+  const free = fitOf(sceneArtifact(BOWL, bowlNodes(null)), [ballAt(5.6)]);
+  assert.ok(Math.abs(topOf(free.points) - 5.8) < 1e-6);
+  assert.notDeepEqual(free.camera, atRim.camera);
+  // max overrides the surface top; the ball is held at it.
+  assert.ok(topOf(fitOf(sceneArtifact(BOWL, bowlNodes({ node: 'bowl', max: 1 })), [ballAt(5.6)]).points) < 2.1, 'held at max 1 (the surface itself reaches 2), never at 5.6');
+});
+
+test('an empty trail is not framed: it has no points to fit, and the zero-filled buffer is not a point at the origin', () => {
+  const trail = [{ id: 'pathGeo', kind: 'trail', max: 10, style: 'trail', radius: 0.05 }, ...BOWL.slice(1)];
+  const artifact = sceneArtifact(trail, [{ id: 'path', geometry: 'pathGeo' }, { id: 'ball', geometry: 'ballGeo' }]);
+  const empty = fitOf(artifact, [{ nodes: { ball: { position: [8, 8, 0] } } }]);
+  assert.ok(empty.points.every(point => point.x > 7), 'only the ball');
+  const drawn = fitOf(artifact, [{ nodes: { ball: { position: [8, 8, 0] }, path: { points: [[6, 6, 0], [8, 8, 0]] } } }]);
+  assert.ok(drawn.points.every(point => point.x > 5.9), 'the trail adds its own points and nothing at the origin');
+});
+
+// FX-AN-074: a trail above the height a clamp holds the marker to is the diverged path; the fit follows the clamped marker, not the program's trail vertices.
+test('a trail above the clamp ceiling is not framed above it; a trail below it is framed as it is', () => {
+  const geometries = [...BOWL, { id: 'pathGeo', kind: 'trail', max: 10, style: 'trail' }];
+  const artifact = sceneArtifact(geometries, [...bowlNodes({ node: 'bowl' }), { id: 'path', geometry: 'pathGeo' }]);
+  const frame = (ballY, pathY) => ({ nodes: { ball: { position: [0, ballY, 0] }, path: { points: [[0, 0.5, 0], [0, pathY, 0]] } } });
+  const diverged = fitOf(artifact, [frame(5.6, 5.6)]), atRim = fitOf(artifact, [frame(2, 2)]);
+  assert.ok(topOf(diverged.points) <= 2.2 + 1e-6, `nothing is framed above the rim plus the ball radius (${topOf(diverged.points)})`);
+  assert.deepEqual(diverged.camera, atRim.camera, 'the view is the one with the path at the rim');
+  const below = fitOf(artifact, [frame(1, 1.5)]);
+  assert.ok(Math.abs(topOf(below.points) - 1.5) < 1e-6, 'a path under the ceiling is framed where it is');
+  const free = fitOf(sceneArtifact(geometries, [...bowlNodes(null), { id: 'path', geometry: 'pathGeo' }]), [frame(5.6, 5.6)]);
+  assert.ok(topOf(free.points) > 5.5, 'with no clamp nothing is held');
+});

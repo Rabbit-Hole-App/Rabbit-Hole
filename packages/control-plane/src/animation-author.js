@@ -4,7 +4,7 @@
 // provenance are the host's, never the model's), checks it with the shared contract (animation3d/contract.js), checks it keeps the
 // approved plan's experience, behavior, controls and parameters, and checks that the review and repair requests that must read it
 // fit their roles' limits. Problems are repairable, one sentence each; the job allows one repair (animation-job.js).
-import { ANIMATION_PROGRAM_VERSIONS, SCENE_SCHEMA, hashProgramSource, validateAnimationArtifact } from '../../web/src/animation3d/contract.js';
+import { ANIMATION_PROGRAM_VERSIONS, SCENE_SCHEMA, clientFeatureUses, hashProgramSource, validateAnimationArtifact } from '../../web/src/animation3d/contract.js';
 import { canonicalJson, sha256Hex } from '../../web/src/explain-program/contract.js';
 import { ANIMATION_AUTHOR_SYSTEM, authorTool } from './agents/animation-author.js';
 import { actionCapability, clientFeatures, enabledCapabilities, surfaceCapability } from './animation-brief.js';
@@ -87,6 +87,30 @@ export function planProblems(artifact, plan) {
   const ids = (plan.parameters || []).map(p => p.id);
   if (!missing && list.slice(0, ids.length).some((a, i) => a?.id !== ids[i])) out.push(`parameters: list the approved plan's parameters first and in its order (${ids.join(', ')})`);
   if (plan.experience === 'watch' && plan.duration && artifact.timeline && artifact.timeline.duration !== plan.duration) out.push(`timeline.duration: the approved loop is ${plan.duration} seconds`);
+  if (plan.assertions?.length) out.push(...assertionProblems(artifact, plan)); // only a plan that carries assertions is held to them (AN-20, owner decision 13)
+  return out;
+}
+
+// The plan's assertions against the artifact (plan section 8, AN-20): one repairable line each, found before any review is paid. clamp: that node has clampTo;
+// compare: the parameter is a number whose range includes both values; pathLength: a trail node with max at least min. Pure; tolerant of a draft that is not valid.
+export function assertionProblems(artifact, plan) {
+  const out = [], nodes = Array.isArray(artifact?.scene?.nodes) ? artifact.scene.nodes : [], geometries = Array.isArray(artifact?.scene?.geometries) ? artifact.scene.geometries : [];
+  (Array.isArray(plan?.assertions) ? plan.assertions : []).forEach((item, i) => {
+    const at = `assertions.${i}`;
+    if (item?.kind === 'clamp') {
+      const node = nodes.find(n => n?.id === item.node);
+      if (!node) out.push(`${at}: the approved plan clamps node ${item.node}, which the scene does not declare`);
+      else if (!node.clampTo) out.push(`${at}: the approved plan clamps node ${item.node} to its surface; give that node clampTo { node: <the surface node> }`);
+    } else if (item?.kind === 'compare') {
+      const p = (Array.isArray(artifact?.parameters) ? artifact.parameters : []).find(x => x?.id === item.parameter);
+      const [low, high] = [...(item.values || [])].sort((a, b) => a - b);
+      if (!p) out.push(`${at}: the approved plan compares values of parameter ${item.parameter}, which the scene does not declare`);
+      else if (p.type !== 'number' || !(p.min <= low && p.max >= high)) out.push(`${at}: parameter ${item.parameter} must cover both compared values, ${low} and ${high} (it has ${p.type === 'number' ? `${p.min} to ${p.max}` : p.type})`);
+    } else if (item?.kind === 'pathLength') {
+      const trail = id => geometries.some(g => g?.id === id && g.kind === 'trail' && g.max >= item.min);
+      if (!nodes.some(n => n?.geometry !== undefined && trail(n.geometry))) out.push(`${at}: the approved plan needs a path of at least ${item.min} points; use a trail geometry with max ${item.min} or more on a node`);
+    }
+  });
   return out;
 }
 
@@ -95,6 +119,8 @@ export function clientProblems(artifact, job) {
   const has = clientFeatures(job?.features), out = [];
   if (!has.includes('curve_radius')) out.push(...(artifact.scene?.geometries || []).flatMap((g, i) => (g?.kind === 'curve' && g.radius !== undefined ? [`scene.geometries.${i}.radius: the browser that asked for this scene cannot draw tube curves; remove radius`] : [])));
   if (!has.includes('action_motion')) out.push(...(artifact.actions || []).flatMap((a, i) => (a?.startsMotion !== undefined ? [`actions.${i}.startsMotion: the browser that asked for this scene does not know it; remove startsMotion`] : [])));
+  // surface_grid, trail_points, text_readout, arrow_anchor and clamp (AN-18, owner decisions 11 and 12): one line per field, found by the contract.
+  out.push(...clientFeatureUses(artifact).filter(use => !has.includes(use.feature)).map(use => `${use.path}: ${use.message}`));
   return out;
 }
 

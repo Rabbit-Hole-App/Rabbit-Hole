@@ -7,6 +7,7 @@ import {
   readoutText, retryLabel, visibleControls, WEBGL_UNAVAILABLE, FIXTURE_NOTE, INTERACT_LEGEND, jobOf, artifactRefOf,
 } from './card.js';
 import { validateAnimationEvent } from './contract.js';
+import { primitivesFixture } from './fixtures.js';
 import { experimentArtifact, gameArtifact, inspectArtifact, validated, watchArtifact } from './testdata/ui-stubs.mjs';
 
 const noEllipsis = value => assert.doesNotMatch(String(value), /\.\.\.|…/);
@@ -121,6 +122,10 @@ test('frame text: declared readouts in order with their units and decimals; the 
   assert.equal(frameView({ readouts: { tilt: 1 } }, m).readouts.length, 1, 'a readout the frame does not carry is not shown');
   const game = frameView({ readouts: { moves: 5 }, goal: { status: 'won', message: 'On target.' } }, model(gameArtifact()));
   assert.deepEqual(game.readouts.map(readoutText), ['5']);
+  // text_readout (AN-18): the word of a text readout is shown as it is; a number where a word is declared, or a word where a number is, is not shown.
+  const worded = model(primitivesFixture.artifact);
+  assert.deepEqual(frameView({ readouts: { loss: 0.25, status: 'running' } }, worded).readouts.map(readoutText), ['0.25', 'running']);
+  assert.deepEqual(frameView({ readouts: { loss: 'x', status: 3 } }, worded).readouts, []);
   assert.equal(outcomeText(game.goal), 'On target.');
   assert.equal(outcomeText({ status: 'lost' }), 'Not solved');
   assert.equal(outcomeText(null), 'In progress');

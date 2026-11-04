@@ -21,7 +21,7 @@ export const ANIMATION_RENDER_ENTRY = '/render/animation3d.html';
 // every k x fraction (and k x their difference) is at least 0.076 of a cycle from a whole number. Simple fractions (1/2, 1/3) alias:
 // a 12 s loop with 3 turns sampled at 0, 4 and 8 s looked still (accept-2, 2026-10-30).
 export const LOOP_FRACTIONS = Object.freeze([0.538, 0.769]);
-export const ANIMATION_CAPTURE = Object.freeze({ width: 960, height: 540, dpr: 1, theme: 'light', maxEvents: 4, maxTicks: 90, traceKeys: ['inputs', 'time', 'events', 'ticks', 'readouts', 'goal', 'selection', 'stateHash'] });
+export const ANIMATION_CAPTURE = Object.freeze({ width: 960, height: 540, dpr: 1, theme: 'light', maxEvents: 4, maxTicks: 90, traceKeys: ['inputs', 'time', 'events', 'ticks', 'readouts', 'goal', 'selection', 'stateHash', 'clamped'] });
 
 const blocker = (code, message) => Object.assign(new Error(message), { status: 503, code, category: 'renderer' });
 

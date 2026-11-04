@@ -2,24 +2,28 @@
 // scene and behavior program for the approved plan; the host seals it (ids, hashes, versions, provenance) and the shared contract
 // checks it (animation-author.js). The draft schema below is the contract's artifact (animation3d/contract.js) without the fields
 // only the host sets, so the model can never supply a hash, version, capability or plan binding.
-import { ANIMATION_PROGRAM_CONTRACT, GEOMETRY_KINDS, LABEL_PLACEMENTS } from '../../../web/src/animation3d/contract.js';
+import { ANIMATION_PROGRAM_CONTRACT, GEOMETRY_KINDS, LABEL_ANCHORS, LABEL_PLACEMENTS, READOUT_KINDS, TRAIL_STYLES } from '../../../web/src/animation3d/contract.js';
 import { ACCURACY_RULES, HONESTY_RULES, HOST_CONTROL_RULES, MOTION_RULES, PLAN_PARAMETER, WORK_RULES } from './animation-brief.js';
 
 const ID = { type: 'string', description: 'A letter, then up to 63 letters, digits, _ or -.' };
 const VEC3 = { type: 'array', minItems: 3, maxItems: 3, items: { type: 'number' } };
 const GEOMETRY = {
   type: 'object', additionalProperties: false, required: ['id', 'kind'],
-  description: 'box {size:[x,y,z]}; sphere {radius, widthSegments?, heightSegments?}; cylinder and cone {radius, height, radialSegments?}; plane {width, height}; line {points}; curve {points (2-64), segments?, closed?, radius?} (Catmull-Rom; with radius a shaded tube of that radius, without it a 1 px line); arrow {length} along local +Y; label {text, placement?} camera-facing.',
+  description: 'box {size:[x,y,z]}; sphere {radius, widthSegments?, heightSegments?}; cylinder and cone {radius, height, radialSegments?}; plane {width, height}; line {points}; curve {points (2-64), segments?, closed?, radius?} (Catmull-Rom; with radius a shaded tube of that radius, without it a 1 px line); arrow {length} along local +Y; label {text, placement?, anchor? origin|tip: where it sits when its parent is an arrow} camera-facing; surface {heights (a rows-by-cols grid of y values, 4 to 64 each way, every row the same length), width (x extent), depth (z extent), contours? (0 to 16 level lines)} a height field over x and z centred on the node, heights[row][col] at x = (col / (cols - 1) - 0.5) * width and z = (row / (rows - 1) - 0.5) * depth; trail {max (2 to 512), radius?, style trail|ghost} a path whose points the frame sets (nodes.<id>.points, at most max); arrow also takes offset (0 up to length, the tail starts that far along +Y).',
   properties: { id: ID, kind: { type: 'string', enum: GEOMETRY_KINDS }, size: VEC3, radius: { type: 'number' }, height: { type: 'number' }, width: { type: 'number' }, length: { type: 'number' },
     widthSegments: { type: 'integer' }, heightSegments: { type: 'integer' }, radialSegments: { type: 'integer' }, segments: { type: 'integer' }, closed: { type: 'boolean' },
-    points: { type: 'array', items: VEC3 }, text: { type: 'string', maxLength: 80 }, placement: { type: 'string', enum: LABEL_PLACEMENTS } },
+    points: { type: 'array', items: VEC3 }, text: { type: 'string', maxLength: 80 }, placement: { type: 'string', enum: LABEL_PLACEMENTS },
+    heights: { type: 'array', items: { type: 'array', items: { type: 'number' } } }, depth: { type: 'number' }, contours: { type: 'integer', minimum: 0, maximum: 16 },
+    max: { type: 'integer', minimum: 2, maximum: 512 }, style: { type: 'string', enum: TRAIL_STYLES }, offset: { type: 'number' }, anchor: { type: 'string', enum: LABEL_ANCHORS } },
 };
 const NODE = {
   type: 'object', additionalProperties: false, required: ['id'],
   description: 'A node without geometry is a group. parent: a node id or null. quaternion [x,y,z,w], normalized. drag (manipulate only): position range on one local axis.',
   properties: { id: ID, name: { type: 'string', maxLength: 80 }, parent: { type: ['string', 'null'] }, geometry: { type: 'string' }, material: { type: 'string' },
     position: VEC3, quaternion: { type: 'array', minItems: 4, maxItems: 4, items: { type: 'number' } }, scale: VEC3, visible: { type: 'boolean' }, selectable: { type: 'boolean' },
-    drag: { type: 'object', additionalProperties: false, required: ['axis', 'min', 'max'], properties: { axis: { type: 'string', enum: ['x', 'y', 'z'] }, min: { type: 'number' }, max: { type: 'number' } } } },
+    drag: { type: 'object', additionalProperties: false, required: ['axis', 'min', 'max'], properties: { axis: { type: 'string', enum: ['x', 'y', 'z'] }, min: { type: 'number' }, max: { type: 'number' } } },
+    clampTo: { type: 'object', additionalProperties: false, required: ['node'], properties: { node: { type: 'string' }, max: { type: 'number' } },
+      description: 'A sphere node only: the renderer holds its world y at the top of the surface node named by node (or at max), after the program\'s frame.' } },
 };
 export const ARTIFACT_DRAFT = {
   type: 'object', additionalProperties: false,
@@ -33,7 +37,8 @@ export const ARTIFACT_DRAFT = {
     parameters: { type: 'array', maxItems: 8, items: PLAN_PARAMETER },
     actions: { type: 'array', maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: ID, label: { type: 'string', maxLength: 60 }, startsMotion: { type: 'boolean', description: 'stepped scenes: false when the action only changes the state once (one step, keep a path); absent or true starts the host steps.' } } } },
     keys: { type: 'object', additionalProperties: false, properties: { up: ID, down: ID, left: ID, right: ID }, description: 'Optional: for moves that go up, down, left or right as seen from the camera, the id of the declared action each direction presses; the learner then plays them with the arrow keys or WASD, one action per key press.' },
-    readouts: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: ID, label: { type: 'string', maxLength: 60 }, unit: { type: 'string', maxLength: 16 }, decimals: { type: 'integer', minimum: 0, maximum: 6 } } } },
+    readouts: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: ID, label: { type: 'string', maxLength: 60 }, unit: { type: 'string', maxLength: 16 }, decimals: { type: 'integer', minimum: 0, maximum: 6 },
+      kind: { type: 'string', enum: READOUT_KINDS, description: 'number (default) or text: a word of at most 40 characters that the frame sets; a text readout has no unit or decimals.' } } } },
     timeline: { type: 'object', additionalProperties: false, required: ['duration', 'loop'], properties: { duration: { type: 'number' }, loop: { type: 'boolean' } }, description: 'Required for watch.' },
     stepped: { type: 'boolean', description: 'rules only: the host sends a step event every 1/30 s. Required for a motion an action starts (a launch, a drop): without steps or a timeline time never advances.' },
     game: { type: 'object', additionalProperties: false, required: ['objective'], properties: { objective: { type: 'string', maxLength: 300 }, hint: { type: 'string', maxLength: 300 } }, description: 'Required for a game, allowed only there.' },

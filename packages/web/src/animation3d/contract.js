@@ -28,9 +28,19 @@ export const SNAPSHOT_SCHEMA = 'animation-snapshot/1';
 export const EXPERIENCES = Object.freeze(['inspect', 'watch', 'experiment', 'game', 'assembly', 'walkthrough']);
 export const BEHAVIORS = Object.freeze(['prescribed', 'analytical', 'rules', 'physics']);
 export const CONTROL_PROFILES = Object.freeze(['inspect', 'manipulate', 'walk']);
-export const GEOMETRY_KINDS = Object.freeze(['box', 'sphere', 'cylinder', 'cone', 'plane', 'line', 'curve', 'arrow', 'label']);
+export const GEOMETRY_KINDS = Object.freeze(['box', 'sphere', 'cylinder', 'cone', 'plane', 'line', 'curve', 'arrow', 'label', 'surface', 'trail']);
 export const FEATURES = Object.freeze(['loop', 'speed', 'seek', 'parameters', 'actions', 'select', 'drag', 'step', 'labels', 'readouts',
   'physics', 'assembly', 'walkthrough', 'attached_models', 'image_reference']);
+// The five client features of AN-18 are not plan features: the planner's tool schema enumerates FEATURES (agents/animation-brief.js PLAN_TOOL), and it stays as it
+// was until AN-20. They are declared by the browser (capabilities.js ANIMATION_CLIENT_FEATURES) and found in a scene by clientFeatureUses below.
+// AN-18 plan fields (owner decision 13): the scene archetype a plan names (an archetype is added only when a shape recurs, never per request, and never selects a
+// canned scene) and the checks the artifact must meet (animation-author.js assertionProblems). Data here, so the planner's schema and the server share one list.
+export const PLAN_ARCHETYPES = Object.freeze(['loss_surface']);
+export const ASSERTION_KINDS = Object.freeze(['clamp', 'compare', 'pathLength']);
+export const MAX_ASSERTIONS = 4;
+export const TRAIL_STYLES = Object.freeze(['trail', 'ghost']);
+export const LABEL_ANCHORS = Object.freeze(['origin', 'tip']);
+export const READOUT_KINDS = Object.freeze(['number', 'text']);
 export const LABEL_PLACEMENTS = Object.freeze(['above', 'below', 'left', 'right', 'center']);
 export const GOAL_STATUSES = Object.freeze(['playing', 'won', 'lost']);
 export const ISSUE_CODES = Object.freeze(['invalid_value', 'unknown_field', 'unsupported_schema', 'over_limit', 'duplicate_id', 'unknown_id',
@@ -61,7 +71,9 @@ export const ANIMATION_PROGRAM_CONTRACT = Object.freeze({
 export const CONTRACT_LIMITS = Object.freeze({ planBytes: 32 * 1024, artifactBytes: 512 * 1024, frameBytes: 256 * 1024, eventBytes: 1024, snapshotBytes: 40 * 1024, coordinate: 10000, size: 1000 });
 const QUATERNION_TOLERANCE = 1e-3;
 const ARROW_RADIAL = 8; // an arrow is a shaft cylinder plus a head cone at this many radial segments
-const TUBE_RADIAL = 8; // a curve with a radius is a tube of this many sides
+const TUBE_RADIAL = 8; // a curve with a radius is a tube of this many sides (a trail with a radius too)
+const TEXT_READOUT_CHARS = 40;
+const GRID_MIN = 4, GRID_MAX = 64; // surface rows and columns
 
 // ---- shapes -------------------------------------------------------------------------------------------------------------
 
@@ -87,12 +99,19 @@ const parameter = z.discriminatedUnion('type', [
 // Reserved for attached assets (post-MVP): an immutable stored source revision, never a URL.
 const sourceRef = z.object({ sourceId: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/), revision: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/) }).strict();
 
+// A plan's checks on the artifact: a node is clamped to a surface, a parameter's range covers two values to compare, a trail holds at least this many points.
+const assertion = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('clamp'), node: id }).strict(),
+  z.object({ kind: z.literal('compare'), parameter: id, values: z.tuple([finite(1e9), finite(1e9)]) }).strict(),
+  z.object({ kind: z.literal('pathLength'), min: int(1, 512) }).strict(),
+]);
 const PlanSchema = z.object({
   schema: z.literal(PLAN_SCHEMA), title: text(120), description: text(600), experience: z.enum(EXPERIENCES), reason: text(300),
   behavior: z.enum(BEHAVIORS), controlProfile: z.enum(CONTROL_PROFILES), sourceRefs: z.array(sourceRef), parameters: z.array(parameter),
   interactions: z.array(text(200)).max(8), assumptions: z.array(text(300)).max(8), limitations: z.array(text(300)).max(8),
   learningGoal: text(300).optional(), requiredCapabilities: z.array(z.enum(FEATURES)).max(16),
   duration: z.number().positive().max(600).optional(), // seconds, for a watch loop
+  archetype: z.enum(PLAN_ARCHETYPES).optional(), assertions: z.array(assertion).max(MAX_ASSERTIONS).optional(), // both optional: every plan made before them is unchanged
 }).strict();
 
 const segments = (min, max, fallback) => int(min, max).default(fallback);
@@ -104,10 +123,18 @@ const geometry = z.discriminatedUnion('kind', [
   z.object({ id, kind: z.literal('plane'), width: size, height: size }).strict(),
   z.object({ id, kind: z.literal('line'), points: z.array(vec3).min(2) }).strict(),
   z.object({ id, kind: z.literal('curve'), points: z.array(vec3).min(2).max(64), segments: segments(2, 512, 64), closed: z.boolean().default(false), radius: size.optional() }).strict(), // Catmull-Rom through points; with a radius a shaded tube, else a 1 px line (aj_086fd46)
-  z.object({ id, kind: z.literal('arrow'), length: size }).strict(), // along local +Y from the node origin
+  // along local +Y from the node origin; offset (arrow_anchor): the shaft and head start that far up +Y, so a ball at the origin does not hide the tail
+  z.object({ id, kind: z.literal('arrow'), length: size, offset: z.number().min(0).max(CONTRACT_LIMITS.size).optional() }).strict(),
   // Camera-facing text drawn over the scene, sized by the scene's on-screen size within a legible range (scene.js): size is a relative
   // hint (0.3 normal), placement puts the plate beside its node's origin (added after AN-01; optional, so older artifacts still validate).
-  z.object({ id, kind: z.literal('label'), text: text(80), size: size.default(0.3), placement: z.enum(LABEL_PLACEMENTS).default('above') }).strict(),
+  // anchor (arrow_anchor): for a label whose parent is an arrow, the point of the arrow it sits at, its origin or its tip (offset + length along +Y).
+  z.object({ id, kind: z.literal('label'), text: text(80), size: size.default(0.3), placement: z.enum(LABEL_PLACEMENTS).default('above'), anchor: z.enum(LABEL_ANCHORS).optional() }).strict(),
+  // surface_grid: a height field in the node's local space. heights[r][c] is y at x = (c / (cols - 1) - 1/2) x width and z = (r / (rows - 1) - 1/2) x depth;
+  // each cell is two triangles; contours: that many level lines evenly spaced between the lowest and highest height.
+  z.object({ id, kind: z.literal('surface'), heights: z.array(z.array(coordinate).min(GRID_MIN).max(GRID_MAX)).min(GRID_MIN).max(GRID_MAX), width: size, depth: size, contours: int(0, 16).optional() }).strict(),
+  // trail_points: a polyline of at most max points that a frame sets (nodes.<id>.points); style trail draws in the node's material, ghost at 40% opacity and
+  // half the radius (the renderer's rule, AN-19). With a radius it is a tube, else a 1 px line.
+  z.object({ id, kind: z.literal('trail'), max: int(2, 512), radius: size.optional(), style: z.enum(TRAIL_STYLES) }).strict(),
 ]);
 const material = z.object({ id, color, opacity: z.number().min(0).max(1).default(1) }).strict();
 const node = z.object({
@@ -115,8 +142,15 @@ const node = z.object({
   position: vec3.default(() => [0, 0, 0]), quaternion: quaternion.default(() => [0, 0, 0, 1]), scale: scale.default(() => [1, 1, 1]),
   visible: z.boolean().default(true), selectable: z.boolean().default(false),
   drag: z.object({ axis: z.enum(['x', 'y', 'z']), min: coordinate, max: coordinate }).strict().optional(), // local-axis position range
+  // clamp: a sphere node whose world y the renderer holds at the top of the named surface node (or at max, when given), after the program's frame.
+  clampTo: z.object({ node: id, max: coordinate.optional() }).strict().optional(),
 }).strict();
 const camera = z.object({ position: vec3, target: vec3, fov: z.number().min(10).max(120).default(50) }).strict();
+// text_readout: kind text shows a word and carries no unit or decimals. A number readout gets decimals 2 when it names none, as before; a readout that
+// names no kind gains none (an older client's strict readout would refuse a field it does not know).
+const readout = z.object({ id, label: text(60), unit: z.string().max(16).optional(), decimals: int(0, 6).optional(), kind: z.enum(READOUT_KINDS).optional() }).strict()
+  .superRefine((r, ctx) => { if (r.kind === 'text') for (const key of ['unit', 'decimals']) if (r[key] !== undefined) ctx.addIssue({ code: 'custom', path: [key], message: `a text readout carries no ${key}` }); })
+  .transform(r => (r.kind === 'text' ? r : { ...r, decimals: r.decimals ?? 2 }));
 
 const ArtifactSchema = z.object({
   schema: z.literal(SCENE_SCHEMA), artifactId: z.string().regex(/^[A-Za-z0-9_.:-]{1,64}$/), revision: int(1, 1e9),
@@ -129,7 +163,7 @@ const ArtifactSchema = z.object({
   // or ArrowLeft, right: D or ArrowRight), as seen from the scene's camera. Discrete only: one action per key press, a held key never
   // repeats it. Continuous movement would need its own declared capability; this field never grants it. Optional, so older artifacts validate.
   keys: z.object({ up: id.optional(), down: id.optional(), left: id.optional(), right: id.optional() }).strict().optional(),
-  readouts: z.array(z.object({ id, label: text(60), unit: z.string().max(16).optional(), decimals: int(0, 6).default(2) }).strict()),
+  readouts: z.array(readout),
   timeline: z.object({ duration: z.number().positive().max(600), loop: z.boolean() }).strict().optional(),
   stepped: z.boolean().default(false), // rules scene advanced by host step events at capabilities.stepSeconds
   game: z.object({ objective: text(300), hint: text(300).optional() }).strict().optional(),
@@ -142,11 +176,11 @@ const ArtifactSchema = z.object({
   provenance: z.object({ origin: z.enum(['generated', 'fixture']), model: z.string().max(64).optional(), createdAt: z.string().max(40).optional() }).strict(),
 }).strict();
 
-const nodeUpdate = z.object({ position: vec3.optional(), quaternion: quaternion.optional(), scale: scale.optional(), visible: z.boolean().optional(), text: text(80).optional() }).strict();
+const nodeUpdate = z.object({ position: vec3.optional(), quaternion: quaternion.optional(), scale: scale.optional(), visible: z.boolean().optional(), text: text(80).optional(), points: z.array(vec3).max(512).optional() }).strict();
 const FrameSchema = z.object({
   nodes: z.record(id, nodeUpdate).default(() => ({})),
   materials: z.record(id, z.object({ color: color.optional(), opacity: z.number().min(0).max(1).optional() }).strict()).default(() => ({})),
-  readouts: z.record(id, finite(1e12)).default(() => ({})),
+  readouts: z.record(id, z.union([finite(1e12), z.string()])).default(() => ({})), // a number, or a word for a text readout (its type and length are checked against the artifact)
   selection: id.nullable().optional(),
   goal: z.object({ status: z.enum(GOAL_STATUSES), message: text(200).optional() }).strict().optional(),
 }).strict();
@@ -183,10 +217,33 @@ export function triangleCost(g) {
     case 'plane': case 'label': return 2;
     case 'arrow': return 4 * ARROW_RADIAL + 2 * ARROW_RADIAL; // shaft cylinder plus head cone
     case 'curve': return g.radius ? 2 * TUBE_RADIAL * g.segments : 0; // its points still count against linePoints
+    case 'surface': return 2 * (g.heights.length - 1) * (g.heights[0].length - 1); // two triangles per cell
+    case 'trail': return g.radius ? 2 * TUBE_RADIAL * (g.max - 1) : 0; // a tube through at most max points; without a radius a line
     default: return 0; // line: no triangles; its points count against linePoints
   }
 }
-const linePoints = g => (g.kind === 'line' ? g.points.length : g.kind === 'curve' ? g.segments + 1 : 0);
+// The line points one contour level may use on a surface: a level line crosses at most 2(rows - 1) + 2(cols - 1) cells (a convex loop crosses exactly that
+// many) and each crossed cell is one segment of two points. A bound the renderer holds to: the extra segments of an unusual surface are dropped.
+export const contourPoints = g => 4 * (g.heights.length + g.heights[0].length - 2);
+export const linePoints = g => (g.kind === 'line' ? g.points.length : g.kind === 'curve' ? g.segments + 1 : g.kind === 'trail' ? g.max : g.kind === 'surface' ? (g.contours ?? 0) * contourPoints(g) : 0);
+
+// Where an artifact or draft uses the five client features added after curve_radius and action_motion (capabilities.js ANIMATION_CLIENT_FEATURES; owner
+// decision 12): -> [{ feature, path, message }], one per field, in artifact order. Pure and tolerant of a draft that is not valid. The control plane refuses
+// a use the client did not declare (animation-author.js clientProblems) and answers 409 client_update_required for a stored artifact that has one for a
+// reader that did not (animation-job.js needsFeatures). curve_radius and action_motion are checked there, where they began.
+export function clientFeatureUses(artifact) {
+  const out = [], list = value => (Array.isArray(value) ? value : []);
+  const use = (feature, path, what, field) => out.push({ feature, path, message: `the browser that asked for this scene cannot ${what}; remove ${field}` });
+  list(artifact?.scene?.geometries).forEach((g, i) => {
+    if (g?.kind === 'surface') use('surface_grid', `scene.geometries.${i}.kind`, 'draw surface geometry', 'it');
+    if (g?.kind === 'trail') use('trail_points', `scene.geometries.${i}.kind`, 'draw trail geometry', 'it');
+    if (g?.kind === 'arrow' && g.offset !== undefined) use('arrow_anchor', `scene.geometries.${i}.offset`, 'offset an arrow', 'offset');
+    if (g?.kind === 'label' && g.anchor !== undefined) use('arrow_anchor', `scene.geometries.${i}.anchor`, 'anchor a label to an arrow', 'anchor');
+  });
+  list(artifact?.scene?.nodes).forEach((n, i) => { if (n?.clampTo !== undefined) use('clamp', `scene.nodes.${i}.clampTo`, 'clamp a marker to a surface', 'clampTo'); });
+  list(artifact?.readouts).forEach((r, i) => { if (r?.kind !== undefined) use('text_readout', `readouts.${i}.kind`, 'show text readouts', 'kind'); });
+  return out;
+}
 
 const quaternionOff = q => Math.abs(Math.hypot(...q) - 1) > QUATERNION_TOLERANCE;
 
@@ -284,6 +341,10 @@ export function validateAnimationPlan(value, capabilities) {
     if (plan.requiredCapabilities.includes('step') && plan.behavior !== 'rules') add('requiredCapabilities', 'unsupported_capability', 'step needs behavior rules');
     uniqueIds(plan.parameters, 'parameters', add);
     checkParameters(plan.parameters, caps.limits.parameters, add);
+    (plan.assertions ?? []).forEach((item, index) => {
+      if (item.kind === 'compare' && !plan.parameters.some(p => p.id === item.parameter && p.type === 'number')) add(`assertions.${index}.parameter`, 'unknown_id', `"${item.parameter}" is not a number parameter of this plan`);
+      if (item.kind === 'compare' && item.values[0] === item.values[1]) add(`assertions.${index}.values`, 'invalid_value', 'a comparison needs two different values');
+    });
   });
 }
 
@@ -310,7 +371,13 @@ export function validateAnimationArtifact(value, capabilities, { draft = false }
 
     const geometryById = new Map(geometries.map(g => [g.id, g])), materialIds = new Set(materials.map(m => m.id));
     const parentOf = new Map(nodes.map(n => [n.id, n.parent]));
-    geometries.forEach((g, index) => { if (!caps.geometry.includes(g.kind)) add(`scene.geometries.${index}.kind`, 'unsupported_capability', `geometry "${g.kind}" is not available in the ${caps.phase} phase`); });
+    geometries.forEach((g, index) => {
+      if (!caps.geometry.includes(g.kind)) add(`scene.geometries.${index}.kind`, 'unsupported_capability', `geometry "${g.kind}" is not available in the ${caps.phase} phase`);
+      if (g.kind === 'surface' && g.heights.some(row => row.length !== g.heights[0].length)) add(`scene.geometries.${index}.heights`, 'invalid_value', 'every row of heights needs the same number of values');
+      if (g.kind === 'arrow' && g.offset !== undefined && !(g.offset < g.length)) add(`scene.geometries.${index}.offset`, 'invalid_value', 'the offset must be less than the arrow length');
+    });
+    const nodeById = new Map(nodes.map(n => [n.id, n]));
+    const kindOf = n => (n?.geometry === undefined ? null : geometryById.get(n.geometry)?.kind ?? null);
     let triangles = 0, points = 0, labels = artifact.readouts.length;
     const acyclic = new Set();
     nodes.forEach((n, index) => {
@@ -320,6 +387,13 @@ export function validateAnimationArtifact(value, capabilities, { draft = false }
       const g = n.geometry === undefined ? null : geometryById.get(n.geometry);
       if (n.geometry !== undefined && !g) add(`${at}.geometry`, 'unknown_id', `unknown geometry "${n.geometry}"`);
       if (g) { triangles += triangleCost(g); points += linePoints(g); if (g.kind === 'label') labels += 1; }
+      if (g?.kind === 'label' && g.anchor !== undefined && kindOf(nodeById.get(n.parent)) !== 'arrow') add(`${at}.geometry`, 'invalid_value', 'a label anchor needs a label whose parent is an arrow node');
+      if (n.clampTo) {
+        if (g?.kind !== 'sphere') add(`${at}.clampTo`, 'invalid_value', 'only a sphere node can be clamped to a surface');
+        const target = nodeById.get(n.clampTo.node);
+        if (!target) add(`${at}.clampTo.node`, 'unknown_id', `unknown node "${n.clampTo.node}"`);
+        else if (kindOf(target) !== 'surface') add(`${at}.clampTo.node`, 'invalid_value', 'clampTo must name a node drawn with a surface geometry');
+      }
       if (quaternionOff(n.quaternion)) add(`${at}.quaternion`, 'not_normalized', 'the quaternion must have length 1');
       if (n.drag && !(n.drag.min < n.drag.max)) add(`${at}.drag`, 'invalid_value', 'drag min must be below max');
       if (n.drag && artifact.controlProfile === 'inspect') add(`${at}.drag`, 'invalid_value', 'dragging needs control profile manipulate');
@@ -349,15 +423,25 @@ export function validateAnimationArtifact(value, capabilities, { draft = false }
 export function validateAnimationFrame(value, artifact) {
   return validate(value, { schema: FrameSchema, budget: CONTRACT_LIMITS.frameBytes }, (frame, add) => {
     const nodes = new Map(artifact.scene.nodes.map(n => [n.id, n])), geometries = new Map(artifact.scene.geometries.map(g => [g.id, g]));
-    const materials = new Set(artifact.scene.materials.map(m => m.id)), readouts = new Set(artifact.readouts.map(r => r.id));
+    const materials = new Set(artifact.scene.materials.map(m => m.id)), readouts = new Map(artifact.readouts.map(r => [r.id, r]));
     for (const [key, update] of Object.entries(frame.nodes)) {
       const n = nodes.get(key);
       if (!n) { add(`nodes.${key}`, 'unknown_id', 'not a node of this artifact'); continue; }
       if (update.quaternion && quaternionOff(update.quaternion)) add(`nodes.${key}.quaternion`, 'not_normalized', 'the quaternion must have length 1');
       if (update.text !== undefined && geometries.get(n.geometry)?.kind !== 'label') add(`nodes.${key}.text`, 'not_declared', 'only a label node takes text');
+      if (update.points !== undefined) {
+        const trail = geometries.get(n.geometry);
+        if (trail?.kind !== 'trail') add(`nodes.${key}.points`, 'not_declared', 'only a trail node takes points');
+        else if (update.points.length > trail.max) add(`nodes.${key}.points`, 'over_limit', `${update.points.length} points (this trail holds at most ${trail.max})`);
+      }
     }
     for (const key of Object.keys(frame.materials)) if (!materials.has(key)) add(`materials.${key}`, 'unknown_id', 'not a material of this artifact');
-    for (const key of Object.keys(frame.readouts)) if (!readouts.has(key)) add(`readouts.${key}`, 'unknown_id', 'not a declared readout');
+    for (const [key, value] of Object.entries(frame.readouts)) {
+      const declared = readouts.get(key);
+      if (!declared) add(`readouts.${key}`, 'unknown_id', 'not a declared readout');
+      else if ((declared.kind === 'text') !== (typeof value === 'string')) add(`readouts.${key}`, 'invalid_value', declared.kind === 'text' ? 'a text readout takes a word' : 'a number readout takes a number');
+      else if (typeof value === 'string' && value.length > TEXT_READOUT_CHARS) add(`readouts.${key}`, 'over_limit', `${value.length} characters (a text readout holds at most ${TEXT_READOUT_CHARS})`);
+    }
     if (frame.selection && !nodes.get(frame.selection)?.selectable) add('selection', 'not_declared', 'not a selectable node');
     if (frame.goal && artifact.experience !== 'game') add('goal', 'not_declared', 'only a game reports a goal');
   });
