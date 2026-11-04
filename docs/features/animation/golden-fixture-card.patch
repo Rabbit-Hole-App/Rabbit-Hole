@@ -1,0 +1,24 @@
+diff --git a/packages/web/src/Animation3DCard.jsx b/packages/web/src/Animation3DCard.jsx
+index 6e6532a65..1c9009aea 100644
+--- a/packages/web/src/Animation3DCard.jsx
++++ b/packages/web/src/Animation3DCard.jsx
+@@ -39,6 +39,10 @@ import { MdInline } from './Md.jsx';
+ const OFFSCREEN_RELEASE_MS = 2000;
+ const aborted = () => Object.assign(new Error('aborted'), { name: 'AbortError' });
+ 
++// The golden SGD artifact (AN-19, owner decisions 11 to 13): an offline fixture named 'sgd-golden', in no picker and no Slash window. It loads as
++// its own chunk, only when a card names it, so no other card or build pays for it.
++const goldenFixture = async name => (name === 'sgd-golden' ? (await import('./animation3d/testdata/sgd-golden.json')).default : null);
++
+ // The scene a card shows: a built-in example by its fixture name (its state kept in this page only), else the saved envelope
+ // hydrated by storage.js (owner only in the MVP; the artifact read through the result route, checked against its reference) and
+ // landed on the card as it is now, so edits made while it loaded win.
+@@ -46,7 +50,7 @@ export const sceneLoader = ({ context: contextOf, readArtifact, latest }) => asy
+   const context = contextOf(); // read at load time: the canvas's board id can arrive after the card mounts
+   const name = fixtureIdOf(block);
+   if (name) {
+-    const fixture = [...ANIMATION_FIXTURES, pendulumDemo, ...LEARNING_EXAMPLES].find(entry => entry.name === name);
++    const fixture = [...ANIMATION_FIXTURES, pendulumDemo, ...LEARNING_EXAMPLES].find(entry => entry.name === name) ?? await goldenFixture(name);
+     if (!fixture) throw Object.assign(new Error('This example is not available.'), { retry: false });
+     return { artifact: structuredClone(fixture.artifact), sim: null, view: null };
+   }
