@@ -258,3 +258,23 @@ test('combined: the union of the four slices with prefixed ids, a file run once,
   const small = { a: { title: 'a', items: [{ id: 't', kind: 'tests', cwd: 'p', files: ['x.js', 'y.js'] }] }, b: { title: 'b', items: [{ id: 't', kind: 'tests', cwd: 'p', files: ['x.js'] }, { id: 'n', kind: 'note', text: 'n' }] }, c: { title: 'c', includes: ['a', 'b'], items: [{ id: 'own', kind: 'note', text: 'o' }] } };
   assert.deepEqual(itemsFor(small, 'c').map(i => `${i.id}:${i.files ?? ''}`), ['a:t:x.js,y.js', 'b:n:', 'own:']);
 });
+
+test('--gate2-pending: Gate 2 not finished is reported PENDING with exit 3, never PASS; --strict does not turn it into a FAIL; a given table still wins', async () => {
+  const items = [{ id: 'g2', label: 'gate 2', kind: 'gate2', frozen: FROZEN }, { id: 'u', label: 'unit', kind: 'tests', cwd: 'p', files: ['a.test.js'] }];
+  const io = () => fakeIo({ files: ['/r/p/a.test.js'] });
+  let r = await run(items, { gate2Pending: true, strict: true }, io());
+  assert.equal(r.code, 3); assert.match(line(r, 'g2[pending]'), /^SKIP.*PENDING: Gate 2 has not finished.*NOT a release pass/);
+  assert.match(r.lines.at(-1), /^SMOKE mvp3 PENDING GATE 2 \(not a release pass\): 1 pass, 0 fail, 1 skip$/);
+  r = await run(items, { strict: true }, io());
+  assert.equal(r.code, 1, 'without the flag a missing table still fails the strict run');
+  r = await run(items, { gate2Pending: true }, fakeIo({ files: [] }));
+  assert.equal(r.code, 1, 'a real failure beside the pending item is still exit 1');
+  r = await run(items.slice(0, 1), { gate2Pending: true, gate2Result: '/o/r.json' }, gateIo());
+  assert.equal(r.code, 0); assert.match(line(r, 'g2'), /^PASS/, 'a recorded table is evaluated even when --gate2-pending is also given');
+  assert.equal(parseArgs(['combined', '--gate2-pending', '--strict']).gate2Pending, true);
+});
+
+test('--live-only says in its last lines that the local list and Gate 2 were not part of the run', async () => {
+  const r = await run([{ id: 'l', label: 'live', kind: 'bundle', origin: true, features: ['f1'] }], { liveOnly: true, origin: 'https://rabbit-hole-web-dev-x.tryrabbithole.workers.dev' }, fakeIo());
+  assert.equal(r.code, 0); assert.match(r.lines.at(-2), /LIVE ITEMS ONLY.*Gate 2 result are NOT part of this run/); assert.match(r.lines.at(-1), /LIVE ITEMS ONLY \(not a release pass\)/);
+});
