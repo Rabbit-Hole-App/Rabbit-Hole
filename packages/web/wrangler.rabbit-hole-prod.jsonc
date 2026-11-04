@@ -83,6 +83,8 @@
     // ANIMATION_DIAGNOSTICS (job detail and the render probes) is never set here.
     "ANIMATION_ENABLED": "true",
     "ANIMATION_EXECUTION_KILL": "false",
+    // FORWARD RECOVERY (MVP2b): the author and repair calls are one non-streaming request with no deadline, as before streaming. Remove this line to stream again.
+    "ANIMATION_STREAMING": "false",
     // IMG-01 image generation (docs/features/image-jobs.md): PUBLIC generation is ON (owner GO). Only "true" accepts new jobs from everyone.
     // The controlled owner-only acceptance path below (owner 2026-10-25) stays for the operator surfaces: a caller whose verified sign-in identity
     // is listed in IMAGE_ACCEPTANCE_EMAILS may use it under the ordinary admission, hold, settlement and readiness rules, so the

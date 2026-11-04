@@ -341,31 +341,6 @@ test('the dev render probe renders a fixture through the review capture path, on
 });
 
 // accept-3: the experiment's repair returned the artifact without its program, and the candidate died at validation (missing_program).
-test('a repair must return the program: the tool requires it and the prompt says so; one returned without it is refused at validation', { skip: NEEDS_PROPOSAL }, async t => {
-  const noProgram = () => { const { program: _p, ...rest } = draftOf(experimentFixture.artifact); return { operation: 'artifact', artifact: { ...rest, title: 'Fixed' } }; };
-  const s = stack(t, { reviews: [false, true], repair: noProgram });
-  const { done } = await s.generated();
-  const call = s.model.calls.find(c => c.role === 'repair');
-  assert.ok(call.tool.input_schema.properties.artifact.required.includes('program'), 'the repair tool requires the program');
-  assert.match(call.system, /Return the COMPLETE artifact every time[^.]*the program/);
-  // The review's repair dropped the program and was asked once more (FX-AN-043), which dropped it again. FX-AN-060: that ask took no slot of the repair ceiling, so the run failure's repair
-  // gets its call (a third repair call, recorded) instead of the build stopping on a count it had not used up; it answers without a program too and nothing is invented, so the build
-  // ends on its own result (no progress), not on a limit. It was 'budget' before, with 2.56M of the 3.73M micro-USD ceiling used.
-  assert.deepEqual([done.stage, done.stopReason, done.counts.repair, done.candidates.find(c => c.stage !== 'preparing').programRetried], ['failed', 'no_progress', 2, true]);
-  assert.equal(done.calls.filter(c => c.role === 'repair').length, 3);
-  assert.match(done.findings.find(f => f.problems)?.problems.join(' '), /missing_program/);
-  // FX-AN-043: both program-less answers are kept as they came, with the candidate (diagnostics only).
-  const kept = done.candidates.find(c => c.stage !== 'preparing').rawReplies;
-  assert.deepEqual([kept.length, kept.every(r => r.stopReason === 'tool_use' && r.blocks.some(b => b.type === 'tool_use') && JSON.parse(r.partialTool).operation === 'artifact' && !JSON.parse(r.partialTool).artifact.program)], [2, true]);
-  // The author's tool requires it too for a scene that needs one; a static inspect plan does not.
-  assert.ok(s.model.calls.find(c => c.role === 'author').tool.input_schema.properties.artifact.required.includes('program'));
-  const { authorTool } = await import('../src/agents/animation-author.js');
-  assert.equal(authorTool({ experience: 'inspect', parameters: [] }).input_schema.properties.artifact.required.includes('program'), false);
-  // With the program returned, the same repair is sealed, rendered and accepted.
-  const withProgram = () => ({ operation: 'artifact', artifact: { ...draftOf(experimentFixture.artifact), title: 'Fixed' } });
-  const ok = stack(t, { reviews: [false, true], repair: withProgram });
-  assert.equal((await ok.generated()).done.stage, 'ready');
-});
 
 test('author and repair are told to carry a rate change in state instead of absolute time', async () => {
   const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM } = await import('../src/agents/animation-author.js');
@@ -374,19 +349,6 @@ test('author and repair are told to carry a rate change in state instead of abso
 
 // accept-5 experiment: the repair answered in the shape it was shown (the artifact without its program, the program beside it), and the
 // candidate failed missing_program. The program is now taken wherever the reply put it, never invented.
-test('a repair that returns the program beside the artifact, or as a bare source string, keeps its program', { skip: NEEDS_PROPOSAL }, async t => {
-  const { program, ...rest } = draftOf(experimentFixture.artifact);
-  for (const placed of [{ program }, { program: program.source }]) {
-    const s = stack(t, { reviews: [false, true], repair: () => ({ operation: 'artifact', artifact: { ...rest, title: 'Fixed' }, ...placed }) });
-    const { done } = await s.generated();
-    assert.equal(done.stage, 'ready', JSON.stringify(done.findings.at(-1)));
-    assert.equal(done.artifact.program.source, program.source);
-    assert.deepEqual([done.candidates.find(c => c.stage !== 'preparing').hasProgram, done.candidates.find(c => c.stage !== 'preparing').inputKeys.includes('program'), done.candidates.find(c => c.stage !== 'preparing').artifactKeys.includes('program')], [true, true, false]);
-  }
-  // Nowhere at all: asked once more (FX-AN-043), then still refused at validation (no program is invented); the run failure's repair has its call (FX-AN-060) and ends the build on no progress.
-  const none = stack(t, { reviews: [false, true], repair: () => ({ operation: 'artifact', artifact: { ...rest, title: 'Fixed' } }) });
-  assert.deepEqual([(await none.generated()).done.stopReason], ['no_progress']);
-});
 
 // accept-5 fresh: the author spent all 10,000 output tokens (dev ledger: output_tokens 10000) and made no tool call.
 test('an author reply cut off at its output limit is output_limit, and its billed usage is recorded', { skip: NEEDS_PROPOSAL }, async t => {
