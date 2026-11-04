@@ -321,6 +321,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
   // from its origin; its tip is offset + length x scale up +Y. placers move each arrow's drawable and each tip label to match the arrow's current scale.
   const placers = [], bases = new Map(); // bases: tip label node id -> the position the program gave (before the tip shift)
   const surfaceLocal = new THREE.Vector3(); // the world y of a surface under (or over) a world point (buried, the rim hold)
+  const scaleHolder = new THREE.Vector3(), shownNode = holder => { let on = holder.visible; holder.traverseAncestors(ancestor => { if (!ancestor.visible) on = false; }); return on; }; // a node and every ancestor shown
   const surfaceAt = (id, point) => { // the world y of the surface under (or over) this world point, or null when the point is off its footprint
     const mesh = tops.get(id), g = surfaceDefs.get(id);
     if (!mesh) return null;
@@ -380,6 +381,14 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
       placers.push(() => {
         const along = (g.offset ?? 0) / (holder.scale.y || 1); // the offset in the node's own (scaled) units
         drawable.position.y = along;
+        if (above?.kind === 'sphere') {
+          // C12 (e2, owner; C11 Gate 2 jobs 1 and 2: a tiny arrow next to its label, a 2x arrow inside the ball): an arrow drawn from a sphere (its parent) whose drawn length is under that sphere's
+          // diameter (its widest world scale) is not drawn, and neither is its tip label (layoutLabels); arrowsHidden() lists it. Exactly the diameter is drawn. A non-sphere parent: unchanged.
+          const length = g.length * holder.getWorldScale(scaleHolder).y, diameter = 2 * above.radius * Math.max(...objects.get(node.parent).getWorldScale(scaleHolder).toArray());
+          const hidden = length < diameter * (1 - 1e-9);
+          drawable.visible = !hidden;
+          drawable.userData.hidden = hidden ? { length, diameter } : null;
+        }
         for (const [labelId, base] of bases) {
           const tag = objects.get(labelId);
           if (tag && tag.parent === holder) tag.position.set(base[0], base[1] + along + g.length, base[2]);
@@ -526,6 +535,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
           let cap = bounds.w;
           const arrow = drawable.parent?.parent?.children.find(child => child.userData.arrow !== undefined); // the arrow this label names, if its node is a child of an arrow node
           if (arrow) {
+            if (arrow.userData.hidden) { drawable.visible = tag.leader.visible = false; continue; } // C12 (e2): the arrow is not drawn, so its label is not either
             const length = arrowPixels(arrow);
             if (length < ARROW_LABELS.hide) { drawable.visible = tag.leader.visible = false; continue; } // no arrow to name: no label, and no room taken
             cap = Math.min(bounds.w, Math.max(ARROW_LABELS.minWidth, Math.round(ARROW_LABELS.cap * length / 8) * 8)); // buckets of 8 px: it repaints only when the cap moves
@@ -643,6 +653,51 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
           }
         }
         return found;
+      },
+      // C12 (b)(iii): sphere markers whose drawn centres lie within half the smaller radius of each other, both shown and neither a ghost (a node named ghost, or a translucent material):
+      // one hides the other (C11 jobs 3 and 7: twin balls at the initial capture). -> [{ a, b, distance }] in scene order, at most 4, distance rounded to 4 decimals.
+      overlaps() {
+        root.updateWorldMatrix(true, true);
+        const spheres = scene.nodes.filter(n => byGeometry.get(n.geometry)?.kind === 'sphere' && !/ghost/i.test(`${n.id} ${n.name ?? ''}`) && (surfaces.get(n.material)?.opacity ?? 1) >= 1 && shownNode(objects.get(n.id)))
+          .map(n => ({ id: n.id, at: objects.get(n.id).getWorldPosition(new THREE.Vector3()), radius: byGeometry.get(n.geometry).radius * Math.max(...objects.get(n.id).getWorldScale(scaleHolder).toArray()) }));
+        const found = [];
+        for (let i = 0; i < spheres.length; i += 1) for (let j = i + 1; j < spheres.length; j += 1) {
+          const distance = spheres[i].at.distanceTo(spheres[j].at);
+          if (distance < 0.5 * Math.min(spheres[i].radius, spheres[j].radius)) found.push({ a: spheres[i].id, b: spheres[j].id, distance: Math.round(distance * 1e4) / 1e4 });
+        }
+        return found.slice(0, 4);
+      },
+      // C12 (e): the arrows drawn with their tip or middle below the surface the markers sit on (the arrow's own clamp, else the first clamp target, else the scene's only surface) at that
+      // x and z (C11 job 2: a 4x step arrow, drawn flat at the ball's height, ran into the rising wall). Below = more than 2% of the surface's height range, as buried(). An arrow the renderer
+      // hides (arrowsHidden) is not drawn, so it is not listed. -> [{ id, point: 'tip' | 'middle' (the worse), tip: [x, y, z] world, under }], at most 4, rounded to 4 decimals.
+      arrowsUnder() {
+        root.updateWorldMatrix(true, true);
+        const found = [], tail = new THREE.Vector3(), tip = new THREE.Vector3(), middle = new THREE.Vector3(), round = value => Math.round(value * 1e4) / 1e4 || 0;
+        for (const node of scene.nodes) {
+          const holder = objects.get(node.id), drawable = byGeometry.get(node.geometry)?.kind === 'arrow' ? holder.children.find(child => child.userData.arrow !== undefined) : null;
+          const surfaceId = node.clampTo?.node ?? clamps[0]?.target ?? (tops.size === 1 ? [...tops.keys()][0] : null);
+          if (!drawable || !drawable.visible || !shownNode(holder) || !tops.has(surfaceId)) continue;
+          const flat = surfaceDefs.get(surfaceId).heights.flat(), slack = 0.02 * (Math.max(...flat) - Math.min(...flat)) * Math.abs(tops.get(surfaceId).getWorldScale(scaleHolder).y);
+          drawable.localToWorld(tail.set(0, 0, 0)); drawable.localToWorld(tip.set(0, drawable.userData.arrow, 0)); middle.addVectors(tail, tip).multiplyScalar(0.5);
+          let worst = null;
+          for (const [point, at] of [['tip', tip], ['middle', middle]]) {
+            const top = surfaceAt(surfaceId, at), under = top === null ? 0 : top - at.y;
+            if (under > slack && (!worst || under > worst.under)) worst = { point, under };
+          }
+          if (worst) found.push({ id: node.id, point: worst.point, tip: tip.toArray().map(round), under: round(worst.under) });
+        }
+        return found.slice(0, 4);
+      },
+      // C12 (e2): the arrows the renderer does not draw because they are shorter than the diameter of the sphere they come from (a node the program hides is not listed).
+      // -> [{ id, hidden: true, length, diameter }] in world units, at most 4, rounded to 4 decimals.
+      arrowsHidden() {
+        root.updateWorldMatrix(true, true);
+        const found = [], round = value => Math.round(value * 1e4) / 1e4;
+        for (const node of scene.nodes) {
+          const holder = objects.get(node.id), hidden = byGeometry.get(node.geometry)?.kind === 'arrow' && shownNode(holder) ? holder.children.find(child => child.userData.arrow !== undefined)?.userData.hidden : null;
+          if (hidden) found.push({ id: node.id, hidden: true, length: round(hidden.length), diameter: round(hidden.diameter) });
+        }
+        return found.slice(0, 4);
       },
       clampCeiling: () => ceiling,
       clampFootprint: () => footprint, // { minX, maxX, minZ, maxZ } of the surface a clamp held a node to in the last frame, or null (framing.js) // the highest world y a clamp held a node to in the last frame, or null: the camera fit does not follow a trail above it (framing.js)
