@@ -88,6 +88,7 @@ Production at the last update (2026-10-29 ~3:30 PM PT): main `d3d50986e71f970022
 | FX-20 | pdf-excerpt | header-band 566cc5f79 attempt 1: new Rabbit Hole still `hole_pending` when Open source was pressed | a race also visible on d54dd6a1f; deferred |
 | FX-21 | control-plane subscription.test.js "deadline launcher" | several local runs | timing test; not in CI failures |
 | FX-22 | web genuine-card.test.mjs 50 ms budget; control-plane image-jobs "boundary 2" | local runs under load | timing tests |
+| FX-78 | signup-email-preferences (fast-e2e) | "no account id" after 30/30 or 36/36 assertions: runs 41702181259, 41726849502, 41697467460, 41735022764, 41739211926 and the escrow and animation branches | diagnosed, check-side: a transient 401 from SQLITE_BUSY on the local stack's standalone control plane (`GET /api/me` failed closed). Patched on `feat/mvp-fast-path` (account id read from the minted session token, session mint retried, helper failures print status and body; all 45 assertions kept); the Playwright check was not run locally, so a green fast-e2e on that branch is the evidence still owed |
 
 ## Deferred / optional
 
@@ -104,3 +105,6 @@ Production at the last update (2026-10-29 ~3:30 PM PT): main `d3d50986e71f970022
 | FX-62 | /explain drawing | Reusable drawing helpers for generated programs | later idea (owner: not now, no release blocker) |
 | FX-63 | /explain drawing | Optional isometric SVG presentation (no new renderer, no Three.js, no elaborate machine artwork) | later idea (owner) |
 | FX-45 | /explain 8.3 notes | Reset hidden after button-only state changes; a full action queue must grey its control | in scope of T8.3 |
+| FX-75 | MVP fast path (owner policy 2026-11-03) | The affected-test selection is a one-hop relative-import match: a test that reaches a changed module through a re-export is missed (the changed file is then listed `uncovered`, or the whole suite runs). `preview` prints the full `node --test` output of the tests it runs | optional (cosmetic, MVP ladder) |
+| FX-76 | MVP fast path | `release-mvp.sh` probes only `/` and `/sign-in` after the release run (the owner does the signed-in check); `release-mvp.cmd` was derived from `release.cmd` and not run in a console | optional |
+| FX-77 | MVP fast path | `scripts/mvp-fast-path.mjs` is not in the `REUSABLE` list of `scripts/dev-deploy.mjs`, so a change to it alone needs a full gate; adding `mvp-fast-path` to that regex is a one-token owner decision | deferred (owner decision) |

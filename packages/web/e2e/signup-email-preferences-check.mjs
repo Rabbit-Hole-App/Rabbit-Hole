@@ -22,16 +22,43 @@ const vars = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.u
 const secret = vars.match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim(), masterKey = vars.match(/^MASTER_KEY=(.*)$/m)[1].trim();
 const WRANGLER = fileURLToPath(new URL('../../../node_modules/wrangler/bin/wrangler.js', import.meta.url));
 const logs = mkdtempSync(join(tmpdir(), 'signup-prefs-'));
-const rows = sql => JSON.parse(execFileSync(process.execPath, [WRANGLER, 'd1', 'execute', 'rabbit-hole-dev', '--local', '--config', D1_CONFIG, '--persist-to', PERSIST, '--json', '--command', sql],
-  { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env: { ...process.env, CI: '1', WRANGLER_LOG_PATH: logs } }).toString())[0].results;
+// Every failure message below is plain text without a cookie, token or secret: tokens (two long base64url parts) become <token>, the rest is cut at 300 characters.
+const plain = text => String(text).replace(/[A-Za-z0-9_-]{24,}\.[A-Za-z0-9_-]{16,}/g, '<token>').replace(/\s+/g, ' ').slice(0, 300);
+const rows = sql => {
+  try { return JSON.parse(execFileSync(process.execPath, [WRANGLER, 'd1', 'execute', 'rabbit-hole-dev', '--local', '--config', D1_CONFIG, '--persist-to', PERSIST, '--json', '--command', sql],
+    { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env: { ...process.env, CI: '1', WRANGLER_LOG_PATH: logs } }).toString())[0].results; }
+  catch (error) { throw Error(`wrangler d1 execute failed (exit ${error.status}): ${plain(error.stderr || error.stdout || error.message)}`); }
+};
 
 const run = Date.now().toString(36);
 // handle: undefined = a random test handle, null = none (the step itself), a string = that one.
-const sessionFor = async (email, handle) => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' },
-  body: JSON.stringify({ email, secret, ...(handle !== undefined ? { handle } : {}) }) })).json()).session;
+// The standalone control plane shares one local D1 file with the app process, so a write or read there can lose a lock (SQLITE_BUSY) for a moment and
+// answer an error instead of a session. Minting is idempotent (an address is one account), so it is retried a few times, then fails with what it saw.
+const sessionFor = async (email, handle) => {
+  let seen = '';
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    const t0 = Date.now();
+    try {
+      const r = await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret, ...(handle !== undefined ? { handle } : {}) }) });
+      const text = await r.text();
+      let session = null; try { session = JSON.parse(text).session; } catch { /* not JSON */ }
+      if (r.ok && typeof session === 'string' && session) return session;
+      seen = `status ${r.status} ${r.headers.get('content-type')} after ${Date.now() - t0} ms, body ${plain(text)}`;
+    } catch (error) { seen = `request failed after ${Date.now() - t0} ms: ${error.message}`; }
+    await new Promise(resolve => setTimeout(resolve, 250 * attempt));
+  }
+  throw Error(`no session for ${email.replace(/@.*/, '@<host>')} after 4 tries: ${seen}`);
+};
 const cookieOf = who => ({ cookie: `small_session=${who.session}` });
 const api = async (who, path, init = {}) => { const r = await fetch(`${BASE}${path}`, { ...init, headers: { ...cookieOf(who), 'content-type': 'application/json', ...(init.headers || {}) } }); return { status: r.status, body: await r.json().catch(() => ({})) }; };
-const userId = async who => { const id = (await (await fetch(`${CP}/api/me`, { headers: cookieOf(who) })).json()).user_id; if (!/^[0-9a-f]{32}$/.test(id)) throw Error('no account id'); return id; };
+// The account id is the uid the control plane signed into the session it minted (auth.js sessionFor: users.id), so it is read from the token this check
+// holds, with no request. The earlier lookup, GET ${CP}/api/me, answered a 401 now and then: sessionOf fails closed on any D1 error and the standalone
+// control plane lost a SQLITE_BUSY race against the app process's writes (CI runs 41702181259 and 41706607078; the lookup ran about 35 times per run).
+const userId = async who => {
+  let id = null; try { id = JSON.parse(Buffer.from(String(who.session).split('.')[0], 'base64url').toString('utf8')).uid; } catch { /* checked below */ }
+  if (!/^[0-9a-f]{32}$/.test(String(id))) throw Error(`no account id in the minted session (uid is ${typeof id}${typeof id === 'string' ? `, ${id.length} characters` : ''}; session ${typeof who.session}, ${String(who.session).split('.').length} parts)`);
+  return id;
+};
 const stored = async who => rows(`SELECT category, enabled, source, method, affirmative, disclosure_version FROM user_email_preferences WHERE user_id = '${await userId(who)}' ORDER BY category`);
 
 const total = 45; // 7 per combination x 4, failed save and recovery 4, Settings 3 + 1 stale replay, existing person 2, isolation 2, unrelated edit 1, unsubscribe 2 + 1 stale replay, page errors 1
@@ -208,7 +235,9 @@ for (const [name, keepUpdates, keepNewsletter] of COMBOS) {
   const person = people.updates, uid = await userId(person), before = await stored(person);
   const token = encodeURIComponent(await sign({ t: 'unsub', uid, cat: 'updates' }, masterKey));
   const seen = await fetch(`${CP}/unsubscribe?token=${token}`);
-  check('unsubscribe: opening the link shows a button and changes nothing (a mail scanner is harmless)', seen.status === 200 && (await seen.text()).includes('Unsubscribe from Rabbit Hole Updates?') && JSON.stringify(await stored(person)) === JSON.stringify(before));
+  const seenText = await seen.text();
+  check('unsubscribe: opening the link shows a button and changes nothing (a mail scanner is harmless)', seen.status === 200 && seenText.includes('Unsubscribe from Rabbit Hole Updates?') && JSON.stringify(await stored(person)) === JSON.stringify(before),
+    seen.status === 200 ? '' : `status ${seen.status} ${plain(seenText)}`);
   const done = await fetch(`${CP}/unsubscribe`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: `token=${token}` });
   const after = Object.fromEntries((await stored(person)).map(r => [r.category, r]));
   check('unsubscribe: pressing it turns off Updates only; the Newsletter row is untouched', done.status === 200 && after.updates.enabled === 0 && after.updates.method === 'unsubscribe_link' && after.updates.source === 'unsubscribe'
