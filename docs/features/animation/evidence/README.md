@@ -63,3 +63,23 @@ The images do exist: every review render writes each capture PNG to the dev R2 b
 - `c11-28294cce9/gate1-regression/`: 9 of 9 valid (91 credits). With the SGD 20 of 20 this is C11's full Gate 1.
 - Correction (owner, 5 Nov 2026): the night attempt (`gate2-voided-provider-limit/`) was not wholly void: jobs 1, 2 and 4 were rejected on their first review there too; only their repair reviews hit the provider workspace limit. First-round score on C11's night attempt: 2 of 5 reviewed jobs accepted (jobs 3 and 5).
 - Captures (PNG + manifest) are under each job's `captures/`; the same hash caveat applies.
+
+## C12 golden controls (5 November 2026, about 9:50 AM PT)
+
+`c12-7fdbae422/controls/` holds every job-0 control run on the C12 golden rounds, and the three golden files. All are exploratory runs of the product's own review (direct review call, about 11 to 15 credits each) except the C12 Gate 2 job 0, which is the gate's own control and stopped that gate (exit 5, no author job ran; Gate 1 on C12 was stopped by the operator before any run).
+
+| Golden (sha256 prefix) | Preview, review identity | Result | File |
+|---|---|---|---|
+| `06cadd3f` (round 1) | C11 preview `1fc859c6`, identity `c42f81ed` | REJECTED, 6 of 6 captures: noise not scaled by the learning rate | `c11-preview-golden-06cadd3f-r1-REJECTED.json` |
+| `72f091f7` (round 2) | C11 preview `1fc859c6`, identity `c42f81ed` | ACCEPTED, 0 of 6 rejected | `c11-preview-golden-72f091f7-r2-ACCEPTED.json` |
+| `72f091f7` (round 2, same file) | C12 preview `bf1f5c5a`, identity `687d4661` | REJECTED, 6 of 6 captures | `c12-preview-golden-72f091f7-REJECTED.json` |
+| `4f7f80ba` (round 3) | C12 preview `bf1f5c5a`, identity `687d4661`, run A | ACCEPTED, 0 of 6 rejected | `c12-preview-golden-4f7f80ba-r3-runA-ACCEPTED.json` |
+| `4f7f80ba` (round 3, same file) | C12 preview `bf1f5c5a`, identity `687d4661`, run B | REJECTED, 2 of 6 (v0-s1, v1-s1): "converged" shown while the ball was still about 0.5 from the lowest point | `c12-preview-golden-4f7f80ba-r3-runB-REJECTED.json` |
+
+What the record shows, and what it does not:
+
+- The same artifact, `72f091f7`, was accepted on the C11 preview and rejected on the C12 preview. The two runs are not the same conditions: the review identity differs (`animation-render.js` `92c3b753` on C11, `f7331cf0` on C12), and C12 includes lane c's rim-held marker fix (d). The C12 rejection's first finding (the trail's last point drawn at the surface top, 3.74, while the ball is now held on the surface at 2.32) is explained by (d) meeting the golden's old `lift()`. Its other finding (the noise vanishes near the minimum and is invisible at batch 16) was a minor on the C11 acceptance and became a major on C12. A stricter reading by the same reviewer prompt cannot be separated from the changed review page with one run each.
+- The same artifact `4f7f80ba` was accepted in run A and rejected in run B on the same preview and identity, back to back. Run A raised the run B finding as a minor ("the band lets it stop with a visible gap"). Run B made it a major. This is verdict variance for one artifact and one finding on one identity.
+- The reviewer is not deterministic. Read single control verdicts, in either direction, as one sample.
+- Golden files: `golden-06cadd3f-r1.json`, `golden-72f091f7-r2.json`, `golden-4f7f80ba-r3.json`.
+- A local workspace path in `c12-preview-golden-72f091f7-REJECTED.json` was replaced by `<workspace>/`.
