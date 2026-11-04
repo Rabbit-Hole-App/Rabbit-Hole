@@ -3,6 +3,7 @@
 //   node scripts/animation/author-sample.mjs [run] <plan.json>... [-n 3] [--out DIR] [--label NAME] [--concurrency 1..5] [--sessions FILE] [--max-credits N]
 //        [--candidate-sha SHA] [--freeze-prompts HASH] [--freeze-golden HASH]  (--fake-transport DRAFT.json | --dry-run | --send)
 //   node scripts/animation/author-sample.mjs verify-candidate --mvp3-sha SHA --prompts HASH --golden HASH --worktree PATH
+//   node scripts/animation/author-sample.mjs review-identity [--worktree PATH]   the REVIEW's identity: a sha256 over REVIEW_IDENTITY_FILES and each file's short hash (controls' key, Gate 2)
 // --fake-transport DRAFT.json  offline: the stored draft is the model's reply (synthetic usage). Nothing is read from the credentials file, nothing is sent.
 // --dry-run                    preflight only: builds each request, prints identities, sizes and the cost bound. Nothing is sent.
 // --send                       PAID. Needs --candidate-sha, --freeze-prompts, --freeze-golden and --max-credits. The key is read BY NAME from the credentials file at the first
@@ -37,14 +38,27 @@ export const PROMPT_FILES = Object.freeze([
   'packages/web/src/animation3d/contract.js',
   'packages/web/src/animation3d/capabilities.js',
 ]);
+// FX-AN-113 (C11, owner decision): the REVIEW's identity, apart from the author's. A change to the review's text or page re-runs the controls and Gate 2; Gate 1 (the author alone) is untouched, so none of
+// these is in PROMPT_FILES and the review prompt no longer sits in agents/animation-author.js. The files: the review PROMPT (agents/animation-review.js); the request builder (animation-review.js: the
+// content blocks, ARROW_NOTE, the limits, the parse of the report); the render stage (animation-render.js: which states are captured, the manifest, the trace each capture carries); the review page
+// (render/animation3d-render.js and its document) and the page's program runner that writes the trace (animation3d/review.js). NOT in it, by choice: the renderer and contract files (CANDIDATE_FILES
+// already pin them to the candidate); explain-review.js (REVIEW_TOOL, the report schema: shared with /explain); animation-policy.js and tool-input.js (shared with the author, so in PROMPT_FILES).
+export const REVIEW_IDENTITY_FILES = Object.freeze([
+  'packages/control-plane/src/agents/animation-review.js',
+  'packages/control-plane/src/animation-review.js',
+  'packages/control-plane/src/animation-render.js',
+  'packages/web/render/animation3d-render.js',
+  'packages/web/render/animation3d.html',
+  'packages/web/src/animation3d/review.js',
+]);
 // Owner decision 22 (3): the golden SGD artifact as imported by the web tests.
 export const GOLDEN_FILE = 'packages/web/src/animation3d/testdata/sgd-golden.json';
 // Owner decision 22 (1): the MVP3 candidate's contract and renderer source. The working tree must equal the candidate on these paths (prompt-only changes ride on top of it).
 export const CANDIDATE_FILES = Object.freeze([
   'packages/web/src/animation3d/contract.js', 'packages/web/src/animation3d/capabilities.js', 'packages/web/src/animation3d/scene.js', 'packages/web/src/animation3d/framing.js',
-  'packages/web/src/animation3d/renderer.js', 'packages/web/src/animation3d/session.js', 'packages/web/src/animation3d/review.js', 'packages/web/src/animation3d/runtime.js',
-  'packages/web/src/animation3d/state.js', 'packages/control-plane/src/animation-render.js', 'packages/control-plane/src/animation-review.js',
+  'packages/web/src/animation3d/renderer.js', 'packages/web/src/animation3d/session.js', 'packages/web/src/animation3d/runtime.js', 'packages/web/src/animation3d/state.js',
 ]);
+// FX-AN-113: the review's files (animation3d/review.js, animation-render.js, animation-review.js) left this list for REVIEW_IDENTITY_FILES: a review-text change must not refuse Gate 1's candidate check.
 export const CREDENTIALS_FILE = 'C:/Users/cyudhist/Desktop/workspace/small-deploy/.env';
 export const DEFAULT_OUT_ROOT = 'C:/s/spec/animation/author-samples';
 export const MAX_CONCURRENCY = 5;
@@ -62,6 +76,8 @@ export function hashFiles(root, files) {
 }
 const git = (root, args) => spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
 const SHA = /^[0-9a-f]{7,40}$/;
+// The review's identity: one sha256 over REVIEW_IDENTITY_FILES (CRLF normalised, a missing file recorded as absent) and each file's own hash. -> { hash, files: [[path, hash]] }
+export const reviewIdentity = (root = ROOT) => hashFiles(root, REVIEW_IDENTITY_FILES);
 export function identities(root = ROOT) {
   const prompts = hashFiles(root, PROMPT_FILES), head = git(root, ['rev-parse', 'HEAD']);
   return { head: head.status === 0 ? head.stdout.trim() : 'unknown', prompts: prompts.hash, promptFiles: prompts.files, golden: fileHash(root, GOLDEN_FILE) };
@@ -311,6 +327,10 @@ async function mainInner(argv, { out = console.log, err = console.error, root = 
     for (const f of ['--mvp3-sha', '--prompts', '--golden', '--worktree']) if (!flags[f]) { err(`verify-candidate needs ${f}`); return 1; }
     const result = verifyCandidate({ mvp3Sha: flags['--mvp3-sha'], prompts: flags['--prompts'], golden: flags['--golden'], worktree: flags['--worktree'] });
     result.lines.forEach(line => out(line)); return result.ok ? 0 : 1;
+  }
+  if (positional[0] === 'review-identity') {
+    const { hash, files: listed } = reviewIdentity(resolve(flags['--worktree'] ?? root));
+    out(`review-identity ${hash}`); listed.forEach(([file, h]) => out(`  ${h === 'absent' ? 'absent  ' : h.slice(0, 8) + '  '}${file}`)); return 0;
   }
   const files = positional[0] === 'run' ? positional.slice(1) : positional;
   if (!files.length) { err('usage: author-sample.mjs [run] <plan.json>... [-n N] (--fake-transport DRAFT | --dry-run | --send) | verify-candidate ...'); return 1; }

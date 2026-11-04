@@ -7,8 +7,9 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import {
-  CALLS_PER_RUN, CANDIDATE_FILES, GOLDEN_FILE, PROMPT_FILES, checkCandidate, creditsOf, devKeyTransport, fakeTransport, hashFiles, identities, loadSessions, main, parseArgs, planHashOf, planRuns,
+  CALLS_PER_RUN, CANDIDATE_FILES, GOLDEN_FILE, PROMPT_FILES, REVIEW_IDENTITY_FILES, checkCandidate, creditsOf, devKeyTransport, fakeTransport, hashFiles, identities, loadSessions, main, parseArgs, planHashOf, planRuns, reviewIdentity,
   refusals, runBatch, sampleOnce, verifyCandidate, writeOutputs, formatTable,
 } from './animation/author-sample.mjs';
 import * as authoringModule from '../packages/control-plane/src/animation-author.js';
@@ -23,7 +24,7 @@ const git = (cwd, ...args) => { const r = spawnSync('git', ['-c', 'user.name=t',
 // A repository holding every identity file (the archetypes file absent, as before lane f lands) and the golden artifact.
 function repo() {
   const dir = tmp(); git(dir, 'init', '-q', '-b', 'main');
-  for (const file of [...new Set([...PROMPT_FILES, ...CANDIDATE_FILES, GOLDEN_FILE])]) { if (file.endsWith('animation-archetypes.js')) continue; mkdirSync(dirname(join(dir, file)), { recursive: true }); writeFileSync(join(dir, file), `// ${file}\n`); }
+  for (const file of [...new Set([...PROMPT_FILES, ...CANDIDATE_FILES, ...REVIEW_IDENTITY_FILES, GOLDEN_FILE])]) { if (file.endsWith('animation-archetypes.js')) continue; mkdirSync(dirname(join(dir, file)), { recursive: true }); writeFileSync(join(dir, file), `// ${file}\n`); }
   git(dir, 'add', '-A'); git(dir, 'commit', '-q', '-m', 'mvp3'); return dir;
 }
 const draftFile = dir => { const f = join(dir, 'draft.json'); writeFileSync(f, JSON.stringify(fixture.repairedDraft)); return f; };
@@ -254,6 +255,51 @@ test('a run is admitted against the bound of both its possible calls', async () 
   await main([pinFile(dir), '--dry-run'], { ...c, root: repo() });
   assert.match(c.text(), /request bound per call: fixture-sgd [\d.]+ credits \(a run is admitted against 2 calls\)/);
   assert.equal(CALLS_PER_RUN, 2);
+});
+
+// FX-AN-113 (C11, owner decision): the review's identity is apart from the author's. A review-text change re-runs the controls and Gate 2; Gate 1 is untouched.
+test('the review identity and the author identity share no file, every listed file exists, and the author file holds no review text', () => {
+  const root = fileURLToPath(new URL('..', import.meta.url));
+  assert.deepEqual(REVIEW_IDENTITY_FILES.filter(f => PROMPT_FILES.includes(f) || CANDIDATE_FILES.includes(f)), [], "no overlap with Gate 1's prompt files or the candidate pin");
+  for (const file of [...REVIEW_IDENTITY_FILES, ...PROMPT_FILES]) assert.ok(existsSync(join(root, file)), file);
+  assert.deepEqual(REVIEW_IDENTITY_FILES.map(f => f.split('/').pop()), ['animation-review.js', 'animation-review.js', 'animation-render.js', 'animation3d-render.js', 'animation3d.html', 'review.js']);
+  const text = f => readFileSync(join(root, f), 'utf8');
+  assert.equal(text('packages/control-plane/src/agents/animation-author.js').includes('You independently review'), false, 'the review prompt left the author file');
+  assert.ok(text('packages/control-plane/src/agents/animation-review.js').includes('You independently review'));
+  assert.ok(text('packages/control-plane/src/animation-review.js').includes('export const ARROW_NOTE'));
+});
+
+test("a change to a review file changes the review identity and not the author's, nor the candidate check; a change to a prompt file does the opposite", () => {
+  const dir = repo(), mvp3 = git(dir, 'rev-parse', 'HEAD'), before = { review: reviewIdentity(dir).hash, prompts: identities(dir).prompts };
+  writeFileSync(join(dir, 'packages/control-plane/src/animation-review.js'), '// a review sentence changed\n'); git(dir, 'commit', '-q', '-am', 'review text');
+  assert.notEqual(reviewIdentity(dir).hash, before.review);
+  assert.equal(identities(dir).prompts, before.prompts, "Gate 1's prompt-files hash is untouched");
+  assert.equal(checkCandidate(dir, mvp3).ok, true, 'and so is its candidate check');
+  assert.equal(verifyCandidate({ mvp3Sha: mvp3, prompts: before.prompts, golden: identities(dir).golden, worktree: dir }).ok, true);
+  const mid = reviewIdentity(dir).hash;
+  writeFileSync(join(dir, PROMPT_FILES[0]), '// an author sentence changed\n'); git(dir, 'commit', '-q', '-am', 'author text');
+  assert.equal(reviewIdentity(dir).hash, mid, "the review identity is untouched by the author's text");
+  assert.notEqual(identities(dir).prompts, before.prompts);
+  for (const file of ['packages/web/render/animation3d-render.js', 'packages/web/src/animation3d/review.js', 'packages/control-plane/src/agents/animation-review.js', 'packages/control-plane/src/animation-render.js', 'packages/web/render/animation3d.html']) {
+    const was = reviewIdentity(dir).hash; writeFileSync(join(dir, file), '// changed\n'); git(dir, 'commit', '-q', '-am', file);
+    assert.notEqual(reviewIdentity(dir).hash, was, file);
+  }
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("review-identity prints one hash over the files and each file's short hash, from a worktree, a missing file recorded as absent", async () => {
+  const dir = repo(), c = capture();
+  assert.equal(await main(['review-identity', '--worktree', dir], c), 0);
+  const lines = c.lines.join('\n').split('\n');
+  assert.match(lines[0], /^review-identity [0-9a-f]{64}$/);
+  assert.equal(lines[0].split(' ')[1], reviewIdentity(dir).hash);
+  assert.deepEqual(lines.slice(1).map(l => l.trim().split(/\s+/)[1]), [...REVIEW_IDENTITY_FILES]);
+  assert.ok(lines.slice(1).every(l => /^ +[0-9a-f]{8} +packages\//.test(l)));
+  rmSync(join(dir, REVIEW_IDENTITY_FILES[2]));
+  const d = capture(); await main(['review-identity', '--worktree', dir], d);
+  assert.match(d.lines.join('\n'), /absent +packages\/control-plane\/src\/animation-render\.js/);
+  assert.notEqual(d.lines[0].split(' ')[1], lines[0].split(' ')[1]);
+  rmSync(dir, { recursive: true, force: true });
 });
 
 test('the table and the folders carry the three identities', async () => {
