@@ -112,6 +112,13 @@ row in [spend.md](spend.md).
 - Effect on the freeze: the prompt-files hash changes through this file; the AN-20 harness must recompute it. The golden hash does not change.
 - Status: implemented, unit-tested; not measured against a model.
 
+### FX-AN-100 — the loss_surface archetype says the trail marks every step (C9; follow-up to FX-AN-078; AN-20, owner decision 13)
+- Evidence: C7 job 2 (`aj_7b5712ec2988484b911750613839aaff`) and C4 job 4: the trail "only marks every 4th step", which hides the period-2 bounce, because an even sampling interval aliases a zig-zag away.
+- Order: one more archetype line, as data and not in the universal prompts: "The trail marks every step, never every Nth step: an even sampling interval hides the zig-zag." It follows the trail rule in `agents/animation-archetypes.js`, which is now 8 rules.
+- Text: `archetypeRules('loss_surface')` 1,482 to 1,579 bytes (+97); the file 3,460 to 3,625 bytes (+165, with its header note). The file is in the AN-20 prompt-files hash (`PROMPT_FILES`), so the freeze hash changes with it; the golden artifact hash does not.
+- The golden already does it, unchanged (sha256 1837a72b...265dc): `advance` appends one point per step (`path: s.path.concat([[x, z]]).slice(-MAX)`), the program has no sampling by step number (the only modulus is the host clock's `tick % 6`, five steps a second), and `runPath` and `keptPath` hold 64 points, the last 64 steps. At the default rate a run is 20 steps with all examples and 28 at the default batch, so its whole path (21 and 29 points) is kept; `sgd-golden.test.mjs` asserts 21 points after 20 steps and 64 after 100. `animation-archetypes.test.js` pins the line and checks the program's source for the unconditional append and the absence of `step %`.
+- Status: implemented, unit-tested; not measured against a model.
+
 ## Deferred
 
 ### FX-AN-008 — changing a rate mid-play restarts analytical motion

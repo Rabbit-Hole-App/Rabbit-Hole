@@ -37,6 +37,7 @@ test('loss_surface says what the plan\'s table says, in the contract\'s own word
 
 test('archetypeRules("loss_surface") contains no number other than 24 by 24, 6 to 8 and the camera 30 to 65 degrees', () => {
   assert.deepEqual(text.match(/\d+(\.\d+)?/g), ['24', '24', '6', '8', '30', '65'], 'only the 24 by 24 grid, the 6 to 8 contours and the owner 30 to 65 degrees, in that order');
+  assert.match(text, /The trail marks every step, never every Nth step: an even sampling interval hides the zig-zag\./);
   assert.match(text, /The arrow scale factor keeps the largest typical step at the default rate under a quarter of the surface width\./);
   assert.match(text, /The camera looks from 30 to 65 degrees above and keeps the whole surface and the path in view\./);
 });
@@ -46,7 +47,7 @@ test('it is data about primitives, not a scene: no code, formula or bowl, and sh
   assert.ok(!/[{}[\]=]|=>|function|loss\s*=|bowl/i.test(text), 'no code, formula or bowl');
   const keys = Object.keys(ARCHETYPES.loss_surface);
   assert.deepEqual(keys, ['when', 'rules', 'comparison'], 'the shape lane d imports');
-  assert.ok(typeof ARCHETYPES.loss_surface.when === 'string' && typeof ARCHETYPES.loss_surface.comparison === 'string' && ARCHETYPES.loss_surface.rules.length === 7 && ARCHETYPES.loss_surface.rules.every(rule => typeof rule === 'string'));
+  assert.ok(typeof ARCHETYPES.loss_surface.when === 'string' && typeof ARCHETYPES.loss_surface.comparison === 'string' && ARCHETYPES.loss_surface.rules.length === 8 && ARCHETYPES.loss_surface.rules.every(rule => typeof rule === 'string'));
 });
 
 test('the golden artifact is an instance of it', () => {
@@ -63,6 +64,10 @@ test('the golden artifact is an instance of it', () => {
   const status = artifact.readouts.find(r => r.id === 'status');
   assert.equal(status.kind, 'text');
   for (const word of ['running', 'paused', 'converged', 'diverged']) assert.ok(artifact.program.source.includes(`'${word}'`), word);
+  // The trail marks every step: the program appends one point per step with no step % N sampling, and the path holds the last 64 steps.
+  const source = artifact.program.source;
+  assert.match(source, /path: s\.path\.concat\(\[\[x, z\]\]\)\.slice\(-MAX\)/);
+  assert.ok(!/step\s*%|s\.step\s*%/.test(source), 'no sampling of the path by step number');
   const radius = geometry(balls[0].geometry).radius;
   for (const arrow of nodes.filter(n => geometry(n.geometry)?.kind === 'arrow')) {
     assert.equal(geometry(arrow.geometry).offset, radius);
