@@ -228,7 +228,9 @@ function contourPositions(g) {
 function trailBuffers(g, radius) {
   const tube = radius > 0, sides = TUBE_RADIAL, per = tube ? sides : 1, position = new Float32Array(g.max * per * 3);
   const geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(position, 3));
+  const normal = new Float32Array(tube ? position.length : 0); // a lit tube needs them (FX-AN-092): the unit direction from the path out to each ring vertex
   if (tube) {
+    geometry.setAttribute('normal', new THREE.BufferAttribute(normal, 3));
     const index = [];
     for (let i = 0; i < g.max - 1; i += 1) for (let s = 0; s < sides; s += 1) { const a = i * sides + s, b = i * sides + ((s + 1) % sides), c = a + sides, d = b + sides; index.push(a, c, b, b, c, d); }
     geometry.setIndex(index);
@@ -251,9 +253,11 @@ function trailBuffers(g, radius) {
         for (let s = 0; s < sides; s += 1) {
           const angle = (s / sides) * 2 * Math.PI, cos = Math.cos(angle) * radius, sin = Math.sin(angle) * radius;
           position.set([x + u.x * cos + v.x * sin, y + u.y * cos + v.y * sin, z + u.z * cos + v.z * sin], (i * sides + s) * 3);
+          normal.set([u.x * Math.cos(angle) + v.x * Math.sin(angle), u.y * Math.cos(angle) + v.y * Math.sin(angle), u.z * Math.cos(angle) + v.z * Math.sin(angle)], (i * sides + s) * 3);
         }
       }
       geometry.attributes.position.needsUpdate = true;
+      if (tube) geometry.attributes.normal.needsUpdate = true;
       geometry.setDrawRange(0, tube ? (n >= 2 ? (n - 1) * sides * 6 : 0) : n);
       if (n) box.expandByScalar(radius);
       geometry.boundingBox = box; // the zero-filled tail of the buffer must not widen it
