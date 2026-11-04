@@ -248,6 +248,34 @@ row in [spend.md](spend.md).
 - Check: `scene.test.mjs` "a trail tube has a unit normal on every drawn vertex, pointing out from its path; a ghost too" (a path with a corner and a repeated point; length 1 within 1e-5, and facing away from the ring's centre). It failed before the change (no normal attribute) and passes now.
 - Not covered: nothing was drawn in a browser or WebGL here; whether the black segment is gone is for the next CI screenshot (`animation-primitives-check.mjs`). The tube pinching at a sharp reversal is FX-AN-091. Status: fixed-unverified.
 
+### FX-AN-093 — a diverged ball floats beyond the bowl's footprint, and the fit widens to include it (DEFERRED, owner decides; renderer, AN-19)
+- Cause: the clamp (`scene.js` `apply`, owner decision 11) holds only the node's world y. At learning rate 1.5 the golden's ball goes from (-1.05, -0.8) to x = 3.675 in one step while the surface footprint is x in [-2, 2]: it is held at y = 4 but hangs 1.7 past the rim, toward the camera, and the trail's last vertex is at the same x. `subjectPoints` fits the camera to what it sees (the trail corners are held to the ceiling in y only), so the view widens and the bowl shrinks.
+- Evidence: `C:/s/spec/animation/release/ladder/artifact-part2/animation-primitives-check-shots/fail-6.png` (check 6: the bowl keeps 7.5% of the view; about 21% of the card's viewport width against about 38% at learning rate 0.1 in `fail-4.png`); the real golden program run through the review runner at learning rate 1.5: step 2 gives true y 10.84 held to 4, x 3.675, status diverged, loss 20.338. The fit itself was not measured, so the link between the two is the likely cause, not proven.
+- Proposed fix: when a node is held in y, also clamp its world x and z into the target surface's world footprint (about 8 lines in `scene.js`), and the same footprint clamp for trail corners in `framing.js`, so a diverged ball sits at the lip, the status says diverged and the readout keeps the true loss. Or, on the author side, the program keeps the marker's x and z inside the bowl (the golden already lifts its trail's y; the archetype line "the program clamps nothing" would change).
+- Risk: it changes what decision 11 means on screen, from "held at the surface's top" to "held at the lip above the bowl"; a marker legitimately outside the footprint would be pulled in when it is also above the ceiling.
+- Not fixed in the combined release; owner decides. Status: deferred.
+
+### FX-AN-094 — the near wall of a height-field surface hides the floor, ball and path from a low camera (DEFERRED, owner decides; renderer, AN-19)
+- Cause: a surface mesh is double-sided, and from outside the near wall is the back face of the height field (its normal points inward and up), drawn opaque. A camera at or below the rim therefore sees only the outside of the near wall. The golden's camera was `[7, 4, 0.5]` with the rim at 4: the ray to the lowest point crosses the near rim at about y = 1.7 against a wall about 3.6 high.
+- Evidence: `C:/s/spec/animation/release/ladder/artifact-part2/animation-primitives-check-shots/A-loaded.png`, `B-ghost.png` and `fail-4.png`: only the dark outside of the near wall is seen; no ball, trail, ghost or arrow is visible (check 4 counted 0 orange pixels). Lane (f)'s higher camera (about 62 degrees of elevation) avoids it without any renderer change.
+- Proposed fix: draw a surface mesh with `FrontSide`, a cutaway: the near wall is culled and the floor, marker, paths and far wall show from any low camera. About 6 lines in `scene.js`: surface nodes get their own material clone (the shared material is double-sided and used by other nodes) registered with the frame's material updates.
+- Risk: it changes every future surface scene: the underside of a surface is invisible from below (right for loss surfaces and terrain, wrong for a closed shape built from several surfaces); the clone's colour and opacity must still follow frame updates.
+- Not fixed in the combined release; owner decides. Status: deferred.
+
+### FX-AN-095 — contour lines are invisible on a wall seen from below (DEFERRED, goes away with FX-AN-094; renderer, AN-19)
+- Cause: the contour lines are lifted by 0.3% of the height range in +y (`contourPositions`) to avoid z-fighting. On a wall seen from its underside that lifted line is behind the surface, so the depth test hides it.
+- Evidence: `C:/s/spec/animation/release/ladder/artifact-part2/animation-primitives-check-shots/A-loaded.png`: lines appear on the far wall's inside only, none on the near wall.
+- Proposed fix: with the `FrontSide` cutaway (FX-AN-094) the lifted side is always the visible side. Without it, give the surface material a `polygonOffset` and draw the lines exactly on the surface instead of lifting them.
+- Risk: `polygonOffset` is set on a shared material unless the surface has its own clone; a lift of 0.3% is visible nowhere else.
+- Not fixed in the combined release; owner decides. Status: deferred.
+
+### FX-AN-096 — labels draw over objects that are hidden behind opaque geometry (DEFERRED, owner decides; renderer, AN-19)
+- Cause: a label sprite is drawn with `depthTest: false` over the whole scene (a design choice so labels stay readable), so a label whose anchor is hidden behind the surface is still drawn, with nothing visible at its point.
+- Evidence: `C:/s/spec/animation/release/ladder/artifact-part2/animation-primitives-check-shots/A-loaded.png` and `B-ghost.png`: "Next step" and "Downhill" float over the near wall with no arrow behind them.
+- Proposed fix: none is small. The symptom disappears when nothing important is occluded (FX-AN-094, or the higher camera). The general fix is to hide a label whose anchor is behind opaque geometry, one raycast per label per layout, which is a larger change to `layoutLabels`.
+- Risk: a raycast per label per frame on a surface of up to 7,938 triangles; a label that flickers when its anchor grazes an edge.
+- Not fixed in the combined release; owner decides. Status: deferred.
+
 ### FX-AN-090 — contour lines and a ghost trail do not follow a frame's material update (DEFERRED, cosmetic, decision 8)
 - Task / phase: AN-19 renderer (`scene.js`). Found while implementing FX-AN-048; not a blocker for any rung.
 - Actual / expected: a surface's contour lines use their own line material (the surface colour darkened to half), and a ghost trail uses its own copy of the node's material at 40% opacity. A frame's `materials` update (colour or opacity) reaches the node's shared material only, so after such an update the contours and the ghost keep their first colour. Expected: they follow, in proportion.
