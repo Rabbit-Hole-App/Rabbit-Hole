@@ -12,7 +12,7 @@ export const ANIMATION_CAPABILITIES = deepFreeze({
   behaviors: ['prescribed', 'analytical', 'rules'], // reserved, not enabled: physics
   controlProfiles: ['inspect', 'manipulate'], // reserved, not enabled: walk
   // Node geometry kinds. A node without geometry is a group (always available).
-  geometry: ['box', 'sphere', 'cylinder', 'cone', 'plane', 'line', 'curve', 'arrow', 'label'],
+  geometry: ['box', 'sphere', 'cylinder', 'cone', 'plane', 'line', 'curve', 'arrow', 'label', 'surface', 'trail'], // surface and trail: only for a client that declares surface_grid / trail_points (ANIMATION_CLIENT_FEATURES)
   events: ['parameter', 'action', 'select', 'drag_start', 'drag_move', 'drag_end', 'step'],
   // Values a plan may list in requiredCapabilities. Reserved post-MVP features (physics, assembly, walkthrough, attached_models,
   // image_reference) are known to the contract and refused here.
@@ -39,4 +39,7 @@ export const CAPABILITY_REGISTRIES = Object.freeze([ANIMATION_CAPABILITIES]);
 // it reads one (client.js), and the server gates on it (animation-job.js). A request that names none is from an older build: it is
 // never given a scene that uses these, and reading one answers client_update_required. curve_radius: a curve with a radius is a tube.
 // action_motion: an action may declare startsMotion (contract.js), which an older build's contract would refuse as an unknown field.
-export const ANIMATION_CLIENT_FEATURES = Object.freeze(['curve_radius', 'action_motion']);
+// The five of 3 November 2026 (owner decisions 11 and 12, plan section 8 AN-18), each a field or kind an older build's strict contract refuses:
+// surface_grid: geometry kind surface; trail_points: geometry kind trail and the frame's node points; text_readout: a readout of kind text and its
+// string frame value; arrow_anchor: an arrow's offset and a label's anchor; clamp: a node's clampTo. contract.js clientFeatureUses finds each use.
+export const ANIMATION_CLIENT_FEATURES = Object.freeze(['curve_radius', 'action_motion', 'surface_grid', 'trail_points', 'text_readout', 'arrow_anchor', 'clamp']);
