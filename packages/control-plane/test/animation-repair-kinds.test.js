@@ -53,3 +53,21 @@ test('a run problem after both review repairs is still repaired once the run kin
   assert.deepEqual([done.stage, done.stopReason], ['failed', 'rounds']);
   assert.deepEqual([done.repairs, done.repairKinds], [3, ['review', 'review', 'run']]);
 });
+
+test('a repair refused before it ran gives back the turn of ITS kind: the review slot comes back, the run slot used earlier stays used', { skip }, async t => {
+  let down = true;
+  const s = animationStack(t, {
+    pipeline: STUB_PIPELINE({
+      validate: async (job, ctx) => (job.draft?.repaired === undefined ? problem : STUB_PIPELINE().validate(job, ctx)),
+      review: async (job, ctx) => ({ ...(await STUB_PIPELINE().review(job, ctx)), accepted: job.repairs >= 2, findings: [{ category: 'spec', severity: 'major', message: 'wrong' }] }),
+      repair: async (job, ctx) => { if (job.repairs === 2 && down) throw Object.assign(new Error('AI is paused for now because the platform daily limit has been reached.'), { code: 'spend_refused', status: 429 }); return STUB_PIPELINE().repair(job, ctx); },
+    }),
+  });
+  // run repair 1 (draft has no `repaired` yet), then the review rejects the repaired candidate: review repair 2 is refused by the spending cap before it ran.
+  const { id, done } = await s.generated();
+  assert.deepEqual([done.stage, done.failure.category, done.repairs, done.repairKinds], ['failed', 'budget', 1, ['run']], 'the review slot came back, not the run slot');
+  down = false;
+  assert.equal((await s.send('retry', { expectedAttempt: done.attempt }, id)).status, 202);
+  const end = await s.run(id);
+  assert.deepEqual([end.stage, end.repairs, end.repairKinds], ['ready', 2, ['run', 'review']], JSON.stringify([end.failure, end.stopReason]));
+});

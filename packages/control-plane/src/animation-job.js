@@ -1075,6 +1075,8 @@ export class AnimationJobs {
       // A busy provider is not this: its Try again resumes at the repair itself, still counted.
       if (current.stage === 'repairing' && error.code !== 'provider_unavailable' && (['spend_limited', 'spend_refused'].includes(error.code) || error.status === 429)) {
         current.repairs = Math.max(0, current.repairs - 1); current.repairKinds?.pop();
+        // The refused repair never ran, so the candidate Try again validates is the one it was to fix: not a repair that changed nothing (no_progress).
+        current.repairedFrom = null;
       }
       // The calls this stage run made (job is the snapshot it started from): what its explanation may say about charges (chargeWords).
       const callsFrom = job.calls.length;
