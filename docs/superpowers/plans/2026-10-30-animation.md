@@ -73,6 +73,8 @@
 
 24. **Decision 24 (owner, 4 November 2026).** Keep the 8-of-9 Gate 2 bar for one more cycle. C7 = C6 + the repair-slot fix for the correction ask + two `loss_surface` archetype lines (data only: the arrow scale keeps the largest typical step at the default rate under a quarter of the surface width; the camera line is "elevation 30 to 65 degrees, no azimuth, the whole surface and the path in view") + `framing.js` minimum camera elevation of 25 degrees for any scene with a surface node (the authored azimuth is kept). The golden is not changed tonight: its hash stays `1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc`. Gate 2 reruns clean on C7 (all ten jobs, the guard retuned: `--typical author=45,review=20,repair=45`). Gate 1 reruns because the prompt-files hash changes. Strict tool output is parked with AN-22 as a schema-restructure item (55 optional parameters against the limit of 24); the lenient parse is the fix for now.
 
+Candidate lineage (4 November 2026): C8 = C7 + FX-AN-098, the review page's readout strip no longer drops text readouts (`card.js` `readoutLines`, `animation3d-render.js` `showOverlay`), so the reviewers see the Status word. No prompt file changed; the golden is unchanged.
+
 ### Product boundaries
 
 | Capability | Purpose |
