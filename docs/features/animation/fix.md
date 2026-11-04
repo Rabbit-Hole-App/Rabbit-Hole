@@ -119,6 +119,13 @@ row in [spend.md](spend.md).
 - The golden already does it, unchanged (sha256 1837a72b...265dc): `advance` appends one point per step (`path: s.path.concat([[x, z]]).slice(-MAX)`), the program has no sampling by step number (the only modulus is the host clock's `tick % 6`, five steps a second), and `runPath` and `keptPath` hold 64 points, the last 64 steps. At the default rate a run is 20 steps with all examples and 28 at the default batch, so its whole path (21 and 29 points) is kept; `sgd-golden.test.mjs` asserts 21 points after 20 steps and 64 after 100. `animation-archetypes.test.js` pins the line and checks the program's source for the unconditional append and the absence of `step %`.
 - Status: implemented, unit-tested; not measured against a model.
 
+### FX-AN-106 — the loss_surface camera rule gets its azimuth back, in the golden's own terms (C10; follow-up to FX-AN-078; AN-20, owner decision 29)
+- Evidence: C9 Gate 2 jobs 1 and 2 (`aj_4c561e74c65444bda3466b601aa5fb04`, `aj_378790fcdbc9470faf728015b67e251e`): cameras 31 to 35 degrees above, looking along the surface's steep axis, so the zig-zag runs toward the camera (reviews.json major findings, category camera).
+- Line: a second sentence in the camera rule of `agents/animation-archetypes.js`: "The steep axis spans the screen, so the zig-zag runs across the view." Worded from the golden: its bowl is steep along x (loss (3 x^2 + z^2) / 2) and its camera `[0, 10.03, 4.69]` to `[0, 1.2, 0]` looks along -z, 90 degrees from the steep axis, so that axis spans the screen. The line names no axis, since the author's scene has its own.
+- Text: `archetypeRules('loss_surface')` 1,579 to 1,649 bytes (+70); the file 3,625 to 3,824 bytes (+199, with its header note). The size test's cap was 1,600 and is now 1,650, the least that holds the line (1 byte spare); no other line was tightened, since two of them are owner orders. The archetype file is in the AN-20 prompt-files hash (`PROMPT_FILES`), so the freeze hash changes with it; the golden artifact hash does not (sha256 1837a72b...265dc, no builder rerun).
+- Test: `animation-archetypes.test.js` pins the sentence and computes, from the golden's own heights (which of x and z rises more at the edge) and its camera (the horizontal direction from position to target), the angle between the view and the steep axis: 90 degrees, asserted at least 60.
+- Status: implemented, unit-tested; not measured against a model.
+
 ## Deferred
 
 ### FX-AN-008 — changing a rate mid-play restarts analytical motion

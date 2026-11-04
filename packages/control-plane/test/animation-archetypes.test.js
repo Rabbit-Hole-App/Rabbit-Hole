@@ -39,15 +39,29 @@ test('archetypeRules("loss_surface") contains no number other than 24 by 24, 6 t
   assert.deepEqual(text.match(/\d+(\.\d+)?/g), ['24', '24', '6', '8', '30', '65'], 'only the 24 by 24 grid, the 6 to 8 contours and the owner 30 to 65 degrees, in that order');
   assert.match(text, /The trail marks every step, never every Nth step: an even sampling interval hides the zig-zag\./);
   assert.match(text, /The arrow scale factor keeps the largest typical step at the default rate under a quarter of the surface width\./);
-  assert.match(text, /The camera looks from 30 to 65 degrees above and keeps the whole surface and the path in view\./);
+  assert.match(text, /The camera looks from 30 to 65 degrees above and keeps the whole surface and the path in view\. The steep axis spans the screen, so the zig-zag runs across the view\./);
 });
 
 test('it is data about primitives, not a scene: no code, formula or bowl, and short', () => {
-  assert.ok(new TextEncoder().encode(text).length < 1600, 'a short block in the author user content');
+  // The cap was 1,600; owner decision 29 (C10) added the azimuth sentence, 1,649 bytes in all, so it is 1,650, the least that holds it.
+  assert.ok(new TextEncoder().encode(text).length < 1650, 'a short block in the author user content');
   assert.ok(!/[{}[\]=]|=>|function|loss\s*=|bowl/i.test(text), 'no code, formula or bowl');
   const keys = Object.keys(ARCHETYPES.loss_surface);
   assert.deepEqual(keys, ['when', 'rules', 'comparison'], 'the shape lane d imports');
   assert.ok(typeof ARCHETYPES.loss_surface.when === 'string' && typeof ARCHETYPES.loss_surface.comparison === 'string' && ARCHETYPES.loss_surface.rules.length === 8 && ARCHETYPES.loss_surface.rules.every(rule => typeof rule === 'string'));
+});
+
+test('the golden camera satisfies the azimuth sentence: it looks across the steep axis of the surface, so that axis spans the screen', () => {
+  // The steep axis, from the golden's own heights (row r runs along z, column c along x): the one whose edge midpoint rises more above the centre.
+  const { heights } = artifact.scene.geometries.find(g => g.kind === 'surface'), mid = heights.length / 2, last = heights.length - 1;
+  const alongX = heights[mid][last] - heights[mid][mid], alongZ = heights[last][mid] - heights[mid][mid];
+  assert.notEqual(alongX, alongZ, 'the bowl has one steep axis');
+  const steep = alongX > alongZ ? [1, 0] : [0, 1];
+  // The camera's horizontal view direction, from its position to its target.
+  const [px, , pz] = artifact.camera.position, [tx, , tz] = artifact.camera.target, view = [tx - px, tz - pz], length = Math.hypot(...view);
+  assert.ok(length > 0, 'the camera is not straight above its target');
+  const angle = Math.acos(Math.abs((view[0] * steep[0] + view[1] * steep[1]) / length)) * 180 / Math.PI; // 0 degrees: looking along the steep axis; 90: straight across it
+  assert.ok(angle >= 60, `the camera looks ${angle.toFixed(0)} degrees from the steep axis (at least 60: across it, so the zig-zag does not run toward the camera)`);
 });
 
 test('the golden artifact is an instance of it', () => {
