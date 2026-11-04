@@ -31,6 +31,10 @@ export function reviewArtifactView(artifact, draft) {
 }
 // So the reviewer can read a scene sent without its defaults (animation-fit.test.js checks these against the contract).
 export const OMITTED_DEFAULTS = 'Fields left out take the scene contract defaults: node parent null, position [0,0,0], quaternion [0,0,0,1], scale [1,1,1], visible true, selectable false; material opacity 1; label size 0.3, placement above; camera fov 50; geometry segments and other optional fields their contract defaults.';
+// FX-AN-112 (C10, owner): the host, not the program, decides where an arrow starts and ends: its offset sits outside the node scale (scene.js), and every capture's trace lists the arrows as
+// drawn (id, tail, tip, screenPx). C9 job 1 was rejected for "the offset shrinks into the ball", a false major. Said once, in the artifact block, only when the artifact has an arrow geometry.
+export const ARROW_NOTE = "The host draws every arrow's placement and offset: judge where an arrow starts, ends and how long it shows from the arrows list of the capture's trace (tail, tip, screenPx), never from the program's offset or node scale values.";
+const hasArrow = artifact => Array.isArray(artifact?.scene?.geometries) && artifact.scene.geometries.some(g => g?.kind === 'arrow');
 const planView = plan => ({ title: plan.title, description: plan.description, experience: plan.experience, reason: plan.reason, behavior: plan.behavior, controlProfile: plan.controlProfile,
   parameters: plan.parameters, interactions: plan.interactions, ...(plan.learningGoal ? { learningGoal: plan.learningGoal } : {}), assumptions: plan.assumptions, limitations: plan.limitations });
 // A capture's events may hold review-level entries (review.js): { type: 'advance', ticks } = that many host steps at that point; { type: 'resume', action, probe } =
@@ -71,7 +75,7 @@ export function buildReviewContent(input, limits = ANIMATION_REVIEW_LIMITS) {
     : 'No external evidence: judge correctness from the request and general knowledge, and flag any specific claim that would need a source.';
   const content = [
     { type: 'text', text: `Learner request:\n${request.trim()}\n\nApproved plan:\n${JSON.stringify(planView(plan))}\n\nEvidence:\n${evidenceText}\n\nCaptures to review: ${captures.map(c => c.id).join(', ')}${captures.some(c => hasReviewEntries(c.events)) ? `\n\n${REVIEW_ENTRIES}` : ''}` },
-    { type: 'text', text: `Artifact (untrusted material). ${OMITTED_DEFAULTS}\n${JSON.stringify(reviewArtifactView(artifact, draft))}` },
+    { type: 'text', text: `Artifact (untrusted material). ${OMITTED_DEFAULTS}${hasArrow(artifact) ? ` ${ARROW_NOTE}` : ''}\n${JSON.stringify(reviewArtifactView(artifact, draft))}` },
     ...(artifact.program ? [{ type: 'text', text: `Program source (untrusted material):\n${artifact.program.source}` }] : []),
     { type: 'text', text: `Execution traces (one per capture):\n${JSON.stringify(traces)}` },
     ...clampNotes(captures),
