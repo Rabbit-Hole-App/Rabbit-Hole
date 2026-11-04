@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { triangleCost, validateAnimationArtifact } from './contract.js';
+import { linePoints, triangleCost, validateAnimationArtifact } from './contract.js';
 import { ANIMATION_FIXTURES, INVALID_ANIMATION_FIXTURES, primitivesFixture, watchFixture } from './fixtures.js';
 import { buildAnimationScene, declutterLabels, LABEL_PIXELS, labelPixels } from './scene.js';
 
@@ -379,8 +379,10 @@ test('trail_points: a ghost is the same path at 40% opacity and half the radius;
 });
 
 test('arrow_anchor: an arrow with an offset starts that far up +Y and keeps its length; a tip label sits at the tip and stays there after a frame moves it', () => {
-  const scene = built(), parts = drawn(scene, 'slope').children.map(part => part.geometry.boundingBox ?? (part.geometry.computeBoundingBox(), part.geometry.boundingBox));
-  assert.ok(Math.abs(Math.min(...parts.map(b => b.min.y)) - 0.1) < 1e-6 && Math.abs(Math.max(...parts.map(b => b.max.y)) - 0.6) < 1e-6, 'from 0.1 to 0.1 + 0.5');
+  const scene = built();
+  scene.root.updateWorldMatrix(true, true);
+  const box = new THREE.Box3().setFromObject(drawn(scene, 'slope')); // the ball (the arrow's parent) is at y 1.1
+  assert.ok(Math.abs(box.min.y - 1.2) < 1e-6 && Math.abs(box.max.y - 1.7) < 1e-6, `from the ball's centre + 0.1 to + 0.1 + 0.5: ${box.min.y} to ${box.max.y}`);
   assert.equal(drawn(scene, 'slope').userData.arrowOffset, 0.1);
   const tag = holderOf(scene, 'slopeTag');
   assert.deepEqual(tag.position.toArray().map(v => Math.round(v * 1e9) / 1e9), [0, 0.6, 0]);
@@ -426,5 +428,63 @@ test('clamp: world y, through a moved and scaled parent, and through a surface t
   const result = scene.apply({ nodes: { ball: { position: [0, 3, 0] } } });
   assert.deepEqual(result.clamped, [{ node: 'ball', trueY: 7, y: 2 }]);
   assert.ok(Math.abs(holderOf(scene, 'ball').position.y - 0.5) < 1e-9);
+  scene.dispose();
+});
+
+// FX-AN-072: an arrow's offset is a distance outside the node's scale. A magnitude arrow is a unit arrow whose node scale is [1, length, 1]; its tail still starts `offset`
+// from the node's origin and its tip, where a tip label sits, is offset + length x scale. A frame that rescales the arrow moves the tip, never the tail.
+test('arrow_anchor: under a scaled arrow node the offset stays a distance and the tip is offset + length x scale, before and after a frame rescales it', () => {
+  const artifact = primitives();
+  artifact.scene.geometries[4] = { id: 'slopeArrow', kind: 'arrow', length: 1, offset: 0.1 };
+  artifact.scene.nodes.find(n => n.id === 'slope').scale = [1, 2, 1];
+  const scene = built(artifact);
+  const world = () => { scene.root.updateWorldMatrix(true, true); const ball = holderOf(scene, 'ball').getWorldPosition(new THREE.Vector3()); const box = new THREE.Box3().setFromObject(drawn(scene, 'slope')); const tag = holderOf(scene, 'slopeTag').getWorldPosition(new THREE.Vector3()); return { tail: box.min.y - ball.y, tip: box.max.y - ball.y, tag: tag.y - ball.y }; };
+  const near = (value, expected, what) => assert.ok(Math.abs(value - expected) < 1e-6, `${what}: ${value} != ${expected}`);
+  let at = world();
+  near(at.tail, 0.1, 'tail at the offset, not 0.2'); near(at.tip, 0.1 + 2, 'tip at offset + length x scale'); near(at.tag, 0.1 + 2, 'the tip label at the tip');
+  scene.apply({ nodes: { slope: { scale: [1, 4, 1] } } });
+  at = world();
+  near(at.tail, 0.1, 'rescaled: the tail has not moved'); near(at.tip, 0.1 + 4, 'rescaled tip'); near(at.tag, 0.1 + 4, 'the label follows the tip');
+  scene.apply({ nodes: { slopeTag: { position: [0.3, 0, 0] } } });
+  assert.ok(Math.abs(holderOf(scene, 'slopeTag').position.x - 0.3) < 1e-9 && Math.abs(world().tag - 4.1) < 1e-6, 'a moved label keeps its program position and its tip');
+  scene.dispose();
+});
+
+// The golden SGD artifact (testdata/sgd-golden.json, built by build-sgd-golden.mjs against the AN-18 contract) through this renderer.
+test('the golden SGD artifact compiles to the charged counts, its surface sits where the builder puts it (row along z, column along x, centred), and a diverged ball is clamped', () => {
+  const golden = JSON.parse(readFileSync(new URL('./testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
+  const scene = built(golden), geometries = new Map(golden.scene.geometries.map(g => [g.id, g]));
+  const charged = golden.scene.nodes.reduce((sum, node) => sum + (node.geometry ? triangleCost(geometries.get(node.geometry)) : 0), 0);
+  assert.equal(trianglesOf(scene.root), charged);
+  let lines = 0;
+  scene.root.traverse(object => { if (object.isLine && !object.userData.leader) lines += object.geometry.attributes.position.count; });
+  assert.ok(lines > 0 && lines <= golden.scene.nodes.reduce((sum, node) => sum + (node.geometry ? linePoints(geometries.get(node.geometry)) : 0), 0), `${lines} line points within the charge`);
+  const bowl = golden.scene.nodes.find(node => geometries.get(node.geometry)?.kind === 'surface'), surface = geometries.get(bowl.geometry);
+  const position = drawn(scene, bowl.id).children[0].geometry.attributes.position, rows = surface.heights.length, cols = surface.heights[0].length;
+  for (const [r, c] of [[0, 0], [0, cols - 1], [rows - 1, 0], [rows - 1, cols - 1], [5, 17]]) {
+    const i = r * cols + c, expected = [(c / (cols - 1) - 0.5) * surface.width, surface.heights[r][c], (r / (rows - 1) - 0.5) * surface.depth];
+    [position.getX(i), position.getY(i), position.getZ(i)].forEach((value, axis) => assert.ok(Math.abs(value - expected[axis]) < 1e-5, `vertex ${r},${c} axis ${axis}: ${value} != ${expected[axis]}`));
+  }
+  const ball = golden.scene.nodes.find(node => node.clampTo), top = ball.clampTo.max ?? Math.max(...surface.heights.flat());
+  const result = scene.apply({ nodes: { [ball.id]: { position: [0, 10, 0] } } });
+  assert.deepEqual(result.clamped.map(({ node, trueY }) => [node, trueY]), [[ball.id, 10]]);
+  assert.ok(Math.abs(result.clamped[0].y - top) < 1e-5, `held at the surface top ${top}, not ${result.clamped[0].y}`);
+  scene.dispose();
+});
+
+// FX-AN-072 on the real golden: its variable-length arrows are unit arrows under scale [1, length, 1] with offset = the ball radius; the tail stays that far from the arrow's origin at any length.
+test('the golden SGD arrows keep their tails at the offset whatever length a frame scales them to', () => {
+  const golden = JSON.parse(readFileSync(new URL('./testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
+  const geometries = new Map(golden.scene.geometries.map(g => [g.id, g])), scene = built(golden);
+  const arrows = golden.scene.nodes.filter(node => geometries.get(node.geometry)?.kind === 'arrow' && geometries.get(node.geometry).offset > 0);
+  assert.ok(arrows.length >= 2, 'the golden has its two offset arrows');
+  for (const length of [0.05, 0.4, 1, 3]) {
+    scene.apply({ nodes: Object.fromEntries(arrows.map(node => [node.id, { scale: [1, length, 1] }])) });
+    scene.root.updateWorldMatrix(true, true);
+    for (const node of arrows) {
+      const tail = drawn(scene, node.id).getWorldPosition(new THREE.Vector3()), origin = holderOf(scene, node.id).getWorldPosition(new THREE.Vector3());
+      assert.ok(Math.abs(tail.distanceTo(origin) - geometries.get(node.geometry).offset) < 1e-6, `${node.id} at length ${length}: the tail is ${tail.distanceTo(origin)} from the origin`);
+    }
+  }
   scene.dispose();
 });

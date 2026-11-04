@@ -93,7 +93,7 @@ row in [spend.md](spend.md).
 ### FX-AN-071 — a text readout cannot reach the card: `frameView` drops it (found writing the primitives check; AN-19 must fix before MVP3)
 - Symptom: `card.js` `frameView` keeps a readout only when `finite(values[item.id])`, and `Controls.jsx` `readoutText` formats numbers. A text readout's frame value is a string, so the status word would never appear on the card, and `animation-primitives-check.mjs` step 2 fails until it does.
 - Needed: `frameView` passes a text readout's string (at most 40 characters) through, `readoutText` shows it as is (no decimals, no unit), and the same `data-animation-readout` element carries it (`data-value` the word). Not done here: card.js, Controls.jsx and renderer.js are lane U's / AN-19's files.
-- Status: open.
+- Fixed (in the commit that adds this note, after `734a0e450`): `frameView` passes a text readout's string through and `readoutText` shows it as is; `Controls.jsx` was already generic (`data-value` is the word). `Animation3DCard.test.mjs` mounts the golden fixture card and finds the status word as the leading readout, beside its number readouts; it fails on the previous `card.js`. Status: fixed-unverified (no browser).
 
 ## Deferred
 
@@ -276,31 +276,31 @@ row in [spend.md](spend.md).
 - Next concrete action: look at the golden fixture's diverged state on the preview; if it shows, carry the previous ring's frame forward (parallel transport) instead of rebuilding it from the up vector. Owner action needed: the preview look.
 - Status: deferred
 
-### FX-AN-072 — DEFERRED, a contract question: does an arrow's `offset` scale with its node? (AN-18/AN-19)
+### FX-AN-072 — does an arrow's `offset` scale with its node? (AN-18/AN-19)
 - A magnitude arrow is a unit arrow whose node `scale` is `[1, length, 1]` (the golden does this; one scale for both arrows). If the renderer composes `offset` inside the node's scaled frame, the tail sits at `offset x length` from the ball's centre: inside the ball when the step is short, off it when long, so the fix for "arrows start inside the ball" holds only at length 1.
 - Recommended: `offset` is applied outside the node's scale (a world distance along the arrow's axis), and the tip anchor is `offset + length x scale`. If not, say so in the contract text so the author puts the arrow under an unscaled aim group. The golden assumes the first and is otherwise correct under either (it only sets `scale[1]`).
 - Confirmed in `scene.js` (566f11bf3): the offset is a translate inside the arrow's own group, which the node's scale multiplies. For the golden: the first step at rate 0.1 is 0.18 long, so its tail sits 0.02 from the ball's centre (inside the ball, radius 0.12) and the arrow shows a 0.09 stub; at rate 1.5 the first step is 2.75 long and the tail sits 0.33 out, a 0.21 gap from the ball. If the renderer keeps this, the golden can compensate (give each arrow node `position` = direction x 0.12 x (1 - length), so the tail lands at the ball's edge at any length) at the price of knowing the renderer's convention; lane c decides, the golden is not changed for it.
-- Status: deferred (cosmetic if wrong; checked by eye on the AN-19 fixture).
+- Decided and fixed (in the commit that adds this note): `offset` is applied outside the node's scale. The arrow's drawable sits at `offset / scale.y` in the node's own frame and a tip label at `offset / scale.y + length`, both re-placed whenever a frame changes the scale, so a unit arrow under scale `[1, length, 1]` keeps its tail `offset` from its origin and its tip at `offset + length x scale`. The contract comment and tool description already said "the tail starts that far along +Y". Tests: `scene.test.mjs` (a scaled arrow before and after a frame rescales it; the golden's arrows at lengths 0.05 to 3). The golden builder needs no compensation. Status: fixed-unverified.
 
 ### FX-AN-073 — DEFERRED: a stepped scene's own Pause is invisible to the program, so a status word can say running while the clock is paused
 - The card's transport Pause stops the host clock; the program is told nothing (`evaluate` has no playing flag), so a program-level `status` of running stays until the learner presses the scene's own Pause. The golden declares Run, Pause, Step once and New run as actions and keeps its own `on`; the transport buttons duplicate Run and Pause.
 - Options: give `evaluate` a `playing` boolean, or hide the transport when the scene declares a pause action. Neither is in this slice.
 - Status: deferred (cosmetic; the learner sees the ball stop).
 
-### FX-AN-074 — DEFERRED: trail vertices are not clamped, and the camera fit sees them
+### FX-AN-074 — trail vertices are not clamped, and the camera fit sees them
 - `clampTo` holds only a sphere node's world y. A diverged ball's trail vertex would be drawn at its true height and widen the fit by itself, so the golden's program keeps its trail vertices at the surface top (`lift` in its source, marked there) while the ball keeps its true height for the renderer to clamp. An author following the archetype ("the program clamps nothing") will not do this for the trail.
 - Options for AN-19: let a trail node name the surface it follows (same `clampTo`), or have `subjectPoints` ignore trail points above the surface top the way it ignores a clamped ball's true position.
-- Status: deferred; the golden is correct either way.
+- Fixed for the camera fit only (in the commit that adds this note): `scene.clampCeiling()` is the highest world y a clamp held a node to in the last frame, and `subjectPoints` clamps a trail's corners to it, so a diverged path does not widen the view. The trail is still drawn where the program put it (it may leave the picture); a trail node naming its surface would be the contract change if that matters. Test: `framing.test.mjs`. Status: fixed-unverified.
 
-### FX-AN-075 — DEFERRED: the golden JSON is a frozen identity (owner decision 22) and a Windows checkout can change its bytes
+### FX-AN-075 — the golden JSON is a frozen identity (owner decision 22) and a Windows checkout can change its bytes
 - The AN-20 harness hashes `sgd-golden.json` by its bytes. With `core.autocrlf=true` a fresh Windows checkout writes it with CRLF, a different hash from the LF file Linux and the builder write (the same hazard `.gitattributes` already closes for the Motion fixtures).
 - Fix, one line in `.gitattributes`: `packages/web/src/animation3d/testdata/sgd-golden.json text eol=lf`. Not applied here (a shared file); apply it before the golden is frozen. Any later edit to the golden (rebuild with `build-sgd-golden.mjs`) changes the hash and restarts the gate that froze it.
-- Status: deferred, but do it before Gate 1.
+- Applied (in the commit that adds this note): the `.gitattributes` line `packages/web/src/animation3d/testdata/sgd-golden.json text eol=lf`; the golden re-checked out with LF on this Windows tree (the builder-equality test failed on the CRLF checkout and passes on the LF one). Status: fixed-unverified.
 
 ### FX-AN-076 — how the golden is shown on the dev preview (AN-19 task 5), and what the check needs
 - Two ways, neither needs a model call. (a) `docs/features/animation/golden-fixture-card.patch` (one hunk in `Animation3DCard.jsx`: a card whose `fixtureId` is `sgd-golden` loads the JSON as its own chunk; the card then shows the Example pill and note like every built-in example; it is in no picker and no Slash window, so `slash-sheet.test.mjs` is unaffected; `Animation3DCard.test.mjs` passes with it applied). The primitives check seeds exactly such a card. (b) With no code change, the dev-only `seed-fixture` route stores the golden as a saved result (`animation-golden-sgd.test.js` runs that route), and the owner launcher `C:/s/spec/animation/open-correction-fixture.mjs` shows it if pointed at `sgd-golden.json`'s `artifact` instead of the correction artifact.
 - Apply the patch with `git apply docs/features/animation/golden-fixture-card.patch` in the AN-19 branch (checked against `caf7ee9bc`'s file). Until it is applied and the renderer draws the five kinds, `animation-primitives-check.mjs` fails in `fast-e2e`; that is its job.
-- Status: patch ready; not applied.
+- Applied (in the commit that adds this note): `golden-fixture-card.patch` in `Animation3DCard.jsx`, with the card test above. Status: fixed-unverified.
 
 ## Resolved
 

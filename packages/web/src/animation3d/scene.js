@@ -290,9 +290,9 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
   const shapeOf = g => {
     if (!geometries.has(g.id)) {
       if (g.kind === 'arrow') {
-        const head = g.length * 0.25, radius = g.length * 0.03, offset = g.offset ?? 0; // arrow_anchor: the whole arrow starts `offset` up +Y, its length unchanged
-        const shaft = own(new THREE.CylinderGeometry(radius, radius, g.length - head, ARROW_RADIAL, 1).translate(0, offset + (g.length - head) / 2, 0));
-        const tip = own(new THREE.ConeGeometry(radius * 2.5, head, ARROW_RADIAL, 1).translate(0, offset + g.length - head / 2, 0));
+        const head = g.length * 0.25, radius = g.length * 0.03;
+        const shaft = own(new THREE.CylinderGeometry(radius, radius, g.length - head, ARROW_RADIAL, 1).translate(0, (g.length - head) / 2, 0));
+        const tip = own(new THREE.ConeGeometry(radius * 2.5, head, ARROW_RADIAL, 1).translate(0, g.length - head / 2, 0));
         geometries.set(g.id, [shaft, tip]);
       } else if (g.kind !== 'label') geometries.set(g.id, own(meshGeometry(g)));
     }
@@ -301,7 +301,11 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
   const byGeometry = new Map(scene.geometries.map(g => [g.id, g]));
   const objects = new Map(), labels = new Map(), pickables = []; // labels: node id -> its sprite
   const nodeById = new Map(scene.nodes.map(node => [node.id, node]));
-  const trails = new Map(), tops = new Map(), shifts = new Map(), truth = new Map(); // trail node -> set(points); surface node -> its mesh; tip-anchored label -> shift; clamped node -> the position the program gave
+  const trails = new Map(), tops = new Map(), truth = new Map(); // trail node -> set(points); surface node -> its mesh; clamped node -> the position the program gave
+  // arrow_anchor (FX-AN-072): an arrow's offset is a distance outside the node's scale, so an arrow drawn as a unit arrow under scale [1, length, 1] still starts `offset`
+  // from its origin; its tip is offset + length x scale up +Y. placers move each arrow's drawable and each tip label to match the arrow's current scale.
+  const placers = [], bases = new Map(); // bases: tip label node id -> the position the program gave (before the tip shift)
+  let ceiling = null; // the highest world y any clamp held a node to in the last frame, for the camera fit (FX-AN-074)
   const clamps = scene.nodes.filter(node => node.clampTo).map(node => ({ id: node.id, target: node.clampTo.node, max: node.clampTo.max }));
 
   // A label's texture is painted by layoutLabels (its plate size depends on the view) and repainted only when its text, size bucket
@@ -334,10 +338,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
     holder.userData.nodeId = node.id;
     holder.position.fromArray(node.position);
     const g0 = node.geometry === undefined ? null : byGeometry.get(node.geometry), above = byGeometry.get(nodeById.get(node.parent)?.geometry);
-    if (g0?.kind === 'label' && g0.anchor === 'tip' && above?.kind === 'arrow') { // arrow_anchor: the label sits at the arrow's tip, offset + length up +Y in the arrow's own frame
-      shifts.set(node.id, new THREE.Vector3(0, (above.offset ?? 0) + above.length, 0));
-      holder.position.add(shifts.get(node.id));
-    }
+    if (g0?.kind === 'label' && g0.anchor === 'tip' && above?.kind === 'arrow') bases.set(node.id, node.position); // arrow_anchor: placed at the arrow's tip by its placer
     if (node.clampTo) truth.set(node.id, node.position);
     holder.quaternion.fromArray(node.quaternion);
     holder.scale.fromArray(node.scale);
@@ -350,6 +351,14 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
       drawable = new THREE.Group();
       drawable.userData.arrow = g.length;
       drawable.userData.arrowOffset = g.offset ?? 0;
+      placers.push(() => {
+        const along = (g.offset ?? 0) / (holder.scale.y || 1); // the offset in the node's own (scaled) units
+        drawable.position.y = along;
+        for (const [labelId, base] of bases) {
+          const tag = objects.get(labelId);
+          if (tag && tag.parent === holder) tag.position.set(base[0], base[1] + along + g.length, base[2]);
+        }
+      });
       for (const part of shapeOf(g)) drawable.add(new THREE.Mesh(part, surfaces.get(node.material) ?? fallback));
     } else if (g?.kind === 'surface') {
       // The surface mesh, and its contour lines in the surface colour darkened so they read against it (own material: a frame's colour change reaches the mesh only).
@@ -372,6 +381,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
       drawable.frustumCulled = false; // its bounds follow its points
       drawable.visible = false; // nothing to draw until a frame carries points
       drawable.userData.empty = true;
+      drawable.userData.trail = true;
       trails.set(node.id, points => { const n = buffers.set(points); drawable.visible = n >= (radius ? 2 : 1); drawable.userData.empty = !drawable.visible; });
     } else if (g) drawable = new THREE.Mesh(shapeOf(g), surfaces.get(node.material) ?? fallback);
     if (drawable) {
@@ -384,6 +394,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
   }
   const root = new THREE.Group();
   for (const node of scene.nodes) (node.parent === null ? root : objects.get(node.parent)).add(objects.get(node.id));
+  for (const place of placers) place(); // each arrow at its offset, each tip label at its tip
 
   const bounds = new THREE.Box3(), sphere = new THREE.Sphere();
   // The scene's on-screen span in CSS pixels: the projected diameter of the bounding sphere of its visible meshes and lines (labels
@@ -405,7 +416,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
         if (!checked.ok) return checked;
         for (const [id, update] of Object.entries(checked.value.nodes)) {
           const holder = objects.get(id);
-          if (update.position) { holder.position.fromArray(update.position); if (shifts.has(id)) holder.position.add(shifts.get(id)); if (truth.has(id)) truth.set(id, update.position); }
+          if (update.position) { holder.position.fromArray(update.position); if (bases.has(id)) bases.set(id, update.position); if (truth.has(id)) truth.set(id, update.position); }
           if (update.quaternion) holder.quaternion.fromArray(update.quaternion);
           if (update.scale) holder.scale.fromArray(update.scale);
           if (update.visible !== undefined) holder.visible = update.visible;
@@ -414,6 +425,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
           if (update.text !== undefined && tag && tag.text !== update.text) Object.assign(tag, { text: update.text, painted: null }); // repainted at the next layout
           if (update.points !== undefined) trails.get(id)?.(update.points);
         }
+        for (const place of placers) place(); // arrows and their tip labels follow the scale a frame may have changed
         for (const [id, update] of Object.entries(checked.value.materials)) {
           for (const material of [surfaces.get(id), strokes.get(id)].filter(Boolean)) {
             if (update.color) material.color.set(update.color);
@@ -423,6 +435,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
         // clamp: after the program's frame, a sphere bound to a surface is held at the surface's top (or at `max`), in world y. The node keeps the position the
         // program gave (truth), so a frame that does not move it is clamped again; clamped lists what was held: the true and the clamped world y.
         const clamped = [];
+        ceiling = null;
         if (clamps.length) {
           root.updateWorldMatrix(true, true);
           for (const { id, target, max } of clamps) {
@@ -433,10 +446,11 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
             holder.parent.updateWorldMatrix(true, false);
             holder.updateWorldMatrix(false, false);
             holder.getWorldPosition(world);
-            const ceiling = max ?? new THREE.Box3().setFromObject(mesh).max.y;
-            if (world.y <= ceiling) continue;
-            clamped.push({ node: id, trueY: world.y, y: ceiling });
-            world.y = ceiling;
+            const limit = max ?? new THREE.Box3().setFromObject(mesh).max.y;
+            ceiling = Math.max(ceiling ?? -Infinity, limit);
+            if (world.y <= limit) continue;
+            clamped.push({ node: id, trueY: world.y, y: limit });
+            world.y = limit;
             holder.position.copy(holder.parent.worldToLocal(world));
             holder.userData.diverged = true;
             holder.updateWorldMatrix(false, false);
@@ -482,10 +496,9 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
         const obstacles = [], head = new THREE.Vector3(), tail = new THREE.Vector3();
         root.traverseVisible(arrow => {
           if (arrow.userData.arrow === undefined) return;
-          const offset = arrow.userData.arrowOffset ?? 0;
-          arrow.localToWorld(tail.set(0, offset, 0));
+          arrow.localToWorld(tail.set(0, 0, 0)); // the drawable sits at the arrow's offset
           const depth = -world.copy(tail).applyMatrix4(camera.matrixWorldInverse).z, radius = arrow.children[1].geometry.parameters.radius * arrow.getWorldScale(world).x;
-          arrow.localToWorld(head.set(0, offset + arrow.userData.arrow, 0));
+          arrow.localToWorld(head.set(0, arrow.userData.arrow, 0));
           tail.project(camera); head.project(camera);
           if (depth <= 0 || Math.abs(tail.z) > 1 || Math.abs(head.z) > 1) return;
           obstacles.push({ x1: (tail.x + 1) / 2 * w0, y1: (1 - tail.y) / 2 * h0, x2: (head.x + 1) / 2 * w0, y2: (1 - head.y) / 2 * h0, half: radius * f * h0 / (2 * depth) });
@@ -528,6 +541,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
         });
         return boxes;
       },
+      clampCeiling: () => ceiling, // the highest world y a clamp held a node to in the last frame, or null: the camera fit does not follow a trail above it (framing.js)
       setOptionalLabels(on) { optional = !!on; }, // applied at the next layoutLabels
       hasOptionalLabels: () => [...labels.values()].some(sprite => !sprite.userData.label.essential),
       dispose() { root.removeFromParent(); root.clear(); [...owned].forEach(release); },

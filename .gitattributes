@@ -5,3 +5,5 @@ packages/learn-render/motion/fixtures/** text eol=lf
 packages/web/test/fixtures/file-imports/** -text
 # The telemetry feature registry: adapters each add one import line and one list entry; keep both sides' additions.
 packages/control-plane/src/telemetry-events/index.js merge=union
+# The golden SGD artifact is a frozen identity hashed by its bytes (FX-AN-075): a Windows checkout must not turn it into CRLF.
+packages/web/src/animation3d/testdata/sgd-golden.json text eol=lf

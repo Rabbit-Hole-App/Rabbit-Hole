@@ -127,6 +127,9 @@ export function subjectPoints(scene, frames) {
       if (!drawable || !shown(drawable) || drawable.userData.empty) continue; // an empty trail has nothing to frame
       if (drawable.isSprite) { if (record) anchors.push({ id, point: drawable.getWorldPosition(new THREE.Vector3()) }); continue; }
       const corners = cornersOf(drawable);
+      // A trail above the height a clamp holds the marker to is the diverged path (FX-AN-074): it is drawn where the program put it but the fit follows the clamped marker.
+      const ceiling = drawable.userData.trail ? scene.clampCeiling?.() : null;
+      if (ceiling != null) for (const corner of corners) corner.y = Math.min(corner.y, ceiling);
       seen.set(id, new THREE.Box3().setFromPoints(corners));
       if (!record) continue;
       if (!swept.has(id)) { swept.set(id, { box: new THREE.Box3(), points: [] }); if (drawable.isMesh && flat(drawable)) sheets.add(id); if (drawable.userData.arrow) arrows.add(id); }
