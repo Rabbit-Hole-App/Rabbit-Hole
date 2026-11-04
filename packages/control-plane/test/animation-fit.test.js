@@ -177,11 +177,11 @@ test('the author and repair are told the names the card keeps for itself and the
 test('the author runs at medium effort with 24,000 output tokens, and the build worst case and credits follow the pricing registry', async () => {
   const { LEARN_TASKS, MODEL_PRICES } = await import('../src/learn-models.js');
   assert.deepEqual([LEARN_TASKS.animation_author.effort, LEARN_TASKS.animation_author.maxTokens], ['medium', 24000]);
-  assert.deepEqual([LEARN_TASKS.animation_repair.effort, LEARN_TASKS.animation_repair.maxTokens, LEARN_TASKS.animation_review.maxTokens], ['low', 12000, 6000]);
+  assert.deepEqual([LEARN_TASKS.animation_repair.effort, LEARN_TASKS.animation_repair.maxTokens, LEARN_TASKS.animation_review.maxTokens], ['low', 12000, 8000]);
   const [, output] = MODEL_PRICES['claude-opus-5-5'];
   assert.equal(roleBoundMicros('author') - Math.ceil(60000 * MODEL_PRICES['claude-opus-5-5'][0] * 1.25 + 16000 * output), 8000 * output, '8,000 more output tokens at the registry price');
   assert.equal(8000 * output, 160000, 'US$0.16');
-  assert.equal(Math.ceil(animationReservation().generationMicros / 10000), 325, 'displayed maximum: 309 + 16 credits');
+  assert.equal(Math.ceil(animationReservation().generationMicros / 10000), 337, 'displayed maximum: 309 + 16 + 12 credits (the review at 8,000 output tokens, FX-AN-102)');
 });
 
 test("the author and repair follow the plan's formula and convention, and the review reports every serious problem at once (aj_ba11d5a, aj_ad936ec)", async () => {
@@ -223,4 +223,23 @@ test('a non-SGD scene keeps the shared changes: a game reading event.action pass
   const f = c => ({ category: 'spec', severity: 'major', target: { capture: c }, message: 'robot label overlaps the goal' });
   const sent = JSON.parse(repairContent(jobOf(fixture.repairedDraft), { findings: [f('v0-s0'), f('v1-s0')] }, fixture.repairedDraft)[0].text);
   assert.deepEqual([sent.findings.length, sent.findings[0].targets.map(t => t.capture)], [1, ['v0-s0', 'v1-s0']]);
+});
+
+// C9 (owner; decision-16-shaped; FX-AN-102): C8 Gate 2 job 4 (aj_4f08e1b367964e4aa0c3124c26dfc33f) ran its review out of output: 3,818 thinking tokens, a prose answer and a cut-off tool
+// call made 6,000. The review role gets 8,000. Its bound, the generation worst case and the displayed maximum follow; no other role and no input limit moves.
+test('the review runs with 8,000 output tokens: its bound, the worst case and the displayed credits follow, and nothing else moved', async () => {
+  const { LEARN_TASKS, MODEL_PRICES } = await import('../src/learn-models.js');
+  const { ANIMATION_ROLES } = await import('../src/animation-policy.js');
+  const [, output] = MODEL_PRICES['claude-opus-5-5'];
+  assert.equal(LEARN_TASKS.animation_review.maxTokens, 8000);
+  assert.equal(roleBoundMicros('review'), 503520, 'was 463,520');
+  assert.equal(roleBoundMicros('review') - 463520, 2000 * output, '2,000 more output tokens at the registry price, US$0.04 per call');
+  const r = animationReservation();
+  assert.equal(r.generationMicros, 780000 + 3 * 503520 + 2 * 537840, '3,366,240, was 3,246,240 (US$0.12 more)');
+  assert.equal(r.preparationMicros, 560000, 'planning is unchanged');
+  assert.equal(Math.ceil(r.generationMicros / 10000), 337, 'shown on Generate: 337 credits, was 325');
+  assert.deepEqual([roleBoundMicros('brief'), roleBoundMicros('author'), roleBoundMicros('repair')], [280000, 780000, 537840], 'brief, author and repair bounds are as they were');
+  assert.deepEqual(ANIMATION_ROLES, { brief: { task: 'animation_brief', maxInputTokens: 40000, maxImages: 0 }, author: { task: 'animation_author', maxInputTokens: 60000, maxImages: 0 },
+    review: { task: 'animation_review', maxInputTokens: 40000, maxImages: 6 }, repair: { task: 'animation_repair', maxInputTokens: 50000, maxImages: 2 } }, 'no input limit moved');
+  assert.deepEqual([LEARN_TASKS.animation_brief.maxTokens, LEARN_TASKS.animation_author.maxTokens, LEARN_TASKS.animation_repair.maxTokens], [4000, 24000, 12000]);
 });
