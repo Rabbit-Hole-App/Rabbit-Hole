@@ -8,9 +8,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CONTROL, PHRASINGS, TYPICAL, classify, decide, latestPerJob, machineResult, main, parse, parseTypical, resultTable, runQualify, sgdMarkers, verdictOf } from './sgd-qualify.mjs';
+import { CONTROL, PHRASINGS, TYPICAL, classify, decide, latestPerJob, machineResult, main, parse, parseTypical, resultTable, reviewIdentityRefusal, runQualify, sgdMarkers, verdictOf } from './sgd-qualify.mjs';
 import { DRY_RUN, FAKE_GOLDEN, SCENARIOS, createFake, fakeReviewer } from './sgd-qualify-fake.mjs';
-import { KEY_PARTS, controlsKey, loadProduct, providerReview, readManifest, relabel, rememberedPass, writeControls } from './gate2-controls.mjs';
+import { KEY_PARTS, REVIEW_FILES, controlsKey, loadProduct, providerReview, readManifest, relabel, rememberedPass, reviewIdentity, writeControls } from './gate2-controls.mjs';
 import { createHash } from 'node:crypto';
 
 const PRODUCT = await loadProduct(fileURLToPath(new URL('../..', import.meta.url))); // the product's own review code, from this repository's tree
@@ -250,6 +250,7 @@ test('command line: usage errors refuse before anything; the dry run passes agai
 });
 
 // A fetch that serves the fake preview: the cookie decides the user, so the real makeCall, sessions file and headers are exercised.
+const authorModule = (review = 'review prompt v1', author = 'author prompt v1') => `export const ANIMATION_AUTHOR_SYSTEM = ${JSON.stringify(author)};\nexport const ANIMATION_REVIEW_SYSTEM = ${JSON.stringify(review)};\n`;
 const GOLDEN_TEXT = JSON.stringify(FAKE_GOLDEN); // the golden of the fake candidate tree; the calibration manifests pin its sha256
 // A sessions file as `dev-test-session.mjs --mint --fresh` writes it; the cookie value n is the fake preview's user n.
 const sessionsFileOf = (file, emails) => writeFileSync(file, JSON.stringify({ cookie: 'small_session', sessions: emails.map((email, i) => ({ email, value: `cookie-${i + 1}` })) }));
@@ -275,6 +276,10 @@ function world({ mismatch = false, extraFlags = [], env = { PREVIEW_VERSION: VER
   writeFileSync(join(cand, 'packages', 'web', 'src', 'animation3d', 'testdata', 'sgd-golden.json'), GOLDEN_TEXT);
   mkdirSync(join(cand, 'packages', 'web', 'render'), { recursive: true });
   writeFileSync(join(cand, 'packages', 'web', 'render', 'animation3d-render.js'), 'the review page, version 1\n');
+  mkdirSync(join(cand, 'packages', 'control-plane', 'src', 'agents'), { recursive: true });
+  writeFileSync(join(cand, 'packages', 'control-plane', 'src', 'animation-review.js'), '// the review request builder, version 1\n');
+  writeFileSync(join(cand, 'packages', 'control-plane', 'src', 'animation-render.js'), '// the capture path, version 1\n');
+  writeFileSync(join(cand, 'packages', 'control-plane', 'src', 'agents', 'animation-author.js'), authorModule());
   writeFileSync(join(cand, 'packages', 'web', 'src', 'animation3d', 'capabilities.js'), "export const ANIMATION_CLIENT_FEATURES = Object.freeze(['curve_radius', 'action_motion', 'surface_grid']);\n");
   const spawn = (cmd, args) => {
     if (cmd === 'git') { const rest = args.slice(2); return { status: 0, stdout: rest[0] === 'rev-parse' && rest[1] === 'HEAD' ? `${SHA}\n` : '' }; }
@@ -315,7 +320,7 @@ test('main end to end over a fake fetch: sessions file, cookies per user, origin
   assert.deepEqual(machine.identities, { mvp3Sha: 'b'.repeat(40), promptsHash: 'ab'.repeat(16), goldenHash: 'cd'.repeat(16) });
   assert.deepEqual(machine.control, { outcome: 'gap', silentSgd: false, markers: [] });
   assert.equal(machine.rows.length, 10);
-  assert.deepEqual(Object.keys(machine.rows[0]), ['n', 'phrasing', 'jobId', 'outcome', 'repairs', 'settledCredits', 'chargedCredits', 'artifactHash', 'session', 'note']);
+  assert.deepEqual(Object.keys(machine.rows[0]), ['n', 'phrasing', 'jobId', 'outcome', 'repairs', 'settledCredits', 'chargedCredits', 'artifactHash', 'session', 'reviewIdentity', 'note']);
   assert.deepEqual([machine.rows[3].repairs, machine.rows[6].outcome, machine.settledCredits, machine.cap, machine.prior], [1, 'rejected', 473.6, 2000, 100]);
   assert.ok(readdirSync(join(w.dir, 'out')).some(f => /^result-aaaaaaa-\d+\.json$/.test(f)), 'a stamped copy stays');
   const state = JSON.parse(readFileSync(join(w.dir, 'out', `state-aaaaaaa-0fd062bf.json`), 'utf8'));
@@ -520,12 +525,16 @@ test('job 0: the golden goes through the preview\'s seed-fixture and render-resu
   assert.deepEqual([c.schema, c.candidateSha, c.verdict, c.goldenAccepted, c.items.length, c.items[0].kind, c.items[0].outcome, c.items[0].accepted], ['gate2-controls/1', SHA, 'PASS', true, 1, 'golden', 'accepted', true]);
   assert.equal(c.items[0].credits, 14.6, 'priced by the product\'s own costUsd, and carried in the result');
   assert.equal(c.spentCredits, 14.6);
-  assert.deepEqual(Object.keys(c.key), ['candidateSha', 'manifestHash', 'promptsHash', 'reviewPageHash']);
-  assert.equal(c.key.reviewPageHash, sha256('the review page, version 1\n'));
+  assert.deepEqual(Object.keys(c.key), ['candidateSha', 'manifestHash', 'promptsHash', 'reviewIdentity']);
+  const identity = await reviewIdentity(w.cand);
+  assert.equal(c.key.reviewIdentity, identity.hash);
+  assert.deepEqual(Object.keys(c.reviewFiles), [...REVIEW_FILES, 'review prompt (ANIMATION_REVIEW_SYSTEM)']);
+  assert.equal(c.reviewFiles['packages/web/render/animation3d-render.js'], sha256('the review page, version 1\n'));
+  assert.equal(c.reviewFiles['review prompt (ANIMATION_REVIEW_SYSTEM)'], sha256('review prompt v1'), 'the prompt text itself, not the file around it');
   assert.equal(readFileSync(join(w.dir, 'out', 'controls-result.json'), 'utf8').trim().split('\n').length, 1, 'one compact line, next to gate2-result.json');
   assert.match(readFileSync(join(w.dir, 'out', 'spend-rows.md'), 'utf8'), /\| c0 \| .* \| CONTROL: golden SGD artifact \(job 0\) \(direct review call, outside the ledger\) \| - \| accepted \| 0 \| 14\.60 \|/);
   assert.equal(w.fake.jobs.size, 10, 'the ten phrasings ran after the control');
-  assert.match(w.lines.join('\n'), /controls key: candidate SHA aaaaaaaaaaaa \| manifest hash none \| prompt-files hash abababababab \| review-page hash [0-9a-f]{12}/);
+  assert.match(w.lines.join('\n'), /controls key: candidate SHA aaaaaaaaaaaa \| manifest hash none \| prompt-files hash abababababab \| review identity [0-9a-f]{12}/);
   assert.match(w.lines.join('\n'), /outside the ledger and outside the platform day cap/);
   assert.match(w.lines.join('\n'), /Settled by this run: 459\.00 credits/);
   assert.match(w.lines.join('\n'), /cumulative 573\.60 of cap 2000/, 'the control\'s spend counts against the cap and the ladder total');
@@ -581,7 +590,7 @@ test('--calibrate: the golden passes, each must-fail draft is rejected for a fin
   assert.equal(await noNetwork(() => fine.run()), 0, fine.lines.join('\n'));
 });
 
-test('the controls memory is keyed by candidate SHA, manifest hash, prompt-files hash and review-page hash: a pass is reused, and each changed part invalidates it and is named', async () => {
+test('the controls memory is keyed by candidate SHA, manifest hash, prompt-files hash and the review identity: a pass is reused, and each changed part invalidates it and the changed file is named', async () => {
   const w = world({ verdict: CALIBRATED, calibrate: calibrationDir(), extraFlags: ['--controls'] });
   assert.equal(await noNetwork(() => w.run()), 0, w.lines.join('\n'));
   assert.equal(w.reviewed.length, 4);
@@ -591,15 +600,30 @@ test('the controls memory is keyed by candidate SHA, manifest hash, prompt-files
   assert.equal(reuse.code, 0);
   assert.equal(w.reviewed.length, 4, 'no review call for an unchanged key');
   assert.match(reuse.text, /controls: a PASS is remembered for this key/);
-  assert.match(reuse.text, /controls: PASS reused, not reviewed again\. key: candidate SHA aaaaaaaaaaaa \| manifest hash [0-9a-f]{12} \| prompt-files hash abababababab \| review-page hash [0-9a-f]{12}/);
-  // the review page changed (FX-AN-098 lived in that file): the control runs again
-  writeFileSync(join(w.cand, 'packages', 'web', 'render', 'animation3d-render.js'), 'the review page, version 2\n');
-  const page = await run();
-  assert.equal(page.code, 0);
-  assert.equal(w.reviewed.length, 8, 'reviewed again');
-  assert.match(page.text, /the remembered pass \(.*\) is stale: review-page hash changed \([0-9a-f]{12} -> [0-9a-f]{12}\); they run again/);
-  assert.doesNotMatch(page.text, /candidate SHA changed|manifest hash changed|prompt-files hash changed/);
-  assert.equal((await run()).text.includes('PASS reused'), true, 'and the new pass is remembered');
+  assert.match(reuse.text, /controls: PASS reused, not reviewed again\. key: candidate SHA aaaaaaaaaaaa \| manifest hash [0-9a-f]{12} \| prompt-files hash abababababab \| review identity [0-9a-f]{12}/);
+  assert.match(reuse.text, /review identity [0-9a-f]{12}: animation3d-render\.js [0-9a-f]{12}, animation-review\.js [0-9a-f]{12}, animation-render\.js [0-9a-f]{12}, review prompt \(ANIMATION_REVIEW_SYSTEM\) [0-9a-f]{12}/);
+  // the AUTHOR prompt in the same file is Gate 1's, not the review identity's: changing it re-runs nothing here
+  writeFileSync(join(w.cand, 'packages', 'control-plane', 'src', 'agents', 'animation-author.js'), authorModule('review prompt v1', 'author prompt v2'));
+  const author = await run();
+  assert.equal(w.reviewed.length, 4, 'the author prompt does not change the review identity');
+  assert.match(author.text, /PASS reused/);
+  // each file of the review identity, changed alone, invalidates the pass and is named with its short hashes (FX-AN-098 lived in the page)
+  const cases = [['packages/web/render/animation3d-render.js', ['packages', 'web', 'render', 'animation3d-render.js'], 'the review page, version 2\n'],
+    ['packages/control-plane/src/animation-review.js', ['packages', 'control-plane', 'src', 'animation-review.js'], '// the review request builder, version 2\n'],
+    ['packages/control-plane/src/animation-render.js', ['packages', 'control-plane', 'src', 'animation-render.js'], '// the capture path, version 2\n'],
+    ['review prompt (ANIMATION_REVIEW_SYSTEM)', ['packages', 'control-plane', 'src', 'agents', 'animation-author.js'], authorModule('review prompt v2', 'author prompt v2')]];
+  let reviewed = 4;
+  for (const [name, path, content] of cases) {
+    writeFileSync(join(w.cand, ...path), content);
+    const changed = await run();
+    reviewed += 4;
+    assert.equal(changed.code, 0, changed.text);
+    assert.equal(w.reviewed.length, reviewed, `${name} changed: reviewed again`);
+    assert.match(changed.text, new RegExp(`the remembered pass \\(.*\\) is stale: review identity changed \\([0-9a-f]{12} -> [0-9a-f]{12}\\): ${name.replace(/[.()]/g, '\\$&')} \\([0-9a-f]{12} -> [0-9a-f]{12}\\); they run again`));
+    assert.equal((changed.text.match(/ \([0-9a-f]{12} -> [0-9a-f]{12}\)/g) || []).length, 2, 'the identity and the one file: nothing else is named');
+    assert.doesNotMatch(changed.text, /candidate SHA changed|manifest hash changed|prompt-files hash changed/);
+    assert.equal((await run()).text.includes('PASS reused'), true, 'and the new pass is remembered');
+  }
   // a fixture of the calibration set changed: the manifest hash changed
   const other = calibrationDir();
   const swapped = w.argv.map((arg, i) => (w.argv[i - 1] === '--calibrate' ? other.file : arg));
@@ -607,23 +631,27 @@ test('the controls memory is keyed by candidate SHA, manifest hash, prompt-files
   w.lines.length = 0;
   assert.equal(await noNetwork(() => w.run(swapped)), 0);
   assert.match(w.lines.join('\n'), /is stale: manifest hash changed/);
-  assert.equal(w.reviewed.length, 12);
+  assert.equal(w.reviewed.length, 4 + 4 * 4 + 4, 'a changed manifest is reviewed again too');
 });
 
 test('rememberedPass names every part that changed: the candidate SHA and the prompt-files hash too', () => {
-  const out = tmp(), key = controlsKey({ candidateSha: 'a'.repeat(40), manifestHash: 'b'.repeat(64), promptsHash: 'c'.repeat(64), reviewPageHash: 'd'.repeat(64) });
+  const out = tmp(), key = controlsKey({ candidateSha: 'a'.repeat(40), manifestHash: 'b'.repeat(64), promptsHash: 'c'.repeat(64), reviewIdentity: 'd'.repeat(64) });
   assert.deepEqual(rememberedPass(out, key), { reuse: null, stale: null }, 'nothing remembered yet');
   writeControls(out, { key, version: '0fd062bf-f9e4-4099-8894-2d2924e94d6b', manifest: null, result: { verdict: 'FAIL', goldenAccepted: false, spentCredits: 1, items: [] }, at: new Date(0) });
   assert.equal(rememberedPass(out, key).reuse, null, 'a failure is not remembered');
   writeControls(out, { key, version: '0fd062bf-f9e4-4099-8894-2d2924e94d6b', manifest: null, result: { verdict: 'PASS', goldenAccepted: true, spentCredits: 14.6, items: [] }, at: new Date(0) });
   assert.equal(rememberedPass(out, key).reuse.spentCredits, 14.6);
-  for (const [part, value] of [['candidateSha', 'e'.repeat(40)], ['manifestHash', null], ['promptsHash', 'f'.repeat(64)], ['reviewPageHash', 'absent']]) {
+  for (const [part, value] of [['candidateSha', 'e'.repeat(40)], ['manifestHash', null], ['promptsHash', 'f'.repeat(64)], ['reviewIdentity', 'absent']]) {
     const r = rememberedPass(out, { ...key, [part]: value });
     assert.equal(r.reuse, null, part);
     assert.match(r.stale, new RegExp(`stale: ${KEY_PARTS[part]} changed \\(`), part);
     assert.equal((r.stale.match(/changed/g) || []).length, 1, 'only the part that changed');
   }
-  assert.match(rememberedPass(out, { ...key, candidateSha: 'e'.repeat(40), reviewPageHash: 'x' }).stale, /candidate SHA changed \(aaaaaaaaaaaa -> eeeeeeeeeeee\); review-page hash changed/);
+  assert.match(rememberedPass(out, { ...key, candidateSha: 'e'.repeat(40), reviewIdentity: 'x' }).stale, /candidate SHA changed \(aaaaaaaaaaaa -> eeeeeeeeeeee\); review identity changed/);
+  // with the per-file hashes the stale message names the files that differ
+  const files = { 'page.js': 'p'.repeat(64), 'builder.js': 'q'.repeat(64) };
+  writeControls(out, { key, reviewFiles: files, version: 'v', manifest: null, result: { verdict: 'PASS', goldenAccepted: true, spentCredits: 1, items: [] }, at: new Date(0) });
+  assert.match(rememberedPass(out, { ...key, reviewIdentity: 'z'.repeat(64) }, { ...files, 'page.js': 'n'.repeat(64) }).stale, /review identity changed \(dddddddddddd -> zzzzzzzzzzzz\): page\.js \(pppppppppppp -> nnnnnnnnnnnn\)$/);
 });
 
 test('controls errors are not passes: a preview without diagnostics, a failed review call, and bad configuration all stop before any author job', async () => {
@@ -649,7 +677,7 @@ test('controls errors are not passes: a preview without diagnostics, a failed re
   const checked = world({ calibrate: calibrationDir(), extraFlags: ['--check'] });
   assert.equal(await noNetwork(() => checked.run()), 0, checked.lines.join('\n'));
   assert.match(checked.lines.join('\n'), /controls: job 0 is the golden SGD artifact, with 2 must-fail and 1 false-positive draft\(s\) from .*manifest\.json; about 80 credits/);
-  assert.match(checked.lines.join('\n'), /controls key: candidate SHA aaaaaaaaaaaa \| manifest hash [0-9a-f]{12} \| prompt-files hash abababababab \| review-page hash [0-9a-f]{12}/);
+  assert.match(checked.lines.join('\n'), /controls key: candidate SHA aaaaaaaaaaaa \| manifest hash [0-9a-f]{12} \| prompt-files hash abababababab \| review identity [0-9a-f]{12}/);
   assert.match(checked.lines.join('\n'), /controls: no pass is remembered for this key; they run before any author job/);
   assert.equal(checked.seen.length, 0, 'a check makes no request');
   const pinned = world({ calibrate: calibrationDir({ goldenText: 'another golden' }), extraFlags: ['--check'] });
@@ -672,4 +700,40 @@ test('providerReview sends the product\'s request body to the provider with the 
   const prose = await providerReview({ product: PRODUCT, apiKey: 'k', fetchImpl: async () => Response.json({ content: [{ type: 'text', text: 'prose only' }], usage: {} }) })('review', { system: 's', tool: { name: 't', input_schema: { type: 'object' } }, content: 'x' });
   assert.equal(prose.input, null, 'a reply with no tool call is passed on as such (the stage retries once)');
   await assert.rejects(providerReview({ product: PRODUCT, apiKey: 'k', fetchImpl: async () => Response.json({ error: { type: 'overloaded_error' } }, { status: 529 }) })('review', { system: 's', tool: { name: 't', input_schema: { type: 'object' } }, content: 'x' }), /HTTP 529 \(overloaded_error\)/);
+});
+
+test('Gate 2 records the candidate\'s review identity in its result and its rows, and a rerun on the same candidate with a changed review identity re-runs the controls first (the result says the rows are mixed)', async () => {
+  const w = world();
+  assert.equal(await noNetwork(() => w.run()), 0, w.lines.join('\n'));
+  const identity = await reviewIdentity(w.cand);
+  const first = JSON.parse(readFileSync(join(w.dir, 'out', 'gate2-result.json'), 'utf8'));
+  assert.deepEqual([first.reviewIdentity.hash, Object.keys(first.reviewIdentity.files).length, first.mixedReviewIdentity], [identity.hash, 4, false]);
+  assert.ok(first.rows.every(r => r.reviewIdentity === identity.hash.slice(0, 12)), 'every row says which review it was measured under');
+  assert.match(w.lines.join('\n'), /Review identity [0-9a-f]{12} \(what the reviewer reads and sees\): animation3d-render\.js /);
+  const state = JSON.parse(readFileSync(join(w.dir, 'out', 'state-aaaaaaa-0fd062bf.json'), 'utf8'));
+  assert.equal(state.reviewIdentity, identity.hash);
+  const reviewedBefore = w.reviewed.length;
+  // the review page changes; the same candidate is run again with fresh users
+  writeFileSync(join(w.cand, 'packages', 'web', 'render', 'animation3d-render.js'), 'the review page, version 2\n');
+  const fresh = join(w.dir, 'fresh-sessions.json');
+  sessionsFileOf(fresh, Array.from({ length: 5 }, (_, i) => `g2-202611031905-${i + 1}@example.com`));
+  const jobsBefore = w.fake.jobs.size;
+  assert.equal(await noNetwork(() => w.run(w.argv.map((a, i) => (w.argv[i - 1] === '--sessions-file' ? fresh : a)))), 0, w.lines.slice(-12).join('\n'));
+  assert.equal(w.reviewed.length, reviewedBefore + 1, 'the controls ran again under the new identity');
+  assert.match(w.lines.join('\n'), /review identity changed since this candidate's earlier jobs \(packages\/web\/render\/animation3d-render\.js \([0-9a-f]{12} -> [0-9a-f]{12}\)\): the controls passed under the new one; the result will say the rows are mixed/);
+  assert.equal(w.fake.jobs.size, jobsBefore, 'every phrasing already had a result');
+  const second = JSON.parse(readFileSync(join(w.dir, 'out', 'gate2-result.json'), 'utf8'));
+  assert.notEqual(second.reviewIdentity.hash, first.reviewIdentity.hash);
+  assert.equal(second.mixedReviewIdentity, true, 'rows measured under the old review, a result under the new one');
+  assert.equal(JSON.parse(readFileSync(join(w.dir, 'out', 'state-aaaaaaa-0fd062bf.json'), 'utf8')).reviewIdentity, second.reviewIdentity.hash);
+});
+
+test('reviewIdentityRefusal: a different review identity than the candidate\'s earlier jobs is refused unless the controls passed under the new one', () => {
+  assert.equal(reviewIdentityRefusal({ stateIdentity: null, current: 'b'.repeat(64), controlsIdentity: 'a'.repeat(64) }), null, 'a first run has nothing to compare');
+  assert.equal(reviewIdentityRefusal({ stateIdentity: 'a'.repeat(64), current: 'a'.repeat(64), controlsIdentity: 'a'.repeat(64) }), null, 'the same identity');
+  assert.equal(reviewIdentityRefusal({ stateIdentity: 'a'.repeat(64), current: 'b'.repeat(64), controlsIdentity: 'b'.repeat(64) }), null, 'controls re-run under the new identity');
+  const refused = reviewIdentityRefusal({ stateIdentity: 'a'.repeat(64), current: 'b'.repeat(64), controlsIdentity: 'a'.repeat(64), changed: ['page.js (aaaaaaaaaaaa -> bbbbbbbbbbbb)'] });
+  assert.match(refused, /^REFUSED: this candidate's earlier jobs were measured under review identity aaaaaaaaaaaa, the review is now bbbbbbbbbbbb \(page\.js \(aaaaaaaaaaaa -> bbbbbbbbbbbb\)\), and the controls have not passed under the new one; run the controls first$/);
+  const m = machineResult({ candidateSha: SHA, version: VERSION, identities: {}, review: { hash: 'b'.repeat(64), files: { 'page.js': 'x' } }, result: { rows: [row(1, 'accepted', { reviewIdentity: 'a'.repeat(64) })], verdict: verdictOf([]), finished: 0, notRun: [] }, cap: 1, prior: 0, at: new Date(0) });
+  assert.deepEqual([m.reviewIdentity.hash === 'b'.repeat(64), m.mixedReviewIdentity, m.rows[0].reviewIdentity], [true, true, 'aaaaaaaaaaaa']);
 });

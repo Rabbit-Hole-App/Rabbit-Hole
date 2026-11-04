@@ -157,31 +157,60 @@ export async function runControls(cfg, deps) {
 
 // ---- the files ----
 export const controlsFile = (out, shaHex, version) => join(out, `controls-${shaHex.slice(0, 7)}-${version.slice(0, 8)}.json`);
+// The REVIEW IDENTITY (owner decision, C11): what the reviewer reads and sees, hashed apart from Gate 1's prompt-files hash. A sha256 over the review page, the review
+// request builder files and the review prompt text. Lane (d)'s `author-sample.mjs review-identity --worktree <dir>` will own the exact list (branch feat/an20-c11); until it
+// exists this is the list read from the candidate worktree. Each file is hashed with line endings normalized; the prompt is the ANIMATION_REVIEW_SYSTEM text itself, so a
+// change to the AUTHOR prompt (Gate 1's) in the same file does not change it.
+export const REVIEW_FILES = Object.freeze([
+  'packages/web/render/animation3d-render.js',
+  'packages/control-plane/src/animation-review.js',
+  'packages/control-plane/src/animation-render.js',
+]);
+export const REVIEW_PROMPT = Object.freeze({ name: 'review prompt (ANIMATION_REVIEW_SYSTEM)', file: 'packages/control-plane/src/agents/animation-author.js' });
+async function reviewPromptText(worktree) {
+  const file = join(worktree, ...REVIEW_PROMPT.file.split('/'));
+  if (!existsSync(file)) return null;
+  try { // the query makes a changed file a new module, never the cached one
+    const mod = await import(`${pathToFileURL(file).href}?r=${lfHash(file).slice(0, 16)}`);
+    return typeof mod.ANIMATION_REVIEW_SYSTEM === 'string' ? mod.ANIMATION_REVIEW_SYSTEM : null;
+  } catch { return null; }
+}
+// -> { hash, files: { <name>: <sha256 | 'absent'> } }
+export async function reviewIdentity(worktree) {
+  const files = Object.fromEntries(REVIEW_FILES.map(name => [name, lfHash(join(worktree, ...name.split('/')))]));
+  const prompt = await reviewPromptText(worktree);
+  files[REVIEW_PROMPT.name] = prompt === null ? 'absent' : sha(lfBuffer(prompt));
+  return { hash: sha(Object.entries(files).map(([name, h]) => `${name}\n${h}\n`).join('')), files };
+}
+
 // The key under which a PASS is remembered (owner): the candidate, the calibration set (manifest, fixtures, pinned golden), the prompt files (Gate 1's hash) and the
-// review page (packages/web/render/animation3d-render.js: FX-AN-098 lived there). A change to any part means the controls run again.
-export const KEY_PARTS = Object.freeze({ candidateSha: 'candidate SHA', manifestHash: 'manifest hash', promptsHash: 'prompt-files hash', reviewPageHash: 'review-page hash' });
-export const REVIEW_PAGE = ['packages', 'web', 'render', 'animation3d-render.js'];
-export const controlsKey = ({ candidateSha, manifestHash = null, promptsHash, reviewPageHash }) => ({ candidateSha, manifestHash, promptsHash, reviewPageHash });
+// REVIEW identity above. A change to any part means the controls run again.
+export const KEY_PARTS = Object.freeze({ candidateSha: 'candidate SHA', manifestHash: 'manifest hash', promptsHash: 'prompt-files hash', reviewIdentity: 'review identity' });
+export const controlsKey = ({ candidateSha, manifestHash = null, promptsHash, reviewIdentity }) => ({ candidateSha, manifestHash, promptsHash, reviewIdentity });
 export const keyLine = key => Object.entries(KEY_PARTS).map(([part, label]) => `${label} ${key[part] ? String(key[part]).slice(0, 12) : 'none'}`).join(' | ');
+export const filesLine = files => Object.entries(files ?? {}).map(([name, h]) => `${name.split('/').at(-1)} ${String(h).slice(0, 12)}`).join(', ');
+const short = h => (h ? String(h).slice(0, 12) : 'none');
+// Which review files differ: -> ['packages/web/render/animation3d-render.js (aaaaaaaaaaaa -> bbbbbbbbbbbb)', ...]
+export const changedFiles = (before = {}, after = {}) => [...new Set([...Object.keys(before), ...Object.keys(after)])].filter(name => before[name] !== after[name]).map(name => `${name} (${short(before[name])} -> ${short(after[name])})`);
 const PASSED = 'controls-passed.json';
-// -> { reuse: the remembered record | null, stale: a sentence naming the part(s) that changed | null }
-export function rememberedPass(out, key) {
+// -> { reuse: the remembered record | null, stale: a sentence naming the part(s) that changed, and for the review identity the file(s), | null }. files: the current identity's files.
+export function rememberedPass(out, key, files = null) {
   const file = join(out, PASSED);
   if (!existsSync(file)) return { reuse: null, stale: null };
   let record;
   try { record = JSON.parse(readFileSync(file, 'utf8')); } catch { return { reuse: null, stale: `${file} cannot be read` }; }
   const changed = Object.keys(KEY_PARTS).filter(part => (record.key?.[part] ?? null) !== (key[part] ?? null));
   if (!changed.length) return { reuse: record, stale: null };
-  return { reuse: null, stale: `the remembered pass (${record.finishedAt}) is stale: ${changed.map(part => `${KEY_PARTS[part]} changed (${record.key?.[part] ? String(record.key[part]).slice(0, 12) : 'none'} -> ${key[part] ? String(key[part]).slice(0, 12) : 'none'})`).join('; ')}` };
+  const parts = changed.map(part => `${KEY_PARTS[part]} changed (${short(record.key?.[part])} -> ${short(key[part])})${part === 'reviewIdentity' && files && record.reviewFiles ? `: ${changedFiles(record.reviewFiles, files).join('; ')}` : ''}`);
+  return { reuse: null, stale: `the remembered pass (${record.finishedAt}) is stale: ${parts.join('; ')}` };
 }
 // The result next to gate2-result.json: one compact line for another program (every item carries its `credits`), a per-candidate copy, and on PASS the memory.
-export function writeControls(out, { key, version, manifest, result, at }) {
+export function writeControls(out, { key, reviewFiles = null, version, manifest, result, at }) {
   mkdirSync(out, { recursive: true });
-  const line = `${JSON.stringify({ schema: CONTROLS_SCHEMA, candidateSha: key.candidateSha, previewVersion: version, key, manifest: manifest && { path: manifest.path, hash: manifest.hash }, verdict: result.verdict, goldenAccepted: result.goldenAccepted, spentCredits: result.spentCredits, items: result.items, finishedAt: at.toISOString() })}\n`;
+  const line = `${JSON.stringify({ schema: CONTROLS_SCHEMA, candidateSha: key.candidateSha, previewVersion: version, key, reviewFiles, manifest: manifest && { path: manifest.path, hash: manifest.hash }, verdict: result.verdict, goldenAccepted: result.goldenAccepted, spentCredits: result.spentCredits, items: result.items, finishedAt: at.toISOString() })}\n`;
   writeFileSync(join(out, 'controls-result.json'), line);
   writeFileSync(controlsFile(out, key.candidateSha, version), line);
-  if (result.verdict === 'PASS') writeFileSync(join(out, PASSED), `${JSON.stringify({ key, previewVersion: version, spentCredits: result.spentCredits, finishedAt: at.toISOString() })}\n`);
+  if (result.verdict === 'PASS') writeFileSync(join(out, PASSED), `${JSON.stringify({ key, reviewFiles, previewVersion: version, spentCredits: result.spentCredits, finishedAt: at.toISOString() })}\n`);
 }
 export const spendLine = (item, index, shaHex, version, total, time) => `| c${index} | ${time} | ${shaHex} | ${version} | CONTROL: ${item.name.replace(/\|/g, '/')} (direct review call, outside the ledger) | - | ${item.outcome}${item.drift ? ' DRIFT' : ''} | 0 | ${item.credits.toFixed(2)} | - | ${item.artifactHash ? item.artifactHash.slice(0, 16) : '-'} | ${total.toFixed(2)} |\n`;
 export const appendSpend = (out, lines) => appendFileSync(join(out, 'spend-rows.md'), lines.join(''));
-export const reviewPageHash = worktree => lfHash(join(worktree, ...REVIEW_PAGE));

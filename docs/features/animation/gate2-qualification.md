@@ -191,12 +191,28 @@ see below).
 - `artifact` points at a fixture file `{ plan, draft, request? }`, relative to the repository that holds the manifest (else the candidate worktree). Drift of any
   kind exits 5, with the item's name and which way it drifted.
 
+**The review identity (owner decision, C11).** What the *reviewer* reads and sees belongs in Gate 2's identity and the controls' key, **not in Gate 1's**: Gate 1's
+identity stays the prompt-files hash and is not changed. The review identity is a sha256 over a fixed list, each part hashed with line endings normalized:
+`packages/web/render/animation3d-render.js` (the review page; FX-AN-098 lived in it), `packages/control-plane/src/animation-review.js` (the review request builder),
+`packages/control-plane/src/animation-render.js` (the capture path) and the **review prompt text** (`ANIMATION_REVIEW_SYSTEM` from
+`packages/control-plane/src/agents/animation-author.js`: the constant itself, so a change to the author prompt in the same file does not change it), all read from the
+candidate worktree. The exact list will come from lane (d)'s `author-sample.mjs review-identity --worktree <dir>` (branch `feat/an20-c11`); until that exists the list is the
+one above (`REVIEW_FILES`, `REVIEW_PROMPT` in `gate2-controls.mjs`), and switching is a change to `reviewIdentity` alone.
+
 **The remembered pass.** "Reviewed once per candidate" is keyed by **four parts**: the candidate SHA, the manifest hash (the manifest, every fixture and the pinned
-golden), the prompt-files hash (Gate 1's `--prompts-hash`) and the **review-page hash** (sha256 of `packages/web/render/animation3d-render.js` in the candidate
-worktree, line endings normalized; FX-AN-098 lived in that file, so a change to it re-runs the control). A PASS is written to `<out>/controls-passed.json`. Every run
-prints the four parts (`controls key: candidate SHA ... | manifest hash ... | prompt-files hash ... | review-page hash ...`). With the same key the run says
-`controls: PASS reused, not reviewed again` and shows the key; with any part changed it says `the remembered pass (...) is stale: review-page hash changed (x -> y)`
-(naming every part that changed) and reviews again. Only a PASS is remembered.
+golden), the prompt-files hash (Gate 1's `--prompts-hash`) and the **review identity**. A PASS is written to `<out>/controls-passed.json` with the per-file hashes. Every run
+prints the four parts (`controls key: candidate SHA ... | manifest hash ... | prompt-files hash ... | review identity ...`) and the per-file short hashes
+(`review identity x: animation3d-render.js a, animation-review.js b, animation-render.js c, review prompt (ANIMATION_REVIEW_SYSTEM) d`). With the same key the run says
+`controls: PASS reused, not reviewed again` and shows the key; with any part changed it says `the remembered pass (...) is stale: review identity changed (x -> y):
+packages/web/render/animation3d-render.js (a -> b)` (naming every part that changed and, for the review identity, every file or the prompt that did) and reviews again. Only a
+PASS is remembered.
+
+**Gate 2's own identity includes it.** The candidate's review identity is recorded in `gate2-result.json` (`reviewIdentity: { hash, files }`, and each row's `reviewIdentity`,
+the 12-character hash it was measured under), in the result text (the receipt line `Review identity ...`) and in the candidate's state file. A rerun of Gate 2 on the **same
+candidate** with a **different** review identity is **refused unless the controls were re-run for the new identity**: the changed key makes the controls run first, a failing
+control stops the run (exit 5), and a passing one lets it continue, saying what changed (`review identity changed since this candidate's earlier jobs (...)`). Rows measured
+under the old identity stay in the result, which then says `mixedReviewIdentity: true`: a Gate 2 whose ten jobs were not all reviewed by the same reviewer is not a clean measurement,
+and the receipt should say so.
 
 **How an artifact gets reviewed (read from the code, not assumed).** No dev route runs the product's render, review and repair stages on a *given* artifact:
 `seed-outcomes` writes canned failed jobs; `seed-fixture` stores the artifact as a **saved result** for the canvas owner (no job, no stage, no model call, and the
@@ -215,7 +231,7 @@ malformed reply. The golden alone: about US$0.15 (worst US$0.93). The golden plu
 `--prior` to cover 20 credits per item before it starts.
 
 **Result.** `<out>/controls-result.json`, one compact line next to `gate2-result.json` (and a per-candidate copy): `{ schema: "gate2-controls/1", candidateSha,
-previewVersion, key: { candidateSha, manifestHash, promptsHash, reviewPageHash }, manifest: { path, hash } | null, verdict, goldenAccepted, spentCredits, items: [{
+previewVersion, key: { candidateSha, manifestHash, promptsHash, reviewIdentity }, reviewFiles: { <file>: <sha256> }, manifest: { path, hash } | null, verdict, goldenAccepted, spentCredits, items: [{
 name, kind: "golden" | "mustFail" | "falsePositive", expect, outcome, accepted, drift, findings: [{ severity, category, verdict, message }], credits, resultId,
 artifactHash }], finishedAt }`.
 
@@ -312,6 +328,7 @@ only cancels), generalised to every running job at once. At every poll of every 
   | `schema` | `sgd-gate2-result/1` |
   | `candidateSha`, `previewVersion` | C4's full 40-hex HEAD from the verified worktree, and the Cloudflare version id |
   | `identities` | `{ mvp3Sha, promptsHash, goldenHash }`: the C3 SHA and the two hashes Gate 1 recorded, which the identity check verified |
+  | `reviewIdentity`, `mixedReviewIdentity` | `{ hash, files: { <file or review prompt>: <sha256> } }`: what the reviewer reads and sees, for this candidate (the controls' key part); true when the rows were not all measured under that one identity |
   | `verdict`, `why` | `PASS`, `FAIL` or `INCOMPLETE`, and the reason in words |
   | `accepted`, `lost` | counts among jobs 1 to 9 |
   | `control` | `{ outcome, silentSgd, markers }` for job 10, or `null` if it has no result |

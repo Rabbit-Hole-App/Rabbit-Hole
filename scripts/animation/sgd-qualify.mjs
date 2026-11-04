@@ -23,7 +23,7 @@ import { spawnSync } from 'node:child_process';
 import { CREDENTIALS, PACING, RUN_OUT, insideRepo, makeCall, markUsed, prefixOf, readKey, readSessions, readUsage, readUsed, usable } from './dev-test-session.mjs';
 import { MUST_RERUN, inputProblem, realDeps, runGate } from './sgd-qualify-gate.mjs';
 import { DRY_RUN, FAKE_GOLDEN, createFake, fakeReviewer } from './sgd-qualify-fake.mjs';
-import { REVIEW_CREDITS_EXPECTED, appendSpend, controlsKey, keyLine, loadProduct, providerReview, readGolden, readManifest, rememberedPass, reviewPageHash, runControls, spendLine, writeControls } from './gate2-controls.mjs';
+import { REVIEW_CREDITS_EXPECTED, appendSpend, changedFiles, controlsKey, filesLine, keyLine, loadProduct, providerReview, readGolden, readManifest, rememberedPass, reviewIdentity, runControls, spendLine, writeControls } from './gate2-controls.mjs';
 
 // Plan section 8, "Gate 2 phrasings", exactly. The tenth is the wrong-subject control.
 export const PHRASINGS = Object.freeze([
@@ -113,11 +113,16 @@ const SPEND_HEAD = '| # | Time (PT) | Candidate SHA | Preview version | Phrasing
 export const spendRow = (r, total) => `| ${r.n} | ${r.time} | ${r.sha} | ${r.version} | ${cell(r.phrasing)} | ${cell(r.jobId ?? '-')} | ${cell(r.outcome)} | ${r.repairs} | ${r.credits.toFixed(2)} | ${r.charged} | ${r.artifactHash ? r.artifactHash.slice(0, 16) : '-'} | ${total.toFixed(2)} |\n`;
 
 // The compact result for another program: the candidate, the three identities Gate 1 recorded and the gate verified, the verdict and one row per job.
-export function machineResult({ candidateSha, version, identities, result, cap, prior, at }) {
-  const rows = latestPerJob(result.rows), control = rows.find(r => r.n === CONTROL), v = result.verdict;
-  return { schema: 'sgd-gate2-result/1', candidateSha, previewVersion: version, identities, verdict: v.verdict, why: v.why, accepted: v.accepted, lost: v.lost,
+// A rerun on the same candidate with a different review identity (owner, C11): the review page, request builder or review prompt changed since its earlier jobs. It is
+// refused unless the controls were re-run for the NEW identity (`controlsIdentity` is the review identity the passing controls were run with).
+export const reviewIdentityRefusal = ({ stateIdentity, current, controlsIdentity, changed = [] }) => (stateIdentity && stateIdentity !== current && controlsIdentity !== current
+  ? `REFUSED: this candidate's earlier jobs were measured under review identity ${String(stateIdentity).slice(0, 12)}, the review is now ${String(current).slice(0, 12)}${changed.length ? ` (${changed.join('; ')})` : ''}, and the controls have not passed under the new one; run the controls first` : null);
+export function machineResult({ candidateSha, version, identities, review = null, result, cap, prior, at }) {
+  const rows = latestPerJob(result.rows), control = rows.find(r => r.n === CONTROL), v = result.verdict, seen = [...new Set(rows.map(r => r.reviewIdentity).filter(Boolean))];
+  return { schema: 'sgd-gate2-result/1', candidateSha, previewVersion: version, identities, reviewIdentity: review && { hash: review.hash, files: review.files },
+    mixedReviewIdentity: seen.length > 1 || (!!review && seen.length === 1 && seen[0] !== review.hash), verdict: v.verdict, why: v.why, accepted: v.accepted, lost: v.lost,
     control: control ? { outcome: control.outcome, silentSgd: control.silentSgd, markers: control.markers } : null, halt: result.halt, notRun: result.notRun,
-    rows: rows.map(r => ({ n: r.n, phrasing: r.phrasing, jobId: r.jobId, outcome: r.outcome, repairs: r.repairs, settledCredits: Number(r.credits.toFixed(2)), chargedCredits: r.charged, artifactHash: r.artifactHash, session: r.session, note: r.note })),
+    rows: rows.map(r => ({ n: r.n, phrasing: r.phrasing, jobId: r.jobId, outcome: r.outcome, repairs: r.repairs, settledCredits: Number(r.credits.toFixed(2)), chargedCredits: r.charged, artifactHash: r.artifactHash, session: r.session, reviewIdentity: r.reviewIdentity ? r.reviewIdentity.slice(0, 12) : null, note: r.note })),
     settledCredits: Number(result.finished.toFixed(2)), cap, prior, finishedAt: at.toISOString() };
 }
 
@@ -182,7 +187,7 @@ export async function runQualify(cfg, deps) {
 
   async function runOne(n, session) {
     const L = { key: `job-${n}`, n, call: session.call, calls: [], job: null, d: null, jobId: null, boardId: null, app: null, cancelP: null };
-    const row = { n, phrasing: cfg.phrasings[n - 1], session: session.email, sha: cfg.sha, version: cfg.version, jobId: null, outcome: null, repairs: 0, credits: 0, charged: 0, artifactHash: null, note: '', markers: [], silentSgd: null };
+    const row = { n, phrasing: cfg.phrasings[n - 1], session: session.email, sha: cfg.sha, version: cfg.version, reviewIdentity: cfg.reviewIdentity ?? null, jobId: null, outcome: null, repairs: 0, credits: 0, charged: 0, artifactHash: null, note: '', markers: [], silentSgd: null };
     live.set(L.key, L);
     let artifact = null;
     try {
@@ -385,7 +390,7 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
     if (ran) { out(`REFUSED: the test users ${prefix}-1..N already ran Gate 2 at ${ran}; mint fresh ones (node scripts/animation/dev-test-session.mjs --mint --fresh --count 5) and pass the new --sessions-file`); return 2; }
   }
   const statePath = join(outDir, `state-${pin.PREVIEW_SHA.slice(0, 7)}-${pin.PREVIEW_VERSION.slice(0, 8)}.json`);
-  const state = existsSync(statePath) ? JSON.parse(readFileSync(statePath, 'utf8')) : { sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, rows: [] };
+  const state = existsSync(statePath) ? JSON.parse(readFileSync(statePath, 'utf8')) : { sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, reviewIdentity: null, rows: [] };
   out(`candidate ${pin.PREVIEW_SHA.slice(0, 9)} preview ${pin.PREVIEW_VERSION}; ${sessions.length} session(s) ${sessions.map(s => s.email).join(', ')}; concurrency ${o.concurrency}; cap ${o.cap}, prior ${o.prior}; features ${features.join(',')}`);
   out(`output ${outDir}; stop file ${stopFile}; ${state.rows.length ? `resuming: ${state.rows.length} earlier row(s), ${verdictOf(state.rows).why}` : 'a fresh run for this candidate'}`);
   // Controls (owner standing rules): job 0, the golden, and with --calibrate the retained drafts that must fail or must not be falsely rejected. Free configuration
@@ -397,11 +402,13 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
     golden = dry ? { ...readGolden(null, FAKE_GOLDEN) } : readGolden(goldenFile);
     manifest = o.calibrate ? readManifest(o.calibrate, { worktree: tree, goldenFile: dry ? null : goldenFile }) : null;
   } catch (error) { out(`USAGE: controls: ${error.message}`); return 2; }
+  const review = await reviewIdentity(tree); // what the reviewer reads and sees: the page, the request builder files, the review prompt (the key's fourth part)
   const calibration = manifest?.items ?? [], controlsCredits = (1 + calibration.length) * REVIEW_CREDITS_EXPECTED;
-  const key = controlsKey({ candidateSha: pin.PREVIEW_SHA, manifestHash: manifest?.hash ?? null, promptsHash: gateOpts.promptsHash, reviewPageHash: reviewPageHash(tree) });
-  const remembered = rememberedPass(outDir, key);
+  const key = controlsKey({ candidateSha: pin.PREVIEW_SHA, manifestHash: manifest?.hash ?? null, promptsHash: gateOpts.promptsHash, reviewIdentity: review.hash });
+  const remembered = rememberedPass(outDir, key, review.files);
   out(`controls: job 0 is the golden SGD artifact${calibration.length ? `, with ${calibration.filter(c => c.kind === 'mustFail').length} must-fail and ${calibration.filter(c => c.kind === 'falsePositive').length} false-positive draft(s) from ${manifest.path}` : ''}; about ${controlsCredits} credits as direct review calls outside the ledger and outside the platform day cap`);
   out(`controls key: ${keyLine(key)}`);
+  out(`review identity ${review.hash.slice(0, 12)}: ${filesLine(review.files)}`);
   out(remembered.reuse ? `controls: a PASS is remembered for this key (${remembered.reuse.finishedAt}); it will not be reviewed again` : remembered.stale ? `controls: ${remembered.stale}; they run again` : 'controls: no pass is remembered for this key; they run before any author job');
   if (!dry && o.cap - o.prior < controlsCredits) { out(`USAGE: --cap ${o.cap} minus --prior ${o.prior} leaves no room for the controls (about ${controlsCredits} credits)`); return 2; }
   if (o.check) {
@@ -420,7 +427,7 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
     if (!existsSync(join(outDir, 'spend-rows.md'))) writeFileSync(join(outDir, 'spend-rows.md'), SPEND_HEAD);
     const result = await runControls({ golden, items: calibration, session: sessions[0], product, sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, concurrency: o.concurrency }, { review: injected.review ?? (dry ? fakeReviewer() : providerReview({ product, apiKey })), log: out });
     controlsSpent = result.spentCredits;
-    writeControls(outDir, { key, version: pin.PREVIEW_VERSION, manifest, result, at: new Date() });
+    writeControls(outDir, { key, reviewFiles: review.files, version: pin.PREVIEW_VERSION, manifest, result, at: new Date() });
     appendSpend(outDir, result.items.map((item, i) => spendLine(item, i, pin.PREVIEW_SHA, pin.PREVIEW_VERSION, o.prior + controlsSpent, ptClock())));
     for (const item of result.items) out(`${item.drift || item.outcome === 'error' ? 'FAIL' : 'PASS'} ${item.name}: ${item.outcome} (expected ${item.expect})${item.drift ? `; DRIFT: ${item.drift}` : ''}${item.note ? `; ${item.note}` : ''}${item.findings.length ? `\n${item.findings.map(f => `    ${f.severity}/${f.category} ${f.message}`).join('\n')}` : ''}`);
     if (result.verdict !== 'PASS') {
@@ -430,6 +437,9 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
     out(`CONTROLS OK: ${result.items.length} item(s) behaved as expected; ${result.spentCredits.toFixed(2)} credits spent on direct review calls`);
   }
   if (o.controls) { out('--controls: stopping here, no author job was started'); return 0; }
+  const moved = reviewIdentityRefusal({ stateIdentity: state.reviewIdentity ?? null, current: review.hash, controlsIdentity: remembered.reuse ? remembered.reuse.key.reviewIdentity : key.reviewIdentity, changed: changedFiles(state.reviewFiles, review.files) });
+  if (moved) { out(moved); return 4; }
+  if (state.reviewIdentity && state.reviewIdentity !== review.hash) out(`review identity changed since this candidate's earlier jobs (${changedFiles(state.reviewFiles, review.files).join('; ') || 'files not recorded'}): the controls passed under the new one; the result will say the rows are mixed`);
   if (!dry) markUsed(outDir, prefix, { ranAt: new Date().toISOString(), sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION });
   let signals = 0;
   const onSigint = () => { signals += 1; if (signals > 1) process.exit(130); out('Ctrl+C: cancelling every running job through the product\'s cancel route (press again to quit at once)'); };
@@ -438,7 +448,9 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
     shouldStop: () => (signals ? { kind: 'signal', reason: 'Ctrl+C' } : existsSync(stopFile) ? { kind: 'file', reason: `stop file ${stopFile}` } : null) };
   const cfg = { extraSpent: controlsSpent, phrasings: PHRASINGS, sessions, concurrency: o.concurrency, cap: o.cap, prior: o.prior, typical: o.typical, features, sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, out: outDir,
     pollMs: dry ? 0 : o.pollMs, planTimeoutMs: o.planTimeoutMs, jobTimeoutMs: o.jobTimeoutMs, settleWaitMs: o.settleWaitMs, jobWorstCase: o.jobWorstCase, runAll: !!o['run-all'], choice: o.choice, rows: state.rows,
-    onRow: (_row, rows) => writeFileSync(statePath, JSON.stringify({ sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, rows }, null, 1)) };
+    reviewIdentity: review.hash, onRow: (_row, rows) => writeFileSync(statePath, JSON.stringify({ sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, reviewIdentity: review.hash, reviewFiles: review.files, rows }, null, 1)) };
+  mkdirSync(outDir, { recursive: true });
+  writeFileSync(statePath, JSON.stringify({ sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, reviewIdentity: review.hash, reviewFiles: review.files, rows: state.rows }, null, 1)); // the identity is on record before the first job
   let result;
   try { result = await runQualify(cfg, deps); } finally { process.off('SIGINT', onSigint); }
 
@@ -452,12 +464,12 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
   const { verdict, why } = result.verdict, ran = result.rows.slice(state.rows.length), settledNow = ran.reduce((t, r) => t + r.credits, 0), charged = ran.reduce((t, r) => t + r.charged, 0);
   const text = [`# Gate 2 result: candidate ${pin.PREVIEW_SHA}, preview ${pin.PREVIEW_VERSION}`, '', resultTable(result.rows), '', `VERDICT: ${verdict}. ${why}`,
     ...(result.halt ? [`Halted (${result.halt.kind}): ${result.halt.reason}`] : []), ...(result.noMore ? [`Stopped starting jobs: ${result.noMore}`] : []),
-    ...Object.entries(result.skipped).map(([email, reason]) => `Session skipped: ${email}: ${reason}`), ...(result.notRun.length ? [`Not run or not final: jobs ${result.notRun.join(', ')}`] : []), '', ...after,
+    ...Object.entries(result.skipped).map(([email, reason]) => `Session skipped: ${email}: ${reason}`), ...(result.notRun.length ? [`Not run or not final: jobs ${result.notRun.join(', ')}`] : []), `Review identity ${review.hash.slice(0, 12)} (what the reviewer reads and sees): ${filesLine(review.files)}`, '', ...after,
     `Settled by this run: ${settledNow.toFixed(2)} credits (about US$${(settledNow / 100).toFixed(2)} at 100 credits to the dollar); charged to the test users: ${charged}; cumulative ${(o.prior + result.finished).toFixed(2)} of cap ${o.cap}.`, PACING].join('\n');
   const stamp = new Date(deps.now()).toISOString().replace(/\D/g, '').slice(0, 14);
   writeFileSync(join(outDir, `result-${pin.PREVIEW_SHA.slice(0, 7)}-${stamp}.md`), `${text}\n`);
   // The machine-readable result (lane g's combined smoke reads gate2-result.json): one compact line. A reader must check candidateSha and verdict PASS; an absent file is no result.
-  const machine = `${JSON.stringify(machineResult({ candidateSha: gate.head ?? pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, identities: { mvp3Sha: gateOpts.mvp3Sha, promptsHash: gateOpts.promptsHash, goldenHash: gateOpts.goldenHash }, result, cap: o.cap, prior: o.prior, at: new Date(deps.now()) }))}\n`;
+  const machine = `${JSON.stringify(machineResult({ candidateSha: gate.head ?? pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, identities: { mvp3Sha: gateOpts.mvp3Sha, promptsHash: gateOpts.promptsHash, goldenHash: gateOpts.goldenHash }, review, result, cap: o.cap, prior: o.prior, at: new Date(deps.now()) }))}\n`;
   writeFileSync(join(outDir, 'gate2-result.json'), machine);
   writeFileSync(join(outDir, `result-${pin.PREVIEW_SHA.slice(0, 7)}-${stamp}.json`), machine);
   out(`\n${text}\n\nspend rows: ${join(outDir, 'spend-rows.md')}; exports: ${outDir}/<job id>/ (the repo's spend.md edit is done by Parallel from the spend rows)`);
