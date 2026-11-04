@@ -287,9 +287,9 @@ const topOf = points => Math.max(...points.map(point => point.y));
 
 test('a clamped marker contributes its clamped box: a ball at 5.6 against a rim at 2 does not widen the fit', () => {
   const clamped = sceneArtifact(BOWL, bowlNodes({ node: 'bowl' }));
-  const high = fitOf(clamped, [ballAt(5.6)]), atRim = fitOf(clamped, [ballAt(2)]);
-  assert.ok(Math.abs(topOf(high.points) - 2.2) < 1e-6, `the subject reaches the rim plus the ball radius, not 5.8 (${topOf(high.points)})`);
-  assert.deepEqual(high.camera, atRim.camera, 'the view is the one with the ball at the rim');
+  const high = fitOf(clamped, [ballAt(5.6)]), atRim = fitOf(clamped, [ballAt(0)]); // held on the surface under it (0 at the middle of this bowl), not at the box's top
+  assert.ok(Math.abs(topOf(high.points) - 0.2) < 1e-6, `the subject reaches the surface plus the ball radius, not 5.8 (${topOf(high.points)})`);
+  assert.deepEqual(high.camera, atRim.camera, 'the view is the one with the ball on the surface');
   // Without the clamp the same frame is drawn where it is and the view follows it: this is what the clamp changes.
   const free = fitOf(sceneArtifact(BOWL, bowlNodes(null)), [ballAt(5.6)]);
   assert.ok(Math.abs(topOf(free.points) - 5.8) < 1e-6);
@@ -312,7 +312,7 @@ test('a trail above the clamp ceiling is not framed above it; a trail below it i
   const geometries = [...BOWL, { id: 'pathGeo', kind: 'trail', max: 10, style: 'trail' }];
   const artifact = sceneArtifact(geometries, [...bowlNodes({ node: 'bowl' }), { id: 'path', geometry: 'pathGeo' }]);
   const frame = (ballY, pathY) => ({ nodes: { ball: { position: [0, ballY, 0] }, path: { points: [[0, 0.5, 0], [0, pathY, 0]] } } });
-  const diverged = fitOf(artifact, [frame(5.6, 5.6)]), atRim = fitOf(artifact, [frame(2, 2)]);
+  const diverged = fitOf(artifact, [frame(5.6, 5.6)]), atRim = fitOf(artifact, [frame(0, 2)]); // the ball held on the surface under it (0), the path's corner held to the ceiling (2)
   assert.ok(topOf(diverged.points) <= 2.2 + 1e-6, `nothing is framed above the rim plus the ball radius (${topOf(diverged.points)})`);
   assert.deepEqual(diverged.camera, atRim.camera, 'the view is the one with the path at the rim');
   const below = fitOf(artifact, [frame(1, 1.5)]);

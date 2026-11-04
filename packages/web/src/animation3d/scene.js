@@ -53,6 +53,8 @@ const PLACEMENT = Object.freeze({ above: [0.5, -0.2], below: [0.5, 1.2], left: [
 // label its place. A plate's own marker, the one its point sits on (within its radius + 2 px), is not an obstacle for it: the label stays beside what
 // it names, and the other markers (the trail, the saved path) stay uncovered.
 // Deterministic, O(n^2) for <= 24 labels. -> [{ dx, dy } | null] per plate, in order.
+// A trail tube is drawn at most this share of the radius of the smallest sphere clamped to the same surface (the marker that walks it), whatever the artifact declares (C12, owner order).
+export const TRAIL_RADIUS_SHARE = 0.35;
 // reach (C10, owner; FX-AN-104): the most a plate may lie from the point it names, in CSS pixels from the plate's nearest edge to the anchor; a clear spot farther away is not taken.
 export const DECLUTTER = Object.freeze({ gap: 4, steps: 4, reach: 48 });
 const MARKER_SHARE = 0.1; // a mesh is a small marker when its projected diameter is at most this share of the scene's span
@@ -318,6 +320,18 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
   // arrow_anchor (FX-AN-072): an arrow's offset is a distance outside the node's scale, so an arrow drawn as a unit arrow under scale [1, length, 1] still starts `offset`
   // from its origin; its tip is offset + length x scale up +Y. placers move each arrow's drawable and each tip label to match the arrow's current scale.
   const placers = [], bases = new Map(); // bases: tip label node id -> the position the program gave (before the tip shift)
+  const surfaceLocal = new THREE.Vector3(); // the world y of a surface under (or over) a world point (buried, the rim hold)
+  const scaleHolder = new THREE.Vector3(), shownNode = holder => { let on = holder.visible; holder.traverseAncestors(ancestor => { if (!ancestor.visible) on = false; }); return on; }; // a node and every ancestor shown
+  const surfaceAt = (id, point) => { // the world y of the surface under (or over) this world point, or null when the point is off its footprint
+    const mesh = tops.get(id), g = surfaceDefs.get(id);
+    if (!mesh) return null;
+    mesh.worldToLocal(surfaceLocal.copy(point));
+    const rows = g.heights.length, cols = g.heights[0].length, col = (surfaceLocal.x / g.width + 0.5) * (cols - 1), row = (surfaceLocal.z / g.depth + 0.5) * (rows - 1);
+    if (!(col >= 0 && col <= cols - 1 && row >= 0 && row <= rows - 1)) return null;
+    const c = Math.min(Math.floor(col), cols - 2), r = Math.min(Math.floor(row), rows - 2), u = col - c, v = row - r, h = g.heights;
+    const y = u + v <= 1 ? h[r][c] + u * (h[r][c + 1] - h[r][c]) + v * (h[r + 1][c] - h[r][c]) : h[r + 1][c + 1] + (1 - u) * (h[r + 1][c] - h[r + 1][c + 1]) + (1 - v) * (h[r][c + 1] - h[r + 1][c + 1]); // the two triangles of a cell
+    return mesh.localToWorld(surfaceLocal.set(surfaceLocal.x, y, surfaceLocal.z)).y;
+  };
   let ceiling = null, footprint = null; // the highest world y any clamp held a node to in the last frame, and the surface footprint it held x and z to, for the camera fit (FX-AN-074, decision 30)
   const clamps = scene.nodes.filter(node => node.clampTo).map(node => ({ id: node.id, target: node.clampTo.node, max: node.clampTo.max }));
 
@@ -367,6 +381,14 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
       placers.push(() => {
         const along = (g.offset ?? 0) / (holder.scale.y || 1); // the offset in the node's own (scaled) units
         drawable.position.y = along;
+        if (above?.kind === 'sphere') {
+          // C12 (e2, owner; C11 Gate 2 jobs 1 and 2: a tiny arrow next to its label, a 2x arrow inside the ball): an arrow drawn from a sphere (its parent) whose drawn length is under that sphere's
+          // diameter (its widest world scale) is not drawn, and neither is its tip label (layoutLabels); arrowsHidden() lists it. Exactly the diameter is drawn. A non-sphere parent: unchanged.
+          const length = g.length * holder.getWorldScale(scaleHolder).y, diameter = 2 * above.radius * Math.max(...objects.get(node.parent).getWorldScale(scaleHolder).toArray());
+          const hidden = length < diameter * (1 - 1e-9);
+          drawable.visible = !hidden;
+          drawable.userData.hidden = hidden ? { length, diameter } : null;
+        }
         for (const [labelId, base] of bases) {
           const tag = objects.get(labelId);
           if (tag && tag.parent === holder) tag.position.set(base[0], base[1] + along + g.length, base[2]);
@@ -386,7 +408,11 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
       }
     } else if (g?.kind === 'trail') {
       // The node's material for a trail; a ghost is the same at 40% opacity and half the radius (own material, so a frame's material update does not reach it).
-      const ghost = g.style === 'ghost', radius = g.radius ? g.radius * (ghost ? 0.5 : 1) : 0, base = surfaces.get(node.material) ?? fallback;
+      // C12: the tube is at most TRAIL_RADIUS_SHARE of the smallest ball clamped to the surface this trail follows (the first clamp target, else the scene's only surface), in the trail's own scale.
+      const surfaceIds = scene.nodes.filter(n => byGeometry.get(n.geometry)?.kind === 'surface').map(n => n.id), followedId = clamps[0]?.target ?? (surfaceIds.length === 1 ? surfaceIds[0] : null);
+      const balls = scene.nodes.filter(n => n.clampTo?.node === followedId && byGeometry.get(n.geometry)?.kind === 'sphere').map(n => byGeometry.get(n.geometry).radius * Math.max(...n.scale));
+      const drawnRadius = g.radius && balls.length ? Math.min(g.radius, TRAIL_RADIUS_SHARE * Math.min(...balls) / Math.max(...node.scale)) : g.radius;
+      const ghost = g.style === 'ghost', radius = drawnRadius ? drawnRadius * (ghost ? 0.5 : 1) : 0, base = surfaces.get(node.material) ?? fallback;
       const buffers = trailBuffers(g, radius);
       const material = radius
         ? (ghost ? own(Object.assign(base.clone(), { transparent: true, opacity: base.opacity * 0.4 })) : base)
@@ -465,7 +491,10 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
             ceiling = Math.max(ceiling ?? -Infinity, limit);
             footprint = footprint ? { minX: Math.min(footprint.minX, box.min.x), maxX: Math.max(footprint.maxX, box.max.x), minZ: Math.min(footprint.minZ, box.min.z), maxZ: Math.max(footprint.maxZ, box.max.z) } : { minX: box.min.x, maxX: box.max.x, minZ: box.min.z, maxZ: box.max.z };
             const held = world.clone();
-            held.x = Math.min(box.max.x, Math.max(box.min.x, world.x)); held.z = Math.min(box.max.z, Math.max(box.min.z, world.z)); held.y = Math.min(world.y, limit);
+            held.x = Math.min(box.max.x, Math.max(box.min.x, world.x)); held.z = Math.min(box.max.z, Math.max(box.min.z, world.z));
+            // C12 (FX-AN-116, the owner's exact fix): a marker that is held (beyond the rim, or above the ceiling) is drawn no higher than the clamp's explicit `max`, else no higher than the
+            // SURFACE at its drawn x and z (the height where its path ends), not at the corner height of the surface's box; a marker that is not held is untouched.
+            if (held.x !== world.x || held.z !== world.z || world.y > limit) held.y = Math.min(world.y, max ?? surfaceAt(target, held) ?? limit);
             const axes = ['x', 'y', 'z'].filter(axis => held[axis] !== world[axis]);
             if (!axes.length) continue;
             holder.userData.heldXZ = axes.includes('x') || axes.includes('z'); // it left the bowl: held at the rim, so it is not a marker drawn under the surface it sits on (buried)
@@ -506,6 +535,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
           let cap = bounds.w;
           const arrow = drawable.parent?.parent?.children.find(child => child.userData.arrow !== undefined); // the arrow this label names, if its node is a child of an arrow node
           if (arrow) {
+            if (arrow.userData.hidden) { drawable.visible = tag.leader.visible = false; continue; } // C12 (e2): the arrow is not drawn, so its label is not either
             const length = arrowPixels(arrow);
             if (length < ARROW_LABELS.hide) { drawable.visible = tag.leader.visible = false; continue; } // no arrow to name: no label, and no room taken
             cap = Math.min(bounds.w, Math.max(ARROW_LABELS.minWidth, Math.round(ARROW_LABELS.cap * length / 8) * 8)); // buckets of 8 px: it repaints only when the cap moves
@@ -600,18 +630,8 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
       // worst point of a path, in scene order, rounded to 4 decimals.
       buried() {
         root.updateWorldMatrix(true, true);
-        const found = [], world = new THREE.Vector3(), local = new THREE.Vector3(), scale = new THREE.Vector3(), ranges = new Map(), round = value => Math.round(value * 1e4) / 1e4;
+        const found = [], world = new THREE.Vector3(), scale = new THREE.Vector3(), ranges = new Map(), round = value => Math.round(value * 1e4) / 1e4;
         const range = id => { if (!ranges.has(id)) { const flat = surfaceDefs.get(id).heights.flat(); ranges.set(id, (Math.max(...flat) - Math.min(...flat)) * Math.abs(tops.get(id).getWorldScale(scale).y)); } return ranges.get(id); };
-        const surfaceAt = (id, point) => { // the world y of the surface under (or over) this world point, or null when the point is off its footprint
-          const mesh = tops.get(id), g = surfaceDefs.get(id);
-          if (!mesh) return null;
-          mesh.worldToLocal(local.copy(point));
-          const rows = g.heights.length, cols = g.heights[0].length, col = (local.x / g.width + 0.5) * (cols - 1), row = (local.z / g.depth + 0.5) * (rows - 1);
-          if (!(col >= 0 && col <= cols - 1 && row >= 0 && row <= rows - 1)) return null;
-          const c = Math.min(Math.floor(col), cols - 2), r = Math.min(Math.floor(row), rows - 2), u = col - c, v = row - r, h = g.heights;
-          const y = u + v <= 1 ? h[r][c] + u * (h[r][c + 1] - h[r][c]) + v * (h[r + 1][c] - h[r][c]) : h[r + 1][c + 1] + (1 - u) * (h[r + 1][c] - h[r + 1][c + 1]) + (1 - v) * (h[r][c + 1] - h[r + 1][c + 1]); // the two triangles of a cell
-          return mesh.localToWorld(local.set(local.x, y, local.z)).y;
-        };
         const followed = clamps[0]?.target ?? (tops.size === 1 ? [...tops.keys()][0] : null);
         for (const node of scene.nodes) {
           const g = byGeometry.get(node.geometry), holder = objects.get(node.id), widest = Math.max(...holder.getWorldScale(scale).toArray());
@@ -633,6 +653,51 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
           }
         }
         return found;
+      },
+      // C12 (b)(iii): sphere markers whose drawn centres lie within half the smaller radius of each other, both shown and neither a ghost (a node named ghost, or a translucent material):
+      // one hides the other (C11 jobs 3 and 7: twin balls at the initial capture). -> [{ a, b, distance }] in scene order, at most 4, distance rounded to 4 decimals.
+      overlaps() {
+        root.updateWorldMatrix(true, true);
+        const spheres = scene.nodes.filter(n => byGeometry.get(n.geometry)?.kind === 'sphere' && !/ghost/i.test(`${n.id} ${n.name ?? ''}`) && (surfaces.get(n.material)?.opacity ?? 1) >= 1 && shownNode(objects.get(n.id)))
+          .map(n => ({ id: n.id, at: objects.get(n.id).getWorldPosition(new THREE.Vector3()), radius: byGeometry.get(n.geometry).radius * Math.max(...objects.get(n.id).getWorldScale(scaleHolder).toArray()) }));
+        const found = [];
+        for (let i = 0; i < spheres.length; i += 1) for (let j = i + 1; j < spheres.length; j += 1) {
+          const distance = spheres[i].at.distanceTo(spheres[j].at);
+          if (distance < 0.5 * Math.min(spheres[i].radius, spheres[j].radius)) found.push({ a: spheres[i].id, b: spheres[j].id, distance: Math.round(distance * 1e4) / 1e4 });
+        }
+        return found.slice(0, 4);
+      },
+      // C12 (e): the arrows drawn with their tip or middle below the surface the markers sit on (the arrow's own clamp, else the first clamp target, else the scene's only surface) at that
+      // x and z (C11 job 2: a 4x step arrow, drawn flat at the ball's height, ran into the rising wall). Below = more than 2% of the surface's height range, as buried(). An arrow the renderer
+      // hides (arrowsHidden) is not drawn, so it is not listed. -> [{ id, point: 'tip' | 'middle' (the worse), tip: [x, y, z] world, under }], at most 4, rounded to 4 decimals.
+      arrowsUnder() {
+        root.updateWorldMatrix(true, true);
+        const found = [], tail = new THREE.Vector3(), tip = new THREE.Vector3(), middle = new THREE.Vector3(), round = value => Math.round(value * 1e4) / 1e4 || 0;
+        for (const node of scene.nodes) {
+          const holder = objects.get(node.id), drawable = byGeometry.get(node.geometry)?.kind === 'arrow' ? holder.children.find(child => child.userData.arrow !== undefined) : null;
+          const surfaceId = node.clampTo?.node ?? clamps[0]?.target ?? (tops.size === 1 ? [...tops.keys()][0] : null);
+          if (!drawable || !drawable.visible || !shownNode(holder) || !tops.has(surfaceId)) continue;
+          const flat = surfaceDefs.get(surfaceId).heights.flat(), slack = 0.02 * (Math.max(...flat) - Math.min(...flat)) * Math.abs(tops.get(surfaceId).getWorldScale(scaleHolder).y);
+          drawable.localToWorld(tail.set(0, 0, 0)); drawable.localToWorld(tip.set(0, drawable.userData.arrow, 0)); middle.addVectors(tail, tip).multiplyScalar(0.5);
+          let worst = null;
+          for (const [point, at] of [['tip', tip], ['middle', middle]]) {
+            const top = surfaceAt(surfaceId, at), under = top === null ? 0 : top - at.y;
+            if (under > slack && (!worst || under > worst.under)) worst = { point, under };
+          }
+          if (worst) found.push({ id: node.id, point: worst.point, tip: tip.toArray().map(round), under: round(worst.under) });
+        }
+        return found.slice(0, 4);
+      },
+      // C12 (e2): the arrows the renderer does not draw because they are shorter than the diameter of the sphere they come from (a node the program hides is not listed).
+      // -> [{ id, hidden: true, length, diameter }] in world units, at most 4, rounded to 4 decimals.
+      arrowsHidden() {
+        root.updateWorldMatrix(true, true);
+        const found = [], round = value => Math.round(value * 1e4) / 1e4;
+        for (const node of scene.nodes) {
+          const holder = objects.get(node.id), hidden = byGeometry.get(node.geometry)?.kind === 'arrow' && shownNode(holder) ? holder.children.find(child => child.userData.arrow !== undefined)?.userData.hidden : null;
+          if (hidden) found.push({ id: node.id, hidden: true, length: round(hidden.length), diameter: round(hidden.diameter) });
+        }
+        return found.slice(0, 4);
       },
       clampCeiling: () => ceiling,
       clampFootprint: () => footprint, // { minX, maxX, minZ, maxZ } of the surface a clamp held a node to in the last frame, or null (framing.js) // the highest world y a clamp held a node to in the last frame, or null: the camera fit does not follow a trail above it (framing.js)

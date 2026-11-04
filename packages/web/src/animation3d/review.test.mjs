@@ -249,3 +249,26 @@ run('a surface drawn at twice the program\'s height buries the ball and the path
     assert.equal('buried' in ran.trace, false, `the golden at learning rate ${learningRate} after ${steps} steps: ${JSON.stringify(ran.trace.buried)}`);
   }
 });
+
+// C12 (b), (e), (e2): the capture's trace carries what the render stage checks, only where there is something to say, measured on what is drawn.
+run('the trace names the run path\'s points, twin markers, an arrow under the surface and a hidden arrow; a clean scene carries none of the last three', async () => {
+  const lowest = await runReviewProgram(await requestFor(primitivesFixture.artifact, { time: 2 }), { workerFactory });
+  assert.deepEqual(lowest.trace.trails, { trail: 21 }, 'the run\'s path (the kept path is not counted)');
+  assert.deepEqual(['overlaps', 'arrowsUnder', 'arrowsHidden'].map(key => key in lowest.trace), [false, false, false]);
+  assert.equal('trails' in (await runReviewProgram(await requestFor(watchFixture.artifact), { workerFactory })).trace, false, 'no trail, no field');
+  const twins = structuredClone(primitivesFixture.artifact);
+  twins.scene.geometries.push({ id: 'twinGeo', kind: 'sphere', radius: 0.1 });
+  twins.scene.nodes.push({ id: 'twin', geometry: 'twinGeo', material: 'ballRed', position: [2.04, 1.1, 0] }); // beside the ball's start (2, 1.1, 0)
+  const initial = await runReviewProgram(await requestFor(twins), { workerFactory });
+  assert.equal(initial.ok, true, JSON.stringify(initial));
+  assert.deepEqual(initial.trace.overlaps, [{ a: 'ball', b: 'twin', distance: 0.04 }]);
+  const flat = structuredClone(primitivesFixture.artifact), slope = flat.scene.nodes.find(n => n.id === 'slope');
+  Object.assign(slope, { quaternion: [0, 0, -Math.SQRT1_2, Math.SQRT1_2], scale: [1, 4, 1] }); // lying along +X, 2 long
+  const through = await runReviewProgram(await requestFor(flat, { time: 2 }), { workerFactory }); // the program puts the ball at (0, 0.1, 0): the tip, at x 2.1, is under the wall
+  assert.equal(through.ok, true, JSON.stringify(through));
+  assert.deepEqual(through.trace.arrowsUnder?.map(a => [a.id, a.point]), [['slope', 'tip']], JSON.stringify(through.trace.arrowsUnder));
+  const tiny = structuredClone(primitivesFixture.artifact);
+  tiny.scene.nodes.find(n => n.id === 'slope').scale = [1, 0.3, 1]; // 0.15 long against a ball 0.2 across
+  const hidden = await runReviewProgram(await requestFor(tiny), { workerFactory });
+  assert.deepEqual(hidden.trace.arrowsHidden, [{ id: 'slope', hidden: true, length: 0.15, diameter: 0.2 }]);
+});

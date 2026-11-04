@@ -21,7 +21,7 @@ export const ANIMATION_RENDER_ENTRY = '/render/animation3d.html';
 // every k x fraction (and k x their difference) is at least 0.076 of a cycle from a whole number. Simple fractions (1/2, 1/3) alias:
 // a 12 s loop with 3 turns sampled at 0, 4 and 8 s looked still (accept-2, 2026-10-30).
 export const LOOP_FRACTIONS = Object.freeze([0.538, 0.769]);
-export const ANIMATION_CAPTURE = Object.freeze({ width: 960, height: 540, dpr: 1, theme: 'light', maxEvents: 4, maxTicks: 90, traceKeys: ['inputs', 'time', 'events', 'ticks', 'readouts', 'goal', 'selection', 'stateHash', 'clamped', 'buried'] });
+export const ANIMATION_CAPTURE = Object.freeze({ width: 960, height: 540, dpr: 1, theme: 'light', maxEvents: 4, maxTicks: 90, traceKeys: ['inputs', 'time', 'events', 'ticks', 'readouts', 'goal', 'selection', 'stateHash', 'clamped', 'buried', 'trails', 'overlaps', 'arrowsUnder', 'arrowsHidden'] });
 
 const blocker = (code, message) => Object.assign(new Error(message), { status: 503, code, category: 'renderer' });
 
@@ -211,6 +211,53 @@ export async function renderProbe(env, artifact, artifactHash, deps = {}, states
 }
 
 // The render stage. -> { captures, renders, coverage } | { problems, category, repairable, renders? }
+// C12 (b) and (e): what the capture traces say about the run path, the markers and the arrows, as problems of the same kind as a buried marker: the candidate's own disagreement, told to the repair
+// before any review is spent (the repair path of the render stage; no correction ask). One line each, naming the captures it holds in:
+//   (i)   at the high end of the main control (the first parameter's max), a run that reads diverged with fewer than 4 trail points since the run started;
+//   (ii)  a run still going after K steps whose run path holds fewer than K points (K is read from a steps readout: id steps, stepCount or iterations, or the label Steps taken; none, nothing is said);
+//   (iii) at the initial capture, two sphere markers within half a radius of each other, neither a ghost;
+//   (e)   an arrow whose tip or middle is drawn under the surface.
+// ponytail: (ii) cannot see a step count the program does not report; (i) and (ii) need the capture's trace to carry the run path's points (trace.trails).
+const nth = n => `${n}${[, 'st', 'nd', 'rd'][n % 10 > 3 || Math.floor(n / 10) === 1 ? 0 : n % 10] ?? 'th'}`;
+const STEP_COUNT_ID = /^(steps?|stepCount|iterations?)$/i, STEP_COUNT_LABEL = /^(steps|iterations)( taken| so far| done| count)?$/i;
+export function traceProblems(artifact, captures) {
+  const lines = [], ids = list => `capture${list.length > 1 ? 's' : ''} ${list.slice(0, 4).join(', ')}`, plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  const [main] = artifact.parameters ?? [], counter = (artifact.readouts ?? []).find(r => r.kind !== 'text' && (STEP_COUNT_ID.test(r.id) || STEP_COUNT_LABEL.test(r.label ?? '')));
+  const stepsOf = trace => (Number.isInteger(trace?.readouts?.[counter?.id]) ? trace.readouts[counter.id] : null);
+  const said = trace => Object.values(trace?.readouts ?? {}).filter(value => typeof value === 'string').map(value => value.toLowerCase());
+  const fullest = trace => { // the run path holding the most points: { points, max }, or null when the trace carries none
+    const counted = Object.entries(trace?.trails ?? {}).map(([id, points]) => ({ points, max: artifact.scene.geometries.find(g => g.id === artifact.scene.nodes.find(n => n.id === id)?.geometry)?.max ?? Infinity }));
+    return counted.reduce((best, item) => (!best || item.points > best.points ? item : best), null);
+  };
+  if (main?.type === 'number') {
+    const short = captures.filter(c => c.ticks > 0 && c.inputs?.[main.id] === main.max && said(c.trace).includes('diverged') && (fullest(c.trace)?.points ?? 4) < 4);
+    if (short.length) {
+      const { points } = fullest(short[0].trace), steps = stepsOf(short[0].trace) ?? Math.max(1, points - 1);
+      lines.push(`at the highest ${main.id} (${main.max}) the run diverges in ${plural(steps, 'step')} in ${ids(short.map(c => c.id))}: its path holds ${plural(points, 'trail point')} since the run started and a diverging run makes at least 4: have it take at least 4 steps to leave the surface, so the path shows the swing`);
+    }
+  }
+  const sparse = captures.filter(c => { const steps = stepsOf(c.trace), counted = fullest(c.trace); return steps !== null && counted && !said(c.trace).some(w => w === 'converged' || w === 'diverged') && counted.points < Math.min(steps, counted.max); });
+  if (sparse.length) {
+    const steps = stepsOf(sparse[0].trace), { points } = fullest(sparse[0].trace);
+    lines.push(`the trail marks every ${nth(Math.max(2, Math.round(steps / Math.max(1, points - 1))))} step: it holds ${plural(points, 'point')} after ${plural(steps, 'step')} in ${ids(sparse.map(c => c.id))}: add a point for every step, so the path shows each one`);
+  }
+  const pairs = new Map();
+  for (const c of captures.filter(item => item.time === 0 && !item.ticks && !item.leadTicks && !item.events?.length)) {
+    for (const { a, b, distance } of c.trace?.overlaps ?? []) pairs.set(`${a}|${b}`, { a, b, distance, ids: [...(pairs.get(`${a}|${b}`)?.ids ?? []), c.id] });
+  }
+  for (const { a, b, distance, ids: seen } of [...pairs.values()].slice(0, 2)) lines.push(`one marker hides the other in ${ids(seen)}: ${a} and ${b} are ${distance} apart, under half a radius: put them apart`);
+  const arrows = new Map();
+  for (const c of captures) {
+    for (const { id, point, under } of c.trace?.arrowsUnder ?? []) {
+      const seen = arrows.get(id) ?? { ids: [], point, under };
+      seen.ids.push(c.id);
+      if (under > seen.under) Object.assign(seen, { point, under });
+      arrows.set(id, seen);
+    }
+  }
+  for (const [id, seen] of [...arrows].slice(0, 2)) lines.push(`the ${id} arrow runs through the surface in ${ids(seen.ids)}: its ${seen.point} is ${seen.under.toFixed(2)} under it: scale it so its longest arrow stays under a quarter of the surface width`);
+  return lines;
+}
 export const renderStage = (deps = {}) => async (job, ctx) => {
   if (!ctx.env?.BROWSER && !deps.launch && !deps.browser) throw blocker('render_unavailable', 'Rendering animations for review is not available here. Your animation is kept; retry rendering once it is.');
   if (!ctx.env?.ASSETS?.fetch) throw blocker('render_unavailable', 'The review page is not available here. Your animation is kept; retry rendering once it is.');
@@ -239,6 +286,8 @@ export const renderStage = (deps = {}) => async (job, ctx) => {
       buried.set(node, seen);
     }
   }
-  if (buried.size) return { problems: [...buried].slice(0, 6).map(([node, seen]) => `${node} is drawn below the surface it sits on in capture${seen.ids.length > 1 ? 's' : ''} ${seen.ids.slice(0, 4).join(', ')} (${seen.depth.toFixed(2)} under it: its y is ${seen.y} where the surface is ${seen.surfaceY}): make the program's heights and the surface's heights follow the same heights, so the marker and the path are drawn on the surface`), category: 'spec', repairable: true, renders };
+  const buriedLines = [...buried].map(([node, seen]) => `${node} is drawn below the surface it sits on in capture${seen.ids.length > 1 ? 's' : ''} ${seen.ids.slice(0, 4).join(', ')} (${seen.depth.toFixed(2)} under it: its y is ${seen.y} where the surface is ${seen.surfaceY}): make the program's heights and the surface's heights follow the same heights, so the marker and the path are drawn on the surface`);
+  const problems = [...buriedLines, ...traceProblems(job.artifact, out.captures)].slice(0, 6); // a buried marker first, then what the traces say about the trail, the markers and the arrows
+  if (problems.length) return { problems, category: 'spec', repairable: true, renders };
   return { captures: out.captures.map(({ png: _bytes, ...capture }) => capture), renders, coverage: manifest.coverage };
 };
