@@ -33,6 +33,11 @@ export const FEATURES = Object.freeze(['loop', 'speed', 'seek', 'parameters', 'a
   'physics', 'assembly', 'walkthrough', 'attached_models', 'image_reference']);
 // The five client features of AN-18 are not plan features: the planner's tool schema enumerates FEATURES (agents/animation-brief.js PLAN_TOOL), and it stays as it
 // was until AN-20. They are declared by the browser (capabilities.js ANIMATION_CLIENT_FEATURES) and found in a scene by clientFeatureUses below.
+// AN-18 plan fields (owner decision 13): the scene archetype a plan names (an archetype is added only when a shape recurs, never per request, and never selects a
+// canned scene) and the checks the artifact must meet (animation-author.js assertionProblems). Data here, so the planner's schema and the server share one list.
+export const PLAN_ARCHETYPES = Object.freeze(['loss_surface']);
+export const ASSERTION_KINDS = Object.freeze(['clamp', 'compare', 'pathLength']);
+export const MAX_ASSERTIONS = 4;
 export const TRAIL_STYLES = Object.freeze(['trail', 'ghost']);
 export const LABEL_ANCHORS = Object.freeze(['origin', 'tip']);
 export const READOUT_KINDS = Object.freeze(['number', 'text']);
@@ -94,12 +99,19 @@ const parameter = z.discriminatedUnion('type', [
 // Reserved for attached assets (post-MVP): an immutable stored source revision, never a URL.
 const sourceRef = z.object({ sourceId: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/), revision: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/) }).strict();
 
+// A plan's checks on the artifact: a node is clamped to a surface, a parameter's range covers two values to compare, a trail holds at least this many points.
+const assertion = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('clamp'), node: id }).strict(),
+  z.object({ kind: z.literal('compare'), parameter: id, values: z.tuple([finite(1e9), finite(1e9)]) }).strict(),
+  z.object({ kind: z.literal('pathLength'), min: int(1, 512) }).strict(),
+]);
 const PlanSchema = z.object({
   schema: z.literal(PLAN_SCHEMA), title: text(120), description: text(600), experience: z.enum(EXPERIENCES), reason: text(300),
   behavior: z.enum(BEHAVIORS), controlProfile: z.enum(CONTROL_PROFILES), sourceRefs: z.array(sourceRef), parameters: z.array(parameter),
   interactions: z.array(text(200)).max(8), assumptions: z.array(text(300)).max(8), limitations: z.array(text(300)).max(8),
   learningGoal: text(300).optional(), requiredCapabilities: z.array(z.enum(FEATURES)).max(16),
   duration: z.number().positive().max(600).optional(), // seconds, for a watch loop
+  archetype: z.enum(PLAN_ARCHETYPES).optional(), assertions: z.array(assertion).max(MAX_ASSERTIONS).optional(), // both optional: every plan made before them is unchanged
 }).strict();
 
 const segments = (min, max, fallback) => int(min, max).default(fallback);
@@ -329,6 +341,10 @@ export function validateAnimationPlan(value, capabilities) {
     if (plan.requiredCapabilities.includes('step') && plan.behavior !== 'rules') add('requiredCapabilities', 'unsupported_capability', 'step needs behavior rules');
     uniqueIds(plan.parameters, 'parameters', add);
     checkParameters(plan.parameters, caps.limits.parameters, add);
+    (plan.assertions ?? []).forEach((item, index) => {
+      if (item.kind === 'compare' && !plan.parameters.some(p => p.id === item.parameter && p.type === 'number')) add(`assertions.${index}.parameter`, 'unknown_id', `"${item.parameter}" is not a number parameter of this plan`);
+      if (item.kind === 'compare' && item.values[0] === item.values[1]) add(`assertions.${index}.values`, 'invalid_value', 'a comparison needs two different values');
+    });
   });
 }
 

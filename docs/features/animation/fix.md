@@ -241,7 +241,7 @@ row in [spend.md](spend.md).
 - Checks: `scene.test.mjs` (exact triangle and line-point charges for the primitives fixture, vertex positions and facing, contour levels and the per-level cap, trail draw range, allocation and bounds, ghost, arrow and label positions, clamp including a scaled parent, disposal), `framing.test.mjs` (clamped ball does not widen the fit, an empty trail is not framed), `review.test.mjs` (trace `clamped` on the real engine), `animation-review-size.test.js` (the capture text), `card.test.mjs`. `animation-sgd-framing.test.js` no longer depends on the sampler's wall-clock deadline: a fixed clock, and an assertion on the sampled frames (no literal wall-clock assertion existed at this commit).
 - Not covered: nothing here was drawn in a browser or WebGL (Claude does not run browser checks); the pixel result, the look of the contour lines and the ghost, and label declutter near a tip label are for the preview and the golden fixture. The golden artifact, the `loss_surface` archetype and `animation-primitives-check.mjs` are lane (f)'s. Status: fixed-unverified.
 
-### FX-AN-049 — contour lines and a ghost trail do not follow a frame's material update (DEFERRED, cosmetic, decision 8)
+### FX-AN-090 — contour lines and a ghost trail do not follow a frame's material update (DEFERRED, cosmetic, decision 8)
 - Task / phase: AN-19 renderer (`scene.js`). Found while implementing FX-AN-048; not a blocker for any rung.
 - Actual / expected: a surface's contour lines use their own line material (the surface colour darkened to half), and a ghost trail uses its own copy of the node's material at 40% opacity. A frame's `materials` update (colour or opacity) reaches the node's shared material only, so after such an update the contours and the ghost keep their first colour. Expected: they follow, in proportion.
 - Evidence: `scene.js` surface and trail branches build `own(new THREE.LineBasicMaterial(...))` and `own(base.clone())`; `apply` updates only `surfaces.get(id)` and `strokes.get(id)`. No test exercises it.
@@ -249,7 +249,7 @@ row in [spend.md](spend.md).
 - Next concrete action: if a scene ever animates a material colour on a surface or ghost node, derive both from the base material in `apply` (the contour colour is `base.color * 0.5`, the ghost opacity `base.opacity * 0.4`). Owner action needed: none.
 - Status: deferred
 
-### FX-AN-050 — a trail tube may pinch at a sharp reversal (DEFERRED, cosmetic, decision 8)
+### FX-AN-091 — a trail tube may pinch at a sharp reversal (DEFERRED, cosmetic, decision 8)
 - Task / phase: AN-19 renderer (`scene.js` `trailBuffers`). Not seen in a browser; found by reading the geometry.
 - Actual / expected: each point's ring is built from the tangent between its neighbours with a fresh up-vector basis (no parallel transport), so where a path reverses direction in one step the ring can twist or flatten and the tube can pinch. Expected: a constant-thickness tube.
 - Evidence: `trailBuffers` in `scene.js`; the tests check the draw range, bounds, ring radius and allocation, not the look at a reversal. Unverified in WebGL (Claude does not run browser checks).
