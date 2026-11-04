@@ -1,7 +1,7 @@
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  FEATURES, GEOMETRY_KINDS, clientFeatureUses, hashAnimationPlan, hashProgramSource, linePoints, resolveAnimationInputs, triangleCost, SNAPSHOT_SCHEMA,
+  FEATURES, GEOMETRY_KINDS, PLAN_ARCHETYPES, clientFeatureUses, hashAnimationPlan, hashProgramSource, linePoints, resolveAnimationInputs, triangleCost, SNAPSHOT_SCHEMA,
   validateAnimationArtifact, validateAnimationEvent, validateAnimationFrame, validateAnimationPlan, validateAnimationPresentation, validateAnimationSnapshot,
 } from './contract.js';
 import { ANIMATION_CAPABILITIES, ANIMATION_CLIENT_FEATURES } from './capabilities.js';
@@ -331,4 +331,30 @@ test('clientFeatureUses names each use of the five features with its path, once 
   assert.deepEqual(uses.map(u => u.path), ['scene.geometries.0.kind', 'scene.geometries.1.kind', 'scene.geometries.2.kind', 'scene.geometries.4.offset', 'scene.geometries.5.anchor', `scene.nodes.${nodeIndex('ball')}.clampTo`, 'readouts.1.kind']);
   assert.ok(uses.every(u => /^the browser that asked for this scene cannot /.test(u.message) && !u.message.includes('\n')));
   for (const junk of [undefined, null, 1, {}, { scene: 1 }, { scene: { geometries: [null, 3, 'x'], nodes: [null] }, readouts: [null, 4] }]) assert.deepEqual(clientFeatureUses(junk), []);
+});
+
+// ---- AN-18 plan fields (owner decision 13): archetype and assertions, both optional ----
+test('a plan may name an archetype and carry up to four assertions; a plan that carries neither is unchanged', async () => {
+  const plan = experimentFixture.plan;
+  const withFields = fields => ({ ...plan, ...fields });
+  assert.equal(validateAnimationPlan(plan).ok, true);
+  assert.equal(await hashAnimationPlan(plan), experimentFixture.artifact.planHash, 'an existing plan hashes as before');
+  assert.deepEqual([...PLAN_ARCHETYPES], ['loss_surface']);
+  assert.equal(validateAnimationPlan(withFields({ archetype: 'loss_surface' })).ok, true);
+  assert.ok(issueAt(validateAnimationPlan(withFields({ archetype: 'bowl' })), 'invalid_value', 'archetype'), 'only a listed archetype');
+  const good = [{ kind: 'clamp', node: 'ball' }, { kind: 'compare', parameter: 'leftMass', values: [2, 8] }, { kind: 'pathLength', min: 40 }];
+  const ok = validateAnimationPlan(withFields({ assertions: good }));
+  assert.deepEqual(ok.issues, undefined);
+  assert.deepEqual(ok.value.assertions, good);
+  assert.equal(validateAnimationPlan(withFields({ assertions: [] })).ok, true);
+  assert.equal(validateAnimationPlan(withFields({ assertions: [...good, { kind: 'clamp', node: 'a' }] })).ok, true, 'four');
+  assert.ok(issueAt(validateAnimationPlan(withFields({ assertions: [...good, { kind: 'clamp', node: 'a' }, { kind: 'clamp', node: 'b' }] })), 'over_limit', 'assertions'), 'five');
+  for (const bad of [{ kind: 'overshoot' }, { kind: 'clamp' }, { kind: 'clamp', node: 'ball', extra: 1 }, { kind: 'compare', parameter: 'leftMass', values: [2] }, { kind: 'compare', parameter: 'leftMass', values: [2, 8, 9] },
+    { kind: 'compare', parameter: 'leftMass', values: [2, Number.NaN] }, { kind: 'pathLength', min: 0 }, { kind: 'pathLength', min: 513 }, { kind: 'pathLength', min: 1.5 }, { kind: 'pathLength' }, 'clamp', null]) {
+    assert.equal(validateAnimationPlan(withFields({ assertions: [bad] })).ok, false, JSON.stringify(bad));
+  }
+  // compare names a number parameter of this plan, and two different values.
+  assert.ok(issueAt(validateAnimationPlan(withFields({ assertions: [{ kind: 'compare', parameter: 'nowhere', values: [1, 2] }] })), 'unknown_id', 'assertions.0.parameter'));
+  assert.ok(issueAt(validateAnimationPlan(withFields({ assertions: [{ kind: 'compare', parameter: 'leftMass', values: [3, 3] }] })), 'invalid_value', 'assertions.0.values'));
+  assert.ok(issueAt(validateAnimationPlan({ ...watchFixture.plan, assertions: [{ kind: 'compare', parameter: 'leftMass', values: [1, 2] }] }), 'unknown_id', 'assertions.0.parameter'), 'a plan with no parameters');
 });
