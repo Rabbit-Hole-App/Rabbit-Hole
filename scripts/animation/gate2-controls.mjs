@@ -87,7 +87,21 @@ export function readManifest(file, { worktree = null, goldenFile = null } = {}) 
 export const readGolden = (file, inline = null) => { const g = inline ?? readJson(file); if (!g?.plan || !g?.artifact) throw new Error(`${file} is not a golden ({ plan, artifact })`); return { name: 'golden SGD artifact (job 0)', kind: 'golden', expect: 'pass', request: GOLDEN_REQUEST, plan: g.plan, draft: g.artifact, planHash: g.artifact.planHash ?? null }; };
 
 // ---- judging ----
-const findingOf = f => ({ severity: f.severity, category: f.category, verdict: f.verdict, message: String(f.message).replace(/\s+/g, ' ') });
+const findingOf = f => ({ severity: f.severity, category: f.category, verdict: f.verdict, capture: f.target?.capture ?? null, object: f.target?.object ?? null, repairable: f.specRepairable ?? null, message: String(f.message).replace(/\s+/g, ' ') });
+// The review's verdict per capture, computed as the stage computes the whole (a capture is accepted when it has no serious finding and either passed both ways or
+// explained a fail by findings), from the reviewer's own per-capture answers (the stage records them through ctx.noteReview) and the parsed findings.
+export function captureVerdicts(captures, record, findings) {
+  const given = new Map((record?.verdicts ?? []).map(v => [v.id, v]));
+  return captures.map(c => {
+    const v = given.get(c.id) ?? {}, mine = findings.filter(f => f.target?.capture === c.id), serious = mine.filter(f => f.severity !== 'minor');
+    return { id: c.id, label: c.label ?? null, view: c.view?.name ?? c.view ?? null, semantic: v.semantic ?? null, visual: v.visual ?? null, accepted: serious.length === 0 && ((v.semantic === 'pass' && v.visual === 'pass') || mine.length > 0), findings: mine.length, serious: serious.length };
+  });
+}
+// One line per capture and one per finding, for the controls-only run.
+export function detailLines(item) {
+  return [...(item.captures ?? []).map(c => `    capture ${c.id}${c.label ? ` "${c.label}"` : ''}: ${c.accepted ? 'accepted' : 'REJECTED'} (semantic ${c.semantic ?? '?'}, visual ${c.visual ?? '?'}; ${c.findings} finding(s), ${c.serious} serious)`),
+    ...item.findings.map(f => `    finding ${f.severity}/${f.category} [${f.verdict}] capture ${f.capture ?? '-'} object ${f.object ?? '-'}: ${f.message}`)];
+}
 // -> null when the item behaved as expected, else a sentence saying which way the reviewer drifted.
 const seriousOf = review => review.findings.filter(f => f.severity === 'blocker' || f.severity === 'major');
 const said = f => `${f.severity}/${f.category} "${String(f.message).replace(/\s+/g, ' ').slice(0, 200)}"`;
@@ -137,11 +151,12 @@ export async function runControls(cfg, deps) {
       // The captures as the render stage records them (inputs from the trace; the probe returns the trace but not the entry's inputs) with their pixels inline.
       const captures = r.captures.map(c => ({ id: c.id, artifactHash, view: c.view, label: c.label, time: c.time, inputs: c.trace?.inputs ?? {}, events: c.events, ...(c.leadTicks ? { leadTicks: c.leadTicks } : {}),
         ticks: c.ticks, trace: c.trace, sha256: c.sha256, mediaType: 'image/png', data: c.pngBase64 }));
+      let noted = null;
       const job = { id: `control-${index}`, prompt: item.request, plan: item.plan, artifact: r.artifact, artifactHash, captures, evidence: [], coverage: r.coverage ?? null, draft, reviews: [], counts: { review: 0 }, attempt: 1, repairs: 0 };
-      const ctx = { env: {}, call: async (role, spec) => { const reply = await deps.review(role, spec); out.credits += Math.round(product.costUsd({ model: reply.model ?? product.animationModel('review'), ...reply.usage }) * 1e6) / 1e4; return reply; }, noteReview: async () => {} };
+      const ctx = { env: {}, call: async (role, spec) => { const reply = await deps.review(role, spec); out.credits += Math.round(product.costUsd({ model: reply.model ?? product.animationModel('review'), ...reply.usage }) * 1e6) / 1e4; return reply; }, noteReview: async record => { if (!record.problems?.length || !noted) noted = record; } };
       const review = await product.reviewStage(job, ctx);
       out.accepted = review.accepted; out.outcome = review.accepted ? 'accepted' : 'rejected';
-      out.findings = review.findings.map(findingOf); out.imagesReviewed = review.imagesReviewed;
+      out.findings = review.findings.map(findingOf); out.imagesReviewed = review.imagesReviewed; out.captures = captureVerdicts(captures, noted, review.findings);
       out.drift = judge(item, review);
     } catch (error) { out.outcome = 'error'; out.note = String(error.message).slice(0, 300); }
     log(`[control ${index}] ${item.name}: ${out.outcome}${out.drift ? ` - DRIFT: ${out.drift}` : out.note ? ` - ${out.note}` : ''}; ${out.credits.toFixed(2)} credits (direct review call)`);
@@ -185,8 +200,8 @@ export async function reviewIdentity(worktree) {
 
 // The key under which a PASS is remembered (owner): the candidate, the calibration set (manifest, fixtures, pinned golden), the prompt files (Gate 1's hash) and the
 // REVIEW identity above. A change to any part means the controls run again.
-export const KEY_PARTS = Object.freeze({ candidateSha: 'candidate SHA', manifestHash: 'manifest hash', promptsHash: 'prompt-files hash', reviewIdentity: 'review identity' });
-export const controlsKey = ({ candidateSha, manifestHash = null, promptsHash, reviewIdentity }) => ({ candidateSha, manifestHash, promptsHash, reviewIdentity });
+export const KEY_PARTS = Object.freeze({ candidateSha: 'candidate SHA', manifestHash: 'manifest hash', promptsHash: 'prompt-files hash', reviewIdentity: 'review identity', goldenHash: 'golden file' });
+export const controlsKey = ({ candidateSha, manifestHash = null, promptsHash, reviewIdentity, goldenHash = null }) => ({ candidateSha, manifestHash, promptsHash, reviewIdentity, goldenHash });
 export const keyLine = key => Object.entries(KEY_PARTS).map(([part, label]) => `${label} ${key[part] ? String(key[part]).slice(0, 12) : 'none'}`).join(' | ');
 export const filesLine = files => Object.entries(files ?? {}).map(([name, h]) => `${name.split('/').at(-1)} ${String(h).slice(0, 12)}`).join(', ');
 const short = h => (h ? String(h).slice(0, 12) : 'none');
@@ -205,9 +220,11 @@ export function rememberedPass(out, key, files = null) {
   return { reuse: null, stale: `the remembered pass (${record.finishedAt}) is stale: ${parts.join('; ')}` };
 }
 // The result next to gate2-result.json: one compact line for another program (every item carries its `credits`), a per-candidate copy, and on PASS the memory.
-export function writeControls(out, { key, reviewFiles = null, version, manifest, result, at }) {
+// exploratory: a golden file other than the candidate's own (a retune under review): its result is written apart and NOTHING is remembered or overwritten.
+export function writeControls(out, { key, reviewFiles = null, golden = null, exploratory = false, version, manifest, result, at }) {
   mkdirSync(out, { recursive: true });
-  const line = `${JSON.stringify({ schema: CONTROLS_SCHEMA, candidateSha: key.candidateSha, previewVersion: version, key, reviewFiles, manifest: manifest && { path: manifest.path, hash: manifest.hash }, verdict: result.verdict, goldenAccepted: result.goldenAccepted, spentCredits: result.spentCredits, items: result.items, finishedAt: at.toISOString() })}\n`;
+  const line = `${JSON.stringify({ schema: CONTROLS_SCHEMA, candidateSha: key.candidateSha, previewVersion: version, key, reviewFiles, golden, exploratory, manifest: manifest && { path: manifest.path, hash: manifest.hash }, verdict: result.verdict, goldenAccepted: result.goldenAccepted, spentCredits: result.spentCredits, items: result.items, finishedAt: at.toISOString() })}\n`;
+  if (exploratory) { writeFileSync(join(out, `controls-exploratory-${String(key.goldenHash).slice(0, 12)}.json`), line); return; }
   writeFileSync(join(out, 'controls-result.json'), line);
   writeFileSync(controlsFile(out, key.candidateSha, version), line);
   if (result.verdict === 'PASS') writeFileSync(join(out, PASSED), `${JSON.stringify({ key, reviewFiles, previewVersion: version, spentCredits: result.spentCredits, finishedAt: at.toISOString() })}\n`);

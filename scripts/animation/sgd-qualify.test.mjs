@@ -525,7 +525,9 @@ test('job 0: the golden goes through the preview\'s seed-fixture and render-resu
   assert.deepEqual([c.schema, c.candidateSha, c.verdict, c.goldenAccepted, c.items.length, c.items[0].kind, c.items[0].outcome, c.items[0].accepted], ['gate2-controls/1', SHA, 'PASS', true, 1, 'golden', 'accepted', true]);
   assert.equal(c.items[0].credits, 14.6, 'priced by the product\'s own costUsd, and carried in the result');
   assert.equal(c.spentCredits, 14.6);
-  assert.deepEqual(Object.keys(c.key), ['candidateSha', 'manifestHash', 'promptsHash', 'reviewIdentity']);
+  assert.deepEqual(Object.keys(c.key), ['candidateSha', 'manifestHash', 'promptsHash', 'reviewIdentity', 'goldenHash']);
+  assert.equal(c.key.goldenHash, sha256(GOLDEN_TEXT), 'the golden file\'s own sha256 is in the key');
+  assert.deepEqual([c.exploratory, c.golden.hash], [false, sha256(GOLDEN_TEXT)]);
   const identity = await reviewIdentity(w.cand);
   assert.equal(c.key.reviewIdentity, identity.hash);
   assert.deepEqual(Object.keys(c.reviewFiles), [...REVIEW_FILES, 'review prompt (ANIMATION_REVIEW_SYSTEM)']);
@@ -534,7 +536,7 @@ test('job 0: the golden goes through the preview\'s seed-fixture and render-resu
   assert.equal(readFileSync(join(w.dir, 'out', 'controls-result.json'), 'utf8').trim().split('\n').length, 1, 'one compact line, next to gate2-result.json');
   assert.match(readFileSync(join(w.dir, 'out', 'spend-rows.md'), 'utf8'), /\| c0 \| .* \| CONTROL: golden SGD artifact \(job 0\) \(direct review call, outside the ledger\) \| - \| accepted \| 0 \| 14\.60 \|/);
   assert.equal(w.fake.jobs.size, 10, 'the ten phrasings ran after the control');
-  assert.match(w.lines.join('\n'), /controls key: candidate SHA aaaaaaaaaaaa \| manifest hash none \| prompt-files hash abababababab \| review identity [0-9a-f]{12}/);
+  assert.match(w.lines.join('\n'), /controls key: candidate SHA aaaaaaaaaaaa \| manifest hash none \| prompt-files hash abababababab \| review identity [0-9a-f]{12} \| golden file [0-9a-f]{12}/);
   assert.match(w.lines.join('\n'), /outside the ledger and outside the platform day cap/);
   assert.match(w.lines.join('\n'), /Settled by this run: 459\.00 credits/);
   assert.match(w.lines.join('\n'), /cumulative 573\.60 of cap 2000/, 'the control\'s spend counts against the cap and the ladder total');
@@ -600,7 +602,7 @@ test('the controls memory is keyed by candidate SHA, manifest hash, prompt-files
   assert.equal(reuse.code, 0);
   assert.equal(w.reviewed.length, 4, 'no review call for an unchanged key');
   assert.match(reuse.text, /controls: a PASS is remembered for this key/);
-  assert.match(reuse.text, /controls: PASS reused, not reviewed again\. key: candidate SHA aaaaaaaaaaaa \| manifest hash [0-9a-f]{12} \| prompt-files hash abababababab \| review identity [0-9a-f]{12}/);
+  assert.match(reuse.text, /controls: PASS reused, not reviewed again\. key: candidate SHA aaaaaaaaaaaa \| manifest hash [0-9a-f]{12} \| prompt-files hash abababababab \| review identity [0-9a-f]{12} \| golden file [0-9a-f]{12}/);
   assert.match(reuse.text, /review identity [0-9a-f]{12}: animation3d-render\.js [0-9a-f]{12}, animation-review\.js [0-9a-f]{12}, animation-render\.js [0-9a-f]{12}, review prompt \(ANIMATION_REVIEW_SYSTEM\) [0-9a-f]{12}/);
   // the AUTHOR prompt in the same file is Gate 1's, not the review identity's: changing it re-runs nothing here
   writeFileSync(join(w.cand, 'packages', 'control-plane', 'src', 'agents', 'animation-author.js'), authorModule('review prompt v1', 'author prompt v2'));
@@ -677,7 +679,7 @@ test('controls errors are not passes: a preview without diagnostics, a failed re
   const checked = world({ calibrate: calibrationDir(), extraFlags: ['--check'] });
   assert.equal(await noNetwork(() => checked.run()), 0, checked.lines.join('\n'));
   assert.match(checked.lines.join('\n'), /controls: job 0 is the golden SGD artifact, with 2 must-fail and 1 false-positive draft\(s\) from .*manifest\.json; about 80 credits/);
-  assert.match(checked.lines.join('\n'), /controls key: candidate SHA aaaaaaaaaaaa \| manifest hash [0-9a-f]{12} \| prompt-files hash abababababab \| review identity [0-9a-f]{12}/);
+  assert.match(checked.lines.join('\n'), /controls key: candidate SHA aaaaaaaaaaaa \| manifest hash [0-9a-f]{12} \| prompt-files hash abababababab \| review identity [0-9a-f]{12} \| golden file [0-9a-f]{12}/);
   assert.match(checked.lines.join('\n'), /controls: no pass is remembered for this key; they run before any author job/);
   assert.equal(checked.seen.length, 0, 'a check makes no request');
   const pinned = world({ calibrate: calibrationDir({ goldenText: 'another golden' }), extraFlags: ['--check'] });
@@ -736,4 +738,73 @@ test('reviewIdentityRefusal: a different review identity than the candidate\'s e
   assert.match(refused, /^REFUSED: this candidate's earlier jobs were measured under review identity aaaaaaaaaaaa, the review is now bbbbbbbbbbbb \(page\.js \(aaaaaaaaaaaa -> bbbbbbbbbbbb\)\), and the controls have not passed under the new one; run the controls first$/);
   const m = machineResult({ candidateSha: SHA, version: VERSION, identities: {}, review: { hash: 'b'.repeat(64), files: { 'page.js': 'x' } }, result: { rows: [row(1, 'accepted', { reviewIdentity: 'a'.repeat(64) })], verdict: verdictOf([]), finished: 0, notRun: [] }, cap: 1, prior: 0, at: new Date(0) });
   assert.deepEqual([m.reviewIdentity.hash === 'b'.repeat(64), m.mixedReviewIdentity, m.rows[0].reviewIdentity], [true, true, 'aaaaaaaaaaaa']);
+});
+
+// ---- --golden-file: a retune of the golden reviewed against the live preview, without a candidate ----
+const retuneOf = (n, extra = {}) => JSON.stringify({ ...FAKE_GOLDEN, note: `retune ${n}`, plan: { ...FAKE_GOLDEN.plan, title: `Offline fixture: retuned bowl ${n}` }, artifact: { ...FAKE_GOLDEN.artifact, artifactId: `fixture-retune-${n}`, title: `Offline fixture: retuned bowl ${n}` }, ...extra });
+const REJECTION = () => ({ accepted: false, findings: [{ message: 'The diverged ball floats above the bowl.', category: 'renderer', object: 'ballA' }] });
+
+test('--golden-file: the control reviews THAT file (a retune) on the preview, prints every capture and finding, records the file\'s sha256, and is never remembered', async () => {
+  const w = world({ verdict: REJECTION }), retune = join(w.dir, 'retune-1.json');
+  writeFileSync(retune, retuneOf(1));
+  const argv = [...w.argv, '--controls-only', '--golden-file', retune];
+  assert.equal(await noNetwork(() => w.run(argv)), 5);
+  const text = w.lines.join('\n');
+  assert.equal([...w.fake.seeded.values()].at(-1).artifact.artifactId, 'fixture-retune-1', 'the preview was given the retune, not the candidate\'s golden');
+  assert.match(text, /controls: exploratory run on .*retune-1\.json \(sha256 [0-9a-f]{12}\), not the candidate's own golden \([0-9a-f]{12}\): exploratory: not remembered/);
+  assert.match(text, /exploratory: not remembered \(nothing written to controls-result\.json or controls-passed\.json; the result is controls-exploratory-[0-9a-f]{12}\.json\)/);
+  // one line per capture (accepted or rejected) and one per finding, with severity, category, capture and object
+  assert.match(text, /^  golden SGD artifact \(job 0\): rejected \(1 of 3 captures rejected, 14\.60 credits\)$/m);
+  assert.match(text, /^    capture v0-s0 "initial": REJECTED \(semantic fail, visual fail; 1 finding\(s\), 1 serious\)$/m);
+  assert.match(text, /^    capture v0-s1 "after run": accepted \(semantic pass, visual pass; 0 finding\(s\), 0 serious\)$/m);
+  assert.match(text, /^    finding major\/renderer \[visual\] capture v0-s0 object ballA: The diverged ball floats above the bowl\.$/m);
+  assert.doesNotMatch(text, /^    major\/renderer The diverged/m, 'the compact finding lines are not printed twice');
+  // nothing is remembered or overwritten; the result is apart and carries the file's hash everywhere
+  const out = join(w.dir, 'out'), hash = sha256(retuneOf(1)), exploratory = JSON.parse(readFileSync(join(out, `controls-exploratory-${hash.slice(0, 12)}.json`), 'utf8'));
+  for (const never of ['controls-result.json', 'controls-passed.json', `controls-${SHA.slice(0, 7)}-0fd062bf.json`]) assert.equal(existsSync(join(out, never)), false, never);
+  assert.deepEqual([exploratory.exploratory, exploratory.golden.hash, exploratory.golden.path, exploratory.key.goldenHash, exploratory.verdict], [true, hash, retune, hash, 'FAIL']);
+  assert.deepEqual(exploratory.items[0].captures.map(c => [c.id, c.accepted, c.semantic, c.visual]), [['v0-s0', false, 'fail', 'fail'], ['v0-s1', true, 'pass', 'pass'], ['v0-s2', true, 'pass', 'pass']]);
+  assert.deepEqual(exploratory.items[0].findings.map(f => [f.severity, f.category, f.verdict, f.capture, f.object]), [['major', 'renderer', 'visual', 'v0-s0', 'ballA']]);
+  assert.match(readFileSync(join(out, 'spend-rows.md'), 'utf8'), /\| c0 \| .* \| CONTROL: golden SGD artifact \(job 0\)/, 'an exploratory review still costs money, so it is a spend row');
+  assert.equal(w.fake.jobs.size, 0);
+  // a pass on a retune is not remembered either: the next normal run reviews the candidate's own golden
+  const good = world(), file = join(good.dir, 'retune-2.json');
+  writeFileSync(file, retuneOf(2));
+  assert.equal(await noNetwork(() => good.run([...good.argv, '--controls-only', '--golden-file', file])), 0, good.lines.join('\n'));
+  assert.equal(existsSync(join(good.dir, 'out', 'controls-passed.json')), false, 'a retune that passes is still exploratory');
+  assert.equal(good.reviewed.length, 1);
+  assert.equal(await noNetwork(() => good.run()), 0, good.lines.slice(-8).join('\n'));
+  assert.equal(good.reviewed.length, 2, 'the normal run reviewed the candidate\'s own golden');
+  assert.equal(good.fake.seeded.size, 2);
+});
+
+test('--golden-file: only for controls-only runs; the candidate\'s own golden is not exploratory; a changed own golden invalidates the remembered pass; the manifest pin is not applied to a retune', async () => {
+  const full = world(), retune = join(full.dir, 'retune.json');
+  writeFileSync(retune, retuneOf(3));
+  assert.equal(await noNetwork(() => full.run([...full.argv, '--golden-file', retune])), 2);
+  assert.match(full.lines.join('\n'), /USAGE: --golden-file .*retune\.json is not the candidate's own golden; it is for --controls-only runs/);
+  assert.equal(full.fake.jobs.size, 0);
+  assert.equal(full.reviewed.length, 0, 'refused before any review');
+  // the candidate's own golden named explicitly is the candidate's own golden: remembered as usual, with its hash in the key
+  const own = world(), ownFile = join(own.cand, 'packages', 'web', 'src', 'animation3d', 'testdata', 'sgd-golden.json');
+  assert.equal(await noNetwork(() => own.run([...own.argv, '--controls-only', '--golden-file', ownFile])), 0, own.lines.join('\n'));
+  assert.doesNotMatch(own.lines.join('\n'), /exploratory/);
+  assert.equal(JSON.parse(readFileSync(join(own.dir, 'out', 'controls-passed.json'), 'utf8')).key.goldenHash, sha256(GOLDEN_TEXT));
+  assert.match(own.lines.join('\n'), /controls key: .*golden file [0-9a-f]{12}/);
+  // the candidate's own golden is retuned in its tree: the remembered pass is for a different golden, so it is reviewed again and the part is named
+  writeFileSync(ownFile, retuneOf(4));
+  own.lines.length = 0;
+  assert.equal(await noNetwork(() => own.run([...own.argv, '--controls-only'])), 0);
+  assert.match(own.lines.join('\n'), /is stale: golden file changed \([0-9a-f]{12} -> [0-9a-f]{12}\); they run again/);
+  assert.equal(own.reviewed.length, 2);
+  // --calibrate: the manifest pins the original golden; a retune under review is not held to that pin
+  const pinned = world({ verdict: CALIBRATED, calibrate: calibrationDir() }), second = join(pinned.dir, 'retune-5.json');
+  writeFileSync(second, retuneOf(5));
+  assert.equal(await noNetwork(() => pinned.run([...pinned.argv, '--controls-only', '--golden-file', second])), 0, pinned.lines.join('\n'));
+  assert.match(pinned.lines.join('\n'), /exploratory: not remembered/);
+  assert.equal(pinned.reviewed.length, 4);
+  // the older name still works
+  const alias = world({ verdict: REJECTION });
+  assert.equal(await noNetwork(() => alias.run([...alias.argv, '--controls', '--golden', join(tmp(), 'missing.json')])), 2);
+  assert.match(alias.lines.join('\n'), /USAGE: controls: /);
 });

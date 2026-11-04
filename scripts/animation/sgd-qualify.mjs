@@ -23,7 +23,7 @@ import { spawnSync } from 'node:child_process';
 import { CREDENTIALS, PACING, RUN_OUT, insideRepo, makeCall, markUsed, prefixOf, readKey, readSessions, readUsage, readUsed, usable } from './dev-test-session.mjs';
 import { MUST_RERUN, inputProblem, realDeps, runGate } from './sgd-qualify-gate.mjs';
 import { DRY_RUN, FAKE_GOLDEN, createFake, fakeReviewer } from './sgd-qualify-fake.mjs';
-import { REVIEW_CREDITS_EXPECTED, appendSpend, changedFiles, controlsKey, filesLine, keyLine, loadProduct, providerReview, readGolden, readManifest, rememberedPass, reviewIdentity, runControls, spendLine, writeControls } from './gate2-controls.mjs';
+import { REVIEW_CREDITS_EXPECTED, appendSpend, changedFiles, controlsKey, detailLines, filesLine, keyLine, lfHash, loadProduct, providerReview, readGolden, readManifest, rememberedPass, reviewIdentity, runControls, spendLine, writeControls } from './gate2-controls.mjs';
 
 // Plan section 8, "Gate 2 phrasings", exactly. The tenth is the wrong-subject control.
 export const PHRASINGS = Object.freeze([
@@ -320,14 +320,14 @@ export const parseTypical = text => {
 };
 export function parse(argv, env = process.env) {
   const { values: v } = parseArgs({ args: argv, strict: true, options: {
-    'dry-run': { type: 'boolean' }, check: { type: 'boolean' }, 'run-all': { type: 'boolean' }, controls: { type: 'boolean' }, calibrate: { type: 'string' }, golden: { type: 'string' },
+    'dry-run': { type: 'boolean' }, check: { type: 'boolean' }, 'run-all': { type: 'boolean' }, controls: { type: 'boolean' }, 'controls-only': { type: 'boolean' }, calibrate: { type: 'string' }, golden: { type: 'string' }, 'golden-file': { type: 'string' },
     base: { type: 'string' }, 'sessions-file': { type: 'string' }, concurrency: { type: 'string', default: '1' }, cap: { type: 'string' }, prior: { type: 'string' },
     'candidate-worktree': { type: 'string' }, 'mvp3-sha': { type: 'string' }, 'prompts-hash': { type: 'string' }, 'golden-hash': { type: 'string' }, worker: { type: 'string' },
     out: { type: 'string' }, 'stop-file': { type: 'string' }, typical: { type: 'string' }, choice: { type: 'string' }, credentials: { type: 'string', default: CREDENTIALS },
     'verify-script': { type: 'string' }, 'poll-ms': { type: 'string', default: '4000' }, 'plan-timeout-min': { type: 'string', default: '6' }, 'job-timeout-min': { type: 'string', default: '20' },
     'settle-wait-min': { type: 'string', default: '3' }, 'job-worst-case': { type: 'string', default: '140' } } });
   const num = (name, raw, min) => { const x = Number(raw); if (!Number.isFinite(x) || x < min) throw new Error(`--${name} must be a number of at least ${min}, got ${raw}`); return x; };
-  const o = { ...v, concurrency: num('concurrency', v.concurrency, 1), pollMs: num('poll-ms', v['poll-ms'], 0), planTimeoutMs: num('plan-timeout-min', v['plan-timeout-min'], 0.1) * 60000,
+  const o = { ...v, controls: !!(v.controls || v['controls-only']), concurrency: num('concurrency', v.concurrency, 1), pollMs: num('poll-ms', v['poll-ms'], 0), planTimeoutMs: num('plan-timeout-min', v['plan-timeout-min'], 0.1) * 60000,
     jobTimeoutMs: num('job-timeout-min', v['job-timeout-min'], 0.1) * 60000, settleWaitMs: num('settle-wait-min', v['settle-wait-min'], 0) * 60000, jobWorstCase: num('job-worst-case', v['job-worst-case'], 1), typical: parseTypical(v.typical) };
   if (!Number.isInteger(o.concurrency) || o.concurrency > 5) throw new Error('--concurrency must be a whole number from 1 to 5');
   if (v['dry-run']) return { ...o, cap: Number(v.cap ?? 2000), prior: Number(v.prior ?? env.PRIOR_CREDITS ?? 0) };
@@ -396,19 +396,28 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
   // Controls (owner standing rules): job 0, the golden, and with --calibrate the retained drafts that must fail or must not be falsely rejected. Free configuration
   // checks here, the review below. The tree the review page and the golden are read from is the candidate worktree (this repository's, in the dry run).
   const tree = dry ? fileURLToPath(new URL('../..', import.meta.url)) : gateOpts.worktree;
-  let golden, manifest = null;
+  // --golden-file: review THAT file as job 0 (a retune under review) instead of the candidate's own golden. The gate and the key still use the candidate worktree;
+  // the file's sha256 is in the key and the result. A golden file that is not the candidate's own is an exploratory run: it is never remembered.
+  let golden, manifest = null, goldenFile, goldenHash, ownGoldenHash;
+  const goldenArg = o['golden-file'] ?? o.golden, ownGolden = join(tree, 'packages', 'web', 'src', 'animation3d', 'testdata', 'sgd-golden.json');
   try {
-    const goldenFile = o.golden ?? join(tree, 'packages', 'web', 'src', 'animation3d', 'testdata', 'sgd-golden.json');
-    golden = dry ? { ...readGolden(null, FAKE_GOLDEN) } : readGolden(goldenFile);
-    manifest = o.calibrate ? readManifest(o.calibrate, { worktree: tree, goldenFile: dry ? null : goldenFile }) : null;
+    const inlineGolden = dry && !goldenArg;
+    goldenFile = inlineGolden ? '(the dry run\'s built-in golden)' : (goldenArg ?? ownGolden);
+    golden = inlineGolden ? { ...readGolden(null, FAKE_GOLDEN) } : readGolden(goldenFile);
+    goldenHash = inlineGolden ? createHash('sha256').update(JSON.stringify(FAKE_GOLDEN)).digest('hex') : lfHash(goldenFile);
+    ownGoldenHash = inlineGolden ? goldenHash : lfHash(ownGolden);
   } catch (error) { out(`USAGE: controls: ${error.message}`); return 2; }
+  const exploratory = !!goldenArg && goldenHash !== ownGoldenHash;
+  if (exploratory && !o.controls) { out(`USAGE: --golden-file ${goldenFile} is not the candidate's own golden; it is for --controls-only runs (a Gate 2 run reviews the candidate's own golden as job 0)`); return 2; }
+  try { manifest = o.calibrate ? readManifest(o.calibrate, { worktree: tree, goldenFile: dry || exploratory ? null : goldenFile }) : null; } catch (error) { out(`USAGE: controls: ${error.message}`); return 2; }
   const review = await reviewIdentity(tree); // what the reviewer reads and sees: the page, the request builder files, the review prompt (the key's fourth part)
   const calibration = manifest?.items ?? [], controlsCredits = (1 + calibration.length) * REVIEW_CREDITS_EXPECTED;
-  const key = controlsKey({ candidateSha: pin.PREVIEW_SHA, manifestHash: manifest?.hash ?? null, promptsHash: gateOpts.promptsHash, reviewIdentity: review.hash });
-  const remembered = rememberedPass(outDir, key, review.files);
+  const key = controlsKey({ candidateSha: pin.PREVIEW_SHA, manifestHash: manifest?.hash ?? null, promptsHash: gateOpts.promptsHash, reviewIdentity: review.hash, goldenHash });
+  const remembered = exploratory ? { reuse: null, stale: null } : rememberedPass(outDir, key, review.files);
   out(`controls: job 0 is the golden SGD artifact${calibration.length ? `, with ${calibration.filter(c => c.kind === 'mustFail').length} must-fail and ${calibration.filter(c => c.kind === 'falsePositive').length} false-positive draft(s) from ${manifest.path}` : ''}; about ${controlsCredits} credits as direct review calls outside the ledger and outside the platform day cap`);
   out(`controls key: ${keyLine(key)}`);
   out(`review identity ${review.hash.slice(0, 12)}: ${filesLine(review.files)}`);
+  if (exploratory) out(`controls: exploratory run on ${goldenFile} (sha256 ${goldenHash.slice(0, 12)}), not the candidate's own golden (${String(ownGoldenHash).slice(0, 12)}): exploratory: not remembered`);
   out(remembered.reuse ? `controls: a PASS is remembered for this key (${remembered.reuse.finishedAt}); it will not be reviewed again` : remembered.stale ? `controls: ${remembered.stale}; they run again` : 'controls: no pass is remembered for this key; they run before any author job');
   if (!dry && o.cap - o.prior < controlsCredits) { out(`USAGE: --cap ${o.cap} minus --prior ${o.prior} leaves no room for the controls (about ${controlsCredits} credits)`); return 2; }
   if (o.check) {
@@ -427,9 +436,11 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
     if (!existsSync(join(outDir, 'spend-rows.md'))) writeFileSync(join(outDir, 'spend-rows.md'), SPEND_HEAD);
     const result = await runControls({ golden, items: calibration, session: sessions[0], product, sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, concurrency: o.concurrency }, { review: injected.review ?? (dry ? fakeReviewer() : providerReview({ product, apiKey })), log: out });
     controlsSpent = result.spentCredits;
-    writeControls(outDir, { key, reviewFiles: review.files, version: pin.PREVIEW_VERSION, manifest, result, at: new Date() });
+    writeControls(outDir, { key, reviewFiles: review.files, golden: { path: goldenFile, hash: goldenHash }, exploratory, version: pin.PREVIEW_VERSION, manifest, result, at: new Date() });
     appendSpend(outDir, result.items.map((item, i) => spendLine(item, i, pin.PREVIEW_SHA, pin.PREVIEW_VERSION, o.prior + controlsSpent, ptClock())));
-    for (const item of result.items) out(`${item.drift || item.outcome === 'error' ? 'FAIL' : 'PASS'} ${item.name}: ${item.outcome} (expected ${item.expect})${item.drift ? `; DRIFT: ${item.drift}` : ''}${item.note ? `; ${item.note}` : ''}${item.findings.length ? `\n${item.findings.map(f => `    ${f.severity}/${f.category} ${f.message}`).join('\n')}` : ''}`);
+    for (const item of result.items) out(`${item.drift || item.outcome === 'error' ? 'FAIL' : 'PASS'} ${item.name}: ${item.outcome} (expected ${item.expect})${item.drift ? `; DRIFT: ${item.drift}` : ''}${item.note ? `; ${item.note}` : ''}${o.controls ? '' : item.findings.length ? `\n${item.findings.map(f => `    ${f.severity}/${f.category} ${f.message}`).join('\n')}` : ''}`);
+    if (o.controls) for (const item of result.items) { out(`  ${item.name}: ${item.outcome} (${item.captures?.filter(c => !c.accepted).length ?? '?'} of ${item.captures?.length ?? '?'} captures rejected, ${item.credits.toFixed(2)} credits)`); for (const line of detailLines(item)) out(line); }
+    if (exploratory) out('exploratory: not remembered (nothing written to controls-result.json or controls-passed.json; the result is controls-exploratory-' + goldenHash.slice(0, 12) + '.json)');
     if (result.verdict !== 'PASS') {
       out(`CONTROLS FAILED (${result.goldenAccepted ? 'the golden passed, a calibration item drifted or errored' : 'the golden was rejected or could not be reviewed: a harness bug, not a candidate to qualify'}); no author job was started. Fix the review harness or the calibration set, then run again.`);
       return 5;

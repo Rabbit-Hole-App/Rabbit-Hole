@@ -199,9 +199,10 @@ identity stays the prompt-files hash and is not changed. The review identity is 
 candidate worktree. The exact list will come from lane (d)'s `author-sample.mjs review-identity --worktree <dir>` (branch `feat/an20-c11`); until that exists the list is the
 one above (`REVIEW_FILES`, `REVIEW_PROMPT` in `gate2-controls.mjs`), and switching is a change to `reviewIdentity` alone.
 
-**The remembered pass.** "Reviewed once per candidate" is keyed by **four parts**: the candidate SHA, the manifest hash (the manifest, every fixture and the pinned
-golden), the prompt-files hash (Gate 1's `--prompts-hash`) and the **review identity**. A PASS is written to `<out>/controls-passed.json` with the per-file hashes. Every run
-prints the four parts (`controls key: candidate SHA ... | manifest hash ... | prompt-files hash ... | review identity ...`) and the per-file short hashes
+**The remembered pass.** "Reviewed once per candidate" is keyed by the candidate SHA, the manifest hash (the manifest, every fixture and the pinned golden), the
+prompt-files hash (Gate 1's `--prompts-hash`), the **review identity** and the **golden file's sha256** (line endings normalized), so a pass is never reused for a different
+golden. A PASS is written to `<out>/controls-passed.json` with the per-file hashes. Every run prints the parts
+(`controls key: candidate SHA ... | manifest hash ... | prompt-files hash ... | review identity ... | golden file ...`) and the per-file short hashes
 (`review identity x: animation3d-render.js a, animation-review.js b, animation-render.js c, review prompt (ANIMATION_REVIEW_SYSTEM) d`). With the same key the run says
 `controls: PASS reused, not reviewed again` and shows the key; with any part changed it says `the remembered pass (...) is stale: review identity changed (x -> y):
 packages/web/render/animation3d-render.js (a -> b)` (naming every part that changed and, for the review identity, every file or the prompt that did) and reviews again. Only a
@@ -213,6 +214,17 @@ candidate** with a **different** review identity is **refused unless the control
 control stops the run (exit 5), and a passing one lets it continue, saying what changed (`review identity changed since this candidate's earlier jobs (...)`). Rows measured
 under the old identity stay in the result, which then says `mixedReviewIdentity: true`: a Gate 2 whose ten jobs were not all reviewed by the same reviewer is not a clean measurement,
 and the receipt should say so.
+
+**Reviewing a retune of the golden: `--golden-file <path>` and `--controls-only`.** To judge each retune against the live preview without building a candidate, run
+`sgd-qualify.mjs ... --controls-only --golden-file <path>` (the same flags as the run; `--controls` is the same mode). Job 0 then seeds, renders on the preview and reviews
+THAT file (shape `{ note, plan, artifact }`, as the real golden) instead of the candidate worktree's `testdata/sgd-golden.json`; the identity gate, the review identity and
+every other part of the key still come from the candidate worktree. A golden file whose sha256 differs from the candidate's own is an **exploratory run**: it prints
+`exploratory: not remembered`, writes its result apart as `<out>/controls-exploratory-<golden sha12>.json` (with `exploratory: true`, `golden: { path, hash }` and the hash in
+the key), writes nothing to `controls-result.json`, `controls-passed.json` or the per-candidate file, is held to no manifest pin, and never lets a Gate 2 run start (a full run
+with a golden other than the candidate's own is refused, exit 2). It still costs one review (a spend row, about US$0.15). `--controls-only` prints, for every item, the
+accepted or rejected verdict of **each capture** (`capture v0-s0 "initial": REJECTED (semantic fail, visual fail; 1 finding(s), 1 serious)`) and **one line per finding**
+(`finding major/renderer [visual] capture v0-s0 object ballA: <the reviewer's whole message>`); the same detail is in the result's `items[].captures` and `items[].findings`
+(`severity`, `category`, `verdict`, `capture`, `object`, `repairable`, `message`). Exit 0 when the golden is accepted, 5 when it is rejected.
 
 **How an artifact gets reviewed (read from the code, not assumed).** No dev route runs the product's render, review and repair stages on a *given* artifact:
 `seed-outcomes` writes canned failed jobs; `seed-fixture` stores the artifact as a **saved result** for the canvas owner (no job, no stage, no model call, and the
@@ -231,7 +243,7 @@ malformed reply. The golden alone: about US$0.15 (worst US$0.93). The golden plu
 `--prior` to cover 20 credits per item before it starts.
 
 **Result.** `<out>/controls-result.json`, one compact line next to `gate2-result.json` (and a per-candidate copy): `{ schema: "gate2-controls/1", candidateSha,
-previewVersion, key: { candidateSha, manifestHash, promptsHash, reviewIdentity }, reviewFiles: { <file>: <sha256> }, manifest: { path, hash } | null, verdict, goldenAccepted, spentCredits, items: [{
+previewVersion, key: { candidateSha, manifestHash, promptsHash, reviewIdentity, goldenHash }, reviewFiles: { <file>: <sha256> }, golden: { path, hash }, exploratory, manifest: { path, hash } | null, verdict, goldenAccepted, spentCredits, items: [{
 name, kind: "golden" | "mustFail" | "falsePositive", expect, outcome, accepted, drift, findings: [{ severity, category, verdict, message }], credits, resultId,
 artifactHash }], finishedAt }`.
 
@@ -283,7 +295,7 @@ under the candidate contract and builds a review request of about 21 KB of text 
 | `--job-worst-case` | credits a session must have free for one more job (default 140) |
 | `--poll-ms`, `--plan-timeout-min`, `--job-timeout-min`, `--settle-wait-min` | 4000, 6, 20, 3 |
 | `--worker`, `--credentials`, `--verify-script` | wrangler Worker name (default from `--base`), credentials file, optional preview verifier |
-| `--controls`, `--calibrate <manifest.json>`, `--golden <file>` | only the controls (job 0 and the calibration drafts) and stop; lane (d)'s calibration manifest (`animation-calibration/1`: mustFail, optional falsePositives); the golden (default: the candidate worktree's `testdata/sgd-golden.json`) |
+| `--controls-only` (alias `--controls`), `--calibrate <manifest.json>`, `--golden-file <path>` (alias `--golden`) | only the controls (job 0 and the calibration drafts) and stop; lane (d)'s calibration manifest (`animation-calibration/1`: mustFail, optional falsePositives); the golden to review as job 0 (default: the candidate worktree's `testdata/sgd-golden.json`; any other file is an exploratory, never-remembered run) |
 | `--check`, `--dry-run` | read-only validation; offline fake run (a scripted reviewer, never the network) |
 
 Exit codes: 0 PASS, 1 FAIL, 2 usage or configuration, 3 halted or incomplete, 4 refused before any spend (identity or preview-pin gate), 5 the controls

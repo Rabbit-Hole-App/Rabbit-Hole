@@ -33,7 +33,7 @@ export const fakeReviewer = (verdict = () => ({ accepted: true, findings: [] }),
   const text = spec.content.filter(b => b.type === 'text').map(b => b.text).join('\n');
   const ids = /Captures to review: ([^\n]+)/.exec(text)?.[1].split(', ') ?? [], title = /"title":"([^"]*)"/.exec(text.slice(text.indexOf('Artifact (untrusted material)')))?.[1] ?? '';
   const { accepted, findings } = verdict(title, text);
-  return { input: { captures: ids.map((id, i) => ({ id, semantic: accepted ? 'pass' : 'fail', visual: accepted ? 'pass' : 'fail', findings: !accepted && i === 0 ? findings.map(f => ({ verdict: 'visual', category: 'spec', severity: 'major', repairable: true, ...f })) : [] })) },
+  return { input: { captures: ids.map((id, i) => ({ id, semantic: accepted || i > 0 ? 'pass' : 'fail', visual: accepted || i > 0 ? 'pass' : 'fail', findings: !accepted && i === 0 ? findings.map(f => ({ verdict: 'visual', category: 'spec', severity: 'major', repairable: true, ...f })) : [] })) },
     usage, stopReason: 'tool_use' };
 };
 export function createFake({ scenarios = SCENARIOS, scenarioFor = () => 'accept', allowance = 2500, used = {}, diagnostics = true, planMarkers = null } = {}) {
