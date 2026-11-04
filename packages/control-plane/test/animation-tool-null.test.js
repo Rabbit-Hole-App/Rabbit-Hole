@@ -13,7 +13,7 @@ const saved = run => { try { return JSON.parse(readFileSync(new URL(`sgd-loss-su
 
 test('FX-AN-058: a null on an optional field is dropped before validation, only where asked and only where the schema does not allow null (Gate 1 r16: timeline null)', () => {
   const schema = ARTIFACT_DRAFT;
-  const r16 = saved('r16') ?? { ...draft, timeline: null };
+  const r16 = saved('r16') ?? { ...draftOf(golden.artifact), timeline: null }; // the saved Gate 1 draft when its run folder is on this machine, else the golden's own draft with the same null
   assert.equal(r16.timeline, null, 'the saved r16 draft carries timeline null');
   const out = normalizeToolInput(schema, r16, { dropNull: true });
   assert.equal('timeline' in out, false);
