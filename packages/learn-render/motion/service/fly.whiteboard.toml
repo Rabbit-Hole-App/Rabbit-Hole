@@ -1,0 +1,45 @@
+# rabbit-hole-whiteboard-renderer: the render service for /whiteboard (docs/features/whiteboard roadmap, W-D4 as amended 4 Nov 2026).
+# The SAME image and limits as the Motion renderer (Dockerfile, fly.prod.toml's body), under its own app, its own bearer token
+# (WHITEBOARD_RENDERER_TOKEN on the Worker, MOTION_RENDERER_TOKEN on this app; never Motion's value) and one machine. Motion's
+# renderer is never redeployed by the whiteboard roadmap. No volume: the whiteboard routes keep their own segment files on disk
+# under the job directory (30 minutes) and a restarted service answers 404 for a render it does not remember, which the Worker
+# handles by one re-POST (roadmap 5.3). A durable store here would be a priced change (a volume) and its own decision.
+# Creating it needs the owner's launcher (C:/s/spec/release-queue/whiteboard-renderer.pins); this file creates nothing by itself.
+app = "rabbit-hole-whiteboard-renderer"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  MOTION_SANDBOX = "linux"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Idle machines stop; a request starts one. Callers poll GET /render/<id> while a render runs
+  # and fetch the artifacts promptly: finished renders live in memory for 30 minutes at most.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  # Status polls and artifact downloads are cheap; the service itself admits one render at a
+  # time (a second POST /render gets 429).
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 10
+    hard_limit = 20
+
+[[http_service.checks]]
+  grace_period = "30s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health"
+
+# One machine (deploy with --ha=false). Dedicated CPUs: a 1080p render is minutes of sustained
+# Chromium + encoder work, which shared CPUs throttle toward the 420 s limit.
+[[vm]]
+  memory = "4gb"
+  cpu_kind = "performance"
+  cpus = 2

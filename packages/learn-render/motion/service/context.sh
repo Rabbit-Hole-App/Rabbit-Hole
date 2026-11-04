@@ -3,7 +3,7 @@
 # renderer workspace, the shared files it imports from other packages, the root manifests and every workspace
 # package.json (npm ci needs them to read the lockfile). Mutates no infrastructure: it prints the commands Home runs.
 #
-#   sh packages/learn-render/motion/service/context.sh [--target renderer-dev|renderer|renderer-durable|orchestrator] [contextDir]
+#   sh packages/learn-render/motion/service/context.sh [--target renderer-dev|renderer|renderer-durable|whiteboard|orchestrator] [contextDir]
 #   sh packages/learn-render/motion/service/context.sh [--target ...] --paths   # what the archive holds (deploy-config.test.mjs)
 #
 # renderer-dev (the default): rabbit-hole-motion-renderer-dev, the approved development service.
@@ -17,6 +17,8 @@ case "$TARGET" in
     SECRETS="MOTION_RENDERER_TOKEN=<at least 32 random characters>" ;;
   renderer) APP=rabbit-hole-motion-renderer; FLY=fly.prod.toml; DOCKER=Dockerfile; BUILD=MOTION_RENDERER_BUILD
     SECRETS="MOTION_RENDERER_TOKEN=<a fresh value of at least 32 random characters>" ;;
+  whiteboard) APP=rabbit-hole-whiteboard-renderer; FLY=fly.whiteboard.toml; DOCKER=Dockerfile; BUILD=MOTION_RENDERER_BUILD
+    SECRETS="MOTION_RENDERER_TOKEN=<a fresh value of at least 32 random characters, never Motion's; the Worker holds the same value as WHITEBOARD_RENDERER_TOKEN>" ;;
   renderer-durable) APP=rabbit-hole-motion-renderer; FLY=fly.prod-durable.toml; DOCKER=Dockerfile; BUILD=MOTION_RENDERER_BUILD
     SECRETS="(none: the app and its MOTION_RENDERER_TOKEN exist; create the volume first, see fly.prod-durable.toml)" ;;
   orchestrator) APP=rabbit-hole-motion-orchestrator; FLY=fly.orchestrator.toml; DOCKER=Dockerfile.orchestrator; BUILD=MOTION_ORCHESTRATOR_BUILD

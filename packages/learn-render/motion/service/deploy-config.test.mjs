@@ -218,3 +218,18 @@ test('the durable production renderer config is the dev store on the production 
   assert.match(durable, /--ha=false/, 'the file says why a second machine must not exist');
   assert.match(durable, /snapshot_retention = 1/);
 });
+
+// The whiteboard renderer (roadmap W-D4 as amended 4 Nov 2026): Motion's image and limits under its own app, no volume, one machine,
+// and a deploy context of its own so Motion's renderer is never redeployed for it.
+test('the whiteboard renderer config is the production Motion config under its own app, with no volume and no secret in the file', () => {
+  const body = f => read(f).split('\n').filter(l => !l.startsWith('#') && !l.startsWith('app =')).join('\n').replace(/\n{2,}/g, '\n');
+  const whiteboard = read('./fly.whiteboard.toml');
+  assert.match(whiteboard, /^app = "rabbit-hole-whiteboard-renderer"$/m);
+  assert.equal(body('./fly.whiteboard.toml'), body('./fly.prod.toml'), 'the same image, sandbox, limits and machine as Motion\'s renderer');
+  assert.doesNotMatch(whiteboard, /MOTION_JOB_STORE|^\s*\[+mounts\]+/m, 'no volume');
+  assert.doesNotMatch(whiteboard, /^\s*\w*(TOKEN|API_KEY)\s*=/m, 'secrets are fly secrets, never in the file');
+  assert.equal((whiteboard.match(/^\[\[vm\]\]/gm) || []).length, 1, 'one machine size');
+  const context = read('./context.sh');
+  assert.match(context, /^  whiteboard\) APP=rabbit-hole-whiteboard-renderer; FLY=fly\.whiteboard\.toml; DOCKER=Dockerfile;/m);
+  assert.doesNotMatch(context.split('whiteboard)')[1].split(';;')[0], /rabbit-hole-motion-renderer\b/, 'the whiteboard target never names Motion\'s app');
+});
