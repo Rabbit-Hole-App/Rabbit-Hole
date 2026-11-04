@@ -13,7 +13,7 @@ import { plainPrompt } from '../../web/src/generation-review.js';
 // The phase this server builds in. The browser cannot choose another: the validators accept only registry objects.
 export const enabledCapabilities = () => ANIMATION_CAPABILITIES;
 // The features a browser declared (capabilities.js ANIMATION_CLIENT_FEATURES), only those this server knows; none means an older build.
-export const clientFeatures = value => (Array.isArray(value) ? ANIMATION_CLIENT_FEATURES.filter(f => value.includes(f)) : []);
+export const clientFeatures = value => (Array.isArray(value) ? ANIMATION_CLIENT_FEATURES.filter(f => value.includes(f) && !['surface_grid', 'trail_points', 'text_readout', 'arrow_anchor', 'clamp'].includes(f)) : []);
 // How a curved surface is drawn, said the same way to the planner (input data), the author, the repair and the review (owner
 // 2026-11-02: tube wireframes for MVP1). aj_086fd46: the plan promised a bowl surface no shape could draw, the author's filled discs hid
 // the moving parts and the repair's curves were 1 px lines; each stage judged a different representation.
