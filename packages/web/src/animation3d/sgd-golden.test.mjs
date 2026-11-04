@@ -43,9 +43,9 @@ test('structure: a 24 x 24 convex bowl with 8 contours, heights from a quadratic
   assert.ok(heights.every(row => row.length === 24 && row.every(Number.isFinite)), 'rectangular and finite');
   assert.ok(contours >= 6 && contours <= 8 && contours === 8);
   assert.equal(width, depth);
-  // heights[row][col]: row runs along z, column along x, both from -width/2 to width/2. The quadratic is 0.25 (3 x^2 + z^2).
+  // heights[row][col]: row runs along z, column along x, both from -width/2 to width/2. The quadratic is 0.4 (1.4 x^2 + 0.9 z^2): 0.8 times the loss.
   const at = i => -width / 2 + width * i / 23;
-  heights.forEach((row, r) => row.forEach((h, c) => assert.ok(Math.abs(h - 0.25 * (3 * at(c) ** 2 + at(r) ** 2)) <= 0.005 + 1e-9, `heights[${r}][${c}]`)));
+  heights.forEach((row, r) => row.forEach((h, c) => assert.ok(Math.abs(h - 0.4 * (1.4 * at(c) ** 2 + 0.9 * at(r) ** 2)) <= 0.005 + 1e-9, `heights[${r}][${c}]`)));
   const flat = heights.flat(), lowest = flat.indexOf(Math.min(...flat));
   assert.ok([11, 12].includes(Math.floor(lowest / 24)) && [11, 12].includes(lowest % 24), 'the lowest cell is one of the four at the centre');
   for (let i = 1; i < 23; i += 1) for (let j = 0; j < 24; j += 1) {
@@ -133,11 +133,13 @@ const runUntilOver = (inputs, from = 'run') => {
   }
   return { state, steps };
 };
-// Closed form with all 256 examples (no noise), from the start (0.3, 1.6): x_n = 0.3 (1 - 3 r)^n, z_n = 1.6 (1 - r)^n, loss = (3 x^2 + z^2) / 2.
-const closed = (rate, n) => { const x = 0.3 * (1 - 3 * rate) ** n, z = 1.6 * (1 - rate) ** n; return { x, z, loss: 0.5 * (3 * x * x + z * z) }; };
+// Closed form with all 256 examples (no noise), from the start (0.1, 1.8): x_n = 0.1 (1 - 1.4 r)^n, z_n = 1.8 (1 - 0.9 r)^n, loss = (1.4 x^2 + 0.9 z^2) / 2, and the slope
+// (1.4 x, 0.9 z) is what the program calls flat below 0.12.
+const closed = (rate, n) => { const x = 0.1 * (1 - 1.4 * rate) ** n, z = 1.8 * (1 - 0.9 * rate) ** n; return { x, z, loss: 0.5 * (1.4 * x * x + 0.9 * z * z), slope: Math.hypot(1.4 * x, 0.9 * z) }; };
+const stepsToFlat = rate => { let n = 0; while (closed(rate, n).slope >= 0.12) n += 1; return n; };
 const FULL = '256';
 
-run('learning rate 0.1: paused until Run, then converges in 20 steps along the closed form; the true loss and the path agree', () => {
+run('learning rate 0.1: paused until Run, then converges along the closed form when the slope is flat; the true loss and the path agree', () => {
   const inputs = { learningRate: 0.1, batchSize: FULL }, start = call('initialize', { inputs });
   const first = shown(start, inputs);
   assert.equal(first.readouts.status, 'paused');
@@ -147,40 +149,65 @@ run('learning rate 0.1: paused until Run, then converges in 20 steps along the c
   assert.equal(shown(running, inputs).readouts.status, 'running');
   assert.equal(tick(running, 5, inputs).step, 0, 'only every sixth tick steps');
   const { state, steps } = runUntilOver(inputs);
-  assert.equal(steps, 20);
+  const flatAt = stepsToFlat(0.1);
+  assert.equal(steps, flatAt, 'the first step whose slope is under 0.12');
   const end = shown(state, inputs);
   assert.equal(end.readouts.status, 'converged');
-  near(end.readouts.loss, closed(0.1, 20).loss, 'loss after 20 steps');
-  assert.ok(end.readouts.loss < 0.02 && closed(0.1, 19).loss >= 0.02, 'the first step under 0.02');
-  assert.equal(end.nodes.trail.points.length, 21);
-  near(end.nodes.trail.points[20][0], closed(0.1, 20).x, 'last path x');
-  near(end.nodes.trail.points[20][2], closed(0.1, 20).z, 'last path z');
+  near(end.readouts.loss, closed(0.1, flatAt).loss, `loss after ${flatAt} steps`);
+  assert.ok(closed(0.1, flatAt).slope < 0.12 && closed(0.1, flatAt - 1).slope >= 0.12);
+  assert.equal(end.nodes.trail.points.length, flatAt + 1);
+  near(end.nodes.trail.points[flatAt][0], closed(0.1, flatAt).x, 'last path x');
+  near(end.nodes.trail.points[flatAt][2], closed(0.1, flatAt).z, 'last path z');
   assert.equal(end.nodes.stepArrow.visible, false, 'a finished run shows no arrows');
 });
 
-run('learning rate 1.5: the first step overshoots across the bowl, the second leaves it; the ball keeps its true height and the loss its true value', () => {
-  const inputs = { learningRate: 1.5, batchSize: FULL };
-  const start = press(call('initialize', { inputs }), 'run', inputs);
-  const arrow = shown(start, inputs).nodes.stepArrow; // the next step, 1:1 in the bowl's units: (-1.35, -2.4)
-  near(arrow.scale[1], 2, 'next step |(-1.35, -2.4)| = 2.7536 drawn at 4.5 times is 12.4 long: held at the longest, 2');
-  const { state, steps } = runUntilOver(inputs);
-  assert.equal(steps, 2);
-  const one = shown(press(call('initialize', { inputs }), 'step', inputs), inputs);
-  near(one.readouts.loss, closed(1.5, 1).loss, 'loss after one step');
-  assert.equal(one.readouts.status, 'paused', 'a single Step leaves the run paused, still on the bowl');
-  assert.deepEqual([one.nodes.ball.position[0], one.nodes.ball.position[2]].map(v => Math.round(v * 1e9) / 1e9), [-1.05, -0.8]);
-  const end = shown(state, inputs);
-  assert.equal(end.readouts.status, 'diverged');
-  near(end.readouts.loss, closed(1.5, 2).loss, 'true loss 20.34');
-  near(end.readouts.loss, 20.3384375, 'true loss, by hand: (3 x 3.675^2 + 0.4^2) / 2');
-  assert.ok(end.nodes.ball.position[1] > 10.5 && end.nodes.ball.position[1] < 11.2, 'the program draws the ball at its true height (about 10.8), the renderer clamps it');
-  assert.equal(end.nodes.trail.points.length, 3);
+// Gradual divergence (owner order for C12): x is turned by 1 - 1.4 r each step, so above r = 1.43 each step makes a swing the size of the last times 1.4 r - 1: 1.1 at r = 1.5,
+// 1.8 at 2, the top of the control. The marker leaves the bowl (|x| over 2) only when a swing is wider than the bowl: 32 steps at 1.5, 6 at 2.
+const swingsAt = rate => {
+  const inputs = { learningRate: rate, batchSize: FULL };
+  let state = call('initialize', { inputs });
+  const xs = [];
+  for (let i = 0; i < 80; i += 1) {
+    const f = shown(state, inputs);
+    xs.push({ x: state.x, word: f.readouts.status, frame: f });
+    if (f.readouts.status === 'diverged') break;
+    state = press(state, 'step', inputs);
+  }
+  return xs;
+};
+const endsAs = rate => { const inputs = { learningRate: rate, batchSize: FULL }; return shown(runUntilOver(inputs).state, inputs).readouts.status; };
+
+run('learning rate 2, the top of the control: x grows by 1.8 a step, the marker makes five growing swings inside the bowl and leaves on the sixth; the ball keeps its true height and the loss its true value', () => {
+  const path = swingsAt(2), last = path.at(-1);
+  assert.equal(last.word, 'diverged');
+  assert.equal(path.length - 1, 6, 'six steps');
+  path.forEach(({ x }, n) => near(x, 0.1 * (-1.8) ** n, `x after ${n} steps`));
+  const inside = path.slice(1, -1);
+  assert.equal(inside.length, 5, 'five swings inside the bowl (the order asks for at least four)');
+  assert.ok(inside.every(({ x, word }, i) => Math.abs(x) < 2 && word === 'paused' && (i === 0 || (Math.abs(x) > Math.abs(inside[i - 1].x) && Math.sign(x) === -Math.sign(inside[i - 1].x)))), 'each swing is wider than the last and on the other side');
+  inside.forEach(({ x }, i) => near(Math.abs(x) / Math.abs(i ? inside[i - 1].x : 0.1), 1.8, 'the growth factor of the swing'));
+  const end = last.frame, top = 3.68;
+  near(end.readouts.loss, closed(2, 6).loss, 'the true loss');
+  assert.ok(end.nodes.ball.position[1] > top, 'the program draws the ball at its true height, above the bowl top 3.68: the renderer clamps it');
   const [rx, ry, rz] = end.nodes.trail.points.at(-1);
-  assert.equal(rx, 2, 'the path ends at the rim, where the renderer holds the ball (x 3.675 held to 2), not outside the bowl');
-  near(rz, 0.4, 'its z is the ball z');
-  assert.ok(Math.abs(ry - 4.06) < 1e-9, 'at the surface top plus the path lift');
-  assert.ok(end.nodes.trail.points.every(p => p[1] <= 4.0601), 'the trail, which the renderer does not clamp, stays at the bowl top');
+  assert.equal(rx, 2, 'the path ends at the rim, where the renderer holds the ball (x 3.40 held to 2), not outside the bowl');
+  near(rz, closed(2, 6).z, 'its z is the ball z');
+  near(ry, Math.min(0.8 * closed(2, 6).loss, top) + 0.06, 'at the surface top (or the surface) plus the path lift');
   assert.equal(end.nodes.fullArrow.visible, false);
+});
+
+run('learning rate 1.5: x grows by 1.1 a step, 31 growing swings before the marker leaves; 1 and 0.1 converge, so the comparison reads converge and diverge', () => {
+  const path = swingsAt(1.5);
+  assert.equal(path.at(-1).word, 'diverged');
+  assert.equal(path.length - 1, 32);
+  const inside = path.slice(1, -1);
+  assert.equal(inside.length, 31);
+  inside.forEach(({ x }, i) => { near(x, 0.1 * (-1.1) ** (i + 1), `x after ${i + 1} steps`); assert.ok(Math.abs(x) < 2); });
+  const inputs = { learningRate: 1.5, batchSize: FULL };
+  const start = shown(press(call('initialize', { inputs }), 'run', inputs), inputs);
+  near(start.nodes.stepArrow.scale[1], 2, 'a first step of 2.4 drawn at 5 times is 12 long: held at the longest, 2');
+  for (const rate of [0.1, 1, 1.4]) assert.equal(endsAs(rate), 'converged', `rate ${rate}`);
+  assert.equal(endsAs(1.5), 'diverged');
 });
 
 run('batch noise: the same run and step give the same path, a smaller batch leaves the true path, all 256 examples add none', () => {
@@ -189,7 +216,7 @@ run('batch noise: the same run and step give the same path, a smaller batch leav
   assert.deepEqual(again.nodes.ball.position, twice.nodes.ball.position, 'deterministic');
   const exact = closed(0.1, 2), noisy = at('1'), full = at(FULL);
   near(full.readouts.loss, exact.loss, 'full batch is the closed form');
-  assert.ok(Math.abs(noisy.readouts.loss - exact.loss) > 1e-3, 'batch 1 differs from the true path');
+  assert.ok(Math.hypot(noisy.nodes.ball.position[0] - full.nodes.ball.position[0], noisy.nodes.ball.position[2] - full.nodes.ball.position[2]) > 1e-3, 'batch 1 differs from the true path');
 });
 
 run('actions: Pause stops it, Step once moves one step and stays paused, New run keeps the old path as the ghost, a finished run ignores Run', () => {
@@ -281,7 +308,7 @@ async function drawn(learningRate, aspect, play) {
   built.scene.dispose();
   return out;
 }
-const finish = p => { p.press('run'); for (let t = 1; t <= 6 * 25; t += 1) p.tick(t); };
+const finish = p => { p.press('run'); for (let t = 1; t <= 6 * 35; t += 1) p.tick(t); };
 const STATES = {
   start: () => {}, mid: p => { for (let i = 0; i < 5; i += 1) p.press('step'); }, converged: finish, kept: p => { finish(p); p.press('newRun'); },
 };
@@ -307,14 +334,14 @@ run('rendered by the real scene builder: nothing is drawn as a path until a step
   assert.deepEqual([kept.trail, kept.ghost], [false, true], 'New run: the old path is the ghost, the new one has one point');
 });
 
-run('rendered at learning rate 1.5: the ball is held at the surface top while the Loss keeps its true value, and the fitted camera keeps the ball, the whole path and most of the bowl in view', async () => {
+run('rendered at learning rate 2: the ball is held at the surface top while the Loss keeps its true value, and the fitted camera keeps the ball, the whole path and most of the bowl in view', async () => {
   for (const aspect of ASPECTS) {
-    const far = await drawn(1.5, aspect, p => { p.press('run'); for (let t = 1; t <= 12; t += 1) p.tick(t); });
+    const far = await drawn(2, aspect, p => { p.press('run'); for (let t = 1; t <= 42; t += 1) p.tick(t); });
     assert.equal(far.frame.readouts.status, 'diverged');
     assert.equal(far.clamped.length, 1);
-    assert.ok(far.clamped[0].trueY > 10 && far.clamped[0].y === 4 && Math.abs(far.ballY - 4) < 1e-9, `true ${far.clamped[0].trueY}, drawn ${far.ballY}`);
-    assert.ok(far.frame.readouts.loss > 20, 'the readout keeps the true value');
-    assert.deepEqual([far.ballSeen, far.ballInside, far.pathSeen, far.trail], [true, true, 3, true], `at aspect ${aspect.toFixed(2)}`);
+    assert.ok(far.clamped[0].trueY > 4 && Math.abs(far.clamped[0].y - 3.68) < 1e-6 && Math.abs(far.ballY - 3.68) < 1e-6, `true ${far.clamped[0].trueY}, drawn ${far.ballY}`);
+    assert.ok(far.frame.readouts.loss > 5, 'the readout keeps the true value');
+    assert.deepEqual([far.ballSeen, far.ballInside, far.pathSeen, far.trail], [true, true, 7, true], `at aspect ${aspect.toFixed(2)}`);
     assert.ok(far.bowlShare >= 0.12 && far.bowlWidth >= 0.2, `the bowl keeps ${(far.bowlShare * 100).toFixed(0)}% of the view, ${(far.bowlWidth * 100).toFixed(0)}% of its width, at aspect ${aspect.toFixed(2)}`);
   }
 });
@@ -339,15 +366,15 @@ test('structure: the arrows are steps, labelled as steps, in colours that are ne
 
 run('one scale: both arrows are SCALE times their step; the longest is held, a speck is hidden', () => {
   const full = arrowsAt({ learningRate: 0.1, batchSize: FULL }, 0)[0];
-  near(full.nodes.stepArrow.scale[1], SCALE * 0.1 * Math.hypot(3 * 0.3, 1.6), 'Next step with all examples is the full-batch step');
+  near(full.nodes.stepArrow.scale[1], SCALE * 0.1 * Math.hypot(1.4 * 0.1, 0.9 * 1.8), 'Next step with all examples is the full-batch step');
   full.nodes.stepArrow.quaternion.forEach((v, i) => near(v, full.nodes.fullArrow.quaternion[i], 'with all 256 examples the two arrows point the same way'));
   near(full.nodes.stepArrow.scale[1], full.nodes.fullArrow.scale[1], 'and are the same length');
   const noisy = arrowsAt({ learningRate: 0.1, batchSize: '16' }, 0)[0];
   assert.notDeepEqual(noisy.nodes.stepArrow.quaternion, noisy.nodes.fullArrow.quaternion, 'with a batch of 16 the noisy step points a little differently');
-  near(noisy.nodes.fullArrow.scale[1], SCALE * 0.1 * Math.hypot(3 * 0.3, 1.6), 'the full-batch step is the same whatever the batch');
+  near(noisy.nodes.fullArrow.scale[1], SCALE * 0.1 * Math.hypot(1.4 * 0.1, 0.9 * 1.8), 'the full-batch step is the same whatever the batch');
   const late = arrowsAt({ learningRate: 0.1, batchSize: FULL }, 15);
   assert.equal(late[15].readouts.status, 'running');
-  assert.equal(late[15].nodes.stepArrow.visible, false, 'a step of 0.033 drawn at 4.5 is 0.15 long: hidden, not an unlabelled speck');
+  assert.equal(late[15].nodes.stepArrow.visible, false, 'a step of 0.04 drawn at 5 is 0.2 long: hidden, not an unlabelled speck');
   const big = arrowsAt({ learningRate: 1.5, batchSize: FULL }, 0)[0];
   near(big.nodes.stepArrow.scale[1], 2, 'a step far above the default is held at the longest arrow');
 });
@@ -373,5 +400,47 @@ run('rendered: at the default rate both arrow labels show at the start, at every
     const got = await drawn(0.1, aspect, () => {});
     for (const id of ['stepTag', 'fullTag']) assert.ok(got.plates.some(plate => plate.id === id && plate.shown), `${id} is not shown at aspect ${aspect.toFixed(2)} (the renderer hides an arrow's label under 24 px)`);
     assert.ok(inputs.batchSize === batch);
+  }
+});
+
+// ---- the noise is SGD's: step = -rate x (slope + noise) (C12 control, round 1: a jolt the same at every rate never settles at a small rate) -------------------------------------------
+// The same program run natively (V8, not QuickJS: it is a plain pure module) over many runs, since the pinned engine takes about 2 ms a call. The engine runs above pin the exact values.
+const native = await import(`data:text/javascript;base64,${Buffer.from(artifact.program.source).toString('base64')}`);
+const nativeRuns = (rate, batch, cap, n) => {
+  const inputs = { learningRate: rate, batchSize: String(batch) }, out = [];
+  let state = native.initialState({ inputs });
+  for (let i = 0; i < n; i += 1) {
+    state = native.reduce({ state, event: { type: 'action', action: 'run' }, inputs });
+    const xs = [state.x];
+    let word = native.evaluate({ inputs, state }).readouts.status;
+    for (let step = 0; step < cap && word !== 'converged' && word !== 'diverged'; step += 1) { state = native.reduce({ state, event: { type: 'action', action: 'step' }, inputs }); xs.push(state.x); word = native.evaluate({ inputs, state }).readouts.status; }
+    out.push({ word, xs, steps: state.step });
+    state = native.reduce({ state, event: { type: 'action', action: 'newRun' }, inputs });
+  }
+  return out;
+};
+const growingSwings = run => { if (run.word !== 'diverged') return -1; const inside = run.xs.slice(1, -1); let k = 0; for (let i = 0; i < inside.length; i += 1) { if (Math.abs(inside[i]) < 2 && (i === 0 ? Math.abs(inside[i]) > Math.abs(run.xs[0]) : Math.abs(inside[i]) > Math.abs(inside[i - 1]) && Math.sign(inside[i]) === -Math.sign(inside[i - 1]))) k += 1; else break; } return k; };
+
+test('the jolt is the rate times the noise: the same noise at rate 1 is ten times its size at rate 0.1', () => {
+  const at = (rate, batchSize) => { const inputs = { learningRate: rate, batchSize }; const s = native.reduce({ state: native.initialState({ inputs }), event: { type: 'action', action: 'step' }, inputs }); return [s.x - 0.1, s.z - 1.8]; };
+  for (const batch of ['1', '4', '16']) {
+    const small = at(0.1, batch).map((v, i) => v - at(0.1, FULL)[i]), large = at(1, batch).map((v, i) => v - at(1, FULL)[i]);
+    large.forEach((v, i) => near(v, 10 * small[i], `noise ${i} at batch ${batch}`));
+    assert.ok(small.some(v => Math.abs(v) > 0), 'and it is there');
+  }
+});
+
+test('rate 2, batch 16 (the default): at least four growing swings before the marker leaves, in at least 95 of 100 runs; rate 1.5 diverges within the run in most runs', () => {
+  const top = nativeRuns(2, 16, 80, 100);
+  assert.equal(top.filter(run => run.word === 'diverged').length, 100);
+  assert.ok(top.filter(run => growingSwings(run) >= 4).length >= 95, `${top.filter(run => growingSwings(run) >= 4).length} of 100 runs made four growing swings`);
+  const mid = nativeRuns(1.5, 16, 200, 100);
+  assert.ok(mid.filter(run => run.word === 'diverged').length >= 80, `${mid.filter(run => run.word === 'diverged').length} of 100 runs diverged within 200 steps`);
+});
+
+test('a small rate settles at every batch size: rates 0.1 and 0.01 converge in 100 of 100 runs, and never end as diverged', () => {
+  for (const [rate, cap] of [[0.1, 400], [0.01, 1500]]) for (const batch of [1, 4, 16, 64, 256]) {
+    const runs = nativeRuns(rate, batch, cap, 100);
+    assert.equal(runs.filter(run => run.word === 'converged').length, 100, `rate ${rate} batch ${batch}: ${runs.filter(run => run.word === 'diverged').length} diverged, ${runs.filter(run => run.word === 'running').length} still running`);
   }
 });

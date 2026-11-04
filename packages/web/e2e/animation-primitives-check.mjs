@@ -4,15 +4,15 @@
 // seeds its fixtures. Expected numbers are hand-written below from the bowl's own formula, never read from the program.
 // Covers: the card loads labelled as an example and draws; the surface draws (a share of the view differs from the background); the status
 // readout shows a WORD (paused, then running, then converged), not a code; Step once five times makes a six-point path whose true loss equals the
-// closed form; a finished run's path draws (orange pixels); New run keeps the old path as the ghost (21 ghost points, one trail point, and the pixels
-// differ from the same scene with the ghost cleared by Reset); at learning rate 1.5 the run diverges, the Loss readout keeps its true value
+// closed form; a finished run's path draws (orange pixels); New run keeps the old path as the ghost (its whole path as ghost points, one trail point, and the pixels
+// differ from the same scene with the ghost cleared by Reset); at learning rate 2, the top of the control, the run diverges (five growing swings, then it leaves the bowl), the Loss readout keeps its true value
 // (far above the bowl) while the clamped ball stays inside the frame and the bowl keeps its share of the view; an older client's result request (no flags, or only the two it had) gets 409 client_update_required from
 // the same gate the server uses (control-plane animation-job.js needsFeatures, clientFeatures), and the current client declares all seven flags;
 // no model request, no other origin, no page or console error.
 // Calibration: the card's viewport is 725 x 240 once More settings is open (CI run 41762152651), 725 x 314 before it. sgd-golden.test.mjs projects the golden through
 // the real scene builder, clamp and fit in Node for that view and ray-casts every path point and the ball against the surface (a path behind the bowl's own near wall is
 // drawn and invisible: that, with a tube that had no normals and rendered black, is what failed steps 4 and 6). Expected at 725 x 240: the bowl 22% of the view at rate
-// 0.1 and 15% at 1.5, the finished path 41 px long and 5.8 px thick (about 250 px2), the ball 8 to 10 px across, the kept path half as thick. Each threshold is about
+// 0.1 and 15% at 2, the finished path 41 px long and 5.8 px thick (about 250 px2), the ball 8 to 10 px across, the kept path half as thick. Each threshold is about
 // half of that. Each pixel step prints its measured numbers ("measured ...") so a CI log can recalibrate it. The numbers from a local software-GL run under the owner's
 // decision 25 (calibration only, the golden fixture only, ended when C4's CI is green) are INPUTS to these thresholds, NOT evidence; the CI run on the candidate is
 // the only acceptance record.
@@ -134,9 +134,12 @@ const differ = async (a, b) => scratch.evaluate(async ([x, y]) => {
 const measured = (label, values) => console.log(`   measured ${label} ${JSON.stringify(values)}`);
 const sceneShot = () => host.screenshot({ mask: [card.locator('[data-animation-primary-readout]')] });
 
-// The bowl's rule, worked out by hand and written down here, not read from the program: loss = (3 x^2 + z^2) / 2, start (0.3, 1.6), and with all
-// 256 examples (no noise) each step multiplies x by (1 - 3 r) and z by (1 - r).
-const bowl = (rate, steps) => { const x = 0.3 * (1 - 3 * rate) ** steps, z = 1.6 * (1 - rate) ** steps; return 0.5 * (3 * x * x + z * z); };
+// The bowl's rule, worked out by hand and written down here, not read from the program: loss = (1.4 x^2 + 0.9 z^2) / 2, start (0.1, 1.8), and with all 256 examples (no
+// noise) each step multiplies x by (1 - 1.4 r) and z by (1 - 0.9 r). The program calls the run converged when the slope (1.4 x, 0.9 z) is under 0.12. At rate 2 x grows by 1.8 a step
+// (0.1, -0.18, 0.32, -0.58, 1.05, -1.89, then 3.40: five swings inside the bowl, and out on the sixth).
+const at = (rate, steps) => { const x = 0.1 * (1 - 1.4 * rate) ** steps, z = 1.8 * (1 - 0.9 * rate) ** steps; return { x, z, loss: 0.5 * (1.4 * x * x + 0.9 * z * z), slope: Math.hypot(1.4 * x, 0.9 * z) }; };
+const bowl = (rate, steps) => at(rate, steps).loss;
+const FLAT_AT = (() => { let n = 0; while (at(0.1, n).slope >= 0.12) n += 1; return n; })();
 
 try {
   await page.goto(`${BASE}/apps/${canvas.name}`);
@@ -173,20 +176,20 @@ try {
     assert.ok(Math.abs(f.readouts.loss - bowl(0.1, 5)) < 1e-9, `loss ${f.readouts.loss}, closed form ${bowl(0.1, 5)}`);
     assert.equal(await word(), 'paused', 'a step leaves the run paused');
   });
-  await step('Run: the word is running, then converged; the true loss is under 0.02 and the path has 21 points', async () => {
+  await step('Run: the word is running, then converged; the slope is flat and the path has every step marked', async () => {
     const began = Date.now();
     await press('run');
     await until(async () => (await word()) === 'running', 'the word running');
     await until(async () => (await word()) === 'converged', 'the word converged', 40000);
     const took = Date.now() - began;
     measured('run', { msToConverged: took, notes: runtimeNotes.length });
-    assert.ok(took < 20000, `fifteen steps at five a second took ${took} ms: the host's 30 ticks a second are costing more than their 33 ms each`);
+    assert.ok(took < 20000, `the remaining steps at five a second took ${took} ms: the host's 30 ticks a second are costing more than their 33 ms each`);
     assert.deepEqual(runtimeNotes, [], 'the scene logged no runtime failure');
     const f = await frame();
-    assert.ok(f.readouts.loss < 0.02 && f.readouts.loss >= 0, `loss ${f.readouts.loss}`);
-    assert.equal(f.readouts.steps, 20, 'twenty steps from (0.3, 1.6) at rate 0.1');
-    assert.ok(Math.abs(f.readouts.loss - bowl(0.1, 20)) < 1e-9);
-    assert.equal(f.nodes.trail.points.length, 21);
+    assert.ok(at(0.1, f.readouts.steps).slope < 0.12 && f.readouts.loss >= 0, `loss ${f.readouts.loss}`);
+    assert.equal(f.readouts.steps, FLAT_AT, `${FLAT_AT} steps from (0.1, 1.8) at rate 0.1`);
+    assert.ok(Math.abs(f.readouts.loss - bowl(0.1, FLAT_AT)) < 1e-9);
+    assert.equal(f.nodes.trail.points.length, FLAT_AT + 1);
     assert.equal(f.nodes.stepArrow.visible, false, 'a finished run shows no arrows');
     await page.waitForTimeout(500);
     const seen = await look();
@@ -195,9 +198,9 @@ try {
     assert.ok(seen.orange >= 100, `the finished run's path draws: ${seen.orange} orange pixels (about 250 expected at 725 x 240: 41 px long, 5.8 px thick; the ball is under 80 px2 and no arrow is shown)`);
     await shot('B-converged');
   });
-  await step('New run keeps the old path as the ghost: 21 ghost points, a one-point path, and the picture differs from the same scene with the ghost cleared', async () => {
+  await step('New run keeps the old path as the ghost: every step of it, a one-point path, and the picture differs from the same scene with the ghost cleared', async () => {
     await press('newRun');
-    await until(async () => (await frame()).nodes.ghost.points.length === 21, 'the kept path');
+    await until(async () => (await frame()).nodes.ghost.points.length === FLAT_AT + 1, 'the kept path');
     const f = await frame();
     assert.equal(f.nodes.trail.points.length, 1);
     assert.equal(f.readouts.steps, 0);
@@ -222,13 +225,15 @@ try {
     assert.ok(changed >= noise + 25, `the kept path draws: ${changed} pixels differ with and without it, against ${noise} between two shots of one scene (about 100 expected: 41 px long, 2.9 px thick)`);
     await shot('B-ghost');
   });
-  await step('learning rate 1.5: diverged, the Loss readout keeps the true value, and the clamped ball stays inside the frame', async () => {
-    await setRate(1.5);
+  await step('learning rate 2, the top of the control: five growing swings, then diverged; the Loss readout keeps the true value, and the held ball stays inside the frame', async () => {
+    await setRate(2);
     await press('run');
     await until(async () => (await word()) === 'diverged', 'the word diverged', 15000);
     const f = await frame();
-    assert.ok(Math.abs(f.readouts.loss - bowl(1.5, 2)) < 1e-9, `the true loss ${f.readouts.loss}, closed form ${bowl(1.5, 2)}`);
-    assert.ok(f.nodes.ball.position[1] > 10, `the program's ball height is the true one (${f.nodes.ball.position[1]}); the renderer draws it clamped`);
+    assert.equal(f.readouts.steps, 6, 'six steps at rate 2: x = 0.1, -0.18, 0.32, -0.58, 1.05, -1.89, then 3.40');
+    assert.ok(Math.abs(f.readouts.loss - bowl(2, 6)) < 1e-9, `the true loss ${f.readouts.loss}, closed form ${bowl(2, 6)}`);
+    assert.ok(f.nodes.ball.position[1] > 3.68, `the program's ball height is the true one (${f.nodes.ball.position[1]}), above the bowl top 3.68; the renderer holds it`);
+    assert.equal(f.nodes.trail.points.length, 7, 'every step marked: the start and six steps');
     await page.waitForTimeout(800);
     const seen = await look();
     measured('diverged', { red: seen.red, black: seen.black, box: seen.box, covered: +seen.covered.toFixed(3) });
