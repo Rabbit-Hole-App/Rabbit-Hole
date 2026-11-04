@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { ARCHETYPES, ARCHETYPE_NAMES, archetypeRules } from '../src/agents/animation-archetypes.js';
-import { LABEL_ANCHORS, READOUT_KINDS, TRAIL_STYLES } from '../../web/src/animation3d/contract.js';
+import { LABEL_ANCHORS, PLAN_ARCHETYPES, READOUT_KINDS, TRAIL_STYLES } from '../../web/src/animation3d/contract.js';
 
 const { artifact } = JSON.parse(readFileSync(new URL('../../web/src/animation3d/testdata/sgd-golden.json', import.meta.url), 'utf8'));
 const text = archetypeRules('loss_surface');
 
 test('ARCHETYPES is deeply frozen and loss_surface is its first entry', () => {
   assert.deepEqual(ARCHETYPE_NAMES, ['loss_surface']);
+  assert.deepEqual([...ARCHETYPE_NAMES], [...PLAN_ARCHETYPES], 'the planner enum (contract.js) and this table name the same shapes');
   assert.equal(Object.isFrozen(ARCHETYPES) && Object.isFrozen(ARCHETYPES.loss_surface) && Object.isFrozen(ARCHETYPES.loss_surface.rules), true);
   assert.throws(() => { 'use strict'; ARCHETYPES.loss_surface.rules.push('x'); }, TypeError);
   assert.throws(() => { 'use strict'; ARCHETYPES.other = {}; }, TypeError);
