@@ -25,6 +25,9 @@ const TUBE_RADIAL = 8; // contract.js triangleCost: a curve with a radius is 2 x
 // stays inside the viewport (`inset` from its edges): flipped to the other side of its point, pushed in, or reflowed onto more
 // lines when it is wider than the viewport.
 export const LABEL_PIXELS = Object.freeze({ min: 18, max: 22, step: 2, share: 0.06, room: 0.2, inset: 4 });
+// A label that names an arrow (its node is a child of an arrow node) is kept in proportion to it, by the renderer, not the author (C9, owner; C7 job 2: a plate five times longer
+// than a short arrow): hidden when the arrow is shorter than `hide` CSS pixels on screen, else wrapped to at most `cap` times the arrow's on-screen length (never narrower than `minWidth`).
+export const ARROW_LABELS = Object.freeze({ hide: 24, cap: 3, minWidth: 72 });
 export const labelPixels = (size, span) => {
   const { min, max, step, share } = LABEL_PIXELS;
   return Math.min(max, Math.max(min, Math.round(share * span * Math.min(1.5, Math.max(0.75, size / 0.3)) / step) * step));
@@ -483,11 +486,24 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
         camera.updateMatrixWorld();
         const across = span(f, h0, camera), candidates = [];
         const { inset } = LABEL_PIXELS, bounds = { x: inset, y: inset, w: Math.max(1, w0 - 2 * inset), h: Math.max(1, h0 - 2 * inset) };
+        const arrowEnds = [new THREE.Vector3(), new THREE.Vector3()];
+        const arrowPixels = arrow => { // the arrow's length on screen, in CSS pixels; Infinity when an end is out of the camera's depth range
+          arrow.localToWorld(arrowEnds[0].set(0, 0, 0)).project(camera);
+          arrow.localToWorld(arrowEnds[1].set(0, arrow.userData.arrow, 0)).project(camera);
+          return Math.abs(arrowEnds[0].z) > 1 || Math.abs(arrowEnds[1].z) > 1 ? Infinity : Math.hypot((arrowEnds[1].x - arrowEnds[0].x) * w0 / 2, (arrowEnds[1].y - arrowEnds[0].y) * h0 / 2);
+        };
         for (const [id, drawable] of labels) {
           const tag = drawable.userData.label, pixels = labelPixels(tag.size, across);
           if (!optional && !tag.essential) { drawable.visible = tag.leader.visible = false; continue; } // off: takes no room either
-          const painted = `${pixels}@${ratio}@${bounds.w}`;
-          if (tag.painted !== painted) paint(drawable, pixels, bounds.w, painted);
+          let cap = bounds.w;
+          const arrow = drawable.parent?.parent?.children.find(child => child.userData.arrow !== undefined); // the arrow this label names, if its node is a child of an arrow node
+          if (arrow) {
+            const length = arrowPixels(arrow);
+            if (length < ARROW_LABELS.hide) { drawable.visible = tag.leader.visible = false; continue; } // no arrow to name: no label, and no room taken
+            cap = Math.min(bounds.w, Math.max(ARROW_LABELS.minWidth, Math.round(ARROW_LABELS.cap * length / 8) * 8)); // buckets of 8 px: it repaints only when the cap moves
+          }
+          const painted = `${pixels}@${ratio}@${cap}`;
+          if (tag.painted !== painted) paint(drawable, pixels, cap, painted);
           const h = Math.round(Math.round(pixels * ratio) * tag.rows) / ratio, w = h * tag.aspect, tall = 2 * h / (f * h0); // the painted height, exactly
           drawable.parent.getWorldScale(world);
           drawable.scale.set(tall * tag.aspect / (world.x || 1), tall / (world.y || 1), 1);
