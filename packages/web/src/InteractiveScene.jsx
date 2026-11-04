@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { applyAction, prepareScene, sceneContext } from './scene-engine.js';
 import VectorScene, { VectorControls } from './VectorScene.jsx';
 import PipelineScene from './PipelineScene.jsx';
+import { fullContent } from './card-layout.js';
 import './scene-behaviors.js';
 
 // One block for every registered activity: the spec picks a behaviour and a
@@ -16,11 +17,12 @@ const MODE_LABEL = {
   live_run: 'Live run',
 };
 
-function StepsSvg({ spec, state, behavior, onSelect, selected }) {
+// full (Full content): the card is as tall as its steps, so the diagram keeps its own proportions instead of fitting a fixed frame.
+function StepsSvg({ spec, state, behavior, onSelect, selected, full }) {
   const steps = state.steps;
   const width = 300, gap = 58;
   return (
-    <svg role="img" aria-label={spec.buildGoal || 'Process walkthrough'} viewBox={`0 0 ${width} ${steps.length * gap + 12}`} className="h-full w-full">
+    <svg role="img" aria-label={spec.buildGoal || 'Process walkthrough'} viewBox={`0 0 ${width} ${steps.length * gap + 12}`} className={full ? 'mx-auto h-auto w-full max-w-[420px]' : 'h-full w-full'}>
       {steps.map((step, index) => {
         const y = index * gap + 10;
         const active = index === state.step;
@@ -95,7 +97,7 @@ export default function InteractiveScene({ block, onChange }) {
           of reach); a renderer taller than the card still scrolls. */}
       <div className="flex min-h-0 flex-1 flex-col overflow-auto rounded-lg border border-line bg-white p-2">
         {Renderer
-          ? <Renderer spec={spec} state={state} behavior={behavior} selected={selected} onSelect={setSelected} run={run} reduced={reduced} />
+          ? <Renderer spec={spec} state={state} behavior={behavior} selected={selected} onSelect={setSelected} run={run} reduced={reduced} full={fullContent(block)} />
           : <p className="text-xs text-ink-2">No renderer for {spec.behaviorId}.</p>}
       </div>
       {/* INTERACT zone: a behaviour's control panel (e.g. the vec2 coordinate

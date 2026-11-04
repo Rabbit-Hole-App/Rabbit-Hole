@@ -4,7 +4,9 @@ export const FULL_WIDTH = Object.freeze({ baseline: 320, preferred: 720, maximum
 export const FULL_TYPES = new Set(['explanation', 'snippet', 'table', 'image']);
 // A file card (FileDocCard) of these kinds takes Full content too: every chunk, slide, page or row drawn. A table (CSV) file card is not one.
 export const FULL_FILE_KINDS = new Set(['text', 'markdown', 'document', 'presentation', 'workbook']);
-export const supportsCardLayout = block => FULL_TYPES.has(block?.type) || (block?.type === 'file' && FULL_FILE_KINDS.has(block.kind));
+// Guided cards: the quiz question, the flashcards deck and the walkthrough (a 'scene' whose behaviour is walkthrough_v1; other scenes are not).
+const GUIDED = block => ['quiz', 'flashcards'].includes(block?.type) || (block?.type === 'scene' && block.spec?.behaviorId === 'walkthrough_v1');
+export const supportsCardLayout = block => FULL_TYPES.has(block?.type) || (block?.type === 'file' && FULL_FILE_KINDS.has(block.kind)) || GUIDED(block);
 export const fullContent = block => supportsCardLayout(block) && block.cardLayout?.mode === 'full';
 const positive = value => Number.isFinite(value) && value > 0;
 // Code-like cards (owner 2026-11-04): a Code exercise, a repository or uploaded code file, a notebook. A separate statement keeps this
