@@ -87,7 +87,8 @@ function planFrom({ input }, caps) {
   const draft = { schema: PLAN_SCHEMA, title: input.title, description: input.description, experience: input.experience, reason: input.reason, behavior: input.behavior,
     controlProfile: input.controlProfile, sourceRefs: [], parameters: Array.isArray(input.parameters) ? input.parameters : [], interactions: listOf(input.interactions, 8),
     assumptions: listOf(input.assumptions, 8), limitations: [], requiredCapabilities: Array.isArray(input.requiredCapabilities) ? input.requiredCapabilities : [],
-    ...(typeof input.learningGoal === 'string' && input.learningGoal.trim() ? { learningGoal: input.learningGoal.trim() } : {}), ...(input.duration != null ? { duration: input.duration } : {}) };
+    ...(typeof input.learningGoal === 'string' && input.learningGoal.trim() ? { learningGoal: input.learningGoal.trim() } : {}), ...(input.duration != null ? { duration: input.duration } : {}),
+    ...(input.archetype ? { archetype: input.archetype } : {}), ...(Array.isArray(input.assertions) && input.assertions.length ? { assertions: input.assertions } : {}) };
   // The server's limitations first, then the planner's, within the contract's eight.
   draft.limitations = [...unsupportedRequests(input.requested, draft, caps), ...listOf(input.limitations, 8)].slice(0, 8);
   const checked = validateAnimationPlan(draft, caps);
