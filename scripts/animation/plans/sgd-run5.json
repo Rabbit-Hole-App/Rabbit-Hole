@@ -1,0 +1,77 @@
+{
+  "schema": "animation-pinned-plan/1",
+  "name": "sgd-run5",
+  "kind": "sgd",
+  "request": "Show me how stochastic gradient descent works. Let me change the learning rate and batch size to see what happens.",
+  "plan": {
+    "schema": "animation-plan/1",
+    "title": "Stochastic Gradient Descent: Learning Rate and Batch Size on a Loss Bowl",
+    "description": "A ball moves step by step across a wireframe bowl. The bowl's height is the error (loss) for each pair of two model settings. At each step the program estimates which way is downhill, adds simulated mini-batch noise to that estimate, and moves the ball by learning rate × that estimate. A trail marks where the ball lands after each step, up to 40 steps per run, and you can keep the last run's path as a faded ghost to compare with the next one.",
+    "experience": "experiment",
+    "reason": "You wanted to change the learning rate and batch size and see what happens. Every step uses both settings, so the path, the arrow and the readouts all change when you change either one.",
+    "behavior": "rules",
+    "controlProfile": "inspect",
+    "sourceRefs": [],
+    "parameters": [
+      {
+        "type": "number",
+        "id": "learningRate",
+        "label": "Learning rate",
+        "min": 0.01,
+        "max": 1,
+        "step": 0.01,
+        "default": 0.1
+      },
+      {
+        "type": "number",
+        "id": "batchSize",
+        "label": "Batch size (points per step)",
+        "min": 1,
+        "max": 64,
+        "step": 1,
+        "default": 4
+      },
+      {
+        "type": "toggle",
+        "id": "showTrueGradient",
+        "label": "Show full-data downhill arrow",
+        "default": true
+      }
+    ],
+    "interactions": [
+      "Learning rate: small values creep and may not reach the bottom in 40 steps. Middle values get there. Large ones overshoot across the steep direction; near the top, swings can grow until diverged.",
+      "Batch size: 1 gives the noisiest path, which keeps wandering near the bottom. Bigger batches smooth it. At 64 (the whole simulated data set) noise is zero and each step goes exactly downhill.",
+      "Full-data arrow toggle: shows the true downhill direction next to the noisy mini-batch arrow, so you can see how far each step's estimate is off.",
+      "Play, pause, step once or change speed. Each step is one update.",
+      "'New run, keep last path': restarts the ball with your current settings and keeps the finished run as a faded ghost. The next noise values in the sequence are used, so the noise differs."
+    ],
+    "assumptions": [
+      "Illustration: a made-up two-setting loss bowl with simulated batch noise, not a real model trained on real data.",
+      "The loss is an exact bowl shape that is steeper in one direction than the other, so overshooting shows up in the steep direction first. It is drawn as a wireframe of level rings and cross-sections.",
+      "Mini-batch noise is simulated: it is random and centred on the true downhill direction. It gets smaller as the batch grows, like the noise from sampling a batch out of 64 points, and is exactly zero at 64.",
+      "The mini-batch arrow points the way the ball actually moves, which is against the noisy slope estimate. The full-data arrow points against the true slope.",
+      "Noise values come from a fixed seed, so Reset replays the same sequence from the start.",
+      "Readouts: step number (up to 40), current loss at the ball's position, length of the mini-batch arrow, and run status (running, finished or diverged).",
+      "A run ends after 40 steps, or earlier when the loss goes past a set limit. Then it is marked diverged.",
+      "The current trail holds at most 40 points, one per step. The saved ghost path also holds at most 40."
+    ],
+    "limitations": [
+      "Real models have huge numbers of settings and losses that aren't bowl-shaped. This bowl has two settings and one lowest point, so it can't show local minima or saddle points.",
+      "There are no data points or fitted line. The batch's effect only shows up as simulated noise in the step direction.",
+      "With noise, a step lowers the loss only on average. With small batches, single steps can raise it.",
+      "There is no momentum, no learning-rate schedule and no optimizers such as Adam. The learning rate stays the same for the whole run.",
+      "Very large losses are capped on screen so the scene stays readable when a run diverges."
+    ],
+    "learningGoal": "SGD steps against a noisy estimate of the slope. The learning rate sets how big each step is, so too large a value overshoots or diverges. The batch size sets how noisy the estimate is, so small batches give jumpy paths that settle near the lowest point, not exactly on it.",
+    "requiredCapabilities": [
+      "parameters",
+      "actions",
+      "step",
+      "speed",
+      "labels",
+      "readouts"
+    ]
+  },
+  "source": "C:/s/spec/animation/sgd-mvp1-acceptance/logs/run5-accepted-plan.json (run 5, job aj_77ff45ba15754ef5972994f8e564cbb6, candidate caf7ee9bc)",
+  "why": "The pinned SGD plan. Run 5 is the plan the production planner (caf7ee9bc, the ladder baseline) produced; its learning rate range 0.01 to 1 reaches divergence and the plan promises a cap on very large losses, which is what the clamp assertion checks. Run 4 (89d9718bf) was an earlier candidate with range 0.01 to 0.6."
+}
