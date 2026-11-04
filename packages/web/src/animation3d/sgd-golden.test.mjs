@@ -233,8 +233,10 @@ run('every frame of both comparison runs validates against the contract, and the
   }
 });
 
-// The renderer's side, on the real scene builder and framing in Node (no GL): what animation-primitives-check.mjs looks for in a browser, worked out here by projection.
-// A 700 x 450 view. The workerFactory is the one framing.test.mjs uses.
+// The renderer's side, on the real scene builder, clamp and fit in Node (no GL): what animation-primitives-check.mjs looks for in a browser, worked out by projection and
+// by RAY CASTING from the camera against the real surface mesh, because a path or a ball behind the bowl's own near wall is drawn and still invisible (CI run 41762152651:
+// the first camera sat 22 degrees above the floor, the near rim hid the ball and the path at every step). The card's viewport is 725 x 240 once More settings is open
+// (725 x 314 before), so the aspects are 2.3 to 3.4. The workerFactory is the one framing.test.mjs uses.
 const workerFactory = () => {
   const worker = {
     terminated: false, terminate() { worker.terminated = true; },
@@ -243,43 +245,71 @@ const workerFactory = () => {
   queueMicrotask(() => worker.onmessage?.({ data: { ready: true } }));
   return worker;
 };
-const VIEW = { width: 700, height: 450 };
-async function drawn(learningRate, play) {
-  const inputs = { learningRate, batchSize: FULL }, fit = await fitAnimationView({ artifact, aspect: VIEW.width / VIEW.height, inputs, workerFactory });
-  const camera = new THREE.PerspectiveCamera(fit.fov, VIEW.width / VIEW.height, 0.1, 2000);
+const HEIGHT = 240, ASPECTS = [2.3, 725 / 240, 3.4];
+const hullShare = (points, area) => { // the convex hull's area as a share of the view
+  const sorted = points.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]), cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const chain = list => { const out = []; for (const p of list) { while (out.length >= 2 && cross(out.at(-2), out.at(-1), p) <= 0) out.pop(); out.push(p); } return out.slice(0, -1); };
+  const hull = [...chain(sorted), ...chain(sorted.slice().reverse())];
+  return Math.abs(hull.reduce((sum, a, i) => { const b = hull[(i + 1) % hull.length]; return sum + a[0] * b[1] - b[0] * a[1]; }, 0)) / 2 / area;
+};
+async function drawn(learningRate, aspect, play) {
+  const width = Math.round(HEIGHT * aspect), inputs = { learningRate, batchSize: FULL };
+  const fit = await fitAnimationView({ artifact, aspect, inputs, workerFactory });
+  const camera = new THREE.PerspectiveCamera(fit.fov, aspect, 0.1, 2000);
   camera.position.fromArray(fit.position); camera.lookAt(...fit.target); camera.updateMatrixWorld(); camera.updateProjectionMatrix();
   const built = buildAnimationScene(artifact, { labelTexture: () => ({ texture: new THREE.Texture(), aspect: 1 }) }), { scene } = built;
-  const screen = point => { const p = point.clone().project(camera); return [(p.x + 1) / 2 * VIEW.width, (1 - p.y) / 2 * VIEW.height]; };
+  const screen = point => { const p = point.clone().project(camera); return [(p.x + 1) / 2 * width, (1 - p.y) / 2 * HEIGHT]; };
   let state = call('initialize', { inputs }), result = null;
-  const frameNow = () => { const frame = call('evaluate', { inputs, state }); result = scene.apply(frame); scene.root.updateWorldMatrix(true, true); return frame; };
-  play({ press: action => { state = press(state, action, inputs); }, tick: n => { state = tick(state, n, inputs); }, state: () => state });
-  const frame = frameNow(), world = scene.objects.get('ball').getWorldPosition(new THREE.Vector3());
-  const bowl = []; scene.objects.get('bowl').traverse(o => { if (o.isMesh) { const at = o.geometry.attributes.position; for (let i = 0; i < at.count; i += 1) bowl.push(screen(new THREE.Vector3().fromBufferAttribute(at, i).applyMatrix4(o.matrixWorld))); } });
+  play({ press: action => { state = press(state, action, inputs); }, tick: n => { state = tick(state, n, inputs); } });
+  const frame = call('evaluate', { inputs, state }); result = scene.apply(frame); scene.root.updateWorldMatrix(true, true);
+  const meshes = []; scene.objects.get('bowl').traverse(o => { if (o.isMesh) meshes.push(o); });
+  const ray = new THREE.Raycaster(), eye = camera.position.clone();
+  const seen = point => { const toward = point.clone().sub(eye), far = toward.length(); ray.set(eye, toward.normalize()); ray.far = far; const hit = ray.intersectObjects(meshes, false)[0]; return !hit || hit.distance > far - 0.04; }; // nothing of the bowl in front of it
+  const inside = ([x, y]) => x > 6 && x < width - 6 && y > 6 && y < HEIGHT - 6;
+  const world = scene.objects.get('ball').getWorldPosition(new THREE.Vector3()), path = frame.nodes.trail.points.map(p => new THREE.Vector3(...p));
+  const bowl = []; meshes.forEach(o => { const at = o.geometry.attributes.position; for (let i = 0; i < at.count; i += 1) bowl.push(screen(new THREE.Vector3().fromBufferAttribute(at, i).applyMatrix4(o.matrixWorld))); });
   const visible = id => { let shown = false; scene.objects.get(id).traverse(o => { if ((o.isMesh || o.isLine) && o.visible) shown = true; }); return shown; };
-  const out = { frame, clamped: result.clamped, ball: screen(world), ballY: world.y, bowlWidth: (Math.max(...bowl.map(p => p[0])) - Math.min(...bowl.map(p => p[0]))) / VIEW.width, trail: visible('trail'), ghost: visible('ghost') };
+  let lit = null; scene.objects.get('trail').traverse(o => { if (o.isMesh) lit = o.geometry.attributes.normal ?? false; }); // a lit tube needs vertex normals: without them it renders (0, 0, 0)
+  const normalsUnit = n => lit && Array.from({ length: n * 8 }, (_, i) => Math.abs(Math.hypot(lit.getX(i), lit.getY(i), lit.getZ(i)) - 1) < 1e-6).every(Boolean);
+  const out = { frame, clamped: result.clamped, lit: normalsUnit(path.length), ballY: world.y, ballSeen: seen(world), ballInside: inside(screen(world)), pathSeen: path.filter(seen).length, pathPoints: path.length,
+    bowlWidth: (Math.max(...bowl.map(p => p[0])) - Math.min(...bowl.map(p => p[0]))) / width, bowlShare: hullShare(bowl, width * HEIGHT), trail: visible('trail'), ghost: visible('ghost') };
   built.scene.dispose();
   return out;
 }
+const finish = p => { p.press('run'); for (let t = 1; t <= 6 * 25; t += 1) p.tick(t); };
+const STATES = {
+  start: () => {}, mid: p => { for (let i = 0; i < 5; i += 1) p.press('step'); }, converged: finish, kept: p => { finish(p); p.press('newRun'); },
+};
 
-run('rendered by the real scene builder: nothing is drawn as a path until a step, the path and the kept path appear, and the bowl is a large share of a fitted view', async () => {
-  const start = await drawn(0.1, () => {});
+run('at the card viewport sizes nothing the learner needs is hidden behind the bowl: the ball and every path point are in line of sight and in view, at start, mid-run and converged', async () => {
+  for (const aspect of ASPECTS) for (const [name, play] of Object.entries(STATES)) {
+    const got = await drawn(0.1, aspect, play);
+    assert.equal(got.ballSeen, true, `${name} at aspect ${aspect.toFixed(2)}: the ball is hidden by the bowl`);
+    assert.equal(got.ballInside, true, `${name} at aspect ${aspect.toFixed(2)}: the ball is outside the view`);
+    assert.equal(got.pathSeen, got.pathPoints, `${name} at aspect ${aspect.toFixed(2)}: ${got.pathPoints - got.pathSeen} of ${got.pathPoints} path points are behind the bowl`);
+    assert.ok(got.bowlShare >= 0.15, `${name} at aspect ${aspect.toFixed(2)}: the bowl is ${(got.bowlShare * 100).toFixed(0)}% of the view`);
+  }
+});
+
+run('rendered by the real scene builder: nothing is drawn as a path until a step, the path and the kept path appear', async () => {
+  const start = await drawn(0.1, 725 / 240, STATES.start);
   assert.deepEqual([start.trail, start.ghost, start.clamped], [false, false, []], 'one path point draws nothing; no clamp inside the bowl');
-  assert.ok(start.bowlWidth >= 0.5, `the bowl spans ${(start.bowlWidth * 100).toFixed(0)}% of the view width`);
-  const done = await drawn(0.1, p => { p.press('run'); for (let t = 1; t <= 6 * 25; t += 1) p.tick(t); });
+  const done = await drawn(0.1, 725 / 240, STATES.converged);
   assert.equal(done.frame.readouts.status, 'converged');
   assert.deepEqual([done.trail, done.ghost], [true, false]);
-  const kept = await drawn(0.1, p => { p.press('run'); for (let t = 1; t <= 6 * 25; t += 1) p.tick(t); p.press('newRun'); });
+  assert.equal(done.lit, true, 'the path tube has unit vertex normals for every ring of its 21 points (CI run 41762152651 drew it pure black without them)');
+  const kept = await drawn(0.1, 725 / 240, STATES.kept);
   assert.deepEqual([kept.trail, kept.ghost], [false, true], 'New run: the old path is the ghost, the new one has one point');
 });
 
-run('rendered at learning rate 1.5: the ball is held at the surface top while the Loss keeps its true value, and the fitted camera keeps the ball and most of the bowl in view', async () => {
-  const far = await drawn(1.5, p => { p.press('run'); for (let t = 1; t <= 12; t += 1) p.tick(t); });
-  assert.equal(far.frame.readouts.status, 'diverged');
-  assert.equal(far.clamped.length, 1);
-  assert.ok(far.clamped[0].trueY > 10 && far.clamped[0].y === 4 && Math.abs(far.ballY - 4) < 1e-9, `true ${far.clamped[0].trueY}, drawn ${far.ballY}`);
-  assert.ok(far.frame.readouts.loss > 20, 'the readout keeps the true value');
-  const [x, y] = far.ball;
-  assert.ok(x > 12 && x < VIEW.width - 12 && y > 12 && y < VIEW.height - 12, `the ball is inside the view at ${x.toFixed(0)}, ${y.toFixed(0)}`);
-  assert.ok(far.bowlWidth >= 0.3, `the bowl keeps ${(far.bowlWidth * 100).toFixed(0)}% of the view width (the ball flung to x = 3.7 would leave it far less if the fit followed the true height)`);
-  assert.equal(far.trail, true, 'the path to the divergence is drawn');
+run('rendered at learning rate 1.5: the ball is held at the surface top while the Loss keeps its true value, and the fitted camera keeps the ball, the whole path and most of the bowl in view', async () => {
+  for (const aspect of ASPECTS) {
+    const far = await drawn(1.5, aspect, p => { p.press('run'); for (let t = 1; t <= 12; t += 1) p.tick(t); });
+    assert.equal(far.frame.readouts.status, 'diverged');
+    assert.equal(far.clamped.length, 1);
+    assert.ok(far.clamped[0].trueY > 10 && far.clamped[0].y === 4 && Math.abs(far.ballY - 4) < 1e-9, `true ${far.clamped[0].trueY}, drawn ${far.ballY}`);
+    assert.ok(far.frame.readouts.loss > 20, 'the readout keeps the true value');
+    assert.deepEqual([far.ballSeen, far.ballInside, far.pathSeen, far.trail], [true, true, 3, true], `at aspect ${aspect.toFixed(2)}`);
+    assert.ok(far.bowlShare >= 0.12 && far.bowlWidth >= 0.2, `the bowl keeps ${(far.bowlShare * 100).toFixed(0)}% of the view, ${(far.bowlWidth * 100).toFixed(0)}% of its width, at aspect ${aspect.toFixed(2)}`);
+  }
 });
