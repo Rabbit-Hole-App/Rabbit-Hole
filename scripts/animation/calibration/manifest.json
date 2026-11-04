@@ -248,5 +248,30 @@
    ]
   }
  ],
- "matching": "A case passes calibration when the review REJECTS the draft (a blocker or major finding on some capture) AND at least one such finding matches at least one regular expression of mustMention (case-insensitive, anyOf). knownFindings are the evidence, advisory; c9Renderer says whether the C9 renderer could legitimately fix that finding."
+ "falsePositives": [
+  {
+   "id": "offset-shrinks-false-positive",
+   "artifact": "scripts/animation/calibration/offset-shrinks-false-positive.json",
+   "candidate": "c9-4a920b1f7",
+   "job": "aj_4c561e74c65444bda3466b601aa5fb04",
+   "reviewArtifactHash": "83930d6b1f2ed504adc2a4cc879d0aa79965eb7a733a159e45b80c4c8bdf4930",
+   "request": "stochastic gradient descent",
+   "mustNotMention": [
+    "offset.*(shrink|inside the ball)",
+    "arrows? .*(hidden|inside).*ball",
+    "tiny and mostly hidden"
+   ],
+   "knownFalseFindings": [
+    {
+     "capture": "v0-s1",
+     "object": "stepArrow",
+     "severity": "major",
+     "message": "Near the minimum, both arrows are tiny and mostly hidden inside the ball. The arrow is scaled as a whole by [1,l,1], so the 0.2 offset shrinks too and the tail ends up inside the radius-0.2 ball. The 'Noisy step' and 'True downhill' labels have also disappeare"
+    }
+   ],
+   "note": "The reviewer read the program's offset and node scale and concluded the arrows shrink into the ball; the host keeps the offset outside the node scale and (with lane (c)'s trace.arrows and the review request's arrow sentence) the capture shows the real tail and tip. The camera findings on this draft are real on the C9 renderer and may still be raised. A review that still raises the offset finding is not calibrated; one that no longer does shows the trace and the text work."
+  }
+ ],
+ "matching": "A case passes calibration when the review REJECTS the draft (a blocker or major finding on some capture) AND at least one such finding matches at least one regular expression of mustMention (case-insensitive, anyOf). knownFindings are the evidence, advisory; c9Renderer says whether the C9 renderer could legitimately fix that finding.",
+ "falsePositiveMatching": "A falsePositives case may be rejected for OTHER reasons (its real findings, for example the camera), but fails calibration if the review raises a blocker or major finding whose message matches any mustNotMention regular expression (case-insensitive). The patterns apply to that case alone. A false positive that persists means the reviewer is not calibrated; one that disappears means the trace and the review text work."
 }

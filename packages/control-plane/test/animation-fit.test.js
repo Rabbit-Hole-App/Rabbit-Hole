@@ -252,7 +252,7 @@ test('AN-20 measurement: the system prompts are shorter than at caf7ee9bc and th
   while (high - low > 1) { const mid = Math.floor((low + high) / 2); if (await fits(mid)) low = mid; else high = mid; }
   const largest = bytes(JSON.stringify(padded(low)));
   t.diagnostic(`system B before -> after: author ${BEFORE.author} -> ${after.author}; repair ${BEFORE.repair} -> ${after.repair}; review ${BEFORE.review} -> ${after.review}; largest reviewable draft ${BEFORE.reviewableDraft} -> ${largest}; ANIMATION_DRAFT_BYTES ${ANIMATION_DRAFT_BYTES}`);
-  // FX-AN-112 (owner order): the review request of an artifact with an arrow gained one sentence (ARROW_NOTE, 228 B), which this marker-node draft pays for; the allowance is that and no more.
+  // FX-AN-112 (owner order): the review request of an artifact with an arrow gained one sentence (ARROW_NOTE, 227 B), which this marker-node draft pays for; the allowance is that and no more.
   const ARROW_NOTE_ALLOWANCE = 120;
   assert.ok(largest >= BEFORE.reviewableDraft - ARROW_NOTE_ALLOWANCE, `the largest reviewable draft ${largest} B must not fall below ${BEFORE.reviewableDraft} B less the arrow sentence's ${ARROW_NOTE_ALLOWANCE} B`);
   // The shared estimate is held against the golden, not this marker-node fixture (FX-AN-052): see the golden measurement below.

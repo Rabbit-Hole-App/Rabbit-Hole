@@ -59,3 +59,29 @@ test('no machine-local path or secret in the set', () => {
     assert.doesNotMatch(text, /sk-[A-Za-z0-9]{10}|session|cookie/i);
   }
 });
+
+test('a known false positive: a draft the review may reject for real reasons but must not reject for the offset it misread (C9 job 1, FX-AN-112)', async () => {
+  assert.equal(manifest.falsePositives.length, 1);
+  for (const c of manifest.falsePositives) {
+    assert.ok(existsSync(join(ROOT, c.artifact)), c.artifact);
+    assert.ok(c.job.startsWith('aj_') && c.candidate && c.reviewArtifactHash.length === 64 && c.request.length > 10 && c.note.length > 40);
+    const patterns = c.mustNotMention.map(p => new RegExp(p, 'i'));
+    assert.ok(patterns.length >= 2);
+    // the evidence satisfies the rule: the review's false finding matches, so a repeat of it is caught
+    assert.ok(c.knownFalseFindings.length >= 1 && c.knownFalseFindings.every(f => ['major', 'blocker'].includes(f.severity) && patterns.some(r => r.test(f.message))));
+    const fixture = read(c.artifact);
+    assert.equal(fixture.id, c.id);
+    assert.equal((await sha256Hex(canonicalJson(fixture.draft))).slice(0, 12), fixture.review.draftHash12);
+    assert.equal(fixture.review.artifactHashOfReview, c.reviewArtifactHash);
+    // the rule is not over-broad: the REAL findings of the same review (the camera) match none of the patterns
+    const real = fixture.majorFindings.filter(f => !f.falsePositive);
+    assert.ok(real.length >= 1 && real.every(f => !patterns.some(r => r.test(f.message))), 'a real camera finding must stay allowed');
+    assert.deepEqual(fixture.majorFindings.filter(f => f.falsePositive).map(f => f.message.slice(0, 260)), c.knownFalseFindings.map(f => f.message));
+    const out = await validateStage(jobOf(fixture.plan, fixture.draft, fixture.request), { env: {} });
+    assert.deepEqual(out.problems ?? [], []);
+    assert.doesNotMatch(readFileSync(join(ROOT, c.artifact), 'utf8'), /C:[\/](?:Users|s)[\/]/i);
+  }
+  // no mustFail case is also a false positive: the sections are different promises
+  assert.equal(manifest.mustFail.some(c => manifest.falsePositives.some(f => f.job === c.job)), false);
+  assert.match(manifest.falsePositiveMatching, /OTHER reasons/);
+});

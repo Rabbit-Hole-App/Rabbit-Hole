@@ -35,7 +35,7 @@ async function reviewBound(draft) {
 const margin = async draft => roleBoundMicros('review') - await reviewBound(draft);
 
 // Measured on 5427f0db4 (the tree before the comparison captures) with these same drafts and this same check.
-// FX-AN-112 (C10, owner order): the review request of an artifact with an arrow gained ARROW_NOTE (228 B; measured here as 555 micro-USD of margin and 111 B of the largest artifact), so those
+// FX-AN-112 (C10, owner order): the review request of an artifact with an arrow gained ARROW_NOTE (227 B; measured here as 555 micro-USD of margin and 111 B of the largest artifact), so those
 // three floors carry that allowance and no more. The bound itself (the role's 40,000) is unchanged.
 const ARROW_NOTE_ALLOWANCE = { micros: 600, artifactBytes: 120 };
 const BEFORE = { authorMargin: 7090 - ARROW_NOTE_ALLOWANCE.micros, repair2Margin: 4165 - ARROW_NOTE_ALLOWANCE.micros, captionBytes: 1143, maxArtifactBytes: 14750 - ARROW_NOTE_ALLOWANCE.artifactBytes };
