@@ -281,6 +281,11 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
 
   const surfaces = new Map(scene.materials.map(m => [m.id, own(new THREE.MeshStandardMaterial({ ...SURFACE, color: m.color, opacity: m.opacity, transparent: m.opacity < 1, side: THREE.DoubleSide }))]));
   const strokes = new Map(); // line materials, made on first use, follow their surface material's color and opacity
+  const fronts = new Map(); // a surface node's own front-side-only clone of its material (FX-AN-094), made on first use, follows it too
+  const front = id => {
+    if (!fronts.has(id)) fronts.set(id, own(Object.assign((surfaces.get(id) ?? fallback).clone(), { side: THREE.FrontSide }))); // a height field seen from outside is its back face: not drawn
+    return fronts.get(id);
+  };
   const fallback = own(new THREE.MeshStandardMaterial({ ...SURFACE, color: '#9aa4b2', side: THREE.DoubleSide }));
   const stroke = id => {
     if (!strokes.has(id)) {
@@ -367,7 +372,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
     } else if (g?.kind === 'surface') {
       // The surface mesh, and its contour lines in the surface colour darkened so they read against it (own material: a frame's colour change reaches the mesh only).
       drawable = new THREE.Group();
-      const mesh = new THREE.Mesh(own(surfaceGeometry(g)), surfaces.get(node.material) ?? fallback), lines = contourPositions(g);
+      const mesh = new THREE.Mesh(own(surfaceGeometry(g)), front(node.material)), lines = contourPositions(g);
       drawable.add(mesh);
       tops.set(node.id, mesh);
       if (lines.length) {
@@ -431,7 +436,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
         }
         for (const place of placers) place(); // arrows and their tip labels follow the scale a frame may have changed
         for (const [id, update] of Object.entries(checked.value.materials)) {
-          for (const material of [surfaces.get(id), strokes.get(id)].filter(Boolean)) {
+          for (const material of [surfaces.get(id), strokes.get(id), fronts.get(id)].filter(Boolean)) {
             if (update.color) material.color.set(update.color);
             if (update.opacity !== undefined) { material.opacity = update.opacity; material.transparent = update.opacity < 1; }
           }
