@@ -489,13 +489,13 @@ Show:
 - syntax-highlighted code;
 - repository/path/revision for repository-backed files;
 - uploaded-file provenance for local uploads;
-- appropriate controls such as Expand, Copy and Add to chat.
+- appropriate controls such as Copy and Add to chat. The card's Expand is the canvas menu's Full content row (owner 2026-11-04, [card-scroll.md](card-scroll.md)).
 
 For repository-backed cards, Open source opens the correct revision and range in the companion panel.
 
 For uploaded files, Open source opens the stored file viewer. Do not invent a repository association.
 
-Long files need a bounded preview and an expanded viewer. Preserve the complete stored file, and clearly indicate when only an excerpt is displayed or supplied to AI.
+Long files need a bounded preview and a Full content layout. Preserve the complete stored file, and clearly indicate when only an excerpt is displayed or supplied to AI.
 
 Code is inert by default. Adding, selecting or opening a code card never executes it.
 
