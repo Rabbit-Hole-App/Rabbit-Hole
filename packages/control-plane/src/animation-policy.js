@@ -156,7 +156,7 @@ export function servedIdentity(role, result, tasks = LEARN_TASKS) {
 export function animationToolInput(role, result, tool) {
   const calls = Array.isArray(result?.content) ? result.content.filter(block => block?.type === 'tool_use') : [];
   if (calls.length !== 1 || calls[0].name !== tool.name) throw new AnimationPolicyError('invalid_turn', `/animation ${role} must return exactly one ${tool.name} call (got ${calls.length}).`, { calls: calls.length });
-  const input = normalizeToolInput(tool.input_schema, calls[0].input, { dropNull: role === 'author' || role === 'repair' }); // FX-AN-058: an optional null is no value; the review's reports are read as they came
+  const input = normalizeToolInput(tool.input_schema, calls[0].input, { dropNull: role === 'author' || role === 'repair', lenient: role === 'author' || role === 'repair' }); // FX-AN-058, FX-AN-059: an optional null is no value, a nearly-JSON string is read once more; the review's reports are read as they came
   if (input == null || typeof input !== 'object' || Array.isArray(input)) throw new AnimationPolicyError('invalid_turn', `/animation ${role} returned a ${tool.name} call without an object input.`);
   return input;
 }
