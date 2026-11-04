@@ -3,7 +3,16 @@ import {switchCardLayout,resizeCardLayout,widthLimits,fitWidth,supportsCardLayou
 test('conversion preserves identity/content/position and restores previous bounded size',()=>{const b={id:'a',type:'explanation',dx:17,dy:42,body:'long',refs:[{id:'r'}]};const f=switchCardLayout(b,'full',{w:480,h:330});assert.equal(f.body,b.body);assert.equal(f.refs,b.refs);assert.equal(f.dx,17);assert.deepEqual(f.cardLayout.slot,{w:480,h:330});const bigger=resizeCardLayout(f,900,9000);const back=switchCardLayout(bigger,'scrollable',{w:900,h:9000});assert.deepEqual(back.cardLayout.scrollableSize,{w:480,h:330});assert.equal(switchCardLayout(back,'full',{w:480,h:330}).cardLayout.fullWidth,900);assert.deepEqual(b,{id:'a',type:'explanation',dx:17,dy:42,body:'long',refs:[{id:'r'}]});});
 test('content minimum raises maximum; preferred width is distinct and valid widths survive',()=>{assert.deepEqual(widthLimits(1600),{min:1600,max:1600});assert.equal(fitWidth(900),900);assert.equal(fitWidth(undefined),720);assert.equal(fitWidth(140,widthLimits(500)),500);});
 test('left-edge resize only changes requested x and width, never derived height or slot',()=>{const b=switchCardLayout({id:'a',type:'snippet',dx:20,dy:30,code:'x'},'full',{w:400,h:200});const n=resizeCardLayout(b,500,4000,-80);assert.equal(n.dx,-80);assert.equal(n.dy,30);assert.deepEqual(n.cardLayout.slot,{w:400,h:200});assert.equal(n.h,undefined);assert.equal(n.code,'x');});
-test('unsupported readers stay unchanged and existing cards default to scrollable',()=>{for(const type of ['paper','notebook','repo-code','video','repo-graph']){const b={type};assert.equal(supportsCardLayout(b),false);assert.equal(switchCardLayout(b,'full',{w:400,h:300}),b);}const b={type:'explanation'};assert.equal(switchCardLayout(b,'scrollable',{}),b);});
+test('unsupported readers stay unchanged and existing cards default to scrollable',()=>{for(const type of ['paper','video','repo-graph']){const b={type};assert.equal(supportsCardLayout(b),false);assert.equal(switchCardLayout(b,'full',{w:400,h:300}),b);}const b={type:'explanation'};assert.equal(switchCardLayout(b,'scrollable',{}),b);});
+
+// Owner 2026-11-04: Full content for the code-like cards, and for no viewer, canvas or interactive card.
+test('Full content applies to code, repo-code and notebook cards and to no viewer or interactive card',()=>{
+ for(const type of ['code','repo-code','notebook']){const b={id:'a',type,dx:3,dy:4};assert.equal(supportsCardLayout(b),true,type);
+  const f=switchCardLayout(b,'full',{w:640,h:540});assert.equal(f.cardLayout.mode,'full',type);assert.deepEqual(f.cardLayout.slot,{w:640,h:540},type);
+  const back=switchCardLayout(f,'scrollable',{w:700,h:900});assert.equal(back.cardLayout.mode,'scrollable');assert.deepEqual(back.cardLayout.scrollableSize,{w:640,h:540},type+': the old size comes back');}
+ for(const type of ['pdf','video','slide','cad','canvas-ref','repo-graph','whiteboard','heading','divider','challenge','explainBack','graph','plot','flow','mermaid']){
+  const b={type};assert.equal(supportsCardLayout(b),false,type);assert.equal(switchCardLayout(b,'full',{w:400,h:300}),b,type);}
+});
 
 test('content-required wide size survives both mode switches',()=>{const wide=resizeCardLayout(switchCardLayout({id:'table',type:'table'},'full',{w:600,h:300}),1600,null,null,1600);const scroll=switchCardLayout(wide,'scrollable',{w:1600,h:900});assert.equal(scroll.cardLayout.fullWidth,1600);assert.equal(switchCardLayout(scroll,'full',{w:600,h:300}).cardLayout.fullWidth,1600);});
 
@@ -94,7 +103,7 @@ test('file cards of kind text, markdown, document, presentation and workbook tak
  for(const kind of ['text','markdown','document','presentation','workbook']) assert.equal(supportsCardLayout({type:'file',kind}),true,kind);
  assert.equal(supportsCardLayout({type:'file',kind:'table'}),false,'a CSV file card is not one of the five');
  assert.equal(supportsCardLayout({type:'file'}),false);
- for(const type of ['pdf','video','slide','cad','canvas-ref','repo-graph','whiteboard','heading','divider','challenge','explainBack','graph','plot','flow','mermaid','code','repo-code','notebook','paper','webpage']){
+ for(const type of ['pdf','video','slide','cad','canvas-ref','repo-graph','whiteboard','heading','divider','challenge','explainBack','graph','plot','flow','mermaid','paper','webpage']){
   assert.equal(supportsCardLayout({type,kind:'markdown'}),false,type);
  }
 });

@@ -108,12 +108,13 @@ const PROGRESS = taskboard('v1').files['src/progress.js'].split('\n'); // as the
 
 // ---------------------------------------------------------------- the browser: no model, nothing off the stack
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/(ask|learn-course)$|learn\/(ask|artifact|assess|grade|home-ask|image|inline\/(generate|route)|journey|scene|transcribe|tts|voice\/|tutor\/|dive|explore|board$)|learn\/boards\/shared\/[^/]+\/(ask|next-steps)$)/;
-const facts = { model: [], outside: [], sourceReads: [], errors: [], colours: {} };
+const facts = { model: [], outside: [], sourceReads: [], errors: [], colours: {}, visitor: false, path: null, ownerVersion: null };
 const browser = await chromium.launch();
 let context = null, page = null;
 // A fresh context: the owner's (signed in) or a signed-out visitor's, theme Light unless the page sets another.
 const fresh = async ({ owner = true } = {}) => {
   await context?.close();
+  facts.visitor = !owner;
   context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, permissions: ['clipboard-read', 'clipboard-write'] });
   if (owner) await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.addInitScript(() => {
@@ -154,6 +155,7 @@ const highlighted = (id, from = 0) => page.waitForFunction(([blockId, first]) =>
   .some(line => Number(line.dataset.codeLine) >= first && line.querySelector('span[style*="--shiki-dark"]')), [id, from], { timeout: 20000 });
 const isDark = () => page.evaluate(() => document.documentElement.classList.contains('dark'));
 const open = async (path, ids = ['cct-code', 'cct-upload', 'cct-plain']) => {
+  facts.path = path;
   await page.goto(`${BASE}${path}`);
   await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
   for (const id of ids) await ready(id);
@@ -190,12 +192,28 @@ const expectPalette = async (id, theme, from = 0) => {
 // A few token kinds by their text, for the report.
 const sample = list => Object.fromEntries([['keyword', t => /^(import|def|class|return|export|function|const)$/.test(t.t.trim())], ['comment', t => t.t.trim().startsWith('#') || t.t.trim().startsWith('//')], ['string', t => /^['"]/.test(t.t.trim())]]
   .map(([kind, test]) => [kind, list.find(test)]).filter(([, token]) => token).map(([kind, token]) => [kind, { text: token.t.trim().slice(0, 40), light: token.light, dark: token.dark, drawn: token.drawn }]));
-// A card's preview, then Expand (the lines past the preview checked too), then Collapse back to the preview, all in `theme`.
+// A card's preview, then Full content (the lines past the preview checked too), then Scrollable back to the preview, all in `theme`.
+// The card's own Expand is the canvas menu's Full content row now (owner 2026-11-04). The owner presses the row. The signed-out /b
+// reader has no menu (a view-only link edits nothing), so there the owner's board is saved with the card in the wanted layout
+// and the link is reloaded: the reader sees the layout the owner saved.
 const PREVIEW = 40;
-const expandTo = async (id, open) => {
-  const button = card(id).locator('[data-code-card-expand]');
-  if ((await button.getAttribute('aria-expanded')) !== String(open)) await button.click();
-  await page.waitForFunction(([blockId, want]) => document.querySelector(`[data-block-id="${blockId}"] [data-code-card-expand]`)?.getAttribute('aria-expanded') === want, [id, String(open)]);
+const layoutOf = (full, size) => ({ mode: full ? 'full' : 'scrollable', scrollableSize: size, fullWidth: size.w, slot: size });
+const storeLayout = async (id, full) => {
+  const board = (await api(`/api/learn/boards/${canvas}/main`)).body;
+  const state = { ...board.state, blocks: board.state.blocks.map(block => (block.id === id ? { ...block, cardLayout: layoutOf(full, { w: 480, h: 320 }) } : block)) };
+  const saved = await api(`/api/learn/boards/${canvas}/main`, { method: 'PUT', body: JSON.stringify({ state }) });
+  assert.equal(saved.status, 200, saved.text.slice(0, 200));
+  facts.ownerVersion = (await api(`/api/learn/boards/${canvas}/main`)).body.version;
+  await open(facts.path);
+};
+const expandTo = async (id, full) => {
+  if (facts.visitor) return storeLayout(id, full);
+  const block = page.locator(`[aria-label="Lesson canvas"] [data-block-id="${id}"]`), mode = full ? 'full' : 'scrollable';
+  if ((await block.getAttribute('data-card-layout')) !== mode) {
+    await block.locator('[data-drag-handle]').first().click({ button: 'right' });
+    await page.getByRole('menuitemcheckbox', { name: 'Full content', exact: true }).click();
+  }
+  await page.waitForFunction(([blockId, want]) => document.querySelector(`[data-block-id="${blockId}"]`)?.getAttribute('data-card-layout') === want, [id, mode]);
 };
 const palette = async (theme, key) => {
   assert.equal(await isDark(), theme === 'dark', `the page is ${theme}`);
@@ -325,11 +343,10 @@ await check('10 the /b link with Dark chosen on this device: both cards, collaps
 });
 
 await check('11 the /b link back in Light: the inline light colours again, and the owner\'s saved canvas was not changed by the link', async () => {
-  const before = (await api(`/api/learn/boards/${canvas}/main`)).body.version;
   await page.evaluate(() => localStorage.setItem('small.theme', 'light'));
   await open(`/b/${TOKEN}`);
   await palette('light', 'link light again');
-  assert.equal((await api(`/api/learn/boards/${canvas}/main`)).body.version, before, 'expanding on the link saved nothing');
+  assert.equal((await api(`/api/learn/boards/${canvas}/main`)).body.version, facts.ownerVersion, 'viewing the link saved nothing: the board is as the owner last saved it');
 });
 
 // ================================================================ a codebase Tutor activity (codebase-citations)

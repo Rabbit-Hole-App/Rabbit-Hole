@@ -9,3 +9,5 @@
 [data-card-layout="full"] img { max-width: 100%; height: auto; object-fit: contain; }
 /* A workbook's grid keeps its horizontal scroll (its columns are drawn by window); its rows are all drawn, so it has no vertical one. */
 [data-card-layout="full"] [data-file-doc-table] { overflow-x: auto; }
+/* A code card's lines wrap visually (the stored source and Copy keep their real line breaks); the line number stays at the left. */
+[data-card-layout="full"] [data-code-line] > span:last-child { white-space: pre-wrap; overflow-wrap: anywhere; }
