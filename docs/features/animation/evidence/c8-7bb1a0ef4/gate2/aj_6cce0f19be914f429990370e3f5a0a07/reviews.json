@@ -1,0 +1,295 @@
+[
+ {
+  "at": 1793769135630,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "7a95adfcb3f04f1a2d9556de59fd84418dd965b3b5e9f15b2fbddb90ef08170b",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "base",
+       "message": "The grey 'Start row slider' block floats unlabelled at y≈0.05 outside and below the bowl at the lower right. It looks like a stray object. Label it or attach it to the bowl rim.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan says the same noise sequence repeats after Reset. The artifact's assumptions say both 'after Reset the same noise repeats' and that 'Clear path and restart' uses a new noise sequence (run+1). Reconcile the wording or the behaviour. Not sampled: noise 0, stretch 1 and 10, flag drag and the 200-update stop.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepTag",
+       "message": "Near the minimum, the true-length arrows shrink to near-invisible ticks, but the 'Step taken' and 'True downhill' labels stay full size. They crowd the ball and the 'Minimum' label, so each label is much larger than the arrow it names. Hide or fade the arrow labels when an arrow is shorter than its label, keeping the true-length scale.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "minTag",
+       "message": "The diverged trail runs underneath the 'Minimum' label.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "trueTag",
+       "message": "Same problem from this angle: 'True downhill' and 'Step taken' labels sit on either side of the ball. They name arrows that are almost invisible near the minimum and clutter the minimum area.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 14282,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4900,
+   "output_tokens_details": {
+    "thinking_tokens": 3497
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_6cce0f19be914f429990370e3f5a0a07-review-4",
+   "status": "settled",
+   "costMicros": 155549,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793769263261,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "08eafbc5fae472e7feced1c18804676a5a75982af1e76559e3ec8e6c23394620",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "trueTag",
+       "message": "At the default state the grey true-downhill arrow is drawn at 2×0.288≈0.58, below the 0.6 label threshold, so it appears unlabelled; a learner cannot tell what the grey arrow is without reading the description. Lower the threshold or always label it.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "ball",
+       "message": "Before a run the ball sits on the flag pole and partly hides it.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "flag",
+       "message": "Plan says the flag can be dragged anywhere on the bowl; here the flag only moves in x and the start's z position is moved with a separate block floating off the right rim. It works but is less direct than promised.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: noise 0, stretch 1/10, learningRate 0.01, toggle off, drags, or a full 200-update run reaching converged/stopped.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "ball",
+       "message": "On divergence the ball is drawn clamped at the bowl rim while the loss (5.104) and distance readouts give its true off-bowl position. This is disclosed, but the picture and readouts disagree slightly; a note in the status would help.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 14480,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3797,
+   "output_tokens_details": {
+    "thinking_tokens": 2144
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_6cce0f19be914f429990370e3f5a0a07-review-6",
+   "status": "settled",
+   "costMicros": 134281,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

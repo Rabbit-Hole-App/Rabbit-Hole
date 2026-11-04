@@ -1,0 +1,279 @@
+[
+ {
+  "at": 1793769253447,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "cdb60f8288e5fa8682086096200892ee86963400f3b190ca2df302c07f10be74",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The default camera at (6,7.5,7.5) looks down the bowl at an angle where the ball's horizontal and vertical offsets cancel on screen. The start (2.5, 1.5), at loss 8.75, ends up only about 60 px from the 'Lowest point' dot, and the whole descent covers a few dozen pixels inside a large surface. The tall bowl walls dwarf the path that is the subject. Use a higher, more overhead camera, or the side camera, which shows the path clearly, and frame it on the region the path covers.",
+       "object": "camera",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan says the learner can drag the ball to choose where descent starts. The artifact only allows dragging along x and keeps y fixed. This is disclosed, but it limits the start points a learner can pick. Dragging was not sampled.",
+       "object": "ball",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "In the default view, the 14-step smooth descent from (2.5,1.5) to (1.22,0.03) shrinks to a short orange stub of about 20 px next to the ball. The smooth curved path that this learning-rate setting should teach cannot be seen. The 'Next step' label sits right under the ball, on top of the trail. The values match the formula (x=2.5·0.95^14, y=1.5·0.75^14, L=0.745).",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "At learning rate 0.25 the zig-zag across y is the key lesson. In the default view it is squashed into a tiny V, and the 'Lowest point' label sits over the converged ball and the end of the trail. Fix the camera framing, and move the minimum label (or hide it when the ball reaches the minimum) so it does not cover the path. The converged readouts are correct: L=0.00099 after 14 steps.",
+       "object": "lowTag",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "These states were not sampled: divergence (k>8 at learning rate 0.25), the low learning-rate end, dragging, and New run with the ghost trail. The divergence clamp and the ghost trail are unverified.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 12810,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4486,
+   "output_tokens_details": {
+    "thinking_tokens": 3458
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_1a6967880529492c81db26f7a16d72c3-review-3",
+   "status": "settled",
+   "costMicros": 141381,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793769374713,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "425d2e0868c6c2eee561f069e9bf1d180e174f3f3e345501e61c2bc700a4374a",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Dragging moves the start along x only (y kept), while the plan says the learner drags the ball to choose where descent starts. This is disclosed in the assumptions, but it limits which starting points the learner can choose.",
+       "object": "ball",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The step arrow and the run trail share the same orange material, so where the arrow sits on the trail the two are hard to tell apart.",
+       "object": "arrow",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: the divergence case (learning rate > 2/k, which here needs k > 8) and the low ends of the parameters. The ball held at the surface edge and the 'diverged' status could not be checked from these captures.",
+       "object": "ball",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 12805,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3222,
+   "output_tokens_details": {
+    "thinking_tokens": 1916
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_1a6967880529492c81db26f7a16d72c3-review-5",
+   "status": "settled",
+   "costMicros": 116081,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

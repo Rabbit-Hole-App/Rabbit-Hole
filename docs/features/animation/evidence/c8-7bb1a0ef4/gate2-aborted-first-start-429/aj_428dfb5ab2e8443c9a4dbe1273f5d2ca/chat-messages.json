@@ -1,0 +1,119 @@
+[
+ {
+  "messageId": "251",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-af8d7bca505202ef",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient descent on a bowl: when the learning rate is too high",
+    "description": "A ball sits on a bowl-shaped loss surface that is steep one way and gentle the other, and takes gradient descent steps toward the lowest point, leaving a path. Each step goes downhill, and its length is the learning rate times the slope. An arrow on the ball shows the next step before it is taken. With a small learning rate the path slides into the bottom. As you raise it, the path zig-zags across the steep direction, then bounces between the walls without settling, and above a clear threshold each bounce lands higher than the last until the ball flies off the surface.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-602368ec",
+     "job": "aj_428dfb5ab2e8443c9a4dbe1273f5d2ca",
+     "plan_hash": "5dbcadf71ad0d7a5c9ec52238747e886a51b9233459e633ec84bcf6808962f5c",
+     "request": "show me why a high learning rate diverges",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate",
+        "min": 0.01,
+        "max": 0.35,
+        "step": 0.01,
+        "default": 0.2
+       },
+       {
+        "type": "toggle",
+        "label": "Show next-step arrow",
+        "default": true
+       }
+      ],
+      "interactions": [
+       "Drag the learning rate: below 0.25 the path settles (zig-zagging above 0.125), at 0.25 it bounces between the walls forever, above 0.25 each bounce grows until it leaves the surface",
+       "Play, pause or advance one step at a time to watch each step land",
+       "Use 'Restart from start point' to clear the path and run again with the current learning rate kept",
+       "Read the step count, the current loss, and the stretch factor: how much each step multiplies the ball's distance from the bottom along the steep direction",
+       "Turn the next-step arrow on or off"
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793855180,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "show me why a high learning rate diverges",
+    "prompt": "A ball sits on a bowl-shaped loss surface that is steep one way and gentle the other, and takes gradient descent steps toward the lowest point, leaving a path. Each step goes downhill, and its length is the learning rate times the slope. An arrow on the ball shows the next step before it is taken. With a small learning rate the path slides into the bottom. As you raise it, the path zig-zags across the steep direction, then bounces between the walls without settling, and above a clear threshold each bounce lands higher than the last until the ball flies off the surface.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Divergence makes sense once you see one step overshoot the bottom and land higher on the far wall. Changing the learning rate and watching the path change from a slide to a zig-zag to an explosion shows exactly where that happens.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Drag the learning rate: below 0.25 the path settles (zig-zagging above 0.125), at 0.25 it bounces between the walls forever, above 0.25 each bounce grows until it leaves the surface",
+     "Interaction: Play, pause or advance one step at a time to watch each step land",
+     "Interaction: Use 'Restart from start point' to clear the path and run again with the current learning rate kept",
+     "Interaction: Read the step count, the current loss, and the stretch factor: how much each step multiplies the ball's distance from the bottom along the steep direction",
+     "Interaction: Turn the next-step arrow on or off",
+     "Parameter: Learning rate, 0.01 to 0.35, default 0.2",
+     "Parameter: Show next-step arrow",
+     "Goal: A step that is too large overshoots the bottom along the steepest direction. When the overshoot lands further from the bottom than the ball started, each step makes the error bigger and gradient descent diverges."
+    ],
+    "assumptions": [
+     "Illustration: a simple made-up bowl, not the loss of a real trained model.",
+     "The loss is x² + 4y², so the slope is 2x in the gentle direction and 8y in the steep direction. Each step subtracts the learning rate times the slope.",
+     "Along the steep direction each step multiplies the distance from the bottom by (1 − 8 × learning rate). Along the gentle direction it multiplies it by (1 − 2 × learning rate). Once the size of either factor is above 1, the ball moves further away with every step: that is divergence.",
+     "The ball always starts from the same point (x = 2.5, y = 1) and takes at most 60 steps.",
+     "The ball is drawn on the surface at the height of its current loss, and the arrow shows the actual next step (minus the slope times the learning rate), not the slope itself."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "On this bowl the thresholds are exact: zig-zag above 0.125, a lasting bounce at 0.25, divergence above 0.25. On real losses the curvature changes from place to place, so the safe learning rate is only roughly set by the steepest direction.",
+     "When the ball leaves the drawn area of the surface, the run stops and is marked as diverged instead of following it to infinity.",
+     "There is no noise, momentum or adaptive optimizer, only plain gradient descent."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-602368ec"
+    },
+    "quote": null,
+    "review_hash": "9e91b9b9b05be10129a7c62ba69913b661ac2228513e5870b0b05b0ca1b69b04",
+    "sig": "v3.ff2cd15e77a327c9769d7cf1c37794b81ee51b5fe37fdcd5170c143e8554c76a",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 373,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.ff2cd15e77a327c9769d7cf1c37794b81ee51b5fe37fdcd5170c143e8554c76a",
+    "used": {
+     "version": 1,
+     "key": "aj_428dfb5ab2e8443c9a4dbe1273f5d2ca"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "251"
+   ],
+   "feedback": null
+  }
+ }
+]

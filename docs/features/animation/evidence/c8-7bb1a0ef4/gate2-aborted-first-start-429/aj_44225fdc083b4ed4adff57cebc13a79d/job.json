@@ -1,0 +1,150 @@
+{
+ "id": "aj_44225fdc083b4ed4adff57cebc13a79d",
+ "version": 1,
+ "boardId": "9182cfef-9a8c-4eb2-a92b-899c1801c742",
+ "cardId": "d491d184-dadd-4e4f-acfe-891d0a091cf8",
+ "stage": "cancelled",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 0,
+ "stopReason": "stopped",
+ "failure": null,
+ "recovery": [],
+ "outcome": "supported",
+ "choiceOpen": false,
+ "threadId": "canvaschat-78ca9e7b-2153-44f3-b0cc-c8791f11d8c9",
+ "chatPending": false,
+ "usage": {
+  "credits": 12,
+  "unknown": false,
+  "note": "You have not been charged."
+ },
+ "result": null,
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Gradient descent on a bowl: two learning rates side by side",
+  "description": "A stretched bowl-shaped loss surface, drawn with contour lines, has its lowest point marked at the center. Two balls, blue and orange, start from the same spot, and each one runs gradient descent with its own learning rate. Each step moves a ball downhill against the local slope by its learning rate times the gradient, and leaves a trail behind it. The learner watches one ball creep, the other zigzag or shoot past the minimum, and compares their loss readouts step by step.",
+  "experience": "experiment",
+  "reason": "Running both learning rates on the same surface from the same start shows directly how step size decides between slow progress, fast progress, zigzagging and divergence. You can change either rate and rerun the race.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "lrA",
+    "label": "Learning rate, blue ball",
+    "min": 0.01,
+    "max": 0.5,
+    "step": 0.01,
+    "default": 0.05
+   },
+   {
+    "type": "number",
+    "id": "lrB",
+    "label": "Learning rate, orange ball",
+    "min": 0.01,
+    "max": 0.5,
+    "step": 0.01,
+    "default": 0.35
+   },
+   {
+    "type": "toggle",
+    "id": "showGradient",
+    "label": "Show downhill arrows",
+    "default": true
+   }
+  ],
+  "interactions": [
+   "Set each ball's learning rate: small rates take short, smooth steps; larger ones zigzag across the bowl's narrow direction; above 0.4 each step overshoots further and the ball escapes.",
+   "Play, pause or single-step the descent and watch both trails and loss readouts update together.",
+   "Turn on arrows on each ball that point downhill, opposite to the gradient. They show the direction and length of the next move before it is scaled by the learning rate.",
+   "Use 'Restart descent' to clear both trails and send the balls back to the start while keeping the learning rates you set."
+  ],
+  "assumptions": [
+   "Illustration: a made-up bowl-shaped loss, not a real trained model.",
+   "The loss is loss = ½(x² + 5y²). It is 5 times steeper in one direction than the other, so its single minimum is at the center.",
+   "Each update is exact gradient descent with no noise and no momentum: new position = old position − learning rate × gradient.",
+   "Both balls start at the same point, (−3, 1.5), and run at most 60 steps.",
+   "On this surface the descent settles when the learning rate is below 0.4 and diverges above it. Rates between 0.2 and 0.4 zigzag across the steep direction but still settle.",
+   "If a ball leaves the drawn area, it stops at the edge, is labeled 'diverged', and its loss readout shows that it escaped."
+  ],
+  "limitations": [
+   "Real loss surfaces have many dimensions, flat regions and multiple dips. This simple bowl has one minimum, so it shows step-size effects but not local minima.",
+   "The exact threshold of 0.4 belongs to this surface's steepness. A real problem's safe learning rate depends on its own curvature."
+  ],
+  "learningGoal": "See that the learning rate controls step size: too small converges slowly, moderate converges fast, larger zigzags, and beyond a limit set by the surface's steepness the descent diverges.",
+  "requiredCapabilities": [
+   "step",
+   "parameters",
+   "actions",
+   "readouts",
+   "labels",
+   "speed"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "lrB",
+    "values": [
+     0.05,
+     0.45
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 60
+   }
+  ]
+ },
+ "planHash": "797727a7abef015d8f6e960b17c7481c876c8b8670a96d5077cef5b9a77a27a0",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 38196,
+  "generateToResultMs": null,
+  "processingMs": 50925,
+  "approvalWaitMs": 1315,
+  "calls": 2,
+  "repairs": 0,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 38146,
+    "calls": 2,
+    "inputTokens": 2004,
+    "outputTokens": 4011,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 1315,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 12779,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "stopped"
+   }
+  ]
+ },
+ "createdAt": 1793768741912,
+ "updatedAt": 1793768867169
+}

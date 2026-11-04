@@ -1,0 +1,17 @@
+{
+ "n": 1,
+ "phrasing": "stochastic gradient descent",
+ "session": "gate4-1@example.com",
+ "sha": "7bb1a0ef4211ea45ecd3a53ccd6770d76080e8d3",
+ "version": "7c545e95-ecef-4418-a070-0709ef1ddec7",
+ "jobId": "aj_a43c70b6269e4e04976d882faaa986b3",
+ "outcome": "rejected",
+ "repairs": 1,
+ "credits": 68.9737,
+ "charged": 10,
+ "artifactHash": null,
+ "note": "unsupported_repair: The scene did not pass its checks. You have not been charged. It needs a change the automatic correction cannot make. Revise plan prepares a simpler plan from y",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 9:12 PM"
+}

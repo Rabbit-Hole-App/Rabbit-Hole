@@ -1,0 +1,511 @@
+{
+ "job": {
+  "id": "aj_9229dcfe14a54f138676d4e095236b30",
+  "version": 1,
+  "boardId": "076d4619-64a3-41e8-81c3-3a2bb740cc93",
+  "cardId": "c9e65ebb-f3f9-49b7-8890-5fc9fb27839b",
+  "stage": "cancelled",
+  "attempt": 1,
+  "terminal": true,
+  "repairs": 0,
+  "stopReason": "stopped",
+  "failure": null,
+  "recovery": [],
+  "outcome": "changes",
+  "choiceOpen": false,
+  "threadId": "canvaschat-3ffd3897-8f9a-48e5-80a6-65c3bbbb56e4",
+  "chatPending": false,
+  "usage": {
+   "credits": 8,
+   "unknown": false,
+   "note": "You have not been charged."
+  },
+  "result": null,
+  "plan": {
+   "schema": "animation-plan/1",
+   "title": "Stochastic gradient descent on a toy loss surface",
+   "description": "A ball sits on a bowl-shaped loss surface. The bowl is stretched in one direction and is the average of 32 small bowls, one for each made-up data point. Each step, the ball moves downhill using the slope of only a few randomly picked points (a mini-batch) and leaves a trail. Two arrows show the downhill direction from all the data and the direction this mini-batch chose, so you can see how they differ. Change the step size and the batch size, or drag the ball to a new start, and watch the path go from smooth to jittery and from settled to restless.",
+   "experience": "experiment",
+   "reason": "The key idea of stochastic gradient descent is how noise from small batches trades off against step size. You understand that best by changing those settings yourself and comparing the paths they leave.",
+   "behavior": "rules",
+   "controlProfile": "manipulate",
+   "sourceRefs": [],
+   "parameters": [
+    {
+     "type": "number",
+     "id": "learningRate",
+     "label": "Learning rate (step size)",
+     "min": 0.02,
+     "max": 0.45,
+     "step": 0.01,
+     "default": 0.1
+    },
+    {
+     "type": "select",
+     "id": "batchSize",
+     "label": "Batch size",
+     "options": [
+      {
+       "value": "1",
+       "label": "1 point (pure SGD)"
+      },
+      {
+       "value": "4",
+       "label": "4 points"
+      },
+      {
+       "value": "16",
+       "label": "16 points"
+      },
+      {
+       "value": "32",
+       "label": "All 32 (plain gradient descent)"
+      }
+     ],
+     "default": "4"
+    },
+    {
+     "type": "toggle",
+     "id": "decay",
+     "label": "Shrink step size over time",
+     "default": false
+    }
+   ],
+   "interactions": [
+    "Play or pause the steps. Each step draws a new random mini-batch and moves the ball once, for up to 200 steps.",
+    "Learning rate: small values give short, careful steps. Near the top of the range the ball zig-zags across the steep direction of the bowl, and the jitter around the bottom gets bigger.",
+    "Batch size: 1 point gives the noisiest path. All 32 gives a smooth path where the two arrows always point the same way.",
+    "Shrink step size: each step gets smaller over time, so the jitter near the bottom dies down and the ball settles closer to the minimum.",
+    "Drag the ball to a new starting point on the surface.",
+    "Clear trail: removes the path drawn so far but leaves the ball, the step count and the settings as they are."
+   ],
+   "assumptions": [
+    "Illustration: a made-up two-parameter loss built from 32 synthetic data points, not a real trained model.",
+    "Each data point's loss is a simple stretched bowl centred near the others, and the total loss is their average. The lowest point of the total is the average of those centres.",
+    "Each step moves the ball against the average slope of the sampled points: new position = old position − learning rate × mini-batch slope.",
+    "Mini-batches are drawn without repeats from a fixed random seed, so Reset replays the same sequence.",
+    "Readouts show the step number, the total loss at the ball, and the ball's distance from the true minimum.",
+    "With step shrinking turned on, the step size at step t is the learning rate ÷ (1 + 0.02 t).",
+    "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+   ],
+   "limitations": [
+    "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+    "A single step can raise the total loss when the mini-batch points the wrong way. Loss falls on average, not on every step.",
+    "Real models have millions of parameters and bumpy surfaces with many valleys. This bowl has one minimum and only two parameters, so it can be drawn.",
+    "At a fixed learning rate, a batch smaller than 32 never settles exactly at the minimum. It keeps jittering nearby, which is real behaviour and not an error.",
+    "The learning rate range stops below the value where steps would blow up and leave the surface, so the scene stays readable."
+   ],
+   "learningGoal": "See that stochastic gradient descent follows a noisy estimate of the true downhill direction. Smaller batches and bigger steps add jitter, and shrinking the step size lets the ball settle.",
+   "requiredCapabilities": [
+    "parameters",
+    "actions",
+    "step",
+    "drag",
+    "labels",
+    "readouts"
+   ],
+   "archetype": "loss_surface",
+   "assertions": [
+    {
+     "kind": "clamp"
+    },
+    {
+     "kind": "compare",
+     "parameter": "learningRate",
+     "values": [
+      0.02,
+      0.45
+     ]
+    },
+    {
+     "kind": "pathLength",
+     "min": 2
+    }
+   ]
+  },
+  "planHash": "2cbda19f665ca222f6c5720de016a915e1b051d6b124b44fb922cc140416fa00",
+  "timing": {
+   "requestClass": "simple",
+   "cache": null,
+   "firstFeedbackMs": 50,
+   "proposalMs": 26462,
+   "generateToResultMs": null,
+   "processingMs": 47863,
+   "approvalWaitMs": 4621,
+   "calls": 1,
+   "repairs": 0,
+   "stages": [
+    {
+     "stage": "preparing",
+     "ms": 26412,
+     "calls": 1,
+     "inputTokens": 370,
+     "outputTokens": 2518,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "awaiting_approval",
+     "ms": 4621,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": null
+    },
+    {
+     "stage": "authoring",
+     "ms": 21451,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": "stopped"
+    }
+   ]
+  },
+  "createdAt": 1793768741678,
+  "updatedAt": 1793768879261
+ },
+ "diagnostics": {
+  "plan": {
+   "schema": "animation-plan/1",
+   "title": "Stochastic gradient descent on a toy loss surface",
+   "description": "A ball sits on a bowl-shaped loss surface. The bowl is stretched in one direction and is the average of 32 small bowls, one for each made-up data point. Each step, the ball moves downhill using the slope of only a few randomly picked points (a mini-batch) and leaves a trail. Two arrows show the downhill direction from all the data and the direction this mini-batch chose, so you can see how they differ. Change the step size and the batch size, or drag the ball to a new start, and watch the path go from smooth to jittery and from settled to restless.",
+   "experience": "experiment",
+   "reason": "The key idea of stochastic gradient descent is how noise from small batches trades off against step size. You understand that best by changing those settings yourself and comparing the paths they leave.",
+   "behavior": "rules",
+   "controlProfile": "manipulate",
+   "sourceRefs": [],
+   "parameters": [
+    {
+     "type": "number",
+     "id": "learningRate",
+     "label": "Learning rate (step size)",
+     "min": 0.02,
+     "max": 0.45,
+     "step": 0.01,
+     "default": 0.1
+    },
+    {
+     "type": "select",
+     "id": "batchSize",
+     "label": "Batch size",
+     "options": [
+      {
+       "value": "1",
+       "label": "1 point (pure SGD)"
+      },
+      {
+       "value": "4",
+       "label": "4 points"
+      },
+      {
+       "value": "16",
+       "label": "16 points"
+      },
+      {
+       "value": "32",
+       "label": "All 32 (plain gradient descent)"
+      }
+     ],
+     "default": "4"
+    },
+    {
+     "type": "toggle",
+     "id": "decay",
+     "label": "Shrink step size over time",
+     "default": false
+    }
+   ],
+   "interactions": [
+    "Play or pause the steps. Each step draws a new random mini-batch and moves the ball once, for up to 200 steps.",
+    "Learning rate: small values give short, careful steps. Near the top of the range the ball zig-zags across the steep direction of the bowl, and the jitter around the bottom gets bigger.",
+    "Batch size: 1 point gives the noisiest path. All 32 gives a smooth path where the two arrows always point the same way.",
+    "Shrink step size: each step gets smaller over time, so the jitter near the bottom dies down and the ball settles closer to the minimum.",
+    "Drag the ball to a new starting point on the surface.",
+    "Clear trail: removes the path drawn so far but leaves the ball, the step count and the settings as they are."
+   ],
+   "assumptions": [
+    "Illustration: a made-up two-parameter loss built from 32 synthetic data points, not a real trained model.",
+    "Each data point's loss is a simple stretched bowl centred near the others, and the total loss is their average. The lowest point of the total is the average of those centres.",
+    "Each step moves the ball against the average slope of the sampled points: new position = old position − learning rate × mini-batch slope.",
+    "Mini-batches are drawn without repeats from a fixed random seed, so Reset replays the same sequence.",
+    "Readouts show the step number, the total loss at the ball, and the ball's distance from the true minimum.",
+    "With step shrinking turned on, the step size at step t is the learning rate ÷ (1 + 0.02 t).",
+    "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+   ],
+   "limitations": [
+    "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+    "A single step can raise the total loss when the mini-batch points the wrong way. Loss falls on average, not on every step.",
+    "Real models have millions of parameters and bumpy surfaces with many valleys. This bowl has one minimum and only two parameters, so it can be drawn.",
+    "At a fixed learning rate, a batch smaller than 32 never settles exactly at the minimum. It keeps jittering nearby, which is real behaviour and not an error.",
+    "The learning rate range stops below the value where steps would blow up and leave the surface, so the scene stays readable."
+   ],
+   "learningGoal": "See that stochastic gradient descent follows a noisy estimate of the true downhill direction. Smaller batches and bigger steps add jitter, and shrinking the step size lets the ball settle.",
+   "requiredCapabilities": [
+    "parameters",
+    "actions",
+    "step",
+    "drag",
+    "labels",
+    "readouts"
+   ],
+   "archetype": "loss_surface",
+   "assertions": [
+    {
+     "kind": "clamp"
+    },
+    {
+     "kind": "compare",
+     "parameter": "learningRate",
+     "values": [
+      0.02,
+      0.45
+     ]
+    },
+    {
+     "kind": "pathLength",
+     "min": 2
+    }
+   ]
+  },
+  "draft": null,
+  "artifactHash": null,
+  "artifact": null,
+  "findings": [],
+  "reviews": [],
+  "candidates": [
+   {
+    "stage": "preparing",
+    "input": {
+     "title": "Stochastic gradient descent on a toy loss surface",
+     "description": "A ball sits on a bowl-shaped loss surface. The bowl is stretched in one direction and is the average of 32 small bowls, one for each made-up data point. Each step, the ball moves downhill using the slope of only a few randomly picked points (a mini-batch) and leaves a trail. Two arrows show the downhill direction from all the data and the direction this mini-batch chose, so you can see how they differ. Change the step size and the batch size, or drag the ball to a new start, and watch the path go from smooth to jittery and from settled to restless.",
+     "experience": "experiment",
+     "reason": "The key idea of stochastic gradient descent is how noise from small batches trades off against step size. You understand that best by changing those settings yourself and comparing the paths they leave.",
+     "behavior": "rules",
+     "controlProfile": "manipulate",
+     "archetype": "loss_surface",
+     "parameters": [
+      {
+       "type": "number",
+       "id": "learningRate",
+       "label": "Learning rate (step size)",
+       "min": 0.02,
+       "max": 0.45,
+       "default": 0.1,
+       "step": 0.01
+      },
+      {
+       "type": "select",
+       "id": "batchSize",
+       "label": "Batch size",
+       "default": "4",
+       "options": [
+        {
+         "value": "1",
+         "label": "1 point (pure SGD)"
+        },
+        {
+         "value": "4",
+         "label": "4 points"
+        },
+        {
+         "value": "16",
+         "label": "16 points"
+        },
+        {
+         "value": "32",
+         "label": "All 32 (plain gradient descent)"
+        }
+       ]
+      },
+      {
+       "type": "toggle",
+       "id": "decay",
+       "label": "Shrink step size over time",
+       "default": false
+      }
+     ],
+     "interactions": [
+      "Play or pause the steps. Each step draws a new random mini-batch and moves the ball once, for up to 200 steps.",
+      "Learning rate: small values give short, careful steps. Near the top of the range the ball zig-zags across the steep direction of the bowl, and the jitter around the bottom gets bigger.",
+      "Batch size: 1 point gives the noisiest path. All 32 gives a smooth path where the two arrows always point the same way.",
+      "Shrink step size: each step gets smaller over time, so the jitter near the bottom dies down and the ball settles closer to the minimum.",
+      "Drag the ball to a new starting point on the surface.",
+      "Clear trail: removes the path drawn so far but leaves the ball, the step count and the settings as they are."
+     ],
+     "assumptions": [
+      "Illustration: a made-up two-parameter loss built from 32 synthetic data points, not a real trained model.",
+      "Each data point's loss is a simple stretched bowl centred near the others, and the total loss is their average. The lowest point of the total is the average of those centres.",
+      "Each step moves the ball against the average slope of the sampled points: new position = old position − learning rate × mini-batch slope.",
+      "Mini-batches are drawn without repeats from a fixed random seed, so Reset replays the same sequence.",
+      "Readouts show the step number, the total loss at the ball, and the ball's distance from the true minimum.",
+      "With step shrinking turned on, the step size at step t is the learning rate ÷ (1 + 0.02 t)."
+     ],
+     "limitations": [
+      "A single step can raise the total loss when the mini-batch points the wrong way. Loss falls on average, not on every step.",
+      "Real models have millions of parameters and bumpy surfaces with many valleys. This bowl has one minimum and only two parameters, so it can be drawn.",
+      "At a fixed learning rate, a batch smaller than 32 never settles exactly at the minimum. It keeps jittering nearby, which is real behaviour and not an error.",
+      "The learning rate range stops below the value where steps would blow up and leave the surface, so the scene stays readable."
+     ],
+     "requiredCapabilities": [
+      "parameters",
+      "actions",
+      "step",
+      "drag",
+      "labels",
+      "readouts"
+     ],
+     "requested": {
+      "features": []
+     },
+     "learningGoal": "See that stochastic gradient descent follows a noisy estimate of the true downhill direction. Smaller batches and bigger steps add jitter, and shrinking the step size lets the ball settle.",
+     "assertions": [
+      {
+       "kind": "clamp"
+      },
+      {
+       "kind": "compare",
+       "parameter": "learningRate",
+       "values": [
+        0.02,
+        0.45
+       ]
+      },
+      {
+       "kind": "pathLength",
+       "min": 2
+      }
+     ]
+    },
+    "issues": []
+   }
+  ],
+  "calls": [
+   {
+    "key": "aj_9229dcfe14a54f138676d4e095236b30-brief-1",
+    "role": "brief",
+    "phase": "preparation",
+    "attempt": 1,
+    "streamed": false,
+    "requested": "claude-opus-5-5",
+    "served": "claude-opus-5-5",
+    "status": "settled",
+    "boundMicros": 156145,
+    "images": 0,
+    "costMicros": 75605,
+    "inputTokens": 370,
+    "outputTokens": 2518,
+    "startedAt": 1793768742728,
+    "endedAt": 1793768768073,
+    "stopReason": "tool_use",
+    "error": null,
+    "blocks": [
+     {
+      "type": "thinking"
+     },
+     {
+      "type": "tool_use",
+      "name": "animation_plan",
+      "chars": 3931
+     }
+    ]
+   },
+   {
+    "key": "aj_9229dcfe14a54f138676d4e095236b30-author-2",
+    "role": "author",
+    "phase": "generation",
+    "attempt": 1,
+    "streamed": true,
+    "requested": "claude-opus-5-5",
+    "served": "claude-opus-5-5",
+    "status": "settled",
+    "boundMicros": 681550,
+    "images": 0,
+    "costMicros": 284765,
+    "inputTokens": 7887,
+    "outputTokens": 12580,
+    "startedAt": 1793768772811,
+    "endedAt": 1793768879261,
+    "stopReason": "tool_use",
+    "error": null,
+    "blocks": [
+     {
+      "type": "thinking"
+     },
+     {
+      "type": "tool_use",
+      "name": "animation_artifact",
+      "chars": 10061
+     }
+    ]
+   }
+  ],
+  "captures": [],
+  "coverage": null,
+  "gap": null,
+  "estimate": {
+   "bytes": 20370,
+   "limit": 14560
+  },
+  "counts": {
+   "brief": 1,
+   "author": 1,
+   "review": 0,
+   "repair": 0
+  },
+  "bounds": {
+   "preparation": 156145,
+   "generation": 681550
+  },
+  "timing": {
+   "requestClass": "simple",
+   "cache": null,
+   "marks": {
+    "submitted": 1793768741678,
+    "firstFeedback": 1793768741728,
+    "proposalReady": 1793768768140,
+    "generate": 1793768772761
+   },
+   "stages": [
+    {
+     "stage": "preparing",
+     "startedAt": 1793768741728,
+     "endedAt": 1793768768140,
+     "calls": 1,
+     "inputTokens": 370,
+     "outputTokens": 2518,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "awaiting_approval",
+     "startedAt": 1793768768140,
+     "endedAt": 1793768772761,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": null
+    },
+    {
+     "stage": "authoring",
+     "startedAt": 1793768772761,
+     "endedAt": 1793768794212,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": "stopped"
+    }
+   ]
+  }
+ }
+}

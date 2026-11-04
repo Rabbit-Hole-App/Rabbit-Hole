@@ -1,0 +1,17 @@
+{
+ "n": 5,
+ "phrasing": "a ball rolling down a loss surface, step by step",
+ "session": "gate2-5@example.com",
+ "sha": "7bb1a0ef4211ea45ecd3a53ccd6770d76080e8d3",
+ "version": "7c545e95-ecef-4418-a070-0709ef1ddec7",
+ "jobId": "aj_1b4cdb8db88446e48bbf9219945d64eb",
+ "outcome": "stopped",
+ "repairs": 0,
+ "credits": 58.3066,
+ "charged": 8,
+ "artifactHash": null,
+ "note": "file: stop file C:\\s\\spec\\animation\\sgd-mvp1-acceptance\\release-3-c8\\STOP",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 9:09 PM"
+}

@@ -1,0 +1,234 @@
+{
+ "id": "aj_1a6967880529492c81db26f7a16d72c3",
+ "version": 1,
+ "boardId": "d4808158-25d7-435f-8a32-b94309ba5255",
+ "cardId": "174c20d4-8a00-4833-a1b3-abd0b6342774",
+ "stage": "ready",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 1,
+ "stopReason": "accepted",
+ "failure": null,
+ "recovery": [],
+ "outcome": "supported",
+ "choiceOpen": false,
+ "threadId": "canvaschat-832ebd2b-d56a-4f89-ab69-4ca4a0162114",
+ "chatPending": false,
+ "usage": {
+  "credits": 74,
+  "unknown": false
+ },
+ "result": {
+  "jobId": "aj_1a6967880529492c81db26f7a16d72c3",
+  "resultId": "ar_192a8bdaddd54412a8577a91d918c1fc",
+  "cardId": "174c20d4-8a00-4833-a1b3-abd0b6342774",
+  "canvas": {
+   "boardId": "d4808158-25d7-435f-8a32-b94309ba5255"
+  },
+  "requestRef": "b885003f14057391",
+  "revision": "av_a189367aed9041ef89606e373bc85081",
+  "planHash": "8d108cf9f5b2882b6bba29bc6ec66f1db4fe11c6171fa9cdcbd6fb3ffe73512f",
+  "sources": "643d5437104296e2",
+  "artifactHash": "425d2e0868c6c2eee561f069e9bf1d180e174f3f3e345501e61c2bc700a4374a",
+  "experience": "experiment",
+  "capabilityVersion": "animation-capabilities/1",
+  "policyVersion": 1
+ },
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Gradient descent on a quadratic bowl",
+  "description": "A bowl-shaped loss surface, L = ½(x² + k·y²), with contour lines and a ball marking the current point (x, y). Each step moves the ball against the gradient by learning rate × gradient, and a trail records its path down toward the lowest point at the center. An arrow at the ball shows the negative gradient, which is the direction of the next step. Change the learning rate or the bowl's steepness and see the path turn smooth, zig-zag or blow up.",
+  "experience": "experiment",
+  "reason": "Changing the step size and the bowl's shape, then watching the path and the loss readout respond, shows why gradient descent sometimes converges slowly, sometimes oscillates and sometimes diverges.",
+  "behavior": "rules",
+  "controlProfile": "manipulate",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate (step size)",
+    "min": 0.01,
+    "max": 0.25,
+    "step": 0.01,
+    "default": 0.1
+   },
+   {
+    "type": "number",
+    "id": "steepness",
+    "label": "Steepness along y (k)",
+    "min": 1,
+    "max": 10,
+    "step": 0.5,
+    "default": 5
+   },
+   {
+    "type": "toggle",
+    "id": "showArrow",
+    "label": "Show step direction arrow",
+    "default": true
+   }
+  ],
+  "interactions": [
+   "Drag the ball to choose where the descent starts (the trail starts again from there)",
+   "Take a single gradient step by hand",
+   "Let the steps run on their own, or pause them",
+   "Change the learning rate: small values creep slowly; larger values zig-zag across the steep direction; above 2 ÷ k the path grows and leaves the bowl",
+   "Change the steepness k: a larger k makes the bowl narrower along y, so the path zig-zags more and creeps more slowly along the flat x direction"
+  ],
+  "assumptions": [
+   "Illustration: a made-up two-parameter quadratic loss, not a trained model on real data.",
+   "Loss L = ½(x² + k·y²), with gradient (x, k·y); each step sets position to position − learning rate × gradient.",
+   "Gradients are exact (no noise, no mini-batches), so every run from the same start follows the same path.",
+   "The ball starts at (2.5, 1.5); a run ends when the loss falls below 0.001, after 100 steps, or when the ball leaves the drawn surface.",
+   "Readouts show the step count, the current loss and the size of the gradient at the ball."
+  ],
+  "limitations": [
+   "Real loss surfaces have many dimensions and are not perfect bowls; here the convergence rule (learning rate below 2 ÷ k) holds exactly only for this quadratic.",
+   "When the run diverges it stops at the edge of the surface instead of following the ball off to infinity."
+  ],
+  "learningGoal": "Understand that gradient descent steps against the gradient, and that the learning rate, together with how curved the loss is, decides whether it converges smoothly, oscillates or diverges.",
+  "requiredCapabilities": [
+   "step",
+   "parameters",
+   "actions",
+   "drag",
+   "labels",
+   "readouts"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "learningRate",
+    "values": [
+     0.05,
+     0.25
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 2
+   }
+  ]
+ },
+ "planHash": "8d108cf9f5b2882b6bba29bc6ec66f1db4fe11c6171fa9cdcbd6fb3ffe73512f",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 19830,
+  "generateToResultMs": 303356,
+  "processingMs": 323136,
+  "approvalWaitMs": 1892,
+  "calls": 5,
+  "repairs": 1,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 19780,
+    "calls": 1,
+    "inputTokens": 377,
+    "outputTokens": 1830,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 1892,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 103436,
+    "calls": 1,
+    "inputTokens": 7528,
+    "outputTokens": 11808,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 44,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 31949,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 46661,
+    "calls": 1,
+    "inputTokens": 12810,
+    "outputTokens": 4486,
+    "images": 6,
+    "captures": 0,
+    "outcome": "rejected"
+   },
+   {
+    "stage": "repairing",
+    "ms": 49324,
+    "calls": 1,
+    "inputTokens": 8884,
+    "outputTokens": 6438,
+    "images": 2,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 42,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 38012,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 33888,
+    "calls": 1,
+    "inputTokens": 12805,
+    "outputTokens": 3222,
+    "images": 6,
+    "captures": 0,
+    "outcome": "accepted"
+   }
+  ]
+ },
+ "createdAt": 1793769049635,
+ "updatedAt": 1793769374713
+}

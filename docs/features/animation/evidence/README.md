@@ -29,3 +29,9 @@ Runs on a candidate cannot be inside that candidate's own commit. They are commi
 
 1. That the Status text readout was declared as `kind: text`, set by the program every frame and carried in all six captures of jobs `aj_be5a40378c654322a74f8eeca2e3286f` and `aj_3497b72a27c64f129e82ed27cefc8f95` (C7 Gate 2): the traces are in `c7-951288c09/gate2/<job id>/diagnostics-detail1.json` and the program in `program-last-draft.js`; the claim that the review page's strip dropped it comes from the code of `packages/web/render/animation3d-render.js` on C7 and is covered by a unit test of the formatter only (FX-AN-098); no capture was seen after the fix.
 2. The reviewer reports for all C7 Gate 2 jobs: they are the reviewer model's reading of images not preserved here.
+
+## Added after C8 (4 November 2026, 9:20 PM PT)
+
+| Folder | Candidate | Contents |
+|---|---|---|
+| `c8-7bb1a0ef4/` | C8 `7bb1a0ef4211ea45ecd3a53ccd6770d76080e8d3`, preview `7c545e95-ecef-4418-a070-0709ef1ddec7` | Gate 1 (SGD 20 of 20, regression 9 of 9); Gate 2 rerun on fresh users `gate4-1..5` (verdict FAIL, 3 of the first 7); `gate2-aborted-first-start-429/` is the first start, stopped by the operator after job 2's approve returned HTTP 429 (the escrow's cap of 5 free failed attempts per learner per day, reached by the reused `gate2-*` test users): it counts for nothing. |

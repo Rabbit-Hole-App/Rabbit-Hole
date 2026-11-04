@@ -1,0 +1,17 @@
+{
+ "n": 4,
+ "phrasing": "show me why a high learning rate diverges",
+ "session": "gate4-4@example.com",
+ "sha": "7bb1a0ef4211ea45ecd3a53ccd6770d76080e8d3",
+ "version": "7c545e95-ecef-4418-a070-0709ef1ddec7",
+ "jobId": "aj_4f08e1b367964e4aa0c3124c26dfc33f",
+ "outcome": "failed",
+ "repairs": 0,
+ "credits": 50.2613,
+ "charged": 5,
+ "artifactHash": null,
+ "note": "error: The visual review reached its output limit before it finished. That does not prove your request is impossible; a smaller plan may fit. You have not been charged",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 9:11 PM"
+}
