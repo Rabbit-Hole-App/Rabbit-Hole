@@ -1,0 +1,61 @@
+{
+  "_doc": [
+    "Recovery recipes for scripts/animation/cut-recovery.sh (engine: recovery-steps.mjs). One entry per ladder slice. Lanes edit THIS file when their code moves.",
+    "Recovery is always a FORWARD commit on top of the candidate (never a revert of history, never a force push): it undoes only what the slice added, and the diff against the candidate may touch nothing outside `allow`.",
+    "steps: replace | restore | restoreMatching (see recovery-steps.mjs). PREV is the release before the candidate (default: merge-base of the candidate and rabbit-hole/main).",
+    "verify: node --test sets run on the recovery branch itself at cut time, so a cut that breaks an import or a pinned test fails when it is cut, not when it is needed.",
+    "switch: the one-line statement of what flips, kept here so the doc and the script cannot drift."
+  ],
+  "mvp2b": {
+    "title": "streaming off: the author and repair calls go back to the non-streaming transport",
+    "switch": "ask.js anthropicTransport returns to its previous (non-streaming) text; the tests that pin streaming go with it. Billing escrow, retry policy and deadlines live in other files and stay. EDIT THIS RECIPE when AN-17b names a narrower flag.",
+    "message": "Animation forward recovery (MVP2b): the role calls use the previous non-streaming transport again; billing, retry and deadlines are untouched",
+    "steps": [
+      { "op": "restore", "paths": ["packages/control-plane/src/ask.js"] },
+      { "op": "restoreMatching", "under": ["packages/control-plane/test"], "suffix": [".test.js", ".test.mjs"], "candMatches": "stream: true|text/event-stream|eventsource|sse transport" }
+    ],
+    "allow": ["packages/control-plane/src/ask.js", "packages/control-plane/test/*.js", "packages/control-plane/test/*.mjs"],
+    "verify": [
+      { "cwd": "packages/control-plane", "files": ["test/animation-policy.test.js", "test/animation-job.test.js", "test/animation-recovery.test.js", "test/animation-pipeline.test.js"] }
+    ]
+  },
+  "mvp3": {
+    "title": "the five client features are no longer declared: the server refuses them, the renderer code stays",
+    "switch": "ANIMATION_CLIENT_FEATURES in packages/web/src/animation3d/capabilities.js goes back to ['curve_radius', 'action_motion']. The new browser stops declaring the five (client.js reads the constant), the server's clientFeatures() drops any declaration of them, clientProblems() refuses a draft that uses one (repairable), and readResult answers 409 client_update_required for a stored scene that needs one.",
+    "message": "Animation forward recovery (MVP3): ANIMATION_CLIENT_FEATURES back to curve_radius and action_motion, so the five SGD client features are refused for every browser; renderer and contract code stay",
+    "steps": [
+      { "op": "replace", "file": "packages/web/src/animation3d/capabilities.js", "pattern": "(ANIMATION_CLIENT_FEATURES\\s*=\\s*Object\\.freeze\\()\\[[^\\]]*\\](\\))", "with": "$1['curve_radius', 'action_motion']$2" },
+      { "op": "restoreMatching", "under": ["packages/web/src", "packages/control-plane/test"], "suffix": [".test.js", ".test.mjs"], "candMatches": "ANIMATION_CLIENT_FEATURES|surface_grid|trail_points|text_readout|arrow_anchor" }
+    ],
+    "allow": ["packages/web/src/animation3d/capabilities.js", "packages/web/src/*.test.mjs", "packages/web/src/**/*.test.mjs", "packages/control-plane/test/*.js", "packages/control-plane/test/*.mjs"],
+    "verify": [
+      { "cwd": "packages/web", "files": ["src/animation3d/capabilities.test.mjs", "src/animation3d/client.test.mjs", "src/animation3d/storage.test.mjs", "src/animation3d/contract.test.mjs"] },
+      { "cwd": "packages/control-plane", "files": ["test/animation-old-client.test.js", "test/animation-pipeline.test.js", "test/animation-sgd-mvp1.test.js"] }
+    ]
+  },
+  "mvp4": {
+    "title": "prompts restored to the previous release's text",
+    "switch": "the planner, author, repair and review prompt files (agents/animation-author.js, agents/animation-brief.js) and the fit test that pins their size go back to PREV. If a file that is NOT restored imports something the restored prompt files no longer export (an archetype table, say), the verify step fails at cut time: add that file to the restore list.",
+    "message": "Animation forward recovery (MVP4): the planner, author, repair and review prompts are back to the previous release's text",
+    "steps": [
+      { "op": "restore", "paths": ["packages/control-plane/src/agents/animation-author.js", "packages/control-plane/src/agents/animation-brief.js", "packages/control-plane/test/animation-fit.test.js"] },
+      { "op": "restoreMatching", "under": ["packages/control-plane/test"], "suffix": [".test.js"], "candMatches": "wireframe|SIZE_RULES|ANIMATION_AUTHOR_SYSTEM|ANIMATION_REPAIR_SYSTEM|ANIMATION_REVIEW_SYSTEM|ANIMATION_BRIEF_SYSTEM|COMPACT_RULES|ARCHETYPES|clamp" }
+    ],
+    "allow": ["packages/control-plane/src/agents/animation-author.js", "packages/control-plane/src/agents/animation-brief.js", "packages/control-plane/test/*.test.js"],
+    "verify": [
+      { "cwd": "packages/control-plane", "files": ["test/animation-fit.test.js", "test/animation-pipeline.test.js", "test/animation-policy.test.js", "test/animation-sgd-mvp1.test.js"] }
+    ]
+  },
+  "mvp5": {
+    "title": "copy-line restore: loss surfaces are 'not supported yet' again and SGD leaves the claimed list",
+    "switch": "every UI, test or browser-check file the candidate changed whose PREVIOUS text carried the 'loss surfaces ... not supported yet' line goes back to PREV (the request-box copy and the claimed-capabilities line are one string in the UI). Docs are not touched. required: if no file matches, the cut stops (wrong --prev, or the copy moved).",
+    "message": "Animation forward recovery (MVP5): the request-box copy says loss surfaces and optimizers are not supported yet again, and SGD is out of the claimed capabilities",
+    "steps": [
+      { "op": "restoreMatching", "under": ["packages/web/src", "packages/web/e2e"], "prevMatches": "loss surfaces?[^\"'`]{0,120}not (yet )?supported|not (yet )?supported[^\"'`]{0,120}loss surfaces?", "required": true }
+    ],
+    "allow": ["packages/web/src/**", "packages/web/e2e/**"],
+    "verify": [
+      { "cwd": "packages/web", "files": ["src/slash-sheet.test.mjs", "src/animation3d/learning-examples.test.mjs", "src/Animation3DCard.test.mjs"] }
+    ]
+  }
+}
