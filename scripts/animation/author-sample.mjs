@@ -25,13 +25,15 @@ import { canonicalJson } from '../../packages/web/src/explain-program/contract.j
 export const ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 // Owner decision 22 (2): the files whose text reaches the author, hashed in this order. The prompts (agents/), the capability text sent beside them (animation-brief.js), the
 // archetype rules (lane f; absent until it lands, recorded as absent), animation-author.js (the author's user content: the archetype rules and the frozen exemplar enter there, and
-// the validators and plan assertions that judge a sample live beside it) and the contract and capability constants the prompt quotes (ANIMATION_PROGRAM_CONTRACT, the draft schema, limits).
+// the validators and plan assertions that judge a sample live beside it), animation-policy.js and tool-input.js (how a reply is read: the tool input's null and string repairs, FX-AN-058 and 059) and the contract and capability constants the prompt quotes (ANIMATION_PROGRAM_CONTRACT, the draft schema, limits).
 export const PROMPT_FILES = Object.freeze([
   'packages/control-plane/src/agents/animation-author.js',
   'packages/control-plane/src/agents/animation-brief.js',
   'packages/control-plane/src/agents/animation-archetypes.js',
   'packages/control-plane/src/animation-brief.js',
   'packages/control-plane/src/animation-author.js',
+  'packages/control-plane/src/animation-policy.js',
+  'packages/control-plane/src/tool-input.js',
   'packages/web/src/animation3d/contract.js',
   'packages/web/src/animation3d/capabilities.js',
 ]);
