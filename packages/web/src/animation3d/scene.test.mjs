@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { linePoints, triangleCost, validateAnimationArtifact } from './contract.js';
 import { ANIMATION_FIXTURES, INVALID_ANIMATION_FIXTURES, primitivesFixture, watchFixture } from './fixtures.js';
-import { ARROW_LABELS, DECLUTTER, buildAnimationScene, declutterLabels, LABEL_PIXELS, labelPixels } from './scene.js';
+import { ARROW_LABELS, DECLUTTER, TRAIL_RADIUS_SHARE, buildAnimationScene, declutterLabels, LABEL_PIXELS, labelPixels } from './scene.js';
 
 // Real Three.js objects, no WebGL: labels get a plain Texture in place of the browser's canvas texture.
 const labels = [];
@@ -415,8 +415,7 @@ test('clamp: after the program\'s frame a sphere bound to a surface is held at t
   scene.dispose();
   const open = primitives(); delete open.scene.nodes[3].clampTo.max;
   const top = built(open);
-  const surfaceTop = Math.max(...primitivesFixture.artifact.scene.geometries[0].heights.flat());
-  assert.deepEqual(top.apply({ nodes: { ball: { position: [0, 5.6, 0] } } }).clamped, [{ node: 'ball', axes: ['y'], trueY: 5.6, y: surfaceTop, trueAt: [0, 5.6, 0], drawnAt: [0, surfaceTop, 0] }], 'without max, the top of the surface');
+  assert.deepEqual(top.apply({ nodes: { ball: { position: [0, 5.6, 0] } } }).clamped, [{ node: 'ball', axes: ['y'], trueY: 5.6, y: 0.0625, trueAt: [0, 5.6, 0], drawnAt: [0, 0.0625, 0] }], 'without max, held at the surface under it (0.0625 at x 0, z 0), not at the corner height of its box');
   top.dispose();
 });
 
@@ -466,10 +465,10 @@ test('the golden SGD artifact compiles to the charged counts, its surface sits w
     const i = r * cols + c, expected = [(c / (cols - 1) - 0.5) * surface.width, surface.heights[r][c], (r / (rows - 1) - 0.5) * surface.depth];
     [position.getX(i), position.getY(i), position.getZ(i)].forEach((value, axis) => assert.ok(Math.abs(value - expected[axis]) < 1e-5, `vertex ${r},${c} axis ${axis}: ${value} != ${expected[axis]}`));
   }
-  const ball = golden.scene.nodes.find(node => node.clampTo), top = ball.clampTo.max ?? Math.max(...surface.heights.flat());
+  const ball = golden.scene.nodes.find(node => node.clampTo), top = ball.clampTo.max ?? surfaceHeight(surface.heights, surface.width, surface.depth, 0, 0); // no explicit max: the surface under the ball
   const result = scene.apply({ nodes: { [ball.id]: { position: [0, 10, 0] } } });
   assert.deepEqual(result.clamped.map(({ node, trueY }) => [node, trueY]), [[ball.id, 10]]);
-  assert.ok(Math.abs(result.clamped[0].y - top) < 1e-5, `held at the surface top ${top}, not ${result.clamped[0].y}`);
+  assert.ok(Math.abs(result.clamped[0].y - top) < 1e-5, `held at the surface under it (${top}), not ${result.clamped[0].y}`);
   scene.dispose();
 });
 
@@ -688,8 +687,10 @@ test('buried: nothing is reported for a ball off the surface, in the air, or cla
 test('decision 30: a diverged marker is held at the rim in x and z as well as y, its readouts stay true and the clamp reports the axes and both positions', () => {
   const scene = built(), ball = holderOf(scene, 'ball');
   const result = scene.apply({ nodes: { ball: { position: [3.675, 10.84, 0.4] } }, readouts: { loss: 20.338, status: 'diverged' } });
-  assert.deepEqual(result.clamped, [{ node: 'ball', axes: ['x', 'y'], trueY: 10.84, y: 2, trueAt: [3.675, 10.84, 0.4], drawnAt: [2.5, 2, 0.4] }]);
-  assert.deepEqual(ball.position.toArray(), [2.5, 2, 0.4], 'drawn at the rim');
+  // The fixture's clamp says max 2: an explicit ceiling wins (C12, FX-AN-116: without one, the surface at the rim does).
+  const tidy = list => list.map(c => ({ ...c, y: Math.round(c.y * 1e6) / 1e6, drawnAt: c.drawnAt.map(v => Math.round(v * 1e6) / 1e6) }));
+  assert.deepEqual(tidy(result.clamped), [{ node: 'ball', axes: ['x', 'y'], trueY: 10.84, y: 2, trueAt: [3.675, 10.84, 0.4], drawnAt: [2.5, 2, 0.4] }]);
+  assert.deepEqual(ball.position.toArray().map(v => Math.round(v * 1e6) / 1e6), [2.5, 2, 0.4], 'drawn at the rim');
   assert.deepEqual([result.value.readouts.loss, result.value.readouts.status], [20.338, 'diverged'], 'the readouts keep the true numbers');
   assert.equal(ball.userData.diverged, true);
   // z too, and both ends; a frame that does not move the marker holds it again from the program's position.
@@ -702,7 +703,7 @@ test('decision 30: a marker inside the footprint is untouched; one beyond the ri
   const scene = built(), ball = holderOf(scene, 'ball');
   assert.deepEqual(scene.apply({ nodes: { ball: { position: [1, 1.5, 0.4] } } }).clamped, [], 'inside the footprint and under the ceiling');
   assert.deepEqual(ball.position.toArray(), [1, 1.5, 0.4]);
-  assert.deepEqual(scene.apply({ nodes: { ball: { position: [3, 0.5, 0] } } }).clamped.map(c => [c.axes, c.drawnAt]), [[['x'], [2.5, 0.5, 0]]], 'beyond the rim in x only');
+  assert.deepEqual(scene.apply({ nodes: { ball: { position: [3, 0.5, 0] } } }).clamped.map(c => [c.axes, c.drawnAt]), [[['x'], [2.5, 0.5, 0]]], 'beyond the rim in x only: its own height is under the ceiling');
   assert.deepEqual(scene.apply({ nodes: { ball: { position: [0, 0.5, 2.2] } } }).clamped.map(c => [c.axes, c.drawnAt]), [[['z'], [0, 0.5, 2]]], 'beyond the rim in z only');
   assert.deepEqual(scene.apply({ nodes: { ball: { position: [2.5, 2, -2] } } }).clamped, [], 'exactly on the rim and at the ceiling is inside');
   scene.dispose();
@@ -718,7 +719,14 @@ test('decision 30: a ball far outside the golden\'s 4 by 4 bowl (x 3.675, as if 
   const scene = built(golden), ball = golden.scene.nodes.find(node => node.clampTo);
   const result = scene.apply({ nodes: { [ball.id]: { position: [3.675, 10.8419, 0.4] } } });
   const top = Math.fround(Math.max(...golden.scene.geometries.find(g => g.kind === 'surface').heights.flat())); // the surface mesh's highest vertex (a float32)
-  assert.deepEqual(result.clamped.map(c => [c.axes, c.trueAt, c.drawnAt]), [[['x', 'y'], [3.675, 10.8419, 0.4], [2, top, 0.4]]]);
+  const heights = golden.scene.geometries.find(g => g.kind === 'surface').heights, radius = golden.scene.geometries.find(g => g.id === golden.scene.nodes.find(n => n.id === ball.id).geometry).radius;
+  const [held] = result.clamped;
+  assert.deepEqual([held.axes, held.trueAt, held.drawnAt.slice(0, 1), held.drawnAt.slice(2)], [['x', 'y'], [3.675, 10.8419, 0.4], [2], [0.4]]);
+  assert.ok(Math.abs(held.drawnAt[1] - surfaceHeight(heights, 4, 4, 2, 0.4)) < 1e-5, `drawn on the surface at the rim: ${held.drawnAt[1]}`);
+  const end = [2, surfaceHeight(heights, 4, 4, 2, 0.4) + 0.06, 0.4]; // where a program that holds its path at the surface ends it
+  assert.ok(Math.abs(held.drawnAt[1] - end[1]) <= radius, `the trail ends within a ball radius (${radius}) of the ball`);
+  assert.ok(held.drawnAt[1] < 4, 'below the old ceiling it was pinned to');
+  assert.ok(held.drawnAt[1] <= top + 1e-5, "never above the surface mesh's highest vertex (lane f's golden, from its own heights)");
   scene.dispose();
 });
 
@@ -741,4 +749,81 @@ test('a plate is moved to a clear spot only within DECLUTTER.reach of its anchor
   assert.equal(declutterLabels([plate(false)], { bounds, obstacles: wall })[0], null);
   // Unobstructed: where it always was.
   assert.deepEqual(declutterLabels([plate(false)], { bounds, obstacles: [] })[0], { dx: 0, dy: 0 });
+});
+
+// C12 (owner order, c): a trail tube is drawn at most TRAIL_RADIUS_SHARE (0.35) x the radius of the smallest sphere clamped to the same surface (the ball), whatever the artifact
+// declares, so a path never swallows the marker that walks it (C11: the golden's 0.08 tube against its 0.12 ball). A ghost is still half its trail's drawn radius.
+const tubeRadius = (scene, id) => { const p = drawn(scene, id).geometry.attributes.position, to = n => new THREE.Vector3(p.getX(n), p.getY(n), p.getZ(n)); return to(0).distanceTo(new THREE.Vector3(...trailPoints(10)[0])); };
+const goldenTrail = change => {
+  const golden = JSON.parse(readFileSync(new URL('./testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
+  change?.(golden);
+  const scene = built(golden);
+  scene.apply({ nodes: { trail: { points: trailPoints(10) }, ghost: { points: trailPoints(10) } } });
+  return { golden, scene };
+};
+
+test('a trail tube is capped at 0.35 of the smallest clamped ball\'s radius: the golden\'s 0.08 against its 0.12 ball is drawn at 0.042, its ghost at half of that', () => {
+  assert.equal(TRAIL_RADIUS_SHARE, 0.35);
+  const { golden, scene } = goldenTrail();
+  const radius = id => golden.scene.geometries.find(g => g.id === golden.scene.nodes.find(n => n.id === id).geometry).radius;
+  assert.deepEqual([radius('trail'), radius('ball')], [0.08, 0.12], 'the golden as authored (a lane may retune it: the cap is relative)');
+  assert.ok(Math.abs(tubeRadius(scene, 'trail') - 0.35 * radius('ball')) < 1e-5, `the trail tube is ${tubeRadius(scene, 'trail')} (0.042 expected)`);
+  assert.ok(Math.abs(tubeRadius(scene, 'trail') - 0.042) < 1e-5);
+  assert.ok(Math.abs(tubeRadius(scene, 'ghost') - 0.021) < 1e-5, `the ghost is half the capped radius: ${tubeRadius(scene, 'ghost')}`);
+  scene.dispose();
+});
+
+test('a trail whose declared radius is already under the cap is unchanged; a scene with no clamped sphere keeps the declared radius; the cap follows the ball\'s radius and scale, and the smallest ball', () => {
+  const small = goldenTrail(g => { g.scene.geometries.find(x => x.id === 'runPath').radius = 0.02; g.scene.geometries.find(x => x.id === 'keptPath').radius = 0.02; });
+  assert.ok(Math.abs(tubeRadius(small.scene, 'trail') - 0.02) < 1e-5, 'under the cap: as declared');
+  assert.ok(Math.abs(tubeRadius(small.scene, 'ghost') - 0.01) < 1e-5, 'and its ghost is half the declared radius, as before');
+  small.scene.dispose();
+  const loose = goldenTrail(g => { delete g.scene.nodes.find(n => n.id === 'ball').clampTo; });
+  assert.ok(Math.abs(tubeRadius(loose.scene, 'trail') - 0.08) < 1e-5, 'no clamped sphere: the declared radius is kept');
+  assert.ok(Math.abs(tubeRadius(loose.scene, 'ghost') - 0.04) < 1e-5);
+  loose.scene.dispose();
+  const bigger = goldenTrail(g => { g.scene.geometries.find(x => x.id === 'ballBall').radius = 0.3; });
+  assert.ok(Math.abs(tubeRadius(bigger.scene, 'trail') - 0.08) < 1e-5, 'a 0.3 ball allows 0.105: the declared 0.08 stays');
+  bigger.scene.dispose();
+  const scaled = goldenTrail(g => { g.scene.nodes.find(n => n.id === 'ball').scale = [0.5, 0.5, 0.5]; });
+  assert.ok(Math.abs(tubeRadius(scaled.scene, 'trail') - 0.35 * 0.12 * 0.5) < 1e-5, 'a ball drawn at half scale caps the tube at 0.021');
+  scaled.scene.dispose();
+  const twin = goldenTrail(g => {
+    g.scene.geometries.push({ id: 'tiny', kind: 'sphere', radius: 0.04 });
+    g.scene.nodes.push({ id: 'tinyBall', geometry: 'tiny', material: g.scene.nodes.find(n => n.id === 'ball').material, clampTo: { node: 'bowl' } });
+  });
+  assert.ok(Math.abs(tubeRadius(twin.scene, 'trail') - 0.35 * 0.04) < 1e-5, 'the smallest clamped sphere sets it');
+  twin.scene.dispose();
+});
+
+// C12 (owner item d; FX-AN-116; C11 Gate 2 job 4, aj_8a26c46f059f4a159de2240e11ea556d: "the host pins the diverged ball at height 2.7, but the bowl's edge there is 2.16 and the trail ends at
+// the edge: the ball floats in the air, apart from the end of its trail"). A marker held at the rim in x or z is drawn ON the surface at its drawn (x, z), never at the clamp's own ceiling.
+const surfaceHeight = (heights, width, depth, x, z) => { // the surface's own two triangles per cell, independently of scene.js
+  const rows = heights.length, cols = heights[0].length, col = (x / width + 0.5) * (cols - 1), row = (z / depth + 0.5) * (rows - 1);
+  const c = Math.min(Math.floor(col), cols - 2), r = Math.min(Math.floor(row), rows - 2), u = col - c, v = row - r;
+  return u + v <= 1 ? heights[r][c] + u * (heights[r][c + 1] - heights[r][c]) + v * (heights[r + 1][c] - heights[r][c]) : heights[r + 1][c + 1] + (1 - u) * (heights[r + 1][c] - heights[r + 1][c + 1]) + (1 - v) * (heights[r][c + 1] - heights[r + 1][c + 1]);
+};
+test('a marker held at the rim sits on the surface there, where its path ends, not at the corner height of the surface\'s box; one held in y only is drawn on the surface under it', () => {
+  const job = primitives();
+  delete job.scene.nodes.find(n => n.id === 'ball').clampTo.max; // the job's shape: no explicit ceiling; the box's top (2.5625, a corner) is far above the bowl's edge at the ball (1.6625 at x 2.5, z 0.4)
+  const scene = built(job), heights = job.scene.geometries[0].heights, edge = surfaceHeight(heights, 5, 4, 2.5, 0.4);
+  assert.ok(Math.abs(edge - 1.6625) < 1e-9);
+  const result = scene.apply({ nodes: { ball: { position: [3.675, 10.84, 0.4] }, trail: { points: [[2, surfaceHeight(heights, 5, 4, 2, 0.4) + 0.02, 0.4], [2.5, edge + 0.02, 0.4]] } } });
+  const [held] = result.clamped, ball = holderOf(scene, 'ball').position;
+  assert.deepEqual([held.axes, held.drawnAt[0], held.drawnAt[2]], [['x', 'y'], 2.5, 0.4]);
+  assert.ok(Math.abs(ball.y - edge) < 1e-6, `drawn at the surface height at its x and z (${edge}), not the box's top 2.5625: ${ball.y}`);
+  assert.ok(Math.abs(ball.y - (edge + 0.02)) <= 0.1 + 1e-6, 'within a ball radius of where its trail ends');
+  assert.deepEqual(scene.buried(), [], 'a marker held at the rim is not buried');
+  // Inside the footprint and above the surface's top: held on the surface under it.
+  const inside = scene.apply({ nodes: { ball: { position: [1, 10.84, 0.4] } } }).clamped[0];
+  assert.deepEqual([inside.axes, inside.drawnAt[0], inside.drawnAt[2]], [['y'], 1, 0.4]);
+  assert.ok(Math.abs(inside.drawnAt[1] - surfaceHeight(heights, 5, 4, 1, 0.4)) < 1e-6, `on the surface under it: ${inside.drawnAt[1]}`);
+  // A marker that is not held is untouched, even above the surface: a ball resting on it, at its radius above.
+  assert.deepEqual(scene.apply({ nodes: { ball: { position: [1, surfaceHeight(heights, 5, 4, 1, 0.4) + 0.1, 0.4] } } }).clamped, []);
+  // An explicit max wins.
+  scene.dispose();
+  job.scene.nodes.find(n => n.id === 'ball').clampTo.max = 2.7;
+  const capped = built(job);
+  assert.deepEqual(capped.apply({ nodes: { ball: { position: [3.675, 10.84, 0.4] } } }).clamped.map(c => c.drawnAt), [[2.5, 2.7, 0.4]]);
+  capped.dispose();
 });
