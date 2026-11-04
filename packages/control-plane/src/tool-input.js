@@ -11,7 +11,10 @@
 const isPlain = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const fits = (type, v) => (type === 'array' ? Array.isArray(v) : isPlain(v));
 
-export function normalizeToolInput(schema, value) {
+// options.dropNull (off by default, so every other caller is unchanged; /animation author and repair turn it on, FX-AN-058): a null on an optional property whose schema is known
+// and does not allow null is dropped before validation (Gate 1 r16 sent timeline: null). A required property, or one whose type includes null, keeps its null.
+const allowsNull = type => type === 'null' || (Array.isArray(type) && type.includes('null'));
+export function normalizeToolInput(schema, value, options = {}) {
   const type = schema?.type;
   if (type !== 'array' && type !== 'object') return value;
   if (typeof value === 'string') {
@@ -23,14 +26,15 @@ export function normalizeToolInput(schema, value) {
   }
   if (type === 'array') {
     if (!Array.isArray(value) || !schema.items) return value;
-    const items = value.map(item => normalizeToolInput(schema.items, item));
+    const items = value.map(item => normalizeToolInput(schema.items, item, options));
     return items.some((item, i) => item !== value[i]) ? items : value;
   }
   if (!isPlain(value)) return value;
   let out = value;
   for (const key of Object.keys(value)) {
     const child = schema.properties && Object.hasOwn(schema.properties, key) ? schema.properties[key] : isPlain(schema.additionalProperties) ? schema.additionalProperties : null;
-    const next = normalizeToolInput(child, value[key]);
+    if (options.dropNull && value[key] === null && child && !allowsNull(child.type) && !(schema.required || []).includes(key)) { if (out === value) out = { ...value }; delete out[key]; continue; }
+    const next = normalizeToolInput(child, value[key], options);
     if (next !== value[key]) { if (out === value) out = { ...value }; out[key] = next; }
   }
   return out;

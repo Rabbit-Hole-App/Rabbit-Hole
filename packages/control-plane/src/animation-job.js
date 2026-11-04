@@ -828,7 +828,9 @@ export class AnimationJobs {
     const key = await this.locked(async () => {
       const current = await this.get(job.id);
       if (!current || current.stopped || current.attempt !== job.attempt || current.stage !== job.stage || current.inFlight) return null;
-      const limit = role === 'brief' ? briefLimit : ANIMATION_LIMITS.calls[role];
+      // spec.again: the author's one more ask when its reply carried no artifact (animation-author.js, FX-AN-056). One call beyond the ceiling, so the ceiling's other readers
+      // (recovery, the reservation) are unchanged; the spending ceiling below still applies to it.
+      const limit = (role === 'brief' ? briefLimit : ANIMATION_LIMITS.calls[role]) + (role === 'author' && spec.again === true ? 1 : 0);
       if (current.counts[role] + 1 > limit) throw Object.assign(fail(`This animation reached its ${role} limit.`, 429), { stopReason: 'budget' });
       const ceiling = phase === 'generation' ? current.reservation.generationMicros : current.reservation.preparationMicros * (1 + ANIMATION_LIMITS.refinements);
       if (current.bounds[phase] + boundMicros > ceiling) throw Object.assign(fail('This animation reached its spending limit.', 429), { stopReason: 'budget' });

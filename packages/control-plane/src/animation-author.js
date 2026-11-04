@@ -6,26 +6,63 @@
 // fit their roles' limits. Problems are repairable, one sentence each; the job allows one repair (animation-job.js).
 import { ANIMATION_PROGRAM_VERSIONS, SCENE_SCHEMA, clientFeatureUses, hashProgramSource, validateAnimationArtifact } from '../../web/src/animation3d/contract.js';
 import { canonicalJson, sha256Hex } from '../../web/src/explain-program/contract.js';
+import GOLDEN from '../../web/src/animation3d/testdata/sgd-golden.json' with { type: 'json' };
 import { ANIMATION_AUTHOR_SYSTEM, authorTool } from './agents/animation-author.js';
+import { archetypeRules } from './agents/animation-archetypes.js';
 import { actionCapability, clientFeatures, enabledCapabilities, surfaceCapability } from './animation-brief.js';
 import { AnimationPolicyError } from './animation-policy.js';
-import { fitProblems, withProgram } from './animation-repair.js';
+import { draftOf, fitProblems, withProgram } from './animation-repair.js';
 import { modelEvidence } from './explain-evidence.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 // What the author is told about the enabled phase (the same object the validator checks against).
 export const authorCapabilities = (caps = enabledCapabilities()) => ({ phase: caps.phase, geometry: caps.geometry, events: caps.events, features: caps.features, speeds: caps.speeds, stepSeconds: caps.stepSeconds, limits: caps.limits });
 
-// The author stage. -> { draft } | { gap }
+// AN-20 (owner decision 13): a plan that names an archetype gives the author that archetype's rules and its ONE exemplar, in the user content (never the cached
+// system block). The exemplar is the golden SGD artifact as a draft, without its title and description (a fixture says so in both; the author writes its own), at the
+// hash below (over the draft): a changed golden fails the job loudly instead of silently changing what a measurement sent. It is sent in the tool-call shape the author must
+// answer in, { kind: 'artifact', artifact } (FX-AN-056). It is never served as a result (decision 13).
+export const EXEMPLARS = Object.freeze({ loss_surface: { artifact: GOLDEN.artifact, sha256: '2b362b4b55e602360a461ee2a8c3681c11452aaee6d5128a24769a8a910d1486' } });
+export const exemplarDraft = artifact => { const { title: _title, description: _description, ...rest } = draftOf(artifact); return rest; };
+export async function archetypeContent(name, exemplars = EXEMPLARS) {
+  const rules = archetypeRules(name), exemplar = exemplars[name];
+  if (!rules || !exemplar) return null;
+  const draft = exemplarDraft(exemplar.artifact), hash = await sha256Hex(canonicalJson(draft));
+  if (hash !== exemplar.sha256) throw new AnimationPolicyError('exemplar_changed', `The ${name} exemplar is ${hash}, not the frozen ${exemplar.sha256}.`);
+  return { name, rules, exemplar: { kind: 'artifact', artifact: draft }, note: 'The exemplar is one finished scene of this shape, for its structure only. Write your own for this plan: its formula, controls, words and numbers, and your own title and description.' };
+}
+
+// FX-AN-056 (Gate 1, C3': 5 of 20 replies ended "The author returned no artifact"; the shape they had is not known). A reply that carries the artifact in the tool input's
+// own fields (kind absent or artifact, and title, scene and parameters at the top level) is taken as the artifact, as withProgram takes a misplaced program. Never invented:
+// a reply with fewer fields is asked once more.
+const FLAT_FIELDS = ['title', 'scene', 'parameters'];
+export const artifactIn = input => {
+  if (plain(input.artifact)) return input.artifact;
+  if ((input.kind ?? 'artifact') !== 'artifact' || !FLAT_FIELDS.every(key => input[key] !== undefined)) return null;
+  const { kind: _kind, artifact: _artifact, gap: _gap, ...fields } = input;
+  return fields;
+};
+// The one more ask when neither shape is present (the same pattern as animation-repair.js PROGRAM_CORRECTION: user content, never the system prompt). It is a second author call
+// (spec.again: animation-job.js paidCall admits one beyond the author ceiling, so an attempt's ceiling and recovery are unchanged).
+export const ARTIFACT_CORRECTION = 'Your previous reply had no artifact. Call animation_artifact again with kind artifact and the whole artifact in its artifact field.';
+
+// The author stage. -> { draft, askedAgain? } | { gap }
 export async function authorStage(job, ctx) {
-  const content = JSON.stringify({ request: job.prompt, plan: job.plan, context: job.context?.refText ? { refText: job.context.refText } : null, evidence: modelEvidence(job.evidence), capabilities: { ...authorCapabilities(), ...surfaceCapability(job), ...actionCapability(job) } });
-  const { input } = await ctx.call('author', { system: ANIMATION_AUTHOR_SYSTEM, tool: authorTool(job.plan), content });
+  const archetype = job.plan?.archetype ? await archetypeContent(job.plan.archetype) : null;
+  const content = JSON.stringify({ request: job.prompt, plan: job.plan, context: job.context?.refText ? { refText: job.context.refText } : null, evidence: modelEvidence(job.evidence), capabilities: { ...authorCapabilities(), ...surfaceCapability(job), ...actionCapability(job) }, ...(archetype ? { archetype } : {}) });
+  const spec = { system: ANIMATION_AUTHOR_SYSTEM, tool: authorTool(job.plan), content };
+  let { input } = await ctx.call('author', spec), askedAgain = false, artifact = input.kind === 'capability_gap' ? null : artifactIn(input);
+  if (input.kind !== 'capability_gap' && !artifact) {
+    askedAgain = true;
+    ({ input } = await ctx.call('author', { ...spec, content: [{ type: 'text', text: content }, { type: 'text', text: ARTIFACT_CORRECTION }], again: true }));
+    artifact = input.kind === 'capability_gap' ? null : artifactIn(input);
+  }
   if (input.kind === 'capability_gap') {
     if (!input.gap?.reason) throw new AnimationPolicyError('invalid_turn', 'The author reported a gap without saying what is needed.');
     return { gap: { capability: 'animation', needs: ['other'], source: 'author', reason: String(input.gap.reason).slice(0, 300), message: 'This animation needs something that is not available yet, so edit the request.' } };
   }
-  if (input.kind !== 'artifact' || !plain(input.artifact)) throw new AnimationPolicyError('invalid_turn', 'The author returned no artifact.');
-  return { draft: withProgram(input) };
+  if (!artifact) throw new AnimationPolicyError('invalid_turn', 'The author returned no artifact.');
+  return { draft: withProgram({ ...input, artifact }), ...(askedAgain ? { askedAgain } : {}) };
 }
 
 // The host's seal: the draft's own fields, with every binding field set here. A draft's own value for one of them is replaced.

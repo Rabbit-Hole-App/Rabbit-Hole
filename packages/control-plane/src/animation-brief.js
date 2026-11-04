@@ -17,13 +17,15 @@ export const clientFeatures = value => (Array.isArray(value) ? ANIMATION_CLIENT_
 // How a curved surface is drawn, said the same way to the planner (input data), the author, the repair and the review (owner
 // 2026-11-02: tube wireframes for MVP1). aj_086fd46: the plan promised a bowl surface no shape could draw, the author's filled discs hid
 // the moving parts and the repair's curves were 1 px lines; each stage judged a different representation.
+// AN-20 (owner decision 12, FX-AN-053): a browser that declares surface_grid draws a surface geometry; tubes and legacy stay for older browsers.
 export const SURFACES = Object.freeze({
+  surface: 'A curved surface (a bowl, a hill, a saddle) is a surface geometry: a grid of heights placed exactly on its equation, drawn filled with contour lines by the host. Describe it to the learner as a surface.',
   tubes: 'No shape draws a filled curved surface. A curved surface (a bowl, a hill, a saddle) is drawn as a wireframe of tube curves (curves with a radius): a few level lines and cross-sections placed exactly on its equation, so the parts that move on or inside it stay visible. Describe it to the learner as a wireframe.',
   legacy: 'No shape draws a filled curved surface, and the browser that asked for this scene cannot draw tube curves (a curve is a 1 px line there): do not plan or draw a scene that depends on a curved surface; say so in limitations.',
 });
 // An action's startsMotion (contract.js): the author is told whether this scene's browser can read it (owner 2026-11-02, the single-step review).
 export const actionCapability = job => ({ actionMotion: clientFeatures(job?.features).includes('action_motion') ? 'An action in a stepped scene may declare startsMotion false (see the rules); absent, it starts the step clock.' : 'Do not declare startsMotion: the browser that asked for this scene does not know it.' });
-export const surfaceCapability = job => ({ surfaces: clientFeatures(job?.features).includes('curve_radius') ? SURFACES.tubes : SURFACES.legacy });
+export const surfaceCapability = job => { const has = clientFeatures(job?.features); return { surfaces: has.includes('surface_grid') ? SURFACES.surface : has.includes('curve_radius') ? SURFACES.tubes : SURFACES.legacy }; };
 const issuesText = issues => issues.slice(0, 6).map(i => `${i.path || 'plan'}: ${i.message}`).join('; ');
 // What the plan uses instead, in the learner's words (no enum on the review card, owner 2026-10-31).
 const INSTEAD = {
@@ -85,7 +87,8 @@ function planFrom({ input }, caps) {
   const draft = { schema: PLAN_SCHEMA, title: input.title, description: input.description, experience: input.experience, reason: input.reason, behavior: input.behavior,
     controlProfile: input.controlProfile, sourceRefs: [], parameters: Array.isArray(input.parameters) ? input.parameters : [], interactions: listOf(input.interactions, 8),
     assumptions: listOf(input.assumptions, 8), limitations: [], requiredCapabilities: Array.isArray(input.requiredCapabilities) ? input.requiredCapabilities : [],
-    ...(typeof input.learningGoal === 'string' && input.learningGoal.trim() ? { learningGoal: input.learningGoal.trim() } : {}), ...(input.duration != null ? { duration: input.duration } : {}) };
+    ...(typeof input.learningGoal === 'string' && input.learningGoal.trim() ? { learningGoal: input.learningGoal.trim() } : {}), ...(input.duration != null ? { duration: input.duration } : {}),
+    ...(input.archetype ? { archetype: input.archetype } : {}), ...(Array.isArray(input.assertions) && input.assertions.length ? { assertions: input.assertions } : {}) };
   // The server's limitations first, then the planner's, within the contract's eight.
   draft.limitations = [...unsupportedRequests(input.requested, draft, caps), ...listOf(input.limitations, 8)].slice(0, 8);
   const checked = validateAnimationPlan(draft, caps);
