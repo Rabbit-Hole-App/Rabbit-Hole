@@ -1,0 +1,169 @@
+[
+ {
+  "messageId": "306",
+  "role": "assistant",
+  "content": "\"Gradient descent on a quadratic bowl\" needs a change before it can be made. By our estimate this plan is too large to build and check: it draws a trail of 200 markers. An estimate can be wrong. Nothing has been built, and no AI credits have been used on building. Choose below: each option says exactly what changes, and nothing is built until you press Generate.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_9d29453f06914cf1a6fcb5d9fc8cb6ab:choice:a3277081736d7a118106e0522f30620e59a4d32371847945c535376dda7d2240",
+   "animationChoice": {
+    "jobId": "aj_9d29453f06914cf1a6fcb5d9fc8cb6ab",
+    "attempt": 1,
+    "kind": "size",
+    "key": "aj_9d29453f06914cf1a6fcb5d9fc8cb6ab:choice:a3277081736d7a118106e0522f30620e59a4d32371847945c535376dda7d2240",
+    "alternatives": [
+     {
+      "id": "fewer_markers",
+      "title": "Draw a shorter trail",
+      "changes": [
+       "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs."
+      ]
+     }
+    ],
+    "chosen": "fewer_markers"
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "306"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "307",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. It differs from what you asked: Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-5c2b3c7035b191b9",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient descent on a quadratic bowl",
+    "description": "A bowl-shaped loss surface, L = ½(x² + k·y²), drawn with contour lines, with a ball sitting on it and a trail of the points it has visited. Each step moves the ball against the gradient (the direction of steepest uphill), shown by an arrow pointing downhill. With a small learning rate the ball curves gently into the bottom. With a larger one it zig-zags across the steep direction, and past a limit it bounces higher and flies off the bowl. Readouts show the step count, the current loss and the gradient's length.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-797a2113",
+     "job": "aj_9d29453f06914cf1a6fcb5d9fc8cb6ab",
+     "plan_hash": "b7129035ddfa437a4bbcb45de686db280e72f87f25c38777b564e2a8d0e459ec",
+     "request": "minimize a quadratic loss with gradient steps",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate (step size)",
+        "min": 0.01,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.1
+       },
+       {
+        "type": "number",
+        "label": "Steepness across the bowl (k)",
+        "min": 1,
+        "max": 10,
+        "step": 0.5,
+        "default": 4
+       },
+       {
+        "type": "toggle",
+        "label": "Show downhill arrow",
+        "default": true
+       }
+      ],
+      "interactions": [
+       "Play or step to take gradient steps one at a time; the ball moves and the trail grows.",
+       "Drag the ball to a new starting point on the surface; this clears the trail and the step count.",
+       "Raise the learning rate to see the path go from smooth, to zig-zagging, to flying off the bowl.",
+       "Raise the steepness to make the bowl a narrow valley and see the zig-zag start at a smaller learning rate.",
+       "Turn the downhill arrow on or off."
+      ],
+      "notices": [
+       "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs."
+      ],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793896058,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "minimize a quadratic loss with gradient steps",
+    "prompt": "A bowl-shaped loss surface, L = ½(x² + k·y²), drawn with contour lines, with a ball sitting on it and a trail of the points it has visited. Each step moves the ball against the gradient (the direction of steepest uphill), shown by an arrow pointing downhill. With a small learning rate the ball curves gently into the bottom. With a larger one it zig-zags across the steep direction, and past a limit it bounces higher and flies off the bowl. Readouts show the step count, the current loss and the gradient's length.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Changing the step size and the bowl's shape, then watching the path, shows why gradient descent sometimes settles smoothly, sometimes oscillates and sometimes blows up.",
+     "Behavior: rules",
+     "Controls: manipulate",
+     "Interaction: Play or step to take gradient steps one at a time; the ball moves and the trail grows.",
+     "Interaction: Drag the ball to a new starting point on the surface; this clears the trail and the step count.",
+     "Interaction: Raise the learning rate to see the path go from smooth, to zig-zagging, to flying off the bowl.",
+     "Interaction: Raise the steepness to make the bowl a narrow valley and see the zig-zag start at a smaller learning rate.",
+     "Interaction: Turn the downhill arrow on or off.",
+     "Parameter: Learning rate (step size), 0.01 to 0.6, default 0.1",
+     "Parameter: Steepness across the bowl (k), 1 to 10, default 4",
+     "Parameter: Show downhill arrow",
+     "Goal: See that each gradient step moves downhill by an amount set by the learning rate, and that the bowl's steepest direction sets how large that rate can be before steps overshoot and diverge."
+    ],
+    "assumptions": [
+     "Illustration: an exact quadratic bowl, not a loss from a real trained model.",
+     "Each step is exact gradient descent: x ← x − rate·x and y ← y − rate·k·y, with no noise and no momentum.",
+     "The arrow shows the negative gradient (downhill) at the ball, and the ball moves along it, scaled by the learning rate.",
+     "Along the flat direction the distance to the minimum shrinks by a factor of (1 − rate) each step, and along the steep direction by (1 − rate·k). The path oscillates when rate·k > 1 and diverges when rate·k > 2 (or rate > 2).",
+     "The run stops when the loss falls below 0.0001, after 200 steps, or when the ball leaves the drawn part of the surface (shown as diverged).",
+     "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+     "Real losses are rarely perfect bowls. Here the stability limit is exact, but for real models it holds only roughly near a minimum.",
+     "Divergence is shown only until the ball leaves the drawn surface. Beyond that edge the loss keeps growing without bound.",
+     "Stochastic (noisy, mini-batch) gradients and adaptive optimizers are not shown."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-797a2113"
+    },
+    "quote": null,
+    "review_hash": "48d78a7d049813d34dc3386db80d36cc03466b4774c29fc8b80015faadd745d9",
+    "sig": "v3.29be0f4e76f74bc0a9125cb565cbb09f81f2da37e71d47bc16f5693457bdc05f",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 385,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.29be0f4e76f74bc0a9125cb565cbb09f81f2da37e71d47bc16f5693457bdc05f",
+    "used": {
+     "version": 1,
+     "key": "aj_9d29453f06914cf1a6fcb5d9fc8cb6ab"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "307"
+   ],
+   "feedback": null
+  }
+ }
+]

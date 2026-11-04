@@ -1,0 +1,10 @@
+| # | Time (PT) | Candidate SHA | Preview version | Phrasing | Job id | Outcome | Repairs | Settled credits | Charged credits | Artifact hash | Run total credits |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| c0 | 11/4, 8:22 AM | 28294cce9904138dcbb9c1ddec7176045f87690f | 1fc859c6-00a2-4697-b298-a399b7e4ba98 | CONTROL: golden SGD artifact (job 0) (direct review call, outside the ledger) | - | accepted | 0 | 11.20 | - | 5f6da260582995c7 | 11.20 |
+| 4 | 11/4, 8:26 AM | 28294cce9904138dcbb9c1ddec7176045f87690f | 1fc859c6-00a2-4697-b298-a399b7e4ba98 | show me why a high learning rate diverges | aj_8a26c46f059f4a159de2240e11ea556d | rejected | 0 | 52.71 | 10 | - | 63.91 |
+| 5 | 11/4, 8:27 AM | 28294cce9904138dcbb9c1ddec7176045f87690f | 1fc859c6-00a2-4697-b298-a399b7e4ba98 | a ball rolling down a loss surface, step by step | aj_01fed34095a14dd1a4bd664a3a7e043b | accepted | 1 | 61.84 | 62 | ff26764289289c35 | 125.74 |
+| 1 | 11/4, 8:28 AM | 28294cce9904138dcbb9c1ddec7176045f87690f | 1fc859c6-00a2-4697-b298-a399b7e4ba98 | stochastic gradient descent | aj_c7ac89583146483c95cb200dd069c77e | rejected | 2 | 96.09 | 8 | - | 221.83 |
+| 3 | 11/4, 8:28 AM | 28294cce9904138dcbb9c1ddec7176045f87690f | 1fc859c6-00a2-4697-b298-a399b7e4ba98 | gradient descent with two learning rates | aj_a515aa51114a4c8bb72fdf0643f67793 | accepted | 2 | 95.63 | 96 | 3f3eb13744ecfe42 | 317.46 |
+| 2 | 11/4, 8:28 AM | 28294cce9904138dcbb9c1ddec7176045f87690f | 1fc859c6-00a2-4697-b298-a399b7e4ba98 | SGD on a bowl-shaped loss | aj_04696689948f4b749067fcd8a0ef0b14 | rejected | 1 | 94.47 | 19 | - | 411.94 |
+| 6 | 11/4, 8:30 AM | 28294cce9904138dcbb9c1ddec7176045f87690f | 1fc859c6-00a2-4697-b298-a399b7e4ba98 | minimize a quadratic loss with gradient steps | aj_9d29453f06914cf1a6fcb5d9fc8cb6ab | accepted | 0 | 45.87 | 46 | bf5ea0098adcc24c | 457.81 |
+| 7 | 11/4, 8:33 AM | 28294cce9904138dcbb9c1ddec7176045f87690f | 1fc859c6-00a2-4697-b298-a399b7e4ba98 | compare learning rate 0.1 and 1.5 on the same surface | aj_e7707df0263b4b9596e35243d502e7f4 | accepted | 2 | 97.91 | 98 | 96cfa9e56d806aca | 555.72 |

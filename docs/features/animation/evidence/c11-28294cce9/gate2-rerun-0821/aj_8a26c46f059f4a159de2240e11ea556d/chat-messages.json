@@ -1,0 +1,143 @@
+[
+ {
+  "messageId": "303",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-b19a7200dec3226b",
+    "version": 1,
+    "command": "animation",
+    "title": "Why a too-high learning rate makes gradient descent diverge",
+    "description": "A ball sits on a stretched bowl-shaped loss surface. The bowl is gentle in one direction and steep in the other. Each step, the ball moves against the slope by the learning rate times the slope, leaves a trail and shows an arrow for its next move. With a small learning rate, the trail curves down to the bottom. Just above a threshold, it zigzags across the steep direction, landing higher each time, until it runs off the surface.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-706afaef",
+     "job": "aj_8a26c46f059f4a159de2240e11ea556d",
+     "plan_hash": "46a1dc31759200702dff3c02b14724394c5983d4c0ef9e96999990993dfbdcef",
+     "request": "show me why a high learning rate diverges",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate",
+        "min": 0.05,
+        "max": 1,
+        "step": 0.01,
+        "default": 0.55
+       },
+       {
+        "type": "number",
+        "label": "Steepness of the steep direction",
+        "min": 2,
+        "max": 6,
+        "step": 0.5,
+        "default": 4
+       }
+      ],
+      "interactions": [
+       "Press play to let the host take one gradient step after another, or use Step once to move a single step and study it.",
+       "Move the learning rate below or above the threshold readout, then use Restart run, which keeps your settings, to compare a run that reaches the bottom with one that blows up.",
+       "Change the steepness and watch the threshold move: a steeper bowl tolerates only a smaller learning rate.",
+       "Orbit the camera to look along the steep direction, where the zigzag grows."
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793895786,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "show me why a high learning rate diverges",
+    "prompt": "A ball sits on a stretched bowl-shaped loss surface. The bowl is gentle in one direction and steep in the other. Each step, the ball moves against the slope by the learning rate times the slope, leaves a trail and shows an arrow for its next move. With a small learning rate, the trail curves down to the bottom. Just above a threshold, it zigzags across the steep direction, landing higher each time, until it runs off the surface.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Divergence is easiest to see when you set the learning rate yourself, go step by step, and watch each jump overshoot the bottom and land higher than the last. Changing the steepness shows that \"too high\" depends on how curved the surface is.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Press play to let the host take one gradient step after another, or use Step once to move a single step and study it.",
+     "Interaction: Move the learning rate below or above the threshold readout, then use Restart run, which keeps your settings, to compare a run that reaches the bottom with one that blows up.",
+     "Interaction: Change the steepness and watch the threshold move: a steeper bowl tolerates only a smaller learning rate.",
+     "Interaction: Orbit the camera to look along the steep direction, where the zigzag grows.",
+     "Parameter: Learning rate, 0.05 to 1, default 0.55",
+     "Parameter: Steepness of the steep direction, 2 to 6, default 4",
+     "Goal: Gradient descent diverges when the learning rate times the surface's curvature exceeds 2: each step overshoots the bottom by more than it started, so the loss grows instead of shrinking."
+    ],
+    "assumptions": [
+     "Illustration: a simple made-up bowl-shaped loss, not a real model being trained.",
+     "The loss is 0.5 × (x² + steepness × y²), so its slope is (x, steepness × y), and each step is: new position = position − learning rate × slope.",
+     "Each step multiplies the steep-direction distance from the bottom by (1 − learning rate × steepness), and the gentle-direction distance by (1 − learning rate). If a multiplier's size exceeds 1, that distance grows. Exact for this bowl; only approximate near the bottom of real losses.",
+     "Readouts show the step number, the current loss, the steep-direction multiplier and the threshold of 2 ÷ steepness. A learning rate above the threshold diverges, and one exactly at it bounces back and forth forever.",
+     "The arrow at the ball shows the next step, which points against the slope (downhill direction scaled by the learning rate), not the slope itself.",
+     "Every run starts from the same point. It stops when the loss falls below 0.001 (converged), when the ball leaves the drawn surface, which covers −3 to 3 in each direction (diverged), or after 40 steps.",
+     "Heights are drawn scaled down so the whole bowl fits on screen. The loss readout shows the true value."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Real loss surfaces are not perfect bowls, so their divergence threshold is not exactly 2 ÷ curvature and can change during training.",
+     "There is no noise from mini-batches and no momentum or adaptive optimizer, only plain gradient descent.",
+     "Once the ball leaves the drawn surface, the scene shows it as diverged instead of following it further."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-706afaef"
+    },
+    "quote": null,
+    "review_hash": "206692ffb569dedc68cf7ae53f289e1bd06c6195bf4c905df9b33b47f60a3338",
+    "sig": "v3.25b83d29a4f1799eef1acd8e37a5a37de0d2030df6bb06b51fb0a2cebcec8948",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 385,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.25b83d29a4f1799eef1acd8e37a5a37de0d2030df6bb06b51fb0a2cebcec8948",
+    "used": {
+     "version": 1,
+     "key": "aj_8a26c46f059f4a159de2240e11ea556d"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "303"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "305",
+  "role": "assistant",
+  "content": "\"Why a too-high learning rate makes gradient descent diverge\" was not finished. The visual review found 1 serious problem with the shared 3D drawing. You have not been charged. It needs a change the automatic correction cannot make. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate. Your request and plan are kept.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_8a26c46f059f4a159de2240e11ea556d:1",
+   "alternativeOf": null,
+   "alternatives": [
+    "305"
+   ],
+   "feedback": null
+  }
+ }
+]

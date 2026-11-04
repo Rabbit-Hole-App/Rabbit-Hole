@@ -1,0 +1,126 @@
+[
+ {
+  "messageId": "302",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-92f6ac1435da0120",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient descent with two learning rates on a stretched bowl",
+    "description": "A bowl-shaped loss surface, longer in one direction than the other, has two balls on it. Both start at the same point, and each takes gradient descent steps with its own learning rate. One trails blue and the other orange. As the host steps forward, both balls move downhill together, step for step. With the default settings, the small learning rate creeps slowly along a smooth path. The large one moves fast but zig-zags across the narrow direction of the bowl. Push the large rate past the stability limit and that ball bounces higher and higher until it leaves the surface.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-7cdc1df5",
+     "job": "aj_a515aa51114a4c8bb72fdf0643f67793",
+     "plan_hash": "356c62f45f4eb031c026d8f5a326b15dbb8ebcd5d70adafd9e2fd0bd7d4428c3",
+     "request": "gradient descent with two learning rates",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate A (blue)",
+        "min": 0.01,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.05
+       },
+       {
+        "type": "number",
+        "label": "Learning rate B (orange)",
+        "min": 0.01,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.4
+       },
+       {
+        "type": "toggle",
+        "label": "Show downhill arrows",
+        "default": true
+       }
+      ],
+      "interactions": [
+       "Change learning rate A or B. On the next run, that ball takes shorter or longer steps. Its trail gets smoother, zig-zags more, or runs away.",
+       "Play, pause or step one move at a time. Readouts show the step number, each ball's current loss and whether it has settled near the bottom, is still moving, or has left the surface.",
+       "Restart both runs from the shared start point. This keeps your chosen learning rates and clears only the trails and the step count.",
+       "Turn the arrows on or off. Each arrow under a ball points downhill (opposite the gradient); each step moves the ball along it by its learning rate times the slope."
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793895785,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "gradient descent with two learning rates",
+    "prompt": "A bowl-shaped loss surface, longer in one direction than the other, has two balls on it. Both start at the same point, and each takes gradient descent steps with its own learning rate. One trails blue and the other orange. As the host steps forward, both balls move downhill together, step for step. With the default settings, the small learning rate creeps slowly along a smooth path. The large one moves fast but zig-zags across the narrow direction of the bowl. Push the large rate past the stability limit and that ball bounces higher and higher until it leaves the surface.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Both runs start from the same point and take steps at the same moment, so you can see directly how step size alone decides between slow-but-steady, fast-but-zig-zagging and runaway.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Change learning rate A or B. On the next run, that ball takes shorter or longer steps. Its trail gets smoother, zig-zags more, or runs away.",
+     "Interaction: Play, pause or step one move at a time. Readouts show the step number, each ball's current loss and whether it has settled near the bottom, is still moving, or has left the surface.",
+     "Interaction: Restart both runs from the shared start point. This keeps your chosen learning rates and clears only the trails and the step count.",
+     "Interaction: Turn the arrows on or off. Each arrow under a ball points downhill (opposite the gradient); each step moves the ball along it by its learning rate times the slope.",
+     "Parameter: Learning rate A (blue), 0.01 to 0.6, default 0.05",
+     "Parameter: Learning rate B (orange), 0.01 to 0.6, default 0.4",
+     "Parameter: Show downhill arrows",
+     "Goal: The learning rate sets the step size. Too small and progress is slow. Larger steps move faster but overshoot back and forth across steep directions. Past a limit set by the steepest direction (0.5 here), the steps grow and the run blows up."
+    ],
+    "assumptions": [
+     "Illustration: a simple formula surface, not a real model's loss.",
+     "Loss = ½(x² + 4y²). It is four times steeper across the bowl (y) than along it (x). The minimum is at the centre, where the loss is zero.",
+     "Each step is exactly: new position = old position − learning rate × gradient, where the gradient is (x, 4y). There is no momentum and no noise.",
+     "Both balls start at x = −3.5, y = 1.5, where the loss is about 10.6.",
+     "A run stops after 60 steps, when its loss falls below 0.001, or when its ball leaves the drawn surface (x beyond ±4 or y beyond ±2)."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "On this bowl, any rate below 0.5 eventually reaches the bottom. From 0.25 to 0.5 the ball overshoots back and forth across the steep direction, but the swings shrink; above 0.5 they grow and it leaves the surface. Real loss surfaces have no single clean limit.",
+     "Rates up to 0.25 never overshoot in the steep direction, but the smallest rates may not reach the bottom within 60 steps. Their slowness is the point being shown.",
+     "A bowl has only one minimum, so this scene can't show getting stuck in a local minimum or on a plateau."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-7cdc1df5"
+    },
+    "quote": null,
+    "review_hash": "d07ded407605737108f2a9257e0385ca46ae52c500a8701645035afddae481ec",
+    "sig": "v3.aa800103b96db548ce4ad734e96b0bfac04b0e9808198cd04bc1821a1c281e48",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 385,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.aa800103b96db548ce4ad734e96b0bfac04b0e9808198cd04bc1821a1c281e48",
+    "used": {
+     "version": 1,
+     "key": "aj_a515aa51114a4c8bb72fdf0643f67793"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "302"
+   ],
+   "feedback": null
+  }
+ }
+]

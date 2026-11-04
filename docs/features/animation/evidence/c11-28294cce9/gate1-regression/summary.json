@@ -1,0 +1,455 @@
+{
+  "ids": {
+    "candidate": "28294cce9904138dcbb9c1ddec7176045f87690f",
+    "prompts": "594d5152ca9d828e1d23642f41e53d01c295a72a4b0bdfd8fd632dd86346000b",
+    "golden": "ae82facb429aefc4a7a5b4fd8a3a14467fd543a9cbdfc4b758f675f40989371b"
+  },
+  "promptFiles": [
+    [
+      "packages/control-plane/src/agents/animation-author.js",
+      "6864103d4e1897ed1c73159193d14842f6af6efb81b738f25850c74e423cd3aa"
+    ],
+    [
+      "packages/control-plane/src/agents/animation-brief.js",
+      "5eb287b311b76b8b33739dc546ea682e65af75d570bcfe7e64e0a8bfe8c14898"
+    ],
+    [
+      "packages/control-plane/src/agents/animation-archetypes.js",
+      "b8b7a44956beb8d95f99a63ebb9092bedcbebe797369ce2f839369b5b3afa6d7"
+    ],
+    [
+      "packages/control-plane/src/animation-brief.js",
+      "8321c1662cf9685201cb3b5b3b89ccf030d4fe47a86a9e19891626ff87bc3c3a"
+    ],
+    [
+      "packages/control-plane/src/animation-author.js",
+      "c159fe605f26e48caf306f192107ee33ded755b312561ad48c48d809e1f152dd"
+    ],
+    [
+      "packages/control-plane/src/animation-policy.js",
+      "6559bb46d61dbef4e2b505700e0293e0c9caea23497c7e1fd2e3b2dfe104e337"
+    ],
+    [
+      "packages/control-plane/src/tool-input.js",
+      "d3ec2f14d7f434a8bb1f6502fdb31418b77cdc87cf7ac48513e26462c515d498"
+    ],
+    [
+      "packages/web/src/animation3d/contract.js",
+      "90de97bc8ff5b747923a707dbd2f97b8d8fda1f46e1d8e3ef4e0ea7f152f4806"
+    ],
+    [
+      "packages/web/src/animation3d/capabilities.js",
+      "e6df4ffb573b388333acdd5bbff6c4f54842a8499d6387b5d7895ed3f936c02d"
+    ]
+  ],
+  "transport": "dev-key",
+  "concurrency": 3,
+  "maxCredits": 350,
+  "stopped": null,
+  "settled": 90.8239,
+  "runs": [
+    {
+      "id": "grid-game-run6-r01",
+      "plan": "grid-game-run6",
+      "session": null,
+      "candidate": "28294cce9904138dcbb9c1ddec7176045f87690f",
+      "prompts": "594d5152ca9d828e1d23642f41e53d01c295a72a4b0bdfd8fd632dd86346000b",
+      "golden": "ae82facb429aefc4a7a5b4fd8a3a14467fd543a9cbdfc4b758f675f40989371b",
+      "requestHash": "ff94dabbcf29c85012afa0fb77f9ccfbbc394c2f0167874eee1cc5deb350e269",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 1253,
+        "cache_creation_input_tokens": 8082,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 8082,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 3408,
+        "output_tokens_details": {
+          "thinking_tokens": 880
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 11.3582,
+      "bytes": 5278,
+      "validator": true,
+      "assertions": null,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "parseError": null,
+      "seconds": 29.1
+    },
+    {
+      "id": "grid-game-run6-r02",
+      "plan": "grid-game-run6",
+      "session": null,
+      "candidate": "28294cce9904138dcbb9c1ddec7176045f87690f",
+      "prompts": "594d5152ca9d828e1d23642f41e53d01c295a72a4b0bdfd8fd632dd86346000b",
+      "golden": "ae82facb429aefc4a7a5b4fd8a3a14467fd543a9cbdfc4b758f675f40989371b",
+      "requestHash": "ff94dabbcf29c85012afa0fb77f9ccfbbc394c2f0167874eee1cc5deb350e269",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 1253,
+        "cache_creation_input_tokens": 8082,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 8082,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 3423,
+        "output_tokens_details": {
+          "thinking_tokens": 887
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 11.3882,
+      "bytes": 5174,
+      "validator": true,
+      "assertions": null,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "parseError": null,
+      "seconds": 28.7
+    },
+    {
+      "id": "grid-game-run6-r03",
+      "plan": "grid-game-run6",
+      "session": null,
+      "candidate": "28294cce9904138dcbb9c1ddec7176045f87690f",
+      "prompts": "594d5152ca9d828e1d23642f41e53d01c295a72a4b0bdfd8fd632dd86346000b",
+      "golden": "ae82facb429aefc4a7a5b4fd8a3a14467fd543a9cbdfc4b758f675f40989371b",
+      "requestHash": "ff94dabbcf29c85012afa0fb77f9ccfbbc394c2f0167874eee1cc5deb350e269",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 1253,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 8082,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 3467,
+        "output_tokens_details": {
+          "thinking_tokens": 887
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 7.5969,
+      "bytes": 5388,
+      "validator": true,
+      "assertions": null,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "parseError": null,
+      "seconds": 29.4
+    },
+    {
+      "id": "pendulum-aj_78cc3d3-r01",
+      "plan": "pendulum-aj_78cc3d3",
+      "session": null,
+      "candidate": "28294cce9904138dcbb9c1ddec7176045f87690f",
+      "prompts": "594d5152ca9d828e1d23642f41e53d01c295a72a4b0bdfd8fd632dd86346000b",
+      "golden": "ae82facb429aefc4a7a5b4fd8a3a14467fd543a9cbdfc4b758f675f40989371b",
+      "requestHash": "1ee8610412024006ad1fa020a4131b0215094ba90d50bc5cbca3177f949b8763",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 1052,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 8082,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 2291,
+        "output_tokens_details": {
+          "thinking_tokens": 693
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 5.1645,
+      "bytes": 3389,
+      "validator": true,
+      "assertions": null,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "parseError": null,
+      "seconds": 20.9
+    },
+    {
+      "id": "pendulum-aj_78cc3d3-r02",
+      "plan": "pendulum-aj_78cc3d3",
+      "session": null,
+      "candidate": "28294cce9904138dcbb9c1ddec7176045f87690f",
+      "prompts": "594d5152ca9d828e1d23642f41e53d01c295a72a4b0bdfd8fd632dd86346000b",
+      "golden": "ae82facb429aefc4a7a5b4fd8a3a14467fd543a9cbdfc4b758f675f40989371b",
+      "requestHash": "1ee8610412024006ad1fa020a4131b0215094ba90d50bc5cbca3177f949b8763",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 1052,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 8082,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 2509,
+        "output_tokens_details": {
+          "thinking_tokens": 833
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 5.6005,
+      "bytes": 3477,
+      "validator": true,
+      "assertions": null,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "parseError": null,
+      "seconds": 23
+    },
+    {
+      "id": "pendulum-aj_78cc3d3-r03",
+      "plan": "pendulum-aj_78cc3d3",
+      "session": null,
+      "candidate": "28294cce9904138dcbb9c1ddec7176045f87690f",
+      "prompts": "594d5152ca9d828e1d23642f41e53d01c295a72a4b0bdfd8fd632dd86346000b",
+      "golden": "ae82facb429aefc4a7a5b4fd8a3a14467fd543a9cbdfc4b758f675f40989371b",
+      "requestHash": "1ee8610412024006ad1fa020a4131b0215094ba90d50bc5cbca3177f949b8763",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 1052,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 8082,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 2278,
+        "output_tokens_details": {
+          "thinking_tokens": 697
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 5.1385,
+      "bytes": 3254,
+      "validator": true,
+      "assertions": null,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "parseError": null,
+      "seconds": 21.2
+    },
+    {
+      "id": "projectile-aj_54eec6a-r01",
+      "plan": "projectile-aj_54eec6a",
+      "session": null,
+      "candidate": "28294cce9904138dcbb9c1ddec7176045f87690f",
+      "prompts": "594d5152ca9d828e1d23642f41e53d01c295a72a4b0bdfd8fd632dd86346000b",
+      "golden": "ae82facb429aefc4a7a5b4fd8a3a14467fd543a9cbdfc4b758f675f40989371b",
+      "requestHash": "7c22a916a88aa23f4e1b084e52f8e23b2a7ac2b7c35b83500d9bdae29fa1956f",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 1605,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 8082,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 7092,
+        "output_tokens_details": {
+          "thinking_tokens": 2977
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 14.9877,
+      "bytes": 7973,
+      "validator": true,
+      "assertions": null,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "parseError": null,
+      "seconds": 64.1
+    },
+    {
+      "id": "projectile-aj_54eec6a-r02",
+      "plan": "projectile-aj_54eec6a",
+      "session": null,
+      "candidate": "28294cce9904138dcbb9c1ddec7176045f87690f",
+      "prompts": "594d5152ca9d828e1d23642f41e53d01c295a72a4b0bdfd8fd632dd86346000b",
+      "golden": "ae82facb429aefc4a7a5b4fd8a3a14467fd543a9cbdfc4b758f675f40989371b",
+      "requestHash": "7c22a916a88aa23f4e1b084e52f8e23b2a7ac2b7c35b83500d9bdae29fa1956f",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 1605,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 8082,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 7173,
+        "output_tokens_details": {
+          "thinking_tokens": 3032
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 15.1497,
+      "bytes": 8228,
+      "validator": true,
+      "assertions": null,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "parseError": null,
+      "seconds": 63.6
+    },
+    {
+      "id": "projectile-aj_54eec6a-r03",
+      "plan": "projectile-aj_54eec6a",
+      "session": null,
+      "candidate": "28294cce9904138dcbb9c1ddec7176045f87690f",
+      "prompts": "594d5152ca9d828e1d23642f41e53d01c295a72a4b0bdfd8fd632dd86346000b",
+      "golden": "ae82facb429aefc4a7a5b4fd8a3a14467fd543a9cbdfc4b758f675f40989371b",
+      "requestHash": "7c22a916a88aa23f4e1b084e52f8e23b2a7ac2b7c35b83500d9bdae29fa1956f",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 1605,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 8082,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 6818,
+        "output_tokens_details": {
+          "thinking_tokens": 2625
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 14.4397,
+      "bytes": 8048,
+      "validator": true,
+      "assertions": null,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "stripped": [
+        {
+          "path": "artifact.scene.nodes.9",
+          "key": "placement",
+          "why": "a label geometry field on a node"
+        }
+      ],
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "parseError": null,
+      "seconds": 58.5
+    }
+  ]
+}

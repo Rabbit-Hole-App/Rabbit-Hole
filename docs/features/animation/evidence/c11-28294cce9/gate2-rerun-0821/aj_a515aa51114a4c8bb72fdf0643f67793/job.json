@@ -1,0 +1,262 @@
+{
+ "id": "aj_a515aa51114a4c8bb72fdf0643f67793",
+ "version": 1,
+ "boardId": "8f2f6321-a483-4eeb-8af8-4ed67973e96a",
+ "cardId": "f12ef1e6-1ca0-4167-9b3e-7141f35b2160",
+ "stage": "ready",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 2,
+ "stopReason": "accepted",
+ "failure": null,
+ "recovery": [],
+ "outcome": "supported",
+ "choiceOpen": false,
+ "threadId": "canvaschat-f88b279f-2ed8-4be2-a420-1f042f65a535",
+ "chatPending": false,
+ "usage": {
+  "credits": 96,
+  "unknown": false
+ },
+ "result": {
+  "jobId": "aj_a515aa51114a4c8bb72fdf0643f67793",
+  "resultId": "ar_26dfb5b4c09b450dab9a7692c800781f",
+  "cardId": "f12ef1e6-1ca0-4167-9b3e-7141f35b2160",
+  "canvas": {
+   "boardId": "8f2f6321-a483-4eeb-8af8-4ed67973e96a"
+  },
+  "requestRef": "c6a7dea45c9175ff",
+  "revision": "av_056d3b577bc640ed94218a4bb298ff8c",
+  "planHash": "356c62f45f4eb031c026d8f5a326b15dbb8ebcd5d70adafd9e2fd0bd7d4428c3",
+  "sources": "643d5437104296e2",
+  "artifactHash": "3f3eb13744ecfe42eb773a09f4e2ce81a4b847649090c61980b97ff12c1e55fc",
+  "experience": "experiment",
+  "capabilityVersion": "animation-capabilities/1",
+  "policyVersion": 1
+ },
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Gradient descent with two learning rates on a stretched bowl",
+  "description": "A bowl-shaped loss surface, longer in one direction than the other, has two balls on it. Both start at the same point, and each takes gradient descent steps with its own learning rate. One trails blue and the other orange. As the host steps forward, both balls move downhill together, step for step. With the default settings, the small learning rate creeps slowly along a smooth path. The large one moves fast but zig-zags across the narrow direction of the bowl. Push the large rate past the stability limit and that ball bounces higher and higher until it leaves the surface.",
+  "experience": "experiment",
+  "reason": "Both runs start from the same point and take steps at the same moment, so you can see directly how step size alone decides between slow-but-steady, fast-but-zig-zagging and runaway.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "lrA",
+    "label": "Learning rate A (blue)",
+    "min": 0.01,
+    "max": 0.6,
+    "step": 0.01,
+    "default": 0.05
+   },
+   {
+    "type": "number",
+    "id": "lrB",
+    "label": "Learning rate B (orange)",
+    "min": 0.01,
+    "max": 0.6,
+    "step": 0.01,
+    "default": 0.4
+   },
+   {
+    "type": "toggle",
+    "id": "showGradient",
+    "label": "Show downhill arrows",
+    "default": true
+   }
+  ],
+  "interactions": [
+   "Change learning rate A or B. On the next run, that ball takes shorter or longer steps. Its trail gets smoother, zig-zags more, or runs away.",
+   "Play, pause or step one move at a time. Readouts show the step number, each ball's current loss and whether it has settled near the bottom, is still moving, or has left the surface.",
+   "Restart both runs from the shared start point. This keeps your chosen learning rates and clears only the trails and the step count.",
+   "Turn the arrows on or off. Each arrow under a ball points downhill (opposite the gradient); each step moves the ball along it by its learning rate times the slope."
+  ],
+  "assumptions": [
+   "Illustration: a simple formula surface, not a real model's loss.",
+   "Loss = ½(x² + 4y²). It is four times steeper across the bowl (y) than along it (x). The minimum is at the centre, where the loss is zero.",
+   "Each step is exactly: new position = old position − learning rate × gradient, where the gradient is (x, 4y). There is no momentum and no noise.",
+   "Both balls start at x = −3.5, y = 1.5, where the loss is about 10.6.",
+   "A run stops after 60 steps, when its loss falls below 0.001, or when its ball leaves the drawn surface (x beyond ±4 or y beyond ±2)."
+  ],
+  "limitations": [
+   "On this bowl, any rate below 0.5 eventually reaches the bottom. From 0.25 to 0.5 the ball overshoots back and forth across the steep direction, but the swings shrink; above 0.5 they grow and it leaves the surface. Real loss surfaces have no single clean limit.",
+   "Rates up to 0.25 never overshoot in the steep direction, but the smallest rates may not reach the bottom within 60 steps. Their slowness is the point being shown.",
+   "A bowl has only one minimum, so this scene can't show getting stuck in a local minimum or on a plateau."
+  ],
+  "learningGoal": "The learning rate sets the step size. Too small and progress is slow. Larger steps move faster but overshoot back and forth across steep directions. Past a limit set by the steepest direction (0.5 here), the steps grow and the run blows up.",
+  "requiredCapabilities": [
+   "parameters",
+   "actions",
+   "step",
+   "labels",
+   "readouts",
+   "speed"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "compare",
+    "parameter": "lrB",
+    "values": [
+     0.4,
+     0.6
+    ]
+   },
+   {
+    "kind": "compare",
+    "parameter": "lrA",
+    "values": [
+     0.01,
+     0.05
+    ]
+   },
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "pathLength",
+    "min": 60
+   }
+  ]
+ },
+ "planHash": "356c62f45f4eb031c026d8f5a326b15dbb8ebcd5d70adafd9e2fd0bd7d4428c3",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 41004,
+  "generateToResultMs": 318540,
+  "processingMs": 359494,
+  "approvalWaitMs": 3562,
+  "calls": 7,
+  "repairs": 2,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 40954,
+    "calls": 2,
+    "inputTokens": 2187,
+    "outputTokens": 4261,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 3562,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 90836,
+    "calls": 1,
+    "inputTokens": 8126,
+    "outputTokens": 10946,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 25,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 19933,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 44638,
+    "calls": 1,
+    "inputTokens": 13782,
+    "outputTokens": 3976,
+    "images": 6,
+    "captures": 0,
+    "outcome": "rejected"
+   },
+   {
+    "stage": "repairing",
+    "ms": 49720,
+    "calls": 1,
+    "inputTokens": 9659,
+    "outputTokens": 6689,
+    "images": 2,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 29,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "rejected"
+   },
+   {
+    "stage": "repairing",
+    "ms": 45141,
+    "calls": 1,
+    "inputTokens": 7508,
+    "outputTokens": 6294,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 27,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 33928,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 34263,
+    "calls": 1,
+    "inputTokens": 13663,
+    "outputTokens": 3146,
+    "images": 6,
+    "captures": 0,
+    "outcome": "accepted"
+   }
+  ]
+ },
+ "createdAt": 1793809344159,
+ "updatedAt": 1793809707265
+}

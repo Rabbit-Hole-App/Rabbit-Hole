@@ -1,0 +1,141 @@
+[
+ {
+  "at": 1793809628567,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "ff26764289289c351312c3cf13e5c05476d815be1e09833e05e2f6022723206f",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Drag is restricted to the across-valley axis, while the plan says drag the ball to a new starting point on the surface. This is disclosed in the assumptions. Not sampled: the learning-rate low end (0.02), the 0.25–0.5 zig-zag range, showArrow off, Clear path, Run again and drag.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "arrow",
+       "message": "Near convergence the next step is about 0.015 long (0.023 drawn), so the arrow and its 'Next step' label are hidden inside the ball while the status still reads running. A brief note or a visible small marker would help.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "object": "trail",
+       "message": "The middle trail segment of the diverging path is drawn much thinner than the others, close to a hairline.",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "object": "trail",
+       "message": "The older trail segments are thinner than the last one, so one leg of the zig-zag is close to a hairline.",
+       "repairable": false
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13177,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4425,
+   "output_tokens_details": {
+    "thinking_tokens": 3256
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_01fed34095a14dd1a4bd664a3a7e043b-review-4",
+   "status": "settled",
+   "costMicros": 141629,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

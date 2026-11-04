@@ -1,0 +1,83 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Gradient descent: learning rate 0.1 vs 1.5 on the same bowl",
+ "description": "A bowl-shaped loss surface, steeper in one direction than the other, with two marker balls that start from the same point. Each step, both markers take a gradient descent step: blue uses learning rate 0.1, orange uses 1.5, and each leaves a trail. Blue creeps smoothly down to the bottom. Orange overshoots the bottom across the steep direction, bouncing to the other side farther out each time, until it leaves the surface and stops. Readouts show the step count, each marker's loss, and its status.",
+ "experience": "experiment",
+ "reason": "Running both learning rates on the same surface from the same start lets you compare them step for step. You can also move either rate to find where steady descent turns into bouncing and then into blowing up.",
+ "behavior": "rules",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "rateA",
+   "label": "Learning rate, blue marker",
+   "min": 0.01,
+   "max": 2,
+   "step": 0.01,
+   "default": 0.1
+  },
+  {
+   "type": "number",
+   "id": "rateB",
+   "label": "Learning rate, orange marker",
+   "min": 0.01,
+   "max": 2,
+   "step": 0.01,
+   "default": 1.5
+  }
+ ],
+ "interactions": [
+  "Play, pause or advance one step at a time to watch both markers move together.",
+  "Change either learning rate: that marker's next steps get longer or shorter, and its trail and loss readout change to match.",
+  "Restart both markers from the shared start point, clearing the trails but keeping the learning rates you chose.",
+  "Orbit the camera to see the trails from above (the zigzag) or from the side (loss going up or down)."
+ ],
+ "assumptions": [
+  "Illustration: a simple made-up bowl, not the loss of a real trained model.",
+  "The loss is 0.5·x² + y², so its slope is 0.5 per unit in x and steeper in y. Each step moves a marker against the slope (the gradient) by learning rate times the slope.",
+  "Both markers start at x = 3, y = 0.5. The steps are exact gradient descent with no noise and no momentum.",
+  "On this bowl the math is exact: a rate below 1 settles in the steep direction, a rate between 1 and 2 bounces there with growing swings, and a rate of exactly 1 bounces forever between two points. In the gentle direction any rate below 2 settles.",
+  "Heights are drawn squashed vertically so the whole bowl fits on screen. The loss readouts show the true values.",
+  "A marker that steps past the edge of the drawn area (x or y beyond ±4) stops at its last point inside, and its status reads 'diverged'. Each run stops after 40 steps."
+ ],
+ "limitations": [
+  "At 1.5 the orange marker leaves the surface within about 4 steps, so its trail stays short. That quick blow-up is the effect being shown.",
+  "On a real loss surface the safe learning rate depends on its steepest direction, which is not known in advance. Here the cutoff is exactly 1 only because of how this bowl is shaped."
+ ],
+ "learningGoal": "A small learning rate descends slowly but steadily. A learning rate that is too large for the steepest direction overshoots the bottom, and each bounce lands farther out until the process diverges.",
+ "requiredCapabilities": [
+  "step",
+  "parameters",
+  "actions",
+  "readouts",
+  "labels",
+  "speed"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "compare",
+   "parameter": "rateA",
+   "values": [
+    0.1,
+    1.5
+   ]
+  },
+  {
+   "kind": "compare",
+   "parameter": "rateB",
+   "values": [
+    0.1,
+    1.5
+   ]
+  },
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "pathLength",
+   "min": 2
+  }
+ ]
+}

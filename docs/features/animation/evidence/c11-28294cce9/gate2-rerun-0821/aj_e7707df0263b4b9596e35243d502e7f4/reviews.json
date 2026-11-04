@@ -1,0 +1,269 @@
+[
+ {
+  "at": 1793809823973,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "09dfcc01dba9abf20beb89f784417eb9117acd0de359d16bb49517ff1acb9a37",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ballA",
+       "message": "At the initial state both balls sit at exactly the same point with the same size, so the blue marker is completely hidden behind the orange one. The learner sees one ball although the readouts list two. Offset or shrink one marker (e.g. a smaller blue ball, or rings/labels) so both are visible at the start.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "camera",
+       "message": "From the default camera the contours of 0.5·x²+y² look almost circular, because the view squashes the front-back x direction by about the same ratio (~0.7) as the bowl's anisotropy. That hides the steep-vs-gentle direction that explains why orange zigzags only left-right. Lower the elevation or add axis/direction labels.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: rate exactly 1 (two-point bounce), the low end 0.01, blue reaching 'converged' at the default 0.1, and the 40-step cap.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 12699,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3586,
+   "output_tokens_details": {
+    "thinking_tokens": 2346
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_e7707df0263b4b9596e35243d502e7f4-review-3",
+   "status": "settled",
+   "costMicros": 122937,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793810023904,
+  "attempt": 1,
+  "repairs": 2,
+  "artifactHash": "96cfa9e56d806acab1fec063b9311efbf4ca4e1f3d3a4fe078245c5b6c549e30",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "When the balls share a point, blue is moved forward by one ball width (z = 3.6), but its height still uses the loss at x = 3 (0.89). The surface there is about 0.84, so a ball of radius 0.3 sits partly inside the bowl and its bottom looks cut off. Use the height at the offset point for the drawn position.",
+       "object": "ballA",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The default run (rate 0.1, both balls going for 40 steps) was not sampled. From the program, blue reaches loss below 0.01 near step 29 and reads 'converged'. Orange stops at y = −4 and reads 'diverged' on step 4.",
+       "object": "ballA",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The 'Lowest point' label sits right beside the blue ball and its trail near the bottom, which crowds the spot where the learner watches blue settle.",
+       "object": "lowTag",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "Near the lowest point, one orange trail segment shows as a thin vertical orange sliver. It looks like the tube seen edge-on, which is the host's trail drawing.",
+       "object": "trailB",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 12950,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3044,
+   "output_tokens_details": {
+    "thinking_tokens": 2344
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_e7707df0263b4b9596e35243d502e7f4-review-7",
+   "status": "settled",
+   "costMicros": 113101,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

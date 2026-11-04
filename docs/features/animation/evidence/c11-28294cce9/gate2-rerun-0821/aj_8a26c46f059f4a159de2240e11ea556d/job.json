@@ -1,0 +1,183 @@
+{
+ "id": "aj_8a26c46f059f4a159de2240e11ea556d",
+ "version": 1,
+ "boardId": "ccafe98c-02ed-4c3f-b1f6-20135ec71ff5",
+ "cardId": "8669ed1f-475f-4399-8d29-de5819035279",
+ "stage": "failed",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 0,
+ "stopReason": "unsupported_repair",
+ "failure": {
+  "stage": "reviewing",
+  "category": "renderer",
+  "message": "The visual review found 1 serious problem with the shared 3D drawing. You have not been charged. It needs a change the automatic correction cannot make. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate.",
+  "retryable": false
+ },
+ "recovery": [
+  "revise_plan",
+  "edit_request"
+ ],
+ "outcome": "supported",
+ "choiceOpen": false,
+ "threadId": "canvaschat-bc08da68-d84a-49ee-965f-af36a73e2785",
+ "chatPending": false,
+ "usage": {
+  "credits": 10,
+  "unknown": false,
+  "note": "You have not been charged."
+ },
+ "result": null,
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Why a too-high learning rate makes gradient descent diverge",
+  "description": "A ball sits on a stretched bowl-shaped loss surface. The bowl is gentle in one direction and steep in the other. Each step, the ball moves against the slope by the learning rate times the slope, leaves a trail and shows an arrow for its next move. With a small learning rate, the trail curves down to the bottom. Just above a threshold, it zigzags across the steep direction, landing higher each time, until it runs off the surface.",
+  "experience": "experiment",
+  "reason": "Divergence is easiest to see when you set the learning rate yourself, go step by step, and watch each jump overshoot the bottom and land higher than the last. Changing the steepness shows that \"too high\" depends on how curved the surface is.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learning_rate",
+    "label": "Learning rate",
+    "min": 0.05,
+    "max": 1,
+    "step": 0.01,
+    "default": 0.55
+   },
+   {
+    "type": "number",
+    "id": "steepness",
+    "label": "Steepness of the steep direction",
+    "min": 2,
+    "max": 6,
+    "step": 0.5,
+    "default": 4
+   }
+  ],
+  "interactions": [
+   "Press play to let the host take one gradient step after another, or use Step once to move a single step and study it.",
+   "Move the learning rate below or above the threshold readout, then use Restart run, which keeps your settings, to compare a run that reaches the bottom with one that blows up.",
+   "Change the steepness and watch the threshold move: a steeper bowl tolerates only a smaller learning rate.",
+   "Orbit the camera to look along the steep direction, where the zigzag grows."
+  ],
+  "assumptions": [
+   "Illustration: a simple made-up bowl-shaped loss, not a real model being trained.",
+   "The loss is 0.5 × (x² + steepness × y²), so its slope is (x, steepness × y), and each step is: new position = position − learning rate × slope.",
+   "Each step multiplies the steep-direction distance from the bottom by (1 − learning rate × steepness), and the gentle-direction distance by (1 − learning rate). If a multiplier's size exceeds 1, that distance grows. Exact for this bowl; only approximate near the bottom of real losses.",
+   "Readouts show the step number, the current loss, the steep-direction multiplier and the threshold of 2 ÷ steepness. A learning rate above the threshold diverges, and one exactly at it bounces back and forth forever.",
+   "The arrow at the ball shows the next step, which points against the slope (downhill direction scaled by the learning rate), not the slope itself.",
+   "Every run starts from the same point. It stops when the loss falls below 0.001 (converged), when the ball leaves the drawn surface, which covers −3 to 3 in each direction (diverged), or after 40 steps.",
+   "Heights are drawn scaled down so the whole bowl fits on screen. The loss readout shows the true value."
+  ],
+  "limitations": [
+   "Real loss surfaces are not perfect bowls, so their divergence threshold is not exactly 2 ÷ curvature and can change during training.",
+   "There is no noise from mini-batches and no momentum or adaptive optimizer, only plain gradient descent.",
+   "Once the ball leaves the drawn surface, the scene shows it as diverged instead of following it further."
+  ],
+  "learningGoal": "Gradient descent diverges when the learning rate times the surface's curvature exceeds 2: each step overshoots the bottom by more than it started, so the loss grows instead of shrinking.",
+  "requiredCapabilities": [
+   "parameters",
+   "actions",
+   "step",
+   "labels",
+   "readouts"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "learning_rate",
+    "values": [
+     0.3,
+     0.7
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 2
+   }
+  ]
+ },
+ "planHash": "46a1dc31759200702dff3c02b14724394c5983d4c0ef9e96999990993dfbdcef",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 41281,
+  "generateToResultMs": null,
+  "processingMs": 239121,
+  "approvalWaitMs": 4416,
+  "calls": 4,
+  "repairs": 0,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 41231,
+    "calls": 2,
+    "inputTokens": 2102,
+    "outputTokens": 4298,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 4416,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 114444,
+    "calls": 1,
+    "inputTokens": 8085,
+    "outputTokens": 12873,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 39,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 40386,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 43021,
+    "calls": 1,
+    "inputTokens": 13436,
+    "outputTokens": 4261,
+    "images": 6,
+    "captures": 0,
+    "outcome": "unsupported_repair"
+   }
+  ]
+ },
+ "createdAt": 1793809344970,
+ "updatedAt": 1793809589624
+}
