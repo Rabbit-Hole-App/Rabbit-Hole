@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { linePoints, triangleCost, validateAnimationArtifact } from './contract.js';
 import { ANIMATION_FIXTURES, INVALID_ANIMATION_FIXTURES, primitivesFixture, watchFixture } from './fixtures.js';
-import { ARROW_LABELS, buildAnimationScene, declutterLabels, LABEL_PIXELS, labelPixels } from './scene.js';
+import { ARROW_LABELS, DECLUTTER, buildAnimationScene, declutterLabels, LABEL_PIXELS, labelPixels } from './scene.js';
 
 // Real Three.js objects, no WebGL: labels get a plain Texture in place of the browser's canvas texture.
 const labels = [];
@@ -182,16 +182,17 @@ test('declutter pushes a later overlapping plate by the overlap along its placem
   const plate = (x, y, placement = 'above') => ({ x, y, w: 100, h: 28, placement });
   assert.deepEqual(declutterLabels([plate(0, 0), plate(300, 0)]), [{ dx: 0, dy: 0 }, { dx: 0, dy: 0 }], 'apart: untouched');
   assert.deepEqual(declutterLabels([plate(0, 100), plate(10, 110)]), [{ dx: 0, dy: 0 }, { dx: 0, dy: -(110 + 28 + 4 - 100) }], 'up until clear of the first, plus the gap');
-  assert.deepEqual(declutterLabels([plate(0, 100), plate(10, 110, 'right')])[1], { dx: 100 - 10 + 4, dy: 0 });
-  // Two pushes up clear both plates above; with a single push allowed, up is blocked and the side (left first for "above") wins.
-  assert.deepEqual(declutterLabels([plate(0, 100), plate(0, 60), plate(0, 100)])[2], { dx: 0, dy: -72 });
-  assert.deepEqual(declutterLabels([plate(0, 100), plate(0, 60), plate(0, 100)], { steps: 1 })[2], { dx: -104, dy: 0 });
+  // The owner's reach (C10, DECLUTTER.reach, FX-AN-104): a side push of 94 would put the plate farther than 48 px from the point it names, so the push down by 22 clears instead.
+  assert.deepEqual(declutterLabels([plate(0, 100), plate(10, 110, 'right')])[1], { dx: 0, dy: 22 });
+  // Two pushes up (72) clear both plates above but are beyond the reach; the push down by 32 is within it, with one push allowed or many.
+  assert.deepEqual(declutterLabels([plate(0, 100), plate(0, 60), plate(0, 100)])[2], { dx: 0, dy: 32 });
+  assert.deepEqual(declutterLabels([plate(0, 100), plate(0, 60), plate(0, 100)], { steps: 1 })[2], { dx: 0, dy: 32 });
   // Many labels on one point: bounded, finite, the same every time, and whatever was placed does not overlap.
   const crowd = Array.from({ length: 24 }, () => plate(400, 300));
   const once = declutterLabels(crowd), again = declutterLabels(crowd);
   assert.deepEqual(once, again);
   assert.ok(once.every(offset => offset === null || (Number.isFinite(offset.dx) && Number.isFinite(offset.dy))));
-  assert.ok(once.slice(0, 5).every(Boolean), 'the first labels all find room');
+  assert.ok(once.slice(0, 4).every(Boolean) && once.filter(Boolean).length === 4, 'the first four labels find room within the reach of their point (it was five before DECLUTTER.reach, C10)');
   assert.ok(once.some(offset => offset === null), 'the rest get no room (hidden), never an overlap');
   const placed = moved(crowd.filter((_, i) => once[i]), once.filter(Boolean));
   assert.ok(placed.every((a, i) => placed.every((b, j) => i === j || !intersects(a, b))), 'no two placed plates overlap');
@@ -404,18 +405,18 @@ test('clamp: after the program\'s frame a sphere bound to a surface is held at t
   const scene = built(), ball = holderOf(scene, 'ball');
   // The fixture clamps at max 2.
   let result = scene.apply({ nodes: { ball: { position: [0, 5.6, 0] } }, readouts: { loss: 5.6 } });
-  assert.deepEqual(result.clamped, [{ node: 'ball', trueY: 5.6, y: 2 }]);
+  assert.deepEqual(result.clamped, [{ node: 'ball', axes: ['y'], trueY: 5.6, y: 2, trueAt: [0, 5.6, 0], drawnAt: [0, 2, 0] }]);
   assert.deepEqual([ball.position.y, ball.userData.diverged], [2, true]);
   assert.equal(result.value.readouts.loss, 5.6, 'readouts keep the true value');
   result = scene.apply({ nodes: {} });
-  assert.deepEqual(result.clamped, [{ node: 'ball', trueY: 5.6, y: 2 }], 'a frame that does not move it clamps the position the program last gave');
+  assert.deepEqual(result.clamped, [{ node: 'ball', axes: ['y'], trueY: 5.6, y: 2, trueAt: [0, 5.6, 0], drawnAt: [0, 2, 0] }], 'a frame that does not move it clamps the position the program last gave');
   result = scene.apply({ nodes: { ball: { position: [1, 1.5, 0] } } });
   assert.deepEqual([result.clamped, ball.position.y, ball.userData.diverged], [[], 1.5, false]);
   scene.dispose();
   const open = primitives(); delete open.scene.nodes[3].clampTo.max;
   const top = built(open);
   const surfaceTop = Math.max(...primitivesFixture.artifact.scene.geometries[0].heights.flat());
-  assert.deepEqual(top.apply({ nodes: { ball: { position: [0, 5.6, 0] } } }).clamped, [{ node: 'ball', trueY: 5.6, y: surfaceTop }], 'without max, the top of the surface');
+  assert.deepEqual(top.apply({ nodes: { ball: { position: [0, 5.6, 0] } } }).clamped, [{ node: 'ball', axes: ['y'], trueY: 5.6, y: surfaceTop, trueAt: [0, 5.6, 0], drawnAt: [0, surfaceTop, 0] }], 'without max, the top of the surface');
   top.dispose();
 });
 
@@ -426,7 +427,7 @@ test('clamp: world y, through a moved and scaled parent, and through a surface t
   const scene = built(artifact);
   // rig at y 1 scaled x2: a ball at local y 3 is at world y 7; held at world 2 means local (2 - 1) / 2 = 0.5.
   const result = scene.apply({ nodes: { ball: { position: [0, 3, 0] } } });
-  assert.deepEqual(result.clamped, [{ node: 'ball', trueY: 7, y: 2 }]);
+  assert.deepEqual(result.clamped, [{ node: 'ball', axes: ['y'], trueY: 7, y: 2, trueAt: [0, 7, 0], drawnAt: [0, 2, 0] }]);
   assert.ok(Math.abs(holderOf(scene, 'ball').position.y - 0.5) < 1e-9);
   scene.dispose();
 });
@@ -680,4 +681,63 @@ test('buried: nothing is reported for a ball off the surface, in the air, or cla
   loose.apply({ nodes: { ball: { position: [1.5, -3, 0] } } });
   assert.deepEqual(loose.buried().map(b => b.node), [], 'a ball with no clampTo has no surface it sits on');
   loose.dispose();
+});
+
+// Owner decision 30 (C10; FX-AN-093, FX-AN-103): a marker bound to a surface is held at the bowl's RIM in x and z as well as y. Readouts stay the program's own numbers, and the trace says
+// which axes were held and the true and the drawn position. The fixture's surface is 5 wide and 4 deep (x in -2.5 to 2.5, z in -2 to 2), its clamp at max 2.
+test('decision 30: a diverged marker is held at the rim in x and z as well as y, its readouts stay true and the clamp reports the axes and both positions', () => {
+  const scene = built(), ball = holderOf(scene, 'ball');
+  const result = scene.apply({ nodes: { ball: { position: [3.675, 10.84, 0.4] } }, readouts: { loss: 20.338, status: 'diverged' } });
+  assert.deepEqual(result.clamped, [{ node: 'ball', axes: ['x', 'y'], trueY: 10.84, y: 2, trueAt: [3.675, 10.84, 0.4], drawnAt: [2.5, 2, 0.4] }]);
+  assert.deepEqual(ball.position.toArray(), [2.5, 2, 0.4], 'drawn at the rim');
+  assert.deepEqual([result.value.readouts.loss, result.value.readouts.status], [20.338, 'diverged'], 'the readouts keep the true numbers');
+  assert.equal(ball.userData.diverged, true);
+  // z too, and both ends; a frame that does not move the marker holds it again from the program's position.
+  assert.deepEqual(scene.apply({ nodes: { ball: { position: [-9, 3, -7] } } }).clamped.map(c => [c.axes, c.drawnAt]), [[['x', 'y', 'z'], [-2.5, 2, -2]]]);
+  assert.deepEqual(scene.apply({ nodes: {} }).clamped.map(c => c.trueAt), [[-9, 3, -7]]);
+  scene.dispose();
+});
+
+test('decision 30: a marker inside the footprint is untouched; one beyond the rim below the ceiling is held in x or z only; one with no clampTo is never held', () => {
+  const scene = built(), ball = holderOf(scene, 'ball');
+  assert.deepEqual(scene.apply({ nodes: { ball: { position: [1, 1.5, 0.4] } } }).clamped, [], 'inside the footprint and under the ceiling');
+  assert.deepEqual(ball.position.toArray(), [1, 1.5, 0.4]);
+  assert.deepEqual(scene.apply({ nodes: { ball: { position: [3, 0.5, 0] } } }).clamped.map(c => [c.axes, c.drawnAt]), [[['x'], [2.5, 0.5, 0]]], 'beyond the rim in x only');
+  assert.deepEqual(scene.apply({ nodes: { ball: { position: [0, 0.5, 2.2] } } }).clamped.map(c => [c.axes, c.drawnAt]), [[['z'], [0, 0.5, 2]]], 'beyond the rim in z only');
+  assert.deepEqual(scene.apply({ nodes: { ball: { position: [2.5, 2, -2] } } }).clamped, [], 'exactly on the rim and at the ceiling is inside');
+  scene.dispose();
+  const none = primitives(); delete none.scene.nodes.find(n => n.id === 'ball').clampTo;
+  const loose = built(none);
+  assert.deepEqual(loose.apply({ nodes: { ball: { position: [9, 9, 9] } } }).clamped, []);
+  assert.deepEqual(holderOf(loose, 'ball').position.toArray(), [9, 9, 9]);
+  loose.dispose();
+});
+
+test('decision 30: the golden\'s diverged ball (x 3.675 at learning rate 1.5) is drawn at the rim of its 4 by 4 bowl', () => {
+  const golden = JSON.parse(readFileSync(new URL('./testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
+  const scene = built(golden), ball = golden.scene.nodes.find(node => node.clampTo);
+  const result = scene.apply({ nodes: { [ball.id]: { position: [3.675, 10.8419, 0.4] } } });
+  assert.deepEqual(result.clamped.map(c => [c.axes, c.trueAt, c.drawnAt]), [[['x', 'y'], [3.675, 10.8419, 0.4], [2, 4, 0.4]]]);
+  scene.dispose();
+});
+
+// Owner order (C10; FX-AN-104): a plate stays near its anchor. C9 job 7: a "Lowest point" label about 100 px to the right of its dot; C7 job 7: rate tags pushed far from their balls.
+// The distance is how far the plate lies from the point it names (the plate's nearest edge to the anchor), at most DECLUTTER.reach pixels; a plate with no clear spot that near stays
+// where it is (an essential one) or is left out (an optional one), and is never moved farther.
+test('a plate is moved to a clear spot only within DECLUTTER.reach of its anchor; with none that near it stays (essential) or is left out (optional), never farther', () => {
+  assert.equal(DECLUTTER.reach, 48);
+  const plate = essential => ({ x: 100, y: 100, w: 80, h: 20, placement: 'above', essential });
+  const line = { x1: 0, y1: 110, x2: 400, y2: 110, half: 3 }; // an arrow across the plate: the nearest clear spot is a push of about 17 px
+  const bounds = { x: 0, y: 0, w: 400, h: 300 };
+  const near = declutterLabels([plate(false)], { bounds, obstacles: [line] })[0];
+  assert.ok(near && Math.hypot(near.dx, near.dy) > 0 && Math.hypot(near.dx, near.dy) <= DECLUTTER.reach, `moved a short way: ${JSON.stringify(near)}`);
+  // Up (about 21 px from the point) is too far for a reach of 5; the other side of the point (4 px) is not.
+  assert.deepEqual(declutterLabels([plate(false)], { bounds, obstacles: [line], reach: 5 })[0], { dx: 0, dy: 28 });
+  // A wall of arrows: every clear spot is far; the plate does not travel to it.
+  const wall = Array.from({ length: 12 }, (_, i) => ({ x1: 0, y1: 40 + 14 * i, x2: 400, y2: 40 + 14 * i, half: 3 }));
+  const walled = declutterLabels([plate(true)], { bounds, obstacles: wall })[0];
+  assert.ok(Math.hypot(walled.dx, walled.dy) <= DECLUTTER.reach, `an essential plate behind a wall of arrows stays within ${DECLUTTER.reach} px: ${JSON.stringify(walled)}`);
+  assert.equal(declutterLabels([plate(false)], { bounds, obstacles: wall })[0], null);
+  // Unobstructed: where it always was.
+  assert.deepEqual(declutterLabels([plate(false)], { bounds, obstacles: [] })[0], { dx: 0, dy: 0 });
 });

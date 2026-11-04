@@ -43,7 +43,9 @@ const stateText = c => `time ${c.time ?? 0}s${c.inputs && Object.keys(c.inputs).
 
 // A sphere the host held at its surface top (animation3d/scene.js, owner decision 11) is the host's drawing, not the scene's: each capture that has one says so, with
 // the y the program gave and the y drawn, and that its readouts keep the true value. Nothing is added to a capture without a clamp.
-export const clampNotes = captures => captures.filter(c => c.trace?.clamped?.length).map(c => ({ type: 'text', text: c.trace.clamped.map(({ node, trueY, y }) => `Capture ${c.id}: ${node} is clamped at the surface top (true y ${trueY}, drawn at ${y}); its readouts keep the true value. The host draws this clamp, not the scene.`).join('\n') }));
+export const clampNotes = captures => captures.filter(c => c.trace?.clamped?.length).map(c => ({ type: 'text', text: c.trace.clamped.map(({ node, axes, trueY, y, trueAt, drawnAt }) => (axes?.some(axis => axis !== 'y')
+    ? `Capture ${c.id}: ${node} is held at the surface's rim (true position ${JSON.stringify(trueAt)}, drawn at ${JSON.stringify(drawnAt)}); its readouts keep the true value. The host draws this clamp, not the scene.`
+    : `Capture ${c.id}: ${node} is clamped at the surface top (true y ${trueY}, drawn at ${y}); its readouts keep the true value. The host draws this clamp, not the scene.`)).join('\n') }));
 
 // input: { request, plan, artifact, artifactHash, evidence, coverage, captures: [{ id, artifactHash, view, time, inputs, events, ticks, trace, data, mediaType }] }
 // -> { content, imageBlocks }

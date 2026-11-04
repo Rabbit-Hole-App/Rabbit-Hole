@@ -17,7 +17,8 @@
 //   runReviewProgram(request, { workerFactory, createRuntime? }) ->
 //     { ok: true, artifact, artifactHash, frame, trace: { inputs, time, events, ticks, readouts, goal?, selection?, stateHash?, clamped? } }
 //   buried (C9, owner): [{ node, y, surfaceY }] for each marker or path drawn below the surface it sits on (scene.js buried), the worst point of a path.
-//   clamped (AN-19, owner decision 11): [{ node, trueY, y }] for each sphere the host held at its surface's top in this frame, the y the program gave and the y drawn;
+//   clamped (AN-19, owner decisions 11 and 30): [{ node, axes, trueY, y, trueAt, drawnAt }]: axes: which of 'x', 'y', 'z' the host held (x and z at the surface's rim, y at its top or max), trueAt and drawnAt: the
+//   world position the program gave and the one drawn, [x, y, z] to 4 decimals; trueY and y are the y of each, as before. for each sphere the host held at its surface's top in this frame, the y the program gave and the y drawn;
 //   the readouts above keep the true value.
 //     | { ok: false, programError: { code, phase, diagnostic, ms? } }   the candidate's program failed (setup/engine: a renderer fault)
 //     | { ok: false, error }                                            the page refuses the request itself
@@ -44,7 +45,7 @@ function measuredIn(artifact, frame) {
   if (!built.ok) return none;
   try {
     const applied = built.scene.apply(frame);
-    return { clamped: (applied.clamped ?? []).map(({ node, trueY, y }) => ({ node, trueY: round(trueY), y: round(y) })), buried: built.scene.buried() };
+    return { clamped: (applied.clamped ?? []).map(({ node, axes, trueY, y, trueAt, drawnAt }) => ({ node, axes, trueY: round(trueY), y: round(y), trueAt: trueAt.map(round), drawnAt: drawnAt.map(round) })), buried: built.scene.buried() };
   } finally { built.scene.dispose(); }
 }
 
