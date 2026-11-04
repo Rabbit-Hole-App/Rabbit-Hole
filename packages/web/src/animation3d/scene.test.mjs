@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { linePoints, triangleCost, validateAnimationArtifact } from './contract.js';
 import { ANIMATION_FIXTURES, INVALID_ANIMATION_FIXTURES, primitivesFixture, watchFixture } from './fixtures.js';
-import { ARROW_LABELS, DECLUTTER, buildAnimationScene, declutterLabels, LABEL_PIXELS, labelPixels } from './scene.js';
+import { ARROW_LABELS, DECLUTTER, TRAIL_RADIUS_SHARE, buildAnimationScene, declutterLabels, LABEL_PIXELS, labelPixels } from './scene.js';
 
 // Real Three.js objects, no WebGL: labels get a plain Texture in place of the browser's canvas texture.
 const labels = [];
@@ -740,4 +740,49 @@ test('a plate is moved to a clear spot only within DECLUTTER.reach of its anchor
   assert.equal(declutterLabels([plate(false)], { bounds, obstacles: wall })[0], null);
   // Unobstructed: where it always was.
   assert.deepEqual(declutterLabels([plate(false)], { bounds, obstacles: [] })[0], { dx: 0, dy: 0 });
+});
+
+// C12 (owner order, c): a trail tube is drawn at most TRAIL_RADIUS_SHARE (0.35) x the radius of the smallest sphere clamped to the same surface (the ball), whatever the artifact
+// declares, so a path never swallows the marker that walks it (C11: the golden's 0.08 tube against its 0.12 ball). A ghost is still half its trail's drawn radius.
+const tubeRadius = (scene, id) => { const p = drawn(scene, id).geometry.attributes.position, to = n => new THREE.Vector3(p.getX(n), p.getY(n), p.getZ(n)); return to(0).distanceTo(new THREE.Vector3(...trailPoints(10)[0])); };
+const goldenTrail = change => {
+  const golden = JSON.parse(readFileSync(new URL('./testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
+  change?.(golden);
+  const scene = built(golden);
+  scene.apply({ nodes: { trail: { points: trailPoints(10) }, ghost: { points: trailPoints(10) } } });
+  return { golden, scene };
+};
+
+test('a trail tube is capped at 0.35 of the smallest clamped ball\'s radius: the golden\'s 0.08 against its 0.12 ball is drawn at 0.042, its ghost at half of that', () => {
+  assert.equal(TRAIL_RADIUS_SHARE, 0.35);
+  const { golden, scene } = goldenTrail();
+  const radius = id => golden.scene.geometries.find(g => g.id === golden.scene.nodes.find(n => n.id === id).geometry).radius;
+  assert.deepEqual([radius('trail'), radius('ball')], [0.08, 0.12], 'the golden as authored (a lane may retune it: the cap is relative)');
+  assert.ok(Math.abs(tubeRadius(scene, 'trail') - 0.35 * radius('ball')) < 1e-5, `the trail tube is ${tubeRadius(scene, 'trail')} (0.042 expected)`);
+  assert.ok(Math.abs(tubeRadius(scene, 'trail') - 0.042) < 1e-5);
+  assert.ok(Math.abs(tubeRadius(scene, 'ghost') - 0.021) < 1e-5, `the ghost is half the capped radius: ${tubeRadius(scene, 'ghost')}`);
+  scene.dispose();
+});
+
+test('a trail whose declared radius is already under the cap is unchanged; a scene with no clamped sphere keeps the declared radius; the cap follows the ball\'s radius and scale, and the smallest ball', () => {
+  const small = goldenTrail(g => { g.scene.geometries.find(x => x.id === 'runPath').radius = 0.02; g.scene.geometries.find(x => x.id === 'keptPath').radius = 0.02; });
+  assert.ok(Math.abs(tubeRadius(small.scene, 'trail') - 0.02) < 1e-5, 'under the cap: as declared');
+  assert.ok(Math.abs(tubeRadius(small.scene, 'ghost') - 0.01) < 1e-5, 'and its ghost is half the declared radius, as before');
+  small.scene.dispose();
+  const loose = goldenTrail(g => { delete g.scene.nodes.find(n => n.id === 'ball').clampTo; });
+  assert.ok(Math.abs(tubeRadius(loose.scene, 'trail') - 0.08) < 1e-5, 'no clamped sphere: the declared radius is kept');
+  assert.ok(Math.abs(tubeRadius(loose.scene, 'ghost') - 0.04) < 1e-5);
+  loose.scene.dispose();
+  const bigger = goldenTrail(g => { g.scene.geometries.find(x => x.id === 'ballBall').radius = 0.3; });
+  assert.ok(Math.abs(tubeRadius(bigger.scene, 'trail') - 0.08) < 1e-5, 'a 0.3 ball allows 0.105: the declared 0.08 stays');
+  bigger.scene.dispose();
+  const scaled = goldenTrail(g => { g.scene.nodes.find(n => n.id === 'ball').scale = [0.5, 0.5, 0.5]; });
+  assert.ok(Math.abs(tubeRadius(scaled.scene, 'trail') - 0.35 * 0.12 * 0.5) < 1e-5, 'a ball drawn at half scale caps the tube at 0.021');
+  scaled.scene.dispose();
+  const twin = goldenTrail(g => {
+    g.scene.geometries.push({ id: 'tiny', kind: 'sphere', radius: 0.04 });
+    g.scene.nodes.push({ id: 'tinyBall', geometry: 'tiny', material: g.scene.nodes.find(n => n.id === 'ball').material, clampTo: { node: 'bowl' } });
+  });
+  assert.ok(Math.abs(tubeRadius(twin.scene, 'trail') - 0.35 * 0.04) < 1e-5, 'the smallest clamped sphere sets it');
+  twin.scene.dispose();
 });

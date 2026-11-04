@@ -53,6 +53,8 @@ const PLACEMENT = Object.freeze({ above: [0.5, -0.2], below: [0.5, 1.2], left: [
 // label its place. A plate's own marker, the one its point sits on (within its radius + 2 px), is not an obstacle for it: the label stays beside what
 // it names, and the other markers (the trail, the saved path) stay uncovered.
 // Deterministic, O(n^2) for <= 24 labels. -> [{ dx, dy } | null] per plate, in order.
+// A trail tube is drawn at most this share of the radius of the smallest sphere clamped to the same surface (the marker that walks it), whatever the artifact declares (C12, owner order).
+export const TRAIL_RADIUS_SHARE = 0.35;
 // reach (C10, owner; FX-AN-104): the most a plate may lie from the point it names, in CSS pixels from the plate's nearest edge to the anchor; a clear spot farther away is not taken.
 export const DECLUTTER = Object.freeze({ gap: 4, steps: 4, reach: 48 });
 const MARKER_SHARE = 0.1; // a mesh is a small marker when its projected diameter is at most this share of the scene's span
@@ -386,7 +388,11 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
       }
     } else if (g?.kind === 'trail') {
       // The node's material for a trail; a ghost is the same at 40% opacity and half the radius (own material, so a frame's material update does not reach it).
-      const ghost = g.style === 'ghost', radius = g.radius ? g.radius * (ghost ? 0.5 : 1) : 0, base = surfaces.get(node.material) ?? fallback;
+      // C12: the tube is at most TRAIL_RADIUS_SHARE of the smallest ball clamped to the surface this trail follows (the first clamp target, else the scene's only surface), in the trail's own scale.
+      const surfaceIds = scene.nodes.filter(n => byGeometry.get(n.geometry)?.kind === 'surface').map(n => n.id), followedId = clamps[0]?.target ?? (surfaceIds.length === 1 ? surfaceIds[0] : null);
+      const balls = scene.nodes.filter(n => n.clampTo?.node === followedId && byGeometry.get(n.geometry)?.kind === 'sphere').map(n => byGeometry.get(n.geometry).radius * Math.max(...n.scale));
+      const drawnRadius = g.radius && balls.length ? Math.min(g.radius, TRAIL_RADIUS_SHARE * Math.min(...balls) / Math.max(...node.scale)) : g.radius;
+      const ghost = g.style === 'ghost', radius = drawnRadius ? drawnRadius * (ghost ? 0.5 : 1) : 0, base = surfaces.get(node.material) ?? fallback;
       const buffers = trailBuffers(g, radius);
       const material = radius
         ? (ghost ? own(Object.assign(base.clone(), { transparent: true, opacity: base.opacity * 0.4 })) : base)
