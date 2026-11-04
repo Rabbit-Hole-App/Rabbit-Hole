@@ -235,6 +235,28 @@ try {
     await page.evaluate(() => document.activeElement?.blur());
   });
 
+  // AN-17 copy line (owner plan v3.1): the request says what /animation works best for and what is not supported yet.
+  await step('typing /animation shows what it works best for and what is not supported yet, in the picker row and in the Slash Commands description', async () => {
+    const LINE = 'Works best for mechanisms, loops and small games. Loss surfaces and optimizers are not supported yet.', before = stray.length;
+    await composer(page).click();
+    await composer(page).fill('/anim');
+    const row = page.locator('[data-slash-picker] [data-slash-command="animation"]');
+    await row.waitFor();
+    assert.ok((await row.textContent()).includes(LINE), 'the picker row carries the line');
+    await composer(page).fill('');
+    await page.evaluate(() => document.activeElement?.blur());
+    await openSlashHelp(page);
+    const sheet = page.getByRole('dialog', { name: 'Slash Commands' });
+    await sheet.locator('button[data-slash-help="animation"]').click();
+    const about = sheet.locator('[data-slash-pane="animation"] [data-slash-about]');
+    await about.waitFor();
+    assert.ok(await about.isVisible(), 'the description is visible');
+    assert.ok((await about.innerText()).includes(LINE), 'the window shows the whole line');
+    await shot(page, 'A-slash-copy');
+    await sheet.getByRole('button', { name: 'Close Slash Commands' }).click();
+    assert.equal(stray.length, before, 'no generation request from the copy');
+  });
+
   // ---- The three fixture cards (AN-02/03) ----
   await step('the watch, experiment and game examples draw live 3D scenes, each labelled an example with its description; Play only on the loop', async () => {
     for (const [p, kind] of [[W, 'watch'], [X, 'experiment'], [G, 'game']]) {
