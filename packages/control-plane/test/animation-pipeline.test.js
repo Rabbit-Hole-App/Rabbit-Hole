@@ -348,8 +348,11 @@ test('a repair must return the program: the tool requires it and the prompt says
   const call = s.model.calls.find(c => c.role === 'repair');
   assert.ok(call.tool.input_schema.properties.artifact.required.includes('program'), 'the repair tool requires the program');
   assert.match(call.system, /Return the COMPLETE artifact every time[^.]*the program/);
-  // The review's repair dropped the program and was asked once more (FX-AN-043: two repair calls), which dropped it again; the run failure's repair has no call left.
-  assert.deepEqual([done.stage, done.stopReason, done.counts.repair, done.candidates.find(c => c.stage !== 'preparing').programRetried], ['failed', 'budget', 2, true]);
+  // The review's repair dropped the program and was asked once more (FX-AN-043), which dropped it again. FX-AN-060: that ask took no slot of the repair ceiling, so the run failure's repair
+  // gets its call (a third repair call, recorded) instead of the build stopping on a count it had not used up; it answers without a program too and nothing is invented, so the build
+  // ends on its own result (no progress), not on a limit. It was 'budget' before, with 2.56M of the 3.73M micro-USD ceiling used.
+  assert.deepEqual([done.stage, done.stopReason, done.counts.repair, done.candidates.find(c => c.stage !== 'preparing').programRetried], ['failed', 'no_progress', 2, true]);
+  assert.equal(done.calls.filter(c => c.role === 'repair').length, 3);
   assert.match(done.findings.find(f => f.problems)?.problems.join(' '), /missing_program/);
   // FX-AN-043: both program-less answers are kept as they came, with the candidate (diagnostics only).
   const kept = done.candidates.find(c => c.stage !== 'preparing').rawReplies;
@@ -380,9 +383,9 @@ test('a repair that returns the program beside the artifact, or as a bare source
     assert.equal(done.artifact.program.source, program.source);
     assert.deepEqual([done.candidates.find(c => c.stage !== 'preparing').hasProgram, done.candidates.find(c => c.stage !== 'preparing').inputKeys.includes('program'), done.candidates.find(c => c.stage !== 'preparing').artifactKeys.includes('program')], [true, true, false]);
   }
-  // Nowhere at all: asked once more (FX-AN-043), then still refused at validation (no program is invented), with no repair call left.
+  // Nowhere at all: asked once more (FX-AN-043), then still refused at validation (no program is invented); the run failure's repair has its call (FX-AN-060) and ends the build on no progress.
   const none = stack(t, { reviews: [false, true], repair: () => ({ operation: 'artifact', artifact: { ...rest, title: 'Fixed' } }) });
-  assert.deepEqual([(await none.generated()).done.stopReason], ['budget']);
+  assert.deepEqual([(await none.generated()).done.stopReason], ['no_progress']);
 });
 
 // accept-5 fresh: the author spent all 10,000 output tokens (dev ledger: output_tokens 10000) and made no tool call.
