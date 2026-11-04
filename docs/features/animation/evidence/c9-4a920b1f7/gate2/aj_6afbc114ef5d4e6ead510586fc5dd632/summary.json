@@ -1,0 +1,17 @@
+{
+ "n": 9,
+ "phrasing": "SGD with a kept path to compare runs",
+ "session": "g2-202611040532-4@example.com",
+ "sha": "4a920b1f7433523b4e8c92afb813694090407aff",
+ "version": "10947e93-08ab-45eb-b20c-d4dd7572a3f3",
+ "jobId": "aj_6afbc114ef5d4e6ead510586fc5dd632",
+ "outcome": "failed",
+ "repairs": 0,
+ "credits": 9.5286,
+ "charged": 10,
+ "artifactHash": null,
+ "note": "budget: AI is paused for now because the platform daily limit has been reached. You have not been charged. Try again continues from where it stopped, using up to 385 AI",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 9:41 PM"
+}

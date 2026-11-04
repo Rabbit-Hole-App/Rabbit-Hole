@@ -1,0 +1,131 @@
+[
+ {
+  "at": 1793770655216,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "67e0121309c8fac727ad18001ad376250bed74445569f159102049de5d85117a",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "At step 0 both balls and both arrows are drawn at exactly the same point, so the blue ball A and its arrow are completely hidden behind ball B. Only the labels show there are two balls. A tiny visual offset, or a slightly see-through orange ball, would show both.",
+       "object": "ballA",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: lrA at 0.01, the other starting points, arrows turned off, the 'Back to start' action and the 60-step limit.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "From the default camera, the diverging blue trail runs front to back across the valley and looks like a stack of near-vertical lines. It reads clearly from the side view but is harder to follow in the default view.",
+       "object": "trailA",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13179,
+   "cache_creation_input_tokens": 2103,
+   "cache_read_input_tokens": 0,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 2103,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3790,
+   "output_tokens_details": {
+    "thinking_tokens": 2490
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_eab093a232ea4df1b57596e9c6fba9ba-review-3",
+   "status": "settled",
+   "costMicros": 139031,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

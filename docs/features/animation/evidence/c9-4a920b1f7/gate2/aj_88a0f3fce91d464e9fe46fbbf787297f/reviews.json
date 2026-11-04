@@ -1,0 +1,139 @@
+[
+ {
+  "at": 1793770901711,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "db4e18cfb6558157ea6de7d31c0e5371cb40e7d6b6bd4473a8eef72d23972ee1",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The 'Start' label sits over the green start pin and crowds the 'Next step' label beside it, so the pin is mostly hidden in the default view. Offset the Start label further from the pin.",
+       "object": "pinTag",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan's interaction text says learning rates near 1/c make the path zig-zag. In fact η = 1/c sends y to 0 in one step; zig-zag happens for 1/c < η < 2/c and gets stronger towards 2/c. The artifact doesn't repeat the claim, but any wording it adds should say this correctly.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "At η = 0.8 (c = 3, start y = 1.5) the first step lands at y = −2.1, beyond the surface edge at about 2.078, so the run reads 'diverged' after one jump and the outward bouncing is not seen. Rates of about 0.67–0.79 should bounce for several steps before leaving, but they weren't sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "The diverged ball is drawn just past the far edge of the surface, held there by the host's clamp. This slightly contradicts the plan's limitation that a ball off the drawn area is no longer shown.",
+       "object": "ball",
+       "repairable": false
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13481,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4683,
+   "output_tokens_details": {
+    "thinking_tokens": 3041
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_88a0f3fce91d464e9fe46fbbf787297f-review-3",
+   "status": "settled",
+   "costMicros": 148005,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

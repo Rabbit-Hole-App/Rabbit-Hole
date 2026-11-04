@@ -1,0 +1,204 @@
+{
+ "id": "aj_bb9d5a51812c4f4b9f02f9a701b91006",
+ "version": 1,
+ "boardId": "d58597fa-5429-4cd5-a312-6ffba53e3fe6",
+ "cardId": "81b3f1b3-065c-4d44-a763-fc0ebcf34ebb",
+ "stage": "ready",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 0,
+ "stopReason": "accepted",
+ "failure": null,
+ "recovery": [],
+ "outcome": "changes",
+ "choiceOpen": false,
+ "threadId": "canvaschat-ac3e28e3-4861-4858-bf9d-08ba08caa5c4",
+ "chatPending": false,
+ "usage": {
+  "credits": 67,
+  "unknown": false
+ },
+ "result": {
+  "jobId": "aj_bb9d5a51812c4f4b9f02f9a701b91006",
+  "resultId": "ar_dbd59121f00f49a388f7ac9da4cc9a37",
+  "cardId": "81b3f1b3-065c-4d44-a763-fc0ebcf34ebb",
+  "canvas": {
+   "boardId": "d58597fa-5429-4cd5-a312-6ffba53e3fe6"
+  },
+  "requestRef": "7022471741950e93",
+  "revision": "av_f7444669924647b9a75d346669a05da8",
+  "planHash": "c40ef54a8a7b136e59f04bc07f9f18a73011baa5dd30df2fb9343cce8229642c",
+  "sources": "643d5437104296e2",
+  "artifactHash": "150d105a8ff3dcc07161d1f36a4e901235003eb33ff32982b42255b72b729c43",
+  "experience": "experiment",
+  "capabilityVersion": "animation-capabilities/1",
+  "policyVersion": 1
+ },
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Gradient descent: a ball stepping down a loss surface",
+  "description": "A curved loss surface with contour lines holds a ball. An arrow at the ball points downhill, opposite to the gradient (the direction of steepest climb). Each step moves the ball sideways along that arrow by the learning rate times the slope, then sets it back on the surface. Its trail marks the path. You can take one step at a time or let it keep stepping, and watch the loss, step count and slope size change.",
+  "experience": "experiment",
+  "reason": "Changing the step size and the starting point, then comparing the paths, shows when gradient descent settles smoothly, zigzags, blows up or gets stuck in a nearby dip. Stepping one move at a time shows how each update is made.",
+  "behavior": "rules",
+  "controlProfile": "manipulate",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate (step size)",
+    "min": 0.02,
+    "max": 0.6,
+    "step": 0.01,
+    "default": 0.15
+   },
+   {
+    "type": "select",
+    "id": "surface",
+    "label": "Loss surface",
+    "options": [
+     {
+      "value": "bowl",
+      "label": "Stretched bowl (one lowest point)"
+     },
+     {
+      "value": "twoValleys",
+      "label": "Two valleys (a shallow and a deep low point)"
+     }
+    ],
+    "default": "bowl"
+   },
+   {
+    "type": "toggle",
+    "id": "showArrow",
+    "label": "Show downhill arrow",
+    "default": true
+   }
+  ],
+  "interactions": [
+   "Take one step: the ball moves once and the trail grows by one point",
+   "Play or pause steady stepping, and change its speed",
+   "Drag the ball to a new starting point. This clears the trail and the step count.",
+   "Change the learning rate: small values take short, slow steps; about 0.25 to 0.4 zigzags across the bowl's steep side; above 0.5 each jump grows until the ball leaves the surface",
+   "Switch surfaces to see a start that ends in the shallow valley instead of the deep one"
+  ],
+  "assumptions": [
+   "Illustration: a made-up surface with a known formula, not the loss of a real trained model.",
+   "The slope is computed exactly from the surface formula at every step, with no noise or batches.",
+   "The stretched bowl is 4 times steeper in one direction than the other, so steps diverge on the steep side once the learning rate is above 0.5.",
+   "Stepping stops at 200 steps, when the slope size drops below 0.001 (shown as converged), or when the ball leaves the surface edge (shown as diverged).",
+   "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+  ],
+  "limitations": [
+   "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+   "The ball does not roll physically. It has no speed carried from step to step (no momentum or friction), and each move is one gradient-descent update.",
+   "The loss does not always go down every step. With large learning rates it can rise.",
+   "Only two inputs, so the surface can be drawn. Real models have millions of inputs."
+  ],
+  "learningGoal": "Gradient descent repeatedly steps against the slope, scaled by the learning rate. The step size decides whether it settles, zigzags or diverges, and where it ends depends on where it starts.",
+  "requiredCapabilities": [
+   "parameters",
+   "actions",
+   "step",
+   "drag",
+   "labels",
+   "readouts",
+   "speed"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "learningRate",
+    "values": [
+     0.05,
+     0.55
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 200
+   }
+  ]
+ },
+ "planHash": "c40ef54a8a7b136e59f04bc07f9f18a73011baa5dd30df2fb9343cce8229642c",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 33481,
+  "generateToResultMs": 231277,
+  "processingMs": 264708,
+  "approvalWaitMs": 2052,
+  "calls": 4,
+  "repairs": 0,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 33431,
+    "calls": 2,
+    "inputTokens": 1927,
+    "outputTokens": 3410,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 2052,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 148597,
+    "calls": 1,
+    "inputTokens": 7653,
+    "outputTokens": 18288,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 45,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 29057,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 53578,
+    "calls": 1,
+    "inputTokens": 15917,
+    "outputTokens": 5202,
+    "images": 6,
+    "captures": 0,
+    "outcome": "accepted"
+   }
+  ]
+ },
+ "createdAt": 1793770478313,
+ "updatedAt": 1793770745123
+}

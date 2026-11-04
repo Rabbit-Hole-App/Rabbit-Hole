@@ -1,0 +1,336 @@
+[
+ {
+  "at": 1793770712741,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "7d857765fe02039d81c4eee8e9588f68e14969198c3cd43e23ff16c6e6171e55",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The default camera at (3.5,5.5,5) looks down the long z axis of the bowl, so the ball's main path (from z=1.6 to the centre) points almost straight at the viewer and is heavily foreshortened. The bowl fills only about 40% of the frame width and leaves wide empty margins. The side view shows the same path about three times longer. Move the camera to look across z, from the +x side and lower, closer to the side view, and frame the bowl's lower half more tightly.",
+       "object": "camera",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan says the learner can drag the ball to pick any start. The artifact allows dragging only along z, with x fixed at 0.5. This is disclosed in the assumptions.",
+       "object": "ball",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The trail marks every step, but the approved plan said one marker every 4 steps, at most 50. The assumptions disclose the change, and it makes the path easier to read.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "In the default view the whole 27-step path, including the zig-zag and the jitter around the minimum, is squeezed into a patch about 80 px wide with self-overlapping orange segments. A learner cannot see the zig-zag the scene exists to show. The 'Noisy slope' label is not visible at all, and 'Minimum' sits right next to the ball. Fix the camera angle and framing, as noted for v0-s0.",
+       "object": "camera",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "No capture samples noise 0, the low learning rate, other stretch values, dragging or 'Run again', so the faded comparison path is unverified. The code re-lifts the kept path onto the current stretch, so after the stretch is changed it can fall outside the narrower bowl.",
+       "object": "ghost",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Status reads 'diverged' whenever the ball leaves the drawn area. With high noise at a stable learning rate, a noise kick alone could trigger this, which is not true divergence. A label like 'left the surface' would be more honest.",
+       "object": "status",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13416,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3936,
+   "output_tokens_details": {
+    "thinking_tokens": 2896
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_378790fcdbc9470faf728015b67e251e-review-4",
+   "status": "settled",
+   "costMicros": 132805,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793770830334,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "3b699d68f566cf0dbf3b77157fbe3c39c5b6d24309b332dafa39bfebec03ea3a",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The default camera (5.6,3.6,1.9) looks almost straight down the steep x axis from a low angle. The zig-zag across the narrow valley, which is the main thing stretch and learning rate are meant to show, runs toward the camera and gets squashed. Put the camera above the bowl, looking more down the gentle z axis (e.g. from high on +z/+y), so x oscillations run across the screen.",
+       "object": "camera",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan says the ball zig-zags above about 0.34. The artifact gives 1/stretch = 0.33, which matches the formula, but it does not mention the plan's figure.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Dragging moves the start only along z (x stays fixed at 0.5). The plan says 'drag the ball to choose where it starts'. This is disclosed but limits the experiment. Dragging was not sampled.",
+       "object": "ball",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "Near the minimum, the noisy-slope arrow (0.3×|g|, about 0.15–0.3) is barely longer than the ball radius plus its 0.11 offset. It shows as a small grey stub under the ball, and its 'Noisy slope' label is gone. This is the jitter phase, where the arrow explains why SGD never settles, so it needs to stay readable. Use a larger disclosed scale (e.g. 0.8×g) and keep the label.",
+       "object": "slopeArrow",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "Because the camera looks down the steep axis, the trail at lr 0.2 and stretch 3 reads as an almost straight line with small kinks. The side view shows the zig-zag clearly, but the default view does not.",
+       "object": "trail",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "At step 200, a status of 'converged' whenever loss < 0.05 contradicts the learning goal, which says that with noise the ball keeps jittering and never settles exactly. Something like 'jittering near minimum' would be more accurate.",
+       "object": "status",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "Same camera problem as the other default views: the divergent jump across x points at the camera. As a result, the off-surface ball looks like it is sitting near the minimum, which contradicts 'off surface' and a loss of 2.595.",
+       "object": "camera",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "The host clamps the ball to the bowl edge while the last trail point is drawn at the unclamped position. This leaves a short stray orange segment between the trail end and the ball.",
+       "object": "ball",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "From this angle too, the slope arrow is a short stub under the ball and has no label (see v0-s1).",
+       "object": "slopeArrow",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13501,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4424,
+   "output_tokens_details": {
+    "thinking_tokens": 3115
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_378790fcdbc9470faf728015b67e251e-review-6",
+   "status": "settled",
+   "costMicros": 142905,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

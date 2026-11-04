@@ -1,0 +1,140 @@
+[
+ {
+  "messageId": "275",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-cc8707528eb94fb8",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient descent: learning rate 0.1 vs 1.5 on the same loss surface",
+    "description": "A long oval bowl-shaped loss surface, steeper across than along, has two balls that start at the same point. Each step, every ball moves against the slope (the gradient, the direction of steepest climb) by its own learning rate times that slope, and leaves a trail. With 0.1, the blue ball creeps down in small steps toward the bottom. With 1.5, the orange ball jumps across the steep direction and lands higher each time, zigzagging outward until it leaves the surface. Readouts show the step count and each ball's loss and status.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-3aeb8b7d",
+     "job": "aj_ec5d7bfb0ea246e3bbae5de351f273ff",
+     "plan_hash": "3b2952520a5cd7fa42282618d525a86ee33789937c2b3c084e2957379bf710ae",
+     "request": "compare learning rate 0.1 and 1.5 on the same surface",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate, blue ball",
+        "min": 0.01,
+        "max": 2,
+        "step": 0.01,
+        "default": 0.1
+       },
+       {
+        "type": "number",
+        "label": "Learning rate, orange ball",
+        "min": 0.01,
+        "max": 2,
+        "step": 0.01,
+        "default": 1.5
+       }
+      ],
+      "interactions": [
+       "Play, pause or single-step the descent. Both balls take one gradient step together each time.",
+       "Change either learning rate: that ball's step size changes. Below about 1.33 its zigzag across the bowl shrinks and it settles. Above about 1.33 the zigzag grows.",
+       "Restart both runs from the shared start point with your current learning rates kept. Trails and the step count are cleared.",
+       "Orbit the view to look at the trails from above or from the side."
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793857124,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "compare learning rate 0.1 and 1.5 on the same surface",
+    "prompt": "A long oval bowl-shaped loss surface, steeper across than along, has two balls that start at the same point. Each step, every ball moves against the slope (the gradient, the direction of steepest climb) by its own learning rate times that slope, and leaves a trail. With 0.1, the blue ball creeps down in small steps toward the bottom. With 1.5, the orange ball jumps across the steep direction and lands higher each time, zigzagging outward until it leaves the surface. Readouts show the step count and each ball's loss and status.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Running both learning rates side by side on one surface, from one start, shows the difference directly: small steps make slow but steady progress, while steps that are too large overshoot and grow.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Play, pause or single-step the descent. Both balls take one gradient step together each time.",
+     "Interaction: Change either learning rate: that ball's step size changes. Below about 1.33 its zigzag across the bowl shrinks and it settles. Above about 1.33 the zigzag grows.",
+     "Interaction: Restart both runs from the shared start point with your current learning rates kept. Trails and the step count are cleared.",
+     "Interaction: Orbit the view to look at the trails from above or from the side.",
+     "Parameter: Learning rate, blue ball, 0.01 to 2, default 0.1",
+     "Parameter: Learning rate, orange ball, 0.01 to 2, default 1.5",
+     "Goal: Understand that a small learning rate makes slow, steady progress, and that a learning rate too large for how steep the surface is makes each step overshoot and the error grow."
+    ],
+    "assumptions": [
+     "Illustration: a simple made-up bowl surface, not a real model's loss.",
+     "Loss = 0.25·x² + 0.75·y², so the slope is 0.5·x along the bowl and 1.5·y across it. The lowest point is the centre.",
+     "Both balls start at x = −3, y = 1 and use plain gradient descent: no momentum, no noise, no change in learning rate over time.",
+     "On this surface, steps settle toward the bottom only when the learning rate is below 2 ÷ 1.5 ≈ 1.33. Above that, the distance across the bowl grows by a fixed factor each step (1.25 times at 1.5). This is exact for this surface. Real losses aren't perfect bowls, so their limits differ."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "A ball stops and is marked as diverged (running away from the bottom) once it leaves the drawn surface. A run also ends after 80 steps.",
+     "At 0.1, the blue ball gets close to the bottom within 80 steps but doesn't reach it exactly.",
+     "On a real problem, the learning rate where things go wrong depends on how steep the loss is. On this surface it's about 1.33, so 1.5 being too large is true here and not a general rule."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-3aeb8b7d"
+    },
+    "quote": null,
+    "review_hash": "f6b2209dab10b9ca31e4207d494f69a188874f7e6e2888a4a8267447f0640ee2",
+    "sig": "v3.2e4e00925bf358e80fc3fce28a95a2b34bd81586ee0c47ab8f2bdade5b0a153f",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 385,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.2e4e00925bf358e80fc3fce28a95a2b34bd81586ee0c47ab8f2bdade5b0a153f",
+    "used": {
+     "version": 1,
+     "key": "aj_ec5d7bfb0ea246e3bbae5de351f273ff"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "275"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "282",
+  "role": "assistant",
+  "content": "\"Gradient descent: learning rate 0.1 vs 1.5 on the same loss surface\" was not finished. The visual review found 5 serious problems with how the scene is drawn or computed. You have not been charged. It was corrected automatically once, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate. Your request and plan are kept.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_ec5d7bfb0ea246e3bbae5de351f273ff:1",
+   "alternativeOf": null,
+   "alternatives": [
+    "282"
+   ],
+   "feedback": null
+  }
+ }
+]

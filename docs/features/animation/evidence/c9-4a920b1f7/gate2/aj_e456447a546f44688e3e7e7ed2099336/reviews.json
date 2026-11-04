@@ -1,0 +1,294 @@
+[
+ {
+  "at": 1793770918126,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "a5efc3a4171a09957ed9d46b1a6242ab0e34b6381b9b815611aed52594aa7424",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The core overshoot was never sampled: the default learning rate 0.35 was not captured part-way through a run, so the wall-to-wall zigzag was not seen. By the program's maths it should zigzag (cross-valley factor −0.4: 1.2 → −0.48 → 0.19 …), but no capture confirms it.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The default camera is close enough that the left, right and back edges of the bowl are cut off. The ball, arrow and lowest point are still readable.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Near convergence, the downhill arrow (0.25 × slope ≈ 0.01) and the lowest-point dot are both hidden inside the ball, and the 'Lowest point' label sits right against the ball.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "From the default 'wall' start (y = 1.2) with the surface edge at |y| = 1.5, any learning rate above about 0.5625 leaves the surface in one step. At 0.6 the run ends after a single jump (Steps 1, diverged), so the plan's promised 'the zigzag grows, then the ball escapes' cannot be seen. Growth is visible only for rates of about 0.51–0.56 at this start. Fix: start lower on the wall (e.g. y ≈ 0.4–0.6) or draw a wider surface, so that several growing zigzags show before escape across 0.5–0.6.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "After diverging, the ball (z = −1.68) is held by the host clamp near the surface edge. It sits slightly beyond the drawn edge.",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Same state as v0-s2: at learning rate 0.6 from the wall start, the ball leaves the surface in one step, so no growing zigzag is ever drawn. The divergence the plan promises appears as a single straight jump.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 12918,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3575,
+   "output_tokens_details": {
+    "thinking_tokens": 2594
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_e456447a546f44688e3e7e7ed2099336-review-3",
+   "status": "settled",
+   "costMicros": 123593,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793771011417,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "6d699d0f1f7eb0930ecc138b84c336a5163bd91ef7bad10d0ccc3aa40eb49bd0",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "There is a band of empty space below the bowl, roughly the lower third of the frame. The camera could be lowered or moved closer so the valley floor and the ball fill more of the view.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Before any run, Status reads 'paused'. A word such as 'ready' would describe a run that has not started more accurately.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "These captures never sample the 'Far along the long valley' start, the 'New run, keep old trail faded' action, the faded comparison trail or the low end of the learning rate (0.05). Checked against the program only.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Near convergence the ball sits on top of the lowest-point dot and next to its label, so the target dot is hidden. This is acceptable, but the label could be placed further from the minimum.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "The host draws the trail thinner on some segments, so a few zigzag legs look almost like hairlines next to the thicker ones.",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13049,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 2406,
+   "output_tokens_details": {
+    "thinking_tokens": 1737
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_e456447a546f44688e3e7e7ed2099336-review-5",
+   "status": "settled",
+   "costMicros": 100737,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

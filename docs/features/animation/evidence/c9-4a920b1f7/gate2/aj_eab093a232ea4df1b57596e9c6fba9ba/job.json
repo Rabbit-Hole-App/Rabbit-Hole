@@ -1,0 +1,212 @@
+{
+ "id": "aj_eab093a232ea4df1b57596e9c6fba9ba",
+ "version": 1,
+ "boardId": "e3ba4bd5-5560-4f8f-856f-5a95ca048898",
+ "cardId": "2d620041-8594-42fe-a31b-c61403e36462",
+ "stage": "ready",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 0,
+ "stopReason": "accepted",
+ "failure": null,
+ "recovery": [],
+ "outcome": "supported",
+ "choiceOpen": false,
+ "threadId": "canvaschat-ecf826ce-43b1-44b0-a2d0-52e8b4f09488",
+ "chatPending": false,
+ "usage": {
+  "credits": 44,
+  "unknown": false
+ },
+ "result": {
+  "jobId": "aj_eab093a232ea4df1b57596e9c6fba9ba",
+  "resultId": "ar_0d29b4fdfb4c4e96832e85f9827c6e43",
+  "cardId": "2d620041-8594-42fe-a31b-c61403e36462",
+  "canvas": {
+   "boardId": "e3ba4bd5-5560-4f8f-856f-5a95ca048898"
+  },
+  "requestRef": "e70a7dfa1c75b92b",
+  "revision": "av_b69f8164ed764210bff9cc7447ddbf34",
+  "planHash": "a8fd7368d4ef91e800736e30c23e755402587fd6e4f1aa47b327ad63779e148d",
+  "sources": "643d5437104296e2",
+  "artifactHash": "67e0121309c8fac727ad18001ad376250bed74445569f159102049de5d85117a",
+  "experience": "experiment",
+  "capabilityVersion": "animation-capabilities/1",
+  "policyVersion": 1
+ },
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Gradient descent with two learning rates, side by side",
+  "description": "A long, narrow bowl-shaped loss surface has two coloured balls starting from the same point. Each ball follows gradient descent with its own learning rate and leaves a trail. Each step, both balls move together, so you can compare a small rate that creeps slowly to the bottom with a large rate that zig-zags across the narrow valley, or flies off the surface when the rate is too large. Readouts show the step number and each ball's current loss.",
+  "experience": "experiment",
+  "reason": "Running both learning rates from the same start on the same surface puts the difference right in front of you: how fast each ball drops, how much it overshoots, and when it diverges. You can set both rates and watch the outcome change.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "lrA",
+    "label": "Learning rate of ball A (blue)",
+    "min": 0.01,
+    "max": 0.55,
+    "step": 0.01,
+    "default": 0.05
+   },
+   {
+    "type": "number",
+    "id": "lrB",
+    "label": "Learning rate of ball B (orange)",
+    "min": 0.01,
+    "max": 0.55,
+    "step": 0.01,
+    "default": 0.45
+   },
+   {
+    "type": "select",
+    "id": "start",
+    "label": "Starting point",
+    "options": [
+     {
+      "value": "far_left",
+      "label": "Far end of the valley"
+     },
+     {
+      "value": "steep_side",
+      "label": "High on the steep side"
+     },
+     {
+      "value": "corner",
+      "label": "Corner"
+     }
+    ],
+    "default": "far_left"
+   },
+   {
+    "type": "toggle",
+    "id": "showArrows",
+    "label": "Show downhill arrows",
+    "default": true
+   }
+  ],
+  "interactions": [
+   "Press play to let both balls step together, or advance them one step at a time; they stop after 60 steps.",
+   "Change either learning rate to compare slow creeping, fast arrival, zig-zagging and divergence.",
+   "Pick a different starting point to see how the narrow valley shapes each path.",
+   "Turn on the arrows to see the downhill direction (the negative gradient) at each ball; each step moves the ball along its arrow, by the learning rate times the gradient.",
+   "Orbit the camera to look at the trails from above or from the side."
+  ],
+  "assumptions": [
+   "This is an illustration on a made-up bowl-shaped surface, not a real model being trained.",
+   "The loss is exactly 0.5·(x² + 4y²): it curves gently along the valley and four times more sharply across it, and its lowest point is at the centre.",
+   "Each step is exact plain gradient descent: the new position equals the old position minus the learning rate times the gradient. There is no momentum, noise or schedule.",
+   "The surface's height is scaled down for display so the whole bowl stays in view. The loss readouts show the true values.",
+   "With this surface, rates below 0.5 shrink the movement across the valley each step. A rate of exactly 0.5 bounces back and forth across it without settling, and rates above 0.5 make that bounce grow until the ball leaves the surface."
+  ],
+  "limitations": [
+   "A ball that leaves the drawn area (x from −4 to 4, y from −2 to 2) stops at the edge and is marked as diverged instead of being followed further.",
+   "Real loss surfaces have many dimensions and are not shaped like a simple bowl. This one shows how the learning rate behaves in only two directions."
+  ],
+  "learningGoal": "See that the learning rate sets the step size. Too small is slow, a moderate rate converges quickly, and a rate past a limit set by the steepest curvature makes the ball overshoot or diverge.",
+  "requiredCapabilities": [
+   "parameters",
+   "step",
+   "labels",
+   "readouts"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "lrB",
+    "values": [
+     0.05,
+     0.55
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 60
+   }
+  ]
+ },
+ "planHash": "a8fd7368d4ef91e800736e30c23e755402587fd6e4f1aa47b327ad63779e148d",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 24966,
+  "generateToResultMs": 150334,
+  "processingMs": 175250,
+  "approvalWaitMs": 1261,
+  "calls": 3,
+  "repairs": 0,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 24916,
+    "calls": 1,
+    "inputTokens": 372,
+    "outputTokens": 2182,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 1261,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 75938,
+    "calls": 1,
+    "inputTokens": 7730,
+    "outputTokens": 9642,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 42,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 31399,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 42955,
+    "calls": 1,
+    "inputTokens": 13179,
+    "outputTokens": 3790,
+    "images": 6,
+    "captures": 0,
+    "outcome": "accepted"
+   }
+  ]
+ },
+ "createdAt": 1793770478655,
+ "updatedAt": 1793770655216
+}

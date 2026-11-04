@@ -1,0 +1,195 @@
+[
+ {
+  "messageId": "269",
+  "role": "assistant",
+  "content": "\"Stochastic gradient descent on a noisy loss surface\" needs a change before it can be made. By our estimate this plan is too large to build and check: it draws a trail of 200 markers. An estimate can be wrong. Nothing has been built, and no AI credits have been used on building. Choose below: each option says exactly what changes, and nothing is built until you press Generate.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_4c561e74c65444bda3466b601aa5fb04:choice:bc559dad550c2241f81c8fd40d5d4fa4221deeef589655e261ba00342d549df9",
+   "animationChoice": {
+    "jobId": "aj_4c561e74c65444bda3466b601aa5fb04",
+    "attempt": 1,
+    "kind": "size",
+    "key": "aj_4c561e74c65444bda3466b601aa5fb04:choice:bc559dad550c2241f81c8fd40d5d4fa4221deeef589655e261ba00342d549df9",
+    "alternatives": [
+     {
+      "id": "fewer_markers",
+      "title": "Draw a shorter trail",
+      "changes": [
+       "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs."
+      ]
+     }
+    ],
+    "chosen": "fewer_markers"
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "269"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "270",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. It differs from what you asked: Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-72a41da0708242c3",
+    "version": 1,
+    "command": "animation",
+    "title": "Stochastic gradient descent on a noisy loss surface",
+    "description": "A ball sits on a stretched bowl-shaped loss surface (a loss surface shows the error for every pair of two model settings) with a marked minimum at the bottom. Each step, the ball moves against a noisy estimate of the slope and leaves a trail. Two arrows on the ball show the true downhill direction and the noisy step direction, so you can see the ball zigzag toward the bottom and then jitter around it. Change the learning rate and the mini-batch size to see when the path is smooth, noisy, slow or unstable.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-951f8ea6",
+     "job": "aj_4c561e74c65444bda3466b601aa5fb04",
+     "plan_hash": "85f43c485acb3d46e5d450b0875e78ae03c6c4565f8f55c058636ab57b96de62",
+     "request": "stochastic gradient descent",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate (step size)",
+        "min": 0.02,
+        "max": 0.6,
+        "step": 0.02,
+        "default": 0.1
+       },
+       {
+        "type": "number",
+        "label": "Mini-batch size",
+        "unit": "samples",
+        "min": 1,
+        "max": 64,
+        "step": 1,
+        "default": 4
+       },
+       {
+        "type": "toggle",
+        "label": "Show full-batch (noise-free) path for comparison",
+        "default": false
+       }
+      ],
+      "interactions": [
+       "Play, pause or step the descent one update at a time; a run stops after 200 steps",
+       "Drag the ball to a new starting point on the surface before a run",
+       "Raise the learning rate: steps get longer and zigzag across the narrow side of the bowl; above 0.5 each swing grows until the ball hits the edge and stops with a 'diverged' readout",
+       "Raise the mini-batch size: the noisy arrow stays closer to the true downhill arrow, so the trail gets smoother and settles closer to the bottom",
+       "Turn on the full-batch path to see a noise-free gradient descent trail from the same start",
+       "Clear trails: removes the drawn paths and sends the ball back to its start point, keeping your current settings"
+      ],
+      "notices": [
+       "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs."
+      ],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793856916,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "stochastic gradient descent",
+    "prompt": "A ball sits on a stretched bowl-shaped loss surface (a loss surface shows the error for every pair of two model settings) with a marked minimum at the bottom. Each step, the ball moves against a noisy estimate of the slope and leaves a trail. Two arrows on the ball show the true downhill direction and the noisy step direction, so you can see the ball zigzag toward the bottom and then jitter around it. Change the learning rate and the mini-batch size to see when the path is smooth, noisy, slow or unstable.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. The main idea of stochastic gradient descent is how step size and noise shape the path. Changing them yourself and comparing trails on the same surface shows this better than watching one fixed run.",
+     "Behavior: rules",
+     "Controls: manipulate",
+     "Interaction: Play, pause or step the descent one update at a time; a run stops after 200 steps",
+     "Interaction: Drag the ball to a new starting point on the surface before a run",
+     "Interaction: Raise the learning rate: steps get longer and zigzag across the narrow side of the bowl; above 0.5 each swing grows until the ball hits the edge and stops with a 'diverged' readout",
+     "Interaction: Raise the mini-batch size: the noisy arrow stays closer to the true downhill arrow, so the trail gets smoother and settles closer to the bottom",
+     "Interaction: Turn on the full-batch path to see a noise-free gradient descent trail from the same start",
+     "Interaction: Clear trails: removes the drawn paths and sends the ball back to its start point, keeping your current settings",
+     "Parameter: Learning rate (step size), 0.02 to 0.6, default 0.1",
+     "Parameter: Mini-batch size (samples), 1 to 64, default 4",
+     "Parameter: Show full-batch (noise-free) path for comparison",
+     "Goal: Stochastic gradient descent uses a noisy slope estimate from a mini-batch: the learning rate sets how far each step goes and how stable the path is, and the batch size sets how noisy it is."
+    ],
+    "assumptions": [
+     "Illustration: the loss surface is a made-up formula and the noise is simulated, not from real training data.",
+     "The loss is the bowl 0.5·(x² + 4y²), which is steeper in one direction than the other, with its minimum at the centre.",
+     "Each noisy gradient is the true slope plus random noise whose size shrinks with one over the square root of the mini-batch size, which copies how averaging more samples reduces noise.",
+     "The noise comes from a fixed seed, so pressing Reset replays the same sequence of noisy steps.",
+     "The update is plain stochastic gradient descent: new position = old position − learning rate × noisy gradient, with no momentum and no learning-rate decay.",
+     "Readouts show the step number, the loss at the ball's current position, and the size of the noise in the current step.",
+     "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+     "A single step can raise the loss. The loss only goes down on average, so the loss readout will sometimes go up.",
+     "With a fixed learning rate the ball keeps jittering near the minimum and never settles exactly on it. Even at a mini-batch size of 64, a small amount of noise remains.",
+     "Real loss surfaces have millions of dimensions and are not simple bowls. This surface has no local minima or saddle points.",
+     "On this bowl, the 0.5 threshold for divergence is exact for the noise-free update. Real models have no single threshold you can read off this easily."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-951f8ea6"
+    },
+    "quote": null,
+    "review_hash": "5951a01fe0a22a0f121781791912d365140a5d205b974f68ea2b221185a997e2",
+    "sig": "v3.ca5bdc5370489b8249e1f798c1beb6bd9b5bc8c88307ae6bd697d0364b6543d1",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 385,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.ca5bdc5370489b8249e1f798c1beb6bd9b5bc8c88307ae6bd697d0364b6543d1",
+    "used": {
+     "version": 1,
+     "key": "aj_4c561e74c65444bda3466b601aa5fb04"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "270"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "277",
+  "role": "assistant",
+  "content": "\"Stochastic gradient descent on a noisy loss surface\" was not finished. The visual review found 4 serious problems with how the scene is drawn or computed. You have not been charged. It was corrected automatically once, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate. Your request and plan are kept.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_4c561e74c65444bda3466b601aa5fb04:1",
+   "alternativeOf": null,
+   "alternatives": [
+    "277"
+   ],
+   "feedback": null
+  }
+ }
+]

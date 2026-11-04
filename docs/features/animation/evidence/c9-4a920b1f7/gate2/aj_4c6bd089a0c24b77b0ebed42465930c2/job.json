@@ -1,0 +1,189 @@
+{
+ "id": "aj_4c6bd089a0c24b77b0ebed42465930c2",
+ "version": 1,
+ "boardId": "cce2e111-9f6a-43a9-aeef-9dd4040aa21b",
+ "cardId": "cdd1b87a-39fc-4efb-93e3-50122d1aee27",
+ "stage": "ready",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 0,
+ "stopReason": "accepted",
+ "failure": null,
+ "recovery": [],
+ "outcome": "supported",
+ "choiceOpen": false,
+ "threadId": "canvaschat-52846e28-d9d9-4351-9900-21da13175b8c",
+ "chatPending": false,
+ "usage": {
+  "credits": 50,
+  "unknown": false
+ },
+ "result": {
+  "jobId": "aj_4c6bd089a0c24b77b0ebed42465930c2",
+  "resultId": "ar_61f73bf584dd4cf8b193364b5e773ebe",
+  "cardId": "cdd1b87a-39fc-4efb-93e3-50122d1aee27",
+  "canvas": {
+   "boardId": "cce2e111-9f6a-43a9-aeef-9dd4040aa21b"
+  },
+  "requestRef": "c4d81b7fc719979e",
+  "revision": "av_abc76d1140ff4d14909adc9f57368da8",
+  "planHash": "b187e889e15aab1614cf3a6248e0ebfaf810572ee717b49bc597061297f96072",
+  "sources": "643d5437104296e2",
+  "artifactHash": "d69d237e22d0e18292731ac7591e31681fb905a791ccf678fe3e707c0a3fb9a0",
+  "experience": "experiment",
+  "capabilityVersion": "animation-capabilities/1",
+  "policyVersion": 1
+ },
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Why a too-large learning rate makes gradient descent diverge",
+  "description": "A ball sits on a long, bowl-shaped loss surface that is steep in one direction and gentle in the other. Each step, the ball moves downhill by the learning rate times the slope and leaves a trail. At small learning rates the trail curves into the bottom of the bowl. Above a threshold, each step overshoots the valley floor by more than the last, so the ball zig-zags higher up the steep walls until it leaves the surface.",
+  "experience": "experiment",
+  "reason": "Move the learning rate slider across the threshold and watch the same start switch from settling to blowing up. This shows the cause directly: each step overshoots the valley floor and lands higher than it started.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate",
+    "min": 0.05,
+    "max": 0.7,
+    "step": 0.01,
+    "default": 0.45
+   },
+   {
+    "type": "number",
+    "id": "steepness",
+    "label": "Steepness of the steep direction",
+    "min": 2,
+    "max": 6,
+    "step": 0.5,
+    "default": 4
+   }
+  ],
+  "interactions": [
+   "Drag the learning rate slider. The ball starts again from the same point and the new path shows whether it settles, zig-zags in, or flies apart.",
+   "Change the steepness of the bowl's steep walls. The tipping-point learning rate shown on the card moves with it.",
+   "Play, pause, or take one step at a time to watch each overshoot.",
+   "Keep the current path and start again, so you can compare two learning rates side by side.",
+   "Orbit the camera to see the zig-zag from above or from the side."
+  ],
+  "assumptions": [
+   "This is a made-up surface for illustration, not a real model being trained.",
+   "The loss is an exact bowl: half of (gentle curvature × x² + steepness × y²), with gentle curvature 1. The slope is computed exactly and there is no noise.",
+   "Each step moves the ball by the learning rate times the downhill direction (the negative slope). The arrow on the ball shows that next step, so the ball moves along the arrow.",
+   "Along each direction, a step multiplies the distance to the bottom by (1 − learning rate × curvature), exactly for this bowl. The ball settles only if that number is between −1 and 1 in both directions, so it diverges once the learning rate passes 2 ÷ steepness (0.5 by default).",
+   "Exactly at the threshold, the ball bounces back and forth forever without settling or growing.",
+   "Readouts: step count, current loss, the multiplier in the steep direction, and the threshold learning rate 2 ÷ steepness.",
+   "Heights are drawn compressed so the steep walls fit on screen. The loss readout shows the true value."
+  ],
+  "limitations": [
+   "A run stops after 40 steps, or as soon as the ball leaves the drawn square (more than 3 units from the center in either direction), and is then marked as diverged. Real divergence keeps growing without limit.",
+   "Real loss surfaces are not perfect bowls. There, the threshold depends on the local steepness and changes as training goes on. This scene only shows the core mechanism."
+  ],
+  "learningGoal": "Gradient descent diverges when the learning rate is so large that each step overshoots the minimum and lands farther away than it started. On a bowl, this happens once the learning rate goes past 2 divided by the steepest curvature.",
+  "requiredCapabilities": [
+   "step",
+   "parameters",
+   "actions",
+   "readouts",
+   "labels"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "learningRate",
+    "values": [
+     0.45,
+     0.6
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 30
+   }
+  ]
+ },
+ "planHash": "b187e889e15aab1614cf3a6248e0ebfaf810572ee717b49bc597061297f96072",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 40317,
+  "generateToResultMs": 169964,
+  "processingMs": 210231,
+  "approvalWaitMs": 2883,
+  "calls": 4,
+  "repairs": 0,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 40267,
+    "calls": 2,
+    "inputTokens": 2038,
+    "outputTokens": 4163,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 2883,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 111253,
+    "calls": 1,
+    "inputTokens": 7703,
+    "outputTokens": 12689,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 59,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 24916,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 33736,
+    "calls": 1,
+    "inputTokens": 12938,
+    "outputTokens": 3150,
+    "images": 6,
+    "captures": 0,
+    "outcome": "accepted"
+   }
+  ]
+ },
+ "createdAt": 1793770478767,
+ "updatedAt": 1793770691931
+}
