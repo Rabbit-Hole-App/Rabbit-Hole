@@ -26,16 +26,7 @@
     "clamp"
   ],
   "golden": "packages/web/src/animation3d/testdata/sgd-golden.json",
-  "landsWith": {
-    "feat/golden-sgd (AN-19, merged AN-18)": [
-      "packages/web/src/animation3d/testdata/sgd-golden.json",
-      "packages/web/src/animation3d/sgd-golden.test.mjs",
-      "packages/control-plane/test/animation-golden-sgd.test.js"
-    ],
-    "feat/an18-contract (AN-18)": [
-      "packages/control-plane/test/animation-client-features.test.js"
-    ]
-  },
+  "landsWith": {},
   "mvp2b": {
     "title": "streaming, deadline, same-job retry, escrow billing",
     "items": [
