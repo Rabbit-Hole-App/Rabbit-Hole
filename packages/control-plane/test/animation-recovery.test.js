@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 import { failureClass, failureText } from '../src/animation-job.js';
 import { sha256Hex } from '../src/learn-grade-jev.js';
 import { AnimationPolicyError } from '../src/animation-policy.js';
-import { NEEDS_PROPOSAL, PLAN, STUB_PIPELINE, animationStack, postedProposal, rows } from './animation-fixture.js';
+import { messageFromStream } from '../src/anthropic-stream.js';
+import { NEEDS_PROPOSAL, PLAN, STUB_PIPELINE, animationStack, chunked, postedProposal, rows, sseOf } from './animation-fixture.js';
 
 const skip = NEEDS_PROPOSAL;
 // aj_41cfeac (the owner's SGD request): both candidates failed only validateStage's request-fit preflight.
@@ -159,7 +160,10 @@ test('a billed reply that cannot be used says so and is refunded, on the card an
   const inner = globalThis.fetch; // the fake provider; restored by its own t.after
   globalThis.fetch = async (url, options) => {
     const response = await inner(url, options), body = JSON.parse(options.body);
-    return (body.system[0]?.text ?? body.system) === 'author' ? Response.json({ ...(await response.json()), stop_reason: 'max_tokens' }) : response;
+    if ((body.system[0]?.text ?? body.system) !== 'author') return response;
+    // The author streams (AN-17): its cut-off answer is a stream whose message_delta says max_tokens.
+    const cut = { ...(body.stream ? await messageFromStream(response.body) : await response.json()), stop_reason: 'max_tokens' };
+    return body.stream ? new Response(chunked(sseOf(cut), 16), { headers: { 'Content-Type': 'text/event-stream' } }) : Response.json(cut);
   };
   const { id, done } = await s.generated();
   const call = done.calls.find(c => c.role === 'author');

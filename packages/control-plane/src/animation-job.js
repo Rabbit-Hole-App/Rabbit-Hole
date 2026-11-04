@@ -47,7 +47,7 @@ import { reviewStage } from './animation-review.js';
 import { repairStage } from './animation-repair.js';
 import { CHANGED, GAP_ALTERNATIVES, GAP_FALLBACK, SIMPLER_ALTERNATIVE, clarificationFor, learnerReason, sizeCheck } from './animation-feasibility.js';
 import { seededJobs } from './animation-outcomes-fixture.js';
-import { ANIMATION_BILLING, ANIMATION_LIMITS, ANIMATION_POLICY_VERSION, AnimationPolicyError, animationModelConfigured, modelNotConfigured, animationRequest, animationReservation, callAnimationRole, checkAnimationRequest } from './animation-policy.js';
+import { ANIMATION_BILLING, ANIMATION_LIMITS, ANIMATION_POLICY_VERSION, AnimationPolicyError, animationModelConfigured, modelNotConfigured, animationRequest, animationReservation, animationStreaming, callAnimationRole, checkAnimationRequest } from './animation-policy.js';
 
 export const ANIMATION_PREFIX = '/api/learn/animation/jobs';
 export const ANIMATION_COMMAND = 'animation';
@@ -793,8 +793,9 @@ export class AnimationJobs {
     return scoped;
   }
   transport(job, role) {
+    const stream = animationStreaming(this.env, role); // AN-17: the author and repair stream, every role has a deadline; null when ANIMATION_STREAMING=false
     return (env, body, model) => spendTransport(this.usageEnv(job, role === 'brief' ? job.prepKey : job.actionKey), body, model, null,
-      admitted => anthropic(admitted, body, model, null), { userId: job.owner.userId || job.owner.email, category: 'animation', provider: 'anthropic', kind: KIND[role] });
+      admitted => anthropic(stream ? { ...admitted, MODEL_STREAM: stream } : admitted, body, model, null), { userId: job.owner.userId || job.owner.email, category: 'animation', provider: 'anthropic', kind: KIND[role] });
   }
   async finishUsage(job, status) {
     const db = this.env.LEARN_DB, user = job.owner.userId || job.owner.email;
@@ -836,7 +837,7 @@ export class AnimationJobs {
       // Unique per call record: a refused call gives its count back, so the count alone would name the retried call like the refused one.
       const callKey = `${current.id}-${role}-${current.calls.length + 1}`;
       current.inFlight = { key: callKey, role, at: Date.now() };
-      current.calls.push({ key: callKey, role, phase, attempt: current.attempt, requested: null, served: null, status: 'running', boundMicros, images, costMicros: null, inputTokens: null, outputTokens: null, startedAt: Date.now(), endedAt: null });
+      current.calls.push({ key: callKey, role, phase, attempt: current.attempt, streamed: animationStreaming(this.env, role)?.stream === true, requested: null, served: null, status: 'running', boundMicros, images, costMicros: null, inputTokens: null, outputTokens: null, startedAt: Date.now(), endedAt: null });
       await this.save(current);
       return callKey;
     });
@@ -852,7 +853,7 @@ export class AnimationJobs {
       const refused = ['provider_unavailable', 'spend_refused'].includes(error?.code);
       if (refused) { current.counts[role]--; current.bounds[phase] -= call.boundMicros; }
       Object.assign(call, { requested: out?.identity.requested ?? error?.reply?.requested ?? null, served: out?.identity.served ?? error?.served ?? error?.billed?.served ?? null, status: refused ? 'refused' : error ? 'failed' : 'settled', stopReason: out?.stopReason ?? error?.billed?.stopReason ?? null,
-        costMicros: refused ? 0 : toMicros(cost), inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: error?.code || (error ? 'failed' : null), ...(error?.reply ? { reply: error.reply } : {}) });
+        costMicros: refused ? 0 : toMicros(cost), inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: error?.code || (error ? 'failed' : null), ...(error?.reply ? { reply: error.reply } : {}), ...(out?.blocks ? { blocks: out.blocks } : {}) });
       if (current.inFlight?.key === key) current.inFlight = null;
       countStage(current.timing, { calls: 1, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens, images });
       await this.save(current);
@@ -979,7 +980,7 @@ export class AnimationJobs {
       return this.repairOrStop(job, out, 'review');
     } else if (stage === 'repairing') {
       // The draft this repair replaced (diagnostics only): FX-AN-030's first draft was lost when its repair overwrote it.
-      job.candidates.push({ repairs: job.repairs, ...(job.draft ? { previousDraft: job.draft } : {}), operation: out.operation || null, progress: out.progress !== false, ...(out.draft ? { draftHash: await hash16(out.draft), hasProgram: !!out.draft.program } : {}), ...(out.inputKeys ? { inputKeys: out.inputKeys } : {}), ...(out.artifactKeys ? { artifactKeys: out.artifactKeys } : {}), ...(out.rejected ? { rejected: out.rejected } : {}), ...(out.forwarded ? { forwarded: out.forwarded } : {}) });
+      job.candidates.push({ repairs: job.repairs, ...(job.draft ? { previousDraft: job.draft } : {}), operation: out.operation || null, progress: out.progress !== false, ...(out.draft ? { draftHash: await hash16(out.draft), hasProgram: !!out.draft.program } : {}), ...(out.inputKeys ? { inputKeys: out.inputKeys } : {}), ...(out.artifactKeys ? { artifactKeys: out.artifactKeys } : {}), ...(out.rejected ? { rejected: out.rejected } : {}), ...(out.forwarded ? { forwarded: out.forwarded } : {}), ...(out.reason ? { reason: out.reason } : {}), ...(out.programRetried ? { programRetried: true } : {}), ...(out.rawReplies ? { rawReplies: out.rawReplies } : {}) });
       if (out.rejected) return this.stopWith(job, 'unsupported_repair', 'spec', 'This animation needs a change the repair step cannot make. Edit the request and try again.');
       if (out.progress === false || !out.draft) return this.stopWith(job, 'no_progress', 'spec', 'The animation could not be repaired. Edit the request and try again.');
       Object.assign(job, { draft: out.draft, artifact: null, artifactHash: null, captures: null, coverage: null });
