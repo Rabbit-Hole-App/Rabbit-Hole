@@ -180,10 +180,14 @@ see below).
 - `mustFail[]`: `{ id, artifact, request, mustMention: [regex], knownFindings (advisory), ... }`. The review must **reject** the draft (a blocker or major finding)
   AND at least one blocker or major finding must match one of `mustMention` (case-insensitive, any of). A draft that is accepted (the reviewer became lenient),
   or rejected with no such finding (the reviewer sees something else now), is a drift.
-- `falsePositives[]` (optional): `{ id, artifact, request, mustNotMention: [regex], note }`: a draft the reviewer once rejected with a **false** finding. The review
-  may reject it for other reasons (those findings are real); it passes calibration unless a blocker or major finding matches a `mustNotMention` pattern. If one
-  does, that is the drift "false positive persists: the reviewer is not calibrated", with the matching finding printed. (Field names are as lane (d)'s commit
-  on `feat/an20-c10` has them; the reader is in `readManifest` and `judge` of `gate2-controls.mjs`.)
+- `falsePositives[]` (optional): `{ id, artifact, candidate, job, reviewArtifactHash, request, mustNotMention: [regex], knownFalseFindings: [{ capture, object,
+  severity, message }] (advisory), note }`, rule key `falsePositiveMatching`: a draft the reviewer once rejected with a **false** finding (the one case so far:
+  `offset-shrinks-false-positive`, C9 job 1, "the offset shrinks into the ball"). The review may reject it for other reasons (those findings are real); it passes
+  calibration unless a blocker or major finding matches a `mustNotMention` pattern (case-insensitive). If one does, that is the drift "false positive persists: the
+  reviewer is not calibrated", with the matching finding printed. These are exactly the names of lane (d)'s commit `f5c890763` on `feat/an20-c10`; the reader is
+  `readManifest` and `judge` in `gate2-controls.mjs`.
+- **`--calibrate` is optional.** The calibration manifest and its fixtures arrive with C11, not in C10's tree: on C10 the controls run **job 0 (the golden) only**
+  unless the owner says otherwise (about US$0.15); the whole set (golden, three must-fail drafts, one false-positive draft: 5 reviews) is about US$0.75.
 - `artifact` points at a fixture file `{ plan, draft, request? }`, relative to the repository that holds the manifest (else the candidate worktree). Drift of any
   kind exits 5, with the item's name and which way it drifted.
 
@@ -207,7 +211,7 @@ job-shaped path (a real job record reviewed and repaired by the Durable Object, 
 Their credits are kept in `spend-rows.md` as rows `c0`, `c1`, ... (one per item, with the item's name) **and** counted in the ladder total: they are added to the
 cumulative spend that `--cap` is checked against and to `settledCredits` of `gate2-result.json`, so the total stays honest. Each item in `controls-result.json` carries its `credits`.
 One review is 12 to 16 credits (US$0.12 to 0.16) typical; the product's worst-case bound for one review call is about US$0.46, and the stage retries once on a
-malformed reply. The golden alone: about US$0.15 (worst US$0.93). The golden plus a calibration set of three drafts: about US$0.6. The script needs `--cap` minus
+malformed reply. The golden alone: about US$0.15 (worst US$0.93). The golden plus lane (d)'s calibration set (four drafts): about US$0.75. The script needs `--cap` minus
 `--prior` to cover 20 credits per item before it starts.
 
 **Result.** `<out>/controls-result.json`, one compact line next to `gate2-result.json` (and a per-candidate copy): `{ schema: "gate2-controls/1", candidateSha,
@@ -215,8 +219,8 @@ previewVersion, key: { candidateSha, manifestHash, promptsHash, reviewPageHash }
 name, kind: "golden" | "mustFail" | "falsePositive", expect, outcome, accepted, drift, findings: [{ severity, category, verdict, message }], credits, resultId,
 artifactHash }], finishedAt }`.
 
-**Checked offline against the real files** (a free check, scripted reviewer, nothing sent): lane (d)'s real manifest at `aea00fef9` and the real golden (sha256
-`1837a72b6366`, equal to the manifest's pin) read without change; the three real drafts seal under the candidate tree's own `sealArtifact`; the real golden validates
+**Checked offline against the real files** (a free check, scripted reviewer, nothing sent): lane (d)'s real manifest at `f5c890763` and the real golden (sha256
+`1837a72b6366`, equal to the manifest's pin) read without change; the four real drafts (three must-fail, one false-positive) seal under the candidate tree's own `sealArtifact`; the real golden validates
 under the candidate contract and builds a review request of about 21 KB of text with 6 images that passes the product's request-size check.
 
 ## Running Gate 2

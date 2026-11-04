@@ -427,6 +427,7 @@ test('--check validates the identity and the configuration and creates no job; t
 // ---- controls: job 0 (the golden) and the reviewer calibration set (lane (d)'s animation-calibration/1) ----
 const FX025 = JSON.parse(readFileSync(new URL('../../packages/web/src/animation3d/testdata/fx025-game-candidate.json', import.meta.url), 'utf8')); // a real retained draft with its plan
 const sha256 = text => createHash('sha256').update(text).digest('hex');
+const FALSE_PATTERNS = ['offset.*(shrink|inside the ball)', 'arrows? .*(hidden|inside).*ball', 'tiny and mostly hidden']; // lane (d)'s real patterns for the C9 job 1 false finding
 // A repository laid out as lane (d)'s branch is (scripts/animation/calibration/manifest.json + one fixture file per case, repo-relative paths, the golden pinned by
 // sha256), with the fields the real files carry. -> { root, dir, file }
 function calibrationDir({ goldenText = GOLDEN_TEXT, falsePositives = true, extra = {} } = {}) {
@@ -442,8 +443,10 @@ function calibrationDir({ goldenText = GOLDEN_TEXT, falsePositives = true, extra
     mustFail: [
       { id: 'floating-ball', kind: 'geometry', artifact: fixture('floating-ball', FX025.draft, { mustMention: ['floats above', 'frame'] }), candidate: 'c7-951288c09', job: 'aj_x', reviewArtifactHash: 'h1', request: FX025.prompt, knownFindings: known, mustMention: ['floats above', 'frame'] },
       { id: 'trail-markers', kind: 'trail', artifact: fixture('trail-markers', { ...FX025.draft, title: 'Second retained draft' }, { mustMention: ['trail markers'] }), candidate: 'c6-x', job: 'aj_y', reviewArtifactHash: 'h2', request: 'SGD on a bowl-shaped loss', knownFindings: known, mustMention: ['trail markers'] }],
-    ...(falsePositives ? { falsePositives: [{ id: 'offset-shrinks', artifact: fixture('offset-shrinks', { ...FX025.draft, title: 'False positive draft' }, { mustNotMention: ['shrinks into the ball'] }), candidate: 'c9-x', job: 'aj_z', request: 'a ball rolling down a loss surface, step by step', mustNotMention: ['shrinks into the ball'], note: 'C9 job 1: the offset arrow was said to shrink into the ball' }] } : {}),
-    matching: 'A case passes calibration when the review REJECTS the draft and one such finding matches mustMention.', ...extra };
+    ...(falsePositives ? { falsePositives: [{ id: 'offset-shrinks', artifact: fixture('offset-shrinks', { ...FX025.draft, title: 'False positive draft' }, { mustNotMention: FALSE_PATTERNS, majorFindings: known }), candidate: 'c9-4a920b1f7', job: 'aj_4c561e74', reviewArtifactHash: 'h3', request: 'stochastic gradient descent',
+      mustNotMention: FALSE_PATTERNS, knownFalseFindings: [{ capture: 'v0-s0', object: 'arrow', severity: 'major', message: 'The offset arrow shrinks into the ball.' }], note: 'C9 job 1: the offset arrow was said to shrink into the ball' }] } : {}),
+    matching: 'A case passes calibration when the review REJECTS the draft and one such finding matches mustMention.',
+    ...(falsePositives ? { falsePositiveMatching: 'A falsePositives case may be rejected for OTHER reasons, but fails calibration if the review raises a blocker or major finding whose message matches any mustNotMention.' } : {}), ...extra };
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest));
   return { root, dir, file: join(dir, 'manifest.json') };
 }
@@ -464,7 +467,8 @@ test('readManifest reads lane (d)\'s real shape: mustFail with mustMention, the 
   const m = readManifest(file, { goldenFile: golden });
   assert.deepEqual(m.items.map(i => [i.name, i.kind, i.expect]), [['floating-ball', 'mustFail', 'fail'], ['trail-markers', 'mustFail', 'fail'], ['offset-shrinks', 'falsePositive', 'noFalseFinding']]);
   assert.deepEqual(m.items[0].mustMention, ['floats above', 'frame']);
-  assert.deepEqual(m.items[2].mustNotMention, ['shrinks into the ball']);
+  assert.deepEqual(m.items[2].mustNotMention, FALSE_PATTERNS);
+  assert.equal(m.items[2].request, 'stochastic gradient descent');
   assert.equal(m.items[0].request, FX025.prompt);
   assert.equal(m.items[0].draft.title, FX025.draft.title);
   assert.equal(m.goldenPinned, sha256(GOLDEN_TEXT));
@@ -494,6 +498,7 @@ test('readManifest reads lane (d)\'s real shape: mustFail with mustMention, the 
   assert.throws(bad({ ...base, mustFail: [base.mustFail[0], base.mustFail[0]] }), /a distinct id is required/);
   assert.throws(bad({ ...base, falsePositives: [{ ...base.falsePositives[0], mustNotMention: undefined }] }), /offset-shrinks\.mustNotMention: a non-empty list/);
   assert.throws(bad({ ...base, falsePositives: 'no' }), /falsePositives must be a list/);
+  assert.throws(bad({ ...base, falsePositives: [{ ...base.falsePositives[0], mustNotMention: ['('] }] }), /Invalid regular expression/);
   assert.throws(bad({ ...base, mustFail: [{ ...base.mustFail[0], artifact: 'scripts/animation/calibration/nope.json' }] }), /the fixture scripts\/animation\/calibration\/nope\.json is not under/);
   assert.deepEqual(relabel({ title: 'T', description: 'D' }), { title: 'Offline fixture: T', description: 'OFFLINE FIXTURE, not generated by a model. D' });
   const labelled = relabel({ title: 'Offline fixture: T', description: 'OFFLINE FIXTURE, not generated by a model. D' });
