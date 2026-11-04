@@ -2,7 +2,9 @@
 // Keeping it fixed prevents layout changes from moving the card or its neighbours.
 export const FULL_WIDTH = Object.freeze({ baseline: 320, preferred: 720, maximum: 1200 });
 export const FULL_TYPES = new Set(['explanation', 'snippet', 'table', 'image']);
-export const supportsCardLayout = block => FULL_TYPES.has(block?.type);
+// A file card (FileDocCard) of these kinds takes Full content too: every chunk, slide, page or row drawn. A table (CSV) file card is not one.
+export const FULL_FILE_KINDS = new Set(['text', 'markdown', 'document', 'presentation', 'workbook']);
+export const supportsCardLayout = block => FULL_TYPES.has(block?.type) || (block?.type === 'file' && FULL_FILE_KINDS.has(block.kind));
 export const fullContent = block => supportsCardLayout(block) && block.cardLayout?.mode === 'full';
 const positive = value => Number.isFinite(value) && value > 0;
 export function widthLimits(minimum = FULL_WIDTH.baseline) {

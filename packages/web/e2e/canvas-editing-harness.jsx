@@ -1,6 +1,7 @@
 // Standalone mount of the real AdaptiveCanvas for the canvas-editing checks (e2e/canvas-editing-check.mjs): no app
 // shell, auth or network. Vite dev serves it from disk; it is never an entry in vite.config.js, so it never ships.
 // ?board=<key> picks the localStorage board; ?readonly=1 mounts it view-only, the way a shared link does for its owner.
+// ?scope=<canvas> sets the file scope (file-source-client.js) as the owner's canvas page does.
 // ?localcopy=1 mounts it as a visitor's temporary copy (SHARE-02): the localStorage board is the source, read only; edits go to
 // the guest draft in sessionStorage (guest-draft.js), which a reload mounts again, as SharedBoardPage does.
 // A composer stand-in (a textarea marked data-chat-composer) proves canvas keys stand down while it has focus and that
@@ -13,6 +14,7 @@ import { ComposerHideButton } from '../src/ChatComposer.jsx';
 import { NextStepsCard } from '../src/ask.jsx';
 import { nextStepsController } from '../src/learn-next-steps.js';
 import { loadGuestDraft, saveGuestDraft } from '../src/guest-draft.js';
+import { setFileScope } from '../src/file-source-client.js';
 import '../src/index.css';
 
 const params = new URLSearchParams(location.search);
@@ -20,6 +22,8 @@ const KEY = `harness:${params.get('board') || 'canvas-editing'}`;
 const readOnly = params.get('readonly') === '1';
 const localCopy = params.get('localcopy') === '1';
 const session = () => sessionStorage;
+// ?scope=<canvas name> makes this the owner's page for stored file cards (their originals and Markdown highlights are routed by the check).
+if (params.get('scope')) setFileScope({ app: params.get('scope'), board: 'main' });
 
 // Each call answers a new set of three after hookPost.delay ms, or throws when hookPost.fail is set; window.hookPosts counts.
 window.hookPost = { delay: 50, fail: false };

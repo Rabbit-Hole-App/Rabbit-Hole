@@ -101,6 +101,8 @@ Enable this for cards with an existing safe, editable content representation.
 
 Do not treat arbitrary embedded viewers, PDFs, videos or repository graphs as editable text cards.
 
+Full content (Feature B only, not Edit) also applies to file cards of kind text, markdown, document, presentation and workbook (owner, 2026-11-04): see canvas-file-imports.md, "Full content".
+
 For repository-backed or uploaded source snapshots, preserve the established read-only/source-version rules. Editing must not overwrite the repository or original uploaded file.
 
 Unsupported cases need a clear explanation or disabled Edit option.

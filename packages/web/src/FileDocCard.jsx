@@ -20,6 +20,7 @@ import { useSearchContent } from './canvas-search-content.jsx';
 import { searchSourceRecord } from './canvas-search-content.js';
 import { currentFileDocUnits, readFileDocOriginal } from './file-doc-read.js';
 import { cn } from './ui.jsx';
+import { fullContent } from './card-layout.js';
 
 // The body of a lane 2 file card (docs/features/canvas-file-imports.md): a text, Markdown, table, workbook, Word document or
 // presentation card inside the shared CanvasNode frame, so it selects, moves, resizes, saves and undoes like any card. A new
@@ -167,7 +168,7 @@ export default function FileDocCard({ block, onChange }) {
       {original.status === 'loading' && <Status>Opening the file</Status>}
       {original.status === 'failed' && <div data-file-doc-read-error role="alert" className="flex items-center gap-2 px-3 py-2 text-xs text-danger" onPointerDown={stop}>The file could not be read.<button type="button" onClick={original.retry} className={BUTTON}>Retry</button></div>}
       {original.status === 'missing' && <p data-file-doc-missing className="px-3 py-2 text-xs text-ink-2">{block.fileRef && !block.fileRef.source?.id ? 'This file was never saved to the account and is not in this browser. Drop it on the canvas again.' : 'This file is not in this browser or saved with the board yet.'}</p>}
-      {original.blob && <Body key={`${searchKey}:${original.attempt}`} block={block} blob={original.blob} onChange={change} update={update} setMeta={setMeta} onStatus={setParseStatus} onUnits={body => setUnits({ key: JSON.stringify(extractionOptions(latest.current)), sourceKey: searchKey, blob: original.blob, body })} />}
+      {original.blob && <Body full={fullContent(block)} key={`${searchKey}:${original.attempt}`} block={block} blob={original.blob} onChange={change} update={update} setMeta={setMeta} onStatus={setParseStatus} onUnits={body => setUnits({ key: JSON.stringify(extractionOptions(latest.current)), sourceKey: searchKey, blob: original.blob, body })} />}
     </div>
   );
 }
@@ -205,7 +206,7 @@ function useExcerpt(block, excerpt) {
 }
 
 // ─── Text and Markdown: decoded with its encoding, drawn in chunks; Show more draws the next one. ───
-function TextBody({ block, blob, onChange, setMeta, onUnits, onStatus }) {
+function TextBody({ block, blob, full, onChange, setMeta, onUnits, onStatus }) {
   const [decoded, setDecoded] = useState({ status: 'loading' });
   const [shown, setShown] = useState(1);
   useEffect(() => {
@@ -222,8 +223,9 @@ function TextBody({ block, blob, onChange, setMeta, onUnits, onStatus }) {
   useEffect(() => { if (decoded.status === 'ready') setMeta(`${decoded.encoding.toUpperCase()}${decoded.newline !== 'none' && decoded.newline !== 'lf' ? ` · ${decoded.newline.toUpperCase()} line ends` : ''}`); }, [decoded]); // eslint-disable-line react-hooks/exhaustive-deps
   if (decoded.status === 'loading') return <Status>Reading the text</Status>;
   if (decoded.status === 'failed') return <div onPointerDown={stop}><Failed>{decoded.error}</Failed>{decoded.code === 'encoding' && <EncodingChoice value={block.encoding} onPick={encoding => onChange?.({ ...block, encoding })} />}</div>;
-  const chunks = view.chunks.slice(0, shown), drawn = chunks.reduce((n, chunk) => n + chunk.length, 0);
-  const more = shown < view.chunks.length;
+  // Full content (card-layout.js) draws every chunk the preview bound allows, with no Show more.
+  const chunks = full ? view.chunks : view.chunks.slice(0, shown), drawn = chunks.reduce((n, chunk) => n + chunk.length, 0);
+  const more = !full && shown < view.chunks.length;
   const moreButton = more && <button type="button" data-file-doc-more className={cn(BUTTON, 'mt-2')} onClick={() => setShown(n => n + 1)}>Show more</button>;
   const images = block.kind === 'markdown' && /!\[[^\]]*\]\([^)]+\)/.test(decoded.text);
   return <>
@@ -373,7 +375,7 @@ const quote = name => (/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `'${name.r
 
 // ─── Word documents: mammoth's structure as React elements (never HTML), images from the original, conversion notes said. ───
 const BLOCKS_PER_PAGE = 300;
-function DocumentBody({ block, blob, setMeta, onUnits, onStatus }) {
+function DocumentBody({ block, blob, full, setMeta, onUnits, onStatus }) {
   const legacy = block.format === 'doc';
   const parsed = useParsed(legacy ? null : blob, 'document', { name: block.label });
   const [pages, setPages] = useState(1);
@@ -389,7 +391,7 @@ function DocumentBody({ block, blob, setMeta, onUnits, onStatus }) {
   if (legacy) return <p data-file-doc-awaiting className="px-3 py-2 text-xs text-ink-2">A Word 97-2003 (.doc) preview needs the document converter, which is not connected yet. The original is kept: Download it.</p>;
   if (parsed.status === 'loading') return <Status>Reading the document</Status>;
   if (parsed.status === 'failed') return <Failed>{parsed.error}</Failed>;
-  const shown = doc.nodes.slice(0, pages * BLOCKS_PER_PAGE);
+  const shown = full ? doc.nodes : doc.nodes.slice(0, pages * BLOCKS_PER_PAGE);
   return <>
     <div data-scroll data-file-doc-document className="pointer-events-auto min-h-0 flex-1 overflow-auto px-4 py-3 text-sm leading-6 text-ink [&_h1]:mb-2 [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:mb-1.5 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:font-semibold [&_li]:ml-5 [&_ol]:list-decimal [&_p]:mb-2 [&_table]:my-2 [&_td]:border [&_td]:border-line [&_td]:px-2 [&_th]:border [&_th]:border-line [&_th]:px-2 [&_ul]:list-disc" onPointerDown={stop}>
       {!doc.text.trim() && !doc.images.length ? <p className="text-xs text-ink-2">No text or images could be read from this document.</p> : shown.map((node, i) => <DocNode key={i} node={node} urls={urls} />)}
@@ -413,7 +415,7 @@ function DocNode({ node, urls }) {
 }
 
 // ─── Presentations: a slide navigator over the deck's own slide numbers; text extracted here, slide images await the converter. ───
-function PresentationBody({ block, onChange, update, blob, setMeta, onUnits, onStatus }) {
+function PresentationBody({ block, onChange, update, blob, full, setMeta, onUnits, onStatus }) {
   const parsed = useParsed(blob, 'presentation', { name: block.label });
   const deck = parsed.result;
   useEffect(() => { onStatus?.(parsed.status); }, [parsed.status, onStatus]);
@@ -429,21 +431,28 @@ function PresentationBody({ block, onChange, update, blob, setMeta, onUnits, onS
   if (!current) return <p className="px-3 py-2 text-xs text-ink-2">This presentation has no slides.</p>;
   const index = slides.indexOf(current);
   const go = step => { const next = slides[index + step]; if (next) onChange?.({ ...block, slide: next.number }); };
-  const lines = current.text.split('\n').filter(line => line !== current.title);
+  // Full content (card-layout.js): every slide of the card, one under the other, with no navigator.
+  const slide = entry => {
+    const lines = entry.text.split('\n').filter(line => line !== entry.title);
+    return <div key={entry.number} className={full ? 'mb-3' : undefined}>
+      {full && <p data-file-doc-slide={entry.number} className="mb-1 text-xs tabular-nums text-ink-2">Slide {entry.number} of {deck.count}{entry.hidden ? ' (hidden)' : ''}</p>}
+      {images.urls.get(entry.number)
+        ? <img data-file-doc-slide-image src={images.urls.get(entry.number)} alt={`Slide ${entry.number}: ${entry.title || 'untitled'}`} className="w-full rounded-md border border-line bg-white" style={{ aspectRatio: String(deck.size.ratio) }} />
+        : <div data-file-doc-slide-frame className="relative w-full overflow-hidden rounded-md border border-line bg-white p-4 dark:bg-side" style={{ aspectRatio: String(deck.size.ratio) }}>
+          <p className="text-base font-semibold text-ink">{entry.title || <span className="text-ink-3">(no title)</span>}</p>
+          {lines.map((line, i) => <p key={i} className="mt-1 text-sm text-ink-2">{line}</p>)}
+        </div>}
+      {entry.notes && <div data-file-doc-notes className="mt-2 rounded-md bg-hover/50 px-2 py-1.5 text-xs text-ink-2"><span className="font-semibold">Speaker notes:</span> {entry.notes}</div>}
+    </div>;
+  };
   return <>
-    <div className="flex shrink-0 items-center gap-1 px-2 py-1 text-xs text-ink-2" onPointerDown={stop}>
+    {!full && <div className="flex shrink-0 items-center gap-1 px-2 py-1 text-xs text-ink-2" onPointerDown={stop}>
       <button type="button" aria-label="Previous slide" data-file-doc-prev className={BUTTON} disabled={index <= 0} onClick={() => go(-1)}><ChevronLeft size={14} aria-hidden /></button>
       <span data-file-doc-slide={current.number} className="tabular-nums">Slide {current.number} of {deck.count}{current.hidden ? ' (hidden)' : ''}</span>
       <button type="button" aria-label="Next slide" data-file-doc-next className={BUTTON} disabled={index >= slides.length - 1} onClick={() => go(1)}><ChevronRight size={14} aria-hidden /></button>
-    </div>
+    </div>}
     <div data-scroll className="pointer-events-auto min-h-0 flex-1 overflow-auto px-3 pb-2" onPointerDown={stop}>
-      {images.urls.get(current.number)
-        ? <img data-file-doc-slide-image src={images.urls.get(current.number)} alt={`Slide ${current.number}: ${current.title || 'untitled'}`} className="w-full rounded-md border border-line bg-white" style={{ aspectRatio: String(deck.size.ratio) }} />
-        : <div data-file-doc-slide-frame className="relative w-full overflow-hidden rounded-md border border-line bg-white p-4 dark:bg-side" style={{ aspectRatio: String(deck.size.ratio) }}>
-          <p className="text-base font-semibold text-ink">{current.title || <span className="text-ink-3">(no title)</span>}</p>
-          {lines.map((line, i) => <p key={i} className="mt-1 text-sm text-ink-2">{line}</p>)}
-        </div>}
-      {current.notes && <div data-file-doc-notes className="mt-2 rounded-md bg-hover/50 px-2 py-1.5 text-xs text-ink-2"><span className="font-semibold">Speaker notes:</span> {current.notes}</div>}
+      {full ? slides.map(slide) : slide(current)}
     </div>
     {images.urls.size ? <Note data-file-doc-slide-images>Slide images from the presentation converter{images.job?.state === 'ready_with_limitations' ? ' (with limitations: animations and embedded media are not shown)' : ''}.</Note>
       : <Note data-file-doc-awaiting>{images.line || 'Slide text only. Slide images need the presentation converter, which is not connected yet; the original keeps every slide.'}</Note>}

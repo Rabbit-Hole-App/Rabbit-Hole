@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {switchCardLayout,resizeCardLayout,widthLimits,fitWidth,supportsCardLayout} from './card-layout.js';
+import {switchCardLayout,resizeCardLayout,widthLimits,fitWidth,supportsCardLayout,fullContent} from './card-layout.js';
 test('conversion preserves identity/content/position and restores previous bounded size',()=>{const b={id:'a',type:'explanation',dx:17,dy:42,body:'long',refs:[{id:'r'}]};const f=switchCardLayout(b,'full',{w:480,h:330});assert.equal(f.body,b.body);assert.equal(f.refs,b.refs);assert.equal(f.dx,17);assert.deepEqual(f.cardLayout.slot,{w:480,h:330});const bigger=resizeCardLayout(f,900,9000);const back=switchCardLayout(bigger,'scrollable',{w:900,h:9000});assert.deepEqual(back.cardLayout.scrollableSize,{w:480,h:330});assert.equal(switchCardLayout(back,'full',{w:480,h:330}).cardLayout.fullWidth,900);assert.deepEqual(b,{id:'a',type:'explanation',dx:17,dy:42,body:'long',refs:[{id:'r'}]});});
 test('content minimum raises maximum; preferred width is distinct and valid widths survive',()=>{assert.deepEqual(widthLimits(1600),{min:1600,max:1600});assert.equal(fitWidth(900),900);assert.equal(fitWidth(undefined),720);assert.equal(fitWidth(140,widthLimits(500)),500);});
 test('left-edge resize only changes requested x and width, never derived height or slot',()=>{const b=switchCardLayout({id:'a',type:'snippet',dx:20,dy:30,code:'x'},'full',{w:400,h:200});const n=resizeCardLayout(b,500,4000,-80);assert.equal(n.dx,-80);assert.equal(n.dy,30);assert.deepEqual(n.cardLayout.slot,{w:400,h:200});assert.equal(n.h,undefined);assert.equal(n.code,'x');});
@@ -87,4 +87,22 @@ test('the sizing policy is per card type: text cards fit their content; notebook
  const fits=heads.map(m=>m[1]).filter(type=>/^    fitContent: true,/m.test(entry(type)));
  assert.deepEqual(fits.sort(),['challenge','explanation','flashcards','quiz']);
  for(const type of ['code','snippet','table','graph','plot','flow','whiteboard','animation','image','video','cad','paper','scene']) assert.ok(entry(type)&&!fits.includes(type),type);
+});
+
+// Full content on file cards (owner 2026-11-04): the five FileDocCard kinds that have more than the card shows.
+test('file cards of kind text, markdown, document, presentation and workbook take Full content; no other card type or file kind does',()=>{
+ for(const kind of ['text','markdown','document','presentation','workbook']) assert.equal(supportsCardLayout({type:'file',kind}),true,kind);
+ assert.equal(supportsCardLayout({type:'file',kind:'table'}),false,'a CSV file card is not one of the five');
+ assert.equal(supportsCardLayout({type:'file'}),false);
+ for(const type of ['pdf','video','slide','cad','canvas-ref','repo-graph','whiteboard','heading','divider','challenge','explainBack','graph','plot','flow','mermaid','code','repo-code','notebook','paper','webpage']){
+  assert.equal(supportsCardLayout({type,kind:'markdown'}),false,type);
+ }
+});
+test('a file card switches to Full and back, keeping its identity, file reference and highlights key',()=>{
+ const b={id:'f',type:'file',kind:'markdown',dx:3,dy:4,fileRef:{source:{id:'fs_x',rev:'r'}}};
+ const full=switchCardLayout(b,'full',{w:560,h:480});
+ assert.equal(full.cardLayout.mode,'full');assert.equal(full.fileRef,b.fileRef);assert.deepEqual(full.cardLayout.slot,{w:560,h:480});
+ const back=switchCardLayout(full,'scrollable',{w:720,h:3000});
+ assert.equal(back.cardLayout.mode,'scrollable');assert.deepEqual(back.cardLayout.scrollableSize,{w:560,h:480});assert.equal(back.fileRef,b.fileRef);
+ assert.equal(fullContent(b),false);assert.equal(fullContent(full),true);assert.equal(fullContent({...full,kind:'table'}),false);
 });

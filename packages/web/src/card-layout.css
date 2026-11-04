@@ -7,3 +7,5 @@
 [data-card-layout="full"] td, [data-card-layout="full"] th { white-space: normal; overflow-wrap: anywhere; }
 [data-card-layout="full"] .katex-display { overflow: visible; }
 [data-card-layout="full"] img { max-width: 100%; height: auto; object-fit: contain; }
+/* A workbook's grid keeps its horizontal scroll (its columns are drawn by window); its rows are all drawn, so it has no vertical one. */
+[data-card-layout="full"] [data-file-doc-table] { overflow-x: auto; }
