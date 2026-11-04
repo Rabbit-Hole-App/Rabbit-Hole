@@ -471,3 +471,20 @@ test('the golden SGD artifact compiles to the charged counts, its surface sits w
   assert.ok(Math.abs(result.clamped[0].y - top) < 1e-5, `held at the surface top ${top}, not ${result.clamped[0].y}`);
   scene.dispose();
 });
+
+// FX-AN-072 on the real golden: its variable-length arrows are unit arrows under scale [1, length, 1] with offset = the ball radius; the tail stays that far from the arrow's origin at any length.
+test('the golden SGD arrows keep their tails at the offset whatever length a frame scales them to', () => {
+  const golden = JSON.parse(readFileSync(new URL('./testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
+  const geometries = new Map(golden.scene.geometries.map(g => [g.id, g])), scene = built(golden);
+  const arrows = golden.scene.nodes.filter(node => geometries.get(node.geometry)?.kind === 'arrow' && geometries.get(node.geometry).offset > 0);
+  assert.ok(arrows.length >= 2, 'the golden has its two offset arrows');
+  for (const length of [0.05, 0.4, 1, 3]) {
+    scene.apply({ nodes: Object.fromEntries(arrows.map(node => [node.id, { scale: [1, length, 1] }])) });
+    scene.root.updateWorldMatrix(true, true);
+    for (const node of arrows) {
+      const tail = drawn(scene, node.id).getWorldPosition(new THREE.Vector3()), origin = holderOf(scene, node.id).getWorldPosition(new THREE.Vector3());
+      assert.ok(Math.abs(tail.distanceTo(origin) - geometries.get(node.geometry).offset) < 1e-6, `${node.id} at length ${length}: the tail is ${tail.distanceTo(origin)} from the origin`);
+    }
+  }
+  scene.dispose();
+});
