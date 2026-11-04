@@ -185,7 +185,7 @@ test('production /animation: bound, on, kill switch off, no diagnostics; each ro
   assert.deepEqual(app.migrations.at(-1), { tag: 'animation-jobs-1', new_sqlite_classes: ['AnimationJobs'] });
   assert.equal(app.vars.ANIMATION_ENABLED, 'true');
   assert.equal(app.vars.ANIMATION_EXECUTION_KILL, 'false');
-  assert.deepEqual(Object.keys(app.vars).filter(k => k.startsWith('ANIMATION_')).sort(), ['ANIMATION_ENABLED', 'ANIMATION_EXECUTION_KILL'], 'no ANIMATION_DIAGNOSTICS or other Animation var');
+  assert.deepEqual(Object.keys(app.vars).filter(k => k.startsWith('ANIMATION_')).sort(), ['ANIMATION_ENABLED', 'ANIMATION_EXECUTION_KILL', 'ANIMATION_STREAMING'], 'no ANIMATION_DIAGNOSTICS or other Animation var');
   assert.deepEqual(Object.keys(cp.vars).filter(k => k.startsWith('ANIMATION_')), [], 'the control plane Worker runs no /animation');
   // What each state does, read by the server's own switches. Fixture bindings stand in for the real ones (never reached on a refusal).
   const env = vars => ({ ...vars, ANIMATION_JOBS: { get: () => assert.fail('a refused request reached the job object') }, LEARN_DB: {} });
