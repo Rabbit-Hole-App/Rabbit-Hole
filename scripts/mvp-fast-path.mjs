@@ -1,9 +1,12 @@
 // The MVP fast path: the owner's standing policy of 2026-11-03 (CLAUDE.md#mvp-fast-path, docs/features/mvp-fast-path.md).
 //   node scripts/mvp-fast-path.mjs preview --mvp --sha <40-hex> --smoke "<command>" [--smoke "<command>" ...]
-//        [--worker rabbit-hole-web-dev-<name>] [--base <ref>] [--no-deploy]
-//   node scripts/mvp-fast-path.mjs verify --sha <40-hex> [--record <file>] [--json]
-// verify is read-only: it reads the newest MVP record of the sha (default: the common dir record file) and exits 0 only when
-// production would accept it; --json prints that record's line. The owner's release launcher uses it.
+//        --recovery <branch> [--worker rabbit-hole-web-dev-<name>] [--base <ref>] [--no-deploy]
+//   node scripts/mvp-fast-path.mjs verify --sha <40-hex> [--record <file>] [--json] [--fetch]
+// --recovery is required (the owner's MVP minimum, 2026-11-03): a branch already on rabbit-hole, cut by the lane, whose tip is a
+// strict descendant of the release commit (the recovery on top of it). It is checked before anything is built and recorded.
+// verify only reads: it reads the newest MVP record of the sha (default: the common dir record file) and exits 0 only when
+// production would accept it, the recovery branch included (--fetch first updates that one remote-tracking branch from rabbit-hole);
+// --json prints that record's line. The owner's release launcher uses it.
 // For MVP-labelled work only, and only when asked for: preview refuses to run without --mvp, and production takes the
 // record it writes only through `prod-release.mjs prepare --mvp`. It runs the build, the tests the change affects and the
 // focused smoke command(s) (each must exit 0), then deploys the isolated clone and checks that it serves the new build.
@@ -32,14 +35,30 @@ const stable = v => Array.isArray(v) ? `[${v.map(stable)}]` : v && typeof v === 
 // Catches an edited record (a check flipped to pass, a sha swapped). It is not a signature: whoever can rewrite the line can recompute it.
 export const recordDigest = ({ digest: _, ...rest }) => createHash('sha256').update(stable(rest)).digest('hex').slice(0, 16);
 
-export function makeRecord({ sha, tree, base, build, targets, checks, version, run, at }) {
-  const r = { mvp: true, sha, tree, gates: 'bypassed', broad_ci: 'bypassed', release_gate: 'bypassed', base, build, targets, checks, ...(version && { version }), run, at };
+export function makeRecord({ sha, tree, base, build, targets, checks, recovery, version, run, at }) {
+  const r = { mvp: true, sha, tree, gates: 'bypassed', broad_ci: 'bypassed', release_gate: 'bypassed', base, build, targets, checks, recovery, ...(version && { version }), run, at };
   return { ...r, digest: recordDigest(r) };
 }
 
+// The recovery branch (owner's MVP minimum): it exists on rabbit-hole and its tip is a strict descendant of the release commit, so
+// recovering forward is a push away. rev(ref) -> sha | null and isAncestor(a, b) read the local clone's remote-tracking refs (no
+// network): git fetch rabbit-hole <branch> first. -> { tip } | { error }.
+const BRANCH = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
+export function checkRecovery(sha, branch, { rev, isAncestor }) {
+  if (typeof branch !== 'string' || !BRANCH.test(branch) || branch.includes('..') || branch.endsWith('/') || branch.endsWith('.lock')) return { error: `recovery: ${branch} is not a branch name` };
+  if (['main', 'dev'].includes(branch)) return { error: `recovery: ${branch} is not a recovery branch; cut one from the release commit with the recovery on top` };
+  const tip = ['rabbit-hole', 'origin'].map(r => rev(`refs/remotes/${r}/${branch}`)).find(Boolean);
+  if (!tip) return { error: `recovery: branch ${branch} is not on rabbit-hole (push it, then git fetch rabbit-hole ${branch})` };
+  if (tip === sha) return { error: `recovery: branch ${branch} is at the release commit itself; it must carry the recovery on top of it` };
+  if (!isAncestor(sha, tip)) return { error: `recovery: branch ${branch} (${tip.slice(0, 8)}) does not contain ${sha.slice(0, 8)} as an ancestor` };
+  return { tip };
+}
+
 // The newest MVP record of `sha` in a dev-deploy record (jsonl). -> { record } | { error }. Every required check passed, the
-// record is this commit's own tree, the bypass is stated as bypassed, the target is a dev clone: or it is refused.
-export function mvpVerdict(text, sha, treeOf = () => null) {
+// record is this commit's own tree, the bypass is stated as bypassed, the target is a dev clone, and it names a recovery branch:
+// or it is refused. checkBranch(branch) -> { tip } | { error } (checkRecovery on the local refs) is the caller's live look at that
+// branch; without it only the record's own claim is checked.
+export function mvpVerdict(text, sha, treeOf = () => null, checkBranch = null) {
   const r = String(text || '').split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).findLast(x => x?.sha === sha && x.mvp === true);
   if (!r) return { error: `no MVP preview record is recorded for ${sha}` };
   const no = error => ({ error });
@@ -56,11 +75,14 @@ export function mvpVerdict(text, sha, treeOf = () => null) {
   if (r.tree !== treeOf(sha)) return no('the record names another tree than this commit\'s');
   if (r.gates !== 'bypassed' || r.broad_ci !== 'bypassed' || r.release_gate !== 'bypassed') return no('broad CI and the release gate must be recorded as bypassed, never passed');
   if (r.targets?.env !== 'dev' || !CLONE.test(r.targets?.worker || '')) return no('the preview target is not a rabbit-hole-web-dev-* clone');
+  if (typeof r.recovery?.branch !== 'string' || !SHA.test(r.recovery.tip || '')) return no('the record names no recovery branch (the owner\'s MVP minimum: preview --mvp ... --recovery <branch>)');
+  const live = checkBranch?.(r.recovery.branch);
+  if (live?.error) return no(live.error);
   return { record: r };
 }
 
 // What the prepared build and the release receipt carry of the record.
-export const mvpSummary = r => ({ digest: r.digest, worker: r.targets.worker, checks: r.checks.map(c => `${c.name}:${c.result}`), broad_ci: r.broad_ci, release_gate: r.release_gate });
+export const mvpSummary = r => ({ digest: r.digest, worker: r.targets.worker, checks: r.checks.map(c => `${c.name}:${c.result}`), recovery: r.recovery, broad_ci: r.broad_ci, release_gate: r.release_gate });
 
 // ---- the affected tests ----
 // A suite owns the changed files under `own`; its tests are the files matching `test`; `all` runs the whole suite.
@@ -93,7 +115,7 @@ export function affectedTests(changed, tests, suites = SUITES) {
 // ---- the preview ----
 // io: build() / tests() / smoke() / deploy() -> { exit, cmd, ... } (a throw is a failed check). Required checks run in order and
 // each stops the run on failure; the clone is deployed only after all three focused checks passed. -> the record.
-export async function runPreview({ sha, tree, base, worker, deploy: wantDeploy = true, run = 'local', now = () => new Date() }, io) {
+export async function runPreview({ sha, tree, base, worker, recovery, deploy: wantDeploy = true, run = 'local', now = () => new Date() }, io) {
   const checks = [];
   const go = async (name, step) => {
     let r; try { r = await step(); } catch (e) { r = { exit: 1, cmd: name, error: e.message }; }
@@ -103,7 +125,7 @@ export async function runPreview({ sha, tree, base, worker, deploy: wantDeploy =
   const b = await go('build', io.build);
   const ok = b.exit === 0 && (await go('affected-tests', io.tests)).exit === 0 && (await go('smoke', io.smoke)).exit === 0;
   const p = ok && wantDeploy ? await go('preview', io.deploy) : null;
-  return makeRecord({ sha, tree, base, build: b.build, targets: { worker, url: `https://${worker}.tryrabbithole.workers.dev`, account: ACCOUNT, env: 'dev' }, checks, version: p?.version, run, at: now().toISOString() });
+  return makeRecord({ sha, tree, base, build: b.build, recovery, targets: { worker, url: `https://${worker}.tryrabbithole.workers.dev`, account: ACCOUNT, env: 'dev' }, checks, version: p?.version, run, at: now().toISOString() });
 }
 
 export function previewArgs(argv, dir = 'worktree') {
@@ -112,13 +134,14 @@ export function previewArgs(argv, dir = 'worktree') {
     const a = argv[i];
     if (a === '--mvp') o.mvp = true;
     else if (a === '--no-deploy') o.deploy = false;
-    else if (['--sha', '--worker', '--base'].includes(a)) o[a.slice(2)] = argv[++i];
+    else if (['--sha', '--worker', '--base', '--recovery'].includes(a)) o[a.slice(2)] = argv[++i];
     else if (a === '--smoke') o.smoke.push(argv[++i]);
     else throw new Error(`unknown argument ${a}`);
   }
   if (!o.mvp) throw new Error('--mvp is required: this launcher is the owner\'s MVP fast path (CLAUDE.md#mvp-fast-path); an ordinary preview goes through the dev workflow');
   if (!SHA.test(o.sha || '')) throw new Error('--sha must be a full 40-character commit sha');
   if (!o.smoke.length || o.smoke.some(s => !s)) throw new Error('--smoke "<command>" is required: the focused feature smoke check, which must exit 0');
+  if (!o.recovery) throw new Error('--recovery <branch> is required: the owner\'s MVP minimum includes a recovery branch already on rabbit-hole whose tip contains the release commit');
   o.worker ??= `rabbit-hole-web-dev-${dir}`;
   if (!CLONE.test(o.worker) || o.worker === STABLE) throw new Error(`--worker must be your own rabbit-hole-web-dev-<worktree> clone, not ${o.worker} (the stable preview and production are never an MVP target)`);
   return o;
@@ -129,6 +152,7 @@ export function verifyArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--json') o.json = true;
+    else if (a === '--fetch') o.fetch = true;
     else if (a === '--sha' || a === '--record') o[a.slice(2)] = argv[++i];
     else throw new Error(`unknown argument ${a}`);
   }
@@ -141,6 +165,11 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const WEB = join(ROOT, 'packages/web');
 const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8' }).trim();
 const say = line => console.log(line);
+const revOf = ref => { try { return git('rev-parse', '--verify', '-q', `${ref}^{commit}`); } catch { return null; } };
+const ancestorOf = (a, b) => { try { execFileSync('git', ['merge-base', '--is-ancestor', a, b], { cwd: ROOT, stdio: 'ignore' }); return true; } catch { return false; } };
+const recoveryOf = sha => branch => checkRecovery(sha, branch, { rev: revOf, isAncestor: ancestorOf });
+// Updates only refs/remotes/rabbit-hole/<branch>; a branch that is not there is reported as not on rabbit-hole by checkRecovery.
+const fetchBranch = branch => { try { git('fetch', '-q', 'rabbit-hole', `+refs/heads/${branch}:refs/remotes/rabbit-hole/${branch}`); } catch { /* checkRecovery says what is missing */ } };
 const status = (cmd, args, o = {}) => spawnSync(cmd, args, { cwd: ROOT, stdio: 'inherit', ...o }).status ?? 1;
 const tool = (pkg, file) => join(ROOT, 'node_modules', pkg, file);
 // The pages' identity, as dev-deploy.mjs hashes dist-dev: every file, path and bytes.
@@ -162,14 +191,22 @@ async function serves(url, entry) { // the new version serves some seconds after
 
 function verify(o) {
   const file = o.record ?? join(git('rev-parse', '--path-format=absolute', '--git-common-dir'), 'rabbit-hole-dev-deploys.jsonl');
-  const v = mvpVerdict(existsSync(file) ? readFileSync(file, 'utf8') : '', o.sha, s => { try { return git('rev-parse', `${s}^{tree}`); } catch { return null; } });
+  const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
+  const treeOf = s => { try { return git('rev-parse', `${s}^{tree}`); } catch { return null; } };
+  const named = mvpVerdict(text, o.sha, treeOf).record?.recovery?.branch;
+  if (o.fetch && named && BRANCH.test(named)) fetchBranch(named);
+  const v = mvpVerdict(text, o.sha, treeOf, recoveryOf(o.sha));
   if (v.error) throw new Error(`${o.sha.slice(0, 8)}: ${v.error}`);
-  say(o.json ? JSON.stringify(v.record) : `✓ MVP record ${v.record.digest} for ${o.sha.slice(0, 8)}: ${v.record.checks.map(c => `${c.name} ${c.result}`).join(', ')}; ${v.record.targets.worker}; broad CI and the release gate bypassed`);
+  say(o.json ? JSON.stringify(v.record) : `✓ MVP record ${v.record.digest} for ${o.sha.slice(0, 8)}: ${v.record.checks.map(c => `${c.name} ${c.result}`).join(', ')}; ${v.record.targets.worker}; recovery ${v.record.recovery.branch}; broad CI and the release gate bypassed`);
 }
 
 async function preview(o) {
   const stop = line => { throw new Error(line); };
   say(MVP_BANNER);
+  fetchBranch(o.recovery); // the owner's minimum: no build for a release that could not be recovered forward
+  const recovery = recoveryOf(o.sha)(o.recovery);
+  if (recovery.error) stop(recovery.error);
+  say(`✓ recovery: ${o.recovery} (${recovery.tip.slice(0, 8)}) contains ${o.sha.slice(0, 8)}`);
   if (git('rev-parse', `${o.sha}^{commit}`) !== o.sha) stop(`${o.sha} is not a commit here`);
   if (git('rev-parse', 'HEAD') !== o.sha) stop(`this checkout is not at ${o.sha.slice(0, 8)}; the preview builds the exact commit`);
   if (git('diff', '--name-only', 'HEAD')) stop('this checkout has tracked changes; commit them first (the record names a commit)');
@@ -207,7 +244,7 @@ async function preview(o) {
       return { exit: version && await serves(`https://${o.worker}.tryrabbithole.workers.dev`, entry) ? 0 : 1, cmd: `wrangler deploy --name ${o.worker}; GET /library serves ${entry}`, version };
     },
   };
-  const rec = await runPreview({ sha: o.sha, tree: git('rev-parse', `${o.sha}^{tree}`), base, worker: o.worker, deploy: o.deploy, run: process.env.GITHUB_RUN_ID ?? 'local' }, io);
+  const rec = await runPreview({ sha: o.sha, tree: git('rev-parse', `${o.sha}^{tree}`), base, worker: o.worker, recovery: { branch: o.recovery, tip: recovery.tip }, deploy: o.deploy, run: process.env.GITHUB_RUN_ID ?? 'local' }, io);
   for (const c of rec.checks) say(`${c.result === 'pass' ? '✓' : '✗'} ${c.name}: ${c.cmd}${c.ran ? ` [${c.ran.length} test file(s)]` : ''}${c.uncovered ? ` (no test imports: ${c.uncovered.join(', ')})` : ''}${c.error ? ` - ${c.error}` : ''}`);
   const line = JSON.stringify(rec);
   appendFileSync(join(git('rev-parse', '--path-format=absolute', '--git-common-dir'), 'rabbit-hole-dev-deploys.jsonl'), `${line}\n`);

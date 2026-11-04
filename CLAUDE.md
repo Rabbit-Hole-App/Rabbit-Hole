@@ -310,15 +310,18 @@ rule in this file unchanged unless the owner says otherwise; an agent never deci
 - For MVP-labelled work, full CI (`verify`, `fast-e2e`, the exact-SHA unit and browser runs) and the broad release gate
   are **optional and nonblocking**. They keep running independently. Do not wait for them, and do not refuse a preview
   or a production prepare because they are pending, failing or absent. Record them as **bypassed, never passed**.
-- **Still required**: a successful build, the tests the change affects, a focused feature smoke check that exits 0, and
-  for production the commit and build identity binding, the secret and migration preflight, the production smoke and
-  rollback. A failed required check stops the work.
-- It is only ever explicit, through `--mvp`: `node scripts/mvp-fast-path.mjs preview --mvp ...` runs those checks, then
-  deploys the feature's isolated clone and records the exact commit, tree, build and the checks actually run;
-  `prod-release.mjs prepare --mvp` (which `deploy-prod.yml` selects only when that record is on the commit and the owner's
-  variable below allows it) takes the record in place of the green dev deploy, the gate note and the `verify` and `fast-e2e` runs. The release prints
-  `MVP MODE: broad CI and release gate BYPASSED by owner policy` and its receipt carries it. Commands, record format and
-  limits: `docs/features/mvp-fast-path.md`.
+- **Still required** (the owner's MVP minimum): a successful build, the tests the change affects, a focused feature smoke
+  check that exits 0, the exact commit identity, and a **recovery branch**: a branch already on `rabbit-hole`, pre-cut by
+  the lane, whose tip is a strict descendant of the release commit (the recovery on top of it), so recovering forward is a
+  push away. For production also the secret and migration preflight, the production smoke and rollback. A failed required
+  check, or a missing or non-descendant recovery branch, stops the work.
+- It is only ever explicit, through `--mvp`: `node scripts/mvp-fast-path.mjs preview --mvp ... --recovery <branch>` checks
+  the recovery branch, runs those checks, then deploys the feature's isolated clone and records the exact commit, tree,
+  build, recovery branch and the checks actually run; `prod-release.mjs prepare --mvp` (which `deploy-prod.yml` selects only
+  when that record is on the commit and the owner's variable below allows it) takes the record in place of the green dev
+  deploy, the gate note and the `verify` and `fast-e2e` runs, and re-checks the recovery branch. `verify` and the owner's
+  launcher refuse a record without one. The release prints `MVP MODE: broad CI and release gate BYPASSED by owner policy`
+  and its receipt carries it. Commands, record format and limits: `docs/features/mvp-fast-path.md`.
 - **The owner allows each MVP release.** Before the push to `main` the owner runs
   `gh variable set MVP_ALLOWED_SHA --body <sha> -R Rabbit-Hole-App/Rabbit-Hole` for that exact commit, and afterwards
   `gh variable delete MVP_ALLOWED_SHA -R Rabbit-Hole-App/Rabbit-Hole`. A record without a matching variable is ignored:

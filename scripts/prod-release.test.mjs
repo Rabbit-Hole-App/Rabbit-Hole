@@ -331,10 +331,11 @@ test('a release refuses when either worker lacks the daily spend cap (USAGE_PLAT
 // ---- the MVP fast path (owner policy 2026-11-03, docs/features/mvp-fast-path.md) ----
 // An MVP preview record as scripts/mvp-fast-path.mjs writes it, and the ordinary rules it must leave alone.
 const mvpParts = (over = {}) => ({ sha: SHA, tree: treeOf(SHA), base: 'a'.repeat(40), build: 'b1b1b1b1b1b1', targets: { worker: 'rabbit-hole-web-dev-mvp-fast-path', url: 'https://x', account: 'c08d3dbdc53a3afd3cb09a536ac42318', env: 'dev' },
-  checks: REQUIRED.map(name => ({ name, cmd: name, exit: 0, result: 'pass' })), version: 'c9c9cf3d', run: 'local', at: '2026-11-03T10:00:00.000Z', ...over });
+  checks: REQUIRED.map(name => ({ name, cmd: name, exit: 0, result: 'pass' })), recovery: { branch: 'recovery/forward', tip: 'e'.repeat(40) }, version: 'c9c9cf3d', run: 'local', at: '2026-11-03T10:00:00.000Z', ...over });
 const MVP = makeRecord(mvpParts());
 const mvpLine = r => `${JSON.stringify(r)}\n`;
-const mvpOk = { ...ok, devRecord: mvpLine(MVP), runs: null, mvp: true, mvpAllowedSha: SHA }; // no gate, no dev deploy, no CI runs: the MVP record and the owner's allowance
+const recoveryTip = 'e'.repeat(40); // a recovery branch whose tip descends from SHA, as checkRecovery reports it
+const mvpOk = { ...ok, devRecord: mvpLine(MVP), runs: null, mvp: true, mvpAllowedSha: SHA, recoveryCheck: () => ({ tip: recoveryTip }) }; // no gate, no dev deploy, no CI runs: the MVP record, the owner's allowance and the recovery branch
 
 test('MVP is off by default: ordinary prepare keeps its rules and refusal text, and an MVP record never stands in for them', () => {
   const noGreen = `refused: no green dev deployment with provenance (tree, build, bundle, gate digest, run, version) is recorded for ${SHA}`;
@@ -410,6 +411,24 @@ test('MVP prepare needs the owner\'s allowance for this exact commit; without it
   assert.equal(parseArgs(['prepare', '--mvp', '--mvp-allowed-sha', SHA, '--sha', SHA])['mvp-allowed-sha'], SHA);
 });
 
+test('MVP prepare needs the recovery branch: in the record, on rabbit-hole and containing the commit; ordinary prepare is unaffected', () => {
+  const { recovery: _, ...bare } = mvpParts();
+  assert.match(checkPrepare({ ...mvpOk, devRecord: mvpLine(makeRecord(bare)) }), /^refused: 42f5a4f0\S+ has no acceptable MVP preview record: the record names no recovery branch \(the owner's MVP minimum: preview --mvp ... --recovery <branch>\)$/, 'missing from the record');
+  const gone = { error: 'recovery: branch recovery/forward is not on rabbit-hole (push it, then git fetch rabbit-hole recovery/forward)' };
+  assert.equal(checkPrepare({ ...mvpOk, recoveryCheck: () => gone }), `refused: ${SHA} has no acceptable MVP preview record: ${gone.error}`, 'deleted since the preview');
+  const notDescendant = { error: 'recovery: branch recovery/forward (eeeeeeee) does not contain 42f5a4f0 as an ancestor' };
+  assert.match(checkPrepare({ ...mvpOk, recoveryCheck: () => notDescendant }), /does not contain 42f5a4f0 as an ancestor/, 'rewritten so it no longer contains the commit');
+  assert.equal(checkPrepare(mvpOk), null, 'valid');
+  assert.equal(checkPrepare({ ...mvpOk, recoveryCheck: undefined }), null, 'the record\'s own claim is enough for the pure check; the CLI always passes the live one');
+  // The CLI asks about the real remote-tracking refs, so the workflow's full checkout (all branches) is what it needs.
+  const src = readFileSync(new URL('./prod-release.mjs', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(src, /recoveryCheck: branch => checkRecovery\(sha, branch, \{ rev: revOf, isAncestor \}\)/);
+  assert.match(readFileSync(new URL('../.github/workflows/deploy-prod.yml', import.meta.url), 'utf8'), /fetch-depth: 0/);
+  // Ordinary prepare never looks at a recovery branch.
+  assert.equal(checkPrepare({ ...ok, recoveryCheck: () => gone }), null);
+  assert.equal(checkPrepare({ ...ok, devRecord: mvpLine(makeRecord(bare)), recoveryCheck: () => gone }), `refused: no green dev deployment with provenance (tree, build, bundle, gate digest, run, version) is recorded for ${SHA}`);
+});
+
 test('MVP prepare keeps the identity checks: full sha, on main, HEAD at the sha, a clean tree', () => {
   assert.match(checkPrepare({ ...mvpOk, sha: '42f5a4f0' }), /full 40-character/);
   assert.match(checkPrepare({ ...mvpOk, onMain: false }), /not on origin\/main/);
@@ -419,8 +438,9 @@ test('MVP prepare keeps the identity checks: full sha, on main, HEAD at the sha,
 
 test('MVP release keeps the approval, the prepared build and the identity checks, and refuses a prepared record that claims a passed gate', () => {
   const prepared = { sha: SHA, build: 'abc123', mvp: mvpSummary(MVP) };
-  assert.deepEqual(prepared.mvp, { digest: MVP.digest, worker: 'rabbit-hole-web-dev-mvp-fast-path', checks: REQUIRED.map(n => `${n}:pass`), broad_ci: 'bypassed', release_gate: 'bypassed' });
+  assert.deepEqual(prepared.mvp, { digest: MVP.digest, worker: 'rabbit-hole-web-dev-mvp-fast-path', checks: REQUIRED.map(n => `${n}:pass`), recovery: { branch: 'recovery/forward', tip: recoveryTip }, broad_ci: 'bypassed', release_gate: 'bypassed' });
   assert.equal(checkRelease({ ...released, prepared }), null);
+  assert.match(checkRelease({ ...released, prepared: { ...prepared, mvp: { ...prepared.mvp, recovery: undefined } } }), /names no recovery branch/, 'a prepared record without its recovery branch');
   assert.match(checkRelease({ ...released, prepared, approve: 'RELEASE' }), /--approve must be exactly/);
   assert.match(checkRelease({ ...released, prepared: null }), /never prepared/);
   assert.match(checkRelease({ ...released, prepared: { ...prepared, build: 'zzz999' } }), /prepared build/);

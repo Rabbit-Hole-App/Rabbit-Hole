@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { SOURCES, MASTER_SQL, expectedSchema, schemaDiff, schemaOf, mainMigrationDiff } from './schema-check.mjs';
 import { notReusableBetween } from './dev-deploy.mjs';
 import { runBlockers } from './verify-evidence.mjs';
-import { MVP_BANNER, mvpSummary, mvpVerdict } from './mvp-fast-path.mjs';
+import { MVP_BANNER, checkRecovery, mvpSummary, mvpVerdict } from './mvp-fast-path.mjs';
 
 // Production hold (owner, 2026-10-07; lifted by the owner in Home's session 2026-10-09). While true, `release` exits
 // here before any remote call. Setting it again is a reviewed change to this line, never an environment variable or a flag.
@@ -94,12 +94,13 @@ const dirty = changes => `refused: the tracked tree has changes${changes ? `:\n$
 // runs: verify-evidence.mjs runs output for this sha. OPS-04: a green dev deploy, gated or reused, is not enough on its own.
 // mvp (prepare --mvp, owner policy 2026-11-03): the MVP preview record stands in for the dev deployment, the gate and the runs.
 // Off by default. The commit, main, HEAD and clean-tree checks apply either way, and the owner must have allowed this exact
-// commit (mvpAllowedSha: the repository variable MVP_ALLOWED_SHA in the workflow, set by the owner per release).
-export function checkPrepare({ sha, onMain, devRecord, runs, head, clean, changes, isAncestor, treeOf, uiOnly, mvp = false, mvpAllowedSha }) {
+// commit (mvpAllowedSha: the repository variable MVP_ALLOWED_SHA in the workflow, set by the owner per release), and the record's
+// recovery branch must still exist with a tip that contains the commit (recoveryCheck: checkRecovery over the local refs).
+export function checkPrepare({ sha, onMain, devRecord, runs, head, clean, changes, isAncestor, treeOf, uiOnly, mvp = false, mvpAllowedSha, recoveryCheck }) {
   if (!SHA.test(sha || '')) return 'refused: --sha must be a full 40-character commit sha';
   if (!onMain) return `refused: ${sha} is not on origin/main (git fetch origin main first)`;
   if (mvp && mvpAllowedSha !== sha) return `refused: --mvp needs the owner's allowance for this exact commit: MVP_ALLOWED_SHA must equal ${sha} (the repository variable in the workflow; by hand pass --mvp-allowed-sha ${sha})`;
-  const v = mvp && mvpVerdict(devRecord, sha, treeOf);
+  const v = mvp && mvpVerdict(devRecord, sha, treeOf, recoveryCheck);
   if (v?.error) return `refused: ${sha} has no acceptable MVP preview record: ${v.error}`;
   if (!mvp && !greenDevDeploy(sha, devRecord, { isAncestor, treeOf, uiOnly })) return `refused: no green dev deployment with provenance (tree, build, bundle, gate digest, run, version) is recorded for ${sha}`;
   const ci = mvp ? [] : runBlockers(runs, sha);
@@ -116,7 +117,7 @@ export function checkRelease({ hold, sha, build, approve, prepared, head, clean,
   if (approve !== `RELEASE ${sha} ${build}`) return `refused: --approve must be exactly "RELEASE ${sha} ${build}"`;
   if (!prepared) return `refused: ${sha} was never prepared (run prepare first)`;
   if (prepared.sha !== sha || prepared.build !== build) return `refused: the prepared build for ${sha} is ${prepared.build}, not ${build}`;
-  if (prepared.mvp && (prepared.mvp.broad_ci !== 'bypassed' || prepared.mvp.release_gate !== 'bypassed')) return 'refused: the prepared MVP record does not say broad CI and the release gate were bypassed; prepare again';
+  if (prepared.mvp && (prepared.mvp.broad_ci !== 'bypassed' || prepared.mvp.release_gate !== 'bypassed' || !prepared.mvp.recovery?.branch)) return 'refused: the prepared MVP record does not say broad CI and the release gate were bypassed, or names no recovery branch; prepare again';
   if (head !== sha) return `refused: HEAD is ${head}, not ${sha}`;
   if (!clean) return dirty(changes);
   return null;
@@ -222,6 +223,7 @@ const git = (...a) => run('git', a);
 const tryGit = (...a) => { try { git(...a); return true; } catch { return false; } };
 const isAncestor = (a, b) => tryGit('merge-base', '--is-ancestor', a, b);
 const treeOf = s => { try { return git('rev-parse', `${s}^{tree}`); } catch { return null; } };
+const revOf = ref => { try { return git('rev-parse', '--verify', '-q', `${ref}^{commit}`); } catch { return null; } };
 const clientFeatures = s => { try { return [...git('show', `${s}:packages/web/src/animation3d/capabilities.js`).matchAll(/ANIMATION_CLIENT_FEATURES\s*=\s*Object\.freeze\(\[([^\]]*)\]/g)].flatMap(m => [...m[1].matchAll(/'([a-z_]+)'/g)].map(x => x[1])); } catch { return null; } };
 // An unreadable Worker graph (a non-literal dynamic import) is not UI-only.
 const uiOnly = (g, s) => { try { return notReusableBetween(g, s, ROOT).outside.length === 0; } catch { return false; } };
@@ -249,7 +251,7 @@ function prepare(opts) {
   const { sha } = opts;
   const record = existsSync(devRecordPath(opts)) ? readFileSync(devRecordPath(opts), 'utf8') : '';
   const runs = (() => { try { return JSON.parse(readFileSync(opts.runs, 'utf8')); } catch { return null; } })();
-  const err = checkPrepare({ sha, onMain: SHA.test(sha || '') && tryGit('merge-base', '--is-ancestor', sha, 'origin/main'), devRecord: record, runs, isAncestor, treeOf, uiOnly, mvp: opts.mvp === true, mvpAllowedSha: allowedMvpSha(opts), ...tree() });
+  const err = checkPrepare({ sha, onMain: SHA.test(sha || '') && tryGit('merge-base', '--is-ancestor', sha, 'origin/main'), devRecord: record, runs, isAncestor, treeOf, uiOnly, mvp: opts.mvp === true, mvpAllowedSha: allowedMvpSha(opts), recoveryCheck: branch => checkRecovery(sha, branch, { rev: revOf, isAncestor }), ...tree() });
   if (err) return fail(err);
   const mvp = opts.mvp === true ? mvpSummary(mvpVerdict(record, sha, treeOf).record) : null;
   if (mvp) console.log(MVP_BANNER);

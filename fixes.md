@@ -104,3 +104,6 @@ Production at the last update (2026-10-29 ~3:30 PM PT): main `d3d50986e71f970022
 | FX-62 | /explain drawing | Reusable drawing helpers for generated programs | later idea (owner: not now, no release blocker) |
 | FX-63 | /explain drawing | Optional isometric SVG presentation (no new renderer, no Three.js, no elaborate machine artwork) | later idea (owner) |
 | FX-45 | /explain 8.3 notes | Reset hidden after button-only state changes; a full action queue must grey its control | in scope of T8.3 |
+| FX-75 | MVP fast path (owner policy 2026-11-03) | The affected-test selection is a one-hop relative-import match: a test that reaches a changed module through a re-export is missed (the changed file is then listed `uncovered`, or the whole suite runs). `preview` prints the full `node --test` output of the tests it runs | optional (cosmetic, MVP ladder) |
+| FX-76 | MVP fast path | `release-mvp.sh` probes only `/` and `/sign-in` after the release run (the owner does the signed-in check); `release-mvp.cmd` was derived from `release.cmd` and not run in a console | optional |
+| FX-77 | MVP fast path | `scripts/mvp-fast-path.mjs` is not in the `REUSABLE` list of `scripts/dev-deploy.mjs`, so a change to it alone needs a full gate; adding `mvp-fast-path` to that regex is a one-token owner decision | deferred (owner decision) |

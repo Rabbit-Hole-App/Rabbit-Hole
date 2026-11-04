@@ -9,13 +9,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ACCOUNT } from './prod-release.mjs';
-import { MVP_BANNER, REQUIRED, SUITES, affectedTests, makeRecord, mvpSummary, mvpVerdict, previewArgs, recordDigest, runPreview, verifyArgs } from './mvp-fast-path.mjs';
+import { MVP_BANNER, REQUIRED, SUITES, affectedTests, checkRecovery, makeRecord, mvpSummary, mvpVerdict, previewArgs, recordDigest, runPreview, verifyArgs } from './mvp-fast-path.mjs';
 
 const SHA = '42f5a4f065d4a1df1b47e2f150893b83d7befe3b', OTHER = 'b0ee85f3' + '0'.repeat(32), TREE = 'e'.repeat(40);
 const treeOf = s => (s === SHA ? TREE : null);
 const pass = name => ({ name, cmd: `run ${name}`, exit: 0, result: 'pass' });
 const parts = (over = {}) => ({ sha: SHA, tree: TREE, base: 'a'.repeat(40), build: 'b1b1b1b1b1b1', targets: { worker: 'rabbit-hole-web-dev-mvp-fast-path', url: 'https://x', account: ACCOUNT, env: 'dev' },
-  checks: REQUIRED.map(pass), version: 'c9c9cf3d', run: 'local', at: '2026-11-03T10:00:00.000Z', ...over });
+  checks: REQUIRED.map(pass), recovery: { branch: 'recovery/x', tip: 'd'.repeat(40) }, version: 'c9c9cf3d', run: 'local', at: '2026-11-03T10:00:00.000Z', ...over });
 const line = r => `${JSON.stringify(r)}\n`;
 const GOOD = makeRecord(parts());
 
@@ -27,7 +27,7 @@ test('the record says broad CI and the release gate were bypassed, never passed,
   assert.deepEqual(GOOD.checks.map(c => [c.name, c.exit]), REQUIRED.map(n => [n, 0]));
   assert.equal(GOOD.digest, recordDigest(GOOD));
   assert.equal(recordDigest({ ...GOOD, digest: 'x' }), GOOD.digest, 'the digest never covers itself');
-  assert.deepEqual(mvpSummary(GOOD), { digest: GOOD.digest, worker: 'rabbit-hole-web-dev-mvp-fast-path', checks: REQUIRED.map(n => `${n}:pass`), broad_ci: 'bypassed', release_gate: 'bypassed' });
+  assert.deepEqual(mvpSummary(GOOD), { digest: GOOD.digest, worker: 'rabbit-hole-web-dev-mvp-fast-path', checks: REQUIRED.map(n => `${n}:pass`), recovery: { branch: 'recovery/x', tip: 'd'.repeat(40) }, broad_ci: 'bypassed', release_gate: 'bypassed' });
 });
 
 test('production accepts an MVP record only when every required check passed on this commit, tree and a dev clone', () => {
@@ -83,6 +83,35 @@ test('the newest MVP record of a commit decides: a later failed attempt outvotes
   assert.equal(mvpVerdict(line(failed) + line(GOOD), SHA, treeOf).record.digest, GOOD.digest);
 });
 
+// ---- the recovery branch (owner's MVP minimum, 2026-11-03) ----
+const REC = 'recovery/forward', TIP = 'e'.repeat(40);
+const refs = (map, ancestors = [[SHA, TIP]]) => ({ rev: ref => map[ref] ?? null, isAncestor: (a, b) => ancestors.some(([x, y]) => x === a && y === b) });
+
+test('recovery: the branch must exist on rabbit-hole and its tip must be a strict descendant of the release commit', () => {
+  assert.deepEqual(checkRecovery(SHA, REC, refs({ [`refs/remotes/rabbit-hole/${REC}`]: TIP })), { tip: TIP });
+  assert.deepEqual(checkRecovery(SHA, REC, refs({ [`refs/remotes/origin/${REC}`]: TIP })), { tip: TIP }, 'in the workflow checkout the remote is origin');
+  assert.match(checkRecovery(SHA, REC, refs({})).error, /branch recovery\/forward is not on rabbit-hole \(push it, then git fetch rabbit-hole recovery\/forward\)/, 'missing branch');
+  assert.match(checkRecovery(SHA, REC, refs({ [`refs/remotes/rabbit-hole/${REC}`]: TIP }, [])).error, /does not contain 42f5a4f0 as an ancestor/, 'a branch that does not contain the sha');
+  assert.match(checkRecovery(SHA, REC, refs({ [`refs/remotes/rabbit-hole/${REC}`]: SHA }, [[SHA, SHA]])).error, /at the release commit itself/, 'a branch at the sha carries no recovery');
+  for (const name of ['main', 'dev', '', undefined, 'a..b', 'x/', '-x', 'a b', 'x.lock']) assert.ok(checkRecovery(SHA, name, refs({ 'refs/remotes/rabbit-hole/main': TIP, 'refs/remotes/rabbit-hole/dev': TIP })).error, String(name));
+});
+
+test('recovery: a record without a recovery branch is refused, and so is one whose branch is no longer a descendant', () => {
+  const good = tip => name => checkRecovery(SHA, name, refs({ [`refs/remotes/rabbit-hole/${REC}`]: tip }));
+  const rec = makeRecord(parts({ recovery: { branch: REC, tip: TIP } }));
+  assert.ok(mvpVerdict(line(rec), SHA, treeOf, good(TIP)).record, 'valid');
+  assert.ok(mvpVerdict(line(rec), SHA, treeOf).record, 'without a live look only the record\'s claim is checked');
+  assert.equal(mvpVerdict(line(rec), SHA, treeOf, good(TIP)).record.recovery.branch, REC);
+  const { recovery: _, ...bare } = parts();
+  for (const [why, r] of [['no field', makeRecord(bare)], ['no branch', makeRecord(parts({ recovery: { tip: TIP } }))], ['no tip', makeRecord(parts({ recovery: { branch: REC } }))],
+    ['bad tip', makeRecord(parts({ recovery: { branch: REC, tip: 'abc' } }))], ['not an object', makeRecord(parts({ recovery: 'recovery/x' }))]]) {
+    assert.match(mvpVerdict(line(r), SHA, treeOf, good(TIP)).error, /the record names no recovery branch \(the owner's MVP minimum: preview --mvp ... --recovery <branch>\)/, why);
+  }
+  assert.match(mvpVerdict(line(rec), SHA, treeOf, name => checkRecovery(SHA, name, refs({}))).error, /is not on rabbit-hole/, 'the branch was deleted since');
+  assert.match(mvpVerdict(line(rec), SHA, treeOf, name => checkRecovery(SHA, name, refs({ [`refs/remotes/rabbit-hole/${REC}`]: TIP }, []))).error, /does not contain/, 'the branch was rewritten since');
+  assert.match(mvpVerdict(line({ ...rec, recovery: { branch: 'other', tip: TIP } }), SHA, treeOf).error, /digest/, 'an edited recovery field');
+});
+
 test('the account constant matches the release job, so a record never names another account', () => {
   assert.equal(GOOD.targets.account, ACCOUNT);
 });
@@ -127,7 +156,7 @@ const fake = (exits = {}, calls = []) => ({
   smoke: async () => { calls.push('smoke'); return { exit: exits.smoke ?? 0, cmd: 'node smoke.mjs' }; },
   deploy: async () => { calls.push('deploy'); if (exits.deploy === 'throw') throw new Error('wrangler failed'); return { exit: exits.deploy ?? 0, cmd: 'wrangler deploy', version: 'v1' }; },
 });
-const flow = (io, over = {}) => runPreview({ sha: SHA, tree: TREE, base: 'a'.repeat(40), worker: 'rabbit-hole-web-dev-x', now: () => new Date('2026-11-03T10:00:00Z'), ...over }, io);
+const flow = (io, over = {}) => runPreview({ sha: SHA, tree: TREE, base: 'a'.repeat(40), worker: 'rabbit-hole-web-dev-x', recovery: { branch: 'recovery/x', tip: 'd'.repeat(40) }, now: () => new Date('2026-11-03T10:00:00Z'), ...over }, io);
 
 test('preview: build, affected tests and smoke run in order, then the clone deploys, and the record is what production accepts', async () => {
   const io = fake();
@@ -163,12 +192,13 @@ test('preview: a deploy that throws or does not serve the new build is a failed 
 });
 
 test('preview arguments: --mvp is required, the target is your own clone, never the stable preview or production', () => {
-  const ok = ['--mvp', '--sha', SHA, '--smoke', 'node smoke.mjs'];
-  assert.deepEqual(previewArgs(ok, 'mvp-fast-path'), { mvp: true, sha: SHA, smoke: ['node smoke.mjs'], deploy: true, worker: 'rabbit-hole-web-dev-mvp-fast-path' });
-  assert.deepEqual(previewArgs([...ok, '--smoke', 'curl x', '--no-deploy', '--worker', 'rabbit-hole-web-dev-y', '--base', 'main'], 'd'), { mvp: true, sha: SHA, smoke: ['node smoke.mjs', 'curl x'], deploy: false, worker: 'rabbit-hole-web-dev-y', base: 'main' });
+  const ok = ['--mvp', '--sha', SHA, '--smoke', 'node smoke.mjs', '--recovery', 'recovery/x'];
+  assert.deepEqual(previewArgs(ok, 'mvp-fast-path'), { mvp: true, sha: SHA, smoke: ['node smoke.mjs'], recovery: 'recovery/x', deploy: true, worker: 'rabbit-hole-web-dev-mvp-fast-path' });
+  assert.throws(() => previewArgs(ok.slice(0, -2), 'd'), /--recovery <branch> is required/);
+  assert.deepEqual(previewArgs([...ok, '--smoke', 'curl x', '--no-deploy', '--worker', 'rabbit-hole-web-dev-y', '--base', 'main'], 'd'), { mvp: true, sha: SHA, smoke: ['node smoke.mjs', 'curl x'], recovery: 'recovery/x', deploy: false, worker: 'rabbit-hole-web-dev-y', base: 'main' });
   assert.throws(() => previewArgs(ok.slice(1), 'd'), /--mvp is required/);
   assert.throws(() => previewArgs(['--mvp', '--smoke', 'x'], 'd'), /full 40-character/);
-  assert.throws(() => previewArgs(['--mvp', '--sha', SHA], 'd'), /--smoke/);
+  assert.throws(() => previewArgs(['--mvp', '--sha', SHA, '--recovery', 'r/x'], 'd'), /--smoke/);
   assert.throws(() => previewArgs([...ok, '--worker', 'rabbit-hole-web-dev-small-parallel'], 'd'), /never an MVP target/);
   for (const w of ['rabbit-hole-app', 'rabbit-hole-cp-dev', 'small-cp-dev', 'rabbit-hole-cp']) assert.throws(() => previewArgs([...ok, '--worker', w], 'd'), /never an MVP target/, w);
   assert.throws(() => previewArgs([...ok, '--frobnicate'], 'd'), /unknown argument/);
@@ -181,28 +211,42 @@ test('the launcher without --mvp refuses before touching git, the network or a b
   assert.match(r.stderr, /--mvp is required/);
 });
 
-// ---- verify: the read-only check the owner's release launcher uses ----
-test('verify: the arguments, and exit 0 only for a record production would accept (run against this checkout\'s own HEAD)', () => {
-  assert.deepEqual(verifyArgs(['--sha', SHA, '--json', '--record', 'x.jsonl']), { sha: SHA, json: true, record: 'x.jsonl' });
+// ---- verify: the check the owner's release launcher uses ----
+test('verify: the arguments, and exit 0 only for a record production would accept, its recovery branch included (this checkout\'s own HEAD)', () => {
+  assert.deepEqual(verifyArgs(['--sha', SHA, '--json', '--fetch', '--record', 'x.jsonl']), { sha: SHA, json: true, fetch: true, record: 'x.jsonl' });
   assert.throws(() => verifyArgs(['--json']), /full 40-character/);
   assert.throws(() => verifyArgs(['--sha', SHA, '--nope']), /unknown argument/);
-  const git = (...a) => execFileSync('git', a, { encoding: 'utf8', cwd: fileURLToPath(new URL('..', import.meta.url)) }).trim();
+  const cwd = fileURLToPath(new URL('..', import.meta.url));
+  const env = { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.test', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.test' };
+  const git = (...a) => execFileSync('git', a, { encoding: 'utf8', cwd, env }).trim();
   const head = git('rev-parse', 'HEAD'), tree = git('rev-parse', 'HEAD^{tree}');
+  // A real recovery branch for the live look: a child of HEAD under a throwaway remote-tracking name, removed in the finally.
+  const branch = `recovery/verify-test-${process.pid}`, ref = `refs/remotes/rabbit-hole/${branch}`;
   const dir = mkdtempSync(join(tmpdir(), 'mvp-verify-'));
   const script = fileURLToPath(new URL('./mvp-fast-path.mjs', import.meta.url));
   const verify = (record, ...more) => {
     const file = join(dir, 'record.jsonl'); writeFileSync(file, record);
     try { return { status: 0, stdout: execFileSync(process.execPath, [script, 'verify', '--sha', head, '--record', file, ...more], { encoding: 'utf8', stdio: 'pipe' }) }; } catch (e) { return e; }
   };
-  const good = makeRecord(parts({ sha: head, tree }));
-  const ok = verify(line(good));
-  assert.equal(ok.status, 0);
-  assert.match(ok.stdout, /^✓ MVP record [0-9a-f]{16} for [0-9a-f]{8}: build pass, affected-tests pass, smoke pass, preview pass; rabbit-hole-web-dev-mvp-fast-path; broad CI and the release gate bypassed/);
-  assert.equal(JSON.parse(verify(line(good), '--json').stdout).digest, good.digest, '--json prints the record line');
-  const failed = verify(line(makeRecord(parts({ sha: head, tree, checks: REQUIRED.map(n => (n === 'smoke' ? { ...pass(n), exit: 1, result: 'fail' } : pass(n))) }))));
-  assert.equal(failed.status, 1);
-  assert.match(failed.stderr, /required check smoke did not pass \(exit 1\)/);
-  assert.equal(verify(line(makeRecord(parts({ sha: head, tree: 'f'.repeat(40) })))).status, 1, 'another tree');
-  assert.equal(verify(line({ ...good, build: 'c2c2c2c2c2c2' })).status, 1, 'edited');
-  assert.equal(verify('').status, 1, 'no record');
+  const child = git('commit-tree', tree, '-p', head, '-m', 'recovery');
+  git('update-ref', ref, child);
+  try {
+    const good = makeRecord(parts({ sha: head, tree, recovery: { branch, tip: child } }));
+    const ok = verify(line(good));
+    assert.equal(ok.status, 0, ok.stderr);
+    assert.match(ok.stdout, new RegExp(`^✓ MVP record [0-9a-f]{16} for [0-9a-f]{8}: build pass, affected-tests pass, smoke pass, preview pass; rabbit-hole-web-dev-mvp-fast-path; recovery ${branch}; broad CI and the release gate bypassed`));
+    assert.equal(JSON.parse(verify(line(good), '--json').stdout).digest, good.digest, '--json prints the record line');
+    const failed = verify(line(makeRecord(parts({ sha: head, tree, recovery: good.recovery, checks: REQUIRED.map(n => (n === 'smoke' ? { ...pass(n), exit: 1, result: 'fail' } : pass(n))) }))));
+    assert.equal(failed.status, 1);
+    assert.match(failed.stderr, /required check smoke did not pass \(exit 1\)/);
+    assert.equal(verify(line(makeRecord(parts({ sha: head, tree: 'f'.repeat(40), recovery: good.recovery })))).status, 1, 'another tree');
+    assert.equal(verify(line({ ...good, build: 'c2c2c2c2c2c2' })).status, 1, 'edited');
+    assert.equal(verify('').status, 1, 'no record');
+    // the recovery branch: missing from the record, absent from rabbit-hole, or not containing the commit
+    const { recovery: _, ...noRecovery } = parts({ sha: head, tree });
+    assert.match(verify(line(makeRecord(noRecovery))).stderr, /names no recovery branch/);
+    assert.match(verify(line(makeRecord(parts({ sha: head, tree, recovery: { branch: `${branch}-gone`, tip: child } })))).stderr, /is not on rabbit-hole/);
+    git('update-ref', ref, git('commit-tree', tree, '-m', 'unrelated root'));
+    assert.match(verify(line(good)).stderr, /does not contain [0-9a-f]{8} as an ancestor/, 'a branch that no longer contains the release commit');
+  } finally { git('update-ref', '-d', ref); }
 });
