@@ -34,11 +34,16 @@ test('loss_surface says what the plan\'s table says, in the contract\'s own word
   assert.ok(TRAIL_STYLES.includes('trail') && TRAIL_STYLES.includes('ghost') && LABEL_ANCHORS.includes('tip') && READOUT_KINDS.includes('text'), 'the words are the contract\'s');
 });
 
-test('it is data about primitives, not a scene: no formula, id, coordinate or number beyond the grid and contour counts', () => {
-  const numbers = text.match(/\d+(\.\d+)?/g);
-  assert.deepEqual(numbers, ['24', '24', '6', '8'], 'only the 24 by 24 grid and 6 to 8 contours');
-  assert.ok(new TextEncoder().encode(text).length < 1600, 'a short block in the author\'s user content');
+test('archetypeRules("loss_surface") contains no number other than 24 by 24 and 6 to 8', () => {
+  assert.deepEqual(text.match(/\d+(\.\d+)?/g), ['24', '24', '6', '8'], 'only the 24 by 24 grid and the 6 to 8 contours, in that order');
+});
+
+test('it is data about primitives, not a scene: no code, formula or bowl, and short', () => {
+  assert.ok(new TextEncoder().encode(text).length < 1600, 'a short block in the author user content');
   assert.ok(!/[{}[\]=]|=>|function|loss\s*=|bowl/i.test(text), 'no code, formula or bowl');
+  const keys = Object.keys(ARCHETYPES.loss_surface);
+  assert.deepEqual(keys, ['when', 'rules', 'comparison'], 'the shape lane d imports');
+  assert.ok(typeof ARCHETYPES.loss_surface.when === 'string' && typeof ARCHETYPES.loss_surface.comparison === 'string' && ARCHETYPES.loss_surface.rules.length === 5 && ARCHETYPES.loss_surface.rules.every(rule => typeof rule === 'string'));
 });
 
 test('the golden artifact is an instance of it', () => {
