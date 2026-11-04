@@ -224,7 +224,7 @@ run('a clamped marker is reported in the trace with its true and drawn y; a scen
   const artifact = await withSource(primitivesFixture.artifact, source);
   const done = await runReviewProgram(await requestFor(artifact), { workerFactory });
   assert.equal(done.ok, true, JSON.stringify(done));
-  assert.deepEqual(done.trace.clamped, [{ node: 'ball', trueY: 5.6, y: 2 }], 'the fixture clamps at max 2');
+  assert.deepEqual(done.trace.clamped, [{ node: 'ball', axes: ['y'], trueY: 5.6, y: 2, trueAt: [2, 5.6, 0], drawnAt: [2, 2, 0] }], 'the fixture clamps at max 2: the axes held, the true and the drawn position');
   assert.equal(done.trace.readouts.loss, 1, 'readouts are the program\'s');
   const lowest = await runReviewProgram(await requestFor(primitivesFixture.artifact, { time: 2 }), { workerFactory });
   assert.equal(lowest.ok, true, JSON.stringify(lowest));

@@ -128,8 +128,9 @@ export function subjectPoints(scene, frames) {
       if (drawable.isSprite) { if (record) anchors.push({ id, point: drawable.getWorldPosition(new THREE.Vector3()) }); continue; }
       const corners = cornersOf(drawable);
       // A trail above the height a clamp holds the marker to is the diverged path (FX-AN-074): it is drawn where the program put it but the fit follows the clamped marker.
-      const ceiling = drawable.userData.trail ? scene.clampCeiling?.() : null;
+      const ceiling = drawable.userData.trail ? scene.clampCeiling?.() : null, rim = drawable.userData.trail ? scene.clampFootprint?.() : null; // decision 30: and not beyond the rim in x and z
       if (ceiling != null) for (const corner of corners) corner.y = Math.min(corner.y, ceiling);
+      if (rim) for (const corner of corners) { corner.x = Math.min(rim.maxX, Math.max(rim.minX, corner.x)); corner.z = Math.min(rim.maxZ, Math.max(rim.minZ, corner.z)); }
       seen.set(id, new THREE.Box3().setFromPoints(corners));
       if (!record) continue;
       if (!swept.has(id)) { swept.set(id, { box: new THREE.Box3(), points: [] }); if (drawable.isMesh && flat(drawable)) sheets.add(id); if (drawable.userData.arrow) arrows.add(id); }

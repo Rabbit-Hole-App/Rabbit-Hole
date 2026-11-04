@@ -383,3 +383,15 @@ test('a surface scene authored at 30 degrees is now fitted from 35, on its autho
   assert.ok(Math.abs(elevationOf(camera) - 35) < 1e-6 && Math.abs(azimuthOf(camera) - 30) < 1e-6, `${elevationOf(camera)} degrees, azimuth ${azimuthOf(camera)}`);
   assert.deepEqual(raiseElevation(around(30, 35, 40), FRAMING.surfaceElevation), around(30, 35, 40), 'exactly at the minimum is untouched');
 });
+
+// Owner decision 30 (FX-AN-093): the fit follows the marker held at the rim, and a path beyond the rim is not framed beyond it either: the surface is 4 wide (x in -2 to 2).
+test('decision 30: a diverged marker and its path beyond the rim do not widen the fit in x or z', () => {
+  const geometries = [...BOWL, { id: 'pathGeo', kind: 'trail', max: 10, style: 'trail' }];
+  const artifact = sceneArtifact(geometries, [...bowlNodes({ node: 'bowl' }), { id: 'path', geometry: 'pathGeo' }]);
+  const frame = (x, y, z) => ({ nodes: { ball: { position: [x, y, z] }, path: { points: [[0, 0.5, 0], [x, y, z]] } } });
+  const far = fitOf(artifact, [frame(9, 5.6, 7)]), atRim = fitOf(artifact, [frame(2, 2, 2)]);
+  assert.ok(Math.max(...far.points.map(p => p.x)) <= 2.2 + 1e-6 && Math.max(...far.points.map(p => p.z)) <= 2.2 + 1e-6, 'nothing is framed beyond the rim plus the ball radius');
+  assert.deepEqual(far.camera, atRim.camera, 'the view is the one with the marker at the rim');
+  const free = fitOf(sceneArtifact(geometries, [...bowlNodes(null), { id: 'path', geometry: 'pathGeo' }]), [frame(9, 5.6, 7)]);
+  assert.ok(Math.max(...free.points.map(p => p.x)) > 8, 'with no clamp nothing is held');
+});

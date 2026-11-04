@@ -317,7 +317,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
   // arrow_anchor (FX-AN-072): an arrow's offset is a distance outside the node's scale, so an arrow drawn as a unit arrow under scale [1, length, 1] still starts `offset`
   // from its origin; its tip is offset + length x scale up +Y. placers move each arrow's drawable and each tip label to match the arrow's current scale.
   const placers = [], bases = new Map(); // bases: tip label node id -> the position the program gave (before the tip shift)
-  let ceiling = null; // the highest world y any clamp held a node to in the last frame, for the camera fit (FX-AN-074)
+  let ceiling = null, footprint = null; // the highest world y any clamp held a node to in the last frame, and the surface footprint it held x and z to, for the camera fit (FX-AN-074, decision 30)
   const clamps = scene.nodes.filter(node => node.clampTo).map(node => ({ id: node.id, target: node.clampTo.node, max: node.clampTo.max }));
 
   // A label's texture is painted by layoutLabels (its plate size depends on the view) and repainted only when its text, size bucket
@@ -448,22 +448,28 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
         // clamp: after the program's frame, a sphere bound to a surface is held at the surface's top (or at `max`), in world y. The node keeps the position the
         // program gave (truth), so a frame that does not move it is clamped again; clamped lists what was held: the true and the clamped world y.
         const clamped = [];
-        ceiling = null;
+        ceiling = null; footprint = null;
         if (clamps.length) {
           root.updateWorldMatrix(true, true);
           for (const { id, target, max } of clamps) {
             const holder = objects.get(id), mesh = tops.get(target), world = new THREE.Vector3();
             holder.position.fromArray(truth.get(id));
-            holder.userData.diverged = false;
+            holder.userData.diverged = false; holder.userData.heldXZ = false;
             if (!mesh) continue;
             holder.parent.updateWorldMatrix(true, false);
             holder.updateWorldMatrix(false, false);
             holder.getWorldPosition(world);
-            const limit = max ?? new THREE.Box3().setFromObject(mesh).max.y;
+            // Owner decision 30: held at the bowl's rim in x and z as well as y. The footprint is the surface's world box; a marker inside it and under the ceiling is untouched.
+            const box = new THREE.Box3().setFromObject(mesh), limit = max ?? box.max.y;
             ceiling = Math.max(ceiling ?? -Infinity, limit);
-            if (world.y <= limit) continue;
-            clamped.push({ node: id, trueY: world.y, y: limit });
-            world.y = limit;
+            footprint = footprint ? { minX: Math.min(footprint.minX, box.min.x), maxX: Math.max(footprint.maxX, box.max.x), minZ: Math.min(footprint.minZ, box.min.z), maxZ: Math.max(footprint.maxZ, box.max.z) } : { minX: box.min.x, maxX: box.max.x, minZ: box.min.z, maxZ: box.max.z };
+            const held = world.clone();
+            held.x = Math.min(box.max.x, Math.max(box.min.x, world.x)); held.z = Math.min(box.max.z, Math.max(box.min.z, world.z)); held.y = Math.min(world.y, limit);
+            const axes = ['x', 'y', 'z'].filter(axis => held[axis] !== world[axis]);
+            if (!axes.length) continue;
+            holder.userData.heldXZ = axes.includes('x') || axes.includes('z'); // it left the bowl: held at the rim, so it is not a marker drawn under the surface it sits on (buried)
+            clamped.push({ node: id, axes, trueY: world.y, y: held.y, trueAt: world.toArray(), drawnAt: held.toArray() });
+            world.copy(held);
             holder.position.copy(holder.parent.worldToLocal(world));
             holder.userData.diverged = true;
             holder.updateWorldMatrix(false, false);
@@ -605,6 +611,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
         for (const node of scene.nodes) {
           const g = byGeometry.get(node.geometry), holder = objects.get(node.id), widest = Math.max(...holder.getWorldScale(scale).toArray());
           if (g?.kind === 'sphere' && node.clampTo && tops.has(node.clampTo.node)) {
+            if (holder.userData.heldXZ) continue;
             holder.getWorldPosition(world);
             const top = surfaceAt(node.clampTo.node, world);
             if (top !== null && world.y < top - Math.max(0.5 * g.radius * widest, 0.02 * range(node.clampTo.node))) found.push({ node: node.id, y: round(world.y), surfaceY: round(top) });
@@ -622,7 +629,8 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
         }
         return found;
       },
-      clampCeiling: () => ceiling, // the highest world y a clamp held a node to in the last frame, or null: the camera fit does not follow a trail above it (framing.js)
+      clampCeiling: () => ceiling,
+      clampFootprint: () => footprint, // { minX, maxX, minZ, maxZ } of the surface a clamp held a node to in the last frame, or null (framing.js) // the highest world y a clamp held a node to in the last frame, or null: the camera fit does not follow a trail above it (framing.js)
       setOptionalLabels(on) { optional = !!on; }, // applied at the next layoutLabels
       hasOptionalLabels: () => [...labels.values()].some(sprite => !sprite.userData.label.essential),
       hasSurface: () => tops.size > 0, // framing.js: a scene with a surface node is viewed from at least FRAMING.surfaceElevation

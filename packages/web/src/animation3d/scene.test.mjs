@@ -404,18 +404,18 @@ test('clamp: after the program\'s frame a sphere bound to a surface is held at t
   const scene = built(), ball = holderOf(scene, 'ball');
   // The fixture clamps at max 2.
   let result = scene.apply({ nodes: { ball: { position: [0, 5.6, 0] } }, readouts: { loss: 5.6 } });
-  assert.deepEqual(result.clamped, [{ node: 'ball', trueY: 5.6, y: 2 }]);
+  assert.deepEqual(result.clamped, [{ node: 'ball', axes: ['y'], trueY: 5.6, y: 2, trueAt: [0, 5.6, 0], drawnAt: [0, 2, 0] }]);
   assert.deepEqual([ball.position.y, ball.userData.diverged], [2, true]);
   assert.equal(result.value.readouts.loss, 5.6, 'readouts keep the true value');
   result = scene.apply({ nodes: {} });
-  assert.deepEqual(result.clamped, [{ node: 'ball', trueY: 5.6, y: 2 }], 'a frame that does not move it clamps the position the program last gave');
+  assert.deepEqual(result.clamped, [{ node: 'ball', axes: ['y'], trueY: 5.6, y: 2, trueAt: [0, 5.6, 0], drawnAt: [0, 2, 0] }], 'a frame that does not move it clamps the position the program last gave');
   result = scene.apply({ nodes: { ball: { position: [1, 1.5, 0] } } });
   assert.deepEqual([result.clamped, ball.position.y, ball.userData.diverged], [[], 1.5, false]);
   scene.dispose();
   const open = primitives(); delete open.scene.nodes[3].clampTo.max;
   const top = built(open);
   const surfaceTop = Math.max(...primitivesFixture.artifact.scene.geometries[0].heights.flat());
-  assert.deepEqual(top.apply({ nodes: { ball: { position: [0, 5.6, 0] } } }).clamped, [{ node: 'ball', trueY: 5.6, y: surfaceTop }], 'without max, the top of the surface');
+  assert.deepEqual(top.apply({ nodes: { ball: { position: [0, 5.6, 0] } } }).clamped, [{ node: 'ball', axes: ['y'], trueY: 5.6, y: surfaceTop, trueAt: [0, 5.6, 0], drawnAt: [0, surfaceTop, 0] }], 'without max, the top of the surface');
   top.dispose();
 });
 
@@ -426,7 +426,7 @@ test('clamp: world y, through a moved and scaled parent, and through a surface t
   const scene = built(artifact);
   // rig at y 1 scaled x2: a ball at local y 3 is at world y 7; held at world 2 means local (2 - 1) / 2 = 0.5.
   const result = scene.apply({ nodes: { ball: { position: [0, 3, 0] } } });
-  assert.deepEqual(result.clamped, [{ node: 'ball', trueY: 7, y: 2 }]);
+  assert.deepEqual(result.clamped, [{ node: 'ball', axes: ['y'], trueY: 7, y: 2, trueAt: [0, 7, 0], drawnAt: [0, 2, 0] }]);
   assert.ok(Math.abs(holderOf(scene, 'ball').position.y - 0.5) < 1e-9);
   scene.dispose();
 });
@@ -680,4 +680,42 @@ test('buried: nothing is reported for a ball off the surface, in the air, or cla
   loose.apply({ nodes: { ball: { position: [1.5, -3, 0] } } });
   assert.deepEqual(loose.buried().map(b => b.node), [], 'a ball with no clampTo has no surface it sits on');
   loose.dispose();
+});
+
+// Owner decision 30 (C10; FX-AN-093, FX-AN-103): a marker bound to a surface is held at the bowl's RIM in x and z as well as y. Readouts stay the program's own numbers, and the trace says
+// which axes were held and the true and the drawn position. The fixture's surface is 5 wide and 4 deep (x in -2.5 to 2.5, z in -2 to 2), its clamp at max 2.
+test('decision 30: a diverged marker is held at the rim in x and z as well as y, its readouts stay true and the clamp reports the axes and both positions', () => {
+  const scene = built(), ball = holderOf(scene, 'ball');
+  const result = scene.apply({ nodes: { ball: { position: [3.675, 10.84, 0.4] } }, readouts: { loss: 20.338, status: 'diverged' } });
+  assert.deepEqual(result.clamped, [{ node: 'ball', axes: ['x', 'y'], trueY: 10.84, y: 2, trueAt: [3.675, 10.84, 0.4], drawnAt: [2.5, 2, 0.4] }]);
+  assert.deepEqual(ball.position.toArray(), [2.5, 2, 0.4], 'drawn at the rim');
+  assert.deepEqual([result.value.readouts.loss, result.value.readouts.status], [20.338, 'diverged'], 'the readouts keep the true numbers');
+  assert.equal(ball.userData.diverged, true);
+  // z too, and both ends; a frame that does not move the marker holds it again from the program's position.
+  assert.deepEqual(scene.apply({ nodes: { ball: { position: [-9, 3, -7] } } }).clamped.map(c => [c.axes, c.drawnAt]), [[['x', 'y', 'z'], [-2.5, 2, -2]]]);
+  assert.deepEqual(scene.apply({ nodes: {} }).clamped.map(c => c.trueAt), [[-9, 3, -7]]);
+  scene.dispose();
+});
+
+test('decision 30: a marker inside the footprint is untouched; one beyond the rim below the ceiling is held in x or z only; one with no clampTo is never held', () => {
+  const scene = built(), ball = holderOf(scene, 'ball');
+  assert.deepEqual(scene.apply({ nodes: { ball: { position: [1, 1.5, 0.4] } } }).clamped, [], 'inside the footprint and under the ceiling');
+  assert.deepEqual(ball.position.toArray(), [1, 1.5, 0.4]);
+  assert.deepEqual(scene.apply({ nodes: { ball: { position: [3, 0.5, 0] } } }).clamped.map(c => [c.axes, c.drawnAt]), [[['x'], [2.5, 0.5, 0]]], 'beyond the rim in x only');
+  assert.deepEqual(scene.apply({ nodes: { ball: { position: [0, 0.5, 2.2] } } }).clamped.map(c => [c.axes, c.drawnAt]), [[['z'], [0, 0.5, 2]]], 'beyond the rim in z only');
+  assert.deepEqual(scene.apply({ nodes: { ball: { position: [2.5, 2, -2] } } }).clamped, [], 'exactly on the rim and at the ceiling is inside');
+  scene.dispose();
+  const none = primitives(); delete none.scene.nodes.find(n => n.id === 'ball').clampTo;
+  const loose = built(none);
+  assert.deepEqual(loose.apply({ nodes: { ball: { position: [9, 9, 9] } } }).clamped, []);
+  assert.deepEqual(holderOf(loose, 'ball').position.toArray(), [9, 9, 9]);
+  loose.dispose();
+});
+
+test('decision 30: the golden\'s diverged ball (x 3.675 at learning rate 1.5) is drawn at the rim of its 4 by 4 bowl', () => {
+  const golden = JSON.parse(readFileSync(new URL('./testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
+  const scene = built(golden), ball = golden.scene.nodes.find(node => node.clampTo);
+  const result = scene.apply({ nodes: { [ball.id]: { position: [3.675, 10.8419, 0.4] } } });
+  assert.deepEqual(result.clamped.map(c => [c.axes, c.trueAt, c.drawnAt]), [[['x', 'y'], [3.675, 10.8419, 0.4], [2, 4, 0.4]]]);
+  scene.dispose();
 });
