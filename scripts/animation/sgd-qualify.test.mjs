@@ -112,6 +112,13 @@ test('one job per phrasing, sequentially: exports, a spend row each, the table, 
   assert.match(table, /\| 10 \| the 2 sigma problem of optimizers \| aj_[0-9a-f]+ \| not reviewed \(the planner reported a gap\) \| 0 \| gap /);
 });
 
+test('--only runs just the named jobs (a targeted rerun): exactly those creates, the others never started and never listed as not run', async () => {
+  const s = setup({ extra: { only: [1, 5] } }), result = await s.run();
+  assert.equal(creates(s.fake).length, 2, 'exactly the two requested jobs are created');
+  assert.deepEqual(result.rows.map(r => r.n).sort(), [1, 5]);
+  assert.deepEqual(result.notRun, []);
+});
+
 test('concurrency 5 across 5 sessions: five jobs at once, round-robin sessions, every job on a fresh canvas of its session\'s user', async () => {
   const s = setup({ concurrency: 5 }), result = await s.run();
   assert.equal(result.verdict.verdict, 'PASS', result.verdict.why);

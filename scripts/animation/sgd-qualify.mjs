@@ -331,7 +331,7 @@ export async function runQualify(cfg, deps) {
     return null;
   }
 
-  const queue = cfg.phrasings.map((_, i) => i + 1).filter(n => !latestPerJob(rows).some(r => r.n === n && isFinal(r)));
+  const queue = cfg.phrasings.map((_, i) => i + 1).filter(n => !cfg.only || cfg.only.includes(n)).filter(n => !latestPerJob(rows).some(r => r.n === n && isFinal(r)));
   const jobExpected = expected.brief + expected.author + expected.review;
   async function worker() {
     for (;;) {
@@ -355,7 +355,7 @@ export async function runQualify(cfg, deps) {
     }
   }
   await Promise.all(Array.from({ length: cfg.concurrency }, worker));
-  const notRun = cfg.phrasings.map((_, i) => i + 1).filter(n => !latestPerJob(rows).some(r => r.n === n && isFinal(r)));
+  const notRun = cfg.phrasings.map((_, i) => i + 1).filter(n => !cfg.only || cfg.only.includes(n)).filter(n => !latestPerJob(rows).some(r => r.n === n && isFinal(r)));
   return { rows, verdict: verdictOf(rows), halt: ctx.halt, noMore: ctx.noMore, skipped: Object.fromEntries(skipped), notRun, finished: ctx.finished, startUsed: Object.fromEntries(startUsed) };
 }
 
@@ -376,10 +376,10 @@ export function parse(argv, env = process.env) {
     'candidate-worktree': { type: 'string' }, 'mvp3-sha': { type: 'string' }, 'prompts-hash': { type: 'string' }, 'golden-hash': { type: 'string' }, worker: { type: 'string' },
     out: { type: 'string' }, 'stop-file': { type: 'string' }, typical: { type: 'string' }, choice: { type: 'string' }, credentials: { type: 'string', default: CREDENTIALS },
     'verify-script': { type: 'string' }, 'poll-ms': { type: 'string', default: '4000' }, 'plan-timeout-min': { type: 'string', default: '6' }, 'job-timeout-min': { type: 'string', default: '20' },
-    'settle-wait-min': { type: 'string', default: '3' }, 'job-worst-case': { type: 'string', default: '140' } } });
+    'settle-wait-min': { type: 'string', default: '3' }, only: { type: 'string' }, 'job-worst-case': { type: 'string', default: '140' } } });
   const num = (name, raw, min) => { const x = Number(raw); if (!Number.isFinite(x) || x < min) throw new Error(`--${name} must be a number of at least ${min}, got ${raw}`); return x; };
   const o = { ...v, controls: !!(v.controls || v['controls-only']), concurrency: num('concurrency', v.concurrency, 1), pollMs: num('poll-ms', v['poll-ms'], 0), planTimeoutMs: num('plan-timeout-min', v['plan-timeout-min'], 0.1) * 60000,
-    jobTimeoutMs: num('job-timeout-min', v['job-timeout-min'], 0.1) * 60000, settleWaitMs: num('settle-wait-min', v['settle-wait-min'], 0) * 60000, jobWorstCase: num('job-worst-case', v['job-worst-case'], 1), typical: parseTypical(v.typical) };
+    jobTimeoutMs: num('job-timeout-min', v['job-timeout-min'], 0.1) * 60000, settleWaitMs: num('settle-wait-min', v['settle-wait-min'], 0) * 60000, jobWorstCase: num('job-worst-case', v['job-worst-case'], 1), typical: parseTypical(v.typical), only: v.only ? v.only.split(',').map(x => { const n = Number(x); if (!Number.isInteger(n) || n < 1 || n > PHRASINGS.length) throw new Error('--only takes job numbers 1..' + PHRASINGS.length + ', got ' + x); return n; }) : null };
   if (!Number.isInteger(o.concurrency) || o.concurrency > 5) throw new Error('--concurrency must be a whole number from 1 to 5');
   if (v['dry-run']) return { ...o, cap: Number(v.cap ?? 2000), prior: Number(v.prior ?? env.PRIOR_CREDITS ?? 0) };
   if (v.cap == null || (v.prior ?? env.PRIOR_CREDITS) == null) throw new Error('--cap and --prior (or PRIOR_CREDITS) are required: the cumulative cap and the credits already spent against it; neither has a default');
@@ -508,7 +508,7 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
   process.on('SIGINT', onSigint);
   const deps = { sleep: injected.sleep ?? (ms => new Promise(r => setTimeout(r, ms))), now: injected.now ?? (() => Date.now()), log: out,
     shouldStop: () => (signals ? { kind: 'signal', reason: 'Ctrl+C' } : existsSync(stopFile) ? { kind: 'file', reason: `stop file ${stopFile}` } : null) };
-  const cfg = { extraSpent: controlsSpent, phrasings: PHRASINGS, sessions, concurrency: o.concurrency, cap: o.cap, prior: o.prior, typical: o.typical, features, sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, out: outDir,
+  const cfg = { extraSpent: controlsSpent, phrasings: PHRASINGS, only: o.only, sessions, concurrency: o.concurrency, cap: o.cap, prior: o.prior, typical: o.typical, features, sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, out: outDir,
     pollMs: dry ? 0 : o.pollMs, planTimeoutMs: o.planTimeoutMs, jobTimeoutMs: o.jobTimeoutMs, settleWaitMs: o.settleWaitMs, jobWorstCase: o.jobWorstCase, runAll: !!o['run-all'], choice: o.choice, rows: state.rows,
     reviewIdentity: review.hash, onRow: (_row, rows) => writeFileSync(statePath, JSON.stringify({ sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, reviewIdentity: review.hash, reviewFiles: review.files, rows }, null, 1)) };
   mkdirSync(outDir, { recursive: true });
@@ -524,7 +524,7 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
     after.push(r && usable(r) ? `Allowance after the run, ${sess.email}: used ${r.usage.usedCredits} (+${(r.usage.usedCredits - result.startUsed[sess.email]).toFixed(2)} this run), left ${r.usage.remainingCredits}` : `Allowance after the run, ${sess.email}: unreadable`);
   }
   const { verdict, why } = result.verdict, ran = result.rows.slice(state.rows.length), settledNow = ran.reduce((t, r) => t + r.credits, 0), charged = ran.reduce((t, r) => t + r.charged, 0);
-  const text = [`# Gate 2 result: candidate ${pin.PREVIEW_SHA}, preview ${pin.PREVIEW_VERSION}`, '', resultTable(result.rows), '', `VERDICT: ${verdict}. ${why}`, roundsSummary(result.rows).line,
+  const text = [`# Gate 2 result: candidate ${pin.PREVIEW_SHA}, preview ${pin.PREVIEW_VERSION}`, '', resultTable(result.rows), '', `VERDICT: ${verdict}. ${why}`, ...(o.only ? [`TARGETED RERUN (--only ${o.only.join(',')}): not a Gate 2 verdict; read each requested job's row above (accepted or not, first round and after repairs).`] : []), roundsSummary(result.rows).line,
     ...(result.halt ? [`Halted (${result.halt.kind}): ${result.halt.reason}`] : []), ...(result.noMore ? [`Stopped starting jobs: ${result.noMore}`] : []),
     ...Object.entries(result.skipped).map(([email, reason]) => `Session skipped: ${email}: ${reason}`), ...(result.notRun.length ? [`Not run or not final: jobs ${result.notRun.join(', ')}`] : []), `Review identity ${review.hash.slice(0, 12)} (what the reviewer reads and sees): ${filesLine(review.files)}`, '', ...after,
     `Settled by this run: ${settledNow.toFixed(2)} credits (about US$${(settledNow / 100).toFixed(2)} at 100 credits to the dollar); charged to the test users: ${charged}; cumulative ${(o.prior + result.finished).toFixed(2)} of cap ${o.cap}.`, PACING].join('\n');
