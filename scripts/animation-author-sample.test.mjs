@@ -222,16 +222,18 @@ test('every run keeps the raw tool input of each call: kind, keys, artifact type
 
 test('a run that asked the author again is billed for both calls and says so', { skip: !HAS_ASK_AGAIN && 'needs the one more ask of feat/an20-c4-prompts' }, async () => {
   const run = planRuns([pin], 1)[0], ids = { candidate: 'c', prompts: 'p', golden: 'g' };
-  const single = await sampleOnce(run, { transport: fakeTransport(fixture.repairedDraft), signal: undefined, ids });
-  const again = await sampleOnce(run, { transport: fakeTransport(null, { sequence: [{ kind: 'artifact' }, { kind: 'artifact', artifact: fixture.repairedDraft }] }), signal: undefined, ids });
+  const usage = { input_tokens: 9000, output_tokens: 3000 }; // every call bills the same, so the sum is exact
+  const single = await sampleOnce(run, { transport: fakeTransport(fixture.repairedDraft, { usage }), signal: undefined, ids });
+  const again = await sampleOnce(run, { transport: fakeTransport(null, { usage, sequence: [{ kind: 'artifact' }, { kind: 'artifact', artifact: fixture.repairedDraft }] }), signal: undefined, ids });
   assert.equal(again.record.status, 'valid', again.record.problems.join('; '));
   assert.deepEqual([again.record.askedAgain, again.record.calls, again.input.calls.map(c => c.again)], [true, 2, [false, true]]);
-  assert.ok(again.record.credits > single.record.credits * 1.8, `both calls are in the credits: ${again.record.credits} against ${single.record.credits}`);
+  assert.equal(again.record.credits, +(single.record.credits * 2).toFixed(4), 'both calls are in the credits');
+  assert.equal(again.record.usage.input_tokens, 18000);
   assert.match(formatTable({ ids, transport: 'fake', concurrency: 1, maxCredits: Infinity, results: [again], stopped: null, settled: again.record.credits }), /valid \(asked again\)/);
   // Two replies without an artifact: still the one error, after two calls, and billed twice.
-  const two = await sampleOnce(run, { transport: fakeTransport(null, { sequence: [{ kind: 'artifact' }] }), signal: undefined, ids });
+  const two = await sampleOnce(run, { transport: fakeTransport(null, { usage, sequence: [{ kind: 'artifact' }] }), signal: undefined, ids });
   assert.deepEqual([two.record.status, two.record.calls, two.record.askedAgain], ['error', 2, true]);
-  assert.ok(two.record.credits > 0);
+  assert.equal(two.record.credits, again.record.credits, 'billed twice');
   // A flattened reply (the artifact's fields at the top level) is the artifact, in one call.
   const flat = await sampleOnce(run, { transport: fakeTransport(null, { sequence: [{ kind: 'artifact', ...fixture.repairedDraft }] }), signal: undefined, ids });
   assert.deepEqual([flat.record.status, flat.record.calls, flat.record.askedAgain], ['valid', 1, false]);
