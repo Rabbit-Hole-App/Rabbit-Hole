@@ -825,3 +825,118 @@ test('a marker held at the rim sits on the surface there, where its path ends, n
   assert.deepEqual(capped.apply({ nodes: { ball: { position: [3.675, 10.84, 0.4] } } }).clamped.map(c => c.drawnAt), [[2.5, 2.7, 0.4]]);
   capped.dispose();
 });
+
+// C12 (b)(iii), (e) and (e2): the scene reports what the render stage checks, from what is DRAWN. Twin markers (C11 Gate 2 jobs 3 and 7: two balls at one place at the initial capture), an arrow
+// that runs through the surface (job 2: a 4x step arrow, drawn flat at the ball's height, runs into the rising wall) and an arrow shorter than the ball it comes from (job 2's repair: a 2x
+// arrow inside the ball; job 1: a tiny arrow next to its label), which is not drawn, and neither is its tip label.
+const twin = (extra = {}, material = 'ballRed') => {
+  const a = primitives();
+  a.scene.geometries.push({ id: 'twinGeo', kind: 'sphere', radius: 0.1 });
+  a.scene.materials.push({ id: 'faint', color: '#d64545', opacity: 0.4 });
+  a.scene.nodes.push({ id: 'twin', geometry: 'twinGeo', material, ...extra });
+  return built(a);
+};
+const twinAt = (scene, x) => { scene.apply({ nodes: { ball: { position: [0, 1, 0] }, twin: { position: [x, 1, 0] } } }); return scene.overlaps(); };
+test('overlaps: two sphere markers whose centres are within half a radius are reported; a ghost, a translucent or a hidden one, and one a little farther off, are not', () => {
+  const scene = twin();
+  assert.deepEqual(twinAt(scene, 0.04), [{ a: 'ball', b: 'twin', distance: 0.04 }], 'under half a radius (0.05) apart: one marker hides the other');
+  assert.deepEqual(twinAt(scene, 0), [{ a: 'ball', b: 'twin', distance: 0 }], 'the same place');
+  assert.deepEqual(twinAt(scene, 0.06), [], 'a little farther off than half a radius');
+  scene.dispose();
+  const ghost = twin({ name: 'Kept ball (ghost)' });
+  assert.deepEqual(twinAt(ghost, 0.01), [], 'named a ghost');
+  ghost.dispose();
+  const faint = twin({}, 'faint');
+  assert.deepEqual(twinAt(faint, 0.01), [], 'a translucent marker is a ghost');
+  faint.dispose();
+  const hidden = twin({ visible: false });
+  assert.deepEqual(twinAt(hidden, 0.01), [], 'a hidden one hides nothing');
+  hidden.dispose();
+  const plain = built();
+  assert.deepEqual(plain.overlaps(), [], 'one marker overlaps nothing');
+  plain.dispose();
+});
+
+// The fixture's arrow is 0.5 long with an offset of 0.1 outside the node's scale, on a ball at (0, 0.3, 0); turned to lie along +X at scale s, its tip is at x = 0.1 + 0.5 s.
+const flatArrow = scale => {
+  const a = primitives();
+  const node = a.scene.nodes.find(n => n.id === 'slope');
+  node.quaternion = [0, 0, -Math.SQRT1_2, Math.SQRT1_2]; // +Y to +X: drawn flat, along the ball's height
+  node.scale = [1, scale, 1];
+  const scene = built(a);
+  scene.apply({ nodes: { ball: { position: [0, 0.3, 0] } } });
+  return scene;
+};
+test('arrowsUnder: a flat arrow whose tip runs into the rising wall is reported with how far under; a short one is not; a hidden one is not drawn, so not reported', () => {
+  const long = flatArrow(4), found = long.arrowsUnder(); // tip at x 2.1, where the bowl is 1.1625 high and the arrow 0.3
+  assert.equal(found.length, 1, JSON.stringify(found));
+  assert.deepEqual([found[0].id, found[0].point], ['slope', 'tip']);
+  assert.deepEqual(found[0].tip.map(v => Math.round(v * 1e3) / 1e3), [2.1, 0.3, 0]);
+  assert.ok(Math.abs(found[0].under - 0.8625) < 1e-4, `${found[0].under} under`);
+  assert.deepEqual(long.arrowsHidden(), [], '2 long against a ball 0.2 across: drawn');
+  long.dispose();
+  const short = flatArrow(1);
+  assert.deepEqual(short.arrowsUnder(), [], 'tip at x 0.6 (0.3 high), the bowl 0.1125 there: above it');
+  short.dispose();
+  const plain = built();
+  assert.deepEqual(plain.arrowsUnder(), [], 'the fixture\'s arrow stands up from the ball');
+  plain.dispose();
+  const watch = built(watchFixture.artifact);
+  assert.deepEqual([watch.arrowsUnder(), watch.overlaps(), watch.arrowsHidden()], [[], [], []], 'no surface, no arrow, no twin: nothing to report');
+  watch.dispose();
+});
+
+const goldenArtifact = () => JSON.parse(readFileSync(new URL('./testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
+const stepTo = (stepArrow, fullArrow, ballAt = [0.3, 0.87, 1.6]) => ({ nodes: { ball: { position: ballAt }, stepArrow: { visible: true, scale: [1, stepArrow, 1] }, fullArrow: { visible: true, scale: [1, fullArrow, 1] } } });
+const spriteOf = (scene, id) => holderOf(scene, id).children[0];
+test('arrowsHidden on the golden: at the start the arrows are drawn with their labels; at the lowest point, shorter than the ball, neither the arrows nor their labels are drawn, and the trace lists them', () => {
+  const golden = goldenArtifact(), radius = golden.scene.geometries.find(g => g.id === golden.scene.nodes.find(n => n.clampTo).geometry).radius, diameter = 2 * radius;
+  assert.ok(Math.abs(diameter - 0.24) < 1e-9, 'the golden as authored (a lane may retune it: the rule is relative to the ball)');
+  const scene = built(golden), view = camera(12);
+  scene.apply(stepTo(0.75, 0.75)); // the start: the first arrows are 0.75 or more
+  scene.layoutLabels({ width: 960, height: 540, camera: view });
+  assert.deepEqual(scene.arrowsHidden(), []);
+  assert.deepEqual(['stepArrow', 'fullArrow'].map(id => drawn(scene, id).visible), [true, true]);
+  assert.deepEqual(['stepTag', 'fullTag'].map(id => spriteOf(scene, id).visible), [true, true], 'a drawn arrow keeps its label');
+  scene.apply(stepTo(0.15, 0.2, [0, 0.2, 0])); // the lowest point, the end of the run at convergence: a step of 0.15 and one of 0.2 against a ball 0.24 across
+  const boxes = scene.layoutLabels({ width: 960, height: 540, camera: view });
+  assert.deepEqual(scene.arrowsHidden(), [{ id: 'stepArrow', hidden: true, length: 0.15, diameter }, { id: 'fullArrow', hidden: true, length: 0.2, diameter }]);
+  assert.deepEqual(['stepArrow', 'fullArrow'].map(id => drawn(scene, id).visible), [false, false], 'not drawn');
+  assert.deepEqual(['stepTag', 'fullTag'].map(id => spriteOf(scene, id).visible), [false, false], 'and no label');
+  assert.deepEqual(boxes.filter(box => /step/i.test(box.text)), [], 'a label for no arrow takes no room');
+  assert.deepEqual(scene.arrowsUnder(), [], 'an arrow that is not drawn runs through nothing');
+  scene.apply(stepTo(0.75, 0.75)); // a new run: drawn again, not stuck hidden
+  assert.deepEqual([scene.arrowsHidden(), drawn(scene, 'stepArrow').visible], [[], true]);
+  scene.dispose();
+});
+
+test('arrowsHidden: exactly the ball\'s diameter is drawn, a hair under is not; a program-hidden arrow is not listed; an arrow that stays drawn keeps the label rule of FX-AN-099', () => {
+  const golden = goldenArtifact(), diameter = 2 * golden.scene.geometries.find(g => g.id === 'ballBall').radius, scene = built(golden);
+  scene.apply(stepTo(diameter, diameter));
+  assert.deepEqual([scene.arrowsHidden(), drawn(scene, 'stepArrow').visible], [[], true], 'length = diameter: drawn');
+  scene.apply(stepTo(diameter - 1e-4, diameter));
+  assert.deepEqual(scene.arrowsHidden().map(a => a.id), ['stepArrow']);
+  scene.apply({ nodes: { stepArrow: { visible: false }, fullArrow: { visible: false } } });
+  assert.deepEqual(scene.arrowsHidden(), [], 'hidden by the program: not the renderer\'s doing');
+  // A drawn arrow, small on a far camera, loses its label by the pixel rule, not the diameter rule, and is still drawn.
+  scene.apply(stepTo(0.3, 0.3));
+  scene.layoutLabels({ width: 960, height: 540, camera: camera(40) });
+  assert.deepEqual([scene.arrowsHidden(), drawn(scene, 'stepArrow').visible, spriteOf(scene, 'stepTag').visible], [[], true, false], 'under 24 px: the label goes, the arrow stays');
+  scene.dispose();
+});
+
+test('arrowsHidden: an arrow whose parent is not a sphere is unchanged, however short', () => {
+  const golden = goldenArtifact();
+  golden.scene.nodes.unshift({ id: 'rig' });
+  golden.scene.nodes.find(n => n.id === 'stepArrow').parent = 'rig';
+  const scene = built(golden);
+  scene.apply(stepTo(0.15, 0.15));
+  assert.deepEqual([scene.arrowsHidden().map(a => a.id), drawn(scene, 'stepArrow').visible], [['fullArrow'], true], 'only the arrow that comes from the ball is hidden');
+  scene.dispose();
+  const none = goldenArtifact();
+  none.scene.nodes.find(n => n.id === 'stepArrow').parent = null;
+  const orphan = built(none);
+  orphan.apply(stepTo(0.15, 0.15));
+  assert.deepEqual([orphan.arrowsHidden().map(a => a.id), drawn(orphan, 'stepArrow').visible], [['fullArrow'], true], 'no parent: no sphere to compare with');
+  orphan.dispose();
+});

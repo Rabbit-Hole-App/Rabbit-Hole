@@ -17,6 +17,9 @@
 //   runReviewProgram(request, { workerFactory, createRuntime? }) ->
 //     { ok: true, artifact, artifactHash, frame, trace: { inputs, time, events, ticks, readouts, goal?, selection?, stateHash?, clamped? } }
 //   buried (C9, owner): [{ node, y, surfaceY }] for each marker or path drawn below the surface it sits on (scene.js buried), the worst point of a path.
+//   trails (C12 b): { <trail node id>: points the frame's run path holds } for each run path (style trail) the frame carries; overlaps (C12 b): [{ a, b, distance }] for sphere markers within half a radius
+//   of each other (scene.js overlaps); arrowsUnder (C12 e): [{ id, point, tip, under }] for an arrow whose tip or middle is drawn under the surface (scene.js arrowsUnder); arrowsHidden (C12 e2):
+//   [{ id, hidden: true, length, diameter }] for an arrow from a sphere shorter than the sphere's diameter, which is not drawn (scene.js arrowsHidden). Each is present only where it has something to say.
 //   clamped (AN-19, owner decisions 11 and 30): [{ node, axes, trueY, y, trueAt, drawnAt }]: axes: which of 'x', 'y', 'z' the host held (x and z at the surface's rim, y at its top or max), trueAt and drawnAt: the
 //   world position the program gave and the one drawn, [x, y, z] to 4 decimals; trueY and y are the y of each, as before. for each sphere the host held at its surface's top in this frame, the y the program gave and the y drawn;
 //   the readouts above keep the true value.
@@ -36,16 +39,27 @@ export const reviewTicksOf = request => (request.leadTicks ?? 0) + (request.tick
 const PHASES = ['load', 'setup', 'initialize', 'reduce', 'evaluate', 'engine'];
 const finite3 = value => Array.isArray(value) && value.length === 3 && value.every(Number.isFinite);
 // The clamps the card applies to this frame (scene.js apply) and the markers it draws below their surface (scene.js buried), measured on a scene built from the artifact.
-// A scene with no surface builds nothing.
+// A scene with no surface, no two markers and no arrow from a ball builds nothing (C12: twin markers and hidden arrows need no surface).
 const round = value => Math.round(value * 1e4) / 1e4;
+// C12 (b): how many points each run path (a trail that is not a ghost) holds in this frame, as drawn (at most its max): { <node id>: n }. A frame that does not carry a path's points says nothing about it.
+function trailsIn(artifact, frame) {
+  const out = {};
+  for (const node of artifact.scene.nodes) {
+    const g = artifact.scene.geometries.find(item => item.id === node.geometry), points = frame.nodes?.[node.id]?.points;
+    if (g?.kind === 'trail' && g.style === 'trail' && Array.isArray(points)) out[node.id] = Math.min(points.length, g.max);
+  }
+  return out;
+}
 function measuredIn(artifact, frame) {
-  const none = { clamped: [], buried: [] };
-  if (!artifact.scene.geometries.some(g => g.kind === 'surface')) return none;
+  const none = { clamped: [], buried: [], overlaps: [], arrowsUnder: [], arrowsHidden: [] };
+  const kindOf = id => artifact.scene.geometries.find(g => g.id === id)?.kind, kinds = artifact.scene.nodes.map(node => kindOf(node.geometry));
+  const sphereArrow = artifact.scene.nodes.some(node => kindOf(node.geometry) === 'arrow' && kindOf(artifact.scene.nodes.find(parent => parent.id === node.parent)?.geometry) === 'sphere');
+  if (!kinds.includes('surface') && kinds.filter(kind => kind === 'sphere').length < 2 && !sphereArrow) return none; // nothing to measure: no surface, no two markers, no arrow from a ball
   const built = buildAnimationScene(artifact, { labelTexture: () => ({ texture: new THREE.Texture(), aspect: 1 }) }); // measured, never drawn
   if (!built.ok) return none;
   try {
     const applied = built.scene.apply(frame);
-    return { clamped: (applied.clamped ?? []).map(({ node, axes, trueY, y, trueAt, drawnAt }) => ({ node, axes, trueY: round(trueY), y: round(y), trueAt: trueAt.map(round), drawnAt: drawnAt.map(round) })), buried: built.scene.buried() };
+    return { clamped: (applied.clamped ?? []).map(({ node, axes, trueY, y, trueAt, drawnAt }) => ({ node, axes, trueY: round(trueY), y: round(y), trueAt: trueAt.map(round), drawnAt: drawnAt.map(round) })), buried: built.scene.buried(), overlaps: built.scene.overlaps(), arrowsUnder: built.scene.arrowsUnder(), arrowsHidden: built.scene.arrowsHidden() };
   } finally { built.scene.dispose(); }
 }
 
@@ -139,10 +153,11 @@ export async function runReviewProgram(request, { workerFactory, createRuntime =
       if (!result.accepted && result.reason !== 'unsupported') return failed(result, 'evaluate');
     }
     const snapshot = runtime.snapshot();
-    const { clamped, buried } = measuredIn(artifact, frame);
+    const { clamped, buried, overlaps, arrowsUnder, arrowsHidden } = measuredIn(artifact, frame), trails = trailsIn(artifact, frame);
     const trace = {
       inputs: snapshot.inputs, time: snapshot.time, events: request.events, ticks: snapshot.tick, readouts: frame.readouts,
       ...(frame.goal ? { goal: frame.goal } : {}), ...(frame.selection !== undefined ? { selection: frame.selection } : {}), ...(clamped.length ? { clamped } : {}), ...(buried.length ? { buried } : {}),
+      ...(Object.keys(trails).length ? { trails } : {}), ...(overlaps.length ? { overlaps } : {}), ...(arrowsUnder.length ? { arrowsUnder } : {}), ...(arrowsHidden.length ? { arrowsHidden } : {}),
       ...(snapshot.state !== null ? { stateHash: await sha256Hex(canonicalJson(snapshot.state)) } : {}),
     };
     return { ok: true, artifact, artifactHash: request.artifactHash, frame, trace };
