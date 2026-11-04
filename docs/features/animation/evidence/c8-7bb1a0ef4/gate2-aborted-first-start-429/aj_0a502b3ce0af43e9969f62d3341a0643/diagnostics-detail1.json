@@ -1,0 +1,123 @@
+{
+ "job": {
+  "id": "aj_0a502b3ce0af43e9969f62d3341a0643",
+  "version": 1,
+  "boardId": "2877049e-d514-4550-b57e-797976f38f4a",
+  "cardId": "b03b84cc-e95f-4ad5-a048-29b2088313e5",
+  "stage": "cancelled",
+  "attempt": 1,
+  "terminal": true,
+  "repairs": 0,
+  "stopReason": "stopped",
+  "failure": null,
+  "recovery": [],
+  "outcome": null,
+  "choiceOpen": false,
+  "chatPending": false,
+  "usage": {
+   "credits": 5,
+   "unknown": false
+  },
+  "result": null,
+  "timing": {
+   "requestClass": "simple",
+   "cache": null,
+   "firstFeedbackMs": 50,
+   "proposalMs": null,
+   "generateToResultMs": null,
+   "processingMs": 21669,
+   "approvalWaitMs": 0,
+   "calls": 0,
+   "repairs": 0,
+   "stages": [
+    {
+     "stage": "preparing",
+     "ms": 21669,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": "stopped"
+    }
+   ]
+  },
+  "createdAt": 1793768772447,
+  "updatedAt": 1793768795656
+ },
+ "diagnostics": {
+  "plan": null,
+  "draft": null,
+  "artifactHash": null,
+  "artifact": null,
+  "findings": [],
+  "reviews": [],
+  "candidates": [],
+  "calls": [
+   {
+    "key": "aj_0a502b3ce0af43e9969f62d3341a0643-brief-1",
+    "role": "brief",
+    "phase": "preparation",
+    "attempt": 1,
+    "streamed": false,
+    "requested": "claude-opus-5-5",
+    "served": "claude-opus-5-5",
+    "status": "settled",
+    "boundMicros": 156235,
+    "images": 0,
+    "costMicros": 46739,
+    "inputTokens": 377,
+    "outputTokens": 2214,
+    "startedAt": 1793768773497,
+    "endedAt": 1793768795656,
+    "stopReason": "tool_use",
+    "error": null,
+    "blocks": [
+     {
+      "type": "thinking"
+     },
+     {
+      "type": "tool_use",
+      "name": "animation_plan",
+      "chars": 3563
+     }
+    ]
+   }
+  ],
+  "captures": [],
+  "coverage": null,
+  "gap": null,
+  "estimate": null,
+  "counts": {
+   "brief": 1,
+   "author": 0,
+   "review": 0,
+   "repair": 0
+  },
+  "bounds": {
+   "preparation": 156235,
+   "generation": 0
+  },
+  "timing": {
+   "requestClass": "simple",
+   "cache": null,
+   "marks": {
+    "submitted": 1793768772447,
+    "firstFeedback": 1793768772497
+   },
+   "stages": [
+    {
+     "stage": "preparing",
+     "startedAt": 1793768772497,
+     "endedAt": 1793768794166,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": "stopped"
+    }
+   ]
+  }
+ }
+}

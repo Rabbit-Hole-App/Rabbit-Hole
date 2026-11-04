@@ -1,0 +1,18 @@
+{
+ "n": 9,
+ "phrasing": "SGD with a kept path to compare runs",
+ "session": "gate2-4@example.com",
+ "sha": "c3d9aa6e815dca7596c5ff0570dfa2ae878ddc09",
+ "version": "c894e9e7-c528-40d0-aeba-0c250f6402b9",
+ "jobId": "aj_2dbb57f52bdc442f87409854dad2c532",
+ "outcome": "accepted",
+ "repairs": 1,
+ "credits": 72.491,
+ "charged": 73,
+ "artifactHash": "54c582082f4b109f58064531542db6d6d2516f1b4c4cc60beb943131c6ee341b",
+ "note": "",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 8:20 PM",
+ "fileSha256": "ae956f09335526b7e31fac31c061e0a6ac97e2fc48b0d5f95410df466d60ce40"
+}

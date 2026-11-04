@@ -1,0 +1,301 @@
+[
+ {
+  "at": 1793765894722,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "f2e2a2fdac2c43abf53440c6611075376eb72c4a98b7caf1d91c962389a79760",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: the default rate 0.4 at k=4 (between 1/k and 2/k) while running, i.e. the convergent zigzag the request is about; also the lowest rate 0.05, low steepness, and the faint previous-walk path after a rate change.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepTag",
+       "message": "At step 12 the next step is about 0.06 long, so the arrow is a tiny stub beside the ball, while the 'Next step' label is much larger than what it names. Hide or shrink the label (or hide the arrow and label together) when the step is shorter than about the ball's radius.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "object": "trail",
+       "message": "Some segments of the zigzag path draw as near-hairlines while others are thick. The path's thickness is uneven.",
+       "repairable": false
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "status",
+       "message": "The walk has stopped as diverged, but the Status readout does not appear in the readout line, so the learner gets no word that it ran away. Put the status where it is shown (for example, first in the readout line).",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "ball",
+       "message": "The loss reads 7.382 while the ball sits at the clamped edge at a lower drawn height. This is disclosed in the assumptions.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepTag",
+       "message": "In this view the step arrow cannot be seen at all, yet the 'Next step' label still floats over the ball, naming nothing visible. Hide the label when the step is too short to draw visibly.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "object": "trail",
+       "message": "The path segments' thickness varies between thick and hairline.",
+       "repairable": false
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 12611,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4790,
+   "output_tokens_details": {
+    "thinking_tokens": 3014
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_0d92668dcb1c46fd8e6bed8aa16cd737-review-4",
+   "status": "settled",
+   "costMicros": 146665,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793765992448,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "219ed357fdd03418765ceda289c3d8dd976a298a8411ff32dd2b977a3512facf",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: the default rate 0.4 at k=4 after several steps, which should show a zigzag that settles (0.25 < 0.4 < 0.5). The program's update z·(1−rk) supports it, but no capture shows it.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "The text readout 'Status' (running/converged/diverged) is declared first but does not appear in the readout strip. The numeric readouts still carry the idea.",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "One segment of the zigzag trail is drawn much thinner than the others (it looks almost like a hairline), so the path's thickness is uneven.",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "A thin trail segment again appears among the thicker ones in the diverging zigzag.",
+       "repairable": false
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 12740,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 2997,
+   "output_tokens_details": {
+    "thinking_tokens": 2420
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_0d92668dcb1c46fd8e6bed8aa16cd737-review-6",
+   "status": "settled",
+   "costMicros": 111321,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

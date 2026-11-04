@@ -11,6 +11,7 @@ import { ANIMATION_AUTHOR_SYSTEM, authorTool } from './agents/animation-author.j
 import { archetypeRules } from './agents/animation-archetypes.js';
 import { actionCapability, clientFeatures, enabledCapabilities, surfaceCapability } from './animation-brief.js';
 import { AnimationPolicyError } from './animation-policy.js';
+import { estimateDraftBytes } from './animation-feasibility.js';
 import { draftOf, fitProblems, withProgram } from './animation-repair.js';
 import { modelEvidence } from './explain-evidence.js';
 
@@ -130,6 +131,19 @@ export function planProblems(artifact, plan) {
 
 // The plan's assertions against the artifact (plan section 8, AN-20): one repairable line each, found before any review is paid. clamp: that node has clampTo (no node named: some sphere node does);
 // compare: the parameter is a number whose range includes both values; pathLength: a trail node with max at least min. Pure; tolerant of a draft that is not valid.
+// FX-AN-111 (C9 owner item 2): the default step count a path must hold one point for, so the trail is drawn at every step. Read, in order, from (1) a number parameter named steps, stepCount,
+// numSteps, nSteps, maxSteps or iterations (the artifact's, else the plan's): its DEFAULT; (2) the plan's own words, the step count its description states for a run ("up to 40 steps per run";
+// the reading the size estimate already uses, animation-feasibility.js estimateDraftBytes, only when the plan describes a trail). -> { n, from } | null.
+const STEP_PARAMETER = /^(?:steps?|stepCount|numSteps|nSteps|maxSteps|iterations?)$/i;
+const TRAIL_MAX = 512; // contract.js: a trail holds at most 512 points
+export function defaultStepCount(artifact, plan) {
+  const parameters = [...(Array.isArray(artifact?.parameters) ? artifact.parameters : []), ...(Array.isArray(plan?.parameters) ? plan.parameters : [])];
+  const parameter = parameters.find(p => p?.type === 'number' && STEP_PARAMETER.test(String(p.id ?? '')) && Number.isFinite(p.default));
+  if (parameter) return { n: parameter.default, from: `the default of its parameter ${parameter.id}` };
+  let stated = 0;
+  try { stated = plan ? estimateDraftBytes(plan).stated : 0; } catch { /* a plan the estimate cannot read (not a checked plan) states no steps */ }
+  return stated > 0 ? { n: stated, from: "the plan's own step count" } : null;
+}
 export function assertionProblems(artifact, plan) {
   const out = [], nodes = Array.isArray(artifact?.scene?.nodes) ? artifact.scene.nodes : [], geometries = Array.isArray(artifact?.scene?.geometries) ? artifact.scene.geometries : [];
   (Array.isArray(plan?.assertions) ? plan.assertions : []).forEach((item, i) => {
@@ -147,8 +161,10 @@ export function assertionProblems(artifact, plan) {
       if (!p) out.push(`${at}: the approved plan compares values of parameter ${item.parameter}, which the scene does not declare`);
       else if (p.type !== 'number' || !(p.min <= low && p.max >= high)) out.push(`${at}: parameter ${item.parameter} must cover both compared values, ${low} and ${high} (it has ${p.type === 'number' ? `${p.min} to ${p.max}` : p.type})`);
     } else if (item?.kind === 'pathLength') {
-      const trail = id => geometries.some(g => g?.id === id && g.kind === 'trail' && g.max >= item.min);
-      if (!nodes.some(n => n?.geometry !== undefined && trail(n.geometry))) out.push(`${at}: the approved plan needs a path of at least ${item.min} points; use a trail geometry with max ${item.min} or more on a node`);
+      // The assertion's min is a floor; the path must also hold one point per step of the default run (FX-AN-111), at most what a trail can hold.
+      const steps = defaultStepCount(artifact, plan), need = Math.min(TRAIL_MAX, Math.max(item.min, Math.ceil(steps?.n ?? 0)));
+      const trail = id => geometries.some(g => g?.id === id && g.kind === 'trail' && g.max >= need);
+      if (!nodes.some(n => n?.geometry !== undefined && trail(n.geometry))) out.push(`${at}: the approved plan needs a path of at least ${need} points${need > item.min ? ` (one for each of its ${Math.ceil(steps.n)} steps, ${steps.from})` : ''}; use a trail geometry with max ${need} or more on a node`);
     }
   });
   return out;

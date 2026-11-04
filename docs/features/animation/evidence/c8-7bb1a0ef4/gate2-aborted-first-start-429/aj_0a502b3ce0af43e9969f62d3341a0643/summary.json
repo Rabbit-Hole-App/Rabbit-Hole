@@ -1,0 +1,17 @@
+{
+ "n": 6,
+ "phrasing": "minimize a quadratic loss with gradient steps",
+ "session": "gate2-1@example.com",
+ "sha": "7bb1a0ef4211ea45ecd3a53ccd6770d76080e8d3",
+ "version": "7c545e95-ecef-4418-a070-0709ef1ddec7",
+ "jobId": "aj_0a502b3ce0af43e9969f62d3341a0643",
+ "outcome": "stopped",
+ "repairs": 0,
+ "credits": 4.6739,
+ "charged": 5,
+ "artifactHash": null,
+ "note": "file: stop file C:\\s\\spec\\animation\\sgd-mvp1-acceptance\\release-3-c8\\STOP",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 9:06 PM"
+}

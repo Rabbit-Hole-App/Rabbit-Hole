@@ -1,0 +1,37 @@
+{
+  "id": "projectile-aj_54eec6a-r02",
+  "plan": "projectile-aj_54eec6a",
+  "session": null,
+  "candidate": "53a47f33ca90f3f18144ea2b196be4a724f3d10f",
+  "prompts": "b6a6ecf83647f06e9dd9f2c01e6b6136298591c510623274a055d3ddcf902f24",
+  "golden": "1245b7f4d7b3da6f321195401d9787a3ed2cf52c1c818f93bfa9ab730b90565a",
+  "requestHash": "f5af0f544b3b12394af3e478cf944b6c5071e7f60a8c4ad02d6994c6a8153848",
+  "status": "valid",
+  "stopReason": "tool_use",
+  "served": "claude-opus-5-5",
+  "usage": {
+    "input_tokens": 1605,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 8001,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 6418,
+    "output_tokens_details": {
+      "thinking_tokens": 2338
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+  },
+  "credits": 13.6381,
+  "bytes": 8061,
+  "validator": true,
+  "assertions": null,
+  "problems": [],
+  "category": null,
+  "error": null,
+  "seconds": 56.3,
+  "transport": "dev-key"
+}

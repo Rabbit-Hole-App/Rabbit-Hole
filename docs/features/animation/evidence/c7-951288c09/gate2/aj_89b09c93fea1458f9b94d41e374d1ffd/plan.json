@@ -1,0 +1,84 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Why a too-large learning rate makes gradient descent diverge",
+ "description": "A ball sits on a bowl-shaped loss surface that is steeper in one direction than the other. Each step, an arrow shows the uphill slope (the gradient) and the ball jumps the opposite way by the learning rate times that slope, leaving a path. With a small rate the ball creeps to the bottom. A medium rate makes it zigzag across the steep valley but still settle. Past a clear threshold, every jump overshoots by more than the last, so the ball bounces higher and higher up the walls until it leaves the surface.",
+ "experience": "experiment",
+ "reason": "Divergence makes sense once you watch steps overshoot and grow. Stepping through it at different learning rates, with the overshoot factor shown as a number, makes the tipping point visible.",
+ "behavior": "rules",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate",
+   "min": 0.05,
+   "max": 0.7,
+   "step": 0.01,
+   "default": 0.55
+  },
+  {
+   "type": "select",
+   "id": "start",
+   "label": "Starting point",
+   "options": [
+    {
+     "value": "corner",
+     "label": "Far corner (2.5, 1)"
+    },
+    {
+     "value": "steepAxis",
+     "label": "On the steep side (0, 1.5)"
+    },
+    {
+     "value": "gentleAxis",
+     "label": "On the gentle side (2.5, 0)"
+    }
+   ],
+   "default": "corner"
+  }
+ ],
+ "interactions": [
+  "Change the learning rate, then step or play: below 0.25 the ball slides smoothly down, from 0.25 to 0.5 it zigzags but settles, above 0.5 the zigzag grows until it leaves the surface",
+  "Pick a starting point to see that only the steep direction blows up first: starting on the gentle side stays stable up to a rate of 2, beyond this slider's range",
+  "Step one update at a time, or play and pause, while watching the readouts for loss, step count and the overshoot factor in each direction",
+  "Orbit around the bowl to see the path from above or from the side"
+ ],
+ "assumptions": [
+  "Illustration: a simple made-up bowl, not a real model's loss.",
+  "The loss is 0.5·(x² + 4y²), so the slope is 4 times steeper along y than along x.",
+  "Each step is plain gradient descent: new position = old position − learning rate × gradient, with no momentum and no noise.",
+  "Each step multiplies the y coordinate by (1 − 4 × rate) and the x coordinate by (1 − rate). When the size of a factor is above 1, that coordinate grows every step. So the run diverges exactly when the rate is above 0.5, and at 0.5 it bounces back and forth forever without settling.",
+  "The run stops when the ball leaves the drawn square (from −3 to 3 on each side), shown as \"diverged\", or after 40 steps.",
+  "The surface's height is scaled down for display. The loss readout shows the true value."
+ ],
+ "limitations": [
+  "Real loss surfaces are not perfect bowls. There the safe learning rate depends on the steepest curvature where the ball is, so the exact threshold of 0.5 holds only for this bowl.",
+  "Once the ball leaves the drawn square it is no longer shown. The readout reports that it diverged instead of following it off to infinity."
+ ],
+ "learningGoal": "Gradient descent diverges when each step overshoots the minimum by more than the distance it started from. On a bowl this happens when the learning rate times the steepest curvature is above 2, and the steepest direction blows up first.",
+ "requiredCapabilities": [
+  "parameters",
+  "step",
+  "readouts",
+  "labels"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.1,
+    0.6
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 40
+  }
+ ]
+}

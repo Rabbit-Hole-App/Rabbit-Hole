@@ -63,10 +63,10 @@ test('FX-AN-060: the spending ceiling still refuses a correction ask that would 
   await assert.rejects(s.actor.paidCall(stored(), 'repair', spec), error => error.code === 'count_limit' && /repair limit/.test(error.message), 'one ask per build');
 });
 
-test('FX-AN-060: the limits and the displayed ceiling are unchanged', () => {
+test('FX-AN-060: the call limits are unchanged, and the displayed ceiling is the C9 one (decision 28 raised it, FX-AN-060 did not)', () => {
   assert.deepEqual(ANIMATION_LIMITS.calls, { brief: 1, author: 1, review: 3, repair: 2 });
   const reservation = animationReservation(TASKS);
-  assert.equal(reservation.generationMicros, 3726240, 'the worst case of one author, three reviews and two repairs, as before (3.73M micro-USD)');
+  assert.equal(reservation.generationMicros, 3846240, 'the worst case of one author, three reviews and two repairs: 3,726,240 before C9 plus 3 x 40,000 for the review at 8,000 output tokens (decision 28, FX-AN-102)');
   assert.deepEqual(Object.keys(reservation), ['version', 'preparationMicros', 'generationMicros', 'calls']);
 });
 

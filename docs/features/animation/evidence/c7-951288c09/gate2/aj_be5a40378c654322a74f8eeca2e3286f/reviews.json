@@ -1,0 +1,365 @@
+[
+ {
+  "at": 1793767459823,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "fc9186525e3615c094f71ad2ba0f37beaa047b25157cfd222239ab7c9029a625",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The default camera at (4.6,4.8,5.6) looks almost straight down the bowl's steep z direction. The bowl looks like a narrow U taking up about 40% of the frame width, with a lot of empty space around it. The area where the ball descends is squeezed into a few dozen pixels near the bottom (compare the side view, where the elliptical contours and the start point are easy to read). Move the default camera closer and toward the side-view angle so the floor of the bowl and the descent path fill the frame.",
+       "object": "camera",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan says the learner drags the ball to choose the start point. The artifact only allows dragging along x and fixes z at 1.3. This is disclosed, but it limits starting points on the bowl. Behaviour on the two-valley surface and at learning rate 0.01 was not sampled.",
+       "object": "ballA",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "In the default view the 27-step path appears as a short orange stub about 40 px long at the bottom of the bowl. The camera angle hides the z component of the descent, so the learner can't follow the steps (the side view shows a clear curve). This is the same camera problem as in the initial capture.",
+       "object": "camera",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "Near the minimum the steepness is 0.125, so the arrow is 0.025 long and can't be seen. The 'Downhill' label still sits on the ball, labelling nothing and looking larger than what it names. Hide the label (or the arrow and label together) when the arrow is too short to see. Don't give the arrow a minimum length.",
+       "object": "arrAL",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "The Status text readout ('running') does not appear in the readout strip, so the promised stop reason can't be seen in the capture.",
+       "object": "status",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "The ball has left the surface (z=2.55) and the host draws it clamped at y=3.2, not its true 3.46. The Status readout 'diverged' does not show in the readout strip.",
+       "object": "ballA",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The 'Downhill' label floats over the ball even though the arrow has shrunk to almost nothing (length 0.025). The label names an object that can't be seen. Hide it when the arrow is too short to see.",
+       "object": "arrAL",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The trail segments are straight chords between points, and the first segment looks thin and partly hidden where it crosses near the surface.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 16318,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 5312,
+   "output_tokens_details": {
+    "thinking_tokens": 4100
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_be5a40378c654322a74f8eeca2e3286f-review-5",
+   "status": "settled",
+   "costMicros": 171933,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793767587182,
+  "attempt": 1,
+  "repairs": 2,
+  "artifactHash": "540672eb04af12251e1c606b6b3115f530f366875c93bb0f04f8f05399150ad8",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The plan says a readout tells the learner why stepping stopped (converged, 200 steps or diverged). The trace has a 'status' readout, but the readout bar in every capture shows only loss, steps, steepness and loss change. The status never appears on screen. Show it, for example as a numeric or coded readout, or as a scene label near the ball.",
+       "object": "status",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan's limitation says the trail draws 100 markers, one every 2 steps. The artifact draws all 201 points and says so in its assumptions. This differs from the plan but is disclosed, and it is harmless.",
+       "object": "trail",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: the two-valley surface, dragging the ball, the low learning-rate end (0.01) and the toggle that hides the arrow. Dragging works along x only (the start always uses y = 1.3). That is disclosed, but it is narrower than the plan's 'drag the ball to choose where it starts'.",
+       "object": "ballA",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The status readout (here 'running') is computed but missing from the readout bar, so the learner cannot see whether the run is going, paused or settled.",
+       "object": "status",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "At learning rate 0.8 the ball diverges after 2 steps. The loss is 9.7405, which checks out against the formula. But the 'diverged' status is not shown anywhere in the capture, so the learner gets no stopping reason, which the plan promises.",
+       "object": "status",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The ball's drawn height is capped at 3.6 by min(0.4·loss, 3.6), but 0.4 × 9.74 = 3.90. Its height therefore no longer matches the loss readout, and the cap is not disclosed.",
+       "object": "ballA",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "The trail segment from the first step to the second is drawn as a near-hairline, while the other segments are thick.",
+       "object": "trail",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The status readout is missing from the readout bar (same problem as in the default view).",
+       "object": "status",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The status readout is missing from the readout bar (same problem as in the default view).",
+       "object": "status",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The 'diverged' status is not shown, so the learner sees a ball floating off the surface with no stated reason why stepping stopped.",
+       "object": "status",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 16018,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3933,
+   "output_tokens_details": {
+    "thinking_tokens": 2694
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_be5a40378c654322a74f8eeca2e3286f-review-7",
+   "status": "settled",
+   "costMicros": 143153,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

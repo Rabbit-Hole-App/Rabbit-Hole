@@ -1,0 +1,4 @@
+[
+  "behavior: the approved plan says rules, the artifact says Stepped rules: each host step applies on",
+  "behavior: Invalid option: expected one of \"prescribed\"|\"analytical\"|\"rules\"|\"physics\" (invalid_value)"
+]

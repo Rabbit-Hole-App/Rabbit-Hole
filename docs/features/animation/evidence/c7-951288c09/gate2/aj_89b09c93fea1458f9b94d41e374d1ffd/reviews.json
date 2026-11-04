@@ -1,0 +1,329 @@
+[
+ {
+  "at": 1793767337863,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "4913dc414b97728633e20af52b26c5a0326a12ac06c411d5fbc6f3301f7de2b5",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The step arrow uses the shared 0.35 scale, so at the default rate 0.55 it is about 0.9 units long while the real jump is about 2.6 units and lands on the far wall. The overshoot the scene is about is understated. Consider drawing the step displacement at true scale (1:1 in the xz plane), or marking where the ball will land.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: the default 0.55 run where the zigzag should visibly grow over about 7 steps, the low end 0.05, and the other starting points. Those behaviours were checked only from the program.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "gradTag",
+       "message": "Near the minimum, both arrows shrink to almost zero length, but the 'Next step' and 'Gradient (uphill)' labels stay up. They crowd around the ball with 'Lowest point' and label arrows the learner cannot see. Hide an arrow's label, or the arrow itself, when it is shorter than a readable length.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "status",
+       "message": "The 'Status' text readout, listed first, is not visible in the readout strip, which starts at the y overshoot factor, so 'running/converged/diverged' cannot be read. Make the status visible, for example as an in-scene label or a numeric/visible readout.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "trail",
+       "message": "At rate 0.7 the run diverges on its 2nd step. The trail drops every point outside the square, and the ball is hidden once it is out. So the picture is one diagonal segment with no ball and no escaping jump, and the promised view of the ball 'bouncing higher until it leaves the surface' is not shown. Draw the final segment clipped to the square's edge, and keep a marker at the exit point.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "status",
+       "message": "Status 'diverged' is in the trace but not visible anywhere in the capture. The readout strip starts with the overshoot factors, so the ball just disappears with no explanation. Show the status prominently.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "gradTag",
+       "message": "The 'Gradient (uphill)' and 'Next step' labels hang off arrows too small to see and sit on top of the orange path near the minimum, covering the subject.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "trail",
+       "message": "Same as the default view: only one in-square segment, with no ball and no escape shown. Divergence is not visible.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "lowTag",
+       "message": "The 'Lowest point' leader line runs through the 'Steep side (y)' label in this view.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13508,
+   "cache_creation_input_tokens": 2103,
+   "cache_read_input_tokens": 0,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 2103,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4565,
+   "output_tokens_details": {
+    "thinking_tokens": 2585
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_89b09c93fea1458f9b94d41e374d1ffd-review-4",
+   "status": "settled",
+   "costMicros": 155847,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793767454064,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "2d070e946e5423370a88ead22f9992bc44867cc0712da10180b6ae1a6efd8d0c",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The 'Gradient (uphill)' tip label sits at the bottom edge of the frame and nearly touches the readout bar. Moving the label to the arrow's side, or framing the camera a little higher, would give it room.",
+       "object": "gradTag",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "No capture plays a full run at the default rate of 0.55, where the zigzag should grow over about 7 steps (|z|: 1, 1.2, 1.44 … 2.99, then out). The program's update and the readouts (loss 5.125, factors 1.20 and 0.45) are correct, but that growing bounce was not seen in a capture.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The 'Lowest point' label sits just below the ball and covers the last part of the converging path near the minimum.",
+       "object": "lowTag",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The path's points are only the step positions, joined by straight lines. The first jump (2.5,1)→(0.75,−1.8) therefore runs under the curved bowl and shows as a thin, partly hidden line. Adding points along each jump so the path follows the surface would keep it fully visible.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Same straight-line path issue seen from the side: the straight jump lines are not lifted onto the curved surface, so parts of them sit under it.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13682,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 2620,
+   "output_tokens_details": {
+    "thinking_tokens": 1824
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_89b09c93fea1458f9b94d41e374d1ffd-review-6",
+   "status": "settled",
+   "costMicros": 107549,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

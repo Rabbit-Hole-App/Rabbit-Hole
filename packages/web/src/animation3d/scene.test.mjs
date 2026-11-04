@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { linePoints, triangleCost, validateAnimationArtifact } from './contract.js';
 import { ANIMATION_FIXTURES, INVALID_ANIMATION_FIXTURES, primitivesFixture, watchFixture } from './fixtures.js';
-import { buildAnimationScene, declutterLabels, LABEL_PIXELS, labelPixels } from './scene.js';
+import { ARROW_LABELS, buildAnimationScene, declutterLabels, LABEL_PIXELS, labelPixels } from './scene.js';
 
 // Real Three.js objects, no WebGL: labels get a plain Texture in place of the browser's canvas texture.
 const labels = [];
@@ -555,4 +555,129 @@ test('no contour point is hidden behind the surface from a low camera outside th
     assert.ok(!hit || hit.distance >= reach - 1e-4, `contour point ${i} is hidden: the surface is hit at ${hit?.distance}, the point at ${reach}`);
   }
   scene.dispose();
+});
+
+// C9 (owner): a label that names an arrow is the renderer's to keep in proportion. C7 job 2: a "Next step / rate" plate five times longer than its short arrow, and a step label
+// kept on an arrow too short to see (the author's own hide threshold of 0.25 was too low). The plate is wrapped to at most ARROW_LABELS.cap times the arrow's length on screen,
+// and the label is hidden when the arrow is shorter than ARROW_LABELS.hide pixels.
+const arrowScene = text => {
+  const artifact = primitives();
+  artifact.scene.nodes = artifact.scene.nodes.filter(n => ['ball', 'slope', 'slopeTag'].includes(n.id));
+  delete artifact.scene.nodes.find(n => n.id === 'ball').clampTo;
+  artifact.scene.nodes.find(n => n.id === 'ball').position = [0, 0, 0];
+  artifact.scene.geometries.find(g => g.id === 'slopeText').text = text;
+  artifact.scene.geometries.push({ id: 'floorBox', kind: 'box', size: [6, 0.1, 6] }); // a large part, so the scene's span leaves room for plates
+  artifact.scene.nodes.push({ id: 'floor', geometry: 'floorBox', material: 'bowlBlue', position: [0, -1, 0] });
+  const wrapTexture = (words, { pixels, maxWidth }) => { const full = words.length * pixels * 0.5, rows = Math.max(1, Math.ceil(full / maxWidth)); return { texture: new THREE.Texture(), aspect: Math.min(full, maxWidth) / (pixels * rows), rows }; };
+  const out = buildAnimationScene(artifact, { labelTexture: wrapTexture });
+  assert.equal(out.ok, true, JSON.stringify(out.issues));
+  return out.scene;
+};
+const lookAt = distance => { const view = new THREE.PerspectiveCamera(50, 960 / 540, 0.1, 1000); view.position.set(0, 0.3, distance); view.lookAt(0, 0.3, 0); view.updateMatrixWorld(); return view; };
+// The arrow is 0.5 long; at fov 50 on a 540 px view one unit is 579 / distance pixels: 48 px at distance 6, 14 px at distance 20.
+const tagBox = (scene, distance) => scene.layoutLabels({ width: 960, height: 540, camera: lookAt(distance) }).find(box => box.id === 'slopeTag');
+
+test('an arrow label is hidden when its arrow is shorter than ARROW_LABELS.hide on screen, and shown (at most as wide as the cap) when it is not', () => {
+  assert.deepEqual(ARROW_LABELS, { hide: 24, cap: 3, minWidth: 72 });
+  const scene = arrowScene('Next step / rate of change');
+  const rows = scene.objects.get('slopeTag').children[0], far = tagBox(scene, 20), hidden = !rows.visible, near = tagBox(scene, 6);
+  assert.deepEqual([far, hidden], [undefined, true], 'a 14 px arrow carries no label: it is not laid out and its plate is hidden');
+  assert.equal(tagBox(scene, 6).shown, true, 'a 48 px arrow does');
+  assert.ok(near.w <= Math.max(ARROW_LABELS.minWidth, ARROW_LABELS.cap * 48) + 8, `the plate is ${near.w} px wide against an arrow of 48 px`);
+  assert.ok(near.h > LABEL_PIXELS.max * 1.5, `a long text wraps onto more lines (${near.h} px tall) instead of running on`);
+  assert.equal(rows.visible, true);
+  scene.dispose();
+});
+
+test('an arrow label that already fits is untouched, and a label on something that is not an arrow keeps the full width', () => {
+  const scene = arrowScene('Step');
+  const box = tagBox(scene, 6);
+  assert.equal(box.shown, true);
+  assert.ok(box.h < LABEL_PIXELS.max * 1.5, 'one line');
+  scene.dispose();
+  const moon = buildAnimationScene(watchFixture.artifact, { labelTexture });
+  const view = new THREE.PerspectiveCamera(50, 960 / 540, 0.1, 1000);
+  view.position.set(0, 2, 10); view.lookAt(0, 0, 0); view.updateMatrixWorld();
+  assert.equal(moon.scene.layoutLabels({ width: 960, height: 540, camera: view }).find(b => b.id === 'moonTag').shown, true, 'a label on a sphere is not an arrow label');
+  moon.scene.dispose();
+});
+
+// C9 (owner): a trail's polyline is an obstacle for label placement (soft, like a marker). C7 jobs 6 and 7: "Minimum" and "Next step" labels sat on the zig-zag.
+const trailLabelScene = () => {
+  const artifact = primitives();
+  artifact.scene.nodes = artifact.scene.nodes.filter(n => ['ball', 'trail'].includes(n.id));
+  delete artifact.scene.nodes.find(n => n.id === 'ball').clampTo;
+  artifact.scene.nodes.find(n => n.id === 'ball').position = [0, 0, 0];
+  artifact.scene.geometries.push({ id: 'rateText', kind: 'label', text: 'Rate', placement: 'above' }, { id: 'floorBox', kind: 'box', size: [6, 0.1, 6] });
+  artifact.scene.nodes.push({ id: 'rateTag', parent: 'ball', geometry: 'rateText' }, { id: 'floor', geometry: 'floorBox', material: 'bowlBlue', position: [0, -1, 0] });
+  const out = buildAnimationScene(artifact, { labelTexture });
+  assert.equal(out.ok, true, JSON.stringify(out.issues));
+  return out.scene;
+};
+const front = () => { const view = new THREE.PerspectiveCamera(50, 960 / 540, 0.1, 1000); view.position.set(0, 0.5, 10); view.lookAt(0, 0.5, 0); view.updateMatrixWorld(); return view; };
+// A path along y = 0.25 passes through the place just above the ball (58 px per unit at distance 10: 14 px up) where the plate would sit.
+const path = [[-1.5, 0.25, 0], [-0.5, 0.2, 0], [0.5, 0.3, 0], [1.5, 0.25, 0]];
+const screenY = (scene, point) => { const v = new THREE.Vector3(...point).project(front()); return (1 - v.y) / 2 * 540; };
+const crosses = (box, scene) => path.some(point => { const y = screenY(scene, point); return y >= box.y - 2 && y <= box.y + box.h + 2; });
+
+test('a label is moved off a trail\'s path when there is room, and is not dropped when there is none', () => {
+  const scene = trailLabelScene();
+  const before = scene.layoutLabels({ width: 960, height: 540, camera: front() }).find(b => b.id === 'rateTag');
+  assert.equal(before.shown, true);
+  assert.equal(crosses(before, scene), true, 'with no path the plate sits just above its ball, where the path will run (the control)');
+  // The same plate with the path drawn: a clean place beside the path, not on it.
+  scene.apply({ nodes: { trail: { points: path } } });
+  const after = scene.layoutLabels({ width: 960, height: 540, camera: front() }).find(b => b.id === 'rateTag');
+  assert.equal(after.shown, true, 'still shown');
+  assert.equal(crosses(after, scene), false, `the plate (y ${after.y} to ${after.y + after.h}) is off the path`);
+  scene.dispose();
+});
+
+test('a label with no clear spot beside a dense path keeps its place: the path is a soft obstacle, never a reason to drop a label', () => {
+  const scene = trailLabelScene();
+  const net = Array.from({ length: 100 }, (_, i) => [-3 + 6 * i / 99, i % 2 ? -2 : 2, 0]); // a zig-zag over the whole view
+  scene.apply({ nodes: { trail: { points: net } } });
+  const box = scene.layoutLabels({ width: 960, height: 540, camera: front() }).find(b => b.id === 'rateTag');
+  assert.equal(box?.shown, true);
+  scene.dispose();
+});
+
+// C9 (owner): a marker or a path point drawn below the surface it sits on is detected. C7 job 3 (aj_2f17bed198df4482b5e2e7e170dcdd31): the surface was drawn at twice the height the program
+// uses, so the balls and trails were buried. The fixture's program puts the ball at y = x^2 / 4 + 0.1 and its path at y = x^2 / 4 + 0.02 over a surface y = (x^2 + z^2) / 4.
+const doubled = () => { const a = primitives(); a.scene.geometries[0].heights = a.scene.geometries[0].heights.map(row => row.map(h => 2 * h)); return a; };
+const atX = x => ({ nodes: { ball: { position: [x, x * x / 4 + 0.1, 0] }, trail: { points: [[x, x * x / 4 + 0.02, 0], [x - 0.2, (x - 0.2) ** 2 / 4 + 0.02, 0]] } } });
+
+test('buried: a ball and a path under a surface drawn at twice the program\'s height are reported with how far under; the right surface reports nothing', () => {
+  const scene = built(doubled());
+  scene.apply(atX(1.5));
+  const found = scene.buried();
+  assert.deepEqual(found.map(b => b.node), ['trail', 'ball'], JSON.stringify(found)); // scene order
+  const ball = found.find(b => b.node === 'ball'), trail = found.find(b => b.node === 'trail');
+  // The surface at x = 1.5, z = 0 is 2 x 0.5625 = 1.125; the ball is at 0.6625 and the first path point at 0.5825.
+  assert.deepEqual([ball.y, ball.surfaceY], [0.6625, 1.125]);
+  assert.deepEqual([trail.y, trail.surfaceY], [0.5825, 1.125], 'the path\'s worst point');
+  scene.dispose();
+  const right = built();
+  right.apply(atX(1.5));
+  assert.deepEqual(right.buried(), [], 'on the surface the program draws for');
+  for (const x of [-2, 0, 0.4, 2]) { right.apply(atX(x)); assert.deepEqual(right.buried(), [], `x ${x}`); }
+  right.dispose();
+});
+
+test('buried: nothing is reported for a ball off the surface, in the air, or clamped; a surface with no clamped marker and a trail reports nothing for them', () => {
+  const scene = built(doubled());
+  scene.apply({ nodes: { ball: { position: [3.5, -5, 0] } } }); // beyond the footprint (x in -2.5 to 2.5): not on this surface
+  assert.deepEqual(scene.buried(), []);
+  scene.apply({ nodes: { ball: { position: [1.5, 5.6, 0] } } }); // above, and held at the clamp
+  assert.deepEqual(scene.buried(), []);
+  scene.apply({ nodes: { ball: { position: [1.5, 1.2, 0] } } }); // 0.075 above the doubled surface (1.125): resting on it, not under it
+  assert.deepEqual(scene.buried(), []);
+  scene.apply({ nodes: { ball: { position: [1.5, 1.0, 0] } } }); // 0.125 below the doubled surface: more than half a ball radius (0.05) and more than 2% of its height range (0.1)
+  assert.equal(scene.buried().length, 1);
+  scene.dispose();
+  const none = primitives(); delete none.scene.nodes.find(n => n.id === 'ball').clampTo;
+  const loose = built(none);
+  loose.apply({ nodes: { ball: { position: [1.5, -3, 0] } } });
+  assert.deepEqual(loose.buried().map(b => b.node), [], 'a ball with no clampTo has no surface it sits on');
+  loose.dispose();
 });

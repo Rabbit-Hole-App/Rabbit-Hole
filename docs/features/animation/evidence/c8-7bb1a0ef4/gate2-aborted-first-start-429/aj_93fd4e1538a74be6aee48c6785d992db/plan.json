@@ -1,0 +1,89 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Stochastic gradient descent on a bowl-shaped loss",
+ "description": "A ball sits on a bowl-shaped loss surface with contour lines and takes one noisy downhill step at each tick, leaving a trail. Two arrows at the ball show the true downhill direction (the negative gradient) and the noisy step it actually takes. You can change the learning rate, the noise and how stretched the bowl is, or drag the start point, and watch the path go smoothly to the bottom, jitter around it, zigzag or fly off.",
+ "experience": "experiment",
+ "reason": "SGD makes sense once you see how step size and noise shape the path. Changing them yourself and comparing the trails and loss readouts shows this better than watching one fixed run.",
+ "behavior": "rules",
+ "controlProfile": "manipulate",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate (step size)",
+   "min": 0.02,
+   "max": 1,
+   "step": 0.01,
+   "default": 0.1
+  },
+  {
+   "type": "number",
+   "id": "noise",
+   "label": "Gradient noise (stands in for a small batch)",
+   "min": 0,
+   "max": 2,
+   "step": 0.1,
+   "default": 0.5
+  },
+  {
+   "type": "number",
+   "id": "stretch",
+   "label": "Bowl stretch (steepness ratio across vs along)",
+   "min": 1,
+   "max": 5,
+   "step": 0.5,
+   "default": 3
+  }
+ ],
+ "interactions": [
+  "Drag the ball across the surface to choose where the run starts",
+  "Change the learning rate: small values make a slow, smooth descent. Above 2 divided by the stretch, the ball zigzags across the steep direction and flies off",
+  "Change the noise: at 0 this is plain gradient descent and the ball settles exactly at the bottom. Higher noise makes the path wander and keep jittering around the minimum",
+  "Change the stretch: at 1 the bowl is round and the steps point straight to the bottom. Stretched bowls make the path curve and zigzag",
+  "Press 'Restart from start point' to clear the trail and run again with your current settings (Reset also puts every setting back to its default)",
+  "Readouts show step count, current loss, size of the true gradient, and a 'left the surface' notice if the run blows up"
+ ],
+ "assumptions": [
+  "Illustration: a simple formula bowl with made-up noise, not a model trained on real data.",
+  "The loss is half of (stretch × x² + y²), so its lowest point is exactly at the centre, where the loss is 0.",
+  "Each step moves by minus the learning rate times (the true gradient plus random noise). The noise is drawn from a normal (bell-curve) distribution with the chosen spread, using the scene's fixed random seed.",
+  "Noise stands in for the error you get by estimating the gradient from a small random batch. More noise is like a smaller batch.",
+  "Because of the noise, a single step can go uphill. The loss only falls on average, not at every step.",
+  "A run stops after 200 steps, or as soon as the ball leaves the edge of the drawn surface.",
+  "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+ ],
+ "limitations": [
+  "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+  "Real loss surfaces have many more dimensions and are not perfect bowls. This 2D bowl has one minimum and no local traps or saddle points.",
+  "With a fixed learning rate and noise above 0, the ball never settles exactly. It keeps jittering near the bottom. Learning-rate decay is not modelled.",
+  "If the learning rate makes the run blow up, the ball is stopped at the surface edge instead of being shown flying off to huge values."
+ ],
+ "learningGoal": "See how SGD follows the negative gradient using noisy estimates, how the learning rate trades speed for stability, and why noise keeps the ball jittering near the minimum instead of stopping on it.",
+ "requiredCapabilities": [
+  "parameters",
+  "actions",
+  "drag",
+  "step",
+  "labels",
+  "readouts"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "pathLength",
+   "min": 50
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.1,
+    0.5
+   ]
+  }
+ ]
+}

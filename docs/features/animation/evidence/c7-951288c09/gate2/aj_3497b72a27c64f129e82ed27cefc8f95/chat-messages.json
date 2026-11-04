@@ -1,0 +1,149 @@
+[
+ {
+  "messageId": "239",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-043d0c21f9a0e1fa",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient descent on a quadratic bowl",
+    "description": "A bowl-shaped surface shows the quadratic loss L = ½(x² + k·y²) over two weights, with contour lines and the minimum marked at the center. A ball sits on the surface at a starting point. Each gradient step moves it by minus the learning rate times the gradient and leaves a trail. An arrow at the ball shows that next step before it happens. Change the learning rate or how steep the bowl is along y. You will see smooth convergence, zig-zag oscillation, or the ball flying off the bowl.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-6886f6c3",
+     "job": "aj_3497b72a27c64f129e82ed27cefc8f95",
+     "plan_hash": "088d74456a9a9c6c23e5e667adbc62e91831a3cbc5592796f1165f99eaf7533a",
+     "request": "minimize a quadratic loss with gradient steps",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate",
+        "min": 0.02,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.15
+       },
+       {
+        "type": "number",
+        "label": "Bowl steepness along y (k)",
+        "min": 1,
+        "max": 5,
+        "step": 0.5,
+        "default": 3
+       },
+       {
+        "type": "toggle",
+        "label": "Show next-step arrow",
+        "default": true
+       }
+      ],
+      "interactions": [
+       "Press play to let the host take gradient steps one after another, or take a single step at a time",
+       "Drag the ball on the surface to choose a new starting point before running",
+       "Restart from the current starting point, which clears the trail but keeps your settings",
+       "Change the learning rate: small values creep slowly, values above 1/k zig-zag across the y direction, and values above 2/k make the ball diverge",
+       "Change the steepness k: the bowl becomes a narrow valley, so a learning rate that is safe along x becomes too large along y"
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793853814,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "minimize a quadratic loss with gradient steps",
+    "prompt": "A bowl-shaped surface shows the quadratic loss L = ½(x² + k·y²) over two weights, with contour lines and the minimum marked at the center. A ball sits on the surface at a starting point. Each gradient step moves it by minus the learning rate times the gradient and leaves a trail. An arrow at the ball shows that next step before it happens. Change the learning rate or how steep the bowl is along y. You will see smooth convergence, zig-zag oscillation, or the ball flying off the bowl.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Running gradient steps yourself on a bowl you can see shows how the learning rate and the bowl's shape decide whether descent creeps, zig-zags or blows up.",
+     "Behavior: rules",
+     "Controls: manipulate",
+     "Interaction: Press play to let the host take gradient steps one after another, or take a single step at a time",
+     "Interaction: Drag the ball on the surface to choose a new starting point before running",
+     "Interaction: Restart from the current starting point, which clears the trail but keeps your settings",
+     "Interaction: Change the learning rate: small values creep slowly, values above 1/k zig-zag across the y direction, and values above 2/k make the ball diverge",
+     "Interaction: Change the steepness k: the bowl becomes a narrow valley, so a learning rate that is safe along x becomes too large along y",
+     "Parameter: Learning rate, 0.02 to 0.6, default 0.15",
+     "Parameter: Bowl steepness along y (k), 1 to 5, default 3",
+     "Parameter: Show next-step arrow",
+     "Goal: Gradient descent moves against the gradient by a learning-rate-sized amount. On a quadratic loss, the learning rate compared with the bowl's curvature in each direction decides whether it converges smoothly, oscillates or diverges."
+    ],
+    "assumptions": [
+     "Illustration: a made-up two-weight quadratic loss, not a model trained on real data.",
+     "Loss is L(x, y) = ½(x² + k·y²), with gradient (x, k·y) and minimum 0 at the origin.",
+     "Each step is exact plain gradient descent: new position = old position − learning rate × gradient. There is no momentum, noise or batching.",
+     "Along each axis, a step multiplies that coordinate by (1 − learning rate × curvature). Curvature is 1 along x and k along y.",
+     "The default start is (2.5, 1.5)."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Running stops when the loss drops below 0.001 (converged) or after 60 steps. It also stops when the ball leaves the drawn area beyond ±3 on either axis, which is shown as diverged rather than followed off-screen.",
+     "A real loss is rarely exactly quadratic. On this bowl the stability limit (learning rate below 2 divided by the steepest curvature) is exact, but for real models it holds only near a minimum.",
+     "With k = 1 the bowl is round, and every learning rate in range converges (the limit there is 2). Divergence shows only when k is large enough that 2/k is below 0.6."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-6886f6c3"
+    },
+    "quote": null,
+    "review_hash": "eaf2dc88133264b99aafea049906c308f22076fb37daed7446d6ee641900cb66",
+    "sig": "v3.eefe98a73fab45745c67962356a769b4dce52583c6f4a91d08129aeaf6c10282",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 373,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.eefe98a73fab45745c67962356a769b4dce52583c6f4a91d08129aeaf6c10282",
+    "used": {
+     "version": 1,
+     "key": "aj_3497b72a27c64f129e82ed27cefc8f95"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "239"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "243",
+  "role": "assistant",
+  "content": "\"Gradient descent on a quadratic bowl\" was not finished. The visual review found 8 serious problems with how the scene is drawn or computed and the shared 3D drawing. You have not been charged. It needs a change the automatic correction cannot make. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate. Your request and plan are kept.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_3497b72a27c64f129e82ed27cefc8f95:1",
+   "alternativeOf": null,
+   "alternatives": [
+    "243"
+   ],
+   "feedback": null
+  }
+ }
+]

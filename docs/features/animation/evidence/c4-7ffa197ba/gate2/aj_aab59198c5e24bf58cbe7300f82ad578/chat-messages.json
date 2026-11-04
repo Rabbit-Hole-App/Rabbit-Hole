@@ -1,0 +1,149 @@
+[
+ {
+  "messageId": "208",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-ff781ddd2dc86cc1",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient descent on a quadratic bowl",
+    "description": "A bowl-shaped surface shows the loss L(x, y) = ½(x² + k·y²), with its lowest point at the centre. A ball sits on the surface, and an arrow at the ball points along the negative gradient, which is the downhill direction the next step will move it. Each step moves the ball by the learning rate times that arrow, and a trail records its path. Change the learning rate or the steepness of the bowl to see the path go smoothly to the bottom, zigzag across the valley, or fly off when steps are too large.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-743cca84",
+     "job": "aj_aab59198c5e24bf58cbe7300f82ad578",
+     "plan_hash": "9a900d22bb1fef29d772da82b574033485147c9385a98ffa84b1d4cb2b695239",
+     "request": "minimize a quadratic loss with gradient steps",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate (step size)",
+        "min": 0.01,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.15
+       },
+       {
+        "type": "number",
+        "label": "Steepness along y (k)",
+        "min": 1,
+        "max": 10,
+        "step": 0.5,
+        "default": 4
+       },
+       {
+        "type": "toggle",
+        "label": "Show downhill arrow",
+        "default": true
+       }
+      ],
+      "interactions": [
+       "Take one gradient step and watch the ball, the arrow and the trail move",
+       "Run or pause the steps so they continue automatically, up to 60 steps",
+       "Drag the ball to a new starting point on the surface",
+       "Clear the trail and send the ball back to its current starting point, keeping your settings",
+       "Change the learning rate or steepness, and the surface and the next steps update"
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793850102,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "minimize a quadratic loss with gradient steps",
+    "prompt": "A bowl-shaped surface shows the loss L(x, y) = ½(x² + k·y²), with its lowest point at the centre. A ball sits on the surface, and an arrow at the ball points along the negative gradient, which is the downhill direction the next step will move it. Each step moves the ball by the learning rate times that arrow, and a trail records its path. Change the learning rate or the steepness of the bowl to see the path go smoothly to the bottom, zigzag across the valley, or fly off when steps are too large.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. You learn gradient descent best by changing the step size and the shape of the bowl and comparing the paths that result. Each gradient step stays visible on the surface, together with the loss value.",
+     "Behavior: rules",
+     "Controls: manipulate",
+     "Interaction: Take one gradient step and watch the ball, the arrow and the trail move",
+     "Interaction: Run or pause the steps so they continue automatically, up to 60 steps",
+     "Interaction: Drag the ball to a new starting point on the surface",
+     "Interaction: Clear the trail and send the ball back to its current starting point, keeping your settings",
+     "Interaction: Change the learning rate or steepness, and the surface and the next steps update",
+     "Parameter: Learning rate (step size), 0.01 to 0.6, default 0.15",
+     "Parameter: Steepness along y (k), 1 to 10, default 4",
+     "Parameter: Show downhill arrow",
+     "Goal: Each gradient step moves downhill by the learning rate times the gradient. Whether the path converges smoothly, zigzags or diverges depends on the learning rate times the bowl's steepness: smooth when it is below 1, zigzag between 1 and 2, divergent above 2."
+    ],
+    "assumptions": [
+     "Illustration: a made-up two-variable quadratic loss, not a model trained on real data.",
+     "Readouts show the step number, the current loss and the size of the gradient.",
+     "The update is exact plain gradient descent: x ← x − rate·x and y ← y − rate·k·y, with no momentum and no noise.",
+     "For this loss, every step lowers the loss whenever the rate times k is below 2. Above that, the y-direction grows each step.",
+     "Heights are scaled down vertically so the bowl fits in view at every steepness. The contour lines show the true loss levels."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Steps stop automatically after 60 steps, or when the ball leaves the drawn area, and the readout then says it diverged.",
+     "Divergence is only reachable when the rate times k exceeds 2 (for example, rate 0.3 with k 10). At k = 1 the rate range does not reach it.",
+     "Real losses are rarely perfect quadratics, so this shows the core behaviour, not the effects of local minima or noisy gradients."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-743cca84"
+    },
+    "quote": null,
+    "review_hash": "78ace5c81afcdb9ba06c39692eede590d9d62347bdc62ae0225dc7734433cfee",
+    "sig": "v3.01884d523b6d47cccbcc0d742355087df804bdb901e30092c4c3be139ee4760d",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 373,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.01884d523b6d47cccbcc0d742355087df804bdb901e30092c4c3be139ee4760d",
+    "used": {
+     "version": 1,
+     "key": "aj_aab59198c5e24bf58cbe7300f82ad578"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "208"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "214",
+  "role": "assistant",
+  "content": "\"Gradient descent on a quadratic bowl\" was not finished. The build reached its spending limit. You have not been charged. It was corrected automatically once. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate. Your request and plan are kept.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_aab59198c5e24bf58cbe7300f82ad578:1",
+   "alternativeOf": null,
+   "alternatives": [
+    "214"
+   ],
+   "feedback": null
+  }
+ }
+]

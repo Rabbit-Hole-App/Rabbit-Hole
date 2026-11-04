@@ -1,0 +1,149 @@
+[
+ {
+  "at": 1793765567759,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "dd860e903a11cc8c84306154f7884cfe4535816cfb3f84185f097bd022ddadcb",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "At the start both balls sit at the same point, so the orange ball is hidden inside the blue one. The 'Rate A' label points at a ball the learner cannot see. A small fixed offset when drawing them, or a note that they start together, would help.",
+       "object": "ballA",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The default view leaves roughly the bottom third of the frame empty, and the region where the balls move is small next to the tall bowl rim. Aiming the camera a little lower and closer would make the descent area bigger.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The readouts match the formulas. A at 0.08 after 14 steps: x = 2.5·0.92^14 ≈ 0.778, loss ≈ 0.3027. B at 0.4 converges at step 9 with loss 7.625·0.36^9 ≈ 0.00077. The Status A and B text readouts ('converged') do not appear in the captured readout strip, so it was not checked whether the learner can see them.",
+       "object": "statusB",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "At 0.6, ball A leaves the area in a single step: z goes from 1.5 to −2.1, and the loss of 9.32 is correct. So 'overshoots further each step' cannot be seen at this rate; it only shows between about 0.51 and 0.58. The 'diverged' status text is not visible in the captured readout strip. The low end of each rate and the bounce at exactly 0.5 were not sampled.",
+       "object": "ballA",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The 'Rate B' and 'Minimum' labels are stacked close together above the converged blue ball. They are readable but crowded.",
+       "object": "minTag",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13124,
+   "cache_creation_input_tokens": 2103,
+   "cache_read_input_tokens": 0,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 2103,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3030,
+   "output_tokens_details": {
+    "thinking_tokens": 2134
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_1755c359ab0f42c7814d3e2f613f9829-review-4",
+   "status": "settled",
+   "costMicros": 123611,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

@@ -1,0 +1,17 @@
+{
+ "n": 5,
+ "phrasing": "a ball rolling down a loss surface, step by step",
+ "session": "gate2-5@example.com",
+ "sha": "c3d9aa6e815dca7596c5ff0570dfa2ae878ddc09",
+ "version": "c894e9e7-c528-40d0-aeba-0c250f6402b9",
+ "jobId": "aj_721a4a0d216c4efabb212e9e57848132",
+ "outcome": "cost-stop",
+ "repairs": 1,
+ "credits": 70.9591,
+ "charged": 7,
+ "artifactHash": null,
+ "note": "an author call settled at 42.98, over 120% of its typical 32",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 8:13 PM"
+}

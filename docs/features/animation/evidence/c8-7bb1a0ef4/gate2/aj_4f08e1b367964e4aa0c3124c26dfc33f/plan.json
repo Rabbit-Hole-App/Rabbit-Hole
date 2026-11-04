@@ -1,0 +1,82 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Why too large a learning rate makes gradient descent blow up",
+ "description": "A ball sits on a bowl-shaped loss surface that is steep in one direction and gentle in the other. Each step, the ball moves downhill by the learning rate times the slope, leaving a trail and showing an arrow for the step it is about to take. With a small learning rate the trail creeps into the bottom of the bowl. Past a critical value it overshoots to the far side, lands higher than it started, and each jump gets bigger until it leaves the surface.",
+ "experience": "experiment",
+ "reason": "Divergence makes sense when you move the learning rate across the tipping point yourself and watch the same start either settle or bounce outward. The readouts show the exact number that decides which happens.",
+ "behavior": "rules",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learning_rate",
+   "label": "Learning rate",
+   "min": 0.05,
+   "max": 0.7,
+   "step": 0.01,
+   "default": 0.55
+  },
+  {
+   "type": "number",
+   "id": "steepness",
+   "label": "Steepness of the steep direction",
+   "min": 1,
+   "max": 6,
+   "step": 0.5,
+   "default": 4
+  },
+  {
+   "type": "toggle",
+   "id": "show_step_arrow",
+   "label": "Show next step arrow",
+   "default": true
+  }
+ ],
+ "interactions": [
+  "Play to let the ball take steps one after another, or pause and take one step at a time",
+  "Lower the learning rate below the critical value and watch the trail settle into the bottom instead of bouncing outward",
+  "Raise the steepness and watch the critical learning rate fall, so a rate that worked before now diverges",
+  "Read the loss, the step count, the critical rate and the stretch factor for the steep direction on each step",
+  "Orbit the camera to see the zig-zag from above or from the side"
+ ],
+ "assumptions": [
+  "Illustration: an idealised bowl-shaped loss, not a real trained model.",
+  "Loss is half of (gentle direction squared plus steepness times steep direction squared); the gentle direction has steepness 1.",
+  "Each step moves the ball by minus the learning rate times the slope, with no momentum and no noise.",
+  "Along the steep direction, each step multiplies the distance from the bottom by (1 minus learning rate times steepness). If that factor's size is above 1, the distance grows every step. That happens when the learning rate is above 2 divided by the steepness. This is exact for this bowl.",
+  "Every run starts at the same point, partway up both slopes. The run stops when the ball leaves the drawn surface (marked as diverged), when the loss falls below 0.001 (converged), or after 60 steps.",
+  "Surface heights are scaled down so steep settings still fit on screen; the readouts show the true loss."
+ ],
+ "limitations": [
+  "Real loss surfaces are not perfect bowls, so their critical learning rate is only roughly 2 divided by the steepest curvature (how sharply the slope bends) near the current point, and it changes as training moves.",
+  "With steepness 1, the critical rate is 2, which is above this slider's top value, so that setting never diverges here. Higher steepness brings the tipping point into range (0.5 at the default steepness of 4).",
+  "Right at the critical value the ball bounces back and forth forever without growing or shrinking. Rounding of numbers may make it drift slightly."
+ ],
+ "learningGoal": "A step overshoots the minimum when the learning rate times the curvature is more than 2. Each overshoot then lands farther from the bottom than the last, so the loss grows instead of shrinking.",
+ "requiredCapabilities": [
+  "parameters",
+  "step",
+  "actions",
+  "readouts",
+  "labels"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "learning_rate",
+   "values": [
+    0.1,
+    0.6
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 2
+  }
+ ]
+}

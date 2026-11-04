@@ -1,0 +1,104 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Stochastic gradient descent on a loss surface",
+ "description": "A ball sits on a long, narrow valley-shaped loss surface, with the lowest point marked. On each step, two arrows show the true downhill direction and the noisy downhill estimate from a small random batch. The ball then moves along the noisy estimate and leaves a trail. You can change the learning rate and the batch size, then watch the path go from a wobbly random walk to a smooth slide, or start zig-zagging across the valley.",
+ "experience": "experiment",
+ "reason": "You learn stochastic gradient descent best by changing its two key settings and watching the path change. You can see how batch noise and step size shape the route to the minimum.",
+ "behavior": "rules",
+ "controlProfile": "manipulate",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate (step size)",
+   "min": 0.01,
+   "max": 0.45,
+   "step": 0.01,
+   "default": 0.1
+  },
+  {
+   "type": "select",
+   "id": "batchSize",
+   "label": "Batch size",
+   "options": [
+    {
+     "value": "1",
+     "label": "1 example (noisiest)"
+    },
+    {
+     "value": "4",
+     "label": "4 examples"
+    },
+    {
+     "value": "16",
+     "label": "16 examples"
+    },
+    {
+     "value": "64",
+     "label": "64 examples"
+    },
+    {
+     "value": "full",
+     "label": "Full batch (no noise)"
+    }
+   ],
+   "default": "4"
+  },
+  {
+   "type": "toggle",
+   "id": "showTrueGradient",
+   "label": "Show true downhill arrow",
+   "default": true
+  }
+ ],
+ "interactions": [
+  "Play, pause or advance one step at a time. The run stops by itself after 200 steps.",
+  "Drag the starting marker to a new place on the surface before you run.",
+  "Change the learning rate. Small values make short, slow steps. Values near the top make the ball zig-zag across the narrow side of the valley.",
+  "Change the batch size. Smaller batches make the noisy arrow swing more around the true one. Full batch makes the two arrows match, and the path becomes smooth.",
+  "Use 'Return ball to start, keep trail' to run again with new settings and compare the new path against the old trail."
+ ],
+ "assumptions": [
+  "Illustration: a made-up loss surface with simulated batch noise, not a model trained on real data.",
+  "The loss is a simple stretched bowl: it curves 4 times more steeply across the valley than along it, and it has a single minimum.",
+  "Each noisy gradient is the true gradient plus random noise. The noise size shrinks with the square root of the batch size and is zero for the full batch.",
+  "Noise comes from the scene's fixed seed, so Reset gives the same sequence of random draws.",
+  "Readouts: step count, current loss, size of the true gradient and size of the noisy estimate. All of them describe the ball's current position.",
+  "The trail draws one marker every 4 steps, at most 50 markers; every step still runs."
+ ],
+ "limitations": [
+  "Changed: the trail draws 50 markers, one every 4 steps, instead of 200; every step still runs.",
+  "Changed: the kept comparison path also draws at most 50 markers.",
+  "With noise, a single step can go uphill. The loss falls on average, not on every step.",
+  "Near the minimum, noisy runs keep jittering around it instead of settling, because this plan uses a fixed learning rate with no decay.",
+  "Real loss surfaces have many dimensions, flat regions and multiple valleys. This one has only two dimensions and a single bowl."
+ ],
+ "learningGoal": "Understand that stochastic gradient descent follows a noisy estimate of the downhill direction, that larger batches reduce this noise, and that the learning rate trades speed against overshooting.",
+ "requiredCapabilities": [
+  "parameters",
+  "actions",
+  "step",
+  "drag",
+  "labels",
+  "readouts"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.01,
+    0.45
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 200
+  }
+ ]
+}

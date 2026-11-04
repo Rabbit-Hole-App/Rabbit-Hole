@@ -1,0 +1,71 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Why too large a learning rate makes gradient descent blow up",
+ "description": "A ball walks downhill on a long, narrow bowl-shaped loss surface, one gradient descent step at a time, leaving a trail. An arrow at the ball shows the next step: the downhill direction scaled by the learning rate. At small rates the ball creeps to the bottom. Near the critical rate it zigzags across the steep walls of the bowl. Past the critical rate each jump lands higher up the opposite wall than the last, until the ball flies off the surface. Readouts show the loss, the step count and how much each step multiplies the distance from the bottom along each direction.",
+ "experience": "experiment",
+ "reason": "Moving the learning rate across the critical value and watching the same start turn from a smooth descent into a zigzag and then a blow-up shows that divergence comes from overshooting. The rate is too big for how steeply the bowl curves.",
+ "behavior": "rules",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate",
+   "min": 0.05,
+   "max": 0.7,
+   "step": 0.01,
+   "default": 0.45
+  },
+  {
+   "type": "toggle",
+   "id": "showStepArrow",
+   "label": "Show next-step arrow",
+   "default": true
+  }
+ ],
+ "interactions": [
+  "Play or step the descent to move the ball one gradient step at a time and grow its trail",
+  "Change the learning rate: the walk restarts from the same starting point so runs compare fairly",
+  "Watch the per-direction multipliers: below 1 the ball closes in on the bottom, above 1 every step pushes it farther out",
+  "Turn the step arrow on or off",
+  "Orbit the camera to see the zigzag from above or from the side"
+ ],
+ "assumptions": [
+  "This is an illustrative bowl-shaped surface, not the loss of a real trained model.",
+  "The loss is 0.5 × (1 × x² + 4 × y²). It curves 4 times more steeply across the bowl than along it, so the bottom is at the centre.",
+  "Each step moves the ball by the learning rate times the downhill direction (the negative gradient). There is no momentum and no noise.",
+  "Along each direction, a step multiplies the distance from the bottom by |1 − learning rate × steepness|. Across the bowl (steepness 4) this goes above 1 once the rate passes 0.5; along it (steepness 1) it stays below 1 for every rate up to 2. These numbers are exact for this surface.",
+  "The walk always starts at the same point on the upper side of the bowl.",
+  "The run stops after 60 steps, or as soon as the ball leaves the drawn surface, which is marked as diverged."
+ ],
+ "limitations": [
+  "Real loss surfaces are not perfect bowls. The single critical rate (2 divided by the steepest curve) is exact here, but on a real loss surface it only holds approximately, close to a minimum.",
+  "Above 0.5 the ball leaves the surface after a few steps. The scene shows only the first few growing jumps, not the huge values that follow."
+ ],
+ "learningGoal": "Gradient descent diverges when the learning rate times the steepest curvature is more than 2: each step overshoots the bottom by more than it started, so the error grows instead of shrinking.",
+ "requiredCapabilities": [
+  "parameters",
+  "step",
+  "readouts",
+  "labels"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.1,
+    0.6
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 2
+  }
+ ]
+}

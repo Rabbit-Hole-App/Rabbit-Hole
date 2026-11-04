@@ -1,0 +1,363 @@
+[
+ {
+  "at": 1793767663455,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "fa9de2727769154e547caffb6b56f1f77f9c8c90ab0ae5ff889c4cd92819f36e",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "statusA/statusB",
+       "message": "The plan promises a status readout for each ball, and a ball that leaves the square is supposed to be marked \"diverged\". The program computes statusA and statusB, but the readout bar shows only the losses and step counts, so no capture shows a status. Show the status somewhere the learner can see it, for example in each ball's tag text (e.g. 'lr 1.50 · diverged'), or as a readout the host displays.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ballA",
+       "message": "At the default start both balls sit at exactly the same point and size, so the orange ball completely covers the blue one. In the first view the learner sees one orange ball with two labels, and the blue (lr 0.10) ball is hidden. Make the start visibly shared without hiding blue: for example a small marker at the start, a slightly smaller or ringed second ball, or a tiny draw offset.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The default rate pair (0.1 vs 1.5) was only seen at step 0. The run at 0.1 was not sampled; 0.14 was sampled instead. The program's update x(1−r), y(1−2r) is correct, so blue at 0.1 should converge before the 60-step limit.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "statusB",
+       "message": "Orange has diverged (trace statusB='diverged', loss 16.1953 checks out: the ball reached (0.625, 4) after 2 steps). No readout or label shows this, and the ball is drawn clamped at the edge, so the learner cannot tell it diverged rather than stopped. The status readouts are missing from view.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "tagA",
+       "message": "The 'lr 0.14' tag, the blue ball, the minimum dot and the 'Minimum' label crowd together near the centre.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "statusA/statusB",
+       "message": "Both balls diverged (losses 84.125 and 16.1953 are correct for rates 2 and 1.5), but no status is visible. Both balls just look parked at the edge.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "tagB",
+       "message": "In the default view the 'lr 1.50' tag sits at the start point beside the blue trail, about 150 px from the orange ball, which is unlabelled at the left. It reads as labelling the wrong object. Keep each tag next to its ball (change its placement or offset).",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "statusA/statusB",
+       "message": "Same as v0-s0: the status readouts the plan promises are not shown.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "statusB",
+       "message": "The orange ball is clamped at the edge, but nothing shown says 'diverged'. The status readout is missing.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "object": "trailB",
+       "message": "Each long trail segment appears as a thick line with a separate thin line beside it, a drawing artefact of the host's trail.",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "statusA/statusB",
+       "message": "Both balls diverged, but no status is visible. The status readouts are missing.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "object": "trailA",
+       "message": "The trail segments are drawn doubled (thick plus thin line).",
+       "repairable": false
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13384,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4095,
+   "output_tokens_details": {
+    "thinking_tokens": 2576
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_89e50e9563e04f36bfd3aecc1ae55bb1-review-4",
+   "status": "settled",
+   "costMicros": 135857,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793767827077,
+  "attempt": 1,
+  "repairs": 2,
+  "artifactHash": "e552ac436a91ce6ce9f6e63960b77f5cbfef60bf6f07e686ab70b1c1d0003d28",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The 'Minimum' tag hangs well below its dot on a long leader line. It ends up right beside the 'lr 0.10 paused' tag, so the two labels crowd each other near the start point. Place it beside the dot or make the offset shorter.",
+       "object": "minTag",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan says readouts show each ball's status, but the readout bar shows only loss and steps. Status appears only in the ball tags. It is still readable, but it does not match the plan as written.",
+       "object": "statusA",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Near convergence, the 'lr 0.14 running' tag and the 'Minimum' tag both crowd around the minimum dot and the end of the blue trail. Offset the minimum label so the area where blue arrives stays clear.",
+       "object": "tagA",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "In the default view the rate tags have been pushed far from their balls. 'lr 2.00 diverged' (blue) sits at the far left with a long leader line that runs just under the orange ball. 'lr 1.50 diverged' (orange) sits at the right beside the start dot, nowhere near the orange ball. A learner can easily read the rates on the wrong balls. Keep each tag next to its own ball, for example by colouring the tag text or border to match its ball, using a short fixed offset, or putting the tag above the ball.",
+       "object": "tagB",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "From this angle the 'lr 1.50 diverged' tag sits next to the blue ball, far from the orange ball at the left edge. This is the same tag-attribution problem seen in v0-s2.",
+       "object": "tagB",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "These samples do not test rates between 1 and 2 other than 1.5, the low end of 0.01 (step limit), or a moved start point. The plan's claim that such a ball settles along x but blows up along y is supported by the code but was not sampled.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13636,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3436,
+   "output_tokens_details": {
+    "thinking_tokens": 2437
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_89e50e9563e04f36bfd3aecc1ae55bb1-review-7",
+   "status": "settled",
+   "costMicros": 123685,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

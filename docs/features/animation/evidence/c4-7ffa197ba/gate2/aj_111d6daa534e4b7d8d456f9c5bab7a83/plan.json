@@ -1,0 +1,92 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Gradient descent overshooting the bottom of a narrow bowl",
+ "description": "A ball sits on an oval bowl-shaped surface that is steep in one direction and gentle in the other, with the lowest point marked. Each step, the ball jumps downhill by the learning rate times the slope, leaving a path behind it. At the default setting the ball overshoots across the steep direction and zigzags from side to side as it closes in. Raise the learning rate and the zigzag gets wider until the ball flies off the bowl. Lower it and the ball creeps smoothly to the bottom.",
+ "experience": "experiment",
+ "reason": "Overshooting depends on how big each step is, so trying different learning rates and watching the path change from a smooth glide to a zigzag to flying off the bowl is the quickest way to see why.",
+ "behavior": "rules",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate (step size)",
+   "min": 0.05,
+   "max": 0.6,
+   "step": 0.01,
+   "default": 0.4
+  },
+  {
+   "type": "select",
+   "id": "startPoint",
+   "label": "Starting point",
+   "options": [
+    {
+     "value": "farSide",
+     "label": "Far end, a little off-centre"
+    },
+    {
+     "value": "steepSide",
+     "label": "High on the steep wall"
+    },
+    {
+     "value": "corner",
+     "label": "Near a corner"
+    }
+   ],
+   "default": "farSide"
+  },
+  {
+   "type": "toggle",
+   "id": "showSlopeArrow",
+   "label": "Show downhill arrow",
+   "default": true
+  }
+ ],
+ "interactions": [
+  "Change the learning rate: smooth curve below 0.25, zigzag across the steep direction that still settles from 0.25 to 0.5, swings that grow until the ball leaves the bowl above 0.5",
+  "Pick a starting point to see the same overshooting from a different place",
+  "Turn the downhill arrow on or off. It points opposite to the slope, along the direction of the next step, and its length shows how steep the surface is under the ball",
+  "Press 'Start again, keep old path' to rerun from the start point with the previous path faded, for comparing two learning rates",
+  "Pause, play or step the descent one jump at a time, and read the step number, height (loss), position and the 'steep-direction multiplier'"
+ ],
+ "assumptions": [
+  "Illustration: a made-up bowl-shaped surface, not a loss from a real trained model.",
+  "The surface height is 0.5·(x² + 4y²), so it is 4 times as curved across (y) as along (x), with the minimum at the centre.",
+  "Each step is plain gradient descent: new position = old position − learning rate × slope. There is no momentum and no noise.",
+  "Each step multiplies y by (1 − 4 × learning rate) and x by (1 − learning rate). A negative multiplier means landing on the other side of the bottom (overshoot); a size above 1 means each swing grows (divergence). Exact for this bowl.",
+  "A run stops after 40 steps, when the height drops below 0.001, or when the ball leaves the edge of the drawn surface (shown as 'left the surface').",
+  "The surface height is scaled down vertically so the whole bowl fits on screen."
+ ],
+ "limitations": [
+  "Real loss surfaces have many dimensions and uneven curvature, so the exact overshoot thresholds of 0.25 and 0.5 only hold for this bowl. What carries over is the idea: too large a step overshoots in the steepest direction first.",
+  "Within this range the gentle direction never overshoots. That would need a learning rate above 1."
+ ],
+ "learningGoal": "Understand that a learning rate that is too large makes gradient descent jump past the minimum, that this happens first along the steepest direction, and that past a certain step size the jumps grow instead of shrinking.",
+ "requiredCapabilities": [
+  "parameters",
+  "actions",
+  "step",
+  "readouts",
+  "labels"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.1,
+    0.55
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 5
+  }
+ ]
+}

@@ -183,17 +183,17 @@ test('the author and repair are told the names the card keeps for itself and the
 test('the author runs at medium effort with 24,000 output tokens, and the build worst case and credits follow the pricing registry', async () => {
   const { LEARN_TASKS, MODEL_PRICES } = await import('../src/learn-models.js');
   assert.deepEqual([LEARN_TASKS.animation_author.effort, LEARN_TASKS.animation_author.maxTokens], ['medium', 24000]);
-  assert.deepEqual([LEARN_TASKS.animation_repair.effort, LEARN_TASKS.animation_repair.maxTokens, LEARN_TASKS.animation_review.maxTokens], ['medium', 24000, 6000]); // owner decision 16 (3 Nov 2026): repair 24,000 at medium, up from 12,000 at low
+  assert.deepEqual([LEARN_TASKS.animation_repair.effort, LEARN_TASKS.animation_repair.maxTokens, LEARN_TASKS.animation_review.maxTokens], ['medium', 24000, 8000]); // owner decision 16 (3 Nov 2026): repair 24,000 at medium, up from 12,000 at low; decision 28 (C9, FX-AN-102): the review 8,000, up from 6,000
   const [, output] = MODEL_PRICES['claude-opus-5-5'];
   assert.equal(roleBoundMicros('author') - Math.ceil(60000 * MODEL_PRICES['claude-opus-5-5'][0] * 1.25 + 16000 * output), 8000 * output, '8,000 more output tokens at the registry price');
   assert.equal(8000 * output, 160000, 'US$0.16');
   // Decision 16: the repair's bound is (50,000 + 2 x 4,784) x $4 x 1.25 + 24,000 x $20 = 297,840 + 480,000, up from 537,840; two repairs add 480,000 micros (48 credits).
   assert.equal(roleBoundMicros('repair'), 777840);
-  assert.equal(animationReservation().generationMicros, 780000 + 3 * 463520 + 2 * 777840);
-  assert.equal(animationReservation().generationMicros, 3246240 + 480000);
-  assert.equal(Math.ceil(animationReservation().generationMicros / 10000), 373, 'displayed maximum: 325 + 48 credits');
+  assert.equal(animationReservation().generationMicros, 780000 + 3 * 503520 + 2 * 777840);
+  assert.equal(animationReservation().generationMicros, 3246240 + 480000 + 120000); // 3,846,240: decision 16 (+480,000) and decision 28 (+3 x 40,000)
+  assert.equal(Math.ceil(animationReservation().generationMicros / 10000), 385, 'displayed maximum: 325 + 48 (decision 16) + 12 (decision 28) credits');
   const { proposalUsage } = await import('../src/generation-proposal.js');
-  assert.equal(proposalUsage({}, 'animation').max_credits, 373, 'the figure the proposal shows and Generate checks');
+  assert.equal(proposalUsage({}, 'animation').max_credits, 385, 'the figure the proposal shows and Generate checks');
 });
 
 test("the author and repair follow the plan's formula and convention, and the review reports every serious problem at once (aj_ba11d5a, aj_ad936ec)", async () => {
@@ -277,4 +277,23 @@ test('AN-20 measurement on the golden: the largest draft the review and the repa
   t.diagnostic(`golden draft ${bytes(draft0)} B; plan ${bytes(golden.plan)} B -> review ${got.shortReview}, repair ${got.shortRepair}; plan ${bytes(longPlan)} B -> review ${got.longReview}, repair ${got.longRepair}; ANIMATION_DRAFT_BYTES ${ANIMATION_DRAFT_BYTES}`);
   assert.ok(got.shortReview > got.longReview && got.shortRepair > got.longRepair, 'a longer plan leaves less room');
   assert.ok(ANIMATION_DRAFT_BYTES <= Math.min(got.longReview, got.longRepair), 'the shared estimate stays at or under what the real requests fit for the long plan');
+});
+
+// C9 (owner; decision-16-shaped; FX-AN-102): C8 Gate 2 job 4 (aj_4f08e1b367964e4aa0c3124c26dfc33f) ran its review out of output: 3,818 thinking tokens, a prose answer and a cut-off tool
+// call made 6,000. The review role gets 8,000. Its bound, the generation worst case and the displayed maximum follow; no other role and no input limit moves.
+test('the review runs with 8,000 output tokens: its bound, the worst case and the displayed credits follow, and nothing else moved', async () => {
+  const { LEARN_TASKS, MODEL_PRICES } = await import('../src/learn-models.js');
+  const { ANIMATION_ROLES } = await import('../src/animation-policy.js');
+  const [, output] = MODEL_PRICES['claude-opus-5-5'];
+  assert.equal(LEARN_TASKS.animation_review.maxTokens, 8000);
+  assert.equal(roleBoundMicros('review'), 503520, 'was 463,520');
+  assert.equal(roleBoundMicros('review') - 463520, 2000 * output, '2,000 more output tokens at the registry price, US$0.04 per call');
+  const r = animationReservation();
+  assert.equal(r.generationMicros, 780000 + 3 * 503520 + 2 * 777840, '3,846,240, was 3,726,240 (US$0.12 more)');
+  assert.equal(r.preparationMicros, 560000, 'planning is unchanged');
+  assert.equal(Math.ceil(r.generationMicros / 10000), 385, 'shown on Generate: 385 credits, was 373');
+  assert.deepEqual([roleBoundMicros('brief'), roleBoundMicros('author'), roleBoundMicros('repair')], [280000, 780000, 777840], 'brief, author and repair bounds are as they were (the repair at decision 16: medium, 24,000)');
+  assert.deepEqual(ANIMATION_ROLES, { brief: { task: 'animation_brief', maxInputTokens: 40000, maxImages: 0 }, author: { task: 'animation_author', maxInputTokens: 60000, maxImages: 0 },
+    review: { task: 'animation_review', maxInputTokens: 40000, maxImages: 6 }, repair: { task: 'animation_repair', maxInputTokens: 50000, maxImages: 2 } }, 'no input limit moved');
+  assert.deepEqual([LEARN_TASKS.animation_brief.maxTokens, LEARN_TASKS.animation_author.maxTokens, LEARN_TASKS.animation_repair.maxTokens], [4000, 24000, 24000]);
 });

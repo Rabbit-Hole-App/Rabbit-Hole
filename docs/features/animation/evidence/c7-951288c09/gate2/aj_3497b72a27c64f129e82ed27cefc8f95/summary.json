@@ -1,0 +1,17 @@
+{
+ "n": 6,
+ "phrasing": "minimize a quadratic loss with gradient steps",
+ "session": "gate2-1@example.com",
+ "sha": "951288c09c321d8dbaaa22d539a2b7d4e51cb0b6",
+ "version": "c7b3d363-0305-40c6-a42b-9f009548e4f5",
+ "jobId": "aj_3497b72a27c64f129e82ed27cefc8f95",
+ "outcome": "rejected",
+ "repairs": 0,
+ "credits": 68.1365,
+ "charged": 5,
+ "artifactHash": null,
+ "note": "unsupported_repair: The visual review found 8 serious problems with how the scene is drawn or computed and the shared 3D drawing. You have not been charged. It needs a change the a",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 8:48 PM"
+}

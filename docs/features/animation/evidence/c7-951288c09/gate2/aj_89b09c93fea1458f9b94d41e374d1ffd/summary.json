@@ -1,0 +1,18 @@
+{
+ "n": 4,
+ "phrasing": "show me why a high learning rate diverges",
+ "session": "gate2-4@example.com",
+ "sha": "951288c09c321d8dbaaa22d539a2b7d4e51cb0b6",
+ "version": "c7b3d363-0305-40c6-a42b-9f009548e4f5",
+ "jobId": "aj_89b09c93fea1458f9b94d41e374d1ffd",
+ "outcome": "accepted",
+ "repairs": 1,
+ "credits": 81.1706,
+ "charged": 82,
+ "artifactHash": "2d070e946e5423370a88ead22f9992bc44867cc0712da10180b6ae1a6efd8d0c",
+ "note": "",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 8:44 PM",
+ "fileSha256": "9de27cc27eac9f40128e542e9898ca379a718f0b340fa2f23a91936008e98900"
+}

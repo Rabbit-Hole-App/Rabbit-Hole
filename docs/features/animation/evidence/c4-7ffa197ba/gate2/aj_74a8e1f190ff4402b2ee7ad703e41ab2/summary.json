@@ -1,0 +1,17 @@
+{
+ "n": 4,
+ "phrasing": "show me why a high learning rate diverges",
+ "session": "gate2-4@example.com",
+ "sha": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+ "version": "ac467072-cacc-4b9d-bb37-61cbc5c79ea1",
+ "jobId": "aj_74a8e1f190ff4402b2ee7ad703e41ab2",
+ "outcome": "rejected",
+ "repairs": 1,
+ "credits": 108.4767,
+ "charged": 11,
+ "artifactHash": null,
+ "note": "rounds: The visual review found 3 serious problems with how the scene is drawn or computed. You have not been charged. It was corrected automatically once, but it still",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 7:44 PM"
+}

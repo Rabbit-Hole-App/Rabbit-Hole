@@ -1,0 +1,17 @@
+{
+ "n": 4,
+ "phrasing": "show me why a high learning rate diverges",
+ "session": "gate2-4@example.com",
+ "sha": "7bb1a0ef4211ea45ecd3a53ccd6770d76080e8d3",
+ "version": "7c545e95-ecef-4418-a070-0709ef1ddec7",
+ "jobId": "aj_428dfb5ab2e8443c9a4dbe1273f5d2ca",
+ "outcome": "stopped",
+ "repairs": 0,
+ "credits": 38.5265,
+ "charged": 12,
+ "artifactHash": null,
+ "note": "file: stop file C:\\s\\spec\\animation\\sgd-mvp1-acceptance\\release-3-c8\\STOP",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 9:08 PM"
+}

@@ -1,0 +1,312 @@
+[
+ {
+  "at": 1793763660289,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "8c939a6ecd6a8b26038cb56da6c5be3296b558924d4ae9d80ebc8a173d9f3f2b",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ball",
+       "message": "In the default view at the initial state, the red ball (the main subject) is almost entirely hidden behind the near rim of the bowl. The camera at [3.6,4.4,5.4] looks across the steep front wall: the line of sight to the ball at (1.6, 1.0, 1.2) crosses the surface near z=2, where the surface is at height ≈2.0 and the line of sight only at ≈1.65. Only a red sliver shows. Raise the camera or move it to look down into the bowl from the shallow x side, or choose a start the camera can see.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepArrow",
+       "message": "The 'Next step' arrow points almost straight at the camera, so it shows as a small orange blob. Its direction and length, which the plan says show the next step, cannot be read in the default view. The view needs to look down on the floor plane so the arrow's direction is visible.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "bowl",
+       "message": "The bowl fills only about half the frame width, with wide empty margins. Framing it tighter would help.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepTag",
+       "message": "Near convergence the true next step is about 0.014 units long, so the arrow cannot be seen, yet the 'Next step' label stays on screen, much bigger than what it names. Hide the label (or arrow and label) when the arrow is too short to see, or give it a minimum visibility rule.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "lowTag",
+       "message": "The 'Lowest point' label touches and partly crowds the ball once the ball reaches the minimum.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "trail",
+       "message": "The start of the trail and the first jump go behind the near rim in the default view. The first overshoot, which shows the zigzag, is partly hidden. This has the same cause as the initial-state occlusion: the camera looks across the steep front wall.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "status",
+       "message": "The plan says a readout then says the run diverged, but the rendered readout line shows only loss, steps and slope. The 'diverged' status is not visible, so the learner cannot tell that the run has stopped. Show the status in a visible readout or a scene label.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepTag",
+       "message": "Here too the 'Next step' label stays visible while the arrow it names is too short to see (about 0.014 units), and the label sits right over the ball and the minimum.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "status",
+       "message": "The 'diverged' status text readout does not appear in the rendered readout line, so the stop condition is not shown even though the ball has left the surface.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 12592,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4367,
+   "output_tokens_details": {
+    "thinking_tokens": 3098
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_a5198bdc01ef446cabcf37333fbdbfc2-review-4",
+   "status": "settled",
+   "costMicros": 138129,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793763822456,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "d93386dbcf8a85142ee9500c47b51d2b723bfd05c6c934303e5af91c03244441",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Dragging only moves the start along x with z fixed at 1.2, narrower than the plan's 'drag the ball to pick a new starting point' (disclosed in assumptions). Allowing a 2D drag would match the plan.",
+       "object": "ball",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: the zigzag range (learning rate about 0.34–0.67), the low end 0.05, dragging and showArrow off. The program logic for them looks correct but was not seen rendered.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The Status text readout does not appear in the readout strip (only loss, steps and slope are shown). The Diverged tag on the ball conveys it, but the plan promised a readout.",
+       "object": "status",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 12772,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3679,
+   "output_tokens_details": {
+    "thinking_tokens": 2199
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_a5198bdc01ef446cabcf37333fbdbfc2-review-7",
+   "status": "settled",
+   "costMicros": 125089,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

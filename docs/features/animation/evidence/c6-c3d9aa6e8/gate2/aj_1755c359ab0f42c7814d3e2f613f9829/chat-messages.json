@@ -1,0 +1,121 @@
+[
+ {
+  "messageId": "219",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-f3fa343f5439e9ec",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient descent on a bowl: two learning rates side by side",
+    "description": "A stretched bowl-shaped loss surface has its lowest point at the centre. Two balls, an orange one using learning rate A and a blue one using learning rate B, start from the same point. Step by step they move downhill, and each leaves a trail. You set the two learning rates and watch one creep slowly, one zigzag across the narrow direction, or one overshoot further each step and fly off the bowl.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-a0af7125",
+     "job": "aj_1755c359ab0f42c7814d3e2f613f9829",
+     "plan_hash": "c67cdcd796c6bf6018c17ef80d48f01f390b2b3552ad7368332eb77f8d33cd98",
+     "request": "gradient descent with two learning rates",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate A (orange ball)",
+        "min": 0.01,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.05
+       },
+       {
+        "type": "number",
+        "label": "Learning rate B (blue ball)",
+        "min": 0.01,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.4
+       }
+      ],
+      "interactions": [
+       "Change learning rate A or B. Each ball's next steps use its new rate.",
+       "Step once, or let the steps run, to watch both balls move downhill and leave trails.",
+       "Restart both descents from the starting point. This keeps your chosen learning rates and clears the trails and step count.",
+       "Orbit the camera to see the bowl from the side or from above, where the contour lines show the zigzag clearly."
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793851815,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "gradient descent with two learning rates",
+    "prompt": "A stretched bowl-shaped loss surface has its lowest point at the centre. Two balls, an orange one using learning rate A and a blue one using learning rate B, start from the same point. Step by step they move downhill, and each leaves a trail. You set the two learning rates and watch one creep slowly, one zigzag across the narrow direction, or one overshoot further each step and fly off the bowl.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Running both learning rates on the same surface from the same start lets you compare them directly. You can see how step size alone decides between slow progress, zigzagging and blowing up.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Change learning rate A or B. Each ball's next steps use its new rate.",
+     "Interaction: Step once, or let the steps run, to watch both balls move downhill and leave trails.",
+     "Interaction: Restart both descents from the starting point. This keeps your chosen learning rates and clears the trails and step count.",
+     "Interaction: Orbit the camera to see the bowl from the side or from above, where the contour lines show the zigzag clearly.",
+     "Parameter: Learning rate A (orange ball), 0.01 to 0.6, default 0.05",
+     "Parameter: Learning rate B (blue ball), 0.01 to 0.6, default 0.4",
+     "Goal: The learning rate sets the step size. Too small means slow progress, a moderate rate zigzags but converges, and a rate past the stability limit makes the loss grow step after step."
+    ],
+    "assumptions": [
+     "This is an illustration: a simple made-up bowl, not the loss of a real trained model.",
+     "The loss is half of (x squared plus 4 times y squared). The bowl is 4 times steeper across the y direction than along x, and its minimum is at the centre with loss 0.",
+     "Each step is exact plain gradient descent: the new position is the old position minus the learning rate times the slope (the gradient) at the old position. There is no momentum and no noise.",
+     "An arrow at each ball shows the downhill direction (the negative gradient). The ball's step goes along that arrow, scaled by its learning rate.",
+     "Both balls start at x = 2.5, y = 1.5. A run stops after 60 steps, or for a ball that leaves the drawn area, which is then marked as diverged.",
+     "Heights are squashed vertically so the whole bowl fits on screen. The motion of the balls is not affected."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "On this bowl the limits are exact: up to 0.25 a ball nears the centre without zigzagging; above 0.25 up to just under 0.5 it zigzags but converges; at exactly 0.5 it bounces across forever; above 0.5 it diverges. Real loss surfaces have no single clean limit.",
+     "Rates very close to 0.5 converge so slowly that they may look like endless bouncing within the 60 steps.",
+     "Readouts show each ball's current loss and its distance to the minimum, not a full plot of loss over time."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-a0af7125"
+    },
+    "quote": null,
+    "review_hash": "e34d81f23a0edbf5822a3d58aae79f4d5fb321deb9c535d57f262cb003084fed",
+    "sig": "v3.be080daf30850f2d2d57367d1ec04775c10532d7328a7bfda717e6bf596f5a94",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 373,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.be080daf30850f2d2d57367d1ec04775c10532d7328a7bfda717e6bf596f5a94",
+    "used": {
+     "version": 1,
+     "key": "aj_1755c359ab0f42c7814d3e2f613f9829"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "219"
+   ],
+   "feedback": null
+  }
+ }
+]

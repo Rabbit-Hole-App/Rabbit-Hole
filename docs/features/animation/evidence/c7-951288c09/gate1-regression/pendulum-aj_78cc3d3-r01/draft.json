@@ -1,0 +1,258 @@
+{
+  "title": "Pendulum length and period",
+  "description": "A red bob hangs on a dark string from a pivot under a grey beam and swings gently left and right. The Pendulum length slider sets the string length from 0.5 to 3 metres. The string grows or shrinks, and the swing slows down or speeds up to match. A faint vertical line marks the rest position. Readouts show the period in seconds, worked out from the length, and the current length.",
+  "experience": "experiment",
+  "behavior": "analytical",
+  "controlProfile": "inspect",
+  "timeline": {
+    "duration": 60,
+    "loop": true
+  },
+  "scene": {
+    "materials": [
+      {
+        "id": "support",
+        "color": "#8a8f98"
+      },
+      {
+        "id": "floor",
+        "color": "#c9c6bf"
+      },
+      {
+        "id": "string",
+        "color": "#2b2b33"
+      },
+      {
+        "id": "bob",
+        "color": "#d6452f"
+      },
+      {
+        "id": "guide",
+        "color": "#5a6b8c",
+        "opacity": 0.4
+      }
+    ],
+    "geometries": [
+      {
+        "id": "floorG",
+        "kind": "box",
+        "size": [
+          1.8,
+          0.04,
+          0.9
+        ]
+      },
+      {
+        "id": "postG",
+        "kind": "cylinder",
+        "radius": 0.035,
+        "height": 3.5,
+        "radialSegments": 24
+      },
+      {
+        "id": "beamG",
+        "kind": "box",
+        "size": [
+          0.9,
+          0.07,
+          0.1
+        ]
+      },
+      {
+        "id": "pinG",
+        "kind": "cylinder",
+        "radius": 0.02,
+        "height": 0.12,
+        "radialSegments": 16
+      },
+      {
+        "id": "stringG",
+        "kind": "cylinder",
+        "radius": 0.015,
+        "height": 1,
+        "radialSegments": 12
+      },
+      {
+        "id": "bobG",
+        "kind": "sphere",
+        "radius": 0.1,
+        "widthSegments": 32,
+        "heightSegments": 24
+      },
+      {
+        "id": "guideG",
+        "kind": "line",
+        "points": [
+          [
+            0,
+            3.45,
+            0
+          ],
+          [
+            0,
+            0.15,
+            0
+          ]
+        ]
+      },
+      {
+        "id": "bobL",
+        "kind": "label",
+        "text": "Bob",
+        "placement": "right"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "floor",
+        "geometry": "floorG",
+        "material": "floor",
+        "parent": null,
+        "position": [
+          -0.2,
+          0.02,
+          0
+        ]
+      },
+      {
+        "id": "post",
+        "geometry": "postG",
+        "material": "support",
+        "parent": null,
+        "position": [
+          -0.75,
+          1.79,
+          0
+        ]
+      },
+      {
+        "id": "beam",
+        "geometry": "beamG",
+        "material": "support",
+        "parent": null,
+        "position": [
+          -0.33,
+          3.52,
+          0
+        ]
+      },
+      {
+        "id": "pin",
+        "geometry": "pinG",
+        "material": "support",
+        "parent": null,
+        "position": [
+          0,
+          3.45,
+          0
+        ],
+        "quaternion": [
+          0.7071068,
+          0,
+          0,
+          0.7071068
+        ]
+      },
+      {
+        "id": "guide",
+        "geometry": "guideG",
+        "material": "guide",
+        "parent": null
+      },
+      {
+        "id": "arm",
+        "name": "Pendulum",
+        "parent": null,
+        "position": [
+          0,
+          3.45,
+          0
+        ]
+      },
+      {
+        "id": "string",
+        "name": "String",
+        "geometry": "stringG",
+        "material": "string",
+        "parent": "arm",
+        "position": [
+          0,
+          -0.5,
+          0
+        ]
+      },
+      {
+        "id": "bob",
+        "name": "Bob",
+        "geometry": "bobG",
+        "material": "bob",
+        "parent": "arm",
+        "position": [
+          0,
+          -1.1,
+          0
+        ]
+      },
+      {
+        "id": "bobLabel",
+        "geometry": "bobL",
+        "parent": "bob",
+        "position": [
+          0.12,
+          0,
+          0
+        ]
+      }
+    ]
+  },
+  "parameters": [
+    {
+      "type": "number",
+      "id": "length",
+      "label": "Pendulum length",
+      "unit": "m",
+      "min": 0.5,
+      "max": 3,
+      "step": 0.1,
+      "default": 1
+    }
+  ],
+  "actions": [],
+  "readouts": [
+    {
+      "id": "period",
+      "label": "Period",
+      "unit": "s",
+      "decimals": 2
+    },
+    {
+      "id": "lengthOut",
+      "label": "Length",
+      "unit": "m",
+      "decimals": 1
+    }
+  ],
+  "seed": 0,
+  "camera": {
+    "position": [
+      1.6,
+      2.5,
+      5.6
+    ],
+    "target": [
+      0,
+      1.8,
+      0
+    ],
+    "fov": 45
+  },
+  "assumptions": [
+    "Idealized simple pendulum: period T = 2π√(L/g) with g = 9.81 m/s², exact for small swings and only approximately true of a real pendulum.",
+    "The string is light and doesn't stretch, and the bob is treated as a single point at the end of the string. Length L is measured from the pivot to the bob's centre.",
+    "There is no air resistance or friction, so the swing never dies down. The swing starts at a fixed small angle of 10°.",
+    "Changing the length restarts the swing from the current time at the new rate, so the bob may jump. The 60 s timeline also loops with a small jump."
+  ],
+  "program": {
+    "source": "const g=9.81,A=10*Math.PI/180;\nexport function evaluate({inputs,time}){const L=inputs.length,T=2*Math.PI*Math.sqrt(L/g),th=A*Math.cos(2*Math.PI*time/T);return{nodes:{arm:{quaternion:[0,0,Math.sin(th/2),Math.cos(th/2)]},string:{position:[0,-L/2,0],scale:[1,L,1]},bob:{position:[0,-L,0]}},readouts:{period:T,lengthOut:L}};}"
+  }
+}

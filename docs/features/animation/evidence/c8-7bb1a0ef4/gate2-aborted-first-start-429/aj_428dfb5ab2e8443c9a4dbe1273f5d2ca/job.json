@@ -1,0 +1,137 @@
+{
+ "id": "aj_428dfb5ab2e8443c9a4dbe1273f5d2ca",
+ "version": 1,
+ "boardId": "0e1da6e8-8484-4af7-82f8-549476d23e8f",
+ "cardId": "b80915f2-7fa3-415c-92e2-d8b521b6428a",
+ "stage": "cancelled",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 0,
+ "stopReason": "stopped",
+ "failure": null,
+ "recovery": [],
+ "outcome": "supported",
+ "choiceOpen": false,
+ "threadId": "canvaschat-03b49ea3-af60-4e9c-9d71-04b279f8d2ce",
+ "chatPending": false,
+ "usage": {
+  "credits": 12,
+  "unknown": false,
+  "note": "You have not been charged."
+ },
+ "result": null,
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Gradient descent on a bowl: when the learning rate is too high",
+  "description": "A ball sits on a bowl-shaped loss surface that is steep one way and gentle the other, and takes gradient descent steps toward the lowest point, leaving a path. Each step goes downhill, and its length is the learning rate times the slope. An arrow on the ball shows the next step before it is taken. With a small learning rate the path slides into the bottom. As you raise it, the path zig-zags across the steep direction, then bounces between the walls without settling, and above a clear threshold each bounce lands higher than the last until the ball flies off the surface.",
+  "experience": "experiment",
+  "reason": "Divergence makes sense once you see one step overshoot the bottom and land higher on the far wall. Changing the learning rate and watching the path change from a slide to a zig-zag to an explosion shows exactly where that happens.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate",
+    "min": 0.01,
+    "max": 0.35,
+    "step": 0.01,
+    "default": 0.2
+   },
+   {
+    "type": "toggle",
+    "id": "showStepArrow",
+    "label": "Show next-step arrow",
+    "default": true
+   }
+  ],
+  "interactions": [
+   "Drag the learning rate: below 0.25 the path settles (zig-zagging above 0.125), at 0.25 it bounces between the walls forever, above 0.25 each bounce grows until it leaves the surface",
+   "Play, pause or advance one step at a time to watch each step land",
+   "Use 'Restart from start point' to clear the path and run again with the current learning rate kept",
+   "Read the step count, the current loss, and the stretch factor: how much each step multiplies the ball's distance from the bottom along the steep direction",
+   "Turn the next-step arrow on or off"
+  ],
+  "assumptions": [
+   "Illustration: a simple made-up bowl, not the loss of a real trained model.",
+   "The loss is x² + 4y², so the slope is 2x in the gentle direction and 8y in the steep direction. Each step subtracts the learning rate times the slope.",
+   "Along the steep direction each step multiplies the distance from the bottom by (1 − 8 × learning rate). Along the gentle direction it multiplies it by (1 − 2 × learning rate). Once the size of either factor is above 1, the ball moves further away with every step: that is divergence.",
+   "The ball always starts from the same point (x = 2.5, y = 1) and takes at most 60 steps.",
+   "The ball is drawn on the surface at the height of its current loss, and the arrow shows the actual next step (minus the slope times the learning rate), not the slope itself."
+  ],
+  "limitations": [
+   "On this bowl the thresholds are exact: zig-zag above 0.125, a lasting bounce at 0.25, divergence above 0.25. On real losses the curvature changes from place to place, so the safe learning rate is only roughly set by the steepest direction.",
+   "When the ball leaves the drawn area of the surface, the run stops and is marked as diverged instead of following it to infinity.",
+   "There is no noise, momentum or adaptive optimizer, only plain gradient descent."
+  ],
+  "learningGoal": "A step that is too large overshoots the bottom along the steepest direction. When the overshoot lands further from the bottom than the ball started, each step makes the error bigger and gradient descent diverges.",
+  "requiredCapabilities": [
+   "step",
+   "parameters",
+   "actions",
+   "readouts",
+   "labels"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "learningRate",
+    "values": [
+     0.1,
+     0.3
+    ]
+   }
+  ]
+ },
+ "planHash": "5dbcadf71ad0d7a5c9ec52238747e886a51b9233459e633ec84bcf6808962f5c",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 38174,
+  "generateToResultMs": null,
+  "processingMs": 50473,
+  "approvalWaitMs": 1630,
+  "calls": 2,
+  "repairs": 0,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 38124,
+    "calls": 2,
+    "inputTokens": 2035,
+    "outputTokens": 3991,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 1630,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 12349,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "stopped"
+   }
+  ]
+ },
+ "createdAt": 1793768741755,
+ "updatedAt": 1793768881890
+}

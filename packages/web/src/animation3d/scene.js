@@ -25,6 +25,9 @@ const TUBE_RADIAL = 8; // contract.js triangleCost: a curve with a radius is 2 x
 // stays inside the viewport (`inset` from its edges): flipped to the other side of its point, pushed in, or reflowed onto more
 // lines when it is wider than the viewport.
 export const LABEL_PIXELS = Object.freeze({ min: 18, max: 22, step: 2, share: 0.06, room: 0.2, inset: 4 });
+// A label that names an arrow (its node is a child of an arrow node) is kept in proportion to it, by the renderer, not the author (C9, owner; C7 job 2: a plate five times longer
+// than a short arrow): hidden when the arrow is shorter than `hide` CSS pixels on screen, else wrapped to at most `cap` times the arrow's on-screen length (never narrower than `minWidth`).
+export const ARROW_LABELS = Object.freeze({ hide: 24, cap: 3, minWidth: 72 });
 export const labelPixels = (size, span) => {
   const { min, max, step, share } = LABEL_PIXELS;
   return Math.min(max, Math.max(min, Math.round(share * span * Math.min(1.5, Math.max(0.75, size / 0.3)) / step) * step));
@@ -100,7 +103,7 @@ export function declutterLabels(plates, { gap = DECLUTTER.gap, steps = DECLUTTER
     // With arrows to avoid: of every free spot the one nearest the plate's own point (the point from its placement), not the first.
     const [cx, cy] = PLACEMENT[plate.placement] ?? PLACEMENT.above, ax = plate.x + cx * plate.w, ay = plate.y + (1 - cy) * plate.h;
     const away = (dx, dy) => { const r = at(plate, dx, dy); return Math.hypot(Math.max(r.x - ax, 0, ax - r.x - r.w), Math.max(r.y - ay, 0, ay - r.y - r.h)); };
-    mine = obstacles.filter(s => s.soft && Math.hypot(s.x1 - ax, s.y1 - ay) <= s.half + 2);
+    mine = obstacles.filter(s => s.soft && (Math.hypot(s.x1 - ax, s.y1 - ay) <= s.half + 2 || Math.hypot(s.x2 - ax, s.y2 - ay) <= s.half + 2)); // a marker at the plate's point, or a path that ends there
     for (level = obstacles.length ? 0 : 2; level <= 2; level += 1) {
       if (level === 1 && !obstacles.some(s => s.soft)) continue; // the same as level 0
       if (level === 2 && obstacles.length && !plate.essential) break; // an optional plate with no arrow-free spot is left out; an essential one tries again, ignoring them
@@ -310,7 +313,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
   const byGeometry = new Map(scene.geometries.map(g => [g.id, g]));
   const objects = new Map(), labels = new Map(), pickables = []; // labels: node id -> its sprite
   const nodeById = new Map(scene.nodes.map(node => [node.id, node]));
-  const trails = new Map(), tops = new Map(), truth = new Map(); // trail node -> set(points); surface node -> its mesh; clamped node -> the position the program gave
+  const trails = new Map(), tops = new Map(), surfaceDefs = new Map(), truth = new Map(); // trail node -> set(points); surface node -> its mesh; clamped node -> the position the program gave
   // arrow_anchor (FX-AN-072): an arrow's offset is a distance outside the node's scale, so an arrow drawn as a unit arrow under scale [1, length, 1] still starts `offset`
   // from its origin; its tip is offset + length x scale up +Y. placers move each arrow's drawable and each tip label to match the arrow's current scale.
   const placers = [], bases = new Map(); // bases: tip label node id -> the position the program gave (before the tip shift)
@@ -375,6 +378,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
       const mesh = new THREE.Mesh(own(surfaceGeometry(g)), front(node.material)), lines = contourPositions(g);
       drawable.add(mesh);
       tops.set(node.id, mesh);
+      surfaceDefs.set(node.id, g);
       if (lines.length) {
         const base = surfaces.get(node.material) ?? fallback;
         drawable.add(new THREE.LineSegments(own(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(lines, 3))), own(new THREE.LineBasicMaterial({ color: base.color.clone().multiplyScalar(0.5), toneMapped: false }))));
@@ -391,7 +395,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
       drawable.visible = false; // nothing to draw until a frame carries points
       drawable.userData.empty = true;
       drawable.userData.trail = true;
-      trails.set(node.id, points => { const n = buffers.set(points); drawable.visible = n >= (radius ? 2 : 1); drawable.userData.empty = !drawable.visible; });
+      trails.set(node.id, points => { const n = buffers.set(points); drawable.visible = n >= (radius ? 2 : 1); drawable.userData.empty = !drawable.visible; drawable.userData.points = points.slice(0, n); }); // kept for the labels: the path is an obstacle (layoutLabels)
     } else if (g) drawable = new THREE.Mesh(shapeOf(g), surfaces.get(node.material) ?? fallback);
     if (drawable) {
       drawable.traverse(child => { child.userData.nodeId = node.id; });
@@ -483,11 +487,24 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
         camera.updateMatrixWorld();
         const across = span(f, h0, camera), candidates = [];
         const { inset } = LABEL_PIXELS, bounds = { x: inset, y: inset, w: Math.max(1, w0 - 2 * inset), h: Math.max(1, h0 - 2 * inset) };
+        const arrowEnds = [new THREE.Vector3(), new THREE.Vector3()];
+        const arrowPixels = arrow => { // the arrow's length on screen, in CSS pixels; Infinity when an end is out of the camera's depth range
+          arrow.localToWorld(arrowEnds[0].set(0, 0, 0)).project(camera);
+          arrow.localToWorld(arrowEnds[1].set(0, arrow.userData.arrow, 0)).project(camera);
+          return Math.abs(arrowEnds[0].z) > 1 || Math.abs(arrowEnds[1].z) > 1 ? Infinity : Math.hypot((arrowEnds[1].x - arrowEnds[0].x) * w0 / 2, (arrowEnds[1].y - arrowEnds[0].y) * h0 / 2);
+        };
         for (const [id, drawable] of labels) {
           const tag = drawable.userData.label, pixels = labelPixels(tag.size, across);
           if (!optional && !tag.essential) { drawable.visible = tag.leader.visible = false; continue; } // off: takes no room either
-          const painted = `${pixels}@${ratio}@${bounds.w}`;
-          if (tag.painted !== painted) paint(drawable, pixels, bounds.w, painted);
+          let cap = bounds.w;
+          const arrow = drawable.parent?.parent?.children.find(child => child.userData.arrow !== undefined); // the arrow this label names, if its node is a child of an arrow node
+          if (arrow) {
+            const length = arrowPixels(arrow);
+            if (length < ARROW_LABELS.hide) { drawable.visible = tag.leader.visible = false; continue; } // no arrow to name: no label, and no room taken
+            cap = Math.min(bounds.w, Math.max(ARROW_LABELS.minWidth, Math.round(ARROW_LABELS.cap * length / 8) * 8)); // buckets of 8 px: it repaints only when the cap moves
+          }
+          const painted = `${pixels}@${ratio}@${cap}`;
+          if (tag.painted !== painted) paint(drawable, pixels, cap, painted);
           const h = Math.round(Math.round(pixels * ratio) * tag.rows) / ratio, w = h * tag.aspect, tall = 2 * h / (f * h0); // the painted height, exactly
           drawable.parent.getWorldScale(world);
           drawable.scale.set(tall * tag.aspect / (world.x || 1), tall / (world.y || 1), 1);
@@ -515,6 +532,22 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
           tail.project(camera); head.project(camera);
           if (depth <= 0 || Math.abs(tail.z) > 1 || Math.abs(head.z) > 1) return;
           obstacles.push({ x1: (tail.x + 1) / 2 * w0, y1: (1 - tail.y) / 2 * h0, x2: (head.x + 1) / 2 * w0, y2: (1 - head.y) / 2 * h0, half: radius * f * h0 / (2 * depth) });
+        });
+        // Trail polylines (C9, owner): a label keeps off the path where there is room. Soft obstacles like markers, so a plate with no clear spot keeps its place instead of vanishing,
+        // and the path that ends at a label's own point does not count against it (declutterLabels `mine`). At most 256 segments per trail.
+        root.traverseVisible(trail => {
+          const points = trail.userData.points;
+          if (!trail.userData.trail || !points || points.length < 2) return;
+          const stride = Math.max(1, Math.ceil((points.length - 1) / 256)), picked = [];
+          for (let i = 0; i < points.length; i += stride) picked.push(i);
+          if (picked.at(-1) !== points.length - 1) picked.push(points.length - 1);
+          let before = null;
+          for (const i of picked) {
+            trail.localToWorld(world.set(points[i][0], points[i][1], points[i][2])).project(camera);
+            const here = Math.abs(world.z) <= 1 ? { x: (world.x + 1) / 2 * w0, y: (1 - world.y) / 2 * h0 } : null;
+            if (before && here) obstacles.push({ x1: before.x, y1: before.y, x2: here.x, y2: here.y, half: 2, soft: true });
+            before = here;
+          }
         });
         // Small markers (a dot, a ball, a puck): visible meshes that are not an arrow's parts and whose projected diameter is at most MARKER_SHARE of
         // the scene's span (a bowl, a floor or a bar is far larger), as soft point obstacles of their projected radius. Skipped when the camera is inside.
@@ -553,6 +586,45 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
           leader.visible = true;
         });
         return boxes;
+      },
+      // C9 (owner; C7 job 3: a surface drawn at twice the height the program uses, balls and trails buried): the markers and path points drawn below the surface they sit on, in the
+      // frame last applied. A sphere with clampTo is checked against its target; a trail against the first clamp target (or the scene's only surface). Below = more than half the
+      // marker's radius (a path: its radius), and never less than 2% of the surface's height range, which absorbs a coarse grid's chord error; a point off the surface's footprint is not on it. -> [{ node, y, surfaceY }], the
+      // worst point of a path, in scene order, rounded to 4 decimals.
+      buried() {
+        root.updateWorldMatrix(true, true);
+        const found = [], world = new THREE.Vector3(), local = new THREE.Vector3(), scale = new THREE.Vector3(), ranges = new Map(), round = value => Math.round(value * 1e4) / 1e4;
+        const range = id => { if (!ranges.has(id)) { const flat = surfaceDefs.get(id).heights.flat(); ranges.set(id, (Math.max(...flat) - Math.min(...flat)) * Math.abs(tops.get(id).getWorldScale(scale).y)); } return ranges.get(id); };
+        const surfaceAt = (id, point) => { // the world y of the surface under (or over) this world point, or null when the point is off its footprint
+          const mesh = tops.get(id), g = surfaceDefs.get(id);
+          if (!mesh) return null;
+          mesh.worldToLocal(local.copy(point));
+          const rows = g.heights.length, cols = g.heights[0].length, col = (local.x / g.width + 0.5) * (cols - 1), row = (local.z / g.depth + 0.5) * (rows - 1);
+          if (!(col >= 0 && col <= cols - 1 && row >= 0 && row <= rows - 1)) return null;
+          const c = Math.min(Math.floor(col), cols - 2), r = Math.min(Math.floor(row), rows - 2), u = col - c, v = row - r, h = g.heights;
+          const y = u + v <= 1 ? h[r][c] + u * (h[r][c + 1] - h[r][c]) + v * (h[r + 1][c] - h[r][c]) : h[r + 1][c + 1] + (1 - u) * (h[r + 1][c] - h[r + 1][c + 1]) + (1 - v) * (h[r][c + 1] - h[r + 1][c + 1]); // the two triangles of a cell
+          return mesh.localToWorld(local.set(local.x, y, local.z)).y;
+        };
+        const followed = clamps[0]?.target ?? (tops.size === 1 ? [...tops.keys()][0] : null);
+        for (const node of scene.nodes) {
+          const g = byGeometry.get(node.geometry), holder = objects.get(node.id), widest = Math.max(...holder.getWorldScale(scale).toArray());
+          if (g?.kind === 'sphere' && node.clampTo && tops.has(node.clampTo.node)) {
+            holder.getWorldPosition(world);
+            const top = surfaceAt(node.clampTo.node, world);
+            if (top !== null && world.y < top - Math.max(0.5 * g.radius * widest, 0.02 * range(node.clampTo.node))) found.push({ node: node.id, y: round(world.y), surfaceY: round(top) });
+          } else if (g?.kind === 'trail' && followed) {
+            const drawable = holder.children.find(child => child.userData.points), points = drawable?.userData.points ?? [];
+            const slack = Math.max((g.radius ?? 0) * (g.style === 'ghost' ? 0.5 : 1) * widest, 0.02 * range(followed));
+            let worst = null;
+            for (const point of points) {
+              drawable.localToWorld(world.set(point[0], point[1], point[2]));
+              const top = surfaceAt(followed, world), depth = top === null ? 0 : top - world.y;
+              if (depth > slack && (!worst || depth > worst.depth)) worst = { depth, y: world.y, surfaceY: top };
+            }
+            if (worst) found.push({ node: node.id, y: round(worst.y), surfaceY: round(worst.surfaceY) });
+          }
+        }
+        return found;
       },
       clampCeiling: () => ceiling, // the highest world y a clamp held a node to in the last frame, or null: the camera fit does not follow a trail above it (framing.js)
       setOptionalLabels(on) { optional = !!on; }, // applied at the next layoutLabels

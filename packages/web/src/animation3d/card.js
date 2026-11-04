@@ -118,6 +118,8 @@ export function frameView(frame, model) {
   const goal = frame?.goal ? { status: frame.goal.status, message: clip(frame.goal.message, 200) } : null;
   return { readouts, goal };
 }
+// The readouts a frame carries as one line each, "label: text": the review page's strip over its capture (render/animation3d-render.js), so the reviewer sees what the card shows, a text readout's word included (FX-AN-098).
+export const readoutLines = (artifact, frame) => frameView(frame, { readouts: artifact.readouts }).readouts.map(item => `${item.label}: ${readoutText(item)}`);
 export const readoutText = item => (typeof item.value === 'string' ? item.value : `${item.value.toFixed(item.decimals)}${item.unit ? ` ${item.unit}` : ''}`);
 const OUTCOMES = { playing: 'In progress', won: 'Solved', lost: 'Not solved' };
 export const outcomeText = goal => (goal?.message ? goal.message : OUTCOMES[goal?.status] ?? OUTCOMES.playing);

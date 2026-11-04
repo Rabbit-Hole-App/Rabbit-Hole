@@ -18,7 +18,7 @@ test('each role is its own task on /explain\'s pinned model and token ceilings; 
     assert.ok(r.maxTokens >= LEARN_TASKS[explain].maxTokens);
   }
   const body = animationRequest({}, 'review', { system: 's', tool, content: 'x' }, TASKS);
-  assert.deepEqual([body.max_tokens, body.tool_choice, 'model' in body, 'thinking' in body], [6000, { type: 'auto' }, false, false]);
+  assert.deepEqual([body.max_tokens, body.tool_choice, 'model' in body, 'thinking' in body], [8000, { type: 'auto' }, false, false]);
 });
 
 test('a role with no configured task is refused before anything is sent: no default model', async () => {
