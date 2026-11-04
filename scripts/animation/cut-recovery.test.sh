@@ -20,6 +20,7 @@ UI=packages/web/src/Animation3DCard.jsx; E2E=packages/web/e2e/animation-mvp-chec
 BR=packages/control-plane/src/animation-brief.js; CF=packages/control-plane/test/animation-client-features.test.js
 WR=packages/web/wrangler.rabbit-hole-prod.jsonc; PC=packages/control-plane/test/rabbit-hole-prod-config.test.js
 UN=packages/web/src/unrelated.js
+AR=packages/control-plane/src/agents/animation-archetypes.js
 w() { mkdir -p "$(dirname "$1")"; printf '%s\n' "$2" > "$1"; }
 # ---- previous release (PREV) ----
 w $F "export const ANIMATION_CLIENT_FEATURES = Object.freeze(['curve_radius', 'action_motion']);"
@@ -40,6 +41,15 @@ w $PC "assert.deepEqual(Object.keys(app.vars).filter(k => k.startsWith('ANIMATIO
 mkdir -p scripts; { echo "// extracted from the real scripts/prod-release.mjs"; sed -n '/^export function checkCandidate/,/^}/p' "$HERE/../prod-release.mjs"; } > scripts/prod-release.mjs
 grep -q "stored scenes that use it would stop opening" scripts/prod-release.mjs || { echo "could not extract checkCandidate"; exit 2; }
 w $UN "export const a = 1;"
+w $AR "export const ARCHETYPES = { loss_surface: 'rules v1' };"
+w packages/control-plane/test/animation-pipeline.test.js "import test from 'node:test';
+test('keep me: the job counts its calls', async () => {
+  await Promise.resolve();
+});
+test('a repair must return the program: the tool requires it', async () => {
+  await Promise.resolve();
+});
+"
 w packages/web/src/same.js "export const s = 1;"
 git add -A && git commit -q -m prev && PREV=$(git rev-parse HEAD)
 git push -q rabbit-hole main
@@ -60,6 +70,7 @@ w $UI "const copy = 'Works best for mechanisms, loops, small games and loss surf
 w $E2E "// copy step: loss surfaces are claimed"
 w $CF "// pins ANIMATION_CLIENT_FEATURES: the server keeps the five it knows"
 w $UN "export const a = 2; // unrelated change in the candidate"
+w $AR "export const ARCHETYPES = { loss_surface: 'rules v2, more lines' };"
 git add -A && git commit -q -m cand && CAND=$(git rev-parse HEAD)
 START=$(git rev-parse --abbrev-ref HEAD)
 CUT() { OUT=$(bash "$HERE/cut-recovery.sh" "$@" 2>&1); RC=$?; }
@@ -84,7 +95,7 @@ git ls-remote --heads rabbit-hole "$B" | grep -q . && bad "mvp3: pushed without 
 back && ok "mvp3: back on the starting branch, tree clean" || bad "not back"
 
 CUT mvp4 $CAND --prev $PREV --no-verify; B4=recovery/animation-mvp4-${CAND:0:8}
-[ $RC -eq 0 ] && [ "$(files $B4)" = "$(printf '%s\n' $PA $PB $FIT | sort | tr '\n' ' ')" ] && git show $B4:$PA | grep -q "prompt v1" && ok "mvp4: exactly the two prompt files and the fit test, back to PREV" || { bad "mvp4 ($RC) $(files $B4)"; echo "$OUT" | tail -3; }
+[ $RC -eq 0 ] && [ "$(files $B4)" = "$(printf '%s\n' $PA $PB $FIT $AR | sort | tr '\n' ' ')" ] && git show $B4:$PA | grep -q "prompt v1" && git show $B4:$AR | grep -q "rules v1" && ok "mvp4: the two prompt files, the archetype rules and the fit test, back to PREV" || { bad "mvp4 ($RC) $(files $B4)"; echo "$OUT" | tail -3; }
 CUT mvp5 $CAND --prev $PREV --no-verify; B5=recovery/animation-mvp5-${CAND:0:8}
 [ $RC -eq 0 ] && [ "$(files $B5)" = "$(printf '%s\n' $UI $E2E | sort | tr '\n' ' ')" ] && git show $B5:$UI | grep -q "not supported yet" && ok "mvp5: the copy line is back in the card and the e2e step" || { bad "mvp5 ($RC) $(files $B5)"; echo "$OUT" | tail -3; }
 CUT mvp2b $CAND --prev $PREV --no-verify; B2=recovery/animation-mvp2b-${CAND:0:8}
@@ -129,7 +140,7 @@ back && ok "still back on the starting branch" || bad "not back after refusals"
 echo "== combined (one release carries all four slices)"
 git branch -q -D recovery/animation-combined-${CAND:0:8} 2>/dev/null
 CUT combined $CAND --prev $PREV --prompts-from $MID --no-verify; BC=recovery/animation-combined-${CAND:0:8}
-[ $RC -eq 0 ] && [ "$(files $BC)" = "$(printf '%s\n' $BR $CF $OC $FIT $PA $PB $PC $UI $WR $E2E | sort | tr '\n' ' ')" ] && ok "combined: one branch, exactly the union of the four slices' files" || { bad "combined ($RC) $(files $BC)"; echo "$OUT" | tail -3; }
+[ $RC -eq 0 ] && [ "$(files $BC)" = "$(printf '%s\n' $AR $BR $CF $OC $FIT $PA $PB $PC $UI $WR $E2E | sort | tr '\n' ' ')" ] && ok "combined: one branch, exactly the union of the four slices' files" || { bad "combined ($RC) $(files $BC)"; echo "$OUT" | tail -3; }
 git show $BC:$PA | grep -q "prompt v1.5" && ! git show $BC:$PA | grep -q "ARCHETYPES" && ok "combined: the prompts come back from --prompts-from (the tested C3), not from the previous release" || bad "combined prompts"
 git show $BC:$WR | grep -q '"ANIMATION_STREAMING": "false"' && git show $BC:$BR | grep -q "arrow_anchor" && git show $BC:$UI | grep -q "not supported yet" && ok "combined: streaming flag, five-feature filter and copy line are all in" || bad "combined switches"
 [ "$(git show $BC:$F)" = "$(git show $CAND:$F)" ] && has "checkCandidate accepts" && ok "combined: capabilities.js untouched and the real checkCandidate accepts the tip" || bad "combined release check"
@@ -150,14 +161,21 @@ r.nothing={...r.mvp3,steps:[{op:"restore",paths:["packages/web/src/same.js"]}],a
 r.nopath={...r.mvp3,steps:[{op:"restore",paths:["no/such/file.js"]}]};
 r.outside={...r.mvp3,steps:[{op:"restore",paths:["packages/web/src/unrelated.js"]}],allow:["packages/web/src/animation3d/*"]};
 r.naive={...r.mvp3,steps:[{op:"replace",file:"packages/web/src/animation3d/capabilities.js",pattern:"Object[.]freeze[(].*[)]",with:"Object.freeze(['curve_radius', 'action_motion'])"}],allow:["packages/web/src/animation3d/capabilities.js"],verify:[]};
+r.dropper={...r.mvp3,steps:[{op:"dropTest",file:"packages/control-plane/test/animation-pipeline.test.js",titles:["a repair must return the program"]}],allow:["packages/control-plane/test/animation-pipeline.test.js"],verify:[]};
+r.dropstale={...r.dropper,steps:[{op:"dropTest",file:"packages/control-plane/test/animation-pipeline.test.js",titles:["a title nobody wrote"]}]};
+r.dropoptional={...r.dropper,steps:[{op:"dropTest",optional:true,file:"packages/control-plane/test/animation-pipeline.test.js",titles:["a title nobody wrote"]},{op:"restore",paths:["packages/web/src/same.js"]}]};
 r.good={...r.mvp4,verify:[{cwd:".",files:["v/pass.test.mjs"]}]};
 r.failing={...r.mvp4,verify:[{cwd:".",files:["v/fail.test.mjs"]}]};
 fs.writeFileSync(process.argv[1],JSON.stringify(r));' "$T/r.json"
-for s in twice moved nothing nopath outside naive; do
-  case $s in twice) sub="matches 2 time(s)";; moved) sub="matches 0 time(s)";; nothing) sub="the recipe changes nothing";; nopath) sub="in neither the previous release nor the candidate";; outside) sub="outside the outside allow list";; naive) sub="checkCandidate would REFUSE this recovery: refused: production serves";; esac
+for s in twice moved nothing nopath outside naive dropstale dropoptional; do
+  case $s in twice) sub="matches 2 time(s)";; moved) sub="matches 0 time(s)";; nothing) sub="the recipe changes nothing";; nopath) sub="in neither the previous release nor the candidate";; outside) sub="outside the outside allow list";; naive) sub="checkCandidate would REFUSE this recovery: refused: production serves";; dropstale) sub="have a title containing";; dropoptional) sub="the recipe changes nothing";; esac
   CUT $s $CAND --prev $PREV --recipes "$T/r.json" --no-verify
   if [ $RC -ne 0 ] && has "$sub" && ! git rev-parse -q --verify refs/heads/recovery/animation-$s-${CAND:0:8} >/dev/null && back; then ok "recipe fault '$s' stops, leaves no branch, restores the checkout"; else bad "recipe fault $s (rc=$RC)"; printf '%s\n' "$OUT" | tail -2; fi
 done
+CUT dropper $CAND --prev $PREV --recipes "$T/r.json" --no-verify --branch recovery/animation-dropper
+PT=packages/control-plane/test/animation-pipeline.test.js
+[ $RC -eq 0 ] && [ "$(files recovery/animation-dropper)" = "$PT " ] && git show recovery/animation-dropper:$PT | grep -q "keep me" && ! git show recovery/animation-dropper:$PT | grep -q "a repair must return the program" && git show recovery/animation-dropper:$PT > "$T/dropped.mjs" && node --check "$T/dropped.mjs" && ok "dropTest removes exactly the named test block and leaves the other, and the file still parses" || { bad "dropTest ($RC)"; echo "$OUT" | tail -3; }
+git branch -q -D recovery/animation-dropper
 mkdir -p v; printf "import test from 'node:test'; test('p', () => {});\n" > v/pass.test.mjs; printf "import test from 'node:test'; import assert from 'node:assert/strict'; test('f', () => assert.equal(1, 2));\n" > v/fail.test.mjs
 git add v; git commit -q -m tests; CAND2=$(git rev-parse HEAD)
 git branch -q -D $B5

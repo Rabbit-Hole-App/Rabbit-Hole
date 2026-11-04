@@ -98,6 +98,7 @@
         "paths": [
           "packages/control-plane/src/agents/animation-author.js",
           "packages/control-plane/src/agents/animation-brief.js",
+          "packages/control-plane/src/agents/animation-archetypes.js",
           "packages/control-plane/test/animation-fit.test.js"
         ],
         "from": "prompts"
@@ -112,11 +113,33 @@
         ],
         "candMatches": "wireframe|SIZE_RULES|ANIMATION_AUTHOR_SYSTEM|ANIMATION_REPAIR_SYSTEM|ANIMATION_REVIEW_SYSTEM|ANIMATION_BRIEF_SYSTEM|COMPACT_RULES|ARCHETYPES",
         "from": "prompts"
+      },
+      {
+        "op": "restoreMatching",
+        "under": [
+          "packages/control-plane/test"
+        ],
+        "suffix": [
+          ".test.js"
+        ],
+        "added": true,
+        "candMatches": "AUTHOR_TOOL|REPAIR_TOOL|ARTIFACT_DRAFT",
+        "from": "prompts"
+      },
+      {
+        "op": "dropTest",
+        "optional": true,
+        "file": "packages/control-plane/test/animation-pipeline.test.js",
+        "titles": [
+          "a repair must return the program: the tool requires it and the prompt says so",
+          "a repair that returns the program beside the artifact, or as a bare source string, keeps its program"
+        ]
       }
     ],
     "allow": [
       "packages/control-plane/src/agents/animation-author.js",
       "packages/control-plane/src/agents/animation-brief.js",
+      "packages/control-plane/src/agents/animation-archetypes.js",
       "packages/control-plane/test/*.test.js"
     ],
     "verify": [

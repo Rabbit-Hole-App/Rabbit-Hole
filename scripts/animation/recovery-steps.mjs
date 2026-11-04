@@ -8,7 +8,8 @@
 //   node recovery-steps.mjs verify --slice mvp3 --recipes <json>                              runs the recipe's node --test sets in this tree; a set that runs 0 tests fails
 // Step ops (all exact, none silent):
 //   replace          {file, pattern, with, optional?}   the regular expression must match exactly once ($1.. are the capture groups); optional: zero matches is fine
-//   restore          {paths[]}               each path goes back to its text at PREV; a path that did not exist at PREV is removed
+//   dropTest         {file, titles[], optional?}   removes the top-level test(...) blocks whose title contains each substring (exactly one test each; optional: absent is fine)
+//   restore          {paths[]}              each path goes back to its text at PREV; a path that did not exist at PREV is removed
 //   restoreMatching  {under[], suffix?[], candMatches?, prevMatches?, required?, added?}   (added: only files the candidate added, which are removed)
 //                    every file changed between PREV and the candidate under a listed prefix, and (when given) whose text at the candidate
 //                    matches candMatches or whose text at PREV matches prevMatches, goes back to PREV (or is removed when added since)
@@ -52,6 +53,19 @@ export function applyRecipe(recipe, { cand, prev, promptsFrom, cwd = process.cwd
       const next = text.replace(re, step.with);
       if (next === text) throw new Error(`${where}: the replacement leaves ${step.file} unchanged; the candidate is already in the recovery state`);
       put(step.file, next);
+    } else if (step.op === 'dropTest') {
+      // removes top-level test('...title...', ...) blocks (each ends at the next line that is exactly "});" in column 0); each title substring must match exactly one test
+      if (!existsSync(abs(step.file))) { if (step.optional) continue; throw new Error(`${where}: ${step.file} does not exist in the candidate; fix the recipe`); }
+      let out = readFileSync(abs(step.file), 'utf8').split('\n'), dropped = 0;
+      for (const title of step.titles) {
+        const hits = out.flatMap((l, i) => (l.startsWith('test(') && l.includes(title) ? [i] : []));
+        if (!hits.length && step.optional) continue;
+        if (hits.length !== 1) throw new Error(`${where}: ${hits.length} test(s) in ${step.file} have a title containing "${title.slice(0, 60)}", expected exactly 1; the recipe is stale`);
+        const j = out.findIndex((l, k) => k >= hits[0] && /^\}\);?\r?$/.test(l));
+        if (j < 0) throw new Error(`${where}: the test "${title.slice(0, 60)}" in ${step.file} has no closing "});" in column 0`);
+        out = [...out.slice(0, hits[0]), ...out.slice(j + 1)]; dropped++;
+      }
+      if (dropped) put(step.file, out.join('\n'));
     } else if (step.op === 'restore') {
       for (const p of step.paths) {
         if (show(ref, p) === null && !existsSync(abs(p))) throw new Error(`${where}: ${p} is in neither the previous release nor the candidate; fix the recipe path`);
