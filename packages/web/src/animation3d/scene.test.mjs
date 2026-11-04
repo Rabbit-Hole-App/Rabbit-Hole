@@ -601,3 +601,43 @@ test('an arrow label that already fits is untouched, and a label on something th
   assert.equal(moon.scene.layoutLabels({ width: 960, height: 540, camera: view }).find(b => b.id === 'moonTag').shown, true, 'a label on a sphere is not an arrow label');
   moon.scene.dispose();
 });
+
+// C9 (owner): a trail's polyline is an obstacle for label placement (soft, like a marker). C7 jobs 6 and 7: "Minimum" and "Next step" labels sat on the zig-zag.
+const trailLabelScene = () => {
+  const artifact = primitives();
+  artifact.scene.nodes = artifact.scene.nodes.filter(n => ['ball', 'trail'].includes(n.id));
+  delete artifact.scene.nodes.find(n => n.id === 'ball').clampTo;
+  artifact.scene.nodes.find(n => n.id === 'ball').position = [0, 0, 0];
+  artifact.scene.geometries.push({ id: 'rateText', kind: 'label', text: 'Rate', placement: 'above' }, { id: 'floorBox', kind: 'box', size: [6, 0.1, 6] });
+  artifact.scene.nodes.push({ id: 'rateTag', parent: 'ball', geometry: 'rateText' }, { id: 'floor', geometry: 'floorBox', material: 'bowlBlue', position: [0, -1, 0] });
+  const out = buildAnimationScene(artifact, { labelTexture });
+  assert.equal(out.ok, true, JSON.stringify(out.issues));
+  return out.scene;
+};
+const front = () => { const view = new THREE.PerspectiveCamera(50, 960 / 540, 0.1, 1000); view.position.set(0, 0.5, 10); view.lookAt(0, 0.5, 0); view.updateMatrixWorld(); return view; };
+// A path along y = 0.25 passes through the place just above the ball (58 px per unit at distance 10: 14 px up) where the plate would sit.
+const path = [[-1.5, 0.25, 0], [-0.5, 0.2, 0], [0.5, 0.3, 0], [1.5, 0.25, 0]];
+const screenY = (scene, point) => { const v = new THREE.Vector3(...point).project(front()); return (1 - v.y) / 2 * 540; };
+const crosses = (box, scene) => path.some(point => { const y = screenY(scene, point); return y >= box.y - 2 && y <= box.y + box.h + 2; });
+
+test('a label is moved off a trail\'s path when there is room, and is not dropped when there is none', () => {
+  const scene = trailLabelScene();
+  const before = scene.layoutLabels({ width: 960, height: 540, camera: front() }).find(b => b.id === 'rateTag');
+  assert.equal(before.shown, true);
+  assert.equal(crosses(before, scene), true, 'with no path the plate sits just above its ball, where the path will run (the control)');
+  // The same plate with the path drawn: a clean place beside the path, not on it.
+  scene.apply({ nodes: { trail: { points: path } } });
+  const after = scene.layoutLabels({ width: 960, height: 540, camera: front() }).find(b => b.id === 'rateTag');
+  assert.equal(after.shown, true, 'still shown');
+  assert.equal(crosses(after, scene), false, `the plate (y ${after.y} to ${after.y + after.h}) is off the path`);
+  scene.dispose();
+});
+
+test('a label with no clear spot beside a dense path keeps its place: the path is a soft obstacle, never a reason to drop a label', () => {
+  const scene = trailLabelScene();
+  const net = Array.from({ length: 100 }, (_, i) => [-3 + 6 * i / 99, i % 2 ? -2 : 2, 0]); // a zig-zag over the whole view
+  scene.apply({ nodes: { trail: { points: net } } });
+  const box = scene.layoutLabels({ width: 960, height: 540, camera: front() }).find(b => b.id === 'rateTag');
+  assert.equal(box?.shown, true);
+  scene.dispose();
+});

@@ -103,7 +103,7 @@ export function declutterLabels(plates, { gap = DECLUTTER.gap, steps = DECLUTTER
     // With arrows to avoid: of every free spot the one nearest the plate's own point (the point from its placement), not the first.
     const [cx, cy] = PLACEMENT[plate.placement] ?? PLACEMENT.above, ax = plate.x + cx * plate.w, ay = plate.y + (1 - cy) * plate.h;
     const away = (dx, dy) => { const r = at(plate, dx, dy); return Math.hypot(Math.max(r.x - ax, 0, ax - r.x - r.w), Math.max(r.y - ay, 0, ay - r.y - r.h)); };
-    mine = obstacles.filter(s => s.soft && Math.hypot(s.x1 - ax, s.y1 - ay) <= s.half + 2);
+    mine = obstacles.filter(s => s.soft && (Math.hypot(s.x1 - ax, s.y1 - ay) <= s.half + 2 || Math.hypot(s.x2 - ax, s.y2 - ay) <= s.half + 2)); // a marker at the plate's point, or a path that ends there
     for (level = obstacles.length ? 0 : 2; level <= 2; level += 1) {
       if (level === 1 && !obstacles.some(s => s.soft)) continue; // the same as level 0
       if (level === 2 && obstacles.length && !plate.essential) break; // an optional plate with no arrow-free spot is left out; an essential one tries again, ignoring them
@@ -394,7 +394,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
       drawable.visible = false; // nothing to draw until a frame carries points
       drawable.userData.empty = true;
       drawable.userData.trail = true;
-      trails.set(node.id, points => { const n = buffers.set(points); drawable.visible = n >= (radius ? 2 : 1); drawable.userData.empty = !drawable.visible; });
+      trails.set(node.id, points => { const n = buffers.set(points); drawable.visible = n >= (radius ? 2 : 1); drawable.userData.empty = !drawable.visible; drawable.userData.points = points.slice(0, n); }); // kept for the labels: the path is an obstacle (layoutLabels)
     } else if (g) drawable = new THREE.Mesh(shapeOf(g), surfaces.get(node.material) ?? fallback);
     if (drawable) {
       drawable.traverse(child => { child.userData.nodeId = node.id; });
@@ -527,6 +527,22 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
           tail.project(camera); head.project(camera);
           if (depth <= 0 || Math.abs(tail.z) > 1 || Math.abs(head.z) > 1) return;
           obstacles.push({ x1: (tail.x + 1) / 2 * w0, y1: (1 - tail.y) / 2 * h0, x2: (head.x + 1) / 2 * w0, y2: (1 - head.y) / 2 * h0, half: radius * f * h0 / (2 * depth) });
+        });
+        // Trail polylines (C9, owner): a label keeps off the path where there is room. Soft obstacles like markers, so a plate with no clear spot keeps its place instead of vanishing,
+        // and the path that ends at a label's own point does not count against it (declutterLabels `mine`). At most 256 segments per trail.
+        root.traverseVisible(trail => {
+          const points = trail.userData.points;
+          if (!trail.userData.trail || !points || points.length < 2) return;
+          const stride = Math.max(1, Math.ceil((points.length - 1) / 256)), picked = [];
+          for (let i = 0; i < points.length; i += stride) picked.push(i);
+          if (picked.at(-1) !== points.length - 1) picked.push(points.length - 1);
+          let before = null;
+          for (const i of picked) {
+            trail.localToWorld(world.set(points[i][0], points[i][1], points[i][2])).project(camera);
+            const here = Math.abs(world.z) <= 1 ? { x: (world.x + 1) / 2 * w0, y: (1 - world.y) / 2 * h0 } : null;
+            if (before && here) obstacles.push({ x1: before.x, y1: before.y, x2: here.x, y2: here.y, half: 2, soft: true });
+            before = here;
+          }
         });
         // Small markers (a dot, a ball, a puck): visible meshes that are not an arrow's parts and whose projected diameter is at most MARKER_SHARE of
         // the scene's span (a bowl, a floor or a bar is far larger), as soft point obstacles of their projected radius. Skipped when the camera is inside.
