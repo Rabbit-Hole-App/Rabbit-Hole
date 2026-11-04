@@ -89,9 +89,10 @@ test('forwarding: the real repair request limit decides, end to end through repa
 test('representation: the planner (input data only), author, repair and review describe a curved surface the same way: a surface geometry for a browser that declares surface_grid, tube wireframes for one with tubes only, the legacy line for an older one', async () => {
   const sha = s => createHash('sha256').update(s).digest('hex');
   assert.equal(sha(ANIMATION_BRIEF_SYSTEM), '90e8ab906a62c72e931e917b0de182e380f25029e569e92b96a93b8fa5b3f22a', 'the planner prompt is 51b6560cf\'s');
-  // Re-pinned (AN-20, owner decision 13, 2026-11-03): the plan schema was 51b6560cf's (a98018ef...) until it gained the two optional properties archetype and assertions.
+  // Re-pinned (AN-20, owner decision 13, 2026-11-03): the plan schema was 51b6560cf's (a98018ef...) until it gained the two optional properties archetype and assertions;
+  // re-pinned again when a clamp assertion became node-less (670e7fda... -> e4728384..., its description only).
   // animation-archetype-wiring.test.js proves that removing exactly those two gives 51b6560cf's schema back.
-  assert.equal(sha(JSON.stringify(PLAN_TOOL)), '670e7fda079cf0af4c68899c0298180dfe7147fd4ff1a9847e7c3b94d3e16636', 'the plan schema is 51b6560cf\'s plus archetype and assertions');
+  assert.equal(sha(JSON.stringify(PLAN_TOOL)), 'e4728384c188c8ad5ad940f89df36b134b78d76ff75b474ff5bbda6abc969bb9', 'the plan schema is 51b6560cf\'s plus archetype and assertions');
   const told = async features => {
     const seen = {};
     await prepareStage({ prompt: fixture.prompt, refinement: null, plan: null, context: null, evidence: [], features }, { call: async (role, spec) => { seen.brief = JSON.parse(spec.content).capabilities; return { input: { gap: { reason: 'offline' } } }; } });
