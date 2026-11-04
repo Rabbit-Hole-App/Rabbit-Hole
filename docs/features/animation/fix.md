@@ -655,3 +655,34 @@ row in [spend.md](spend.md).
 - Evidence: control-plane `test/explain-provider-cap.test.js` "cap reached before generation" (fails on the old code)
 - Severity: nonblocking. Fixing full SHA: `f7aa8a8e28fad2ef622841044b8c6bd0cdb3b4d9` (merged into feat/animation)
 - Validation: explain + animation control-plane tests pass; not deployed to production. Status: fixed, ships with /animation
+
+### FX-AN-080 — the fast path runs the focused smoke before it deploys the clone, so a smoke cannot read the new served build (SGD ladder tooling; OPEN, worked around)
+- Found: reading `runPreview` and `preview()` in `scripts/mvp-fast-path.mjs` on `feat/mvp-fast-path` while writing `scripts/animation/ladder-smoke.mjs`. The order is build, affected tests, smoke, then `wrangler deploy` of the clone. A smoke that asks the clone anything (the served bundle, a route) would be asking the previous build.
+- Not fixed here: the launcher is another lane's file. Worked around: the smoke checks `packages/web/dist-dev`, the exact bytes the deploy ships, and a second pass reads the clone after the deploy (`ladder-smoke.mjs combined --live-only --origin <clone>`). A hook that runs a post-deploy smoke inside the launcher would remove the second step.
+- Status: open (a launcher change; owner of `feat/mvp-fast-path`).
+
+### FX-AN-081 — `node --test` over a path that matches nothing exits 0 with zero tests, so a stale smoke list would pass (SGD ladder tooling; fixed)
+- Symptom: a wrong relative path, or an absolute glob under Git Bash (`CLAUDE.md` gotcha), runs 0 tests and exits 0.
+- Fix: `ladder-smoke.mjs` names every test file itself, fails before running anything when a required file is missing from the candidate, and fails a run whose own count is 0 (`ladder-smoke.test.mjs`: "a required test file that is missing fails before anything runs; an exit-0 run of 0 tests fails").
+- Fixing full SHA: `2a59bc47bd8243c60c3d285c178f9b307b8d506d`. Status: fixed.
+
+### FX-AN-082 — a probe for the five client-feature names passes vacuously on the word `clamp` (SGD ladder tooling; fixed)
+- Symptom (design, caught before use): `clamp` is in three.js and in the bundle's math code, so "the bundle contains the five flag names" is true of every build.
+- Fix: `bundle-probe.mjs` `declares()` wants each name as a quoted string inside one window around the already-declared `curve_radius`, that is, the same array literal; `ladder-smoke.test.mjs` pins that the previous release's two-name array and a far-away list do not count. The post-release verifier and the smoke share it.
+- Fixing full SHA: `2a59bc47bd8243c60c3d285c178f9b307b8d506d`. Status: fixed.
+
+### FX-AN-083 — the recovery tool listed a file it had only rewritten with identical text as "touched" and refused its own branch (SGD ladder tooling; fixed)
+- Symptom: the first real run of `cut-recovery.sh mvp4` against the AN-20 branch stopped with "the diff against the candidate is not exactly what the recipe touched": `agents/animation-brief.js` was restored to the previous text, which equalled the candidate's, but the working copy had CRLF line endings, so the step counted a write that git saw as no change.
+- Fix: the touched list is what git reports (`git diff --cached --name-only`) after the staged writes, not what the steps wrote (`recovery-steps.mjs`).
+- Fixing full SHA: `d5f1f048e51cde6d9ea37ca6cf78cd3cfbb920c4`. Status: fixed.
+- Related, not mine: a Windows checkout with `core.autocrlf=true` fails `sgd-golden.test.mjs` "the JSON is exactly what build-sgd-golden.mjs builds" (CRLF only). That is FX-AN-075 (lane f); a smoke run on Windows meets it unless the golden is checked out with LF.
+
+### FX-AN-084 — switching the five client features off by removing them from `ANIMATION_CLIENT_FEATURES` would be refused by the release check (SGD ladder tooling; fixed in the recipe)
+- Symptom (found by running it): `scripts/prod-release.mjs` `checkCandidate` returns "production serves ..., whose Animation client declares surface_grid, trail_points, text_readout, arrow_anchor, clamp, and ... does not: stored scenes that use it would stop opening". The first recipe edited `capabilities.js` and would have been refused at the moment it was needed. Lane c's `old-client-compatibility.md` says the same.
+- Fix: the MVP3 (and combined) recovery filters the five in `animation-brief.js` `clientFeatures()` and leaves `capabilities.js` alone. `cut-recovery.sh` now asks the recovery branch's own `checkCandidate` before it finishes and stops on a refusal; `cut-recovery.test.sh` pins both: the filter is accepted, the `capabilities.js` edit is refused. Evidence run on the real `feat/golden-sgd`: accepted for the filter, refused for the registry edit.
+- Fixing full SHA: `5662be7b1a5324f8005fe65d9d7a37409b949d7f` (recipe and release check); the combined recipe is in the commit that adds this entry. Status: fixed.
+
+### FX-AN-085 — `animation-strict.test.js` pins the repair tool's parameter counts at 45 and 44; with the AN-18 draft fields merged they are 55 and 54 (SGD ladder, combined candidate; OPEN, not mine)
+- Found: the combined smoke (`ladder-smoke.mjs combined`) run on a scratch merge of `feat/golden-sgd`, `feat/an17b-transport`, `feat/an20-on-mvp3`, `feat/an21-qualify` and main (no branch pushed). One failing test of 42 in the transport set: "the repair tool is outside the strict subset in a way no keyword move fixes: 44 optional parameters against a limit of 24; strict is not enabled" expects `[45, 44]` and gets `[55, 54]`. AN-18 added ten optional fields to `ARTIFACT_DRAFT` (the five features' fields); the strict-output evaluation of AN-17 (FX-AN-046) counted before them.
+- Effect: none on behaviour (strict stays off; the tool is further outside the limit, not closer). It is a stale pin that fails on the merged candidate and would fail the release smoke and `make test-unit`.
+- Not fixed here: a shared test of the transport lane. Fix on merge: update the two numbers (or derive them) and say why in the commit. Status: open (integrator; lane c or the AN-17b owner).
