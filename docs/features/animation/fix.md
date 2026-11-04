@@ -102,6 +102,14 @@ row in [spend.md](spend.md).
 - Evidence rule: numbers from any local software-GL run (owner decision 25: calibration only, the golden fixture only, ended when C4's CI is green) are INPUTS to the thresholds, NOT evidence; the CI run on the candidate is the only acceptance record.
 - Status: fixed-unverified until the tube normals land (lane c) and the check passes in CI.
 
+### FX-AN-078 — two owner-ordered lines in the loss_surface archetype: arrow scale and camera (C7; AN-19/AN-20; owner order of 4 November 2026)
+- Evidence: Gate 2 C6 job 2 (arrows drawn flat at 3x scale cut through the bowl wall; the camera collapsed the zig-zag) and C4 jobs 1, 2 and 4. Order: add the two lines as archetype data (`agents/animation-archetypes.js`), not to the universal author or repair prompts; this supersedes "no new sentence for a finding" for these two lines only.
+- Lines: "The arrow scale factor keeps the largest typical step at the default rate under a quarter of the surface width." and, revised the same day, "The camera looks from 30 to 65 degrees above and keeps the whole surface and the path in view." (the first draft said "along x from 30 to 40 degrees"; the owner dropped the azimuth and widened the range to fit the golden's 62 degrees and the 25-degree framing floor).
+- Text: `archetypeRules('loss_surface')` 1,271 to 1,482 bytes (+211); `animation-archetypes.js` 3,044 to 3,460 bytes (+416, with its header note). `animation-archetypes.test.js` now allows the numbers 30 and 65 beside 24, 24, 6 and 8, pins both lines, and checks the golden's camera elevation (62.0 degrees) against the rule.
+- The golden already satisfies both and is unchanged (sha256 1837a72b...265dc). Arrow: the golden draws each arrow 1:1 in bowl units (scale factor 1), so the largest arrow at the default rate 0.1 over a 60-step run is 0.184 at batch 256, 0.210 at the default batch 16, 0.333 at batch 4 and 0.684 at batch 1, against a quarter of the surface width, 1.0. Camera: `[0, 10.03, 4.69]` to `[0, 1.2, 0]` is 62.0 degrees, with the whole surface, the path and the ball in view at aspects 2.3 to 3.4 (`sgd-golden.test.mjs` ray-casts it).
+- Effect on the freeze: the prompt-files hash changes through this file; the AN-20 harness must recompute it. The golden hash does not change.
+- Status: implemented, unit-tested; not measured against a model.
+
 ## Deferred
 
 ### FX-AN-008 — changing a rate mid-play restarts analytical motion
