@@ -19,12 +19,12 @@ export const BOWL = Object.freeze({ a: 1.4, c: 0.5, height: 1, half: 2, grid: 24
 // renderer does not clamp, is held by the program (lift): a path point off the bowl is drawn at the surface under the rim point where the ball is held. Divergence ends the run,
 // so a trail holds at most one point off the bowl.
 export const PROGRAM = `// Gradient descent on the loss bowl L(x, z) = (1.4 x^2 + 0.5 z^2) / 2, drawn at height L over the square x, z in [-2, 2]. Plain descent turns every x step by 1 - 1.4 r.
-const A = 1.4, C = 0.5, K = 1, R = 0.12, HALF = 2, FLAT = 0.12, MAX = 64, START = [0.1, 1.5], SCALE = 10.7, LONGEST = 2, SHORTEST = 0.4, QUIET = 3, BAND = 0.35, NOISE = 1;
+const A = 1.4, C = 0.5, K = 1, R = 0.12, HALF = 2, FLAT = 0.12, MAX = 64, START = [0.1, 1.5], SCALE = 10.7, LONGEST = 2, SHORTEST = 0.4, QUIET = 3, BAND = 0.1, NOISE = 1;
 const loss = (x, z) => 0.5 * (A * x * x + C * z * z);
 const rand = n => { const s = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return s - Math.floor(s); };
 const gauss = n => Math.sqrt(-2 * Math.log(Math.max(1e-9, rand(n)))) * Math.cos(2 * Math.PI * rand(n + 0.5));
-// The status word: the ball has left the drawn bowl, it has settled (QUIET steps in a row with the steep slope under 0.12 and the gentle slope under BAND: a small band around the
-// lowest point, wide along z because that is where the noise keeps it wandering), it is stepping, or it is waiting. Slopes, not the loss, and a run of steps, not one: a ball still
+// The status word: the ball has left the drawn bowl, it has reached the bottom (QUIET steps in a row with the steep slope under 0.12 and the gentle slope under BAND: |z| under 0.2,
+// about the width of the noise's own wander in z at the default rate and batch, so a ball still sliding is not stopped short), it is stepping, or it is waiting. Slopes, not the loss, and a run of steps, not one: a ball still
 // growing its swings (steep slope above 0.12) is never called converged, and a jittering one is.
 const word = s => (Math.abs(s.x) > HALF || Math.abs(s.z) > HALF ? 'diverged' : s.calm >= QUIET ? 'converged' : s.on ? 'running' : 'paused');
 const over = s => word(s) === 'diverged' || word(s) === 'converged';
@@ -146,7 +146,7 @@ export async function buildGolden() {
         'Illustration: the bowl is the formula loss = (1.4 x^2 + 0.5 z^2) / 2, drawn at a height equal to the loss. No real data or model is used.',
         'Each step moves the ball by -rate x (slope + noise). The noise acts along z, is larger for a smaller batch and does not fade near the lowest point, so the ball keeps wandering a little at a fixed rate; with all 256 examples there is none. It is fixed by the run and the step.',
         'Diverged means the ball has left the drawn bowl. It is then drawn at the rim, on the surface, and the Loss readout keeps its true value.',
-        'Converged means the slope under the ball has stayed small (under 0.12 along the steep axis, under 0.35 along the other) for three steps in a row: it has settled in a band around the lowest point.',
+        'Converged means the ball has reached the lowest point, within the noise: the slope under it has stayed under 0.12 along the steep axis and under 0.1 along the other (within 0.2 units of the centre) for three steps in a row.',
         'Both arrows are steps drawn at 10.7 times their real length, one scale for both, at most 2 long. Next step is the step this batch gives; Full-batch step is the step all 256 examples would give. An arrow shorter than 0.4 is hidden.',
         'A point of the path outside the bowl is drawn at the rim, on the surface, where the ball is held.',
       ],

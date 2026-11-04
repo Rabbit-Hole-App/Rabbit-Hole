@@ -12,7 +12,7 @@
 // Calibration: the card's viewport is 725 x 240 once More settings is open (CI run 41762152651), 725 x 314 before it. sgd-golden.test.mjs projects the golden through
 // the real scene builder, clamp and fit in Node for that view and ray-casts every path point and the ball against the surface (a path behind the bowl's own near wall is
 // drawn and invisible: that, with a tube that had no normals and rendered black, is what failed steps 4 and 6). Expected at 725 x 240: the bowl 22% of the view at rate
-// 0.1 and 15% at 2, the finished path 25 px long and 5.8 px thick (about 140 px2), the ball 8 to 10 px across, the kept path half as thick. Each threshold is about
+// 0.1 and 15% at 2, the finished path 38 px long and 5.8 px thick (about 230 px2), the ball 8 to 10 px across, the kept path half as thick. Each threshold is about
 // half of that. Each pixel step prints its measured numbers ("measured ...") so a CI log can recalibrate it. The numbers from a local software-GL run under the owner's
 // decision 25 (calibration only, the golden fixture only, ended when C4's CI is green) are INPUTS to these thresholds, NOT evidence; the CI run on the candidate is
 // the only acceptance record.
@@ -136,9 +136,9 @@ const sceneShot = () => host.screenshot({ mask: [card.locator('[data-animation-p
 
 // The bowl's rule, worked out by hand and written down here, not read from the program: loss = (1.4 x^2 + 0.5 z^2) / 2, start (0.1, 1.5), and with all 256 examples (no
 // noise) each step multiplies x by (1 - 1.4 r) and z by (1 - 0.5 r). The program calls the run converged when the steep slope 1.4 |x| is under 0.12 and the gentle slope 0.5 |z|
-// under 0.35 for three steps in a row. At rate 2 x grows by 1.8 a step (0.1, -0.18, 0.32, -0.58, 1.05, -1.89, then 3.40: five swings inside the bowl, and out on the sixth) and z
+// under 0.1 (|z| under 0.2) for three steps in a row. At rate 2 x grows by 1.8 a step (0.1, -0.18, 0.32, -0.58, 1.05, -1.89, then 3.40: five swings inside the bowl, and out on the sixth) and z
 // is turned by 1 - 2 x 0.5 = 0 after the first step.
-const at = (rate, steps) => { const x = 0.1 * (1 - 1.4 * rate) ** steps, z = 1.5 * (1 - 0.5 * rate) ** steps; return { x, z, loss: 0.5 * (1.4 * x * x + 0.5 * z * z), calm: Math.abs(1.4 * x) < 0.12 && Math.abs(0.5 * z) < 0.35 }; };
+const at = (rate, steps) => { const x = 0.1 * (1 - 1.4 * rate) ** steps, z = 1.5 * (1 - 0.5 * rate) ** steps; return { x, z, loss: 0.5 * (1.4 * x * x + 0.5 * z * z), calm: Math.abs(1.4 * x) < 0.12 && Math.abs(0.5 * z) < 0.1 }; };
 const bowl = (rate, steps) => at(rate, steps).loss;
 const FLAT_AT = (() => { let n = 1; while (!at(0.1, n).calm) n += 1; return n + 2; })(); // calm from step n on; the third calm step in a row ends the run
 
@@ -196,7 +196,7 @@ try {
     const seen = await look();
     measured('converged', { orange: seen.orange, black: seen.black, red: seen.red, covered: +seen.covered.toFixed(3) });
     assert.ok(seen.black < 30, `${seen.black} pure black pixels: the path is drawn unlit (a tube with no normals renders black)`);
-    assert.ok(seen.orange >= 70, `the finished run's path draws: ${seen.orange} orange pixels (about 140 expected at 725 x 240: 25 px long, 5.8 px thick; the ball is under 80 px2 and no arrow is shown)`);
+    assert.ok(seen.orange >= 100, `the finished run's path draws: ${seen.orange} orange pixels (about 230 expected at 725 x 240: 38 px long, 5.8 px thick; the ball is under 80 px2 and no arrow is shown)`);
     await shot('B-converged');
   });
   await step('New run keeps the old path as the ghost: every step of it, a one-point path, and the picture differs from the same scene with the ghost cleared', async () => {
@@ -223,7 +223,7 @@ try {
     const noise = await differ(withGhost, control), changed = await differ(withGhost, without);
     measured('ghost', { control: noise, withVsWithout: changed });
     assert.ok(noise <= 2, `two shots of the same scene differ by ${noise} pixels`);
-    assert.ok(changed >= noise + 25, `the kept path draws: ${changed} pixels differ with and without it, against ${noise} between two shots of one scene (about 70 expected: 25 px long, 2.9 px thick)`);
+    assert.ok(changed >= noise + 25, `the kept path draws: ${changed} pixels differ with and without it, against ${noise} between two shots of one scene (about 95 expected: 38 px long, 2.9 px thick)`);
     await shot('B-ghost');
   });
   await step('learning rate 2, the top of the control: five growing swings, then diverged; the Loss readout keeps the true value, and the held ball stays inside the frame', async () => {

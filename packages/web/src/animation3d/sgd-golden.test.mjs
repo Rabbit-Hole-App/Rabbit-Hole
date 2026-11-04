@@ -134,8 +134,8 @@ const runUntilOver = (inputs, from = 'run') => {
   return { state, steps };
 };
 // Closed form with all 256 examples (no noise), from the start (0.1, 1.5): x_n = 0.1 (1 - 1.4 r)^n, z_n = 1.5 (1 - 0.5 r)^n, loss = (1.4 x^2 + 0.5 z^2) / 2. The program calls the run
-// converged when the steep slope 1.4 |x| is under 0.12 and the gentle slope 0.5 |z| under 0.35 for three steps in a row (the noise keeps the ball wandering in z).
-const closed = (rate, n) => { const x = 0.1 * (1 - 1.4 * rate) ** n, z = 1.5 * (1 - 0.5 * rate) ** n; return { x, z, loss: 0.5 * (1.4 * x * x + 0.5 * z * z), calm: Math.abs(1.4 * x) < 0.12 && Math.abs(0.5 * z) < 0.35 }; };
+// converged when the steep slope 1.4 |x| is under 0.12 and the gentle slope 0.5 |z| under 0.1 (|z| under 0.2: the ball is at the bottom within the noise) for three steps in a row.
+const closed = (rate, n) => { const x = 0.1 * (1 - 1.4 * rate) ** n, z = 1.5 * (1 - 0.5 * rate) ** n; return { x, z, loss: 0.5 * (1.4 * x * x + 0.5 * z * z), calm: Math.abs(1.4 * x) < 0.12 && Math.abs(0.5 * z) < 0.1 }; };
 const stepsToConverge = rate => { let n = 1; while (!closed(rate, n).calm) n += 1; return n + 2; }; // calm from step n on; the third calm step ends the run
 const FULL = '256';
 
@@ -309,7 +309,7 @@ async function drawn(learningRate, aspect, play, batchSize = FULL) {
   built.scene.dispose();
   return out;
 }
-const finish = p => { p.press('run'); for (let t = 1; t <= 6 * 35; t += 1) p.tick(t); };
+const finish = p => { p.press('run'); for (let t = 1; t <= 6 * 50; t += 1) p.tick(t); }; // 42 steps at rate 0.1 with all 256 examples
 const STATES = {
   start: () => {}, mid: p => { for (let i = 0; i < 5; i += 1) p.press('step'); }, converged: finish, kept: p => { finish(p); p.press('newRun'); },
 };
@@ -471,10 +471,10 @@ test('rate 2, batch 16 (the default): at least four growing swings before the ma
   assert.equal([...top, ...mid].filter(run => run.word === 'converged').length, 0, 'a run that is growing its swings is never called converged');
 });
 
-test('a small rate settles at every batch size: rates 0.1 and 0.01 converge in 100 of 100 runs, and never end as diverged', () => {
-  for (const [rate, cap] of [[0.1, 400], [0.01, 1500]]) for (const batch of [1, 4, 16, 64, 256]) {
+test('a small rate settles at every batch size: rates 0.1, 0.14 and 0.01 converge in 100 of 100 runs at the bottom within the noise (|z| under 0.2, not part way down), and never end as diverged', () => {
+  for (const [rate, cap] of [[0.1, 400], [0.14, 400], [0.01, 1500]]) for (const batch of [1, 4, 16, 64, 256]) {
     const runs = nativeRuns(rate, batch, cap, 100);
     assert.equal(runs.filter(run => run.word === 'converged').length, 100, `rate ${rate} batch ${batch}: ${runs.filter(run => run.word === 'diverged').length} diverged, ${runs.filter(run => run.word === 'running').length} still running`);
-    assert.ok(runs.every(({ end: [x, z] }) => Math.abs(1.4 * x) < 0.12 && Math.abs(0.5 * z) < 0.35), `rate ${rate} batch ${batch}: every run ends in the band around the lowest point`);
+    assert.ok(runs.every(({ end: [x, z] }) => Math.abs(1.4 * x) < 0.12 && Math.abs(0.5 * z) < 0.1), `rate ${rate} batch ${batch}: every run ends in the band around the lowest point`);
   }
 });
