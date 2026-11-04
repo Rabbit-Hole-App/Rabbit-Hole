@@ -39,6 +39,14 @@ test('every title scans in one short line; each command says what it does and hi
   for (const c of SLASH) assert.ok(c.placeholder?.length > 10 && !/\.\.\.|…/.test(c.placeholder), `${c.name} placeholder`);
 });
 
+// AN-17 (owner plan v3.1, owner decisions 11 to 17 and 20, 3 Nov 2026): the request says what /animation works best for and what is not
+// supported yet, in the command's own description (the picker row and the Slash Commands window). AN-21 removes the second sentence.
+test('/animation says what it works best for and what is not supported yet', () => {
+  const about = SLASH.find(c => c.name === 'animation').about;
+  assert.ok(about.endsWith('Works best for mechanisms, loops and small games. Loss surfaces and optimizers are not supported yet.'), about);
+  assert.doesNotMatch(about, /\.\.\.|…/);
+});
+
 test('a Learn command becomes one semantic request with the selection as context; without one it acts on the current concept', () => {
   const card = { kind: 'card', id: 'b7', title: 'Attention · Guided' };
   assert.deepEqual(learnRequest('quiz', { args: 'the softmax', selection: card }),

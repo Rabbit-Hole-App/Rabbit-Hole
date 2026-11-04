@@ -1,20 +1,24 @@
 # /animation checklist
 
-Plan: [2026-10-30-animation.md](../../superpowers/plans/2026-10-30-animation.md) (owner decisions: section 17; kickoff
-inventory: section 18). Blockers and fixes: [fix.md](fix.md). Spend: [spend.md](spend.md). MVP receipt:
-[receipts/M3-8ed7e52ed.md](receipts/M3-8ed7e52ed.md). Ledger parent task `8b56bdab`. Times are PT (2026-10-30 to 2026-11-01).
+Plan: [2026-10-30-animation.md](../../superpowers/plans/2026-10-30-animation.md) (v3.1 with the owner's amendments of 3 November 2026;
+owner decisions 1 to 17 and 20 in section 1; the SGD ladder AN-17 to AN-21 is section 8; kickoff inventory: 14.4). Blockers and
+fixes: [fix.md](fix.md). Spend: [spend.md](spend.md). Billing: [billing-escrow.md](billing-escrow.md). MVP receipt:
+[receipts/M3-8ed7e52ed.md](receipts/M3-8ed7e52ed.md). Ledger parent task `8b56bdab` (MVP1); ladder ledger `857a0d92-9bb6-4b9b-9739-ae85d7df3d27`
+(below). Times are PT (2026-10-30 to 2026-11-03).
 
 States: `not_started`, `in_progress`, `blocked`, `pushed`, `tested`, `preview_ready`, `ready_for_owner_review`,
 `owner_approved`, `deployed`, `enabled`, `production_verified`, `deferred`.
 
-Kickoff base: main `a3376817f003a9c41824fc5b76b644778bc9c6e3`; main `ff0fff36ad919785d1924a2f5780b2f5838e7fa8`
-(release 24-eb) merged in. Integration branch `feat/animation` (worktree `animation`), MVP candidate `c9d0c5509126b277603a778fbcdc2b376a08ab42`.
-Preview: https://rabbit-hole-web-dev-animation.tryrabbithole.workers.dev, built from `c9d0c5509126b277603a778fbcdc2b376a08ab42`, with
-`ANIMATION_ENABLED=true` and `ANIMATION_DIAGNOSTICS=true` set on this clone only (deploy flags; no config file sets
-them) and `ANTHROPIC_API_KEY` installed on this clone only. Production: see [Production activation](#production-activation)
-(config prepared on `release/animation-prod`; not released).
+**Production (3 November 2026): `caf7ee9bc7355ba6d76f971d00872b0da8a1254b`**, released 3:09 PM PT (workflow run 41736512175; `rabbit-hole-app`
+version `56df36da-8637-4839-b848-9e5920c48fae`, `rabbit-hole-cp` version `eea10533-f761-4d33-b819-1b839286d58e`; build `a661e0ea0f9717e6`).
+AN-01 to AN-07 (MVP1) are released. Limited acceptance passed on a real grid game; SGD qualification failed and is open; the owner's
+signed-in production smoke is pending. The SGD ladder AN-17 to AN-21 is approved as a scoped exception (decision 15); AN-08 to AN-16
+stay blocked. Kickoff base (history): main `a3376817f003a9c41824fc5b76b644778bc9c6e3`; the old MVP candidate `c9d0c5509126b277603a778fbcdc2b376a08ab42`
+and its preview `rabbit-hole-web-dev-animation` are superseded by the production commit above. A dev preview is a per-candidate clone
+(`docs/features/parallel-dev-deploys.md`); `ANIMATION_DIAGNOSTICS` is never set in production. Production activation: see
+[Production activation](#production-activation) (released).
 
-## Lanes
+## Lanes (MVP1, historical)
 
 | Agent | Owns | Branch | Last merged SHA |
 |---|---|---|---|
@@ -27,17 +31,30 @@ them) and `ANTHROPIC_API_KEY` installed on this clone only. Production: see [Pro
 
 ## Tasks
 
+AN-01 to AN-07 are released at production `caf7ee9bc` (MVP1); the SHAs, branches and previews in their rows are the MVP1 development
+history, and what is still open from them is in plan section 7. The ladder rows follow.
+
 | Task/subtask | Phase | Owner | Branch | Implemented SHA (latest) | Focused test / CI | Preview | Status | Next action |
 |---|---|---|---|---|---|---|---|---|
-| AN-01 plan, checklist, fix log, spend ledger | MVP | P | feat/animation | `28c34c57f6a6cf8c99f64bce85e41085e0ac915f` | n/a (docs) | n/a | pushed | — |
-| AN-01 contract, capabilities, fixtures | MVP | R | feat/animation-r | `9a4d1f796cc31ad1c47e54ab7f4bb0e7a3751d98` (+ label placement `c0d450915`) | animation3d unit suites; oracle sweeps | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | preview_ready | owner review |
-| AN-02 renderer, scene, review capture page | MVP | R | feat/animation-r | `8fc92fca9d2f84aed2540a45c8c14cf7756e58f8` | unit; fast-e2e animation-mvp; Browser Rendering probe (18 images inspected) | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | preview_ready | owner review |
-| AN-03 card, /animation command, proposal, controls | MVP | U (+P) | feat/animation-u | `8ebfeef330a68cc95baffd7f4aabcb62a2006fde`; orbit/press fix `ef73e0e90` | unit; fast-e2e animation-mvp, slash-sheet, motion-command, inline-ai | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | preview_ready | owner review |
-| AN-04 runtime and atomic state | MVP | R + U | feat/animation-r | `169c6b54a3fd2e321f4a3ae70e6e74103e6c8530`; session race `8ebfeef33` | real QuickJS runtime tests; fast-e2e reload steps | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | preview_ready | owner review |
-| AN-05 planner, author, review, repair, job | MVP | G (+P) | feat/animation-g | `c7c24b9d0f5ab14682da0cc6c490c220a5aea084` | control-plane animation tests; 4 real accepted builds (receipt) | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | preview_ready | owner review |
-| AN-06 persistence, cancel, hydration | MVP | A (+P) | feat/animation-a | `7ceb2b57e8ecd17d0f85e9a38bd4de15d1540cdf`; canvas flush on feat/animation | unit; fast-e2e reload with zero job/model requests (mocked job server); start-board save-race regression (FX-AN-017, `622d17501`) | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | preview_ready | owner review |
-| AN-07 MVP qualification | MVP | V + P | feat/animation-v | `5a9d096558a821e584f5fe65474a944436f1233d` | receipt M3 | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | ready_for_owner_review | owner decision |
+| AN-01 plan, checklist, fix log, spend ledger | MVP | P | feat/animation | `28c34c57f6a6cf8c99f64bce85e41085e0ac915f` | n/a (docs) | released 2026-11-03 (production) | deployed | plan, checklist and spend synced 2026-11-03 (MVP2a); — |
+| AN-01 contract, capabilities, fixtures | MVP | R | feat/animation-r | `9a4d1f796cc31ad1c47e54ab7f4bb0e7a3751d98` (+ label placement `c0d450915`) | animation3d unit suites; oracle sweeps | released 2026-11-03 (production) | deployed | see plan section 7 (owner smoke 13.7) |
+| AN-02 renderer, scene, review capture page | MVP | R | feat/animation-r | `8fc92fca9d2f84aed2540a45c8c14cf7756e58f8` | unit; fast-e2e animation-mvp; Browser Rendering probe (18 images inspected) | released 2026-11-03 (production) | deployed | see plan section 7 (owner smoke 13.7) |
+| AN-03 card, /animation command, proposal, controls | MVP | U (+P) | feat/animation-u | `8ebfeef330a68cc95baffd7f4aabcb62a2006fde`; orbit/press fix `ef73e0e90` | unit; fast-e2e animation-mvp, slash-sheet, motion-command, inline-ai | released 2026-11-03 (production) | deployed | see plan section 7 (owner smoke 13.7) |
+| AN-04 runtime and atomic state | MVP | R + U | feat/animation-r | `169c6b54a3fd2e321f4a3ae70e6e74103e6c8530`; session race `8ebfeef33` | real QuickJS runtime tests; fast-e2e reload steps | released 2026-11-03 (production) | deployed | see plan section 7 (owner smoke 13.7) |
+| AN-05 planner, author, review, repair, job | MVP | G (+P) | feat/animation-g | `c7c24b9d0f5ab14682da0cc6c490c220a5aea084` | control-plane animation tests; 4 real accepted builds (receipt) | released 2026-11-03 (production) | deployed | see plan section 7 (owner smoke 13.7) |
+| AN-06 persistence, cancel, hydration | MVP | A (+P) | feat/animation-a | `7ceb2b57e8ecd17d0f85e9a38bd4de15d1540cdf`; canvas flush on feat/animation | unit; fast-e2e reload with zero job/model requests (mocked job server); start-board save-race regression (FX-AN-017, `622d17501`) | released 2026-11-03 (production) | deployed | see plan section 7 (owner smoke 13.7) |
+| AN-07 MVP qualification | MVP | V + P | feat/animation-v | `5a9d096558a821e584f5fe65474a944436f1233d` | receipt M3 | released 2026-11-03 (production) | deployed | see plan section 7 (owner smoke 13.7) |
+| AN-17 honest failure, transport, repair, billing, copy | ladder, MVP2a + MVP2b | G + P | `feat/animation-escrow` (MVP2a) | MVP2a: docs, copy line and escrow committed on the branch; MVP2b not started | `animation-escrow.test.js` (17 tests), `slash.test.mjs`, `client.test.mjs`; CI on the pushed head | not deployed | in_progress: MVP2a pushed, awaiting its gate; MVP2b not_started | MVP2a: ordinary gate, release, Explore Top rides with it; then MVP2b (streaming, deadline, same-job retry, FX-AN-040/043, repair 24,000, strict output) |
+| AN-18 contract primitives (R) | ladder, MVP3 | R | — | — | — | — | not_started | start now, one writer |
+| AN-19 renderer, framing, golden SGD artifact (R + V) | ladder, MVP3 | R + V | — | — | — | — | not_started (depends on AN-18) | after AN-18 lands |
+| AN-20 prompts, archetype, assertions, offline harness, Gate 1 (G + V) | ladder, MVP4 | G + V | — | — | — | — | not_started (prompt cut and harness may start now) | archetype and exemplar after AN-19 |
+| AN-21 full-pipeline qualification, release, canary (V + P) | ladder, MVP5 | V + P | — | — | — | — | not_started (depends on AN-17 to AN-20) | Gate 2 after Gate 1 passes |
+| AN-22 patch-style repair | proposed | G | — | — | — | — | deferred (after the ladder) | not authorized by the ladder |
 | AN-08..AN-16 | post-MVP | — | — | — | — | — | blocked: owner MVP approval | none until approval |
+
+Ladder ledger UUID `857a0d92-9bb6-4b9b-9739-ae85d7df3d27`; children: AN-17 `b8a06a01-84bf-40af-bccb-9c548e55ef57`, AN-18
+`951e8c49-67ee-4f3a-8264-6bff7b67478e`, AN-19 `e6ab6c6c-a7e2-4685-9010-02e15b8a412c`, AN-20 `54823918-c7a9-47d6-8dcc-0a2029be508b`, AN-21
+`d7a65dd9-906e-46db-9be7-f3881353f6f1`. New `fix.md` entries start at FX-AN-044.
 
 ## Milestones
 
@@ -46,14 +63,32 @@ them) and `ANTHROPIC_API_KEY` installed on this clone only. Production: see [Pro
 | M0 kickoff contract | done | `28c34c57f6a6cf8c99f64bce85e41085e0ac915f` | n/a | — |
 | M1 first visible slice (fixtures) | done | `38918a481358517ae0708ebabcc6c709ab188c9b` | deployed 2026-10-30 | — |
 | M2 generated slice | done | first accepted real build on `a006319c994a0981b487169b49231a120b2839cf` (game) | deployed | M3 receipt covers it |
-| M3 MVP ready for decision | ready_for_owner_review | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | deployed, enabled on the clone | [M3-8ed7e52ed](receipts/M3-8ed7e52ed.md) |
-| APPROVAL GATE | not reached | | | |
+| M3 MVP ready for decision | done (superseded by MVP1) | `c9d0c5509126b277603a778fbcdc2b376a08ab42` | clone, superseded | [M3-8ed7e52ed](receipts/M3-8ed7e52ed.md) |
+| MVP1 released | deployed (production), signed-in smoke pending | `caf7ee9bc7355ba6d76f971d00872b0da8a1254b` | n/a | run 41736512175; limited acceptance on a grid game (plan 13.2) |
+| MVP2a honest failure (escrow, copy line, Explore Top) | in_progress: pushed on `feat/animation-escrow`, awaiting its gate | see the branch head | dev clone after the gate | — |
+| MVP2b transport and repair | not_started | | | — |
+| MVP3 primitives (AN-18 + AN-19) | not_started | | | — |
+| MVP4 prompts and Gate 1 (AN-20) | not_started | | | — |
+| MVP5 SGD qualified (AN-21) | not_started | | | — |
+| APPROVAL GATE | AN-08 onward not reached; the ladder is a scoped exception (decision 15) | | | |
 
 ## Owner approval record
 
 - 2026-11-02 (as relayed in the production release brief): production GO for the Animation MVP once technical acceptance
   and release checks pass, with the additive production config below. It does not authorize unrelated schema changes,
   AN-08 onward, /whiteboard or Creator Analytics.
+
+- 2026-11-03, about 3:00 to 3:30 PM PT (plan section 1, decisions 11 to 17): the SGD qualification ladder AN-17 to AN-21 is a
+  scoped exception to the AN-08 gate (decision 15); paid attempts for its two gates are approved and the budget is raised as needed
+  (decision 14); the billing default was settled later that day (decision 17 amended, decision 20).
+- 2026-11-03 (decision 20): the answers to Parallel's eight questions, all as recommended: AN-17 splits into MVP2a and MVP2b;
+  Explore Top rides in MVP2a; streaming is limited to the Animation roles behind a role flag; Gate 2 uses a second test session;
+  paid batches are announced and proceed; the `--mvp` branch follows the escrow release.
+- 2026-11-03 (decisions 21 and 22): gates run on the dev preview of a frozen candidate, never after a release (Gate 1 on MVP3's,
+  Gate 2 on MVP4's), samples in parallel across up to five dev test sessions; MVP4 and MVP5 release as one when both gates pass the
+  same day. Gate 1 measures the AN-20 prompt files, imported into the harness at a frozen hash with the golden exemplar at a frozen
+  hash, against MVP3's contract and renderer; its table records the MVP3 SHA, the prompt-files hash and the golden artifact hash, and
+  MVP4's candidate must match them or Gate 1 reruns.
 
 AN-08 onward stays `blocked: owner MVP approval` until the owner's explicit approval of them is recorded here verbatim
 with date, time and scope.

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, GitFork, Shapes, Star } from 'lucide-react';
 import { CreatorAvatar } from './PublicCards.jsx';
-import { openedFields, readWeekly, sendWeeklyEvent, starsSinceLabel, viewedFields, viewedOnce, weekLabel, weeklyList, WEEKLY_TOP_URL } from './weekly-top.js';
+import { openedFields, readWeekly, sendWeeklyEvent, viewedFields, viewedOnce, weeklyList, WEEKLY_TOP_URL } from './weekly-top.js';
 
 // Weekly Top 5 (docs/features/explore-weekly-top.md; owner brief 2026-10-23 sections 3-6): "Top canvases this week" on the Canvases tab,
 // "Top creators this week" on Creators - always open with nothing to fold, up to five rows, site-wide (Filters, Sort and Size never change it).
@@ -93,13 +93,12 @@ function CreatorRow({ e }) {
 }
 
 // Holds the section's place while the one request is in flight, so Recommended and the results below do not jump when it lands
-// (audit 2f92d101). Same measures as the real section: heading 20px, note 26px, five rows of 64px in the same bordered box. It is not
+// (audit 2f92d101). Same measures as the real section: heading 20px plus its 8px gap, five rows of 64px in the same bordered box. It is not
 // [data-weekly-top]: a failed request still shows no section. ponytail: a week with fewer than five rows is shorter than this.
 function WeeklySkeleton() {
   return (
     <div data-weekly-skeleton aria-hidden="true" className="max-w-[760px] pb-6">
-      <i className="block h-5 w-44 rounded-xs bg-hover" />
-      <div className="pb-2 pt-0.5"><i className="block h-4 w-72 max-w-full rounded-xs bg-hover" /></div>
+      <i className="mb-2 block h-5 w-44 rounded-xs bg-hover" />
       <div className="divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-white">
         {Array.from({ length: 5 }, (_, i) => (
           <div key={i} className="flex h-16 items-center gap-3 px-4">
@@ -120,8 +119,8 @@ export default function WeeklyTop({ weekly, tab }) {
     if (list && once(tab, data)) sendWeeklyEvent('weekly_top.viewed', viewedFields(tab, data, list, ms));
   }, [tab, data, !!list]);
   if (!list) return !failed && !data ? <WeeklySkeleton /> : null;
+  if (list.entries.length === 0) return null; // an empty week shows nothing at all: no heading, no message
   const creators = tab === 'creators';
-  const week = weekLabel(data), since = starsSinceLabel(data);
   // weekly_top.opened: a click or middle click on a link inside a row. The row itself is not a link and reports nothing.
   const opened = (event) => {
     const link = event.target.closest?.('a[data-weekly-target]');
@@ -130,13 +129,10 @@ export default function WeeklyTop({ weekly, tab }) {
   };
   return (
     <section data-weekly-top={creators ? 'creators' : 'canvases'} aria-labelledby="weekly-top-heading" className="max-w-[760px] pb-6">
-      <h2 id="weekly-top-heading" className="text-sm font-semibold text-ink">{creators ? 'Top creators this week' : 'Top canvases this week'}</h2>
-      <p data-weekly-note className="pb-2 pt-0.5 text-xs text-ink-3">Across all of Rabbit Hole{week ? `, ${week}` : ''}.{creators ? '' : ' Filters, Sort and Size apply to the results below.'}{since && ` ${since}`}</p>
-      {list.entries.length === 0
-        ? <p data-weekly-empty className="rounded-[10px] border border-line px-4 py-3 text-sm text-ink-3">{list.message}</p>
-        : <ol data-weekly-list onClick={opened} onAuxClick={opened} className="m-0 list-none divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-white p-0">
-          {list.entries.map((e) => (creators ? <CreatorRow key={e.handle} e={e} /> : <CanvasRow key={e.url} e={e} />))}
-        </ol>}
+      <h2 id="weekly-top-heading" className="pb-2 text-sm font-semibold text-ink">{creators ? 'Top creators this week' : 'Top canvases this week'}</h2>
+      <ol data-weekly-list onClick={opened} onAuxClick={opened} className="m-0 list-none divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-white p-0">
+        {list.entries.map((e) => (creators ? <CreatorRow key={e.handle} e={e} /> : <CanvasRow key={e.url} e={e} />))}
+      </ol>
     </section>
   );
 }

@@ -5,6 +5,8 @@ every other feature budget (Explain, Explain-back, Motion and Image budgets are 
 authoring, review and repair calls. Before any paid call, add its worst-case estimate to "reserved" below, including
 calls running concurrently; at the cap, stop paid calls and continue unpaid work. No secrets, cookies or tokens here.
 
+Authorization 3 November 2026 (plan section 1, decision 14; owner decisions 11 to 17 and 20): **paid attempts for the SGD ladder's two gates (AN-20 Gate 1, AN-21 Gate 2) are approved and the budget is raised as needed.** Under decision 20 (point 7) each paid batch is announced with its size and cost before it runs and then proceeds; the owner is asked only if cumulative spend would pass the plan's worst-case figure (about US$45 for both gates); a second Gate 1 batch does not ask. Limited SGD acceptance cap history: 437 credits (US$4.37), raised to 620 credits (US$6.20) on 3 November. No production spend until AN-21's one post-release SGD request.
+
 Cap raised: owner 2026-11-02 PT, "new budget is $20": **US$20.00 total** for `/animation` dev testing (the same rules). Remaining
 is now US$20.00 minus the ledger total. Raised again: owner 2026-11-02 PT, "upgrade cap to $30 if needed": **US$30.00 total**, the same rules. Raised for the MVP closeout: owner 2026-11-02 PT, **US$100.00 total** (settled plus outstanding reservations), with targeted attempts after a diagnosed fix.
 
@@ -107,3 +109,26 @@ rounding (US$8.6336): rows 28-30
 were three owner preview runs that had not been logged. Renders are platform compute and are not in these totals.
 
 Total provider: US$14.4286. Total ledger (incl. reserves): US$14.5502. Reserved in flight: US$0.00. Remaining: US$85.4498.
+
+## 3 November 2026 (SGD limited acceptance)
+
+Source: `C:/s/spec/animation/sgd-mvp1-acceptance/spend-ledger.md` (outside the repository), the dev test user's `/api/learn/usage` counter
+before and after each run; credits and US$ are the dev ledger's settled cost (100 credits = US$1). Total **538.10 credits** (US$5.3810)
+against the 620-credit limited-acceptance cap (437 until the owner raised it on 3 November); 81.90 credits were left under it. The
+running totals below continue from row 81. Candidate: "integrated tree" is the unreleased integration tree before the production commit
+(no SHA recorded); `89d9718bf` and `caf7ee9bc` are the SHAs the later runs used.
+
+| # | Time (PT) | Agent | Case / outcome | Model | Calls | Worst case | Provider US$ | Ledger US$ (incl. reserves) | Artifact hash | Running provider total | Running ledger total |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 82 | 11/3 | SGD acceptance | run 1: sequence 1, job `aj_de0c4f2f294843febedb760b870fb39a` (legacy request, integrated tree): failed review; 111.5839 credits | claude-opus-5-5 | - | - | US$1.1158 | US$1.1158 (usage 1184.0774 to 1295.6613 credits) | - | US$15.5444 | US$15.6660 |
+| 83 | 11/3 | SGD acceptance | run 2: sequence 2, job `aj_0b6ca2b5e76b49079c8c74aa88929777` (client features declared, integrated tree): failed review; 104.5557 credits | claude-opus-5-5 | - | - | US$1.0456 | US$1.0456 (usage 1295.6613 to 1400.2170) | - | US$16.5900 | US$16.7116 |
+| 84 | 11/3 | SGD acceptance | one paid review call on the integrated tree's captures of the repaired draft (direct call, dev key, outside the product ledger); 15.6543 credits | claude-opus-5-5 | 1 | - | US$0.1565 | US$0.1565 (input 14,447 + cache write 2,147 x 1.25, output 4,401) | - | US$16.7465 | US$16.8681 |
+| 85 | 11/3 | SGD acceptance | run 3: sequence 3, job `aj_2365d72c3d534c009dda8c028a69be1a` (candidate `89d9718bf`, preview 4aae2472): 4 brief calls; the author failed `model_http_524` after 126 s and was not charged; 25.5597 credits | claude-opus-5-5 | 4 brief + 1 author (524) | - | US$0.2556 | US$0.2556 (usage 1400.2170 to 1425.7767) | - | US$17.0021 | US$17.1237 |
+| 86 | 11/3 | SGD acceptance | run 4: attempt 4, job `aj_734f1e4e4f444819b8c78d829a39353e` (candidate `89d9718bf`, preview 4aae2472; a new job, since a `model_http_524` author failure has no same-job retry): 4 brief 27.54, author 1 (13,713 out), 2 reviews, 2 repairs; stopped by policy (rounds, size_limit), no final review; 133.4472 credits | claude-opus-5-5 | 4 brief + 1 author + 2 review + 2 repair | - | US$1.3345 | US$1.3345 (usage 1425.7767 to 1559.2239) | - | US$18.3366 | US$18.4582 |
+| 87 | 11/3 | SGD acceptance | run 5: job `aj_77ff45ba15754ef5972994f8e564cbb6` (candidate `caf7ee9bc`, preview 0fd062bf, cap 620): 4 brief 25.73, author 32.13, review 13.76, repair 19.92, repair 18.17, review 12.81; stopped by policy (rounds) after the second review rejected; no artifact; 122.5332 credits | claude-opus-5-5 | 4 brief + 1 author + 2 review + 2 repair | - | US$1.2253 | US$1.2253 (usage 1559.2239 to 1681.7571) | - | US$19.5619 | US$19.6835 |
+| 88 | 11/3 | SGD acceptance | run 6, limited MVP run: grid game, job `aj_1f8eed916ce34942a086deb5654c2ea5` (candidate `caf7ee9bc`, preview 0fd062bf, cap 620): brief 5.01, author 11.53, review 8.22; ready at the first review, 0 repairs; 24.7629 credits | claude-opus-5-5 | 1 brief + 1 author + 1 review | - | US$0.2476 | US$0.2476 (usage 1681.7571 to 1706.52) | `f16222a22c0dfb69` (SHA-256 of artifact.json, prefix) | US$19.8095 | US$19.9311 |
+
+Rows 82-88 sum to 538.0969 credits (US$5.3810). The dev test user's usage counter after run 6 was 1,706.52 credits; about 790 credits
+remain for the month, enough for one Gate 1 batch and not for Gate 2 (plan section 8, Gates and budget).
+
+Total provider (rows 1-88): US$19.8095. Total ledger (incl. reserves, row 1's unsent reserve of US$0.1216 included as before): US$19.9311. Reserved in flight: US$0.00.
