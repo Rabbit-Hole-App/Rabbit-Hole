@@ -11,7 +11,7 @@ import { ANIMATION_AUTHOR_SYSTEM, authorTool } from './agents/animation-author.j
 import { archetypeRules } from './agents/animation-archetypes.js';
 import { actionCapability, clientFeatures, enabledCapabilities, surfaceCapability } from './animation-brief.js';
 import { AnimationPolicyError } from './animation-policy.js';
-import { estimateDraftBytes } from './animation-feasibility.js';
+import { estimateDraftBytes, trailRule } from './animation-feasibility.js';
 import { draftOf, fitProblems, withProgram } from './animation-repair.js';
 import { modelEvidence } from './explain-evidence.js';
 
@@ -162,9 +162,10 @@ export function assertionProblems(artifact, plan) {
       else if (p.type !== 'number' || !(p.min <= low && p.max >= high)) out.push(`${at}: parameter ${item.parameter} must cover both compared values, ${low} and ${high} (it has ${p.type === 'number' ? `${p.min} to ${p.max}` : p.type})`);
     } else if (item?.kind === 'pathLength') {
       // The assertion's min is a floor; the path must also hold one point per step of the default run (FX-AN-111), at most what a trail can hold.
-      const steps = defaultStepCount(artifact, plan), need = Math.min(TRAIL_MAX, Math.max(item.min, Math.ceil(steps?.n ?? 0)));
+      // C14 (FX-AN-125, owner decision 36): a plan whose own rule sentence thins the trail (one marker every N steps) needs a path of steps / N points, not one for every step.
+      const steps = defaultStepCount(artifact, plan), rule = trailRule(plan), need = Math.min(TRAIL_MAX, Math.max(item.min, Math.ceil((steps?.n ?? 0) / (rule?.every ?? 1))));
       const trail = id => geometries.some(g => g?.id === id && g.kind === 'trail' && g.max >= need);
-      if (!nodes.some(n => n?.geometry !== undefined && trail(n.geometry))) out.push(`${at}: the approved plan needs a path of at least ${need} points${need > item.min ? ` (one for each of its ${Math.ceil(steps.n)} steps, ${steps.from})` : ''}; use a trail geometry with max ${need} or more on a node`);
+      if (!nodes.some(n => n?.geometry !== undefined && trail(n.geometry))) out.push(`${at}: the approved plan needs a path of at least ${need} points${need > item.min ? ` (${rule ? `one every ${rule.every} of its` : 'one for each of its'} ${Math.ceil(steps.n)} steps, ${steps.from})` : ''}; use a trail geometry with max ${need} or more on a node`);
     }
   });
   return out;
