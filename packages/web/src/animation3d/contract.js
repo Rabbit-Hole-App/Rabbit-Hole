@@ -60,7 +60,7 @@ export const ANIMATION_PROGRAM_VERSIONS = Object.freeze({
 // What the author is told. Same entry points and purity rules as the stateful /explain program (explain-program/contract.js).
 export const ANIMATION_PROGRAM_CONTRACT = Object.freeze({
   exports: 'export function evaluate({ inputs, time, seed, state }) -> frame; when the artifact declares actions, selectable or draggable nodes, or stepped: also export function initialState({ inputs, seed }) -> state and export function reduce({ state, event, inputs, time, seed }) -> state',
-  frame: '{ nodes?: { <node id>: { position?, quaternion?, scale?, visible?, text? } }, materials?: { <material id>: { color?, opacity? } }, readouts?: { <readout id>: number }, selection?: <node id> | null, goal?: { status: "playing" | "won" | "lost", message? } }',
+  frame: '{ nodes?: { <node id>: { position?, quaternion?, scale?, visible?, text?, points? (trail path) } }, materials?: { <material id>: { color?, opacity? } }, readouts?: { <readout id>: number | string (text readout word) }, selection?: <node id> | null, goal?: { status: "playing" | "won" | "lost", message? } }',
   labels: 'A label is drawn facing the camera, over the scene, small and sharp; it shrinks as the scene looks smaller on screen and is hidden when there is no room for it (larger size hints and earlier labels are kept first). An object name can be switched off by the learner; a label whose text a frame updates, or one with no parent object, always shows. size is only a relative hint (0.3 is normal). Make each label a child node of the object it names, positioned at the edge of that object (for example its top), and choose placement (above, below, left, right or center; default above) so the plate sits beside that point instead of covering the object. Use few, short labels.',
   // aj_ad936ec1, aj_ba11d5ac (2026-11-02): both programs read event.id for an action, which the host never sends, so the action did nothing.
   events: 'reduce receives exactly these events: { type: "action", action: <action id> }, { type: "parameter", parameter: <parameter id>, value }, { type: "select", node: <node id> }, { type: "drag_start" | "drag_move" | "drag_end", node: <node id>, value }, and in a stepped scene { type: "step", tick }. An action is named by event.action, never event.id.',
@@ -101,7 +101,7 @@ const sourceRef = z.object({ sourceId: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}
 
 // A plan's checks on the artifact: a node is clamped to a surface, a parameter's range covers two values to compare, a trail holds at least this many points.
 const assertion = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('clamp'), node: id }).strict(),
+  z.object({ kind: z.literal('clamp'), node: id.optional() }).strict(), // no node: at least one sphere node has clampTo (a planner cannot know the marker's id)
   z.object({ kind: z.literal('compare'), parameter: id, values: z.tuple([finite(1e9), finite(1e9)]) }).strict(),
   z.object({ kind: z.literal('pathLength'), min: int(1, 512) }).strict(),
 ]);

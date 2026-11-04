@@ -19,6 +19,20 @@ test('clamp: the node must exist and carry clampTo', () => {
   assert.deepEqual(assertionProblems(artifact, planOf([{ kind: 'clamp', node: 'nowhere' }])), ['assertions.0: the approved plan clamps node nowhere, which the scene does not declare']);
 });
 
+test('clamp without a node: some sphere node must carry clampTo', () => {
+  const any = planOf([{ kind: 'clamp' }]);
+  assert.deepEqual(assertionProblems(artifact, any), [], 'the fixture\'s ball is clamped');
+  const message = ['assertions.0: the approved plan clamps a marker to its surface; give a sphere node clampTo { node: <the surface node> }'];
+  const unclamped = edit(artifact, a => { delete a.scene.nodes.find(n => n.id === 'ball').clampTo; });
+  assert.deepEqual(assertionProblems(unclamped, any), message);
+  const notSphere = edit(unclamped, a => { a.scene.nodes.find(n => n.id === 'trail').clampTo = { node: 'bowl' }; }); // clampTo on a non-sphere does not count (the contract refuses it anyway)
+  assert.deepEqual(assertionProblems(notSphere, any), message);
+  assert.deepEqual(assertionProblems({ scene: {} }, any), message);
+  // With a node the meaning is unchanged, and the two forms sit together in order.
+  assert.deepEqual(assertionProblems(artifact, planOf([{ kind: 'clamp', node: 'ball' }, { kind: 'clamp' }])), []);
+  assert.deepEqual(assertionProblems(unclamped, planOf([{ kind: 'clamp', node: 'ball' }, { kind: 'clamp' }])).map(l => l.split(':')[0]), ['assertions.0', 'assertions.1']);
+});
+
 test('compare: the parameter must be a number whose range includes both values', () => {
   const compare = values => planOf([{ kind: 'compare', parameter: 'learningRate', values }]);
   assert.deepEqual(assertionProblems(withRate, compare([0.1, 1.5])), [], 'both ends are included');
