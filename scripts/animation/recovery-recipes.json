@@ -134,6 +134,14 @@
           "a repair must return the program: the tool requires it and the prompt says so",
           "a repair that returns the program beside the artifact, or as a bare source string, keeps its program"
         ]
+      },
+      {
+        "op": "dropTest",
+        "optional": true,
+        "file": "packages/control-plane/test/animation-fit.test.js",
+        "titles": [
+          "the author runs at medium effort with 24,000 output tokens, and the build worst case and credits follow the pricing registry"
+        ]
       }
     ],
     "allow": [
