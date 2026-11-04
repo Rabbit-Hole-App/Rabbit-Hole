@@ -15,12 +15,16 @@
 // The artifact must hash to request.artifactHash (sha256 of its canonical JSON, as the server's artifactHashOf), so the echoed hash
 // is proof of what ran, not a copy of the request.
 //   runReviewProgram(request, { workerFactory, createRuntime? }) ->
-//     { ok: true, artifact, artifactHash, frame, trace: { inputs, time, events, ticks, readouts, goal?, selection?, stateHash? } }
+//     { ok: true, artifact, artifactHash, frame, trace: { inputs, time, events, ticks, readouts, goal?, selection?, stateHash?, clamped? } }
+//   clamped (AN-19, owner decision 11): [{ node, trueY, y }] for each sphere the host held at its surface's top in this frame, the y the program gave and the y drawn;
+//   the readouts above keep the true value.
 //     | { ok: false, programError: { code, phase, diagnostic, ms? } }   the candidate's program failed (setup/engine: a renderer fault)
 //     | { ok: false, error }                                            the page refuses the request itself
+import * as THREE from 'three';
 import { canonicalJson, sha256Hex } from '../explain-program/contract.js';
 import { parameterAccepts, validateAnimationArtifact, validateAnimationEvent } from './contract.js';
 import { createAnimationRuntime } from './runtime.js';
+import { buildAnimationScene } from './scene.js';
 
 export const REVIEW_LIMITS = Object.freeze({ events: 4, ticks: 90, size: 2048 });
 const isAdvance = event => event?.type === 'advance', isResume = event => event?.type === 'resume';
@@ -29,6 +33,14 @@ const wholeTicks = value => Number.isInteger(value) && value >= 1 && value <= RE
 export const reviewTicksOf = request => (request.leadTicks ?? 0) + (request.ticks ?? 0) + (request.events ?? []).reduce((total, event) => total + (isAdvance(event) ? event.ticks : isResume(event) ? event.probe : 0), 0);
 const PHASES = ['load', 'setup', 'initialize', 'reduce', 'evaluate', 'engine'];
 const finite3 = value => Array.isArray(value) && value.length === 3 && value.every(Number.isFinite);
+// The clamps the card applies to this frame (scene.js apply), measured on a scene built from the artifact. A scene with no clampTo builds nothing.
+const round = value => Math.round(value * 1e4) / 1e4;
+function clampedIn(artifact, frame) {
+  if (!artifact.scene.nodes.some(node => node.clampTo)) return [];
+  const built = buildAnimationScene(artifact, { labelTexture: () => ({ texture: new THREE.Texture(), aspect: 1 }) }); // measured, never drawn
+  if (!built.ok) return [];
+  try { return (built.scene.apply(frame).clamped ?? []).map(({ node, trueY, y }) => ({ node, trueY: round(trueY), y: round(y) })); } finally { built.scene.dispose(); }
+}
 
 // The request's own shape, checked before anything runs. -> null | the refusal text
 export function reviewRequestProblem(request) {
@@ -120,9 +132,10 @@ export async function runReviewProgram(request, { workerFactory, createRuntime =
       if (!result.accepted && result.reason !== 'unsupported') return failed(result, 'evaluate');
     }
     const snapshot = runtime.snapshot();
+    const clamped = clampedIn(artifact, frame);
     const trace = {
       inputs: snapshot.inputs, time: snapshot.time, events: request.events, ticks: snapshot.tick, readouts: frame.readouts,
-      ...(frame.goal ? { goal: frame.goal } : {}), ...(frame.selection !== undefined ? { selection: frame.selection } : {}),
+      ...(frame.goal ? { goal: frame.goal } : {}), ...(frame.selection !== undefined ? { selection: frame.selection } : {}), ...(clamped.length ? { clamped } : {}),
       ...(snapshot.state !== null ? { stateHash: await sha256Hex(canonicalJson(snapshot.state)) } : {}),
     };
     return { ok: true, artifact, artifactHash: request.artifactHash, frame, trace };
