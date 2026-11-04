@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { linePoints, triangleCost, validateAnimationArtifact } from './contract.js';
 import { ANIMATION_FIXTURES, INVALID_ANIMATION_FIXTURES, primitivesFixture, watchFixture } from './fixtures.js';
-import { ARROW_LABELS, buildAnimationScene, declutterLabels, LABEL_PIXELS, labelPixels } from './scene.js';
+import { ARROW_LABELS, DECLUTTER, buildAnimationScene, declutterLabels, LABEL_PIXELS, labelPixels } from './scene.js';
 
 // Real Three.js objects, no WebGL: labels get a plain Texture in place of the browser's canvas texture.
 const labels = [];
@@ -182,16 +182,17 @@ test('declutter pushes a later overlapping plate by the overlap along its placem
   const plate = (x, y, placement = 'above') => ({ x, y, w: 100, h: 28, placement });
   assert.deepEqual(declutterLabels([plate(0, 0), plate(300, 0)]), [{ dx: 0, dy: 0 }, { dx: 0, dy: 0 }], 'apart: untouched');
   assert.deepEqual(declutterLabels([plate(0, 100), plate(10, 110)]), [{ dx: 0, dy: 0 }, { dx: 0, dy: -(110 + 28 + 4 - 100) }], 'up until clear of the first, plus the gap');
-  assert.deepEqual(declutterLabels([plate(0, 100), plate(10, 110, 'right')])[1], { dx: 100 - 10 + 4, dy: 0 });
-  // Two pushes up clear both plates above; with a single push allowed, up is blocked and the side (left first for "above") wins.
-  assert.deepEqual(declutterLabels([plate(0, 100), plate(0, 60), plate(0, 100)])[2], { dx: 0, dy: -72 });
-  assert.deepEqual(declutterLabels([plate(0, 100), plate(0, 60), plate(0, 100)], { steps: 1 })[2], { dx: -104, dy: 0 });
+  // The owner's reach (C10, DECLUTTER.reach, FX-AN-104): a side push of 94 would put the plate farther than 48 px from the point it names, so the push down by 22 clears instead.
+  assert.deepEqual(declutterLabels([plate(0, 100), plate(10, 110, 'right')])[1], { dx: 0, dy: 22 });
+  // Two pushes up (72) clear both plates above but are beyond the reach; the push down by 32 is within it, with one push allowed or many.
+  assert.deepEqual(declutterLabels([plate(0, 100), plate(0, 60), plate(0, 100)])[2], { dx: 0, dy: 32 });
+  assert.deepEqual(declutterLabels([plate(0, 100), plate(0, 60), plate(0, 100)], { steps: 1 })[2], { dx: 0, dy: 32 });
   // Many labels on one point: bounded, finite, the same every time, and whatever was placed does not overlap.
   const crowd = Array.from({ length: 24 }, () => plate(400, 300));
   const once = declutterLabels(crowd), again = declutterLabels(crowd);
   assert.deepEqual(once, again);
   assert.ok(once.every(offset => offset === null || (Number.isFinite(offset.dx) && Number.isFinite(offset.dy))));
-  assert.ok(once.slice(0, 5).every(Boolean), 'the first labels all find room');
+  assert.ok(once.slice(0, 4).every(Boolean) && once.filter(Boolean).length === 4, 'the first four labels find room within the reach of their point (it was five before DECLUTTER.reach, C10)');
   assert.ok(once.some(offset => offset === null), 'the rest get no room (hidden), never an overlap');
   const placed = moved(crowd.filter((_, i) => once[i]), once.filter(Boolean));
   assert.ok(placed.every((a, i) => placed.every((b, j) => i === j || !intersects(a, b))), 'no two placed plates overlap');
@@ -718,4 +719,25 @@ test('decision 30: the golden\'s diverged ball (x 3.675 at learning rate 1.5) is
   const result = scene.apply({ nodes: { [ball.id]: { position: [3.675, 10.8419, 0.4] } } });
   assert.deepEqual(result.clamped.map(c => [c.axes, c.trueAt, c.drawnAt]), [[['x', 'y'], [3.675, 10.8419, 0.4], [2, 4, 0.4]]]);
   scene.dispose();
+});
+
+// Owner order (C10; FX-AN-104): a plate stays near its anchor. C9 job 7: a "Lowest point" label about 100 px to the right of its dot; C7 job 7: rate tags pushed far from their balls.
+// The distance is how far the plate lies from the point it names (the plate's nearest edge to the anchor), at most DECLUTTER.reach pixels; a plate with no clear spot that near stays
+// where it is (an essential one) or is left out (an optional one), and is never moved farther.
+test('a plate is moved to a clear spot only within DECLUTTER.reach of its anchor; with none that near it stays (essential) or is left out (optional), never farther', () => {
+  assert.equal(DECLUTTER.reach, 48);
+  const plate = essential => ({ x: 100, y: 100, w: 80, h: 20, placement: 'above', essential });
+  const line = { x1: 0, y1: 110, x2: 400, y2: 110, half: 3 }; // an arrow across the plate: the nearest clear spot is a push of about 17 px
+  const bounds = { x: 0, y: 0, w: 400, h: 300 };
+  const near = declutterLabels([plate(false)], { bounds, obstacles: [line] })[0];
+  assert.ok(near && Math.hypot(near.dx, near.dy) > 0 && Math.hypot(near.dx, near.dy) <= DECLUTTER.reach, `moved a short way: ${JSON.stringify(near)}`);
+  // Up (about 21 px from the point) is too far for a reach of 5; the other side of the point (4 px) is not.
+  assert.deepEqual(declutterLabels([plate(false)], { bounds, obstacles: [line], reach: 5 })[0], { dx: 0, dy: 28 });
+  // A wall of arrows: every clear spot is far; the plate does not travel to it.
+  const wall = Array.from({ length: 12 }, (_, i) => ({ x1: 0, y1: 40 + 14 * i, x2: 400, y2: 40 + 14 * i, half: 3 }));
+  const walled = declutterLabels([plate(true)], { bounds, obstacles: wall })[0];
+  assert.ok(Math.hypot(walled.dx, walled.dy) <= DECLUTTER.reach, `an essential plate behind a wall of arrows stays within ${DECLUTTER.reach} px: ${JSON.stringify(walled)}`);
+  assert.equal(declutterLabels([plate(false)], { bounds, obstacles: wall })[0], null);
+  // Unobstructed: where it always was.
+  assert.deepEqual(declutterLabels([plate(false)], { bounds, obstacles: [] })[0], { dx: 0, dy: 0 });
 });
