@@ -816,3 +816,19 @@ test('the playback badge sits in the viewport\'s top-right corner, follows the r
   await mount({ block: { id: 'b2', type: 'animation3d', fixtureId: 'projectile-target-game' } });
   assert.equal(badge(), null, 'a game with no timeline has no playback badge');
 });
+
+// FX-AN-071 (AN-19, owner decisions 11 and 12): a text readout's word reaches the card, as the same element a number readout uses, with the word as its data-value; the golden
+// SGD fixture (a card whose fixtureId is sgd-golden, docs/features/animation/golden-fixture-card.patch) leads with its status word and keeps its number readouts numbers.
+test('the golden SGD fixture shows its status word as the leading readout, beside its numbers', async () => {
+  await mount({ block: { id: 'g1', type: 'animation3d', fixtureId: 'sgd-golden' } });
+  assert.equal(card().getAttribute('data-animation-phase'), 'ready');
+  assert.equal($('[data-animation-fixture]').textContent, 'Example', 'visibly a fixture');
+  const status = $('[data-animation-primary-readout] [data-animation-readout="status"]');
+  assert.ok(status, 'the first readout of an experiment is the prominent one, and it is the status');
+  assert.match(status.textContent, /^(running|paused|converged|diverged)$/);
+  assert.equal(status.getAttribute('data-value'), status.textContent, 'the word is the value');
+  assert.match($('[data-animation-primary-readout] dt').textContent, /Status/);
+  const others = Object.fromEntries($$('[data-animation-readout]').map(node => [node.getAttribute('data-animation-readout'), node.textContent]));
+  assert.match(others.loss, /^\d+\.\d{3}$/, 'a number readout keeps its decimals');
+  assert.match(others.steps, /^\d+$/);
+});

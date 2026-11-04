@@ -305,3 +305,17 @@ test('an empty trail is not framed: it has no points to fit, and the zero-filled
   const drawn = fitOf(artifact, [{ nodes: { ball: { position: [8, 8, 0] }, path: { points: [[6, 6, 0], [8, 8, 0]] } } }]);
   assert.ok(drawn.points.every(point => point.x > 5.9), 'the trail adds its own points and nothing at the origin');
 });
+
+// FX-AN-074: a trail above the height a clamp holds the marker to is the diverged path; the fit follows the clamped marker, not the program's trail vertices.
+test('a trail above the clamp ceiling is not framed above it; a trail below it is framed as it is', () => {
+  const geometries = [...BOWL, { id: 'pathGeo', kind: 'trail', max: 10, style: 'trail' }];
+  const artifact = sceneArtifact(geometries, [...bowlNodes({ node: 'bowl' }), { id: 'path', geometry: 'pathGeo' }]);
+  const frame = (ballY, pathY) => ({ nodes: { ball: { position: [0, ballY, 0] }, path: { points: [[0, 0.5, 0], [0, pathY, 0]] } } });
+  const diverged = fitOf(artifact, [frame(5.6, 5.6)]), atRim = fitOf(artifact, [frame(2, 2)]);
+  assert.ok(topOf(diverged.points) <= 2.2 + 1e-6, `nothing is framed above the rim plus the ball radius (${topOf(diverged.points)})`);
+  assert.deepEqual(diverged.camera, atRim.camera, 'the view is the one with the path at the rim');
+  const below = fitOf(artifact, [frame(1, 1.5)]);
+  assert.ok(Math.abs(topOf(below.points) - 1.5) < 1e-6, 'a path under the ceiling is framed where it is');
+  const free = fitOf(sceneArtifact(geometries, [...bowlNodes(null), { id: 'path', geometry: 'pathGeo' }]), [frame(5.6, 5.6)]);
+  assert.ok(topOf(free.points) > 5.5, 'with no clamp nothing is held');
+});
