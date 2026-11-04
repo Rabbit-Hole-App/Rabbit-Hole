@@ -100,6 +100,61 @@ for (const type of ['explanation', 'snippet', 'table', 'image']) check(`${type}:
     const back = await f.geometry(); unchanged(before, back); close(back.subject.w, before.subject.w, 'restored width'); close(back.subject.h, before.subject.h, 'restored height');
   } finally { await f.context.close(); }
 });
+// Guided cards (task 86653808): Full content on a quiz, a flashcard deck and a walkthrough. Each toggles on, survives a reload, toggles
+// off, and keeps what the learner did (the quiz choice, the deck ratings, the walkthrough step) through every switch.
+const block = async f => (await f.saved()).blocks.find(b => b.id === 'subject');
+const reloadTo = async (f, mode) => { await f.page.reload(); await f.card.waitFor(); await until(async () => await f.mode() === mode, `reload keeps ${mode}`); };
+check('quiz: Full content keeps the answer and grading state through toggle and reload, and stays answerable', async () => {
+  const f = await fixture('quiz'); try {
+    await f.card.locator('[data-quiz-option="B"]').click(); await until(async () => (await block(f)).choice === 'B', 'wrong choice saved');
+    await f.setLayout('Full content'); await f.waitSaved('full'); await f.noOverflow();
+    assert.equal((await block(f)).choice, 'B', 'toggling Full keeps the choice'); await f.card.getByText('Not quite. Try another option.').waitFor();
+    await reloadTo(f, 'full'); assert.equal((await block(f)).choice, 'B'); await f.card.getByText('Not quite. Try another option.').waitFor();
+    await f.card.locator('[data-quiz-option="A"]').click(); await until(async () => (await block(f)).choice === 'A', 'answerable in Full');
+    await f.card.getByText('Because A is right.').waitFor(); await f.noOverflow();
+    await f.page.screenshot({ path: resolve(OUT, 'quiz-full.png') });
+    await f.setLayout('Scrollable'); await f.waitSaved('scrollable'); await reloadTo(f, 'scrollable');
+    assert.equal((await block(f)).choice, 'A', 'toggling off keeps the solved choice'); await f.card.getByText('Because A is right.').waitFor();
+    assert.equal((await block(f)).options.length, 3, 'the question is unchanged');
+  } finally { await f.context.close(); }
+});
+check('flashcards: Full content shows every card, flips and rates in place, and keeps the stepped deck ratings', async () => {
+  const f = await fixture('flashcards'); try {
+    const before = await f.geometry();
+    await f.card.locator('[data-flashcard]').click(); await f.card.locator('[data-flash-knew]').click(); // stepped: card 0 is Got it, then card 1 shows
+    await until(async () => (await block(f)).marks?.[0] === 'right', 'stepped rating saved');
+    await f.setLayout('Full content'); await f.waitSaved('full'); await f.noOverflow();
+    assert.equal(await f.card.locator('[data-flashcard-item]').count(), 5, 'every card of the deck is shown');
+    for (let i = 0; i < 5; i++) await f.card.locator(`[data-flashcard-item="${i}"]`).waitFor({ state: 'visible' });
+    assert.ok((await f.geometry()).subject.h > before.subject.h, 'the card is as tall as the whole deck');
+    assert.equal(await f.card.locator('[data-flash-knew]').count(), 0, 'nothing is rated until a card is flipped');
+    await f.card.locator('[data-flashcard-item="3"] [data-flashcard]').click(); await f.card.locator('[data-flashcard-item="3"] [data-flash-missed]').click();
+    await until(async () => (await block(f)).marks?.[3] === 'wrong', 'Full rating saved'); assert.equal((await block(f)).marks[0], 'right', 'the stepped rating is kept');
+    await f.page.screenshot({ path: resolve(OUT, 'flashcards-full.png') });
+    await reloadTo(f, 'full'); assert.equal(await f.card.locator('[data-flashcard-item]').count(), 5);
+    await f.setLayout('Scrollable'); await f.waitSaved('scrollable'); await reloadTo(f, 'scrollable');
+    assert.deepEqual((await block(f)).marks, { 0: 'right', 3: 'wrong' }, 'ratings from both views are kept');
+    assert.equal(await f.card.locator('[data-flashcard-item]').count(), 0, 'stepped again: one card at a time'); await f.card.getByText('1 / 5').waitFor();
+    assert.deepEqual((await block(f)).cards, (layoutBoard('flashcards').blocks[0]).cards, 'the deck is unchanged');
+  } finally { await f.context.close(); }
+});
+check('walkthrough: Full content shows every step at once and keeps the learner position', async () => {
+  const f = await fixture('walkthrough'); try {
+    const before = await f.geometry();
+    await f.card.locator('[data-scene-action="advance_step"]').click(); await f.card.locator('[data-scene-action="advance_step"]').click();
+    await until(async () => (await block(f)).state?.step === 2, 'step saved');
+    await f.setLayout('Full content'); await f.waitSaved('full'); await f.noOverflow();
+    for (let i = 0; i < 6; i++) await f.card.locator(`[data-scene-step="${i}"]`).waitFor({ state: 'visible' });
+    const steps = await f.card.locator('[data-scene-step]').evaluateAll(list => list.map(e => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; })), card = await f.card.boundingBox();
+    assert.ok(steps.every(r => r.top >= card.y && r.bottom <= card.y + card.height), 'every step lies inside the card');
+    assert.ok((await f.geometry()).subject.h > before.subject.h, 'the card is as tall as its steps');
+    assert.equal((await block(f)).state.step, 2, 'toggling Full keeps the position'); assert.deepEqual((await block(f)).state.visited, [0, 1, 2]);
+    await f.page.screenshot({ path: resolve(OUT, 'walkthrough-full.png') });
+    await reloadTo(f, 'full'); assert.equal((await block(f)).state.step, 2);
+    await f.setLayout('Scrollable'); await f.waitSaved('scrollable'); await reloadTo(f, 'scrollable');
+    assert.equal((await block(f)).state.step, 2, 'toggling off keeps the position'); await f.card.locator('[data-scene-step]').first().waitFor();
+  } finally { await f.context.close(); }
+});
 check('opening a wide matrix disclosure raises readable width and height without moving the canvas', async () => {
   const state = layoutBoard();
   state.blocks[0].body = 'A compact explanation before opening the complete matrix.';

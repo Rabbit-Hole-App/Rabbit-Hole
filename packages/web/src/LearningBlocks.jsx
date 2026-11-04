@@ -9,6 +9,7 @@ import { holdViewerGestures } from './content-gestures.js';
 import { createContext, Suspense, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { Check, ChevronLeft, ChevronRight, Code, Loader2, PanelRightOpen, Play, RotateCcw, Search, Trash2, Volume2, X } from 'lucide-react';
+import { fullContent } from './card-layout.js';
 import { Md } from './ask.jsx';
 import { MdInline } from './Md.jsx';
 import { api, wsHeaders } from './api.js';
@@ -2180,31 +2181,68 @@ function CodeBody({ block, onChange, onFile }) {
   );
 }
 
+// One flip card: the front and back faces. `grow` (Full content) sizes the card to its taller face; otherwise a fixed 8rem box scrolls a long face.
+function FlashFace({ card, flipped, onFlip, grow = false }) {
+  const face = grow ? 'col-start-1 row-start-1 min-h-32' : 'absolute inset-0 overflow-y-auto';
+  return (
+    <button type="button" data-flashcard aria-label={flipped ? 'Show front' : 'Show back'} style={{ perspective: 900 }}
+      onPointerDown={e => e.stopPropagation()} onClick={onFlip} className="block w-full">
+      <span style={{ transformStyle: 'preserve-3d', transition: 'transform .4s ease', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }} className={`relative w-full motion-reduce:transition-none ${grow ? 'grid' : 'block h-32'}`}>
+        <span style={{ backfaceVisibility: 'hidden' }} className={`${face} flex items-center justify-center rounded-lg border border-line bg-white px-5 py-4 text-center text-sm hover:bg-hover`}><Md text={card.front} /></span>
+        <span style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }} className={`${face} flex items-center justify-center rounded-lg border border-line bg-hover px-5 py-4 text-center text-sm`}><Md text={card.back} /></span>
+      </span>
+    </button>
+  );
+}
+
+function RateButtons({ onRate }) {
+  return (
+    <div className="mt-2 flex justify-center gap-2" onPointerDown={e => e.stopPropagation()}>
+      <button type="button" data-flash-knew onClick={() => onRate('right')}
+        className="flex items-center gap-1.5 rounded-lg border border-green-700 px-3 py-1.5 text-sm text-green-700 hover:bg-green-700/5"><Check size={14} />Got it</button>
+      <button type="button" data-flash-missed onClick={() => onRate('wrong')}
+        className="flex items-center gap-1.5 rounded-lg border border-red-700 px-3 py-1.5 text-sm text-red-700 hover:bg-red-700/5"><X size={14} />Not yet</button>
+    </div>
+  );
+}
+
+// Full content: every card of the deck stacked, each flipped on its own (local, like the single card's flip) and rated in place;
+// the ratings are the same block.marks the stepped deck writes, so toggling Full loses none.
+function FlashcardsFull({ block, onChange }) {
+  const [flipped, setFlipped] = useState({});
+  const marks = block.marks || {};
+  return (
+    <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+      <Kicker author="tutor">Flashcards</Kicker>
+      <div className="flex flex-col gap-3">
+        {block.cards.map((card, i) => (
+          <div key={i} data-flashcard-item={i}>
+            <FlashFace card={card} grow flipped={!!flipped[i]} onFlip={() => setFlipped(previous => ({ ...previous, [i]: !previous[i] }))} />
+            {flipped[i] && <RateButtons onRate={result => onChange({ ...block, marks: { ...marks, [i]: result } })} />}
+            <p className="mt-1 flex items-center justify-center gap-2 text-xs tabular-nums text-ink-2">
+              <span className={`h-1.5 w-1.5 rounded-full ${marks[i] === 'right' ? 'bg-green-600' : marks[i] === 'wrong' ? 'bg-red-600' : 'bg-line'}`} />{i + 1} / {block.cards.length}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function FlashcardsBody({ block, onChange }) {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const full = fullContent(block);
   const card = block.cards[index];
   const marks = block.marks || {}; // per-card self-assessment feeding the adaptive engine
   const go = step => { setFlipped(false); setIndex(previous => (previous + step + block.cards.length) % block.cards.length); };
   const mark = result => { onChange({ ...block, marks: { ...marks, [index]: result } }); go(1); };
+  if (full) return <FlashcardsFull block={block} onChange={onChange} />;
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       <Kicker author="tutor">Flashcards</Kicker>
-      <button type="button" data-flashcard aria-label={flipped ? 'Show front' : 'Show back'} style={{ perspective: 900 }}
-        onPointerDown={e => e.stopPropagation()} onClick={() => setFlipped(previous => !previous)} className="block w-full">
-        <span style={{ transformStyle: 'preserve-3d', transition: 'transform .4s ease', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }} className="relative block h-32 w-full motion-reduce:transition-none">
-          <span style={{ backfaceVisibility: 'hidden' }} className="absolute inset-0 flex items-center justify-center overflow-y-auto rounded-lg border border-line bg-white px-5 py-4 text-center text-sm hover:bg-hover"><Md text={card.front} /></span>
-          <span style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }} className="absolute inset-0 flex items-center justify-center overflow-y-auto rounded-lg border border-line bg-hover px-5 py-4 text-center text-sm"><Md text={card.back} /></span>
-        </span>
-      </button>
-      {flipped && (
-        <div className="mt-2 flex justify-center gap-2" onPointerDown={e => e.stopPropagation()}>
-          <button type="button" data-flash-knew onClick={() => mark('right')}
-            className="flex items-center gap-1.5 rounded-lg border border-green-700 px-3 py-1.5 text-sm text-green-700 hover:bg-green-700/5"><Check size={14} />Got it</button>
-          <button type="button" data-flash-missed onClick={() => mark('wrong')}
-            className="flex items-center gap-1.5 rounded-lg border border-red-700 px-3 py-1.5 text-sm text-red-700 hover:bg-red-700/5"><X size={14} />Not yet</button>
-        </div>
-      )}
+      <FlashFace card={card} flipped={flipped} onFlip={() => setFlipped(previous => !previous)} />
+      {flipped && <RateButtons onRate={mark} />}
       <div className="mt-2 flex items-center justify-between" onPointerDown={e => e.stopPropagation()}>
         <button type="button" aria-label="Previous card" onClick={() => go(-1)} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink"><ChevronLeft size={15} /></button>
         <span className="flex items-center gap-2 text-xs tabular-nums text-ink-2">

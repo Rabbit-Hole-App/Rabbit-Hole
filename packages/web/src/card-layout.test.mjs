@@ -88,3 +88,24 @@ test('the sizing policy is per card type: text cards fit their content; notebook
  assert.deepEqual(fits.sort(),['challenge','explanation','flashcards','quiz']);
  for(const type of ['code','snippet','table','graph','plot','flow','whiteboard','animation','image','video','cad','paper','scene']) assert.ok(entry(type)&&!fits.includes(type),type);
 });
+
+// Full content for the guided cards (task 86653808): quiz, flashcards and the walkthrough scene, and nothing else beyond the reading cards.
+import {fullContent} from './card-layout.js';
+const walk={id:'w',type:'scene',spec:{type:'interactive_scene',behaviorId:'walkthrough_v1'}};
+test('Full content applies to quiz, flashcards and the walkthrough scene only',()=>{
+ for(const b of [{type:'quiz'},{type:'flashcards'},walk]) assert.equal(supportsCardLayout(b),true,b.type);
+ for(const b of [{type:'scene'},{type:'scene',spec:{behaviorId:'vector_projection_v1'}},{type:'scene',spec:{behaviorId:'pipeline_assembly_v1'}}]) assert.equal(supportsCardLayout(b),false,'only the walkthrough behaviour of a scene');
+ for(const type of ['pdf','video','slide','cad','canvas-ref','repo-graph','whiteboard','heading','divider','challenge','explainBack','graph','plot','flow','mermaid','model3d','animation']) assert.equal(supportsCardLayout({type}),false,type);
+});
+test('toggling Full on a quiz, flashcards or walkthrough keeps answers, ratings and state, and round-trips the size',()=>{
+ const quiz={id:'q',type:'quiz',question:'?',options:[{key:'A',correct:true}],choice:'B'};
+ const deck={id:'f',type:'flashcards',cards:[{front:'a',back:'b'}],marks:{0:'right'}};
+ const walked={...walk,state:{step:2,visited:[0,1,2]},attempts:1,selectedObject:'wte'};
+ for(const b of [quiz,deck,walked]){
+  const full=switchCardLayout(b,'full',{w:420,h:300});assert.equal(fullContent(full),true);
+  const { cardLayout, ...content } = full;assert.deepEqual(content,b,'every field but cardLayout is untouched');
+  const back=switchCardLayout(full,'scrollable',{w:700,h:900});assert.equal(fullContent(back),false);
+  assert.deepEqual(back.cardLayout.scrollableSize,{w:420,h:300},'the stepped size comes back');
+  assert.deepEqual(back.cardLayout.slot,{w:420,h:300},'the canvas footprint never changes');
+ }
+});

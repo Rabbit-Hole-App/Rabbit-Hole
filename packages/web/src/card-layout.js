@@ -2,7 +2,9 @@
 // Keeping it fixed prevents layout changes from moving the card or its neighbours.
 export const FULL_WIDTH = Object.freeze({ baseline: 320, preferred: 720, maximum: 1200 });
 export const FULL_TYPES = new Set(['explanation', 'snippet', 'table', 'image']);
-export const supportsCardLayout = block => FULL_TYPES.has(block?.type);
+// Guided cards: the quiz question, the flashcards deck and the walkthrough (a 'scene' whose behaviour is walkthrough_v1; other scenes are not).
+const GUIDED = block => ['quiz', 'flashcards'].includes(block?.type) || (block?.type === 'scene' && block.spec?.behaviorId === 'walkthrough_v1');
+export const supportsCardLayout = block => FULL_TYPES.has(block?.type) || GUIDED(block);
 export const fullContent = block => supportsCardLayout(block) && block.cardLayout?.mode === 'full';
 const positive = value => Number.isFinite(value) && value > 0;
 export function widthLimits(minimum = FULL_WIDTH.baseline) {
