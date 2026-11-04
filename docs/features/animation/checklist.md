@@ -84,6 +84,11 @@ Ladder ledger UUID `857a0d92-9bb6-4b9b-9739-ae85d7df3d27`; children: AN-17 `b8a0
 - 2026-11-03 (decision 20): the answers to Parallel's eight questions, all as recommended: AN-17 splits into MVP2a and MVP2b;
   Explore Top rides in MVP2a; streaming is limited to the Animation roles behind a role flag; Gate 2 uses a second test session;
   paid batches are announced and proceed; the `--mvp` branch follows the escrow release.
+- 2026-11-03 (decisions 21 and 22): gates run on the dev preview of a frozen candidate, never after a release (Gate 1 on MVP3's,
+  Gate 2 on MVP4's), samples in parallel across up to five dev test sessions; MVP4 and MVP5 release as one when both gates pass the
+  same day. Gate 1 measures the AN-20 prompt files, imported into the harness at a frozen hash with the golden exemplar at a frozen
+  hash, against MVP3's contract and renderer; its table records the MVP3 SHA, the prompt-files hash and the golden artifact hash, and
+  MVP4's candidate must match them or Gate 1 reruns.
 
 AN-08 onward stays `blocked: owner MVP approval` until the owner's explicit approval of them is recorded here verbatim
 with date, time and scope.
