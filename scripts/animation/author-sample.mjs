@@ -25,13 +25,15 @@ import { canonicalJson } from '../../packages/web/src/explain-program/contract.j
 export const ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 // Owner decision 22 (2): the files whose text reaches the author, hashed in this order. The prompts (agents/), the capability text sent beside them (animation-brief.js), the
 // archetype rules (lane f; absent until it lands, recorded as absent), animation-author.js (the author's user content: the archetype rules and the frozen exemplar enter there, and
-// the validators and plan assertions that judge a sample live beside it) and the contract and capability constants the prompt quotes (ANIMATION_PROGRAM_CONTRACT, the draft schema, limits).
+// the validators and plan assertions that judge a sample live beside it), animation-policy.js and tool-input.js (how a reply is read: the tool input's null and string repairs, FX-AN-058 and 059) and the contract and capability constants the prompt quotes (ANIMATION_PROGRAM_CONTRACT, the draft schema, limits).
 export const PROMPT_FILES = Object.freeze([
   'packages/control-plane/src/agents/animation-author.js',
   'packages/control-plane/src/agents/animation-brief.js',
   'packages/control-plane/src/agents/animation-archetypes.js',
   'packages/control-plane/src/animation-brief.js',
   'packages/control-plane/src/animation-author.js',
+  'packages/control-plane/src/animation-policy.js',
+  'packages/control-plane/src/tool-input.js',
   'packages/web/src/animation3d/contract.js',
   'packages/web/src/animation3d/capabilities.js',
 ]);
@@ -163,11 +165,15 @@ export function devKeyTransport({ credentialsFile = CREDENTIALS_FILE } = {}) {
 // What the author's tool input looked like, kept for every call (FX-AN-056: five Gate 1 replies were refused as "no artifact" and nothing recorded their shape): its kind and keys,
 // the type of its artifact field, and the first 3,000 characters of the raw input and the reply's block list. The reply of a call that failed carries the same in error.reply.
 export const INPUT_HEAD = 3000;
+// FX-AN-059: an artifact that arrives as a string the parser could not read is kept WHOLE (the 3,000-character head ended before the defect) with the parser's own error.
+export const STRING_KEEP = 120000;
+const parseErrorOf = text => { try { JSON.parse(text); return null; } catch (error) { return String(error.message).slice(0, 300); } };
 const typeOf = value => (value === undefined ? 'undefined' : value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value);
 export function inputInfo({ input, reply } = {}, again = false) {
   const text = input !== undefined ? JSON.stringify(input) : reply?.partialTool ?? null, object = input && typeof input === 'object' && !Array.isArray(input);
   return { again, kind: object ? input.kind ?? null : null, keys: object ? Object.keys(input) : null, artifactType: object ? typeOf(input.artifact) : typeOf(input), chars: text?.length ?? null,
-    head: text === null ? null : text.slice(0, INPUT_HEAD), stopReason: reply?.stopReason ?? null, blocks: reply?.blocks ?? null };
+    head: text === null ? null : text.slice(0, INPUT_HEAD), stopReason: reply?.stopReason ?? null, blocks: reply?.blocks ?? null,
+    ...(object && typeof input.artifact === 'string' ? { stringArtifact: { chars: input.artifact.length, parseError: parseErrorOf(input.artifact), text: input.artifact.slice(0, STRING_KEEP) } } : {}) };
 }
 // Usage of every call of a run, added field by field (numbers sum; the first non-number stays): a run that asked again was billed for both.
 const addUsage = (a, b) => {
@@ -200,7 +206,7 @@ export async function sampleOnce(run, { transport, signal, ids }) {
     record.status = error.name === 'AbortError' || signal?.aborted ? 'cancelled' : 'error';
     record.error = `${error.code ?? error.name}: ${String(error.message).slice(0, 300)}`;
   }
-  record.calls = infos.length; record.askedAgain = infos.length > 1; record.kind = infos.at(-1)?.kind ?? null; record.inputKeys = infos.at(-1)?.keys ?? null;
+  record.calls = infos.length; record.askedAgain = infos.length > 1; record.kind = infos.at(-1)?.kind ?? null; record.inputKeys = infos.at(-1)?.keys ?? null; record.parseError = infos.find(i => i.stringArtifact)?.stringArtifact.parseError ?? null;
   record.credits = creditsOf(animationModel('author'), record.usage);
   let validation = null;
   if (draft) {

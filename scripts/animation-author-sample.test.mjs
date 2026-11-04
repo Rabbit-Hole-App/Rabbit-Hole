@@ -211,6 +211,15 @@ test('every run keeps the raw tool input of each call: kind, keys, artifact type
   const str = await sampleOnce(run, { transport: fakeTransport(null, { sequence: [{ kind: 'artifact', artifact: '{"title": "cut off' }] }), signal: undefined, ids });
   assert.equal(str.input.calls.at(-1).artifactType, 'string');
   assert.ok(str.input.calls.at(-1).head.includes('cut off'));
+  // FX-AN-059: the whole string is kept, with the parser's own error, because the 3,000-character head ended before the defect.
+  const long = `{"title": "${'x'.repeat(6000)}", "program": "line one
+line two" ` + 'oops';
+  const whole = await sampleOnce(run, { transport: fakeTransport(null, { sequence: [{ kind: 'artifact', artifact: long }] }), signal: undefined, ids });
+  const kept = whole.input.calls[0].stringArtifact;
+  assert.deepEqual([kept.chars, kept.text === long, typeof kept.parseError], [long.length, true, 'string']);
+  assert.equal(whole.input.calls[0].head.length, 3000, 'the head stays bounded');
+  assert.equal(whole.record.parseError, kept.parseError);
+  assert.equal('stringArtifact' in ok.input.calls[0], false, 'a real object has none');
   // The folder: input.json for a run that reached the model, with the same calls.
   const dir = tmp(), summary = { ids, promptFiles: [], transport: 'fake', concurrency: 1, maxCredits: Infinity, results: [ok, bad], stopped: null, settled: 0 };
   writeOutputs(join(dir, 'o'), summary);

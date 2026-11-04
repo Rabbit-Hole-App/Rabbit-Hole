@@ -68,7 +68,7 @@ author role alone, from a pinned plan, with the prompts of the working tree. It 
 **Identities (owner decision 22).** Every table and every run folder records three identities, and a run is refused (exit 2, nothing spent) when a recorded freeze differs:
 
 1. the candidate SHA (`--candidate-sha`): an ancestor of, or equal to, the tree's HEAD, with the contract and renderer source (`CANDIDATE_FILES` in the script) unchanged since it;
-2. the prompt-files hash: sha256 over `PROMPT_FILES` (agents/animation-author.js, agents/animation-brief.js, agents/animation-archetypes.js when it exists, animation-brief.js, animation-author.js (the author's user content), contract.js,
+2. the prompt-files hash: sha256 over `PROMPT_FILES` (agents/animation-author.js, agents/animation-brief.js, agents/animation-archetypes.js when it exists, animation-brief.js, animation-author.js (the author's user content), animation-policy.js and tool-input.js (how a reply is read), contract.js,
    capabilities.js), CRLF normalised; the command prints the list with each file's hash. `--freeze-prompts HASH` refuses a mismatch. Each run also records `requestHash`, the hash of the exact system,
    tool and content it sent, so a change that reaches the model through a file outside the list still shows;
 3. the golden artifact hash (`packages/web/src/animation3d/testdata/sgd-golden.json`, `absent` until it lands). `--freeze-golden HASH` refuses a mismatch.
