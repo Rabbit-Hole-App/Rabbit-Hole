@@ -153,10 +153,20 @@ export function servedIdentity(role, result, tasks = LEARN_TASKS) {
 }
 
 // Exactly one call of the offered tool, as an object; anything else is an invalid turn.
-export function animationToolInput(role, result, tool) {
+// FX-AN-110 (C9): a field the contract defines for ANOTHER kind of object, or a stray prose note, is dropped instead of refusing the whole artifact (C7: placement on a node, which is a
+// label geometry field, failed aj_2f17bed1 after two repairs; a top-level readouts_note failed Gate 1 r20). Only a key the schema does not define is ever asked about, so no real field is
+// touched; a misspelling, a shape field (radius, size, text) and any other unknown key still meet the validator. -> a reason, or nothing.
+const LABEL_ONLY_ON_NODE = new Set(['placement', 'anchor']);
+export function stripMisplaced(path, key, value) {
+  const at = path.join('.');
+  if (/^(?:artifact\.)?scene\.nodes\.\d+$/.test(at) && LABEL_ONLY_ON_NODE.has(key)) return 'a label geometry field on a node';
+  if ((at === 'artifact' || at === '') && typeof value === 'string' && value.length <= 600 && /(?:^|_)notes?$/i.test(key)) return 'a prose note';
+  return null;
+}
+export function animationToolInput(role, result, tool, stripped = []) {
   const calls = Array.isArray(result?.content) ? result.content.filter(block => block?.type === 'tool_use') : [];
   if (calls.length !== 1 || calls[0].name !== tool.name) throw new AnimationPolicyError('invalid_turn', `/animation ${role} must return exactly one ${tool.name} call (got ${calls.length}).`, { calls: calls.length });
-  const input = normalizeToolInput(tool.input_schema, calls[0].input, { dropNull: role === 'author' || role === 'repair', lenient: role === 'author' || role === 'repair' }); // FX-AN-058, FX-AN-059: an optional null is no value, a nearly-JSON string is read once more; the review's reports are read as they came
+  const input = normalizeToolInput(tool.input_schema, calls[0].input, { dropNull: role === 'author' || role === 'repair', lenient: role === 'author' || role === 'repair', ...(role === 'author' || role === 'repair' ? { strip: stripMisplaced, stripped } : {}) }); // FX-AN-058, FX-AN-059: an optional null is no value, a nearly-JSON string is read once more; the review's reports are read as they came
   if (input == null || typeof input !== 'object' || Array.isArray(input)) throw new AnimationPolicyError('invalid_turn', `/animation ${role} returned a ${tool.name} call without an object input.`);
   return input;
 }
@@ -213,6 +223,7 @@ export async function callAnimationRole(env, role, { system, tool, content }, { 
     // accept-5: the author spent all 10,000 output tokens and never finished its tool call. That is the output limit, not a malformed turn.
     if (result?.stop_reason === 'max_tokens') throw new AnimationPolicyError('output_limit', `/animation ${role} reached its output limit (${animationRole(role, tasks).maxTokens} tokens) before finishing its ${tool.name} call.`);
     const reply = replyDiagnostics(role, body, result, tasks, role === 'repair' ? REPAIR_TOOL_CHARS : PARTIAL_TOOL_CHARS);
-    return { input: animationToolInput(role, result, tool), identity, ...billed, blocks: reply.blocks, reply };
+    const stripped = [];
+    return { input: animationToolInput(role, result, tool, stripped), identity, ...billed, blocks: reply.blocks, reply, stripped };
   } catch (error) { throw Object.assign(error, { billed, reply: replyDiagnostics(role, body, result, tasks) }); }
 }
