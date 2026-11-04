@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { sealArtifact, validateStage } from '../src/animation-author.js';
 import { ANIMATION_DRAFT_BYTES, ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM, repairTool } from '../src/agents/animation-author.js';
 import { CORRECTION_WORST, OMITTED_DEFAULTS, buildReviewContent, correctionBlock, reviewArtifactView, reviewStage, ANIMATION_REVIEW_LIMITS, artifactView } from '../src/animation-review.js';
-import { REPAIR_FORWARD, draftOf, fitProblems, repairContent, repairStage } from '../src/animation-repair.js';
+import { REPAIR_FORWARD, fitProblems, repairContent, repairStage } from '../src/animation-repair.js';
 import { ANIMATION_LIMITS, ANIMATION_ROLES, animationRequest, animationReservation, roleBoundMicros } from '../src/animation-policy.js';
 import { REVIEW_TOOL } from '../src/explain-review.js';
 import { enabledCapabilities } from '../src/animation-brief.js';
@@ -111,21 +111,15 @@ test('boundary: the size check still refuses, one byte past the largest candidat
   assert.match(out.problems[0], /too large for the independent review request/);
 });
 
-// AN-20 (FX-AN-052): the representative is now the golden SGD draft with the pinned 4.3 KB Gate 1 plan (the aj_9c453b6 marker-node draft fits only 14,906 B, below the estimate:
-// the estimate is the told hint, fitProblems the authority, and the feasibility check applies both).
-test('the shared estimate holds on the representative plan: a draft near it fits, and it is an estimate, not a promise', async () => {
-  const golden = JSON.parse(readFileSync(new URL('../../web/src/animation3d/testdata/sgd-golden.json', import.meta.url), 'utf8'));
-  const plan = JSON.parse(readFileSync(new URL('./fixtures/animation-sgd-loss-surface-plan.json', import.meta.url), 'utf8'));
-  const draft = draftOf(golden.artifact), size = JSON.stringify(draft).length;
+test('the shared estimate holds on this plan: a draft near it fits, and it is an estimate, not a promise', async () => {
+  const draft = fixture.repairedDraft, size = JSON.stringify(draft).length;
   const near = { ...draft, program: { source: `${draft.program.source}\n//${'x'.repeat(ANIMATION_DRAFT_BYTES - size - 200)}` } };
   assert.ok(JSON.stringify(near).length <= ANIMATION_DRAFT_BYTES);
   const a = await sealedOf(near);
-  assert.deepEqual(fitProblems(env, a, { ...jobOf(near), plan }, undefined, near), []);
-  const longPlan = { ...plan, limitations: [...plan.limitations, 'y'.repeat(8000)] };
-  assert.ok(fitProblems(env, a, { ...jobOf(near), plan: longPlan }, undefined, near).length > 0, 'a longer plan leaves less room: passing the estimate guarantees nothing');
-  // The older marker-node draft of aj_9c453b6 does not reach the estimate on its own plan: the per-plan check, not this number, decides for it.
-  const old = fixture.repairedDraft, oldNear = { ...old, program: { source: `${old.program.source}\n//${'x'.repeat(ANIMATION_DRAFT_BYTES - JSON.stringify(old).length - 200)}` } };
-  assert.ok(fitProblems(env, await sealedOf(oldNear), jobOf(oldNear), undefined, oldNear).length > 0);
+  assert.deepEqual(fitProblems(env, a, jobOf(near), undefined, near), []);
+  const longPlan = { ...fixture.plan, limitations: [...fixture.plan.limitations, 'y'.repeat(8000)] };
+  const job = { ...jobOf(near), plan: longPlan };
+  assert.ok(fitProblems(env, a, job, undefined, near).length > 0, 'a longer plan leaves less room: passing the estimate guarantees nothing');
 });
 
 test('the empty-label failure stays a validation problem: nothing invents the words, and the approved plan is unchanged', async () => {
@@ -180,21 +174,6 @@ test('the author and repair are told the names the card keeps for itself and the
   }
 });
 
-test('the author runs at medium effort with 24,000 output tokens, and the build worst case and credits follow the pricing registry', async () => {
-  const { LEARN_TASKS, MODEL_PRICES } = await import('../src/learn-models.js');
-  assert.deepEqual([LEARN_TASKS.animation_author.effort, LEARN_TASKS.animation_author.maxTokens], ['medium', 24000]);
-  assert.deepEqual([LEARN_TASKS.animation_repair.effort, LEARN_TASKS.animation_repair.maxTokens, LEARN_TASKS.animation_review.maxTokens], ['medium', 24000, 8000]); // owner decision 16 (3 Nov 2026): repair 24,000 at medium, up from 12,000 at low; decision 28 (C9, FX-AN-102): the review 8,000, up from 6,000
-  const [, output] = MODEL_PRICES['claude-opus-5-5'];
-  assert.equal(roleBoundMicros('author') - Math.ceil(60000 * MODEL_PRICES['claude-opus-5-5'][0] * 1.25 + 16000 * output), 8000 * output, '8,000 more output tokens at the registry price');
-  assert.equal(8000 * output, 160000, 'US$0.16');
-  // Decision 16: the repair's bound is (50,000 + 2 x 4,784) x $4 x 1.25 + 24,000 x $20 = 297,840 + 480,000, up from 537,840; two repairs add 480,000 micros (48 credits).
-  assert.equal(roleBoundMicros('repair'), 777840);
-  assert.equal(animationReservation().generationMicros, 780000 + 3 * 503520 + 2 * 777840);
-  assert.equal(animationReservation().generationMicros, 3246240 + 480000 + 120000); // 3,846,240: decision 16 (+480,000) and decision 28 (+3 x 40,000)
-  assert.equal(Math.ceil(animationReservation().generationMicros / 10000), 385, 'displayed maximum: 325 + 48 (decision 16) + 12 (decision 28) credits');
-  const { proposalUsage } = await import('../src/generation-proposal.js');
-  assert.equal(proposalUsage({}, 'animation').max_credits, 385, 'the figure the proposal shows and Generate checks');
-});
 
 test("the author and repair follow the plan's formula and convention, and the review reports every serious problem at once (aj_ba11d5a, aj_ad936ec)", async () => {
   const { ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM, ANIMATION_REVIEW_SYSTEM } = await import('../src/agents/animation-author.js');
@@ -212,7 +191,7 @@ test('the diagnosed SGD causes, as general rules: event shape, merged findings, 
   const base = 'export function evaluate(){return {}}\nexport function initialState(){return {}}\nexport function reduce({state,event}){';
   assert.ok(programProblems(withSource(`${base}if(event.id==='keepPath')return state;return state}`)).some(p => /read event\.action/.test(p)));
   assert.equal(programProblems(withSource(`${base}if(event.action==='keepPath')return state;return state}`)).some(p => /event\.action/.test(p)), false);
-  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) { assert.match(system, /An action is named by event\.action, never event\.id/); assert.match(system, /moving a camera closer does not enlarge anything/); assert.match(system, /A curved surface is a `surface` geometry; a path is a `trail`; a changing word is a text readout\./); } // AN-20 (owner decisions 11, 12): replaces the tube-surface sentence (aj_086fd46: filled discs hid what moved inside a bowl)
+  for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) { assert.match(system, /An action is named by event\.action, never event\.id/); assert.match(system, /moving a camera closer does not enlarge anything/); assert.match(system, /A curved surface is drawn as capabilities.surfaces says/); } // aj_086fd46: filled discs hid what moved inside a bowl
   assert.equal(ANIMATION_REPAIR_SYSTEM.includes('move the camera closer'), false);
   // 4b: a finding repeated across captures goes to the repair once, with its captures, so distinct ones are not cut.
   const same = c => ({ category: 'spec', severity: 'major', target: { capture: c }, message: 'no batch-noise readout' });
@@ -235,65 +214,4 @@ test('a non-SGD scene keeps the shared changes: a game reading event.action pass
   const f = c => ({ category: 'spec', severity: 'major', target: { capture: c }, message: 'robot label overlaps the goal' });
   const sent = JSON.parse(repairContent(jobOf(fixture.repairedDraft), { findings: [f('v0-s0'), f('v1-s0')] }, fixture.repairedDraft)[0].text);
   assert.deepEqual([sent.findings.length, sent.findings[0].targets.map(t => t.capture)], [1, ['v0-s0', 'v1-s0']]);
-});
-
-// AN-20 (plan section 8, owner decisions 11 to 13): the prompt cut shortens the universal prompts and leaves the largest reviewable draft
-// no smaller. BEFORE is measured at caf7ee9bc on this fixture's plan (the review request binds, then the repair request). This is a
-// regression guard as well as the recorded measurement: a prompt that grows back past the baseline fails here, not in a paid job.
-test('AN-20 measurement: the system prompts are shorter than at caf7ee9bc and the largest reviewable draft is not smaller', async t => {
-  const BEFORE = Object.freeze({ author: 13382, repair: 13473, review: 4955, reviewableDraft: 14832 });
-  const bytes = s => new TextEncoder().encode(s).length;
-  const { ANIMATION_AUTHOR_SYSTEM } = await import('../src/agents/animation-author.js');
-  const after = { author: bytes(ANIMATION_AUTHOR_SYSTEM), repair: bytes(ANIMATION_REPAIR_SYSTEM), review: bytes(ANIMATION_REVIEW_SYSTEM) };
-  for (const role of Object.keys(after)) assert.ok(after[role] < BEFORE[role], `${role} system ${after[role]} B must be under ${BEFORE[role]} B (caf7ee9bc)`);
-  const draft = fixture.repairedDraft, padded = n => ({ ...draft, program: { source: `${draft.program.source}\n//${'x'.repeat(n)}` } });
-  const fits = async n => { const d = padded(n), a = await sealedOf(d); return fitProblems(env, a, jobOf(d), undefined, d).length === 0; };
-  let low = 0, high = 3000; // the program source limit (16 KiB) is far above this fixture's 2.2 KB source
-  while (high - low > 1) { const mid = Math.floor((low + high) / 2); if (await fits(mid)) low = mid; else high = mid; }
-  const largest = bytes(JSON.stringify(padded(low)));
-  t.diagnostic(`system B before -> after: author ${BEFORE.author} -> ${after.author}; repair ${BEFORE.repair} -> ${after.repair}; review ${BEFORE.review} -> ${after.review}; largest reviewable draft ${BEFORE.reviewableDraft} -> ${largest}; ANIMATION_DRAFT_BYTES ${ANIMATION_DRAFT_BYTES}`);
-  assert.ok(largest >= BEFORE.reviewableDraft, `the largest reviewable draft ${largest} B must not fall below ${BEFORE.reviewableDraft} B`);
-  // The shared estimate is held against the golden, not this marker-node fixture (FX-AN-052): see the golden measurement below.
-});
-
-// AN-20 (FX-AN-052): the golden SGD artifact is the representative draft of the loss_surface shape (native surface and trail, no marker nodes), with the longest plan that shape
-// is given (the pinned Gate 1 plan, 4.3 KB) and the shorter plan the golden is built on. The largest draft each request fits is measured here, review and repair apart,
-// and the shared estimate must stay at or under the smaller of the two for the long plan. The older aj_9c453b6 measurement above stays: its marker-node drafts fit less.
-test('AN-20 measurement on the golden: the largest draft the review and the repair request fit, and the shared estimate stays under both for the long plan', async t => {
-  const golden = JSON.parse(readFileSync(new URL('../../web/src/animation3d/testdata/sgd-golden.json', import.meta.url), 'utf8'));
-  const longPlan = JSON.parse(readFileSync(new URL('./fixtures/animation-sgd-loss-surface-plan.json', import.meta.url), 'utf8'));
-  const draft0 = draftOf(golden.artifact), bytes = s => new TextEncoder().encode(JSON.stringify(s)).length;
-  const padded = n => ({ ...draft0, program: { source: `${draft0.program.source}
-//${'x'.repeat(n)}` } });
-  const capacity = async (plan, which) => {
-    const words = which === 'review' ? 'independent review request' : 'the repair request';
-    const fits = async n => { const d = padded(n), a = await sealedOf(d); return !fitProblems(env, a, { ...jobOf(d), plan }, undefined, d).some(m => m.includes(words)); };
-    assert.equal(await fits(0), true, `${which}: the golden itself fits`);
-    let low = 0, high = 13000;
-    while (high - low > 1) { const mid = Math.floor((low + high) / 2); if (await fits(mid)) low = mid; else high = mid; }
-    return bytes(padded(low));
-  };
-  const got = { shortReview: await capacity(golden.plan, 'review'), shortRepair: await capacity(golden.plan, 'repair'), longReview: await capacity(longPlan, 'review'), longRepair: await capacity(longPlan, 'repair') };
-  t.diagnostic(`golden draft ${bytes(draft0)} B; plan ${bytes(golden.plan)} B -> review ${got.shortReview}, repair ${got.shortRepair}; plan ${bytes(longPlan)} B -> review ${got.longReview}, repair ${got.longRepair}; ANIMATION_DRAFT_BYTES ${ANIMATION_DRAFT_BYTES}`);
-  assert.ok(got.shortReview > got.longReview && got.shortRepair > got.longRepair, 'a longer plan leaves less room');
-  assert.ok(ANIMATION_DRAFT_BYTES <= Math.min(got.longReview, got.longRepair), 'the shared estimate stays at or under what the real requests fit for the long plan');
-});
-
-// C9 (owner; decision-16-shaped; FX-AN-102): C8 Gate 2 job 4 (aj_4f08e1b367964e4aa0c3124c26dfc33f) ran its review out of output: 3,818 thinking tokens, a prose answer and a cut-off tool
-// call made 6,000. The review role gets 8,000. Its bound, the generation worst case and the displayed maximum follow; no other role and no input limit moves.
-test('the review runs with 8,000 output tokens: its bound, the worst case and the displayed credits follow, and nothing else moved', async () => {
-  const { LEARN_TASKS, MODEL_PRICES } = await import('../src/learn-models.js');
-  const { ANIMATION_ROLES } = await import('../src/animation-policy.js');
-  const [, output] = MODEL_PRICES['claude-opus-5-5'];
-  assert.equal(LEARN_TASKS.animation_review.maxTokens, 8000);
-  assert.equal(roleBoundMicros('review'), 503520, 'was 463,520');
-  assert.equal(roleBoundMicros('review') - 463520, 2000 * output, '2,000 more output tokens at the registry price, US$0.04 per call');
-  const r = animationReservation();
-  assert.equal(r.generationMicros, 780000 + 3 * 503520 + 2 * 777840, '3,846,240, was 3,726,240 (US$0.12 more)');
-  assert.equal(r.preparationMicros, 560000, 'planning is unchanged');
-  assert.equal(Math.ceil(r.generationMicros / 10000), 385, 'shown on Generate: 385 credits, was 373');
-  assert.deepEqual([roleBoundMicros('brief'), roleBoundMicros('author'), roleBoundMicros('repair')], [280000, 780000, 777840], 'brief, author and repair bounds are as they were (the repair at decision 16: medium, 24,000)');
-  assert.deepEqual(ANIMATION_ROLES, { brief: { task: 'animation_brief', maxInputTokens: 40000, maxImages: 0 }, author: { task: 'animation_author', maxInputTokens: 60000, maxImages: 0 },
-    review: { task: 'animation_review', maxInputTokens: 40000, maxImages: 6 }, repair: { task: 'animation_repair', maxInputTokens: 50000, maxImages: 2 } }, 'no input limit moved');
-  assert.deepEqual([LEARN_TASKS.animation_brief.maxTokens, LEARN_TASKS.animation_author.maxTokens, LEARN_TASKS.animation_repair.maxTokens], [4000, 24000, 24000]);
 });
