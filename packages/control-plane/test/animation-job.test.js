@@ -98,22 +98,23 @@ test('a rejected review gets exactly one repair, and the repaired artifact is ac
   assert.equal(done.repairs, 1);
 });
 
-test('a second failure after the one repair stops the job: no second repair, no third review', { skip }, async t => {
+test('a third rejection after the two review repairs stops the job: no third repair, no fourth review', { skip }, async t => {
   const s = animationStack(t, { reply: role => (role === 'review' ? { accepted: false } : {}) });
   const { done } = await s.generated();
   assert.deepEqual([done.stage, done.stopReason, done.result], ['failed', 'rounds', null]);
-  assert.deepEqual(s.model.roles(), ['brief', 'author', 'review', 'repair', 'review']);
+  assert.deepEqual(s.model.roles(), ['brief', 'author', 'review', 'repair', 'review', 'repair', 'review']);
+  assert.deepEqual([done.repairs, done.repairKinds], [2, ['review', 'review']]);
   assert.equal(s.state.data.has(`result:${done.resultId}`), false);
-  // A candidate that fails validation gets one repair of its own: a repaired draft that still fails stops before any review.
+  // A candidate that fails validation gets two repairs of its own (decision 35): a candidate that still fails after them stops before any review.
   const v = animationStack(t, { pipeline: STUB_PIPELINE({ validate: async () => ({ problems: ['node n1 is not declared'], repairable: true }) }) });
   const bad = await v.generated();
-  assert.deepEqual([bad.done.stage, bad.done.stopReason], ['failed', 'rounds']);
-  assert.deepEqual(v.model.roles(), ['brief', 'author', 'repair']);
+  assert.deepEqual([bad.done.stage, bad.done.stopReason, bad.done.repairKinds], ['failed', 'rounds', ['run', 'run']]);
+  assert.deepEqual(v.model.roles(), ['brief', 'author', 'repair', 'repair']);
   assert.match(bad.done.failure.message, /even after a correction/);
 });
 
 // aj_283c19f: the first candidate's program referenced undeclared nodes; its repair ran, and the review then rejected the framing
-// with no repair left. A run failure and a review rejection now get one repair each.
+// with no repair left. A run failure and a review rejection get their own repairs (one each, then two each from decision 35).
 test('a run failure and a review rejection are repaired once each: crash, repair, review, repair, review', { skip }, async t => {
   let validations = 0, reviews = 0;
   const s = animationStack(t, { pipeline: STUB_PIPELINE({
@@ -248,7 +249,7 @@ test('a transient overload recovers by itself: the stage runs once more after it
   assert.ok(!rows(s.sqlite, 'messages').some(m => /not finished/.test(m.content)), 'a recovered job posts no failure');
 });
 
-test('a Retry never resets either repair allowance: run repair, overload, Retry, review repair, then the limit', { skip }, async t => {
+test('a Retry never resets either repair allowance: run repair, overload, Retry, two review repairs, then the limit', { skip }, async t => {
   let validations = 0, down = true;
   const s = animationStack(t, {
     status: role => (role === 'review' && down ? 529 : 200), reply: role => (role === 'review' ? { accepted: false } : {}),
@@ -259,8 +260,9 @@ test('a Retry never resets either repair allowance: run repair, overload, Retry,
   down = false;
   assert.equal((await s.send('retry', { expectedAttempt: 1 }, id)).status, 202);
   const end = await s.run(id);
-  assert.deepEqual([end.stage, end.stopReason, end.repairs, end.repairKinds], ['failed', 'rounds', 2, ['run', 'review']]);
-  assert.deepEqual(s.model.roles(), ['brief', 'author', 'repair', 'review', 'review', 'review', 'repair', 'review']);
+  // The run repair used one of its two slots and the review its two: the third rejection stops, a Retry having reset neither count.
+  assert.deepEqual([end.stage, end.stopReason, end.repairs, end.repairKinds], ['failed', 'rounds', 3, ['run', 'review', 'review']]);
+  assert.deepEqual(s.model.roles(), ['brief', 'author', 'repair', 'review', 'review', 'review', 'repair', 'review', 'repair', 'review']);
 });
 
 test('the planner replies are kept in the job diagnostics as given, a refused one with its issues, and never in the learner view', { skip }, async t => {
@@ -300,12 +302,12 @@ test('a malformed author reply fails the build with no silent fallback and no re
   assert.deepEqual((await s.job(id)).job.recovery, ['edit_request']);
 });
 
-test('the summed per-call bounds of a build can never exceed its worst case: a fourth review is refused', { skip }, async t => {
-  const s = animationStack(t, { pipeline: STUB_PIPELINE({ review: async (job, ctx) => { for (let i = 0; i < 4; i++) await ctx.call('review', { system: 'review', tool: { name: 'x', input_schema: { type: 'object' } }, content: 'x' }); return { accepted: true, artifactHash: job.artifactHash }; } }) });
+test('the summed per-call bounds of a build can never exceed its worst case: a fifth review is refused', { skip }, async t => {
+  const s = animationStack(t, { pipeline: STUB_PIPELINE({ review: async (job, ctx) => { for (let i = 0; i < 5; i++) await ctx.call('review', { system: 'review', tool: { name: 'x', input_schema: { type: 'object' } }, content: 'x' }); return { accepted: true, artifactHash: job.artifactHash }; } }) });
   const { done } = await s.generated();
-  assert.deepEqual([done.stage, done.stopReason, done.counts.review], ['failed', 'budget', 3]);
+  assert.deepEqual([done.stage, done.stopReason, done.counts.review], ['failed', 'budget', 4]);
   assert.ok(done.bounds.generation <= done.reservation.generationMicros);
-  assert.deepEqual(s.model.roles(), ['brief', 'author', 'review', 'review', 'review']);
+  assert.deepEqual(s.model.roles(), ['brief', 'author', 'review', 'review', 'review', 'review']);
 });
 
 test('the route is off unless ANIMATION_ENABLED, owner-only and same-origin; sources are read on the server, never taken from the client', async t => {

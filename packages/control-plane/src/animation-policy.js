@@ -32,20 +32,21 @@ export const ANIMATION_ROLES = Object.freeze({
 });
 
 export const ANIMATION_LIMITS = Object.freeze({
-  // At most one repair of each kind per confirmed build: one for a candidate that fails to validate or run, one for a review
-  // rejection (aj_283c19f: the only repair went to a program that referenced undeclared nodes, leaving none for the review).
-  // Neither kind resets on Retry. Every repaired candidate is validated, rendered and reviewed again before it can be accepted.
-  repairs: 2,
+  // Repairs per KIND per confirmed build (owner decision 35, FX-AN-115): two for a candidate that fails to validate or run ('run'), two for a
+  // review rejection ('review'), each counted on its own so a validation or render problem never takes a slot the review needs (C11 Gate 2, jobs
+  // 1, 3, 5 and 7; before it the two repairs were one per kind, aj_283c19f). Neither kind resets on Retry. Every repaired candidate is validated,
+  // rendered and reviewed again before it can be accepted. animation-job.js repairOrStop caps by kind, not by the sum.
+  repairs: Object.freeze({ run: 2, review: 2 }),
   // Preparation: one brief call per admitted preparation, at most `refinements` more (each a learner's own edit). Generation: the graph
-  // above: one author, two repairs, and reviews of at most two candidates (a run repair's candidate was never reviewed) plus the one
-  // retry of a review answered in prose (animation-review.js).
-  calls: Object.freeze({ brief: 1, author: 1, review: 3, repair: 2 }),
+  // above: one author, four repairs (two per kind), and reviews of at most three candidates (a run repair's candidate is not reviewed until it
+  // passes; a third rejection stops the build) plus the one retry of a review answered in prose (animation-review.js).
+  calls: Object.freeze({ brief: 1, author: 1, review: 4, repair: 4 }),
   refinements: 5,
   // A plan the contract refuses gets ONE correction call carrying the validator's issues (accept-6: step with an analytical behavior).
   planCorrections: 1,
   // Review captures: up to 2 declared views at up to 3 parameter/time states per round, one browser per job, platform-paid; a round
-  // per candidate (the first and both repairs).
-  render: Object.freeze({ views: 2, states: 3, capturesPerRound: 6, rounds: 3 }),
+  // per candidate (the first and all four repairs). rounds is documentation: nothing reads it, the repair caps bound the candidates.
+  render: Object.freeze({ views: 2, states: 3, capturesPerRound: 6, rounds: 5 }),
   // callMs: the longest one brief or review call may take; authorCallMs: the author's and the repair's (they write the whole artifact; measured author calls
   // ran 87 to 126 s and a repair may use 24,000 tokens, about 210 s). Enforced by the streaming transport (animationStreaming); FX-AN-041 found callMs read nowhere.
   deadlines: Object.freeze({ callMs: 120000, authorCallMs: 300000, preparationMs: 180000, jobMs: 600000 }),

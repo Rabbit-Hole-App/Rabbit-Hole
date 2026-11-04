@@ -675,9 +675,9 @@ test('a report still invalid after its correction fails as a review-validation f
   assert.deepEqual(notes.map(n => [n.retry, n.raw === bad.input, n.artifactHash === job.artifactHash, n.usage.output_tokens, n.problems.length, n.verdicts[0].visual]), [[false, true, true, 7, 1, 'pass'], [true, true, true, 7, 1, 'pass']]);
 });
 
-test('the review retry is shared per job and within the three review calls: a used or exhausted allowance fails without another call', async () => {
+test('the review retry is shared per job and within the four review calls (decision 35): a used or exhausted allowance fails without another call', async () => {
   const bad = reviewReport(noSeverity());
-  for (const over of [{ reviews: [{ retry: true }] }, { counts: { review: 2 } }]) {
+  for (const over of [{ reviews: [{ retry: true }] }, { counts: { review: 3 } }]) {
     const { error, sent } = await runReview({ ...await reviewFixture(), ...over }, [bad, reviewReport(reviewFinding())]);
     assert.deepEqual([error.code, sent.length], ['invalid_review', 1]);
   }

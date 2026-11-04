@@ -81,6 +81,8 @@ Candidate lineage (4 November 2026): C10 = C9 + decision 29 azimuth line + decis
 
 Candidate lineage (4 November 2026): C11 = C10 + decision 34: the golden (the exemplar) retuned after the job-0 control rejected it (arrow scale, Full-batch step arrow and label, arrow colours, rim-consistent path); exemplar pin re-pinned (golden file ae82facb429a..., exemplar draft 9ae7fe47...); C10 CI green; golden and prompt-files hashes change; primitives check renamed slopeArrow->fullArrow.
 
+Candidate lineage (4 November 2026): C12 g1 (feat/an20-g1) = C11 + decision 35 (owner-approved): the repairs are capped per kind, two for a validation or render problem and two for a review rejection, so a run problem no longer takes a slot the review needs (FX-AN-123); calls review 3 to 4 and repair 2 to 4; the displayed Generate maximum rises from 385 to 591 credits (5,905,440 micro-USD, derived by animationReservation; planning unchanged at 56) and the /animation card says "Generate: up to 591 credits; most animations use 50–100; a failed one is refunded."; Gate 1 prompt-files hash changes (animation-policy.js is in the list; the author request hash does not).
+
 ### Product boundaries
 
 | Capability | Purpose |

@@ -46,10 +46,17 @@ export const approvesJob = p => (p?.command === 'explain' || p?.command === 'ani
 export const EXPLAIN_REVIEW_HEADING = 'Review explanation';
 export const EXPLAIN_COST_NOTE = 'Preparing this plan used one model call, and each change asked for in Chat uses another. Saving edits here makes no call. Generate starts the paid work: writing the explanation, checking it and reviewing its render.';
 export const EXPLAIN_STOPPED = 'Stopped before anything was generated.';
-// The /animation plan's review card heading; it carries no cost note (owner, 2026-10-31).
+// The /animation plan's review card heading (owner, 2026-10-31: no long cost note; owner decision 35, 2026-11-04: one line on what Generate costs).
 export const ANIMATION_REVIEW_HEADING = 'Review your scene';
+// The /animation card's cost line: what a change asked for in Chat costs (the plan call, the server's planCredits) and Generate's most a build can cost, which is the SERVER's
+// figure (proposal.usage.max_credits, from animationReservation(); never typed here, so a change to the call limits moves it). No figure from the server, no Generate sentence.
+export const animationCostNote = p => {
+  const planCredits = p?.input?.scene?.planCredits, max = p?.usage?.max_credits;
+  return [planCredits ? `Edit plan uses up to ${planCredits} AI credits to rewrite the plan.` : null,
+    Number.isFinite(max) ? `Generate: up to ${max.toLocaleString('en-US')} credits; most animations use 50–100; a failed one is refunded.` : null].filter(Boolean).join(' ') || null;
+};
 // A job-approving proposal's heading and cost note, by its command.
-export const jobReviewCopy = p => (p?.command === 'animation' ? { eyebrow: ANIMATION_REVIEW_HEADING } : { eyebrow: EXPLAIN_REVIEW_HEADING, note: EXPLAIN_COST_NOTE });
+export const jobReviewCopy = p => (p?.command === 'animation' ? { eyebrow: ANIMATION_REVIEW_HEADING, ...(animationCostNote(p) ? { note: animationCostNote(p) } : {}) } : { eyebrow: EXPLAIN_REVIEW_HEADING, note: EXPLAIN_COST_NOTE });
 // How a proposal starts, by its command's adapter: 'output' (add the output card, needs ops.insertCard), 'job' (approve the existing job, needs
 // ops.approveExplain) or null (this build cannot start it). Generate is enabled by THIS, never by one command's adapter.
 // 'image' (IMG-01, generate-image.js): the image job is started and followed from the card, behind the web flag.

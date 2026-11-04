@@ -2,9 +2,9 @@
 // idFromName(boardId)), with the same request fence, short locked mutations, alarm-driven stages, call ledger, Stop and Retry as
 // /explain's ExplainJobs (explain-job.js), and animation's own policy (animation-policy.js) and artifacts.
 //
-// Stages: queued -> preparing -> awaiting_approval -> authoring -> validating -> rendering -> reviewing -> ready, with at most ONE
-// repairing -> validating per confirmed build for a candidate that fails to validate or run, and one for a review rejection
-// (ANIMATION_LIMITS.repairs); failed and cancelled are terminal. A
+// Stages: queued -> preparing -> awaiting_approval -> authoring -> validating -> rendering -> reviewing -> ready, with at most TWO
+// repairing -> validating per confirmed build for a candidate that fails to validate or run, and two for a review rejection, each kind
+// counted on its own (ANIMATION_LIMITS.repairs, decision 35); failed and cancelled are terminal. A
 // repaired artifact reaches ready only through validating, rendering and a final review of exactly that artifact (its hash).
 // The stage work (plan, author, validate, render, review, repair) is a pipeline injected at construction; the route is off unless
 // ANIMATION_ENABLED is 'true'.
@@ -141,7 +141,8 @@ export function recoveryOf(job) {
   else if (job.approval && job.plan && REVISABLE.has(failureClass(job))) actions.push('revise_plan');
   return [...actions, 'edit_request'];
 }
-const withinCeiling = job => job.counts.author < ANIMATION_LIMITS.calls.author || (!!(job.draft || job.artifact) && job.repairs < ANIMATION_LIMITS.repairs);
+const REPAIR_SLOTS = Object.values(ANIMATION_LIMITS.repairs).reduce((total, n) => total + n, 0);
+const withinCeiling = job => job.counts.author < ANIMATION_LIMITS.calls.author || (!!(job.draft || job.artifact) && job.repairs < REPAIR_SLOTS);
 
 // What kind of failure ended the job, from what it recorded (stop reason, failure stage, category and code, the last findings),
 // never from model text. size_limit: the candidate's only problems were that the review or repair request could not carry it.
@@ -198,7 +199,7 @@ export function failureText(job) {
     transient: TRANSIENT[f.category] ?? TRANSIENT.transport }[kind] ?? f.message ?? 'The animation could not be made.';
   const candidate = kind === 'checks' || kind === 'size_limit';
   const tried = [job.stopReason === 'no_progress' ? 'An automatic correction changed nothing.' : job.stopReason === 'unsupported_repair' ? 'It needs a change the automatic correction cannot make.'
-    : job.repairs ? `It was corrected automatically ${job.repairs === 1 ? 'once' : 'twice'}${candidate ? ', but it still did not pass' : ''}.` : '', job.autoRetried ? 'It was retried automatically.' : ''];
+    : job.repairs ? `It was corrected automatically ${['', 'once', 'twice', 'three times', 'four times'][job.repairs] ?? `${job.repairs} times`}${candidate ? ', but it still did not pass' : ''}.` : '', job.autoRetried ? 'It was retried automatically.' : ''];
   const next = { retry_render: 'Render again renders the built scene again.', new_attempt: `Try again continues from where it stopped${attemptCost(job)}.`,
     revise_plan: `Revise plan prepares a simpler plan from your request for you to review, using up to ${credits(job.reservation?.preparationMicros)} AI credits; nothing is built until you press Generate.` }[action]
     ?? (plannerGap(job) ? 'Choose an alternative in Chat, or edit the request to start a new animation.' : candidate || ['capability', 'output_limit', 'deadline', 'limit', 'review_validation'].includes(kind) ? 'Edit the request to start a new animation.' : '');
@@ -993,10 +994,11 @@ export class AnimationJobs {
     }
     await this.save(job);
   }
-  // kind: 'run' (the candidate failed to validate or run) or 'review' (the review rejected it); each is repaired at most once.
+  // kind: 'run' (the candidate failed to validate or run) or 'review' (the review rejected it); each kind is repaired at most ANIMATION_LIMITS.repairs[kind]
+  // times, counted from repairKinds (a validation or render problem takes no slot the review needs). repairs stays the total, for display and diagnostics.
   async repairOrStop(job, out, kind) {
     job.repairKinds ??= [];
-    if (job.repairs >= ANIMATION_LIMITS.repairs || job.repairKinds.includes(kind)) return this.stopWith(job, 'rounds', out.category || 'spec', 'The animation did not pass its checks, even after a correction. Edit the request and try again.');
+    if (job.repairKinds.filter(k => k === kind).length >= (ANIMATION_LIMITS.repairs[kind] ?? 0)) return this.stopWith(job, 'rounds', out.category || 'spec', 'The animation did not pass its checks, even after a correction. Edit the request and try again.');
     if (out.repairable === false) return this.stopWith(job, 'unsupported_repair', out.category || 'spec', out.message || 'This animation needs a change the repair step cannot make. Edit the request.');
     job.repairKinds.push(kind); job.repairs++; job.repairedFrom = job.artifactHash; endStage(job.timing, 'rejected'); job.stage = 'repairing'; beginStage(job.timing, 'repairing');
     await this.save(job);
@@ -1073,6 +1075,8 @@ export class AnimationJobs {
       // A busy provider is not this: its Try again resumes at the repair itself, still counted.
       if (current.stage === 'repairing' && error.code !== 'provider_unavailable' && (['spend_limited', 'spend_refused'].includes(error.code) || error.status === 429)) {
         current.repairs = Math.max(0, current.repairs - 1); current.repairKinds?.pop();
+        // The refused repair never ran, so the candidate Try again validates is the one it was to fix: not a repair that changed nothing (no_progress).
+        current.repairedFrom = null;
       }
       // The calls this stage run made (job is the snapshot it started from): what its explanation may say about charges (chargeWords).
       const callsFrom = job.calls.length;
