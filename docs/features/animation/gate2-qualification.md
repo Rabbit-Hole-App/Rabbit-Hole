@@ -333,7 +333,7 @@ only cancels), generalised to every running job at once. At every poll of every 
   | `accepted`, `lost` | counts among jobs 1 to 9 |
   | `control` | `{ outcome, silentSgd, markers }` for job 10, or `null` if it has no result |
   | `halt`, `notRun` | why the run was halted (`{ kind, reason }` or `null`) and the job numbers without a final result |
-  | `rows` | one per job: `n`, `phrasing`, `jobId`, `outcome`, `repairs`, `settledCredits`, `chargedCredits`, `artifactHash`, `session`, `note` |
+  | `rows` | one per job: `n`, `phrasing`, `jobId`, `outcome`, `repairs`, `settledCredits`, `chargedCredits`, `artifactHash`, `session`, `reviewIdentity` (12 hex), `note` |
   | `settledCredits`, `cap`, `prior`, `finishedAt` | the candidate's cumulative settled credits across every invocation (the controls' direct review calls included), the cap and prior arguments, an ISO time |
 
 - Artifact hash column: the host's `artifactHash` (first 16 hex in the tables, full value in `summary.json`). The earlier receipts used the SHA-256 of the
