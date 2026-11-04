@@ -1,0 +1,250 @@
+{
+ "id": "aj_adb387ceee47465fb1c4e45f7983c08c",
+ "version": 1,
+ "boardId": "e8e2628a-4f21-41ce-b508-2fe3ad5bee13",
+ "cardId": "848edc21-ff47-45bd-b17e-1f6fb052c5f6",
+ "stage": "failed",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 2,
+ "stopReason": "rounds",
+ "failure": {
+  "stage": "rendering",
+  "category": "spec",
+  "message": "The scene failed when its program ran. You have not been charged. It was corrected automatically twice, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate.",
+  "retryable": false
+ },
+ "recovery": [
+  "revise_plan",
+  "edit_request"
+ ],
+ "outcome": "changes",
+ "choiceOpen": false,
+ "threadId": "canvaschat-adc68178-9006-49b4-988a-14a7c629c3c1",
+ "chatPending": false,
+ "usage": {
+  "credits": 12,
+  "unknown": false,
+  "note": "You have not been charged."
+ },
+ "result": null,
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Gradient descent, step by step, on a loss surface",
+  "description": "A ball sits on a curved loss surface with contour lines. An arrow on the ball points straight downhill (the negative gradient), and its length is the next step: the learning rate times the slope. Each step moves the ball along that arrow, and a trail records its path. You can take one step at a time or let it run, change the learning rate, switch the surface shape, and drag the ball to a new starting point.",
+  "experience": "experiment",
+  "reason": "Taking single steps lets you see each update and how far it goes, and changing the learning rate shows why gradient descent can be slow, can zigzag, or can blow up.",
+  "behavior": "rules",
+  "controlProfile": "manipulate",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate (step size)",
+    "min": 0.01,
+    "max": 0.6,
+    "step": 0.01,
+    "default": 0.15
+   },
+   {
+    "type": "select",
+    "id": "surface",
+    "label": "Surface shape",
+    "options": [
+     {
+      "value": "valley",
+      "label": "Stretched bowl (one minimum)"
+     },
+     {
+      "value": "twoValleys",
+      "label": "Two valleys (two minima)"
+     }
+    ],
+    "default": "valley"
+   },
+   {
+    "type": "toggle",
+    "id": "showArrow",
+    "label": "Show the step arrow",
+    "default": true
+   }
+  ],
+  "interactions": [
+   "Press Step once to move the ball one gradient-descent step and add a point to its trail.",
+   "Press Run to keep stepping until the ball settles, leaves the surface, or reaches 200 steps; the card's pause stops it.",
+   "Change the learning rate: small values creep; above 0.25 the ball zigzags across the narrow valley; above 0.5 the zigzag grows until the ball leaves the surface.",
+   "Switch to two valleys and drag the ball to different starting points: it usually ends in the valley it starts nearer to.",
+   "Press Clear trail to erase the path while the ball stays where it is.",
+   "Readouts show the step count, the current loss (height), the slope steepness, and the status: running, settled, or diverged."
+  ],
+  "assumptions": [
+   "Illustration: a made-up two-input loss surface, not a real trained model.",
+   "The stretched bowl is loss = ½(x² + 4y²): it curves 4 times more steeply across the valley than along it.",
+   "The two-valley surface is loss = (x² − 4)²/8 + 2y², with minima at x = −2 and x = +2.",
+   "Each step is plain gradient descent: new position = old position − learning rate × slope, using the exact slope from the formula. No momentum and no noise.",
+   "The ball counts as settled when the slope steepness drops below 0.01, and as diverged when it leaves the drawn area (|x| or |y| above 4).",
+   "The trail draws one marker every 4 steps, at most 50 markers; every step still runs."
+  ],
+  "limitations": [
+   "Changed: the trail draws 50 markers, one every 4 steps, instead of 200; every step still runs.",
+   "Changed: the kept comparison path also draws at most 50 markers.",
+   "The ball does not really roll: it has no speed or inertia. It jumps from point to point along the downhill arrow, which is how gradient descent works.",
+   "Real loss surfaces have thousands or millions of dimensions. Here there are only two inputs, so the surface can be drawn.",
+   "A step does not always lower the loss. With a large learning rate a step can overshoot and land higher up."
+  ],
+  "learningGoal": "Gradient descent moves against the slope by learning rate × slope at each step. The learning rate decides whether it creeps, zigzags, or diverges, and the starting point decides which minimum it finds.",
+  "requiredCapabilities": [
+   "step",
+   "actions",
+   "parameters",
+   "drag",
+   "readouts",
+   "labels"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "learningRate",
+    "values": [
+     0.05,
+     0.55
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 200
+   }
+  ]
+ },
+ "planHash": "0291231e28ec1e33cdb747bef12003df124565ba8d38a4001ed1227add01d4df",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 40017,
+  "generateToResultMs": null,
+  "processingMs": 470920,
+  "approvalWaitMs": 6131,
+  "calls": 5,
+  "repairs": 2,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 39967,
+    "calls": 2,
+    "inputTokens": 2042,
+    "outputTokens": 4266,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 6131,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 167647,
+    "calls": 1,
+    "inputTokens": 8606,
+    "outputTokens": 20617,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 55,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 46254,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "rejected"
+   },
+   {
+    "stage": "repairing",
+    "ms": 60140,
+    "calls": 1,
+    "inputTokens": 10089,
+    "outputTokens": 9001,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 86,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 31435,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "rejected"
+   },
+   {
+    "stage": "repairing",
+    "ms": 99444,
+    "calls": 1,
+    "inputTokens": 10077,
+    "outputTokens": 12509,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 85,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 25807,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "rounds"
+   }
+  ]
+ },
+ "createdAt": 1793818159296,
+ "updatedAt": 1793818637557
+}

@@ -1,0 +1,491 @@
+[
+ {
+  "at": 1793818506555,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "e15d19d8a4a4a5ded5bc890910d58a36cd47906927cafa32292da5f031b13f71",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The along-start knob and its guide line sit far left of the bowl at x=-3.6, away from the surface. They pull the frame wide and leave the bowl off-centre with empty space on the left. A track along the bowl's front rim, or nearer the bowl, would be tighter.",
+       "object": "knob",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The trail marks every step (up to 201 points), while the plan says one marker every 2 steps, at most 100. The change is disclosed in the assumptions and keeps the zig-zag visible.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "Near the minimum the noisy-step arrow is 0.129 long (1.5 × the true step), shorter than the ball's 0.28 diameter. The trace reports it hidden, and the 'Next step' label disappears with it. The arrow the plan promises can't be seen in the region where SGD wanders, which is the point of the scene. Use a larger disclosed arrow scale or a smaller ball so the next step stays visible near the center.",
+       "object": "stepArrow",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Low learning rate, zero noise, steepness 1 and 5, and dragging were not sampled, so convergence at noise 0 and the round versus narrow bowl are unverified by captures.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "After divergence the ball and trail points are clamped to the rim, so the drawn ball sits at the edge while the loss reads 317.5. This is disclosed, but the picture understates how far the ball flew off.",
+       "object": "ball",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "From this angle too, the next-step arrow is hidden inside the ball near the minimum (length 0.129 against a 0.28 diameter), and its label is gone.",
+       "object": "stepArrow",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The diverged trail segments run as straight chords between rim-clamped points, so they float above the concave surface in 3D.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13847,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3501,
+   "output_tokens_details": {
+    "thinking_tokens": 2480
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_d6db10ffe737434793951c0cccc651ac-review-5",
+   "status": "settled",
+   "costMicros": 125829,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793818632356,
+  "attempt": 1,
+  "repairs": 2,
+  "artifactHash": "8c8648695cea426143dbfc10deecad62fbad450a98e920b615389f2b95da1f5c",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Default view leaves wide empty margins left and right; the bowl fills only about the middle third of the width. Moving the camera closer or tightening the fit would make the path easier to read.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "knob",
+       "message": "The green 'Drag: start along' handle and its thin grey guide line float below and away from the bowl, so it is unclear what they control.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The trail marks every step (up to 201 points) instead of the plan's one marker every 2 steps (100 max). The change is disclosed in the assumptions.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "ball",
+       "message": "The plan says to drag the ball across the surface. The artifact only drags the ball left-right (across), and front-back (along) uses a separate knob. This is disclosed. Dragging, and the low/high parameter ends (including noise 0 settling at the center), were not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepArrow",
+       "message": "Status is 'running', but the next-step arrow (length 0.258 at 3x scale) starts at the ball's centre and stays almost entirely inside the 0.14-radius ball, so it and its 'Next step' label are hidden. This contradicts the assumption that the 3x scale 'stays visible near the minimum'. Start the arrow at the ball's surface, or use a larger single scale and disclose it.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepArrow",
+       "message": "Near the minimum, where the noise-driven wandering is the lesson, no step arrow can be seen at all.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "trail",
+       "message": "After divergence the ball and trail are held at the rim while loss reads 317.5. This is disclosed, but the picture understates how far the ball went.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "knob",
+       "message": "In the side view the bowl wall hides the green knob, so the 'Drag: start along' label floats with no visible object.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepArrow",
+       "message": "Same state as v0-s1: the next-step arrow is hidden inside the ball while running near the minimum, which contradicts the visibility claim in the assumptions.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13880,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4085,
+   "output_tokens_details": {
+    "thinking_tokens": 2307
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_d6db10ffe737434793951c0cccc651ac-review-7",
+   "status": "settled",
+   "costMicros": 137641,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793818740869,
+  "attempt": 1,
+  "repairs": 3,
+  "artifactHash": "feed67273a302923d1ea7dceffe3653bacdacff691e5cce19d7b9e57db894c1c",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Trail marks every step (up to 201 points) instead of the plan's 100 markers every 2 steps; disclosed in assumptions with a reason.",
+       "repairable": true,
+       "object": "trail"
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan's free 'drag the ball' start becomes two one-axis drags (ball across, green knob along). This is disclosed and every start is still reachable. Drag reset was not sampled.",
+       "repairable": true,
+       "object": "ball"
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: noise 0 converging exactly, steepness 1 (round bowl) and 5, learning rate 0.01.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Near the minimum the 'Lowest point' label sits immediately against the ball and short arrow; offset it further so the ball's end of the path stays clear.",
+       "repairable": true,
+       "object": "lowTag"
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Diverged ball and trail are drawn clamped at the rim while the true position is far outside (loss 317.5). This is disclosed in assumptions and the readouts stay exact, but the picture understates how far it flew.",
+       "repairable": true,
+       "object": "ball"
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13906,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3159,
+   "output_tokens_details": {
+    "thinking_tokens": 1927
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_d6db10ffe737434793951c0cccc651ac-review-9",
+   "status": "settled",
+   "costMicros": 119225,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

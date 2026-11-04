@@ -1,0 +1,217 @@
+{
+ "id": "aj_bf396fccd45949479b38d4884843c6a6",
+ "version": 1,
+ "boardId": "83726536-7891-493e-a411-1f05e21f4cf3",
+ "cardId": "f974888a-6af4-4a16-a299-39867a0a0dfd",
+ "stage": "ready",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 1,
+ "stopReason": "accepted",
+ "failure": null,
+ "recovery": [],
+ "outcome": "supported",
+ "choiceOpen": false,
+ "threadId": "canvaschat-8933e6c6-f77b-4f92-b24c-18ebcccea9e7",
+ "chatPending": false,
+ "usage": {
+  "credits": 66,
+  "unknown": false
+ },
+ "result": {
+  "jobId": "aj_bf396fccd45949479b38d4884843c6a6",
+  "resultId": "ar_c772400470e24fb8bce8977468ca24bf",
+  "cardId": "f974888a-6af4-4a16-a299-39867a0a0dfd",
+  "canvas": {
+   "boardId": "83726536-7891-493e-a411-1f05e21f4cf3"
+  },
+  "requestRef": "295a91d6a00d46a3",
+  "revision": "av_47d158e3e6d44edb942ea3a3fb68ee60",
+  "planHash": "3331e67c16d61861fbb83718e95fa466ac29a3ee5c827009bfbeab6647654464",
+  "sources": "643d5437104296e2",
+  "artifactHash": "eb3fecf9c503d14af9c568041b2f09f172f94f09e1291b3130823d42a62d559a",
+  "experience": "experiment",
+  "capabilityVersion": "animation-capabilities/1",
+  "policyVersion": 1
+ },
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Why too big a learning rate makes gradient descent blow up",
+  "description": "A ball sits on a long, narrow bowl-shaped loss surface. It is steep across the bowl and gentle along it. Each step, the ball moves downhill by the learning rate times the slope, and it leaves a path behind it. With a small learning rate the ball creeps to the bottom. A larger one makes it zigzag across the steep direction. Past a threshold, each jump overshoots the bottom by more than the last, so the ball climbs higher every step and flies off the surface. Readouts show the loss and the threshold as they change.",
+  "experience": "experiment",
+  "reason": "Changing the learning rate and watching the same descent go from creeping, to zigzagging, to blowing up shows the cause directly: steps that overshoot by more than they correct.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate",
+    "min": 0.02,
+    "max": 0.7,
+    "step": 0.01,
+    "default": 0.4
+   },
+   {
+    "type": "number",
+    "id": "steepness",
+    "label": "Steepness across the bowl",
+    "min": 1,
+    "max": 6,
+    "step": 0.5,
+    "default": 4
+   }
+  ],
+  "interactions": [
+   "Set the learning rate. Below the threshold the path settles at the bottom; exactly at it, the ball bounces at one height; above it, it zigzags outward and leaves the surface.",
+   "Change how steep the bowl is across its width. The threshold readout moves: steeper bowls diverge at smaller learning rates.",
+   "Take one step at a time, or let the steps run, to watch each overshoot.",
+   "Restart the descent from the same starting point. This keeps your current settings and clears the path."
+  ],
+  "assumptions": [
+   "Illustration: a simple made-up bowl stands in for a real model's loss.",
+   "The loss is 0.5·(x² + s·y²), where s is the steepness across the bowl. Gentle direction x has curvature 1. Steep direction y has curvature s.",
+   "Plain gradient descent with no momentum. Each step multiplies x by (1 − learning rate) and y by (1 − learning rate × s). The run diverges exactly when the learning rate is above 2 ÷ s.",
+   "The ball always starts at the same point, x = 2.5, y = 1.",
+   "A run stops when the loss drops below 0.001 (converged), when the ball passes the surface edge at |x| or |y| = 3 (diverged), or after 60 steps.",
+   "Heights are scaled down for display, so the steepest settings still fit on screen."
+  ],
+  "limitations": [
+   "A real loss surface is not a perfect bowl, so on it the threshold of 2 ÷ curvature only holds roughly near a minimum. On this bowl it is exact.",
+   "Only two weights are shown. Real models have millions, and the steepest direction among them sets the limit."
+  ],
+  "learningGoal": "A step overshoots when the learning rate times the curvature is more than 1. Above 2 it overshoots by more than it corrects, so the loss grows every step. The steepest direction sets the safe limit.",
+  "requiredCapabilities": [
+   "parameters",
+   "actions",
+   "step",
+   "labels",
+   "readouts"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "learningRate",
+    "values": [
+     0.1,
+     0.6
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 60
+   }
+  ]
+ },
+ "planHash": "3331e67c16d61861fbb83718e95fa466ac29a3ee5c827009bfbeab6647654464",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 55,
+  "proposalMs": 44919,
+  "generateToResultMs": 249271,
+  "processingMs": 294135,
+  "approvalWaitMs": 4755,
+  "calls": 5,
+  "repairs": 1,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 44864,
+    "calls": 2,
+    "inputTokens": 1948,
+    "outputTokens": 4473,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 4755,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 112776,
+    "calls": 1,
+    "inputTokens": 8437,
+    "outputTokens": 12529,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 64,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 19279,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "rejected"
+   },
+   {
+    "stage": "repairing",
+    "ms": 46071,
+    "calls": 1,
+    "inputTokens": 6513,
+    "outputTokens": 6131,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 73,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 34702,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 36306,
+    "calls": 1,
+    "inputTokens": 12596,
+    "outputTokens": 3338,
+    "images": 6,
+    "captures": 0,
+    "outcome": "accepted"
+   }
+  ]
+ },
+ "createdAt": 1793818160726,
+ "updatedAt": 1793818459671
+}

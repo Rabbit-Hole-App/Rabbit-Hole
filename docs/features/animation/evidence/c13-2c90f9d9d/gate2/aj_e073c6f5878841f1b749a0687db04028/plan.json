@@ -1,0 +1,80 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Gradient descent with learning rates 0.1 and 1.5 on the same surface",
+ "description": "One bowl-shaped loss surface, steeper across its valley than along it, has two coloured balls starting at the same point. Each step, every ball moves against the slope under it (the negative gradient) by its own learning rate times that slope, and leaves a trail. With 0.1 the ball creeps smoothly down to the bottom. With 1.5 it overshoots, bounces from side to side across the valley with growing swings, and stops when it runs off the edge of the surface. Readouts show the step count and each ball's loss.",
+ "experience": "experiment",
+ "reason": "Both learning rates run side by side on the same surface, from the same start, so you can see how step size alone changes the path. You can also adjust either rate to find where steady descent turns into overshooting.",
+ "behavior": "rules",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "lrA",
+   "label": "Learning rate, ball A",
+   "min": 0.01,
+   "max": 2,
+   "step": 0.01,
+   "default": 0.1
+  },
+  {
+   "type": "number",
+   "id": "lrB",
+   "label": "Learning rate, ball B",
+   "min": 0.01,
+   "max": 2,
+   "step": 0.01,
+   "default": 1.5
+  }
+ ],
+ "interactions": [
+  "Step or play the descent: on each step, both balls move once together and their trails grow",
+  "Change either learning rate: both balls go back to the start and their trails clear, so the next run is a fair comparison",
+  "Orbit the camera to look along the valley or down onto the contour lines",
+  "Watch the readouts for the step count, each ball's loss and whether it has reached the bottom or left the surface"
+ ],
+ "assumptions": [
+  "This is an illustrative surface, not the loss of a real trained model.",
+  "The loss surface is height = 0.25·x² + 0.75·y² for x and y between −4 and 4. It is twice as steep along y as along x (bending of 0.5 along x and 1.5 along y), and its lowest point is at the centre.",
+  "Both balls start at x = −3, y = 1. Each step is plain gradient descent: new position = old position − learning rate × slope, with no momentum and no noise.",
+  "On this surface the y-swings shrink only when the learning rate is below 2/1.5 ≈ 1.33. Between about 0.67 and 1.33 the ball zig-zags but still settles. Above 1.33 the swings grow by a fixed factor each step (1.25 at a rate of 1.5). The x-direction stays stable for every rate in the slider range.",
+  "A ball counts as finished when its loss drops below 0.001. It stops when it would leave the surface, and the readout marks it as diverged. A run lasts at most 60 steps."
+ ],
+ "limitations": [
+  "On a perfect bowl, the exact threshold of about 1.33 comes from the surface's steepest bending. Real loss surfaces are bumpy, so the safe learning rate there changes from place to place and is only roughly predictable.",
+  "A diverging ball is stopped at the edge of the surface instead of shooting off to infinity. That keeps the scene readable."
+ ],
+ "learningGoal": "Too large a learning rate makes gradient descent overshoot the minimum and can make it diverge. A small rate descends steadily but slowly. The limit depends on how steeply the surface curves.",
+ "requiredCapabilities": [
+  "parameters",
+  "step",
+  "readouts",
+  "labels"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "compare",
+   "parameter": "lrA",
+   "values": [
+    0.1,
+    1.5
+   ]
+  },
+  {
+   "kind": "compare",
+   "parameter": "lrB",
+   "values": [
+    0.1,
+    1.5
+   ]
+  },
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "pathLength",
+   "min": 60
+  }
+ ]
+}

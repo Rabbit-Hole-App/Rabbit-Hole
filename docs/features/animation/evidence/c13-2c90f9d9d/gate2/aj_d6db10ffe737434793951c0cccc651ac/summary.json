@@ -1,0 +1,26 @@
+{
+ "n": 2,
+ "phrasing": "SGD on a bowl-shaped loss",
+ "session": "g2-202611041848-2@example.com",
+ "sha": "2c90f9d9d8762d7d46836d6f1ecdf84be01e2cd7",
+ "version": "846574ba-c14d-4b0f-8a1a-f22f97697241",
+ "reviewIdentity": "687d4661a9ffde545921e5637d1697707aa6a83746f96807730d00c179757c7e",
+ "jobId": "aj_d6db10ffe737434793951c0cccc651ac",
+ "outcome": "accepted",
+ "repairs": 3,
+ "credits": 134.6713,
+ "charged": 135,
+ "artifactHash": "feed67273a302923d1ea7dceffe3653bacdacff691e5cce19d7b9e57db894c1c",
+ "note": "",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/4, 10:59 AM",
+ "firstRound": {
+  "state": "not reviewed",
+  "serious": 0,
+  "gist": null,
+  "kind": "other",
+  "reason": "no review was reached"
+ },
+ "fileSha256": "aa5b7adc8e68d43b5bd20c12928a69922f77d3a074af30dcd4fc42944c4d8cc3"
+}

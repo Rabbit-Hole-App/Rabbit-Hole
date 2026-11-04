@@ -1,0 +1,187 @@
+[
+ {
+  "messageId": "324",
+  "role": "assistant",
+  "content": "\"Stochastic gradient descent on a loss bowl, with kept paths to compare runs\" needs a change before it can be made. By our estimate this plan is too large to build and check: it draws a trail of 200 markers and a kept comparison path of the same length. An estimate can be wrong. Nothing has been built, and no AI credits have been used on building. Choose below: each option says exactly what changes, and nothing is built until you press Generate.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_82f0dea306bf4ff79ab61a4d1817930d:choice:6b784d968fb3f18140a332123a4f62e8ec6667c0639dfa06714a6482fdf8c56d",
+   "animationChoice": {
+    "jobId": "aj_82f0dea306bf4ff79ab61a4d1817930d",
+    "attempt": 1,
+    "kind": "size",
+    "key": "aj_82f0dea306bf4ff79ab61a4d1817930d:choice:6b784d968fb3f18140a332123a4f62e8ec6667c0639dfa06714a6482fdf8c56d",
+    "alternatives": [
+     {
+      "id": "fewer_markers",
+      "title": "Draw a shorter trail",
+      "changes": [
+       "Changed: the trail draws 50 markers, one every 4 steps, instead of 200; every step still runs.",
+       "Changed: the kept comparison path also draws at most 50 markers."
+      ]
+     }
+    ],
+    "chosen": "fewer_markers"
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "324"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "325",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. It differs from what you asked: Changed: the trail draws 50 markers, one every 4 steps, instead of 200; every step still runs. Changed: the kept comparison path also draws at most 50 markers. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-97b248cd45db03e0",
+    "version": 1,
+    "command": "animation",
+    "title": "Stochastic gradient descent on a loss bowl, with kept paths to compare runs",
+    "description": "A ball sits on a long, narrow bowl-shaped loss surface. Each step, it moves against a noisy estimate of the slope, so it heads downhill on average but wobbles. It leaves a coloured path behind it. You can keep the finished path as a faded copy, change the learning rate or the noise, and start a new run from the same point. Up to three kept paths stay on screen beside the new one, so you can compare how each setting reaches, or misses, the lowest point.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-0cf9ba5c",
+     "job": "aj_82f0dea306bf4ff79ab61a4d1817930d",
+     "plan_hash": "a27b842663ae91dd69b4c054728b12c1c3bd469f8d91b0d16c73e4036d38717d",
+     "request": "SGD with a kept path to compare runs",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate (step size)",
+        "min": 0.01,
+        "max": 0.45,
+        "step": 0.01,
+        "default": 0.1
+       },
+       {
+        "type": "number",
+        "label": "Gradient noise (mini-batch randomness)",
+        "min": 0,
+        "max": 2,
+        "step": 0.1,
+        "default": 0.5
+       },
+       {
+        "type": "select",
+        "label": "Starting point",
+        "options": [
+         {
+          "value": "left",
+          "label": "Far left rim"
+         },
+         {
+          "value": "right",
+          "label": "Far right rim"
+         },
+         {
+          "value": "steep",
+          "label": "Steep side wall"
+         }
+        ],
+        "default": "left"
+       }
+      ],
+      "interactions": [
+       "Play, pause or advance one step at a time to watch the ball move. Each step moves it by the learning rate times the noisy downhill direction.",
+       "Learning rate: small values give slow, smooth paths. Above 0.2 the ball zigzags across the narrow direction, and above 0.4 it bounces outward and the loss grows.",
+       "Noise: at 0 the path is exactly plain gradient descent. Higher values make it jitter more and settle in a wider cloud around the lowest point instead of stopping on it.",
+       "Keep path and start new run: the current path becomes a faded copy and the ball returns to the chosen start at step zero. Settings stay; only the three latest kept paths are shown.",
+       "Clear kept paths: removes the faded copies and leaves the current run alone.",
+       "Readouts show the step number, current loss and size of the noisy slope estimate. An arrow on the ball shows the step it is about to take: the negative of the noisy slope."
+      ],
+      "notices": [
+       "Changed: the trail draws 50 markers, one every 4 steps, instead of 200; every step still runs.",
+       "Changed: the kept comparison path also draws at most 50 markers."
+      ],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793905147,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "SGD with a kept path to compare runs",
+    "prompt": "A ball sits on a long, narrow bowl-shaped loss surface. Each step, it moves against a noisy estimate of the slope, so it heads downhill on average but wobbles. It leaves a coloured path behind it. You can keep the finished path as a faded copy, change the learning rate or the noise, and start a new run from the same point. Up to three kept paths stay on screen beside the new one, so you can compare how each setting reaches, or misses, the lowest point.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Comparing runs side by side shows how the step size and the noise change the route to the minimum. Seeing the paths together makes the difference clear in a way one run at a time can't.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Play, pause or advance one step at a time to watch the ball move. Each step moves it by the learning rate times the noisy downhill direction.",
+     "Interaction: Learning rate: small values give slow, smooth paths. Above 0.2 the ball zigzags across the narrow direction, and above 0.4 it bounces outward and the loss grows.",
+     "Interaction: Noise: at 0 the path is exactly plain gradient descent. Higher values make it jitter more and settle in a wider cloud around the lowest point instead of stopping on it.",
+     "Interaction: Keep path and start new run: the current path becomes a faded copy and the ball returns to the chosen start at step zero. Settings stay; only the three latest kept paths are shown.",
+     "Interaction: Clear kept paths: removes the faded copies and leaves the current run alone.",
+     "Interaction: Readouts show the step number, current loss and size of the noisy slope estimate. An arrow on the ball shows the step it is about to take: the negative of the noisy slope.",
+     "Parameter: Learning rate (step size), 0.01 to 0.45, default 0.1",
+     "Parameter: Gradient noise (mini-batch randomness), 0 to 2, default 0.5",
+     "Parameter: Starting point, one of Far left rim, Far right rim, Steep side wall",
+     "Goal: Understand how the learning rate and gradient noise shape the path of stochastic gradient descent. Too small a step is slow, too large a step zigzags or diverges, and noise keeps the ball wandering near the minimum."
+    ],
+    "assumptions": [
+     "This is an illustration: a made-up bowl formula and simulated noise, not a real model trained on data.",
+     "The loss is 0.5 × (x² + 5y²). It curves five times more steeply across the bowl than along it, so the plain update is stable only for learning rates below 0.4.",
+     "Mini-batch randomness is shown as random values added to the true slope each step. The values come from the scene's fixed seed, so later runs get new noise values but always in the same order after a Reset.",
+     "A run ends after 200 steps, when the loss falls below 0.001, or when the ball leaves the edge of the drawn surface. The ball always rests on the surface.",
+     "The trail draws one marker every 4 steps, at most 50 markers; every step still runs."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Changed: the trail draws 50 markers, one every 4 steps, instead of 200; every step still runs.",
+     "Changed: the kept comparison path also draws at most 50 markers.",
+     "Real loss surfaces have many dimensions and are rarely a clean bowl. This scene has only two directions and one minimum, so it can't show local minima or saddle points.",
+     "With noise turned on, a single step can go uphill. The loss only falls on average, not on every step.",
+     "Reset clears all kept paths and returns every setting to its default. To compare runs, use the keep-path action instead."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-0cf9ba5c"
+    },
+    "quote": null,
+    "review_hash": "7111ab2328dcca56f12cb87e1cd19ccd109f3845d3573c43200e6cf884808757",
+    "sig": "v3.29051c0bc285557a49d8c18fa8c8cbc0a13e67894da0f01814959d1c04befb7e",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 591,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.29051c0bc285557a49d8c18fa8c8cbc0a13e67894da0f01814959d1c04befb7e",
+    "used": {
+     "version": 1,
+     "key": "aj_82f0dea306bf4ff79ab61a4d1817930d"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "325"
+   ],
+   "feedback": null
+  }
+ }
+]

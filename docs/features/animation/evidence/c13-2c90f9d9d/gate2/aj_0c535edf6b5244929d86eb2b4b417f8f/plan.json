@@ -1,0 +1,82 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Gradient descent on a quadratic bowl",
+ "description": "A bowl-shaped surface shows the loss L = ½(x² + k·y²) over two weights, with contour lines and a lowest point at the centre. A ball sits on the surface and, with each step, moves by the learning rate times the downhill direction (the negative gradient), leaving a trail. An arrow at the ball shows the next step, and readouts give the step count, current loss and gradient size. Change the learning rate or the steepness and watch the path go from a slow creep, to a zig-zag, to flying off the bowl.",
+ "experience": "experiment",
+ "reason": "Gradient descent is easiest to understand when you can change the learning rate and the bowl's shape and see right away how the path and the loss respond.",
+ "behavior": "rules",
+ "controlProfile": "manipulate",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate",
+   "min": 0.01,
+   "max": 0.6,
+   "step": 0.01,
+   "default": 0.1
+  },
+  {
+   "type": "number",
+   "id": "steepness",
+   "label": "Steepness across the bowl (k)",
+   "min": 1,
+   "max": 10,
+   "step": 0.5,
+   "default": 4
+  },
+  {
+   "type": "toggle",
+   "id": "showStepArrow",
+   "label": "Show next-step arrow",
+   "default": true
+  }
+ ],
+ "interactions": [
+  "Play or pause the steps, or advance one step at a time with the step control; each step moves the ball once and adds to the trail.",
+  "Raise the learning rate: steps get longer, and once it passes 1/k the path zig-zags across the narrow direction of the bowl.",
+  "Push the learning rate past 2/k (for example 0.6 with steepness 4): each step lands higher than the last, the loss grows, and the run stops with the label 'diverged' once the ball leaves the surface.",
+  "Raise the steepness to make the bowl narrow in one direction and see why one learning rate can be too big in one direction and too small in the other.",
+  "Drag the ball to a new starting point on the surface; this clears the trail and the step count and starts a new run from there."
+ ],
+ "assumptions": [
+  "Illustration: a made-up two-weight quadratic loss, not a model trained on real data.",
+  "Loss is L(x, y) = ½(x² + k·y²); its gradient is (x, k·y), so every step is exact plain gradient descent: new position = old position − learning rate × gradient.",
+  "Default start is (2.5, 1.5); the ball always sits exactly on the surface.",
+  "A run ends when the gradient size drops below 0.001 (converged), after 200 steps, or when the ball leaves the drawn area (diverged).",
+  "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+ ],
+ "limitations": [
+  "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+  "Real losses are rarely perfect bowls: there are no local minima, saddles, noise or mini-batches here.",
+  "Only plain gradient descent with a fixed learning rate; momentum and adaptive methods are not shown.",
+  "A diverging run is stopped at the edge of the surface, so the scene doesn't show how far it would keep growing."
+ ],
+ "learningGoal": "See how gradient steps head downhill to the minimum, and how the learning rate compared with the bowl's curvature decides whether the path creeps, zig-zags or diverges.",
+ "requiredCapabilities": [
+  "step",
+  "parameters",
+  "drag",
+  "labels",
+  "readouts"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "pathLength",
+   "min": 20
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.1,
+    0.6
+   ]
+  }
+ ]
+}

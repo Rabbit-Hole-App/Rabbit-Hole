@@ -1,0 +1,120 @@
+[
+ {
+  "messageId": "318",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-7b39dae58cc9a18b",
+    "version": 1,
+    "command": "animation",
+    "title": "Why too big a learning rate makes gradient descent blow up",
+    "description": "A ball sits on a long, narrow bowl-shaped loss surface. It is steep across the bowl and gentle along it. Each step, the ball moves downhill by the learning rate times the slope, and it leaves a path behind it. With a small learning rate the ball creeps to the bottom. A larger one makes it zigzag across the steep direction. Past a threshold, each jump overshoots the bottom by more than the last, so the ball climbs higher every step and flies off the surface. Readouts show the loss and the threshold as they change.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-7c0fcc48",
+     "job": "aj_bf396fccd45949479b38d4884843c6a6",
+     "plan_hash": "3331e67c16d61861fbb83718e95fa466ac29a3ee5c827009bfbeab6647654464",
+     "request": "show me why a high learning rate diverges",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate",
+        "min": 0.02,
+        "max": 0.7,
+        "step": 0.01,
+        "default": 0.4
+       },
+       {
+        "type": "number",
+        "label": "Steepness across the bowl",
+        "min": 1,
+        "max": 6,
+        "step": 0.5,
+        "default": 4
+       }
+      ],
+      "interactions": [
+       "Set the learning rate. Below the threshold the path settles at the bottom; exactly at it, the ball bounces at one height; above it, it zigzags outward and leaves the surface.",
+       "Change how steep the bowl is across its width. The threshold readout moves: steeper bowls diverge at smaller learning rates.",
+       "Take one step at a time, or let the steps run, to watch each overshoot.",
+       "Restart the descent from the same starting point. This keeps your current settings and clears the path."
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793904605,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "show me why a high learning rate diverges",
+    "prompt": "A ball sits on a long, narrow bowl-shaped loss surface. It is steep across the bowl and gentle along it. Each step, the ball moves downhill by the learning rate times the slope, and it leaves a path behind it. With a small learning rate the ball creeps to the bottom. A larger one makes it zigzag across the steep direction. Past a threshold, each jump overshoots the bottom by more than the last, so the ball climbs higher every step and flies off the surface. Readouts show the loss and the threshold as they change.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Changing the learning rate and watching the same descent go from creeping, to zigzagging, to blowing up shows the cause directly: steps that overshoot by more than they correct.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Set the learning rate. Below the threshold the path settles at the bottom; exactly at it, the ball bounces at one height; above it, it zigzags outward and leaves the surface.",
+     "Interaction: Change how steep the bowl is across its width. The threshold readout moves: steeper bowls diverge at smaller learning rates.",
+     "Interaction: Take one step at a time, or let the steps run, to watch each overshoot.",
+     "Interaction: Restart the descent from the same starting point. This keeps your current settings and clears the path.",
+     "Parameter: Learning rate, 0.02 to 0.7, default 0.4",
+     "Parameter: Steepness across the bowl, 1 to 6, default 4",
+     "Goal: A step overshoots when the learning rate times the curvature is more than 1. Above 2 it overshoots by more than it corrects, so the loss grows every step. The steepest direction sets the safe limit."
+    ],
+    "assumptions": [
+     "Illustration: a simple made-up bowl stands in for a real model's loss.",
+     "The loss is 0.5·(x² + s·y²), where s is the steepness across the bowl. Gentle direction x has curvature 1. Steep direction y has curvature s.",
+     "Plain gradient descent with no momentum. Each step multiplies x by (1 − learning rate) and y by (1 − learning rate × s). The run diverges exactly when the learning rate is above 2 ÷ s.",
+     "The ball always starts at the same point, x = 2.5, y = 1.",
+     "A run stops when the loss drops below 0.001 (converged), when the ball passes the surface edge at |x| or |y| = 3 (diverged), or after 60 steps.",
+     "Heights are scaled down for display, so the steepest settings still fit on screen."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "A real loss surface is not a perfect bowl, so on it the threshold of 2 ÷ curvature only holds roughly near a minimum. On this bowl it is exact.",
+     "Only two weights are shown. Real models have millions, and the steepest direction among them sets the limit."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-7c0fcc48"
+    },
+    "quote": null,
+    "review_hash": "800e6ad26dce37a5626e41ea3579bd0d0cc51bb51011517fbbe959907238ca87",
+    "sig": "v3.7170e190ddb8d811bebd1c3e0a221e6c19280946e70d582ec25534dc782829cb",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 591,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.7170e190ddb8d811bebd1c3e0a221e6c19280946e70d582ec25534dc782829cb",
+    "used": {
+     "version": 1,
+     "key": "aj_bf396fccd45949479b38d4884843c6a6"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "318"
+   ],
+   "feedback": null
+  }
+ }
+]

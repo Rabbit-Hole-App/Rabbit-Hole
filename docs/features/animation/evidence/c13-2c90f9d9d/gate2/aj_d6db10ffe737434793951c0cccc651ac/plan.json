@@ -1,0 +1,86 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Stochastic gradient descent on a bowl-shaped loss",
+ "description": "A smooth bowl-shaped loss surface, drawn with contour lines, has its lowest point marked at the center. A ball sits on the surface and takes one stochastic gradient descent step each time the scene advances. Each step follows the downhill direction plus random noise, and the ball leaves a trail behind it. An arrow at the ball shows the noisy step direction it is about to take. You can change the learning rate, the noise and the bowl's shape, and drag the ball to a new starting point. The path can then go from smooth to jittery, zig-zagging or flying off.",
+ "experience": "experiment",
+ "reason": "Changing the step size and the noise and then watching the trail is the quickest way to feel why SGD wanders near the minimum, and why too large a step makes it overshoot or blow up.",
+ "behavior": "rules",
+ "controlProfile": "manipulate",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate (step size)",
+   "min": 0.01,
+   "max": 0.5,
+   "step": 0.01,
+   "default": 0.1
+  },
+  {
+   "type": "number",
+   "id": "noise",
+   "label": "Gradient noise (spread)",
+   "min": 0,
+   "max": 3,
+   "step": 0.1,
+   "default": 1
+  },
+  {
+   "type": "number",
+   "id": "steepness",
+   "label": "Bowl steepness across (relative to along)",
+   "min": 1,
+   "max": 5,
+   "step": 0.5,
+   "default": 3
+  }
+ ],
+ "interactions": [
+  "Play or step the scene: each step moves the ball once and extends its trail, and the step count, current loss and gradient size update.",
+  "Learning rate: small values give short, slow steps. Larger ones zig-zag across the steep direction. Above 1 ÷ steepness, the ball overshoots more each step and the run stops as diverged.",
+  "Gradient noise: at 0 the path is plain gradient descent and settles exactly at the center. Higher noise makes the path jitter, and the ball keeps wandering around the minimum instead of stopping.",
+  "Bowl steepness: at 1 the bowl is round and paths head straight to the center. Higher values make a long narrow valley, where the path zig-zags across it and creeps along it.",
+  "Drag the ball across the surface to choose a new starting point. This clears the trail and the step count."
+ ],
+ "assumptions": [
+  "Illustration: a simple formula-defined bowl with simulated noise, not a model trained on real data.",
+  "The loss is steepness × (across)² + (along)², so the true gradient is exact and the lowest point is the center.",
+  "Each step subtracts learning rate × (true gradient + random noise), where the noise is drawn from a bell curve with the chosen spread. Here the noise stands in for the randomness of mini-batches.",
+  "Because of the noise, a single step can raise the loss. The loss falls only on average, not on every step.",
+  "Random numbers come from a fixed seed, so Reset repeats the same run from the default start. A run stops after 200 steps or when the ball leaves the surface.",
+  "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+ ],
+ "limitations": [
+  "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+  "Real SGD noise comes from sampling data and changes in size and direction with the batch. Here it is the same simple random noise everywhere.",
+  "A bowl has a single minimum, so this scene cannot show local minima, saddle points or flat regions.",
+  "No momentum, learning-rate schedules or adaptive optimizers are shown."
+ ],
+ "learningGoal": "See how the learning rate and gradient noise shape the path of SGD: noise keeps it wandering near the minimum, and too large a step causes zig-zagging or divergence, especially in a narrow valley.",
+ "requiredCapabilities": [
+  "step",
+  "parameters",
+  "drag",
+  "readouts",
+  "labels"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.01,
+    0.5
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 2
+  }
+ ]
+}

@@ -1,0 +1,195 @@
+{
+ "id": "aj_0c535edf6b5244929d86eb2b4b417f8f",
+ "version": 1,
+ "boardId": "b8bfbb7f-de68-4ec9-ba0c-07be66b8b32a",
+ "cardId": "dc9f1e7a-ae31-4a75-81cb-2ea61b2ac496",
+ "stage": "ready",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 0,
+ "stopReason": "accepted",
+ "failure": null,
+ "recovery": [],
+ "outcome": "changes",
+ "choiceOpen": false,
+ "threadId": "canvaschat-cbe27274-35b5-4a71-9cd4-cb7210eaac24",
+ "chatPending": false,
+ "usage": {
+  "credits": 54,
+  "unknown": false
+ },
+ "result": {
+  "jobId": "aj_0c535edf6b5244929d86eb2b4b417f8f",
+  "resultId": "ar_a14029842e8548d994e0fc71c7868050",
+  "cardId": "dc9f1e7a-ae31-4a75-81cb-2ea61b2ac496",
+  "canvas": {
+   "boardId": "b8bfbb7f-de68-4ec9-ba0c-07be66b8b32a"
+  },
+  "requestRef": "ffbd2c6070aca9ea",
+  "revision": "av_bdffd904c8564a5798c2de8d3042e05d",
+  "planHash": "19e768be6c42f707c530140ee0d2fbb27c80f2dcd851584820a253ea3f67edf3",
+  "sources": "643d5437104296e2",
+  "artifactHash": "26306ad18a806531820226a05d4d095acc568f05d6345aa07cf8e96b76ebece7",
+  "experience": "experiment",
+  "capabilityVersion": "animation-capabilities/1",
+  "policyVersion": 1
+ },
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Gradient descent on a quadratic bowl",
+  "description": "A bowl-shaped surface shows the loss L = ½(x² + k·y²) over two weights, with contour lines and a lowest point at the centre. A ball sits on the surface and, with each step, moves by the learning rate times the downhill direction (the negative gradient), leaving a trail. An arrow at the ball shows the next step, and readouts give the step count, current loss and gradient size. Change the learning rate or the steepness and watch the path go from a slow creep, to a zig-zag, to flying off the bowl.",
+  "experience": "experiment",
+  "reason": "Gradient descent is easiest to understand when you can change the learning rate and the bowl's shape and see right away how the path and the loss respond.",
+  "behavior": "rules",
+  "controlProfile": "manipulate",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate",
+    "min": 0.01,
+    "max": 0.6,
+    "step": 0.01,
+    "default": 0.1
+   },
+   {
+    "type": "number",
+    "id": "steepness",
+    "label": "Steepness across the bowl (k)",
+    "min": 1,
+    "max": 10,
+    "step": 0.5,
+    "default": 4
+   },
+   {
+    "type": "toggle",
+    "id": "showStepArrow",
+    "label": "Show next-step arrow",
+    "default": true
+   }
+  ],
+  "interactions": [
+   "Play or pause the steps, or advance one step at a time with the step control; each step moves the ball once and adds to the trail.",
+   "Raise the learning rate: steps get longer, and once it passes 1/k the path zig-zags across the narrow direction of the bowl.",
+   "Push the learning rate past 2/k (for example 0.6 with steepness 4): each step lands higher than the last, the loss grows, and the run stops with the label 'diverged' once the ball leaves the surface.",
+   "Raise the steepness to make the bowl narrow in one direction and see why one learning rate can be too big in one direction and too small in the other.",
+   "Drag the ball to a new starting point on the surface; this clears the trail and the step count and starts a new run from there."
+  ],
+  "assumptions": [
+   "Illustration: a made-up two-weight quadratic loss, not a model trained on real data.",
+   "Loss is L(x, y) = ½(x² + k·y²); its gradient is (x, k·y), so every step is exact plain gradient descent: new position = old position − learning rate × gradient.",
+   "Default start is (2.5, 1.5); the ball always sits exactly on the surface.",
+   "A run ends when the gradient size drops below 0.001 (converged), after 200 steps, or when the ball leaves the drawn area (diverged).",
+   "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+  ],
+  "limitations": [
+   "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+   "Real losses are rarely perfect bowls: there are no local minima, saddles, noise or mini-batches here.",
+   "Only plain gradient descent with a fixed learning rate; momentum and adaptive methods are not shown.",
+   "A diverging run is stopped at the edge of the surface, so the scene doesn't show how far it would keep growing."
+  ],
+  "learningGoal": "See how gradient steps head downhill to the minimum, and how the learning rate compared with the bowl's curvature decides whether the path creeps, zig-zags or diverges.",
+  "requiredCapabilities": [
+   "step",
+   "parameters",
+   "drag",
+   "labels",
+   "readouts"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "pathLength",
+    "min": 20
+   },
+   {
+    "kind": "compare",
+    "parameter": "learningRate",
+    "values": [
+     0.1,
+     0.6
+    ]
+   }
+  ]
+ },
+ "planHash": "19e768be6c42f707c530140ee0d2fbb27c80f2dcd851584820a253ea3f67edf3",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 58,
+  "proposalMs": 21048,
+  "generateToResultMs": 212945,
+  "processingMs": 233935,
+  "approvalWaitMs": 3250,
+  "calls": 3,
+  "repairs": 0,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 20990,
+    "calls": 1,
+    "inputTokens": 377,
+    "outputTokens": 1950,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 3250,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 135809,
+    "calls": 1,
+    "inputTokens": 8527,
+    "outputTokens": 15821,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 59,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 33907,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 43170,
+    "calls": 1,
+    "inputTokens": 13726,
+    "outputTokens": 4153,
+    "images": 6,
+    "captures": 0,
+    "outcome": "accepted"
+   }
+  ]
+ },
+ "createdAt": 1793818465395,
+ "updatedAt": 1793818702638
+}

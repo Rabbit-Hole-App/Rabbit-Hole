@@ -1,0 +1,150 @@
+[
+ {
+  "at": 1793818702638,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "26306ad18a806531820226a05d4d095acc568f05d6345aa07cf8e96b76ebece7",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan promises the learner can drag the ball to any new starting point on the surface. The artifact only drags across the bowl (y) and keeps the start x at 2.5. This is disclosed in the assumptions but narrower than the plan. Dragging was not sampled.",
+       "object": "ball",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The trail marks every step instead of the planned every 2nd step. This is disclosed and keeps the zig-zag visible, but it differs from the plan's limitation text.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Near convergence the next-step arrow (2× true length ≈ 0.042) is shorter than the ball's radius and is hidden inside the ball, along with its 'Next step' label. The learner loses the step cue without being told why. Consider drawing a short stub outside the ball or noting that the step is too small to show.",
+       "object": "stepArrow",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The long zig-zag trail segments read thin, almost hairline in parts. A slightly larger trail radius would make the diverging path clearer. Learning rate at its low end and the kept-run faint path were not sampled.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "From the side, one diverging trail segment reads as a hairline across the bowl.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13726,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4153,
+   "output_tokens_details": {
+    "thinking_tokens": 2693
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_0c535edf6b5244929d86eb2b4b417f8f-review-3",
+   "status": "settled",
+   "costMicros": 138385,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

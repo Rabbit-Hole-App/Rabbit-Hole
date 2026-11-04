@@ -1,0 +1,93 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Stochastic gradient descent on a loss surface",
+ "description": "An oval bowl-shaped surface stands for a model's loss (its error for each pair of weight values), lowest at the centre. An orange ball takes stochastic gradient descent steps: each uses a noisy downhill estimate, as if from a small random batch of data, so its trail zig-zags. A grey ghost ball starts at the same place and takes exact gradient descent steps for comparison. Change step size and batch size and watch the orange path wander, speed up or overshoot, and how wide its jitter cloud near the minimum gets.",
+ "experience": "experiment",
+ "reason": "Stochastic gradient descent is easiest to understand by comparing its noisy path with exact descent on the same surface while you change step size and batch size and watch the results.",
+ "behavior": "rules",
+ "controlProfile": "manipulate",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate (step size)",
+   "min": 0.02,
+   "max": 0.45,
+   "step": 0.01,
+   "default": 0.1
+  },
+  {
+   "type": "number",
+   "id": "batchSize",
+   "label": "Batch size",
+   "unit": "samples",
+   "min": 1,
+   "max": 64,
+   "step": 1,
+   "default": 4
+  },
+  {
+   "type": "toggle",
+   "id": "showExact",
+   "label": "Show exact gradient descent ghost",
+   "default": true
+  },
+  {
+   "type": "toggle",
+   "id": "showArrow",
+   "label": "Show this step's noisy gradient arrow",
+   "default": true
+  }
+ ],
+ "interactions": [
+  "Press play or step once. Each step moves both balls by one update, for up to 200 steps.",
+  "Before running, drag the orange start ball to any point on the surface. The ghost ball starts from the same point.",
+  "Raise the learning rate: steps get longer, the path crosses the narrow direction of the bowl and zig-zags, and the final jitter cloud gets wider.",
+  "Raise the batch size: the noise shrinks, so the orange path gets smoother and closer to the ghost's path. At batch size 1 it is at its noisiest.",
+  "Readouts show the step count, the orange ball's loss, the ghost's loss and the current noise size."
+ ],
+ "assumptions": [
+  "Illustration: the surface is a simple made-up bowl, not a model trained on real data, and the batch noise is simulated.",
+  "Loss is 0.5·(x² + 4y²), so the bowl is four times steeper across than along, with the minimum at the centre.",
+  "Each stochastic step uses the true slope plus random noise (from a fixed seed). The noise is on average zero, and its size is a fixed amount divided by the square root of the batch size, which mimics averaging over that many samples.",
+  "Each step moves against the noisy gradient: new position = old position − learning rate × noisy gradient. The arrow shows the noisy gradient, and the ball moves the opposite way.",
+  "The ghost ball uses the exact gradient with the same learning rate and no noise.",
+  "The run stops after 200 steps or when you pause.",
+  "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+ ],
+ "limitations": [
+  "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+  "Single stochastic steps can raise the loss. The orange ball goes downhill on average, not on every step.",
+  "With a fixed learning rate, the orange ball never settles exactly at the minimum. It keeps jittering in a cloud near the centre. The cloud shrinks with a smaller learning rate or a bigger batch.",
+  "The learning rate stops at 0.45, below 0.5, the value where exact descent on this bowl would bounce out of control. Fast oscillation is visible near the top of the range, but not runaway divergence.",
+  "Real loss surfaces have many dimensions, flat regions and multiple dips. This two-weight bowl shows only the core idea."
+ ],
+ "learningGoal": "See that stochastic gradient descent follows noisy downhill estimates. It goes downhill on average but not on every step. A larger batch reduces the noise, and the learning rate trades speed against overshoot and jitter near the minimum.",
+ "requiredCapabilities": [
+  "parameters",
+  "step",
+  "drag",
+  "labels",
+  "readouts",
+  "actions"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.05,
+    0.4
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 2
+  }
+ ]
+}

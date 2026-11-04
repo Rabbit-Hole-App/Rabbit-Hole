@@ -1,0 +1,99 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Stochastic gradient descent on a loss bowl, with kept paths to compare runs",
+ "description": "A ball sits on a long, narrow bowl-shaped loss surface. Each step, it moves against a noisy estimate of the slope, so it heads downhill on average but wobbles. It leaves a coloured path behind it. You can keep the finished path as a faded copy, change the learning rate or the noise, and start a new run from the same point. Up to three kept paths stay on screen beside the new one, so you can compare how each setting reaches, or misses, the lowest point.",
+ "experience": "experiment",
+ "reason": "Comparing runs side by side shows how the step size and the noise change the route to the minimum. Seeing the paths together makes the difference clear in a way one run at a time can't.",
+ "behavior": "rules",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate (step size)",
+   "min": 0.01,
+   "max": 0.45,
+   "step": 0.01,
+   "default": 0.1
+  },
+  {
+   "type": "number",
+   "id": "noise",
+   "label": "Gradient noise (mini-batch randomness)",
+   "min": 0,
+   "max": 2,
+   "step": 0.1,
+   "default": 0.5
+  },
+  {
+   "type": "select",
+   "id": "start",
+   "label": "Starting point",
+   "options": [
+    {
+     "value": "left",
+     "label": "Far left rim"
+    },
+    {
+     "value": "right",
+     "label": "Far right rim"
+    },
+    {
+     "value": "steep",
+     "label": "Steep side wall"
+    }
+   ],
+   "default": "left"
+  }
+ ],
+ "interactions": [
+  "Play, pause or advance one step at a time to watch the ball move. Each step moves it by the learning rate times the noisy downhill direction.",
+  "Learning rate: small values give slow, smooth paths. Above 0.2 the ball zigzags across the narrow direction, and above 0.4 it bounces outward and the loss grows.",
+  "Noise: at 0 the path is exactly plain gradient descent. Higher values make it jitter more and settle in a wider cloud around the lowest point instead of stopping on it.",
+  "Keep path and start new run: the current path becomes a faded copy and the ball returns to the chosen start at step zero. Settings stay; only the three latest kept paths are shown.",
+  "Clear kept paths: removes the faded copies and leaves the current run alone.",
+  "Readouts show the step number, current loss and size of the noisy slope estimate. An arrow on the ball shows the step it is about to take: the negative of the noisy slope."
+ ],
+ "assumptions": [
+  "This is an illustration: a made-up bowl formula and simulated noise, not a real model trained on data.",
+  "The loss is 0.5 × (x² + 5y²). It curves five times more steeply across the bowl than along it, so the plain update is stable only for learning rates below 0.4.",
+  "Mini-batch randomness is shown as random values added to the true slope each step. The values come from the scene's fixed seed, so later runs get new noise values but always in the same order after a Reset.",
+  "A run ends after 200 steps, when the loss falls below 0.001, or when the ball leaves the edge of the drawn surface. The ball always rests on the surface.",
+  "The trail draws one marker every 4 steps, at most 50 markers; every step still runs."
+ ],
+ "limitations": [
+  "Changed: the trail draws 50 markers, one every 4 steps, instead of 200; every step still runs.",
+  "Changed: the kept comparison path also draws at most 50 markers.",
+  "Real loss surfaces have many dimensions and are rarely a clean bowl. This scene has only two directions and one minimum, so it can't show local minima or saddle points.",
+  "With noise turned on, a single step can go uphill. The loss only falls on average, not on every step.",
+  "Reset clears all kept paths and returns every setting to its default. To compare runs, use the keep-path action instead."
+ ],
+ "learningGoal": "Understand how the learning rate and gradient noise shape the path of stochastic gradient descent. Too small a step is slow, too large a step zigzags or diverges, and noise keeps the ball wandering near the minimum.",
+ "requiredCapabilities": [
+  "parameters",
+  "actions",
+  "step",
+  "readouts",
+  "labels",
+  "speed"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.01,
+    0.45
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 100
+  }
+ ]
+}

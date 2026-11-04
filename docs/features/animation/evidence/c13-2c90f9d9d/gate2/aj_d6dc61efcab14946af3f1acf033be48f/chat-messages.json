@@ -1,0 +1,131 @@
+[
+ {
+  "messageId": "323",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-dfbef60889f7f865",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient descent overshooting the bottom of a bowl",
+    "description": "A ball sits on a long, narrow bowl-shaped surface that stands for a loss and walks downhill one gradient descent step at a time, leaving a trail. An arrow at the ball shows the next step: it points opposite to the gradient (downhill), and its length is the learning rate times the gradient. With a large learning rate the ball jumps past the bottom of the steep direction and zigzags from wall to wall. If the rate is too large, the zigzags grow until the ball leaves the bowl. Change the rate and restart to compare paths.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-80f01088",
+     "job": "aj_d6dc61efcab14946af3f1acf033be48f",
+     "plan_hash": "30100912ff631971aa8f3cee775a88c0ffdbc9cc291bf2f3e57d5916de9ff0a5",
+     "request": "gradient descent that overshoots the minimum",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate",
+        "min": 0.05,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.4
+       },
+       {
+        "type": "select",
+        "label": "Starting point",
+        "options": [
+         {
+          "value": "corner",
+          "label": "Corner (both directions off)"
+         },
+         {
+          "value": "steepWall",
+          "label": "Steep wall"
+         },
+         {
+          "value": "gentleEnd",
+          "label": "Gentle end"
+         }
+        ],
+        "default": "corner"
+       }
+      ],
+      "interactions": [
+       "Change the learning rate. Below 0.25 the ball moves smoothly across the bowl. From 0.25 to 0.5 it zigzags but settles. Above 0.5 the zigzags grow and it leaves the bowl.",
+       "Choose a starting point to see overshooting on its own (steep wall), no overshooting at all (gentle end), or both directions together (corner).",
+       "Use the step and pause controls to watch the descent one step at a time.",
+       "Use the restart action to put the ball back at the chosen start and clear the trail while keeping your current settings."
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793905081,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "gradient descent that overshoots the minimum",
+    "prompt": "A ball sits on a long, narrow bowl-shaped surface that stands for a loss and walks downhill one gradient descent step at a time, leaving a trail. An arrow at the ball shows the next step: it points opposite to the gradient (downhill), and its length is the learning rate times the gradient. With a large learning rate the ball jumps past the bottom of the steep direction and zigzags from wall to wall. If the rate is too large, the zigzags grow until the ball leaves the bowl. Change the rate and restart to compare paths.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Overshooting depends on how big the learning rate is compared with how steep the bowl is. Trying different rates on the same surface and watching each step lets you find the point where steps start to overshoot, and the point where they stop settling at all.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Change the learning rate. Below 0.25 the ball moves smoothly across the bowl. From 0.25 to 0.5 it zigzags but settles. Above 0.5 the zigzags grow and it leaves the bowl.",
+     "Interaction: Choose a starting point to see overshooting on its own (steep wall), no overshooting at all (gentle end), or both directions together (corner).",
+     "Interaction: Use the step and pause controls to watch the descent one step at a time.",
+     "Interaction: Use the restart action to put the ball back at the chosen start and clear the trail while keeping your current settings.",
+     "Parameter: Learning rate, 0.05 to 0.6, default 0.4",
+     "Parameter: Starting point, one of Corner (both directions off), Steep wall, Gentle end",
+     "Goal: A learning rate that is too large makes gradient descent jump past the minimum. The steepest direction overshoots first. Moderate overshooting still settles, and beyond a limit set by the steepness the steps grow and the process diverges."
+    ],
+    "assumptions": [
+     "Illustration: the bowl is a simple made-up formula, not the loss of a trained model.",
+     "The loss is half of (x squared plus 4 times y squared), so the bowl curves 4 times more steeply across its width (y) than along its length (x).",
+     "Each step is plain gradient descent: new position = old position minus learning rate times gradient. There is no momentum, no noise and no change to the step size.",
+     "In the steep direction each step multiplies the distance from the bottom by (1 minus 4 times the rate). This number turns negative (overshooting) above 0.25, and its size passes 1 (growing zigzags) above 0.5. In the gentle direction the limits are 1 and 2, so it never overshoots here.",
+     "Readouts show the step number, the current loss, the length of the last step and that steep-direction multiplier."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "A run stops after 40 steps, or as soon as the ball would leave the edge of the drawn surface. A path that blows up is cut off at the edge instead of being followed further.",
+     "Real loss surfaces are not perfect bowls, so the exact limits 0.25 and 0.5 apply only to this surface. The idea is general: the steepest direction sets the largest rate that still settles.",
+     "At exactly 0.5 the ball bounces between the two walls forever without settling or growing."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-80f01088"
+    },
+    "quote": null,
+    "review_hash": "453a4fd1bac26e2ef8eb1ecaec3887208a6e0e3920f6f6d17ffa491436d20de5",
+    "sig": "v3.dcfc4d8077f0856b6408be8a2e6d3a9adfeec0adc66df5c9e45cf5c9bb23179e",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 591,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.dcfc4d8077f0856b6408be8a2e6d3a9adfeec0adc66df5c9e45cf5c9bb23179e",
+    "used": {
+     "version": 1,
+     "key": "aj_d6dc61efcab14946af3f1acf033be48f"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "323"
+   ],
+   "feedback": null
+  }
+ }
+]

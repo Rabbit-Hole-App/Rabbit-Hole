@@ -1,0 +1,198 @@
+{
+ "id": "aj_d6dc61efcab14946af3f1acf033be48f",
+ "version": 1,
+ "boardId": "a7435e9d-393e-4f87-be84-f5d3b9d4ec88",
+ "cardId": "449f1d44-373f-4d11-841b-03f326badbf9",
+ "stage": "ready",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 0,
+ "stopReason": "accepted",
+ "failure": null,
+ "recovery": [],
+ "outcome": "supported",
+ "choiceOpen": false,
+ "threadId": "canvaschat-9b3279a6-b66b-4a19-ac1f-fbd4a6dcde59",
+ "chatPending": false,
+ "usage": {
+  "credits": 48,
+  "unknown": false
+ },
+ "result": {
+  "jobId": "aj_d6dc61efcab14946af3f1acf033be48f",
+  "resultId": "ar_fb550ed6fdbf492f849917d21752f7be",
+  "cardId": "449f1d44-373f-4d11-841b-03f326badbf9",
+  "canvas": {
+   "boardId": "a7435e9d-393e-4f87-be84-f5d3b9d4ec88"
+  },
+  "requestRef": "8266753d61a07251",
+  "revision": "av_1792994520b8409b97c9ca1dfc6068f1",
+  "planHash": "30100912ff631971aa8f3cee775a88c0ffdbc9cc291bf2f3e57d5916de9ff0a5",
+  "sources": "643d5437104296e2",
+  "artifactHash": "255cd3437ac7fef90e407e2af30861e93b89d3b26d9512b67ce2c717a11e4164",
+  "experience": "experiment",
+  "capabilityVersion": "animation-capabilities/1",
+  "policyVersion": 1
+ },
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Gradient descent overshooting the bottom of a bowl",
+  "description": "A ball sits on a long, narrow bowl-shaped surface that stands for a loss and walks downhill one gradient descent step at a time, leaving a trail. An arrow at the ball shows the next step: it points opposite to the gradient (downhill), and its length is the learning rate times the gradient. With a large learning rate the ball jumps past the bottom of the steep direction and zigzags from wall to wall. If the rate is too large, the zigzags grow until the ball leaves the bowl. Change the rate and restart to compare paths.",
+  "experience": "experiment",
+  "reason": "Overshooting depends on how big the learning rate is compared with how steep the bowl is. Trying different rates on the same surface and watching each step lets you find the point where steps start to overshoot, and the point where they stop settling at all.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate",
+    "min": 0.05,
+    "max": 0.6,
+    "step": 0.01,
+    "default": 0.4
+   },
+   {
+    "type": "select",
+    "id": "start",
+    "label": "Starting point",
+    "options": [
+     {
+      "value": "corner",
+      "label": "Corner (both directions off)"
+     },
+     {
+      "value": "steepWall",
+      "label": "Steep wall"
+     },
+     {
+      "value": "gentleEnd",
+      "label": "Gentle end"
+     }
+    ],
+    "default": "corner"
+   }
+  ],
+  "interactions": [
+   "Change the learning rate. Below 0.25 the ball moves smoothly across the bowl. From 0.25 to 0.5 it zigzags but settles. Above 0.5 the zigzags grow and it leaves the bowl.",
+   "Choose a starting point to see overshooting on its own (steep wall), no overshooting at all (gentle end), or both directions together (corner).",
+   "Use the step and pause controls to watch the descent one step at a time.",
+   "Use the restart action to put the ball back at the chosen start and clear the trail while keeping your current settings."
+  ],
+  "assumptions": [
+   "Illustration: the bowl is a simple made-up formula, not the loss of a trained model.",
+   "The loss is half of (x squared plus 4 times y squared), so the bowl curves 4 times more steeply across its width (y) than along its length (x).",
+   "Each step is plain gradient descent: new position = old position minus learning rate times gradient. There is no momentum, no noise and no change to the step size.",
+   "In the steep direction each step multiplies the distance from the bottom by (1 minus 4 times the rate). This number turns negative (overshooting) above 0.25, and its size passes 1 (growing zigzags) above 0.5. In the gentle direction the limits are 1 and 2, so it never overshoots here.",
+   "Readouts show the step number, the current loss, the length of the last step and that steep-direction multiplier."
+  ],
+  "limitations": [
+   "A run stops after 40 steps, or as soon as the ball would leave the edge of the drawn surface. A path that blows up is cut off at the edge instead of being followed further.",
+   "Real loss surfaces are not perfect bowls, so the exact limits 0.25 and 0.5 apply only to this surface. The idea is general: the steepest direction sets the largest rate that still settles.",
+   "At exactly 0.5 the ball bounces between the two walls forever without settling or growing."
+  ],
+  "learningGoal": "A learning rate that is too large makes gradient descent jump past the minimum. The steepest direction overshoots first. Moderate overshooting still settles, and beyond a limit set by the steepness the steps grow and the process diverges.",
+  "requiredCapabilities": [
+   "parameters",
+   "actions",
+   "step",
+   "labels",
+   "readouts"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "learningRate",
+    "values": [
+     0.1,
+     0.55
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 40
+   }
+  ]
+ },
+ "planHash": "30100912ff631971aa8f3cee775a88c0ffdbc9cc291bf2f3e57d5916de9ff0a5",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 41055,
+  "generateToResultMs": 159065,
+  "processingMs": 200070,
+  "approvalWaitMs": 2555,
+  "calls": 4,
+  "repairs": 0,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 41005,
+    "calls": 2,
+    "inputTokens": 2218,
+    "outputTokens": 4289,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 2555,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 89574,
+    "calls": 1,
+    "inputTokens": 8600,
+    "outputTokens": 10809,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 32,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 29526,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 39933,
+    "calls": 1,
+    "inputTokens": 13267,
+    "outputTokens": 3701,
+    "images": 6,
+    "captures": 0,
+    "outcome": "accepted"
+   }
+  ]
+ },
+ "createdAt": 1793818640046,
+ "updatedAt": 1793818842721
+}

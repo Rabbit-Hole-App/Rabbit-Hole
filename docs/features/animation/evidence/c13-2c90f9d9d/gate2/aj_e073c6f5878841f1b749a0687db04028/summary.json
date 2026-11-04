@@ -1,0 +1,26 @@
+{
+ "n": 7,
+ "phrasing": "compare learning rate 0.1 and 1.5 on the same surface",
+ "session": "g2-202611041848-2@example.com",
+ "sha": "2c90f9d9d8762d7d46836d6f1ecdf84be01e2cd7",
+ "version": "846574ba-c14d-4b0f-8a1a-f22f97697241",
+ "reviewIdentity": "687d4661a9ffde545921e5637d1697707aa6a83746f96807730d00c179757c7e",
+ "jobId": "aj_e073c6f5878841f1b749a0687db04028",
+ "outcome": "accepted",
+ "repairs": 2,
+ "credits": 67.5103,
+ "charged": 68,
+ "artifactHash": "210131eccde8702d7bb62ef9c03fe1b2b5ec19e0669d48ceb8243315e8d9ff95",
+ "note": "",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/4, 11:00 AM",
+ "firstRound": {
+  "state": "not reviewed",
+  "serious": 0,
+  "gist": null,
+  "kind": "other",
+  "reason": "no review was reached"
+ },
+ "fileSha256": "521d10dadc36617216b90a265f7b34f6ca37e5fa886dea0ab67b7df533ee6362"
+}

@@ -1,0 +1,446 @@
+{
+ "job": {
+  "id": "aj_60e05e90f307424484e3ebdce5907722",
+  "version": 1,
+  "boardId": "a909161f-9051-4724-bece-b8f001e416c5",
+  "cardId": "e2bd3f38-5e78-45ea-95a4-01b2e3857135",
+  "stage": "cancelled",
+  "attempt": 1,
+  "terminal": true,
+  "repairs": 0,
+  "stopReason": "stopped",
+  "failure": null,
+  "recovery": [],
+  "outcome": "supported",
+  "choiceOpen": false,
+  "threadId": "canvaschat-807360b3-90c4-4a9a-a203-abcc30250a06",
+  "chatPending": false,
+  "usage": {
+   "credits": 5,
+   "unknown": false
+  },
+  "result": null,
+  "plan": {
+   "schema": "animation-plan/1",
+   "title": "Gradient noise and optimizers: how a noise level of 2 shakes the descent",
+   "description": "A ball marks the optimizer's current position on a long, narrow bowl-shaped loss surface, and a trail records every step it takes. Each step uses the true downhill slope (the gradient) plus random noise whose spread (the standard deviation, sigma) you set. Start at sigma 2 and watch the ball zig-zag toward the bottom, then jitter around it instead of settling. Change the noise, the step size or the optimizer and compare how wide that final jitter cloud is.",
+   "experience": "experiment",
+   "reason": "Watching the same descent with different noise levels, step sizes and optimizers side by side shows directly why noisy gradients keep an optimizer from reaching the exact minimum, and which settings shrink that problem.",
+   "behavior": "rules",
+   "controlProfile": "manipulate",
+   "sourceRefs": [],
+   "parameters": [
+    {
+     "type": "number",
+     "id": "sigma",
+     "label": "Gradient noise (sigma)",
+     "min": 0,
+     "max": 4,
+     "step": 0.25,
+     "default": 2
+    },
+    {
+     "type": "number",
+     "id": "lr",
+     "label": "Step size (learning rate)",
+     "min": 0.01,
+     "max": 0.15,
+     "step": 0.01,
+     "default": 0.05
+    },
+    {
+     "type": "select",
+     "id": "optimizer",
+     "label": "Optimizer",
+     "options": [
+      {
+       "value": "sgd",
+       "label": "Plain gradient descent"
+      },
+      {
+       "value": "momentum",
+       "label": "With momentum"
+      },
+      {
+       "value": "adam",
+       "label": "Adam (adaptive steps)"
+      }
+     ],
+     "default": "sgd"
+    }
+   ],
+   "interactions": [
+    "Press play or step to move the ball one optimizer update at a time; the trail grows and readouts show step count, current loss and distance from the minimum",
+    "Drag the ball to a new starting point on the surface before running",
+    "Set noise to 0 to see a smooth path that settles at the bottom, then raise it to see the path scatter and the ball keep jittering",
+    "Lower the step size to shrink the jitter cloud at the cost of a slower approach",
+    "Switch optimizers to compare how momentum and adaptive steps handle the same noise",
+    "Clear the trail while keeping the ball where it is"
+   ],
+   "assumptions": [
+    "Illustration: a made-up bowl-shaped surface with simulated noise, not a real model trained on data.",
+    "The loss surface is a narrow bowl with one minimum, steeper across than along its length.",
+    "Noise is added to each gradient as random values with the chosen standard deviation, drawn from a fixed seed so runs repeat after Reset.",
+    "Adam and momentum use their usual default settings; only step size is adjustable.",
+    "The run stops after a fixed number of steps (about 300) so it has a clear end."
+   ],
+   "limitations": [
+    "\"2 sigma problem\" is not a standard name for an optimizer effect; this scene reads it as gradient noise with a standard deviation of 2. If you meant Bloom's 2 sigma problem about one-to-one tutoring, this scene does not cover that.",
+    "With noise, the loss does not fall every step; it falls on average and then wobbles around a floor.",
+    "A single smooth bowl cannot show saddle points, many local minima, or the noise of real mini-batches."
+   ],
+   "learningGoal": "Noisy gradients keep an optimizer bouncing around the minimum, and the size of that bounce grows with noise and step size; momentum and adaptive methods change how the noise shows up.",
+   "requiredCapabilities": [
+    "parameters",
+    "step",
+    "actions",
+    "drag",
+    "readouts",
+    "labels"
+   ],
+   "archetype": "loss_surface",
+   "assertions": [
+    {
+     "kind": "clamp"
+    },
+    {
+     "kind": "compare",
+     "parameter": "sigma",
+     "values": [
+      0,
+      2
+     ]
+    },
+    {
+     "kind": "pathLength",
+     "min": 50
+    }
+   ]
+  },
+  "planHash": "1551f2aa5d370f359ab41aa967bec5bf608a9ac418074d091c0a9440f3637745",
+  "timing": {
+   "requestClass": "simple",
+   "cache": null,
+   "firstFeedbackMs": 66,
+   "proposalMs": 24437,
+   "generateToResultMs": null,
+   "processingMs": 24371,
+   "approvalWaitMs": 786,
+   "calls": 1,
+   "repairs": 0,
+   "stages": [
+    {
+     "stage": "preparing",
+     "ms": 24371,
+     "calls": 1,
+     "inputTokens": 375,
+     "outputTokens": 2274,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "awaiting_approval",
+     "ms": 786,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": "stopped"
+    }
+   ]
+  },
+  "createdAt": 1793818745182,
+  "updatedAt": 1793818770405
+ },
+ "diagnostics": {
+  "plan": {
+   "schema": "animation-plan/1",
+   "title": "Gradient noise and optimizers: how a noise level of 2 shakes the descent",
+   "description": "A ball marks the optimizer's current position on a long, narrow bowl-shaped loss surface, and a trail records every step it takes. Each step uses the true downhill slope (the gradient) plus random noise whose spread (the standard deviation, sigma) you set. Start at sigma 2 and watch the ball zig-zag toward the bottom, then jitter around it instead of settling. Change the noise, the step size or the optimizer and compare how wide that final jitter cloud is.",
+   "experience": "experiment",
+   "reason": "Watching the same descent with different noise levels, step sizes and optimizers side by side shows directly why noisy gradients keep an optimizer from reaching the exact minimum, and which settings shrink that problem.",
+   "behavior": "rules",
+   "controlProfile": "manipulate",
+   "sourceRefs": [],
+   "parameters": [
+    {
+     "type": "number",
+     "id": "sigma",
+     "label": "Gradient noise (sigma)",
+     "min": 0,
+     "max": 4,
+     "step": 0.25,
+     "default": 2
+    },
+    {
+     "type": "number",
+     "id": "lr",
+     "label": "Step size (learning rate)",
+     "min": 0.01,
+     "max": 0.15,
+     "step": 0.01,
+     "default": 0.05
+    },
+    {
+     "type": "select",
+     "id": "optimizer",
+     "label": "Optimizer",
+     "options": [
+      {
+       "value": "sgd",
+       "label": "Plain gradient descent"
+      },
+      {
+       "value": "momentum",
+       "label": "With momentum"
+      },
+      {
+       "value": "adam",
+       "label": "Adam (adaptive steps)"
+      }
+     ],
+     "default": "sgd"
+    }
+   ],
+   "interactions": [
+    "Press play or step to move the ball one optimizer update at a time; the trail grows and readouts show step count, current loss and distance from the minimum",
+    "Drag the ball to a new starting point on the surface before running",
+    "Set noise to 0 to see a smooth path that settles at the bottom, then raise it to see the path scatter and the ball keep jittering",
+    "Lower the step size to shrink the jitter cloud at the cost of a slower approach",
+    "Switch optimizers to compare how momentum and adaptive steps handle the same noise",
+    "Clear the trail while keeping the ball where it is"
+   ],
+   "assumptions": [
+    "Illustration: a made-up bowl-shaped surface with simulated noise, not a real model trained on data.",
+    "The loss surface is a narrow bowl with one minimum, steeper across than along its length.",
+    "Noise is added to each gradient as random values with the chosen standard deviation, drawn from a fixed seed so runs repeat after Reset.",
+    "Adam and momentum use their usual default settings; only step size is adjustable.",
+    "The run stops after a fixed number of steps (about 300) so it has a clear end."
+   ],
+   "limitations": [
+    "\"2 sigma problem\" is not a standard name for an optimizer effect; this scene reads it as gradient noise with a standard deviation of 2. If you meant Bloom's 2 sigma problem about one-to-one tutoring, this scene does not cover that.",
+    "With noise, the loss does not fall every step; it falls on average and then wobbles around a floor.",
+    "A single smooth bowl cannot show saddle points, many local minima, or the noise of real mini-batches."
+   ],
+   "learningGoal": "Noisy gradients keep an optimizer bouncing around the minimum, and the size of that bounce grows with noise and step size; momentum and adaptive methods change how the noise shows up.",
+   "requiredCapabilities": [
+    "parameters",
+    "step",
+    "actions",
+    "drag",
+    "readouts",
+    "labels"
+   ],
+   "archetype": "loss_surface",
+   "assertions": [
+    {
+     "kind": "clamp"
+    },
+    {
+     "kind": "compare",
+     "parameter": "sigma",
+     "values": [
+      0,
+      2
+     ]
+    },
+    {
+     "kind": "pathLength",
+     "min": 50
+    }
+   ]
+  },
+  "draft": null,
+  "artifactHash": null,
+  "artifact": null,
+  "findings": [],
+  "reviews": [],
+  "candidates": [
+   {
+    "stage": "preparing",
+    "input": {
+     "title": "Gradient noise and optimizers: how a noise level of 2 shakes the descent",
+     "description": "A ball marks the optimizer's current position on a long, narrow bowl-shaped loss surface, and a trail records every step it takes. Each step uses the true downhill slope (the gradient) plus random noise whose spread (the standard deviation, sigma) you set. Start at sigma 2 and watch the ball zig-zag toward the bottom, then jitter around it instead of settling. Change the noise, the step size or the optimizer and compare how wide that final jitter cloud is.",
+     "experience": "experiment",
+     "reason": "Watching the same descent with different noise levels, step sizes and optimizers side by side shows directly why noisy gradients keep an optimizer from reaching the exact minimum, and which settings shrink that problem.",
+     "behavior": "rules",
+     "controlProfile": "manipulate",
+     "parameters": [
+      {
+       "type": "number",
+       "id": "sigma",
+       "label": "Gradient noise (sigma)",
+       "min": 0,
+       "max": 4,
+       "step": 0.25,
+       "default": 2
+      },
+      {
+       "type": "number",
+       "id": "lr",
+       "label": "Step size (learning rate)",
+       "min": 0.01,
+       "max": 0.15,
+       "step": 0.01,
+       "default": 0.05
+      },
+      {
+       "type": "select",
+       "id": "optimizer",
+       "label": "Optimizer",
+       "default": "sgd",
+       "options": [
+        {
+         "value": "sgd",
+         "label": "Plain gradient descent"
+        },
+        {
+         "value": "momentum",
+         "label": "With momentum"
+        },
+        {
+         "value": "adam",
+         "label": "Adam (adaptive steps)"
+        }
+       ]
+      }
+     ],
+     "interactions": [
+      "Press play or step to move the ball one optimizer update at a time; the trail grows and readouts show step count, current loss and distance from the minimum",
+      "Drag the ball to a new starting point on the surface before running",
+      "Set noise to 0 to see a smooth path that settles at the bottom, then raise it to see the path scatter and the ball keep jittering",
+      "Lower the step size to shrink the jitter cloud at the cost of a slower approach",
+      "Switch optimizers to compare how momentum and adaptive steps handle the same noise",
+      "Clear the trail while keeping the ball where it is"
+     ],
+     "assumptions": [
+      "Illustration: a made-up bowl-shaped surface with simulated noise, not a real model trained on data.",
+      "The loss surface is a narrow bowl with one minimum, steeper across than along its length.",
+      "Noise is added to each gradient as random values with the chosen standard deviation, drawn from a fixed seed so runs repeat after Reset.",
+      "Adam and momentum use their usual default settings; only step size is adjustable.",
+      "The run stops after a fixed number of steps (about 300) so it has a clear end."
+     ],
+     "limitations": [
+      "\"2 sigma problem\" is not a standard name for an optimizer effect; this scene reads it as gradient noise with a standard deviation of 2. If you meant Bloom's 2 sigma problem about one-to-one tutoring, this scene does not cover that.",
+      "With noise, the loss does not fall every step; it falls on average and then wobbles around a floor.",
+      "A single smooth bowl cannot show saddle points, many local minima, or the noise of real mini-batches."
+     ],
+     "requiredCapabilities": [
+      "parameters",
+      "step",
+      "actions",
+      "drag",
+      "readouts",
+      "labels"
+     ],
+     "requested": {
+      "features": []
+     },
+     "archetype": "loss_surface",
+     "learningGoal": "Noisy gradients keep an optimizer bouncing around the minimum, and the size of that bounce grows with noise and step size; momentum and adaptive methods change how the noise shows up.",
+     "assertions": [
+      {
+       "kind": "clamp"
+      },
+      {
+       "kind": "compare",
+       "parameter": "sigma",
+       "values": [
+        0,
+        2
+       ]
+      },
+      {
+       "kind": "pathLength",
+       "min": 50
+      }
+     ]
+    },
+    "issues": []
+   }
+  ],
+  "calls": [
+   {
+    "key": "aj_60e05e90f307424484e3ebdce5907722-brief-1",
+    "role": "brief",
+    "phase": "preparation",
+    "attempt": 1,
+    "streamed": false,
+    "requested": "claude-opus-5-5",
+    "served": "claude-opus-5-5",
+    "status": "settled",
+    "boundMicros": 156175,
+    "images": 0,
+    "costMicros": 47931,
+    "inputTokens": 375,
+    "outputTokens": 2274,
+    "startedAt": 1793818746248,
+    "endedAt": 1793818769518,
+    "stopReason": "tool_use",
+    "error": null,
+    "blocks": [
+     {
+      "type": "thinking"
+     },
+     {
+      "type": "tool_use",
+      "name": "animation_plan",
+      "chars": 3350
+     }
+    ]
+   }
+  ],
+  "captures": [],
+  "coverage": null,
+  "gap": null,
+  "estimate": {
+   "bytes": 8660,
+   "limit": 15064
+  },
+  "counts": {
+   "brief": 1,
+   "author": 0,
+   "review": 0,
+   "repair": 0
+  },
+  "bounds": {
+   "preparation": 156175,
+   "generation": 0
+  },
+  "timing": {
+   "requestClass": "simple",
+   "cache": null,
+   "marks": {
+    "submitted": 1793818745182,
+    "firstFeedback": 1793818745248,
+    "proposalReady": 1793818769619
+   },
+   "stages": [
+    {
+     "stage": "preparing",
+     "startedAt": 1793818745248,
+     "endedAt": 1793818769619,
+     "calls": 1,
+     "inputTokens": 375,
+     "outputTokens": 2274,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "awaiting_approval",
+     "startedAt": 1793818769619,
+     "endedAt": 1793818770405,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": "stopped"
+    }
+   ]
+  }
+ }
+}

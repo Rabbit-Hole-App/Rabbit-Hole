@@ -1,0 +1,32 @@
+{
+ "n": 10,
+ "phrasing": "the 2 sigma problem of optimizers",
+ "session": "g2-202611041848-5@example.com",
+ "sha": "2c90f9d9d8762d7d46836d6f1ecdf84be01e2cd7",
+ "version": "846574ba-c14d-4b0f-8a1a-f22f97697241",
+ "reviewIdentity": "687d4661a9ffde545921e5637d1697707aa6a83746f96807730d00c179757c7e",
+ "jobId": "aj_60e05e90f307424484e3ebdce5907722",
+ "outcome": "plan-sgd",
+ "repairs": 0,
+ "credits": 4.7931,
+ "charged": 5,
+ "artifactHash": null,
+ "note": "the plan has SGD markers: sgd, gradient, loss surface, learning rate, descent, loss_surface archetype; not approved",
+ "markers": [
+  "sgd",
+  "gradient",
+  "loss surface",
+  "learning rate",
+  "descent",
+  "loss_surface archetype"
+ ],
+ "silentSgd": true,
+ "time": "11/4, 10:59 AM",
+ "firstRound": {
+  "state": "not reviewed",
+  "serious": 0,
+  "gist": null,
+  "kind": "planner",
+  "reason": "the control plan was not approved"
+ }
+}

@@ -1,0 +1,571 @@
+[
+ {
+  "at": 1793818405915,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "8c479412d8dfc1782d4aa9eefea8d58902bc901d84244f299a4be54be901e527",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ball",
+       "message": "At the start the orange SGD ball and the grey ghost sit at the exact same position (1.5, 2.33, 2.5) and are the same size, so only the grey ghost shows. The main subject, the orange ball the learner is told to drag, cannot be seen. Make the ghost smaller or slightly see-through, or draw the orange ball on top so both are visible."
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "ball",
+       "message": "The plan says to drag the orange ball to any point. Instead the orange ball drags only across the bowl (x) and the ghost only along it (z). This is disclosed and both together still reach any point, but it is less direct than promised."
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "gradArrow",
+       "message": "The trace shows the noisy-gradient arrow hidden (length 0.21, shorter than its 0.4 head) for the whole run near the minimum. The scale of 0.15 × the gradient's length is too small, so the promised 'this step's noisy gradient' arrow vanishes while SGD is running. Use a larger single disclosed scale (for example 0.4–0.5) so the arrow stays visible at noise sizes of about 1."
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "gdTrail",
+       "message": "The grey exact-descent trail is mostly hidden under the thicker orange trail, so the two paths are hard to compare. A small vertical offset or a lighter, more visible ghost trail would help."
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "gradArrow",
+       "message": "At learning rate 0.45 the trace shows the noisy-gradient arrow hidden (length 0.11 against a 0.4 head), so the arrow feature never appears during the run. Same cause as before: the 0.15 scale is too small."
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "sgdTrail",
+       "message": "The dense orange zig-zag hides the orange and grey balls near the centre, and the labels sit away from the balls. Lifting the balls above the trail or making them stand out more would make the current positions easier to read."
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ball",
+       "message": "The side view confirms that the orange SGD ball is hidden inside the same-size grey ghost at the shared start point. Only the grey ball can be seen."
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "gradArrow",
+       "message": "The noisy-gradient arrow is hidden in this running state because it is drawn too short (0.15 scale); see v0-s1."
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "gradArrow",
+       "message": "The noisy-gradient arrow is hidden at learning rate 0.45 because it is drawn too short; see v0-s2. The learning rate's low end (0.02) and batch sizes 1 and 64 were not sampled, so the claims about jitter versus batch size were not checked in captures."
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "pass"
+   }
+  ],
+  "problems": [
+   "capture v0-s0 finding 1 (\"At the start the orange SGD ball and the grey ghost sit at t\"): repairable must be true or false",
+   "capture v0-s0 finding 2 (\"The plan says to drag the orange ball to any point. Instead \"): repairable must be true or false",
+   "capture v0-s1 finding 1 (\"The trace shows the noisy-gradient arrow hidden (length 0.21\"): repairable must be true or false",
+   "capture v0-s1 finding 2 (\"The grey exact-descent trail is mostly hidden under the thic\"): repairable must be true or false",
+   "capture v0-s2 finding 1 (\"At learning rate 0.45 the trace shows the noisy-gradient arr\"): repairable must be true or false",
+   "capture v0-s2 finding 2 (\"The dense orange zig-zag hides the orange and grey balls nea\"): repairable must be true or false",
+   "capture v1-s0 finding 1 (\"The side view confirms that the orange SGD ball is hidden in\"): repairable must be true or false",
+   "capture v1-s1 finding 1 (\"The noisy-gradient arrow is hidden in this running state bec\"): repairable must be true or false",
+   "capture v1-s2 finding 1 (\"The noisy-gradient arrow is hidden at learning rate 0.45 bec\"): repairable must be true or false"
+  ],
+  "usage": {
+   "input_tokens": 14116,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3213,
+   "output_tokens_details": {
+    "thinking_tokens": 1933
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_8c02d10a414d4a1bad27ff2a5b127b04-review-4",
+   "status": "settled",
+   "costMicros": 121145,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793818429866,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "8c479412d8dfc1782d4aa9eefea8d58902bc901d84244f299a4be54be901e527",
+  "retry": true,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "At the start the orange SGD ball and the grey ghost have the same position and the same radius, so only the grey sphere shows. The 'SGD' label points at a grey ball and the orange ball cannot be seen. Make the ghost smaller or translucent, or offset it, so both balls show.",
+       "repairable": true,
+       "object": "ghost"
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The plan says to drag the orange start ball to any point and have the ghost start from the same point. Instead the orange ball drags only across (x), and the start along the bowl is set by dragging the grey ghost (z). Let the orange ball drag freely over the surface and have the ghost follow its start.",
+       "repairable": true,
+       "object": "ball"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan's limitation describes 100 markers, one every 2 steps. The artifact marks every step instead. This is disclosed, but the plan and artifact disagree.",
+       "repairable": true,
+       "object": "sgdTrail"
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The trace shows the noisy-gradient arrow hidden (length 0.21, shorter than its 0.4 head), so the promised arrow disappears once the ball nears the minimum. That is where noise matters most. The 0.15 scale is too small. Use a larger single disclosed scale so the arrow stays visible at true proportion.",
+       "repairable": true,
+       "object": "gradArrow"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The grey exact-descent trail mostly lies under the thick orange trail and the balls, so the learner cannot compare the two paths. Draw the ghost trail more distinctly (contrasting colour, slight lift or thickness) and keep the ghost ball distinct from the orange one.",
+       "repairable": true,
+       "object": "gdTrail"
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "At learning rate 0.45 the trace shows the noisy-gradient arrow hidden (length 0.11), so the step's gradient cannot be seen. The arrow scale is too small.",
+       "repairable": true,
+       "object": "gradArrow"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The dense orange zig-zag hides both the orange and the grey ball near the centre, and the grey ghost trail can hardly be told apart. The 'SGD' and 'Exact GD' labels float over a tangle. Thin or fade older trail segments and make the balls stand out above the trail.",
+       "repairable": true,
+       "object": "sgdTrail"
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The low end of the learning rate and the batch-size extremes (1 and 64) were not sampled, so the promised smoothing at large batch size was not verified.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The side view confirms that the orange SGD ball is hidden inside the grey ghost at the start, so it is missing from the picture.",
+       "repairable": true,
+       "object": "ball"
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The noisy-gradient arrow is hidden in this running state because it is shorter than its head. The promised per-step arrow is missing.",
+       "repairable": true,
+       "object": "gradArrow"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The grey ghost trail cannot be seen next to the orange trail, so the path comparison is lost.",
+       "repairable": true,
+       "object": "gdTrail"
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The noisy-gradient arrow is hidden at learning rate 0.45 because it is too short to draw.",
+       "repairable": true,
+       "object": "gradArrow"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The tangled orange trail hides the balls near the minimum, and the 'SGD' label sits away from any visible orange ball.",
+       "repairable": true,
+       "object": "sgdTrail"
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 14601,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 2493,
+   "output_tokens_details": {
+    "thinking_tokens": 873
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_8c02d10a414d4a1bad27ff2a5b127b04-review-5",
+   "status": "settled",
+   "costMicros": 108685,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793818629081,
+  "attempt": 1,
+  "repairs": 2,
+  "artifactHash": "6baa81b56784cd585915c8be5b39e6b7688ca3e114dd937d4fd5226e4353b035",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "Default framing: the steep, tall walls (up to 3.75 high at the corners) make the bowl a narrow U that fills only the middle third of the frame, with wide empty margins on both sides. The region where SGD actually moves and jitters (near the centre) takes up a small patch of the image. Use a lower vertical scale K, or a higher, closer camera, so the area around the minimum fills the view.",
+       "object": "camera",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan says the trail shows one marker every 2 steps (at most 100). The artifact draws every step (up to 201 points) and says so in its assumptions. This is harmless, but it differs from the plan.",
+       "object": "sgdTrail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The exact-GD trail is twice as thick (0.045 vs 0.022) and is drawn 0.1 above the surface while the SGD trail is at 0.03, so the dark blue path sits on top of the thin orange SGD path and hides most of it. The noisy zig-zag the lesson is about is only visible in small fragments. Draw the SGD trail thicker and on top, and make the ghost trail thinner, lighter or lower.",
+       "object": "gdTrail",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The whole run after 27 steps fits in a small patch near the bottom centre of the frame, so the trail and the jitter near the minimum are hard to read at this scale. This is the same framing problem as in the default view.",
+       "object": "camera",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "At learning rate 0.45, the thick dark ghost zig-zag is drawn over the hairline-thin orange SGD trail, and the two get tangled in a small cluster around the minimum. It is hard to tell the SGD jitter cloud from the ghost's oscillation. The 'SGD' label floats away from the orange ball, which is half hidden inside the translucent ghost.",
+       "object": "sgdTrail",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The host hid the gradient arrow because its true-scale length (0.363) is shorter than its head size. This is disclosed. Consider a thinner arrow head so short arrows still show. The low end of the learning rate and the batch-size extremes (1, 64) were not sampled.",
+       "object": "gradArrow",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "From the side angle too, the thick dark ghost trail lies over the orange SGD trail and hides most of the noisy path.",
+       "object": "gdTrail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The SGD trail is very thin compared with the ghost trail. It shows here, but it reads like a hairline.",
+       "object": "sgdTrail",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 14382,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3590,
+   "output_tokens_details": {
+    "thinking_tokens": 2330
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_8c02d10a414d4a1bad27ff2a5b127b04-review-8",
+   "status": "settled",
+   "costMicros": 129749,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

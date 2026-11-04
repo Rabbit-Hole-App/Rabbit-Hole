@@ -1,0 +1,307 @@
+{
+  "title": "Token to Goal: 3 by 3 Grid Puzzle",
+  "description": "A flat 3 by 3 board of light tiles seen from a raised angle. A blue sphere token starts on the bottom-left square (nearest you, on the left); a green disc marks the goal square at the top-right (far right). Up, Down, Left and Right buttons move the token one square. Hint shows an orange arrow from the token toward the goal. Readouts give moves made and steps still needed.",
+  "experience": "game",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "game": {
+    "objective": "Move the token from the bottom-left square to the green goal square at the top-right.",
+    "hint": "Steps to goal = rows apart + columns apart. Each move toward the goal lowers it by 1, so the best route is 4 moves."
+  },
+  "keys": {
+    "up": "moveUp",
+    "down": "moveDown",
+    "left": "moveLeft",
+    "right": "moveRight"
+  },
+  "scene": {
+    "materials": [
+      {
+        "id": "base",
+        "color": "#6b7078"
+      },
+      {
+        "id": "tile",
+        "color": "#d9dce1"
+      },
+      {
+        "id": "token",
+        "color": "#2f6fd6"
+      },
+      {
+        "id": "goal",
+        "color": "#2fa85a"
+      },
+      {
+        "id": "hint",
+        "color": "#f08a24"
+      }
+    ],
+    "geometries": [
+      {
+        "id": "gBase",
+        "kind": "box",
+        "size": [
+          3.4,
+          0.1,
+          3.4
+        ]
+      },
+      {
+        "id": "gTile",
+        "kind": "box",
+        "size": [
+          0.95,
+          0.1,
+          0.95
+        ]
+      },
+      {
+        "id": "gToken",
+        "kind": "sphere",
+        "radius": 0.3,
+        "widthSegments": 32,
+        "heightSegments": 24
+      },
+      {
+        "id": "gGoal",
+        "kind": "cylinder",
+        "radius": 0.4,
+        "height": 0.08,
+        "radialSegments": 32
+      },
+      {
+        "id": "gArrow",
+        "kind": "arrow",
+        "length": 1,
+        "offset": 0.32
+      },
+      {
+        "id": "lGoal",
+        "kind": "label",
+        "text": "Goal",
+        "placement": "above"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "board",
+        "name": "Board"
+      },
+      {
+        "id": "baseN",
+        "parent": "board",
+        "geometry": "gBase",
+        "material": "base",
+        "position": [
+          0,
+          -0.1,
+          0
+        ]
+      },
+      {
+        "id": "t00",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          -1.05,
+          0,
+          1.05
+        ]
+      },
+      {
+        "id": "t01",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          0,
+          0,
+          1.05
+        ]
+      },
+      {
+        "id": "t02",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          1.05,
+          0,
+          1.05
+        ]
+      },
+      {
+        "id": "t10",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          -1.05,
+          0,
+          0
+        ]
+      },
+      {
+        "id": "t11",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "id": "t12",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          1.05,
+          0,
+          0
+        ]
+      },
+      {
+        "id": "t20",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          -1.05,
+          0,
+          -1.05
+        ]
+      },
+      {
+        "id": "t21",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          0,
+          0,
+          -1.05
+        ]
+      },
+      {
+        "id": "t22",
+        "parent": "board",
+        "geometry": "gTile",
+        "material": "tile",
+        "position": [
+          1.05,
+          0,
+          -1.05
+        ]
+      },
+      {
+        "id": "goalN",
+        "name": "Goal square",
+        "geometry": "gGoal",
+        "material": "goal",
+        "position": [
+          1.05,
+          0.09,
+          -1.05
+        ]
+      },
+      {
+        "id": "goalLabel",
+        "parent": "goalN",
+        "geometry": "lGoal",
+        "position": [
+          0,
+          0.1,
+          -0.45
+        ]
+      },
+      {
+        "id": "tokenN",
+        "name": "Token",
+        "geometry": "gToken",
+        "material": "token",
+        "position": [
+          -1.05,
+          0.35,
+          1.05
+        ]
+      },
+      {
+        "id": "hintN",
+        "name": "Hint arrow",
+        "geometry": "gArrow",
+        "material": "hint",
+        "position": [
+          -1.05,
+          0.35,
+          1.05
+        ],
+        "visible": false
+      }
+    ]
+  },
+  "parameters": [],
+  "actions": [
+    {
+      "id": "moveUp",
+      "label": "Up"
+    },
+    {
+      "id": "moveDown",
+      "label": "Down"
+    },
+    {
+      "id": "moveLeft",
+      "label": "Left"
+    },
+    {
+      "id": "moveRight",
+      "label": "Right"
+    },
+    {
+      "id": "showHint",
+      "label": "Hint"
+    }
+  ],
+  "readouts": [
+    {
+      "id": "moves",
+      "label": "Moves made",
+      "decimals": 0
+    },
+    {
+      "id": "steps",
+      "label": "Steps to goal",
+      "decimals": 0
+    }
+  ],
+  "seed": 0,
+  "camera": {
+    "position": [
+      0,
+      5.2,
+      4.6
+    ],
+    "target": [
+      0,
+      0,
+      0
+    ],
+    "fov": 45
+  },
+  "assumptions": [
+    "This is a simple made-up puzzle, not a model of anything real.",
+    "The token moves only up, down, left or right, never diagonally, so 'steps to goal' counts the up/down steps plus the left/right steps (taxicab distance).",
+    "The token starts on the bottom-left square and the goal is the top-right square, so the shortest route takes 4 moves.",
+    "Once the token reaches the goal, the game is won and the move buttons stop working until you press Reset.",
+    "Up means away from you across the board, Right means toward the goal's side; arrow keys or WASD also work.",
+    "The orange hint arrow points in the direction of one move that lowers the steps to goal by 1; it hides after your next move."
+  ],
+  "program": {
+    "source": "const G=2,S=1.05;\nconst D={moveUp:[1,0,'up'],moveDown:[-1,0,'down'],moveLeft:[0,-1,'left'],moveRight:[0,1,'right']};\nexport function initialState(){return{r:0,c:0,moves:0,hint:false,won:false,msg:'Reach the green goal square.'};}\nfunction dist(s){return Math.abs(G-s.r)+Math.abs(G-s.c);}\nexport function reduce({state,event}){\nif(event.type!=='action')return state;\nconst a=event.action;\nif(state.won)return{...state,msg:'You already won. Press Reset to play again.'};\nif(a==='showHint')return{...state,hint:true,msg:state.c<G?'Hint: move Right.':'Hint: move Up.'};\nconst d=D[a];if(!d)return state;\nconst r=state.r+d[0],c=state.c+d[1];\nif(r<0||r>G||c<0||c>G)return{...state,hint:false,msg:'Can\\'t move '+d[2]+': that would leave the board.'};\nconst n={...state,r,c,moves:state.moves+1,hint:false};\nif(r===G&&c===G){n.won=true;n.msg='Goal reached in '+n.moves+' moves! The shortest route is 4 moves'+(n.moves===4?' - perfect!':'.');}\nelse n.msg='Moved '+d[2]+'. '+dist(n)+' steps to go.';\nreturn n;}\nexport function evaluate({state}){\nconst s=state||initialState();\nconst x=(s.c-1)*S,z=-(s.r-1)*S,onG=s.r===G&&s.c===G;\nconst y=onG?0.43:0.35;\nconst q=s.c<G?[0,0,-0.7071068,0.7071068]:[-0.7071068,0,0,0.7071068];\nreturn{nodes:{tokenN:{position:[x,y,z]},hintN:{position:[x,y,z],quaternion:q,visible:s.hint&&!s.won}},\nreadouts:{moves:s.moves,steps:dist(s)},\ngoal:{status:s.won?'won':'playing',message:s.msg}};}"
+  }
+}

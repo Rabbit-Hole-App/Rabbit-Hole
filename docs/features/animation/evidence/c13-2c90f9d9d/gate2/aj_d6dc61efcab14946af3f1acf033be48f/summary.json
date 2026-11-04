@@ -1,0 +1,26 @@
+{
+ "n": 8,
+ "phrasing": "gradient descent that overshoots the minimum",
+ "session": "g2-202611041848-3@example.com",
+ "sha": "2c90f9d9d8762d7d46836d6f1ecdf84be01e2cd7",
+ "version": "846574ba-c14d-4b0f-8a1a-f22f97697241",
+ "reviewIdentity": "687d4661a9ffde545921e5637d1697707aa6a83746f96807730d00c179757c7e",
+ "jobId": "aj_d6dc61efcab14946af3f1acf033be48f",
+ "outcome": "accepted",
+ "repairs": 0,
+ "credits": 47.626,
+ "charged": 48,
+ "artifactHash": "255cd3437ac7fef90e407e2af30861e93b89d3b26d9512b67ce2c717a11e4164",
+ "note": "",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/4, 11:00 AM",
+ "firstRound": {
+  "state": "accepted",
+  "serious": 0,
+  "gist": null,
+  "reason": null,
+  "kind": null
+ },
+ "fileSha256": "1ebdcf4775aac9bf00ce8b3a0a52f9fb4be70f7a71440577dd7977e6c15e794f"
+}

@@ -1,0 +1,62 @@
+[
+ {
+  "job": "aj_bf396fccd45949479b38d4884843c6a6",
+  "key": "animation/aj_bf396fccd45949479b38d4884843c6a6/eb3fecf9c503d14a-v0-s0.png",
+  "ok": true,
+  "bytes": 68387,
+  "sha256": "6537a7cf589912d968843314654ee5ff2e26ce57c28cdd4a59230f1b2a138ea4",
+  "round": "final",
+  "recordedSha256": "53a07887a167f9e06a4db96f2ee9909cb485ef653f0957686bab1e7e08ce8798",
+  "match": false
+ },
+ {
+  "job": "aj_bf396fccd45949479b38d4884843c6a6",
+  "key": "animation/aj_bf396fccd45949479b38d4884843c6a6/eb3fecf9c503d14a-v0-s1.png",
+  "ok": true,
+  "bytes": 66508,
+  "sha256": "4afef4713e7b12e15449c266109b39e7bc70079f66e56c89f2d09a16e1427be5",
+  "round": "final",
+  "recordedSha256": "3b10a92275a2532607f3082858fcb486b1b6a147e87cd1b2ca5c23f39fc284f0",
+  "match": false
+ },
+ {
+  "job": "aj_bf396fccd45949479b38d4884843c6a6",
+  "key": "animation/aj_bf396fccd45949479b38d4884843c6a6/eb3fecf9c503d14a-v0-s2.png",
+  "ok": true,
+  "bytes": 61287,
+  "sha256": "7dcd1f0ff97135fd114be64833688b8a89d5c1941666454a86e16611c9f0ebf3",
+  "round": "final",
+  "recordedSha256": "5adbbdd7176803c4207c1d3d65e26da392a72f63467308ae14153f91af302ecb",
+  "match": false
+ },
+ {
+  "job": "aj_bf396fccd45949479b38d4884843c6a6",
+  "key": "animation/aj_bf396fccd45949479b38d4884843c6a6/eb3fecf9c503d14a-v1-s0.png",
+  "ok": true,
+  "bytes": 53237,
+  "sha256": "28575e959d7dd959a061710450473d7b0f16bd1caef207bd86869a663539cfcc",
+  "round": "final",
+  "recordedSha256": "762eb1fa57e8b08c4469251b4488a26edf104892c0d27776a3780f8bfa8dafe9",
+  "match": false
+ },
+ {
+  "job": "aj_bf396fccd45949479b38d4884843c6a6",
+  "key": "animation/aj_bf396fccd45949479b38d4884843c6a6/eb3fecf9c503d14a-v1-s1.png",
+  "ok": true,
+  "bytes": 52882,
+  "sha256": "9b335007264eeec54870fb972eb1d918db510dfcecf450588653d465d06acfed",
+  "round": "final",
+  "recordedSha256": "3afa7e9322176372edde48dcd6c7e6f5d159abd88d5f725c4c574ced02631a84",
+  "match": false
+ },
+ {
+  "job": "aj_bf396fccd45949479b38d4884843c6a6",
+  "key": "animation/aj_bf396fccd45949479b38d4884843c6a6/eb3fecf9c503d14a-v1-s2.png",
+  "ok": true,
+  "bytes": 51831,
+  "sha256": "c314f28ec8481bf78a5fa9d2be8f204074a66c540d59f46cf0e1ab675995556d",
+  "round": "final",
+  "recordedSha256": "80332ad147061fb5c46182df8140f3f4f02a357e5e6965801577211ecdb30e6e",
+  "match": false
+ }
+]

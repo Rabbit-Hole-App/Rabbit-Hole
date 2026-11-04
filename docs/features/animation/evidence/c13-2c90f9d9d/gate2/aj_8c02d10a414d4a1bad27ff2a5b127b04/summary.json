@@ -1,0 +1,25 @@
+{
+ "n": 1,
+ "phrasing": "stochastic gradient descent",
+ "session": "g2-202611041848-1@example.com",
+ "sha": "2c90f9d9d8762d7d46836d6f1ecdf84be01e2cd7",
+ "version": "846574ba-c14d-4b0f-8a1a-f22f97697241",
+ "reviewIdentity": "687d4661a9ffde545921e5637d1697707aa6a83746f96807730d00c179757c7e",
+ "jobId": "aj_8c02d10a414d4a1bad27ff2a5b127b04",
+ "outcome": "rejected",
+ "repairs": 4,
+ "credits": 141.1182,
+ "charged": 10,
+ "artifactHash": null,
+ "note": "rounds: The scene failed when its program ran. You have not been charged. It was corrected automatically four times, but it still did not pass. Revise plan prepares a s",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/4, 10:59 AM",
+ "firstRound": {
+  "state": "rejected",
+  "serious": 11,
+  "gist": "At the start the orange SGD ball and the grey ghost have the same position and the same radius, so o",
+  "reason": null,
+  "kind": null
+ }
+}

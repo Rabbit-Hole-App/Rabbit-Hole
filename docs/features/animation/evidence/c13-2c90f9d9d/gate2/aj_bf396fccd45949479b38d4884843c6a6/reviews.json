@@ -1,0 +1,138 @@
+[
+ {
+  "at": 1793818459671,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "eb3fecf9c503d14af9c568041b2f09f172f94f09e1291b3130823d42a62d559a",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan's start point is y = 1, but the artifact starts at y = 0.5. The assumptions name both values and explain the change. Every other plan number is kept (rate 0.02–0.7, default 0.4; steepness 1–6, default 4; stop rules). Initial loss 3.625 = 0.5·(2.5² + 4·0.5²) is correct, and the arrow (−0.8 across, −1 back, drawn at 0.75×) points downhill as shown.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "Near convergence the true step is about 0.038 long, which is shorter than the arrow head. The host hides the Next step arrow even though the status says running. The arrow stays honest at its true length, but it disappears late in a slow run.",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "After the run leaves the surface, the ball and path are clamped to the rim at |y| = 3 (the true y is 5.25). This is disclosed, and the loss readout of 55.1 is the true value. The growing zigzag (factor −1.8 across the bowl) matches the program. Not sampled: rate exactly at the threshold 0.5, the low end 0.02, a steepness change, and the kept earlier path.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The path is drawn as straight segments between points on the surface, so the long diverging jumps cross above the curved bowl in the side view. It is still readable, but it could be mistaken for a path along the surface.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 12596,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3338,
+   "output_tokens_details": {
+    "thinking_tokens": 2536
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_bf396fccd45949479b38d4884843c6a6-review-5",
+   "status": "settled",
+   "costMicros": 117565,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

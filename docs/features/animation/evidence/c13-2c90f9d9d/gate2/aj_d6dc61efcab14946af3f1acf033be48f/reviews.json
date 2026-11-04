@@ -1,0 +1,155 @@
+[
+ {
+  "at": 1793818842721,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "255cd3437ac7fef90e407e2af30861e93b89d3b26d9512b67ce2c717a11e4164",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "When a run hits the 40-step cap without converging (for example at a rate of 0.05, or exactly 0.5), the status reads 'paused' instead of saying the step limit was reached. Not sampled; checked from the program.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan says restart clears the trail. The artifact's 'Back to start, keep old path' instead keeps the old path as a ghost. This is a small change from the plan; it is disclosed and harmless.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Near the minimum at rate 0.17, the Next step arrow (drawn at 0.5 x its true length, about 0.016) is shorter than the ball and hidden inside it, and its label disappears with it. A short note such as 'step too small to show' would help.",
+       "object": "stepArrow",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The low end of the rate range (0.05) and the 0.25–0.5 'zigzag but settles' range were not run past the default in the samples. The program's update rule (y multiplied by 1-4r, x by 1-r) is correct for them.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "One segment of the orange trail (the jump across the bowl near the lowest point) is drawn much thinner than the others, almost a hairline. The trail radius is constant, so the host's trail rendering causes this.",
+       "object": "trail",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "The same thin trail segment appears in the side view: one segment of the orange trail is drawn much thinner than the rest. This comes from the host's trail drawing.",
+       "object": "trail",
+       "repairable": false
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13267,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3701,
+   "output_tokens_details": {
+    "thinking_tokens": 2824
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_d6dc61efcab14946af3f1acf033be48f-review-4",
+   "status": "settled",
+   "costMicros": 127509,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

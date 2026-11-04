@@ -95,3 +95,29 @@ Round 4 narrows the converged band (the ball must be at the lowest point within 
 | C | ACCEPTED, 0 of 6 rejected, minors only | `c12-preview-golden-48a5b7e4-r4-runC-ACCEPTED.json` |
 
 Golden file: `golden-48a5b7e4-r4.json`. Two accepted verdicts of the same artifact on one identity; one infrastructure error is recorded and not counted either way.
+
+## C13 (5 November 2026, about 11:25 AM PT)
+
+`c13-2c90f9d9d/` (C13 `2c90f9d9d8762d7d46836d6f1ecdf84be01e2cd7` = C12 + golden rounds 3 and 4 `48a5b7e4` + exemplar pin + primitives-check recalibration + evidence + plan note; preview `846574ba-c14d-4b0f-8a1a-f22f97697241`, prompt-files hash `365a5aef`, review identity `687d4661`; CI verify 41889947337 and fast-e2e 41889947226 both green; recovery branch `recovery/animation-combined-2c90f9d9` at `6062f5e91`):
+
+- `gate1-sgd/`: SGD 20 of 20 valid (537.58 credits). `gate1-regression/`: 8 of 9 valid (84.48 credits). Files over 250 KB are left out.
+- `gate2/` (fresh users `g2-202611041848-1..5`): the job-0 control accepted the golden (10.21 credits). **Verdict FAIL: 7 of the first 9 accepted**; 806.25 credits settled (US$8.06), 582 charged to the test users. Capture PNGs and a `manifest.json` per job are under each job's `captures/` (72 PNGs); the hash caveat above applies.
+
+| # | Job | First round | Repairs | Final |
+|---|---|---|---|---|
+| 1 | `aj_8c02d10a` | rejected at review (11 serious) | 4 | rejected: round 4 ended on check (ii) |
+| 2 | `aj_d6db10ff` | not reviewed (pre-review problem) | 3 | accepted |
+| 3 | `aj_a9bf2a51` | not reviewed (pre-review problem) | 2 | accepted |
+| 4 | `aj_bf396fcc` | not reviewed (pre-review problem) | 1 | accepted |
+| 5 | `aj_adb387ce` | not reviewed (render check) | 2 | rejected: all three rounds ended on check (ii) |
+| 6 | `aj_0c535edf` | accepted | 0 | accepted |
+| 7 | `aj_e073c6f5` | not reviewed (pre-review problem) | 2 | accepted |
+| 8 | `aj_d6dc61ef` | accepted | 0 | accepted |
+| 9 | `aj_82f0dea3` | rejected at review (3 serious: kept-path colours) | 1 | accepted |
+| 10 | `aj_60e05e90` | control: the plan was not approved (plan-sgd, see below) | 0 | n/a |
+
+First round: 2 of 4 reviewed jobs accepted; the other five accepted jobs and job 5 failed a pre-review check on the first draft. After repairs: 7 of 9.
+
+**Both rejections are check (ii) misfires.** Check (ii), "the trail marks every Nth step" (FX-AN-120), compared the drawn trail with every step. The plan each learner approved said otherwise: job 5's approved plan says "one marker every 4 steps, at most 50 markers" (the platform's own `fewer_markers` size choice produced it); job 1's says one marker every 2 steps, at most 100. The author followed the plan; the check fired anyway ("it holds 16 points after 40 steps", "21 after 69", "31 after 79"; job 1: "15 points after 27 steps", rounds 1 and 4), and the repair rounds ran out. Job 1 had also been rejected by the review in round 0 and again in round 2 for visual findings, so its rejection is not check (ii) alone; the owner's rerun decision 36 names it as a misfire and reruns it.
+
+**Job 10 (control phrasing "the 2 sigma problem of optimizers"):** the harness recorded `plan-sgd (the plan has SGD markers: sgd, gradient, loss surface, learning rate, descent, loss_surface archetype)` and "the control plan was not approved". The pipeline planned the control phrasing as an SGD-like plan and the harness stopped before approval, so no author job ran for it. It is logged as a harness observation, not a gate result.
