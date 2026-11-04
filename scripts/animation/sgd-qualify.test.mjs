@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CONTROL, PHRASINGS, TYPICAL, classify, decide, latestPerJob, machineResult, main, parse, parseTypical, resultTable, reviewIdentityRefusal, runQualify, sgdMarkers, verdictOf } from './sgd-qualify.mjs';
+import { CONTROL, PHRASINGS, TYPICAL, classify, decide, ensureSpendFile, firstRoundOf, latestPerJob, machineResult, main, parse, parseTypical, resultTable, reviewIdentityRefusal, roundsSummary, runQualify, sgdMarkers, spendRow, verdictOf } from './sgd-qualify.mjs';
 import { DRY_RUN, FAKE_GOLDEN, SCENARIOS, createFake, fakeReviewer } from './sgd-qualify-fake.mjs';
 import { KEY_PARTS, REVIEW_FILES, controlsKey, loadProduct, providerReview, readManifest, relabel, rememberedPass, reviewIdentity, writeControls } from './gate2-controls.mjs';
 import { createHash } from 'node:crypto';
@@ -99,15 +99,17 @@ test('one job per phrasing, sequentially: exports, a spend row each, the table, 
   assert.equal(s.fake.requests.filter(r => /\/approve$/.test(r)).length, 9, 'the control reported a gap, so nothing was approved for it');
   const spend = readFileSync(join(s.out, 'spend-rows.md'), 'utf8').trim().split('\n');
   assert.equal(spend.length, 12, 'header, separator and ten rows');
-  assert.match(spend[2], new RegExp(`^\\| 1 \\| .* \\| ${SHA} \\| ${VERSION} \\| stochastic gradient descent \\| aj_[0-9a-f]+ \\| accepted \\| 0 \\| 43\\.20 \\| 44 \\| [0-9a-f]{16} \\| 43\\.20 \\|$`));
+  assert.match(spend[2], new RegExp(`^\\| 1 \\| .* \\| ${SHA} \\| ${VERSION} \\| stochastic gradient descent \\| aj_[0-9a-f]+ \\| accepted \\| accepted \\| 0 \\| 43\\.20 \\| 44 \\| [0-9a-f]{16} \\| 43\\.20 \\|$`));
   const first = result.rows[0], dir = join(s.out, first.jobId);
   assert.deepEqual(readdirSync(dir).sort(), ['artifact.json', 'chat-messages.json', 'diagnostics-detail1.json', 'job.json', 'plan.json', 'program-last-draft.js', 'reviews.json', 'summary.json']);
   assert.ok(existsSync(join(s.out, result.rows[3].jobId, 'program-before-repair-1.js')), 'a repaired job keeps the draft before its repair');
   assert.equal(JSON.parse(readFileSync(join(dir, 'summary.json'), 'utf8')).fileSha256.length, 64);
   assert.equal(readdirSync(join(s.out, result.rows[9].jobId)).includes('artifact.json'), false, 'a gap has no artifact');
   const table = resultTable(result.rows);
-  assert.match(table, /\| 7 \| compare learning rate 0\.1 and 1\.5 on the same surface \| aj_[0-9a-f]+ \| rejected \(rounds: The animation did not pass review\.\) \| 1 \| 75\.20 \| 0 \|/);
-  assert.match(table, /\| 10 \| the 2 sigma problem of optimizers \| .* \| gap /);
+  assert.match(table, /\| 7 \| compare learning rate 0\.1 and 1\.5 on the same surface \| aj_[0-9a-f]+ \| rejected \(2 serious: The ball floats above the bowl in round 1\.\) \| 1 \| rejected \(rounds: The animation did not pass review\.\) \| 75\.20 \| 0 \|/);
+  assert.match(table, /\| 4 \| show me why a high learning rate diverges \| aj_[0-9a-f]+ \| rejected \(2 serious: The ball floats above the bowl in round 1\.\) \| 1 \| accepted \| 75\.20 \| 76 \|/, 'rejected in round one, accepted after one repair: both said, in separate columns');
+  assert.match(table, /^\| # \| Phrasing \| Job id \| First-round review \| Repairs \| Final outcome \(after the repairs\) \|/m);
+  assert.match(table, /\| 10 \| the 2 sigma problem of optimizers \| aj_[0-9a-f]+ \| not reviewed \(the planner reported a gap\) \| 0 \| gap /);
 });
 
 test('concurrency 5 across 5 sessions: five jobs at once, round-robin sessions, every job on a fresh canvas of its session\'s user', async () => {
@@ -320,7 +322,7 @@ test('main end to end over a fake fetch: sessions file, cookies per user, origin
   assert.deepEqual(machine.identities, { mvp3Sha: 'b'.repeat(40), promptsHash: 'ab'.repeat(16), goldenHash: 'cd'.repeat(16) });
   assert.deepEqual(machine.control, { outcome: 'gap', silentSgd: false, markers: [] });
   assert.equal(machine.rows.length, 10);
-  assert.deepEqual(Object.keys(machine.rows[0]), ['n', 'phrasing', 'jobId', 'outcome', 'repairs', 'settledCredits', 'chargedCredits', 'artifactHash', 'session', 'reviewIdentity', 'note']);
+  assert.deepEqual(Object.keys(machine.rows[0]), ['n', 'phrasing', 'jobId', 'firstRound', 'finalOutcome', 'outcome', 'repairs', 'settledCredits', 'chargedCredits', 'artifactHash', 'session', 'reviewIdentity', 'note']);
   assert.deepEqual([machine.rows[3].repairs, machine.rows[6].outcome, machine.settledCredits, machine.cap, machine.prior], [1, 'rejected', 473.6, 2000, 100]);
   assert.ok(readdirSync(join(w.dir, 'out')).some(f => /^result-aaaaaaa-\d+\.json$/.test(f)), 'a stamped copy stays');
   const state = JSON.parse(readFileSync(join(w.dir, 'out', `state-aaaaaaa-0fd062bf.json`), 'utf8'));
@@ -534,7 +536,7 @@ test('job 0: the golden goes through the preview\'s seed-fixture and render-resu
   assert.equal(c.reviewFiles['packages/web/render/animation3d-render.js'], sha256('the review page, version 1\n'));
   assert.equal(c.reviewFiles['review prompt (ANIMATION_REVIEW_SYSTEM)'], sha256('review prompt v1'), 'the prompt text itself, not the file around it');
   assert.equal(readFileSync(join(w.dir, 'out', 'controls-result.json'), 'utf8').trim().split('\n').length, 1, 'one compact line, next to gate2-result.json');
-  assert.match(readFileSync(join(w.dir, 'out', 'spend-rows.md'), 'utf8'), /\| c0 \| .* \| CONTROL: golden SGD artifact \(job 0\) \(direct review call, outside the ledger\) \| - \| accepted \| 0 \| 14\.60 \|/);
+  assert.match(readFileSync(join(w.dir, 'out', 'spend-rows.md'), 'utf8'), /\| c0 \| .* \| CONTROL: golden SGD artifact \(job 0\) \(direct review call, outside the ledger\) \| - \| accepted \| accepted \| 0 \| 14\.60 \|/);
   assert.equal(w.fake.jobs.size, 10, 'the ten phrasings ran after the control');
   assert.match(w.lines.join('\n'), /controls key: candidate SHA aaaaaaaaaaaa \| manifest hash none \| prompt-files hash abababababab \| review identity [0-9a-f]{12} \| golden file [0-9a-f]{12}/);
   assert.match(w.lines.join('\n'), /outside the ledger and outside the platform day cap/);
@@ -807,4 +809,89 @@ test('--golden-file: only for controls-only runs; the candidate\'s own golden is
   const alias = world({ verdict: REJECTION });
   assert.equal(await noNetwork(() => alias.run([...alias.argv, '--controls', '--golden', join(tmp(), 'missing.json')])), 2);
   assert.match(alias.lines.join('\n'), /USAGE: controls: /);
+});
+
+// ---- the first review round and the final outcome, kept apart ----
+test('every job says its FIRST-ROUND review and its FINAL outcome separately: the table, the log, the spend rows, the exports and the summary line', async () => {
+  const s = setup(), result = await s.run();
+  const byN = n => result.rows.find(r => r.n === n);
+  assert.deepEqual([byN(1).firstRound.state, byN(1).firstRound.serious, byN(1).outcome, byN(1).repairs], ['accepted', 0, 'accepted', 0]);
+  assert.deepEqual([byN(4).firstRound.state, byN(4).firstRound.serious, byN(4).firstRound.gist, byN(4).outcome, byN(4).repairs], ['rejected', 2, 'The ball floats above the bowl in round 1.', 'accepted', 1], 'rejected in round one, accepted after a repair');
+  assert.deepEqual([byN(7).firstRound.state, byN(7).outcome, byN(7).repairs], ['rejected', 'rejected', 1], 'rejected in both rounds');
+  assert.deepEqual([byN(10).firstRound.state, byN(10).firstRound.kind, byN(10).outcome], ['not reviewed', 'planner', 'gap']);
+  // the summary line: jobs 1 to 9 only; jobs 4 and 7 failed round one, job 4 was saved by its repair
+  const summary = roundsSummary(result.rows);
+  assert.equal(summary.line, 'first-round: 7 of 9 reviewed accepted; final: 8 of 9 accepted');
+  assert.deepEqual([summary.firstRound, summary.final], [{ accepted: 7, reviewed: 9 }, { accepted: 8, of: 9 }]);
+  assert.match(s.logs.join('\n'), /\[job 4\] first round: rejected \(2 serious\); final: accepted after 1 repair\(s\)/);
+  assert.match(s.logs.join('\n'), /\[job 1\] first round: accepted; final: accepted after 0 repair\(s\)/);
+  // the spend rows: a column for each, under their own header
+  const spend = readFileSync(join(s.out, 'spend-rows.md'), 'utf8').split('\n');
+  assert.match(spend[0], /\| Job id \| First-round review \| Final outcome \| Repairs \|/);
+  assert.ok(spend.some(l => /^\| 4 \| .* \| show me why a high learning rate diverges \| aj_[0-9a-f]+ \| rejected \(2 serious\) \| accepted \| 1 \| 75\.20 \|/.test(l)));
+  assert.ok(spend.some(l => /^\| 10 \| .* \| not reviewed \(planner\) \| gap \| 0 \|/.test(l)));
+  // the export's summary.json carries it
+  assert.equal(JSON.parse(readFileSync(join(s.out, byN(4).jobId, 'summary.json'), 'utf8')).firstRound.state, 'rejected');
+  // gate2-result.json rows: firstRound, finalOutcome, repairs, and the rounds summary
+  const machine = machineResult({ candidateSha: SHA, version: VERSION, identities: {}, result, cap: 1, prior: 0, at: new Date(0) });
+  assert.equal(machine.rounds.line, summary.line);
+  assert.deepEqual(machine.rows.find(r => r.n === 4).firstRound, { state: 'rejected', serious: 2, gist: 'The ball floats above the bowl in round 1.', reason: null, kind: null });
+  assert.deepEqual([machine.rows[3].finalOutcome, machine.rows[3].repairs], ['accepted', 1]);
+  assert.equal(verdictOf(result.rows).verdict, 'PASS', 'the verdict rule is unchanged: 8 of the first 9 FINAL, the control not SGD');
+});
+
+test('a job stopped or failed before its first review is "not reviewed", never "rejected", and says why: provider error, checks, guard, stop, exhausted', async () => {
+  const scenarios = { 0: 'provider', 1: 'checks', 2: 'overrun', 3: 'exhausted', 4: 'hang' };
+  const s = setup({ scenarioFor: p => scenarios[PHRASINGS.indexOf(p)] ?? 'accept', concurrency: 5, extra: { runAll: true, jobTimeoutMs: 30000 } });
+  const result = await s.run(), byN = n => result.rows.find(r => r.n === n);
+  const first = n => [byN(n).firstRound.state, byN(n).firstRound.kind];
+  assert.deepEqual(first(1), ['not reviewed', 'provider']);
+  assert.match(byN(1).firstRound.reason, /^provider error at authoring \(provider_unavailable: Animations are temporarily unavailable\.\)$/);
+  assert.equal(byN(1).outcome, 'failed', 'its final outcome is a failure, its first round is not a rejection');
+  assert.deepEqual(first(2), ['not reviewed', 'checks']);
+  assert.match(byN(2).firstRound.reason, /the draft failed its checks at validating before any review/);
+  assert.equal(byN(2).outcome, 'rejected');
+  assert.deepEqual(first(3), ['not reviewed', 'guard']);
+  assert.match(byN(3).firstRound.reason, /stopped by the spend guard \(an author call settled at 60\.00/);
+  assert.deepEqual(first(4), ['not reviewed', 'exhausted']);
+  assert.equal(byN(4).firstRound.reason, 'test user exhausted');
+  assert.deepEqual(first(5), ['not reviewed', 'guard']);
+  assert.equal(byN(5).firstRound.reason, 'no end within the job timeout');
+  const text = resultTable(result.rows);
+  assert.match(text, /\| 1 \| stochastic gradient descent \| aj_[0-9a-f]+ \| not reviewed \(provider error at authoring/);
+  assert.doesNotMatch(text, /\| 1 \| stochastic gradient descent \| aj_[0-9a-f]+ \| rejected/);
+  // none of these five counts among the reviewed, and the line says so (the exhausted user also stopped any further job from starting)
+  assert.equal(roundsSummary(result.rows).line, 'first-round: 0 of 0 reviewed accepted; final: 0 of 9 accepted');
+  assert.equal(machineResult({ candidateSha: SHA, version: VERSION, identities: {}, result, cap: 1, prior: 0, at: new Date(0) }).rows.find(r => r.n === 1).firstRound.kind, 'provider');
+});
+
+test('firstRoundOf: from the stage record of the first review; from the reviewer\'s own first valid reply when that is missing; "no review reached" with the reason otherwise', () => {
+  const finding = (severity, message) => ({ severity, category: 'spec', message });
+  const fromRecord = firstRoundOf({ diag: { findings: [{ repairs: 1, stage: 'reviewing', accepted: true, findings: [] }, { repairs: 0, stage: 'reviewing', accepted: false, findings: [finding('minor', 'tiny'), finding('major', 'The ball  floats\nabove the bowl and more than a hundred characters follow so the gist is cut to a single short line of text by the table'), finding('blocker', 'second')] }] }, outcome: 'accepted' });
+  assert.deepEqual([fromRecord.state, fromRecord.serious], ['rejected', 2], 'a later accepted round does not change round one');
+  assert.ok(fromRecord.gist.length <= 100 && !/\s{2}|\n/.test(fromRecord.gist));
+  // the stage record is missing: the reviewer's own reply
+  const reply = (extra = {}) => ({ repairs: 0, retry: false, problems: [], error: null, raw: { captures: [{ id: 'v0-s0', semantic: 'fail', visual: 'pass', findings: [finding('major', 'Scene hides the ball.')] }, { id: 'v0-s1', semantic: 'pass', visual: 'pass', findings: [] }] }, ...extra });
+  assert.deepEqual(firstRoundOf({ diag: { findings: [], reviews: [reply()] }, outcome: 'rejected' }), { state: 'rejected', serious: 1, gist: 'Scene hides the ball.', reason: null, kind: null });
+  assert.equal(firstRoundOf({ diag: { reviews: [reply({ raw: { captures: [{ id: 'a', semantic: 'pass', visual: 'pass', findings: [] }] } })] }, outcome: 'accepted' }).state, 'accepted');
+  assert.equal(firstRoundOf({ diag: { reviews: [reply({ problems: ['bad'] })] }, outcome: 'failed', job: {} }).kind, 'invalid', 'an invalid reply is not a verdict');
+  assert.equal(firstRoundOf({ diag: { reviews: [reply({ error: 'x', raw: null })] }, outcome: 'failed', job: {} }).kind, 'provider');
+  // nothing reached a review
+  for (const [input, kind] of [[{ outcome: 'stopped', note: 'file: stop file STOP' }, 'stopped'], [{ outcome: 'timeout' }, 'guard'], [{ outcome: 'cost-stop', note: 'an author call settled at 60' }, 'guard'], [{ outcome: 'clarify' }, 'planner'],
+    [{ outcome: 'failed', job: { stopReason: 'budget' } }, 'budget'], [{ outcome: 'failed', job: { stopReason: 'error', failure: { category: 'transport', stage: 'authoring', message: 'An AI step was interrupted.' } } }, 'provider'], [{ outcome: 'failed' }, 'other'],
+    [{ outcome: 'failed', job: { stopReason: 'rounds', failure: { stage: 'rendering' } } }, 'checks']]) assert.deepEqual([firstRoundOf(input).state, firstRoundOf(input).kind], ['not reviewed', kind], JSON.stringify(input));
+  assert.equal(roundsSummary([{ n: 1, outcome: 'accepted' }]).line, 'first-round: 0 of 0 reviewed accepted; final: 1 of 9 accepted', 'a row from an earlier run (no firstRound) is not counted as reviewed');
+  assert.match(resultTable([{ n: 1, phrasing: 'p', jobId: 'aj_x', outcome: 'accepted', repairs: 0, credits: 0, charged: 0, note: '' }]), /\| unknown \(an earlier run\) \| 0 \| accepted \|/);
+});
+
+test('a spend table written before the first-round column gets a new header, and rows follow the new one; a current table is left alone', () => {
+  const out = tmp(), file = join(out, 'spend-rows.md');
+  writeFileSync(file, '| # | Time (PT) | Candidate SHA | Preview version | Phrasing | Job id | Outcome | Repairs | Settled credits | Charged credits | Artifact hash | Run total credits |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n| 1 | t | s | v | p | aj_1 | accepted | 0 | 1.00 | 1 | h | 1.00 |\n');
+  ensureSpendFile(out);
+  const text = readFileSync(file, 'utf8');
+  assert.equal((text.match(/First-round review/g) || []).length, 1);
+  assert.ok(text.indexOf('| 1 | t | s | v | p | aj_1 | accepted | 0 |') < text.indexOf('First-round review'), 'the old rows stay above the new header');
+  ensureSpendFile(out);
+  assert.equal(readFileSync(file, 'utf8'), text, 'a second call changes nothing');
+  assert.match(spendRow({ n: 2, time: 't', sha: 's', version: 'v', phrasing: 'p', jobId: 'aj_2', firstRound: { state: 'rejected', serious: 3, kind: null }, outcome: 'accepted', repairs: 1, credits: 2, charged: 2, artifactHash: null }, 5), /\| aj_2 \| rejected \(3 serious\) \| accepted \| 1 \| 2\.00 \| 2 \| - \| 5\.00 \|\n$/);
 });

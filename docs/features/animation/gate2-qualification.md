@@ -25,6 +25,27 @@ repairs, accepted or not. **No retry beyond the product's own automatic one**: t
 | 9 | SGD with a kept path to compare runs |
 | 10 | the 2 sigma problem of optimizers (the wrong-subject control) |
 
+### First round and final outcome, always apart (owner)
+
+A repaired job is a different thing from a job accepted at its first review, and the report must never let one be read as the other. For every job the table, the log, the
+spend rows, the job's `summary.json` and `gate2-result.json` carry, **separately**: `firstRound` (the review of the unrepaired draft), `repairs`, and `finalOutcome`.
+
+- **`firstRound.state`** is `accepted`, `rejected` or `not reviewed`. It comes from the job's own record of its first review (the diagnostics' `reviewing` record with 0
+  repairs, the same data as `reviews.json` / `findings`); when that record is missing it is read from the reviewer's first valid reply in `reviews`.
+  `rejected` carries `serious` (the major and blocker findings of that round) and `gist` (the first one, in one line of at most 100 characters), for example
+  `rejected (2 serious: The ball floats above the bowl)`. A later round never changes it: a job rejected in round one and accepted after a repair stays `rejected` here.
+- **`not reviewed`** means no valid review was reached, with a `kind` and a `reason`: `provider` (a provider or transport error before the first review), `checks` (the draft
+  failed its own checks before any review), `guard` (cost-stop or timeout), `stopped`, `exhausted` (the test user), `planner` (a gap, a question, or the control's SGD plan not approved),
+  `budget`, `invalid` (the reviewer's reply was invalid, twice) or `other`. **A job stopped or failed by a provider error before its first review is "not reviewed", never "rejected".**
+- **`finalOutcome`** is what the job ended as, after the repairs (as before: accepted, rejected, gap, failed, cost-stop, timeout, ...). A row from an earlier run, written before
+  this column existed, shows `unknown (an earlier run)` and is not counted.
+- **The summary line**, printed under the verdict and in `gate2-result.json` as `rounds.line`: `first-round: A of N reviewed accepted; final: B of 9 accepted`. A and N are over jobs 1 to
+  9 that were reviewed in round one (not the control; not the `not reviewed` ones); B is the jobs 1 to 9 accepted in the end.
+- **The verdict rule is unchanged**: 8 of the first 9 *final* accepted, and the control not SGD. The first-round figures are reported beside it, not instead of it.
+
+The table columns are `First-round review | Repairs | Final outcome (after the repairs)`; the spend table has `First-round review | Final outcome | Repairs`, and a spend table written with the
+older columns gets a new header appended (its old rows stay above it).
+
 ### The pass rule (coded in `verdictOf`, `scripts/animation/sgd-qualify.mjs`)
 
 **PASS** = at least 8 of jobs 1 to 9 are accepted **and** job 10 did not silently become SGD.
@@ -345,7 +366,8 @@ only cancels), generalised to every running job at once. At every poll of every 
   | `accepted`, `lost` | counts among jobs 1 to 9 |
   | `control` | `{ outcome, silentSgd, markers }` for job 10, or `null` if it has no result |
   | `halt`, `notRun` | why the run was halted (`{ kind, reason }` or `null`) and the job numbers without a final result |
-  | `rows` | one per job: `n`, `phrasing`, `jobId`, `outcome`, `repairs`, `settledCredits`, `chargedCredits`, `artifactHash`, `session`, `reviewIdentity` (12 hex), `note` |
+  | `rounds` | `{ firstRound: { accepted, reviewed }, final: { accepted, of: 9 }, line }`: the summary line `first-round: A of N reviewed accepted; final: B of 9 accepted` |
+  | `rows` | one per job: `n`, `phrasing`, `jobId`, `firstRound` (`{ state, serious, gist, reason, kind }`), `finalOutcome` (same as `outcome`, kept), `outcome`, `repairs`, `settledCredits`, `chargedCredits`, `artifactHash`, `session`, `reviewIdentity` (12 hex), `note` |
   | `settledCredits`, `cap`, `prior`, `finishedAt` | the candidate's cumulative settled credits across every invocation (the controls' direct review calls included), the cap and prior arguments, an ISO time |
 
 - Artifact hash column: the host's `artifactHash` (first 16 hex in the tables, full value in `summary.json`). The earlier receipts used the SHA-256 of the

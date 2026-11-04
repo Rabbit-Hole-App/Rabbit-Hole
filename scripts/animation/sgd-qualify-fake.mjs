@@ -9,9 +9,11 @@ const COST = { brief: 6.2, author: 25, review: 12, repair: 20 };
 const ev = (role, cost = COST[role]) => ({ role, cost });
 // events: the calls after Generate, in order; end: how the job finishes; charged: what the learner is charged on a failed end (AN-17: zero).
 export const SCENARIOS = {
-  accept: { events: [ev('author'), ev('review')], end: 'ready' },
-  repair: { events: [ev('author'), ev('review'), ev('repair'), ev('review')], end: 'ready', repairs: 1 },
-  reject: { events: [ev('author'), ev('review'), ev('repair'), ev('review')], end: 'rounds', repairs: 1 },
+  accept: { events: [ev('author'), ev('review')], end: 'ready', reviews: ['accept'] },
+  repair: { events: [ev('author'), ev('review'), ev('repair'), ev('review')], end: 'ready', repairs: 1, reviews: ['reject', 'accept'] }, // rejected in round one, accepted after the repair
+  reject: { events: [ev('author'), ev('review'), ev('repair'), ev('review')], end: 'rounds', repairs: 1, reviews: ['reject', 'reject'] },
+  provider: { events: [ev('author')], end: 'provider_unavailable', failure: { stage: 'authoring', category: 'provider_unavailable', message: 'Animations are temporarily unavailable.' } }, // before any review
+  checks: { events: [ev('author')], end: 'rounds', failure: { stage: 'validating', category: 'spec', message: 'The animation did not pass its checks.' } }, // the draft never reached a review
   overrun: { events: [ev('author', 60)], end: 'ready' }, // one author call far above its typical: the guard cancels the job
   hang: { events: [], hang: true, end: 'ready' }, // authoring never finishes: a timeout, a stop or a cancel ends it
   choice: { events: [ev('author'), ev('review')], end: 'ready', choice: true },
@@ -64,13 +66,17 @@ export function createFake({ scenarios = SCENARIOS, scenarioFor = () => 'accept'
     if (j.stage !== 'authoring' || j.scenario.hang) return;
     if (running) {
       settle(j, running);
+      if (running.role === 'review') { // the stage's record of this review round: the repairs so far say which round it is
+        const verdict = j.scenario.reviews?.[j.reviewN++] ?? 'accept';
+        j.findings.push({ repairs: j.repairs, stage: 'reviewing', accepted: verdict === 'accept', findings: verdict === 'accept' ? [{ severity: 'minor', category: 'spec', message: 'A small label could be larger.' }] : [{ severity: 'major', category: 'spec', message: `The ball floats above the bowl in round ${j.repairs + 1}.` }, { severity: 'major', category: 'spec', message: 'The legend overlaps the surface.' }] });
+      }
       if (running.role === 'repair') j.repairs += 1;
       return;
     }
     const next = j.scenario.events[j.step];
     if (next) { j.step += 1; j.calls.push({ role: next.role, cost: next.cost, status: 'running', costMicros: 0 }); return; }
     if (j.scenario.end === 'ready') Object.assign(j, { stage: 'ready', stopReason: 'accepted', result: { resultId: `ar_${j.id}`, artifactHash: createHash('sha256').update(`artifact ${j.id}`).digest('hex') } });
-    else { Object.assign(j, { stage: 'failed', stopReason: j.scenario.end, failure: { message: 'The animation did not pass review.' } }); j.refund = true; }
+    else { Object.assign(j, { stage: 'failed', stopReason: j.scenario.end, failure: j.scenario.failure ?? { message: 'The animation did not pass review.' } }); j.refund = true; }
   }
   const publicJob = j => ({ id: j.id, boardId: j.boardId, cardId: j.cardId, stage: j.stage, terminal: ['ready', 'failed', 'cancelled'].includes(j.stage), repairs: j.repairs, stopReason: j.stopReason ?? null,
     failure: j.failure ?? null, outcome: j.outcome ?? null, choiceOpen: !!j.choiceOpen, threadId: j.threadId, usage: { credits: j.refund ? 0 : cents(j), unknown: false },
@@ -114,7 +120,7 @@ export function createFake({ scenarios = SCENARIOS, scenarioFor = () => 'accept'
       const scenarioName = scenarioFor(body.prompt);
       if (scenarios[scenarioName].create429) return ok({ error: 'Not enough AI credits.' }, 429);
       const id = `aj_${(seq += 1).toString(16).padStart(8, '0')}${'0'.repeat(24)}`;
-      const j = { id, owner: email, boardId, cardId: body.cardId, prompt: body.prompt, features: body.features, stage: 'preparing', repairs: 0, calls: [], step: 0, scenario: scenarios[scenarioName], scenarioName, proposals: new Map(), threadId: `th-${[...canvases].find(([, c]) => c.boardId === boardId)[0]}` };
+      const j = { id, owner: email, boardId, cardId: body.cardId, prompt: body.prompt, features: body.features, stage: 'preparing', repairs: 0, calls: [], findings: [], reviewN: 0, step: 0, scenario: scenarios[scenarioName], scenarioName, proposals: new Map(), threadId: `th-${[...canvases].find(([, c]) => c.boardId === boardId)[0]}` };
       jobs.set(id, j); maxActive = Math.max(maxActive, active());
       return ok({ job: publicJob(j) }, 202);
     }
@@ -122,7 +128,7 @@ export function createFake({ scenarios = SCENARIOS, scenarioFor = () => 'accept'
     if (!j || j.boardId !== boardId) return ok({ error: 'Not found' }, 404);
     if (method === 'GET') {
       advance(j);
-      return ok({ job: publicJob(j), ...(diagnostics ? { diagnostics: { plan: j.plan, calls: j.calls.map(c => ({ role: c.role, status: c.status, costMicros: c.costMicros })), reviews: [{ attempt: 1 }], findings: [], candidates: j.repairs ? [{ repairs: 1, previousDraft: { program: { source: '// before repair' } } }] : [], draft: { program: { source: '// last draft' } }, artifactHash: j.result?.artifactHash ?? null } } : {}) });
+      return ok({ job: publicJob(j), ...(diagnostics ? { diagnostics: { plan: j.plan, calls: j.calls.map(c => ({ role: c.role, status: c.status, costMicros: c.costMicros })), reviews: j.findings.map(f => ({ repairs: f.repairs, retry: false, raw: null })), findings: j.findings, candidates: j.repairs ? [{ repairs: 1, previousDraft: { program: { source: '// before repair' } } }] : [], draft: { program: { source: '// last draft' } }, artifactHash: j.result?.artifactHash ?? null } } : {}) });
     }
     if (rest[1] === 'cancel') { if (!['ready', 'failed', 'cancelled'].includes(j.stage)) { cancelled.push(j.id); j.stage = 'cancelled'; j.stopReason = 'stopped'; for (const c of j.calls) if (c.status === 'running') settle(j, c); } return ok({ job: publicJob(j) }); }
     if (rest[1] === 'choose') {

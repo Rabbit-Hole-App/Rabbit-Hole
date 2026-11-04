@@ -105,12 +105,61 @@ export function verdictOf(rows) {
 // ---- output ----
 const cell = v => String(v ?? '').replace(/\|/g, '/').replace(/\s+/g, ' ').trim();
 export const ptClock = (date = new Date()) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date);
-export function resultTable(rows) {
-  const head = '| # | Phrasing | Job id | Outcome | Repairs | Settled credits | Charged credits | Artifact hash | Session |\n|---|---|---|---|---|---|---|---|---|';
-  return [head, ...latestPerJob(rows).map(r => `| ${r.n} | ${cell(r.phrasing)} | ${cell(r.jobId ?? '-')} | ${cell(r.outcome)}${r.note && r.outcome !== 'accepted' ? ` (${cell(r.note).slice(0, 70)})` : ''} | ${r.repairs} | ${r.credits.toFixed(2)} | ${r.charged} | ${r.artifactHash ? r.artifactHash.slice(0, 16) : '-'} | ${cell(r.session)} |`)].join('\n');
+// ---- the first review round and the final outcome, kept apart (owner): a post-repair outcome must never read as a first-round one ----
+const oneLine = (text, n = 100) => String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
+const serious = list => (list ?? []).filter(f => f.severity === 'major' || f.severity === 'blocker');
+// Why a job never reached its first review. A provider error (or a draft that failed its checks, or a stop) before it is "not reviewed", never "rejected".
+function noReview({ job, diag, outcome, note }) {
+  const f = job?.failure ?? {}, stage = f.stage ?? 'a stage';
+  if (outcome === 'gap' || outcome === 'clarify') return { kind: 'planner', reason: `the planner ${outcome === 'gap' ? 'reported a gap' : 'asked a question'}` };
+  if (outcome === 'plan-sgd') return { kind: 'planner', reason: 'the control plan was not approved' };
+  if (outcome === 'exhausted') return { kind: 'exhausted', reason: 'test user exhausted' };
+  if (outcome === 'cost-stop') return { kind: 'guard', reason: `stopped by the spend guard (${oneLine(note, 80)})` };
+  if (outcome === 'timeout') return { kind: 'guard', reason: 'no end within the job timeout' };
+  if (outcome === 'stopped') return { kind: 'stopped', reason: `cancelled before a review (${oneLine(note, 80)})` };
+  if (['provider_unavailable', 'transport'].includes(f.category) || ['provider_unavailable', 'error'].includes(job?.stopReason)) return { kind: 'provider', reason: `provider error at ${stage} (${f.category ?? job.stopReason}${f.message ? `: ${oneLine(f.message, 70)}` : ''})` };
+  if (job?.stopReason === 'budget') return { kind: 'budget', reason: 'the job reached its spending limit' };
+  if ((diag?.reviews ?? []).some(r => r.error)) return { kind: 'provider', reason: 'the review call failed before a valid review' };
+  if ((diag?.reviews ?? []).some(r => r.problems?.length)) return { kind: 'invalid', reason: 'the reviewer\'s reply was invalid, twice' };
+  if (['preparing', 'authoring', 'validating', 'rendering'].includes(f.stage)) return { kind: 'checks', reason: `the draft failed its checks at ${f.stage} before any review` };
+  return { kind: 'other', reason: 'no review was reached' };
 }
-const SPEND_HEAD = '| # | Time (PT) | Candidate SHA | Preview version | Phrasing | Job id | Outcome | Repairs | Settled credits | Charged credits | Artifact hash | Run total credits |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n';
-export const spendRow = (r, total) => `| ${r.n} | ${r.time} | ${r.sha} | ${r.version} | ${cell(r.phrasing)} | ${cell(r.jobId ?? '-')} | ${cell(r.outcome)} | ${r.repairs} | ${r.credits.toFixed(2)} | ${r.charged} | ${r.artifactHash ? r.artifactHash.slice(0, 16) : '-'} | ${total.toFixed(2)} |\n`;
+// -> { state: 'accepted' | 'rejected' | 'not reviewed', serious: major + blocker findings of that round, gist: the first one in a line, reason, kind }. From the job's own
+// stage record of its first review (repairs 0); when that is missing, from the reviewer's first valid reply in reviews (the export's reviews.json).
+export function firstRoundOf({ job, diag, outcome, note }) {
+  const rec = (diag?.findings ?? []).find(f => f.stage === 'reviewing' && (f.repairs ?? 0) === 0 && typeof f.accepted === 'boolean');
+  let accepted = rec?.accepted, findings = rec?.findings;
+  if (!rec) {
+    const reply = (diag?.reviews ?? []).find(r => (r.repairs ?? 0) === 0 && !r.error && !r.problems?.length && Array.isArray(r.raw?.captures));
+    if (reply) {
+      findings = reply.raw.captures.flatMap(c => c.findings ?? []);
+      accepted = reply.raw.captures.every(c => !(c.findings ?? []).some(x => x.severity !== 'minor') && ((c.semantic === 'pass' && c.visual === 'pass') || (c.findings ?? []).length > 0));
+    }
+  }
+  if (typeof accepted === 'boolean') { const s = serious(findings); return { state: accepted ? 'accepted' : 'rejected', serious: s.length, gist: s[0] ? oneLine(s[0].message) : null, reason: null, kind: null }; }
+  return { state: 'not reviewed', serious: 0, gist: null, ...noReview({ job, diag, outcome, note }) };
+}
+const firstCell = r => (!r.firstRound ? 'unknown (an earlier run)' : r.firstRound.state === 'accepted' ? 'accepted' : r.firstRound.state === 'rejected'
+  ? `rejected (${r.firstRound.serious} serious${r.firstRound.gist ? `: ${cell(r.firstRound.gist)}` : ''})` : `not reviewed (${cell(r.firstRound.reason).slice(0, 90)})`);
+const firstShort = r => (!r.firstRound ? 'unknown' : r.firstRound.state === 'rejected' ? `rejected (${r.firstRound.serious} serious)` : r.firstRound.state === 'not reviewed' ? `not reviewed (${r.firstRound.kind})` : 'accepted');
+// "first-round: A of N reviewed accepted; final: B of 9 accepted" over jobs 1 to 9 (the control is separate).
+export function roundsSummary(rows) {
+  const nine = latestPerJob(rows).filter(r => r.n <= 9), reviewed = nine.filter(r => r.firstRound && r.firstRound.state !== 'not reviewed'), accepted = reviewed.filter(r => r.firstRound.state === 'accepted').length;
+  const final = nine.filter(r => r.outcome === 'accepted').length;
+  return { firstRound: { accepted, reviewed: reviewed.length }, final: { accepted: final, of: 9 }, line: `first-round: ${accepted} of ${reviewed.length} reviewed accepted; final: ${final} of 9 accepted` };
+}
+export function resultTable(rows) {
+  const head = '| # | Phrasing | Job id | First-round review | Repairs | Final outcome (after the repairs) | Settled credits | Charged credits | Artifact hash | Session |\n|---|---|---|---|---|---|---|---|---|---|';
+  return [head, ...latestPerJob(rows).map(r => `| ${r.n} | ${cell(r.phrasing)} | ${cell(r.jobId ?? '-')} | ${firstCell(r)} | ${r.repairs} | ${cell(r.outcome)}${r.note && r.outcome !== 'accepted' ? ` (${cell(r.note).slice(0, 70)})` : ''} | ${r.credits.toFixed(2)} | ${r.charged} | ${r.artifactHash ? r.artifactHash.slice(0, 16) : '-'} | ${cell(r.session)} |`)].join('\n');
+}
+const SPEND_HEAD = '| # | Time (PT) | Candidate SHA | Preview version | Phrasing | Job id | First-round review | Final outcome | Repairs | Settled credits | Charged credits | Artifact hash | Run total credits |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n';
+// A spend table written before the first-round column has another header: a new header starts the new table (the old rows stay as they were).
+export function ensureSpendFile(out) {
+  const file = join(out, 'spend-rows.md');
+  if (!existsSync(file)) { writeFileSync(file, SPEND_HEAD); return; }
+  if (!readFileSync(file, 'utf8').split('\n').includes(SPEND_HEAD.split('\n')[0])) appendFileSync(file, `\n${SPEND_HEAD}`);
+}
+export const spendRow = (r, total) => `| ${r.n} | ${r.time} | ${r.sha} | ${r.version} | ${cell(r.phrasing)} | ${cell(r.jobId ?? '-')} | ${firstShort(r)} | ${cell(r.outcome)} | ${r.repairs} | ${r.credits.toFixed(2)} | ${r.charged} | ${r.artifactHash ? r.artifactHash.slice(0, 16) : '-'} | ${total.toFixed(2)} |\n`;
 
 // The compact result for another program: the candidate, the three identities Gate 1 recorded and the gate verified, the verdict and one row per job.
 // A rerun on the same candidate with a different review identity (owner, C11): the review page, request builder or review prompt changed since its earlier jobs. It is
@@ -122,7 +171,8 @@ export function machineResult({ candidateSha, version, identities, review = null
   return { schema: 'sgd-gate2-result/1', candidateSha, previewVersion: version, identities, reviewIdentity: review && { hash: review.hash, files: review.files },
     mixedReviewIdentity: seen.length > 1 || (!!review && seen.length === 1 && seen[0] !== review.hash), verdict: v.verdict, why: v.why, accepted: v.accepted, lost: v.lost,
     control: control ? { outcome: control.outcome, silentSgd: control.silentSgd, markers: control.markers } : null, halt: result.halt, notRun: result.notRun,
-    rows: rows.map(r => ({ n: r.n, phrasing: r.phrasing, jobId: r.jobId, outcome: r.outcome, repairs: r.repairs, settledCredits: Number(r.credits.toFixed(2)), chargedCredits: r.charged, artifactHash: r.artifactHash, session: r.session, reviewIdentity: r.reviewIdentity ? r.reviewIdentity.slice(0, 12) : null, note: r.note })),
+    rounds: roundsSummary(result.rows),
+    rows: rows.map(r => ({ n: r.n, phrasing: r.phrasing, jobId: r.jobId, firstRound: r.firstRound ?? null, finalOutcome: r.outcome, outcome: r.outcome, repairs: r.repairs, settledCredits: Number(r.credits.toFixed(2)), chargedCredits: r.charged, artifactHash: r.artifactHash, session: r.session, reviewIdentity: r.reviewIdentity ? r.reviewIdentity.slice(0, 12) : null, note: r.note })),
     settledCredits: Number(result.finished.toFixed(2)), cap, prior, finishedAt: at.toISOString() };
 }
 
@@ -136,7 +186,7 @@ export async function runQualify(cfg, deps) {
   const live = new Map(), inflight = new Map(cfg.sessions.map(s => [s.email, 0])), skipped = new Map(), startUsed = new Map();
   const ctx = { halt: null, finished: rows.reduce((t, r) => t + r.credits, 0) + (cfg.extraSpent ?? 0), noMore: null };
   mkdirSync(cfg.out, { recursive: true });
-  if (!existsSync(join(cfg.out, 'spend-rows.md'))) writeFileSync(join(cfg.out, 'spend-rows.md'), SPEND_HEAD);
+  ensureSpendFile(cfg.out);
   const say = (n, text) => log(`[job ${n}] ${text}`);
   const halt = (kind, reason) => { if (ctx.halt) return; ctx.halt = { kind, reason }; log(`HALT (${kind}): ${reason}; cancelling ${live.size} running job(s) through the product's cancel route`); for (const L of live.values()) cancel(L); };
   const cancel = L => { if (L.jobId && !L.cancelP) L.cancelP = L.call('POST', `${ROOT}/${L.jobId}/cancel`, { boardId: L.boardId }).catch(() => null); return L.cancelP ?? Promise.resolve(); };
@@ -256,11 +306,12 @@ export async function runQualify(cfg, deps) {
     row.repairs = L.job?.repairs ?? 0; row.credits = settledOf(L.calls);
     if (L.calls.some(c => c.status === 'unknown')) row.note = `${row.note} (${L.calls.filter(c => c.status === 'unknown').length} call(s) of unknown cost counted at typical)`.trim(); row.charged = L.job?.usage?.credits ?? 0;
     row.time = ptClock(new Date(now())); if (!row.outcome) row.outcome = 'failed';
+    row.firstRound = firstRoundOf({ job: L.job, diag: L.d?.diagnostics, outcome: row.outcome, note: row.note });
     await exportJob(L, row, artifact).catch(error => say(n, `export failed: ${error.message}`));
     live.delete(L.key); inflight.set(session.email, inflight.get(session.email) - 1); ctx.finished += row.credits; rows.push(row);
     appendFileSync(join(cfg.out, 'spend-rows.md'), spendRow(row, cfg.prior + ctx.finished));
     cfg.onRow?.(row, rows);
-    say(n, `${row.outcome}${row.note ? ` (${row.note.slice(0, 100)})` : ''}; repairs ${row.repairs}; settled ${row.credits.toFixed(2)} credits, charged ${row.charged}; run total ${ctx.finished.toFixed(2)} of cap ${cfg.cap} (prior ${cfg.prior})`);
+    say(n, `first round: ${firstShort(row)}; final: ${row.outcome}${row.note ? ` (${row.note.slice(0, 100)})` : ''} after ${row.repairs} repair(s); settled ${row.credits.toFixed(2)} credits, charged ${row.charged}; run total ${ctx.finished.toFixed(2)} of cap ${cfg.cap} (prior ${cfg.prior})`);
   }
 
   // The first session, round-robin from the job's own number, with allowance for one more job's worst case (counting the jobs already running on it).
@@ -433,7 +484,7 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
     if (!apiKey) { out(`USAGE: ANTHROPIC_API_KEY is missing from ${o.credentials} (key name only); the controls call the reviewer`); return 2; }
     const product = injected.product ?? await loadProduct(dry ? fileURLToPath(new URL('../..', import.meta.url)) : gateOpts.worktree);
     mkdirSync(outDir, { recursive: true });
-    if (!existsSync(join(outDir, 'spend-rows.md'))) writeFileSync(join(outDir, 'spend-rows.md'), SPEND_HEAD);
+    ensureSpendFile(outDir);
     const result = await runControls({ golden, items: calibration, session: sessions[0], product, sha: pin.PREVIEW_SHA, version: pin.PREVIEW_VERSION, concurrency: o.concurrency }, { review: injected.review ?? (dry ? fakeReviewer() : providerReview({ product, apiKey })), log: out });
     controlsSpent = result.spentCredits;
     writeControls(outDir, { key, reviewFiles: review.files, golden: { path: goldenFile, hash: goldenHash }, exploratory, version: pin.PREVIEW_VERSION, manifest, result, at: new Date() });
@@ -473,7 +524,7 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
     after.push(r && usable(r) ? `Allowance after the run, ${sess.email}: used ${r.usage.usedCredits} (+${(r.usage.usedCredits - result.startUsed[sess.email]).toFixed(2)} this run), left ${r.usage.remainingCredits}` : `Allowance after the run, ${sess.email}: unreadable`);
   }
   const { verdict, why } = result.verdict, ran = result.rows.slice(state.rows.length), settledNow = ran.reduce((t, r) => t + r.credits, 0), charged = ran.reduce((t, r) => t + r.charged, 0);
-  const text = [`# Gate 2 result: candidate ${pin.PREVIEW_SHA}, preview ${pin.PREVIEW_VERSION}`, '', resultTable(result.rows), '', `VERDICT: ${verdict}. ${why}`,
+  const text = [`# Gate 2 result: candidate ${pin.PREVIEW_SHA}, preview ${pin.PREVIEW_VERSION}`, '', resultTable(result.rows), '', `VERDICT: ${verdict}. ${why}`, roundsSummary(result.rows).line,
     ...(result.halt ? [`Halted (${result.halt.kind}): ${result.halt.reason}`] : []), ...(result.noMore ? [`Stopped starting jobs: ${result.noMore}`] : []),
     ...Object.entries(result.skipped).map(([email, reason]) => `Session skipped: ${email}: ${reason}`), ...(result.notRun.length ? [`Not run or not final: jobs ${result.notRun.join(', ')}`] : []), `Review identity ${review.hash.slice(0, 12)} (what the reviewer reads and sees): ${filesLine(review.files)}`, '', ...after,
     `Settled by this run: ${settledNow.toFixed(2)} credits (about US$${(settledNow / 100).toFixed(2)} at 100 credits to the dollar); charged to the test users: ${charged}; cumulative ${(o.prior + result.finished).toFixed(2)} of cap ${o.cap}.`, PACING].join('\n');

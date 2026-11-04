@@ -229,5 +229,5 @@ export function writeControls(out, { key, reviewFiles = null, golden = null, exp
   writeFileSync(controlsFile(out, key.candidateSha, version), line);
   if (result.verdict === 'PASS') writeFileSync(join(out, PASSED), `${JSON.stringify({ key, reviewFiles, previewVersion: version, spentCredits: result.spentCredits, finishedAt: at.toISOString() })}\n`);
 }
-export const spendLine = (item, index, shaHex, version, total, time) => `| c${index} | ${time} | ${shaHex} | ${version} | CONTROL: ${item.name.replace(/\|/g, '/')} (direct review call, outside the ledger) | - | ${item.outcome}${item.drift ? ' DRIFT' : ''} | 0 | ${item.credits.toFixed(2)} | - | ${item.artifactHash ? item.artifactHash.slice(0, 16) : '-'} | ${total.toFixed(2)} |\n`;
+export const spendLine = (item, index, shaHex, version, total, time) => `| c${index} | ${time} | ${shaHex} | ${version} | CONTROL: ${item.name.replace(/\|/g, '/')} (direct review call, outside the ledger) | - | ${item.outcome} | ${item.outcome}${item.drift ? ' DRIFT' : ''} | 0 | ${item.credits.toFixed(2)} | - | ${item.artifactHash ? item.artifactHash.slice(0, 16) : '-'} | ${total.toFixed(2)} |\n`;
 export const appendSpend = (out, lines) => appendFileSync(join(out, 'spend-rows.md'), lines.join(''));
