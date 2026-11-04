@@ -103,9 +103,13 @@ test('the golden artifact is an instance of it', () => {
   const source = artifact.program.source;
   assert.match(source, /path: s\.path\.concat\(\[\[x, z\]\]\)\.slice\(-MAX\)/);
   assert.ok(!/step\s*%|s\.step\s*%/.test(source), 'no sampling of the path by step number');
-  // The arrow scale rule: the golden draws both arrows at one scale (SCALE in its program); the largest default-rate step, 0.19 (the start step 0.163 plus the 7.5% noise at batch 16 at its two sigma; sgd-golden.test.mjs measures the median over 12 runs), drawn stays under a quarter of the surface width.
+  // The arrow scale rule: the golden draws both arrows at one scale (SCALE in its program). The largest typical default-rate step is the one it starts with, the full-batch step at the
+  // start (rate x the start slope, read from the program, no noise); drawn at SCALE it stays under a quarter of the surface width. The noise moves the Next step arrow around it
+  // (sgd-golden.test.mjs measures the medians over 12 runs).
   const scale = Number(source.match(/SCALE = ([\d.]+)/)[1]), width = artifact.scene.geometries.find(g => g.kind === 'surface').width;
-  assert.ok(scale * 0.19 < width / 4, `scale ${scale} draws a 0.19 step ${scale * 0.19} long, a quarter of the surface width is ${width / 4}`);
+  const [a, c] = ['A', 'C'].map(name => Number(source.match(new RegExp(`${name} = ([\\d.]+)`))[1])), [x0, z0] = source.match(/START = \[([\d.]+), ([\d.]+)\]/).slice(1).map(Number);
+  const rate = artifact.parameters.find(p => p.id === 'learningRate').default, typical = rate * Math.hypot(a * x0, c * z0);
+  assert.ok(scale * typical < width / 4, `scale ${scale} draws the ${typical.toFixed(4)} start step ${(scale * typical).toFixed(3)} long, a quarter of the surface width is ${width / 4}`);
   const radius = geometry(balls[0].geometry).radius;
   for (const arrow of nodes.filter(n => geometry(n.geometry)?.kind === 'arrow')) {
     assert.equal(geometry(arrow.geometry).offset, radius);
