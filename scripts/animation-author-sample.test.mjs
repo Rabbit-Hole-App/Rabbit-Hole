@@ -148,6 +148,36 @@ test('one sample: the stored draft is authored, validated by the product validat
   assert.equal(refused.record.status, 'error'); assert.equal(refused.record.credits, 0);
 });
 
+test('plan assertions: the table shows the validator and the assertions apart; a plan with none prints n/a', async () => {
+  const run = planRuns([pin], 1)[0], ids = { candidate: 'c', prompts: 'p', golden: 'g' };
+  const param = fixture.plan.parameters.find(p => p.type === 'number'), draft = fixture.repairedDraft;
+  const withAssertions = assertions => ({ ...pin, name: 'a', plan: { ...fixture.plan, assertions } });
+  const sample = (assertions) => sampleOnce({ ...run, pin: withAssertions(assertions) }, { transport: fakeTransport(draft), signal: undefined, ids });
+  const met = await sample([{ kind: 'compare', parameter: param.id, values: [param.min, param.max] }]);
+  assert.deepEqual([met.record.status, met.record.validator, met.record.assertions], ['valid', true, true], met.record.problems.join('; '));
+  const missed = await sample([{ kind: 'pathLength', min: 512 }]); // the fixture draws its path as sphere markers, not a trail
+  assert.deepEqual([missed.record.status, missed.record.validator, missed.record.assertions], ['invalid', true, false]);
+  assert.match(missed.record.problems.join(' '), /^assertions\.0: .*path of at least 512 points/);
+  const both = await sampleOnce({ ...run, pin: { ...withAssertions([{ kind: 'pathLength', min: 512 }]), plan: { ...fixture.plan, experience: 'watch', assertions: [{ kind: 'pathLength', min: 512 }] } } }, { transport: fakeTransport(draft), signal: undefined, ids });
+  assert.deepEqual([both.record.validator, both.record.assertions], [false, false], 'a plan mismatch and a missed assertion are both shown');
+  assert.match(formatTable({ ids, transport: 'fake', concurrency: 1, maxCredits: Infinity, results: [met, missed], stopped: null, settled: 0 }), /PASS\s+PASS[\s\S]*PASS\s+FAIL/);
+});
+
+test('the pinned plans are real plans: each validates under the plan contract, and a named archetype is one the data knows', async () => {
+  const { readdirSync } = await import('node:fs');
+  const { validateAnimationPlan } = await import('../packages/web/src/animation3d/contract.js');
+  const { ARCHETYPE_NAMES } = await import('../packages/control-plane/src/agents/animation-archetypes.js');
+  const dir = new URL('./animation/plans/', import.meta.url), files = readdirSync(dir).filter(f => f.endsWith('.json'));
+  assert.deepEqual(files.sort(), ['grid-game-run6.json', 'pendulum-aj_78cc3d3.json', 'projectile-aj_54eec6a.json', 'sgd-loss-surface.json', 'sgd-run5.json']);
+  for (const file of files) {
+    const loaded = (await import('./animation/author-sample.mjs')).loadPlan(new URL(file, dir));
+    assert.equal(loaded.name, file.replace(/\.json$/, ''));
+    const checked = validateAnimationPlan(loaded.plan);
+    assert.ok(checked.ok, `${file}: ${JSON.stringify(checked.issues?.slice(0, 2))}`);
+    if (loaded.plan.archetype) assert.ok(ARCHETYPE_NAMES.includes(loaded.plan.archetype), file);
+  }
+});
+
 test('the table and the folders carry the three identities', async () => {
   const dir = tmp(), run = planRuns([pin], 2)[0], ids = { candidate: 'abc1234', prompts: 'a'.repeat(64), golden: 'b'.repeat(64) };
   const out = await sampleOnce(run, { transport: fakeTransport(fixture.repairedDraft), signal: undefined, ids });
