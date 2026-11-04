@@ -1,0 +1,99 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Stochastic gradient descent on a loss surface",
+ "description": "A long, narrow bowl-shaped surface stands for the loss (the error a model makes) over two weights. A ball starts high on the slope and steps downhill. At each step a thin arrow shows the true steepest-downhill direction. A thicker arrow shows the noisy estimate the ball actually follows, as if it came from a small random batch of data. The ball leaves a zigzag trail. You can change the step size and batch size, then compare the wobbly path of stochastic gradient descent with the smooth path of full-batch descent.",
+ "experience": "experiment",
+ "reason": "Stochastic gradient descent is about how noisy, cheap steps still get down to the bottom. Changing the step size and batch size while the path forms shows how noise and step size together shape that path.",
+ "behavior": "rules",
+ "controlProfile": "manipulate",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate (step size)",
+   "min": 0.01,
+   "max": 0.5,
+   "step": 0.01,
+   "default": 0.1
+  },
+  {
+   "type": "select",
+   "id": "batchSize",
+   "label": "Batch size",
+   "options": [
+    {
+     "value": "1",
+     "label": "1 example (noisiest)"
+    },
+    {
+     "value": "4",
+     "label": "4 examples"
+    },
+    {
+     "value": "16",
+     "label": "16 examples"
+    },
+    {
+     "value": "64",
+     "label": "64 examples"
+    },
+    {
+     "value": "full",
+     "label": "Full batch (no noise)"
+    }
+   ],
+   "default": "4"
+  }
+ ],
+ "interactions": [
+  "Play, pause or advance one step at a time to watch the ball move.",
+  "Raise the learning rate to see longer steps. Near the top of the range the ball bounces back and forth across the narrow valley. Lower it to see slow, steady creeping.",
+  "Change the batch size: smaller batches make the step arrow swing further from the true downhill arrow and the trail more jagged. Full batch gives a smooth path.",
+  "Drag the ball to a new starting point on the surface before stepping.",
+  "Use 'Run again, keep old trail' to send the ball from the start point again while the previous path stays visible, faded, for comparison.",
+  "Read the step count, the current loss and the typical size of the gradient noise."
+ ],
+ "assumptions": [
+  "Illustration: a made-up bowl-shaped loss with simulated gradient noise, not a real model trained on data.",
+  "The loss is half of (x² + 4y²). It is steep across the valley and gentle along it, so the bottom is at the center.",
+  "Each step moves the ball by minus the learning rate times the noisy gradient. The noisy gradient is the true gradient plus random noise whose size shrinks as one over the square root of the batch size. Full batch adds no noise.",
+  "The noise comes from the scene's fixed random seed, so after Reset the same sequence of noise is drawn again.",
+  "Each run stops after 300 steps. If a step would leave the drawn area, the ball is held at the edge.",
+  "The trail draws one marker every 5 steps, at most 60 markers; every step still runs."
+ ],
+ "limitations": [
+  "Changed: the trail draws 60 markers, one every 5 steps, instead of 300; every step still runs.",
+  "Changed: the kept comparison path also draws at most 60 markers.",
+  "Single noisy steps can go uphill. The loss falls only on average, not at every step.",
+  "A real loss surface has millions of dimensions, plus flat regions and many low points. This one is a simple two-weight bowl with a single lowest point.",
+  "Fixed learning rates only: no momentum, no adaptive optimizers and no schedule that shrinks the step over time."
+ ],
+ "learningGoal": "Stochastic gradient descent follows a noisy estimate of the downhill direction. Smaller batches add more noise, and the step size controls both speed and stability. The loss still falls on average.",
+ "requiredCapabilities": [
+  "step",
+  "parameters",
+  "actions",
+  "drag",
+  "labels",
+  "readouts"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.01,
+    0.5
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 100
+  }
+ ]
+}

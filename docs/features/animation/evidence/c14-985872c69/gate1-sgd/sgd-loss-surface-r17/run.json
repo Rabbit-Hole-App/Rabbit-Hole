@@ -1,0 +1,45 @@
+{
+  "id": "sgd-loss-surface-r17",
+  "plan": "sgd-loss-surface",
+  "session": null,
+  "candidate": "985872c6939b83adcfc9f106e7b3e9e89b125618",
+  "prompts": "39cd0f576867aa2774ce58e3a586c24bb0d8bdbe3bd610bc8d91b90f11f2c7f8",
+  "golden": "48a5b7e45c2034991139d95d65aa303242b20c0071e4a5472ef3cb091e4d4a0a",
+  "requestHash": "1ae62128db877ed81831f898bdfc9ea857e3f4abd320bcac6ec4a63c9d751711",
+  "status": "valid",
+  "stopReason": "tool_use",
+  "served": "claude-opus-5-5",
+  "usage": {
+    "input_tokens": 8812,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 8082,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 10666,
+    "output_tokens_details": {
+      "thinking_tokens": 5366
+    },
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+  },
+  "credits": 25.0185,
+  "bytes": 8697,
+  "validator": true,
+  "assertions": true,
+  "problems": [],
+  "category": null,
+  "error": null,
+  "calls": 1,
+  "askedAgain": false,
+  "kind": "artifact",
+  "inputKeys": [
+    "kind",
+    "artifact"
+  ],
+  "parseError": null,
+  "seconds": 88.9,
+  "transport": "dev-key"
+}

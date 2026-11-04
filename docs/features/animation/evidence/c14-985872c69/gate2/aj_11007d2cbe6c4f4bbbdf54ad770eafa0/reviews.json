@@ -1,0 +1,393 @@
+[
+ {
+  "at": 1793820443194,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "0461f3090389897608ab2962b5d1977738c49bdd91eaad89ecf0eb917c1f2946",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The plan promises the ball zigzags across the narrow valley from a learning rate of about 0.15, but you can't see it. The start is fixed 0.08 off the floor and dragging only moves the start along the valley (z). With the across-valley factor 1−8r, the swing at r=0.15–0.2 is only about 0.016–0.05, a few percent of the half-width of 1. Start further off the floor (x≈0.4–0.5) or allow dragging across the valley as well.",
+       "object": "ball",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The 'Downhill' arrow label doesn't show in the default view (it is visible from the side). The arrow is short (about 0.3 units) next to the ball.",
+       "object": "arrowTag",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Momentum coasting past the first dip, the low end of the learning rate, dragging and 'New run, keep old path' were not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Same root cause: the fixed off-floor start of 0.08 and dragging only along the valley keep the learning-rate zigzag the plan promises too small to see.",
+       "object": "ball",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The trail is drawn as a smooth line with no marker at each step, so the step-by-step jumps (28 positions) can't be told apart. The plan says the trail grows by one point per step. Add a small dot at each position.",
+       "object": "trail",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "Near convergence the arrow is shorter than the host's drawing threshold (0.011), so it is hidden. This is consistent with drawing it at true scale.",
+       "object": "arrow",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The large zigzag here is divergence at r=0.4. The plan's zigzag-without-divergence regime (0.125–0.25) stays nearly invisible because the start is fixed at x=0.08 and can't be dragged across the valley.",
+       "object": "ball",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The ball, held at the rim, sits right against the 'Shallow dip' label.",
+       "object": "shallowTag",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Same as v0-s0: the zigzag promise isn't visible because of the fixed start 0.08 off the floor.",
+       "object": "ball",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The dip labels float beside the surface's edge rather than marking the dips.",
+       "object": "deepTag",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Same as v0-s1: the zigzag the plan promises isn't visible.",
+       "object": "ball",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "There are no markers at each step on the trail, so the steps can't be seen as separate points.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Same as v0-s2: only divergence shows a zigzag; the zigzag regime the plan promises stays too small to see.",
+       "object": "ball",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The ball held at the rim overlaps the 'Shallow dip' label.",
+       "object": "shallowTag",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13547,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 5646,
+   "output_tokens_details": {
+    "thinking_tokens": 3411
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_11007d2cbe6c4f4bbbdf54ad770eafa0-review-4",
+   "status": "settled",
+   "costMicros": 167529,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793820683580,
+  "attempt": 1,
+  "repairs": 3,
+  "artifactHash": "7a29e89e197704585c54b02530a1a85dbbee5dc069b92c33a456ec2888e4ec87",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The plan says the learner can drag the ball to any new starting point on the surface. The program only allows dragging along z and always resets x to 0.1, so the ball can never start far up the side wall. With an offset of 0.1, plain steps at rates of about 0.15–0.25 change x by a factor of (1−8r) each step, so the cross-valley zigzag is at most 0.1 wide on a 2-wide valley and fades within a few steps. That leaves the zigzag lesson at its promised rates nearly invisible. Fix: allow dragging in both x and z, clamped to the surface, or start the ball higher on the wall (for example x≈0.5).",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "In the default view the camera looks end-on down the long axis of a narrow 2 × 4.8 surface. The surface fills only a central strip of about 300 px out of 960, with large empty margins on both sides. The ball is about 16 px and the arrow is a short stub, so the steps and trail fill a tiny part of the frame. The side angle (v1) reads far better. Fix: aim the default camera across the valley so its long axis runs horizontally and fills the frame.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The 'Downhill' label on the arrow does not appear in the default view. It only shows in the side view, and there it sits well to the right of the arrow tip.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The default view is still end-on and under-filled. The 27-step path to the shallow dip is a short line of about 60 px in the middle of a mostly empty frame.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "As the ball settles, the latest-step dots (d0–d3, 0.007–0.016 apart) overlap the ball and each other in one blob. The arrow, at 0.1 × 0.108, is shorter than its head and is hidden, so nothing shows the downhill direction near convergence. Fix: skip dots closer together than their diameter.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: momentum above 0, the low learning-rate end, a converged status, the kept-path action, and dragging. The claim that momentum lets the ball coast past the first dip was not verified in a capture.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The default view is still end-on and under-filled, as in the other default captures. The diverging zigzag only fills the narrow central strip.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The trail vertex at the left rim (x≈−1.07, z≈0.78) lands right against the 'Shallow dip' label.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "The host holds the ball at the surface rim (true x 2.34, drawn at 1). The readouts correctly keep the true loss of 22.05.",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 14295,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 5608,
+   "output_tokens_details": {
+    "thinking_tokens": 4300
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_11007d2cbe6c4f4bbbdf54ad770eafa0-review-7",
+   "status": "settled",
+   "costMicros": 169761,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

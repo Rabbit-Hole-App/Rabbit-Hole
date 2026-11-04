@@ -1,0 +1,563 @@
+[
+ {
+  "at": 1793820399064,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "22678c3e1996c6016638c87480506ed19fd29b19974da9def4254a1245b06bb1",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The thin full-batch arrow is mostly hidden under the thick purple noisy arrow, so the two directions are hard to tell apart at the start. Offsetting the arrows slightly or drawing the dark one on top would help.",
+       "object": "fullArrow",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Two disclosed departures from the plan: the trail marks a point every 3 steps (up to 100) instead of every 5 (at most 60), and dragging moves the start only across the valley (w2), not to any point on the surface. Not sampled here: the batch-size options (including full batch), 'Run again, keep old trail', dragging, and learning rate 0.01.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Near the bottom, while the run is still going, both step arrows are hidden: the full-batch step is drawn about 0.037 long and the noisy step about 0.21, against a ball 0.28 wide. The noisy-versus-true direction comparison, the core of SGD, can't be seen for most of the run. Draw both arrows on one larger, disclosed scale (or a disclosed per-gradient scale) so they stay clearly longer than the ball near the minimum.",
+       "object": "noisyArrow",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The bowl fills only the middle of the frame, leaving wide empty margins at the sides; the camera could move in a little closer.",
+       "object": "bowl",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "At learning rate 0.5 the plan promises the ball bouncing back and forth across the narrow valley. The bounce repeats every 2 steps, but the trail records a point only every 3 steps, so the bounce is lost and the trail looks like a straight path. The run also ends as 'diverged' after only 6 steps. Record the trail every step (or every 2 at most) so the zigzag shows, and let the bounce stay visible long enough before the run stops.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "From this angle the dark full-batch arrow is mostly hidden behind the purple noisy arrow.",
+       "object": "fullArrow",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Same issue as the default view: near the minimum both step arrows are too short to see (hidden by the host), so the noisy-versus-true direction can't be compared while the run is going.",
+       "object": "noisyArrow",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The trail, recorded every 3 steps, shows a nearly straight path to the edge instead of the planned back-and-forth bounce at the top learning rate.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13922,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4576,
+   "output_tokens_details": {
+    "thinking_tokens": 2671
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_39828bf0bd6648ecaf70c743da16d5b3-review-4",
+   "status": "settled",
+   "costMicros": 147629,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793820620930,
+  "attempt": 1,
+  "repairs": 3,
+  "artifactHash": "8ddc4bc0152fa54db8c440fb509f8a3770409ed1b5796ccfa4ceb12666a9ddcc",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "noisyArrow",
+       "message": "aim() rescales both step arrows every step so the longer one is always 0.9 units long (f = ARW/m). The scale changes from frame to frame, so arrow length never shows the real step size. Raising the learning rate or reaching the flat bottom leaves the arrows the same length, which contradicts the plan's 'longer steps' teaching. Draw each step as rate × gradient times one fixed, disclosed scale.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "ball",
+       "message": "Dragging only moves the start point across the valley (w2); w1 stays fixed at 2.2. The plan says the ball can be dragged to a new start point on the surface. The assumptions disclose this limit.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "fullArrow",
+       "message": "Near the minimum, the full-batch (true downhill) arrow and its label are gone. Under the per-step rescale it is 0.158 long, with a head 0.28 wide (width scale 1), so the host hides it. The plan promises the thin true-direction arrow at every step, and comparing it with the noisy arrow near the bottom is the core lesson. Use a fixed scale and a thinner head so it stays visible.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "noisyArrow",
+       "message": "Both arrows are rescaled every step so the longer one is always 0.9 units long, so arrow length does not track the true step (rate × gradient). This needs one fixed, disclosed scale.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "fullArrow",
+       "message": "Only the noisy arrow is visible, so the learner cannot see how far the noisy step swings from the true downhill direction at this state.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "noisyArrow",
+       "message": "At learning rate 0.5 the real steps are several units long, but the arrows are still rescaled to 0.9. The arrows hide the large steps that cause the bounce. Use one fixed, disclosed scale.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "trail",
+       "message": "The bounce trail covers the middle of the bowl. The 'Lowest loss' marker and the 'Full-batch step' and 'Lowest loss' labels sit on top of the orange segments and are hard to separate. Thinner or fading older trail segments, or moving the labels off the path, would keep the minimum and the arrows readable.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "noisyArrow",
+       "message": "The same problem as v0-s0: arrow length is rescaled every step and is not a fixed, disclosed scale of the step.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "fullArrow",
+       "message": "The full-batch arrow is hidden near the minimum because it is too short for its head. Only the noisy arrow shows, so the true and noisy directions cannot be compared.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "fullArrow",
+       "message": "The true-direction arrow and its label are missing from this view.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "noisyArrow",
+       "message": "Arrows are rescaled every step, so their length does not show the large steps at learning rate 0.5. The low end of the learning rate (0.01) and the other batch sizes were not sampled.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "trail",
+       "message": "The dense bounce trail crosses the 'Lowest loss' label and comes near the arrow labels.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 14059,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3875,
+   "output_tokens_details": {
+    "thinking_tokens": 2315
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_39828bf0bd6648ecaf70c743da16d5b3-review-7",
+   "status": "settled",
+   "costMicros": 134157,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793820753985,
+  "attempt": 1,
+  "repairs": 4,
+  "artifactHash": "2404c31705a743787cbe2fc7aca57e23e67b8cb0959a45e34cf4128c2e6146de",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "In the default view at the start, the two arrows (the main comparison between the true downhill direction and the noisy step) are tiny next to the ball. The purple noisy arrow barely shows past the dark full-batch arrow, and both labels are much bigger than the arrows they name. Make the arrows thinner and higher-contrast, frame the camera closer to the ball and arrows, or place the labels so the arrows stay readable.",
+       "object": "noisyArrow",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The approved plan draws one trail marker every 5 steps, at most 60. The artifact marks every step, up to 300. The assumptions disclose this, but it reverses a value the plan settled.",
+       "object": "trail",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan lets the learner drag the ball to any starting point on the surface. The artifact allows dragging across the valley (x) only. This is disclosed, but it narrows the promised interaction. Dragging, 'Run again' and the kept path were not sampled.",
+       "object": "ball",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The run is still going, but the host hid both arrows: the noisy arrow is 0.141 long and the full-batch arrow 0.0247, both shorter than their 0.28 diameter. Near the bottom, where noise matters most compared with the true gradient, the learner sees no arrows. That breaks the promise to show both directions at every step. Use much thinner arrows (smaller width scale) so short true-length steps can still be drawn.",
+       "object": "noisyArrow",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "With the arrows hidden, the default view shows only the ball and the trail. The noisy-versus-true comparison the scene teaches cannot be read in this state.",
+       "object": "fullArrow",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "At learning rate 0.5 the trail is a tangle of about 30 long crossing straight lines spread over the whole bowl, and the 'Lowest loss' label sits on top of them. The learner cannot pick out the promised side-to-side bounce. Consider fading old segments, drawing only the most recent steps at high rates, or moving the label off the trail.",
+       "object": "trail",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Each trail segment is a straight chord between two lifted step points. At large steps the chords float well above the bowl instead of following the surface.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Same state as v0-s1: the run is still going, but both step arrows are hidden because they are shorter than their diameter, so no direction comparison shows near the minimum.",
+       "object": "noisyArrow",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "From the side, the long trail chords from edge-to-edge bounces visibly float above the surface instead of lying on it.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 14085,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3904,
+   "output_tokens_details": {
+    "thinking_tokens": 2584
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_39828bf0bd6648ecaf70c743da16d5b3-review-9",
+   "status": "settled",
+   "costMicros": 134841,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

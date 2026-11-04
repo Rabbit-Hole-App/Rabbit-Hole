@@ -1,0 +1,38 @@
+{
+  "calls": [
+    {
+      "again": false,
+      "kind": "artifact",
+      "keys": [
+        "kind",
+        "artifact"
+      ],
+      "artifactType": "object",
+      "chars": 5123,
+      "head": "{\"kind\":\"artifact\",\"artifact\":{\"title\":\"Token to Goal: 3 by 3 Grid Puzzle\",\"description\":\"A flat 3 by 3 board of grey tiles seen from the front and above. A red sphere token starts on the bottom-left square. A raised gold disc marks the goal on the top-right square. Up, Down, Left and Right buttons move the token one square at a time. Hint shows a blue arrow on the token pointing along a move that brings it one step closer to the goal. Readouts show the moves made and the steps still left to the goal.\",\"experience\":\"game\",\"behavior\":\"rules\",\"controlProfile\":\"inspect\",\"scene\":{\"materials\":[{\"id\":\"tileA\",\"color\":\"#c9ccd1\"},{\"id\":\"tileB\",\"color\":\"#b3b7bd\"},{\"id\":\"base\",\"color\":\"#8a8f96\"},{\"id\":\"tok\",\"color\":\"#d6453d\"},{\"id\":\"gold\",\"color\":\"#e0a92a\"},{\"id\":\"hintM\",\"color\":\"#2f6fd6\"}],\"geometries\":[{\"id\":\"tile\",\"kind\":\"box\",\"size\":[1,0.1,1]},{\"id\":\"baseG\",\"kind\":\"box\",\"size\":[3.6,0.12,3.6]},{\"id\":\"ball\",\"kind\":\"sphere\",\"radius\":0.3,\"widthSegments\":32,\"heightSegments\":24},{\"id\":\"disc\",\"kind\":\"cylinder\",\"radius\":0.42,\"height\":0.06,\"radialSegments\":32},{\"id\":\"arr\",\"kind\":\"arrow\",\"length\":0.9},{\"id\":\"goalL\",\"kind\":\"label\",\"text\":\"Goal\"},{\"id\":\"tokL\",\"kind\":\"label\",\"text\":\"Token\"}],\"nodes\":[{\"id\":\"board\",\"parent\":null},{\"id\":\"base\",\"parent\":\"board\",\"geometry\":\"baseG\",\"material\":\"base\",\"position\":[0,-0.11,0]},{\"id\":\"t00\",\"parent\":\"board\",\"geometry\":\"tile\",\"material\":\"tileA\",\"position\":[-1.1,0,1.1]},{\"id\":\"t10\",\"parent\":\"board\",\"geometry\":\"tile\",\"material\":\"tileB\",\"position\":[0,0,1.1]},{\"id\":\"t20\",\"parent\":\"board\",\"geometry\":\"tile\",\"material\":\"tileA\",\"position\":[1.1,0,1.1]},{\"id\":\"t01\",\"parent\":\"board\",\"geometry\":\"tile\",\"material\":\"tileB\",\"position\":[-1.1,0,0]},{\"id\":\"t11\",\"parent\":\"board\",\"geometry\":\"tile\",\"material\":\"tileA\",\"position\":[0,0,0]},{\"id\":\"t21\",\"parent\":\"board\",\"geometry\":\"tile\",\"material\":\"tileB\",\"position\":[1.1,0,0]},{\"id\":\"t02\",\"parent\":\"board\",\"geometry\":\"tile\",\"material\":\"tileA\",\"position\":[-1.1,0,-1.1]},{\"id\":\"t12\",\"parent\":\"board\",\"geometry\":\"tile\",\"material\":\"tileB\",\"position\":[0,0,-1.1]},{\"id\":\"t22\",\"parent\":\"board\",\"geometry\":\"tile\",\"material\":\"tileA\",\"position\":[1.1,0,-1.1]},{\"id\":\"goal\",\"name\":\"Goal square\",\"parent\":\"board\",\"geometry\":\"disc\",\"material\":\"gold\",\"position\":[1.1,0.08,-1.1]},{\"id\":\"goalLabel\",\"parent\":\"goal\",\"geometry\":\"goalL\",\"position\":[0,0.05,-0.45]},{\"id\":\"token\",\"name\":\"Token\",\"parent\":\"board\",\"geometry\":\"ball\",\"material\":\"tok\",\"position\":[-1.1,0.35,1.1]},{\"id\":\"tokLabel\",\"parent\":\"token\",\"geometry\":\"tokL\",\"position\":[-0.3,0,0]},{\"id\":\"hint\",\"name\":\"Hint arrow\",\"parent\":\"board\",\"geometry\":\"arr\",\"material\":\"hintM\",\"position\":[-1.1,0.35,1.1],\"visible\":false}]},\"parameters\":[],\"actions\":[{\"id\":\"up\",\"label\":\"Up\"},{\"id\":\"down\",\"label\":\"Down\"},{\"id\":\"left\",\"label\":\"Left\"},{\"id\":\"right\",\"label\":\"Right\"},{\"id\":\"hint\",\"label\":\"Hint\"}],\"keys\":{\"up\":\"up\",\"down\":\"down\",\"left\":\"left\",\"right\":\"right\"},\"readouts\":[{\"id\":\"moves\",\"label\":\"Moves made\",\"decimals\":0},{\"id\":\"dist\",\"label\":\"Steps to goal\",\"decimals\":0}],\"seed\":1,\"camera\":",
+      "stopReason": "tool_use",
+      "blocks": [
+        {
+          "type": "thinking"
+        },
+        {
+          "type": "tool_use",
+          "name": "animation_artifact",
+          "chars": 5162
+        }
+      ],
+      "stripped": [
+        {
+          "path": "artifact.scene.nodes.12",
+          "key": "placement",
+          "why": "a label geometry field on a node"
+        },
+        {
+          "path": "artifact.scene.nodes.14",
+          "key": "placement",
+          "why": "a label geometry field on a node"
+        }
+      ]
+    }
+  ]
+}

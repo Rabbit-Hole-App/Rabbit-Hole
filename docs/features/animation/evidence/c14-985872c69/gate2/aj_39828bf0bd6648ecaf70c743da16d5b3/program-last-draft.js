@@ -1,0 +1,52 @@
+const K=0.25,R=0.14,XW=2,ZW=2.5,SIG=2,MAXN=300,SC=1,START=[1.2,2.2];
+const loss=(x,z)=>0.5*(z*z+4*x*x);
+const cl=(v,m)=>Math.max(-m,Math.min(m,v));
+const rnd=n=>{const s=Math.sin(n*12.9898+78.233)*43758.5453;return s-Math.floor(s);};
+const gauss=n=>Math.sqrt(-2*Math.log(Math.max(1e-9,rnd(n))))*Math.cos(2*Math.PI*rnd(n+0.37));
+const sdOf=i=>i.batchSize==='full'?0:SIG/Math.sqrt(Number(i.batchSize));
+function grads(s,i,seed){const sd=sdOf(i),k=(seed||0)*7919+s.run*2003+s.step*3;return{tx:4*s.x,tz:s.z,nx:4*s.x+sd*gauss(k+1),nz:s.z+sd*gauss(k+2)};}
+const done=s=>s.st!=='running'&&s.st!=='paused';
+function advance(s,i,seed){
+  if(done(s))return s;
+  const g=grads(s,i,seed),lr=i.learningRate;
+  let x=s.x-lr*g.nx,z=s.z-lr*g.nz;
+  const edge=Math.abs(x)>XW||Math.abs(z)>ZW;
+  x=cl(x,XW);z=cl(z,ZW);
+  const step=s.step+1,calm=loss(x,z)<0.1?s.calm+1:0;
+  const path=s.path.concat([[x,z]]);
+  const st=calm>=5?'converged':step>=MAXN?'stopped':s.st;
+  return{...s,x,z,step,calm,path,st,edge};
+}
+const fresh=(run,start,kept)=>({x:start[0],z:start[1],start,step:0,run,calm:0,path:[start],kept,st:'paused',edge:false});
+export function initialState(){return fresh(0,START,[]);}
+export function reduce({state:s,event:e,inputs,seed}){
+  if(e.type==='step')return s.st!=='running'||e.tick%3?s:advance(s,inputs,seed);
+  if(e.type==='drag_move'||e.type==='drag_end')return fresh(s.run,[cl(e.value,XW),s.start[1]],s.kept);
+  if(e.type!=='action')return s;
+  if(e.action==='play')return done(s)?s:{...s,st:'running'};
+  if(e.action==='pause')return s.st==='running'?{...s,st:'paused'}:s;
+  if(e.action==='stepOnce')return advance(done(s)?s:{...s,st:'paused'},inputs,seed);
+  if(e.action==='runAgain')return{...fresh(s.run+1,s.start,s.step>0?s.path:s.kept),st:'running'};
+  return s;
+}
+const lift=p=>[p[0],K*loss(p[0],p[1])+0.04,p[1]];
+function aim(s,dx,dz,w,show){
+  const hx=dx*SC,hz=dz*SC;
+  if(!show||Math.hypot(hx,hz)<1e-6)return{visible:false};
+  const dy=K*(loss(s.x+hx,s.z+hz)-loss(s.x,s.z)),v=Math.hypot(hx,dy,hz);
+  const ux=hx/v,uy=dy/v,uz=hz/v,qn=Math.hypot(uz,ux,1+uy);
+  return{visible:true,quaternion:[uz/qn,0,-ux/qn,(1+uy)/qn],scale:[w,v,w]};
+}
+export function evaluate({inputs,state,seed}){
+  const s=state||initialState(),L=loss(s.x,s.z),g=grads(s,inputs,seed),lr=inputs.learningRate,live=!done(s);
+  return{
+    nodes:{
+      ball:{position:[s.x,K*L+R,s.z]},
+      noisyArrow:aim(s,-lr*g.nx,-lr*g.nz,0.9,live),
+      fullArrow:aim(s,-lr*g.tx,-lr*g.tz,0.45,live),
+      trail:{points:s.path.map(lift)},
+      ghost:{points:s.kept.map(lift)}
+    },
+    readouts:{loss:L,steps:s.step,noise:sdOf(inputs),status:s.st==='running'&&s.edge?'held at edge':s.st}
+  };
+}

@@ -1,0 +1,216 @@
+[
+ {
+  "messageId": "328",
+  "role": "assistant",
+  "content": "\"Stochastic gradient descent on a loss surface\" needs a change before it can be made. By our estimate this plan is too large to build and check: it draws a trail of 300 markers and a kept comparison path of the same length. An estimate can be wrong. Nothing has been built, and no AI credits have been used on building. Choose below: each option says exactly what changes, and nothing is built until you press Generate.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_39828bf0bd6648ecaf70c743da16d5b3:choice:eeea5a015c8dd35e54d1ca9089821a90a902e09ca51ec7770f1502aea42ca74f",
+   "animationChoice": {
+    "jobId": "aj_39828bf0bd6648ecaf70c743da16d5b3",
+    "attempt": 1,
+    "kind": "size",
+    "key": "aj_39828bf0bd6648ecaf70c743da16d5b3:choice:eeea5a015c8dd35e54d1ca9089821a90a902e09ca51ec7770f1502aea42ca74f",
+    "alternatives": [
+     {
+      "id": "fewer_markers",
+      "title": "Draw a shorter trail",
+      "changes": [
+       "Changed: the trail draws 60 markers, one every 5 steps, instead of 300; every step still runs.",
+       "Changed: the kept comparison path also draws at most 60 markers."
+      ]
+     },
+     {
+      "id": "no_kept_path",
+      "title": "Leave out the kept path",
+      "changes": [
+       "Changed: the trail draws 100 markers, one every 3 steps, instead of 300; every step still runs.",
+       "Changed: the kept comparison path is left out."
+      ]
+     }
+    ],
+    "chosen": "fewer_markers"
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "328"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "329",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. It differs from what you asked: Changed: the trail draws 60 markers, one every 5 steps, instead of 300; every step still runs. Changed: the kept comparison path also draws at most 60 markers. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-b4cb4707d34b109e",
+    "version": 1,
+    "command": "animation",
+    "title": "Stochastic gradient descent on a loss surface",
+    "description": "A long, narrow bowl-shaped surface stands for the loss (the error a model makes) over two weights. A ball starts high on the slope and steps downhill. At each step a thin arrow shows the true steepest-downhill direction. A thicker arrow shows the noisy estimate the ball actually follows, as if it came from a small random batch of data. The ball leaves a zigzag trail. You can change the step size and batch size, then compare the wobbly path of stochastic gradient descent with the smooth path of full-batch descent.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-c103119a",
+     "job": "aj_39828bf0bd6648ecaf70c743da16d5b3",
+     "plan_hash": "aff004a889fb7b7b88b37e875aa3f04c117c39986e2ebf48cbbd8254d3b6a0b9",
+     "request": "stochastic gradient descent",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate (step size)",
+        "min": 0.01,
+        "max": 0.5,
+        "step": 0.01,
+        "default": 0.1
+       },
+       {
+        "type": "select",
+        "label": "Batch size",
+        "options": [
+         {
+          "value": "1",
+          "label": "1 example (noisiest)"
+         },
+         {
+          "value": "4",
+          "label": "4 examples"
+         },
+         {
+          "value": "16",
+          "label": "16 examples"
+         },
+         {
+          "value": "64",
+          "label": "64 examples"
+         },
+         {
+          "value": "full",
+          "label": "Full batch (no noise)"
+         }
+        ],
+        "default": "4"
+       }
+      ],
+      "interactions": [
+       "Play, pause or advance one step at a time to watch the ball move.",
+       "Raise the learning rate to see longer steps. Near the top of the range the ball bounces back and forth across the narrow valley. Lower it to see slow, steady creeping.",
+       "Change the batch size: smaller batches make the step arrow swing further from the true downhill arrow and the trail more jagged. Full batch gives a smooth path.",
+       "Drag the ball to a new starting point on the surface before stepping.",
+       "Use 'Run again, keep old trail' to send the ball from the start point again while the previous path stays visible, faded, for comparison.",
+       "Read the step count, the current loss and the typical size of the gradient noise."
+      ],
+      "notices": [
+       "Changed: the trail draws 60 markers, one every 5 steps, instead of 300; every step still runs.",
+       "Changed: the kept comparison path also draws at most 60 markers."
+      ],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793906556,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "stochastic gradient descent",
+    "prompt": "A long, narrow bowl-shaped surface stands for the loss (the error a model makes) over two weights. A ball starts high on the slope and steps downhill. At each step a thin arrow shows the true steepest-downhill direction. A thicker arrow shows the noisy estimate the ball actually follows, as if it came from a small random batch of data. The ball leaves a zigzag trail. You can change the step size and batch size, then compare the wobbly path of stochastic gradient descent with the smooth path of full-batch descent.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Stochastic gradient descent is about how noisy, cheap steps still get down to the bottom. Changing the step size and batch size while the path forms shows how noise and step size together shape that path.",
+     "Behavior: rules",
+     "Controls: manipulate",
+     "Interaction: Play, pause or advance one step at a time to watch the ball move.",
+     "Interaction: Raise the learning rate to see longer steps. Near the top of the range the ball bounces back and forth across the narrow valley. Lower it to see slow, steady creeping.",
+     "Interaction: Change the batch size: smaller batches make the step arrow swing further from the true downhill arrow and the trail more jagged. Full batch gives a smooth path.",
+     "Interaction: Drag the ball to a new starting point on the surface before stepping.",
+     "Interaction: Use 'Run again, keep old trail' to send the ball from the start point again while the previous path stays visible, faded, for comparison.",
+     "Interaction: Read the step count, the current loss and the typical size of the gradient noise.",
+     "Parameter: Learning rate (step size), 0.01 to 0.5, default 0.1",
+     "Parameter: Batch size, one of 1 example (noisiest), 4 examples, 16 examples, 64 examples, Full batch (no noise)",
+     "Goal: Stochastic gradient descent follows a noisy estimate of the downhill direction. Smaller batches add more noise, and the step size controls both speed and stability. The loss still falls on average."
+    ],
+    "assumptions": [
+     "Illustration: a made-up bowl-shaped loss with simulated gradient noise, not a real model trained on data.",
+     "The loss is half of (x² + 4y²). It is steep across the valley and gentle along it, so the bottom is at the center.",
+     "Each step moves the ball by minus the learning rate times the noisy gradient. The noisy gradient is the true gradient plus random noise whose size shrinks as one over the square root of the batch size. Full batch adds no noise.",
+     "The noise comes from the scene's fixed random seed, so after Reset the same sequence of noise is drawn again.",
+     "Each run stops after 300 steps. If a step would leave the drawn area, the ball is held at the edge.",
+     "The trail draws one marker every 5 steps, at most 60 markers; every step still runs."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Changed: the trail draws 60 markers, one every 5 steps, instead of 300; every step still runs.",
+     "Changed: the kept comparison path also draws at most 60 markers.",
+     "Single noisy steps can go uphill. The loss falls only on average, not at every step.",
+     "A real loss surface has millions of dimensions, plus flat regions and many low points. This one is a simple two-weight bowl with a single lowest point.",
+     "Fixed learning rates only: no momentum, no adaptive optimizers and no schedule that shrinks the step over time."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-c103119a"
+    },
+    "quote": null,
+    "review_hash": "e9edc6fd5b58f2fe087f7cc98846767341e4da5e9c7a59f145825771c3b6eee6",
+    "sig": "v3.e6a76f667239f1ad703d18d46695a31fe09757abc64ff2d5bda4142745cdac5a",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 591,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.e6a76f667239f1ad703d18d46695a31fe09757abc64ff2d5bda4142745cdac5a",
+    "used": {
+     "version": 1,
+     "key": "aj_39828bf0bd6648ecaf70c743da16d5b3"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "329"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "332",
+  "role": "assistant",
+  "content": "\"Stochastic gradient descent on a loss surface\" was not finished. The visual review found 5 serious problems with how the scene is drawn or computed. You have not been charged. It was corrected automatically four times, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate. Your request and plan are kept.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_39828bf0bd6648ecaf70c743da16d5b3:1",
+   "alternativeOf": null,
+   "alternatives": [
+    "332"
+   ],
+   "feedback": null
+  }
+ }
+]

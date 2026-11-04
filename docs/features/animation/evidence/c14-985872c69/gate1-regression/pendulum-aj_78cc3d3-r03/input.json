@@ -1,0 +1,26 @@
+{
+  "calls": [
+    {
+      "again": false,
+      "kind": "artifact",
+      "keys": [
+        "kind",
+        "artifact"
+      ],
+      "artifactType": "object",
+      "chars": 3309,
+      "head": "{\"kind\":\"artifact\",\"artifact\":{\"title\":\"Pendulum length and period\",\"description\":\"A metal stand holds a pivot near its top. A dark string hangs from the pivot with a red bob at its end, swinging left and right by a small, fixed angle. The length slider makes the string longer or shorter, from 0.5 to 3 metres. A longer string swings more slowly. Readouts show the period in seconds and the current length.\",\"experience\":\"experiment\",\"behavior\":\"analytical\",\"controlProfile\":\"inspect\",\"scene\":{\"materials\":[{\"id\":\"stand\",\"color\":\"#8a8f98\"},{\"id\":\"metal\",\"color\":\"#c8cbd0\"},{\"id\":\"string\",\"color\":\"#2b2b33\"},{\"id\":\"bob\",\"color\":\"#d6452f\"},{\"id\":\"floor\",\"color\":\"#d9d6cf\"}],\"geometries\":[{\"id\":\"base\",\"kind\":\"box\",\"size\":[1.8,0.06,0.9]},{\"id\":\"post\",\"kind\":\"cylinder\",\"radius\":0.04,\"height\":3.4,\"radialSegments\":24},{\"id\":\"beam\",\"kind\":\"box\",\"size\":[0.9,0.08,0.08]},{\"id\":\"pin\",\"kind\":\"sphere\",\"radius\":0.045,\"widthSegments\":24,\"heightSegments\":16},{\"id\":\"str\",\"kind\":\"cylinder\",\"radius\":0.022,\"height\":1,\"radialSegments\":16},{\"id\":\"ball\",\"kind\":\"sphere\",\"radius\":0.13,\"widthSegments\":32,\"heightSegments\":24},{\"id\":\"bobLabel\",\"kind\":\"label\",\"text\":\"Bob\",\"placement\":\"right\"}],\"nodes\":[{\"id\":\"standG\",\"parent\":null},{\"id\":\"baseN\",\"parent\":\"standG\",\"geometry\":\"base\",\"material\":\"floor\",\"position\":[-0.2,0.03,0]},{\"id\":\"postN\",\"parent\":\"standG\",\"geometry\":\"post\",\"material\":\"stand\",\"position\":[-0.7,1.73,0]},{\"id\":\"beamN\",\"parent\":\"standG\",\"geometry\":\"beam\",\"material\":\"stand\",\"position\":[-0.27,3.43,0]},{\"id\":\"pinN\",\"parent\":\"standG\",\"geometry\":\"pin\",\"material\":\"metal\",\"position\":[0,3.4,0]},{\"id\":\"arm\",\"parent\":null,\"position\":[0,3.4,0]},{\"id\":\"strN\",\"parent\":\"arm\",\"name\":\"String\",\"geometry\":\"str\",\"material\":\"string\",\"position\":[0,-0.5,0]},{\"id\":\"bobN\",\"parent\":\"arm\",\"name\":\"Bob\",\"geometry\":\"ball\",\"material\":\"bob\",\"position\":[0,-1,0]},{\"id\":\"bobL\",\"parent\":\"bobN\",\"geometry\":\"bobLabel\",\"position\":[0.15,0,0]}]},\"parameters\":[{\"type\":\"number\",\"id\":\"length\",\"label\":\"Pendulum length\",\"unit\":\"m\",\"min\":0.5,\"max\":3,\"step\":0.1,\"default\":1}],\"actions\":[],\"readouts\":[{\"id\":\"period\",\"label\":\"Period\",\"unit\":\"s\",\"decimals\":2},{\"id\":\"lenR\",\"label\":\"Length\",\"unit\":\"m\",\"decimals\":1}],\"seed\":0,\"camera\":{\"position\":[2.2,2.4,6.2],\"target\":[0,1.8,0],\"fov\":45},\"assumptions\":[\"Idealized model: small swings, period T = 2π√(L/g) with g = 9.81 m/s²; exact in the model, approximately true of a real pendulum.\",\"The string is light and doesn't stretch, and the bob is treated as a single point at the string's end.\",\"No air resistance or friction, so the swing never dies down.\",\"The swing angle is fixed at 10°, small enough that the formula is accurate to about 0.2%.\",\"The angle is computed from the timeline time, so changing the length (or the 60 s loop wrapping) restarts the swing phase from the current time.\"],\"timeline\":{\"duration\":60,\"loop\":true},\"program\":{\"source\":\"export function evaluate({ inputs, time }) {\\n  const L = inputs.length;\\n  const T = 2 * Math.PI * Math.sqrt(L / 9.81);\\n  const a = (",
+      "stopReason": "tool_use",
+      "blocks": [
+        {
+          "type": "thinking"
+        },
+        {
+          "type": "tool_use",
+          "name": "animation_artifact",
+          "chars": 3309
+        }
+      ]
+    }
+  ]
+}

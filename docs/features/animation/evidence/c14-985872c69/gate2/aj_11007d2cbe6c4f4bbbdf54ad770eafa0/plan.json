@@ -1,0 +1,85 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Gradient descent: a ball stepping down a loss surface",
+ "description": "A curved loss surface with a long, narrow valley and two dips of different depth sits on a grid, with a ball on its slope. Each step moves the ball a short way downhill: an arrow on the ball points in the steepest downhill direction (the negative gradient), and a trail records every position. You can take one step at a time or let it run, and watch the loss and slope readouts fall as the ball settles in a dip. With a large learning rate it zigzags or flies out, and with momentum it rolls past where plain steps would stop.",
+ "experience": "experiment",
+ "reason": "Gradient descent is a step-by-step process. When you control the steps and the step size, you can see how each move follows the local slope and why the step size decides between slow progress, steady convergence and overshooting.",
+ "behavior": "rules",
+ "controlProfile": "manipulate",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate (step size)",
+   "min": 0.01,
+   "max": 0.4,
+   "step": 0.01,
+   "default": 0.05
+  },
+  {
+   "type": "number",
+   "id": "momentum",
+   "label": "Momentum",
+   "min": 0,
+   "max": 0.9,
+   "step": 0.05,
+   "default": 0
+  },
+  {
+   "type": "toggle",
+   "id": "showArrow",
+   "label": "Show downhill arrow",
+   "default": true
+  }
+ ],
+ "interactions": [
+  "Press Step to move the ball by exactly one update and see the trail grow by one point",
+  "Press Run to keep taking steps automatically, and Pause to stop",
+  "Drag the ball to a new starting point on the surface. This clears the trail and the step count",
+  "Change the learning rate: small values creep slowly, around 0.15 and above the ball zigzags across the narrow valley, and above 0.25 it bounces out instead of settling",
+  "Raise momentum to make each step carry part of the previous one, so the ball rolls through shallow areas and can coast past the first dip"
+ ],
+ "assumptions": [
+  "Illustration: the surface is a made-up formula, not the loss of a real trained model.",
+  "Each step follows the rule: new position = old position − learning rate × slope (gradient), plus momentum × previous move when momentum is above zero.",
+  "The slope is computed exactly from the surface formula, with no noise from sampled data.",
+  "The valley is about eight times more sharply curved across its width than along its length, which makes zigzagging visible.",
+  "The ball's height always matches the surface at its current position. It is a marker for the current parameters, not a physical ball with weight or friction.",
+  "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+ ],
+ "limitations": [
+  "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+  "Real loss surfaces have thousands or millions of dimensions. This one has only two, so you can see it.",
+  "A single step can raise the loss when the learning rate is large or momentum is high. The step only reliably lowers the loss for small learning rates.",
+  "The run stops after 200 steps, or earlier once the slope is nearly zero.",
+  "The ball moves in discrete jumps along the steps, not as a continuous roll."
+ ],
+ "learningGoal": "Gradient descent moves step by step against the local slope. The learning rate sets the step size, which decides between slow progress, steady convergence and overshooting, and momentum changes the path the ball takes.",
+ "requiredCapabilities": [
+  "parameters",
+  "actions",
+  "step",
+  "drag",
+  "labels",
+  "readouts"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.05,
+    0.3
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 50
+  }
+ ]
+}

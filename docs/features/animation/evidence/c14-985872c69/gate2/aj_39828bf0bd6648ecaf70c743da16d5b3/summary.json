@@ -1,0 +1,25 @@
+{
+ "n": 1,
+ "phrasing": "stochastic gradient descent",
+ "session": "g2-202611041920-1@example.com",
+ "sha": "985872c6939b83adcfc9f106e7b3e9e89b125618",
+ "version": "1ad1061b-977b-4240-9c83-87c89e4f6805",
+ "reviewIdentity": "b17ed6c0f5604e65f18245f4bbd8095173efcc75315cc166739fc79dea487445",
+ "jobId": "aj_39828bf0bd6648ecaf70c743da16d5b3",
+ "outcome": "rejected",
+ "repairs": 4,
+ "credits": 157.3501,
+ "charged": 7,
+ "artifactHash": null,
+ "note": "rounds: The visual review found 5 serious problems with how the scene is drawn or computed. You have not been charged. It was corrected automatically four times, but it",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/4, 11:32 AM",
+ "firstRound": {
+  "state": "not reviewed",
+  "serious": 0,
+  "gist": null,
+  "kind": "other",
+  "reason": "no review was reached"
+ }
+}

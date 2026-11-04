@@ -1,0 +1,63 @@
+{
+ "sha": "985872c6939b83adcfc9f106e7b3e9e89b125618",
+ "version": "1ad1061b-977b-4240-9c83-87c89e4f6805",
+ "reviewIdentity": "b17ed6c0f5604e65f18245f4bbd8095173efcc75315cc166739fc79dea487445",
+ "reviewFiles": {
+  "packages/web/render/animation3d-render.js": "fbd00504b67343a2042fca1f517c1beef6e9c7c8abd4353ba8940f2c452ab6cd",
+  "packages/control-plane/src/animation-review.js": "506700841652e1024dbaf55cb34495a8cb7717fa4aeb6eafedc811fd9c462d8a",
+  "packages/control-plane/src/animation-render.js": "398bebaeb24b72dea53b87ae161e22c0747ab0e8c01635ed9fc81ae5b50fed2a",
+  "review prompt (ANIMATION_REVIEW_SYSTEM)": "5625b692cd25a9011537426d80554284f49a68b7cefa177fefd25621b0016814"
+ },
+ "rows": [
+  {
+   "n": 1,
+   "phrasing": "stochastic gradient descent",
+   "session": "g2-202611041920-1@example.com",
+   "sha": "985872c6939b83adcfc9f106e7b3e9e89b125618",
+   "version": "1ad1061b-977b-4240-9c83-87c89e4f6805",
+   "reviewIdentity": "b17ed6c0f5604e65f18245f4bbd8095173efcc75315cc166739fc79dea487445",
+   "jobId": "aj_39828bf0bd6648ecaf70c743da16d5b3",
+   "outcome": "rejected",
+   "repairs": 4,
+   "credits": 157.3501,
+   "charged": 7,
+   "artifactHash": null,
+   "note": "rounds: The visual review found 5 serious problems with how the scene is drawn or computed. You have not been charged. It was corrected automatically four times, but it",
+   "markers": [],
+   "silentSgd": null,
+   "time": "11/4, 11:32 AM",
+   "firstRound": {
+    "state": "not reviewed",
+    "serious": 0,
+    "gist": null,
+    "kind": "other",
+    "reason": "no review was reached"
+   }
+  },
+  {
+   "n": 5,
+   "phrasing": "a ball rolling down a loss surface, step by step",
+   "session": "g2-202611041920-5@example.com",
+   "sha": "985872c6939b83adcfc9f106e7b3e9e89b125618",
+   "version": "1ad1061b-977b-4240-9c83-87c89e4f6805",
+   "reviewIdentity": "b17ed6c0f5604e65f18245f4bbd8095173efcc75315cc166739fc79dea487445",
+   "jobId": "aj_11007d2cbe6c4f4bbbdf54ad770eafa0",
+   "outcome": "rejected",
+   "repairs": 4,
+   "credits": 145.912,
+   "charged": 7,
+   "artifactHash": null,
+   "note": "rounds: The scene failed when its program ran. You have not been charged. It was corrected automatically four times, but it still did not pass. Revise plan prepares a s",
+   "markers": [],
+   "silentSgd": null,
+   "time": "11/4, 11:32 AM",
+   "firstRound": {
+    "state": "not reviewed",
+    "serious": 0,
+    "gist": null,
+    "kind": "checks",
+    "reason": "the draft failed its checks at rendering before any review"
+   }
+  }
+ ]
+}
