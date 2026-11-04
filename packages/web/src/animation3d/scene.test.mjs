@@ -506,3 +506,53 @@ test('a trail tube has a unit normal on every drawn vertex, pointing out from it
   ring(5).forEach((vertex, s) => assert.ok(new THREE.Vector3().fromBufferAttribute(geometry.attributes.normal, 5 * 8 + s).dot(vertex.clone().sub(centre)) > 0, `ring 5 vertex ${s} faces out`));
   scene.dispose();
 });
+
+// FX-AN-094 (Gate 2 on C4: the reviewer's most frequent finding was the author's own camera hiding the ball behind the bowl's near wall): a surface is a one-sided sheet.
+// Seen from outside, the near wall of a height field is its back face; it is not drawn, so the floor, marker, paths and arrows show from any camera.
+test('a surface node is drawn front side only, on its own material; every other node keeps its material', () => {
+  const artifact = primitives();
+  artifact.scene.geometries.push({ id: 'floorPlane', kind: 'plane', width: 1, height: 1 });
+  artifact.scene.nodes.push({ id: 'shared', geometry: 'floorPlane', material: 'bowlBlue' }); // another node on the surface's material
+  const scene = built(artifact), mesh = drawn(scene, 'bowl').children[0];
+  assert.equal(mesh.material.side, THREE.FrontSide);
+  for (const id of ['shared', 'ball', 'trail']) assert.equal(drawn(scene, id).material.side, THREE.DoubleSide, `${id} keeps its material`);
+  assert.notEqual(mesh.material, drawn(scene, 'shared').material, 'the surface has its own clone, so the shared one stays double-sided');
+  // The clone follows the frame's material updates, as the shared material does.
+  scene.apply({ materials: { bowlBlue: { color: '#ff0000', opacity: 0.5 } } });
+  for (const material of [mesh.material, drawn(scene, 'shared').material]) assert.deepEqual([material.color.getHexString(), material.opacity, material.transparent], ['ff0000', 0.5, true]);
+  scene.apply({ materials: { bowlBlue: { opacity: 1 } } });
+  assert.deepEqual([mesh.material.opacity, mesh.material.transparent], [1, false]);
+  // Freed once, with the scene.
+  let disposed = 0;
+  mesh.material.addEventListener('dispose', () => { disposed += 1; });
+  scene.dispose();
+  assert.deepEqual([disposed, scene.owned()], [1, 0]);
+});
+
+test('from a low camera outside the bowl the near wall does not hide the ball: the ray to it meets nothing nearer', () => {
+  const golden = JSON.parse(readFileSync(new URL('./testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
+  const scene = built(golden), ball = [0.3, 0.8703864635259788, 1.6]; // the golden's ball at its start (learning rate 0.1): inside the bowl, below the rim
+  scene.apply({ nodes: { ball: { position: ball } } });
+  scene.root.updateWorldMatrix(true, true);
+  const from = new THREE.Vector3(7, 4, 0.5), to = new THREE.Vector3(...ball), ray = new THREE.Raycaster(from, to.clone().sub(from).normalize()), reach = from.distanceTo(to);
+  const hits = ray.intersectObject(drawn(scene, 'bowl').children[0]);
+  assert.ok(hits.every(hit => hit.distance > reach), `the surface's first hit is ${hits[0]?.distance} but the ball is at ${reach}`);
+  scene.dispose();
+});
+
+// FX-AN-095 by geometry: a contour line is lifted a hair above the surface, on its front side. With the surface front-side only, no surface is ever between a camera and a contour
+// point it can see: the first surface hit on the ray to each point is at the point or beyond it (the near wall, seen from its back, is not there to hide it).
+test('no contour point is hidden behind the surface from a low camera outside the bowl', () => {
+  const golden = JSON.parse(readFileSync(new URL('./testdata/sgd-golden.json', import.meta.url), 'utf8')).artifact;
+  const scene = built(golden);
+  scene.root.updateWorldMatrix(true, true);
+  const surface = drawn(scene, 'bowl'), mesh = surface.children[0], points = surface.children[1].geometry.attributes.position, from = new THREE.Vector3(7, 4, 0.5);
+  const at = new THREE.Vector3();
+  assert.ok(points.count > 100, 'the golden has contour lines');
+  for (let i = 0; i < points.count; i += 1) {
+    at.fromBufferAttribute(points, i);
+    const reach = from.distanceTo(at), hit = new THREE.Raycaster(from, at.clone().sub(from).normalize()).intersectObject(mesh)[0];
+    assert.ok(!hit || hit.distance >= reach - 1e-4, `contour point ${i} is hidden: the surface is hit at ${hit?.distance}, the point at ${reach}`);
+  }
+  scene.dispose();
+});
