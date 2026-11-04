@@ -557,6 +557,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
       clampCeiling: () => ceiling, // the highest world y a clamp held a node to in the last frame, or null: the camera fit does not follow a trail above it (framing.js)
       setOptionalLabels(on) { optional = !!on; }, // applied at the next layoutLabels
       hasOptionalLabels: () => [...labels.values()].some(sprite => !sprite.userData.label.essential),
+      hasSurface: () => tops.size > 0, // framing.js: a scene with a surface node is viewed from at least FRAMING.surfaceElevation
       dispose() { root.removeFromParent(); root.clear(); [...owned].forEach(release); },
       owned: () => owned.size,
     },
