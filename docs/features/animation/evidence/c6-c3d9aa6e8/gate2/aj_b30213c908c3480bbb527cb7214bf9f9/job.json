@@ -1,0 +1,279 @@
+{
+ "id": "aj_b30213c908c3480bbb527cb7214bf9f9",
+ "version": 1,
+ "boardId": "81639c1c-a302-4fa6-b83d-fcaff8b1f0f1",
+ "cardId": "760dde0b-1fdf-4f68-810f-ebefac445945",
+ "stage": "ready",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 2,
+ "stopReason": "accepted",
+ "failure": null,
+ "recovery": [],
+ "outcome": "changes",
+ "choiceOpen": false,
+ "threadId": "canvaschat-683c97c9-c95d-4ee7-9a20-a456f16a80a1",
+ "chatPending": false,
+ "usage": {
+  "credits": 95,
+  "unknown": false
+ },
+ "result": {
+  "jobId": "aj_b30213c908c3480bbb527cb7214bf9f9",
+  "resultId": "ar_e786768ce87c4202ba1dad4b2bb2e6d6",
+  "cardId": "760dde0b-1fdf-4f68-810f-ebefac445945",
+  "canvas": {
+   "boardId": "81639c1c-a302-4fa6-b83d-fcaff8b1f0f1"
+  },
+  "requestRef": "4754d9b4e54a093c",
+  "revision": "av_40fe98ce6fc2462f8787adae7f5fc6d9",
+  "planHash": "268164253e951823236c8940e9912ba0d78513d1a14cba0e24ecd9af75295bed",
+  "sources": "643d5437104296e2",
+  "artifactHash": "a4736384cc3c64ccf7e95d8932e2a04509e591d9c6110c547db3860ef6cec9b7",
+  "experience": "experiment",
+  "capabilityVersion": "animation-capabilities/1",
+  "policyVersion": 1
+ },
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Stochastic gradient descent on a loss surface",
+  "description": "A curved loss surface shaped like a stretched bowl has one lowest point, marked with a flag. A ball takes one step at a time downhill and leaves a trail. Each step uses a noisy estimate of the slope, like slope measured on a small random batch of data. An arrow shows the noisy downhill direction the ball actually follows. You can also show a second, faint trail for plain gradient descent, which uses the exact slope, to compare a smooth path with a jittery one.",
+  "experience": "experiment",
+  "reason": "Stochastic gradient descent is easiest to understand by watching it. Try different step sizes and batch sizes and see how the path wobbles, settles or overshoots, then compare it with the smooth exact path.",
+  "behavior": "rules",
+  "controlProfile": "manipulate",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate (step size)",
+    "min": 0.02,
+    "max": 0.6,
+    "step": 0.02,
+    "default": 0.1
+   },
+   {
+    "type": "select",
+    "id": "batchSize",
+    "label": "Batch size (less noise when larger)",
+    "options": [
+     {
+      "value": "1",
+      "label": "1 example"
+     },
+     {
+      "value": "4",
+      "label": "4 examples"
+     },
+     {
+      "value": "16",
+      "label": "16 examples"
+     },
+     {
+      "value": "64",
+      "label": "64 examples"
+     },
+     {
+      "value": "full",
+      "label": "Full data (no noise)"
+     }
+    ],
+    "default": "4"
+   },
+   {
+    "type": "toggle",
+    "id": "showExact",
+    "label": "Show plain gradient descent path",
+    "default": true
+   }
+  ],
+  "interactions": [
+   "Press play to let the ball take steps one after another, or step one at a time.",
+   "Before running, drag the ball to choose a starting point on the surface.",
+   "Raise the learning rate to take bigger steps. Past about 0.5, the steep sides make it bounce back and forth further each time and drift away.",
+   "Choose a smaller batch for a jittery path that keeps wobbling near the bottom. Choose a larger batch for a smoother path, or the full data for no noise at all.",
+   "Use the action that clears the trails and returns the ball to its chosen start while keeping your settings, then compare runs.",
+   "Watch the readouts: step number, current loss, size of the slope noise, and distance from the lowest point."
+  ],
+  "assumptions": [
+   "Illustration: an invented two-variable bowl stands in for a real model's loss, and the noise is simulated, not taken from real data.",
+   "The loss is 0.5·(x² + 4y²): gentle in one direction and four times as steep in the other, with its lowest point at the origin.",
+   "Each step's slope is the exact slope plus random noise whose spread shrinks with the square root of the batch size. Full data means no noise.",
+   "The random noise comes from a fixed seed, so Reset replays exactly the same run.",
+   "The plain gradient descent path starts from the same point with the same learning rate, but uses the exact slope.",
+   "A run stops after 200 steps, or earlier if the ball leaves the edge of the surface (shown as 'diverged').",
+   "The trail draws one marker every 4 steps, at most 50 markers; every step still runs."
+  ],
+  "limitations": [
+   "Changed: the trail draws 50 markers, one every 4 steps, instead of 200; every step still runs.",
+   "Changed: the kept comparison path also draws at most 50 markers.",
+   "A real neural network's loss has millions of directions, not two, and its noise comes from real data samples.",
+   "Single noisy steps can go uphill. Only on average does the ball move toward the minimum.",
+   "Learning-rate schedules and momentum are not included, so with small batches the ball keeps wobbling near the bottom instead of settling exactly on it."
+  ],
+  "learningGoal": "Stochastic gradient descent follows a noisy estimate of the downhill direction. On average it moves toward the minimum, but single steps can go uphill. Smaller batches add more noise, and the learning rate sets both speed and stability.",
+  "requiredCapabilities": [
+   "parameters",
+   "actions",
+   "step",
+   "drag",
+   "labels",
+   "readouts"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "learningRate",
+    "values": [
+     0.1,
+     0.55
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 200
+   }
+  ]
+ },
+ "planHash": "268164253e951823236c8940e9912ba0d78513d1a14cba0e24ecd9af75295bed",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 23163,
+  "generateToResultMs": 332831,
+  "processingMs": 355944,
+  "approvalWaitMs": 4610,
+  "calls": 6,
+  "repairs": 2,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 23113,
+    "calls": 1,
+    "inputTokens": 370,
+    "outputTokens": 2117,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 4610,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 93015,
+    "calls": 1,
+    "inputTokens": 7766,
+    "outputTokens": 11303,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 64,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "rejected"
+   },
+   {
+    "stage": "repairing",
+    "ms": 42437,
+    "calls": 1,
+    "inputTokens": 7613,
+    "outputTokens": 6023,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 56,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 25564,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 49270,
+    "calls": 1,
+    "inputTokens": 13660,
+    "outputTokens": 4343,
+    "images": 6,
+    "captures": 0,
+    "outcome": "rejected"
+   },
+   {
+    "stage": "repairing",
+    "ms": 61024,
+    "calls": 1,
+    "inputTokens": 10335,
+    "outputTokens": 7687,
+    "images": 2,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 52,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 33237,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 28112,
+    "calls": 1,
+    "inputTokens": 13845,
+    "outputTokens": 2688,
+    "images": 6,
+    "captures": 0,
+    "outcome": "accepted"
+   }
+  ]
+ },
+ "createdAt": 1793765377594,
+ "updatedAt": 1793765738198
+}

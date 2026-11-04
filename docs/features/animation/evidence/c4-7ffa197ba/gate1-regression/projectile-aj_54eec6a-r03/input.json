@@ -1,0 +1,26 @@
+{
+  "calls": [
+    {
+      "again": false,
+      "kind": "artifact",
+      "keys": [
+        "kind",
+        "artifact"
+      ],
+      "artifactType": "object",
+      "chars": 8130,
+      "head": "{\"kind\":\"artifact\",\"artifact\":{\"title\":\"Projectile Target Challenge: Pick Angle and Speed\",\"description\":\"A launcher sits at the left end of a flat 70 m field with marks every 10 m. A flagged target disc sits down the field. Set the launch angle and speed, then press Launch. The ball flies along its arc and leaves a trail. When it lands, readouts show the landing distance, the miss distance and whether the shot was short or long. Your previous arc stays as a faded ghost. Hit targets at 30 m, 45 m and 18 m using no more than 10 launches.\",\"experience\":\"game\",\"behavior\":\"rules\",\"controlProfile\":\"inspect\",\"stepped\":true,\"game\":{\"objective\":\"Hit all 3 targets (30 m, 45 m, then 18 m) within 10 launches. A landing within 1.5 m of the target centre counts as a hit, including exactly 1.5 m.\",\"hint\":\"At the same speed, angles that add up to 90° (like 30° and 60°) land at the same spot, and 45° goes farthest. Doubling the speed makes the shot go four times as far.\"},\"scene\":{\"materials\":[{\"id\":\"field\",\"color\":\"#a9bf98\"},{\"id\":\"tick\",\"color\":\"#f2f2ec\"},{\"id\":\"metal\",\"color\":\"#b8bcc2\"},{\"id\":\"dark\",\"color\":\"#4a4f57\"},{\"id\":\"ball\",\"color\":\"#1f5fd1\"},{\"id\":\"target\",\"color\":\"#f08a24\"},{\"id\":\"flag\",\"color\":\"#d62f2f\"}],\"geometries\":[{\"id\":\"gField\",\"kind\":\"box\",\"size\":[78,0.2,14]},{\"id\":\"gTick\",\"kind\":\"box\",\"size\":[0.3,0.05,12]},{\"id\":\"gBase\",\"kind\":\"box\",\"size\":[3,1.2,3]},{\"id\":\"gBarrel\",\"kind\":\"cylinder\",\"radius\":0.6,\"height\":4,\"radialSegments\":32},{\"id\":\"gBall\",\"kind\":\"sphere\",\"radius\":1.4,\"widthSegments\":32,\"heightSegments\":24},{\"id\":\"gDisc\",\"kind\":\"cylinder\",\"radius\":1.5,\"height\":0.15,\"radialSegments\":32},{\"id\":\"gPole\",\"kind\":\"cylinder\",\"radius\":0.15,\"height\":7,\"radialSegments\":16},{\"id\":\"gFlag\",\"kind\":\"box\",\"size\":[2.4,1.5,0.1]},{\"id\":\"gTrail\",\"kind\":\"trail\",\"max\":64,\"radius\":0.25,\"style\":\"trail\"},{\"id\":\"gGhost\",\"kind\":\"trail\",\"max\":64,\"radius\":0.2,\"style\":\"ghost\"},{\"id\":\"lT\",\"kind\":\"label\",\"text\":\"Target\",\"placement\":\"above\"},{\"id\":\"l10\",\"kind\":\"label\",\"text\":\"10 m\",\"placement\":\"below\"},{\"id\":\"l20\",\"kind\":\"label\",\"text\":\"20 m\",\"placement\":\"below\"},{\"id\":\"l30\",\"kind\":\"label\",\"text\":\"30 m\",\"placement\":\"below\"},{\"id\":\"l40\",\"kind\":\"label\",\"text\":\"40 m\",\"placement\":\"below\"},{\"id\":\"l50\",\"kind\":\"label\",\"text\":\"50 m\",\"placement\":\"below\"},{\"id\":\"l60\",\"kind\":\"label\",\"text\":\"60 m\",\"placement\":\"below\"},{\"id\":\"l70\",\"kind\":\"label\",\"text\":\"70 m\",\"placement\":\"below\"}],\"nodes\":[{\"id\":\"floor\",\"geometry\":\"gField\",\"material\":\"field\",\"position\":[35,-0.1,0]},{\"id\":\"t0\",\"geometry\":\"gTick\",\"material\":\"tick\",\"position\":[0,0.02,0]},{\"id\":\"t10\",\"geometry\":\"gTick\",\"material\":\"tick\",\"position\":[10,0.02,0]},{\"id\":\"t20\",\"geometry\":\"gTick\",\"material\":\"tick\",\"position\":[20,0.02,0]},{\"id\":\"t30\",\"geometry\":\"gTick\",\"material\":\"tick\",\"position\":[30,0.02,0]},{\"id\":\"t40\",\"geometry\":\"gTick\",\"material\":\"tick\",\"position\":[40,0.02,0]},{\"id\":\"t50\",\"geometry\":\"gTick\",\"material\":\"tick\",\"position\":[50,0.02,0]},{\"id\":\"t60\",\"geometry\":\"gTick\",\"material\":\"tick\",\"position\":[60,0.02,0]},{\"id\":\"t70\",\"geometry",
+      "stopReason": "tool_use",
+      "blocks": [
+        {
+          "type": "thinking"
+        },
+        {
+          "type": "tool_use",
+          "name": "animation_artifact",
+          "chars": 8130
+        }
+      ]
+    }
+  ]
+}

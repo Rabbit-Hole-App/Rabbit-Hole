@@ -1,0 +1,79 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Gradient descent with two learning rates on a stretched bowl",
+ "description": "A stretched bowl-shaped surface stands for a loss: steep across, gentle along its length, lowest at the centre. Two coloured balls start at the same point. Each step, every ball moves downhill by the slope times its own learning rate (the step size) and leaves a trail. A slow ball creeps toward the bottom. A ball with a large learning rate zig-zags across the steep direction, and above a threshold it bounces higher each step and leaves the bowl. Readouts show each ball's step count and current loss.",
+ "experience": "experiment",
+ "reason": "Running both learning rates side by side from the same start lets you compare their paths directly. You can see that too small a step is slow and too large a step overshoots or even blows up.",
+ "behavior": "rules",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "lrA",
+   "label": "Learning rate A (blue ball)",
+   "min": 0.01,
+   "max": 0.6,
+   "step": 0.01,
+   "default": 0.05
+  },
+  {
+   "type": "number",
+   "id": "lrB",
+   "label": "Learning rate B (orange ball)",
+   "min": 0.01,
+   "max": 0.6,
+   "step": 0.01,
+   "default": 0.4
+  },
+  {
+   "type": "toggle",
+   "id": "showArrows",
+   "label": "Show downhill arrows",
+   "default": true
+  }
+ ],
+ "interactions": [
+  "Press step, or let the host keep stepping, to move both balls one gradient-descent step at a time, up to 60 steps.",
+  "Change learning rate A or B to change how far that ball moves each step. Its trail then shows a slow creep, a zig-zag or a runaway.",
+  "Use the restart-walkers action to send both balls back to the start point and clear their trails, keeping your learning-rate settings.",
+  "Turn the downhill arrows on or off. Each arrow points along the negative slope at its ball, the direction that ball steps in."
+ ],
+ "assumptions": [
+  "Illustration: a made-up bowl-shaped loss, not a trained model.",
+  "The loss is half of (x squared plus 4 times y squared), so it is 4 times steeper across than along. The minimum is at the centre, where the loss is 0.",
+  "Each step is exact plain gradient descent: new position = old position − learning rate × slope. There is no momentum and no noise.",
+  "In this model, steps across the bowl overshoot and zig-zag when the learning rate is above 0.25 and grow without limit above 0.5. Along the bowl, steps overshoot only above 1, so that never happens in this range.",
+  "Both balls start at the same point, x = −2.5 and y = 1.5. The run stops after 60 steps."
+ ],
+ "limitations": [
+  "A ball that leaves the drawn surface stops at the edge and is marked as diverged. Its true position keeps growing beyond what is drawn.",
+  "Real loss surfaces have many dimensions and are bumpy, so their safe learning rates are not known in advance the way they are for this bowl."
+ ],
+ "learningGoal": "The learning rate sets the step size. Too small converges slowly, moderate converges well, larger zig-zags in steep directions, and past a limit set by the steepest direction the steps diverge.",
+ "requiredCapabilities": [
+  "parameters",
+  "step",
+  "actions",
+  "readouts",
+  "labels"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "lrB",
+   "values": [
+    0.05,
+    0.6
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 30
+  }
+ ]
+}

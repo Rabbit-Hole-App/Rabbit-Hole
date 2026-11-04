@@ -1,0 +1,4603 @@
+{
+ "job": {
+  "id": "aj_ae120e6add1b43578b831f3b7cc1a741",
+  "version": 1,
+  "boardId": "7fc3d0bd-be04-4551-8af7-28dcd4abdd8f",
+  "cardId": "ee3f06fa-f291-490b-95e9-3901e8e983df",
+  "stage": "failed",
+  "attempt": 1,
+  "terminal": true,
+  "repairs": 1,
+  "stopReason": "rounds",
+  "failure": {
+   "stage": "reviewing",
+   "category": "spec",
+   "message": "The visual review found 3 serious problems with how the scene is drawn or computed. You have not been charged. It was corrected automatically once, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate.",
+   "retryable": false
+  },
+  "recovery": [
+   "revise_plan",
+   "edit_request"
+  ],
+  "outcome": "changes",
+  "choiceOpen": false,
+  "threadId": "canvaschat-3071403d-454e-4a2a-a43a-6a02baf54d13",
+  "chatPending": false,
+  "usage": {
+   "credits": 11,
+   "unknown": false,
+   "note": "You have not been charged."
+  },
+  "result": null,
+  "plan": {
+   "schema": "animation-plan/1",
+   "title": "Stochastic gradient descent rolling down a bowl-shaped loss",
+   "description": "A bowl-shaped loss surface with contour lines has its lowest point marked at the centre. A ball starts on the rim and takes one stochastic gradient descent (SGD) step each time the scene steps, leaving a trail. Two arrows sit at the ball: one points straight downhill (the true negative gradient) and one shows the noisy step actually taken. As the ball moves, readouts show the step count, the current loss and the distance to the minimum.",
+   "experience": "experiment",
+   "reason": "Watching one run step by step, then changing the step size, the noise or the bowl's shape and running again, shows directly why SGD wobbles, zig-zags, settles or blows up.",
+   "behavior": "rules",
+   "controlProfile": "manipulate",
+   "sourceRefs": [],
+   "parameters": [
+    {
+     "type": "number",
+     "id": "learningRate",
+     "label": "Learning rate (step size)",
+     "min": 0.05,
+     "max": 0.6,
+     "step": 0.05,
+     "default": 0.15
+    },
+    {
+     "type": "number",
+     "id": "noise",
+     "label": "Gradient noise (mini-batch randomness)",
+     "min": 0,
+     "max": 2,
+     "step": 0.1,
+     "default": 0.5
+    },
+    {
+     "type": "number",
+     "id": "steepness",
+     "label": "Bowl steepness across (side-to-side curvature)",
+     "min": 1,
+     "max": 5,
+     "step": 0.5,
+     "default": 3
+    }
+   ],
+   "interactions": [
+    "Play, pause or step the run one SGD step at a time and watch the ball, its trail and the readouts update.",
+    "Raise the learning rate: steps grow. Past 1 ÷ steepness the ball zig-zags across the valley; past 2 ÷ steepness (e.g. 0.5 at steepness 5) it flies off and a 'diverged' label shows.",
+    "Raise the noise: the step arrow strays from the downhill arrow, the trail gets jittery and the ball keeps jiggling near the minimum. At noise 0 it is plain gradient descent.",
+    "Change the steepness: higher values make the bowl a narrow valley, so the steep direction is crossed fast while the flat direction is crossed slowly.",
+    "Drag the ball to a new starting point on the surface before running.",
+    "Use 'Restart run' to clear the trail and step count and put the ball back at its current start point, keeping your settings (unlike Reset, which also restores the default settings)."
+   ],
+   "assumptions": [
+    "Illustration: a made-up bowl formula with simulated gradient noise, not a model trained on real data.",
+    "Loss is half of (x squared plus steepness times y squared), so the minimum is exactly at the centre, where the loss is zero.",
+    "Each step moves the ball by minus the learning rate times (the true gradient plus random noise drawn fresh in each direction, with spread set by the noise slider). This stands in for the error you get from estimating the gradient on a small mini-batch.",
+    "The noise comes from a fixed seed, so after Reset the same sequence of noise repeats.",
+    "The ball's height always equals the loss at its position. A run stops after 200 steps or when the ball leaves the drawn square from −4 to 4.",
+    "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+   ],
+   "limitations": [
+    "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+    "Because of the noise, a single step can go uphill. The loss only falls on average, not on every step.",
+    "The learning rate stays fixed. Learning-rate schedules, momentum and other optimizers are not shown, so with noise the ball never fully stops at the minimum.",
+    "Real loss surfaces have many dimensions and are rarely a perfect bowl. Here there are only two directions, so the surface can be drawn."
+   ],
+   "learningGoal": "See how SGD's noisy steps move it downhill on average, and how the step size and the bowl's shape decide between steady progress, zig-zagging and blowing up.",
+   "requiredCapabilities": [
+    "parameters",
+    "step",
+    "actions",
+    "drag",
+    "labels",
+    "readouts"
+   ],
+   "archetype": "loss_surface",
+   "assertions": [
+    {
+     "kind": "clamp"
+    },
+    {
+     "kind": "compare",
+     "parameter": "learningRate",
+     "values": [
+      0.1,
+      0.5
+     ]
+    },
+    {
+     "kind": "pathLength",
+     "min": 50
+    }
+   ]
+  },
+  "planHash": "911620dbeaff0ecbb2c6f364c8e902519742d34b31a466b883fe3a93d7a91517",
+  "timing": {
+   "requestClass": "simple",
+   "cache": null,
+   "firstFeedbackMs": 50,
+   "proposalMs": 42209,
+   "generateToResultMs": null,
+   "processingMs": 364591,
+   "approvalWaitMs": 5360,
+   "calls": 6,
+   "repairs": 1,
+   "stages": [
+    {
+     "stage": "preparing",
+     "ms": 42159,
+     "calls": 2,
+     "inputTokens": 2203,
+     "outputTokens": 4520,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "awaiting_approval",
+     "ms": 5360,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": null
+    },
+    {
+     "stage": "authoring",
+     "ms": 121009,
+     "calls": 1,
+     "inputTokens": 7779,
+     "outputTokens": 13691,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "validating",
+     "ms": 18,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "rendering",
+     "ms": 35511,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 6,
+     "outcome": "done"
+    },
+    {
+     "stage": "reviewing",
+     "ms": 36835,
+     "calls": 1,
+     "inputTokens": 13679,
+     "outputTokens": 3365,
+     "images": 6,
+     "captures": 0,
+     "outcome": "rejected"
+    },
+    {
+     "stage": "repairing",
+     "ms": 64161,
+     "calls": 1,
+     "inputTokens": 9826,
+     "outputTokens": 8143,
+     "images": 2,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "validating",
+     "ms": 18,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "rendering",
+     "ms": 21155,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 6,
+     "outcome": "done"
+    },
+    {
+     "stage": "reviewing",
+     "ms": 43725,
+     "calls": 1,
+     "inputTokens": 13760,
+     "outputTokens": 3784,
+     "images": 6,
+     "captures": 0,
+     "outcome": "rounds"
+    }
+   ]
+  },
+  "createdAt": 1793765378063,
+  "updatedAt": 1793765749352
+ },
+ "diagnostics": {
+  "plan": {
+   "schema": "animation-plan/1",
+   "title": "Stochastic gradient descent rolling down a bowl-shaped loss",
+   "description": "A bowl-shaped loss surface with contour lines has its lowest point marked at the centre. A ball starts on the rim and takes one stochastic gradient descent (SGD) step each time the scene steps, leaving a trail. Two arrows sit at the ball: one points straight downhill (the true negative gradient) and one shows the noisy step actually taken. As the ball moves, readouts show the step count, the current loss and the distance to the minimum.",
+   "experience": "experiment",
+   "reason": "Watching one run step by step, then changing the step size, the noise or the bowl's shape and running again, shows directly why SGD wobbles, zig-zags, settles or blows up.",
+   "behavior": "rules",
+   "controlProfile": "manipulate",
+   "sourceRefs": [],
+   "parameters": [
+    {
+     "type": "number",
+     "id": "learningRate",
+     "label": "Learning rate (step size)",
+     "min": 0.05,
+     "max": 0.6,
+     "step": 0.05,
+     "default": 0.15
+    },
+    {
+     "type": "number",
+     "id": "noise",
+     "label": "Gradient noise (mini-batch randomness)",
+     "min": 0,
+     "max": 2,
+     "step": 0.1,
+     "default": 0.5
+    },
+    {
+     "type": "number",
+     "id": "steepness",
+     "label": "Bowl steepness across (side-to-side curvature)",
+     "min": 1,
+     "max": 5,
+     "step": 0.5,
+     "default": 3
+    }
+   ],
+   "interactions": [
+    "Play, pause or step the run one SGD step at a time and watch the ball, its trail and the readouts update.",
+    "Raise the learning rate: steps grow. Past 1 ÷ steepness the ball zig-zags across the valley; past 2 ÷ steepness (e.g. 0.5 at steepness 5) it flies off and a 'diverged' label shows.",
+    "Raise the noise: the step arrow strays from the downhill arrow, the trail gets jittery and the ball keeps jiggling near the minimum. At noise 0 it is plain gradient descent.",
+    "Change the steepness: higher values make the bowl a narrow valley, so the steep direction is crossed fast while the flat direction is crossed slowly.",
+    "Drag the ball to a new starting point on the surface before running.",
+    "Use 'Restart run' to clear the trail and step count and put the ball back at its current start point, keeping your settings (unlike Reset, which also restores the default settings)."
+   ],
+   "assumptions": [
+    "Illustration: a made-up bowl formula with simulated gradient noise, not a model trained on real data.",
+    "Loss is half of (x squared plus steepness times y squared), so the minimum is exactly at the centre, where the loss is zero.",
+    "Each step moves the ball by minus the learning rate times (the true gradient plus random noise drawn fresh in each direction, with spread set by the noise slider). This stands in for the error you get from estimating the gradient on a small mini-batch.",
+    "The noise comes from a fixed seed, so after Reset the same sequence of noise repeats.",
+    "The ball's height always equals the loss at its position. A run stops after 200 steps or when the ball leaves the drawn square from −4 to 4.",
+    "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+   ],
+   "limitations": [
+    "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+    "Because of the noise, a single step can go uphill. The loss only falls on average, not on every step.",
+    "The learning rate stays fixed. Learning-rate schedules, momentum and other optimizers are not shown, so with noise the ball never fully stops at the minimum.",
+    "Real loss surfaces have many dimensions and are rarely a perfect bowl. Here there are only two directions, so the surface can be drawn."
+   ],
+   "learningGoal": "See how SGD's noisy steps move it downhill on average, and how the step size and the bowl's shape decide between steady progress, zig-zagging and blowing up.",
+   "requiredCapabilities": [
+    "parameters",
+    "step",
+    "actions",
+    "drag",
+    "labels",
+    "readouts"
+   ],
+   "archetype": "loss_surface",
+   "assertions": [
+    {
+     "kind": "clamp"
+    },
+    {
+     "kind": "compare",
+     "parameter": "learningRate",
+     "values": [
+      0.1,
+      0.5
+     ]
+    },
+    {
+     "kind": "pathLength",
+     "min": 50
+    }
+   ]
+  },
+  "draft": {
+   "title": "SGD on a bowl-shaped loss",
+   "description": "A blue bowl-shaped loss surface with elliptical contour lines. A dark dot at the centre marks its minimum. A red ball starts high on the bowl and takes one stochastic gradient descent step at a time, leaving an orange trail. Two arrows start at the ball: a grey one for the noise-free downhill step and an orange one for the noisy step it will actually take. A 'Diverged' tag appears if the ball flies off. Readouts show the loss, the distance to the minimum, the step count and the run status.",
+   "experience": "experiment",
+   "behavior": "rules",
+   "controlProfile": "manipulate",
+   "stepped": true,
+   "seed": 11,
+   "camera": {
+    "position": [
+     5.5,
+     6.5,
+     8.5
+    ],
+    "target": [
+     0,
+     1.4,
+     0
+    ],
+    "fov": 45
+   },
+   "parameters": [
+    {
+     "type": "number",
+     "id": "learningRate",
+     "label": "Learning rate (step size)",
+     "min": 0.05,
+     "max": 0.6,
+     "step": 0.05,
+     "default": 0.15
+    },
+    {
+     "type": "number",
+     "id": "noise",
+     "label": "Gradient noise (mini-batch randomness)",
+     "min": 0,
+     "max": 2,
+     "step": 0.1,
+     "default": 0.5
+    },
+    {
+     "type": "number",
+     "id": "steepness",
+     "label": "Bowl steepness across (side-to-side curvature)",
+     "min": 1,
+     "max": 5,
+     "step": 0.5,
+     "default": 3
+    }
+   ],
+   "actions": [
+    {
+     "id": "run",
+     "label": "Run"
+    },
+    {
+     "id": "stepOnce",
+     "label": "Step once",
+     "startsMotion": false
+    },
+    {
+     "id": "restartRun",
+     "label": "Restart run (old path stays faint)",
+     "startsMotion": false
+    }
+   ],
+   "readouts": [
+    {
+     "id": "loss",
+     "label": "Loss (true value)",
+     "decimals": 3
+    },
+    {
+     "id": "dist",
+     "label": "Distance to minimum",
+     "decimals": 3
+    },
+    {
+     "id": "steps",
+     "label": "Steps taken",
+     "decimals": 0
+    },
+    {
+     "id": "status",
+     "label": "Status",
+     "kind": "text"
+    }
+   ],
+   "scene": {
+    "materials": [
+     {
+      "id": "bowlM",
+      "color": "#9db4cf"
+     },
+     {
+      "id": "ballM",
+      "color": "#d6402b"
+     },
+     {
+      "id": "pathM",
+      "color": "#e8811a"
+     },
+     {
+      "id": "keptM",
+      "color": "#2c4a8a"
+     },
+     {
+      "id": "slopeM",
+      "color": "#555b66"
+     },
+     {
+      "id": "darkM",
+      "color": "#2f343c"
+     }
+    ],
+    "geometries": [
+     {
+      "id": "bowlG",
+      "kind": "surface",
+      "width": 8,
+      "depth": 8,
+      "contours": 8,
+      "heights": [
+       [
+        2.4,
+        2.2,
+        2.02,
+        1.86,
+        1.71,
+        1.58,
+        1.47,
+        1.38,
+        1.31,
+        1.26,
+        1.22,
+        1.2,
+        1.2,
+        1.22,
+        1.26,
+        1.31,
+        1.38,
+        1.47,
+        1.58,
+        1.71,
+        1.86,
+        2.02,
+        2.2,
+        2.4
+       ],
+       [
+        2.2,
+        2,
+        1.82,
+        1.66,
+        1.51,
+        1.38,
+        1.27,
+        1.18,
+        1.11,
+        1.06,
+        1.02,
+        1,
+        1,
+        1.02,
+        1.06,
+        1.11,
+        1.18,
+        1.27,
+        1.38,
+        1.51,
+        1.66,
+        1.82,
+        2,
+        2.2
+       ],
+       [
+        2.02,
+        1.82,
+        1.64,
+        1.48,
+        1.33,
+        1.2,
+        1.09,
+        1,
+        0.93,
+        0.88,
+        0.84,
+        0.82,
+        0.82,
+        0.84,
+        0.88,
+        0.93,
+        1,
+        1.09,
+        1.2,
+        1.33,
+        1.48,
+        1.64,
+        1.82,
+        2.02
+       ],
+       [
+        1.86,
+        1.66,
+        1.48,
+        1.32,
+        1.17,
+        1.04,
+        0.93,
+        0.84,
+        0.77,
+        0.72,
+        0.68,
+        0.66,
+        0.66,
+        0.68,
+        0.72,
+        0.77,
+        0.84,
+        0.93,
+        1.04,
+        1.17,
+        1.32,
+        1.48,
+        1.66,
+        1.86
+       ],
+       [
+        1.71,
+        1.51,
+        1.33,
+        1.17,
+        1.02,
+        0.89,
+        0.78,
+        0.69,
+        0.62,
+        0.57,
+        0.53,
+        0.51,
+        0.51,
+        0.53,
+        0.57,
+        0.62,
+        0.69,
+        0.78,
+        0.89,
+        1.02,
+        1.17,
+        1.33,
+        1.51,
+        1.71
+       ],
+       [
+        1.58,
+        1.38,
+        1.2,
+        1.04,
+        0.89,
+        0.76,
+        0.65,
+        0.56,
+        0.49,
+        0.44,
+        0.4,
+        0.38,
+        0.38,
+        0.4,
+        0.44,
+        0.49,
+        0.56,
+        0.65,
+        0.76,
+        0.89,
+        1.04,
+        1.2,
+        1.38,
+        1.58
+       ],
+       [
+        1.47,
+        1.27,
+        1.09,
+        0.93,
+        0.78,
+        0.65,
+        0.54,
+        0.45,
+        0.38,
+        0.33,
+        0.29,
+        0.27,
+        0.27,
+        0.29,
+        0.33,
+        0.38,
+        0.45,
+        0.54,
+        0.65,
+        0.78,
+        0.93,
+        1.09,
+        1.27,
+        1.47
+       ],
+       [
+        1.38,
+        1.18,
+        1,
+        0.84,
+        0.69,
+        0.56,
+        0.45,
+        0.36,
+        0.29,
+        0.24,
+        0.2,
+        0.18,
+        0.18,
+        0.2,
+        0.24,
+        0.29,
+        0.36,
+        0.45,
+        0.56,
+        0.69,
+        0.84,
+        1,
+        1.18,
+        1.38
+       ],
+       [
+        1.31,
+        1.11,
+        0.93,
+        0.77,
+        0.62,
+        0.49,
+        0.38,
+        0.29,
+        0.22,
+        0.17,
+        0.13,
+        0.11,
+        0.11,
+        0.13,
+        0.17,
+        0.22,
+        0.29,
+        0.38,
+        0.49,
+        0.62,
+        0.77,
+        0.93,
+        1.11,
+        1.31
+       ],
+       [
+        1.26,
+        1.06,
+        0.88,
+        0.72,
+        0.57,
+        0.44,
+        0.33,
+        0.24,
+        0.17,
+        0.12,
+        0.08,
+        0.06,
+        0.06,
+        0.08,
+        0.12,
+        0.17,
+        0.24,
+        0.33,
+        0.44,
+        0.57,
+        0.72,
+        0.88,
+        1.06,
+        1.26
+       ],
+       [
+        1.22,
+        1.02,
+        0.84,
+        0.68,
+        0.53,
+        0.4,
+        0.29,
+        0.2,
+        0.13,
+        0.08,
+        0.04,
+        0.02,
+        0.02,
+        0.04,
+        0.08,
+        0.13,
+        0.2,
+        0.29,
+        0.4,
+        0.53,
+        0.68,
+        0.84,
+        1.02,
+        1.22
+       ],
+       [
+        1.2,
+        1,
+        0.82,
+        0.66,
+        0.51,
+        0.38,
+        0.27,
+        0.18,
+        0.11,
+        0.06,
+        0.02,
+        0,
+        0,
+        0.02,
+        0.06,
+        0.11,
+        0.18,
+        0.27,
+        0.38,
+        0.51,
+        0.66,
+        0.82,
+        1,
+        1.2
+       ],
+       [
+        1.2,
+        1,
+        0.82,
+        0.66,
+        0.51,
+        0.38,
+        0.27,
+        0.18,
+        0.11,
+        0.06,
+        0.02,
+        0,
+        0,
+        0.02,
+        0.06,
+        0.11,
+        0.18,
+        0.27,
+        0.38,
+        0.51,
+        0.66,
+        0.82,
+        1,
+        1.2
+       ],
+       [
+        1.22,
+        1.02,
+        0.84,
+        0.68,
+        0.53,
+        0.4,
+        0.29,
+        0.2,
+        0.13,
+        0.08,
+        0.04,
+        0.02,
+        0.02,
+        0.04,
+        0.08,
+        0.13,
+        0.2,
+        0.29,
+        0.4,
+        0.53,
+        0.68,
+        0.84,
+        1.02,
+        1.22
+       ],
+       [
+        1.26,
+        1.06,
+        0.88,
+        0.72,
+        0.57,
+        0.44,
+        0.33,
+        0.24,
+        0.17,
+        0.12,
+        0.08,
+        0.06,
+        0.06,
+        0.08,
+        0.12,
+        0.17,
+        0.24,
+        0.33,
+        0.44,
+        0.57,
+        0.72,
+        0.88,
+        1.06,
+        1.26
+       ],
+       [
+        1.31,
+        1.11,
+        0.93,
+        0.77,
+        0.62,
+        0.49,
+        0.38,
+        0.29,
+        0.22,
+        0.17,
+        0.13,
+        0.11,
+        0.11,
+        0.13,
+        0.17,
+        0.22,
+        0.29,
+        0.38,
+        0.49,
+        0.62,
+        0.77,
+        0.93,
+        1.11,
+        1.31
+       ],
+       [
+        1.38,
+        1.18,
+        1,
+        0.84,
+        0.69,
+        0.56,
+        0.45,
+        0.36,
+        0.29,
+        0.24,
+        0.2,
+        0.18,
+        0.18,
+        0.2,
+        0.24,
+        0.29,
+        0.36,
+        0.45,
+        0.56,
+        0.69,
+        0.84,
+        1,
+        1.18,
+        1.38
+       ],
+       [
+        1.47,
+        1.27,
+        1.09,
+        0.93,
+        0.78,
+        0.65,
+        0.54,
+        0.45,
+        0.38,
+        0.33,
+        0.29,
+        0.27,
+        0.27,
+        0.29,
+        0.33,
+        0.38,
+        0.45,
+        0.54,
+        0.65,
+        0.78,
+        0.93,
+        1.09,
+        1.27,
+        1.47
+       ],
+       [
+        1.58,
+        1.38,
+        1.2,
+        1.04,
+        0.89,
+        0.76,
+        0.65,
+        0.56,
+        0.49,
+        0.44,
+        0.4,
+        0.38,
+        0.38,
+        0.4,
+        0.44,
+        0.49,
+        0.56,
+        0.65,
+        0.76,
+        0.89,
+        1.04,
+        1.2,
+        1.38,
+        1.58
+       ],
+       [
+        1.71,
+        1.51,
+        1.33,
+        1.17,
+        1.02,
+        0.89,
+        0.78,
+        0.69,
+        0.62,
+        0.57,
+        0.53,
+        0.51,
+        0.51,
+        0.53,
+        0.57,
+        0.62,
+        0.69,
+        0.78,
+        0.89,
+        1.02,
+        1.17,
+        1.33,
+        1.51,
+        1.71
+       ],
+       [
+        1.86,
+        1.66,
+        1.48,
+        1.32,
+        1.17,
+        1.04,
+        0.93,
+        0.84,
+        0.77,
+        0.72,
+        0.68,
+        0.66,
+        0.66,
+        0.68,
+        0.72,
+        0.77,
+        0.84,
+        0.93,
+        1.04,
+        1.17,
+        1.32,
+        1.48,
+        1.66,
+        1.86
+       ],
+       [
+        2.02,
+        1.82,
+        1.64,
+        1.48,
+        1.33,
+        1.2,
+        1.09,
+        1,
+        0.93,
+        0.88,
+        0.84,
+        0.82,
+        0.82,
+        0.84,
+        0.88,
+        0.93,
+        1,
+        1.09,
+        1.2,
+        1.33,
+        1.48,
+        1.64,
+        1.82,
+        2.02
+       ],
+       [
+        2.2,
+        2,
+        1.82,
+        1.66,
+        1.51,
+        1.38,
+        1.27,
+        1.18,
+        1.11,
+        1.06,
+        1.02,
+        1,
+        1,
+        1.02,
+        1.06,
+        1.11,
+        1.18,
+        1.27,
+        1.38,
+        1.51,
+        1.66,
+        1.82,
+        2,
+        2.2
+       ],
+       [
+        2.4,
+        2.2,
+        2.02,
+        1.86,
+        1.71,
+        1.58,
+        1.47,
+        1.38,
+        1.31,
+        1.26,
+        1.22,
+        1.2,
+        1.2,
+        1.22,
+        1.26,
+        1.31,
+        1.38,
+        1.47,
+        1.58,
+        1.71,
+        1.86,
+        2.02,
+        2.2,
+        2.4
+       ]
+      ]
+     },
+     {
+      "id": "runG",
+      "kind": "trail",
+      "max": 104,
+      "radius": 0.05,
+      "style": "trail"
+     },
+     {
+      "id": "keptG",
+      "kind": "trail",
+      "max": 104,
+      "radius": 0.05,
+      "style": "ghost"
+     },
+     {
+      "id": "ballG",
+      "kind": "sphere",
+      "radius": 0.18,
+      "widthSegments": 32,
+      "heightSegments": 24
+     },
+     {
+      "id": "minG",
+      "kind": "sphere",
+      "radius": 0.09,
+      "widthSegments": 16,
+      "heightSegments": 12
+     },
+     {
+      "id": "arrowG",
+      "kind": "arrow",
+      "length": 1,
+      "offset": 0.06
+     },
+     {
+      "id": "stepT",
+      "kind": "label",
+      "text": "Noisy step",
+      "anchor": "tip",
+      "placement": "right"
+     },
+     {
+      "id": "slopeT",
+      "kind": "label",
+      "text": "Downhill step",
+      "anchor": "tip",
+      "placement": "left"
+     },
+     {
+      "id": "divT",
+      "kind": "label",
+      "text": "Diverged",
+      "placement": "above"
+     }
+    ],
+    "nodes": [
+     {
+      "id": "bowl",
+      "geometry": "bowlG",
+      "material": "bowlM",
+      "name": "Loss surface",
+      "scale": [
+       1,
+       2,
+       0.577
+      ]
+     },
+     {
+      "id": "trail",
+      "geometry": "runG",
+      "material": "pathM",
+      "name": "This run"
+     },
+     {
+      "id": "ghost",
+      "geometry": "keptG",
+      "material": "keptM",
+      "name": "Earlier run"
+     },
+     {
+      "id": "lowest",
+      "geometry": "minG",
+      "material": "darkM",
+      "position": [
+       0,
+       0.04,
+       0
+      ]
+     },
+     {
+      "id": "ball",
+      "geometry": "ballG",
+      "material": "ballM",
+      "name": "Current point",
+      "clampTo": {
+       "node": "bowl",
+       "max": 5.2
+      },
+      "drag": {
+       "axis": "x",
+       "min": -3.8,
+       "max": 3.8
+      },
+      "position": [
+       -3.2,
+       2.36,
+       1.2
+      ]
+     },
+     {
+      "id": "divTag",
+      "parent": "ball",
+      "geometry": "divT",
+      "position": [
+       0,
+       0.2,
+       0
+      ],
+      "visible": false
+     },
+     {
+      "id": "stepArrow",
+      "parent": "ball",
+      "geometry": "arrowG",
+      "material": "pathM"
+     },
+     {
+      "id": "stepTag",
+      "parent": "stepArrow",
+      "geometry": "stepT"
+     },
+     {
+      "id": "slopeArrow",
+      "parent": "ball",
+      "geometry": "arrowG",
+      "material": "slopeM"
+     },
+     {
+      "id": "slopeTag",
+      "parent": "slopeArrow",
+      "geometry": "slopeT"
+     }
+    ]
+   },
+   "assumptions": [
+    "Illustration: a made-up bowl formula with simulated gradient noise, not a model trained on real data.",
+    "Loss = ½(x² + steepness·y²), with y along the depth axis; the minimum (dark dot) is at the centre, loss 0. The surface is drawn at 0.3 × loss, and the ball sits on it; the Loss readout gives the true value.",
+    "Each step moves by −learning rate × (true gradient + fresh Gaussian noise in each direction, spread = noise slider). Grey arrow: noise-free step −lr·∇L; orange arrow: the noisy step about to be taken. Both are drawn at 3 × their true floor length (one common scale).",
+    "Noise comes from a fixed seed, so after Reset the same noise repeats. While running, one SGD step is taken every 3 host steps (10 steps a second); Step once takes exactly one.",
+    "The drawn surface spans x from −4 to 4 and narrows across as steepness rises (where steepness·y² ≤ 16). Diverged means the ball left it. A run also stops after 200 steps; it then reads converged if the loss is below 0.05, else stopped.",
+    "Drag the ball left or right (along x) to choose a new start; this begins a fresh run from there. Restart run clears the trail and step count, keeps your settings, and keeps the old path faint for comparison.",
+    "The trail adds one point every 2 steps (at most 100) plus the current position; every step still runs. With noise a single step can go uphill: the loss falls only on average."
+   ],
+   "program": {
+    "source": "const K=0.3,R=0.18,H=4,MAXS=200,TOP=5.2,A=3;\nconst L=(x,y,s)=>0.5*(x*x+s*y*y);\nconst fr=v=>v-Math.floor(v);\nconst rnd=(n,sd)=>fr(Math.sin(n*12.9898+sd*78.233)*43758.5453);\nconst gauss=(n,sd)=>Math.sqrt(-2*Math.log(Math.max(1e-9,rnd(n,sd))))*Math.cos(2*Math.PI*rnd(n+0.37,sd));\nconst fresh=(sx,sy,run,kept)=>({sx,sy,x:sx,y:sy,n:0,run,on:false,path:[[sx,sy]],kept});\nconst off=(s,i)=>Math.abs(s.x)>H||Math.sqrt(i.steepness)*Math.abs(s.y)>H;\nconst conv=(s,i)=>i.noise===0&&L(s.x,s.y,i.steepness)<1e-6;\nconst done=(s,i)=>off(s,i)||s.n>=MAXS||conv(s,i);\nfunction next(s,i,sd){const k=s.run*4001+s.n*2+1,a=i.noise;return[-i.learningRate*(s.x+a*gauss(k,sd)),-i.learningRate*(i.steepness*s.y+a*gauss(k+0.5,sd))];}\nfunction advance(s,i,sd){if(done(s,i))return s;const[dx,dy]=next(s,i,sd),x=s.x+dx,y=s.y+dy,n=s.n+1;return{...s,x,y,n,path:n%2?s.path:s.path.concat([[x,y]]).slice(-100)};}\nexport function initialState(){return fresh(-3.2,1.2,0,[]);}\nexport function reduce({state:s,event:e,inputs:i,seed}){\nif(e.type==='step')return !s.on||done(s,i)||e.tick%3?s:advance(s,i,seed);\nif((e.type==='drag_move'||e.type==='drag_end')&&e.node==='ball')return fresh(Math.max(-3.8,Math.min(3.8,e.value)),s.sy,s.run,s.kept);\nif(e.type!=='action')return s;\nif(e.action==='run')return done(s,i)?s:{...s,on:true};\nif(e.action==='stepOnce')return advance({...s,on:false},i,seed);\nif(e.action==='restartRun')return fresh(s.sx,s.sy,s.run+1,s.n>0?s.path.concat([[s.x,s.y]]):s.kept);\nreturn s;}\nconst lift=(p,st)=>[p[0],Math.min(K*L(p[0],p[1],st),TOP)+0.05,p[1]];\nfunction aim(dx,dz,show){const l=Math.hypot(dx,dz),h=Math.SQRT1_2;return show&&l>1e-6?{visible:true,quaternion:[dz/l*h,0,-dx/l*h,h],scale:[1.5,A*l,1.5]}:{visible:false};}\nfunction word(s,i,lo){if(off(s,i))return'diverged';if(done(s,i))return lo<0.05?'converged':'stopped';return s.on?'running':'paused';}\nexport function evaluate({inputs:i,state,seed}){\nconst s=state||initialState(),st=i.steepness,lo=L(s.x,s.y,st),live=!done(s,i),[dx,dy]=next(s,i,seed);\nreturn{nodes:{\nbowl:{scale:[1,2,1/Math.sqrt(st)]},\nball:{position:[s.x,Math.min(K*lo,TOP)+R,s.y]},\ndivTag:{visible:off(s,i)},\nstepArrow:aim(dx,dy,live),\nslopeArrow:aim(-i.learningRate*s.x,-i.learningRate*st*s.y,live),\ntrail:{points:s.path.concat([[s.x,s.y]]).map(p=>lift(p,st))},\nghost:{points:s.kept.map(p=>lift(p,st))}},\nreadouts:{loss:lo,dist:Math.hypot(s.x,s.y),steps:s.n,status:word(s,i,lo)}};}\n"
+   }
+  },
+  "artifactHash": "7b2da5796a7708d974d6eac54328b50ea6a341d3f54d226e278f6f650ebf7d9d",
+  "artifact": {
+   "schema": "animation-scene/1",
+   "artifactId": "ar_05e40c0aeccd4b98a4c07fd2098bba63",
+   "revision": 1,
+   "planHash": "911620dbeaff0ecbb2c6f364c8e902519742d34b31a466b883fe3a93d7a91517",
+   "capabilityVersion": "animation-capabilities/1",
+   "title": "SGD on a bowl-shaped loss",
+   "description": "A blue bowl-shaped loss surface with elliptical contour lines. A dark dot at the centre marks its minimum. A red ball starts high on the bowl and takes one stochastic gradient descent step at a time, leaving an orange trail. Two arrows start at the ball: a grey one for the noise-free downhill step and an orange one for the noisy step it will actually take. A 'Diverged' tag appears if the ball flies off. Readouts show the loss, the distance to the minimum, the step count and the run status.",
+   "experience": "experiment",
+   "behavior": "rules",
+   "controlProfile": "manipulate",
+   "sourceRefs": [],
+   "scene": {
+    "materials": [
+     {
+      "id": "bowlM",
+      "color": "#9db4cf",
+      "opacity": 1
+     },
+     {
+      "id": "ballM",
+      "color": "#d6402b",
+      "opacity": 1
+     },
+     {
+      "id": "pathM",
+      "color": "#e8811a",
+      "opacity": 1
+     },
+     {
+      "id": "keptM",
+      "color": "#2c4a8a",
+      "opacity": 1
+     },
+     {
+      "id": "slopeM",
+      "color": "#555b66",
+      "opacity": 1
+     },
+     {
+      "id": "darkM",
+      "color": "#2f343c",
+      "opacity": 1
+     }
+    ],
+    "geometries": [
+     {
+      "id": "bowlG",
+      "kind": "surface",
+      "heights": [
+       [
+        2.4,
+        2.2,
+        2.02,
+        1.86,
+        1.71,
+        1.58,
+        1.47,
+        1.38,
+        1.31,
+        1.26,
+        1.22,
+        1.2,
+        1.2,
+        1.22,
+        1.26,
+        1.31,
+        1.38,
+        1.47,
+        1.58,
+        1.71,
+        1.86,
+        2.02,
+        2.2,
+        2.4
+       ],
+       [
+        2.2,
+        2,
+        1.82,
+        1.66,
+        1.51,
+        1.38,
+        1.27,
+        1.18,
+        1.11,
+        1.06,
+        1.02,
+        1,
+        1,
+        1.02,
+        1.06,
+        1.11,
+        1.18,
+        1.27,
+        1.38,
+        1.51,
+        1.66,
+        1.82,
+        2,
+        2.2
+       ],
+       [
+        2.02,
+        1.82,
+        1.64,
+        1.48,
+        1.33,
+        1.2,
+        1.09,
+        1,
+        0.93,
+        0.88,
+        0.84,
+        0.82,
+        0.82,
+        0.84,
+        0.88,
+        0.93,
+        1,
+        1.09,
+        1.2,
+        1.33,
+        1.48,
+        1.64,
+        1.82,
+        2.02
+       ],
+       [
+        1.86,
+        1.66,
+        1.48,
+        1.32,
+        1.17,
+        1.04,
+        0.93,
+        0.84,
+        0.77,
+        0.72,
+        0.68,
+        0.66,
+        0.66,
+        0.68,
+        0.72,
+        0.77,
+        0.84,
+        0.93,
+        1.04,
+        1.17,
+        1.32,
+        1.48,
+        1.66,
+        1.86
+       ],
+       [
+        1.71,
+        1.51,
+        1.33,
+        1.17,
+        1.02,
+        0.89,
+        0.78,
+        0.69,
+        0.62,
+        0.57,
+        0.53,
+        0.51,
+        0.51,
+        0.53,
+        0.57,
+        0.62,
+        0.69,
+        0.78,
+        0.89,
+        1.02,
+        1.17,
+        1.33,
+        1.51,
+        1.71
+       ],
+       [
+        1.58,
+        1.38,
+        1.2,
+        1.04,
+        0.89,
+        0.76,
+        0.65,
+        0.56,
+        0.49,
+        0.44,
+        0.4,
+        0.38,
+        0.38,
+        0.4,
+        0.44,
+        0.49,
+        0.56,
+        0.65,
+        0.76,
+        0.89,
+        1.04,
+        1.2,
+        1.38,
+        1.58
+       ],
+       [
+        1.47,
+        1.27,
+        1.09,
+        0.93,
+        0.78,
+        0.65,
+        0.54,
+        0.45,
+        0.38,
+        0.33,
+        0.29,
+        0.27,
+        0.27,
+        0.29,
+        0.33,
+        0.38,
+        0.45,
+        0.54,
+        0.65,
+        0.78,
+        0.93,
+        1.09,
+        1.27,
+        1.47
+       ],
+       [
+        1.38,
+        1.18,
+        1,
+        0.84,
+        0.69,
+        0.56,
+        0.45,
+        0.36,
+        0.29,
+        0.24,
+        0.2,
+        0.18,
+        0.18,
+        0.2,
+        0.24,
+        0.29,
+        0.36,
+        0.45,
+        0.56,
+        0.69,
+        0.84,
+        1,
+        1.18,
+        1.38
+       ],
+       [
+        1.31,
+        1.11,
+        0.93,
+        0.77,
+        0.62,
+        0.49,
+        0.38,
+        0.29,
+        0.22,
+        0.17,
+        0.13,
+        0.11,
+        0.11,
+        0.13,
+        0.17,
+        0.22,
+        0.29,
+        0.38,
+        0.49,
+        0.62,
+        0.77,
+        0.93,
+        1.11,
+        1.31
+       ],
+       [
+        1.26,
+        1.06,
+        0.88,
+        0.72,
+        0.57,
+        0.44,
+        0.33,
+        0.24,
+        0.17,
+        0.12,
+        0.08,
+        0.06,
+        0.06,
+        0.08,
+        0.12,
+        0.17,
+        0.24,
+        0.33,
+        0.44,
+        0.57,
+        0.72,
+        0.88,
+        1.06,
+        1.26
+       ],
+       [
+        1.22,
+        1.02,
+        0.84,
+        0.68,
+        0.53,
+        0.4,
+        0.29,
+        0.2,
+        0.13,
+        0.08,
+        0.04,
+        0.02,
+        0.02,
+        0.04,
+        0.08,
+        0.13,
+        0.2,
+        0.29,
+        0.4,
+        0.53,
+        0.68,
+        0.84,
+        1.02,
+        1.22
+       ],
+       [
+        1.2,
+        1,
+        0.82,
+        0.66,
+        0.51,
+        0.38,
+        0.27,
+        0.18,
+        0.11,
+        0.06,
+        0.02,
+        0,
+        0,
+        0.02,
+        0.06,
+        0.11,
+        0.18,
+        0.27,
+        0.38,
+        0.51,
+        0.66,
+        0.82,
+        1,
+        1.2
+       ],
+       [
+        1.2,
+        1,
+        0.82,
+        0.66,
+        0.51,
+        0.38,
+        0.27,
+        0.18,
+        0.11,
+        0.06,
+        0.02,
+        0,
+        0,
+        0.02,
+        0.06,
+        0.11,
+        0.18,
+        0.27,
+        0.38,
+        0.51,
+        0.66,
+        0.82,
+        1,
+        1.2
+       ],
+       [
+        1.22,
+        1.02,
+        0.84,
+        0.68,
+        0.53,
+        0.4,
+        0.29,
+        0.2,
+        0.13,
+        0.08,
+        0.04,
+        0.02,
+        0.02,
+        0.04,
+        0.08,
+        0.13,
+        0.2,
+        0.29,
+        0.4,
+        0.53,
+        0.68,
+        0.84,
+        1.02,
+        1.22
+       ],
+       [
+        1.26,
+        1.06,
+        0.88,
+        0.72,
+        0.57,
+        0.44,
+        0.33,
+        0.24,
+        0.17,
+        0.12,
+        0.08,
+        0.06,
+        0.06,
+        0.08,
+        0.12,
+        0.17,
+        0.24,
+        0.33,
+        0.44,
+        0.57,
+        0.72,
+        0.88,
+        1.06,
+        1.26
+       ],
+       [
+        1.31,
+        1.11,
+        0.93,
+        0.77,
+        0.62,
+        0.49,
+        0.38,
+        0.29,
+        0.22,
+        0.17,
+        0.13,
+        0.11,
+        0.11,
+        0.13,
+        0.17,
+        0.22,
+        0.29,
+        0.38,
+        0.49,
+        0.62,
+        0.77,
+        0.93,
+        1.11,
+        1.31
+       ],
+       [
+        1.38,
+        1.18,
+        1,
+        0.84,
+        0.69,
+        0.56,
+        0.45,
+        0.36,
+        0.29,
+        0.24,
+        0.2,
+        0.18,
+        0.18,
+        0.2,
+        0.24,
+        0.29,
+        0.36,
+        0.45,
+        0.56,
+        0.69,
+        0.84,
+        1,
+        1.18,
+        1.38
+       ],
+       [
+        1.47,
+        1.27,
+        1.09,
+        0.93,
+        0.78,
+        0.65,
+        0.54,
+        0.45,
+        0.38,
+        0.33,
+        0.29,
+        0.27,
+        0.27,
+        0.29,
+        0.33,
+        0.38,
+        0.45,
+        0.54,
+        0.65,
+        0.78,
+        0.93,
+        1.09,
+        1.27,
+        1.47
+       ],
+       [
+        1.58,
+        1.38,
+        1.2,
+        1.04,
+        0.89,
+        0.76,
+        0.65,
+        0.56,
+        0.49,
+        0.44,
+        0.4,
+        0.38,
+        0.38,
+        0.4,
+        0.44,
+        0.49,
+        0.56,
+        0.65,
+        0.76,
+        0.89,
+        1.04,
+        1.2,
+        1.38,
+        1.58
+       ],
+       [
+        1.71,
+        1.51,
+        1.33,
+        1.17,
+        1.02,
+        0.89,
+        0.78,
+        0.69,
+        0.62,
+        0.57,
+        0.53,
+        0.51,
+        0.51,
+        0.53,
+        0.57,
+        0.62,
+        0.69,
+        0.78,
+        0.89,
+        1.02,
+        1.17,
+        1.33,
+        1.51,
+        1.71
+       ],
+       [
+        1.86,
+        1.66,
+        1.48,
+        1.32,
+        1.17,
+        1.04,
+        0.93,
+        0.84,
+        0.77,
+        0.72,
+        0.68,
+        0.66,
+        0.66,
+        0.68,
+        0.72,
+        0.77,
+        0.84,
+        0.93,
+        1.04,
+        1.17,
+        1.32,
+        1.48,
+        1.66,
+        1.86
+       ],
+       [
+        2.02,
+        1.82,
+        1.64,
+        1.48,
+        1.33,
+        1.2,
+        1.09,
+        1,
+        0.93,
+        0.88,
+        0.84,
+        0.82,
+        0.82,
+        0.84,
+        0.88,
+        0.93,
+        1,
+        1.09,
+        1.2,
+        1.33,
+        1.48,
+        1.64,
+        1.82,
+        2.02
+       ],
+       [
+        2.2,
+        2,
+        1.82,
+        1.66,
+        1.51,
+        1.38,
+        1.27,
+        1.18,
+        1.11,
+        1.06,
+        1.02,
+        1,
+        1,
+        1.02,
+        1.06,
+        1.11,
+        1.18,
+        1.27,
+        1.38,
+        1.51,
+        1.66,
+        1.82,
+        2,
+        2.2
+       ],
+       [
+        2.4,
+        2.2,
+        2.02,
+        1.86,
+        1.71,
+        1.58,
+        1.47,
+        1.38,
+        1.31,
+        1.26,
+        1.22,
+        1.2,
+        1.2,
+        1.22,
+        1.26,
+        1.31,
+        1.38,
+        1.47,
+        1.58,
+        1.71,
+        1.86,
+        2.02,
+        2.2,
+        2.4
+       ]
+      ],
+      "width": 8,
+      "depth": 8,
+      "contours": 8
+     },
+     {
+      "id": "runG",
+      "kind": "trail",
+      "max": 104,
+      "radius": 0.05,
+      "style": "trail"
+     },
+     {
+      "id": "keptG",
+      "kind": "trail",
+      "max": 104,
+      "radius": 0.05,
+      "style": "ghost"
+     },
+     {
+      "id": "ballG",
+      "kind": "sphere",
+      "radius": 0.18,
+      "widthSegments": 32,
+      "heightSegments": 24
+     },
+     {
+      "id": "minG",
+      "kind": "sphere",
+      "radius": 0.09,
+      "widthSegments": 16,
+      "heightSegments": 12
+     },
+     {
+      "id": "arrowG",
+      "kind": "arrow",
+      "length": 1,
+      "offset": 0.06
+     },
+     {
+      "id": "stepT",
+      "kind": "label",
+      "text": "Noisy step",
+      "size": 0.3,
+      "placement": "right",
+      "anchor": "tip"
+     },
+     {
+      "id": "slopeT",
+      "kind": "label",
+      "text": "Downhill step",
+      "size": 0.3,
+      "placement": "left",
+      "anchor": "tip"
+     },
+     {
+      "id": "divT",
+      "kind": "label",
+      "text": "Diverged",
+      "size": 0.3,
+      "placement": "above"
+     }
+    ],
+    "nodes": [
+     {
+      "id": "bowl",
+      "name": "Loss surface",
+      "parent": null,
+      "geometry": "bowlG",
+      "material": "bowlM",
+      "position": [
+       0,
+       0,
+       0
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       2,
+       0.577
+      ],
+      "visible": true,
+      "selectable": false
+     },
+     {
+      "id": "trail",
+      "name": "This run",
+      "parent": null,
+      "geometry": "runG",
+      "material": "pathM",
+      "position": [
+       0,
+       0,
+       0
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       1,
+       1
+      ],
+      "visible": true,
+      "selectable": false
+     },
+     {
+      "id": "ghost",
+      "name": "Earlier run",
+      "parent": null,
+      "geometry": "keptG",
+      "material": "keptM",
+      "position": [
+       0,
+       0,
+       0
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       1,
+       1
+      ],
+      "visible": true,
+      "selectable": false
+     },
+     {
+      "id": "lowest",
+      "parent": null,
+      "geometry": "minG",
+      "material": "darkM",
+      "position": [
+       0,
+       0.04,
+       0
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       1,
+       1
+      ],
+      "visible": true,
+      "selectable": false
+     },
+     {
+      "id": "ball",
+      "name": "Current point",
+      "parent": null,
+      "geometry": "ballG",
+      "material": "ballM",
+      "position": [
+       -3.2,
+       2.36,
+       1.2
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       1,
+       1
+      ],
+      "visible": true,
+      "selectable": false,
+      "drag": {
+       "axis": "x",
+       "min": -3.8,
+       "max": 3.8
+      },
+      "clampTo": {
+       "node": "bowl",
+       "max": 5.2
+      }
+     },
+     {
+      "id": "divTag",
+      "parent": "ball",
+      "geometry": "divT",
+      "position": [
+       0,
+       0.2,
+       0
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       1,
+       1
+      ],
+      "visible": false,
+      "selectable": false
+     },
+     {
+      "id": "stepArrow",
+      "parent": "ball",
+      "geometry": "arrowG",
+      "material": "pathM",
+      "position": [
+       0,
+       0,
+       0
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       1,
+       1
+      ],
+      "visible": true,
+      "selectable": false
+     },
+     {
+      "id": "stepTag",
+      "parent": "stepArrow",
+      "geometry": "stepT",
+      "position": [
+       0,
+       0,
+       0
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       1,
+       1
+      ],
+      "visible": true,
+      "selectable": false
+     },
+     {
+      "id": "slopeArrow",
+      "parent": "ball",
+      "geometry": "arrowG",
+      "material": "slopeM",
+      "position": [
+       0,
+       0,
+       0
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       1,
+       1
+      ],
+      "visible": true,
+      "selectable": false
+     },
+     {
+      "id": "slopeTag",
+      "parent": "slopeArrow",
+      "geometry": "slopeT",
+      "position": [
+       0,
+       0,
+       0
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": [
+       1,
+       1,
+       1
+      ],
+      "visible": true,
+      "selectable": false
+     }
+    ]
+   },
+   "parameters": [
+    {
+     "type": "number",
+     "id": "learningRate",
+     "label": "Learning rate (step size)",
+     "min": 0.05,
+     "max": 0.6,
+     "step": 0.05,
+     "default": 0.15
+    },
+    {
+     "type": "number",
+     "id": "noise",
+     "label": "Gradient noise (mini-batch randomness)",
+     "min": 0,
+     "max": 2,
+     "step": 0.1,
+     "default": 0.5
+    },
+    {
+     "type": "number",
+     "id": "steepness",
+     "label": "Bowl steepness across (side-to-side curvature)",
+     "min": 1,
+     "max": 5,
+     "step": 0.5,
+     "default": 3
+    }
+   ],
+   "actions": [
+    {
+     "id": "run",
+     "label": "Run"
+    },
+    {
+     "id": "stepOnce",
+     "label": "Step once",
+     "startsMotion": false
+    },
+    {
+     "id": "restartRun",
+     "label": "Restart run (old path stays faint)",
+     "startsMotion": false
+    }
+   ],
+   "readouts": [
+    {
+     "id": "loss",
+     "label": "Loss (true value)",
+     "decimals": 3
+    },
+    {
+     "id": "dist",
+     "label": "Distance to minimum",
+     "decimals": 3
+    },
+    {
+     "id": "steps",
+     "label": "Steps taken",
+     "decimals": 0
+    },
+    {
+     "id": "status",
+     "label": "Status",
+     "kind": "text"
+    }
+   ],
+   "stepped": true,
+   "program": {
+    "bytes": 2390,
+    "sourceHash": "838a264b0bac9c70d60a298dde35842ce5c5502fa59e950459628d85647d93f8"
+   },
+   "seed": 11,
+   "camera": {
+    "position": [
+     5.5,
+     6.5,
+     8.5
+    ],
+    "target": [
+     0,
+     1.4,
+     0
+    ],
+    "fov": 45
+   },
+   "assumptions": [
+    "Illustration: a made-up bowl formula with simulated gradient noise, not a model trained on real data.",
+    "Loss = ½(x² + steepness·y²), with y along the depth axis; the minimum (dark dot) is at the centre, loss 0. The surface is drawn at 0.3 × loss, and the ball sits on it; the Loss readout gives the true value.",
+    "Each step moves by −learning rate × (true gradient + fresh Gaussian noise in each direction, spread = noise slider). Grey arrow: noise-free step −lr·∇L; orange arrow: the noisy step about to be taken. Both are drawn at 3 × their true floor length (one common scale).",
+    "Noise comes from a fixed seed, so after Reset the same noise repeats. While running, one SGD step is taken every 3 host steps (10 steps a second); Step once takes exactly one.",
+    "The drawn surface spans x from −4 to 4 and narrows across as steepness rises (where steepness·y² ≤ 16). Diverged means the ball left it. A run also stops after 200 steps; it then reads converged if the loss is below 0.05, else stopped.",
+    "Drag the ball left or right (along x) to choose a new start; this begins a fresh run from there. Restart run clears the trail and step count, keeps your settings, and keeps the old path faint for comparison.",
+    "The trail adds one point every 2 steps (at most 100) plus the current position; every step still runs. With noise a single step can go uphill: the loss falls only on average."
+   ],
+   "provenance": {
+    "origin": "generated",
+    "model": "claude-opus-5-5",
+    "createdAt": "2026-11-04T04:10:25.632Z"
+   }
+  },
+  "findings": [
+   {
+    "repairs": 0,
+    "stage": "reviewing",
+    "accepted": false,
+    "findings": [
+     {
+      "version": 1,
+      "id": "rf1",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "major",
+      "target": {
+       "capture": "v0-s0",
+       "object": "camera"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "The subject is small in the default view. The bowl fills only about half the frame width and under half its height, leaving large empty bands above and below. The ball and its two step arrows are tiny: the arrows are about 0.7 units long and nearly on top of each other, so you can't tell the 'Noisy step' arrow from the 'Downhill step' arrow. Move the camera closer to the bowl (for example aim lowe"
+     },
+     {
+      "version": 1,
+      "id": "rf2",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "major",
+      "target": {
+       "capture": "v0-s0",
+       "object": "stepTag"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "The 'Noisy step' and 'Downhill step' labels are much bigger than the short arrows they name and sit right on the ball. You can't see which label belongs to which arrow. Use a smaller label size, or offset the labels to opposite sides so each one clearly points to its own arrow."
+     },
+     {
+      "version": 1,
+      "id": "rf3",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "major",
+      "target": {
+       "capture": "v0-s1",
+       "object": "stepTag"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "Near the minimum the arrows are only about 0.1 units long, so they look like hairlines next to the ball. The 'Noisy step', 'Downhill step' and 'Minimum' labels crowd one small spot, and 'Noisy step' covers the end of the trail next to the ball. You can't read the noisy step against the true downhill step, which is the main idea of the scene."
+     },
+     {
+      "version": 1,
+      "id": "rf4",
+      "verdict": "semantic",
+      "category": "spec",
+      "severity": "minor",
+      "target": {
+       "capture": "v0-s1",
+       "object": "status"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "The 'Status' text readout (running / paused / converged / diverged) doesn't appear in the rendered readout line, so the 'diverged' label the plan promises can't be seen. The diverged case (learning rate above 2 ÷ steepness) was not sampled."
+     },
+     {
+      "version": 1,
+      "id": "rf5",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "major",
+      "target": {
+       "capture": "v0-s2",
+       "object": "trail"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "At learning rate 0.6 the zig-zag trail tangles into a knot around the minimum. The ball, both arrows and three labels all overlap in a small area of a frame that is otherwise mostly empty, so the zig-zag pattern the plan promises is hard to follow. Frame the camera tighter on the bowl and keep the labels away from the cluster."
+     },
+     {
+      "version": 1,
+      "id": "rf6",
+      "verdict": "semantic",
+      "category": "spec",
+      "severity": "minor",
+      "target": {
+       "capture": "v0-s2",
+       "object": "ball"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "Dragging moves the ball only along x, keeping the start's y fixed. The plan promises dragging the ball to any new starting point on the surface. The limit is disclosed in the assumptions."
+     }
+    ]
+   },
+   {
+    "repairs": 1,
+    "stage": "reviewing",
+    "accepted": false,
+    "findings": [
+     {
+      "version": 1,
+      "id": "rf1",
+      "verdict": "semantic",
+      "category": "spec",
+      "severity": "minor",
+      "target": {
+       "capture": "v0-s0"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "The plan says a run ends when the ball leaves the square from −4 to 4. The artifact instead calls it diverged when √steepness·|y| > 4, i.e. when the ball leaves the narrowed surface. This is disclosed in the assumptions and matches the drawn surface. Divergence (learning rate past 2/steepness) was not sampled."
+     },
+     {
+      "version": 1,
+      "id": "rf2",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "minor",
+      "target": {
+       "capture": "v0-s0"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "The Status text readout (paused/running/diverged/converged) does not appear in the readout bar of any capture. Only loss, distance and steps are shown."
+     },
+     {
+      "version": 1,
+      "id": "rf3",
+      "verdict": "semantic",
+      "category": "spec",
+      "severity": "minor",
+      "target": {
+       "capture": "v0-s1"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "Restart run keeps the earlier path as a faint ghost, and dragging only moves the start along x. Both are disclosed and fit the plan. Dragging was not sampled."
+     },
+     {
+      "version": 1,
+      "id": "rf4",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "major",
+      "target": {
+       "capture": "v0-s2",
+       "object": "camera"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "At learning rate 0.6 the key behaviour is a zig-zag across the steep (y/depth) direction. The default camera at (5.5,6.5,8.5) looks almost along that axis, so the zig-zag trail collapses into a small tangled clump around the ball and cannot be read. Choose a default view that looks down onto the bowl more steeply, or one where the y direction lies across the screen."
+     },
+     {
+      "version": 1,
+      "id": "rf5",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "major",
+      "target": {
+       "capture": "v0-s2",
+       "object": "stepArrow"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "The arrows are drawn flat at ball height and at 3× their true length. Large cross-valley steps therefore run into the far wall of the bowl: the arrow tips are hidden, and the 'Noisy step' label floats far right of the ball, away from any visible arrow. Use a smaller common scale, or tilt or lift the arrows so they stay visible above the surface."
+     },
+     {
+      "version": 1,
+      "id": "rf6",
+      "verdict": "visual",
+      "category": "spec",
+      "severity": "major",
+      "target": {
+       "capture": "v1-s2",
+       "object": "stepArrow"
+      },
+      "evidence": [],
+      "specRepairable": true,
+      "message": "The noisy-step arrow passes through the bowl wall. Only its tail at the ball and its head outside the bowl, far to the right, are visible, and the 'Noisy step' label sits off the surface, away from the ball. The 3× flat arrow scale makes the arrows cut through the surface whenever steps are large."
+     }
+    ]
+   }
+  ],
+  "reviews": [
+   {
+    "at": 1793765619005,
+    "attempt": 1,
+    "repairs": 0,
+    "artifactHash": "a2c079e226b21467f6ded05dc5a7cc702380240f913f1bcef2b43ad69c4de7bf",
+    "retry": false,
+    "raw": {
+     "captures": [
+      {
+       "id": "v0-s0",
+       "semantic": "pass",
+       "visual": "fail",
+       "findings": [
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "major",
+         "message": "The subject is small in the default view. The bowl fills only about half the frame width and under half its height, leaving large empty bands above and below. The ball and its two step arrows are tiny: the arrows are about 0.7 units long and nearly on top of each other, so you can't tell the 'Noisy step' arrow from the 'Downhill step' arrow. Move the camera closer to the bowl (for example aim lower and nearer to its centre) so the ball and arrows are readable.",
+         "object": "camera",
+         "repairable": true
+        },
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "major",
+         "message": "The 'Noisy step' and 'Downhill step' labels are much bigger than the short arrows they name and sit right on the ball. You can't see which label belongs to which arrow. Use a smaller label size, or offset the labels to opposite sides so each one clearly points to its own arrow.",
+         "object": "stepTag",
+         "repairable": true
+        }
+       ]
+      },
+      {
+       "id": "v0-s1",
+       "semantic": "pass",
+       "visual": "fail",
+       "findings": [
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "major",
+         "message": "Near the minimum the arrows are only about 0.1 units long, so they look like hairlines next to the ball. The 'Noisy step', 'Downhill step' and 'Minimum' labels crowd one small spot, and 'Noisy step' covers the end of the trail next to the ball. You can't read the noisy step against the true downhill step, which is the main idea of the scene.",
+         "object": "stepTag",
+         "repairable": true
+        },
+        {
+         "verdict": "semantic",
+         "category": "spec",
+         "severity": "minor",
+         "message": "The 'Status' text readout (running / paused / converged / diverged) doesn't appear in the rendered readout line, so the 'diverged' label the plan promises can't be seen. The diverged case (learning rate above 2 ÷ steepness) was not sampled.",
+         "object": "status",
+         "repairable": true
+        }
+       ]
+      },
+      {
+       "id": "v0-s2",
+       "semantic": "pass",
+       "visual": "fail",
+       "findings": [
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "major",
+         "message": "At learning rate 0.6 the zig-zag trail tangles into a knot around the minimum. The ball, both arrows and three labels all overlap in a small area of a frame that is otherwise mostly empty, so the zig-zag pattern the plan promises is hard to follow. Frame the camera tighter on the bowl and keep the labels away from the cluster.",
+         "object": "trail",
+         "repairable": true
+        },
+        {
+         "verdict": "semantic",
+         "category": "spec",
+         "severity": "minor",
+         "message": "Dragging moves the ball only along x, keeping the start's y fixed. The plan promises dragging the ball to any new starting point on the surface. The limit is disclosed in the assumptions.",
+         "object": "ball",
+         "repairable": true
+        }
+       ]
+      },
+      {
+       "id": "v1-s0",
+       "semantic": "pass",
+       "visual": "pass",
+       "findings": []
+      },
+      {
+       "id": "v1-s1",
+       "semantic": "pass",
+       "visual": "pass",
+       "findings": []
+      },
+      {
+       "id": "v1-s2",
+       "semantic": "pass",
+       "visual": "pass",
+       "findings": []
+      }
+     ]
+    },
+    "verdicts": [
+     {
+      "id": "v0-s0",
+      "semantic": "pass",
+      "visual": "fail"
+     },
+     {
+      "id": "v0-s1",
+      "semantic": "pass",
+      "visual": "fail"
+     },
+     {
+      "id": "v0-s2",
+      "semantic": "pass",
+      "visual": "fail"
+     },
+     {
+      "id": "v1-s0",
+      "semantic": "pass",
+      "visual": "pass"
+     },
+     {
+      "id": "v1-s1",
+      "semantic": "pass",
+      "visual": "pass"
+     },
+     {
+      "id": "v1-s2",
+      "semantic": "pass",
+      "visual": "pass"
+     }
+    ],
+    "problems": [],
+    "usage": {
+     "input_tokens": 13679,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2103,
+     "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+     },
+     "output_tokens": 3365,
+     "output_tokens_details": {
+      "thinking_tokens": 2262
+     },
+     "service_tier": "standard",
+     "inference_geo": "global",
+     "speed": "standard"
+    },
+    "stopReason": "tool_use",
+    "error": null,
+    "call": {
+     "key": "aj_ae120e6add1b43578b831f3b7cc1a741-review-4",
+     "status": "settled",
+     "costMicros": 122437,
+     "served": "claude-opus-5-5"
+    }
+   },
+   {
+    "at": 1793765748064,
+    "attempt": 1,
+    "repairs": 1,
+    "artifactHash": "7b2da5796a7708d974d6eac54328b50ea6a341d3f54d226e278f6f650ebf7d9d",
+    "retry": false,
+    "raw": {
+     "captures": [
+      {
+       "id": "v0-s0",
+       "semantic": "pass",
+       "visual": "pass",
+       "findings": [
+        {
+         "verdict": "semantic",
+         "category": "spec",
+         "severity": "minor",
+         "message": "The plan says a run ends when the ball leaves the square from −4 to 4. The artifact instead calls it diverged when √steepness·|y| > 4, i.e. when the ball leaves the narrowed surface. This is disclosed in the assumptions and matches the drawn surface. Divergence (learning rate past 2/steepness) was not sampled.",
+         "repairable": true
+        },
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "minor",
+         "message": "The Status text readout (paused/running/diverged/converged) does not appear in the readout bar of any capture. Only loss, distance and steps are shown.",
+         "repairable": true
+        }
+       ]
+      },
+      {
+       "id": "v0-s1",
+       "semantic": "pass",
+       "visual": "pass",
+       "findings": [
+        {
+         "verdict": "semantic",
+         "category": "spec",
+         "severity": "minor",
+         "message": "Restart run keeps the earlier path as a faint ghost, and dragging only moves the start along x. Both are disclosed and fit the plan. Dragging was not sampled.",
+         "repairable": true
+        }
+       ]
+      },
+      {
+       "id": "v0-s2",
+       "semantic": "pass",
+       "visual": "fail",
+       "findings": [
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "major",
+         "object": "camera",
+         "message": "At learning rate 0.6 the key behaviour is a zig-zag across the steep (y/depth) direction. The default camera at (5.5,6.5,8.5) looks almost along that axis, so the zig-zag trail collapses into a small tangled clump around the ball and cannot be read. Choose a default view that looks down onto the bowl more steeply, or one where the y direction lies across the screen.",
+         "repairable": true
+        },
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "major",
+         "object": "stepArrow",
+         "message": "The arrows are drawn flat at ball height and at 3× their true length. Large cross-valley steps therefore run into the far wall of the bowl: the arrow tips are hidden, and the 'Noisy step' label floats far right of the ball, away from any visible arrow. Use a smaller common scale, or tilt or lift the arrows so they stay visible above the surface.",
+         "repairable": true
+        }
+       ]
+      },
+      {
+       "id": "v1-s0",
+       "semantic": "pass",
+       "visual": "pass",
+       "findings": []
+      },
+      {
+       "id": "v1-s1",
+       "semantic": "pass",
+       "visual": "pass",
+       "findings": []
+      },
+      {
+       "id": "v1-s2",
+       "semantic": "pass",
+       "visual": "fail",
+       "findings": [
+        {
+         "verdict": "visual",
+         "category": "spec",
+         "severity": "major",
+         "object": "stepArrow",
+         "message": "The noisy-step arrow passes through the bowl wall. Only its tail at the ball and its head outside the bowl, far to the right, are visible, and the 'Noisy step' label sits off the surface, away from the ball. The 3× flat arrow scale makes the arrows cut through the surface whenever steps are large.",
+         "repairable": true
+        }
+       ]
+      }
+     ]
+    },
+    "verdicts": [
+     {
+      "id": "v0-s0",
+      "semantic": "pass",
+      "visual": "pass"
+     },
+     {
+      "id": "v0-s1",
+      "semantic": "pass",
+      "visual": "pass"
+     },
+     {
+      "id": "v0-s2",
+      "semantic": "pass",
+      "visual": "fail"
+     },
+     {
+      "id": "v1-s0",
+      "semantic": "pass",
+      "visual": "pass"
+     },
+     {
+      "id": "v1-s1",
+      "semantic": "pass",
+      "visual": "pass"
+     },
+     {
+      "id": "v1-s2",
+      "semantic": "pass",
+      "visual": "fail"
+     }
+    ],
+    "problems": [],
+    "usage": {
+     "input_tokens": 13760,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2103,
+     "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+     },
+     "output_tokens": 3784,
+     "output_tokens_details": {
+      "thinking_tokens": 2753
+     },
+     "service_tier": "standard",
+     "inference_geo": "global",
+     "speed": "standard"
+    },
+    "stopReason": "tool_use",
+    "error": null,
+    "call": {
+     "key": "aj_ae120e6add1b43578b831f3b7cc1a741-review-6",
+     "status": "settled",
+     "costMicros": 131141,
+     "served": "claude-opus-5-5"
+    }
+   }
+  ],
+  "candidates": [
+   {
+    "stage": "preparing",
+    "input": {
+     "title": "Stochastic gradient descent rolling down a bowl-shaped loss",
+     "description": "A bowl-shaped loss surface with contour lines has its lowest point marked at the centre. A ball starts on the rim and takes one stochastic gradient descent (SGD) step each time the scene steps, leaving a trail. Two arrows sit at the ball: one points straight downhill (the true negative gradient) and one shows the noisy step actually taken. As the ball moves, readouts show the step count, the current loss and the distance to the minimum.",
+     "experience": "experiment",
+     "reason": "Watching one run step by step, then changing the step size, the noise or the bowl's shape and running again, shows directly why SGD wobbles, zig-zags, settles or blows up.",
+     "behavior": "rules",
+     "controlProfile": "manipulate",
+     "archetype": "loss_surface",
+     "parameters": [
+      {
+       "type": "number",
+       "id": "learningRate",
+       "label": "Learning rate (step size)",
+       "min": 0.05,
+       "max": 0.6,
+       "default": 0.15,
+       "step": 0.05
+      },
+      {
+       "type": "number",
+       "id": "noise",
+       "label": "Gradient noise (mini-batch randomness)",
+       "min": 0,
+       "max": 2,
+       "default": 0.5,
+       "step": 0.1
+      },
+      {
+       "type": "number",
+       "id": "steepness",
+       "label": "Bowl steepness across (side-to-side curvature)",
+       "min": 1,
+       "max": 5,
+       "default": 3,
+       "step": 0.5
+      }
+     ],
+     "interactions": [
+      "Play, pause or step the run one SGD step at a time and watch the ball, its trail and the readouts update.",
+      "Raise the learning rate: steps get bigger. Past about 1 divided by the steepness the ball zig-zags across the narrow direction, and past 2 divided by the steepness (for example 0.5 with steepness 4) it flies off the bowl and the run stops with a 'diverged' label.",
+      "Raise the noise: the step arrow strays further from the downhill arrow, the trail gets jittery, and the ball keeps jiggling around the minimum instead of settling. At noise 0 this becomes plain gradient descent with a smooth path.",
+      "Change the steepness: higher values make the bowl a narrow valley, so the steep direction is crossed fast while the flat direction is crossed slowly.",
+      "Drag the ball to a new starting point on the surface before running.",
+      "Use 'Restart run' to clear the trail and step count and put the ball back at its current start point, keeping your settings (unlike Reset, which also restores the default settings)."
+     ],
+     "assumptions": [
+      "Illustration: a made-up bowl formula with simulated gradient noise, not a model trained on real data.",
+      "Loss is half of (x squared plus steepness times y squared), so the minimum is exactly at the centre, where the loss is zero.",
+      "Each step moves the ball by minus the learning rate times (the true gradient plus random noise drawn fresh in each direction, with spread set by the noise slider). This stands in for the error you get from estimating the gradient on a small mini-batch.",
+      "The noise comes from a fixed seed, so after Reset the same sequence of noise repeats.",
+      "The ball's height always equals the loss at its position. A run stops after 200 steps or when the ball leaves the drawn square from −4 to 4."
+     ],
+     "limitations": [
+      "Because of the noise, a single step can go uphill. The loss only falls on average, not on every step.",
+      "The learning rate stays fixed. Learning-rate schedules, momentum and other optimizers are not shown, so with noise the ball never fully stops at the minimum.",
+      "Real loss surfaces have many dimensions and are rarely a perfect bowl. Here there are only two directions, so the surface can be drawn."
+     ],
+     "requiredCapabilities": [
+      "parameters",
+      "step",
+      "actions",
+      "drag",
+      "labels",
+      "readouts"
+     ],
+     "requested": {
+      "features": []
+     },
+     "learningGoal": "See how SGD's noisy steps move it downhill on average, and how the step size and the bowl's shape decide between steady progress, zig-zagging and blowing up.",
+     "assertions": [
+      {
+       "kind": "clamp"
+      },
+      {
+       "kind": "compare",
+       "parameter": "learningRate",
+       "values": [
+        0.1,
+        0.5
+       ]
+      },
+      {
+       "kind": "pathLength",
+       "min": 50
+      }
+     ]
+    },
+    "issues": [
+     "interactions.1: Too big: expected string to have <=200 characters (over_limit)",
+     "interactions.2: Too big: expected string to have <=200 characters (over_limit)"
+    ]
+   },
+   {
+    "stage": "preparing",
+    "input": {
+     "title": "Stochastic gradient descent rolling down a bowl-shaped loss",
+     "description": "A bowl-shaped loss surface with contour lines has its lowest point marked at the centre. A ball starts on the rim and takes one stochastic gradient descent (SGD) step each time the scene steps, leaving a trail. Two arrows sit at the ball: one points straight downhill (the true negative gradient) and one shows the noisy step actually taken. As the ball moves, readouts show the step count, the current loss and the distance to the minimum.",
+     "experience": "experiment",
+     "reason": "Watching one run step by step, then changing the step size, the noise or the bowl's shape and running again, shows directly why SGD wobbles, zig-zags, settles or blows up.",
+     "behavior": "rules",
+     "controlProfile": "manipulate",
+     "archetype": "loss_surface",
+     "parameters": [
+      {
+       "type": "number",
+       "id": "learningRate",
+       "label": "Learning rate (step size)",
+       "min": 0.05,
+       "max": 0.6,
+       "default": 0.15,
+       "step": 0.05
+      },
+      {
+       "type": "number",
+       "id": "noise",
+       "label": "Gradient noise (mini-batch randomness)",
+       "min": 0,
+       "max": 2,
+       "default": 0.5,
+       "step": 0.1
+      },
+      {
+       "type": "number",
+       "id": "steepness",
+       "label": "Bowl steepness across (side-to-side curvature)",
+       "min": 1,
+       "max": 5,
+       "default": 3,
+       "step": 0.5
+      }
+     ],
+     "interactions": [
+      "Play, pause or step the run one SGD step at a time and watch the ball, its trail and the readouts update.",
+      "Raise the learning rate: steps grow. Past 1 ÷ steepness the ball zig-zags across the valley; past 2 ÷ steepness (e.g. 0.5 at steepness 5) it flies off and a 'diverged' label shows.",
+      "Raise the noise: the step arrow strays from the downhill arrow, the trail gets jittery and the ball keeps jiggling near the minimum. At noise 0 it is plain gradient descent.",
+      "Change the steepness: higher values make the bowl a narrow valley, so the steep direction is crossed fast while the flat direction is crossed slowly.",
+      "Drag the ball to a new starting point on the surface before running.",
+      "Use 'Restart run' to clear the trail and step count and put the ball back at its current start point, keeping your settings (unlike Reset, which also restores the default settings)."
+     ],
+     "assumptions": [
+      "Illustration: a made-up bowl formula with simulated gradient noise, not a model trained on real data.",
+      "Loss is half of (x squared plus steepness times y squared), so the minimum is exactly at the centre, where the loss is zero.",
+      "Each step moves the ball by minus the learning rate times (the true gradient plus random noise drawn fresh in each direction, with spread set by the noise slider). This stands in for the error you get from estimating the gradient on a small mini-batch.",
+      "The noise comes from a fixed seed, so after Reset the same sequence of noise repeats.",
+      "The ball's height always equals the loss at its position. A run stops after 200 steps or when the ball leaves the drawn square from −4 to 4."
+     ],
+     "limitations": [
+      "Because of the noise, a single step can go uphill. The loss only falls on average, not on every step.",
+      "The learning rate stays fixed. Learning-rate schedules, momentum and other optimizers are not shown, so with noise the ball never fully stops at the minimum.",
+      "Real loss surfaces have many dimensions and are rarely a perfect bowl. Here there are only two directions, so the surface can be drawn."
+     ],
+     "requiredCapabilities": [
+      "parameters",
+      "step",
+      "actions",
+      "drag",
+      "labels",
+      "readouts"
+     ],
+     "requested": {
+      "features": []
+     },
+     "learningGoal": "See how SGD's noisy steps move it downhill on average, and how the step size and the bowl's shape decide between steady progress, zig-zagging and blowing up.",
+     "assertions": [
+      {
+       "kind": "clamp"
+      },
+      {
+       "kind": "compare",
+       "parameter": "learningRate",
+       "values": [
+        0.1,
+        0.5
+       ]
+      },
+      {
+       "kind": "pathLength",
+       "min": 50
+      }
+     ]
+    },
+    "issues": []
+   },
+   {
+    "repairs": 1,
+    "previousDraft": {
+     "title": "SGD on a bowl-shaped loss",
+     "description": "A blue bowl-shaped loss surface with elliptical contour lines, its minimum marked by a dark dot at the centre. A red ball starts high on the bowl and takes one stochastic gradient descent step at a time, leaving an orange trail. Two arrows start at the ball: a grey one for the noise-free downhill step and an orange one for the noisy step it will actually take. Readouts show the loss, the distance to the minimum, the step count and the run status.",
+     "experience": "experiment",
+     "behavior": "rules",
+     "controlProfile": "manipulate",
+     "stepped": true,
+     "seed": 11,
+     "camera": {
+      "position": [
+       6,
+       7,
+       9
+      ],
+      "target": [
+       0,
+       0.6,
+       0
+      ],
+      "fov": 45
+     },
+     "parameters": [
+      {
+       "type": "number",
+       "id": "learningRate",
+       "label": "Learning rate (step size)",
+       "min": 0.05,
+       "max": 0.6,
+       "step": 0.05,
+       "default": 0.15
+      },
+      {
+       "type": "number",
+       "id": "noise",
+       "label": "Gradient noise (mini-batch randomness)",
+       "min": 0,
+       "max": 2,
+       "step": 0.1,
+       "default": 0.5
+      },
+      {
+       "type": "number",
+       "id": "steepness",
+       "label": "Bowl steepness across (side-to-side curvature)",
+       "min": 1,
+       "max": 5,
+       "step": 0.5,
+       "default": 3
+      }
+     ],
+     "actions": [
+      {
+       "id": "run",
+       "label": "Run"
+      },
+      {
+       "id": "stepOnce",
+       "label": "Step once",
+       "startsMotion": false
+      },
+      {
+       "id": "restartRun",
+       "label": "Restart run (old path stays faint)",
+       "startsMotion": false
+      }
+     ],
+     "readouts": [
+      {
+       "id": "loss",
+       "label": "Loss (true value)",
+       "decimals": 3
+      },
+      {
+       "id": "dist",
+       "label": "Distance to minimum",
+       "decimals": 3
+      },
+      {
+       "id": "steps",
+       "label": "Steps taken",
+       "decimals": 0
+      },
+      {
+       "id": "status",
+       "label": "Status",
+       "kind": "text"
+      }
+     ],
+     "scene": {
+      "materials": [
+       {
+        "id": "bowlM",
+        "color": "#9db4cf"
+       },
+       {
+        "id": "ballM",
+        "color": "#d6402b"
+       },
+       {
+        "id": "pathM",
+        "color": "#e8811a"
+       },
+       {
+        "id": "keptM",
+        "color": "#2c4a8a"
+       },
+       {
+        "id": "slopeM",
+        "color": "#555b66"
+       },
+       {
+        "id": "darkM",
+        "color": "#2f343c"
+       }
+      ],
+      "geometries": [
+       {
+        "id": "bowlG",
+        "kind": "surface",
+        "width": 8,
+        "depth": 8,
+        "contours": 8,
+        "heights": [
+         [
+          2.4,
+          2.2,
+          2.02,
+          1.86,
+          1.71,
+          1.58,
+          1.47,
+          1.38,
+          1.31,
+          1.26,
+          1.22,
+          1.2,
+          1.2,
+          1.22,
+          1.26,
+          1.31,
+          1.38,
+          1.47,
+          1.58,
+          1.71,
+          1.86,
+          2.02,
+          2.2,
+          2.4
+         ],
+         [
+          2.2,
+          2,
+          1.82,
+          1.66,
+          1.51,
+          1.38,
+          1.27,
+          1.18,
+          1.11,
+          1.06,
+          1.02,
+          1,
+          1,
+          1.02,
+          1.06,
+          1.11,
+          1.18,
+          1.27,
+          1.38,
+          1.51,
+          1.66,
+          1.82,
+          2,
+          2.2
+         ],
+         [
+          2.02,
+          1.82,
+          1.64,
+          1.48,
+          1.33,
+          1.2,
+          1.09,
+          1,
+          0.93,
+          0.88,
+          0.84,
+          0.82,
+          0.82,
+          0.84,
+          0.88,
+          0.93,
+          1,
+          1.09,
+          1.2,
+          1.33,
+          1.48,
+          1.64,
+          1.82,
+          2.02
+         ],
+         [
+          1.86,
+          1.66,
+          1.48,
+          1.32,
+          1.17,
+          1.04,
+          0.93,
+          0.84,
+          0.77,
+          0.72,
+          0.68,
+          0.66,
+          0.66,
+          0.68,
+          0.72,
+          0.77,
+          0.84,
+          0.93,
+          1.04,
+          1.17,
+          1.32,
+          1.48,
+          1.66,
+          1.86
+         ],
+         [
+          1.71,
+          1.51,
+          1.33,
+          1.17,
+          1.02,
+          0.89,
+          0.78,
+          0.69,
+          0.62,
+          0.57,
+          0.53,
+          0.51,
+          0.51,
+          0.53,
+          0.57,
+          0.62,
+          0.69,
+          0.78,
+          0.89,
+          1.02,
+          1.17,
+          1.33,
+          1.51,
+          1.71
+         ],
+         [
+          1.58,
+          1.38,
+          1.2,
+          1.04,
+          0.89,
+          0.76,
+          0.65,
+          0.56,
+          0.49,
+          0.44,
+          0.4,
+          0.38,
+          0.38,
+          0.4,
+          0.44,
+          0.49,
+          0.56,
+          0.65,
+          0.76,
+          0.89,
+          1.04,
+          1.2,
+          1.38,
+          1.58
+         ],
+         [
+          1.47,
+          1.27,
+          1.09,
+          0.93,
+          0.78,
+          0.65,
+          0.54,
+          0.45,
+          0.38,
+          0.33,
+          0.29,
+          0.27,
+          0.27,
+          0.29,
+          0.33,
+          0.38,
+          0.45,
+          0.54,
+          0.65,
+          0.78,
+          0.93,
+          1.09,
+          1.27,
+          1.47
+         ],
+         [
+          1.38,
+          1.18,
+          1,
+          0.84,
+          0.69,
+          0.56,
+          0.45,
+          0.36,
+          0.29,
+          0.24,
+          0.2,
+          0.18,
+          0.18,
+          0.2,
+          0.24,
+          0.29,
+          0.36,
+          0.45,
+          0.56,
+          0.69,
+          0.84,
+          1,
+          1.18,
+          1.38
+         ],
+         [
+          1.31,
+          1.11,
+          0.93,
+          0.77,
+          0.62,
+          0.49,
+          0.38,
+          0.29,
+          0.22,
+          0.17,
+          0.13,
+          0.11,
+          0.11,
+          0.13,
+          0.17,
+          0.22,
+          0.29,
+          0.38,
+          0.49,
+          0.62,
+          0.77,
+          0.93,
+          1.11,
+          1.31
+         ],
+         [
+          1.26,
+          1.06,
+          0.88,
+          0.72,
+          0.57,
+          0.44,
+          0.33,
+          0.24,
+          0.17,
+          0.12,
+          0.08,
+          0.06,
+          0.06,
+          0.08,
+          0.12,
+          0.17,
+          0.24,
+          0.33,
+          0.44,
+          0.57,
+          0.72,
+          0.88,
+          1.06,
+          1.26
+         ],
+         [
+          1.22,
+          1.02,
+          0.84,
+          0.68,
+          0.53,
+          0.4,
+          0.29,
+          0.2,
+          0.13,
+          0.08,
+          0.04,
+          0.02,
+          0.02,
+          0.04,
+          0.08,
+          0.13,
+          0.2,
+          0.29,
+          0.4,
+          0.53,
+          0.68,
+          0.84,
+          1.02,
+          1.22
+         ],
+         [
+          1.2,
+          1,
+          0.82,
+          0.66,
+          0.51,
+          0.38,
+          0.27,
+          0.18,
+          0.11,
+          0.06,
+          0.02,
+          0,
+          0,
+          0.02,
+          0.06,
+          0.11,
+          0.18,
+          0.27,
+          0.38,
+          0.51,
+          0.66,
+          0.82,
+          1,
+          1.2
+         ],
+         [
+          1.2,
+          1,
+          0.82,
+          0.66,
+          0.51,
+          0.38,
+          0.27,
+          0.18,
+          0.11,
+          0.06,
+          0.02,
+          0,
+          0,
+          0.02,
+          0.06,
+          0.11,
+          0.18,
+          0.27,
+          0.38,
+          0.51,
+          0.66,
+          0.82,
+          1,
+          1.2
+         ],
+         [
+          1.22,
+          1.02,
+          0.84,
+          0.68,
+          0.53,
+          0.4,
+          0.29,
+          0.2,
+          0.13,
+          0.08,
+          0.04,
+          0.02,
+          0.02,
+          0.04,
+          0.08,
+          0.13,
+          0.2,
+          0.29,
+          0.4,
+          0.53,
+          0.68,
+          0.84,
+          1.02,
+          1.22
+         ],
+         [
+          1.26,
+          1.06,
+          0.88,
+          0.72,
+          0.57,
+          0.44,
+          0.33,
+          0.24,
+          0.17,
+          0.12,
+          0.08,
+          0.06,
+          0.06,
+          0.08,
+          0.12,
+          0.17,
+          0.24,
+          0.33,
+          0.44,
+          0.57,
+          0.72,
+          0.88,
+          1.06,
+          1.26
+         ],
+         [
+          1.31,
+          1.11,
+          0.93,
+          0.77,
+          0.62,
+          0.49,
+          0.38,
+          0.29,
+          0.22,
+          0.17,
+          0.13,
+          0.11,
+          0.11,
+          0.13,
+          0.17,
+          0.22,
+          0.29,
+          0.38,
+          0.49,
+          0.62,
+          0.77,
+          0.93,
+          1.11,
+          1.31
+         ],
+         [
+          1.38,
+          1.18,
+          1,
+          0.84,
+          0.69,
+          0.56,
+          0.45,
+          0.36,
+          0.29,
+          0.24,
+          0.2,
+          0.18,
+          0.18,
+          0.2,
+          0.24,
+          0.29,
+          0.36,
+          0.45,
+          0.56,
+          0.69,
+          0.84,
+          1,
+          1.18,
+          1.38
+         ],
+         [
+          1.47,
+          1.27,
+          1.09,
+          0.93,
+          0.78,
+          0.65,
+          0.54,
+          0.45,
+          0.38,
+          0.33,
+          0.29,
+          0.27,
+          0.27,
+          0.29,
+          0.33,
+          0.38,
+          0.45,
+          0.54,
+          0.65,
+          0.78,
+          0.93,
+          1.09,
+          1.27,
+          1.47
+         ],
+         [
+          1.58,
+          1.38,
+          1.2,
+          1.04,
+          0.89,
+          0.76,
+          0.65,
+          0.56,
+          0.49,
+          0.44,
+          0.4,
+          0.38,
+          0.38,
+          0.4,
+          0.44,
+          0.49,
+          0.56,
+          0.65,
+          0.76,
+          0.89,
+          1.04,
+          1.2,
+          1.38,
+          1.58
+         ],
+         [
+          1.71,
+          1.51,
+          1.33,
+          1.17,
+          1.02,
+          0.89,
+          0.78,
+          0.69,
+          0.62,
+          0.57,
+          0.53,
+          0.51,
+          0.51,
+          0.53,
+          0.57,
+          0.62,
+          0.69,
+          0.78,
+          0.89,
+          1.02,
+          1.17,
+          1.33,
+          1.51,
+          1.71
+         ],
+         [
+          1.86,
+          1.66,
+          1.48,
+          1.32,
+          1.17,
+          1.04,
+          0.93,
+          0.84,
+          0.77,
+          0.72,
+          0.68,
+          0.66,
+          0.66,
+          0.68,
+          0.72,
+          0.77,
+          0.84,
+          0.93,
+          1.04,
+          1.17,
+          1.32,
+          1.48,
+          1.66,
+          1.86
+         ],
+         [
+          2.02,
+          1.82,
+          1.64,
+          1.48,
+          1.33,
+          1.2,
+          1.09,
+          1,
+          0.93,
+          0.88,
+          0.84,
+          0.82,
+          0.82,
+          0.84,
+          0.88,
+          0.93,
+          1,
+          1.09,
+          1.2,
+          1.33,
+          1.48,
+          1.64,
+          1.82,
+          2.02
+         ],
+         [
+          2.2,
+          2,
+          1.82,
+          1.66,
+          1.51,
+          1.38,
+          1.27,
+          1.18,
+          1.11,
+          1.06,
+          1.02,
+          1,
+          1,
+          1.02,
+          1.06,
+          1.11,
+          1.18,
+          1.27,
+          1.38,
+          1.51,
+          1.66,
+          1.82,
+          2,
+          2.2
+         ],
+         [
+          2.4,
+          2.2,
+          2.02,
+          1.86,
+          1.71,
+          1.58,
+          1.47,
+          1.38,
+          1.31,
+          1.26,
+          1.22,
+          1.2,
+          1.2,
+          1.22,
+          1.26,
+          1.31,
+          1.38,
+          1.47,
+          1.58,
+          1.71,
+          1.86,
+          2.02,
+          2.2,
+          2.4
+         ]
+        ]
+       },
+       {
+        "id": "runG",
+        "kind": "trail",
+        "max": 104,
+        "radius": 0.05,
+        "style": "trail"
+       },
+       {
+        "id": "keptG",
+        "kind": "trail",
+        "max": 104,
+        "radius": 0.05,
+        "style": "ghost"
+       },
+       {
+        "id": "ballG",
+        "kind": "sphere",
+        "radius": 0.18,
+        "widthSegments": 32,
+        "heightSegments": 24
+       },
+       {
+        "id": "minG",
+        "kind": "sphere",
+        "radius": 0.09,
+        "widthSegments": 16,
+        "heightSegments": 12
+       },
+       {
+        "id": "arrowG",
+        "kind": "arrow",
+        "length": 1,
+        "offset": 0.18
+       },
+       {
+        "id": "minT",
+        "kind": "label",
+        "text": "Minimum",
+        "placement": "right"
+       },
+       {
+        "id": "stepT",
+        "kind": "label",
+        "text": "Noisy step",
+        "anchor": "tip"
+       },
+       {
+        "id": "slopeT",
+        "kind": "label",
+        "text": "Downhill step",
+        "anchor": "tip"
+       }
+      ],
+      "nodes": [
+       {
+        "id": "bowl",
+        "geometry": "bowlG",
+        "material": "bowlM",
+        "name": "Loss surface",
+        "scale": [
+         1,
+         1,
+         0.577
+        ]
+       },
+       {
+        "id": "trail",
+        "geometry": "runG",
+        "material": "pathM",
+        "name": "This run"
+       },
+       {
+        "id": "ghost",
+        "geometry": "keptG",
+        "material": "keptM",
+        "name": "Earlier run"
+       },
+       {
+        "id": "lowest",
+        "geometry": "minG",
+        "material": "darkM",
+        "position": [
+         0,
+         0.04,
+         0
+        ]
+       },
+       {
+        "id": "lowestTag",
+        "parent": "lowest",
+        "geometry": "minT",
+        "position": [
+         0.12,
+         0,
+         0
+        ]
+       },
+       {
+        "id": "ball",
+        "geometry": "ballG",
+        "material": "ballM",
+        "name": "Current point",
+        "clampTo": {
+         "node": "bowl",
+         "max": 2.6
+        },
+        "drag": {
+         "axis": "x",
+         "min": -3.8,
+         "max": 3.8
+        },
+        "position": [
+         -3.2,
+         1.31,
+         1.2
+        ]
+       },
+       {
+        "id": "stepArrow",
+        "parent": "ball",
+        "geometry": "arrowG",
+        "material": "pathM"
+       },
+       {
+        "id": "stepTag",
+        "parent": "stepArrow",
+        "geometry": "stepT"
+       },
+       {
+        "id": "slopeArrow",
+        "parent": "ball",
+        "geometry": "arrowG",
+        "material": "slopeM"
+       },
+       {
+        "id": "slopeTag",
+        "parent": "slopeArrow",
+        "geometry": "slopeT"
+       }
+      ]
+     },
+     "program": {
+      "source": "const K=0.15,R=0.18,H=4,MAXS=200,TOP=2.6;\nconst L=(x,y,s)=>0.5*(x*x+s*y*y);\nconst fr=v=>v-Math.floor(v);\nconst rnd=(n,sd)=>fr(Math.sin(n*12.9898+sd*78.233)*43758.5453);\nconst gauss=(n,sd)=>Math.sqrt(-2*Math.log(Math.max(1e-9,rnd(n,sd))))*Math.cos(2*Math.PI*rnd(n+0.37,sd));\nconst fresh=(sx,sy,run,kept)=>({sx,sy,x:sx,y:sy,n:0,run,on:false,path:[[sx,sy]],kept});\nconst off=(s,i)=>Math.abs(s.x)>H||Math.sqrt(i.steepness)*Math.abs(s.y)>H;\nconst conv=(s,i)=>i.noise===0&&L(s.x,s.y,i.steepness)<1e-6;\nconst done=(s,i)=>off(s,i)||s.n>=MAXS||conv(s,i);\nfunction next(s,i,sd){const k=s.run*4001+s.n*2+1,a=i.noise;return[-i.learningRate*(s.x+a*gauss(k,sd)),-i.learningRate*(i.steepness*s.y+a*gauss(k+0.5,sd))];}\nfunction advance(s,i,sd){if(done(s,i))return s;const[dx,dy]=next(s,i,sd),x=s.x+dx,y=s.y+dy,n=s.n+1;return{...s,x,y,n,path:n%2?s.path:s.path.concat([[x,y]]).slice(-100)};}\nexport function initialState(){return fresh(-3.2,1.2,0,[]);}\nexport function reduce({state:s,event:e,inputs:i,seed}){\nif(e.type==='step')return !s.on||done(s,i)||e.tick%3?s:advance(s,i,seed);\nif((e.type==='drag_move'||e.type==='drag_end')&&e.node==='ball')return fresh(Math.max(-3.8,Math.min(3.8,e.value)),s.sy,s.run,s.kept);\nif(e.type!=='action')return s;\nif(e.action==='run')return done(s,i)?s:{...s,on:true};\nif(e.action==='stepOnce')return advance({...s,on:false},i,seed);\nif(e.action==='restartRun')return fresh(s.sx,s.sy,s.run+1,s.n>0?s.path.concat([[s.x,s.y]]):s.kept);\nreturn s;}\nconst lift=(p,st)=>[p[0],Math.min(K*L(p[0],p[1],st),TOP)+0.05,p[1]];\nfunction aim(dx,dz,show){const l=Math.hypot(dx,dz),h=Math.SQRT1_2;return show&&l>1e-6?{visible:true,quaternion:[dz/l*h,0,-dx/l*h,h],scale:[1,l,1]}:{visible:false};}\nfunction word(s,i,lo){if(off(s,i))return'diverged';if(done(s,i))return lo<0.05?'converged':'stopped';return s.on?'running':'paused';}\nexport function evaluate({inputs:i,state,seed}){\nconst s=state||initialState(),st=i.steepness,lo=L(s.x,s.y,st),live=!done(s,i),[dx,dy]=next(s,i,seed);\nreturn{nodes:{\nbowl:{scale:[1,1,1/Math.sqrt(st)]},\nball:{position:[s.x,K*lo+R,s.y]},\nstepArrow:aim(dx,dy,live),\nslopeArrow:aim(-i.learningRate*s.x,-i.learningRate*st*s.y,live),\ntrail:{points:s.path.concat([[s.x,s.y]]).map(p=>lift(p,st))},\nghost:{points:s.kept.map(p=>lift(p,st))}},\nreadouts:{loss:lo,dist:Math.hypot(s.x,s.y),steps:s.n,status:word(s,i,lo)}};}\n"
+     },
+     "assumptions": [
+      "Illustration: a made-up bowl formula with simulated gradient noise, not a model trained on real data.",
+      "Loss = ½(x² + steepness·y²), with y along the depth axis; the minimum is at the centre, loss 0. The surface is drawn at 0.15 × loss, and the ball sits on it; the Loss readout gives the true value.",
+      "Each step moves by −learning rate × (true gradient + fresh Gaussian noise in each direction, spread = noise slider). The grey arrow is the noise-free step −lr·∇L, the orange arrow the noisy step about to be taken, both at true length (1 unit = 1 unit on the floor).",
+      "Noise comes from a fixed seed, so after Reset the same noise repeats. While running, one SGD step is taken every 3 host steps (10 steps a second); Step once takes exactly one.",
+      "The drawn surface spans x from −4 to 4 and narrows across as steepness rises (where steepness·y² ≤ 16). Diverged means the ball left it. A run also stops after 200 steps; it then reads converged if the loss is below 0.05, else stopped.",
+      "Drag the ball left or right (along x) to choose a new start; this begins a fresh run from there. Restart run clears the trail and step count, keeps your settings, and keeps the old path faint for comparison.",
+      "The trail adds one point every 2 steps (at most 100) plus the current position; every step still runs. With noise a single step can go uphill: the loss falls only on average."
+     ]
+    },
+    "operation": "artifact",
+    "progress": true,
+    "draftHash": "a6983be42a3e7411",
+    "hasProgram": true,
+    "inputKeys": [
+     "operation",
+     "artifact"
+    ],
+    "artifactKeys": [
+     "title",
+     "description",
+     "experience",
+     "behavior",
+     "controlProfile",
+     "stepped",
+     "seed",
+     "camera",
+     "parameters",
+     "actions",
+     "readouts",
+     "scene",
+     "assumptions",
+     "program"
+    ],
+    "forwarded": {
+     "findings": 6,
+     "problems": 0
+    }
+   }
+  ],
+  "calls": [
+   {
+    "key": "aj_ae120e6add1b43578b831f3b7cc1a741-brief-1",
+    "role": "brief",
+    "phase": "preparation",
+    "attempt": 1,
+    "streamed": false,
+    "requested": "claude-opus-5-5",
+    "served": "claude-opus-5-5",
+    "status": "settled",
+    "boundMicros": 156135,
+    "images": 0,
+    "costMicros": 49771,
+    "inputTokens": 375,
+    "outputTokens": 2366,
+    "startedAt": 1793765379113,
+    "endedAt": 1793765403778,
+    "stopReason": "tool_use",
+    "error": null,
+    "blocks": [
+     {
+      "type": "thinking"
+     },
+     {
+      "type": "tool_use",
+      "name": "animation_plan",
+      "chars": 3797
+     }
+    ]
+   },
+   {
+    "key": "aj_ae120e6add1b43578b831f3b7cc1a741-brief-2",
+    "role": "brief",
+    "phase": "preparation",
+    "attempt": 1,
+    "streamed": false,
+    "requested": "claude-opus-5-5",
+    "served": "claude-opus-5-5",
+    "status": "settled",
+    "boundMicros": 177715,
+    "images": 0,
+    "costMicros": 51343,
+    "inputTokens": 1828,
+    "outputTokens": 2154,
+    "startedAt": 1793765403778,
+    "endedAt": 1793765420161,
+    "stopReason": "tool_use",
+    "error": null,
+    "blocks": [
+     {
+      "type": "thinking"
+     },
+     {
+      "type": "tool_use",
+      "name": "animation_plan",
+      "chars": 3657
+     }
+    ]
+   },
+   {
+    "key": "aj_ae120e6add1b43578b831f3b7cc1a741-author-3",
+    "role": "author",
+    "phase": "generation",
+    "attempt": 1,
+    "streamed": true,
+    "requested": "claude-opus-5-5",
+    "served": "claude-opus-5-5",
+    "status": "settled",
+    "boundMicros": 678955,
+    "images": 0,
+    "costMicros": 306553,
+    "inputTokens": 7779,
+    "outputTokens": 13691,
+    "startedAt": 1793765425690,
+    "endedAt": 1793765546641,
+    "stopReason": "tool_use",
+    "error": null,
+    "blocks": [
+     {
+      "type": "thinking"
+     },
+     {
+      "type": "tool_use",
+      "name": "animation_artifact",
+      "chars": 9810
+     }
+    ]
+   },
+   {
+    "key": "aj_ae120e6add1b43578b831f3b7cc1a741-review-4",
+    "role": "review",
+    "phase": "generation",
+    "attempt": 1,
+    "streamed": false,
+    "requested": "claude-opus-5-5",
+    "served": "claude-opus-5-5",
+    "status": "settled",
+    "boundMicros": 401430,
+    "images": 6,
+    "costMicros": 122437,
+    "inputTokens": 13679,
+    "outputTokens": 3365,
+    "startedAt": 1793765582302,
+    "endedAt": 1793765619005,
+    "stopReason": "tool_use",
+    "error": null,
+    "blocks": [
+     {
+      "type": "thinking"
+     },
+     {
+      "type": "tool_use",
+      "name": "report_review",
+      "chars": 2874
+     }
+    ]
+   },
+   {
+    "key": "aj_ae120e6add1b43578b831f3b7cc1a741-repair-5",
+    "role": "repair",
+    "phase": "generation",
+    "attempt": 1,
+    "streamed": true,
+    "requested": "claude-opus-5-5",
+    "served": "claude-opus-5-5",
+    "status": "settled",
+    "boundMicros": 734890,
+    "images": 2,
+    "costMicros": 203777,
+    "inputTokens": 9826,
+    "outputTokens": 8143,
+    "startedAt": 1793765619207,
+    "endedAt": 1793765683166,
+    "stopReason": "tool_use",
+    "error": null,
+    "blocks": [
+     {
+      "type": "thinking"
+     },
+     {
+      "type": "tool_use",
+      "name": "repair_animation",
+      "chars": 9977
+     }
+    ]
+   },
+   {
+    "key": "aj_ae120e6add1b43578b831f3b7cc1a741-review-6",
+    "role": "review",
+    "phase": "generation",
+    "attempt": 1,
+    "streamed": false,
+    "requested": "claude-opus-5-5",
+    "served": "claude-opus-5-5",
+    "status": "settled",
+    "boundMicros": 402295,
+    "images": 6,
+    "costMicros": 131141,
+    "inputTokens": 13760,
+    "outputTokens": 3784,
+    "startedAt": 1793765705573,
+    "endedAt": 1793765748064,
+    "stopReason": "tool_use",
+    "error": null,
+    "blocks": [
+     {
+      "type": "thinking"
+     },
+     {
+      "type": "tool_use",
+      "name": "report_review",
+      "chars": 2619
+     }
+    ]
+   }
+  ],
+  "captures": [
+   {
+    "id": "v0-s0",
+    "artifactHash": "7b2da5796a7708d974d6eac54328b50ea6a341d3f54d226e278f6f650ebf7d9d",
+    "view": "default",
+    "label": "initial",
+    "inputs": {
+     "learningRate": 0.15,
+     "noise": 0.5,
+     "steepness": 3
+    },
+    "time": 0,
+    "events": [],
+    "ticks": 0,
+    "seed": 11,
+    "trace": {
+     "inputs": {
+      "learningRate": 0.15,
+      "noise": 0.5,
+      "steepness": 3
+     },
+     "time": 0,
+     "events": [],
+     "ticks": 0,
+     "readouts": {
+      "loss": 7.280000000000001,
+      "dist": 3.417601498127013,
+      "steps": 0,
+      "status": "paused"
+     },
+     "stateHash": "26b1be1949721feb362aaef076afe6725ad9f1d2c8c873b95e5a727c4de6ef4e"
+    },
+    "sha256": "3b1db7cd5d46ccb550c285563bb6d855eade3c3a2e979d8ff76c0183afbd1d3d",
+    "mediaType": "image/png",
+    "key": "animation/aj_ae120e6add1b43578b831f3b7cc1a741/7b2da5796a7708d9-v0-s0.png"
+   },
+   {
+    "id": "v0-s1",
+    "artifactHash": "7b2da5796a7708d974d6eac54328b50ea6a341d3f54d226e278f6f650ebf7d9d",
+    "view": "default",
+    "label": "learningRate at 0.15: run, 48 steps, then stepOnce, restartRun, then run if idle, then 30 steps",
+    "inputs": {
+     "learningRate": 0.15,
+     "noise": 0.5,
+     "steepness": 3
+    },
+    "time": 0,
+    "events": [
+     {
+      "type": "action",
+      "action": "run"
+     },
+     {
+      "type": "advance",
+      "ticks": 48
+     },
+     {
+      "type": "action",
+      "action": "stepOnce"
+     },
+     {
+      "type": "action",
+      "action": "restartRun"
+     },
+     {
+      "type": "resume",
+      "action": "run",
+      "probe": 12
+     }
+    ],
+    "ticks": 30,
+    "seed": 11,
+    "trace": {
+     "inputs": {
+      "learningRate": 0.15,
+      "noise": 0.5,
+      "steepness": 3
+     },
+     "time": 3,
+     "events": [
+      {
+       "type": "action",
+       "action": "run"
+      },
+      {
+       "type": "advance",
+       "ticks": 48
+      },
+      {
+       "type": "action",
+       "action": "stepOnce"
+      },
+      {
+       "type": "action",
+       "action": "restartRun"
+      },
+      {
+       "type": "resume",
+       "action": "run",
+       "probe": 12
+      }
+     ],
+     "ticks": 90,
+     "readouts": {
+      "loss": 0.2286692548210189,
+      "dist": 0.6636139639183466,
+      "steps": 10,
+      "status": "running"
+     },
+     "stateHash": "efc59fb9dc34bdc36b0133a2f211a84df71058e2790fdc1babdb56c34bb3a75d"
+    },
+    "sha256": "56ff817f958367eb361654663a81070ab978472c5ee508743b4ac1da00eaf167",
+    "mediaType": "image/png",
+    "key": "animation/aj_ae120e6add1b43578b831f3b7cc1a741/7b2da5796a7708d9-v0-s1.png"
+   },
+   {
+    "id": "v0-s2",
+    "artifactHash": "7b2da5796a7708d974d6eac54328b50ea6a341d3f54d226e278f6f650ebf7d9d",
+    "view": "default",
+    "label": "learningRate at its high end (0.6), after run, then 90 steps",
+    "inputs": {
+     "learningRate": 0.6,
+     "noise": 0.5,
+     "steepness": 3
+    },
+    "time": 0,
+    "events": [
+     {
+      "type": "action",
+      "action": "run"
+     }
+    ],
+    "ticks": 90,
+    "seed": 11,
+    "trace": {
+     "inputs": {
+      "learningRate": 0.6,
+      "noise": 0.5,
+      "steepness": 3
+     },
+     "time": 3,
+     "events": [
+      {
+       "type": "action",
+       "action": "run"
+      }
+     ],
+     "ticks": 90,
+     "readouts": {
+      "loss": 0.9175856952591914,
+      "dist": 0.8024825850079556,
+      "steps": 30,
+      "status": "running"
+     },
+     "stateHash": "a5bf05ad0a2b462fb63c9df5e7d5d75bdd97be74d39123a8824cb24e46528377"
+    },
+    "sha256": "51baa2d1cb74366bb4fde26ee633176ecfc85695b3d84ec50fe4db6095384101",
+    "mediaType": "image/png",
+    "key": "animation/aj_ae120e6add1b43578b831f3b7cc1a741/7b2da5796a7708d9-v0-s2.png"
+   },
+   {
+    "id": "v1-s0",
+    "artifactHash": "7b2da5796a7708d974d6eac54328b50ea6a341d3f54d226e278f6f650ebf7d9d",
+    "view": "side",
+    "label": "initial",
+    "inputs": {
+     "learningRate": 0.15,
+     "noise": 0.5,
+     "steepness": 3
+    },
+    "time": 0,
+    "events": [],
+    "ticks": 0,
+    "seed": 11,
+    "trace": {
+     "inputs": {
+      "learningRate": 0.15,
+      "noise": 0.5,
+      "steepness": 3
+     },
+     "time": 0,
+     "events": [],
+     "ticks": 0,
+     "readouts": {
+      "loss": 7.280000000000001,
+      "dist": 3.417601498127013,
+      "steps": 0,
+      "status": "paused"
+     },
+     "stateHash": "26b1be1949721feb362aaef076afe6725ad9f1d2c8c873b95e5a727c4de6ef4e"
+    },
+    "sha256": "4a91f50e0fcb592ac409872cadf16f5fa4e87359092368e5a5b32428ee49825b",
+    "mediaType": "image/png",
+    "key": "animation/aj_ae120e6add1b43578b831f3b7cc1a741/7b2da5796a7708d9-v1-s0.png"
+   },
+   {
+    "id": "v1-s1",
+    "artifactHash": "7b2da5796a7708d974d6eac54328b50ea6a341d3f54d226e278f6f650ebf7d9d",
+    "view": "side",
+    "label": "learningRate at 0.15: run, 48 steps, then stepOnce, restartRun, then run if idle, then 30 steps",
+    "inputs": {
+     "learningRate": 0.15,
+     "noise": 0.5,
+     "steepness": 3
+    },
+    "time": 0,
+    "events": [
+     {
+      "type": "action",
+      "action": "run"
+     },
+     {
+      "type": "advance",
+      "ticks": 48
+     },
+     {
+      "type": "action",
+      "action": "stepOnce"
+     },
+     {
+      "type": "action",
+      "action": "restartRun"
+     },
+     {
+      "type": "resume",
+      "action": "run",
+      "probe": 12
+     }
+    ],
+    "ticks": 30,
+    "seed": 11,
+    "trace": {
+     "inputs": {
+      "learningRate": 0.15,
+      "noise": 0.5,
+      "steepness": 3
+     },
+     "time": 3,
+     "events": [
+      {
+       "type": "action",
+       "action": "run"
+      },
+      {
+       "type": "advance",
+       "ticks": 48
+      },
+      {
+       "type": "action",
+       "action": "stepOnce"
+      },
+      {
+       "type": "action",
+       "action": "restartRun"
+      },
+      {
+       "type": "resume",
+       "action": "run",
+       "probe": 12
+      }
+     ],
+     "ticks": 90,
+     "readouts": {
+      "loss": 0.2286692548210189,
+      "dist": 0.6636139639183466,
+      "steps": 10,
+      "status": "running"
+     },
+     "stateHash": "efc59fb9dc34bdc36b0133a2f211a84df71058e2790fdc1babdb56c34bb3a75d"
+    },
+    "sha256": "25ea95c87862cefb6a3cb9e5abe9c0da70b7c9c5d77282da5ce9d418d2f8624b",
+    "mediaType": "image/png",
+    "key": "animation/aj_ae120e6add1b43578b831f3b7cc1a741/7b2da5796a7708d9-v1-s1.png"
+   },
+   {
+    "id": "v1-s2",
+    "artifactHash": "7b2da5796a7708d974d6eac54328b50ea6a341d3f54d226e278f6f650ebf7d9d",
+    "view": "side",
+    "label": "learningRate at its high end (0.6), after run, then 90 steps",
+    "inputs": {
+     "learningRate": 0.6,
+     "noise": 0.5,
+     "steepness": 3
+    },
+    "time": 0,
+    "events": [
+     {
+      "type": "action",
+      "action": "run"
+     }
+    ],
+    "ticks": 90,
+    "seed": 11,
+    "trace": {
+     "inputs": {
+      "learningRate": 0.6,
+      "noise": 0.5,
+      "steepness": 3
+     },
+     "time": 3,
+     "events": [
+      {
+       "type": "action",
+       "action": "run"
+      }
+     ],
+     "ticks": 90,
+     "readouts": {
+      "loss": 0.9175856952591914,
+      "dist": 0.8024825850079556,
+      "steps": 30,
+      "status": "running"
+     },
+     "stateHash": "a5bf05ad0a2b462fb63c9df5e7d5d75bdd97be74d39123a8824cb24e46528377"
+    },
+    "sha256": "70a25b23211cce4b281b9ea69c6050ef9f03de0b8425da9edce0980c9849ddd8",
+    "mediaType": "image/png",
+    "key": "animation/aj_ae120e6add1b43578b831f3b7cc1a741/7b2da5796a7708d9-v1-s2.png"
+   }
+  ],
+  "coverage": {
+   "views": [
+    "default",
+    "side"
+   ],
+   "sampled": [
+    {
+     "label": "initial",
+     "time": 0,
+     "events": 0,
+     "ticks": 0
+    },
+    {
+     "label": "learningRate at 0.15: run, 48 steps, then stepOnce, restartRun, then run if idle, then 30 steps",
+     "time": 0,
+     "events": 4,
+     "ticks": 30
+    },
+    {
+     "label": "learningRate at its high end (0.6), after run, then 90 steps",
+     "time": 0,
+     "events": 1,
+     "ticks": 90
+    }
+   ],
+   "omitted": [
+    "learningRate at its low end (0.05), after run, then 90 steps",
+    "every parameter at its low end",
+    "every parameter at its high end",
+    "60 steps, then action run, then 30 steps",
+    "sequence of 4 events"
+   ]
+  },
+  "gap": null,
+  "estimate": {
+   "bytes": 20100,
+   "limit": 14848
+  },
+  "counts": {
+   "brief": 2,
+   "author": 1,
+   "review": 2,
+   "repair": 1
+  },
+  "bounds": {
+   "preparation": 333850,
+   "generation": 2217570
+  },
+  "timing": {
+   "requestClass": "simple",
+   "cache": null,
+   "marks": {
+    "submitted": 1793765378063,
+    "firstFeedback": 1793765378113,
+    "proposalReady": 1793765420272,
+    "generate": 1793765425632
+   },
+   "stages": [
+    {
+     "stage": "preparing",
+     "startedAt": 1793765378113,
+     "endedAt": 1793765420272,
+     "calls": 2,
+     "inputTokens": 2203,
+     "outputTokens": 4520,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "awaiting_approval",
+     "startedAt": 1793765420272,
+     "endedAt": 1793765425632,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": null
+    },
+    {
+     "stage": "authoring",
+     "startedAt": 1793765425632,
+     "endedAt": 1793765546641,
+     "calls": 1,
+     "inputTokens": 7779,
+     "outputTokens": 13691,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "validating",
+     "startedAt": 1793765546641,
+     "endedAt": 1793765546659,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "rendering",
+     "startedAt": 1793765546659,
+     "endedAt": 1793765582170,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 6,
+     "outcome": "done"
+    },
+    {
+     "stage": "reviewing",
+     "startedAt": 1793765582170,
+     "endedAt": 1793765619005,
+     "calls": 1,
+     "inputTokens": 13679,
+     "outputTokens": 3365,
+     "images": 6,
+     "captures": 0,
+     "outcome": "rejected"
+    },
+    {
+     "stage": "repairing",
+     "startedAt": 1793765619005,
+     "endedAt": 1793765683166,
+     "calls": 1,
+     "inputTokens": 9826,
+     "outputTokens": 8143,
+     "images": 2,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "validating",
+     "startedAt": 1793765683166,
+     "endedAt": 1793765683184,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 0,
+     "outcome": "done"
+    },
+    {
+     "stage": "rendering",
+     "startedAt": 1793765683184,
+     "endedAt": 1793765704339,
+     "calls": 0,
+     "inputTokens": 0,
+     "outputTokens": 0,
+     "images": 0,
+     "captures": 6,
+     "outcome": "done"
+    },
+    {
+     "stage": "reviewing",
+     "startedAt": 1793765704339,
+     "endedAt": 1793765748064,
+     "calls": 1,
+     "inputTokens": 13760,
+     "outputTokens": 3784,
+     "images": 6,
+     "captures": 0,
+     "outcome": "rounds"
+    }
+   ]
+  }
+ }
+}

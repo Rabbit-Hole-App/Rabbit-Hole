@@ -1,0 +1,354 @@
+[
+ {
+  "at": 1793765615773,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "cbbe8eb0b5909b96ff9e40913cbaec1b343e28ffa67793ddfcb13521b7cf4d8c",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan says Reset replays the same run. The artifact's 'Clear trails, back to chosen start' action uses run+1, so it starts a new noisy run. The artifact's assumptions say so, but the plan's idea of comparing runs with the same noise only works through the host Reset. Dragging the start is also limited to left–right (y stays at 1.5), which is disclosed.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan's limitation says the trail draws 50 markers, one every 4 steps. The artifact draws all 200 steps. That is harmless, but the plan's 'Changed' limitations no longer match the artifact.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "exact",
+       "message": "showExact is on, but the faint plain gradient descent trail can't be seen in this capture (default or side view). The exact path drops in y quickly (factor 0.6 per step) and should form a smooth curve that differs from the zig-zag orange path. Drawn dark blue at 0.6 opacity with radius 0.03 on the light-blue surface, it disappears. The smooth-versus-jittery comparison the plan promises can't be read. Use a thicker, higher-contrast exact path.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepTag",
+       "message": "Near the minimum, the 'Noisy step' and 'Lowest point' labels crowd together. 'Noisy step' covers the end of the orange trail beside the ball and flag, so the ball's last wobbles and the tiny arrow are hard to read. Move or offset the labels, or hide the step label when the arrow is very short.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "The Status readout ('running') is in the trace but does not appear in the readout bar.",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "At learning rate 0.6, the steep direction multiplies y by 1−2.4 = −1.4, so y goes from 1.5 to −2.1. That leaves the surface (|y|>2) after a single step, and the run ends 'diverged' at step 1. The plan promises a ball that bounces back and forth further each time and drifts away, but the learner only sees one jump off the edge. Start closer to y=0, make the surface deeper, or keep stepping a few times past the edge so the growing oscillation can be seen.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ball",
+       "message": "After diverging, the ball sits off the surface at height 0.2×10.85+0.14, floating beyond the bowl's edge. The trail is one straight line through the air. Nothing on screen says 'diverged': the status readout is not shown and there is no label. A learner can't tell what happened.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "The readout bar leaves out the Status text readout ('diverged').",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "exact",
+       "message": "Even from the side angle, the plain gradient descent comparison trail can't be seen. Only the orange SGD path shows.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "stepTag",
+       "message": "The 'Lowest point' and 'Noisy step' labels sit next to each other over the end of the trail.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Same as v0-s2: at the top of the learning-rate range, the run diverges in a single step, so the growing back-and-forth overshoot is never shown.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "ball",
+       "message": "The ball floats past the bowl's edge, and the trail is a single straight segment in the air. Nothing visible marks the 'diverged' state.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13660,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4343,
+   "output_tokens_details": {
+    "thinking_tokens": 2733
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_b30213c908c3480bbb527cb7214bf9f9-review-4",
+   "status": "settled",
+   "costMicros": 141921,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793765738198,
+  "attempt": 1,
+  "repairs": 2,
+  "artifactHash": "a4736384cc3c64ccf7e95d8932e2a04509e591d9c6110c547db3860ef6cec9b7",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan lets the learner drag the ball to any starting point, but dragging only moves it left or right, with front-back fixed at y = 0.5. The assumptions disclose this. Dragging was not sampled.",
+       "repairable": true,
+       "object": "ball"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The readout bar shows four readouts but not the text Status readout ('paused'). Unless the host shows text readouts somewhere else, the learner cannot see the status here.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Near the minimum, the ball and the ends of both trails sit on top of the flag and partly hide it. The flag pole could be taller, or the ball could be drawn smaller, so the flag stays readable.",
+       "repairable": true,
+       "object": "flag"
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Only learning rate 0.1 and 0.6 with batch 4 were sampled. These were not sampled: batch sizes 1, 16, 64 and full data, the low end of the learning rate (0.02), the drag, and the 'Clear trails' action.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "After divergence, the ball is drawn clamped to the edge of the surface. The loss (11.118) and distance (2.43) readouts still use the position outside the surface, so the drawn ball and the numbers disagree slightly. This is disclosed.",
+       "repairable": true,
+       "object": "ball"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The trails draw large steps as straight lines that float above the bowl. Seen from the default view, the diverging zigzag becomes a tangle that is hard to follow.",
+       "repairable": true,
+       "object": "trail"
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13845,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 2688,
+   "output_tokens_details": {
+    "thinking_tokens": 1815
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_b30213c908c3480bbb527cb7214bf9f9-review-6",
+   "status": "settled",
+   "costMicros": 109561,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

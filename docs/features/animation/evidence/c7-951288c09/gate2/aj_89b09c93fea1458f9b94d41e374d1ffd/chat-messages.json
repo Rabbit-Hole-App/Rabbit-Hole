@@ -1,0 +1,131 @@
+[
+ {
+  "messageId": "237",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-f0e055ad837db887",
+    "version": 1,
+    "command": "animation",
+    "title": "Why a too-large learning rate makes gradient descent diverge",
+    "description": "A ball sits on a bowl-shaped loss surface that is steeper in one direction than the other. Each step, an arrow shows the uphill slope (the gradient) and the ball jumps the opposite way by the learning rate times that slope, leaving a path. With a small rate the ball creeps to the bottom. A medium rate makes it zigzag across the steep valley but still settle. Past a clear threshold, every jump overshoots by more than the last, so the ball bounces higher and higher up the walls until it leaves the surface.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-aa08fb45",
+     "job": "aj_89b09c93fea1458f9b94d41e374d1ffd",
+     "plan_hash": "84818e874171cdb7694dd2a127b32baf4802af816ff58a23bf483274fb1a27ff",
+     "request": "show me why a high learning rate diverges",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate",
+        "min": 0.05,
+        "max": 0.7,
+        "step": 0.01,
+        "default": 0.55
+       },
+       {
+        "type": "select",
+        "label": "Starting point",
+        "options": [
+         {
+          "value": "corner",
+          "label": "Far corner (2.5, 1)"
+         },
+         {
+          "value": "steepAxis",
+          "label": "On the steep side (0, 1.5)"
+         },
+         {
+          "value": "gentleAxis",
+          "label": "On the gentle side (2.5, 0)"
+         }
+        ],
+        "default": "corner"
+       }
+      ],
+      "interactions": [
+       "Change the learning rate, then step or play: below 0.25 the ball slides smoothly down, from 0.25 to 0.5 it zigzags but settles, above 0.5 the zigzag grows until it leaves the surface",
+       "Pick a starting point to see that only the steep direction blows up first: starting on the gentle side stays stable up to a rate of 2, beyond this slider's range",
+       "Step one update at a time, or play and pause, while watching the readouts for loss, step count and the overshoot factor in each direction",
+       "Orbit around the bowl to see the path from above or from the side"
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793853572,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "show me why a high learning rate diverges",
+    "prompt": "A ball sits on a bowl-shaped loss surface that is steeper in one direction than the other. Each step, an arrow shows the uphill slope (the gradient) and the ball jumps the opposite way by the learning rate times that slope, leaving a path. With a small rate the ball creeps to the bottom. A medium rate makes it zigzag across the steep valley but still settle. Past a clear threshold, every jump overshoots by more than the last, so the ball bounces higher and higher up the walls until it leaves the surface.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Divergence makes sense once you watch steps overshoot and grow. Stepping through it at different learning rates, with the overshoot factor shown as a number, makes the tipping point visible.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Change the learning rate, then step or play: below 0.25 the ball slides smoothly down, from 0.25 to 0.5 it zigzags but settles, above 0.5 the zigzag grows until it leaves the surface",
+     "Interaction: Pick a starting point to see that only the steep direction blows up first: starting on the gentle side stays stable up to a rate of 2, beyond this slider's range",
+     "Interaction: Step one update at a time, or play and pause, while watching the readouts for loss, step count and the overshoot factor in each direction",
+     "Interaction: Orbit around the bowl to see the path from above or from the side",
+     "Parameter: Learning rate, 0.05 to 0.7, default 0.55",
+     "Parameter: Starting point, one of Far corner (2.5, 1), On the steep side (0, 1.5), On the gentle side (2.5, 0)",
+     "Goal: Gradient descent diverges when each step overshoots the minimum by more than the distance it started from. On a bowl this happens when the learning rate times the steepest curvature is above 2, and the steepest direction blows up first."
+    ],
+    "assumptions": [
+     "Illustration: a simple made-up bowl, not a real model's loss.",
+     "The loss is 0.5·(x² + 4y²), so the slope is 4 times steeper along y than along x.",
+     "Each step is plain gradient descent: new position = old position − learning rate × gradient, with no momentum and no noise.",
+     "Each step multiplies the y coordinate by (1 − 4 × rate) and the x coordinate by (1 − rate). When the size of a factor is above 1, that coordinate grows every step. So the run diverges exactly when the rate is above 0.5, and at 0.5 it bounces back and forth forever without settling.",
+     "The run stops when the ball leaves the drawn square (from −3 to 3 on each side), shown as \"diverged\", or after 40 steps.",
+     "The surface's height is scaled down for display. The loss readout shows the true value."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Real loss surfaces are not perfect bowls. There the safe learning rate depends on the steepest curvature where the ball is, so the exact threshold of 0.5 holds only for this bowl.",
+     "Once the ball leaves the drawn square it is no longer shown. The readout reports that it diverged instead of following it off to infinity."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-aa08fb45"
+    },
+    "quote": null,
+    "review_hash": "297cd32d7136c390de4589526d3491c537c913b68cb55afa49724492c1e6bd87",
+    "sig": "v3.fab166f06881230230e537c7ea23b1ce5707f5645c186db61f96cec09030fb75",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 373,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.fab166f06881230230e537c7ea23b1ce5707f5645c186db61f96cec09030fb75",
+    "used": {
+     "version": 1,
+     "key": "aj_89b09c93fea1458f9b94d41e374d1ffd"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "237"
+   ],
+   "feedback": null
+  }
+ }
+]

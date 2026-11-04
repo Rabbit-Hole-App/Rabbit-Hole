@@ -1,0 +1,182 @@
+[
+ {
+  "messageId": "258",
+  "role": "assistant",
+  "content": "\"Stochastic gradient descent on a bowl-shaped loss\" needs a change before it can be made. By our estimate this plan is too large to build and check: it draws a trail of 200 markers. An estimate can be wrong. Nothing has been built, and no AI credits have been used on building. Choose below: each option says exactly what changes, and nothing is built until you press Generate.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_6cce0f19be914f429990370e3f5a0a07:choice:e7495e23a2ad3e1d4c4adb1e1f180d0a55e0a41d63432217ef95622c41c74ff3",
+   "animationChoice": {
+    "jobId": "aj_6cce0f19be914f429990370e3f5a0a07",
+    "attempt": 1,
+    "kind": "size",
+    "key": "aj_6cce0f19be914f429990370e3f5a0a07:choice:e7495e23a2ad3e1d4c4adb1e1f180d0a55e0a41d63432217ef95622c41c74ff3",
+    "alternatives": [
+     {
+      "id": "fewer_markers",
+      "title": "Draw a shorter trail",
+      "changes": [
+       "Changed: the trail draws 100 markers, one every 2 updates, instead of 200; every update still runs."
+      ]
+     }
+    ],
+    "chosen": "fewer_markers"
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "258"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "259",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. It differs from what you asked: Changed: the trail draws 100 markers, one every 2 updates, instead of 200; every update still runs. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-93c7155e9c3f691b",
+    "version": 1,
+    "command": "animation",
+    "title": "Stochastic gradient descent on a bowl-shaped loss",
+    "description": "A bowl-shaped loss surface with contour lines and a marker ball resting on it at a starting point up on one side. Each time the scene steps, the ball moves downhill using a noisy estimate of the slope and leaves a trail, so you see the jittery, zig-zag path stochastic gradient descent (SGD) takes toward the bottom. You can change the step size, the noise and how stretched the bowl is, drag the starting point, and watch readouts for the step count, the current loss and the distance to the minimum.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-85108fd4",
+     "job": "aj_6cce0f19be914f429990370e3f5a0a07",
+     "plan_hash": "5cea27ccd5ea5472b56d486091f2dc095b0f757df99b541076f2893366ef0942",
+     "request": "SGD on a bowl-shaped loss",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate (step size)",
+        "min": 0.01,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.1
+       },
+       {
+        "type": "number",
+        "label": "Gradient noise",
+        "min": 0,
+        "max": 2,
+        "step": 0.05,
+        "default": 0.5
+       },
+       {
+        "type": "number",
+        "label": "Bowl stretch (steep direction ÷ shallow direction)",
+        "min": 1,
+        "max": 10,
+        "step": 0.5,
+        "default": 4
+       },
+       {
+        "type": "toggle",
+        "label": "Show true downhill direction",
+        "default": true
+       }
+      ],
+      "interactions": [
+       "Drag the starting flag anywhere on the bowl. The next run begins from there.",
+       "Use the card's step and play controls to move the ball one update at a time or let it run. A run stops after 200 updates, or earlier if the ball leaves the bowl.",
+       "Change the learning rate: small values take short, careful steps; larger ones overshoot and zig-zag. Past the stability limit the ball flies off and the readout says it diverged.",
+       "Change the noise: at 0 the path is smooth ordinary gradient descent. As you raise it, the path gets more jittery and the ball keeps wandering around the bottom instead of settling.",
+       "Change the bowl stretch: at 1 the bowl is round and the path heads straight in. A stretched bowl makes a narrow valley that causes zig-zagging and slow progress along its floor.",
+       "Press 'Clear path and restart' to wipe the trail and put the ball back on the starting flag. Your current settings and the flag position stay as they are."
+      ],
+      "notices": [
+       "Changed: the trail draws 100 markers, one every 2 updates, instead of 200; every update still runs."
+      ],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793855308,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "SGD on a bowl-shaped loss",
+    "prompt": "A bowl-shaped loss surface with contour lines and a marker ball resting on it at a starting point up on one side. Each time the scene steps, the ball moves downhill using a noisy estimate of the slope and leaves a trail, so you see the jittery, zig-zag path stochastic gradient descent (SGD) takes toward the bottom. You can change the step size, the noise and how stretched the bowl is, drag the starting point, and watch readouts for the step count, the current loss and the distance to the minimum.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. SGD is easiest to understand by changing its settings and watching what happens: a bigger step size, more noise or a more stretched bowl each change the path in a way you can see right away and compare between runs.",
+     "Behavior: rules",
+     "Controls: manipulate",
+     "Interaction: Drag the starting flag anywhere on the bowl. The next run begins from there.",
+     "Interaction: Use the card's step and play controls to move the ball one update at a time or let it run. A run stops after 200 updates, or earlier if the ball leaves the bowl.",
+     "Interaction: Change the learning rate: small values take short, careful steps; larger ones overshoot and zig-zag. Past the stability limit the ball flies off and the readout says it diverged.",
+     "Interaction: Change the noise: at 0 the path is smooth ordinary gradient descent. As you raise it, the path gets more jittery and the ball keeps wandering around the bottom instead of settling.",
+     "Interaction: Change the bowl stretch: at 1 the bowl is round and the path heads straight in. A stretched bowl makes a narrow valley that causes zig-zagging and slow progress along its floor.",
+     "Interaction: Press 'Clear path and restart' to wipe the trail and put the ball back on the starting flag. Your current settings and the flag position stay as they are.",
+     "Parameter: Learning rate (step size), 0.01 to 0.6, default 0.1",
+     "Parameter: Gradient noise, 0 to 2, default 0.5",
+     "Parameter: Bowl stretch (steep direction ÷ shallow direction), 1 to 10, default 4",
+     "Parameter: Show true downhill direction",
+     "Goal: See how SGD follows a noisy slope estimate downhill, and how the learning rate, the gradient noise and the bowl's shape decide whether it converges smoothly, zig-zags, keeps jittering near the minimum or diverges."
+    ],
+    "assumptions": [
+     "Illustration: a made-up bowl formula with simulated gradient noise, not a real model trained on real data.",
+     "The loss is half of (x squared plus stretch times y squared), so its single minimum is at the centre with loss 0.",
+     "Each update moves the ball by minus the learning rate times a noisy slope: the true slope plus random noise of the chosen size in each direction. The noise stands in for the error that comes from using a small batch of data.",
+     "The random noise comes from a fixed seed, so after Reset the same sequence of noise repeats.",
+     "Two arrows are drawn on the ball. The solid one is the step actually taken, which is downhill along the noisy slope. The faint one is the true steepest-downhill direction.",
+     "Plain gradient descent on this bowl is stable only when the learning rate is below 2 divided by the stretch. At the default stretch of 4 that limit is 0.5, and at a stretch of 10 it is 0.2.",
+     "The trail draws one marker every 2 updates, at most 100 markers; every update still runs."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Changed: the trail draws 100 markers, one every 2 updates, instead of 200; every update still runs.",
+     "Individual SGD updates do not always lower the loss. With noise, the loss readout can go up on some steps and only falls on average.",
+     "Real loss surfaces for neural networks have many dimensions and are not perfect bowls. Only two parameters are shown here so the surface can be drawn.",
+     "There is no learning-rate schedule and no momentum, so with noise above 0 the ball never settles exactly at the minimum.",
+     "Runs that diverge stop at the edge of the drawn bowl, so how fast they blow up is not shown."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-85108fd4"
+    },
+    "quote": null,
+    "review_hash": "d938118ea29873ad27f943da062a058edf56b31e13a7acd2ae64be52adf0c578",
+    "sig": "v3.927b7fcf8350a9c4b0fae5f336966379c1b78a5e4ece8037739ec393364318b5",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 373,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.927b7fcf8350a9c4b0fae5f336966379c1b78a5e4ece8037739ec393364318b5",
+    "used": {
+     "version": 1,
+     "key": "aj_6cce0f19be914f429990370e3f5a0a07"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "259"
+   ],
+   "feedback": null
+  }
+ }
+]

@@ -1,0 +1,190 @@
+[
+ {
+  "at": 1793767686244,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "3887bd36d533722ada1e0878c1f3198bce705fd1ac2fe0558f7357d69d3ff56e",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "In the default view the red ball at the start (2.5, 1.5) cannot be seen. The near wall of the bowl hides it, and only the tip of the orange arrow and the 'Next step' label show. The learner opens the scene without seeing the main object. Change the default camera so it looks down into the bowl, about as the side view does.",
+       "object": "ball5",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The default framing shows a lot of flat plateau where the surface is capped at height 3, and a lot of empty white space. The bowl interior, where the descent happens, is a thin, foreshortened strip in the middle of the frame.",
+       "object": "bowl5",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "major",
+       "message": "The readout bar shows only 'Loss L' and 'Steps taken'. The 'Status' text readout (running, converged, diverged) does not appear, so the learner cannot read the converged or diverged result the plan promises.",
+       "object": "status",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "In the default view the near rim of the bowl hides the orange trail of the 14 steps, and only a sliver of the ball shows. The path the learner asked to see cannot be read from the default camera.",
+       "object": "trail",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "major",
+       "message": "The Status readout does not appear in the readout bar.",
+       "object": "status",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The 'Minimum' and 'Next step' labels sit on top of the zig-zag trail and the ball near the minimum, covering the part of the path that shows the oscillation. Most of the trail is also hidden behind the near rim of the bowl.",
+       "object": "minTag",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "With lr = 0.6 and k = 3, 2/k = 0.667, so this capture shows decaying oscillation, which is correct (loss 0.0042 matches 1.5·0.8^15). Divergence (lr > 2/k, which needs k ≥ 3.5) was not sampled, and neither were the small-k bowl or the start drags.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "major",
+       "message": "The Status readout does not appear in the readout bar.",
+       "object": "status",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The next-step arrow (length about 0.054 at lr = 0.11) is hidden inside the ball. This is correct at true length, but nothing shows the step.",
+       "object": "arrow5",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The 'Minimum' label covers the end of the zig-zag trail and the ball near the minimum, and 'Next step' crowds it. The oscillation near convergence is hard to read.",
+       "object": "minTag",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 15797,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3370,
+   "output_tokens_details": {
+    "thinking_tokens": 2101
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_3497b72a27c64f129e82ed27cefc8f95-review-3",
+   "status": "settled",
+   "costMicros": 131009,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

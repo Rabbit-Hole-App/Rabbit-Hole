@@ -1,0 +1,106 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Stochastic gradient descent on a loss surface",
+ "description": "A curved loss surface shaped like a stretched bowl has one lowest point, marked with a flag. A ball takes one step at a time downhill and leaves a trail. Each step uses a noisy estimate of the slope, like slope measured on a small random batch of data. An arrow shows the noisy downhill direction the ball actually follows. You can also show a second, faint trail for plain gradient descent, which uses the exact slope, to compare a smooth path with a jittery one.",
+ "experience": "experiment",
+ "reason": "Stochastic gradient descent is easiest to understand by watching it. Try different step sizes and batch sizes and see how the path wobbles, settles or overshoots, then compare it with the smooth exact path.",
+ "behavior": "rules",
+ "controlProfile": "manipulate",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate (step size)",
+   "min": 0.02,
+   "max": 0.6,
+   "step": 0.02,
+   "default": 0.1
+  },
+  {
+   "type": "select",
+   "id": "batchSize",
+   "label": "Batch size (less noise when larger)",
+   "options": [
+    {
+     "value": "1",
+     "label": "1 example"
+    },
+    {
+     "value": "4",
+     "label": "4 examples"
+    },
+    {
+     "value": "16",
+     "label": "16 examples"
+    },
+    {
+     "value": "64",
+     "label": "64 examples"
+    },
+    {
+     "value": "full",
+     "label": "Full data (no noise)"
+    }
+   ],
+   "default": "4"
+  },
+  {
+   "type": "toggle",
+   "id": "showExact",
+   "label": "Show plain gradient descent path",
+   "default": true
+  }
+ ],
+ "interactions": [
+  "Press play to let the ball take steps one after another, or step one at a time.",
+  "Before running, drag the ball to choose a starting point on the surface.",
+  "Raise the learning rate to take bigger steps. Past about 0.5, the steep sides make it bounce back and forth further each time and drift away.",
+  "Choose a smaller batch for a jittery path that keeps wobbling near the bottom. Choose a larger batch for a smoother path, or the full data for no noise at all.",
+  "Use the action that clears the trails and returns the ball to its chosen start while keeping your settings, then compare runs.",
+  "Watch the readouts: step number, current loss, size of the slope noise, and distance from the lowest point."
+ ],
+ "assumptions": [
+  "Illustration: an invented two-variable bowl stands in for a real model's loss, and the noise is simulated, not taken from real data.",
+  "The loss is 0.5·(x² + 4y²): gentle in one direction and four times as steep in the other, with its lowest point at the origin.",
+  "Each step's slope is the exact slope plus random noise whose spread shrinks with the square root of the batch size. Full data means no noise.",
+  "The random noise comes from a fixed seed, so Reset replays exactly the same run.",
+  "The plain gradient descent path starts from the same point with the same learning rate, but uses the exact slope.",
+  "A run stops after 200 steps, or earlier if the ball leaves the edge of the surface (shown as 'diverged').",
+  "The trail draws one marker every 4 steps, at most 50 markers; every step still runs."
+ ],
+ "limitations": [
+  "Changed: the trail draws 50 markers, one every 4 steps, instead of 200; every step still runs.",
+  "Changed: the kept comparison path also draws at most 50 markers.",
+  "A real neural network's loss has millions of directions, not two, and its noise comes from real data samples.",
+  "Single noisy steps can go uphill. Only on average does the ball move toward the minimum.",
+  "Learning-rate schedules and momentum are not included, so with small batches the ball keeps wobbling near the bottom instead of settling exactly on it."
+ ],
+ "learningGoal": "Stochastic gradient descent follows a noisy estimate of the downhill direction. On average it moves toward the minimum, but single steps can go uphill. Smaller batches add more noise, and the learning rate sets both speed and stability.",
+ "requiredCapabilities": [
+  "parameters",
+  "actions",
+  "step",
+  "drag",
+  "labels",
+  "readouts"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.1,
+    0.55
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 200
+  }
+ ]
+}

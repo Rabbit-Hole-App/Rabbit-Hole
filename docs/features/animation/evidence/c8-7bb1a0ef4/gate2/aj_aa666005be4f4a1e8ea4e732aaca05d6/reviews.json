@@ -1,0 +1,313 @@
+[
+ {
+  "at": 1793769273909,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "420cc6a3734846dcdb2e71216ae00a585cd3586076b773933da491a31913bb74",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "statusB",
+       "message": "At step 0 the orange status already reads 'running away'. word() works this out from the learning rate before any step happens, so the learner sees an outcome that hasn't occurred yet. Until the first step (n = 0) show something like 'at start' or 'not started', then switch to the rate-based status.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "markA",
+       "message": "Both markers start in the same place, so the orange ball completely covers the blue one, and the two labels sit stacked on a single ball. A small visual offset, or a ring for the blue marker, would show that both markers are there.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "lowTag",
+       "message": "The 'Lowest point' label and the 'rate 0.14' label both sit close to the centre, where the orange trail segments cross. The text can still be read, but it's crowded.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "trailB",
+       "message": "After leaving the surface, the orange marker and the last trail point are drawn clamped to the edge (y = 4), while the readouts give the true value y = 8 with loss 64.02. This is disclosed in the assumptions. Values checked: blue x = 3·0.86^9 = 0.772 and y = 0.5·0.72^9 = 0.026 are correct. A low end of lrA (0.01) was not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "statusA",
+       "message": "At lrA = 2, y goes 0.5 → −1.5 → 4.5 and leaves the surface after 2 steps, so the x-bounce that the plan describes at exactly 2 never shows up here. The numbers are correct (loss 24.75). It's only a slight mismatch with the limitation text.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "statusB",
+       "message": "Same state as v0-s0: the orange status reads 'running away' before any step has been taken.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 12639,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3177,
+   "output_tokens_details": {
+    "thinking_tokens": 2211
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_aa666005be4f4a1e8ea4e732aaca05d6-review-4",
+   "status": "settled",
+   "costMicros": 114517,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793769373477,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "75df5ba1d4db589ec47f6b8a2108ade13174d1335a738b008e92f913ca49450e",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "At the start the orange marker is drawn on top of the blue one (this is disclosed). The two balls and their labels sit in a tight cluster, so the shared start point is only just readable.",
+       "object": "markB",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The marker labels end up next to the wrong marker. 'rate 0.14' (blue) sits right beside the orange ball on the far left, joined to the blue ball by a long leader line. 'rate 1.50' (orange) sits beside the blue ball and over the blue trail, far from the orange marker. A learner will read the rates the wrong way round. Keep each label next to its own ball, for example with a fixed offset that faces the camera or with the label above the ball.",
+       "object": "labA",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The 'rate 1.50' label covers most of the short blue trail, so blue's steady descent (the slow-and-steady half of the comparison) can barely be seen. 'Lowest point' and 'rate 0.14' also crowd each other on the left, with leader lines crossing the bowl.",
+       "object": "trailA",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "No sample changes lrB or uses lrA at its low end, so the restart on a parameter change and the 'converged'/'stopped at 60' statuses were not checked in a capture. The sampled values match the formulas: blue x = 3·0.86⁹ = 0.772, orange loss 64.0176 after 4 steps.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The labels are misplaced again. 'rate 2.00' (blue) sits beside the orange ball and 'rate 1.50' (orange) floats mid-bowl near the blue trail, far from the orange marker. 'Lowest point' is also pushed to the left beside the orange marker, so a learner cannot tell which run is which from the labels.",
+       "object": "labB",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "In the side view the 'rate 0.14' label sits on the orange trail rather than by the blue ball. This is the same label-anchoring fault as in the default view.",
+       "object": "labA",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 12781,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3336,
+   "output_tokens_details": {
+    "thinking_tokens": 2301
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_aa666005be4f4a1e8ea4e732aaca05d6-review-6",
+   "status": "settled",
+   "costMicros": 118265,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

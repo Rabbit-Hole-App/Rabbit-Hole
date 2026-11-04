@@ -1,0 +1,224 @@
+{
+ "id": "aj_66c23b42cb3240e8ae38650dde3bdf2c",
+ "version": 1,
+ "boardId": "176062f8-6421-431d-91dd-6261c5277dc6",
+ "cardId": "e40b37f0-3ce3-4207-837b-87907e64b8e8",
+ "stage": "ready",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 1,
+ "stopReason": "accepted",
+ "failure": null,
+ "recovery": [],
+ "outcome": "supported",
+ "choiceOpen": false,
+ "threadId": "canvaschat-315c1a22-872d-4e35-8d57-d2a204ac3e06",
+ "chatPending": false,
+ "usage": {
+  "credits": 76,
+  "unknown": false
+ },
+ "result": {
+  "jobId": "aj_66c23b42cb3240e8ae38650dde3bdf2c",
+  "resultId": "ar_81d241b0b30c4794b11eb2162b35439a",
+  "cardId": "e40b37f0-3ce3-4207-837b-87907e64b8e8",
+  "canvas": {
+   "boardId": "176062f8-6421-431d-91dd-6261c5277dc6"
+  },
+  "requestRef": "c56786e2b394c92e",
+  "revision": "av_ef8e05037dad49d3a8b04fcd9ebb3a5c",
+  "planHash": "44ceab95dd71eb415fe5237863d8a001d41f097af32d5da65cf9d64cb9e18ef7",
+  "sources": "643d5437104296e2",
+  "artifactHash": "bdb4516b51e7c60b7da2bc8973e6486b1bb065eecb95dd89229cc00c830dac85",
+  "experience": "experiment",
+  "capabilityVersion": "animation-capabilities/1",
+  "policyVersion": 1
+ },
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Why too large a learning rate makes gradient descent blow up",
+  "description": "A ball walks downhill on a long, narrow bowl-shaped loss surface, one gradient descent step at a time, leaving a trail. An arrow at the ball shows the next step: the downhill direction scaled by the learning rate. At small rates the ball creeps to the bottom. Near the critical rate it zigzags across the steep walls of the bowl. Past the critical rate each jump lands higher up the opposite wall than the last, until the ball flies off the surface. Readouts show the loss, the step count and how much each step multiplies the distance from the bottom along each direction.",
+  "experience": "experiment",
+  "reason": "Moving the learning rate across the critical value and watching the same start turn from a smooth descent into a zigzag and then a blow-up shows that divergence comes from overshooting. The rate is too big for how steeply the bowl curves.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate",
+    "min": 0.05,
+    "max": 0.7,
+    "step": 0.01,
+    "default": 0.45
+   },
+   {
+    "type": "toggle",
+    "id": "showStepArrow",
+    "label": "Show next-step arrow",
+    "default": true
+   }
+  ],
+  "interactions": [
+   "Play or step the descent to move the ball one gradient step at a time and grow its trail",
+   "Change the learning rate: the walk restarts from the same starting point so runs compare fairly",
+   "Watch the per-direction multipliers: below 1 the ball closes in on the bottom, above 1 every step pushes it farther out",
+   "Turn the step arrow on or off",
+   "Orbit the camera to see the zigzag from above or from the side"
+  ],
+  "assumptions": [
+   "This is an illustrative bowl-shaped surface, not the loss of a real trained model.",
+   "The loss is 0.5 × (1 × x² + 4 × y²). It curves 4 times more steeply across the bowl than along it, so the bottom is at the centre.",
+   "Each step moves the ball by the learning rate times the downhill direction (the negative gradient). There is no momentum and no noise.",
+   "Along each direction, a step multiplies the distance from the bottom by |1 − learning rate × steepness|. Across the bowl (steepness 4) this goes above 1 once the rate passes 0.5; along it (steepness 1) it stays below 1 for every rate up to 2. These numbers are exact for this surface.",
+   "The walk always starts at the same point on the upper side of the bowl.",
+   "The run stops after 60 steps, or as soon as the ball leaves the drawn surface, which is marked as diverged."
+  ],
+  "limitations": [
+   "Real loss surfaces are not perfect bowls. The single critical rate (2 divided by the steepest curve) is exact here, but on a real loss surface it only holds approximately, close to a minimum.",
+   "Above 0.5 the ball leaves the surface after a few steps. The scene shows only the first few growing jumps, not the huge values that follow."
+  ],
+  "learningGoal": "Gradient descent diverges when the learning rate times the steepest curvature is more than 2: each step overshoots the bottom by more than it started, so the error grows instead of shrinking.",
+  "requiredCapabilities": [
+   "parameters",
+   "step",
+   "readouts",
+   "labels"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "learningRate",
+    "values": [
+     0.1,
+     0.6
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 2
+   }
+  ]
+ },
+ "planHash": "44ceab95dd71eb415fe5237863d8a001d41f097af32d5da65cf9d64cb9e18ef7",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 40610,
+  "generateToResultMs": 258047,
+  "processingMs": 298607,
+  "approvalWaitMs": 3373,
+  "calls": 6,
+  "repairs": 1,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 40560,
+    "calls": 2,
+    "inputTokens": 1993,
+    "outputTokens": 4059,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 3373,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 83463,
+    "calls": 1,
+    "inputTokens": 7544,
+    "outputTokens": 10478,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 41,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 28985,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 42449,
+    "calls": 1,
+    "inputTokens": 12904,
+    "outputTokens": 3907,
+    "images": 6,
+    "captures": 0,
+    "outcome": "rejected"
+   },
+   {
+    "stage": "repairing",
+    "ms": 51938,
+    "calls": 1,
+    "inputTokens": 8836,
+    "outputTokens": 6256,
+    "images": 2,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 34,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 21015,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 30122,
+    "calls": 1,
+    "inputTokens": 11264,
+    "outputTokens": 2773,
+    "images": 6,
+    "captures": 0,
+    "outcome": "accepted"
+   }
+  ]
+ },
+ "createdAt": 1793765377336,
+ "updatedAt": 1793765679366
+}

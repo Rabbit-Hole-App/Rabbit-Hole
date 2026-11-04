@@ -1,0 +1,102 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Stochastic gradient descent on a loss surface",
+ "description": "A ball sits on a bowl-shaped loss surface that is stretched in one direction, with contour lines and a lowest point marked. Each step, the ball moves against a noisy estimate of the slope, like the one a small batch of data gives. It leaves a path, so you can see the wobbly, zig-zag route that stochastic gradient descent takes. Change the learning rate and the batch size, then compare the noisy route with the smooth full-batch route.",
+ "experience": "experiment",
+ "reason": "Stochastic gradient descent makes sense once you see how the step size and the batch noise change the path. Changing them and watching the ball's route and the loss readout shows this directly.",
+ "behavior": "rules",
+ "controlProfile": "manipulate",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate (step size)",
+   "min": 0.02,
+   "max": 0.6,
+   "step": 0.01,
+   "default": 0.15
+  },
+  {
+   "type": "select",
+   "id": "batchSize",
+   "label": "Batch size",
+   "options": [
+    {
+     "value": "1",
+     "label": "1 example (very noisy)"
+    },
+    {
+     "value": "4",
+     "label": "4 examples"
+    },
+    {
+     "value": "16",
+     "label": "16 examples"
+    },
+    {
+     "value": "full",
+     "label": "Full batch (no noise)"
+    }
+   ],
+   "default": "4"
+  },
+  {
+   "type": "toggle",
+   "id": "showTrueGradient",
+   "label": "Show true slope arrow",
+   "default": true
+  }
+ ],
+ "interactions": [
+  "Drag the ball to choose where descent starts. This clears the current path.",
+  "Take one step at a time to see each noisy slope estimate and the move it causes.",
+  "Run up to 200 steps automatically, then pause whenever you like.",
+  "Change the learning rate: small values make slow, steady progress. Large values make the ball zig-zag across the narrow direction of the bowl.",
+  "Change the batch size: smaller batches make the path wobblier and leave the ball jittering near the bottom, while full batch gives a smooth path.",
+  "Clear only the path and step count and keep the ball where it is, so you can try a new setting from the same spot."
+ ],
+ "assumptions": [
+  "This is an illustration: the surface is a made-up bowl, not the loss of a real trained model.",
+  "The loss is a stretched bowl, steeper in one direction than the other, with a single lowest point.",
+  "Batch noise is simulated as random noise added to the true slope. The noise shrinks with the square root of the batch size, and it is zero for full batch.",
+  "The random noise comes from the scene's fixed seed, so after Reset the same run plays out again.",
+  "A blue arrow shows the noisy slope estimate used for the step, and the ball moves the opposite way (downhill). The optional grey arrow shows the true slope at the same spot.",
+  "Readouts show the step count, the current loss and the size of the true slope.",
+  "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+ ],
+ "limitations": [
+  "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+  "A single step does not always lower the loss: with noisy estimates, the loss only goes down on average, and it can rise on some steps.",
+  "Real loss surfaces have many dimensions and can have many valleys. This bowl has two directions and one minimum.",
+  "Learning-rate schedules, momentum and other optimizers are not shown.",
+  "If a step would carry the ball past the edge of the drawn surface, it is held at the edge."
+ ],
+ "learningGoal": "See that SGD follows a noisy estimate of the slope. Smaller batches make the path noisier and leave the ball jittering near the minimum, and too large a learning rate causes zig-zagging.",
+ "requiredCapabilities": [
+  "parameters",
+  "actions",
+  "step",
+  "drag",
+  "labels",
+  "readouts"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.02,
+    0.6
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 50
+  }
+ ]
+}

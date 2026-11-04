@@ -1,0 +1,26 @@
+{
+  "calls": [
+    {
+      "again": false,
+      "kind": "artifact",
+      "keys": [
+        "kind",
+        "artifact"
+      ],
+      "artifactType": "object",
+      "chars": 5409,
+      "head": "{\"kind\":\"artifact\",\"artifact\":{\"title\":\"Token to Goal: 3 by 3 Grid Puzzle\",\"description\":\"A flat 3 by 3 board of square tiles seen from a raised front angle. A blue sphere token starts on the bottom-left (front-left) square; a raised orange disc marks the goal on the top-right (back-right) square. Up, Down, Left and Right buttons (or arrow keys) move the token one square. Hint shows a yellow arrow on the token pointing along a move one step closer to the goal. Readouts give moves made and steps still to the goal.\",\"experience\":\"game\",\"behavior\":\"rules\",\"controlProfile\":\"inspect\",\"game\":{\"objective\":\"Move the token from the bottom-left square to the marked goal square on the top-right.\",\"hint\":\"Each move changes one row or one column. The goal is 2 rows up and 2 columns right, so the shortest route is 4 moves.\"},\"keys\":{\"up\":\"up\",\"down\":\"down\",\"left\":\"left\",\"right\":\"right\"},\"scene\":{\"materials\":[{\"id\":\"base\",\"color\":\"#9aa0a8\"},{\"id\":\"tileA\",\"color\":\"#dfe3e8\"},{\"id\":\"tileB\",\"color\":\"#c6ccd4\"},{\"id\":\"tok\",\"color\":\"#2f6fd6\"},{\"id\":\"goal\",\"color\":\"#e8792b\"},{\"id\":\"hint\",\"color\":\"#e6b800\"}],\"geometries\":[{\"id\":\"gBase\",\"kind\":\"box\",\"size\":[3.6,0.1,3.6]},{\"id\":\"gTile\",\"kind\":\"box\",\"size\":[1,0.1,1]},{\"id\":\"gTok\",\"kind\":\"sphere\",\"radius\":0.3,\"widthSegments\":32,\"heightSegments\":24},{\"id\":\"gGoal\",\"kind\":\"cylinder\",\"radius\":0.42,\"height\":0.08,\"radialSegments\":32},{\"id\":\"gArrow\",\"kind\":\"arrow\",\"length\":1,\"offset\":0.35},{\"id\":\"lGoal\",\"kind\":\"label\",\"text\":\"Goal\",\"placement\":\"above\"},{\"id\":\"lTok\",\"kind\":\"label\",\"text\":\"Token\",\"placement\":\"above\"}],\"nodes\":[{\"id\":\"board\",\"parent\":null,\"position\":[0,0,0]},{\"id\":\"baseN\",\"parent\":\"board\",\"geometry\":\"gBase\",\"material\":\"base\",\"position\":[0,-0.1,0]},{\"id\":\"t00\",\"parent\":\"board\",\"geometry\":\"gTile\",\"material\":\"tileA\",\"position\":[-1.1,0,1.1]},{\"id\":\"t01\",\"parent\":\"board\",\"geometry\":\"gTile\",\"material\":\"tileB\",\"position\":[0,0,1.1]},{\"id\":\"t02\",\"parent\":\"board\",\"geometry\":\"gTile\",\"material\":\"tileA\",\"position\":[1.1,0,1.1]},{\"id\":\"t10\",\"parent\":\"board\",\"geometry\":\"gTile\",\"material\":\"tileB\",\"position\":[-1.1,0,0]},{\"id\":\"t11\",\"parent\":\"board\",\"geometry\":\"gTile\",\"material\":\"tileA\",\"position\":[0,0,0]},{\"id\":\"t12\",\"parent\":\"board\",\"geometry\":\"gTile\",\"material\":\"tileB\",\"position\":[1.1,0,0]},{\"id\":\"t20\",\"parent\":\"board\",\"geometry\":\"gTile\",\"material\":\"tileA\",\"position\":[-1.1,0,-1.1]},{\"id\":\"t21\",\"parent\":\"board\",\"geometry\":\"gTile\",\"material\":\"tileB\",\"position\":[0,0,-1.1]},{\"id\":\"t22\",\"parent\":\"board\",\"geometry\":\"gTile\",\"material\":\"tileA\",\"position\":[1.1,0,-1.1]},{\"id\":\"goalM\",\"parent\":\"board\",\"name\":\"Goal marker\",\"geometry\":\"gGoal\",\"material\":\"goal\",\"position\":[1.1,0.09,-1.1]},{\"id\":\"goalL\",\"parent\":\"goalM\",\"geometry\":\"lGoal\",\"position\":[0,0.05,-0.42]},{\"id\":\"token\",\"parent\":\"board\",\"name\":\"Token\",\"geometry\":\"gTok\",\"material\":\"tok\",\"position\":[-1.1,0.35,1.1]},{\"id\":\"tokL\",\"parent\":\"token\",\"geometry\":\"lTok\",\"position\":[0,0.32,0]},{\"id\":\"hintA\",\"parent\":\"board\",\"name\":\"Hint arrow\",\"geometry\":\"gArrow\",\"material\":\"hint\",\"position\":[-1.1,0",
+      "stopReason": "tool_use",
+      "blocks": [
+        {
+          "type": "thinking"
+        },
+        {
+          "type": "tool_use",
+          "name": "animation_artifact",
+          "chars": 5409
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,529 @@
+{
+  "title": "Projectile Target Challenge: Pick Angle and Speed",
+  "description": "A launcher sits at the left end of a flat 70 m field marked every 10 m. A flagged target zone with a gold disc stands down the field. Set the launch angle and speed, then press Launch: the orange ball flies along its arc and leaves a trail. The previous shot's arc stays as a faded grey path. Readouts give landing distance, miss, flight time, highest point, launches used and targets hit. Hit targets at 30 m, 45 m and 18 m within 10 launches.",
+  "experience": "game",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "stepped": true,
+  "game": {
+    "objective": "Hit three targets (30 m, then 45 m, then 18 m) by landing within 1.5 m of each centre, using no more than 10 launches.",
+    "hint": "At the same speed, angles that add up to 90° (like 30° and 60°) land at the same distance, and 45° goes farthest. Doubling the speed makes the shot go four times as far."
+  },
+  "parameters": [
+    {
+      "type": "number",
+      "id": "angle",
+      "label": "Launch angle",
+      "unit": "°",
+      "min": 10,
+      "max": 80,
+      "step": 1,
+      "default": 45
+    },
+    {
+      "type": "number",
+      "id": "speed",
+      "label": "Launch speed",
+      "unit": "m/s",
+      "min": 5,
+      "max": 25,
+      "step": 0.5,
+      "default": 15
+    }
+  ],
+  "actions": [
+    {
+      "id": "launch",
+      "label": "Launch"
+    }
+  ],
+  "readouts": [
+    {
+      "id": "dist",
+      "label": "Landing distance",
+      "unit": "m",
+      "decimals": 1
+    },
+    {
+      "id": "miss",
+      "label": "Missed by",
+      "unit": "m",
+      "decimals": 1
+    },
+    {
+      "id": "side",
+      "label": "Result",
+      "kind": "text"
+    },
+    {
+      "id": "ftime",
+      "label": "Flight time",
+      "unit": "s",
+      "decimals": 2
+    },
+    {
+      "id": "hmax",
+      "label": "Highest point",
+      "unit": "m",
+      "decimals": 1
+    },
+    {
+      "id": "used",
+      "label": "Launches used (of 10)",
+      "decimals": 0
+    },
+    {
+      "id": "hits",
+      "label": "Targets hit (of 3)",
+      "decimals": 0
+    }
+  ],
+  "seed": 1,
+  "camera": {
+    "position": [
+      33,
+      28,
+      72
+    ],
+    "target": [
+      33,
+      9,
+      0
+    ],
+    "fov": 45
+  },
+  "assumptions": [
+    "This is a simplified simulation: no air resistance, and the ball starts at ground level on flat ground.",
+    "Gravity is 9.8 m/s² straight down. The sideways speed stays constant; only the vertical speed changes.",
+    "Positions come exactly from the projectile formulas, so landing distance = speed² × sin(2 × angle) ÷ 9.8. The longest shot is about 63.8 m (25 m/s at 45°).",
+    "The ball is treated as a point (drawn large so it is visible; its path is drawn through its centre) and the flight ends when it returns to ground height.",
+    "A hit is a landing within 1.5 m of the target centre, both edges counted. Every flight plays over about 2 s on screen, so screen time differs from the flight-time readout.",
+    "Real balls are slowed by air and land shorter than shown, especially at high speed; the 45° best angle is exact only without air resistance."
+  ],
+  "scene": {
+    "materials": [
+      {
+        "id": "field",
+        "color": "#a9bf94"
+      },
+      {
+        "id": "tick",
+        "color": "#4f6146"
+      },
+      {
+        "id": "ball",
+        "color": "#e0552b"
+      },
+      {
+        "id": "zone",
+        "color": "#e0b12a"
+      },
+      {
+        "id": "pole",
+        "color": "#5a5a5a"
+      },
+      {
+        "id": "flag",
+        "color": "#c0392b"
+      },
+      {
+        "id": "launcher",
+        "color": "#4a5a7a"
+      },
+      {
+        "id": "metal",
+        "color": "#c8ccd2"
+      },
+      {
+        "id": "ghost",
+        "color": "#8a8a8a",
+        "opacity": 0.5
+      }
+    ],
+    "geometries": [
+      {
+        "id": "gField",
+        "kind": "box",
+        "size": [
+          76,
+          0.2,
+          10
+        ]
+      },
+      {
+        "id": "gTick",
+        "kind": "box",
+        "size": [
+          0.3,
+          0.06,
+          10
+        ]
+      },
+      {
+        "id": "gBall",
+        "kind": "sphere",
+        "radius": 1.5,
+        "widthSegments": 32,
+        "heightSegments": 24
+      },
+      {
+        "id": "gZone",
+        "kind": "cylinder",
+        "radius": 1.5,
+        "height": 0.12,
+        "radialSegments": 32
+      },
+      {
+        "id": "gPole",
+        "kind": "cylinder",
+        "radius": 0.15,
+        "height": 6,
+        "radialSegments": 16
+      },
+      {
+        "id": "gFlag",
+        "kind": "box",
+        "size": [
+          2.2,
+          1.4,
+          0.1
+        ]
+      },
+      {
+        "id": "gBase",
+        "kind": "box",
+        "size": [
+          3,
+          2,
+          3
+        ]
+      },
+      {
+        "id": "gBarrel",
+        "kind": "cylinder",
+        "radius": 0.6,
+        "height": 5,
+        "radialSegments": 32
+      },
+      {
+        "id": "gTrail",
+        "kind": "trail",
+        "max": 128,
+        "radius": 0.25,
+        "style": "trail"
+      },
+      {
+        "id": "gGhost",
+        "kind": "trail",
+        "max": 128,
+        "radius": 0.2,
+        "style": "ghost"
+      },
+      {
+        "id": "l10",
+        "kind": "label",
+        "text": "10 m",
+        "placement": "below"
+      },
+      {
+        "id": "l20",
+        "kind": "label",
+        "text": "20 m",
+        "placement": "below"
+      },
+      {
+        "id": "l30",
+        "kind": "label",
+        "text": "30 m",
+        "placement": "below"
+      },
+      {
+        "id": "l40",
+        "kind": "label",
+        "text": "40 m",
+        "placement": "below"
+      },
+      {
+        "id": "l50",
+        "kind": "label",
+        "text": "50 m",
+        "placement": "below"
+      },
+      {
+        "id": "l60",
+        "kind": "label",
+        "text": "60 m",
+        "placement": "below"
+      },
+      {
+        "id": "l70",
+        "kind": "label",
+        "text": "70 m",
+        "placement": "below"
+      },
+      {
+        "id": "lTarget",
+        "kind": "label",
+        "text": "Target",
+        "placement": "above"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "field",
+        "geometry": "gField",
+        "material": "field",
+        "position": [
+          35,
+          -0.1,
+          0
+        ]
+      },
+      {
+        "id": "t10",
+        "geometry": "gTick",
+        "material": "tick",
+        "position": [
+          10,
+          0.03,
+          0
+        ]
+      },
+      {
+        "id": "t20",
+        "geometry": "gTick",
+        "material": "tick",
+        "position": [
+          20,
+          0.03,
+          0
+        ]
+      },
+      {
+        "id": "t30",
+        "geometry": "gTick",
+        "material": "tick",
+        "position": [
+          30,
+          0.03,
+          0
+        ]
+      },
+      {
+        "id": "t40",
+        "geometry": "gTick",
+        "material": "tick",
+        "position": [
+          40,
+          0.03,
+          0
+        ]
+      },
+      {
+        "id": "t50",
+        "geometry": "gTick",
+        "material": "tick",
+        "position": [
+          50,
+          0.03,
+          0
+        ]
+      },
+      {
+        "id": "t60",
+        "geometry": "gTick",
+        "material": "tick",
+        "position": [
+          60,
+          0.03,
+          0
+        ]
+      },
+      {
+        "id": "t70",
+        "geometry": "gTick",
+        "material": "tick",
+        "position": [
+          70,
+          0.03,
+          0
+        ]
+      },
+      {
+        "id": "m10",
+        "parent": "t10",
+        "geometry": "l10",
+        "position": [
+          0,
+          0,
+          5.2
+        ]
+      },
+      {
+        "id": "m20",
+        "parent": "t20",
+        "geometry": "l20",
+        "position": [
+          0,
+          0,
+          5.2
+        ]
+      },
+      {
+        "id": "m30",
+        "parent": "t30",
+        "geometry": "l30",
+        "position": [
+          0,
+          0,
+          5.2
+        ]
+      },
+      {
+        "id": "m40",
+        "parent": "t40",
+        "geometry": "l40",
+        "position": [
+          0,
+          0,
+          5.2
+        ]
+      },
+      {
+        "id": "m50",
+        "parent": "t50",
+        "geometry": "l50",
+        "position": [
+          0,
+          0,
+          5.2
+        ]
+      },
+      {
+        "id": "m60",
+        "parent": "t60",
+        "geometry": "l60",
+        "position": [
+          0,
+          0,
+          5.2
+        ]
+      },
+      {
+        "id": "m70",
+        "parent": "t70",
+        "geometry": "l70",
+        "position": [
+          0,
+          0,
+          5.2
+        ]
+      },
+      {
+        "id": "target",
+        "name": "Target",
+        "position": [
+          30,
+          0,
+          0
+        ]
+      },
+      {
+        "id": "zone",
+        "parent": "target",
+        "geometry": "gZone",
+        "material": "zone",
+        "position": [
+          0,
+          0.06,
+          0
+        ]
+      },
+      {
+        "id": "pole",
+        "parent": "target",
+        "geometry": "gPole",
+        "material": "pole",
+        "position": [
+          0,
+          3,
+          -2.5
+        ]
+      },
+      {
+        "id": "flagN",
+        "parent": "target",
+        "geometry": "gFlag",
+        "material": "flag",
+        "position": [
+          1.1,
+          5.3,
+          -2.5
+        ]
+      },
+      {
+        "id": "tLab",
+        "parent": "target",
+        "geometry": "lTarget",
+        "position": [
+          0,
+          6.2,
+          -2.5
+        ]
+      },
+      {
+        "id": "base",
+        "geometry": "gBase",
+        "material": "launcher",
+        "position": [
+          -2.6,
+          1,
+          0
+        ]
+      },
+      {
+        "id": "pivot",
+        "position": [
+          0,
+          1.5,
+          0
+        ]
+      },
+      {
+        "id": "barrel",
+        "parent": "pivot",
+        "geometry": "gBarrel",
+        "material": "metal",
+        "position": [
+          0,
+          2.5,
+          0
+        ]
+      },
+      {
+        "id": "ball",
+        "name": "Ball",
+        "geometry": "gBall",
+        "material": "ball",
+        "position": [
+          0,
+          1.5,
+          0
+        ]
+      },
+      {
+        "id": "trail",
+        "geometry": "gTrail",
+        "material": "ball"
+      },
+      {
+        "id": "ghostTrail",
+        "geometry": "gGhost",
+        "material": "ghost"
+      }
+    ]
+  },
+  "program": {
+    "source": "const G=9.8,TG=[30,45,18],N=60;\nfunction arc(a,v){const r=a*Math.PI/180;return{vx:v*Math.cos(r),vy:v*Math.sin(r),T:2*v*Math.sin(r)/G}}\nfunction pos(s,t){return[s.vx*t,1.5+s.vy*t-G*t*t/2,0]}\nfunction pts(a,v,f){const s=arc(a,v),o=[];for(let i=0;i<=40;i++)o.push(pos(s,s.T*f*i/40));return o}\nfunction over(s){return s.hits>=3||s.used>=10}\nexport function initialState(){return{fly:false,k:0,a:45,v:15,used:0,hits:0,ti:0,last:null,prev:null}}\nexport function reduce({state,event,inputs}){\nif(event.type==='action'&&event.action==='launch'){if(state.fly||over(state))return state;return{...state,fly:true,k:0,a:inputs.angle,v:inputs.speed,prev:state.last}}\nif(event.type==='step'&&state.fly){const k=state.k+1;if(k<N)return{...state,k};\nconst s=arc(state.a,state.v),R=s.vx*s.T,tg=TG[state.ti],m=R-tg,hit=Math.abs(m)<=1.5;\nreturn{...state,fly:false,k:N,used:state.used+1,hits:state.hits+(hit?1:0),ti:Math.min(2,state.ti+(hit?1:0)),last:{a:state.a,v:state.v,R,m,T:s.T,H:s.vy*s.vy/(2*G),hit,tg}}}\nreturn state}\nexport function evaluate({inputs,state}){\nconst th=(inputs.angle-90)*Math.PI/180,n={pivot:{quaternion:[0,0,Math.sin(th/2),Math.cos(th/2)]}};\nn.target={position:[TG[state.ti],0,0]};\nlet bp=[0,1.5,0],cur=null;\nif(state.fly){const s=arc(state.a,state.v);bp=pos(s,s.T*state.k/N);cur=pts(state.a,state.v,state.k/N)}else if(state.last)cur=pts(state.last.a,state.last.v,1);\nn.ball={position:bp};\nn.trail=cur?{visible:true,points:cur}:{visible:false,points:[]};\nconst g=state.prev;n.ghostTrail=g?{visible:true,points:pts(g.a,g.v,1)}:{visible:false,points:[]};\nconst r={used:state.used,hits:state.hits},L=state.last;\nif(L){r.dist=L.R;r.miss=Math.abs(L.m);r.side=L.hit?'hit':(L.m<0?'short':'long');r.ftime=L.T;r.hmax=L.H}\nlet goal;const left=10-state.used;\nif(state.hits>=3)goal={status:'won',message:'You hit all 3 targets in '+state.used+' launches!'};\nelse if(state.used>=10&&!state.fly)goal={status:'lost',message:'Out of launches: '+state.hits+' of 3 targets hit.'};\nelse{let msg='Target at '+TG[state.ti]+' m. Launches left: '+left+'.';\nif(state.fly)msg='Ball in flight...';else if(L)msg=(L.hit?'Hit! ':'Missed by '+Math.abs(L.m).toFixed(1)+' m ('+(L.m<0?'short':'long')+'). ')+msg;\ngoal={status:'playing',message:msg}}\nreturn{nodes:n,readouts:r,goal}}"
+  }
+}

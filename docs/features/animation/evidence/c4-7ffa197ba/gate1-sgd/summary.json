@@ -1,0 +1,802 @@
+{
+  "ids": {
+    "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+    "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+    "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc"
+  },
+  "promptFiles": [
+    [
+      "packages/control-plane/src/agents/animation-author.js",
+      "6864103d4e1897ed1c73159193d14842f6af6efb81b738f25850c74e423cd3aa"
+    ],
+    [
+      "packages/control-plane/src/agents/animation-brief.js",
+      "5eb287b311b76b8b33739dc546ea682e65af75d570bcfe7e64e0a8bfe8c14898"
+    ],
+    [
+      "packages/control-plane/src/agents/animation-archetypes.js",
+      "0f89a5773a25c6b5d40508ed9234231bdcebbac700c15078f33a7399d20ef99d"
+    ],
+    [
+      "packages/control-plane/src/animation-brief.js",
+      "8321c1662cf9685201cb3b5b3b89ccf030d4fe47a86a9e19891626ff87bc3c3a"
+    ],
+    [
+      "packages/control-plane/src/animation-author.js",
+      "4e30d21d3b343cec7ff7e0be0f2d2680d892665714e66260c7e98f3e628d12fe"
+    ],
+    [
+      "packages/web/src/animation3d/contract.js",
+      "90de97bc8ff5b747923a707dbd2f97b8d8fda1f46e1d8e3ef4e0ea7f152f4806"
+    ],
+    [
+      "packages/web/src/animation3d/capabilities.js",
+      "e6df4ffb573b388333acdd5bbff6c4f54842a8499d6387b5d7895ed3f936c02d"
+    ]
+  ],
+  "transport": "dev-key",
+  "concurrency": 5,
+  "maxCredits": 700,
+  "stopped": "cap reached: 613.67 of 700 credits settled and the next call can cost up to 136.30",
+  "settled": 613.6716000000001,
+  "runs": [
+    {
+      "id": "sgd-loss-surface-r01",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+      "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+      "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+      "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 15799,
+        "cache_creation_input_tokens": 8082,
+        "cache_read_input_tokens": 8082,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 8082,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 22460,
+        "output_tokens_details": {
+          "thinking_tokens": 11342
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 55.4423,
+      "bytes": 9395,
+      "validator": true,
+      "assertions": true,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 2,
+      "askedAgain": true,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "seconds": 186.3
+    },
+    {
+      "id": "sgd-loss-surface-r02",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+      "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+      "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+      "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 7879,
+        "cache_creation_input_tokens": 8082,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 8082,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 11126,
+        "output_tokens_details": {
+          "thinking_tokens": 5676
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 29.4446,
+      "bytes": 8911,
+      "validator": true,
+      "assertions": true,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "seconds": 93.6
+    },
+    {
+      "id": "sgd-loss-surface-r03",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+      "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+      "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+      "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 15799,
+        "cache_creation_input_tokens": 8082,
+        "cache_read_input_tokens": 8082,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 8082,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 19455,
+        "output_tokens_details": {
+          "thinking_tokens": 7924
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 49.4323,
+      "bytes": 9293,
+      "validator": true,
+      "assertions": true,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 2,
+      "askedAgain": true,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "seconds": 160.3
+    },
+    {
+      "id": "sgd-loss-surface-r04",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+      "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+      "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+      "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 7879,
+        "cache_creation_input_tokens": 8082,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 8082,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 9954,
+        "output_tokens_details": {
+          "thinking_tokens": 4585
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 27.1006,
+      "bytes": 8881,
+      "validator": true,
+      "assertions": true,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "seconds": 82.7
+    },
+    {
+      "id": "sgd-loss-surface-r05",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+      "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+      "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+      "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 7879,
+        "cache_creation_input_tokens": 8082,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 8082,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 12052,
+        "output_tokens_details": {
+          "thinking_tokens": 6277
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 31.2966,
+      "bytes": 9523,
+      "validator": true,
+      "assertions": true,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "seconds": 102.2
+    },
+    {
+      "id": "sgd-loss-surface-r06",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+      "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+      "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+      "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 7879,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 8082,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 10304,
+        "output_tokens_details": {
+          "thinking_tokens": 4805
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 23.9213,
+      "bytes": 9067,
+      "validator": true,
+      "assertions": true,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "seconds": 84.7
+    },
+    {
+      "id": "sgd-loss-surface-r07",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+      "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+      "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+      "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+      "status": "error",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 15799,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 16164,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 19001,
+        "output_tokens_details": {
+          "thinking_tokens": 7932
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 44.6449,
+      "bytes": null,
+      "validator": null,
+      "assertions": null,
+      "problems": [],
+      "category": null,
+      "error": "invalid_turn: The author returned no artifact.",
+      "calls": 2,
+      "askedAgain": true,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "seconds": 155.2
+    },
+    {
+      "id": "sgd-loss-surface-r08",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+      "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+      "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+      "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 7879,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 8082,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 11283,
+        "output_tokens_details": {
+          "thinking_tokens": 5585
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 25.8793,
+      "bytes": 9342,
+      "validator": true,
+      "assertions": true,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "seconds": 89.8
+    },
+    {
+      "id": "sgd-loss-surface-r09",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+      "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+      "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+      "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 15799,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 16164,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 18074,
+        "output_tokens_details": {
+          "thinking_tokens": 6926
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 42.7909,
+      "bytes": 9336,
+      "validator": true,
+      "assertions": true,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 2,
+      "askedAgain": true,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "seconds": 144.7
+    },
+    {
+      "id": "sgd-loss-surface-r10",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+      "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+      "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+      "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 7879,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 8082,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 8046,
+        "output_tokens_details": {
+          "thinking_tokens": 2607
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 19.4053,
+      "bytes": 8996,
+      "validator": true,
+      "assertions": true,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "seconds": 65
+    },
+    {
+      "id": "sgd-loss-surface-r11",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+      "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+      "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+      "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 15799,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 16164,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 20913,
+        "output_tokens_details": {
+          "thinking_tokens": 9548
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 48.4689,
+      "bytes": 9595,
+      "validator": true,
+      "assertions": true,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 2,
+      "askedAgain": true,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "seconds": 171.4
+    },
+    {
+      "id": "sgd-loss-surface-r12",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+      "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+      "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+      "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 15799,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 16164,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 18528,
+        "output_tokens_details": {
+          "thinking_tokens": 7447
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 43.6989,
+      "bytes": 9550,
+      "validator": true,
+      "assertions": true,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 2,
+      "askedAgain": true,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "seconds": 152.9
+    },
+    {
+      "id": "sgd-loss-surface-r13",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+      "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+      "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+      "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 7879,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 8082,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 8255,
+        "output_tokens_details": {
+          "thinking_tokens": 2604
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 19.8233,
+      "bytes": 9485,
+      "validator": true,
+      "assertions": true,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "seconds": 66.6
+    },
+    {
+      "id": "sgd-loss-surface-r14",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+      "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+      "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+      "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 7879,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 8082,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 12030,
+        "output_tokens_details": {
+          "thinking_tokens": 6359
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 27.3733,
+      "bytes": 9429,
+      "validator": true,
+      "assertions": true,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "seconds": 98.6
+    },
+    {
+      "id": "sgd-loss-surface-r15",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+      "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+      "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+      "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 7879,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 8082,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 11177,
+        "output_tokens_details": {
+          "thinking_tokens": 5645
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 25.6673,
+      "bytes": 9110,
+      "validator": true,
+      "assertions": true,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 1,
+      "askedAgain": false,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "seconds": 92.3
+    },
+    {
+      "id": "sgd-loss-surface-r16",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+      "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+      "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+      "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 15799,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 16164,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 21262,
+        "output_tokens_details": {
+          "thinking_tokens": 9956
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 49.1669,
+      "bytes": 9508,
+      "validator": true,
+      "assertions": true,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 2,
+      "askedAgain": true,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "seconds": 175.6
+    },
+    {
+      "id": "sgd-loss-surface-r17",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "candidate": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+      "prompts": "aa26b3fe9b412bb4f567e5eb4b5948cf93e2c71810a1e7bd0f8c690814aba9c4",
+      "golden": "1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc",
+      "requestHash": "4ccdd87fda7a4294e140532c8b5ee765620f143714ed061ff6441d87909d8a3e",
+      "status": "valid",
+      "stopReason": "tool_use",
+      "served": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 15799,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 16164,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 21736,
+        "output_tokens_details": {
+          "thinking_tokens": 10120
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "credits": 50.1149,
+      "bytes": 9795,
+      "validator": true,
+      "assertions": true,
+      "problems": [],
+      "category": null,
+      "error": null,
+      "calls": 2,
+      "askedAgain": true,
+      "kind": "artifact",
+      "inputKeys": [
+        "kind",
+        "artifact"
+      ],
+      "seconds": 179.2
+    },
+    {
+      "id": "sgd-loss-surface-r18",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "status": "not run",
+      "credits": 0,
+      "problems": [],
+      "error": "cap reached: 613.67 of 700 credits settled and the next call can cost up to 136.30"
+    },
+    {
+      "id": "sgd-loss-surface-r19",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "status": "not run",
+      "credits": 0,
+      "problems": [],
+      "error": "cap reached: 613.67 of 700 credits settled and the next call can cost up to 136.30"
+    },
+    {
+      "id": "sgd-loss-surface-r20",
+      "plan": "sgd-loss-surface",
+      "session": null,
+      "status": "not run",
+      "credits": 0,
+      "problems": [],
+      "error": "cap reached: 613.67 of 700 credits settled and the next call can cost up to 136.30"
+    }
+  ]
+}

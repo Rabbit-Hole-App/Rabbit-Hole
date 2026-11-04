@@ -1,0 +1,17 @@
+{
+ "n": 7,
+ "phrasing": "compare learning rate 0.1 and 1.5 on the same surface",
+ "session": "gate2-2@example.com",
+ "sha": "c3d9aa6e815dca7596c5ff0570dfa2ae878ddc09",
+ "version": "c894e9e7-c528-40d0-aeba-0c250f6402b9",
+ "jobId": "aj_aeb96465d2e142938de8d7b5f3235bc9",
+ "outcome": "failed",
+ "repairs": 1,
+ "credits": 81.6778,
+ "charged": 12,
+ "artifactHash": null,
+ "note": "budget: The build reached its spending limit. You have not been charged. It was corrected automatically once. Revise plan prepares a simpler plan from your request for ",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 8:18 PM"
+}

@@ -1,0 +1,324 @@
+[
+ {
+  "at": 1793769063432,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "8ab2e279b1a1c49dfd9200ae542099ccb4fb224f5fc937ebf036fd5b51616e91",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "Default view: the surface fills only about 38% of the frame width, with large empty margins above and to the sides. The ball (r 0.24) and the next-step arrow are small, and the camera looks at the valley diagonally, so the narrow y direction is foreshortened. That is exactly the direction where zigzags would appear. Move the camera closer and more overhead, and enlarge the ball and arrow.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "ballTag",
+       "message": "The 'Drag along x' and 'Next step' labels stay attached to the ball at all times and crowd the main object. The instruction label could be hidden while running or moved away from the ball.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: learning rate 0.01, dragging the ball or handle, and the 200-step limit. The plan says to 'drag the ball to a new start', but the ball only drags along x; y is set by a separate rail handle. This is disclosed.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "arrowTag",
+       "message": "Near the minimum, 'Drag along x', 'Next step' and 'Lowest point' bunch up around the ball and the lowest-point dot, covering the area where the action happens. 'Next step' labels an arrow about 0.01 long that can't be seen. Hide the arrow label when the arrow is tiny, and keep labels off the ball and the minimum.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The subject is still small in the frame with a lot of empty space. The trail and ball are small, and the trail lies in the foreshortened valley.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "trail",
+       "message": "The trail stores a point only every 2 steps. For learning rates above 0.2, y changes sign every step (factor 1−5·lr < 0), so the even-step points all fall on the same side and the zigzag can never show. At 0.5 the trail is one straight segment from the start to step 2, hiding the bounce across the valley that the plan promises ('larger ones zigzag', 'bounce farther out each step'). Record every step, at least while fewer than 100 points exist, or keep both points of each pair.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "After divergence the ball sits at the clamped height beyond the front edge of the surface. The trail is barely visible in this view, and the handle runs to the bottom edge of the frame. A learner can't see the outward bounces, only a ball off to one side. The framing is also small, with much empty space.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The labels crowd around the ball near the minimum, as in the default view.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "object": "trail",
+       "message": "The side view confirms the problem: at learning rate 0.5 the trail is a single straight segment from start to step 2, because points are kept only on even steps. The step-1 point across the valley at y = −2.25 is missing, so the zigzag/divergence the plan promises is not drawn.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13376,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4025,
+   "output_tokens_details": {
+    "thinking_tokens": 2667
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_312c170b24fb4d8c85ddf11650310467-review-3",
+   "status": "settled",
+   "costMicros": 134425,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793769191091,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "4c887d381ad0ed38da5ecca65bfa63c797cd957d89d0ef856df336eef2926fd3",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "arrow",
+       "message": "The 'Next step' arrow starts at the ball centre. At the default it is ~0.79 long against a 0.32 ball radius, so most of it is inside the ball and only a ~15px stub shows, smaller than its own label. The key downhill-direction cue is barely readable in the default view. Offset the arrow base to the ball surface (keep true length, scale 1) or raise it clear of the ball.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "plan",
+       "message": "The plan says every rate up to 0.4 converges, but at lr=0.4 the y factor is 1−5·0.4=−1, so it oscillates forever and hits the 200-step limit. It should say 'below 0.4'. The artifact does not repeat the claim, but any description of the cutoff should use the correct bound.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "trail",
+       "message": "The trail marks every step (up to 200) instead of the plan's one marker every 2 steps (up to 100). It is disclosed in the assumptions and shows more, not less.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: lr at 0.01, the showArrow toggle off, drags, and a run stopping on its own at convergence. Values at lr=0.07 after 40 steps (x≈−0.137, loss 0.009, steepness 0.137) match the formula.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "arrow",
+       "message": "The same as in the default view: the arrow is mostly hidden inside the ball and only a short stub shows beside the larger 'Next step' label.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13397,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4150,
+   "output_tokens_details": {
+    "thinking_tokens": 2356
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_312c170b24fb4d8c85ddf11650310467-review-5",
+   "status": "settled",
+   "costMicros": 137009,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

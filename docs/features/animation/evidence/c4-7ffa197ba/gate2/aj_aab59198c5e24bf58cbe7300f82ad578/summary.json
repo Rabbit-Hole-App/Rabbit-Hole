@@ -1,0 +1,17 @@
+{
+ "n": 6,
+ "phrasing": "minimize a quadratic loss with gradient steps",
+ "session": "gate2-1@example.com",
+ "sha": "7ffa197ba3a9c406c449090a3a6ee01a4a75c4a0",
+ "version": "ac467072-cacc-4b9d-bb37-61cbc5c79ea1",
+ "jobId": "aj_aab59198c5e24bf58cbe7300f82ad578",
+ "outcome": "failed",
+ "repairs": 1,
+ "credits": 101.4448,
+ "charged": 5,
+ "artifactHash": null,
+ "note": "budget: The build reached its spending limit. You have not been charged. It was corrected automatically once. Revise plan prepares a simpler plan from your request for ",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 7:47 PM"
+}

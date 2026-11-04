@@ -1,0 +1,17 @@
+{
+ "n": 3,
+ "phrasing": "gradient descent with two learning rates",
+ "session": "gate2-3@example.com",
+ "sha": "951288c09c321d8dbaaa22d539a2b7d4e51cb0b6",
+ "version": "c7b3d363-0305-40c6-a42b-9f009548e4f5",
+ "jobId": "aj_2f17bed198df4482b5e2e7e170dcdd31",
+ "outcome": "rejected",
+ "repairs": 2,
+ "credits": 78.3753,
+ "charged": 7,
+ "artifactHash": null,
+ "note": "rounds: The scene did not pass its structure checks. You have not been charged. It was corrected automatically twice, but it still did not pass. Revise plan prepares a ",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 8:43 PM"
+}

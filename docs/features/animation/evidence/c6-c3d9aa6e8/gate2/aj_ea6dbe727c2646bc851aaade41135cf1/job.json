@@ -1,0 +1,197 @@
+{
+ "id": "aj_ea6dbe727c2646bc851aaade41135cf1",
+ "version": 1,
+ "boardId": "2b87c82b-4f4b-485b-8cd6-f43c4868a572",
+ "cardId": "6f92d7ee-fe79-4700-b5de-a01aef5cbb0d",
+ "stage": "ready",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 0,
+ "stopReason": "accepted",
+ "failure": null,
+ "recovery": [],
+ "outcome": "supported",
+ "choiceOpen": false,
+ "threadId": "canvaschat-daa92807-77d1-4ca0-81e1-be97c08f5b35",
+ "chatPending": false,
+ "usage": {
+  "credits": 51,
+  "unknown": false
+ },
+ "result": {
+  "jobId": "aj_ea6dbe727c2646bc851aaade41135cf1",
+  "resultId": "ar_b785ae7da3674c8282ab6473e7fd232f",
+  "cardId": "6f92d7ee-fe79-4700-b5de-a01aef5cbb0d",
+  "canvas": {
+   "boardId": "2b87c82b-4f4b-485b-8cd6-f43c4868a572"
+  },
+  "requestRef": "e433161ccafd8840",
+  "revision": "av_18295e2215fc4be9afe513226f64cf91",
+  "planHash": "5a7ee0615f43b497385e0eb2cd4a64e66dbdf234cede2c63675b43a0bda3432e",
+  "sources": "643d5437104296e2",
+  "artifactHash": "e120969cb3c1b6ac93b130dd1c3b5d9188d14b4694135f560e5389b0e977c3bc",
+  "experience": "experiment",
+  "capabilityVersion": "animation-capabilities/1",
+  "policyVersion": 1
+ },
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "Gradient descent on a quadratic bowl",
+  "description": "A bowl-shaped surface shows the loss L = ½(x² + c·y²), with contour lines and its lowest point marked at the centre. A ball sits on the surface at a starting point. Each gradient step moves the ball against the slope, by the learning rate times the gradient, and leaves a trail. An arrow at the ball points in the downhill direction (the negative gradient), which is the direction of the next step. With a small learning rate the ball creeps toward the bottom. In a narrow bowl it zig-zags across the valley, and with too large a learning rate it bounces outward and the loss grows.",
+  "experience": "experiment",
+  "reason": "Changing the learning rate and the shape of the bowl, then watching the trail and the loss readout, shows directly why step size matters and when gradient steps settle, zig-zag or blow up.",
+  "behavior": "rules",
+  "controlProfile": "manipulate",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate (step size)",
+    "min": 0.01,
+    "max": 0.6,
+    "step": 0.01,
+    "default": 0.15
+   },
+   {
+    "type": "number",
+    "id": "curvature",
+    "label": "Steepness across the valley (c)",
+    "min": 1,
+    "max": 10,
+    "step": 0.5,
+    "default": 4
+   },
+   {
+    "type": "toggle",
+    "id": "showArrow",
+    "label": "Show downhill arrow",
+    "default": true
+   }
+  ],
+  "interactions": [
+   "Press play to let the host take gradient steps one after another, or step once at a time.",
+   "Use the Take one step action to apply one gradient step and see the ball, trail and readouts update.",
+   "Drag the start marker across the bowl to choose where the descent begins.",
+   "Use the Restart from start point action to clear the trail and step count while keeping your current settings and start point.",
+   "Change the learning rate: small values give many short steps, values near 2/c make the ball zig-zag across the valley, and values above 2/c make it bounce outward.",
+   "Change the steepness across the valley: c = 1 gives a round bowl with a straight path to the bottom, and larger values give a long narrow valley."
+  ],
+  "assumptions": [
+   "This is an illustration: a made-up two-variable quadratic loss, not a trained model on real data.",
+   "The loss is L(x, y) = ½(x² + c·y²), so its gradient is (x, c·y) and its minimum is exactly at (0, 0).",
+   "Each step is plain gradient descent: new position = old position − learning rate × gradient. There is no momentum or noise, so the path is exactly determined.",
+   "Along each axis the position is multiplied by (1 − learning rate) or (1 − learning rate × c) at every step. Steps settle toward the minimum when both factors are between −1 and 1, which means a learning rate below 2/c (and below 2).",
+   "The surface's height is drawn vertically compressed so the bowl stays readable at c = 10. The readouts show the true loss values.",
+   "Readouts: step count, current loss, gradient size, and the current position (x, y)."
+  ],
+  "limitations": [
+   "A run stops after 60 steps, or earlier when the ball reaches the edge of the drawn surface (x or y beyond ±3), so the ball stays on the surface. A diverging run is shown by its outward bounce and growing loss up to that point.",
+   "Only a quadratic bowl is shown. Real losses are rarely this simple, and on them the safe step size changes from place to place.",
+   "With a learning rate between 1/c and 2/c, the loss still falls but the path overshoots the valley floor at every step, so the ball zig-zags rather than moving straight down."
+  ],
+  "learningGoal": "See that gradient descent moves against the slope, that the learning rate controls whether it converges smoothly, zig-zags or diverges, and that a narrow valley (large c) forces a smaller safe step.",
+  "requiredCapabilities": [
+   "parameters",
+   "actions",
+   "step",
+   "drag",
+   "labels",
+   "readouts"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "learningRate",
+    "values": [
+     0.05,
+     0.6
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 60
+   }
+  ]
+ },
+ "planHash": "5a7ee0615f43b497385e0eb2cd4a64e66dbdf234cede2c63675b43a0bda3432e",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 23587,
+  "generateToResultMs": 197994,
+  "processingMs": 221531,
+  "approvalWaitMs": 2186,
+  "calls": 3,
+  "repairs": 0,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 23537,
+    "calls": 1,
+    "inputTokens": 377,
+    "outputTokens": 2255,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 2186,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 125867,
+    "calls": 1,
+    "inputTokens": 7741,
+    "outputTokens": 14466,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 37,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 32550,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 39540,
+    "calls": 1,
+    "inputTokens": 13587,
+    "outputTokens": 3995,
+    "images": 6,
+    "captures": 0,
+    "outcome": "accepted"
+   }
+  ]
+ },
+ "createdAt": 1793765569351,
+ "updatedAt": 1793765793118
+}

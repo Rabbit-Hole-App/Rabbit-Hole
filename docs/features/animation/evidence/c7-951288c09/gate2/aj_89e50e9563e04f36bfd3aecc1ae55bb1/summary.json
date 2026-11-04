@@ -1,0 +1,17 @@
+{
+ "n": 7,
+ "phrasing": "compare learning rate 0.1 and 1.5 on the same surface",
+ "session": "gate2-2@example.com",
+ "sha": "951288c09c321d8dbaaa22d539a2b7d4e51cb0b6",
+ "version": "c7b3d363-0305-40c6-a42b-9f009548e4f5",
+ "jobId": "aj_89e50e9563e04f36bfd3aecc1ae55bb1",
+ "outcome": "rejected",
+ "repairs": 2,
+ "credits": 95.7967,
+ "charged": 11,
+ "artifactHash": null,
+ "note": "rounds: The visual review found 1 serious problem with how the scene is drawn or computed. You have not been charged. It was corrected automatically twice, but it still",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 8:50 PM"
+}

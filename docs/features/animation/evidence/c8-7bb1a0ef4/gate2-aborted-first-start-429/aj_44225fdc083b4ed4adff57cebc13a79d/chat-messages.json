@@ -1,0 +1,126 @@
+[
+ {
+  "messageId": "250",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-181530f831a0137f",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient descent on a bowl: two learning rates side by side",
+    "description": "A stretched bowl-shaped loss surface, drawn with contour lines, has its lowest point marked at the center. Two balls, blue and orange, start from the same spot, and each one runs gradient descent with its own learning rate. Each step moves a ball downhill against the local slope by its learning rate times the gradient, and leaves a trail behind it. The learner watches one ball creep, the other zigzag or shoot past the minimum, and compares their loss readouts step by step.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-a19c9eda",
+     "job": "aj_44225fdc083b4ed4adff57cebc13a79d",
+     "plan_hash": "797727a7abef015d8f6e960b17c7481c876c8b8670a96d5077cef5b9a77a27a0",
+     "request": "gradient descent with two learning rates",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate, blue ball",
+        "min": 0.01,
+        "max": 0.5,
+        "step": 0.01,
+        "default": 0.05
+       },
+       {
+        "type": "number",
+        "label": "Learning rate, orange ball",
+        "min": 0.01,
+        "max": 0.5,
+        "step": 0.01,
+        "default": 0.35
+       },
+       {
+        "type": "toggle",
+        "label": "Show downhill arrows",
+        "default": true
+       }
+      ],
+      "interactions": [
+       "Set each ball's learning rate: small rates take short, smooth steps; larger ones zigzag across the bowl's narrow direction; above 0.4 each step overshoots further and the ball escapes.",
+       "Play, pause or single-step the descent and watch both trails and loss readouts update together.",
+       "Turn on arrows on each ball that point downhill, opposite to the gradient. They show the direction and length of the next move before it is scaled by the learning rate.",
+       "Use 'Restart descent' to clear both trails and send the balls back to the start while keeping the learning rates you set."
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793855180,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "gradient descent with two learning rates",
+    "prompt": "A stretched bowl-shaped loss surface, drawn with contour lines, has its lowest point marked at the center. Two balls, blue and orange, start from the same spot, and each one runs gradient descent with its own learning rate. Each step moves a ball downhill against the local slope by its learning rate times the gradient, and leaves a trail behind it. The learner watches one ball creep, the other zigzag or shoot past the minimum, and compares their loss readouts step by step.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Running both learning rates on the same surface from the same start shows directly how step size decides between slow progress, fast progress, zigzagging and divergence. You can change either rate and rerun the race.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Set each ball's learning rate: small rates take short, smooth steps; larger ones zigzag across the bowl's narrow direction; above 0.4 each step overshoots further and the ball escapes.",
+     "Interaction: Play, pause or single-step the descent and watch both trails and loss readouts update together.",
+     "Interaction: Turn on arrows on each ball that point downhill, opposite to the gradient. They show the direction and length of the next move before it is scaled by the learning rate.",
+     "Interaction: Use 'Restart descent' to clear both trails and send the balls back to the start while keeping the learning rates you set.",
+     "Parameter: Learning rate, blue ball, 0.01 to 0.5, default 0.05",
+     "Parameter: Learning rate, orange ball, 0.01 to 0.5, default 0.35",
+     "Parameter: Show downhill arrows",
+     "Goal: See that the learning rate controls step size: too small converges slowly, moderate converges fast, larger zigzags, and beyond a limit set by the surface's steepness the descent diverges."
+    ],
+    "assumptions": [
+     "Illustration: a made-up bowl-shaped loss, not a real trained model.",
+     "The loss is loss = ½(x² + 5y²). It is 5 times steeper in one direction than the other, so its single minimum is at the center.",
+     "Each update is exact gradient descent with no noise and no momentum: new position = old position − learning rate × gradient.",
+     "Both balls start at the same point, (−3, 1.5), and run at most 60 steps.",
+     "On this surface the descent settles when the learning rate is below 0.4 and diverges above it. Rates between 0.2 and 0.4 zigzag across the steep direction but still settle.",
+     "If a ball leaves the drawn area, it stops at the edge, is labeled 'diverged', and its loss readout shows that it escaped."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Real loss surfaces have many dimensions, flat regions and multiple dips. This simple bowl has one minimum, so it shows step-size effects but not local minima.",
+     "The exact threshold of 0.4 belongs to this surface's steepness. A real problem's safe learning rate depends on its own curvature."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-a19c9eda"
+    },
+    "quote": null,
+    "review_hash": "08a58acc6080e7123ec149434f4b6765146563f36d1d667a4131086d9bd0dda1",
+    "sig": "v3.f31e468da9b04f35ba7808d0f2a70d839702e2b5a23c9faf9962b46d35d1f6d4",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 373,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.f31e468da9b04f35ba7808d0f2a70d839702e2b5a23c9faf9962b46d35d1f6d4",
+    "used": {
+     "version": 1,
+     "key": "aj_44225fdc083b4ed4adff57cebc13a79d"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "250"
+   ],
+   "feedback": null
+  }
+ }
+]

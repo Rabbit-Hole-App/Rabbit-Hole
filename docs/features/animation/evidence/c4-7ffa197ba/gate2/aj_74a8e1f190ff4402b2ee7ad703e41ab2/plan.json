@@ -1,0 +1,75 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Why a too-large learning rate makes gradient descent blow up",
+ "description": "A ball sits on a long, narrow bowl-shaped loss surface. Each step, it moves downhill by the learning rate times the slope, leaving a trail. An arrow shows the step it is about to take. With a small learning rate the ball slides into the bottom. As you raise it, the ball starts zigzagging across the steep sides of the narrow valley. Past a clear tipping point, every jump overshoots by more than the last, and the ball climbs up and off the bowl.",
+ "experience": "experiment",
+ "reason": "You can find the tipping point yourself by changing the learning rate and watching the same descent shrink toward the bottom, bounce forever, or blow up. A readout shows the number that decides which one happens.",
+ "behavior": "rules",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate",
+   "min": 0.02,
+   "max": 1,
+   "step": 0.01,
+   "default": 0.4
+  },
+  {
+   "type": "number",
+   "id": "steepness",
+   "label": "Steepness of the narrow direction",
+   "min": 2,
+   "max": 8,
+   "step": 0.5,
+   "default": 4
+  }
+ ],
+ "interactions": [
+  "Step the descent one move at a time or let it play, and pause at any point.",
+  "Change the learning rate. At the default steepness the ball settles below 0.5, bounces forever at exactly 0.5, and grows each step until it leaves the surface above 0.5.",
+  "Change the steepness of the narrow direction. The tipping point moves to 2 divided by the steepness, so a steeper valley blows up at a smaller learning rate.",
+  "Use 'Restart descent' to send the ball back to its start and clear its trail while keeping your current settings.",
+  "Orbit the camera to view the zigzag from above or from the side."
+ ],
+ "assumptions": [
+  "This is an illustration: a made-up bowl-shaped loss surface, not a real model's loss.",
+  "The loss is 0.5 × (x² + steepness × y²). It curves gently along one direction (curvature 1) and more sharply along the other (curvature = steepness).",
+  "Each step is plain gradient descent: new position = old position − learning rate × slope, with no momentum and no noise.",
+  "Each step multiplies the distance to the bottom in each direction by (1 − learning rate × curvature); a readout shows this factor for the steep direction. Size below 1: it shrinks. Exactly 1: it bounces forever. Above 1: it grows. Exact here; only approximate near a real network's minimum.",
+  "The ball starts at the same fixed point every time, away from the bottom along both directions.",
+  "The arrow shows the step about to be taken: the downhill direction (opposite the slope), scaled by the learning rate."
+ ],
+ "limitations": [
+  "The run stops after 40 steps, when the loss drops below 0.001 (labelled 'converged'), or when the ball leaves the edge of the drawn surface (labelled 'diverged'). After that the loss would keep growing without limit, but it is not drawn.",
+  "Real loss surfaces are not perfect bowls, so in practice the tipping point is only roughly 2 divided by the sharpest curvature, and that curvature can change during training."
+ ],
+ "learningGoal": "Gradient descent diverges when the learning rate times the steepest curvature is above 2. Each step then overshoots the bottom by more than it started away, so the error grows instead of shrinking.",
+ "requiredCapabilities": [
+  "parameters",
+  "step",
+  "actions",
+  "readouts",
+  "labels"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.1,
+    0.6
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 40
+  }
+ ]
+}

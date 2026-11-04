@@ -1,0 +1,120 @@
+[
+ {
+  "messageId": "253",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-cf8a71ae318a73ee",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient descent with two learning rates on the same bowl",
+    "description": "A stretched bowl-shaped loss surface, steep across one direction and gentle along the other, carries two coloured balls that start at the same point. Each step, both balls move downhill (opposite the slope arrow drawn at each ball), each by its own learning rate times the slope, leaving a trail. With the default settings the blue ball creeps slowly toward the bottom while the orange ball zigzags across the steep direction but gets there faster. Readouts show the step count and each ball's current loss, so you can compare the two runs.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-a23ac25f",
+     "job": "aj_3c82103c7ee04763930a2093ca120c5f",
+     "plan_hash": "37794e4b5af1afbc745f70426e2a4b13e125907142be9cc2607889358b013e41",
+     "request": "gradient descent with two learning rates",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate, blue ball",
+        "min": 0.01,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.05
+       },
+       {
+        "type": "number",
+        "label": "Learning rate, orange ball",
+        "min": 0.01,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.4
+       }
+      ],
+      "interactions": [
+       "Play, pause or advance one step at a time: each step moves both balls once.",
+       "Change the blue ball's learning rate: both balls go back to the shared start, their trails clear, and the blue path becomes slower and smoother (smaller rate) or larger and more zigzag (bigger rate).",
+       "Change the orange ball's learning rate the same way. Near 0.5 it bounces back and forth across the steep direction without settling, and above 0.5 its swings grow until it leaves the surface.",
+       "Orbit the camera to view the trails from above or from the side."
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793855285,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "gradient descent with two learning rates",
+    "prompt": "A stretched bowl-shaped loss surface, steep across one direction and gentle along the other, carries two coloured balls that start at the same point. Each step, both balls move downhill (opposite the slope arrow drawn at each ball), each by its own learning rate times the slope, leaving a trail. With the default settings the blue ball creeps slowly toward the bottom while the orange ball zigzags across the steep direction but gets there faster. Readouts show the step count and each ball's current loss, so you can compare the two runs.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Running two learning rates side by side on one surface lets you see directly how step size trades speed against stability. Change either rate and watch the paths and loss values respond.",
+     "Behavior: rules",
+     "Controls: inspect",
+     "Interaction: Play, pause or advance one step at a time: each step moves both balls once.",
+     "Interaction: Change the blue ball's learning rate: both balls go back to the shared start, their trails clear, and the blue path becomes slower and smoother (smaller rate) or larger and more zigzag (bigger rate).",
+     "Interaction: Change the orange ball's learning rate the same way. Near 0.5 it bounces back and forth across the steep direction without settling, and above 0.5 its swings grow until it leaves the surface.",
+     "Interaction: Orbit the camera to view the trails from above or from the side.",
+     "Parameter: Learning rate, blue ball, 0.01 to 0.6, default 0.05",
+     "Parameter: Learning rate, orange ball, 0.01 to 0.6, default 0.4",
+     "Goal: See that a small learning rate converges slowly but steadily, a larger one can be faster but zigzags, and one that is too large makes gradient descent diverge."
+    ],
+    "assumptions": [
+     "This is an illustration on a made-up bowl-shaped surface, not a trained model on real data.",
+     "The loss is half of (x squared plus 4 times y squared). Its slope is exactly (x, 4y), and each step subtracts the learning rate times that slope.",
+     "Both balls start at x = −2.5, y = 1.5, where the loss is about 7.6. The lowest point is at the centre, where the loss is 0.",
+     "Heights are drawn scaled down so the whole bowl fits on screen. The readouts show the true loss values.",
+     "A run stops when its ball is within 0.01 of the bottom, when it leaves the drawn area (marked 'diverged'), or after 60 steps."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "On this perfect bowl, with no noise, any rate below 0.5 always reaches the bottom eventually. Real loss surfaces have bumps, flat stretches and noisy slopes, so the safe range of learning rates there is not this tidy.",
+     "Only two fixed learning rates are compared. Schedules that change the rate over time, and momentum, are not shown.",
+     "With a learning rate above 0.5, the steep direction makes the loss grow at every step (it diverges). A ball that leaves the drawn area stops there and is not followed further."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-a23ac25f"
+    },
+    "quote": null,
+    "review_hash": "773c64213aee20924be9e1838904f682d079fb42d7fb42ff5c889a350e5a0e57",
+    "sig": "v3.3ad0a9e91d8156393c0cbbfd4519ec0f8a0cb4ca1db60cf7b5a656ecb6af2919",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 373,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.3ad0a9e91d8156393c0cbbfd4519ec0f8a0cb4ca1db60cf7b5a656ecb6af2919",
+    "used": {
+     "version": 1,
+     "key": "aj_3c82103c7ee04763930a2093ca120c5f"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "253"
+   ],
+   "feedback": null
+  }
+ }
+]

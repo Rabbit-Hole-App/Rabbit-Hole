@@ -1,0 +1,76 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Gradient descent on a bowl: two learning rates side by side",
+ "description": "A stretched bowl-shaped loss surface has its lowest point at the centre. Two balls, an orange one using learning rate A and a blue one using learning rate B, start from the same point. Step by step they move downhill, and each leaves a trail. You set the two learning rates and watch one creep slowly, one zigzag across the narrow direction, or one overshoot further each step and fly off the bowl.",
+ "experience": "experiment",
+ "reason": "Running both learning rates on the same surface from the same start lets you compare them directly. You can see how step size alone decides between slow progress, zigzagging and blowing up.",
+ "behavior": "rules",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "lrA",
+   "label": "Learning rate A (orange ball)",
+   "min": 0.01,
+   "max": 0.6,
+   "step": 0.01,
+   "default": 0.05
+  },
+  {
+   "type": "number",
+   "id": "lrB",
+   "label": "Learning rate B (blue ball)",
+   "min": 0.01,
+   "max": 0.6,
+   "step": 0.01,
+   "default": 0.4
+  }
+ ],
+ "interactions": [
+  "Change learning rate A or B. Each ball's next steps use its new rate.",
+  "Step once, or let the steps run, to watch both balls move downhill and leave trails.",
+  "Restart both descents from the starting point. This keeps your chosen learning rates and clears the trails and step count.",
+  "Orbit the camera to see the bowl from the side or from above, where the contour lines show the zigzag clearly."
+ ],
+ "assumptions": [
+  "This is an illustration: a simple made-up bowl, not the loss of a real trained model.",
+  "The loss is half of (x squared plus 4 times y squared). The bowl is 4 times steeper across the y direction than along x, and its minimum is at the centre with loss 0.",
+  "Each step is exact plain gradient descent: the new position is the old position minus the learning rate times the slope (the gradient) at the old position. There is no momentum and no noise.",
+  "An arrow at each ball shows the downhill direction (the negative gradient). The ball's step goes along that arrow, scaled by its learning rate.",
+  "Both balls start at x = 2.5, y = 1.5. A run stops after 60 steps, or for a ball that leaves the drawn area, which is then marked as diverged.",
+  "Heights are squashed vertically so the whole bowl fits on screen. The motion of the balls is not affected."
+ ],
+ "limitations": [
+  "On this bowl the limits are exact: up to 0.25 a ball nears the centre without zigzagging; above 0.25 up to just under 0.5 it zigzags but converges; at exactly 0.5 it bounces across forever; above 0.5 it diverges. Real loss surfaces have no single clean limit.",
+  "Rates very close to 0.5 converge so slowly that they may look like endless bouncing within the 60 steps.",
+  "Readouts show each ball's current loss and its distance to the minimum, not a full plot of loss over time."
+ ],
+ "learningGoal": "The learning rate sets the step size. Too small means slow progress, a moderate rate zigzags but converges, and a rate past the stability limit makes the loss grow step after step.",
+ "requiredCapabilities": [
+  "step",
+  "parameters",
+  "actions",
+  "readouts",
+  "labels",
+  "speed"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "compare",
+   "parameter": "lrB",
+   "values": [
+    0.05,
+    0.55
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 30
+  },
+  {
+   "kind": "clamp"
+  }
+ ]
+}
