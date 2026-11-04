@@ -32,7 +32,7 @@ import { buildAnimationScene } from './scene.js';
 // keep: every essential part (the whole subject: targets, play areas, reference marks; never a backdrop) stays inside this share of
 // the view even when the focus is narrower (owner 2026-11-02: a 10° / 5 m/s shot cropped the target out of aj_fac3ca4b, and the grid
 // robot's first move framed the robot without its target); the focus then fills as much of the view as that allows.
-export const FRAMING = Object.freeze({ surfaceElevation: 25, fill: 0.8, keep: 0.96, samples: 12, budgetMs: 2000, ticks: 30, sheet: 1.25, dwarf: 3, caption: 0.25, focus: 2, near: 0.25, refit: Object.freeze({ distance: 1.2, aim: 0.15 }) });
+export const FRAMING = Object.freeze({ surfaceElevation: 35, fill: 0.8, keep: 0.96, samples: 12, budgetMs: 2000, ticks: 30, sheet: 1.25, dwarf: 3, caption: 0.25, focus: 2, near: 0.25, refit: Object.freeze({ distance: 1.2, aim: 0.15 }) });
 
 const extent = box => { const size = box.getSize(new THREE.Vector3()); return Math.max(size.x, size.y, size.z); };
 
