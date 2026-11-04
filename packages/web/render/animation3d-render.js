@@ -28,6 +28,7 @@ const canvas = frameElement.querySelector('canvas');
 if (canvas) Object.assign(canvas.style, { position: 'absolute', inset: '0', width: '100%', height: '100%' });
 const overlay = document.createElement('div');
 Object.assign(overlay.style, { position: 'absolute', left: '12px', bottom: '12px', maxWidth: 'calc(100% - 24px)', padding: '6px 10px', borderRadius: '8px', font: '500 14px/1.4 system-ui, sans-serif', display: 'none' });
+overlay.setAttribute('data-animation-strip', ''); // the readout strip over the capture: e2e/animation-render-check.mjs reads its text
 frameElement.appendChild(overlay);
 
 // The readouts (with their declared decimals and units) and a game's goal, as plain text: never parsed as HTML.
