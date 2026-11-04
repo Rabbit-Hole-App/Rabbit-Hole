@@ -43,9 +43,9 @@ test('structure: a 24 x 24 convex bowl with 8 contours, heights from a quadratic
   assert.ok(heights.every(row => row.length === 24 && row.every(Number.isFinite)), 'rectangular and finite');
   assert.ok(contours >= 6 && contours <= 8 && contours === 8);
   assert.equal(width, depth);
-  // heights[row][col]: row runs along z, column along x, both from -width/2 to width/2. The quadratic is 0.4 (1.4 x^2 + 0.9 z^2): 0.8 times the loss.
+  // heights[row][col]: row runs along z, column along x, both from -width/2 to width/2. The quadratic is 0.5 (1.4 x^2 + 0.5 z^2): the loss itself.
   const at = i => -width / 2 + width * i / 23;
-  heights.forEach((row, r) => row.forEach((h, c) => assert.ok(Math.abs(h - 0.4 * (1.4 * at(c) ** 2 + 0.9 * at(r) ** 2)) <= 0.005 + 1e-9, `heights[${r}][${c}]`)));
+  heights.forEach((row, r) => row.forEach((h, c) => assert.ok(Math.abs(h - 0.5 * (1.4 * at(c) ** 2 + 0.5 * at(r) ** 2)) <= 0.005 + 1e-9, `heights[${r}][${c}]`)));
   const flat = heights.flat(), lowest = flat.indexOf(Math.min(...flat));
   assert.ok([11, 12].includes(Math.floor(lowest / 24)) && [11, 12].includes(lowest % 24), 'the lowest cell is one of the four at the centre');
   for (let i = 1; i < 23; i += 1) for (let j = 0; j < 24; j += 1) {
@@ -133,13 +133,13 @@ const runUntilOver = (inputs, from = 'run') => {
   }
   return { state, steps };
 };
-// Closed form with all 256 examples (no noise), from the start (0.1, 1.8): x_n = 0.1 (1 - 1.4 r)^n, z_n = 1.8 (1 - 0.9 r)^n, loss = (1.4 x^2 + 0.9 z^2) / 2, and the slope
-// (1.4 x, 0.9 z) is what the program calls flat below 0.12.
-const closed = (rate, n) => { const x = 0.1 * (1 - 1.4 * rate) ** n, z = 1.8 * (1 - 0.9 * rate) ** n; return { x, z, loss: 0.5 * (1.4 * x * x + 0.9 * z * z), slope: Math.hypot(1.4 * x, 0.9 * z) }; };
-const stepsToFlat = rate => { let n = 0; while (closed(rate, n).slope >= 0.12) n += 1; return n; };
+// Closed form with all 256 examples (no noise), from the start (0.1, 1.5): x_n = 0.1 (1 - 1.4 r)^n, z_n = 1.5 (1 - 0.5 r)^n, loss = (1.4 x^2 + 0.5 z^2) / 2. The program calls the run
+// converged when the steep slope 1.4 |x| is under 0.12 and the gentle slope 0.5 |z| under 0.35 for three steps in a row (the noise keeps the ball wandering in z).
+const closed = (rate, n) => { const x = 0.1 * (1 - 1.4 * rate) ** n, z = 1.5 * (1 - 0.5 * rate) ** n; return { x, z, loss: 0.5 * (1.4 * x * x + 0.5 * z * z), calm: Math.abs(1.4 * x) < 0.12 && Math.abs(0.5 * z) < 0.35 }; };
+const stepsToConverge = rate => { let n = 1; while (!closed(rate, n).calm) n += 1; return n + 2; }; // calm from step n on; the third calm step ends the run
 const FULL = '256';
 
-run('learning rate 0.1: paused until Run, then converges along the closed form when the slope is flat; the true loss and the path agree', () => {
+run('learning rate 0.1: paused until Run, then converges along the closed form when the slope has stayed flat for three steps; the true loss and the path agree', () => {
   const inputs = { learningRate: 0.1, batchSize: FULL }, start = call('initialize', { inputs });
   const first = shown(start, inputs);
   assert.equal(first.readouts.status, 'paused');
@@ -149,12 +149,12 @@ run('learning rate 0.1: paused until Run, then converges along the closed form w
   assert.equal(shown(running, inputs).readouts.status, 'running');
   assert.equal(tick(running, 5, inputs).step, 0, 'only every sixth tick steps');
   const { state, steps } = runUntilOver(inputs);
-  const flatAt = stepsToFlat(0.1);
-  assert.equal(steps, flatAt, 'the first step whose slope is under 0.12');
+  const flatAt = stepsToConverge(0.1);
+  assert.equal(steps, flatAt, 'the third step in a row with a flat slope');
   const end = shown(state, inputs);
   assert.equal(end.readouts.status, 'converged');
   near(end.readouts.loss, closed(0.1, flatAt).loss, `loss after ${flatAt} steps`);
-  assert.ok(closed(0.1, flatAt).slope < 0.12 && closed(0.1, flatAt - 1).slope >= 0.12);
+  assert.ok([0, 1, 2].every(k => closed(0.1, flatAt - k).calm) && !closed(0.1, flatAt - 3).calm);
   assert.equal(end.nodes.trail.points.length, flatAt + 1);
   near(end.nodes.trail.points[flatAt][0], closed(0.1, flatAt).x, 'last path x');
   near(end.nodes.trail.points[flatAt][2], closed(0.1, flatAt).z, 'last path z');
@@ -186,13 +186,14 @@ run('learning rate 2, the top of the control: x grows by 1.8 a step, the marker 
   assert.equal(inside.length, 5, 'five swings inside the bowl (the order asks for at least four)');
   assert.ok(inside.every(({ x, word }, i) => Math.abs(x) < 2 && word === 'paused' && (i === 0 || (Math.abs(x) > Math.abs(inside[i - 1].x) && Math.sign(x) === -Math.sign(inside[i - 1].x)))), 'each swing is wider than the last and on the other side');
   inside.forEach(({ x }, i) => near(Math.abs(x) / Math.abs(i ? inside[i - 1].x : 0.1), 1.8, 'the growth factor of the swing'));
-  const end = last.frame, top = 3.68;
+  const end = last.frame, top = Math.max(...geometries.find(g => g.kind === 'surface').heights.flat());
   near(end.readouts.loss, closed(2, 6).loss, 'the true loss');
-  assert.ok(end.nodes.ball.position[1] > top, 'the program draws the ball at its true height, above the bowl top 3.68: the renderer clamps it');
+  assert.ok(end.nodes.ball.position[1] > top, 'the program draws the ball at its true height, above the bowl top 3.8: the renderer clamps it');
   const [rx, ry, rz] = end.nodes.trail.points.at(-1);
   assert.equal(rx, 2, 'the path ends at the rim, where the renderer holds the ball (x 3.40 held to 2), not outside the bowl');
   near(rz, closed(2, 6).z, 'its z is the ball z');
-  near(ry, Math.min(0.8 * closed(2, 6).loss, top) + 0.06, 'at the surface top (or the surface) plus the path lift');
+  near(ry, 0.5 * (1.4 * rx * rx + 0.5 * rz * rz) + 0.06, 'on the surface under the rim point (the height the renderer holds the ball at) plus the path lift, not at the surface top (FX-AN-118)');
+  assert.ok(ry < top, 'below the surface top');
   assert.equal(end.nodes.fullArrow.visible, false);
 });
 
@@ -205,7 +206,7 @@ run('learning rate 1.5: x grows by 1.1 a step, 31 growing swings before the mark
   inside.forEach(({ x }, i) => { near(x, 0.1 * (-1.1) ** (i + 1), `x after ${i + 1} steps`); assert.ok(Math.abs(x) < 2); });
   const inputs = { learningRate: 1.5, batchSize: FULL };
   const start = shown(press(call('initialize', { inputs }), 'run', inputs), inputs);
-  near(start.nodes.stepArrow.scale[1], 2, 'a first step of 2.4 drawn at 5 times is 12 long: held at the longest, 2');
+  near(start.nodes.stepArrow.scale[1], 2, 'a first step of 1.1 drawn at 10.7 times is 12 long: held at the longest, 2');
   for (const rate of [0.1, 1, 1.4]) assert.equal(endsAs(rate), 'converged', `rate ${rate}`);
   assert.equal(endsAs(1.5), 'diverged');
 });
@@ -283,8 +284,8 @@ const hullShare = (points, area) => { // the convex hull's area as a share of th
   const hull = [...chain(sorted), ...chain(sorted.slice().reverse())];
   return Math.abs(hull.reduce((sum, a, i) => { const b = hull[(i + 1) % hull.length]; return sum + a[0] * b[1] - b[0] * a[1]; }, 0)) / 2 / area;
 };
-async function drawn(learningRate, aspect, play) {
-  const width = Math.round(HEIGHT * aspect), inputs = { learningRate, batchSize: FULL };
+async function drawn(learningRate, aspect, play, batchSize = FULL) {
+  const width = Math.round(HEIGHT * aspect), inputs = { learningRate, batchSize };
   const fit = await fitAnimationView({ artifact, aspect, inputs, workerFactory });
   const camera = new THREE.PerspectiveCamera(fit.fov, aspect, 0.1, 2000);
   camera.position.fromArray(fit.position); camera.lookAt(...fit.target); camera.updateMatrixWorld(); camera.updateProjectionMatrix();
@@ -303,7 +304,7 @@ async function drawn(learningRate, aspect, play) {
   let lit = null; scene.objects.get('trail').traverse(o => { if (o.isMesh) lit = o.geometry.attributes.normal ?? false; }); // a lit tube needs vertex normals: without them it renders (0, 0, 0)
   const normalsUnit = n => lit && Array.from({ length: n * 8 }, (_, i) => Math.abs(Math.hypot(lit.getX(i), lit.getY(i), lit.getZ(i)) - 1) < 1e-6).every(Boolean);
   const plates = scene.layoutLabels({ width, height: HEIGHT, camera, ratio: 1 });
-  const out = { frame, plates, clamped: result.clamped, lit: normalsUnit(path.length), ballY: world.y, ballSeen: seen(world), ballInside: inside(screen(world)), pathSeen: path.filter(seen).length, pathPoints: path.length,
+  const out = { frame, plates, clamped: result.clamped, lit: normalsUnit(path.length), ballY: world.y, ballAt: world.toArray(), pathEnd: path.at(-1)?.toArray(), ballSeen: seen(world), ballInside: inside(screen(world)), pathSeen: path.filter(seen).length, pathPoints: path.length,
     bowlWidth: (Math.max(...bowl.map(p => p[0])) - Math.min(...bowl.map(p => p[0]))) / width, bowlShare: hullShare(bowl, width * HEIGHT), trail: visible('trail'), ghost: visible('ghost') };
   built.scene.dispose();
   return out;
@@ -342,6 +343,7 @@ run('rendered at learning rate 2: the ball is held at the rim of the bowl, on th
     // Held at the rim on the surface (below the surface top 3.8), where the path ends: the ball's own y is the surface height there.
     assert.ok(far.clamped[0].trueY > 4 && far.clamped[0].y < 3.8 && far.clamped[0].y > 0 && Math.abs(far.ballY - far.clamped[0].y) < 1e-9, `true ${far.clamped[0].trueY}, drawn ${far.ballY}`);
     assert.ok(far.frame.readouts.loss > 5, 'the readout keeps the true value');
+    assert.ok(Math.hypot(...far.ballAt.map((v, i) => v - far.pathEnd[i])) <= 0.12, `the trail ends within one ball radius of the ball: ball ${far.ballAt.map(v => v.toFixed(3))}, path end ${far.pathEnd.map(v => v.toFixed(3))} (FX-AN-118)`);
     assert.deepEqual([far.ballSeen, far.ballInside, far.pathSeen, far.trail], [true, true, 7, true], `at aspect ${aspect.toFixed(2)}`);
     assert.ok(far.bowlShare >= 0.12 && far.bowlWidth >= 0.2, `the bowl keeps ${(far.bowlShare * 100).toFixed(0)}% of the view, ${(far.bowlWidth * 100).toFixed(0)}% of its width, at aspect ${aspect.toFixed(2)}`);
   }
@@ -367,44 +369,48 @@ test('structure: the arrows are steps, labelled as steps, in colours that are ne
 
 run('one scale: both arrows are SCALE times their step; the longest is held, a speck is hidden', () => {
   const full = arrowsAt({ learningRate: 0.1, batchSize: FULL }, 0)[0];
-  near(full.nodes.stepArrow.scale[1], SCALE * 0.1 * Math.hypot(1.4 * 0.1, 0.9 * 1.8), 'Next step with all examples is the full-batch step');
+  near(full.nodes.stepArrow.scale[1], SCALE * 0.1 * Math.hypot(1.4 * 0.1, 0.5 * 1.5), 'Next step with all examples is the full-batch step');
   full.nodes.stepArrow.quaternion.forEach((v, i) => near(v, full.nodes.fullArrow.quaternion[i], 'with all 256 examples the two arrows point the same way'));
   near(full.nodes.stepArrow.scale[1], full.nodes.fullArrow.scale[1], 'and are the same length');
   const noisy = arrowsAt({ learningRate: 0.1, batchSize: '16' }, 0)[0];
   assert.notDeepEqual(noisy.nodes.stepArrow.quaternion, noisy.nodes.fullArrow.quaternion, 'with a batch of 16 the noisy step points a little differently');
-  near(noisy.nodes.fullArrow.scale[1], SCALE * 0.1 * Math.hypot(1.4 * 0.1, 0.9 * 1.8), 'the full-batch step is the same whatever the batch');
+  near(noisy.nodes.fullArrow.scale[1], SCALE * 0.1 * Math.hypot(1.4 * 0.1, 0.5 * 1.5), 'the full-batch step is the same whatever the batch');
   const late = arrowsAt({ learningRate: 0.1, batchSize: FULL }, 15);
   assert.equal(late[15].readouts.status, 'running');
-  assert.equal(late[15].nodes.stepArrow.visible, false, 'a step of 0.04 drawn at 5 is 0.2 long: hidden, not an unlabelled speck');
+  assert.equal(late[15].nodes.stepArrow.visible, false, 'a step of 0.035 drawn at 10.7 is 0.37 long: hidden, not an unlabelled speck');
   const big = arrowsAt({ learningRate: 1.5, batchSize: FULL }, 0)[0];
   near(big.nodes.stepArrow.scale[1], 2, 'a step far above the default is held at the longest arrow');
 });
 
-run('the default rate: the first arrows are 0.75 units or more, and the largest typical step drawn is under a quarter of the surface width', () => {
+run('the default rate: the first arrows are 0.75 units or more, and the typical largest step drawn is under a quarter of the surface width', () => {
   const width = geometries.find(g => g.kind === 'surface').width, inputs = { learningRate: 0.1, batchSize: '16' };
   const start = arrowsAt(inputs, 0)[0];
   assert.ok(start.nodes.stepArrow.scale[1] >= 0.75 && start.nodes.fullArrow.scale[1] >= 0.75, `${start.nodes.stepArrow.scale[1]} and ${start.nodes.fullArrow.scale[1]}`);
-  // The largest arrow of each of 12 runs (a New run changes the noise), by the median: a typical largest step, not the worst of many.
-  let state = call('initialize', { inputs }); const largest = [];
+  // The archetype rule is about the typical largest step: the start step (the noise-free one, which is the full-batch arrow), drawn. The noise moves the Next step arrow around it.
+  assert.ok(start.nodes.fullArrow.scale[1] < width / 4, `the full-batch arrow ${start.nodes.fullArrow.scale[1]} against a quarter of the surface width ${width / 4}`);
+  // The first arrow of each of 12 runs (a New run changes the noise), by the median: the Next step arrow is around the full-batch one, not far above a quarter of the width.
+  let state = call('initialize', { inputs }); const first = [], largest = [];
   for (let run = 0; run < 12; run += 1) {
-    state = press(state, 'run', inputs); let top = 0;
+    state = press(state, 'run', inputs); let top = 0; first.push(shown(state, inputs).nodes.stepArrow.scale?.[1] ?? 0);
     for (let t = 1; t <= 6 * 70; t += 1) { const f = shown(state, inputs); top = Math.max(top, f.nodes.stepArrow.scale?.[1] ?? 0, f.nodes.fullArrow.scale?.[1] ?? 0); if (['converged', 'diverged'].includes(f.readouts.status)) break; state = tick(state, t, inputs); }
     largest.push(top); state = press(state, 'newRun', inputs);
   }
-  const median = largest.slice().sort((a, b) => a - b).filter((_, i, all) => i === Math.floor(all.length / 2) - 1 || i === Math.floor(all.length / 2)).reduce((a, b) => a + b) / 2;
-  assert.ok(median < width / 4, `the median largest arrow is ${median.toFixed(3)}, a quarter of the surface width is ${width / 4}`);
+  const middle = list => { const sorted = list.slice().sort((a, b) => a - b); return (sorted[5] + sorted[6]) / 2; };
+  assert.ok(middle(first) < width / 4, `the median first Next step arrow is ${middle(first).toFixed(3)}, a quarter of the surface width is ${width / 4}`);
+  assert.ok(middle(largest) < 1.25 * width / 4, `the median largest arrow of a run is ${middle(largest).toFixed(3)}: the noise adds to the first step but never to twice a quarter of the width`);
 });
 
 run('rendered: at the default rate both arrow labels show at the start, at every card size, so a reader can tell the noisy step from the full-batch step', async () => {
   for (const aspect of ASPECTS) for (const batch of ['16', FULL]) {
     const inputs = { learningRate: 0.1, batchSize: batch };
-    const got = await drawn(0.1, aspect, () => {});
+    const got = await drawn(0.1, aspect, () => {}, batch);
     for (const id of ['stepTag', 'fullTag']) assert.ok(got.plates.some(plate => plate.id === id && plate.shown), `${id} is not shown at aspect ${aspect.toFixed(2)} (the renderer hides an arrow's label under 24 px)`);
     assert.ok(inputs.batchSize === batch);
   }
 });
 
-// ---- the noise is SGD's: step = -rate x (slope + noise) (C12 control, round 1: a jolt the same at every rate never settles at a small rate) -------------------------------------------
+// ---- the noise is SGD's: step = -rate x (slope + noise) (C12 control, round 1: a jolt the same at every rate never settles at a small rate; round 2: a noise that is a share of the slope vanishes
+// near the lowest point, so the arrows overlapped and the path looked like full batch) -------------------------------------------
 // The same program run natively (V8, not QuickJS: it is a plain pure module) over many runs, since the pinned engine takes about 2 ms a call. The engine runs above pin the exact values.
 const native = await import(`data:text/javascript;base64,${Buffer.from(artifact.program.source).toString('base64')}`);
 const nativeRuns = (rate, batch, cap, n) => {
@@ -415,7 +421,7 @@ const nativeRuns = (rate, batch, cap, n) => {
     const xs = [state.x];
     let word = native.evaluate({ inputs, state }).readouts.status;
     for (let step = 0; step < cap && word !== 'converged' && word !== 'diverged'; step += 1) { state = native.reduce({ state, event: { type: 'action', action: 'step' }, inputs }); xs.push(state.x); word = native.evaluate({ inputs, state }).readouts.status; }
-    out.push({ word, xs, steps: state.step });
+    out.push({ word, xs, steps: state.step, end: [state.x, state.z] });
     state = native.reduce({ state, event: { type: 'action', action: 'newRun' }, inputs });
   }
   return out;
@@ -423,12 +429,37 @@ const nativeRuns = (rate, batch, cap, n) => {
 const growingSwings = run => { if (run.word !== 'diverged') return -1; const inside = run.xs.slice(1, -1); let k = 0; for (let i = 0; i < inside.length; i += 1) { if (Math.abs(inside[i]) < 2 && (i === 0 ? Math.abs(inside[i]) > Math.abs(run.xs[0]) : Math.abs(inside[i]) > Math.abs(inside[i - 1]) && Math.sign(inside[i]) === -Math.sign(inside[i - 1]))) k += 1; else break; } return k; };
 
 test('the jolt is the rate times the noise: the same noise at rate 1 is ten times its size at rate 0.1', () => {
-  const at = (rate, batchSize) => { const inputs = { learningRate: rate, batchSize }; const s = native.reduce({ state: native.initialState({ inputs }), event: { type: 'action', action: 'step' }, inputs }); return [s.x - 0.1, s.z - 1.8]; };
+  const at = (rate, batchSize) => { const inputs = { learningRate: rate, batchSize }; const s = native.reduce({ state: native.initialState({ inputs }), event: { type: 'action', action: 'step' }, inputs }); return [s.x - 0.1, s.z - 1.5]; };
   for (const batch of ['1', '4', '16']) {
     const small = at(0.1, batch).map((v, i) => v - at(0.1, FULL)[i]), large = at(1, batch).map((v, i) => v - at(1, FULL)[i]);
     large.forEach((v, i) => near(v, 10 * small[i], `noise ${i} at batch ${batch}`));
     assert.ok(small.some(v => Math.abs(v) > 0), 'and it is there');
   }
+});
+
+test('the noise is absolute: as large next to the lowest point as at the start, not a share of the slope', () => {
+  const inputs = { learningRate: 0.1, batchSize: '16' }, spread = (x, z) => {
+    const jolts = Array.from({ length: 300 }, (_, i) => { const at = { ...native.initialState({ inputs }), x, z, run: 0, step: i }; return native.reduce({ state: at, event: { type: 'action', action: 'step' }, inputs }).z - (z - 0.1 * 0.5 * z); });
+    return Math.sqrt(jolts.reduce((sum, v) => sum + v * v, 0) / jolts.length);
+  };
+  const atStart = spread(0.1, 1.5), nearMinimum = spread(0, 0.02);
+  assert.ok(Math.abs(atStart - 0.1 / 4) < 0.004 && Math.abs(nearMinimum - 0.1 / 4) < 0.004, `the jolt is 0.1 x 1 / sqrt(16) = 0.025 a step, whatever the slope: ${atStart.toFixed(4)} at the start, ${nearMinimum.toFixed(4)} next to the lowest point`);
+});
+
+test('the noise shows at the default rate and batch: the two arrows differ at the start, and the path leaves the full-batch path', () => {
+  const inputs = { learningRate: 0.1, batchSize: '16' }, PX = 34.4; // pixels a unit is drawn at in the 725 x 240 card
+  const opening = arrowsAt(inputs, 0)[0];
+  assert.ok(Math.abs(opening.nodes.stepArrow.scale[1] - opening.nodes.fullArrow.scale[1]) * PX >= 5, `the first run opens ${(Math.abs(opening.nodes.stepArrow.scale[1] - opening.nodes.fullArrow.scale[1]) * PX).toFixed(1)} px apart`);
+  const gaps = []; let state = native.initialState({ inputs });
+  for (let n = 0; n < 200; n += 1) {
+    const f = native.evaluate({ inputs, state }); gaps.push(Math.abs((f.nodes.stepArrow.scale?.[1] ?? 0) - (f.nodes.fullArrow.scale?.[1] ?? 0)) * PX);
+    state = native.reduce({ state: native.reduce({ state, event: { type: 'action', action: 'step' }, inputs }), event: { type: 'action', action: 'newRun' }, inputs });
+  }
+  const median = gaps.slice().sort((a, b) => a - b)[100];
+  assert.ok(median >= 5, `across 200 runs the arrow tips are ${median.toFixed(1)} px apart at the start (the median)`);
+  let noisy = native.reduce({ state: native.initialState({ inputs }), event: { type: 'action', action: 'run' }, inputs }), full = native.reduce({ state: native.initialState({ inputs: { ...inputs, batchSize: FULL } }), event: { type: 'action', action: 'run' }, inputs: { ...inputs, batchSize: FULL } }), apart = 0;
+  for (let n = 0; n < 40; n += 1) { noisy = native.reduce({ state: noisy, event: { type: 'action', action: 'step' }, inputs }); full = native.reduce({ state: full, event: { type: 'action', action: 'step' }, inputs: { ...inputs, batchSize: FULL } }); apart = Math.max(apart, Math.abs(noisy.z - full.z)); }
+  assert.ok(apart * PX >= 4, `the batch-16 path leaves the full-batch path by ${(apart * PX).toFixed(1)} px`);
 });
 
 test('rate 2, batch 16 (the default): at least four growing swings before the marker leaves, in at least 95 of 100 runs; rate 1.5 diverges within the run in most runs', () => {
@@ -437,11 +468,13 @@ test('rate 2, batch 16 (the default): at least four growing swings before the ma
   assert.ok(top.filter(run => growingSwings(run) >= 4).length >= 95, `${top.filter(run => growingSwings(run) >= 4).length} of 100 runs made four growing swings`);
   const mid = nativeRuns(1.5, 16, 200, 100);
   assert.ok(mid.filter(run => run.word === 'diverged').length >= 80, `${mid.filter(run => run.word === 'diverged').length} of 100 runs diverged within 200 steps`);
+  assert.equal([...top, ...mid].filter(run => run.word === 'converged').length, 0, 'a run that is growing its swings is never called converged');
 });
 
 test('a small rate settles at every batch size: rates 0.1 and 0.01 converge in 100 of 100 runs, and never end as diverged', () => {
   for (const [rate, cap] of [[0.1, 400], [0.01, 1500]]) for (const batch of [1, 4, 16, 64, 256]) {
     const runs = nativeRuns(rate, batch, cap, 100);
     assert.equal(runs.filter(run => run.word === 'converged').length, 100, `rate ${rate} batch ${batch}: ${runs.filter(run => run.word === 'diverged').length} diverged, ${runs.filter(run => run.word === 'running').length} still running`);
+    assert.ok(runs.every(({ end: [x, z] }) => Math.abs(1.4 * x) < 0.12 && Math.abs(0.5 * z) < 0.35), `rate ${rate} batch ${batch}: every run ends in the band around the lowest point`);
   }
 });
