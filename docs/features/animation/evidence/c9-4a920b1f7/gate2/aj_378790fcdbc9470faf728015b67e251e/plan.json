@@ -1,0 +1,90 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Stochastic gradient descent on a bowl-shaped loss",
+ "description": "A bowl-shaped loss surface with contour lines has its lowest point marked at the centre. A ball starts partway up the side. Each step, it moves against a noisy estimate of the slope and leaves a trail, so you can watch it zig-zag downhill and then jitter around the bottom. An arrow on the ball shows the noisy slope estimate for that step, and the ball moves the opposite way. Readouts show the step number, the current loss and the distance to the minimum.",
+ "experience": "experiment",
+ "reason": "SGD makes sense when you watch it step by step. Changing the step size and the noise shows why it can converge, oscillate, blow up or never quite settle at the bottom.",
+ "behavior": "rules",
+ "controlProfile": "manipulate",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate (step size)",
+   "min": 0.05,
+   "max": 1,
+   "step": 0.05,
+   "default": 0.15
+  },
+  {
+   "type": "number",
+   "id": "noise",
+   "label": "Gradient noise (mini-batch randomness)",
+   "min": 0,
+   "max": 2,
+   "step": 0.1,
+   "default": 0.5
+  },
+  {
+   "type": "number",
+   "id": "stretch",
+   "label": "Bowl stretch (steepness along one direction)",
+   "min": 1,
+   "max": 5,
+   "step": 0.5,
+   "default": 3
+  }
+ ],
+ "interactions": [
+  "Press play or step to move the ball one update at a time. Each step: new position = old position − learning rate × noisy slope.",
+  "Raise the learning rate: at stretch 3 the ball zig-zags across the steep direction above about 0.34 and runs off the bowl above about 0.67 (at stretch 5: about 0.2 and 0.4).",
+  "Set noise to 0 for plain gradient descent: a smooth path to the exact minimum. With more noise the path wobbles and the ball keeps jittering near the bottom instead of settling.",
+  "Increase the bowl stretch to make one direction steeper. The ball then zig-zags across the narrow valley and creeps slowly along the gentle direction.",
+  "Before running, drag the ball to choose where it starts.",
+  "Use 'Run again from the same start' to restart with your current settings. The previous trail stays faded so you can compare two settings."
+ ],
+ "assumptions": [
+  "Illustration: an exact bowl formula with simulated gradient noise, not a model trained on real data.",
+  "Loss = ½ × (stretch × x² + y²), with its minimum of 0 at the centre.",
+  "The noisy slope is the true slope plus random Gaussian noise (the usual bell-curve randomness) of the chosen size. The noise is drawn from a fixed seed, so a Reset replays the same sequence.",
+  "Only the loss value is computed exactly. Individual steps can raise the loss. With noise, SGD only goes downhill on average.",
+  "A run stops after 200 steps, or as soon as the ball leaves the drawn area of the surface.",
+  "The trail draws one marker every 4 steps, at most 50 markers; every step still runs."
+ ],
+ "limitations": [
+  "Changed: the trail draws 50 markers, one every 4 steps, instead of 200; every step still runs.",
+  "Changed: the kept comparison path also draws at most 50 markers.",
+  "A real neural-network loss is not a perfect bowl: it has many dimensions, flat regions and saddle points. This scene shows only a two-parameter convex case.",
+  "The noise here is artificial. Real mini-batch noise depends on the data and often changes in size as training goes on.",
+  "The learning rate stays fixed, so there is no momentum and no decaying schedule.",
+  "If the learning rate is too large, the ball diverges and the run stops at the edge of the surface instead of flying away."
+ ],
+ "learningGoal": "See how the learning rate and gradient noise shape SGD's path. Small steps converge slowly, large steps oscillate or diverge, and noise makes the ball keep jittering around the minimum instead of settling exactly on it.",
+ "requiredCapabilities": [
+  "step",
+  "parameters",
+  "actions",
+  "drag",
+  "labels",
+  "readouts"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.1,
+    0.9
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 50
+  }
+ ]
+}

@@ -1,0 +1,87 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Gradient descent overshooting the bottom of a narrow bowl",
+ "description": "A ball sits on a stretched bowl-shaped loss surface that is steep across its narrow direction and gentle along its long one. Each step, the ball moves against the slope by an amount set by the learning rate and leaves a trail. With a large learning rate the ball jumps right over the valley floor and zigzags from wall to wall. Above a limit, each jump lands higher than the last and the ball runs off the surface.",
+ "experience": "experiment",
+ "reason": "Overshooting depends on how big each step is. Changing the learning rate yourself and watching the trail go from a smooth slide to a zigzag to a runaway shows that directly.",
+ "behavior": "rules",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate (step size)",
+   "min": 0.05,
+   "max": 0.6,
+   "step": 0.01,
+   "default": 0.35
+  },
+  {
+   "type": "select",
+   "id": "start",
+   "label": "Starting point",
+   "options": [
+    {
+     "value": "wall",
+     "label": "High on the steep wall"
+    },
+    {
+     "value": "end",
+     "label": "Far along the long valley"
+    }
+   ],
+   "default": "wall"
+  },
+  {
+   "type": "toggle",
+   "id": "showArrow",
+   "label": "Show downhill arrow",
+   "default": true
+  }
+ ],
+ "interactions": [
+  "Play, pause or advance the descent one step at a time; the run stops after 40 steps or when the ball leaves the surface",
+  "Change the learning rate: below 0.25 the ball slides into the valley without crossing the floor; from 0.25 to 0.5 it zigzags across and settles; above 0.5 the zigzag grows and the ball escapes",
+  "Choose where the ball starts to see that the overshoot happens across the steep direction, not along the gentle one",
+  "Start a new run at the current settings, keeping the previous trail faded for comparison",
+  "Read the step count, current loss, length of the last step, and whether that step crossed the valley floor"
+ ],
+ "assumptions": [
+  "Illustration: a simple formula-defined bowl, not the loss of a real trained model.",
+  "The loss is 0.5·(x² + 4y²), with its lowest point at the centre. The slope is (x, 4y), so it is four times steeper across the valley than along it.",
+  "Each step is exact plain gradient descent: new position = old position − learning rate × slope. There is no momentum and no noise.",
+  "Across the valley, each step multiplies the distance from the floor by (1 − 4 × learning rate). That gives the exact limits: the ball overshoots above 0.25 and diverges above 0.5. Along the valley the factor is (1 − learning rate), so there is no overshoot in this range.",
+  "The arrow shows the downhill direction (the negative slope) at the ball. The ball moves along it by the learning rate times the slope's length."
+ ],
+ "limitations": [
+  "Real loss surfaces have many dimensions and uneven curvature, so the exact limits 0.25 and 0.5 apply only to this bowl. The pattern of zigzag first, then runaway, is general.",
+  "When the ball diverges, the run stops at the edge of the drawn surface instead of following it off to infinity."
+ ],
+ "learningGoal": "A learning rate that is too large makes each step jump past the minimum. Moderately too large means the ball zigzags but still settles. Beyond a limit set by how steep the surface curves, the jumps grow and the descent diverges.",
+ "requiredCapabilities": [
+  "parameters",
+  "step",
+  "actions",
+  "readouts",
+  "labels"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.1,
+    0.55
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 40
+  }
+ ]
+}

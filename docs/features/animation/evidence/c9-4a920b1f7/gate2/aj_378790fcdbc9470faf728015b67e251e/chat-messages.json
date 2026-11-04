@@ -1,0 +1,207 @@
+[
+ {
+  "messageId": "272",
+  "role": "assistant",
+  "content": "\"Stochastic gradient descent on a bowl-shaped loss\" needs a change before it can be made. By our estimate this plan is too large to build and check: it draws a trail of 200 markers and a kept comparison path of the same length. An estimate can be wrong. Nothing has been built, and no AI credits have been used on building. Choose below: each option says exactly what changes, and nothing is built until you press Generate.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_378790fcdbc9470faf728015b67e251e:choice:77ebaf4cc3f4f7467b3e24dd58aa02be40277b044c04a51317eb2b11e878ecee",
+   "animationChoice": {
+    "jobId": "aj_378790fcdbc9470faf728015b67e251e",
+    "attempt": 1,
+    "kind": "size",
+    "key": "aj_378790fcdbc9470faf728015b67e251e:choice:77ebaf4cc3f4f7467b3e24dd58aa02be40277b044c04a51317eb2b11e878ecee",
+    "alternatives": [
+     {
+      "id": "fewer_markers",
+      "title": "Draw a shorter trail",
+      "changes": [
+       "Changed: the trail draws 50 markers, one every 4 steps, instead of 200; every step still runs.",
+       "Changed: the kept comparison path also draws at most 50 markers."
+      ]
+     },
+     {
+      "id": "no_kept_path",
+      "title": "Leave out the kept path",
+      "changes": [
+       "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+       "Changed: the kept comparison path is left out."
+      ]
+     }
+    ],
+    "chosen": "fewer_markers"
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "272"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "273",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. It differs from what you asked: Changed: the trail draws 50 markers, one every 4 steps, instead of 200; every step still runs. Changed: the kept comparison path also draws at most 50 markers. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-e627ddd0edcadcfd",
+    "version": 1,
+    "command": "animation",
+    "title": "Stochastic gradient descent on a bowl-shaped loss",
+    "description": "A bowl-shaped loss surface with contour lines has its lowest point marked at the centre. A ball starts partway up the side. Each step, it moves against a noisy estimate of the slope and leaves a trail, so you can watch it zig-zag downhill and then jitter around the bottom. An arrow on the ball shows the noisy slope estimate for that step, and the ball moves the opposite way. Readouts show the step number, the current loss and the distance to the minimum.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-16801642",
+     "job": "aj_378790fcdbc9470faf728015b67e251e",
+     "plan_hash": "2048d1cc277023f7971d2e8739c769f82549c52c1f0dc6a12d8fb536152eab28",
+     "request": "SGD on a bowl-shaped loss",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate (step size)",
+        "min": 0.05,
+        "max": 1,
+        "step": 0.05,
+        "default": 0.15
+       },
+       {
+        "type": "number",
+        "label": "Gradient noise (mini-batch randomness)",
+        "min": 0,
+        "max": 2,
+        "step": 0.1,
+        "default": 0.5
+       },
+       {
+        "type": "number",
+        "label": "Bowl stretch (steepness along one direction)",
+        "min": 1,
+        "max": 5,
+        "step": 0.5,
+        "default": 3
+       }
+      ],
+      "interactions": [
+       "Press play or step to move the ball one update at a time. Each step: new position = old position − learning rate × noisy slope.",
+       "Raise the learning rate: at stretch 3 the ball zig-zags across the steep direction above about 0.34 and runs off the bowl above about 0.67 (at stretch 5: about 0.2 and 0.4).",
+       "Set noise to 0 for plain gradient descent: a smooth path to the exact minimum. With more noise the path wobbles and the ball keeps jittering near the bottom instead of settling.",
+       "Increase the bowl stretch to make one direction steeper. The ball then zig-zags across the narrow valley and creeps slowly along the gentle direction.",
+       "Before running, drag the ball to choose where it starts.",
+       "Use 'Run again from the same start' to restart with your current settings. The previous trail stays faded so you can compare two settings."
+      ],
+      "notices": [
+       "Changed: the trail draws 50 markers, one every 4 steps, instead of 200; every step still runs.",
+       "Changed: the kept comparison path also draws at most 50 markers."
+      ],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793856920,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "SGD on a bowl-shaped loss",
+    "prompt": "A bowl-shaped loss surface with contour lines has its lowest point marked at the centre. A ball starts partway up the side. Each step, it moves against a noisy estimate of the slope and leaves a trail, so you can watch it zig-zag downhill and then jitter around the bottom. An arrow on the ball shows the noisy slope estimate for that step, and the ball moves the opposite way. Readouts show the step number, the current loss and the distance to the minimum.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. SGD makes sense when you watch it step by step. Changing the step size and the noise shows why it can converge, oscillate, blow up or never quite settle at the bottom.",
+     "Behavior: rules",
+     "Controls: manipulate",
+     "Interaction: Press play or step to move the ball one update at a time. Each step: new position = old position − learning rate × noisy slope.",
+     "Interaction: Raise the learning rate: at stretch 3 the ball zig-zags across the steep direction above about 0.34 and runs off the bowl above about 0.67 (at stretch 5: about 0.2 and 0.4).",
+     "Interaction: Set noise to 0 for plain gradient descent: a smooth path to the exact minimum. With more noise the path wobbles and the ball keeps jittering near the bottom instead of settling.",
+     "Interaction: Increase the bowl stretch to make one direction steeper. The ball then zig-zags across the narrow valley and creeps slowly along the gentle direction.",
+     "Interaction: Before running, drag the ball to choose where it starts.",
+     "Interaction: Use 'Run again from the same start' to restart with your current settings. The previous trail stays faded so you can compare two settings.",
+     "Parameter: Learning rate (step size), 0.05 to 1, default 0.15",
+     "Parameter: Gradient noise (mini-batch randomness), 0 to 2, default 0.5",
+     "Parameter: Bowl stretch (steepness along one direction), 1 to 5, default 3",
+     "Goal: See how the learning rate and gradient noise shape SGD's path. Small steps converge slowly, large steps oscillate or diverge, and noise makes the ball keep jittering around the minimum instead of settling exactly on it."
+    ],
+    "assumptions": [
+     "Illustration: an exact bowl formula with simulated gradient noise, not a model trained on real data.",
+     "Loss = ½ × (stretch × x² + y²), with its minimum of 0 at the centre.",
+     "The noisy slope is the true slope plus random Gaussian noise (the usual bell-curve randomness) of the chosen size. The noise is drawn from a fixed seed, so a Reset replays the same sequence.",
+     "Only the loss value is computed exactly. Individual steps can raise the loss. With noise, SGD only goes downhill on average.",
+     "A run stops after 200 steps, or as soon as the ball leaves the drawn area of the surface.",
+     "The trail draws one marker every 4 steps, at most 50 markers; every step still runs."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Changed: the trail draws 50 markers, one every 4 steps, instead of 200; every step still runs.",
+     "Changed: the kept comparison path also draws at most 50 markers.",
+     "A real neural-network loss is not a perfect bowl: it has many dimensions, flat regions and saddle points. This scene shows only a two-parameter convex case.",
+     "The noise here is artificial. Real mini-batch noise depends on the data and often changes in size as training goes on.",
+     "The learning rate stays fixed, so there is no momentum and no decaying schedule.",
+     "If the learning rate is too large, the ball diverges and the run stops at the edge of the surface instead of flying away."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-16801642"
+    },
+    "quote": null,
+    "review_hash": "9a1b3ace78a001f4f29d16c2719b8646747f50cf7ff41f946055664207baa4db",
+    "sig": "v3.4489c1f358d646e074127e92ddece8c04a6838da8c0f0467eb8fc82dba06171f",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 385,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.4489c1f358d646e074127e92ddece8c04a6838da8c0f0467eb8fc82dba06171f",
+    "used": {
+     "version": 1,
+     "key": "aj_378790fcdbc9470faf728015b67e251e"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "273"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "278",
+  "role": "assistant",
+  "content": "\"Stochastic gradient descent on a bowl-shaped loss\" was not finished. The visual review found 4 serious problems with how the scene is drawn or computed. You have not been charged. It was corrected automatically once, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate. Your request and plan are kept.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_378790fcdbc9470faf728015b67e251e:1",
+   "alternativeOf": null,
+   "alternatives": [
+    "278"
+   ],
+   "feedback": null
+  }
+ }
+]

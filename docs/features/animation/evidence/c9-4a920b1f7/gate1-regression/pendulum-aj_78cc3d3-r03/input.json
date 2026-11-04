@@ -1,0 +1,26 @@
+{
+  "calls": [
+    {
+      "again": false,
+      "kind": "artifact",
+      "keys": [
+        "kind",
+        "artifact"
+      ],
+      "artifactType": "object",
+      "chars": 3344,
+      "head": "{\"kind\":\"artifact\",\"artifact\":{\"title\":\"Pendulum length and period\",\"description\":\"A red bob hangs on a dark string from a pivot at the top of a grey stand. It swings left and right through a small, fixed angle. A slider sets the string length from 0.5 to 3 metres: the string gets longer or shorter and the swing slows down or speeds up. Readouts show the period in seconds, which comes from the small-swing formula, and the current length.\",\"experience\":\"experiment\",\"behavior\":\"analytical\",\"controlProfile\":\"inspect\",\"scene\":{\"materials\":[{\"id\":\"frame\",\"color\":\"#8a8f98\"},{\"id\":\"string\",\"color\":\"#2b2b2b\"},{\"id\":\"bob\",\"color\":\"#d6452f\"},{\"id\":\"guide\",\"color\":\"#5a6b8c\",\"opacity\":0.4}],\"geometries\":[{\"id\":\"gBase\",\"kind\":\"box\",\"size\":[1.8,0.06,0.6]},{\"id\":\"gPost\",\"kind\":\"cylinder\",\"radius\":0.045,\"height\":3.45,\"radialSegments\":24},{\"id\":\"gBeam\",\"kind\":\"box\",\"size\":[0.09,0.09,0.75]},{\"id\":\"gStr\",\"kind\":\"cylinder\",\"radius\":0.02,\"height\":1,\"radialSegments\":16},{\"id\":\"gBob\",\"kind\":\"sphere\",\"radius\":0.13,\"widthSegments\":32,\"heightSegments\":24},{\"id\":\"gPin\",\"kind\":\"cylinder\",\"radius\":0.03,\"height\":0.12,\"radialSegments\":16},{\"id\":\"gGuide\",\"kind\":\"line\",\"points\":[[0,0,0],[0,-3.15,0]]},{\"id\":\"gLab\",\"kind\":\"label\",\"text\":\"Bob\",\"placement\":\"right\"}],\"nodes\":[{\"id\":\"stand\",\"name\":\"Stand\"},{\"id\":\"base\",\"parent\":\"stand\",\"geometry\":\"gBase\",\"material\":\"frame\",\"position\":[0,0.03,-0.5]},{\"id\":\"post\",\"parent\":\"stand\",\"geometry\":\"gPost\",\"material\":\"frame\",\"position\":[0,1.75,-0.65]},{\"id\":\"beam\",\"parent\":\"stand\",\"geometry\":\"gBeam\",\"material\":\"frame\",\"position\":[0,3.45,-0.3]},{\"id\":\"pin\",\"parent\":\"stand\",\"geometry\":\"gPin\",\"material\":\"frame\",\"position\":[0,3.4,0],\"quaternion\":[0.7071068,0,0,0.7071068]},{\"id\":\"guide\",\"geometry\":\"gGuide\",\"material\":\"guide\",\"position\":[0,3.4,0]},{\"id\":\"swing\",\"name\":\"Pendulum\",\"position\":[0,3.4,0]},{\"id\":\"str\",\"parent\":\"swing\",\"geometry\":\"gStr\",\"material\":\"string\",\"position\":[0,-0.5,0]},{\"id\":\"bob\",\"parent\":\"swing\",\"geometry\":\"gBob\",\"material\":\"bob\",\"position\":[0,-1,0]},{\"id\":\"bobLab\",\"parent\":\"bob\",\"geometry\":\"gLab\",\"position\":[0.15,0,0]}]},\"parameters\":[{\"type\":\"number\",\"id\":\"length\",\"label\":\"Pendulum length\",\"unit\":\"m\",\"min\":0.5,\"max\":3,\"step\":0.1,\"default\":1}],\"actions\":[],\"readouts\":[{\"id\":\"period\",\"label\":\"Period\",\"unit\":\"s\",\"decimals\":2},{\"id\":\"len\",\"label\":\"Length\",\"unit\":\"m\",\"decimals\":1}],\"seed\":0,\"camera\":{\"position\":[1.6,2.4,6.6],\"target\":[0,1.8,0],\"fov\":45},\"assumptions\":[\"Small swings: period T = 2π√(L/g) with g = 9.81 m/s², so a 4× longer string doubles the period (1 m gives 2.01 s).\",\"The string is light and doesn't stretch, and the bob counts as a single point; there is no air resistance or friction, so the swing never dies down.\",\"The swing angle is fixed at 12°. At that angle the real period is about 0.3% longer than the formula gives.\",\"The angle is computed from the timeline time, so changing the length makes the swing jump to a new point in its cycle. It then continues at the new period.\"],\"program\":{\"source\":\"const g=9.81,A=0",
+      "stopReason": "tool_use",
+      "blocks": [
+        {
+          "type": "thinking"
+        },
+        {
+          "type": "tool_use",
+          "name": "animation_artifact",
+          "chars": 3344
+        }
+      ]
+    }
+  ]
+}

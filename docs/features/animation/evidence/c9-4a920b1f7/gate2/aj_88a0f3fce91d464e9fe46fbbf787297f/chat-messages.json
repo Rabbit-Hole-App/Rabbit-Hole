@@ -1,0 +1,121 @@
+[
+ {
+  "messageId": "274",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-fc048bfeee99ad8a",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient descent on a quadratic bowl",
+    "description": "A bowl-shaped surface shows the loss L(x, y) = ½(x² + c·y²), with contour lines and its lowest point marked at the centre. A ball sits at a starting point. With each step it moves against the gradient (the direction in which the loss rises fastest), and a trail records its path. An arrow on the ball shows the next step: its direction, and a length equal to learning rate × gradient size. Readouts show the step number, the current loss and the gradient size, so you can watch the loss shrink, zig-zag or blow up depending on the settings.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-b41293eb",
+     "job": "aj_88a0f3fce91d464e9fe46fbbf787297f",
+     "plan_hash": "75212a5ad683479aa2a9b3c5eb1ab1d7288ad2185e1261f3da1be26cbd8fc373",
+     "request": "minimize a quadratic loss with gradient steps",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate (step size)",
+        "min": 0.02,
+        "max": 0.8,
+        "step": 0.02,
+        "default": 0.1
+       },
+       {
+        "type": "number",
+        "label": "Steepness along y (c)",
+        "min": 1,
+        "max": 4,
+        "step": 0.5,
+        "default": 3
+       }
+      ],
+      "interactions": [
+       "Press play or step to move the ball one gradient step at a time; the trail grows and the readouts update.",
+       "Change the learning rate: small values give a slow, smooth path; values near 1/c make the path zig-zag across the narrow direction; values above 2/c make it bounce outward and diverge.",
+       "Change the steepness: c = 1 gives a round bowl and a straight path to the centre; larger c gives a narrow valley and a curved or zig-zag path.",
+       "Drag the ball to a new starting point on the surface.",
+       "Use 'Restart from start point' to clear the trail and step count but keep your current settings and starting point."
+      ],
+      "notices": [],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793857081,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "minimize a quadratic loss with gradient steps",
+    "prompt": "A bowl-shaped surface shows the loss L(x, y) = ½(x² + c·y²), with contour lines and its lowest point marked at the centre. A ball sits at a starting point. With each step it moves against the gradient (the direction in which the loss rises fastest), and a trail records its path. An arrow on the ball shows the next step: its direction, and a length equal to learning rate × gradient size. Readouts show the step number, the current loss and the gradient size, so you can watch the loss shrink, zig-zag or blow up depending on the settings.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Changing the learning rate and the bowl's steepness, then watching the path, shows directly why a small step creeps along, a medium one converges quickly, and a step that is too large overshoots and diverges.",
+     "Behavior: rules",
+     "Controls: manipulate",
+     "Interaction: Press play or step to move the ball one gradient step at a time; the trail grows and the readouts update.",
+     "Interaction: Change the learning rate: small values give a slow, smooth path; values near 1/c make the path zig-zag across the narrow direction; values above 2/c make it bounce outward and diverge.",
+     "Interaction: Change the steepness: c = 1 gives a round bowl and a straight path to the centre; larger c gives a narrow valley and a curved or zig-zag path.",
+     "Interaction: Drag the ball to a new starting point on the surface.",
+     "Interaction: Use 'Restart from start point' to clear the trail and step count but keep your current settings and starting point.",
+     "Parameter: Learning rate (step size), 0.02 to 0.8, default 0.1",
+     "Parameter: Steepness along y (c), 1 to 4, default 3",
+     "Goal: Understand that gradient descent repeatedly steps opposite the gradient, and that the learning rate relative to the bowl's steepness decides whether the path converges smoothly, oscillates or diverges."
+    ],
+    "assumptions": [
+     "Illustration: a simple two-variable quadratic bowl, not the loss of a trained model.",
+     "Each step is exactly: x ← x − η·x and y ← y − η·c·y, where η is the learning rate. That is plain gradient descent with no momentum and no noise.",
+     "Because the loss is quadratic, each coordinate shrinks by a fixed factor every step: (1 − η) along x and (1 − η·c) along y. It converges exactly when both factors lie strictly between −1 and 1.",
+     "The run stops when the gradient size falls below 0.01, after 100 steps, or when the ball leaves the drawn surface. The last case is reported as 'diverged'.",
+     "Default start is x = −2.5, y = 1.5."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Real loss surfaces have many dimensions and are not perfect bowls. This shows only the two-variable quadratic case, where gradient descent always succeeds or always fails in a predictable way.",
+     "Once a diverging path leaves the drawn area it is no longer shown. Only the 'diverged' outcome is reported."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-b41293eb"
+    },
+    "quote": null,
+    "review_hash": "7cad018e628a621f85c893d735577aafbcc3a452567ec56e936ac9b50026f696",
+    "sig": "v3.e516b1378f50ea3d246cdb9eec1fbb49bbdb3a29631a85b1055aba69924a1001",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 385,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.e516b1378f50ea3d246cdb9eec1fbb49bbdb3a29631a85b1055aba69924a1001",
+    "used": {
+     "version": 1,
+     "key": "aj_88a0f3fce91d464e9fe46fbbf787297f"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "274"
+   ],
+   "feedback": null
+  }
+ }
+]

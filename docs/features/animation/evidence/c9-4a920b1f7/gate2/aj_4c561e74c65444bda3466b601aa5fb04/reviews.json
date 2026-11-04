@@ -1,0 +1,329 @@
+[
+ {
+  "at": 1793770692595,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "f1c6202d2f53e4751e20efe7106abc700675ab8ac8221edd3cb60ea66c8b2f67",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "At step 0, 'Noise size (this step)' already reads 0.65. It is the noise of the coming step, which the orange arrow shows, but 'this step' can be read as a step that already happened. A label like 'Noise in next step' would be clearer.",
+       "object": "noise",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The bowl fills only about 45% of the frame width, leaving wide white margins, and the ball (radius 0.15) is small. Moving the camera a little closer would make the trail and arrows easier to read.",
+       "object": "camera",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan's 'drag the ball to a new starting point on the surface' is limited to side-to-side (x axis) dragging. This is disclosed, but the learner cannot choose a start along the steep direction.",
+       "object": "ball",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The trail marks every step rather than the plan's one marker every 2 steps. The change is disclosed and the plan itself lists it as a change. Low-end learning rate, batch size extremes, the full-batch toggle and the 200-step stop were not sampled.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The assumptions say a diverged ball 'is then held at the edge', but evaluate() places the ball at its true x,z (about |z|≈2.9, outside the half-width H=2.5). Only the trail is clamped by lift(), and the host clamps only y. The drawn ball sits off the surface, away from the clamped end of its trail. Fix: clamp the ball's x,z to ±H, the same way as the trail.",
+       "object": "ball",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The run diverges in only 2 steps, so the 'each swing grows' zigzag is just two overlapping trail segments that are hard to tell apart.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "In the side view the diverged ball floats in the air beyond the surface edge, detached from both the bowl and the end of its trail. The program does not clamp the ball's x,z to the drawn surface, which contradicts the 'held at the edge' assumption.",
+       "object": "ball",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13910,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3736,
+   "output_tokens_details": {
+    "thinking_tokens": 2663
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_4c561e74c65444bda3466b601aa5fb04-review-4",
+   "status": "settled",
+   "costMicros": 130781,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793770814738,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "83930d6b1f2ed504adc2a4cc879d0aa79965eb7a733a159e45b80c4c8bdf4930",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "camera",
+       "message": "The default camera at [2.2,5.2,5.6] looks low across the near rim. The steep front-to-back (z) direction is heavily foreshortened, so the start sits on a compressed near edge, and the zigzag across the narrow side of the bowl (the main thing to see) is squashed flat. The bowl also fills only about 45% of the frame, with a lot of empty white space. Move the camera higher and more overhead, and closer, so the z direction reads clearly and the bowl fills the view.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "stepArrow",
+       "message": "At the start, the orange noisy-step arrow and the grey true-downhill arrow point almost the same way and overlap. They are short, so the noise between them is hard to see. A larger disclosed display scale would make the comparison readable.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "ball",
+       "message": "Dragging is limited to side-to-side (x) only, while the plan promises dragging to a new start point anywhere on the surface. This is disclosed in the assumptions, but it narrows the promised interaction. Changing batch size and the full-batch toggle were not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepArrow",
+       "message": "Near the minimum, both arrows are tiny and mostly hidden inside the ball. The arrow is scaled as a whole by [1,l,1], so the 0.2 offset shrinks too and the tail ends up inside the radius-0.2 ball. The 'Noisy step' and 'True downhill' labels have also disappeared. The plan's key 'jitter around the bottom' comparison (noisy vs true) can't be read here. Keep the arrow tail at the ball surface, or use a larger disclosed scale, and keep the labels visible.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "camera",
+       "message": "In the default view, the SGD trail runs along the foreshortened near rim and looks almost straight. The zigzag in z that the side view shows clearly is lost. The camera should look more from above (same root cause as the framing finding in v0-s0).",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "camera",
+       "message": "With the same low default camera, the divergent swing (start → far side → past the near edge) is compressed into one slanted line, and the ball's clamped edge position looks almost the same as its start. The growing swings are hard to read. Use a more overhead, tighter default view.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "status",
+       "message": "'Diverged' means leaving the 5×5 drawn square. With a small batch size, noise near the start (x=-2.2) could trigger this even below a learning rate of 0.5. The low end of the learning-rate range and batch size 1 were not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13967,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 5567,
+   "output_tokens_details": {
+    "thinking_tokens": 4308
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_4c561e74c65444bda3466b601aa5fb04-review-6",
+   "status": "settled",
+   "costMicros": 167629,
+   "served": "claude-opus-5-5"
+  }
+ }
+]
