@@ -124,6 +124,7 @@ export function spendMessage(reason, period = null) {
     case 'allowance_exhausted': return `Not enough AI credits.${resets}`;
     case 'allowance_insufficient': return `This needs more AI credits than you have left.${resets}`;
     case 'allowance_reserved': return 'Your remaining AI credits are temporarily reserved by AI work that is still running. Try again when it finishes.';
+    case 'free_retries_exhausted': return "You have reached today's limit of free retries. Try again tomorrow.";
     case 'allowance_unavailable': return 'AI is temporarily unavailable: your AI credits cannot be checked right now. Your work is saved; try again shortly.';
     case 'payer_unavailable': return 'AI is temporarily unavailable: your sign-in could not be confirmed. Your work is saved; reload and try again.';
     case 'cap_unset': return 'AI is paused until the platform spending limit is set.';
