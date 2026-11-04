@@ -5,13 +5,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { artifactHashOf, artifactIntact, clientProblems } from '../src/animation-author.js';
+import { artifactHashOf, artifactIntact, clientProblems, planProblems } from '../src/animation-author.js';
 import { ANIMATION_SEED_FIXTURE_PATH, animationRoute, needsFeatures } from '../src/animation-job.js';
-import { validateAnimationArtifact } from '../../web/src/animation3d/contract.js';
+import { validateAnimationArtifact, validateAnimationPlan } from '../../web/src/animation3d/contract.js';
 import { ANIMATION_CLIENT_FEATURES } from '../../web/src/animation3d/capabilities.js';
 import { BOARD, OWNER, animationStack } from './animation-fixture.js';
 
-const { artifact } = JSON.parse(readFileSync(new URL('../../web/src/animation3d/testdata/sgd-golden.json', import.meta.url), 'utf8'));
+const { plan, artifact } = JSON.parse(readFileSync(new URL('../../web/src/animation3d/testdata/sgd-golden.json', import.meta.url), 'utf8'));
 const FIVE = ['surface_grid', 'trail_points', 'text_readout', 'arrow_anchor', 'clamp'];
 const THE_TWO = ['curve_radius', 'action_motion'];
 
@@ -52,4 +52,14 @@ test('seeded, it is an ordinary saved result: served with all seven features, 40
     const result = await s.read(ANIMATION_CLIENT_FEATURES.filter(f => f !== missing));
     assert.deepEqual([result.status, result.body.code], [409, 'client_update_required'], `without ${missing}`);
   }
+});
+
+test('named for the loss_surface archetype with its three assertions, the golden plan and artifact meet every one (nothing in the file changes)', () => {
+  const named = { ...plan, archetype: 'loss_surface', assertions: [{ kind: 'clamp', node: 'ball' }, { kind: 'compare', parameter: 'learningRate', values: [0.1, 1.5] }, { kind: 'pathLength', min: 20 }] };
+  assert.deepEqual(validateAnimationPlan(named).issues, undefined);
+  assert.deepEqual(planProblems(artifact, named), []);
+  // Each assertion can fail on this artifact, so passing means something.
+  assert.equal(planProblems(artifact, { ...named, assertions: [{ kind: 'clamp', node: 'lowest' }] }).length, 1);
+  assert.equal(planProblems(artifact, { ...named, assertions: [{ kind: 'compare', parameter: 'learningRate', values: [0.1, 2.5] }] }).length, 1);
+  assert.equal(planProblems(artifact, { ...named, assertions: [{ kind: 'pathLength', min: 65 }] }).length, 1);
 });

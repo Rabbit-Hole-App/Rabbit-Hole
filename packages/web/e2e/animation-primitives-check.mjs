@@ -3,12 +3,15 @@
 // 'sgd-golden', registered by docs/features/animation/golden-fixture-card.patch; test data, not generation evidence), the way animation-mvp-check
 // seeds its fixtures. Expected numbers are hand-written below from the bowl's own formula, never read from the program.
 // Covers: the card loads labelled as an example and draws; the surface draws (a share of the view differs from the background); the status
-// readout shows a WORD (paused, then running, then converged), not a code; Step once five times makes a six-point path that draws (orange pixels
-// grow) and the true loss equals the closed form; New run keeps the old path as the ghost (blue pixels, six ghost points, one trail point); at
-// learning rate 1.5 the run diverges, the Loss readout keeps its true value (far above the bowl) while the clamped ball stays inside the frame and
-// the bowl keeps its share of the view; an older client's result request (no flags, or only the two it had) gets 409 client_update_required from
+// readout shows a WORD (paused, then running, then converged), not a code; Step once five times makes a six-point path whose true loss equals the
+// closed form; a finished run's path draws (orange pixels); New run keeps the old path as the ghost (21 ghost points, one trail point, and the pixels
+// differ from the same scene with the ghost cleared by Reset); at learning rate 1.5 the run diverges, the Loss readout keeps its true value
+// (far above the bowl) while the clamped ball stays inside the frame and the bowl keeps its share of the view; an older client's result request (no flags, or only the two it had) gets 409 client_update_required from
 // the same gate the server uses (control-plane animation-job.js needsFeatures, clientFeatures), and the current client declares all seven flags;
 // no model request, no other origin, no page or console error.
+// Calibration (2026-11-03): the fractions and areas below come from sgd-golden.test.mjs, which projects the golden through the real scene builder, clamp
+// and fit in Node for a 700 x 450 view (bowl 40% of the view and the trail about 500 px2 at rate 0.1; at 1.5 the ball at x = 3.7 held at y = 4, inside the
+// view, the bowl 17%); each threshold is under half of that. Nothing here has run in a browser.
 // Not covered here: the real result route (ANIMATION_ENABLED is off in the CI stack; control-plane/test/animation-golden-sgd.test.js runs it), the
 // look of the scene (a person judges it), and a person's eyes on the clamped ball (the pixel probes find a red blob inside the frame, no more).
 // Hooks: the card's data-animation-* attributes (Animation3DCard.jsx, animation3d/Controls.jsx).
@@ -96,6 +99,7 @@ const look = async () => {
     let covered = 0, orange = 0, blue = 0, red = 0, box = null;
     for (let i = 0; i < data.length; i += 4) {
       const r = data[i], gr = data[i + 1], b = data[i + 2], max = Math.max(r, gr, b), min = Math.min(r, gr, b), d = max - min;
+      if (r > 240 && gr < 10 && b > 240) continue; // the mask over the primary readout
       if (Math.abs(r - data[0]) + Math.abs(gr - data[1]) + Math.abs(b - data[2]) > 36) covered += 1;
       if (!d || d / max < 0.55 || max < 100) continue;
       const hue = 60 * (max === r ? ((gr - b) / d + 6) % 6 : max === gr ? (b - r) / d + 2 : (r - gr) / d + 4);
@@ -107,9 +111,19 @@ const look = async () => {
   }, png.toString('base64'));
 };
 
-// The bowl's rule, worked out by hand and written down here, not read from the program: loss = (3 x^2 + z^2) / 2, start (0.5, 1.6), and with all
+// How many pixels differ between two screenshots of the host (by more than 36 summed over the channels).
+const differ = async (a, b) => scratch.evaluate(async ([x, y]) => {
+  const pixels = async b64 => { const img = new Image(); img.src = `data:image/png;base64,${b64}`; await img.decode(); const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0); return g.getImageData(0, 0, c.width, c.height).data; };
+  const [p, q] = [await pixels(x), await pixels(y)];
+  let n = p.length === q.length ? 0 : Infinity;
+  for (let i = 0; n !== Infinity && i < p.length; i += 4) if (Math.abs(p[i] - q[i]) + Math.abs(p[i + 1] - q[i + 1]) + Math.abs(p[i + 2] - q[i + 2]) > 36) n += 1;
+  return n;
+}, [a.toString('base64'), b.toString('base64')]);
+const sceneShot = () => host.screenshot({ mask: [card.locator('[data-animation-primary-readout]')] });
+
+// The bowl's rule, worked out by hand and written down here, not read from the program: loss = (3 x^2 + z^2) / 2, start (0.3, 1.6), and with all
 // 256 examples (no noise) each step multiplies x by (1 - 3 r) and z by (1 - r).
-const bowl = (rate, steps) => { const x = 0.5 * (1 - 3 * rate) ** steps, z = 1.6 * (1 - rate) ** steps; return 0.5 * (3 * x * x + z * z); };
+const bowl = (rate, steps) => { const x = 0.3 * (1 - 3 * rate) ** steps, z = 1.6 * (1 - rate) ** steps; return 0.5 * (3 * x * x + z * z); };
 
 try {
   await page.goto(`${BASE}/apps/${canvas.name}`);
@@ -129,23 +143,20 @@ try {
   await step('the surface draws: a large share of the view differs from the background, and the status is the word paused', async () => {
     await more();
     const seen = await look();
-    assert.ok(seen.covered >= 0.08, `the bowl covers ${(seen.covered * 100).toFixed(1)}% of the view (a scene with no surface covers under 1%)`);
+    assert.ok(seen.covered >= 0.15, `the bowl covers ${(seen.covered * 100).toFixed(1)}% of the view (about 40% expected; a scene with no surface covers under 2%)`);
     assert.equal(await word(), 'paused');
     assert.equal((await frame()).readouts.status, 'paused');
     assert.equal((await frame()).nodes.trail.points.length, 1, 'a path of one point, before any step');
   });
-  await step('Step once five times: a six-point path draws, and the true loss is the closed form', async () => {
+  await step('Step once five times: a six-point path, and the true loss is the closed form', async () => {
     await card.locator('[data-animation-parameter="batchSize"] select').selectOption('256');
     await page.waitForTimeout(1500);
-    const before = await look();
     for (let i = 0; i < 5; i += 1) await action('step').click();
     await until(async () => (await frame()).readouts.steps === 5, 'five steps');
     const f = await frame();
     assert.equal(f.nodes.trail.points.length, 6);
     assert.ok(Math.abs(f.readouts.loss - bowl(0.1, 5)) < 1e-9, `loss ${f.readouts.loss}, closed form ${bowl(0.1, 5)}`);
     assert.equal(await word(), 'paused', 'a step leaves the run paused');
-    const after = await look();
-    assert.ok(after.orange - before.orange >= 120, `the path draws: ${before.orange} orange pixels before, ${after.orange} after`);
   });
   await step('Run: the word is running, then converged; the true loss is under 0.02 and the path has 21 points', async () => {
     await action('run').click();
@@ -157,18 +168,28 @@ try {
     assert.ok(Math.abs(f.readouts.loss - bowl(0.1, 20)) < 1e-9);
     assert.equal(f.nodes.trail.points.length, 21);
     assert.equal(f.nodes.stepArrow.visible, false, 'a finished run shows no arrows');
+    await page.waitForTimeout(500);
+    const seen = await look();
+    assert.ok(seen.orange >= 200, `the finished run's path draws: ${seen.orange} orange pixels (about 500 expected; the ball alone is under 100 and no arrow is shown)`);
     await shot('B-converged');
   });
-  await step('New run keeps the old path as the ghost: six-plus ghost points, a one-point path, and blue pixels appear', async () => {
-    const before = await look();
+  await step('New run keeps the old path as the ghost: 21 ghost points, a one-point path, and the picture differs from the same scene with the ghost cleared', async () => {
     await action('newRun').click();
     await until(async () => (await frame()).nodes.ghost.points.length === 21, 'the kept path');
     const f = await frame();
     assert.equal(f.nodes.trail.points.length, 1);
     assert.equal(f.readouts.steps, 0);
     assert.equal(await word(), 'paused');
-    const after = await look();
-    assert.ok(after.blue >= 80, `the ghost draws: ${after.blue} saturated blue pixels (${before.blue} before the kept path)`);
+    await page.waitForTimeout(500);
+    const withGhost = await sceneShot();
+    await card.locator('[data-animation-reset]').click(); // clears the ghost; the camera stays, the settings return to their defaults
+    await until(async () => (await frame()).nodes.ghost.points.length === 0, 'the kept path cleared');
+    await card.locator('[data-animation-parameter="batchSize"] select').selectOption('256');
+    await page.waitForTimeout(2600); // the same settings as before, so the arrows are the same; the camera refits only on a substantial change
+    const without = await sceneShot();
+    const changed = await differ(withGhost, without);
+    assert.ok(changed >= 60, `the kept path draws: ${changed} pixels differ with and without it (about 250 expected)`);
+    await shot('B-ghost');
   });
   await step('learning rate 1.5: diverged, the Loss readout keeps the true value, and the clamped ball stays inside the frame', async () => {
     await setRate(1.5);
@@ -179,7 +200,7 @@ try {
     assert.ok(f.nodes.ball.position[1] > 10, `the program's ball height is the true one (${f.nodes.ball.position[1]}); the renderer draws it clamped`);
     await page.waitForTimeout(800);
     const seen = await look();
-    assert.ok(seen.red >= 15, `the ball is drawn: ${seen.red} red pixels`);
+    assert.ok(seen.red >= 8, `the ball is drawn: ${seen.red} red pixels (about 40 expected at this zoom)`);
     const [x0, y0, x1, y1] = seen.box;
     assert.ok(x0 >= 2 && y0 >= 2 && x1 <= seen.width - 3 && y1 <= seen.height - 3, `the ball is inside the frame: ${JSON.stringify(seen.box)} of ${seen.width} x ${seen.height}`);
     assert.ok(seen.covered >= 0.08, `the bowl keeps ${(seen.covered * 100).toFixed(1)}% of the view`);
