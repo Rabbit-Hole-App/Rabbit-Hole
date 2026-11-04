@@ -1,0 +1,122 @@
+[
+ {
+  "job": "aj_f99c28c1ce97437f890a7f3284b40085",
+  "key": "animation/aj_f99c28c1ce97437f890a7f3284b40085/c1311ae3b86a9989-v0-s0.png",
+  "ok": true,
+  "bytes": 49250,
+  "sha256": "8beee7476dad34daa3dde23571b910d768172f53df71e6fc96e34045e0a9d4a7",
+  "round": "final",
+  "recordedSha256": "ba0757b5f222b7bfa8d994d4035d03b9e3ec151c3a9673687d9b7d6cf90d3d59",
+  "match": false
+ },
+ {
+  "job": "aj_f99c28c1ce97437f890a7f3284b40085",
+  "key": "animation/aj_f99c28c1ce97437f890a7f3284b40085/c1311ae3b86a9989-v0-s1.png",
+  "ok": true,
+  "bytes": 56812,
+  "sha256": "024e06ff8752da72604c940b9270b13eedb1cf4ba03a253d865310e755883f19",
+  "round": "final",
+  "recordedSha256": "c023df1ce3cea0c4b9d931ef0bee0969af11c50094017b5002e0c2916e9f08c7",
+  "match": false
+ },
+ {
+  "job": "aj_f99c28c1ce97437f890a7f3284b40085",
+  "key": "animation/aj_f99c28c1ce97437f890a7f3284b40085/c1311ae3b86a9989-v0-s2.png",
+  "ok": true,
+  "bytes": 52532,
+  "sha256": "1d80f07b2f18899a033b9696948d48aea200ee50008097809554cd6da44b8429",
+  "round": "final",
+  "recordedSha256": "a7b0221e56a6827f86bd4e86b74916051e20abe4dc9c30765f0f954b8eb87af9",
+  "match": false
+ },
+ {
+  "job": "aj_f99c28c1ce97437f890a7f3284b40085",
+  "key": "animation/aj_f99c28c1ce97437f890a7f3284b40085/c1311ae3b86a9989-v1-s0.png",
+  "ok": true,
+  "bytes": 51290,
+  "sha256": "6dd81909fa08187a60a756763732d6ace078cfb60ac783654aa3e965137f1566",
+  "round": "final",
+  "recordedSha256": "e1fd3e9fcd3d02fe0c55eca6e5855d5a9f42771c16b266875bba4971ca35052e",
+  "match": false
+ },
+ {
+  "job": "aj_f99c28c1ce97437f890a7f3284b40085",
+  "key": "animation/aj_f99c28c1ce97437f890a7f3284b40085/c1311ae3b86a9989-v1-s1.png",
+  "ok": true,
+  "bytes": 57313,
+  "sha256": "c8ac647abf15773d736eff88261292a204f8afd7cf0dcc8d2728ac8bdda2542f",
+  "round": "final",
+  "recordedSha256": "4978d060430d5cabfc6c5043cc1503b0d0729232f3f2e744079c5976d8143be7",
+  "match": false
+ },
+ {
+  "job": "aj_f99c28c1ce97437f890a7f3284b40085",
+  "key": "animation/aj_f99c28c1ce97437f890a7f3284b40085/c1311ae3b86a9989-v1-s2.png",
+  "ok": true,
+  "bytes": 54559,
+  "sha256": "14f17bb7adf63b665427ecf3df8eaf2cf9eeb5236c6617886ed0318521c90d83",
+  "round": "final",
+  "recordedSha256": "110c3daf7447aa10ccb8fcd03402486f43c5a890e60b8fde9dc2a8b94f75c638",
+  "match": false
+ },
+ {
+  "job": "aj_f99c28c1ce97437f890a7f3284b40085",
+  "key": "animation/aj_f99c28c1ce97437f890a7f3284b40085/123961749817eaa1-v0-s0.png",
+  "ok": true,
+  "bytes": 62435,
+  "sha256": "d6bb4933129af6c09f2e0010350367555526b0c74145f27e816d8a6b73358b97",
+  "round": "review-1",
+  "recordedSha256": null,
+  "match": null
+ },
+ {
+  "job": "aj_f99c28c1ce97437f890a7f3284b40085",
+  "key": "animation/aj_f99c28c1ce97437f890a7f3284b40085/123961749817eaa1-v0-s1.png",
+  "ok": true,
+  "bytes": 57614,
+  "sha256": "09379b04a38ba57883534dee2814868d309047076827159984aaaee429eb9665",
+  "round": "review-1",
+  "recordedSha256": null,
+  "match": null
+ },
+ {
+  "job": "aj_f99c28c1ce97437f890a7f3284b40085",
+  "key": "animation/aj_f99c28c1ce97437f890a7f3284b40085/123961749817eaa1-v0-s2.png",
+  "ok": true,
+  "bytes": 52017,
+  "sha256": "d675cdb263aacbed6562825651060d3a31d0a4c9a9a8e0688cdc23171b0200e0",
+  "round": "review-1",
+  "recordedSha256": null,
+  "match": null
+ },
+ {
+  "job": "aj_f99c28c1ce97437f890a7f3284b40085",
+  "key": "animation/aj_f99c28c1ce97437f890a7f3284b40085/123961749817eaa1-v1-s0.png",
+  "ok": true,
+  "bytes": 49307,
+  "sha256": "1e377373048fd2212a843cd2f2557e75d52bce6bf3d6fc82daa3060fcea2f170",
+  "round": "review-1",
+  "recordedSha256": null,
+  "match": null
+ },
+ {
+  "job": "aj_f99c28c1ce97437f890a7f3284b40085",
+  "key": "animation/aj_f99c28c1ce97437f890a7f3284b40085/123961749817eaa1-v1-s1.png",
+  "ok": true,
+  "bytes": 50961,
+  "sha256": "ba2cd2eec2cf6e2d1d4355eb227f53fd637c4215f7d83f510131b3d378834c07",
+  "round": "review-1",
+  "recordedSha256": null,
+  "match": null
+ },
+ {
+  "job": "aj_f99c28c1ce97437f890a7f3284b40085",
+  "key": "animation/aj_f99c28c1ce97437f890a7f3284b40085/123961749817eaa1-v1-s2.png",
+  "ok": true,
+  "bytes": 50384,
+  "sha256": "a33d922117a1646b6002220421a0c75ce14f125a7e05e1800dc4a62b97f5017c",
+  "round": "review-1",
+  "recordedSha256": null,
+  "match": null
+ }
+]

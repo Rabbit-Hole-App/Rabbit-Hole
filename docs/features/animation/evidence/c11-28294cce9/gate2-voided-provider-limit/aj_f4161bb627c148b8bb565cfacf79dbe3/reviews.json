@@ -1,0 +1,156 @@
+[
+ {
+  "at": 1793775016274,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "192d7268e0e97e18f227b0cb4ae9d6e79ab05f9e3853944428c4654d28e9cf05",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan promises dragging the ball to a new starting point on the surface. The artifact only allows dragging across the valley (y), keeping the current x. This is disclosed, but after a converged run x≈0, so drag-started runs mostly test the steep direction alone.",
+       "object": "ball",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Assumption text: at exactly lr=0.5 the ball 'bounces across the valley without getting closer', and the loss falls every step 'only below 0.5'. At 0.5, x still shrinks by half each step, so the ball does get closer along x and the loss still decreases toward 4.5. Reword it.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: the low end lr=0.02 (should end 'stopped at 150'), the zigzag range 0.25–0.5, Clear trail/New run with the ghost path, dragging, and hiding the arrow.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Near the minimum the true-length arrow is about 0.05 units and mostly hidden under the ball, and the 'Downhill' label disappears. This is correct, but the learner loses the cue late in a run.",
+       "object": "arrow",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "message": "The diverged ball is drawn at the y=−3 edge (true −4.1, which the scene discloses). The host also clamps its height from 2.4 to 2.25, leaving it half sunk into the surface rim.",
+       "object": "ball",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "In this view the 'Lowest point' label sits over the minimum marker dot and hides it.",
+       "object": "lowTag",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13363,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4954,
+   "output_tokens_details": {
+    "thinking_tokens": 3112
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_f4161bb627c148b8bb565cfacf79dbe3-review-3",
+   "status": "settled",
+   "costMicros": 152953,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

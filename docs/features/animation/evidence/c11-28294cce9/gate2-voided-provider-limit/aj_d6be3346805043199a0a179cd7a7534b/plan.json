@@ -1,0 +1,74 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Gradient descent with two learning rates on the same bowl",
+ "description": "A stretched bowl-shaped surface stands for a loss: low in the middle, rising steeply across the short way and gently along the long way. Two balls, blue and orange, start at the same point. Each step, each ball moves downhill by its own learning rate times the slope, and leaves a trail. You set the two learning rates and compare them: a small rate creeps along in a smooth curve, a larger one zigzags across the steep walls, and above a limit it bounces outward and diverges (moves away from the minimum).",
+ "experience": "experiment",
+ "reason": "Running two learning rates side by side on the same surface, from the same start, shows directly how step size alone decides between slow, fast, zigzagging and diverging descent.",
+ "behavior": "rules",
+ "controlProfile": "inspect",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "lrA",
+   "label": "Learning rate, blue ball",
+   "min": 0.01,
+   "max": 0.6,
+   "step": 0.01,
+   "default": 0.05
+  },
+  {
+   "type": "number",
+   "id": "lrB",
+   "label": "Learning rate, orange ball",
+   "min": 0.01,
+   "max": 0.6,
+   "step": 0.01,
+   "default": 0.4
+  }
+ ],
+ "interactions": [
+  "Play, pause, or step one update at a time; on each step both balls move once and their trails grow.",
+  "Change either learning rate; the run starts again from the shared start point, so the two trails stay comparable.",
+  "Watch the readouts: step number, and each ball's current loss (its height on the surface).",
+  "Orbit the camera to look at the trails from above (zigzags across contour lines) or from the side (loss going down)."
+ ],
+ "assumptions": [
+  "Illustration: a simple made-up bowl stands in for a real model's loss.",
+  "The loss is 0.5·(x² + 4y²), so it is 4 times steeper across the short way (y) than along the long way (x). The minimum is at the centre, where the loss is 0.",
+  "Each step is plain gradient descent with no momentum or noise: new position = old position − learning rate × slope, using the exact slope.",
+  "On this bowl the rule is exact: the short-way motion shrinks for rates below 0.25, zigzags but still settles between 0.25 and 0.5, and grows (diverges) above 0.5. The long-way motion settles for every rate in the range.",
+  "Each ball has an arrow showing the downhill direction (the negative slope), which is the way its next step goes. The step length is the learning rate times the slope.",
+  "A run lasts at most 60 steps. A ball that leaves the drawn surface stops at the edge and is marked as diverged."
+ ],
+ "limitations": [
+  "Real loss surfaces have many dimensions, flat regions and several valleys. This single smooth bowl only shows how step size behaves near one minimum.",
+  "The exact thresholds (0.25 and 0.5) belong to this bowl. On other surfaces they depend on how steep the steepest direction is."
+ ],
+ "learningGoal": "The learning rate sets the step size. Too small is slow, larger is faster but zigzags on steep directions, and beyond a limit set by the steepest direction the descent diverges.",
+ "requiredCapabilities": [
+  "parameters",
+  "step",
+  "readouts",
+  "labels",
+  "loop"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "lrB",
+   "values": [
+    0.4,
+    0.55
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 30
+  }
+ ]
+}
