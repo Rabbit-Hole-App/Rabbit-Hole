@@ -56,6 +56,7 @@ test('decide: the cumulative cap over every running job, a per-call stop at 120%
   assert.match(decide({ jobs: [afterRepair], prior: 0, cap: 90 }).stopAll, /final review after a repair needs 30 credits of headroom, 26\.80 left/);
   assert.equal(decide({ jobs: [afterRepair], prior: 0, cap: 100 }).stopAll, null);
   assert.match(decide({ jobs: [{ key: 'a', calls: [], extraRole: 'author' }], prior: 590, cap: 620 }).stopAll, /628\.40/, 'the call about to be approved counts');
+  assert.match(decide({ jobs: [{ key: 'a', calls: [call('brief', 6.2), { role: 'author', status: 'unknown', costMicros: 0 }] }], prior: 0, cap: 620 }).line, /settled 38\.20/, 'an unknown cost is never zero');
 });
 
 test('verdictOf: 8 of the first 9 accepted and the tenth not silently SGD; stopped rows are not results', () => {

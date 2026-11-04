@@ -48,7 +48,9 @@ const EMPTY_BOARD = { strokes: [], shapes: [], items: [], links: [], groups: [],
 export const TYPICAL = Object.freeze({ author: 32, review: 15, repair: 24 });
 export const BRIEF_EXPECTED = 8.1, HEADROOM_FINAL_REVIEW = 30;
 export const expectedOf = (typical = TYPICAL) => ({ brief: BRIEF_EXPECTED, author: typical.author * 1.2, review: typical.review * 1.2, repair: typical.repair * 1.2 });
-const settledOf = calls => calls.filter(c => c.status !== 'running').reduce((t, c) => t + (c.costMicros || 0), 0) / 1e4;
+// A call whose cost the provider never confirmed (status unknown) is never counted as zero: it is counted at its role's typical cost.
+const costOf = c => (c.status === 'unknown' && !c.costMicros ? (TYPICAL[c.role] ?? BRIEF_EXPECTED) * 1e4 : c.costMicros || 0);
+const settledOf = calls => calls.filter(c => c.status !== 'running').reduce((t, c) => t + costOf(c), 0) / 1e4;
 // jobs: [{ key, calls, repairs, extraRole? }] -> { line, stopAll, stopJobs }. stopAll: the cumulative cap would be passed (cancel every running job).
 // stopJobs: key -> reason, one job's call settled above 1.2 x its typical (cancel that job).
 export function decide({ jobs, prior, finished = 0, cap, typical = TYPICAL, expected = expectedOf(typical) }) {
@@ -227,7 +229,8 @@ export async function runQualify(cfg, deps) {
       row.markers = ['gap', 'clarify'].includes(row.outcome) ? [] : sgdMarkers(L.job?.plan, artifact?.title, artifact?.description, artifact?.archetype);
       row.silentSgd = row.markers.length > 0;
     }
-    row.repairs = L.job?.repairs ?? 0; row.credits = settledOf(L.calls); row.charged = L.job?.usage?.credits ?? 0;
+    row.repairs = L.job?.repairs ?? 0; row.credits = settledOf(L.calls);
+    if (L.calls.some(c => c.status === 'unknown')) row.note = `${row.note} (${L.calls.filter(c => c.status === 'unknown').length} call(s) of unknown cost counted at typical)`.trim(); row.charged = L.job?.usage?.credits ?? 0;
     row.time = ptClock(new Date(now())); if (!row.outcome) row.outcome = 'failed';
     await exportJob(L, row, artifact).catch(error => say(n, `export failed: ${error.message}`));
     live.delete(L.key); inflight.set(session.email, inflight.get(session.email) - 1); ctx.finished += row.credits; rows.push(row);
