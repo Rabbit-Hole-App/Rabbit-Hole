@@ -641,3 +641,43 @@ test('a label with no clear spot beside a dense path keeps its place: the path i
   assert.equal(box?.shown, true);
   scene.dispose();
 });
+
+// C9 (owner): a marker or a path point drawn below the surface it sits on is detected. C7 job 3 (aj_2f17bed198df4482b5e2e7e170dcdd31): the surface was drawn at twice the height the program
+// uses, so the balls and trails were buried. The fixture's program puts the ball at y = x^2 / 4 + 0.1 and its path at y = x^2 / 4 + 0.02 over a surface y = (x^2 + z^2) / 4.
+const doubled = () => { const a = primitives(); a.scene.geometries[0].heights = a.scene.geometries[0].heights.map(row => row.map(h => 2 * h)); return a; };
+const atX = x => ({ nodes: { ball: { position: [x, x * x / 4 + 0.1, 0] }, trail: { points: [[x, x * x / 4 + 0.02, 0], [x - 0.2, (x - 0.2) ** 2 / 4 + 0.02, 0]] } } });
+
+test('buried: a ball and a path under a surface drawn at twice the program\'s height are reported with how far under; the right surface reports nothing', () => {
+  const scene = built(doubled());
+  scene.apply(atX(1.5));
+  const found = scene.buried();
+  assert.deepEqual(found.map(b => b.node), ['trail', 'ball'], JSON.stringify(found)); // scene order
+  const ball = found.find(b => b.node === 'ball'), trail = found.find(b => b.node === 'trail');
+  // The surface at x = 1.5, z = 0 is 2 x 0.5625 = 1.125; the ball is at 0.6625 and the first path point at 0.5825.
+  assert.deepEqual([ball.y, ball.surfaceY], [0.6625, 1.125]);
+  assert.deepEqual([trail.y, trail.surfaceY], [0.5825, 1.125], 'the path\'s worst point');
+  scene.dispose();
+  const right = built();
+  right.apply(atX(1.5));
+  assert.deepEqual(right.buried(), [], 'on the surface the program draws for');
+  for (const x of [-2, 0, 0.4, 2]) { right.apply(atX(x)); assert.deepEqual(right.buried(), [], `x ${x}`); }
+  right.dispose();
+});
+
+test('buried: nothing is reported for a ball off the surface, in the air, or clamped; a surface with no clamped marker and a trail reports nothing for them', () => {
+  const scene = built(doubled());
+  scene.apply({ nodes: { ball: { position: [3.5, -5, 0] } } }); // beyond the footprint (x in -2.5 to 2.5): not on this surface
+  assert.deepEqual(scene.buried(), []);
+  scene.apply({ nodes: { ball: { position: [1.5, 5.6, 0] } } }); // above, and held at the clamp
+  assert.deepEqual(scene.buried(), []);
+  scene.apply({ nodes: { ball: { position: [1.5, 1.2, 0] } } }); // 0.075 above the doubled surface (1.125): resting on it, not under it
+  assert.deepEqual(scene.buried(), []);
+  scene.apply({ nodes: { ball: { position: [1.5, 1.0, 0] } } }); // 0.125 below the doubled surface: more than half a ball radius (0.05) and more than 2% of its height range (0.1)
+  assert.equal(scene.buried().length, 1);
+  scene.dispose();
+  const none = primitives(); delete none.scene.nodes.find(n => n.id === 'ball').clampTo;
+  const loose = built(none);
+  loose.apply({ nodes: { ball: { position: [1.5, -3, 0] } } });
+  assert.deepEqual(loose.buried().map(b => b.node), [], 'a ball with no clampTo has no surface it sits on');
+  loose.dispose();
+});

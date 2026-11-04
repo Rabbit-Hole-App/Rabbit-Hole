@@ -313,7 +313,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
   const byGeometry = new Map(scene.geometries.map(g => [g.id, g]));
   const objects = new Map(), labels = new Map(), pickables = []; // labels: node id -> its sprite
   const nodeById = new Map(scene.nodes.map(node => [node.id, node]));
-  const trails = new Map(), tops = new Map(), truth = new Map(); // trail node -> set(points); surface node -> its mesh; clamped node -> the position the program gave
+  const trails = new Map(), tops = new Map(), surfaceDefs = new Map(), truth = new Map(); // trail node -> set(points); surface node -> its mesh; clamped node -> the position the program gave
   // arrow_anchor (FX-AN-072): an arrow's offset is a distance outside the node's scale, so an arrow drawn as a unit arrow under scale [1, length, 1] still starts `offset`
   // from its origin; its tip is offset + length x scale up +Y. placers move each arrow's drawable and each tip label to match the arrow's current scale.
   const placers = [], bases = new Map(); // bases: tip label node id -> the position the program gave (before the tip shift)
@@ -378,6 +378,7 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
       const mesh = new THREE.Mesh(own(surfaceGeometry(g)), front(node.material)), lines = contourPositions(g);
       drawable.add(mesh);
       tops.set(node.id, mesh);
+      surfaceDefs.set(node.id, g);
       if (lines.length) {
         const base = surfaces.get(node.material) ?? fallback;
         drawable.add(new THREE.LineSegments(own(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(lines, 3))), own(new THREE.LineBasicMaterial({ color: base.color.clone().multiplyScalar(0.5), toneMapped: false }))));
@@ -581,6 +582,45 @@ export function buildAnimationScene(artifact, { labelTexture = canvasLabelTextur
           leader.visible = true;
         });
         return boxes;
+      },
+      // C9 (owner; C7 job 3: a surface drawn at twice the height the program uses, balls and trails buried): the markers and path points drawn below the surface they sit on, in the
+      // frame last applied. A sphere with clampTo is checked against its target; a trail against the first clamp target (or the scene's only surface). Below = more than half the
+      // marker's radius (a path: its radius), and never less than 2% of the surface's height range, which absorbs a coarse grid's chord error; a point off the surface's footprint is not on it. -> [{ node, y, surfaceY }], the
+      // worst point of a path, in scene order, rounded to 4 decimals.
+      buried() {
+        root.updateWorldMatrix(true, true);
+        const found = [], world = new THREE.Vector3(), local = new THREE.Vector3(), scale = new THREE.Vector3(), ranges = new Map(), round = value => Math.round(value * 1e4) / 1e4;
+        const range = id => { if (!ranges.has(id)) { const flat = surfaceDefs.get(id).heights.flat(); ranges.set(id, (Math.max(...flat) - Math.min(...flat)) * Math.abs(tops.get(id).getWorldScale(scale).y)); } return ranges.get(id); };
+        const surfaceAt = (id, point) => { // the world y of the surface under (or over) this world point, or null when the point is off its footprint
+          const mesh = tops.get(id), g = surfaceDefs.get(id);
+          if (!mesh) return null;
+          mesh.worldToLocal(local.copy(point));
+          const rows = g.heights.length, cols = g.heights[0].length, col = (local.x / g.width + 0.5) * (cols - 1), row = (local.z / g.depth + 0.5) * (rows - 1);
+          if (!(col >= 0 && col <= cols - 1 && row >= 0 && row <= rows - 1)) return null;
+          const c = Math.min(Math.floor(col), cols - 2), r = Math.min(Math.floor(row), rows - 2), u = col - c, v = row - r, h = g.heights;
+          const y = u + v <= 1 ? h[r][c] + u * (h[r][c + 1] - h[r][c]) + v * (h[r + 1][c] - h[r][c]) : h[r + 1][c + 1] + (1 - u) * (h[r + 1][c] - h[r + 1][c + 1]) + (1 - v) * (h[r][c + 1] - h[r + 1][c + 1]); // the two triangles of a cell
+          return mesh.localToWorld(local.set(local.x, y, local.z)).y;
+        };
+        const followed = clamps[0]?.target ?? (tops.size === 1 ? [...tops.keys()][0] : null);
+        for (const node of scene.nodes) {
+          const g = byGeometry.get(node.geometry), holder = objects.get(node.id), widest = Math.max(...holder.getWorldScale(scale).toArray());
+          if (g?.kind === 'sphere' && node.clampTo && tops.has(node.clampTo.node)) {
+            holder.getWorldPosition(world);
+            const top = surfaceAt(node.clampTo.node, world);
+            if (top !== null && world.y < top - Math.max(0.5 * g.radius * widest, 0.02 * range(node.clampTo.node))) found.push({ node: node.id, y: round(world.y), surfaceY: round(top) });
+          } else if (g?.kind === 'trail' && followed) {
+            const drawable = holder.children.find(child => child.userData.points), points = drawable?.userData.points ?? [];
+            const slack = Math.max((g.radius ?? 0) * (g.style === 'ghost' ? 0.5 : 1) * widest, 0.02 * range(followed));
+            let worst = null;
+            for (const point of points) {
+              drawable.localToWorld(world.set(point[0], point[1], point[2]));
+              const top = surfaceAt(followed, world), depth = top === null ? 0 : top - world.y;
+              if (depth > slack && (!worst || depth > worst.depth)) worst = { depth, y: world.y, surfaceY: top };
+            }
+            if (worst) found.push({ node: node.id, y: round(worst.y), surfaceY: round(worst.surfaceY) });
+          }
+        }
+        return found;
       },
       clampCeiling: () => ceiling, // the highest world y a clamp held a node to in the last frame, or null: the camera fit does not follow a trail above it (framing.js)
       setOptionalLabels(on) { optional = !!on; }, // applied at the next layoutLabels
