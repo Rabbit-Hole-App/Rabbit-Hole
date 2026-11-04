@@ -7,9 +7,9 @@ import { buildGolden, goldenText } from './testdata/build-sgd-golden.mjs';
 
 // The golden SGD artifact (AN-19, owner decisions 11 to 13 of 3 Nov 2026): testdata/sgd-golden.json, built by testdata/build-sgd-golden.mjs.
 // A fixture and an exemplar, never a canned result. Three layers, so a failure names its layer:
-//   structure   the plan's table (section 8, AN-18/AN-19), checked here with no contract code: always runs
-//   contract    validateAnimationArtifact for a client declaring every feature: runs once the AN-18 contract is in this checkout
-//   behavior    the program in the pinned QuickJS engine against closed-form values worked out by hand: always runs
+//   structure   the plan's table (section 8, AN-18/AN-19), checked here with no contract code
+//   contract    validateAnimationArtifact and validateAnimationFrame, for a client declaring every feature
+//   behavior    the program in the pinned QuickJS engine against closed-form values worked out by hand
 const FILE = new URL('./testdata/sgd-golden.json', import.meta.url);
 const golden = JSON.parse(readFileSync(FILE, 'utf8'));
 const { plan, artifact } = golden;
@@ -17,9 +17,6 @@ const { geometries, nodes } = artifact.scene;
 const geometry = id => geometries.find(g => g.id === id);
 const node = id => nodes.find(n => n.id === id);
 const kindOf = n => geometry(n.geometry)?.kind;
-
-const contractReady = ANIMATION_CAPABILITIES.geometry.includes('surface'); // AN-18 has landed here
-const withContract = contractReady ? test : (name, fn) => test(name, { skip: 'waiting for the AN-18 contract (surface, trail, text readout, arrow anchor, clamp) to be merged into this branch' }, fn);
 
 let runtime = null;
 try { runtime = await import('../explain-program/runtime.js'); } catch { runtime = null; }
@@ -104,15 +101,13 @@ test('structure: a fixture that says so, inside the MVP phase limits counted by 
   assert.ok(new TextEncoder().encode(artifact.program.source).length <= limits.sourceBytes, 'the program is within 16 KiB');
 });
 
-withContract('contract: the plan and the artifact validate, for a client that declares every feature', () => {
+test('contract: the plan and the artifact validate, for a client that declares every feature', () => {
   assert.deepEqual(contract.validateAnimationPlan(plan).issues, undefined);
   const checked = contract.validateAnimationArtifact(artifact, undefined, { draft: true });
   assert.deepEqual(checked.issues, undefined);
-  if (contract.clientFeatureUses) {
-    const needed = new Set(contract.clientFeatureUses(artifact).map(u => u.feature));
-    assert.deepEqual([...needed].sort(), ['arrow_anchor', 'clamp', 'surface_grid', 'text_readout', 'trail_points']);
-    for (const feature of needed) assert.ok(ANIMATION_CLIENT_FEATURES.includes(feature), `${feature} is declared by the client`);
-  }
+  const needed = new Set(contract.clientFeatureUses(artifact).map(u => u.feature));
+  assert.deepEqual([...needed].sort(), ['arrow_anchor', 'clamp', 'surface_grid', 'text_readout', 'trail_points']);
+  for (const feature of needed) assert.ok(ANIMATION_CLIENT_FEATURES.includes(feature), `${feature} is declared by the client`);
 });
 
 // ---- behavior, in the pinned engine ---------------------------------------------------------------------------------------
@@ -221,7 +216,7 @@ run('the path is bounded: a long slow run keeps the last 64 points, and every fr
   for (const value of JSON.stringify(frame).match(/-?\d+\.?\d*(?:e[+-]?\d+)?/g)) assert.ok(Math.abs(Number(value)) < contract.CONTRACT_LIMITS.coordinate);
 });
 
-(contractReady ? run : test.skip)('every frame of both comparison runs validates against the contract, and the state stays within the snapshot budget', () => {
+run('every frame of both comparison runs validates against the contract, and the state stays within the snapshot budget', () => {
   const checked = contract.validateAnimationArtifact(artifact, undefined, { draft: true });
   for (const learningRate of [0.1, 1.5]) {
     const inputs = { learningRate, batchSize: '16' };
