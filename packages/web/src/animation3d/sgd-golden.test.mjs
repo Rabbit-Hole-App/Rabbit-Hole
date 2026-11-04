@@ -269,7 +269,9 @@ async function drawn(learningRate, aspect, play) {
   const world = scene.objects.get('ball').getWorldPosition(new THREE.Vector3()), path = frame.nodes.trail.points.map(p => new THREE.Vector3(...p));
   const bowl = []; meshes.forEach(o => { const at = o.geometry.attributes.position; for (let i = 0; i < at.count; i += 1) bowl.push(screen(new THREE.Vector3().fromBufferAttribute(at, i).applyMatrix4(o.matrixWorld))); });
   const visible = id => { let shown = false; scene.objects.get(id).traverse(o => { if ((o.isMesh || o.isLine) && o.visible) shown = true; }); return shown; };
-  const out = { frame, clamped: result.clamped, ballY: world.y, ballSeen: seen(world), ballInside: inside(screen(world)), pathSeen: path.filter(seen).length, pathPoints: path.length,
+  let lit = null; scene.objects.get('trail').traverse(o => { if (o.isMesh) lit = o.geometry.attributes.normal ?? false; }); // a lit tube needs vertex normals: without them it renders (0, 0, 0)
+  const normalsUnit = n => lit && Array.from({ length: n * 8 }, (_, i) => Math.abs(Math.hypot(lit.getX(i), lit.getY(i), lit.getZ(i)) - 1) < 1e-6).every(Boolean);
+  const out = { frame, clamped: result.clamped, lit: normalsUnit(path.length), ballY: world.y, ballSeen: seen(world), ballInside: inside(screen(world)), pathSeen: path.filter(seen).length, pathPoints: path.length,
     bowlWidth: (Math.max(...bowl.map(p => p[0])) - Math.min(...bowl.map(p => p[0]))) / width, bowlShare: hullShare(bowl, width * HEIGHT), trail: visible('trail'), ghost: visible('ghost') };
   built.scene.dispose();
   return out;
@@ -295,6 +297,7 @@ run('rendered by the real scene builder: nothing is drawn as a path until a step
   const done = await drawn(0.1, 725 / 240, STATES.converged);
   assert.equal(done.frame.readouts.status, 'converged');
   assert.deepEqual([done.trail, done.ghost], [true, false]);
+  assert.equal(done.lit, true, 'the path tube has unit vertex normals for every ring of its 21 points (CI run 41762152651 drew it pure black without them)');
   const kept = await drawn(0.1, 725 / 240, STATES.kept);
   assert.deepEqual([kept.trail, kept.ghost], [false, true], 'New run: the old path is the ghost, the new one has one point');
 });
