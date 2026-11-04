@@ -53,6 +53,13 @@
         "with": "$1value.includes(f) && !['surface_grid', 'trail_points', 'text_readout', 'arrow_anchor', 'clamp'].includes(f)$2"
       },
       {
+        "op": "replace",
+        "optional": true,
+        "file": "packages/control-plane/test/animation-old-client.test.js",
+        "pattern": "\\r?\\n  assert\\.equal\\(surfaceCapability\\(\\{ features: \\['curve_radius', 'surface_grid'\\] \\}\\)\\.surfaces, SURFACES\\.surface, 'AN-20: [^\\n]*\\r?\\n",
+        "with": "\n"
+      },
+      {
         "op": "restoreMatching",
         "under": [
           "packages/control-plane/test"

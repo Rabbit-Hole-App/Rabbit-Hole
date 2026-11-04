@@ -7,7 +7,7 @@
 //   node recovery-steps.mjs release-check --cand <sha> --tip <sha>                          asks the tree's own prod-release.mjs checkCandidate to release the tip over the candidate
 //   node recovery-steps.mjs verify --slice mvp3 --recipes <json>                              runs the recipe's node --test sets in this tree; a set that runs 0 tests fails
 // Step ops (all exact, none silent):
-//   replace          {file, pattern, with}   the regular expression must match exactly once; $1.. are the capture groups
+//   replace          {file, pattern, with, optional?}   the regular expression must match exactly once ($1.. are the capture groups); optional: zero matches is fine
 //   restore          {paths[]}               each path goes back to its text at PREV; a path that did not exist at PREV is removed
 //   restoreMatching  {under[], suffix?[], candMatches?, prevMatches?, required?, added?}   (added: only files the candidate added, which are removed)
 //                    every file changed between PREV and the candidate under a listed prefix, and (when given) whose text at the candidate
@@ -47,6 +47,7 @@ export function applyRecipe(recipe, { cand, prev, promptsFrom, cwd = process.cwd
     if (step.op === 'replace') {
       if (!existsSync(abs(step.file))) throw new Error(`${where}: ${step.file} does not exist in the candidate; the switch moved, update the recipe`);
       const text = readFileSync(abs(step.file), 'utf8'), re = new RegExp(step.pattern, 'g'), n = [...text.matchAll(re)].length;
+      if (n === 0 && step.optional) continue; // optional: the candidate does not carry this line (a slice released alone)
       if (n !== 1) throw new Error(`${where}: /${step.pattern}/ matches ${n} time(s) in ${step.file}, expected exactly 1; the switch moved, update the recipe`);
       const next = text.replace(re, step.with);
       if (next === text) throw new Error(`${where}: the replacement leaves ${step.file} unchanged; the candidate is already in the recovery state`);

@@ -50,7 +50,9 @@ git add -A && git commit -q -m mid && MID=$(git rev-parse HEAD)
 # ---- the candidate (CAND): every slice's change, plus an unrelated one ----
 w $F "export const ANIMATION_CLIENT_FEATURES = Object.freeze(['curve_radius', 'action_motion', 'surface_grid', 'trail_points', 'text_readout', 'arrow_anchor', 'clamp']);"
 w $CT "assert.deepEqual(ANIMATION_CLIENT_FEATURES, ['curve_radius', 'action_motion', 'surface_grid']);"
-w $OC "assert.deepEqual(ANIMATION_CLIENT_FEATURES.length, 7);"
+w $OC "assert.deepEqual(ANIMATION_CLIENT_FEATURES.length, 7);
+  assert.equal(surfaceCapability({ features: ['curve_radius', 'surface_grid'] }).surfaces, SURFACES.surface, 'AN-20: a browser that draws a surface is told so, whatever else it declares');
+assert.ok(true);"
 w $PA "export const ANIMATION_AUTHOR_SYSTEM = 'prompt v2'; export const ARCHETYPES = {};"
 w $PB "export const ANIMATION_BRIEF_SYSTEM = 'planner v2';"
 w $FIT "// pins prompt v2"
@@ -70,10 +72,10 @@ echo "== each slice with the shipped recipes"
 CUT mvp3 $CAND --prev $PREV --no-verify
 B=recovery/animation-mvp3-${CAND:0:8}
 [ $RC -eq 0 ] && has "RECOVERY READY (mvp3)" && ok "mvp3 cut" || { bad "mvp3 cut (rc=$RC)"; echo "$OUT" | tail -5; }
-[ "$(files $B)" = "$(printf '%s\n' $BR $CF | sort | tr '\n' ' ')" ] && ok "mvp3 diff is exactly animation-brief.js and the test file the candidate added for the five" || bad "mvp3 diff: $(files $B)"
+[ "$(files $B)" = "$(printf '%s\n' $BR $CF $OC | sort | tr '\n' ' ')" ] && ok "mvp3 diff is exactly animation-brief.js, the test file the candidate added for the five and the one assertion line that pins them" || bad "mvp3 diff: $(files $B)"
 git show $B:$BR | grep -q "value.includes(f) && !\['surface_grid', 'trail_points', 'text_readout', 'arrow_anchor', 'clamp'\].includes(f)" && ok "mvp3: the server filters the five out of any declared list" || bad "mvp3 filter"
 [ "$(git show $B:$F)" = "$(git show $CAND:$F)" ] && git show $B:$F | grep -q surface_grid && ok "mvp3: capabilities.js is untouched, the browser still declares all seven (checkCandidate keeps passing)" || bad "mvp3 registry touched"
-git cat-file -e $B:$OC 2>/dev/null && [ "$(git show $B:$OC)" = "$(git show $CAND:$OC)" ] && ok "mvp3: a test the candidate only modified keeps the candidate's text" || bad "modified test touched"
+git show $B:$OC | grep -q "length, 7" && ! git show $B:$OC | grep -q "AN-20" && ok "mvp3: a test the candidate only modified keeps its text except the one assertion that pins the five (the optional replace step)" || bad "modified test"
 has "checkCandidate accepts" && ok "mvp3: the real checkCandidate accepts the recovery tip over the served candidate" || bad "release check line"
 git merge-base --is-ancestor $CAND $B && [ "$(tip $B)" != "$CAND" ] && ok "mvp3: strict descendant of the candidate" || bad "mvp3 ancestry"
 [ "$(git show $B:$UN)" = "$(git show $CAND:$UN)" ] && ok "mvp3: the unrelated change in the candidate is untouched" || bad "unrelated"
@@ -127,7 +129,7 @@ back && ok "still back on the starting branch" || bad "not back after refusals"
 echo "== combined (one release carries all four slices)"
 git branch -q -D recovery/animation-combined-${CAND:0:8} 2>/dev/null
 CUT combined $CAND --prev $PREV --prompts-from $MID --no-verify; BC=recovery/animation-combined-${CAND:0:8}
-[ $RC -eq 0 ] && [ "$(files $BC)" = "$(printf '%s\n' $BR $CF $FIT $PA $PB $PC $UI $WR $E2E | sort | tr '\n' ' ')" ] && ok "combined: one branch, exactly the union of the four slices' files" || { bad "combined ($RC) $(files $BC)"; echo "$OUT" | tail -3; }
+[ $RC -eq 0 ] && [ "$(files $BC)" = "$(printf '%s\n' $BR $CF $OC $FIT $PA $PB $PC $UI $WR $E2E | sort | tr '\n' ' ')" ] && ok "combined: one branch, exactly the union of the four slices' files" || { bad "combined ($RC) $(files $BC)"; echo "$OUT" | tail -3; }
 git show $BC:$PA | grep -q "prompt v1.5" && ! git show $BC:$PA | grep -q "ARCHETYPES" && ok "combined: the prompts come back from --prompts-from (the tested C3), not from the previous release" || bad "combined prompts"
 git show $BC:$WR | grep -q '"ANIMATION_STREAMING": "false"' && git show $BC:$BR | grep -q "arrow_anchor" && git show $BC:$UI | grep -q "not supported yet" && ok "combined: streaming flag, five-feature filter and copy line are all in" || bad "combined switches"
 [ "$(git show $BC:$F)" = "$(git show $CAND:$F)" ] && has "checkCandidate accepts" && ok "combined: capabilities.js untouched and the real checkCandidate accepts the tip" || bad "combined release check"
