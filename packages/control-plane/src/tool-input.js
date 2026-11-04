@@ -34,7 +34,9 @@ function lenientParse(text) {
   }
 }
 const allowsNull = type => type === 'null' || (Array.isArray(type) && type.includes('null'));
-export function normalizeToolInput(schema, value, options = {}) {
+// options.strip (off by default; /animation author and repair, FX-AN-110): strip(path, key, value) is asked about a key the schema does NOT define on a known object and returns a reason
+// to drop it, or nothing. The key is deleted and { path, key, why } pushed to options.stripped, so nothing is dropped silently. A key the schema defines is never offered.
+export function normalizeToolInput(schema, value, options = {}, path = []) {
   const type = schema?.type;
   if (type !== 'array' && type !== 'object') return value;
   if (typeof value === 'string') {
@@ -46,15 +48,19 @@ export function normalizeToolInput(schema, value, options = {}) {
   }
   if (type === 'array') {
     if (!Array.isArray(value) || !schema.items) return value;
-    const items = value.map(item => normalizeToolInput(schema.items, item, options));
+    const items = value.map((item, i) => normalizeToolInput(schema.items, item, options, [...path, i]));
     return items.some((item, i) => item !== value[i]) ? items : value;
   }
   if (!isPlain(value)) return value;
   let out = value;
   for (const key of Object.keys(value)) {
     const child = schema.properties && Object.hasOwn(schema.properties, key) ? schema.properties[key] : isPlain(schema.additionalProperties) ? schema.additionalProperties : null;
+    if (!child && options.strip) {
+      const why = options.strip(path, key, value[key]);
+      if (why) { if (out === value) out = { ...value }; delete out[key]; options.stripped?.push({ path: path.join('.'), key, why }); continue; }
+    }
     if (options.dropNull && value[key] === null && child && !allowsNull(child.type) && !(schema.required || []).includes(key)) { if (out === value) out = { ...value }; delete out[key]; continue; }
-    const next = normalizeToolInput(child, value[key], options);
+    const next = normalizeToolInput(child, value[key], options, [...path, key]);
     if (next !== value[key]) { if (out === value) out = { ...value }; out[key] = next; }
   }
   return out;
