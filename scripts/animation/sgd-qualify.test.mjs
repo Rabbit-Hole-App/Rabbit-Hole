@@ -405,7 +405,7 @@ test('main refuses before any spend: a Gate 1 mismatch prints GATE 1 MUST RERUN 
 test('--check validates the identity and the configuration and creates no job; the stop file and Ctrl+C cancel through main', async () => {
   const w = world();
   assert.equal(await noNetwork(() => w.run([...w.argv, '--check'])), 0);
-  assert.match(w.lines.join('\n'), /CHECK OK: configuration and candidate identity are valid; no job was created/);
+  assert.match(w.lines.join('\n'), /CHECK OK: configuration and candidate identity are valid; the credentials key for the controls is present \(name only\); no job was created/);
   assert.equal(w.seen.length, 0);
   assert.equal(w.fake.jobs.size, 0);
   assert.equal(existsSync(join(w.dir, 'out')), false, 'check writes nothing');
@@ -550,6 +550,7 @@ test('controls errors are not passes: a preview without diagnostics, a failed re
   writeFileSync(join(nokey.dir, 'creds.env'), 'OTHER=1\n');
   assert.equal(await noNetwork(() => nokey.run()), 2);
   assert.match(nokey.lines.join('\n'), /USAGE: ANTHROPIC_API_KEY is missing from .*creds\.env \(key name only\)/);
+  assert.equal(await noNetwork(() => nokey.run([...nokey.argv, '--check'])), 2, 'a check says so too');
   const nogolden = world({ extraFlags: ['--golden', join(tmp(), 'missing.json')] });
   assert.equal(await noNetwork(() => nogolden.run()), 2);
   assert.match(nogolden.lines.join('\n'), /USAGE: controls: /);

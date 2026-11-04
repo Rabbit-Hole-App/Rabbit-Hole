@@ -397,7 +397,10 @@ export async function main(argv, { env = process.env, out = console.log, deps: i
   const manifest = o.calibrate ? manifestInfo(o.calibrate) : null, controlsCredits = (1 + calibration.length) * REVIEW_CREDITS_EXPECTED;
   out(`controls: job 0 is the golden SGD artifact${calibration.length ? `, with ${calibration.length} calibration draft(s) from ${manifest.path}` : ''}; about ${controlsCredits} credits as direct review calls outside the ledger`);
   if (!dry && o.cap - o.prior < controlsCredits) { out(`USAGE: --cap ${o.cap} minus --prior ${o.prior} leaves no room for the controls (about ${controlsCredits} credits)`); return 2; }
-  if (o.check) { out('CHECK OK: configuration and candidate identity are valid; no job was created'); return 0; }
+  if (o.check) {
+    if (!dry && !readKey(o.credentials, 'ANTHROPIC_API_KEY')) { out(`USAGE: ANTHROPIC_API_KEY is missing from ${o.credentials} (key name only); the controls call the reviewer`); return 2; }
+    out('CHECK OK: configuration and candidate identity are valid; the credentials key for the controls is present (name only); no job was created'); return 0;
+  }
 
   // 3. controls, then the run. A rejected golden is a harness bug: nothing paid is started (exit 5).
   const before = passedBefore(outDir, pin.PREVIEW_SHA, pin.PREVIEW_VERSION, manifest?.hash);
