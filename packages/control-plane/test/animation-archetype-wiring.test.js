@@ -42,6 +42,11 @@ test('the planner: a reply naming an archetype and assertions becomes a checked 
   const withBoth = await prepareStage(job, reply({ archetype: 'loss_surface', assertions: named.assertions }));
   assert.deepEqual([withBoth.plan.archetype, withBoth.plan.assertions], ['loss_surface', named.assertions]);
   assert.equal(validateAnimationPlan(withBoth.plan).ok, true);
+  // A clamp assertion may name no node (any sphere with clampTo): it is copied intact, with no node key added.
+  const clampOnly = await prepareStage(job, reply({ archetype: 'loss_surface', assertions: [{ kind: 'clamp' }, ...named.assertions] }));
+  assert.deepEqual(clampOnly.plan.assertions[0], { kind: 'clamp' });
+  assert.equal('node' in clampOnly.plan.assertions[0], false);
+  assert.equal(validateAnimationPlan(clampOnly.plan).ok, true);
   const plain = await prepareStage(job, reply({}));
   assert.equal('archetype' in plain.plan || 'assertions' in plain.plan, false, 'a plan that names none carries none');
   await assert.rejects(prepareStage(job, reply({ archetype: 'not_one' })), /not buildable after one correction: archetype/, 'an unknown archetype is refused by the contract, never passed on');

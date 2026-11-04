@@ -69,6 +69,9 @@
   "archetype": "loss_surface",
   "assertions": [
     {
+      "kind": "clamp"
+    },
+    {
       "kind": "compare",
       "parameter": "learningRate",
       "values": [
