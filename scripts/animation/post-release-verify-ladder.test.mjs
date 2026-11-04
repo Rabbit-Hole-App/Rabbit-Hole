@@ -108,3 +108,29 @@ test('arguments: a slice and a full sha are required; defaults point at producti
   const o = parseArgs(['--slice', 'mvp5', '--sha', SHA, '--recovered', '--no-base', '--canary-file', 'c.txt']);
   assert.deepEqual([o.origin, o.baseDir, o.recovered, o.noBase, o.canaryFile], ['https://digrabbithole.com', 'C:/s/spec/animation/release', true, true, 'c.txt']);
 });
+
+test('combined (one release carries all four): streaming, the five features, the request-box copy and the canary are all judged; a healthy production passes', async () => {
+  const canary = 'Weekly canary: one full SGD job; two failures in a row reopen the ladder.';
+  const r = await run('combined', site(), { cf: cfWith([]), canaryText: canary });
+  assert.equal(exitCode(r), 0, summary(r));
+  for (const item of ['mvp2b streaming flag', 'five client features declared', 'request-box copy', 'canary description', 'served commit', 'signed-out jobs route', 'diagnostics closed']) assert.equal(find(r, item)?.status, 'PASS', item);
+});
+
+test('combined: a missing part fails the whole run (streaming off by mistake, the five undeclared, the old copy still served, no credentials for the flag)', async () => {
+  const flag = text => [{ name: 'ANIMATION_STREAMING', type: 'plain_text', text }];
+  const canary = 'Weekly canary: one full SGD job; two failures in a row reopen the ladder.';
+  assert.equal(find(await run('combined', site(), { cf: cfWith(flag('false')), canaryText: canary }), 'mvp2b streaming flag').status, 'FAIL');
+  assert.equal(find(await run('combined', site({ features: TWO }), { cf: cfWith([]), canaryText: canary }), 'five client features declared').status, 'FAIL');
+  assert.equal(find(await run('combined', site({ copy: 'Loss surfaces and optimizers are not supported yet.' }), { cf: cfWith([]), canaryText: canary }), 'request-box copy').status, 'FAIL');
+  const noCreds = await run('combined', site(), { cf: null, canaryText: canary });
+  assert.equal(find(noCreds, 'mvp2b streaming flag').status, 'UNKNOWN'); assert.equal(exitCode(noCreds), 1);
+});
+
+test('combined --recovered: streaming false, the five still declared (the filter is server side), the not-supported line back', async () => {
+  const flag = text => [{ name: 'ANIMATION_STREAMING', type: 'plain_text', text }];
+  const stale = 'Works best for mechanisms; loss surfaces and optimizers are not supported yet.';
+  const r = await run('combined', site({ copy: stale }), { cf: cfWith(flag('false')), recovered: true });
+  assert.equal(exitCode(r), 0, summary(r));
+  assert.match(find(r, 'five client features declared').detail, /leaves the browser declaring them|declared in/);
+  assert.equal((await run('combined', site(), { cf: cfWith(flag('false')), recovered: true })).find(x => x.item === 'request-box copy').status, 'FAIL', 'a recovery that left the claim in is not recovered');
+});

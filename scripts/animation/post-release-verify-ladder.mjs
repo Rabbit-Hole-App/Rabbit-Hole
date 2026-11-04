@@ -10,6 +10,7 @@
 // Items (one PASS / FAIL / UNKNOWN line each; exit 0 only when none is FAIL or UNKNOWN):
 //   all       served commit (from the base item 1); signed-out jobs route 401, results route 401 (404 when --state off), the five diagnostics paths 404
 //   mvp2b     ANIMATION_STREAMING on the app Worker: unset or "true" (the default, streaming on); "false" when --recovered
+//   combined  (owner decision 23: ONE release carries mvp2b + mvp3 + mvp4 + mvp5) all of the items of mvp2b, mvp3 and mvp5. The prompts are server code: they are verified by the served commit, not by a GET
 //   mvp3+     the served bundle declares the five client features (surface_grid trail_points text_readout arrow_anchor clamp). Also after a mvp3 recovery:
 //             the recovery filters the five in the SERVER (animation-brief.js clientFeatures), so the browser still declares them
 //   mvp5      the request-box copy no longer says loss surfaces are not supported yet and the bundle names loss surfaces as supported; the canary description
@@ -26,7 +27,7 @@ export const JOBS = '/api/learn/animation/jobs?board=x';
 export const RESULTS = '/api/learn/animation/jobs/results/ar_post_release_probe?board=x&features=';
 export const STALE_COPY = ['loss surfaces?[^"\'`]{0,120}not (yet )?supported', 'not (yet )?supported[^"\'`]{0,120}loss surfaces?', 'optimizers are not supported yet'];
 export const CLAIM = 'loss[ -]surfaces?';
-export const SLICES = ['mvp2b', 'mvp3', 'mvp4', 'mvp5'];
+export const SLICES = ['mvp2b', 'mvp3', 'mvp4', 'mvp5', 'combined'];
 
 // The base item 2 knows ANIMATION_ENABLED / ANIMATION_EXECUTION_KILL only and calls any other ANIMATION_* name a failure. ANIMATION_STREAMING is a
 // legitimate recovery var of MVP2b, judged by this file's own mvp2b item, so a base item 2 whose ONLY complaint is that name is let through.
@@ -58,7 +59,7 @@ export async function verifyLadder(deps) {
   for (const path of DIAGNOSTIC_PATHS) { const s = await status(path); if (s !== 404) open.push(`${path.split('/').pop()} -> ${s}`); }
   add('diagnostics closed', open.length ? 'FAIL' : 'PASS', open.length ? open.join('; ') : 'render-fixture, render-result, render-candidate, seed-outcomes, seed-fixture all 404');
 
-  if (slice === 'mvp2b') {
+  if (slice === 'mvp2b' || slice === 'combined') {
     if (!cf) add('mvp2b streaming flag', 'UNKNOWN', 'ANIMATION_STREAMING is a Worker var: no Cloudflare credentials, so it was not read');
     else {
       let found;
@@ -69,13 +70,13 @@ export async function verifyLadder(deps) {
     }
   }
 
-  if (slice !== 'mvp2b') {
+  if (slice !== 'mvp2b') { // mvp3, mvp4, mvp5 and combined
     const p = await probeBundle({ read, entry: '/explore', features: LADDER_FEATURES });
     const ok = p.chunks > 0 && p.card.length > 0 && p.declaredIn.length > 0;
     add('five client features declared', ok ? 'PASS' : 'FAIL', `${p.chunks} chunks; Animation3DCard ${p.card.length ? 'reached' : 'NOT reached'}; ${LADDER_FEATURES.join(',')} ${p.declaredIn.length ? `declared in ${p.declaredIn[0]}` : 'declared nowhere'}${recovered && slice === 'mvp3' ? ' (a mvp3 recovery leaves the browser declaring them; the server refuses them)' : ''}`);
   }
 
-  if (slice === 'mvp5') {
+  if (slice === 'mvp5' || slice === 'combined') {
     const s = await scanBundle({ read, entry: '/explore', patterns: [...STALE_COPY, CLAIM] });
     const stale = STALE_COPY.filter(p => s.hits[p].length), claim = s.hits[CLAIM].length > 0;
     if (!(s.chunks > 0 && s.card.length > 0)) add('request-box copy', 'FAIL', 'the walk did not reach an Animation3DCard chunk (blind)');

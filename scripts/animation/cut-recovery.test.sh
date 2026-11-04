@@ -43,6 +43,10 @@ w $UN "export const a = 1;"
 w packages/web/src/same.js "export const s = 1;"
 git add -A && git commit -q -m prev && PREV=$(git rev-parse HEAD)
 git push -q rabbit-hole main
+# ---- MID: the Gate 1 tested C3 (MVP2b + MVP3 content), whose prompts the combined recovery wants back ----
+w $PA "export const ANIMATION_AUTHOR_SYSTEM = 'prompt v1.5';"
+w $FIT "// pins prompt v1.5"
+git add -A && git commit -q -m mid && MID=$(git rev-parse HEAD)
 # ---- the candidate (CAND): every slice's change, plus an unrelated one ----
 w $F "export const ANIMATION_CLIENT_FEATURES = Object.freeze(['curve_radius', 'action_motion', 'surface_grid', 'trail_points', 'text_readout', 'arrow_anchor', 'clamp']);"
 w $CT "assert.deepEqual(ANIMATION_CLIENT_FEATURES, ['curve_radius', 'action_motion', 'surface_grid']);"
@@ -119,6 +123,21 @@ SIDE=$(git commit-tree "$CAND^{tree}" -p "$PREV" -m side); git push -q rabbit-ho
 refuse "a diverged remote branch is refused, not overwritten" "not an ancestor of the local branch" mvp3 $CAND --prev $PREV --no-verify --push --branch recovery/animation-mvp3-other
 back && ok "still back on the starting branch" || bad "not back after refusals"
 
+
+echo "== combined (one release carries all four slices)"
+git branch -q -D recovery/animation-combined-${CAND:0:8} 2>/dev/null
+CUT combined $CAND --prev $PREV --prompts-from $MID --no-verify; BC=recovery/animation-combined-${CAND:0:8}
+[ $RC -eq 0 ] && [ "$(files $BC)" = "$(printf '%s\n' $BR $CF $FIT $PA $PB $PC $UI $WR $E2E | sort | tr '\n' ' ')" ] && ok "combined: one branch, exactly the union of the four slices' files" || { bad "combined ($RC) $(files $BC)"; echo "$OUT" | tail -3; }
+git show $BC:$PA | grep -q "prompt v1.5" && ! git show $BC:$PA | grep -q "ARCHETYPES" && ok "combined: the prompts come back from --prompts-from (the tested C3), not from the previous release" || bad "combined prompts"
+git show $BC:$WR | grep -q '"ANIMATION_STREAMING": "false"' && git show $BC:$BR | grep -q "arrow_anchor" && git show $BC:$UI | grep -q "not supported yet" && ok "combined: streaming flag, five-feature filter and copy line are all in" || bad "combined switches"
+[ "$(git show $BC:$F)" = "$(git show $CAND:$F)" ] && has "checkCandidate accepts" && ok "combined: capabilities.js untouched and the real checkCandidate accepts the tip" || bad "combined release check"
+git merge-base --is-ancestor $CAND $BC && [ "$(tip $BC)" != "$CAND" ] && back && ok "combined: strict descendant, checkout restored" || bad "combined ancestry"
+git branch -q -D $BC
+refuse "--prompts-from the candidate itself" "must be an earlier commit of the candidate" combined $CAND --prev $PREV --prompts-from $CAND --no-verify
+refuse "--prompts-from something that is not a commit" "is not a commit" combined $CAND --prev $PREV --prompts-from 0000000000000000000000000000000000000002 --no-verify
+CUT combined $CAND --prev $PREV --no-verify
+[ $RC -eq 0 ] && git show recovery/animation-combined-${CAND:0:8}:$PA | grep -q "prompt v1'" && ok "combined without --prompts-from restores the prompts from the previous release" || { bad "combined default prompts ($RC)"; echo "$OUT" | tail -3; }
+git branch -q -D recovery/animation-combined-${CAND:0:8}
 echo "== recipe faults and the verify step"
 cp "$HERE/recovery-recipes.json" "$T/r.json"
 node -e '

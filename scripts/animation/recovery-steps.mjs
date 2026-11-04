@@ -20,19 +20,30 @@ import { pathToFileURL } from 'node:url';
 const git = (...a) => execFileSync('git', a, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
 const show = (rev, path) => { try { return execFileSync('git', ['show', `${rev}:${path}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024 }); } catch { return null; } };
 
-export const globRe = g => new RegExp(`^${g.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*\*/g, '\u0000').replace(/\*/g, '[^/]*').replace(/\u0000/g, '.*')}$`);
+// A recipe with compose[] is those slice recipes in one: steps in order, allow lists joined, verify sets joined with each test file run once.
+export function resolveRecipe(recipes, slice) {
+  const r = recipes[slice];
+  if (!r?.compose) return r;
+  const parts = r.compose.map(n => { if (!recipes[n]?.steps) throw new Error(`compose names ${n}, which has no recipe`); return recipes[n]; });
+  const seen = new Set(), verify = [];
+  for (const v of parts.flatMap(p => p.verify ?? [])) { const files = v.files.filter(f => { const k = `${v.cwd ?? '.'}/${f}`; if (seen.has(k)) return false; seen.add(k); return true; }); if (files.length) verify.push({ ...v, files }); }
+  return { ...r, steps: parts.flatMap(p => p.steps), allow: [...new Set(parts.flatMap(p => p.allow))], verify };
+}
+
+export const globRe =g => new RegExp(`^${g.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*\*/g, '\u0000').replace(/\*/g, '[^/]*').replace(/\u0000/g, '.*')}$`);
 export const allowed = (path, globs) => globs.some(g => globRe(g).test(path));
 
 // -> sorted list of touched paths (relative, forward slashes). `cwd` is the working tree; throws with a one-line fix on any miss.
-export function applyRecipe(recipe, { cand, prev, cwd = process.cwd() }) {
+export function applyRecipe(recipe, { cand, prev, promptsFrom, cwd = process.cwd() }) {
   const touched = new Set(), abs = p => resolve(cwd, p);
   const put = (path, text) => { mkdirSync(dirname(abs(path)), { recursive: true }); writeFileSync(abs(path), text); touched.add(path); };
   const drop = path => { if (existsSync(abs(path))) { rmSync(abs(path)); touched.add(path); } };
-  const restoreOne = path => { const old = show(prev, path); if (old === null) drop(path); else if (!existsSync(abs(path)) || readFileSync(abs(path), 'utf8') !== old) put(path, old); };
-  let changed = null; // PREV..CAND name-status, read once and only when a step needs it
-  const diff = () => changed ??= git('diff', '--name-status', '--no-renames', prev, cand).split('\n').filter(Boolean).map(l => { const [s, ...p] = l.split('\t'); return { status: s, path: p.join('\t') }; });
+  const restoreOne = (path, ref) => { const old = show(ref, path); if (old === null) drop(path); else if (!existsSync(abs(path)) || readFileSync(abs(path), 'utf8') !== old) put(path, old); };
+  const changed = new Map(); // REF..CAND name-status per ref, read once and only when a step needs it
+  const diff = ref => { if (!changed.has(ref)) changed.set(ref, git('diff', '--name-status', '--no-renames', ref, cand).split('\n').filter(Boolean).map(l => { const [s, ...p] = l.split('\t'); return { status: s, path: p.join('\t') }; })); return changed.get(ref); };
   for (const [i, step] of recipe.steps.entries()) {
     const where = `step ${i + 1} (${step.op})`;
+    const ref = step.from === 'prompts' ? (promptsFrom || prev) : prev; // from: prompts restores from --prompts-from, else from the previous release
     if (step.op === 'replace') {
       if (!existsSync(abs(step.file))) throw new Error(`${where}: ${step.file} does not exist in the candidate; the switch moved, update the recipe`);
       const text = readFileSync(abs(step.file), 'utf8'), re = new RegExp(step.pattern, 'g'), n = [...text.matchAll(re)].length;
@@ -42,16 +53,16 @@ export function applyRecipe(recipe, { cand, prev, cwd = process.cwd() }) {
       put(step.file, next);
     } else if (step.op === 'restore') {
       for (const p of step.paths) {
-        if (show(prev, p) === null && !existsSync(abs(p))) throw new Error(`${where}: ${p} is in neither the previous release nor the candidate; fix the recipe path`);
-        restoreOne(p);
+        if (show(ref, p) === null && !existsSync(abs(p))) throw new Error(`${where}: ${p} is in neither the previous release nor the candidate; fix the recipe path`);
+        restoreOne(p, ref);
       }
     } else if (step.op === 'restoreMatching') {
       const cm = step.candMatches && new RegExp(step.candMatches, 'i'), pm = step.prevMatches && new RegExp(step.prevMatches, 'i');
-      const hits = diff().filter(({ status }) => !step.added || status === 'A') // added: only files the candidate ADDED (they are removed)
+      const hits = diff(ref).filter(({ status }) => !step.added || status === 'A') // added: only files the candidate ADDED (they are removed)
         .filter(({ path }) => step.under.some(u => path === u || path.startsWith(u.endsWith('/') ? u : `${u}/`)) && (!step.suffix || step.suffix.some(s => path.endsWith(s))))
-        .filter(({ status, path }) => !cm && !pm || (cm && status !== 'D' && cm.test(show(cand, path) ?? '')) || (pm && status !== 'A' && pm.test(show(prev, path) ?? '')));
+        .filter(({ status, path }) => !cm && !pm || (cm && status !== 'D' && cm.test(show(cand, path) ?? '')) || (pm && status !== 'A' && pm.test(show(ref, path) ?? '')));
       if (step.required && !hits.length) throw new Error(`${where}: no changed file under ${step.under.join(', ')} matches ${step.candMatches ?? step.prevMatches}; the candidate does not contain what this recovery undoes (wrong --prev, or the recipe is stale)`);
-      hits.forEach(h => restoreOne(h.path));
+      hits.forEach(h => restoreOne(h.path, ref));
     } else throw new Error(`${where}: unknown op ${step.op}`);
   }
   // what git says changed, not what the steps wrote: a file rewritten with identical text (line endings) is not a change
@@ -88,11 +99,11 @@ const isMain = process.argv[1] && pathToFileURL(resolve(process.argv[1])).href =
 if (isMain) {
   const arg = n => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : undefined; };
   try {
-    const cmd = process.argv[2], slice = arg('--slice'), recipes = JSON.parse(readFileSync(arg('--recipes'), 'utf8')), recipe = recipes[slice];
+    const cmd = process.argv[2], slice = arg('--slice'), recipes = JSON.parse(readFileSync(arg('--recipes'), 'utf8')), recipe = resolveRecipe(recipes, slice);
     if (!recipe || !Array.isArray(recipe.steps)) throw new Error(`no recipe for ${slice}`);
     if (cmd === 'allow') console.log(recipe.allow.join('\n'));
     else if (cmd === 'message') console.log(recipe.message);
-    else if (cmd === 'apply') console.log(applyRecipe(recipe, { cand: arg('--cand'), prev: arg('--prev') }).map(p => `TOUCHED ${p}`).join('\n'));
+    else if (cmd === 'apply') console.log(applyRecipe(recipe, { cand: arg('--cand'), prev: arg('--prev'), promptsFrom: arg('--prompts-from') }).map(p => `TOUCHED ${p}`).join('\n'));
     else if (cmd === 'check') {
       const bad = readFileSync(0, 'utf8').split('\n').filter(Boolean).filter(p => !allowed(p, recipe.allow));
       if (bad.length) { console.log(bad.join('\n')); process.exit(1); }

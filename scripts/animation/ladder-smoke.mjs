@@ -6,7 +6,7 @@
 // afterwards:  node scripts/animation/ladder-smoke.mjs mvp3 --live-only --origin https://rabbit-hole-web-dev-<worktree>.tryrabbithole.workers.dev
 //
 //   node scripts/animation/ladder-smoke.mjs <mvp2b|mvp3|mvp4|mvp5> [--sha <40hex>] [--origin <url>] [--cookie-file <file>] [--stack <persist dir>]
-//        [--browser] [--strict] [--require-live] [--require-browser] [--live-only] [--config <json>] [--gate2-args "<flags of sgd-qualify --check>"]
+//        [--gate2-result <Gate 2 result json or folder>] [--browser] [--strict] [--require-live] [--require-browser] [--live-only] [--config <json>] [--gate2-args "<flags of sgd-qualify --check>"]
 // SKIP is never a PASS. Reasons: missing (an optional file or test that is not in this candidate; --strict fails it), live (no --origin;
 // --require-live fails it), browser (the browser check was not run; --require-browser fails it). No model call, no write, no deploy.
 import { spawnSync } from 'node:child_process';
@@ -14,10 +14,11 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, basename, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirReader, originReader, probeBundle, scanBundle } from './bundle-probe.mjs';
+import { allowed } from './recovery-steps.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const ROOT = resolve(HERE, '../..');
-export const SLICES = ['mvp2b', 'mvp3', 'mvp4', 'mvp5'];
+export const SLICES = ['mvp2b', 'mvp3', 'mvp4', 'mvp5', 'combined'];
 const strip = s => s.replace(/\x1b\[[0-9;]*m/g, '');
 
 // ${flags}, ${golden}, ${stack}, ${origin}, ${sha}: a value that is an array is joined with commas inside a string.
@@ -68,6 +69,41 @@ const handlers = {
   exists: (item, ctx) => {
     const gone = item.paths.filter(p => !ctx.io.exists(join(ctx.io.root, p)));
     return gone.length ? { status: 'FAIL', detail: `missing from this checkout: ${gone.join(', ')}` } : { status: 'PASS', detail: item.paths.join(', ') };
+  },
+
+  // The recorded Gate 2 table of the frozen candidate (sgd-qualify.mjs writes result-<sha7>-<stamp>.json): read only, never a job. PASS when the table says PASS
+  // AND recounts to 8 of the first 9 accepted with a control that did not become SGD, AND the tested commit is this checkout or an ancestor of it with no change since
+  // to a frozen file (the release candidate is the tested one plus only the copy and claim commit, scripts and docs).
+  gate2: (item, ctx) => {
+    const target = ctx.opts.gate2Result;
+    if (!target) return { status: 'SKIP', skip: 'missing', detail: 'no --gate2-result <result-*.json or its folder>: the recorded Gate 2 table of the frozen candidate is the MVP5 smoke input' };
+    let file = target;
+    if (!/\.json$/.test(target)) {
+      const names = ctx.io.list(target).filter(n => /^result-.*\.json$/.test(n)).sort();
+      if (!names.length) return { status: 'FAIL', detail: `no result-*.json in ${target}` };
+      file = join(target, names.at(-1));
+    }
+    let rec;
+    try { rec = JSON.parse(ctx.io.readText(file)); } catch (e) { return { status: 'FAIL', detail: `${file} is not readable JSON: ${e.message}` }; }
+    const rows = rec.rows ?? [], first = rows.filter(r => r.n <= 9), accepted = first.filter(r => r.outcome === 'accepted').length, control = rows.find(r => r.n === 10);
+    const bad = [];
+    if (rec.verdict !== 'PASS') bad.push(`the recorded verdict is ${rec.verdict}`);
+    if (first.length < 9 || accepted < 8) bad.push(`${accepted} of the first ${first.length} accepted, 8 of 9 needed`);
+    if (!control || control.silentSgd !== false) bad.push('the control (job 10) has no result or silently became SGD');
+    const tested = rec.sha, head = ctx.io.head();
+    if (!/^[0-9a-f]{40}$/.test(tested ?? '')) bad.push('the table names no full candidate sha');
+    let since = [];
+    if (!bad.length && tested !== head) {
+      const git = args => ctx.io.run('git', args, { cwd: ctx.io.root });
+      if (git(['merge-base', '--is-ancestor', tested, 'HEAD']).code !== 0) bad.push(`the tested candidate ${tested.slice(0, 12)} is not an ancestor of this checkout ${head?.slice(0, 12)}`);
+      else {
+        since = git(['diff', '--name-only', tested, 'HEAD']).out.split('\n').filter(Boolean);
+        const frozen = since.filter(p => allowed(p, item.frozen));
+        if (frozen.length) bad.push(`changed since the tested candidate, in files Gate 2 measured: ${frozen.join(', ')}`);
+      }
+    }
+    if (bad.length) return { status: 'FAIL', detail: `${file}: ${bad.join('; ')}` };
+    return { status: 'PASS', detail: `Gate 2 PASS recorded for ${tested.slice(0, 12)} (preview version ${rec.version}): ${accepted} of the first 9 accepted, control did not become SGD; this checkout ${tested === head ? 'is the tested candidate' : `adds ${since.length} file(s) and none Gate 2 measured: ${since.slice(0, 12).join(', ')}${since.length > 12 ? ', ...' : ''}`}` };
   },
 
   tests: (item, ctx) => {
@@ -138,6 +174,24 @@ const handlers = {
   },
 };
 
+// A slice that `includes` others (combined, owner decision 23) is the union of their items in order, ids prefixed with their slice, then its own items. A tests item
+// drops the files an earlier included item already runs (the same file is not run twice), and disappears when nothing is left.
+export function itemsFor(config, slice) {
+  const entry = config[slice];
+  if (!entry.includes) return entry.items;
+  const seen = new Set(), out = [];
+  for (const inc of entry.includes) for (const raw of config[inc].items) {
+    let item = { ...raw, id: `${inc}:${raw.id}` };
+    if (item.kind === 'tests') {
+      const files = item.files.filter(f => { const k = `${item.cwd}/${typeof f === 'string' ? f : f.file}`; if (seen.has(k)) return false; seen.add(k); return true; });
+      if (!files.length && item.files.length) continue;
+      item = { ...item, files };
+    }
+    out.push(item);
+  }
+  return [...out, ...entry.items];
+}
+
 // -> { lines: [string], counts, code }
 export async function runSmoke(slice, opts = {}, io = realIo) {
   const config = opts.config ?? JSON.parse(readFileSync(opts.configPath ?? join(HERE, 'ladder-smoke.json'), 'utf8'));
@@ -149,7 +203,7 @@ export async function runSmoke(slice, opts = {}, io = realIo) {
   const head = io.head();
   lines.push(`ladder smoke ${slice}: ${config[slice].title}; checkout ${head ? head.slice(0, 12) : 'unknown'}`);
   if (opts.sha && head !== opts.sha) { say('FAIL', 'identity', `this checkout is at ${head ?? 'no commit'}, not the pinned ${opts.sha}`); counts.FAIL++; } else if (opts.sha) { say('PASS', 'identity', `checkout is the pinned ${opts.sha.slice(0, 12)}`); counts.PASS++; }
-  for (const raw of config[slice].items) {
+  for (const raw of itemsFor(config, slice)) {
     const item = fill(raw, ctx.vars);
     if (opts.liveOnly && !(item.origin || item.kind === 'route')) continue; // after the preview deploy: only the items that read the served clone
     let r;
@@ -167,7 +221,7 @@ export async function runSmoke(slice, opts = {}, io = realIo) {
 
 export function parseArgs(argv) {
   const [slice, ...rest] = argv, o = { slice };
-  const value = new Set(['--sha', '--origin', '--cookie-file', '--stack', '--config', '--gate2-args']);
+  const value = new Set(['--sha', '--origin', '--cookie-file', '--stack', '--config', '--gate2-args', '--gate2-result']);
   const flag = { '--browser': 'browser', '--strict': 'strict', '--require-live': 'requireLive', '--require-browser': 'requireBrowser', '--live-only': 'liveOnly' };
   for (let i = 0; i < rest.length; i++) {
     if (value.has(rest[i])) { const v = rest[++i]; if (v === undefined) throw new Error(`${rest[i - 1]} needs a value`); o[rest[i - 1].slice(2).replace(/-(\w)/g, (_, c) => c.toUpperCase())] = v; } else if (flag[rest[i]]) o[flag[rest[i]]] = true; else throw new Error(`unknown argument ${rest[i]}`);

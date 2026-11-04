@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SLICES, parseArgs, runSmoke } from './ladder-smoke.mjs';
+import { SLICES, itemsFor, parseArgs, runSmoke } from './ladder-smoke.mjs';
 import { LADDER_FEATURES, declares, dirReader, probeBundle, scanBundle } from './bundle-probe.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)), ROOT = join(HERE, '../..');
@@ -149,7 +149,7 @@ test('arguments: production, the shared worker and a bad sha are refused; a clon
 test('the shipped ladder-smoke.json: four slices, unique ids, known kinds, and every REQUIRED test file exists in this checkout', () => {
   const config = JSON.parse(readFileSync(join(HERE, 'ladder-smoke.json'), 'utf8'));
   assert.deepEqual(config.flags, LADDER_FEATURES);
-  const kinds = new Set(['note', 'exists', 'tests', 'script', 'bundle', 'copy', 'route', 'browser']);
+  const kinds = new Set(['note', 'exists', 'tests', 'script', 'bundle', 'copy', 'route', 'browser', 'gate2']);
   const lands = Object.values(config.landsWith).flat(); // required files that arrive with a lane that is not on main yet
   for (const p of lands) assert.equal(existsSync(join(ROOT, p)), false, `${p} is in main now: remove it from landsWith`);
   for (const slice of SLICES) {
@@ -199,4 +199,62 @@ test('script items: ${gate2args} expands to separate arguments, and the item is 
   r = await run(items, {}, fakeIo({ files: ['/r/q.mjs'] }));
   assert.match(line(r, 'g[live]'), /^SKIP.*needs \$\{gate2args\}/);
   assert.equal(parseArgs(['mvp5', '--gate2-args', '--base x']).gate2Args, '--base x');
+});
+
+// ---- Gate 2 result as the MVP5 smoke input, and the combined slice (owner decision 23) ----
+const X = 'd'.repeat(40), HEAD2 = 'e'.repeat(40);
+const rowsOf = (accepted = 9, control = { outcome: 'gap', silentSgd: false }) => [...Array.from({ length: 9 }, (_, i) => ({ n: i + 1, outcome: i < accepted ? 'accepted' : 'rejected' })), { n: 10, ...control }];
+const result = (over = {}) => JSON.stringify({ sha: X, version: 'v-preview', verdict: 'PASS', rows: rowsOf(), ...over });
+const FROZEN = ['packages/web/src/animation3d/scene.js', 'packages/control-plane/src/agents/**'];
+function gateIo({ json = result(), ancestor = true, changed = ['packages/web/src/agent/slash.js', 'docs/features/animation/fix.md'], head = HEAD2, names = ['result-ddddddd-20261103180000.json', 'result-ddddddd-20261103170000.json'] } = {}) {
+  const io = fakeIo({ head });
+  io.readText = p => { io.read = p; return json; };
+  io.list = () => names;
+  io.run = (cmd, args) => (args[0] === 'merge-base' ? { code: ancestor ? 0 : 1, out: '' } : { code: 0, out: changed.join('\n') });
+  return io;
+}
+const gate = (opts, io) => run([{ id: 'g2', label: 'gate 2', kind: 'gate2', frozen: FROZEN }], opts, io);
+
+test('gate2 item: a recorded PASS for an ancestor that changed nothing Gate 2 measured passes and lists what changed', async () => {
+  const r = await gate({ gate2Result: '/out/result-ddddddd-1.json' }, gateIo());
+  assert.equal(r.code, 0); assert.match(line(r, 'g2'), /^PASS.*Gate 2 PASS recorded for dddddddddddd.*9 of the first 9 accepted.*adds 2 file\(s\).*packages\/web\/src\/agent\/slash\.js/);
+  assert.equal((await gate({ gate2Result: '/o/r.json' }, gateIo({ head: X }))).code, 0, 'the checkout is the tested candidate');
+});
+
+test('gate2 item: a frozen file changed, a failed or miscounted table, a control that became SGD, or a stranger sha all fail', async () => {
+  const fails = async (io, re, label) => { const r = await gate({ gate2Result: '/o/r.json' }, io); assert.equal(r.code, 1, label); assert.match(line(r, 'g2'), re, label); };
+  await fails(gateIo({ changed: ['packages/web/src/animation3d/scene.js'] }), /frozen|Gate 2 measured: packages\/web\/src\/animation3d\/scene\.js/, 'scene.js');
+  await fails(gateIo({ changed: ['packages/control-plane/src/agents/animation-author.js'] }), /agents\/animation-author\.js/, 'a prompt file');
+  await fails(gateIo({ json: result({ verdict: 'FAIL' }) }), /recorded verdict is FAIL/, 'verdict');
+  await fails(gateIo({ json: result({ rows: rowsOf(7) }) }), /7 of the first 9 accepted/, 'a table that says PASS but recounts to 7');
+  await fails(gateIo({ json: result({ rows: rowsOf(9, { outcome: 'accepted', silentSgd: true }) }) }), /silently became SGD/, 'control');
+  await fails(gateIo({ json: result({ rows: rowsOf().slice(0, 9) }) }), /no result or silently/, 'no control row');
+  await fails(gateIo({ ancestor: false }), /not an ancestor/, 'not an ancestor');
+  await fails(gateIo({ json: result({ sha: 'abc' }) }), /no full candidate sha/, 'bad sha');
+  await fails(gateIo({ json: 'not json' }), /not readable JSON/, 'unreadable');
+});
+
+test('gate2 item: a folder reads the newest result-*.json; no argument is a SKIP that --strict fails', async () => {
+  const io = gateIo();
+  await gate({ gate2Result: '/out' }, io);
+  assert.match(io.read.split(String.fromCharCode(92)).join('/'), /\/out\/result-ddddddd-20261103180000\.json$/);
+  let r = await gate({}, gateIo());
+  assert.match(line(r, 'g2[missing]'), /^SKIP.*--gate2-result/); assert.equal(r.code, 0);
+  r = await gate({ strict: true }, gateIo());
+  assert.equal(r.code, 1);
+  r = await gate({ gate2Result: '/out' }, gateIo({ names: [] }));
+  assert.match(line(r, 'g2'), /no result-\*\.json/);
+});
+
+test('combined: the union of the four slices with prefixed ids, a file run once, and the old-client 409, the golden browser check and the Gate 2 result always in it', () => {
+  const config = JSON.parse(readFileSync(join(HERE, 'ladder-smoke.json'), 'utf8'));
+  const items = itemsFor(config, 'combined'), ids = items.map(i => i.id);
+  assert.equal(new Set(ids).size, ids.length, 'ids unique');
+  for (const must of ['mvp3:old-client-409', 'mvp3:browser-primitives', 'mvp3:golden-present', 'mvp5:gate2-result', 'mvp2b:cp-transport', 'mvp4:harness-dry', 'mvp5:copy-local']) assert.ok(ids.includes(must), must);
+  assert.equal(ids.at(-1), 'combined-shape', 'its own items come last');
+  const ran = items.filter(i => i.kind === 'tests').flatMap(i => i.files.map(f => `${i.cwd}/${typeof f === 'string' ? f : f.file}`));
+  assert.equal(new Set(ran).size, ran.length, 'no test file is listed twice');
+  assert.ok(items.length < ['mvp2b', 'mvp3', 'mvp4', 'mvp5'].reduce((n, s) => n + config[s].items.length, 0) + 1, 'duplicates were dropped');
+  const small = { a: { title: 'a', items: [{ id: 't', kind: 'tests', cwd: 'p', files: ['x.js', 'y.js'] }] }, b: { title: 'b', items: [{ id: 't', kind: 'tests', cwd: 'p', files: ['x.js'] }, { id: 'n', kind: 'note', text: 'n' }] }, c: { title: 'c', includes: ['a', 'b'], items: [{ id: 'own', kind: 'note', text: 'o' }] } };
+  assert.deepEqual(itemsFor(small, 'c').map(i => `${i.id}:${i.files ?? ''}`), ['a:t:x.js,y.js', 'b:n:', 'own:']);
 });

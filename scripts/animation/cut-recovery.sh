@@ -2,8 +2,9 @@
 # Cut (or re-check) the forward RECOVERY BRANCH of one SGD-ladder MVP slice, on top of its candidate. Modeled on
 # C:/s/spec/animation/release/cut-rollbacks.sh: local only, pushes nothing unless --push, never forces anything.
 #
-#   bash scripts/animation/cut-recovery.sh <mvp2b|mvp3|mvp4|mvp5> <candidate sha, 40 hex> [options]
+#   bash scripts/animation/cut-recovery.sh <mvp2b|mvp3|mvp4|mvp5|combined> <candidate sha, 40 hex> [options]
 #     --prev <sha>        the release before the candidate (default: merge-base of the candidate and <remote>/main)
+#     --prompts-from <sha>  restore the prompt files (recipe steps marked from: prompts) from this earlier commit of the candidate instead of --prev, e.g. the Gate 1 tested C3
 #     --branch <name>     default recovery/animation-<slice>-<candidate sha first 8>; must be recovery/animation-*
 #     --push              also push the branch to <remote> (a plain push: a branch that is not a fast-forward is refused, never forced)
 #     --remote <name>     default rabbit-hole
@@ -19,12 +20,12 @@
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 die() { echo "STOP: $*" >&2; exit 2; }
-SLICE= CAND= PREV= BRANCH= REPO= RECIPES="$HERE/recovery-recipes.json" PUSH=0 REMOTE=rabbit-hole VERIFY=1
+SLICE= CAND= PREV= PFROM= BRANCH= REPO= RECIPES="$HERE/recovery-recipes.json" PUSH=0 REMOTE=rabbit-hole VERIFY=1
 POS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     -f|--force*|--mirror|--delete|--prune|+*) die "$1 is refused: this script never forces, deletes or mirrors a remote branch" ;;
-    --prev|--branch|--remote|--repo|--recipes) [ $# -ge 2 ] || die "$1 needs a value"; v=$2; case "$1" in --prev) PREV=$v ;; --branch) BRANCH=$v ;; --remote) REMOTE=$v ;; --repo) REPO=$v ;; --recipes) RECIPES=$v ;; esac; shift ;;
+    --prev|--prompts-from|--branch|--remote|--repo|--recipes) [ $# -ge 2 ] || die "$1 needs a value"; v=$2; case "$1" in --prev) PREV=$v ;; --prompts-from) PFROM=$v ;; --branch) BRANCH=$v ;; --remote) REMOTE=$v ;; --repo) REPO=$v ;; --recipes) RECIPES=$v ;; esac; shift ;;
     --push) PUSH=1 ;;
     --no-verify) VERIFY=0 ;;
     -*) die "unknown option $1" ;;
@@ -50,6 +51,10 @@ fi
 [[ "$PREV" =~ ^[0-9a-f]{40}$ ]] || PREV=$(git rev-parse --verify "$PREV^{commit}") || die "--prev is not a commit"
 [ "$PREV" != "$CAND" ] || die "the previous release equals the candidate (main is already at it): nothing to recover to"
 git merge-base --is-ancestor "$PREV" "$CAND" || die "the previous release ${PREV:0:8} is not an ancestor of the candidate ${CAND:0:8}"
+if [ -n "$PFROM" ]; then
+  PFROM=$(git rev-parse --verify "$PFROM^{commit}" 2>/dev/null) || die "--prompts-from is not a commit here"
+  git merge-base --is-ancestor "$PFROM" "$CAND" && [ "$PFROM" != "$CAND" ] || die "--prompts-from ${PFROM:0:8} must be an earlier commit of the candidate (the tested C3 whose prompts are wanted back)"
+fi
 
 ORIG=$(git symbolic-ref -q --short HEAD || git rev-parse HEAD)
 FRESH=0
@@ -66,7 +71,7 @@ if git rev-parse -q --verify "refs/heads/$BRANCH" >/dev/null; then
 else
   FRESH=1
   git switch -q -c "$BRANCH" "$CAND"
-  TOUCHED=$($STEPS apply --slice "$SLICE" --recipes "$RECIPES" --cand "$CAND" --prev "$PREV" | sed -n 's/^TOUCHED //p' | sort) || exit 2
+  TOUCHED=$($STEPS apply --slice "$SLICE" --recipes "$RECIPES" --cand "$CAND" --prev "$PREV" ${PFROM:+--prompts-from "$PFROM"} | sed -n 's/^TOUCHED //p' | sort) || exit 2
   git commit -q -m "$($STEPS message --slice "$SLICE" --recipes "$RECIPES")"
 fi
 

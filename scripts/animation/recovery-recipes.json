@@ -92,7 +92,8 @@
           "packages/control-plane/src/agents/animation-author.js",
           "packages/control-plane/src/agents/animation-brief.js",
           "packages/control-plane/test/animation-fit.test.js"
-        ]
+        ],
+        "from": "prompts"
       },
       {
         "op": "restoreMatching",
@@ -102,7 +103,8 @@
         "suffix": [
           ".test.js"
         ],
-        "candMatches": "wireframe|SIZE_RULES|ANIMATION_AUTHOR_SYSTEM|ANIMATION_REPAIR_SYSTEM|ANIMATION_REVIEW_SYSTEM|ANIMATION_BRIEF_SYSTEM|COMPACT_RULES|ARCHETYPES|clamp"
+        "candMatches": "wireframe|SIZE_RULES|ANIMATION_AUTHOR_SYSTEM|ANIMATION_REPAIR_SYSTEM|ANIMATION_REVIEW_SYSTEM|ANIMATION_BRIEF_SYSTEM|COMPACT_RULES|ARCHETYPES",
+        "from": "prompts"
       }
     ],
     "allow": [
@@ -151,6 +153,17 @@
           "src/Animation3DCard.test.mjs"
         ]
       }
+    ]
+  },
+  "combined": {
+    "title": "ONE release carries MVP2b + MVP3 + MVP4 + MVP5: one forward branch with all four switches",
+    "switch": "streaming: ANIMATION_STREAMING \"false\" in the production app config (MVP2b); the five client features: the server filters them in animation-brief.js clientFeatures(), capabilities.js untouched so prod-release checkCandidate still passes (MVP3); prompts: agents/animation-author.js, agents/animation-brief.js and the tests that pin their text go back to --prompts-from (the Gate 1 tested C3; default: the previous release) (MVP4); copy: the \"Loss surfaces and optimizers are not supported yet\" line and the claim list go back to the previous release in the UI, its test and its e2e step (MVP5). Billing escrow, the same-job retry, the golden fixture, the contract and the renderer stay. Cut it with the candidate and pass --prompts-from <C3 sha>.",
+    "message": "Animation forward recovery (combined release): ANIMATION_STREAMING false, the server stops recognising the five SGD client features, the prompts are back to the tested earlier text, and loss surfaces are \"not supported yet\" again; billing, retry, contract and renderer are untouched",
+    "compose": [
+      "mvp2b",
+      "mvp3",
+      "mvp4",
+      "mvp5"
     ]
   }
 }
