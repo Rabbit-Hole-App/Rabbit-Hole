@@ -91,9 +91,9 @@ async function authoring(t, authorReply) {
 test('FX-AN-056 in the job: no artifact in the first reply, a good one in the second: two author calls, the draft is kept', async t => {
   const { s, job } = await authoring(t, n => (n === 1 ? { kind: 'artifact' } : { kind: 'artifact', artifact: draftOf(experimentFixture.artifact) }));
   assert.ok(job.draft, JSON.stringify(job.failure));
-  assert.equal(job.counts.author, 2);
+  assert.equal(job.counts.author, 1, 'the ceiling counts authors, not asks (FX-AN-060 unified the two)');
   assert.deepEqual(s.model.roles().filter(r => r === 'author').length, 2);
-  assert.equal(job.calls.filter(c => c.role === 'author' && c.status === 'settled').length, 2, 'both are recorded and billed');
+  assert.deepEqual(job.calls.filter(c => c.role === 'author' && c.status === 'settled').map(c => c.again === true), [false, true], 'both are recorded and billed; the second is the ask');
 });
 test('FX-AN-056 in the job: a good first reply is one call; two replies without an artifact end the job after exactly two calls, never three', async t => {
   const one = await authoring(t, () => ({ kind: 'artifact', artifact: draftOf(experimentFixture.artifact) }));
@@ -101,6 +101,7 @@ test('FX-AN-056 in the job: a good first reply is one call; two replies without 
   const two = await authoring(t, () => ({ kind: 'artifact' }));
   assert.equal(two.job.stage, 'failed');
   assert.equal(two.job.failure.code, 'invalid_turn');
-  assert.equal(two.job.counts.author, 2);
+  assert.equal(two.job.counts.author, 1);
+  assert.equal(two.job.calls.filter(c => c.role === 'author').length, 2);
   assert.equal(two.s.model.roles().filter(r => r === 'author').length, 2);
 });

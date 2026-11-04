@@ -193,7 +193,7 @@ function attemptCost(job) {
 export function failureText(job) {
   const kind = failureClass(job), f = job.failure || {}, action = recoveryOf(job).find(a => a !== 'edit_request');
   if (kind === 'clarification') return f.message;
-  const what = { capability: f.gap?.shown ?? GAP_FALLBACK, output_limit: `${OUTPUT_WHO[f.stage] ?? 'An AI step'} reached its output limit before it finished. That does not prove your request is impossible; a smaller plan may fit.`, review_validation: 'The visual review returned an answer in the wrong form, and it could not be corrected within its limit, so this scene was neither accepted nor found faulty.', size_limit: 'The scene was too large to check.', deadline: 'The build ran out of time.', limit: 'The build reached its spending limit.',
+  const what = { capability: f.gap?.shown ?? GAP_FALLBACK, output_limit: `${OUTPUT_WHO[f.stage] ?? 'An AI step'} reached its output limit before it finished. That does not prove your request is impossible; a smaller plan may fit.`, review_validation: 'The visual review returned an answer in the wrong form, and it could not be corrected within its limit, so this scene was neither accepted nor found faulty.', size_limit: 'The scene was too large to check.', deadline: 'The build ran out of time.', limit: f.code === 'count_limit' ? f.message.replace(/^This animation/, 'The build') : 'The build reached its spending limit.',
     checks: f.stage === 'reviewing' ? reviewWords(job.findings?.filter(x => x.stage === 'reviewing').at(-1)) : CHECKS[f.stage] ?? 'The scene did not pass its checks.',
     transient: TRANSIENT[f.category] ?? TRANSIENT.transport }[kind] ?? f.message ?? 'The animation could not be made.';
   const candidate = kind === 'checks' || kind === 'size_limit';
@@ -828,18 +828,21 @@ export class AnimationJobs {
     const key = await this.locked(async () => {
       const current = await this.get(job.id);
       if (!current || current.stopped || current.attempt !== job.attempt || current.stage !== job.stage || current.inFlight) return null;
-      // spec.again: the author's one more ask when its reply carried no artifact (animation-author.js, FX-AN-056). One call beyond the ceiling, so the ceiling's other readers
-      // (recovery, the reservation) are unchanged; the spending ceiling below still applies to it.
-      const limit = (role === 'brief' ? briefLimit : ANIMATION_LIMITS.calls[role]) + (role === 'author' && spec.again === true ? 1 : 0);
-      if (current.counts[role] + 1 > limit) throw Object.assign(fail(`This animation reached its ${role} limit.`, 429), { stopReason: 'budget' });
+      // spec.again: the author's or repair's one more ask when its reply lacked what it must carry (the artifact, FX-AN-056; the program, FX-AN-043). A call of its own: recorded,
+      // billed and bounded by the spending ceiling below like any other, but it takes no slot of the role's ceiling (a correction ask took the second repair, FX-AN-060), and a
+      // role gets one per build. The ceiling's other readers (recovery, the displayed reservation) are unchanged.
+      const again = spec.again === true && (role === 'author' || role === 'repair');
+      const limit = role === 'brief' ? briefLimit : ANIMATION_LIMITS.calls[role];
+      if (again ? current.calls.some(c => c.role === role && c.again && c.status !== 'refused') : current.counts[role] + 1 > limit) throw Object.assign(fail(`This animation reached its ${role} limit.`, 429, 'count_limit'), { stopReason: 'budget' });
       const ceiling = phase === 'generation' ? current.reservation.generationMicros : current.reservation.preparationMicros * (1 + ANIMATION_LIMITS.refinements);
       if (current.bounds[phase] + boundMicros > ceiling) throw Object.assign(fail('This animation reached its spending limit.', 429), { stopReason: 'budget' });
       if (Date.now() >= current.deadline) throw Object.assign(fail('This animation reached its time limit.', 409), { stopReason: 'deadline' });
-      current.counts[role]++; current.bounds[phase] += boundMicros;
+      if (!again) current.counts[role]++;
+      current.bounds[phase] += boundMicros;
       // Unique per call record: a refused call gives its count back, so the count alone would name the retried call like the refused one.
       const callKey = `${current.id}-${role}-${current.calls.length + 1}`;
       current.inFlight = { key: callKey, role, at: Date.now() };
-      current.calls.push({ key: callKey, role, phase, attempt: current.attempt, streamed: animationStreaming(this.env, role)?.stream === true, requested: null, served: null, status: 'running', boundMicros, images, costMicros: null, inputTokens: null, outputTokens: null, startedAt: Date.now(), endedAt: null });
+      current.calls.push({ key: callKey, role, phase, ...(again ? { again: true } : {}), attempt: current.attempt, streamed: animationStreaming(this.env, role)?.stream === true, requested: null, served: null, status: 'running', boundMicros, images, costMicros: null, inputTokens: null, outputTokens: null, startedAt: Date.now(), endedAt: null });
       await this.save(current);
       return callKey;
     });
@@ -853,7 +856,7 @@ export class AnimationJobs {
       const usage = out?.usage ?? error?.billed?.usage, cost = usage ? costUsd({ model: out?.identity.served || error?.billed?.served || out?.identity.requested || 'claude-opus-5-5', ...usage }) : null;
       // A refusal (provider cap or overload, our own admission) ran nothing and cost nothing: it does not use the ceiling.
       const refused = ['provider_unavailable', 'spend_refused'].includes(error?.code);
-      if (refused) { current.counts[role]--; current.bounds[phase] -= call.boundMicros; }
+      if (refused) { if (!call.again) current.counts[role]--; current.bounds[phase] -= call.boundMicros; }
       Object.assign(call, { requested: out?.identity.requested ?? error?.reply?.requested ?? null, served: out?.identity.served ?? error?.served ?? error?.billed?.served ?? null, status: refused ? 'refused' : error ? 'failed' : 'settled', stopReason: out?.stopReason ?? error?.billed?.stopReason ?? null,
         costMicros: refused ? 0 : toMicros(cost), inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: error?.code || (error ? 'failed' : null), ...(error?.reply ? { reply: error.reply } : {}), ...(out?.blocks ? { blocks: out.blocks } : {}) });
       if (current.inFlight?.key === key) current.inFlight = null;
