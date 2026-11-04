@@ -4,7 +4,7 @@
 // provenance are the host's, never the model's), checks it with the shared contract (animation3d/contract.js), checks it keeps the
 // approved plan's experience, behavior, controls and parameters, and checks that the review and repair requests that must read it
 // fit their roles' limits. Problems are repairable, one sentence each; the job allows one repair (animation-job.js).
-import { ANIMATION_PROGRAM_VERSIONS, SCENE_SCHEMA, hashProgramSource, validateAnimationArtifact } from '../../web/src/animation3d/contract.js';
+import { ANIMATION_PROGRAM_VERSIONS, SCENE_SCHEMA, clientFeatureUses, hashProgramSource, validateAnimationArtifact } from '../../web/src/animation3d/contract.js';
 import { canonicalJson, sha256Hex } from '../../web/src/explain-program/contract.js';
 import { ANIMATION_AUTHOR_SYSTEM, authorTool } from './agents/animation-author.js';
 import { actionCapability, clientFeatures, enabledCapabilities, surfaceCapability } from './animation-brief.js';
@@ -95,6 +95,8 @@ export function clientProblems(artifact, job) {
   const has = clientFeatures(job?.features), out = [];
   if (!has.includes('curve_radius')) out.push(...(artifact.scene?.geometries || []).flatMap((g, i) => (g?.kind === 'curve' && g.radius !== undefined ? [`scene.geometries.${i}.radius: the browser that asked for this scene cannot draw tube curves; remove radius`] : [])));
   if (!has.includes('action_motion')) out.push(...(artifact.actions || []).flatMap((a, i) => (a?.startsMotion !== undefined ? [`actions.${i}.startsMotion: the browser that asked for this scene does not know it; remove startsMotion`] : [])));
+  // surface_grid, trail_points, text_readout, arrow_anchor and clamp (AN-18, owner decisions 11 and 12): one line per field, found by the contract.
+  out.push(...clientFeatureUses(artifact).filter(use => !has.includes(use.feature)).map(use => `${use.path}: ${use.message}`));
   return out;
 }
 

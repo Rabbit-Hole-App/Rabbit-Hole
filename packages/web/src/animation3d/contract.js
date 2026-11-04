@@ -30,7 +30,9 @@ export const BEHAVIORS = Object.freeze(['prescribed', 'analytical', 'rules', 'ph
 export const CONTROL_PROFILES = Object.freeze(['inspect', 'manipulate', 'walk']);
 export const GEOMETRY_KINDS = Object.freeze(['box', 'sphere', 'cylinder', 'cone', 'plane', 'line', 'curve', 'arrow', 'label', 'surface', 'trail']);
 export const FEATURES = Object.freeze(['loop', 'speed', 'seek', 'parameters', 'actions', 'select', 'drag', 'step', 'labels', 'readouts',
-  'physics', 'assembly', 'walkthrough', 'attached_models', 'image_reference', 'surface_grid', 'trail_points', 'text_readout', 'arrow_anchor', 'clamp']);
+  'physics', 'assembly', 'walkthrough', 'attached_models', 'image_reference']);
+// The five client features of AN-18 are not plan features: the planner's tool schema enumerates FEATURES (agents/animation-brief.js PLAN_TOOL), and it stays as it
+// was until AN-20. They are declared by the browser (capabilities.js ANIMATION_CLIENT_FEATURES) and found in a scene by clientFeatureUses below.
 export const TRAIL_STYLES = Object.freeze(['trail', 'ghost']);
 export const LABEL_ANCHORS = Object.freeze(['origin', 'tip']);
 export const READOUT_KINDS = Object.freeze(['number', 'text']);

@@ -321,7 +321,7 @@ test('a pre-AN-18 artifact validates unchanged: the new fields are optional and 
     assert.deepEqual(clientFeatureUses(artifact), [], name);
   }
   assert.deepEqual([...GEOMETRY_KINDS], ['box', 'sphere', 'cylinder', 'cone', 'plane', 'line', 'curve', 'arrow', 'label', 'surface', 'trail']);
-  assert.ok(['surface_grid', 'trail_points', 'text_readout', 'arrow_anchor', 'clamp'].every(f => FEATURES.includes(f) && ANIMATION_CLIENT_FEATURES.includes(f)));
+  assert.ok(['surface_grid', 'trail_points', 'text_readout', 'arrow_anchor', 'clamp'].every(f => ANIMATION_CLIENT_FEATURES.includes(f) && !FEATURES.includes(f)), 'client features, not plan features: the planner schema is unchanged');
   assert.deepEqual(ANIMATION_CLIENT_FEATURES.slice(0, 2), ['curve_radius', 'action_motion']);
   assert.ok(ANIMATION_CAPABILITIES.geometry.includes('surface') && ANIMATION_CAPABILITIES.geometry.includes('trail'));
 });
