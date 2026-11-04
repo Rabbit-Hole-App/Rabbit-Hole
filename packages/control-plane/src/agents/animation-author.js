@@ -2,7 +2,7 @@
 // scene and behavior program for the approved plan; the host seals it (ids, hashes, versions, provenance) and the shared contract
 // checks it (animation-author.js). The draft schema below is the contract's artifact (animation3d/contract.js) without the fields
 // only the host sets, so the model can never supply a hash, version, capability or plan binding.
-import { ANIMATION_PROGRAM_CONTRACT, GEOMETRY_KINDS, LABEL_ANCHORS, LABEL_PLACEMENTS, READOUT_KINDS, TRAIL_STYLES } from '../../../web/src/animation3d/contract.js';
+import { ANIMATION_PROGRAM_CONTRACT, BEHAVIORS, CONTROL_PROFILES, EXPERIENCES, GEOMETRY_KINDS, LABEL_ANCHORS, LABEL_PLACEMENTS, READOUT_KINDS, TRAIL_STYLES } from '../../../web/src/animation3d/contract.js';
 import { ACCURACY_RULES, HONESTY_RULES, HOST_CONTROL_RULES, MOTION_RULES, PLAN_PARAMETER, WORK_RULES } from './animation-brief.js';
 
 const ID = { type: 'string', description: 'A letter, then up to 63 letters, digits, _ or -.' };
@@ -30,7 +30,7 @@ export const ARTIFACT_DRAFT = {
   required: ['title', 'description', 'experience', 'behavior', 'controlProfile', 'scene', 'parameters', 'actions', 'readouts', 'seed', 'camera', 'assumptions'],
   properties: {
     title: { type: 'string', maxLength: 120 }, description: { type: 'string', maxLength: 600, description: 'An accessible description of the scene for a learner who cannot see it.' },
-    experience: { type: 'string' }, behavior: { type: 'string' }, controlProfile: { type: 'string' },
+    experience: { type: 'string', enum: EXPERIENCES }, behavior: { type: 'string', enum: BEHAVIORS }, controlProfile: { type: 'string', enum: CONTROL_PROFILES }, // FX-AN-057: Gate 1 r13 wrote a sentence in behavior
     scene: { type: 'object', additionalProperties: false, required: ['materials', 'geometries', 'nodes'], properties: {
       materials: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'color'], properties: { id: ID, color: { type: 'string', description: '#rrggbb' }, opacity: { type: 'number' } } } },
       geometries: { type: 'array', items: GEOMETRY }, nodes: { type: 'array', items: NODE } } },
