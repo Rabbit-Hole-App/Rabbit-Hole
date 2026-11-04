@@ -143,7 +143,7 @@ test('the empty-label failure stays a validation problem: nothing invents the wo
 test('the raised bound is in the hard spending limits: every role call is still bounded and the build total follows it', () => {
   const r = animationReservation();
   assert.equal(r.generationMicros, roleBoundMicros('author') + ANIMATION_LIMITS.calls.review * roleBoundMicros('review') + ANIMATION_LIMITS.calls.repair * roleBoundMicros('repair'));
-  assert.deepEqual([ANIMATION_LIMITS.calls.review, ANIMATION_LIMITS.calls.repair], [3, 2]);
+  assert.deepEqual([ANIMATION_LIMITS.calls.review, ANIMATION_LIMITS.calls.repair], [4, 4], 'decision 35: two run repairs and two review repairs, four reviewed candidates at most');
 });
 
 // FX-AN-031 follow-up (owner 2026-11-02): the size check used stand-in captures with none of the real ids, views, inputs, events and
@@ -189,11 +189,11 @@ test('the author runs at medium effort with 24,000 output tokens, and the build 
   assert.equal(8000 * output, 160000, 'US$0.16');
   // Decision 16: the repair's bound is (50,000 + 2 x 4,784) x $4 x 1.25 + 24,000 x $20 = 297,840 + 480,000, up from 537,840; two repairs add 480,000 micros (48 credits).
   assert.equal(roleBoundMicros('repair'), 777840);
-  assert.equal(animationReservation().generationMicros, 780000 + 3 * 503520 + 2 * 777840);
-  assert.equal(animationReservation().generationMicros, 3246240 + 480000 + 120000); // 3,846,240: decision 16 (+480,000) and decision 28 (+3 x 40,000)
-  assert.equal(Math.ceil(animationReservation().generationMicros / 10000), 385, 'displayed maximum: 325 + 48 (decision 16) + 12 (decision 28) credits');
+  assert.equal(animationReservation().generationMicros, 780000 + 4 * 503520 + 4 * 777840);
+  assert.equal(animationReservation().generationMicros, 3846240 + 503520 + 2 * 777840); // 5,905,440: 3,846,240 (decisions 16 and 28) plus one more review and two more repairs (decision 35)
+  assert.equal(Math.ceil(animationReservation().generationMicros / 10000), 591, 'displayed maximum: 385 + 206 (decision 35: a fourth review, a third and fourth repair) credits');
   const { proposalUsage } = await import('../src/generation-proposal.js');
-  assert.equal(proposalUsage({}, 'animation').max_credits, 385, 'the figure the proposal shows and Generate checks');
+  assert.equal(proposalUsage({}, 'animation').max_credits, 591, 'the figure the proposal shows and Generate checks');
 });
 
 test("the author and repair follow the plan's formula and convention, and the review reports every serious problem at once (aj_ba11d5a, aj_ad936ec)", async () => {
@@ -289,9 +289,10 @@ test('the review runs with 8,000 output tokens: its bound, the worst case and th
   assert.equal(roleBoundMicros('review'), 503520, 'was 463,520');
   assert.equal(roleBoundMicros('review') - 463520, 2000 * output, '2,000 more output tokens at the registry price, US$0.04 per call');
   const r = animationReservation();
-  assert.equal(r.generationMicros, 780000 + 3 * 503520 + 2 * 777840, '3,846,240, was 3,726,240 (US$0.12 more)');
+  // Decision 28 made the review 503,520 (was 463,520); decision 35 then raised the call counts, so the worst case is no longer 3,846,240 (385 credits): see the 591 above.
+  assert.equal(r.generationMicros, 780000 + 4 * 503520 + 4 * 777840, '5,905,440 at decision 35 (it was 3,846,240 with three reviews and two repairs)');
   assert.equal(r.preparationMicros, 560000, 'planning is unchanged');
-  assert.equal(Math.ceil(r.generationMicros / 10000), 385, 'shown on Generate: 385 credits, was 373');
+  assert.equal(Math.ceil(r.generationMicros / 10000), 591, 'shown on Generate: 591 credits at decision 35, 385 before it');
   assert.deepEqual([roleBoundMicros('brief'), roleBoundMicros('author'), roleBoundMicros('repair')], [280000, 780000, 777840], 'brief, author and repair bounds are as they were (the repair at decision 16: medium, 24,000)');
   assert.deepEqual(ANIMATION_ROLES, { brief: { task: 'animation_brief', maxInputTokens: 40000, maxImages: 0 }, author: { task: 'animation_author', maxInputTokens: 60000, maxImages: 0 },
     review: { task: 'animation_review', maxInputTokens: 40000, maxImages: 6 }, repair: { task: 'animation_repair', maxInputTokens: 50000, maxImages: 2 } }, 'no input limit moved');
