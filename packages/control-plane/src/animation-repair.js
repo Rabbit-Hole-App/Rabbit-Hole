@@ -97,7 +97,7 @@ export async function repairStage(job, ctx) {
     if (fits(again)) {
       programRetried = true;
       // ponytail: a refused or failed second ask keeps the first reply (validation then reports missing_program as before); only a stopped job aborts.
-      try { reply = await ctx.call('repair', { system, tool, content: again }); if (lacksProgram(reply) && reply.reply) rawReplies.push(reply.reply); } catch (error) { if (error?.abandoned) throw error; }
+      try { reply = await ctx.call('repair', { system, tool, content: again, again: true }); if (lacksProgram(reply) && reply.reply) rawReplies.push(reply.reply); } catch (error) { if (error?.abandoned) throw error; }
     }
   }
   const { input } = reply;

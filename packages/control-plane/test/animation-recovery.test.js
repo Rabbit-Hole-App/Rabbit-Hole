@@ -123,7 +123,7 @@ test('budget stops: the build limit offers a revised plan; credits running out k
   const { id, done } = await s.generated();
   assert.deepEqual([done.stopReason, failureClass(done)], ['budget', 'limit']);
   assert.deepEqual((await s.job(id)).job.recovery, ['revise_plan', 'edit_request']);
-  assert.match((await s.job(id)).job.failure.message, /^The build reached its spending limit\. You have not been charged\. Revise plan/);
+  assert.match((await s.job(id)).job.failure.message, /^The build reached its review limit\. You have not been charged\. Revise plan/); // FX-AN-060: a refused COUNT says which count; it said spending limit
   const c = animationStack(t, { pipeline: STUB_PIPELINE({ author: async () => { throw Object.assign(new Error('Not enough AI credits.'), { status: 429, code: 'spend_refused' }); } }) });
   const out = await c.generated();
   assert.equal(failureClass(out.done), 'credits');
