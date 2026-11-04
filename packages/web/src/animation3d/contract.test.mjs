@@ -343,13 +343,15 @@ test('a plan may name an archetype and carry up to four assertions; a plan that 
   assert.equal(validateAnimationPlan(withFields({ archetype: 'loss_surface' })).ok, true);
   assert.ok(issueAt(validateAnimationPlan(withFields({ archetype: 'bowl' })), 'invalid_value', 'archetype'), 'only a listed archetype');
   const good = [{ kind: 'clamp', node: 'ball' }, { kind: 'compare', parameter: 'leftMass', values: [2, 8] }, { kind: 'pathLength', min: 40 }];
+  assert.equal(validateAnimationPlan(withFields({ assertions: [{ kind: 'clamp' }] })).ok, true, 'a clamp without a node: some marker is clamped');
+  assert.deepEqual(validateAnimationPlan(withFields({ assertions: [{ kind: 'clamp' }] })).value.assertions, [{ kind: 'clamp' }]);
   const ok = validateAnimationPlan(withFields({ assertions: good }));
   assert.deepEqual(ok.issues, undefined);
   assert.deepEqual(ok.value.assertions, good);
   assert.equal(validateAnimationPlan(withFields({ assertions: [] })).ok, true);
   assert.equal(validateAnimationPlan(withFields({ assertions: [...good, { kind: 'clamp', node: 'a' }] })).ok, true, 'four');
   assert.ok(issueAt(validateAnimationPlan(withFields({ assertions: [...good, { kind: 'clamp', node: 'a' }, { kind: 'clamp', node: 'b' }] })), 'over_limit', 'assertions'), 'five');
-  for (const bad of [{ kind: 'overshoot' }, { kind: 'clamp' }, { kind: 'clamp', node: 'ball', extra: 1 }, { kind: 'compare', parameter: 'leftMass', values: [2] }, { kind: 'compare', parameter: 'leftMass', values: [2, 8, 9] },
+  for (const bad of [{ kind: 'overshoot' }, { kind: 'clamp', node: 7 }, { kind: 'clamp', node: 'ball', extra: 1 }, { kind: 'clamp', node: null }, { kind: 'compare', parameter: 'leftMass', values: [2] }, { kind: 'compare', parameter: 'leftMass', values: [2, 8, 9] },
     { kind: 'compare', parameter: 'leftMass', values: [2, Number.NaN] }, { kind: 'pathLength', min: 0 }, { kind: 'pathLength', min: 513 }, { kind: 'pathLength', min: 1.5 }, { kind: 'pathLength' }, 'clamp', null]) {
     assert.equal(validateAnimationPlan(withFields({ assertions: [bad] })).ok, false, JSON.stringify(bad));
   }

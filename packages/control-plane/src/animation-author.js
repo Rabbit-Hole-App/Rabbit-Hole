@@ -91,13 +91,16 @@ export function planProblems(artifact, plan) {
   return out;
 }
 
-// The plan's assertions against the artifact (plan section 8, AN-20): one repairable line each, found before any review is paid. clamp: that node has clampTo;
+// The plan's assertions against the artifact (plan section 8, AN-20): one repairable line each, found before any review is paid. clamp: that node has clampTo (no node named: some sphere node does);
 // compare: the parameter is a number whose range includes both values; pathLength: a trail node with max at least min. Pure; tolerant of a draft that is not valid.
 export function assertionProblems(artifact, plan) {
   const out = [], nodes = Array.isArray(artifact?.scene?.nodes) ? artifact.scene.nodes : [], geometries = Array.isArray(artifact?.scene?.geometries) ? artifact.scene.geometries : [];
   (Array.isArray(plan?.assertions) ? plan.assertions : []).forEach((item, i) => {
     const at = `assertions.${i}`;
-    if (item?.kind === 'clamp') {
+    if (item?.kind === 'clamp' && item.node === undefined) {
+      const sphere = n => n?.clampTo && geometries.some(g => g?.id === n.geometry && g.kind === 'sphere');
+      if (!nodes.some(sphere)) out.push(`${at}: the approved plan clamps a marker to its surface; give a sphere node clampTo { node: <the surface node> }`);
+    } else if (item?.kind === 'clamp') {
       const node = nodes.find(n => n?.id === item.node);
       if (!node) out.push(`${at}: the approved plan clamps node ${item.node}, which the scene does not declare`);
       else if (!node.clampTo) out.push(`${at}: the approved plan clamps node ${item.node} to its surface; give that node clampTo { node: <the surface node> }`);
