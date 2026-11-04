@@ -124,7 +124,7 @@ export function subjectPoints(scene, frames) {
     const seen = new Map();
     for (const [id, holder] of scene.objects) {
       const drawable = drawableOf(holder);
-      if (!drawable || !shown(drawable)) continue;
+      if (!drawable || !shown(drawable) || drawable.userData.empty) continue; // an empty trail has nothing to frame
       if (drawable.isSprite) { if (record) anchors.push({ id, point: drawable.getWorldPosition(new THREE.Vector3()) }); continue; }
       const corners = cornersOf(drawable);
       seen.set(id, new THREE.Box3().setFromPoints(corners));
