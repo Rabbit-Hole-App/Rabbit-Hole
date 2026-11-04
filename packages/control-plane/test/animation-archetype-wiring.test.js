@@ -58,7 +58,8 @@ test('the author is given the archetype rules and the exemplar in the user conte
   assert.deepEqual(Object.keys(content.archetype), ['name', 'rules', 'exemplar', 'note']);
   assert.equal(content.archetype.name, 'loss_surface');
   assert.equal(content.archetype.rules, archetypeRules('loss_surface'));
-  assert.deepEqual(content.archetype.exemplar, exemplarDraft(golden.artifact), 'the exemplar is the golden artifact as a draft');
+  // FX-AN-056: in the tool-call shape the author must answer in, { kind: 'artifact', artifact }; the draft inside is the frozen exemplar.
+  assert.deepEqual(content.archetype.exemplar, { kind: 'artifact', artifact: exemplarDraft(golden.artifact) }, 'the exemplar is the golden artifact as a draft, in the tool-call shape');
   for (const system of [ANIMATION_AUTHOR_SYSTEM, ANIMATION_REPAIR_SYSTEM]) { assert.equal(system.includes('Archetype loss_surface'), false); assert.equal(system.includes(golden.artifact.program.source.slice(0, 60)), false); }
   // A plan without an archetype gets exactly the content it always got.
   const plainContent = JSON.parse((await sentContent(golden.plan)).content);
