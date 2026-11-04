@@ -83,7 +83,7 @@ import { HoleRow, HoleStack } from './DestinationRow.jsx';
 import CanvasRefCard from './CanvasRefCard.jsx';
 import { GRAPH_CARD } from './graph-card.js';
 import CodeCard from './CodeCard.jsx';
-import { CODE_CARD, CODE_DRAG, codeCardRef, dragSource, insertCodeCard, repoCodeCard } from './code-card.js';
+import { CODE_CARD, CODE_DRAG, codeCardRef, dragSource, expandedToFull, insertCodeCard, repoCodeCard } from './code-card.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { DOC_CARD, DOC_KINDS } from './file-doc-import.js';
 import { droppedFiles } from './model-drop.js';
@@ -895,7 +895,7 @@ function NotebookCard({ block, zoom, selected, connected, appName, onSelect, onM
   const copyNotebook = (path, ipynb) => { const patch = notebookWriteBack(latest.current, path, ipynb); if (patch) save(patch); };
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
-      connected={connected} width={640} height={block.h || 540} autoMax={undefined} saved={{ w: block.w, h: block.h }}
+      connected={connected} width={640} height={block.h || 540} autoMax={undefined} cardLayout={block.cardLayout} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       <NotebookBody block={block} onSelect={onSelect} onDocument={copyNotebook} onManifest={manifest} onEditCells={notebook=>window.dispatchEvent(new CustomEvent('learn:notebook-inline',{detail:{appName,id:block.id,notebook}}))} />
     </CanvasNode>
@@ -937,8 +937,8 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
-  // A code card (repo-graph Release 2, code-card.js): resizable; Expand grows it unless the learner sized it.
-  if (block.type === 'repo-code') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={CODE_CARD.w} height={block.expanded ? CODE_CARD.h * 2 : CODE_CARD.h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CodeCard block={block} onChange={onChange} /></CanvasNode>;
+  // A code card (repo-graph Release 2, code-card.js): resizable; Full content (the menu's row) shows all its code.
+  if (block.type === 'repo-code') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={CODE_CARD.w} height={CODE_CARD.h} autoMax={undefined} cardLayout={block.cardLayout} saved={{ w: block.w, h: block.h }} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CodeCard block={block} /></CanvasNode>;
   if (block.type === 'canvas-ref') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={REF_CARD.w} height={REF_CARD.h} autoMax={undefined} resizable={false} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CanvasRefCard block={block} /></CanvasNode>;
   if (block.type === 'heading') return <HeadingCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   // A repository graph card (GraphCard.jsx): its header strip moves it, its frame resizes it, the graph inside keeps its own pointer.
@@ -1721,7 +1721,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // saved CONTENT always wins - but a saved EMPTY board re-seeds, because [] is
   // truthy and an empty array in storage is how a visit during a deploy
   // rollout, or to a then-unregistered name, permanently froze a board blank.
-  const [blocks, setBlocks] = useState(stored.current.blocks?.length ? stored.current.blocks : (seedBlocks || [])); // course-authored lesson blocks
+  const [blocks, setBlocks] = useState(stored.current.blocks?.length ? stored.current.blocks.map(expandedToFull) : (seedBlocks || [])); // course-authored lesson blocks
   const blocksRef = useRef(blocks);
   blocksRef.current = blocks;
   // Reserved slots for cards on their way (canvas-slots.js): this viewer's UI only, never in `blocks`, so

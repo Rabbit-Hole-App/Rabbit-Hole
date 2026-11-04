@@ -4,9 +4,10 @@
 // An upload card's text lives in its asset. Pure, so the unit tests read it; CodeCard.jsx, the Files viewer and the graph use it.
 import { codeRef } from './chat-sources.js';
 import { codeLanguage } from './code-language.js';
+import { switchCardLayout } from './card-layout.js';
 
 export const CODE_CARD = { w: 480, h: 320 };
-// The preview's bound: a longer file or range shows its first lines and says so; Expand shows the whole stored text.
+// The preview's bound: a longer file or range shows its first lines and says so; Full content (card-layout.js) shows the whole stored text.
 export const PREVIEW_LINES = 40;
 // What Add to chat carries for an upload card (the server's per-ref text bound is 8000 characters).
 const REF_TEXT = 8000;
@@ -75,12 +76,21 @@ export function codeCardRef(block, text = '') {
 }
 
 // What the card shows of its numbered lines. useCardSource already cut them to the card's range with the file's own line
-// numbers (card-source.js cardLines), so they are never cut again here; bounded unless expanded.
+// numbers (card-source.js cardLines), so they are never cut again here; bounded unless full (Full content layout).
 // Returns { lines: [{ n, text }], shown, total, excerpt } - excerpt when fewer lines show than the card's code has.
-export function previewOf(lines, expanded = false) {
+export function previewOf(lines, full = false) {
   const range = (lines || []).map(line => ({ n: line.n, text: String(line.text ?? '').replace(/\r$/, '') }));
-  const shown = expanded ? range : range.slice(0, PREVIEW_LINES);
+  const shown = full ? range : range.slice(0, PREVIEW_LINES);
   return { lines: shown, shown: shown.length, total: range.length, excerpt: shown.length < range.length };
+}
+
+// The card's own Expand (a stored `expanded: true`) is the Full content layout now (owner 2026-11-04): a saved card that was
+// expanded reads as Full, at the width it had and in the height Expand gave it (twice CODE_CARD.h), so nothing around it moves.
+// Run once as a board loads (AdaptiveCanvas.jsx). ponytail: a board written by an older client after this loads can bring the flag back; it is migrated again on the next load.
+export function expandedToFull(block) {
+  if (block?.type !== 'repo-code' || !('expanded' in block)) return block;
+  const { expanded, ...rest } = block;
+  return expanded && !rest.cardLayout ? switchCardLayout(rest, 'full', { w: rest.w || CODE_CARD.w, h: rest.h || CODE_CARD.h * 2 }) : rest;
 }
 
 // The card's provenance line: repo › path:lines · commit, or the uploaded file's name.

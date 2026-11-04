@@ -379,3 +379,13 @@ Recalculate constraints when content changes or assets load. Preserve the user's
 Resizing narrower stops at that minimum. Height remains automatic, with no internal scrollbars.
 
 Do not move the card or its neighbours.
+
+## Owner order 2026-11-04: Full content for code, code file and notebook cards
+
+This replaces the "Embedded viewers" sentence above for these three card types only (`code`, `repo-code`, `notebook`). The right-click "Full content" row applies to a Code exercise, a code file card (a repository file or range, or an uploaded file) and a notebook. It never applies to pdf, video, slide, cad, canvas-ref, repo-graph, whiteboard, heading, divider, challenge, explainBack, graph, plot, flow or mermaid (`card-layout.test.mjs` asserts each stays unsupported).
+
+- Full: every line and every cell is drawn, no clamp, the card as tall as its content, at the width `card-layout.js` gives. Scrollable is the card as before. The choice is `cardLayout` on the block, like the other card types.
+- The code file card's own Expand is gone: the Full content row is the one control. A card saved with `expanded: true` reads as Full when the board loads (`code-card.js` `expandedToFull`), at the width it had and the height Expand gave it (twice the card's 320), so nothing around it moves; the flag is dropped when the board is next saved. Scrollable keeps its "Showing N of M lines. Full content shows the rest." line.
+- A view-only reader (a signed-out `/b` link or an Explore publication) has no menu, as for every card, so sees the layout the owner saved.
+- Code lines wrap visually in Full (`card-layout.css`); Copy and the stored source keep their line breaks.
+- Notebook height: the notebook runs in an iframe on its own origin, so the page cannot measure it. Full sets the frame to a height estimated from the card's copy of the notebook (`notebook-height.js`: JupyterLab line heights, wrapped text, image output sizes), erring high. `ponytail:` the exact height needs the notebook site's bridge (`packages/web/notebook-canvas/canvas-bridge.js`) to report the rendered height, which is a separate deploy of that site; replace the estimate then.

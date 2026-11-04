@@ -5,6 +5,9 @@ export const FULL_TYPES = new Set(['explanation', 'snippet', 'table', 'image']);
 export const supportsCardLayout = block => FULL_TYPES.has(block?.type);
 export const fullContent = block => supportsCardLayout(block) && block.cardLayout?.mode === 'full';
 const positive = value => Number.isFinite(value) && value > 0;
+// Code-like cards (owner 2026-11-04): a Code exercise, a repository or uploaded code file, a notebook. A separate statement keeps this
+// apart from the line above, which other card kinds extend.
+for (const type of ['code', 'repo-code', 'notebook']) FULL_TYPES.add(type);
 export function widthLimits(minimum = FULL_WIDTH.baseline) {
  const min = Math.max(FULL_WIDTH.baseline, positive(minimum) ? minimum : 0);
  return { min, max: Math.max(FULL_WIDTH.maximum, min) };

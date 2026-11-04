@@ -7,3 +7,5 @@
 [data-card-layout="full"] td, [data-card-layout="full"] th { white-space: normal; overflow-wrap: anywhere; }
 [data-card-layout="full"] .katex-display { overflow: visible; }
 [data-card-layout="full"] img { max-width: 100%; height: auto; object-fit: contain; }
+/* A code card's lines wrap visually (the stored source and Copy keep their real line breaks); the line number stays at the left. */
+[data-card-layout="full"] [data-code-line] > span:last-child { white-space: pre-wrap; overflow-wrap: anywhere; }

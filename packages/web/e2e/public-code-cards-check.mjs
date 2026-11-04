@@ -76,7 +76,7 @@ putSnapshot(`pcc-${run}-priv`, privateStored);
 seed(true);
 
 // ---------------------------------------------------------------- the canvases
-const START = 10, END = 120; // a range past the 40-line preview, so Expand has more to show
+const START = 10, END = 120; // a range past the 40-line preview, so Full content has more to show
 const RANGE = content['model.py'].split('\n').slice(START - 1, END);
 const NOTES = `# notes ${run}\ndef attention_scale(d):\n    return d ** -0.5\n`;
 const UPLOAD_KEY = `pcc-upload-${run}`;
@@ -101,9 +101,14 @@ const EXPLORE = (await api(`/api/apps/${pub.name}/publish`, { method: 'POST', bo
 const gated = await canvas(`Sign-in code cards ${run}`);
 const SIGN_IN = await share(gated.name, false);
 const hidden = await canvas(`Private code cards ${run}`);
+// Full content (owner 2026-11-04) is the owner's choice, saved on the card; a view-only link has no menu to change it. The same code card
+// saved in the Full content layout, on its own public canvas, is what a visitor sees when the owner chose Full.
+const FULL_CODE = { ...CODE, cardLayout: { mode: 'full', scrollableSize: { w: 480, h: 320 }, fullWidth: 480, slot: { w: 480, h: 320 } } };
+const full = await canvas(`Public full code card ${run}`, { ...STATE, blocks: [FULL_CODE] });
+const FULL_LINK = await share(full.name, true);
 const ownBoard = async name => (await api(`/api/learn/boards/${name}/main`)).body;
 const before = await ownBoard(pub.name);
-assert.ok(PUBLIC && EXPLORE && SIGN_IN, `links: ${[!!PUBLIC, !!EXPLORE, !!SIGN_IN]}`);
+assert.ok(PUBLIC && EXPLORE && SIGN_IN && FULL_LINK, `links: ${[!!PUBLIC, !!EXPLORE, !!SIGN_IN, !!FULL_LINK]}`);
 
 // ---------------------------------------------------------------- the browser
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/(ask|learn-course)$|learn\/(ask|artifact|assess|grade|home-ask|image|inline\/(generate|route)|journey|scene|transcribe|tts|voice\/|tutor\/|dive|explore|board$)|learn\/boards\/shared\/[^/]+\/(ask|next-steps)$)/;
@@ -147,7 +152,7 @@ const leaksPrivate = text => text.includes(SECRET) || text.includes('secret.py')
 
 // 1. Signed out, the repository code card of a public share link: real code, original numbers, filename and source, highlighted;
 // it scrolls, copies, expands and collapses, and never sends the visitor to sign in.
-await check('1 signed out, a public link shows the repository code card: real code at its original line numbers, filename, source and highlighting; it scrolls, copies, expands and collapses', async () => {
+await check('1 signed out, a public link shows the repository code card: real code at its original line numbers, filename, source and highlighting; it scrolls and copies; Scrollable says it is an excerpt, Full content shows the whole range', async () => {
   await fresh();
   await open(`/b/${PUBLIC}`);
   await ready('pcc-code');
@@ -169,18 +174,25 @@ await check('1 signed out, a public link shows the repository code card: real co
   await code.getByText('Copied').waitFor({ timeout: 3000 });
   // The system clipboard holds CRLF on Windows.
   assert.equal((await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, '\n'), RANGE.slice(0, 40).join('\n'));
-  // Expand shows the whole stored range; Collapse goes back to the preview.
-  await code.locator('[data-code-card-expand]').click();
+  // The card's own Expand is the Full content layout now: no control on the card, and the preview says how to see the rest.
+  assert.equal(await code.locator('[data-code-card-expand]').count(), 0, 'no Expand control: Full content is the one control');
+  assert.equal(await card('pcc-code').getAttribute('data-card-layout'), 'scrollable');
+  assert.match((await code.locator('[data-code-card-excerpt]').innerText()).trim(), /^Showing 40 of 111 lines\. Full content shows the rest\.$/);
+  // The owner saved Full content on this card: the whole stored range, at its line numbers, with no excerpt note.
+  await open(`/b/${FULL_LINK}`);
+  await ready('pcc-code');
+  assert.equal(await card('pcc-code').getAttribute('data-card-layout'), 'full');
   await page.waitForFunction(id => document.querySelectorAll(`[data-block-id="${id}"] [data-code-line]`).length === 111, 'pcc-code', { timeout: 5000 });
   assert.deepEqual((await lineNumbers('pcc-code')).at(-1), END);
-  await shot('01-public-link-expanded');
-  await code.locator('[data-code-card-expand]').click();
-  await page.waitForFunction(id => document.querySelectorAll(`[data-block-id="${id}"] [data-code-line]`).length === 40, 'pcc-code', { timeout: 5000 });
+  assert.equal(await codeIn('pcc-code').locator('[data-code-card-excerpt]').count(), 0, 'the whole range is shown, so no excerpt note');
+  await shot('01-public-link-full');
+  await open(`/b/${PUBLIC}`);
+  await ready('pcc-code');
   assert.deepEqual(facts.login, [], 'an allowed public read never redirects to sign in');
   assert.equal(new URL(page.url()).pathname, `/b/${PUBLIC}`);
 });
 
-await check('1b expanding on the link is local viewing state: the owner\'s saved canvas is unchanged', async () => {
+await check('1b viewing the link, scrollable or Full content, changes nothing the owner saved', async () => {
   const after = await ownBoard(pub.name);
   assert.equal(after.version, before.version, 'no save reached the owner\'s board');
   assert.deepEqual(after.state.blocks.find(b => b.id === 'pcc-code'), CODE);
@@ -248,8 +260,8 @@ await check('3 signed out, the Explore publication shows the code, upload and gr
   await ready('pcc-upload');
   await page.waitForFunction(id => document.querySelectorAll(`[data-block-id="${id}"] [data-graph-node]`).length === 3, 'pcc-graph', { timeout: 20000 });
   await codeIn('pcc-private').locator('[data-code-card-unavailable]').waitFor({ timeout: 20000 });
-  await codeIn('pcc-code').locator('[data-code-card-expand]').click();
-  await page.waitForFunction(id => document.querySelectorAll(`[data-block-id="${id}"] [data-code-line]`).length === 111, 'pcc-code', { timeout: 5000 });
+  assert.equal(await codeIn('pcc-code').locator('[data-code-card-expand]').count(), 0, 'no Expand control on the publication either');
+  assert.equal(await card('pcc-code').getAttribute('data-card-layout'), 'scrollable', 'the publication shows the layout the owner saved');
   assert.deepEqual(facts.login, []);
   await shot('03-explore-publication');
 });

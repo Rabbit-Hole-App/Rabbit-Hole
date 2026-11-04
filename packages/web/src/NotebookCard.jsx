@@ -6,6 +6,8 @@ import { toast } from './ui.jsx';
 import { CardActionRows } from './CanvasMenu.jsx';
 import { perfMark } from './learn-perf.js';
 import { registerNotebookEditor, notebookCellRequest } from './notebook-inline-client.js';
+import { fullContent } from './card-layout.js';
+import { notebookHeight } from './notebook-height.js';
 
 // The body of a notebook card (docs/features/canvas-notebook.md): Rabbit Hole's
 // header, then the card's Jupyter workspace in an iframe on the isolated
@@ -148,7 +150,8 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
           </div>
         )}
       </div>
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-b-xl border-t border-line">
+      {/* Full content (card-layout.js): the frame is as tall as the notebook's cells (notebook-height.js), so the card is, and the page scrolls it. */}
+      <div className={`relative overflow-hidden rounded-b-xl border-t border-line ${fullContent(block) ? 'flex-none' : 'min-h-0 flex-1'}`} style={fullContent(block) ? { height: notebookHeight(block.ipynb, block.cardLayout.fullWidth) } : undefined}>
         <iframe key={attempt} ref={frame} data-notebook-frame data-notebook-preview={preview || undefined} title="Jupyter notebook" src={notebookUrl(preview ? block.notebook_id : workspaceIdFor(block.notebook_id))} className="h-full w-full bg-white"
           sandbox="allow-scripts allow-same-origin allow-downloads" allow="clipboard-write"
           onLoad={open} />

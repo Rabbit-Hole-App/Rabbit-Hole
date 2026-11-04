@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronsDownUp, ChevronsUpDown, Copy, ExternalLink, FileCode, Loader2, MessageSquarePlus } from 'lucide-react';
+import { Check, Copy, ExternalLink, FileCode, Loader2, MessageSquarePlus } from 'lucide-react';
 import { useChatWorkspace } from './chat-workspace.jsx';
+import { fullContent } from './card-layout.js';
 import { highlightCode } from './code-lang.js';
 import { codeCardRef, previewOf, provenanceOf, publishCodeCard } from './code-card.js';
 import { useSearchContent } from './canvas-search-content.jsx';
@@ -12,8 +13,8 @@ import { CitableLines } from './TutorCitations.jsx';
 
 // A code card's body (repo-graph Release 2; brief "Code-card behaviour"), inside the shared CanvasNode frame, so it selects,
 // moves, resizes, deletes, saves and undoes like any card. It shows the file name, language, provenance (repository, path,
-// lines and commit, or the uploaded file) and highlighted code: a bounded preview that says when it is an excerpt, and Expand
-// for the whole stored range. Code is inert: nothing here runs it. Controls stop the press so they never select or drag.
+// lines and commit, or the uploaded file) and highlighted code: a bounded preview that says when it is an excerpt, and the card's
+// Full content layout (the canvas menu's row) for the whole stored range. Code is inert: nothing here runs it. Controls stop the press so they never select or drag.
 // Open source: a repository card asks the page to open its file and lines in the companion Files viewer at its own commit
 // (small:open-code; repository-canvas.jsx answers, else GitHub at that commit: another canvas or revision); an upload card
 // opens its stored file in a new tab. Add to chat pins the card's code ref. Nothing sends or calls a model. The code takes the
@@ -30,13 +31,12 @@ const lineRuns = runs => {
   return out;
 };
 
-export default function CodeCard({ block, onChange }) {
+export default function CodeCard({ block }) {
   const chat = useChatWorkspace();
   const { status, lines, retry } = useCardSource(block);
   const searchSource = useMemo(() => searchSourceRecord({ sourceKey: JSON.stringify(block.source || {}), status, units: (lines || []).map(line => ({ text: line.text, loc: { start: line.n, end: line.n } })), retry }), [block.source, status, lines, retry]);
   useSearchContent(block.id, searchSource);
-  const expanded = !!block.expanded;
-  const view = status === 'ready' ? previewOf(lines, expanded) : null;
+  const view = status === 'ready' ? previewOf(lines, fullContent(block)) : null;
   const code = view ? view.lines.map(line => line.text).join('\n') : '';
   const [runs, setRuns] = useState(null), [copied, setCopied] = useState(false);
   useEffect(() => {
@@ -74,8 +74,6 @@ export default function CodeCard({ block, onChange }) {
         <button type="button" data-code-card-open className={BUTTON} disabled={status !== 'ready'} title={source.kind === 'repository' ? 'Open these lines in Files at this commit' : 'Open the stored file'} onClick={openSource}><ExternalLink size={13} aria-hidden />Open source</button>
         <button type="button" data-code-card-chat className={BUTTON} disabled={!chat || status !== 'ready'} title="Keep this code with the chat" onClick={addToChat}><MessageSquarePlus size={13} aria-hidden />Add to chat</button>
         <button type="button" data-code-card-copy className={BUTTON} disabled={!code} onClick={copy}>{copied ? <><Check size={13} aria-hidden />Copied</> : <><Copy size={13} aria-hidden />Copy</>}</button>
-        {view && (view.excerpt || expanded) && view.total > 0 && <button type="button" data-code-card-expand aria-expanded={expanded} className={BUTTON}
-          onClick={() => onChange?.({ ...block, expanded: !expanded })}>{expanded ? <><ChevronsDownUp size={13} aria-hidden />Collapse</> : <><ChevronsUpDown size={13} aria-hidden />Expand</>}</button>}
       </div>
       {status === 'loading' && <p role="status" className="flex items-center gap-1.5 px-3 py-2 text-xs text-ink-2"><Loader2 size={13} className="animate-spin" aria-hidden />Loading the code</p>}
       {status === 'unavailable' && <p data-code-card-unavailable className="px-3 py-2 text-xs text-ink-2">{source.kind === 'upload' ? 'This file is not available here.' : 'Repository content unavailable.'}</p>}
@@ -90,7 +88,7 @@ export default function CodeCard({ block, onChange }) {
           </div>)}
         </pre>
         </CitableLines>
-        {view.excerpt && <p data-code-card-excerpt className="shrink-0 border-t border-line px-3 py-1 text-[11px] text-ink-3">Showing {view.shown} of {view.total} lines. Expand shows the rest.</p>}
+        {view.excerpt && <p data-code-card-excerpt className="shrink-0 border-t border-line px-3 py-1 text-[11px] text-ink-3">Showing {view.shown} of {view.total} lines. Full content shows the rest.</p>}
       </>}
     </div>
   );

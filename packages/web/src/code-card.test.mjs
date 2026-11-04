@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { cardLines } from './card-source.js';
-import { CODE_CARD, CODE_DRAG, codeCardRef, dragSource, insertCodeCard, insertCodeCards, nodeCodeCard, previewOf, provenanceOf, repoCodeCard, sameCodeSource, uploadCodeCard, PREVIEW_LINES } from './code-card.js';
+import { CODE_CARD, CODE_DRAG, codeCardRef, dragSource, insertCodeCard, insertCodeCards, nodeCodeCard, expandedToFull, previewOf, provenanceOf, repoCodeCard, sameCodeSource, uploadCodeCard, PREVIEW_LINES } from './code-card.js';
 import { codeLanguage, isCodeFile } from './code-language.js';
 import { assetKeysOf } from './learn-board-assets.js';
 import { sameRef } from './chat-context.js';
@@ -104,7 +104,8 @@ test('an uploaded code card reads its text from the board asset (cache, then the
   await assert.rejects(uploadText('k', async () => null), error => error.status === 404, 'a missing asset is unavailable');
   const card = readFileSync(new URL('./CodeCard.jsx', import.meta.url), 'utf8');
   assert.match(card, /const \{ status, lines, retry \} = useCardSource\(block\);/);
-  assert.match(card, /previewOf\(lines, expanded\)/);
+  assert.match(card, /previewOf\(lines, fullContent\(block\)\)/);
+  assert.doesNotMatch(card, /data-code-card-expand|expanded/, 'the card has no Expand of its own: Full content is the one control');
 });
 
 test('several code cards go in as one group: one insertCards call with the card size, duplicates collapsed, existing ones skipped', () => {
@@ -148,4 +149,22 @@ test('a redacted code card names nothing: no undefined fields in its provenance'
   assert.equal(provenanceOf({ type: 'repo-code', source: { kind: 'repository' } }), 'Repository content unavailable');
   assert.doesNotMatch(provenanceOf({ type: 'repo-code', redacted: true, source: { kind: 'repository' } }), /undefined/);
   assert.match(provenanceOf({ type: 'repo-code', source: { kind: 'repository', repo: 'a/b', path: 'm.py', commit: 'c'.repeat(40) } }), /^a\/b › m\.py · ccccccc$/);
+});
+
+test('a saved card that was Expanded reads as Full content, in the width and height it had; one that was not stays scrollable', () => {
+  const base = repoCodeCard({ ...repo, path: 'model.py' });
+  const was = expandedToFull({ ...base, id: 'a', dx: 5, dy: 6, expanded: true });
+  assert.equal('expanded' in was, false);
+  assert.deepEqual([was.cardLayout.mode, was.cardLayout.fullWidth, was.cardLayout.slot], ['full', CODE_CARD.w, { w: CODE_CARD.w, h: CODE_CARD.h * 2 }]);
+  assert.deepEqual([was.id, was.dx, was.source], ['a', 5, base.source]);
+  const sized = expandedToFull({ ...base, expanded: true, w: 700, h: 500 });
+  assert.deepEqual([sized.cardLayout.fullWidth, sized.cardLayout.slot], [700, { w: 700, h: 500 }]);
+  const collapsed = expandedToFull({ ...base, expanded: false });
+  assert.deepEqual(collapsed, base, 'the flag is dropped, nothing else changes');
+  const laid = { ...base, expanded: true, cardLayout: { mode: 'scrollable', scrollableSize: { w: 1, h: 2 }, fullWidth: 3, slot: { w: 1, h: 2 } } };
+  assert.equal(expandedToFull(laid).cardLayout.mode, 'scrollable', 'a card already laid out keeps its layout');
+  const plain = { ...base, id: 'b' };
+  assert.equal(expandedToFull(plain), plain, 'no flag: the same block');
+  const other = { id: 'c', type: 'snippet', expanded: true };
+  assert.equal(expandedToFull(other), other, 'only code cards');
 });
