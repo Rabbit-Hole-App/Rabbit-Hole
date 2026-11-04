@@ -33,7 +33,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('animation-mvp-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'animation-mvp-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 42; // bump with the steps below; the printed line is what CI reads
+const TOTAL = 43; // bump with the steps below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `anim-${run}@example.com`, secret, handle: `anim_${run}` }) })).json();
@@ -233,6 +233,28 @@ try {
     assert.equal(await page.locator('[data-animation3d-card]').count(), cards, 'no new card from a bare command');
     await composer(page).fill('');
     await page.evaluate(() => document.activeElement?.blur());
+  });
+
+  // AN-17 copy line (owner plan v3.1): the request says what /animation works best for and what is not supported yet.
+  await step('typing /animation shows what it works best for and what is not supported yet, in the picker row and in the Slash Commands description', async () => {
+    const LINE = 'Works best for mechanisms, loops and small games. Loss surfaces and optimizers are not supported yet.', before = stray.length;
+    await composer(page).click();
+    await composer(page).fill('/anim');
+    const row = page.locator('[data-slash-picker] [data-slash-command="animation"]');
+    await row.waitFor();
+    assert.ok((await row.textContent()).includes(LINE), 'the picker row carries the line');
+    await composer(page).fill('');
+    await page.evaluate(() => document.activeElement?.blur());
+    await openSlashHelp(page);
+    const sheet = page.getByRole('dialog', { name: 'Slash Commands' });
+    await sheet.locator('button[data-slash-help="animation"]').click();
+    const about = sheet.locator('[data-slash-pane="animation"] [data-slash-about]');
+    await about.waitFor();
+    assert.ok(await about.isVisible(), 'the description is visible');
+    assert.ok((await about.innerText()).includes(LINE), 'the window shows the whole line');
+    await shot(page, 'A-slash-copy');
+    await sheet.getByRole('button', { name: 'Close Slash Commands' }).click();
+    assert.equal(stray.length, before, 'no generation request from the copy');
   });
 
   // ---- The three fixture cards (AN-02/03) ----
@@ -961,7 +983,7 @@ export function evaluate({ state }) {
   });
   // Owner 2026-11-01 (FX-AN-026): a failed job offers only what the server offers, in the server's words, and its action works.
   await step('a failed job shows the server explanation and only its offered action; Revise plan pressed twice asks once and the card waits on the new job', async () => {
-    const words = 'The scene was too large to check. It was corrected automatically once, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate.';
+    const words = 'The scene was too large to check. You have not been charged. It was corrected automatically once, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate.';
     const { context: c, page: p } = await open({ canvas: fresh, first: null, extra: genRouter });
     const creates = flow.creates.length;
     flow.fail = { failure: { stage: 'validating', category: 'spec', message: words, retryable: false }, recovery: ['revise_plan', 'edit_request'] };
@@ -1045,7 +1067,7 @@ export function evaluate({ state }) {
   });
   await step("a failure's explanation arrives in Chat with no action, and a reload shows it once, asking for nothing", async () => {
     const { context: c, page: p } = await open({ canvas: fresh, first: null, extra: genRouter });
-    const creates = flow.creates.length, words = 'The scene builder reached its output limit before it finished. That does not prove your request is impossible; a smaller plan may fit. It used 36 AI credits. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate.';
+    const creates = flow.creates.length, words = 'The scene builder reached its output limit before it finished. That does not prove your request is impossible; a smaller plan may fit. You have not been charged. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate.';
     flow.fail = { failure: { stage: 'authoring', category: 'model_output', code: 'output_limit', message: words, retryable: true }, recovery: ['revise_plan', 'edit_request'] };
     flow.say = { content: `"Beam balance" was not finished. ${words} Your request and plan are kept.` };
     await send(p);

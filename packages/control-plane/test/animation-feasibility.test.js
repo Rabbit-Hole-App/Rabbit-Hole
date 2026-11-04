@@ -305,7 +305,7 @@ test('each failure class has its own words and its own next action, on the recor
     output_limit: ['output_limit', ['revise_plan', 'edit_request'], /^The scene builder reached its output limit before it finished\. That does not prove your request is impossible; a smaller plan may fit\. It used 36 AI credits\. Revise plan/],
     scene_quality: ['checks', ['revise_plan', 'edit_request'], /^The visual review found 1 serious problem with how the scene is drawn or computed\. It was corrected automatically once, but it still did not pass\. Revise plan/],
     invalid_review: ['review_validation', null, /^The visual review returned an answer in the wrong form/],
-    temporary: ['transient', ['new_attempt', 'edit_request'], /^The AI service was busy\. You are not charged for it\. It was retried automatically\. Try again continues/],
+    temporary: ['transient', ['new_attempt', 'edit_request'], /^The AI service was busy\. You have not been charged\. It was retried automatically\. Try again continues/],
     credits: ['credits', ['new_attempt', 'edit_request'], /^Not enough AI credits\. Try again continues/],
   };
   for (const [name, [kind, actions, words]] of Object.entries(expected)) {

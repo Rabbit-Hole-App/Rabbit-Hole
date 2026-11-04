@@ -129,3 +129,19 @@ test('the section holds its place with a skeleton while the one request is in fl
   assert.match(section, /data-weekly-skeleton/);
   assert.doesNotMatch(section.slice(section.indexOf('function WeeklySkeleton'), section.indexOf('export default function WeeklyTop')), /data-weekly-top/, 'a skeleton is not the section: the failure check counts [data-weekly-top]');
 });
+
+// Owner request 2026-11-03: both tabs are the heading and the rows alone (no "Across all of Rabbit Hole ..." note, so no stars-since text either), and an empty
+// week renders nothing at all (no heading, no empty message). WeeklyTop.jsx is not importable here (JSX), so this reads its source.
+test('Canvases and Creators: the heading only, no note; an empty week renders nothing; the skeleton has no note row', () => {
+  const section = read('./WeeklyTop.jsx');
+  const body = section.slice(section.indexOf('export default function WeeklyTop'));
+  assert.doesNotMatch(section, /Filters, Sort and Size apply to the results below|Across all of Rabbit Hole|data-weekly-note|data-weekly-empty/);
+  assert.doesNotMatch(section, /starsSinceLabel|weekLabel/, 'the note was the only user of the week and stars-since text');
+  assert.match(body, /Top creators this week/);
+  assert.match(body, /Top canvases this week/);
+  assert.match(body, /if \(list\.entries\.length === 0\) return null;/, 'an empty week renders nothing, on either tab');
+  assert.ok(body.indexOf('if (list.entries.length === 0) return null;') > body.indexOf('useEffect'), 'the early return stays after the hooks (rules of hooks)');
+  const skeleton = section.slice(section.indexOf('function WeeklySkeleton'), section.indexOf('export default function WeeklyTop'));
+  assert.doesNotMatch(skeleton, /pb-2 pt-0\.5/, 'no note-height row');
+  assert.match(skeleton, /h-5 w-44 rounded-xs bg-hover[^>]*mb-2|mb-2[^>]*h-5 w-44/, 'the heading keeps the gap the note row gave');
+});

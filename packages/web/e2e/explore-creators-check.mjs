@@ -309,8 +309,8 @@ const events = (page, name) => page.evaluate(n => window.__weekly.filter(e => e.
 // ---- Weekly Top 5 (owner brief 2026-10-23 sections 3-6, 9) against the contract fixture ----
 await weeklySection(viewer).waitFor({ timeout: 30000 });
 const requestsAtStart = viewer.weeklyRequests; // this page may have loaded Explore before this section; the claim is that nothing below asks again
-check('Canvases: "Top canvases this week", five rows ranked 1 to 5 in the fixture order, after the toolbar and before the results',
-  (await weeklySection(viewer).locator('h2').innerText()).trim() === 'Top canvases this week' && await weeklySection(viewer).getAttribute('data-weekly-top') === 'canvases'
+check('Canvases: "Top canvases this week" with no note line, five rows ranked 1 to 5 in the fixture order, after the toolbar and before the results',
+  (await weeklySection(viewer).locator('h2').innerText()).trim() === 'Top canvases this week' && await weeklySection(viewer).locator('p').count() === 0 && await weeklySection(viewer).getAttribute('data-weekly-top') === 'canvases'
   && JSON.stringify(await weeklyRows(viewer).evaluateAll(rs => rs.map(r => r.dataset.weeklyRow))) === '["1","2","3","4","5"]'
   && JSON.stringify(await weeklyRows(viewer).locator('[data-weekly-title]').allInnerTexts()) === JSON.stringify(weeklyTopFixture.canvases.entries.map(e => e.title))
   && await viewer.evaluate(() => { const s = document.querySelector('[data-weekly-top]'); return !!(document.querySelector('[data-explore-toolbar]').compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING) && !!(s.compareDocumentPosition(document.querySelector('[data-explore-list]')) & Node.DOCUMENT_POSITION_FOLLOWING); }));
@@ -397,8 +397,8 @@ await viewer.locator('[data-explore-tabs]').getByRole('tab', { name: 'Creators' 
 await viewer.locator('[data-weekly-top="creators"]').waitFor({ timeout: 30000 });
 const cRows = weeklyRows(viewer);
 const noName = cRows.nth(2), named = cRows.nth(0);
-check('Creators: "Top creators this week", five rows, the display name with the @handle once, the @handle alone without a name, supporter counts and View profile',
-  (await weeklySection(viewer).locator('h2').innerText()).trim() === 'Top creators this week' && await cRows.count() === 5
+check('Creators: "Top creators this week" with no note line, five rows, the display name with the @handle once, the @handle alone without a name, supporter counts and View profile',
+  (await weeklySection(viewer).locator('h2').innerText()).trim() === 'Top creators this week' && await weeklySection(viewer).locator('p').count() === 0 && await cRows.count() === 5
   && (await named.innerText()).replace(/\s+/g, ' ').includes('Ana Lee @ana') && (await noName.innerText()).match(/@cara/g).length === 1 && await noName.locator('[data-weekly-title]').innerText() === '@cara'
   && /13 people starred this week/.test(await named.textContent()) && /4 people forked this week/.test(await named.textContent()) && (await named.locator('[data-weekly-action]').textContent()).trim() === 'View profile'
   && JSON.stringify(await named.locator('a').evaluateAll(as => as.map(a => a.getAttribute('href')))) === JSON.stringify(['/@ana', '/@ana', '/@ana', '/@ana']));
@@ -437,8 +437,14 @@ await live.context().close();
 const quiet = await pageFor({ k: 'none' });
 quiet.weeklyMode = 'empty';
 await quiet.goto(`${BASE}/explore`);
-await quiet.locator('[data-weekly-empty]').waitFor({ timeout: 60000 });
-check('empty week: the neutral message in place of rows, no fake entries', (await quiet.locator('[data-weekly-empty]').innerText()).trim() === 'No canvases have earned stars or forks yet this week.' && await quiet.locator('[data-weekly-row]').count() === 0 && await quiet.locator('[data-weekly-list]').count() === 0);
+await quiet.locator('[data-explore-search]').waitFor({ timeout: 60000 });
+for (let i = 0; i < 300 && !quiet.weeklyRequests; i++) await quiet.waitForTimeout(100); // the one weekly request has been made, so the skeleton below is the real wait
+await quiet.locator('[data-weekly-skeleton]').waitFor({ state: 'detached', timeout: 60000 });
+await quiet.waitForTimeout(500); // let the answered (empty) list render or not
+const nothingOf = async () => (await quiet.locator('[data-weekly-top], [data-weekly-skeleton], [data-weekly-note], [data-weekly-empty], [data-weekly-row], [data-weekly-list]').count()) === 0 && !/Top (canvases|creators) this week|Across all of Rabbit Hole|have earned stars or forks/.test(await quiet.locator('main').innerText());
+const emptyCanvases = await nothingOf();
+await quiet.locator('[data-explore-tabs]').getByRole('tab', { name: 'Creators' }).click();
+check('empty week: nothing at all on either tab (no heading, no note, no message, no rows)', emptyCanvases && await nothingOf() && quiet.weeklyRequests === 1, JSON.stringify([emptyCanvases, quiet.weeklyRequests]));
 await quiet.context().close();
 const broken = await pageFor({ k: 'none' });
 broken.weeklyMode = 'error';
