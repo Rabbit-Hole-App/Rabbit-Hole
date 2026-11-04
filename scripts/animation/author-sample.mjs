@@ -24,12 +24,14 @@ import { canonicalJson } from '../../packages/web/src/explain-program/contract.j
 
 export const ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 // Owner decision 22 (2): the files whose text reaches the author, hashed in this order. The prompts (agents/), the capability text sent beside them (animation-brief.js), the
-// archetype rules (lane f; absent until it lands, recorded as absent) and the contract and capability constants the prompt quotes (ANIMATION_PROGRAM_CONTRACT, the draft schema, limits).
+// archetype rules (lane f; absent until it lands, recorded as absent), animation-author.js (the author's user content: the archetype rules and the frozen exemplar enter there, and
+// the validators and plan assertions that judge a sample live beside it) and the contract and capability constants the prompt quotes (ANIMATION_PROGRAM_CONTRACT, the draft schema, limits).
 export const PROMPT_FILES = Object.freeze([
   'packages/control-plane/src/agents/animation-author.js',
   'packages/control-plane/src/agents/animation-brief.js',
   'packages/control-plane/src/agents/animation-archetypes.js',
   'packages/control-plane/src/animation-brief.js',
+  'packages/control-plane/src/animation-author.js',
   'packages/web/src/animation3d/contract.js',
   'packages/web/src/animation3d/capabilities.js',
 ]);
@@ -177,13 +179,12 @@ export async function sampleOnce(run, { transport, signal, ids }) {
   if (draft) {
     record.bytes = bytesOf(draft);
     validation = await authoring.validateStage({ ...job, draft, planHash: planHashOf(pin.plan), resultId: `ar_${run.id.replace(/\W/g, '').padEnd(32, '0').slice(0, 32)}`, approval: { at: 0 }, calls: [{ role: 'author', status: 'settled', served: record.served }] }, { env: OFFLINE_ENV });
-    record.problems = validation.problems ?? []; record.category = validation.category ?? null; record.validator = !validation.problems?.length;
-    // Plan assertions arrive with AN-20's assertion step (an exported assertionProblems(artifact, plan)); until then 'n/a'.
-    if (validation.artifact && typeof authoring.assertionProblems === 'function' && pin.plan.assertions?.length) {
-      const failed = authoring.assertionProblems(validation.artifact, pin.plan);
-      record.assertions = !failed.length; if (failed.length) record.problems.push(...failed);
-    }
-    record.status = record.validator ? 'valid' : 'invalid';
+    record.problems = validation.problems ?? []; record.category = validation.category ?? null;
+    // Plan assertions are held by planProblems (animation-author.js assertionProblems), so their lines are among the validator's problems: split them out so the table shows both.
+    const failedAssertions = record.problems.filter(p => /^assertions\.\d+:/.test(p));
+    record.validator = record.problems.length === failedAssertions.length;
+    record.assertions = pin.plan.assertions?.length ? !failedAssertions.length : null;
+    record.status = record.problems.length ? 'invalid' : 'valid';
   }
   record.seconds = +((Date.now() - started) / 1000).toFixed(1);
   return { record, draft };
