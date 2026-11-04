@@ -307,12 +307,13 @@ run('rendered by the real scene builder: nothing is drawn as a path until a step
   assert.deepEqual([kept.trail, kept.ghost], [false, true], 'New run: the old path is the ghost, the new one has one point');
 });
 
-run('rendered at learning rate 1.5: the ball is held at the surface top while the Loss keeps its true value, and the fitted camera keeps the ball, the whole path and most of the bowl in view', async () => {
+run('rendered at learning rate 1.5: the ball is held at the rim of the bowl, on the surface where its path ends (FX-AN-116), while the Loss keeps its true value, and the fitted camera keeps the ball, the whole path and most of the bowl in view', async () => {
   for (const aspect of ASPECTS) {
     const far = await drawn(1.5, aspect, p => { p.press('run'); for (let t = 1; t <= 12; t += 1) p.tick(t); });
     assert.equal(far.frame.readouts.status, 'diverged');
     assert.equal(far.clamped.length, 1);
-    assert.ok(far.clamped[0].trueY > 10 && far.clamped[0].y === 4 && Math.abs(far.ballY - 4) < 1e-9, `true ${far.clamped[0].trueY}, drawn ${far.ballY}`);
+    // It was drawn at the surface top (4) before C12; now it sits on the surface at the rim (the rim's height plus the ball's radius), below that, where the path ends.
+    assert.ok(far.clamped[0].trueY > 10 && far.clamped[0].y < 4 && far.clamped[0].y > 0 && Math.abs(far.ballY - far.clamped[0].y) < 1e-9, `true ${far.clamped[0].trueY}, drawn ${far.ballY}`);
     assert.ok(far.frame.readouts.loss > 20, 'the readout keeps the true value');
     assert.deepEqual([far.ballSeen, far.ballInside, far.pathSeen, far.trail], [true, true, 3, true], `at aspect ${aspect.toFixed(2)}`);
     assert.ok(far.bowlShare >= 0.12 && far.bowlWidth >= 0.2, `the bowl keeps ${(far.bowlShare * 100).toFixed(0)}% of the view, ${(far.bowlWidth * 100).toFixed(0)}% of its width, at aspect ${aspect.toFixed(2)}`);
