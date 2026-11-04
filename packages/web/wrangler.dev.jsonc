@@ -41,6 +41,11 @@
         "name": "ANIMATION_JOBS",
         "class_name": "AnimationJobs"
       },
+      // /whiteboard jobs, one object per canvas (control-plane/src/whiteboard-job.js, roadmap W0); a stub that answers 404 until W1.
+      {
+        "name": "WHITEBOARD_JOBS",
+        "class_name": "WhiteboardJobs"
+      },
       // IMG-01 image generation jobs, one object per generation (control-plane/src/image-jobs.js); same binding as production.
       {
         "name": "IMAGE_JOBS",
@@ -89,6 +94,12 @@
       "tag": "animation-jobs-1",
       "new_sqlite_classes": [
         "AnimationJobs"
+      ]
+    },
+    {
+      "tag": "whiteboard-jobs-1",
+      "new_sqlite_classes": [
+        "WhiteboardJobs"
       ]
     }
   ],
@@ -156,6 +167,10 @@
   "vars": {
     // Telemetry (docs/features/telemetry.md): labels this deployment's events; the bindings above are what switch collection on.
     "TELEMETRY_ENVIRONMENT": "dev",
+    // /whiteboard (roadmap W0, W-D9: dev clones use the whiteboard renderer app; there is no dev renderer). The bearer WHITEBOARD_RENDERER_TOKEN
+    // is a secret and does not clone: a clone that needs it has it installed. The routes arrive in W1.
+    "WHITEBOARD_ENABLED": "true",
+    "WHITEBOARD_RENDERER_URL": "https://rabbit-hole-whiteboard-renderer.fly.dev",
     // /explain v2 (EXP-T12): switched on at R1 (EXP-T23, owner production GO 2026-10-22; live runs C:/s/spec/explain/renders/r2-live).
     "EXPLAIN_V2_ENABLED": "true",
     // Generated interactive programs (docs/superpowers/plans/2026-10-28-explain-sandbox.md, Task 5): DEV ONLY. The production config does not set it, so production generation stays off.

@@ -1,8 +1,7 @@
-# rabbit-hole-motion-renderer (spec §32): the PRODUCTION Motion render service. PREPARED, not deployed: creating it needs
-# the owner's priced infrastructure approval (C:/s/spec/day-1021/motion-deploy-plan.md). The same image and limits as the
-# proven dev service (fly.dev.toml, service.linux.test.mjs 15/15 at 9083840e), a fresh MOTION_RENDERER_TOKEN, and one
-# machine: the fixed pool is the platform-funded compute ceiling (owner decision C). Home deploys from
-# `context.sh --target renderer`; this file creates nothing by itself.
+# rabbit-hole-motion-renderer's volume-less config. This is NOT what production runs: production runs fly.prod-durable.toml (machine created
+# 2026-10-26 with the volume motion_jobs, 1 GB, mounted at /data/motion-jobs; read from `fly machine list`, `fly volumes list` and /health on 2026-11-04). The image, sandbox and limits
+# are the same as the proven dev service (fly.dev.toml, service.linux.test.mjs 15/15 at 9083840e); this file is the base fly.whiteboard.toml
+# copies (a separate app without a volume). It creates nothing by itself.
 app = "rabbit-hole-motion-renderer"
 primary_region = "iad"
 

@@ -33,7 +33,10 @@
       { "name": "FILE_JOBS", "class_name": "FileJobs" },
       // /animation jobs, one object per canvas (control-plane/src/animation-job.js, AN-05; owner production GO 2026-11-02); routes off
       // unless ANIMATION_ENABLED. Stays bound when Animation is switched off: saved results and in-flight jobs live in these objects.
-      { "name": "ANIMATION_JOBS", "class_name": "AnimationJobs" }
+      { "name": "ANIMATION_JOBS", "class_name": "AnimationJobs" },
+      // /whiteboard jobs, one object per canvas (control-plane/src/whiteboard-job.js, roadmap W0): a stub that answers 404 until W1. Stays bound
+      // when /whiteboard is switched off: saved results and in-flight jobs live in these objects.
+      { "name": "WHITEBOARD_JOBS", "class_name": "WhiteboardJobs" }
     ]
   },
   "migrations": [
@@ -45,7 +48,9 @@
     { "tag": "image-jobs-1", "new_sqlite_classes": ["ImageJobs"] },
     { "tag": "file-jobs-1", "new_sqlite_classes": ["FileJobs"] },
     // After file-jobs-1, the last tag production has applied (served release 2de55d520c46, run 41560098167). Additive; never removed.
-    { "tag": "animation-jobs-1", "new_sqlite_classes": ["AnimationJobs"] }
+    { "tag": "animation-jobs-1", "new_sqlite_classes": ["AnimationJobs"] },
+    // Not yet applied by any release (the W0 binding commit, roadmap W0.4). Additive; never removed.
+    { "tag": "whiteboard-jobs-1", "new_sqlite_classes": ["WhiteboardJobs"] }
   ],
   // dev-worker.js bundles its pages from ./dist-dev; build with the production VITE_* env into that directory.
   "assets": { "directory": "./dist-dev", "binding": "ASSETS", "run_worker_first": true },
@@ -83,6 +88,10 @@
     // ANIMATION_DIAGNOSTICS (job detail and the render probes) is never set here.
     "ANIMATION_ENABLED": "true",
     "ANIMATION_EXECUTION_KILL": "false",
+    // /whiteboard (roadmap W0): OFF until MVP-W1 is released and verified. Only the string "true" will accept new jobs. The renderer is its own
+    // Fly app (W-D4 as amended 4 Nov 2026), never Motion's; its bearer WHITEBOARD_RENDERER_TOKEN is a secret.
+    "WHITEBOARD_ENABLED": "false",
+    "WHITEBOARD_RENDERER_URL": "https://rabbit-hole-whiteboard-renderer.fly.dev",
     // IMG-01 image generation (docs/features/image-jobs.md): PUBLIC generation is ON (owner GO). Only "true" accepts new jobs from everyone.
     // The controlled owner-only acceptance path below (owner 2026-10-25) stays for the operator surfaces: a caller whose verified sign-in identity
     // is listed in IMAGE_ACCEPTANCE_EMAILS may use it under the ordinary admission, hold, settlement and readiness rules, so the

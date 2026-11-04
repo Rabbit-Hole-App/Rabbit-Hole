@@ -39,7 +39,7 @@ test('the dev job store: a volume mounted at the same path as MOTION_JOB_STORE_D
   assert.match(dev, /^\s*initial_size = "1gb"$/m);
   assert.match(dev, /^\s*snapshot_retention = 1$/m);
   assert.match(dev, /^\s*MOTION_JOB_STORE_REQUIRE_MOUNT = "1"$/m);
-  assert.doesNotMatch(prod, /MOTION_JOB_STORE|\[+mounts\]+/, 'production keeps its unset defaults and no volume');
+  assert.doesNotMatch(prod, /MOTION_JOB_STORE|\[+mounts\]+/, 'fly.prod.toml keeps its unset defaults and no volume (production runs fly.prod-durable.toml, see its header)');
   // Fly mounts the volume root-owned: the root entrypoint hands it to motion-svc, owner-only, so the render user (same group) cannot read it.
   assert.match(entrypoint, /chown motion-svc:motion "\$DIR" && chmod 0700 "\$DIR"/);
 });
@@ -156,7 +156,7 @@ test('the generated Docker context boots the Motion service: every shared file i
   assert.equal(JSON.parse(readFileSync(join(app, 'packages', 'control-plane', 'package.json'), 'utf8')).type, 'module');
 });
 
-// The production configs (prepared, not deployed): the renderer is the proven dev service under its production name, with
+// The production configs (fly.prod.toml is the volume-less file production does not run; the durable one below is deployed): the renderer is the proven dev service under its production name, with
 // the same image, sandbox, limits and single machine; the orchestrator has no volume (the worker holds the durable record).
 test('the production renderer config is the dev config under its production name; the orchestrator config has no volume', () => {
   // The dev-only job store (its env lines and the [mounts] block, asserted absent from prod above) is the one difference.
@@ -201,14 +201,14 @@ test('the orchestrator Docker context boots the hostable entry: every file it im
   relativeImports(join(cwd, 'motion', 'orchestrator-main.mjs'));
 });
 
-// Durable job storage in production (owner decision pending; the file is prepared, never the default): the store the dev renderer has had since
+// Durable job storage in production (deployed since 2026-10-26: machine, volume motion_jobs and /health read 2026-11-04): the store the dev renderer has had since
 // 2026-10-23, on one machine, so a restart cannot lose an accepted key and a second machine cannot appear with an empty store.
-test('the durable production renderer config is the dev store on the production app, prepared beside fly.prod.toml which stays volume-less', () => {
+test('the durable production renderer config is the dev store on the production app, kept beside fly.prod.toml, the volume-less file production does not run', () => {
   const durable = read('./fly.prod-durable.toml'), plain = read('./fly.prod.toml'), dev = read('./fly.dev.toml');
   const strip = s => s.split('\n').filter(l => !l.startsWith('#') && !l.startsWith('app =')).join('\n').replace(/\n{2,}/g, '\n');
   assert.match(durable, /^app = "rabbit-hole-motion-renderer"$/m);
   assert.equal(strip(durable), strip(dev), 'the same store, mount, limits and machine as the dev service that was restart-tested');
-  assert.doesNotMatch(plain, /MOTION_JOB_STORE|\[mounts\]/, 'today\'s production config is unchanged: no store, no volume');
+  assert.doesNotMatch(plain, /MOTION_JOB_STORE|\[mounts\]/, 'fly.prod.toml stays the volume-less file: no store, no volume');
   // The store cannot be bypassed by the topology: it is required (not optional), it is the mount's destination, one volume, one machine.
   assert.match(durable, /MOTION_JOB_STORE_REQUIRE_MOUNT = "1"/);
   const dir = /MOTION_JOB_STORE_DIR = "([^"]+)"/.exec(durable)[1];

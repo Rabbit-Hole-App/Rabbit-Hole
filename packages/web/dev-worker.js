@@ -22,6 +22,7 @@ export { CadJobs } from '../control-plane/src/cad-jobs.js';
 import { cadRoute } from '../control-plane/src/cad-jobs.js';
 export { ExplainJobs } from '../control-plane/src/explain-job.js';
 export { AnimationJobs } from '../control-plane/src/animation-job.js';
+export { WhiteboardJobs } from '../control-plane/src/whiteboard-job.js';
 import { animationRoute } from '../control-plane/src/animation-job.js';
 export { ImageJobs } from '../control-plane/src/image-jobs.js';
 import { imageJobsRoute } from '../control-plane/src/image-jobs.js';

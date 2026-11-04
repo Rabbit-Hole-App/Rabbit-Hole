@@ -1,7 +1,7 @@
-# rabbit-hole-motion-renderer WITH the durable job store. PREPARED, not deployed. Owner decision pending: one 1 GB Fly volume, US$0.15
+# rabbit-hole-motion-renderer WITH the durable job store. DEPLOYED: production has run this file since 2026-10-26 (read from `fly machine list`, `fly volumes list` and /health on 2026-11-04). One 1 GB Fly volume, US$0.15
 # per month (docs.fly.io/about/pricing: "$0.15/GB/month", billed on provisioned capacity including while the machine is stopped; snapshots
 # "$0.08/GB/month" with the first 10 GB free each month, so a 1 GB volume with 1 day of retention costs no snapshot charge).
-# fly.dev.toml has had the same store since 2026-10-23. fly.prod.toml (no volume) stays what production runs today.
+# fly.dev.toml has had the same store since 2026-10-23. fly.prod.toml (no volume) is the file production does NOT run; fly.whiteboard.toml copies its body.
 # Do NOT deploy this file before the volume exists: with [mounts] and no volume, the deploy creates one itself.
 # Order: create the volume (package step E1), then `context.sh --target renderer-durable` and the deploy it prints. --ha=false is
 # required: the volume is machine-local, so a second machine would have an empty store and could run a key the first one saw.
