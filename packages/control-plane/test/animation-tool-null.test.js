@@ -8,13 +8,12 @@ import { draftOf } from '../src/animation-repair.js';
 import { normalizeToolInput } from '../src/tool-input.js';
 
 const golden = JSON.parse(readFileSync(new URL('../../web/src/animation3d/testdata/sgd-golden.json', import.meta.url), 'utf8'));
-const gate1 = new URL('file:///C:/s/spec/animation/author-samples/2026-11-04T02-45-12-172Z-gate1-sgd/');
-const saved = run => { try { return JSON.parse(readFileSync(new URL(`sgd-loss-surface-${run}/draft.json`, gate1), 'utf8')); } catch { return null; } }; // the saved draft, when the run folder is on this machine
+const slips = JSON.parse(readFileSync(new URL('./fixtures/animation-gate1-slips.json', import.meta.url), 'utf8')); // the two real slips of Gate 1, committed: no machine-local path
 
 test('FX-AN-058: a null on an optional field is dropped before validation, only where asked and only where the schema does not allow null (Gate 1 r16: timeline null)', () => {
   const schema = ARTIFACT_DRAFT;
-  const r16 = saved('r16') ?? { ...draftOf(golden.artifact), timeline: null }; // the saved Gate 1 draft when its run folder is on this machine, else the golden's own draft with the same null
-  assert.equal(r16.timeline, null, 'the saved r16 draft carries timeline null');
+  const r16 = { ...draftOf(golden.artifact), ...slips.r16 };
+  assert.equal(r16.timeline, null, 'the real r16 slip: timeline null');
   const out = normalizeToolInput(schema, r16, { dropNull: true });
   assert.equal('timeline' in out, false);
   assert.equal(out.scene, r16.scene, 'unchanged values keep their reference');

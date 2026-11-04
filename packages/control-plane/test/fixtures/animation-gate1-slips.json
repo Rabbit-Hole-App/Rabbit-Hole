@@ -1,0 +1,9 @@
+{
+ "note": "Two real slips of the Gate 1 run gate1-sgd (2026-11-04, C3 candidate): the only field that was wrong in each draft, copied as it came.",
+ "r13": {
+  "behavior": "Stepped rules: each host step applies one SGD update with simulated mini-batch noise, extends the trail, and stops at 40 steps or when the loss passes 8. 'New run, keep last path' restarts from the same start point with the next noise values and keeps the finished path as a ghost."
+ },
+ "r16": {
+  "timeline": null
+ }
+}
