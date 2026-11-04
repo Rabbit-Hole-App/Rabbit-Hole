@@ -8,9 +8,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import {
-  CANDIDATE_FILES, GOLDEN_FILE, PROMPT_FILES, checkCandidate, creditsOf, devKeyTransport, fakeTransport, hashFiles, identities, loadSessions, main, parseArgs, planHashOf, planRuns,
+  CALLS_PER_RUN, CANDIDATE_FILES, GOLDEN_FILE, PROMPT_FILES, checkCandidate, creditsOf, devKeyTransport, fakeTransport, hashFiles, identities, loadSessions, main, parseArgs, planHashOf, planRuns,
   refusals, runBatch, sampleOnce, verifyCandidate, writeOutputs, formatTable,
 } from './animation/author-sample.mjs';
+import * as authoringModule from '../packages/control-plane/src/animation-author.js';
+
+const HAS_ASK_AGAIN = typeof authoringModule.ARTIFACT_CORRECTION === 'string';
 
 const log = console.log; console.log = (...args) => { if (!(typeof args[0] === 'string' && args[0].startsWith('{"event":"learn_model"'))) log(...args); }; // callAnimationRole logs one line per fake call
 const fixture = JSON.parse(readFileSync(new URL('../packages/control-plane/test/fixtures/animation-aj_9c453b6.json', import.meta.url), 'utf8'));
@@ -184,6 +187,62 @@ test('the Gate 1 plan is the one the control-plane tests hold (no drift), when t
   if (!existsSync(fixtureUrl)) return t.skip('the prompt-only branch (which holds the fixture) is not in this tree');
   const pinned = JSON.parse(readFileSync(new URL('./animation/plans/sgd-loss-surface.json', import.meta.url), 'utf8')).plan;
   assert.deepEqual(pinned, JSON.parse(readFileSync(fixtureUrl, 'utf8')));
+});
+
+// FX-AN-056: five Gate 1 replies were refused as "no artifact" and nothing recorded their shape. Every run now keeps the raw tool input of each call (input.json) and inputKeys, kind
+// and askedAgain in run.json, so a rerun confirms or refutes the cause. The ask-again cases need the code of feat/an20-c4-prompts and are skipped without it.
+test('every run keeps the raw tool input of each call: kind, keys, artifact type and the first 3,000 characters', async () => {
+  const run = planRuns([pin], 1)[0], ids = { candidate: 'c', prompts: 'p', golden: 'g' };
+  const ok = await sampleOnce(run, { transport: fakeTransport(fixture.repairedDraft), signal: undefined, ids });
+  assert.equal(ok.input.calls.length, 1);
+  const [call] = ok.input.calls;
+  assert.deepEqual([call.kind, call.keys, call.artifactType, call.again], ['artifact', ['kind', 'artifact'], 'object', false]);
+  assert.ok(call.chars > 3000 && call.head.length === 3000, 'the head is bounded');
+  assert.deepEqual([ok.record.kind, ok.record.inputKeys, ok.record.calls, ok.record.askedAgain], ['artifact', ['kind', 'artifact'], 1, false]);
+  // A reply without an artifact: kept as it came, whatever the code then does with it.
+  const bad = await sampleOnce(run, { transport: fakeTransport(null, { sequence: [{ kind: 'artifact', title: 'only a title' }] }), signal: undefined, ids });
+  assert.equal(bad.record.status, 'error');
+  assert.match(bad.record.error, /invalid_turn: The author returned no artifact/);
+  assert.deepEqual([bad.record.kind, bad.record.inputKeys], ['artifact', ['kind', 'title']]);
+  const last = bad.input.calls.at(-1);
+  assert.deepEqual([last.artifactType, last.keys], ['undefined', ['kind', 'title']]);
+  assert.match(last.head, /"title":"only a title"/);
+  // An artifact that is a string: its type and its start are kept (a cut-off JSON string is one of the readings of the five).
+  const str = await sampleOnce(run, { transport: fakeTransport(null, { sequence: [{ kind: 'artifact', artifact: '{"title": "cut off' }] }), signal: undefined, ids });
+  assert.equal(str.input.calls.at(-1).artifactType, 'string');
+  assert.ok(str.input.calls.at(-1).head.includes('cut off'));
+  // The folder: input.json for a run that reached the model, with the same calls.
+  const dir = tmp(), summary = { ids, promptFiles: [], transport: 'fake', concurrency: 1, maxCredits: Infinity, results: [ok, bad], stopped: null, settled: 0 };
+  writeOutputs(join(dir, 'o'), summary);
+  const saved = JSON.parse(readFileSync(join(dir, 'o', bad.record.id, 'input.json'), 'utf8'));
+  assert.deepEqual(saved.calls.at(-1).keys, ['kind', 'title']);
+  assert.ok(existsSync(join(dir, 'o', ok.record.id, 'input.json')), 'a good run keeps it too');
+  assert.equal(JSON.parse(readFileSync(join(dir, 'o', bad.record.id, 'run.json'), 'utf8')).inputKeys.join(), 'kind,title');
+});
+
+test('a run that asked the author again is billed for both calls and says so', { skip: !HAS_ASK_AGAIN && 'needs the one more ask of feat/an20-c4-prompts' }, async () => {
+  const run = planRuns([pin], 1)[0], ids = { candidate: 'c', prompts: 'p', golden: 'g' };
+  const single = await sampleOnce(run, { transport: fakeTransport(fixture.repairedDraft), signal: undefined, ids });
+  const again = await sampleOnce(run, { transport: fakeTransport(null, { sequence: [{ kind: 'artifact' }, { kind: 'artifact', artifact: fixture.repairedDraft }] }), signal: undefined, ids });
+  assert.equal(again.record.status, 'valid', again.record.problems.join('; '));
+  assert.deepEqual([again.record.askedAgain, again.record.calls, again.input.calls.map(c => c.again)], [true, 2, [false, true]]);
+  assert.ok(again.record.credits > single.record.credits * 1.8, `both calls are in the credits: ${again.record.credits} against ${single.record.credits}`);
+  assert.match(formatTable({ ids, transport: 'fake', concurrency: 1, maxCredits: Infinity, results: [again], stopped: null, settled: again.record.credits }), /valid \(asked again\)/);
+  // Two replies without an artifact: still the one error, after two calls, and billed twice.
+  const two = await sampleOnce(run, { transport: fakeTransport(null, { sequence: [{ kind: 'artifact' }] }), signal: undefined, ids });
+  assert.deepEqual([two.record.status, two.record.calls, two.record.askedAgain], ['error', 2, true]);
+  assert.ok(two.record.credits > 0);
+  // A flattened reply (the artifact's fields at the top level) is the artifact, in one call.
+  const flat = await sampleOnce(run, { transport: fakeTransport(null, { sequence: [{ kind: 'artifact', ...fixture.repairedDraft }] }), signal: undefined, ids });
+  assert.deepEqual([flat.record.status, flat.record.calls, flat.record.askedAgain], ['valid', 1, false]);
+  assert.deepEqual([flat.input.calls[0].artifactType, flat.record.kind], ['undefined', 'artifact']);
+});
+
+test('a run is admitted against the bound of both its possible calls', async () => {
+  const dir = tmp(), c = capture();
+  await main([pinFile(dir), '--dry-run'], { ...c, root: repo() });
+  assert.match(c.text(), /request bound per call: fixture-sgd [\d.]+ credits \(a run is admitted against 2 calls\)/);
+  assert.equal(CALLS_PER_RUN, 2);
 });
 
 test('the table and the folders carry the three identities', async () => {

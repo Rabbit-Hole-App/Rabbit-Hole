@@ -46,6 +46,7 @@ export const CANDIDATE_FILES = Object.freeze([
 export const CREDENTIALS_FILE = 'C:/Users/cyudhist/Desktop/workspace/small-deploy/.env';
 export const DEFAULT_OUT_ROOT = 'C:/s/spec/animation/author-samples';
 export const MAX_CONCURRENCY = 5;
+export const CALLS_PER_RUN = 2; // the author may be asked once more when its reply has no artifact (FX-AN-056): a run is admitted against the bound of both calls
 const CALL_MS = 300000; // the plan's author deadline (AN-17): measured calls run 87 to 126 s
 
 const sha256 = data => createHash('sha256').update(data).digest('hex');
@@ -120,12 +121,15 @@ export const creditsOf = (model, usage) => (usage ? +((costUsd({ model, ...usage
 
 // ---- transports: (env, body, model) -> Response, the shape callAnimationRole takes ----------------------------------------------------------------------------------
 // fake: the stored draft is the reply. usage is synthetic (a quarter of the bytes in, a quarter out) so the cost path is exercised offline.
-export function fakeTransport(draft, { usage, delayMs = 0, seen = [] } = {}) {
-  const input = draft?.kind ? draft : { kind: 'artifact', artifact: draft };
+// sequence: the tool input of the first call of a run, then of the second (the last repeats): how a test makes a reply without an artifact.
+export function fakeTransport(draft, { usage, delayMs = 0, seen = [], sequence = null } = {}) {
+  const fixed = draft?.kind ? draft : { kind: 'artifact', artifact: draft }, counts = new Map();
   return {
     name: 'fake',
     callModel: ({ run, signal }) => async (_env, body, model) => {
       seen.push({ run: run.id, session: run.session?.label ?? null, signal });
+      const n = counts.get(run.id) ?? 0; counts.set(run.id, n + 1);
+      const input = sequence ? sequence[Math.min(n, sequence.length - 1)] : fixed;
       if (delayMs) await new Promise((done, fail) => { const t = setTimeout(done, delayMs); signal?.addEventListener('abort', () => { clearTimeout(t); fail(Object.assign(new Error('cancelled'), { name: 'AbortError' })); }, { once: true }); });
       const reply = { id: 'fake', type: 'message', role: 'assistant', model, stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'fake', name: body.tools[0].name, input }],
         usage: usage ?? { input_tokens: Math.ceil(JSON.stringify(body).length / 4), output_tokens: Math.ceil(JSON.stringify(input).length / 4) } };
@@ -156,24 +160,47 @@ export function devKeyTransport({ credentialsFile = CREDENTIALS_FILE } = {}) {
 }
 
 // ---- one run ------------------------------------------------------------------------------------------------------------------------------------------------------
+// What the author's tool input looked like, kept for every call (FX-AN-056: five Gate 1 replies were refused as "no artifact" and nothing recorded their shape): its kind and keys,
+// the type of its artifact field, and the first 3,000 characters of the raw input and the reply's block list. The reply of a call that failed carries the same in error.reply.
+export const INPUT_HEAD = 3000;
+const typeOf = value => (value === undefined ? 'undefined' : value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value);
+export function inputInfo({ input, reply } = {}, again = false) {
+  const text = input !== undefined ? JSON.stringify(input) : reply?.partialTool ?? null, object = input && typeof input === 'object' && !Array.isArray(input);
+  return { again, kind: object ? input.kind ?? null : null, keys: object ? Object.keys(input) : null, artifactType: object ? typeOf(input.artifact) : typeOf(input), chars: text?.length ?? null,
+    head: text === null ? null : text.slice(0, INPUT_HEAD), stopReason: reply?.stopReason ?? null, blocks: reply?.blocks ?? null };
+}
+// Usage of every call of a run, added field by field (numbers sum; the first non-number stays): a run that asked again was billed for both.
+const addUsage = (a, b) => {
+  if (!a) return b; if (!b) return a;
+  const out = { ...a };
+  for (const [key, value] of Object.entries(b)) out[key] = typeof value === 'number' && typeof a[key] === 'number' ? a[key] + value : value && typeof value === 'object' && a[key] && typeof a[key] === 'object' ? addUsage(a[key], value) : a[key] ?? value;
+  return out;
+};
 const bytesOf = value => Buffer.byteLength(typeof value === 'string' ? value : JSON.stringify(value));
 export async function sampleOnce(run, { transport, signal, ids }) {
   const started = Date.now(), pin = run.pin, job = jobOf(pin), record = { id: run.id, plan: pin.name, session: run.session?.label ?? null, ...ids, requestHash: null, status: 'error', stopReason: null, served: null, usage: null, credits: 0, bytes: null, validator: null, assertions: null, problems: [], category: null, error: null };
   let draft = null;
+  const infos = [];
   const call = async (role, spec) => {
-    record.requestHash = sha256(canonicalJson({ system: spec.system, tool: spec.tool, content: spec.content }));
-    const r = await callAnimationRole(OFFLINE_ENV, role, spec, { callModel: transport.callModel({ run, signal }) });
-    record.usage = r.usage; record.stopReason = r.stopReason; record.served = r.served;
-    return r;
+    record.requestHash ??= sha256(canonicalJson({ system: spec.system, tool: spec.tool, content: spec.content }));
+    try {
+      const r = await callAnimationRole(OFFLINE_ENV, role, spec, { callModel: transport.callModel({ run, signal }) });
+      infos.push(inputInfo(r, spec.again === true));
+      record.usage = addUsage(record.usage, r.usage); record.stopReason = r.stopReason; record.served = r.served;
+      return r;
+    } catch (error) {
+      if (error.billed) { infos.push(inputInfo({ reply: error.reply }, spec.again === true)); record.usage = addUsage(record.usage, error.billed.usage); record.stopReason = error.billed.stopReason ?? record.stopReason; }
+      throw error;
+    }
   };
   try {
     const authored = await authoring.authorStage(job, { call });
     if (authored.gap) { record.status = 'gap'; record.problems = [authored.gap.reason]; } else { draft = authored.draft; record.status = 'drafted'; }
   } catch (error) {
-    record.usage ??= error.billed?.usage ?? null; record.stopReason ??= error.billed?.stopReason ?? null;
     record.status = error.name === 'AbortError' || signal?.aborted ? 'cancelled' : 'error';
     record.error = `${error.code ?? error.name}: ${String(error.message).slice(0, 300)}`;
   }
+  record.calls = infos.length; record.askedAgain = infos.length > 1; record.kind = infos.at(-1)?.kind ?? null; record.inputKeys = infos.at(-1)?.keys ?? null;
   record.credits = creditsOf(animationModel('author'), record.usage);
   let validation = null;
   if (draft) {
@@ -187,7 +214,7 @@ export async function sampleOnce(run, { transport, signal, ids }) {
     record.status = record.problems.length ? 'invalid' : 'valid';
   }
   record.seconds = +((Date.now() - started) / 1000).toFixed(1);
-  return { record, draft };
+  return { record, draft, input: { calls: infos } };
 }
 
 // ---- the batch: round-robin sessions, a concurrency of 1 to 5 and a cumulative cap on credits ------------------------------------------------------------------------
@@ -228,7 +255,7 @@ const cell = (value, width) => String(value ?? '-').padEnd(width);
 export function formatTable(summary) {
   const { ids, transport, concurrency, maxCredits, results, stopped, settled } = summary, rows = results.map(r => r.record);
   const head = ['run', 'session', 'bytes', 'tokens in/out', 'validator', 'assertions', 'credits', 'seconds', 'status'];
-  const body = rows.map(r => [r.id, r.session, r.bytes, r.usage ? `${r.usage.input_tokens ?? 0}/${r.usage.output_tokens ?? 0}` : null, r.validator == null ? '-' : r.validator ? 'PASS' : 'FAIL', r.assertions == null ? 'n/a' : r.assertions ? 'PASS' : 'FAIL', r.credits.toFixed(2), r.seconds, r.error ? `${r.status}: ${r.error.slice(0, 60)}` : r.status]);
+  const body = rows.map(r => [r.id, r.session, r.bytes, r.usage ? `${r.usage.input_tokens ?? 0}/${r.usage.output_tokens ?? 0}` : null, r.validator == null ? '-' : r.validator ? 'PASS' : 'FAIL', r.assertions == null ? 'n/a' : r.assertions ? 'PASS' : 'FAIL', r.credits.toFixed(2), r.seconds, r.error ? `${r.status}: ${r.error.slice(0, 60)}` : r.status + (r.askedAgain ? ' (asked again)' : '')]);
   const widths = head.map((h, i) => Math.max(h.length, ...body.map(row => String(row[i] ?? '-').length)));
   return [
     `candidate ${ids.candidate}   prompt-files ${ids.prompts}   golden ${ids.golden}`,
@@ -240,10 +267,11 @@ export function formatTable(summary) {
 }
 export function writeOutputs(out, summary) {
   mkdirSync(out, { recursive: true });
-  for (const { record, draft } of summary.results) {
+  for (const { record, draft, input } of summary.results) {
     const dir = join(out, record.id); mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'run.json'), JSON.stringify({ ...record, transport: summary.transport }, null, 2));
     if (draft) writeFileSync(join(dir, 'draft.json'), JSON.stringify(draft, null, 2));
+    if (input?.calls.length) writeFileSync(join(dir, 'input.json'), JSON.stringify(input, null, 2)); // every run that reached the model: its raw tool input, bounded
     writeFileSync(join(dir, 'problems.json'), JSON.stringify(record.problems, null, 2));
     writeFileSync(join(dir, 'usage.json'), JSON.stringify({ usage: record.usage, credits: record.credits, stopReason: record.stopReason, served: record.served }, null, 2));
   }
@@ -294,8 +322,8 @@ async function mainInner(argv, { out = console.log, err = console.error, root = 
   try { pins = files.map(loadPlan); sessions = flags['--sessions'] ? loadSessions(flags['--sessions']) : []; } catch (error) { err(`REFUSED: ${error.message}`); return 2; }
   const runs = planRuns(pins, count, sessions), requests = new Map();
   for (const pin of pins) requests.set(pin.name, await requestOf(pin));
-  const reserveOf = run => requests.get(run.pin.name).reserveCredits;
-  out(`runs ${runs.length} (${pins.map(p => `${p.name} x${count}`).join(', ')}); request bound per call: ${pins.map(p => `${p.name} ${requests.get(p.name).reserveCredits} credits`).join(', ')}; sessions ${sessions.length || 'none'}`);
+  const reserveOf = run => requests.get(run.pin.name).reserveCredits * CALLS_PER_RUN;
+  out(`runs ${runs.length} (${pins.map(p => `${p.name} x${count}`).join(', ')}); request bound per call: ${pins.map(p => `${p.name} ${requests.get(p.name).reserveCredits} credits`).join(', ')} (a run is admitted against ${CALLS_PER_RUN} calls); sessions ${sessions.length || 'none'}`);
   if (flags['--dry-run']) { out('DRY RUN: nothing sent'); return 0; }
   let transport;
   if (flags['--fake-transport']) transport = fakeTransport(JSON.parse(readFileSync(flags['--fake-transport'], 'utf8')));
