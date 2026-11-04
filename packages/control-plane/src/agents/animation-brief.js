@@ -2,7 +2,8 @@
 // serves the learner's goal from what the enabled phase supports, says why, and is honest about what it cannot do. The server, not
 // the model, decides which capabilities are enabled (animation3d/capabilities.js) and adds its own limitation for every requested
 // capability that is not (animation-brief.js), so a downgrade is never silent.
-import { BEHAVIORS, CONTROL_PROFILES, EXPERIENCES, FEATURES, PLAN_SCHEMA, validateAnimationPlan } from '../../../web/src/animation3d/contract.js';
+import { ASSERTION_KINDS, BEHAVIORS, CONTROL_PROFILES, EXPERIENCES, FEATURES, MAX_ASSERTIONS, PLAN_SCHEMA, validateAnimationPlan } from '../../../web/src/animation3d/contract.js';
+import { ARCHETYPES, ARCHETYPE_NAMES } from './animation-archetypes.js';
 import { ANIMATION_CAPABILITIES } from '../../../web/src/animation3d/capabilities.js';
 import { LIMITS as RUNTIME_LIMITS } from '../../../web/src/explain-program/limits.js';
 
@@ -51,6 +52,10 @@ export const PLAN_TOOL = {
       learningGoal: { type: 'string', maxLength: 300, description: 'Optional: what the learner should come to understand. A won game is not proof of understanding.' },
       requiredCapabilities: { type: 'array', maxItems: 16, items: { type: 'string', enum: FEATURES }, description: `The features this plan needs in order to be built, only from input.capabilities.features (what the learner named goes in requested instead). They must agree with behavior: ${PLAN_RULES}.` },
       duration: { type: 'number', exclusiveMinimum: 0, maximum: 600, description: 'Seconds of one loop, for a watch experience.' },
+      archetype: { type: 'string', enum: ARCHETYPE_NAMES, description: `Optional: the name of one recurring scene shape when the scene is exactly that shape, otherwise leave it out. ${Object.entries(ARCHETYPES).map(([name, a]) => `${name}: ${a.when}`).join(' ')}` },
+      assertions: { type: 'array', maxItems: MAX_ASSERTIONS, items: { type: 'object', additionalProperties: false, required: ['kind'],
+        properties: { kind: { type: 'string', enum: ASSERTION_KINDS }, node: NAME, parameter: NAME, values: { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number' } }, min: { type: 'integer', minimum: 1, maximum: 512 } } },
+        description: 'Optional, at most four checkable promises the finished scene must keep, only ones this plan\'s own description makes: {kind: clamp, node} a marker is held on its surface; {kind: compare, parameter, values: [a, b]} the number parameter\'s range includes both values; {kind: pathLength, min} a path holds at least min points.' },
       requested: {
         type: 'object', additionalProperties: false, required: ['features'],
         description: 'Only an experience, behavior, control profile or feature the learner explicitly asked for, whether or not it is enabled; empty features and no other fields when they named none. Your own choices do not go here. The server compares this with the enabled phase and adds the limitation for anything unavailable.',

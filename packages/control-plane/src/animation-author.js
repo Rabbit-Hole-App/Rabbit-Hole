@@ -6,19 +6,35 @@
 // fit their roles' limits. Problems are repairable, one sentence each; the job allows one repair (animation-job.js).
 import { ANIMATION_PROGRAM_VERSIONS, SCENE_SCHEMA, clientFeatureUses, hashProgramSource, validateAnimationArtifact } from '../../web/src/animation3d/contract.js';
 import { canonicalJson, sha256Hex } from '../../web/src/explain-program/contract.js';
+import GOLDEN from '../../web/src/animation3d/testdata/sgd-golden.json' with { type: 'json' };
 import { ANIMATION_AUTHOR_SYSTEM, authorTool } from './agents/animation-author.js';
+import { archetypeRules } from './agents/animation-archetypes.js';
 import { actionCapability, clientFeatures, enabledCapabilities, surfaceCapability } from './animation-brief.js';
 import { AnimationPolicyError } from './animation-policy.js';
-import { fitProblems, withProgram } from './animation-repair.js';
+import { draftOf, fitProblems, withProgram } from './animation-repair.js';
 import { modelEvidence } from './explain-evidence.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 // What the author is told about the enabled phase (the same object the validator checks against).
 export const authorCapabilities = (caps = enabledCapabilities()) => ({ phase: caps.phase, geometry: caps.geometry, events: caps.events, features: caps.features, speeds: caps.speeds, stepSeconds: caps.stepSeconds, limits: caps.limits });
 
+// AN-20 (owner decision 13): a plan that names an archetype gives the author that archetype's rules and its ONE exemplar, in the user content (never the cached
+// system block). The exemplar is the golden SGD artifact as a draft, without its title and description (a fixture says so in both; the author writes its own), at the
+// hash below: a changed golden fails the job loudly instead of silently changing what a measurement sent. It is never served as a result (decision 13).
+export const EXEMPLARS = Object.freeze({ loss_surface: { artifact: GOLDEN.artifact, sha256: 'd27eead10b26903251efddb76c399ac869ad5493f057af05e8840dd0f36eba7b' } });
+export const exemplarDraft = artifact => { const { title: _title, description: _description, ...rest } = draftOf(artifact); return rest; };
+export async function archetypeContent(name, exemplars = EXEMPLARS) {
+  const rules = archetypeRules(name), exemplar = exemplars[name];
+  if (!rules || !exemplar) return null;
+  const draft = exemplarDraft(exemplar.artifact), hash = await sha256Hex(canonicalJson(draft));
+  if (hash !== exemplar.sha256) throw new AnimationPolicyError('exemplar_changed', `The ${name} exemplar is ${hash}, not the frozen ${exemplar.sha256}.`);
+  return { name, rules, exemplar: draft, note: 'The exemplar is one finished scene of this shape, for its structure only. Write your own for this plan: its formula, controls, words and numbers, and your own title and description.' };
+}
+
 // The author stage. -> { draft } | { gap }
 export async function authorStage(job, ctx) {
-  const content = JSON.stringify({ request: job.prompt, plan: job.plan, context: job.context?.refText ? { refText: job.context.refText } : null, evidence: modelEvidence(job.evidence), capabilities: { ...authorCapabilities(), ...surfaceCapability(job), ...actionCapability(job) } });
+  const archetype = job.plan?.archetype ? await archetypeContent(job.plan.archetype) : null;
+  const content = JSON.stringify({ request: job.prompt, plan: job.plan, context: job.context?.refText ? { refText: job.context.refText } : null, evidence: modelEvidence(job.evidence), capabilities: { ...authorCapabilities(), ...surfaceCapability(job), ...actionCapability(job) }, ...(archetype ? { archetype } : {}) });
   const { input } = await ctx.call('author', { system: ANIMATION_AUTHOR_SYSTEM, tool: authorTool(job.plan), content });
   if (input.kind === 'capability_gap') {
     if (!input.gap?.reason) throw new AnimationPolicyError('invalid_turn', 'The author reported a gap without saying what is needed.');
