@@ -42,7 +42,7 @@ async function fixture(type = 'explanation', options = {}) {
   const saved = async () => (await api(path)).state;
   const mode = () => card.getAttribute('data-card-layout');
   const setLayout = async label => {
-    await card.locator('[data-drag-handle]').first().click({ button: 'right' });
+    await card.locator('[data-drag-handle]').first().click({ button: 'right', force: true }); // force: a scene's Kicker overlaps the strip and is itself a drag zone inside the card
     // One checkable row (owner, 2026-10-21): checked is Full content, unchecked Scrollable.
     const row = page.getByRole('menuitemcheckbox', { name: 'Full content', exact: true }), want = label === 'Full content';
     if ((await row.getAttribute('aria-checked')) === String(want)) await page.keyboard.press('Escape'); else await row.click();
