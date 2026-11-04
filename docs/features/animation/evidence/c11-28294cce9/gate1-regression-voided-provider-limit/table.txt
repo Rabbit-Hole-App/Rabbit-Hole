@@ -1,0 +1,13 @@
+candidate 28294cce9904138dcbb9c1ddec7176045f87690f   prompt-files 594d5152ca9d828e1d23642f41e53d01c295a72a4b0bdfd8fd632dd86346000b   golden ae82facb429aefc4a7a5b4fd8a3a14467fd543a9cbdfc4b758f675f40989371b
+transport dev-key   concurrency 3   cap 350 credits   plans grid-game-run6, pendulum-aj_78cc3d3, projectile-aj_54eec6a
+run                        session  bytes  tokens in/out  validator  assertions  credits  seconds  status                                                             
+grid-game-run6-r01         -        -      -              -          n/a         0.00     0.4      error: provider_unavailable: Animations are temporarily unavailable
+grid-game-run6-r02         -        -      -              -          n/a         0.00     0.4      error: provider_unavailable: Animations are temporarily unavailable
+grid-game-run6-r03         -        -      -              -          n/a         0.00     0.3      error: provider_unavailable: Animations are temporarily unavailable
+pendulum-aj_78cc3d3-r01    -        -      -              -          n/a         0.00     0.3      error: provider_unavailable: Animations are temporarily unavailable
+pendulum-aj_78cc3d3-r02    -        -      -              -          n/a         0.00     0.2      error: provider_unavailable: Animations are temporarily unavailable
+pendulum-aj_78cc3d3-r03    -        -      -              -          n/a         0.00     0.2      error: provider_unavailable: Animations are temporarily unavailable
+projectile-aj_54eec6a-r01  -        -      -              -          n/a         0.00     0.3      error: provider_unavailable: Animations are temporarily unavailable
+projectile-aj_54eec6a-r02  -        -      -              -          n/a         0.00     0.2      error: provider_unavailable: Animations are temporarily unavailable
+projectile-aj_54eec6a-r03  -        -      -              -          n/a         0.00     0.2      error: provider_unavailable: Animations are temporarily unavailable
+settled 0.00 credits (computed from provider usage at registry rates, US$0.00); valid 0 of 9

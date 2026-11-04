@@ -1,0 +1,203 @@
+[
+ {
+  "at": 1793775021634,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "123961749817eaa18b239eb1ebef195ca03e767d40b57626a1e19414ebf29ab1",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The 'Slope (uphill)' tag sits just above the readout line at the bottom edge of the frame. It is readable but cramped against the card text.",
+       "repairable": true,
+       "object": "slopeTag"
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Near the minimum the slope arrow is a short stub (gradient × 0.3) and its 'Slope (uphill)' tag cannot be seen. That is honest scaling, but the learner loses the arrow's name here.",
+       "repairable": true,
+       "object": "slopeTag"
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: the zigzag-but-settle range (1/k to 2/k, which includes the default 0.3), the low end 0.01, and the effect of the steepness extremes. These captures do not verify them.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The plan and description promise that past the threshold 'each zigzag lands higher than the one before' and the ball then leaves. Here the run starts at steep offset 0.6 inside a drawn half-width of only 2/√k = 1. At rate 0.7 the first step lands at −1.08, so the run reads 'diverged' after 1 step and shows no growing zigzag at all. Even just above the threshold (0.55) it lasts only about 3 steps. The core mechanism, overshoot growing step by step, cannot be seen. Fix: start much closer to the valley floor in the steep direction (e.g. 0.1–0.15), widen the drawn area, or both, so several growing zigzags appear before the ball exits.",
+       "repairable": true,
+       "object": "ball"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "After diverging, the program sets the ball's height from the true loss (0.5·2.46+0.1 ≈ 1.33). The host clamps only x, to the rim, and the trail end is drawn at the rim height (≈1.10). So the ball floats visibly above and apart from the end of its own trail. Set the ball's height from the clamped point as well.",
+       "repairable": true,
+       "object": "ball"
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Same as the default view: at the high-end rate the run diverges in a single step, a straight line to the rim. No succession of growing zigzags is visible, so the promised overshoot pattern is never shown.",
+       "repairable": true,
+       "object": "ball"
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The ball hangs above the trail's end at the rim, because its height comes from the unclamped loss while the trail is drawn at the clamped rim height.",
+       "repairable": true,
+       "object": "ball"
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "fail"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13124,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3344,
+   "output_tokens_details": {
+    "thinking_tokens": 2175
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_f99c28c1ce97437f890a7f3284b40085-review-4",
+   "status": "settled",
+   "costMicros": 119797,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793775098827,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "c1311ae3b86a99894f5dc48725f623b772bd99b308129af060a8733345fbd37f",
+  "retry": false,
+  "raw": null,
+  "verdicts": [],
+  "problems": [],
+  "usage": null,
+  "stopReason": null,
+  "error": "provider_unavailable",
+  "call": {
+   "key": "aj_f99c28c1ce97437f890a7f3284b40085-review-6",
+   "status": "refused",
+   "costMicros": 0,
+   "served": null
+  }
+ },
+ {
+  "at": 1793775114610,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "c1311ae3b86a99894f5dc48725f623b772bd99b308129af060a8733345fbd37f",
+  "retry": false,
+  "raw": null,
+  "verdicts": [],
+  "problems": [],
+  "usage": null,
+  "stopReason": null,
+  "error": "provider_unavailable",
+  "call": {
+   "key": "aj_f99c28c1ce97437f890a7f3284b40085-review-7",
+   "status": "refused",
+   "costMicros": 0,
+   "served": null
+  }
+ }
+]

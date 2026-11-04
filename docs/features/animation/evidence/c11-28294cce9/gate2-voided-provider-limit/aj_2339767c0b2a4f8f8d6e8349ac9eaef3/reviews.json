@@ -1,0 +1,195 @@
+[
+ {
+  "at": 1793775034703,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "8385e5cf0e2bda7569a8b014dab53aa308e36216c43d637a0b7de4961b406c32",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan says the learner can drag the ball to choose where the run starts. The artifact only lets the ball move sideways (x in [-0.85, 0.85]), and the start depth stays at z=1.6. The assumptions disclose this, but it still limits where a run can start.",
+       "object": "ball",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "The plan says the trail draws one marker every 2 steps, at most 100 markers. The artifact draws every step, up to 201 points. The assumptions disclose the change and give a reason (thinning would hide the zigzag), but it still departs from the approved plan.",
+       "object": "trail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Near the minimum, the dark Downhill step arrow is almost entirely hidden behind the ball. Both arrow labels have disappeared, so the learner can no longer tell which arrow is which.",
+       "object": "downArrow",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "At learning rate 0.5, about 90 thick trail segments form a dense orange tangle over the bottom of the bowl. The red ball (current weights) and both step arrows are buried under it and can barely be seen. The 'Noisy step' label floats away from any visible arrow, and the 'Downhill step' label is missing. Thinner or fading trail segments (or a capped trail length) and a ball/arrows drawn on top would keep the current state readable.",
+       "object": "trail",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Divergence above learning rate 2/stretch, and the 'diverged' status, were not sampled. At stretch 3 the 0.5 maximum stays stable, which agrees with the formula.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "message": "From the side angle the ball is again hidden under the trail tangle, the same problem as in v0-s2. No 3D faults: the trail lies on the surface.",
+       "object": "ball",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13309,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3944,
+   "output_tokens_details": {
+    "thinking_tokens": 2980
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_2339767c0b2a4f8f8d6e8349ac9eaef3-review-4",
+   "status": "settled",
+   "costMicros": 132537,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793775113734,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "4ce653025552b1b580e4ab42d1fd0f59d666ffb078db68371aa520a445ff1328",
+  "retry": false,
+  "raw": null,
+  "verdicts": [],
+  "problems": [],
+  "usage": null,
+  "stopReason": null,
+  "error": "provider_unavailable",
+  "call": {
+   "key": "aj_2339767c0b2a4f8f8d6e8349ac9eaef3-review-6",
+   "status": "refused",
+   "costMicros": 0,
+   "served": null
+  }
+ },
+ {
+  "at": 1793775129645,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "4ce653025552b1b580e4ab42d1fd0f59d666ffb078db68371aa520a445ff1328",
+  "retry": false,
+  "raw": null,
+  "verdicts": [],
+  "problems": [],
+  "usage": null,
+  "stopReason": null,
+  "error": "provider_unavailable",
+  "call": {
+   "key": "aj_2339767c0b2a4f8f8d6e8349ac9eaef3-review-7",
+   "status": "refused",
+   "costMicros": 0,
+   "served": null
+  }
+ }
+]

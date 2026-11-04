@@ -1,0 +1,56 @@
+{
+ "id": "aj_1644ce60253c4d1e9fb5662ae1a52f11",
+ "version": 1,
+ "boardId": "1aff160c-1ae4-466e-813e-207795cb914e",
+ "cardId": "6b68f381-74ce-4be6-91c3-bd43d35f46d2",
+ "stage": "failed",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 0,
+ "stopReason": "provider_unavailable",
+ "failure": {
+  "stage": "preparing",
+  "category": "provider_unavailable",
+  "message": "The AI service was busy. You have not been charged. It was retried automatically. Try again continues from where it stopped, using up to 56 AI credits.",
+  "retryable": true,
+  "callsFrom": 1
+ },
+ "recovery": [
+  "new_attempt",
+  "edit_request"
+ ],
+ "outcome": null,
+ "choiceOpen": false,
+ "threadId": "canvaschat-ce433350-dc05-4558-8b60-31e93e4ea256",
+ "chatPending": false,
+ "usage": {
+  "credits": 0,
+  "unknown": false
+ },
+ "result": null,
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 98,
+  "proposalMs": null,
+  "generateToResultMs": null,
+  "processingMs": 17394,
+  "approvalWaitMs": 0,
+  "calls": 2,
+  "repairs": 0,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 17394,
+    "calls": 2,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "failed"
+   }
+  ]
+ },
+ "createdAt": 1793775118647,
+ "updatedAt": 1793775136467
+}

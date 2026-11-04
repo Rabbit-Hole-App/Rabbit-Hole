@@ -1,0 +1,18 @@
+{
+ "n": 4,
+ "phrasing": "show me why a high learning rate diverges",
+ "session": "g2-202611041621-4@example.com",
+ "sha": "28294cce9904138dcbb9c1ddec7176045f87690f",
+ "version": "1fc859c6-00a2-4697-b298-a399b7e4ba98",
+ "reviewIdentity": "c42f81edae10cfb3e4aa66c5eafd51d297661d0f5e9201fd29c9ce6c89e16dc4",
+ "jobId": "aj_8a26c46f059f4a159de2240e11ea556d",
+ "outcome": "rejected",
+ "repairs": 0,
+ "credits": 52.7072,
+ "charged": 10,
+ "artifactHash": null,
+ "note": "unsupported_repair: The visual review found 1 serious problem with the shared 3D drawing. You have not been charged. It needs a change the automatic correction cannot make. Revise ",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/4, 8:26 AM"
+}

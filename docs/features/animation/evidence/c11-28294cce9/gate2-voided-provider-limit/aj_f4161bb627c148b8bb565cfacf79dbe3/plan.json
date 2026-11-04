@@ -1,0 +1,75 @@
+{
+ "schema": "animation-plan/1",
+ "title": "Gradient descent: a ball stepping down a loss surface",
+ "description": "A ball sits on a long, narrow bowl-shaped loss surface drawn with contour lines. A small marker shows the lowest point. Each step, the ball jumps in the downhill direction by an amount set by the learning rate and leaves a trail of points. An arrow at the ball points downhill, opposite to the gradient. With a small learning rate the ball creeps steadily toward the bottom. With a larger one it zigzags across the narrow valley. Above 0.5 it overshoots more each step and flies off the surface.",
+ "experience": "experiment",
+ "reason": "Watching each step on its own, and changing the step size, shows how gradient descent uses only the local slope. It also shows why the learning rate decides between slow progress, zigzagging and blowing up.",
+ "behavior": "rules",
+ "controlProfile": "manipulate",
+ "sourceRefs": [],
+ "parameters": [
+  {
+   "type": "number",
+   "id": "learningRate",
+   "label": "Learning rate (step size)",
+   "min": 0.02,
+   "max": 0.6,
+   "step": 0.01,
+   "default": 0.1
+  },
+  {
+   "type": "toggle",
+   "id": "showGradientArrow",
+   "label": "Show downhill arrow",
+   "default": true
+  }
+ ],
+ "interactions": [
+  "Play or pause, or advance one step at a time, and watch the ball move and its trail grow",
+  "Drag the ball to a new starting point on the surface before or between runs",
+  "Change the learning rate and watch the step lengths, the zigzag and the readouts change",
+  "Clear only the trail, keeping the ball where it is, so you can compare a new run",
+  "Read the step count, the current loss and the slope steepness (gradient size)"
+ ],
+ "assumptions": [
+  "Illustration: a made-up bowl-shaped surface, not a loss from a real trained model.",
+  "The loss is half of (x² + 4·y²), so the valley is 4 times steeper across y than along x, with its lowest point at the centre.",
+  "Each step uses the exact slope: new position = old position − learning rate × gradient. There is no noise and no momentum.",
+  "The run starts at (−2.5, 1.5). It stops when the slope is nearly flat (gradient size below 0.001), after 150 steps, or when the ball leaves the drawn square from −3 to 3 on each side.",
+  "The ball is shown resting on the surface at each step's position. It jumps between positions; it does not physically roll.",
+  "The trail draws one marker every 3 steps, at most 50 markers; every step still runs."
+ ],
+ "limitations": [
+  "Changed: the trail draws 50 markers, one every 3 steps, instead of 150; every step still runs.",
+  "Changed: the kept comparison path also draws at most 50 markers.",
+  "On this bowl each step lowers the loss only for learning rates below 0.5. Above that, the steep direction overshoots more each time, and the run ends when the ball leaves the drawn area.",
+  "There is only one valley, so it cannot show getting stuck in a local minimum. The ball does not really roll and has no momentum."
+ ],
+ "learningGoal": "Gradient descent moves downhill by the learning rate times the local slope. Too small is slow, larger zigzags in steep directions, and too large diverges.",
+ "requiredCapabilities": [
+  "step",
+  "parameters",
+  "actions",
+  "drag",
+  "readouts",
+  "labels"
+ ],
+ "archetype": "loss_surface",
+ "assertions": [
+  {
+   "kind": "clamp"
+  },
+  {
+   "kind": "compare",
+   "parameter": "learningRate",
+   "values": [
+    0.05,
+    0.55
+   ]
+  },
+  {
+   "kind": "pathLength",
+   "min": 2
+  }
+ ]
+}

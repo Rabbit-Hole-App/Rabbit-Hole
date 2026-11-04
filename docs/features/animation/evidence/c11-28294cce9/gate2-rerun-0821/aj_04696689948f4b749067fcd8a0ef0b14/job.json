@@ -1,0 +1,252 @@
+{
+ "id": "aj_04696689948f4b749067fcd8a0ef0b14",
+ "version": 1,
+ "boardId": "71eb92eb-341d-46af-8d3a-04c2b675dbaf",
+ "cardId": "c6f2821b-63ed-40c0-869b-d6e821bbba3f",
+ "stage": "failed",
+ "attempt": 1,
+ "terminal": true,
+ "repairs": 1,
+ "stopReason": "rounds",
+ "failure": {
+  "stage": "reviewing",
+  "category": "spec",
+  "message": "The visual review found 2 serious problems with how the scene is drawn or computed. You have not been charged. It was corrected automatically once, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate.",
+  "retryable": false
+ },
+ "recovery": [
+  "revise_plan",
+  "edit_request"
+ ],
+ "outcome": "supported",
+ "choiceOpen": false,
+ "threadId": "canvaschat-b6228fa1-8626-4670-8f49-d12f2c963e71",
+ "chatPending": false,
+ "usage": {
+  "credits": 19,
+  "unknown": false,
+  "note": "You have not been charged."
+ },
+ "result": null,
+ "plan": {
+  "schema": "animation-plan/1",
+  "title": "SGD on a bowl-shaped loss",
+  "description": "A ball sits on a bowl-shaped loss surface, with a small marker at the lowest point. Each step moves the ball downhill using a noisy estimate of the slope and adds a point to its path. One arrow at the ball shows the direction of the next step. Change the step size, the noise and how stretched the bowl is, then watch the path settle near the bottom, zig-zag across the bowl, or fly off.",
+  "experience": "experiment",
+  "reason": "Stochastic gradient descent (SGD) is easiest to understand by changing its settings and watching each step. You can see why a noisy path still gets near the bottom on average, and how a step that is too large makes it fail.",
+  "behavior": "rules",
+  "controlProfile": "inspect",
+  "sourceRefs": [],
+  "parameters": [
+   {
+    "type": "number",
+    "id": "learningRate",
+    "label": "Learning rate (step size)",
+    "min": 0.01,
+    "max": 0.6,
+    "step": 0.01,
+    "default": 0.1
+   },
+   {
+    "type": "number",
+    "id": "noise",
+    "label": "Gradient noise",
+    "min": 0,
+    "max": 1,
+    "step": 0.05,
+    "default": 0.5
+   },
+   {
+    "type": "number",
+    "id": "stretch",
+    "label": "Bowl stretch",
+    "min": 1,
+    "max": 4,
+    "step": 0.5,
+    "default": 2
+   }
+  ],
+  "interactions": [
+   "Play, pause or step the descent one step at a time. Each step moves the ball and adds a point to its path.",
+   "Change the learning rate: small values give short, slow steps. Larger values zig-zag; once learning rate times bowl stretch is above 2, the ball climbs out and the run stops as diverged.",
+   "Change the noise: at 0 the path is a smooth downhill curve. Higher values make it wander and keep jittering around the bottom.",
+   "Change the bowl stretch: in a more stretched bowl, the path bounces across the steep direction while it creeps along the shallow one.",
+   "Read the step count and the current loss."
+  ],
+  "assumptions": [
+   "Illustration: a simple formula bowl with simulated noise, not a real model trained on data.",
+   "The loss is half of (x squared plus stretch times y squared). Its lowest point is the center, where the loss is 0.",
+   "Each step subtracts the learning rate times (the true slope plus random noise). The noise comes from a fixed seed and stands in for the randomness of small batches of data.",
+   "The learning rate stays the same the whole time, with no schedule and no momentum.",
+   "Every run starts from the same point. A run stops after 200 steps, or when the ball leaves the edge of the surface (shown as diverged)."
+  ],
+  "limitations": [
+   "The loss can go up on single steps because of the noise. It only goes down on average.",
+   "With noise above zero and a fixed learning rate, the ball keeps jittering near the bottom and never lands exactly on it.",
+   "Real loss surfaces have many directions and are not perfect bowls. This bowl with two directions shows only the basic behavior.",
+   "To keep the scene small, this version drops dragging the start point, the separate true-slope arrow, the faded comparison path and the distance readout.",
+   "Reset brings back the default settings and the same random sequence, so a run after Reset repeats the earlier one."
+  ],
+  "learningGoal": "See that SGD follows a noisy downhill direction, so it reaches the bottom only on average; that the learning rate trades speed against stability; and that noise keeps it jittering near the minimum.",
+  "requiredCapabilities": [
+   "step",
+   "parameters",
+   "labels",
+   "readouts"
+  ],
+  "archetype": "loss_surface",
+  "assertions": [
+   {
+    "kind": "clamp"
+   },
+   {
+    "kind": "compare",
+    "parameter": "learningRate",
+    "values": [
+     0.01,
+     0.6
+    ]
+   },
+   {
+    "kind": "pathLength",
+    "min": 2
+   }
+  ]
+ },
+ "planHash": "65e54a902f659bc1204158cdf16e6a477b693733b6076d9c9888c184ea794a6f",
+ "timing": {
+  "requestClass": "simple",
+  "cache": null,
+  "firstFeedbackMs": 50,
+  "proposalMs": 37283,
+  "generateToResultMs": null,
+  "processingMs": 370630,
+  "approvalWaitMs": 5508,
+  "calls": 9,
+  "repairs": 1,
+  "stages": [
+   {
+    "stage": "preparing",
+    "ms": 37233,
+    "calls": 2,
+    "inputTokens": 2102,
+    "outputTokens": 3954,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 3681,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "refined"
+   },
+   {
+    "stage": "preparing",
+    "ms": 29292,
+    "calls": 2,
+    "inputTokens": 4706,
+    "outputTokens": 3628,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "awaiting_approval",
+    "ms": 1827,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": null
+   },
+   {
+    "stage": "authoring",
+    "ms": 92190,
+    "calls": 1,
+    "inputTokens": 8017,
+    "outputTokens": 10937,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 35,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 19615,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 41877,
+    "calls": 1,
+    "inputTokens": 12896,
+    "outputTokens": 3185,
+    "images": 6,
+    "captures": 0,
+    "outcome": "rejected"
+   },
+   {
+    "stage": "repairing",
+    "ms": 51155,
+    "calls": 1,
+    "inputTokens": 9052,
+    "outputTokens": 6786,
+    "images": 2,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "validating",
+    "ms": 27,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 0,
+    "outcome": "done"
+   },
+   {
+    "stage": "rendering",
+    "ms": 41018,
+    "calls": 0,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "images": 0,
+    "captures": 6,
+    "outcome": "done"
+   },
+   {
+    "stage": "reviewing",
+    "ms": 58188,
+    "calls": 2,
+    "inputTokens": 26480,
+    "outputTokens": 5681,
+    "images": 12,
+    "captures": 0,
+    "outcome": "rounds"
+   }
+  ]
+ },
+ "createdAt": 1793809345098,
+ "updatedAt": 1793809723116
+}

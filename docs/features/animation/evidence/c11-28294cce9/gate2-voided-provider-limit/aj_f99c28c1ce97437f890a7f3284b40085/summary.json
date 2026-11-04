@@ -1,0 +1,18 @@
+{
+ "n": 4,
+ "phrasing": "show me why a high learning rate diverges",
+ "session": "g2-202611040645-4@example.com",
+ "sha": "28294cce9904138dcbb9c1ddec7176045f87690f",
+ "version": "1fc859c6-00a2-4697-b298-a399b7e4ba98",
+ "reviewIdentity": "c42f81edae10cfb3e4aa66c5eafd51d297661d0f5e9201fd29c9ce6c89e16dc4",
+ "jobId": "aj_f99c28c1ce97437f890a7f3284b40085",
+ "outcome": "failed",
+ "repairs": 1,
+ "credits": 70.9459,
+ "charged": 13,
+ "artifactHash": null,
+ "note": "provider_unavailable: The AI service was busy. You have not been charged. It was corrected automatically once. It was retried automatically. Try again continues from where it stopped",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 10:51 PM"
+}

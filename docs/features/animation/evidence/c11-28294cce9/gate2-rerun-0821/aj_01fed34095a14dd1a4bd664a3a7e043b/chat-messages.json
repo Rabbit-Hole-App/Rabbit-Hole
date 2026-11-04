@@ -1,0 +1,160 @@
+[
+ {
+  "messageId": "297",
+  "role": "assistant",
+  "content": "\"Gradient Descent: A Ball Stepping Down a Loss Surface\" needs a change before it can be made. By our estimate this plan is too large to build and check: it draws a trail of 200 markers. An estimate can be wrong. Nothing has been built, and no AI credits have been used on building. Choose below: each option says exactly what changes, and nothing is built until you press Generate.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_01fed34095a14dd1a4bd664a3a7e043b:choice:fa17d2959264833d930509d06d674d5dc252f2d035153eff17072b0c0cd30d71",
+   "animationChoice": {
+    "jobId": "aj_01fed34095a14dd1a4bd664a3a7e043b",
+    "attempt": 1,
+    "kind": "size",
+    "key": "aj_01fed34095a14dd1a4bd664a3a7e043b:choice:fa17d2959264833d930509d06d674d5dc252f2d035153eff17072b0c0cd30d71",
+    "alternatives": [
+     {
+      "id": "fewer_markers",
+      "title": "Draw a shorter trail",
+      "changes": [
+       "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs."
+      ]
+     }
+    ],
+    "chosen": "fewer_markers"
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "297"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "300",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. It differs from what you asked: Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-a5c2dd42b78d6105",
+    "version": 1,
+    "command": "animation",
+    "title": "Gradient Descent: A Ball Stepping Down a Loss Surface",
+    "description": "A long, narrow bowl-shaped surface with contour lines stands for a loss surface, and a ball sits on its slope. Each time the scene steps, the ball moves a jump downhill. The jump size is the learning rate times the slope where the ball is standing. The ball leaves a path, so you can see whether it slides smoothly to the bottom, zig-zags across the narrow valley, or overshoots and flies off when steps are too large. An arrow on the ball shows the next step before it is taken.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-17d80ba1",
+     "job": "aj_01fed34095a14dd1a4bd664a3a7e043b",
+     "plan_hash": "576db7e83150b83185ad62f5d5c5577aaeb582dc779a5c4f53a02d87160f4c0b",
+     "request": "a ball rolling down a loss surface, step by step",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate (step size)",
+        "min": 0.02,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.1
+       },
+       {
+        "type": "toggle",
+        "label": "Show next-step arrow",
+        "default": true
+       }
+      ],
+      "interactions": [
+       "Press step to move the ball one jump downhill, or let it play to watch many steps in a row.",
+       "Change the learning rate: small values give a slow, smooth path; values near 0.3 to 0.5 zig-zag across the narrow valley; values above 0.5 overshoot more each step, and the ball runs off the surface.",
+       "Drag the ball to a new starting point on the surface. Its path starts again from there.",
+       "Use Clear path to erase the drawn path and keep the ball where it is.",
+       "Watch the readouts: step count, current loss (height) and slope steepness."
+      ],
+      "notices": [
+       "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs."
+      ],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793895773,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "a ball rolling down a loss surface, step by step",
+    "prompt": "A long, narrow bowl-shaped surface with contour lines stands for a loss surface, and a ball sits on its slope. Each time the scene steps, the ball moves a jump downhill. The jump size is the learning rate times the slope where the ball is standing. The ball leaves a path, so you can see whether it slides smoothly to the bottom, zig-zags across the narrow valley, or overshoots and flies off when steps are too large. An arrow on the ball shows the next step before it is taken.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. You can step through the descent one jump at a time, change the learning rate and starting point, and compare paths. This shows directly how step size decides whether descent settles, zig-zags or blows up.",
+     "Behavior: rules",
+     "Controls: manipulate",
+     "Interaction: Press step to move the ball one jump downhill, or let it play to watch many steps in a row.",
+     "Interaction: Change the learning rate: small values give a slow, smooth path; values near 0.3 to 0.5 zig-zag across the narrow valley; values above 0.5 overshoot more each step, and the ball runs off the surface.",
+     "Interaction: Drag the ball to a new starting point on the surface. Its path starts again from there.",
+     "Interaction: Use Clear path to erase the drawn path and keep the ball where it is.",
+     "Interaction: Watch the readouts: step count, current loss (height) and slope steepness.",
+     "Parameter: Learning rate (step size), 0.02 to 0.6, default 0.1",
+     "Parameter: Show next-step arrow",
+     "Goal: Gradient descent repeatedly steps opposite the slope, and the learning rate decides whether the steps settle at the minimum, zig-zag, or diverge."
+    ],
+    "assumptions": [
+     "Illustration: the bowl is a made-up loss function, not a trained model's real loss.",
+     "The loss is half of (x² + 4y²), a bowl four times steeper across than along its length, with its lowest point at the centre.",
+     "Each step is plain gradient descent: the new position is the old position minus the learning rate times the gradient (the slope direction). There is no momentum and no noise.",
+     "The ball jumps from point to point. It does not roll with speed or inertia, and it always sits on the surface.",
+     "The arrow shows the next step: it points downhill, opposite the gradient, and its length is the learning rate times the gradient.",
+     "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+     "Real loss surfaces have millions of dimensions and many dips. This one has two directions and a single lowest point, so the ball cannot get stuck in a local dip.",
+     "Descent stops after 200 steps, when the slope is almost flat, or when the ball leaves the drawn square. When it leaves, the readout says it diverged (blew up).",
+     "On this bowl, any learning rate below 0.5 eventually reaches the bottom. Loss can still rise for a step while the ball is zig-zagging only if a different surface were used. Here each step lowers the loss when the rate is below 0.5."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-17d80ba1"
+    },
+    "quote": null,
+    "review_hash": "b90a1c347ca9e084941c4937b9d192dcf13d99fd3b8eb18707d025ed0f052f04",
+    "sig": "v3.5c8cc729e934b788d7d873aba3429376f093a749a77bed89bf8258d2a11ed332",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 385,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.5c8cc729e934b788d7d873aba3429376f093a749a77bed89bf8258d2a11ed332",
+    "used": {
+     "version": 1,
+     "key": "aj_01fed34095a14dd1a4bd664a3a7e043b"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "300"
+   ],
+   "feedback": null
+  }
+ }
+]

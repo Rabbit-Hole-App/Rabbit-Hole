@@ -1,0 +1,21 @@
+[
+ {
+  "at": 1793775161511,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "3a5955bc6f2cd0d5f9c419b09cba797fc60712e7142297caf7500784352ebd18",
+  "retry": false,
+  "raw": null,
+  "verdicts": [],
+  "problems": [],
+  "usage": null,
+  "stopReason": null,
+  "error": "provider_unavailable",
+  "call": {
+   "key": "aj_5371b9b3ab8143098d432a0e814ee3ef-review-3",
+   "status": "refused",
+   "costMicros": 0,
+   "served": null
+  }
+ }
+]

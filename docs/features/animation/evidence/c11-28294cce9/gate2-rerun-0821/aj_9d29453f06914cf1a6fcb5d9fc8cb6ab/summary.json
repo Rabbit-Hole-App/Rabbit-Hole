@@ -1,0 +1,19 @@
+{
+ "n": 6,
+ "phrasing": "minimize a quadratic loss with gradient steps",
+ "session": "g2-202611041621-1@example.com",
+ "sha": "28294cce9904138dcbb9c1ddec7176045f87690f",
+ "version": "1fc859c6-00a2-4697-b298-a399b7e4ba98",
+ "reviewIdentity": "c42f81edae10cfb3e4aa66c5eafd51d297661d0f5e9201fd29c9ce6c89e16dc4",
+ "jobId": "aj_9d29453f06914cf1a6fcb5d9fc8cb6ab",
+ "outcome": "accepted",
+ "repairs": 0,
+ "credits": 45.8717,
+ "charged": 46,
+ "artifactHash": "bf5ea0098adcc24c1126c7ecbe31b4bcf86cf8861b7c51f0e4a91199d3f1444c",
+ "note": "",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/4, 8:30 AM",
+ "fileSha256": "332e65543bfb63e400510aae277fc22fe3160f47288ec577a527059e370a0767"
+}

@@ -1,0 +1,194 @@
+[
+ {
+  "messageId": "298",
+  "role": "assistant",
+  "content": "\"Stochastic gradient descent on a loss surface\" needs a change before it can be made. By our estimate this plan is too large to build and check: it draws a trail of 200 markers. An estimate can be wrong. Nothing has been built, and no AI credits have been used on building. Choose below: each option says exactly what changes, and nothing is built until you press Generate.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_c7ac89583146483c95cb200dd069c77e:choice:5c7387837d54f7a51a6a9fc34f74202877e146258361c2ab9560b30d0fe5aaed",
+   "animationChoice": {
+    "jobId": "aj_c7ac89583146483c95cb200dd069c77e",
+    "attempt": 1,
+    "kind": "size",
+    "key": "aj_c7ac89583146483c95cb200dd069c77e:choice:5c7387837d54f7a51a6a9fc34f74202877e146258361c2ab9560b30d0fe5aaed",
+    "alternatives": [
+     {
+      "id": "fewer_markers",
+      "title": "Draw a shorter trail",
+      "changes": [
+       "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs."
+      ]
+     }
+    ],
+    "chosen": "fewer_markers"
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "298"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "299",
+  "role": "assistant",
+  "content": "Here is the plan for your animation. It differs from what you asked: Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs. Generate makes it.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "proposal": {
+    "proposal_id": "gp-ada20016b12a3856",
+    "version": 1,
+    "command": "animation",
+    "title": "Stochastic gradient descent on a loss surface",
+    "description": "An oval bowl-shaped loss surface with contour lines has its lowest point marked at the centre. A ball (the model's current parameters) steps downhill one step at a time and leaves a trail. Each step follows a noisy estimate of the slope, the way a small random batch of data would give. An arrow on the ball shows the direction of that noisy step. A thinner arrow shows the true steepest-downhill direction, so you can see how far they differ. You can turn on a second, ghost ball that uses the exact slope, to compare its smooth path with the zig-zag stochastic path.",
+    "settings": {
+     "experience": "experiment"
+    },
+    "source_refs": [],
+    "input": {
+     "org": "example-com",
+     "app": "canvas-9ca868d3",
+     "job": "aj_c7ac89583146483c95cb200dd069c77e",
+     "plan_hash": "2063f2812bc23d1f8670e57cf109e54e46db9ba615fec44f0f44607b0e98942a",
+     "request": "stochastic gradient descent",
+     "scene": {
+      "parameters": [
+       {
+        "type": "number",
+        "label": "Learning rate (step size)",
+        "min": 0.02,
+        "max": 0.6,
+        "step": 0.01,
+        "default": 0.1
+       },
+       {
+        "type": "number",
+        "label": "Mini-batch size",
+        "min": 1,
+        "max": 64,
+        "step": 1,
+        "default": 4
+       },
+       {
+        "type": "toggle",
+        "label": "Show exact-gradient ghost ball",
+        "default": false
+       }
+      ],
+      "interactions": [
+       "Press play or step to move the ball: each step uses a fresh noisy slope estimate, and the path grows behind it",
+       "Raise the learning rate to take bigger steps. Above about 0.5, steps across the narrow direction of the bowl overshoot and grow, and the ball bounces outward",
+       "Raise the batch size to make the slope estimates less noisy. The noisy arrow then lines up more closely with the true downhill arrow, and the path becomes smoother",
+       "Turn on the ghost ball to compare the exact-gradient path with the stochastic path from the same start",
+       "Drag the ball to a new starting point on the surface. Both paths then restart from there",
+       "Use 'Clear path' to erase the trails and step count while keeping the ball where it is"
+      ],
+      "notices": [
+       "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs."
+      ],
+      "planCredits": 56
+     }
+    },
+    "expires_at": 1793895771,
+    "schema_version": 1,
+    "mode": "generate",
+    "original_request": "stochastic gradient descent",
+    "prompt": "An oval bowl-shaped loss surface with contour lines has its lowest point marked at the centre. A ball (the model's current parameters) steps downhill one step at a time and leaves a trail. Each step follows a noisy estimate of the slope, the way a small random batch of data would give. An arrow on the ball shows the direction of that noisy step. A thinner arrow shows the true steepest-downhill direction, so you can see how far they differ. You can turn on a second, ghost ball that uses the exact slope, to compare its smooth path with the zig-zag stochastic path.",
+    "visual_constraints": [],
+    "references": [],
+    "requirements": [
+     "Recommended: experiment. Stochastic gradient descent is easiest to understand by watching it. When you change the learning rate and the batch size and watch the path, you see why the steps jitter, why they still head toward the minimum on average, and when too large a step makes the ball bounce out",
+     "Behavior: rules",
+     "Controls: manipulate",
+     "Interaction: Press play or step to move the ball: each step uses a fresh noisy slope estimate, and the path grows behind it",
+     "Interaction: Raise the learning rate to take bigger steps. Above about 0.5, steps across the narrow direction of the bowl overshoot and grow, and the ball bounces outward",
+     "Interaction: Raise the batch size to make the slope estimates less noisy. The noisy arrow then lines up more closely with the true downhill arrow, and the path becomes smoother",
+     "Interaction: Turn on the ghost ball to compare the exact-gradient path with the stochastic path from the same start",
+     "Interaction: Drag the ball to a new starting point on the surface. Both paths then restart from there",
+     "Interaction: Use 'Clear path' to erase the trails and step count while keeping the ball where it is",
+     "Parameter: Learning rate (step size), 0.02 to 0.6, default 0.1",
+     "Parameter: Mini-batch size, 1 to 64, default 4",
+     "Parameter: Show exact-gradient ghost ball",
+     "Goal: Understand that stochastic gradient descent follows noisy slope estimates that point downhill only on average. Batch size controls how noisy the estimates are, and learning rate controls how fast the ball moves and whether it stays stable."
+    ],
+    "assumptions": [
+     "Illustration: a made-up bowl-shaped loss with simulated noise, not a real model trained on real data.",
+     "The loss is an oval bowl, half of (x² + 4y²), so it is four times steeper in one direction than the other. Its single minimum is at the centre.",
+     "Each noisy slope is the exact slope plus random noise drawn from the scene's fixed seed. The noise size shrinks in proportion to one over the square root of the batch size, which mimics averaging over more data samples.",
+     "Each step moves the ball by minus the learning rate times the noisy slope. The ball is always placed on the surface at its new position.",
+     "Readouts show the step number, the current loss, the ball's distance from the minimum, and the angle between the noisy and true downhill directions.",
+     "A run stops after 200 steps, or earlier if the ball leaves the edge of the surface. In that case the readout says it diverged.",
+     "The trail draws one marker every 2 steps, at most 100 markers; every step still runs."
+    ],
+    "missing_information": [],
+    "limitations": [
+     "Changed: the trail draws 100 markers, one every 2 steps, instead of 200; every step still runs.",
+     "A single step does not always lower the loss: noise can push the ball uphill. The loss goes down only on average.",
+     "With a fixed learning rate the ball keeps jittering near the minimum instead of settling exactly on it. Larger batches shrink this jitter but never remove it within the 1 to 64 range.",
+     "A real loss surface has millions of dimensions and is often not bowl-shaped. Here there are only two parameters, so the path can be drawn.",
+     "Momentum, Adam and shrinking learning rates over time are not included."
+    ],
+    "destination": {
+     "org": "example-com",
+     "app": "canvas-9ca868d3"
+    },
+    "quote": null,
+    "review_hash": "251f92a54ed4c8210e34fc02e58269b506820a38bec29d1624662b6356b44427",
+    "sig": "v3.16f7a3c41b9a9e351f0154fcc5fd9be85e3d3218979e461ef834f0cf158ba362",
+    "usage": {
+     "estimate_credits": null,
+     "max_credits": 385,
+     "reserve_credits": null
+    }
+   },
+   "proposalState": {
+    "version": 1,
+    "sig": "v3.16f7a3c41b9a9e351f0154fcc5fd9be85e3d3218979e461ef834f0cf158ba362",
+    "used": {
+     "version": 1,
+     "key": "aj_c7ac89583146483c95cb200dd069c77e"
+    }
+   },
+   "alternativeOf": null,
+   "alternatives": [
+    "299"
+   ],
+   "feedback": null
+  }
+ },
+ {
+  "messageId": "309",
+  "role": "assistant",
+  "content": "\"Stochastic gradient descent on a loss surface\" was not finished. The visual review found 1 serious problem with how the scene is drawn or computed. You have not been charged. It was corrected automatically twice, but it still did not pass. Revise plan prepares a simpler plan from your request for you to review, using up to 56 AI credits; nothing is built until you press Generate. Your request and plan are kept.",
+  "status": "done",
+  "kind": "answer",
+  "meta": {
+   "version": 1,
+   "mode": "ask",
+   "contextRefs": [],
+   "actions": [],
+   "followUps": [],
+   "syllabus": null,
+   "reportKey": "aj_c7ac89583146483c95cb200dd069c77e:1",
+   "alternativeOf": null,
+   "alternatives": [
+    "309"
+   ],
+   "feedback": null
+  }
+ }
+]

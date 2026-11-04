@@ -1,0 +1,475 @@
+[
+ {
+  "at": 1793809570898,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "eb7f14618efc79701faa804bdb4bcc0668dbced8f54767a7463c8711a9cfaa8f",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Before the first run the status reads 'paused'. 'ready' would be clearer. Once a noisy run reaches 200 steps with loss ≥ 0.05, word() also returns 'paused' rather than something like 'finished (200 steps)', so a finished run reads as one that could continue. The 200-step end state was not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "stepArrow",
+       "message": "Near the minimum the true step ×4 is shorter than the ball radius. Only a purple tip shows beside the ball, and the 'Next step' label is not visible. A short note or a slightly larger arrow offset would keep the direction readable.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepArrow",
+       "message": "The Next step arrow is drawn flat at the ball's height. At learning rate 0.6 its 4× length (about 2.8 units) runs into the rising bowl wall: it disappears under the surface and comes out below the bowl's front edge. Its 'Next step' label ends up at the bottom of the frame next to the readouts, far from the ball. The arrow should follow the surface (or lift its tip to the surface height at the destination), or use a smaller single disclosed scale, so it stays visible above the bowl and its label stays near it.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "low",
+       "message": "The dense zig-zag path hides the Lowest point marker. Raising the marker slightly or drawing it larger or with a ring would keep the minimum visible during noisy, high-rate runs.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Divergence (learning rate × stretch > 2, which needs stretch 3.5–4) and the parameter extremes were not sampled. The program's off() check and rim clamping look correct, but the diverged state is unverified.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepArrow",
+       "message": "The side view confirms that the long flat Next step arrow cuts through the bowl surface. Only part of it is visible, and the 'Next step' label floats detached at the left edge of the bowl, away from any visible arrow.",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "fail"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 12896,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3185,
+   "output_tokens_details": {
+    "thinking_tokens": 2155
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_04696689948f4b749067fcd8a0ef0b14-review-6",
+   "status": "settled",
+   "costMicros": 115705,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793809695941,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "1a3117b1fbe62fc1b1ff6a2898fd3edb0a3b67d52bf3db91f42d57db7bddda00",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepArrow",
+       "message": "The Next step arrow is drawn at 2× the real step (about 0.3–0.4 units here), so most of it sits inside the red ball (radius 0.15). In the default view only a tiny purple stub shows, and the arrow promised as the step direction cannot be read. Use a larger disclosed scale (for example 4–6×), start the arrow at the ball's surface, or shrink the ball."
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "newRun",
+       "message": "The plan says Reset restores the default settings and the same random sequence. The artifact instead has 'New run, keep settings', which starts a fresh random sequence and has no reset to the defaults. Either match the plan or disclose the change."
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepArrow",
+       "message": "The status is running and the program makes the arrow visible, but near the bottom twice the step (about 0.08) is shorter than the ball radius. The arrow and its Next step label are completely hidden, so the learner loses the step-direction arrow exactly where the jitter happens. Scale the arrow up (with the scale disclosed) or draw it from the ball's surface."
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "lowTag",
+       "message": "The ball covers the lowest-point dot, and the 'Lowest point' label sits directly against the ball."
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Divergence (learning rate × stretch > 2, which needs stretch 3.5 or 4) and zero noise were not sampled. The plan's 'climbs out' behaviour could not be checked in these captures."
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepArrow",
+       "message": "From the side as well, the arrow is missing while the run is live, because the short scaled step stays inside the ball. Same cause as in v0-s1."
+      },
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "object": "trail",
+       "message": "The trail shows small arrowhead-like kinks at some sharp turns."
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [
+   "capture v0-s0 finding 1 (\"The Next step arrow is drawn at 2× the real step (about 0.3–\"): repairable must be true or false",
+   "capture v0-s0 finding 2 (\"The plan says Reset restores the default settings and the sa\"): repairable must be true or false",
+   "capture v0-s1 finding 1 (\"The status is running and the program makes the arrow visibl\"): repairable must be true or false",
+   "capture v0-s1 finding 2 (\"The ball covers the lowest-point dot, and the 'Lowest point'\"): repairable must be true or false",
+   "capture v0-s2 finding 1 (\"Divergence (learning rate × stretch > 2, which needs stretch\"): repairable must be true or false",
+   "capture v1-s1 finding 1 (\"From the side as well, the arrow is missing while the run is\"): repairable must be true or false",
+   "capture v1-s1 finding 2 (\"The trail shows small arrowhead-like kinks at some sharp tur\"): repairable must be true or false"
+  ],
+  "usage": {
+   "input_tokens": 13052,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 3139,
+   "output_tokens_details": {
+    "thinking_tokens": 2172
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_04696689948f4b749067fcd8a0ef0b14-review-8",
+   "status": "settled",
+   "costMicros": 115409,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793809721286,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "1a3117b1fbe62fc1b1ff6a2898fd3edb0a3b67d52bf3db91f42d57db7bddda00",
+  "retry": true,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepArrow",
+       "message": "At the default start the Next step arrow is a tiny purple stub mostly hidden behind the red ball. The arrow is drawn at 2× the real step (about 0.2 here), which barely clears the ball's radius of 0.15, so the learner cannot read the step direction. The 'Next step' label is far larger than the arrow it names. Fix: draw the arrow at a larger single disclosed scale (for example 4–5× the step), or start it at the ball's surface so the full length shows.",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "object": "newRun",
+       "message": "The plan says Reset brings back the default settings and the same random sequence, so a run after Reset repeats. The artifact has no such action. It offers 'New run, keep settings', which uses a fresh noise sequence. Not sampled. Either add the plan's Reset or make the plan and assumptions match.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "object": "stepArrow",
+       "message": "The status is 'running' and the program makes the arrow visible, but near the minimum the drawn step (2 × 0.08 × noise, about 0.08) is shorter than the ball's radius of 0.15. The arrow and its 'Next step' label therefore vanish inside or behind the ball, so the learner cannot see the noisy next-step direction during the jitter the lesson is about. Use a larger single disclosed scale, or start the arrow at the ball's surface.",
+       "repairable": true
+      },
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "object": "low",
+       "message": "The ball covers most of the lowest-point dot, and the 'Lowest point' label crowds the ball. Offset the label or place it below the dot.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "At learning rate 0.6 and stretch 2, rate × stretch is 1.2, so the run zig-zags rather than diverging, which is correct. The promised divergence (rate × stretch > 2, which needs stretch 3.5–4 with high rates) was not sampled.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "renderer",
+       "severity": "minor",
+       "object": "trail",
+       "message": "The host-drawn trail shows small arrowhead-like kinks at some sharp turns.",
+       "repairable": false
+      }
+     ]
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "pass",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 13428,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 2542,
+   "output_tokens_details": {
+    "thinking_tokens": 1497
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_04696689948f4b749067fcd8a0ef0b14-review-9",
+   "status": "settled",
+   "costMicros": 104973,
+   "served": "claude-opus-5-5"
+  }
+ }
+]

@@ -1,0 +1,19 @@
+{
+ "n": 5,
+ "phrasing": "a ball rolling down a loss surface, step by step",
+ "session": "g2-202611040645-5@example.com",
+ "sha": "28294cce9904138dcbb9c1ddec7176045f87690f",
+ "version": "1fc859c6-00a2-4697-b298-a399b7e4ba98",
+ "reviewIdentity": "c42f81edae10cfb3e4aa66c5eafd51d297661d0f5e9201fd29c9ce6c89e16dc4",
+ "jobId": "aj_f4161bb627c148b8bb565cfacf79dbe3",
+ "outcome": "accepted",
+ "repairs": 0,
+ "credits": 48.1827,
+ "charged": 49,
+ "artifactHash": "192d7268e0e97e18f227b0cb4ae9d6e79ab05f9e3853944428c4654d28e9cf05",
+ "note": "",
+ "markers": [],
+ "silentSgd": null,
+ "time": "11/3, 10:50 PM",
+ "fileSha256": "c8a28c6c797deebd734c30fa4077187e19253406b9bbb6fe4e9b2e8c666c4d1b"
+}

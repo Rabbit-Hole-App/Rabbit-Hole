@@ -1,0 +1,196 @@
+[
+ {
+  "at": 1793775040487,
+  "attempt": 1,
+  "repairs": 0,
+  "artifactHash": "344908f71c99ca2f8dbcc18eaaf11b0b8178e806fbc47c87d9f9d2f0c16a3612",
+  "retry": false,
+  "raw": {
+   "captures": [
+    {
+     "id": "v0-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "At the initial state the grey plain-GD ball has exactly the same position and radius as the red SGD ball, so the red ball (the subject) is completely hidden. The learner sees only a grey ball, unlike what the description says. Make gdBall smaller or semi-transparent, or offset it, so the red SGD ball shows.",
+       "object": "gdBall",
+       "repairable": true
+      },
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Dragging only moves the start along x (the start's depth stays at z=2). The plan says you can drag the ball on the surface to choose where it starts. The artifact discloses this. Dragging was not sampled.",
+       "object": "ball",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "message": "Not sampled: batch size 1 and 20 (the GD match at 20), the lowest learning rate, the GD toggle off, and dragging.",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v0-s2",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "The trail only records every second step. For a learning rate near or above 1 the update factor (1-2*rate) is negative, so the ball switches sides every step. Recording every other step catches only one side, so the zigzag never appears in the trail. Here at rate 1.1 the step-1 jump to the left side is missing: the trail goes straight up the right slope, then straight across. This defeats the plan's 'near 1 the ball zigzags' interaction. Record every step (trail max 201), or always record the steps where the side switches.",
+       "object": "sgdTrail",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s0",
+     "semantic": "pass",
+     "visual": "fail",
+     "findings": [
+      {
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "message": "The red SGD ball is hidden inside the identical grey GD ball at the start. Only the grey ball is visible.",
+       "object": "gdBall",
+       "repairable": true
+      }
+     ]
+    },
+    {
+     "id": "v1-s1",
+     "semantic": "pass",
+     "visual": "pass",
+     "findings": []
+    },
+    {
+     "id": "v1-s2",
+     "semantic": "fail",
+     "visual": "pass",
+     "findings": [
+      {
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "major",
+       "message": "Same problem as the default view: because only every second step is recorded, the diverging zigzag shows as a single straight sweep. The trail does not show the bounce outward.",
+       "object": "sgdTrail",
+       "repairable": true
+      }
+     ]
+    }
+   ]
+  },
+  "verdicts": [
+   {
+    "id": "v0-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v0-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v0-s2",
+    "semantic": "fail",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s0",
+    "semantic": "pass",
+    "visual": "fail"
+   },
+   {
+    "id": "v1-s1",
+    "semantic": "pass",
+    "visual": "pass"
+   },
+   {
+    "id": "v1-s2",
+    "semantic": "fail",
+    "visual": "pass"
+   }
+  ],
+  "problems": [],
+  "usage": {
+   "input_tokens": 14358,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2103,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 4004,
+   "output_tokens_details": {
+    "thinking_tokens": 2560
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  },
+  "stopReason": "tool_use",
+  "error": null,
+  "call": {
+   "key": "aj_401b2088b010404f82ff03b3a10e81b7-review-3",
+   "status": "settled",
+   "costMicros": 137933,
+   "served": "claude-opus-5-5"
+  }
+ },
+ {
+  "at": 1793775133051,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "a1ab7afad79a50657157918304a6185441d5c1189289ee89a25b0d1f372c6e7b",
+  "retry": false,
+  "raw": null,
+  "verdicts": [],
+  "problems": [],
+  "usage": null,
+  "stopReason": null,
+  "error": "provider_unavailable",
+  "call": {
+   "key": "aj_401b2088b010404f82ff03b3a10e81b7-review-5",
+   "status": "refused",
+   "costMicros": 0,
+   "served": null
+  }
+ },
+ {
+  "at": 1793775148829,
+  "attempt": 1,
+  "repairs": 1,
+  "artifactHash": "a1ab7afad79a50657157918304a6185441d5c1189289ee89a25b0d1f372c6e7b",
+  "retry": false,
+  "raw": null,
+  "verdicts": [],
+  "problems": [],
+  "usage": null,
+  "stopReason": null,
+  "error": "provider_unavailable",
+  "call": {
+   "key": "aj_401b2088b010404f82ff03b3a10e81b7-review-6",
+   "status": "refused",
+   "costMicros": 0,
+   "served": null
+  }
+ }
+]
