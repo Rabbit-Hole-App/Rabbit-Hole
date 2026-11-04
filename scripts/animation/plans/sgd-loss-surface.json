@@ -74,6 +74,9 @@
     "archetype": "loss_surface",
     "assertions": [
       {
+        "kind": "clamp"
+      },
+      {
         "kind": "compare",
         "parameter": "learningRate",
         "values": [
@@ -88,5 +91,5 @@
     ]
   },
   "source": "scripts/animation/plans/sgd-run5.json (run 5, job aj_77ff45ba15754ef5972994f8e564cbb6, candidate caf7ee9bc) with exactly four edits",
-  "why": "The Gate 1 SGD plan: what the AN-20 planner would make for the same request, written by hand because the planner is not run here. Edits to run 5 (all else byte-identical): the description says a bowl, not a wireframe bowl; the one assumption that says the bowl is drawn as a wireframe of level rings says a surface with contour lines; archetype loss_surface; assertions compare learningRate 0.1 and 1 (the plan range is 0.01 to 1) and pathLength 20 (the plan promises up to 40 points). No clamp assertion yet: a planner cannot know the id of the marker node, and the archetype rules do not name it (open: lane f names it, then add {kind: clamp, node})."
+  "why": "The Gate 1 SGD plan: what the AN-20 planner would make for the same request, written by hand because the planner is not run here. Edits to run 5 (all else byte-identical): the description says a bowl, not a wireframe bowl; the one assumption that says the bowl is drawn as a wireframe of level rings says a surface with contour lines; archetype loss_surface; assertions clamp (no node), compare learningRate 0.1 and 1 (the plan range is 0.01 to 1) and pathLength 20 (the plan promises up to 40 points). The clamp assertion names no node (any sphere with clampTo): a planner cannot know the marker node's id."
 }
