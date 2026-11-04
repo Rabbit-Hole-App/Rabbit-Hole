@@ -85,7 +85,7 @@ const RATE_RULES = 'When a parameter changes a rate (a period, frequency or spee
 // accept-5: an author used its whole output limit and never made its tool call. Plan briefly, then write a compact reply.
 // What the later stages can read, measured on aj_9c453b6 (FX-AN-030, animation-fit.test.js): an estimate that depends on the plan's own
 // length, so passing it promises nothing. Shared with the feasibility check.
-export const ANIMATION_DRAFT_BYTES = 15700; // the golden SGD draft with the 4.3 KB pinned plan: review fits 15,725 B, repair 17,725 B (AN-20, 2026-11-03; animation-fit.test.js). Was 14,500 for aj_9c453b6's marker-node draft (14,906 B now). The real request checks decide
+export const ANIMATION_DRAFT_BYTES = 15400; // the golden SGD draft with the 4.3 KB pinned plan: review fits 15,497 B, repair 17,486 B (AN-20, 2026-11-03; animation-fit.test.js); 15,700 before the review request gained its arrow sentence (FX-AN-112, ARROW_NOTE, 228 B). Was 14,500 for aj_9c453b6's marker-node draft. The real request checks decide
 export const TRAIL_NODE_BYTES = 65;
 // aj_ba11d5a (2026-11-02): the plan stated a stability limit of about 0.92 (half mean squared error) while the program computed the full
 // mean squared error, whose limit is about 0.46; the review rejected the mismatch and the repair could not change the plan.
