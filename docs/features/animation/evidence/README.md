@@ -83,3 +83,15 @@ What the record shows, and what it does not:
 - The reviewer is not deterministic. Read single control verdicts, in either direction, as one sample.
 - Golden files: `golden-06cadd3f-r1.json`, `golden-72f091f7-r2.json`, `golden-4f7f80ba-r3.json`.
 - A local workspace path in `c12-preview-golden-72f091f7-REJECTED.json` was replaced by `<workspace>/`.
+
+### Golden round 4 (`48a5b7e4`, 5 November 2026, about 10:05 AM PT)
+
+Round 4 narrows the converged band (the ball must be at the lowest point within the noise before the status reads "converged"; the run stays "running" until then), the finding run B raised on round 3. Three runs on the C12 preview (`bf1f5c5a`, review identity `687d4661`), back to back:
+
+| Run | Result | File |
+|---|---|---|
+| A | ACCEPTED, 0 of 6 rejected, minors only | `c12-preview-golden-48a5b7e4-r4-runA-ACCEPTED.json` |
+| B | ERROR, no verdict: the render service answered HTTP 502 (`render_failed: Protocol error (Runtime.evaluate): Session closed`). Not a pass and not a rejection; rerun as C | `c12-preview-golden-48a5b7e4-r4-runB-ERROR-render-502.json` |
+| C | ACCEPTED, 0 of 6 rejected, minors only | `c12-preview-golden-48a5b7e4-r4-runC-ACCEPTED.json` |
+
+Golden file: `golden-48a5b7e4-r4.json`. Two accepted verdicts of the same artifact on one identity; one infrastructure error is recorded and not counted either way.
