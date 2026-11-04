@@ -17,7 +17,7 @@ Owner decision 38 closed the ladder. This receipt records what was released, wha
 |---|---|---|
 | C13 `2c90f9d9d` | 41889947337 success | 41889947226 success |
 | C14 `985872c69` | 41895661177 success | 41895661318 success |
-| C14b `18d92571` (released) | 41902324893 success | 41902325006 see the note at the end |
+| C14b `18d92571` (released) | 41902324893 success | 41902325006 success (all six e2e shards green; finished after the release) |
 | Release | `release production` 41903737638 success | |
 
 ## Gates
@@ -55,7 +55,3 @@ C13: Gate 1 622.06, Gate 2 806.25, control 10.21 (1,438.52). C14: Gate 1 631.30,
 ## Known open items
 
 See "SGD ladder: parked 4 Nov" in `fix.md` and in the plan.
-
-## Note on C14b's fast-e2e
-
-Run 41902325006 was still in progress when this receipt was written (12:13 PM PT). Its result is recorded in the commit that follows this one if it differs from success.
