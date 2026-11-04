@@ -77,6 +77,8 @@ Candidate lineage (4 November 2026): C8 = C7 + FX-AN-098, the review page's read
 
 Candidate lineage (4 November 2026): C9 = C8 + evidence + the owner's C9 list: the gate evidence for C3', C4, C6 and C7 (docs only, `docs/features/animation/evidence/`), camera floor 35 degrees, label caps and hiding a label when its arrow is too short, trail polylines as label obstacles, a ball-under-the-surface check, stripping fields that are irrelevant to the object kind, a trail-every-step archetype line, `pathLength` at the default step count, and the review role at 8,000 output tokens (decision 28). The prompt-files hash changes with it; the golden hash `1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc` does not.
 
+Candidate lineage (4 November 2026): C10 = C9 + decision 29 azimuth line + decision 30 rim hold + label distance cap + primitives-check CI fix; platform day cap raised on the clone (decision 31); primitives-check fix: identical-frame redraw skip in session.js (FX-AN-107), fail-fast check. The prompt-files hash changes with the archetype file; the golden hash `1837a72b6366ee8a8bc78d66f05ea749a56088f413d981a5a7bd4ca9316265dc` does not.
+
 ### Product boundaries
 
 | Capability | Purpose |
