@@ -22,7 +22,7 @@ export const authorCapabilities = (caps = enabledCapabilities()) => ({ phase: ca
 // system block). The exemplar is the golden SGD artifact as a draft, without its title and description (a fixture says so in both; the author writes its own), at the
 // hash below (over the draft): a changed golden fails the job loudly instead of silently changing what a measurement sent. It is sent in the tool-call shape the author must
 // answer in, { kind: 'artifact', artifact } (FX-AN-056). It is never served as a result (decision 13).
-export const EXEMPLARS = Object.freeze({ loss_surface: { artifact: GOLDEN.artifact, sha256: 'd27eead10b26903251efddb76c399ac869ad5493f057af05e8840dd0f36eba7b' } });
+export const EXEMPLARS = Object.freeze({ loss_surface: { artifact: GOLDEN.artifact, sha256: '2b362b4b55e602360a461ee2a8c3681c11452aaee6d5128a24769a8a910d1486' } });
 export const exemplarDraft = artifact => { const { title: _title, description: _description, ...rest } = draftOf(artifact); return rest; };
 export async function archetypeContent(name, exemplars = EXEMPLARS) {
   const rules = archetypeRules(name), exemplar = exemplars[name];
