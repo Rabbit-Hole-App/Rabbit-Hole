@@ -1,20 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ChevronLeft, ChevronRight, CloudUpload, Download, FileSpreadsheet, FileText, Loader2, MessageSquarePlus, Presentation, RotateCw, Sheet, Table2 } from 'lucide-react';
-import { useChatWorkspace } from './chat-workspace.jsx';
+import { AlertTriangle, ChevronLeft, ChevronRight, CloudUpload, FileSpreadsheet, FileText, Loader2, Presentation, RotateCw, Sheet, Table2 } from 'lucide-react';
 import { MarkdownText } from './FileDocMarkdown.jsx';
 import { parse } from './file-parse.js';
 import { TEXT_ENCODINGS, decodeText, textChunks, textExcerpt } from './file-text.js';
 import { DELIMITERS, DELIMITER_NAMES, columnName, tableExcerpt } from './file-table.js';
 import { cellText, describeCell } from './file-workbook.js';
 import { slidesExcerpt } from './file-office.js';
-import { describeFileCard, setFileExcerpt } from './file-excerpts.js';
+import { setFileExcerpt } from './file-excerpts.js';
 import { withView } from './file-doc-import.js';
 import { canWrite, fileScope, loadSource, scopeQuery, startUpload, uploadState, watchUpload } from './file-source-client.js';
 import { EXTRACTOR, documentUnits, extractionOptions, fitBytes, lineUnits, slideUnits, tableUnits, workbookUnits } from './file-text-units.js';
-import { fileChatRef } from './file-chat-ref.js';
 import { fetchDerivatives, isTerminal, stageLabel, submitFileJob, watchFileJobs } from './file-jobs-client.js';
 import { jobRequest } from './file-job.js';
-import { selectionRef } from './selection-ref.js';
 import { wsHeaders } from './api.js';
 import { useSearchContent } from './canvas-search-content.jsx';
 import { searchSourceRecord } from './canvas-search-content.js';
@@ -138,18 +135,8 @@ export default function FileDocCard({ block, onChange }) {
   }, [searchKey, original.current, original.status, original.blob, original.retry, units, parseStatus]);
   useSearchContent(block.id, searchSource);
   useTextDerivative(block, update, currentFileDocUnits(original, units, searchKey) ? units : null);
-  const chat = useChatWorkspace();
   const Icon = ICON[block.kind] || FileText;
   const [meta, setMeta] = useState('');
-  const download = () => {
-    if (!original.blob) return;
-    const url = URL.createObjectURL(original.blob), a = document.createElement('a');
-    a.href = url; a.download = block.label || 'file'; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
-  // Add to chat: a stored fileRef card is its file ref (file-chat-ref.js), the same one its selection gives, so selecting it
-  // and pressing Add to chat is one attachment; an older card or one not stored yet is its card ref, as before.
-  const addToChat = () => chat?.addToChat?.(fileChatRef(block) || selectionRef({ ids: [block.id], kind: 'card', name: block.label, content: block.label, text: () => describeFileCard(block)?.text ?? '' }));
   useEffect(() => () => setFileExcerpt(block.id, null), [block.id]);
   return (
     <div data-file-doc-card={block.kind} data-format={block.format} data-saved={block.fileRef ? (block.fileRef.source?.id ? 'stored' : 'pending') : 'board-file'} className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -160,10 +147,6 @@ export default function FileDocCard({ block, onChange }) {
           <span data-file-doc-meta className="truncate text-xs text-ink-3">{KIND_LABEL[block.kind]} · {String(block.format || '').toUpperCase()}{block.size ? ` · ${size(block.size)}` : ''}{meta ? ` · ${meta}` : ''}</span>
         </span>
       </header>
-      <div className="flex shrink-0 flex-wrap items-center gap-0.5 border-y border-line px-2 py-0.5" onPointerDown={stop}>
-        <button type="button" data-file-doc-download className={BUTTON} disabled={!original.blob} title="Download the original file" onClick={download}><Download size={13} aria-hidden />Download</button>
-        <button type="button" data-file-doc-chat className={BUTTON} disabled={!chat?.addToChat} title="Keep this file with the chat" onClick={addToChat}><MessageSquarePlus size={13} aria-hidden />Add to chat</button>
-      </div>
       {block.fileRef && !block.fileRef.source?.id && <SaveState state={upload.state} onRetry={upload.retry} />}
       {original.status === 'loading' && <Status>Opening the file</Status>}
       {original.status === 'failed' && <div data-file-doc-read-error role="alert" className="flex items-center gap-2 px-3 py-2 text-xs text-danger" onPointerDown={stop}>The file could not be read.<button type="button" onClick={original.retry} className={BUTTON}>Retry</button></div>}

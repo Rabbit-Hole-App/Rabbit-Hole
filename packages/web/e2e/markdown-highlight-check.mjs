@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 // server; nothing leaves the machine.
 // usage: start `npx vite --port 5391 --strictPort --host 127.0.0.1` in packages/web, then node e2e/markdown-highlight-check.mjs
 const BASE = process.env.HARNESS || 'http://127.0.0.1:5391/e2e/canvas-editing-harness.html';
-const total = 14;
+const total = 15;
 const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? '✓' : '✗'} ${name}${detail ? ` - ${detail}` : ''}`); };
 const SENTENCE = 'The loss is the mean squared error.';
@@ -88,14 +88,16 @@ check('4 after a reload the highlight is still on the second occurrence', now.co
 
 // 5 Show more
 await card('repeat.md').locator('[data-file-doc-more]').click();
-await page.waitForTimeout(300);
+await page.waitForFunction(() => CSS.highlights.get("wiki-highlight")?.size > 0, null, { timeout: 15000 });
+await page.waitForTimeout(200);
 const longer = await painted();
 check('5 Show more draws more text and the highlight stays on the second occurrence', longer.text.length > now.text.length && longer.count === 1 && longer.at[0] === occurrence(longer.text, 1), `${now.text.length} -> ${longer.text.length}`);
 
 // 6-8 Full content on the Markdown card: persisted, every chunk drawn, highlight on the right occurrence in both modes
 await toggleFull('repeat.md');
 await page.waitForFunction(() => document.querySelector('[data-block-id="repeat.md"]')?.getAttribute('data-card-layout') === 'full');
-await page.waitForTimeout(400);
+await page.waitForFunction(() => CSS.highlights.get("wiki-highlight")?.size > 0, null, { timeout: 15000 });
+await page.waitForTimeout(200);
 const full = await painted(), box = await card('repeat.md').boundingBox(), body = await card('repeat.md').locator('[data-file-doc-text]').evaluate(node => ({ client: node.clientHeight, scroll: node.scrollHeight }));
 check('6 Full content draws every chunk with no Show more, the card as tall as its text, and the highlight is on the second occurrence', await card('repeat.md').locator('[data-file-doc-more]').count() === 0 && full.text.length >= longer.text.length
   && body.client >= body.scroll - 1 && box.height > 3000 && full.count === 1 && full.at[0] === occurrence(full.text, 1), JSON.stringify({ body, height: box.height, at: full.at }));
@@ -107,7 +109,8 @@ now = await painted();
 const reloadedFull = await layout('repeat.md');
 await toggleFull('repeat.md');
 await page.waitForFunction(() => document.querySelector('[data-block-id="repeat.md"]')?.getAttribute('data-card-layout') === 'scrollable');
-await page.waitForTimeout(300);
+await page.waitForFunction(() => CSS.highlights.get("wiki-highlight")?.size > 0, null, { timeout: 15000 });
+await page.waitForTimeout(200);
 const scrollable = await painted();
 check('8 Full survives a reload, and switching back to scrollable keeps the highlight on the second occurrence', reloadedFull === 'full' && now.count === 1 && now.at[0] === occurrence(now.text, 1) && await layout('repeat.md') === 'scrollable'
   && scrollable.count === 1 && scrollable.at[0] === occurrence(scrollable.text, 1) && (await saved()).find(b => b.id === 'repeat.md').cardLayout?.mode === 'scrollable', JSON.stringify({ reloadedFull, at: scrollable.at }));
@@ -162,6 +165,13 @@ check('13 the .docx card is still Full after a reload', await layout('doc.docx')
 await toggleFull('doc.docx');
 await page.waitForFunction(() => document.querySelector('[data-block-id="doc.docx"]')?.getAttribute('data-card-layout') === 'scrollable');
 check('14 and back to scrollable, saved', (await saved()).find(b => b.id === 'doc.docx').cardLayout?.mode === 'scrollable' && errors.length === 0, errors.join(' | '));
+
+// 15 the card's own toolbar row (Download, Add to chat) is gone; the right-click menu's Download original is the one Download
+await page.keyboard.press('Escape');
+await card('doc.docx').locator('[data-drag-zone]').first().click({ button: 'right', position: { x: 30, y: 8 } });
+await page.locator('[data-canvas-menu]').waitFor();
+check('15 a file card has no Download / Add to chat toolbar row; its right-click menu has Download original (data-menu-download)', await page.locator('[data-file-doc-download], [data-file-doc-chat]').count() === 0
+  && await page.locator('[data-canvas-menu] [data-menu-download]').count() === 1 && /Download original/.test(await page.locator('[data-canvas-menu] [data-menu-download]').innerText()));
 
 await browser.close();
 const passed = results.filter(r => r.ok).length;

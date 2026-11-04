@@ -237,7 +237,7 @@ export const TYPE_ACTIONS = [
     applies: (t, ctx) => !ctx.readOnly && !!ctx.canvas.appName && !!pdfBytesUrl(ctx.canvas.appName, t.object.type === 'slide' ? t.object.pdf : t.object.assetKey),
     run: (t, ctx) => ctx.canvas.downloadUrl(pdfBytesUrl(ctx.canvas.appName, t.object.type === 'slide' ? t.object.pdf : t.object.assetKey, t.object.home || null), `${t.object.label || 'document'}`.replace(/(\.pdf)?$/i, '.pdf')),
   },
-  // A file card's original (image, video clip, audio, SVG, 3D model, document): the same bytes its own Download reads.
+  // A file card's original (image, video clip, audio, SVG, 3D model, document): the one Download (the file card's toolbar row with Download and Add to chat was removed, owner 2026-11-04; Add to chat is in the selection bar).
   {
     id: 'file.download', label: 'Download original', icon: 'Download', group: 'type', order: 60,
     targets: ['card'], types: ['file'], requires: 'copy', data: 'data-menu-download',
