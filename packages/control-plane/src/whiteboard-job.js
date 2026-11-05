@@ -57,7 +57,7 @@ const narratedBeats = job => job.scenes.flatMap((s, i) => s.beats.filter(b => b.
 // ctx: { env, call(role, spec), narrate(audioKey, text), bucket, fetch }.
 const generationStages = {
   async authoring(job, ctx) {
-    const { scene, corrections } = await authorScene(job, job.scenes.length, ctx);
+    const { scene, corrections } = await authorScene(job, job.scenes.length, ctx).catch(error => { throw Object.assign(error, { sceneId: job.plan.scenes[job.scenes.length].id }); });
     const scenes = [...job.scenes, scene];
     if (scenes.length < job.plan.scenes.length) return { set: { scenes, corrections } };
     // ponytail: a video over its totals (beats, words, primitives, points) fails without a correction call.
@@ -567,7 +567,7 @@ export class WhiteboardJobs {
     await this.locked(async () => {
       const current = await this.get(job.id);
       if (!current || TERMINAL.has(current.stage) || current.inFlight || error.abandoned) return;
-      (current.errors ??= []).push({ stage: current.stage, code: error.code || error.name || 'error', message: String(error.message || '').slice(0, 1500), ...(error.issues ? { issues: error.issues.slice(0, 20) } : {}) }); // diagnostics only
+      (current.errors ??= []).push({ stage: current.stage, code: error.code || error.name || 'error', message: String(error.message || '').slice(0, 1500), ...(error.issues ? { issues: error.issues.slice(0, 20) } : {}), ...(error.sceneId ? { sceneId: error.sceneId } : {}) }); // diagnostics only
       await this.end(current, { code: error.code || 'error', stage: current.stage, reason: error.reason ?? REASON[current.stage] ?? FAILURE_PLAN, previousRevisionAvailable: false });
     });
   }

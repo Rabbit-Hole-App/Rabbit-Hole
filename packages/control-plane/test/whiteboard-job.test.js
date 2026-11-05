@@ -84,7 +84,7 @@ test('proposalUsage numbers equal whiteboardReservation for the plan, and the pr
   const { id, job } = await s.planned();
   const [p] = s.proposals(id), r = whiteboardReservation(job.plan);
   assert.deepEqual(p.usage, { estimate_credits: Math.ceil(r.estimate.generationMicros / 10000), max_credits: Math.ceil(r.generationMicros / 10000), reserve_credits: null });
-  assert.deepEqual([p.usage.estimate_credits, p.usage.max_credits], [102, 192]);
+  assert.deepEqual([p.usage.estimate_credits, p.usage.max_credits], [134, 240]); // author at 8,000 output tokens (owner try, 2026-11-05)
   assert.deepEqual(proposalUsage({}, 'whiteboard-video', { duration_seconds: 10 }, { scenes: 1 }).max_credits, Math.ceil(whiteboardReservation(fixture('plan-10.json')).generationMicros / 10000));
   assert.equal(await verifyProposal(s.env, p, OWNER.email), null);
   assert.match(await verifyProposal(s.env, { ...p, settings: { duration_seconds: 10 } }, OWNER.email), /not made for you, or it was changed/);
@@ -228,7 +228,7 @@ test('kill switch: no new job, refine or Generate, and the alarm dispatches noth
 });
 
 test('Generate needs the allowance for the generation worst case; a refused Generate consumes nothing', async t => {
-  const s = stack(t, { used: 50 * 1e6 - 1_000_000 }); // under 1,920,000 micro-USD left
+  const s = stack(t, { used: 50 * 1e6 - 1_000_000 }); // under the 2,400,000 micro-USD generation worst case left
   const { id } = await s.planned();
   const refused = await s.approve(id);
   assert.equal(refused.status, 429);
