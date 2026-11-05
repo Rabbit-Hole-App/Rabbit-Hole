@@ -66,8 +66,11 @@ function providers(t, { author = () => SCENE, fish = () => new Response(MP3), re
     if (u.host === 'api.anthropic.com') {
       const body = JSON.parse(init.body), tool = body.tools[0].name;
       calls.model.push({ tool, content: JSON.parse(body.messages[0].content[0].text) });
+      calls.model.at(-1).maxTokens = body.max_tokens;
       const input = tool === 'whiteboard_plan' ? PLAN : author(calls.model.filter(c => c.tool === tool).length, calls.model.at(-1).content);
-      return Response.json({ id: 'm', type: 'message', role: 'assistant', model: body.model, content: [{ type: 'tool_use', id: 't', name: tool, input }], stop_reason: 'tool_use', usage: { input_tokens: 1000, output_tokens: 500 } });
+      // An author answer of { cut: true } is a reply stopped at max_tokens (the owner try of 2026-11-05).
+      const cut = input?.cut === true;
+      return Response.json({ id: 'm', type: 'message', role: 'assistant', model: body.model, content: [{ type: 'tool_use', id: 't', name: tool, input: cut ? {} : input }], stop_reason: cut ? 'max_tokens' : 'tool_use', usage: { input_tokens: 1000, output_tokens: cut ? body.max_tokens : 500 } });
     }
     if (u.host === 'api.fish.audio') { const body = JSON.parse(init.body); calls.fish.push(body); return fish(calls.fish.length, body.text); }
     if (u.host === 'renderer.test') {
@@ -184,6 +187,23 @@ test('a scene over its checks is corrected once; still failing, the job fails wi
   const generation = rows(bad.sqlite, 'usage_actions').find(a => a.client_key === done.actionKey);
   const refunded = rows(bad.sqlite, 'usage_adjustments');
   assert.ok(refunded.length === 2 && refunded.every(a => a.action_id === generation.action_id), 'both author calls given back, the plan call kept');
+});
+
+// Owner try 2026-11-05: a scene whose author reply stopped at max_tokens. No retry: the job fails, and every generation call is given back.
+test('an author reply cut at max_tokens ends the job with output_limit and the plan reason, refunded by the generation key; the scene is recorded', async t => {
+  const s = stack(t, { author: n => (n === 2 ? { cut: true } : SCENE) });
+  const { done } = await s.generate();
+  assert.deepEqual([done.stage, done.failure.code, done.failure.reason], ['failed', 'output_limit', 'the plan could not be written']);
+  assert.equal(s.calls.model.filter(c => c.tool === 'whiteboard_scene').length, 2, 'no retry of the cut call');
+  assert.ok(s.calls.model.filter(c => c.tool === 'whiteboard_scene').every(c => c.maxTokens === 8000));
+  assert.deepEqual([done.errors.at(-1).code, done.errors.at(-1).sceneId], ['output_limit', 's2']);
+  const generation = rows(s.sqlite, 'usage_actions').find(a => a.client_key === done.actionKey);
+  const paid = rows(s.sqlite, 'usage_attempts').filter(a => a.action_id === generation.action_id);
+  const refunds = rows(s.sqlite, 'usage_adjustments');
+  assert.equal(paid.length, 2, 'both author calls were billed');
+  assert.deepEqual([refunds.length, refunds.every(a => a.action_id === generation.action_id && a.reason === 'whiteboard_failed_refund:1')], [2, true]);
+  assert.equal(refunds.reduce((n, a) => n + a.micros, 0), -paid.reduce((n, a) => n + a.cost_micros, 0));
+  assert.equal(rows(s.sqlite, 'messages').map(m => m.content).at(-1), '"Gradient descent" was not finished: the plan could not be written. Your request and plan are kept; nothing was charged for the part that failed.');
 });
 
 test('a Fish failure fails the job with the narration reason; a renderer that lost the render twice with the drawing reason', async t => {
