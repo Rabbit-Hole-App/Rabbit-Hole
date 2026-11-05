@@ -5,7 +5,7 @@
 // canvas size inside a scroller: its width and height are capped by the stage, and a card whose content keeps an aspect (an
 // explanation's scene, a video) is narrowed until the whole card fits. Fixtures come from slash-sheet.js; nothing here generates,
 // searches, captures, grades or saves (the notebook's own in-browser Python runs only what the visitor runs).
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BLOCK_TYPES, LearningBlockBody } from './LearningBlocks.jsx';
 import NotebookBody from './NotebookCard.jsx';
 import GoalManager from './GoalManager.jsx';
@@ -17,6 +17,7 @@ import LearnWiki from './LearnWiki.jsx';
 import WebpageCard from './WebpageCard.jsx';
 import { CardSourceScope } from './use-card-source.js';
 import { ExplainBackService } from './ExplainBackPanel.jsx';
+import { practiceService } from './slash-practice-service.js';
 import { BRIEFS, briefView, previewBlock } from './slash-sheet.js';
 
 // Controls that would reach a provider or the account from inside a card: in the window a press on one does nothing (Find and
@@ -137,7 +138,9 @@ function CardPreview({ preview, stage, appName, narrow }) {
     }
     if (next) { passes.current += 1; setTrim({ ...next, at: key }); }
   });
-  const grade = preview.feedback ? async (committed, answer, push) => { push(preview.feedback); } : undefined;
+  // /practice's example is the current Practice card on a local canned store (slash-practice-service.js); every other card has none.
+  const [attempts, setAttempts] = useState([]);
+  const service = useMemo(() => (preview.feedback ? practiceService({ attempts, onChange: setAttempts, feedback: preview.feedback }) : null), [attempts, preview.feedback]);
   const body = (
     <div ref={card} data-slash-card={type} style={{ width, height, maxHeight }} {...guard} {...(type === 'image' ? noEnter : {})}
       className={`group relative flex shrink-0 cursor-default flex-col rounded-xl border select-text ${spec.ghost ? 'border-line bg-surface' : 'border-line bg-surface shadow-sm'} ${type === 'image' ? IMAGE_RESULT : ''} ${type === 'animation3d' ? ANIMATION_FIT : ''}`}>
@@ -145,11 +148,11 @@ function CardPreview({ preview, stage, appName, narrow }) {
       {clip === null
         ? <p data-slash-clip-loading className="px-4 py-3 text-xs text-ink-2">Loading the example video</p>
         : <LearningBlockBody block={clip && clip !== block.src ? { ...block, src: clip, variants: [{ src: clip }], variant: 0 } : block} onChange={setBlock} onChangeQuiet={setBlock}
-            appName={appName} selected viewKey={viewKey} onGrade={grade} />}
+            appName={appName} selected viewKey={viewKey} />}
     </div>
   );
-  // An example card never saves an attempt: the Explain-back store is withheld, so /practice shows its canned local feedback.
-  const local = <ExplainBackService.Provider value={null}>{body}</ExplainBackService.Provider>;
+  // An example card never saves an attempt: the real Explain-back store is withheld; /practice gets the local canned one above.
+  const local = <ExplainBackService.Provider value={service}>{body}</ExplainBackService.Provider>;
   const shown = scope ? <CardSourceScope.Provider value={scope}>{local}</CardSourceScope.Provider> : local;
   return viewKey
     ? <div data-slash-viewer-preview className="flex shrink-0 flex-col items-end gap-2"><CadViewerTools viewKey={viewKey} cardId={block.id} ruler={type === 'cad'} />{shown}</div>
