@@ -1,0 +1,22 @@
+{
+  "sketch": "explain-back-sketch",
+  "project-canvases": "project-canvases",
+  "fork": "canvas-forking",
+  "dive": "dive",
+  "handle": "handle",
+  "explore-holes": "explore-holes",
+  "card-select": "card-select",
+  "naming": "naming",
+  "visibility": "visibility",
+  "sidebar": "sidebar",
+  "card-redesign": "card-redesign",
+  "project-menu": "project-menu",
+  "creator-profile": "creator-profile",
+  "analytics-ui": "analytics-ui",
+  "workspace": "workspace",
+  "card-context-menu": "card-context-menu",
+  "panel-header": "panel-header",
+  "slash-sheet": "slash-sheet",
+  "thumbnails": "card-thumbnails",
+  "cross-device": "cross-device"
+}

@@ -149,3 +149,9 @@ test('dev-deploy-gate: a full record is checked against the runs read; a reuse h
   assert.match(attestedBlockers({ full: true }, RECORD, null, SHA)[0], /no fast-e2e run/);
   assert.deepEqual(attestedBlockers({ reuse: SHA }, RECORD, red, SHA), []);
 });
+
+test('the attestable list equals the committed fixture, which the harness copies byte for byte (drift guard, docs/features/prod-release.md)', () => {
+  const fixture = JSON.parse(readFileSync(new URL('./fixtures/gate-attestable.json', import.meta.url), 'utf8'));
+  const own = Object.fromEntries(Object.entries(ATTESTABLE).map(([stage, file]) => [stage, file.replace(/-check\.mjs$/, '')]));
+  assert.deepEqual(own, fixture, 'scripts/fixtures/gate-attestable.json must list exactly gate-attest.mjs ATTESTABLE (stage -> fast-e2e check name); copy it to the harness scripts/r36-gate/gate-attestable.json');
+});
