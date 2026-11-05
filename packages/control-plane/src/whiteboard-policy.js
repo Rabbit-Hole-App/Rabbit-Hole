@@ -2,8 +2,11 @@
 // the quote and the renderer gate; the two W1 roles as a frozen policy object on their LEARN_TASKS rows; the per-call worst case computed as
 // animation-policy.js roleBoundMicros does; and the job's worst case (whiteboardReservation), from which the Generate credit line is printed
 // (100 credits = 1 USD). No environment variable sets any of it: changing a number here is a versioned policy change and a candidate.
-import { LEARN_TASKS, MODEL_PRICES } from './learn-models.js';
+import { LEARN_TASKS, MODEL_PRICES, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { priceUsage } from './pricing-registry.js';
+import { providerUnavailable, requestSpendBound } from './learn-spend.js';
+import { modelFailure } from './learn-research.js';
+import { normalizeToolInput } from './tool-input.js';
 
 export const WHITEBOARD_POLICY_VERSION = 1;
 // What the renderer's /health reports as `whiteboard` and the job requires before it posts (a mismatch fails closed). Bumped with the
@@ -92,4 +95,57 @@ export function whiteboardReservation(plan, tasks = LEARN_TASKS) {
     generationMicros: calls.author * authorCall + fishMicros((narrationChars + rewriteChars) * L.utf8BytesPerChar),
     estimate: { planMicros: planCall, generationMicros: n * authorCall + fishMicros(narrationChars) },
   };
+}
+
+// How a role's call is sent (roadmap 4.2, as animationStreaming): the author streams with a 300 s deadline, the planner answers whole within
+// 120 s. WHITEBOARD_STREAMING=false is the recovery switch: one non-streaming request with no deadline. Handed to ask.js as env.MODEL_STREAM.
+export const WHITEBOARD_CALL_MS = Object.freeze({ plan: 120_000, author: 300_000 });
+export function whiteboardStreaming(env, role) {
+  if (env.WHITEBOARD_STREAMING === 'false') return null;
+  return { stream: role === 'author', deadlineMs: WHITEBOARD_CALL_MS[role] };
+}
+
+// The request body for one role call, as animation-policy.js animationRequest: max_tokens, the pinned effort, one cached system block, one
+// tool on auto, no model, thinking or fallback of its own; refused when it is larger than the role's bound.
+export function whiteboardRequest(env, role, { system, tool, content }, tasks = LEARN_TASKS) {
+  const r = whiteboardRole(role, tasks);
+  if (!tool?.name || !tool.input_schema) throw new WhiteboardPolicyError('tool_required', `/whiteboard ${role} needs one tool.`);
+  const body = {
+    max_tokens: r.maxTokens,
+    ...(r.effort ? { output_config: { effort: r.effort } } : {}),
+    system: env.SUBSCRIPTION_ONLY === 'true' ? system : [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+    tools: [tool],
+    tool_choice: { type: 'auto' },
+    messages: [{ role: 'user', content: typeof content === 'string' ? [{ type: 'text', text: content }] : content }],
+  };
+  const bound = requestSpendBound(body, r.model, 'anthropic');
+  const boundMicros = bound == null ? null : Math.round(bound * 1e6);
+  if (boundMicros == null || boundMicros > whiteboardRoleBoundMicros(role, tasks)) throw new WhiteboardPolicyError('input_too_large', `This /whiteboard ${role} request is larger than its limit.`);
+  return { body, boundMicros };
+}
+
+// One role call through the injected (admitted) callModel: the served model must be the pinned one, the reply must not be cut at its output
+// limit, and it must hold exactly one call of the offered tool, as an object. -> { input, served, usage, stopReason }
+const NOT_ANSWERING = new Set([502, 503, 504, 524]);
+export async function callWhiteboardRole(env, role, spec, { callModel, tasks = LEARN_TASKS }) {
+  if (typeof callModel !== 'function') throw new WhiteboardPolicyError('no_transport', '/whiteboard has no admitted model transport.');
+  const r = whiteboardRole(role, tasks), { body } = whiteboardRequest(env, role, spec, tasks);
+  const response = await loggedModel(r.task, callModel)(env, body, r.model, null);
+  if (!response.ok) {
+    if (await notConfiguredMessage(response)) throw new WhiteboardPolicyError('model_not_configured', 'The model is not configured here.');
+    const refused = [429, 503].includes(response.status) ? await response.clone().json().catch(() => null) : null;
+    if (['allowance_limited', 'spend_limited'].includes(refused?.code)) throw Object.assign(new WhiteboardPolicyError('spend_refused', refused.error || 'AI is not available right now.'), { refusal: refused });
+    if (await providerUnavailable(response) || NOT_ANSWERING.has(response.status)) throw new WhiteboardPolicyError('provider_unavailable', `The provider did not answer (${response.status}).`);
+    throw Object.assign(await modelFailure(response, `/whiteboard ${role} is unavailable`), { code: `model_http_${response.status}` });
+  }
+  const result = await response.json().catch(() => null);
+  const billed = { usage: result?.usage ?? null, stopReason: result?.stop_reason ?? null, served: typeof result?.model === 'string' ? result.model : null };
+  const fail = (code, message) => Object.assign(new WhiteboardPolicyError(code, message), { billed });
+  if (billed.served && billed.served !== r.model && !billed.served.startsWith(`${r.model}-`)) throw fail('model_substituted', `/whiteboard ${role} was answered by ${billed.served}.`);
+  if (billed.stopReason === 'max_tokens') throw fail('output_limit', `/whiteboard ${role} reached its output limit.`);
+  const calls = Array.isArray(result?.content) ? result.content.filter(block => block?.type === 'tool_use') : [];
+  if (calls.length !== 1 || calls[0].name !== spec.tool.name) throw fail('invalid_turn', `/whiteboard ${role} must return exactly one ${spec.tool.name} call (got ${calls.length}).`);
+  const input = normalizeToolInput(spec.tool.input_schema, calls[0].input, role === 'author' ? { dropNull: true, lenient: true } : {});
+  if (input == null || typeof input !== 'object' || Array.isArray(input)) throw fail('invalid_turn', `/whiteboard ${role} returned a call without an object input.`);
+  return { input, ...billed };
 }
