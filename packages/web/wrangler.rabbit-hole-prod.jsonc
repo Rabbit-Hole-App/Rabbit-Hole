@@ -88,9 +88,9 @@
     // ANIMATION_DIAGNOSTICS (job detail and the render probes) is never set here.
     "ANIMATION_ENABLED": "true",
     "ANIMATION_EXECUTION_KILL": "false",
-    // /whiteboard (roadmap W0): OFF until MVP-W1 is released and verified. Only the string "true" will accept new jobs. The renderer is its own
+    // /whiteboard (roadmap W1, owner decision 5 Nov 2026: visible to everyone from W1, W-D6): ON. Only the string "true" accepts new jobs; "false" answers every /api/learn/whiteboard route 404 and hides the command (ready cards keep playing). The renderer is its own
     // Fly app (W-D4 as amended 4 Nov 2026), never Motion's; its bearer WHITEBOARD_RENDERER_TOKEN is a secret.
-    "WHITEBOARD_ENABLED": "false",
+    "WHITEBOARD_ENABLED": "true",
     "WHITEBOARD_RENDERER_URL": "https://rabbit-hole-whiteboard-renderer.fly.dev",
     // IMG-01 image generation (docs/features/image-jobs.md): PUBLIC generation is ON (owner GO). Only "true" accepts new jobs from everyone.
     // The controlled owner-only acceptance path below (owner 2026-10-25) stays for the operator surfaces: a caller whose verified sign-in identity

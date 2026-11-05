@@ -274,14 +274,14 @@ test('production email (sign-in, invitations, feedback) goes out as Rabbit Hole 
 });
 
 // /whiteboard (roadmap W0, binding commit): WHITEBOARD_JOBS and whiteboard-jobs-1 on the app Worker, the feature OFF, the renderer URL the
-// whiteboard's own Fly app (never Motion's). Nothing a learner sees changes until MVP-W1 flips WHITEBOARD_ENABLED.
-test('production /whiteboard: bound last, off, its own renderer, no secret in the file; dev points at the same renderer', () => {
+// whiteboard's own Fly app (never Motion's). W0 shipped it OFF; the W1 release flips WHITEBOARD_ENABLED (owner decision 5 Nov 2026).
+test('production /whiteboard: bound last, on (W1), its own renderer, no secret in the file; dev points at the same renderer', () => {
   const app = config(APP), dev = config('../../web/wrangler.dev.jsonc'), cp = config(CP);
   assert.deepEqual(app.durable_objects.bindings.filter(b => b.class_name === 'WhiteboardJobs'), [{ name: 'WHITEBOARD_JOBS', class_name: 'WhiteboardJobs' }]);
   assert.deepEqual(app.migrations.at(-1), { tag: 'whiteboard-jobs-1', new_sqlite_classes: ['WhiteboardJobs'] });
   assert.deepEqual(dev.migrations.at(-1), { tag: 'whiteboard-jobs-1', new_sqlite_classes: ['WhiteboardJobs'] }, 'the same tag as dev');
   assert.deepEqual(Object.keys(app.vars).filter(k => k.startsWith('WHITEBOARD_')).sort(), ['WHITEBOARD_ENABLED', 'WHITEBOARD_RENDERER_URL'], 'no WHITEBOARD_ESTIMATE_USD and no token');
-  assert.equal(app.vars.WHITEBOARD_ENABLED, 'false');
+  assert.equal(app.vars.WHITEBOARD_ENABLED, 'true');
   assert.equal(dev.vars.WHITEBOARD_ENABLED, 'true');
   assert.equal(app.vars.WHITEBOARD_RENDERER_URL, 'https://rabbit-hole-whiteboard-renderer.fly.dev');
   assert.equal(dev.vars.WHITEBOARD_RENDERER_URL, app.vars.WHITEBOARD_RENDERER_URL, 'W-D9: dev clones use the whiteboard renderer, there is no dev renderer');
