@@ -519,6 +519,7 @@
     "packages/web/src/comments/*.jsx": ["share-dialog-check.mjs","comments-check.mjs","comments-invite-check.mjs","panel-header-check.mjs","share-revocation-check.mjs","selected-pill-check.mjs","canvas-search-viewers-check.mjs","canvas-loading-check.mjs","comments-delete-check.mjs"],
     "packages/web/src/SlashCommandsSheet.jsx": ["slash-sheet-check.mjs","composer-plus-check.mjs","canvas-skeleton-check.mjs","card-sources-check.mjs","inline-ai-check.mjs","manim-render-check.mjs","motion-command-check.mjs","slash-3d-check.mjs"],
     "packages/web/src/SlashCommandPreview.jsx": ["slash-sheet-check.mjs","slash-3d-check.mjs","motion-command-check.mjs"],
+    "packages/web/src/slash-practice-service.js": ["slash-sheet-check.mjs"],
     "packages/web/src/slash-examples/**": ["slash-sheet-check.mjs"],
     "packages/web/src/slash-sheet.js": ["slash-sheet-check.mjs","composer-plus-check.mjs","motion-command-check.mjs","slash-3d-check.mjs","animation-mvp-check.mjs"],
     "packages/web/src/agent/slash.js": ["ctrlk-handoff-check.mjs","slash-core-check.mjs","slash-sheet-check.mjs","composer-plus-check.mjs","dive-check.mjs","slash-cleanup-check.mjs","motion-command-check.mjs","goal-command-check.mjs","animation-mvp-check.mjs"],
