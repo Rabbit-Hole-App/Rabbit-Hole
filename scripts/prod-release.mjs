@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { SOURCES, MASTER_SQL, expectedSchema, schemaDiff, schemaOf, mainMigrationDiff } from './schema-check.mjs';
 import { notReusableBetween } from './dev-deploy.mjs';
 import { runBlockers } from './verify-evidence.mjs';
+import { ATTESTABLE, FAST, attestedRunBlockers } from './gate-attest.mjs';
 import { MVP_BANNER, checkRecovery, mvpSummary, mvpVerdict } from './mvp-fast-path.mjs';
 
 // Production hold (owner, 2026-10-07; lifted by the owner in Home's session 2026-10-09). While true, `release` exits
@@ -78,8 +79,13 @@ export function parseArgs(argv) {
 // again on the release tree rather than taken from the record.
 // Provenance (r34 audit): every line used must name the commit's own tree, its page build and Worker bundle, the gate
 // record it passed on (gate_digest), the run that deployed it and the dev version it became.
+// Item 1: a row whose gate took stages from the exact-SHA fast-e2e run says so in `attested` ({ run, sha, stages }), and prepare
+// accepts both paths. The attestation must name this commit, a numeric run, and only stages gate-attest.mjs lets fast-e2e cover
+// (never the unit run, the bundle checks or any stack-app, journey or tutor stage); checkPrepare checks the run itself.
+const attestedOk = r => r.attested === undefined || (SHA.test(r.attested?.sha || '') && r.attested.sha === r.sha && /^\d+$/.test(String(r.attested.run))
+  && Array.isArray(r.attested.stages) && r.attested.stages.length > 0 && r.attested.stages.every(s => s in ATTESTABLE));
 const proven = (r, treeOf) => SHA.test(r.tree || '') && r.tree === treeOf(r.sha) && /^[0-9a-f]{16}$/.test(r.gate_digest || '')
-  && r.build && r.bundle && r.version && r.run;
+  && r.build && r.bundle && r.version && r.run && attestedOk(r);
 export function greenDevDeploy(sha, recordText, { isAncestor = () => false, treeOf = () => null, uiOnly = () => false } = {}) {
   const rows = recordText.split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
   const full = s => rows.findLast(r => r.sha === s && r.gates === 'pass' && r.smoke === 'pass' && proven(r, treeOf)) || null;
@@ -105,6 +111,9 @@ export function checkPrepare({ sha, onMain, devRecord, runs, head, clean, change
   if (!mvp && !greenDevDeploy(sha, devRecord, { isAncestor, treeOf, uiOnly })) return `refused: no green dev deployment with provenance (tree, build, bundle, gate digest, run, version) is recorded for ${sha}`;
   const ci = mvp ? [] : runBlockers(runs, sha);
   if (ci.length) return `refused: ${sha} needs a successful fast-e2e and verify run of this exact commit; a gate, its own or reused, never stands in for them:\n- ${ci.join('\n- ')}`;
+  const green = !mvp && greenDevDeploy(sha, devRecord, { isAncestor, treeOf, uiOnly });
+  const att = green?.attested && attestedRunBlockers([{ run: String(green.attested.run) }], runs?.runs?.[FAST], sha);
+  if (att?.length) return `refused: the gate of ${sha} took stages from a fast-e2e run that does not stand: ${att.join('; ')}`;
   if (head !== sha) return `refused: HEAD is ${head}, check out ${sha} first`;
   if (!clean) return dirty(changes);
   return null;
