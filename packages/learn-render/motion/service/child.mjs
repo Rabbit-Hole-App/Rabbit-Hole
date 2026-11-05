@@ -19,6 +19,7 @@ import { chromeVersion, contactFrames, ffmpegVersion, probe } from '../renderer-
 import { rendererClass } from '../renderers.mjs';
 import { selfLimits, unlimited } from './resource-control.mjs';
 import { runPhaseProcess, runResourceProbe } from './stress-probe.mjs';
+import { measureRender } from './whiteboard-capacity.mjs';
 
 // Preview vs final (§11.3): the final frame downscaled to preview size against the preview frame.
 // M5 keeps 6: Windows authoring renders of four Author-contract compositions measured 1.27-2.10
@@ -199,11 +200,27 @@ async function repeatIdentical(r, j, differing, frames, a) {
   } catch { return null; }
 }
 
+// ponytail: W1.0 only (roadmap): the whiteboard capacity measurement, removed when the whiteboard composition and routes replace it. One synthetic
+// whiteboard render of job.seconds, timed phase by phase (whiteboard-capacity.mjs); the service reports the sandbox's own resource record beside it.
+async function capacityJob(sandbox) {
+  try {
+    const capacity = await measureRender({ seconds: job.seconds, work, outDir: out });
+    const { v, size } = await probe(join(out, 'final.mp4'));
+    write({
+      status: 'ready', duration_seconds: Number(v.duration), fps: STAGE.fps, width: v.width, height: v.height, frame_count: Number(v.nb_read_frames), output_bytes: size, capacity, sandbox,
+      renderer: { name: 'remotion', chrome: chromeVersion(), ffmpeg: await ffmpegVersion() },
+    });
+  } catch (error) {
+    write({ status: 'failed', error: 'renderer_failure', detail: String(error?.message || error).split('\n')[0].slice(0, 500), sandbox });
+  }
+}
+
 async function main() {
   const sandbox = await sandboxReport();
   if (sandbox.breach?.length) return write({ status: 'failed', error: 'sandbox_breach', detail: sandbox.breach.join('; '), sandbox });
   if (job.probe === 'network') return networkProbe(sandbox);
   if (job.probe === 'resources') return resourceProbe(sandbox);
+  if (job.type === 'whiteboard-capacity') return capacityJob(sandbox);
 
   const j = { id: job.render_id, dir: join(work, 'job'), brief: job.brief, storyboard: job.storyboard, source: job.composition.source };
   // M7B: the job names its renderer (server.mjs wrote it after validation); Remotion by default.

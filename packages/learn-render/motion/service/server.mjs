@@ -39,6 +39,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { RENDER_SCHEMA, stageOf, validateRenderRequest } from '../contracts.js';
 import { rendererGate } from '../renderers.mjs';
+import { SECONDS as CAPACITY_SECONDS } from '../../src/whiteboard-capacity/synth.js';
 import { LIMITS as DEFAULT_RESOURCE_LIMITS, detect, limitsFromEnv, limitsSetting } from './resource-control.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -71,8 +72,9 @@ export function deadlineFromEnv(env) {
 }
 export const ARTIFACTS = Object.freeze({ 'final.mp4': 'video/mp4', 'preview.mp4': 'video/mp4', 'contact-sheet.png': 'image/png', 'poster.png': 'image/png' });
 // What a finished render reports back: the child's result.json is copied through this list only.
+const CAPACITY_DEADLINE_SECONDS = 900; // ponytail: W1.0 only
 const RESULT_FIELDS = ['duration_seconds', 'fps', 'width', 'height', 'frame_count', 'output_bytes', 'final_validation', 'determinism',
-  'preview', 'preview_final_comparison', 'contact_sheet', 'coverage', 'sandbox', 'fonts', 'timings', 'renderer'];
+  'preview', 'preview_final_comparison', 'contact_sheet', 'coverage', 'sandbox', 'fonts', 'timings', 'renderer', 'capacity'];
 
 // The renderer, the contract and the sandbox scripts make the version: a changed renderer is a new version.
 export function serviceVersion() {
@@ -288,6 +290,36 @@ export function motionRenderService({
     child.on('exit', (code, signal) => done({ code, signal }));
   }
 
+  // ponytail: W1.0 only (roadmap), removed when W1.4's routes replace it. POST /whiteboard-capacity {seconds}: one synthetic whiteboard render through
+  // the same sandbox, limits and artifact path as a render, with a 900 s deadline so a 120 s video that does not fit in 420 s is measured, not killed.
+  // The result carries `capacity` (timings per phase, render rate, peak memory) and the sandbox's own `resources` record. No model-written input.
+  async function capacity(req, res) {
+    let body;
+    try { body = JSON.parse(await readBody(req, 1024)); } catch { return send(res, 400, { error: 'malformed' }); }
+    if (!CAPACITY_SECONDS.includes(body?.seconds)) return send(res, 400, { error: 'invalid_job', detail: `seconds is one of ${CAPACITY_SECONDS.join(', ')}` });
+    if (state.degraded) return send(res, 503, { error: 'degraded', detail: `${state.degraded}; the machine must be restarted` });
+    if (state.active) return send(res, 429, { error: 'busy', detail: 'one render at a time', render_id: state.active.render_id });
+    const id = randomBytes(16).toString('hex'), dir = join(jobsDir, id), limitMs = CAPACITY_DEADLINE_SECONDS * 1000;
+    const record = { render_id: id, status: 'rendering', stage: 'final', renderer: 'remotion', created_at: new Date().toISOString(), deadline_seconds: CAPACITY_DEADLINE_SECONDS, settings, boot_id, job_store: jobStore() };
+    state.active = record;
+    try {
+      mkdirSync(join(dir, 'out'), { recursive: true });
+      for (const d of [dir, join(dir, 'out')]) chmodSync(d, 0o2770);
+      writeFileSync(join(dir, 'job.json'), JSON.stringify({ render_id: id, type: 'whiteboard-capacity', seconds: body.seconds }), { mode: 0o640 });
+      if (overridden) writeFileSync(join(dir, 'limits.json'), JSON.stringify(limitsSetting(limits)), { mode: 0o640 });
+      writeFileSync(join(dir, 'deadline_s'), String(limitMs / 1000), { mode: 0o640 });
+    } catch (error) {
+      state.active = null;
+      rmSync(dir, { recursive: true, force: true });
+      return send(res, 500, { error: 'renderer_failure', detail: `the job directory could not be prepared: ${error.message}` });
+    }
+    renders.set(id, record);
+    counters.started++;
+    run(record, dir);
+    log(`capacity render ${id} started (${body.seconds}s)`);
+    send(res, 202, { render_id: id, status: 'rendering', poll: `/render/${id}`, deadline_seconds: CAPACITY_DEADLINE_SECONDS });
+  }
+
   async function render(req, res) {
     counters.posts++;
     let body, raw;
@@ -358,6 +390,10 @@ export function motionRenderService({
       });
     }
     if (!authorized(req)) return send(res, 401, { error: 'unauthorized' });
+    if (path === '/whiteboard-capacity') {
+      if (req.method !== 'POST') return send(res, 405, { error: 'method_not_allowed' });
+      return capacity(req, res).catch(error => send(res, 500, { error: 'renderer_failure', detail: error.message }));
+    }
     if (path === '/render') {
       if (req.method !== 'POST') return send(res, 405, { error: 'method_not_allowed' });
       return render(req, res).catch(error => send(res, 500, { error: 'renderer_failure', detail: error.message }));
