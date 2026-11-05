@@ -11,7 +11,8 @@
     "test": "node scripts/test.mjs",
     "studio": "remotion studio src/index.js",
     "motion:prove": "node scripts/motion.mjs prove",
-    "motion:test": "node --test \"motion/*.test.mjs\" \"motion/service/*.test.mjs\""
+    "motion:test": "node --test \"motion/*.test.mjs\" \"motion/service/*.test.mjs\"",
+    "whiteboard:test": "node --test \"whiteboard/*.test.mjs\""
   },
   "dependencies": {
     "@babel/parser": "7.24.1",
