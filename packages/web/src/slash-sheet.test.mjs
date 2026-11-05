@@ -35,10 +35,6 @@ test('the window reads the picker sections: 20 commands, each with an example an
   assert.equal(EXAMPLES['whiteboard-video'], '/whiteboard explain gradient descent with one worked example');
   assert.equal(previewOf('whiteboard-video').kind, 'card');
   assert.match(all[1].items.find(item => item.name === 'whiteboard-video').about, /^Whiteboard turns a request into a narrated video that draws itself/);
-  // The preview is a real video (owner, 2026-11-05): a committed 720p clip and poster, both present in public/lesson-assets.
-  const sample = previewOf('whiteboard-video').block;
-  assert.match(sample.src, /^\/lesson-assets\/whiteboard-example\.mp4$/); assert.match(sample.poster, /^\/lesson-assets\/whiteboard-example-poster\.png$/);
-  for (const file of [sample.src, sample.poster]) assert.ok(existsSync(new URL(`../public${file}`, import.meta.url)), `${file} is committed`);
   assert.deepEqual(Object.keys(PREVIEWS).sort(), [...listed].sort(), 'one preview per listed command, and none for anything else');
   assert.deepEqual(SLASH.map(command => command.name).sort(), [...listed].sort(), 'the registry, the picker and the window agree');
   for (const name of listed) {

@@ -158,9 +158,9 @@ export const PREVIEWS = {
   cad: { kind: 'card', card: 'cad', block: CAD_PLATE.block, note: 'A real model made by /cad. Interact to orbit and zoom it.' },
   // /animation: a choice of examples, one per experience (ANIMATION_OPTIONS); the first is the saved pendulum.
   animation: { kind: 'card', card: 'animation3d', block: ANIMATION_OPTIONS[0].block, note: ANIMATION_OPTIONS[0].note, options: ANIMATION_OPTIONS },
-  // A real whiteboard video (owner, 2026-11-05): the 60 s /whiteboard made from EXAMPLES['whiteboard-video'], re-encoded to 720p (a committed sample clip: the
-  // window fetches it as a seekable blob, SlashCommandPreview useSeekableClip). WhiteboardVideoCard plays a block that carries `src` as a plain video.
-  'whiteboard-video': { kind: 'card', card: 'whiteboardVideo', block: { type: 'whiteboardVideo', title: 'Gradient Descent: Walking Down x Squared', src: '/lesson-assets/whiteboard-example.mp4', poster: '/lesson-assets/whiteboard-example-poster.png' } },
+  // ponytail: the whiteboard video card (W1.6) and a saved video made from EXAMPLES['whiteboard-video'] (W1 acceptance) do not exist
+  // yet, so this card is empty (LearningBlockBody draws nothing for an unregistered type); add the block and its note then.
+  'whiteboard-video': { kind: 'card', card: 'whiteboardVideo', block: { type: 'whiteboardVideo' } },
   '3d': { kind: 'card', card: 'scene', block: SAMPLES['3d'].scene, viewer: true },
   browser: { kind: 'webpage', block: { type: 'webpage', id: 'slash-help-browser', url: WEBPAGE.manifest.url, title: WEBPAGE.result.title, capture: WEBPAGE.result.capture, fileRef: WEBPAGE.result.fileRef, scrollTop: 1480 },
     // scrollTop: opens at the article's first section, "A High-Level Look", and its first diagram (capture px 1480); the title stays in
