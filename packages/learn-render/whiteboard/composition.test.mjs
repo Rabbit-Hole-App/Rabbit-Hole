@@ -126,3 +126,23 @@ test('a real 10 s whiteboard render to MP4 through the service: 300 frames, h264
   assert.equal(a.codec_name, 'aac');
   for (const name of ['poster', 'contact_sheet']) assert.equal((await fetch(base + r.artifacts[name], { headers: auth })).status, 200);
 });
+
+test('the child refuses beat audio that is not the length timing gave it, before any bundle or browser', async t => {
+  const { renderWhiteboard } = await import('./render.mjs');
+  const { ffmpeg } = await import('../motion/renderer-common.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'wb-audio-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const { mkdirSync } = await import('node:fs');
+  mkdirSync(join(dir, 'public', 'audio'), { recursive: true });
+  mkdirSync(join(dir, 'out'));
+  const m = sampleManifest(); // both beats 45 frames (1.5 s)
+  writeFileSync(join(dir, 'public', audioName(0)), 'not audio');
+  await ffmpeg('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=3', '-c:a', 'libmp3lame', '-b:a', '64k', join(dir, 'public', audioName(1))]);
+  const r = await renderWhiteboard({ job: { manifest: m }, dir, out: join(dir, 'out'), work: dir, sandbox: { mode: 'none' } });
+  assert.equal(r.status, 'failed');
+  assert.equal(r.error, 'audio_mismatch');
+  assert.match(r.detail, /s1\/b1: NaNs/);
+  assert.match(r.detail, /s1\/b2: 3\.\d+s, timing 1\.5s/);
+  assert.deepEqual(readdirSync(join(dir, 'public', 'fonts')).sort(), ['Inter-Medium.woff2', 'Inter-Regular.woff2', 'JetBrainsMono-Regular.woff2', 'Virgil.woff2'], 'the pinned fonts are in the job\'s public dir');
+  assert.deepEqual(readdirSync(join(dir, 'out')), [], 'nothing rendered');
+});

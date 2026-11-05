@@ -87,7 +87,8 @@ async function audioMismatches(publicDir, timing) {
   const bad = [];
   for (const [i, t] of timing.beats.entries()) {
     if (!t.audioFrames) continue;
-    const got = Number(JSON.parse((await ffmpeg('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'json', join(publicDir, audioName(i))])).stdout).format?.duration);
+    let got = NaN; // a file ffprobe cannot read is a mismatch, not a crash
+    try { got = Number(JSON.parse((await ffmpeg('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'json', join(publicDir, audioName(i))])).stdout).format?.duration); } catch { /* reported below */ }
     if (!(Math.abs(got - t.audioFrames / FPS) <= AUDIO_TOLERANCE_S)) bad.push(`${t.sceneId}/${t.id}: ${got}s, timing ${t.audioFrames / FPS}s`);
   }
   return bad;
