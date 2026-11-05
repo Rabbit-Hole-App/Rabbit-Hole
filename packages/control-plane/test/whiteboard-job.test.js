@@ -148,16 +148,15 @@ test('usage rows per call; no refund on success; refine is one more call, revisi
   assert.equal((await t2.approve(a.id, v1)).status, 409);
 });
 
-test('double approve: the second Generate of the same proposal is idempotent; the job stops at the W1.3 seam with its lease', async t => {
+// W1.3: Generate now leads into authoring (the stages are whiteboard-generation.test.js's); the second press changes nothing.
+test('double approve: the second Generate of the same proposal is idempotent; the job enters authoring with its lease', async t => {
   const s = stack(t);
   const { id } = await s.planned();
   const first = await s.approve(id), again = await s.approve(id);
   assert.deepEqual([first.status, again.status, first.body.job.stage, again.body.job.stage], [202, 200, 'authoring', 'authoring']);
   const job = s.stored(id);
   assert.ok(job.approval?.planHash === job.planHash && job.deadline > Date.now());
-  for (let i = 0; i < 3; i++) await s.actor.alarm();
-  assert.equal(s.stored(id).stage, 'authoring', 'W1.3 seam: nothing runs after Generate yet');
-  assert.equal(s.model.calls.length, 1);
+  assert.equal(s.model.calls.length, 1, 'Generate itself calls nothing');
 });
 
 test('two tabs: concurrent Generates consume the proposal once; a second job on the card or canvas is refused', async t => {
