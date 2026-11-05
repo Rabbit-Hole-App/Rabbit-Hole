@@ -4,10 +4,12 @@
 //   GET  /api/learn/whiteboard/jobs/<id>?board=
 //   POST /api/learn/whiteboard/jobs/<id>/approve        { boardId, proposal }
 //   POST /api/learn/whiteboard/jobs/<id>/refine         { boardId, message, proposal? }
+//   POST /api/learn/whiteboard/jobs/<id>/cancel         { boardId }   (before Generate only; W1)
 //   GET  /api/learn/whiteboard/results/<artifactId>?board=
-// ponytail: the asset route (video bytes, ranges, download) is W1.3.
+//   GET|HEAD /api/learn/whiteboard/assets?app=&workspace=&artifact=&kind=final|poster|captions[&download=1]   (whiteboard-assets.js)
 import { repositoryIdentity } from './repositories.js';
 import { whiteboardEnabled, whiteboardKilled } from './whiteboard-job.js';
+import { assetsRoute } from './whiteboard-assets.js';
 
 export const WHITEBOARD_PREFIX = '/api/learn/whiteboard';
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -19,9 +21,10 @@ export async function whiteboardRoute(path, req, env, deps = {}) {
   const url = new URL(req.url);
   if (req.method === 'GET' && rest.length === 1 && rest[0] === 'jobs') return json({ available: whiteboardEnabled(env) && !whiteboardKilled(env) && !!env.WHITEBOARD_JOBS && !!env.LEARN_DB });
   if (!whiteboardEnabled(env)) return notFound();
+  if (rest.length === 1 && rest[0] === 'assets') return env.WHITEBOARD_JOBS && env.LEARN_DB ? assetsRoute(req, env, deps) : json({ error: 'Not available', code: 'not_configured' }, 503);
   const results = req.method === 'GET' && rest[0] === 'results' && rest.length === 2;
   const action = results ? 'result' : rest[0] !== 'jobs' ? null : req.method === 'POST' ? (rest.length === 1 ? 'create' : rest.length === 3 ? rest[2] : null) : req.method === 'GET' && rest.length === 2 ? 'get' : null;
-  if (!['create', 'get', 'approve', 'refine', 'result'].includes(action)) return notFound();
+  if (!['create', 'get', 'approve', 'refine', 'cancel', 'result'].includes(action)) return notFound();
   if (!env.WHITEBOARD_JOBS || !env.LEARN_DB) return json({ error: 'Not available', code: 'not_configured' }, 503);
   if (req.method !== 'GET' && req.headers.has('origin') && req.headers.get('origin') !== url.origin) return json({ error: 'Invalid origin' }, 403);
   const user = await (deps.identity || repositoryIdentity)(req, env);

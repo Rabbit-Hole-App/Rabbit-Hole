@@ -200,6 +200,7 @@ export class WhiteboardJobs {
     }
     if (action === 'approve') return this.approve(job, payload);
     if (action === 'refine') return this.refine(job, payload);
+    if (action === 'cancel') return this.cancel(job);
     throw fail('Not found', 404);
   }
 
@@ -267,6 +268,17 @@ export class WhiteboardJobs {
     moveTo(job, 'planning');
     await this.save(job); await this.wake();
     return json({ job: publicWhiteboardJob(job) }, 202);
+  }
+
+  // The proposal card's Cancel (W1 scope): a job still planning or waiting for Generate ends as cancelled; its plan calls stay charged, as any
+  // plan phase. An ended job is answered as it is. After Generate it is refused and the job goes on: stopping a running job is W3.
+  async cancel(job) {
+    if (TERMINAL.has(job.stage)) return json({ job: publicWhiteboardJob(job) });
+    if (!BEFORE_GENERATE.has(job.stage)) throw fail('Not available', 409, 'generation_started');
+    if (whiteboardKilled(this.env)) throw fail('AI is paused.', 503, 'whiteboard_killed');
+    moveTo(job, 'cancelled');
+    await this.save(job); await this.finishUsage(job, 'cancelled');
+    return json({ job: publicWhiteboardJob(job) });
   }
 
   // Generate on the posted plan: the signed proposal for this job and its current plan, consumed once with the job id as the press key (a repeated
