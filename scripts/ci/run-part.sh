@@ -102,6 +102,10 @@ if [ ${#FORK[@]} != 0 ]; then
   bash "$W/scripts/ci/stack.sh" start "$OUT/stack" || { echo 'stack failed to start'; exit 1; }
   ENVV=("${FORK_ENV[@]}")
   for c in "${FORK[@]}"; do run_check "$c" "$OUT/${c%.mjs}-shots"; done
+  # Gate attestation (item 1): the release gate takes these checks from this run only when the stack's provider tripwire read 0
+  # (scripts/r36-gate/attest.mjs). It is read here, while the stack is up: the EXIT trap below stops it before any later step.
+  n=$(curl -s -m 10 http://127.0.0.1:8878/__provider-tripwire | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).hits.length)}catch{console.log("unreadable")}})')
+  echo "provider-tripwire hits: ${n:-unreadable}" > "$OUT/tripwire.log"
 fi
 
 # An empty selection is a deliberate non-selection, reported as such and never as a pass.

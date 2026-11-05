@@ -155,3 +155,13 @@ test('the attestable list equals the committed fixture, which the harness copies
   const own = Object.fromEntries(Object.entries(ATTESTABLE).map(([stage, file]) => [stage, file.replace(/-check\.mjs$/, '')]));
   assert.deepEqual(own, fixture, 'scripts/fixtures/gate-attestable.json must list exactly gate-attest.mjs ATTESTABLE (stage -> fast-e2e check name); copy it to the harness scripts/r36-gate/gate-attestable.json');
 });
+
+test('run-part.sh reads the stack\'s provider tripwire into tripwire.log while the stack is still up (run 42109586563 wrote "unreadable" in all six parts: the EXIT trap had already stopped it)', () => {
+  const sh = readFileSync(new URL('./ci/run-part.sh', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const block = sh.slice(sh.indexOf('if [ ${#FORK[@]} != 0 ]; then\n  bash "$W/scripts/ci/stack.sh" start'));
+  const read = block.indexOf('__provider-tripwire');
+  assert.ok(read > 0, 'it reads the tripwire');
+  assert.ok(read < block.indexOf('\nfi\n'), 'inside the fork block, after the checks and before the EXIT trap stops the stack');
+  assert.match(block.slice(read - 200, block.indexOf('\nfi\n')), /provider-tripwire hits: \$\{n:-unreadable\}" > "\$OUT\/tripwire\.log"/);
+  assert.doesNotMatch(readFileSync(new URL('../.github/workflows/fast-e2e.yml', import.meta.url), 'utf8'), /Provider tripwire hits of this part/, 'a workflow step runs after the trap, too late');
+});
