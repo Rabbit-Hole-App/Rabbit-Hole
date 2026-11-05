@@ -19,6 +19,7 @@ import { chromeVersion, contactFrames, ffmpegVersion, probe } from '../renderer-
 import { rendererClass } from '../renderers.mjs';
 import { selfLimits, unlimited } from './resource-control.mjs';
 import { runPhaseProcess, runResourceProbe } from './stress-probe.mjs';
+import { renderWhiteboard } from '../../whiteboard/render.mjs';
 
 // Preview vs final (§11.3): the final frame downscaled to preview size against the preview frame.
 // M5 keeps 6: Windows authoring renders of four Author-contract compositions measured 1.27-2.10
@@ -204,6 +205,8 @@ async function main() {
   if (sandbox.breach?.length) return write({ status: 'failed', error: 'sandbox_breach', detail: sandbox.breach.join('; '), sandbox });
   if (job.probe === 'network') return networkProbe(sandbox);
   if (job.probe === 'resources') return resourceProbe(sandbox);
+  // /whiteboard (roadmap v1 section 6.2): its own composition and checks, after the same sandbox report.
+  if (job.type === 'whiteboard') return write(await renderWhiteboard({ job, dir, out, work, sandbox }));
 
   const j = { id: job.render_id, dir: join(work, 'job'), brief: job.brief, storyboard: job.storyboard, source: job.composition.source };
   // M7B: the job names its renderer (server.mjs wrote it after validation); Remotion by default.

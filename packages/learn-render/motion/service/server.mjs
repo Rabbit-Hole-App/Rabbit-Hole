@@ -9,6 +9,7 @@
 //   GET  /render/<id>                      Bearer: status and metadata (+ artifact refs when ready, + the settings it ran under)
 //   GET  /render/<id>/artifacts/<name>     Bearer: final.mp4 | preview.mp4 | contact-sheet.png | poster.png
 //   DELETE /render/<id>                    Bearer: stop a running render (kills its whole process tree, frees the slot)
+//   /whiteboard/...                        Bearer: the /whiteboard routes (whiteboard-routes.mjs), sharing the slot, sandbox and limits
 //
 // One render at a time (a second POST gets 429). Each render gets a fresh job directory and a
 // sandboxed child (motion-sandbox: its own user, no network, a private /tmp, the service's files
@@ -40,6 +41,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { RENDER_SCHEMA, stageOf, validateRenderRequest } from '../contracts.js';
 import { rendererGate } from '../renderers.mjs';
 import { LIMITS as DEFAULT_RESOURCE_LIMITS, detect, limitsFromEnv, limitsSetting } from './resource-control.mjs';
+import { RENDERER_VERSION as WHITEBOARD_VERSION } from '../../whiteboard/contracts.mjs';
+import { whiteboardRoutes } from './whiteboard-routes.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PKG = resolve(HERE, '..', '..');
@@ -345,6 +348,17 @@ export function motionRenderService({
     send(res, 202, { render_id: id, status: 'rendering', poll: `/render/${id}`, deadline_seconds: record.deadline_seconds });
   }
 
+  // The /whiteboard routes get this service's own slot, child runner, limits and key memory (additive; Motion's routes are unchanged).
+  const whiteboard = whiteboardRoutes({
+    send, readBody, state, renders, keys, counters, cancels, jobsDir, jobStore, run, prune, view, keyFile, storeDir, jobTimeoutMs, canonical,
+    keyPattern: KEY_RE, contentTypes: ARTIFACTS, settings, boot_id, log,
+    remember: (key, entry) => { keys.set(key, entry); if (keys.size > KEY_MAX) keys.delete(keys.keys().next().value); },
+    prepareLimits: (dir, limitMs) => {
+      if (overridden) writeFileSync(join(dir, 'limits.json'), JSON.stringify(limitsSetting(limits)), { mode: 0o640 });
+      if (deadline && limitMs / 1000 > LIMITS.timeout_seconds) writeFileSync(join(dir, 'deadline_s'), String(limitMs / 1000), { mode: 0o640 });
+    },
+  });
+
   const server = createServer((req, res) => {
     const path = req.url.split('?')[0];
     if (path === '/health') {
@@ -352,12 +366,13 @@ export function motionRenderService({
       // The resource backend this kernel offers (names only, no host paths).
       const rc = sandbox === 'linux' ? detect() : { backend: 'none', controllers: [] };
       return send(res, 200, {
-        ok: !state.degraded, service: SERVICE, version, sandbox, busy: !!state.active, boot_id, job_store: jobStore(), counters, limits: LIMITS, settings,
+        ok: !state.degraded, service: SERVICE, version, whiteboard: WHITEBOARD_VERSION, sandbox, busy: !!state.active, boot_id, job_store: jobStore(), counters, limits: LIMITS, settings,
         resource_backend: rc.backend || 'unavailable', resource_controllers: rc.controllers || [], ...(rc.backend ? {} : { resource_reason: rc.reason }),
         ...(state.degraded ? { degraded: state.degraded } : {}),
       });
     }
     if (!authorized(req)) return send(res, 401, { error: 'unauthorized' });
+    if (whiteboard(req, res, path)) return undefined;
     if (path === '/render') {
       if (req.method !== 'POST') return send(res, 405, { error: 'method_not_allowed' });
       return render(req, res).catch(error => send(res, 500, { error: 'renderer_failure', detail: error.message }));
