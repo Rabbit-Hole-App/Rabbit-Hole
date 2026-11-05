@@ -1,0 +1,17 @@
+{
+  "schema": "whiteboard-result/1",
+  "artifactId": "wa_fixture60",
+  "revision": 1,
+  "planHash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "manifestHash": "1111111111111111111111111111111111111111111111111111111111111111",
+  "rendererVersion": "whiteboard-renderer-1",
+  "keys": {
+    "mp4": "whiteboard/wa_fixture60/1/final.mp4",
+    "poster": "whiteboard/wa_fixture60/1/poster.png",
+    "captions": "whiteboard/wa_fixture60/1/captions.vtt",
+    "transcript": "whiteboard/wa_fixture60/1/transcript.json",
+    "manifest": "whiteboard/wa_fixture60/1/manifest.json"
+  },
+  "measured": { "seconds": 60, "frames": 1800, "width": 1920, "height": 1080, "bytes": 9437184 },
+  "timings": { "video_seconds": 60, "plan": 41.2, "author": 96.5, "narration": 18.3, "timing_fit": 0.02, "render": [212.7], "pull_store": 3.1, "total": 371.8 }
+}

@@ -103,6 +103,10 @@ export const LEARN_TASKS = Object.freeze({
   // Repair: medium effort with 24,000 output tokens (owner decision 16, 3 Nov 2026; was low with 12,000). 12,000 more output tokens at $20/M add
   // $0.24 per repair call, $0.48 for the two a build allows: 48 credits on the displayed worst case (325 to 373). A patch-style repair is AN-22.
   animation_repair: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', effort: 'medium', toolChoice: 'auto (exactly one tool call)', maxTokens: 24000 }),
+  // /whiteboard (roadmap v1 section 4.2): the planner and the per-scene author, pinned to Opus 5.5 at medium effort, never the picker, Auto or
+  // `artifact`. One tool on auto, exactly one call of it. Limits, prices and the job's worst case: whiteboard-policy.js.
+  whiteboard_plan: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', effort: 'medium', toolChoice: 'auto (exactly one tool call)', maxTokens: 6000 }),
+  whiteboard_author: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', effort: 'medium', toolChoice: 'auto (exactly one tool call)', maxTokens: 4000 }),
   // Slash-command cards (/api/learn/artifact).
   artifact: Object.freeze({ provider: 'plan', model: ASK_MODELS.auto, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'any', maxTokens: 4000 }),
   // The whiteboard (/api/learn/board): one model for plan, draft and review.

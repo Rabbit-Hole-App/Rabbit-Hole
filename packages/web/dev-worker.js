@@ -24,6 +24,7 @@ export { ExplainJobs } from '../control-plane/src/explain-job.js';
 export { AnimationJobs } from '../control-plane/src/animation-job.js';
 export { WhiteboardJobs } from '../control-plane/src/whiteboard-job.js';
 import { animationRoute } from '../control-plane/src/animation-job.js';
+import { whiteboardRoute } from '../control-plane/src/whiteboard-routes.js';
 export { ImageJobs } from '../control-plane/src/image-jobs.js';
 import { imageJobsRoute } from '../control-plane/src/image-jobs.js';
 import { explainRoute } from '../control-plane/src/explain-job.js';
@@ -336,6 +337,7 @@ const routes = {
     if (path.startsWith('/api/learn/explain/')) { const explained = await explainRoute(path, req, env); if (explained) return explained; }
     // /animation jobs (animation-job.js, AN-05): 404 unless ANIMATION_ENABLED is 'true'.
     if (path.startsWith('/api/learn/animation/')) { const animated = await animationRoute(path, req, env); if (animated) return animated; }
+    if (path.startsWith('/api/learn/whiteboard/')) { const drawn = await whiteboardRoute(path, req, env); if (drawn) return drawn; }
     if (path.startsWith('/api/learn/code-runs')) { const codeRun = await inlineCodeRoute(path, req, env); if (codeRun) return codeRun; }
     // IMG-01 durable image generation jobs (image-jobs.js): no new job unless IMAGE_GENERATE_ENABLED is 'true'.
     if (path.startsWith('/api/learn/image-jobs')) { const imageGen = await imageJobsRoute(path, req, env); if (imageGen) return imageGen; }
