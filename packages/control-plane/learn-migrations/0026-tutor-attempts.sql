@@ -3,7 +3,7 @@
 -- what each assessment observed.
 -- Rules:
 --   * Additive and re-runnable, CREATE only (scripts/schema-check.test.mjs). LEARN_DB only. Mirrored in repository-schema.sql.
---   * Applied locally until its learn-dev GO; production waits for its own GO. 0020 stays reserved by fix/chat-save-unique.
+--   * Applied to the production LEARN_DB (verified by the release preflight schema identity, 5 November 2026). 0020 stays reserved by fix/chat-save-unique.
 --   * Goals, criteria and activities belong to learn 0025 (Task 02). These rows name them by id.
 --   * Every row is scoped to owner_user_id (users.id, never an email), and only that learner reads it. A shared or forked
 --     canvas carries none of it.

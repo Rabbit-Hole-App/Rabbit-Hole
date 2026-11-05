@@ -3,7 +3,7 @@
 -- milestone criteria and activities. Attempts, assessments and evidence links are learn 0026 (Tasks 05/06, their own lane
 -- and GOs; C:/s/spec/tutor-workflow/migrations.md section 6). Additive and re-runnable, CREATE only
 -- (scripts/schema-check.test.mjs: schema identity is a learn migration's identity); LEARN_DB only.
--- Applied locally only until its learn-dev GO; production waits for its own GO. 0020 stays reserved by fix/chat-save-unique.
+-- Applied to the production LEARN_DB (verified by the release preflight schema identity, 5 November 2026). 0020 stays reserved by fix/chat-save-unique.
 --
 -- Every row is scoped to owner_user_id (users.id, never an email) and only its owner reads or writes it: a shared or forked
 -- canvas carries no one's personal state. There is no SQL backfill (a migration is DDL only): the store seeds a learner's

@@ -1,5 +1,5 @@
 -- Chat workspace answers (agent-coordination/tasks/chat-workspace-CONTRACT.md B7; owner decision 2026-10-13 11:45 PM PT: local
--- and shared dev; production needs its own GO). Side tables beside the canvas chat's threads and messages
+-- and shared dev). Applied to the production LEARN_DB (verified by the release preflight schema identity, 5 November 2026). Side tables beside the canvas chat's threads and messages
 -- (repository-schema.sql), which stay untouched: a message with no meta row is an old message and renders as plain text.
 -- chat_message_meta: one row per message. User rows hold {mode, command, contextRefs}; assistant rows hold
 -- {version, mode, kind, contextRefs, actions, followUps, syllabus} or {status: 'stopped'}. alternative_of: a regenerated
