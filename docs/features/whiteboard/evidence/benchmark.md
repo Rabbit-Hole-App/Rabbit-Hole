@@ -21,6 +21,8 @@ Seconds unless stated. Source and method: `w1-p0/README.md`; raw log `w1-p0/capa
 
 | Video length | Plan | Author | Narration | Timing fit | Render | Pull + store | Total | Runs |
 |---|---|---|---|---|---|---|---|---|
-| 10 s | | | | | | | | |
-| 30 s | | | | | | | | |
-| 60 s | | | | | | | | |
+| 10 s | 10.5 | 18.8 | 6.2 | 1.0 | 65.3 | 1.5 | 103.2 | 1 (smoke) |
+| 30 s | 16.6 | 45.3 | 16.6 | 1.0 | 124.0 | 2.0 | 205.5 | 1 (smoke) |
+| 60 s | 20.2 | 95.2 | 41.0 | 1.0 | 218.4 | 1.9 | 377.8 | 1 (smoke) |
+
+Seconds of wall time, from each job's `timings` line (the manifest/result), including the plan call. These are the script's runs (`scripts/whiteboard/whiteboard-smoke.mjs`, review clone `rabbit-hole-web-dev-wb-integrate`, 4 to 5 November 2026, evidence in `w1-smoke/`); the owner-try runs update this table with the median per length. Generate to a playable card (everything but the plan): 10 s: 95 s; 30 s: 191 s; 60 s: 359 s. The 60 s total, 6.3 minutes, is under the 10 minute line, so no parked entry. Render is 58 percent of the 60 s total (the renderer is CPU-bound, see W1.0), author 25 percent (scenes are authored one after another; authoring them concurrently is the largest single cut, a candidate for a later MVP, not now). Credits used per case on the dev ledger (plan plus generation, net): 10 s 8.9, 30 s 14.7, 60 s 26.2, against "up to" lines of 125, 176 and 240.
