@@ -2,6 +2,7 @@
 // exact commit, tree and locked dependencies. The dev deploy refuses a commit without a passing one (dev-deploy.mjs).
 //   node scripts/verify-evidence.mjs write --unit <exit code> --out <file>
 //   node scripts/verify-evidence.mjs write --unit <exit code> --build <exit code> --out <file>
+//   node scripts/verify-evidence.mjs write --unit <exit code> --build <exit code|skipped> --suites "<suite>..." --pages <none|dist-dev|both> --out <file>
 //   node scripts/verify-evidence.mjs runs --sha <commit> --out <file> [--wait <minutes>]   (GITHUB_TOKEN with actions: read)
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -21,8 +22,21 @@ export function checkEvidence(evidence, { sha, tree, locks }) {
   if (evidence.sha !== sha) return `the verify evidence is for ${String(evidence.sha).slice(0, 8)}, not ${sha.slice(0, 8)}`;
   if (evidence.tree !== tree) return `the verify evidence names tree ${String(evidence.tree).slice(0, 8)}, not ${tree.slice(0, 8)}`;
   for (const f of LOCKS) if (evidence.locks?.[f] !== locks[f]) return `the verify evidence was built from another ${f}`;
-  if (evidence.unit !== 'pass' || evidence.build !== 'pass') return `the verify run did not pass (unit ${evidence.unit}, build ${evidence.build})`;
+  // A plan that ran no web suite builds no page (ci-speed item 3); anything else must have built and passed.
+  const skipped = evidence.build === 'skipped' && Array.isArray(evidence.suites) && !evidence.suites.includes('web');
+  if (evidence.unit !== 'pass' || (evidence.build !== 'pass' && !skipped)) return `the verify run did not pass (unit ${evidence.unit}, build ${evidence.build})`;
   if (!/^\d+\.\d+$/.test(evidence.run || '')) return 'the verify evidence names no run';
+  return null;
+}
+
+// ci-speed item 3: whether a note's run covers what this push needs. A note without `suites` is a full run (every suite, both
+// builds). need: { suites: [...], build: 'none' | 'dist-dev' | 'both' } from scripts/ci/verify-plan.mjs. -> null | reason.
+const PAGES = { none: 0, 'dist-dev': 1, both: 2 };
+export function coverGap(evidence, need) {
+  if (!Array.isArray(evidence.suites)) return null;
+  const missing = need.suites.filter(s => !evidence.suites.includes(s));
+  if (missing.length) return `the verify run ran ${evidence.suites.join(', ') || 'no suite'}; this push also needs ${missing.join(', ')}`;
+  if (PAGES[evidence.pages ?? 'none'] < PAGES[need.build]) return `the verify run built ${evidence.pages ?? 'no page'}; this push needs ${need.build}`;
   return null;
 }
 
@@ -81,11 +95,17 @@ async function runs(opts) {
   for (const path of RELEASE_RUNS) { const r = latestRun(evidence.runs[path], { sha, path }); if (r) console.log(`${workflowName(path)}: run ${r.id}.${r.run_attempt} (${r.event} ${r.head_branch}) ${r.status}/${r.conclusion}`); }
 }
 
+// The verdict fields of a note. --suites "<names>" and --pages none|dist-dev|both (verify-plan.mjs) record what ran; without them
+// the note is a full run, as before item 3. --build skipped: the plan built no page.
+export const verdicts = opts => ({
+  unit: opts.unit === '0' ? 'pass' : `exit ${opts.unit}`, build: opts.build === '0' ? 'pass' : opts.build === 'skipped' ? 'skipped' : `exit ${opts.build}`,
+  ...(opts.suites !== undefined && { suites: opts.suites.split(/\s+/).filter(Boolean), pages: opts.pages ?? 'none' }),
+});
+
 function write(opts) {
   const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8' }).trim();
   const evidence = {
-    sha: git('rev-parse', 'HEAD'), tree: git('rev-parse', 'HEAD^{tree}'), locks: lockDigest(ROOT),
-    unit: opts.unit === '0' ? 'pass' : `exit ${opts.unit}`, build: opts.build === '0' ? 'pass' : `exit ${opts.build}`,
+    sha: git('rev-parse', 'HEAD'), tree: git('rev-parse', 'HEAD^{tree}'), locks: lockDigest(ROOT), ...verdicts(opts),
     run: process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_RUN_ID}.${process.env.GITHUB_RUN_ATTEMPT ?? 1}` : 'local', node: process.version, at: new Date().toISOString(),
   };
   writeFileSync(opts.out, JSON.stringify(evidence, null, 1));

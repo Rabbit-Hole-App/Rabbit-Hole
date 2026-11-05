@@ -113,26 +113,40 @@ function nonzero-tests {
     return "$code"
 }
 
-# fast tests only (no network): Python guard proxy, plus both JS suites.
+# fast tests only (no network), one function per suite. `test:unit` (make test-unit) runs every suite; `test:unit <suite>...`
+# runs the named ones (verify.yml, from scripts/ci/verify-plan.mjs; ci-speed item 3). An unknown name fails before anything runs.
 # run.sh sets -e, so the first failing suite stops the run with its own exit code; a suite that ran 0 tests fails too
 # (pytest exits 5 on its own, the node --test suites through nonzero-tests).
-function test:unit {
-    uv run pytest "$THIS_DIR/tests/unit_tests/"
-    (cd "$THIS_DIR/packages/web" && nonzero-tests npm run test:unit)
-    (cd "$THIS_DIR/packages/control-plane" && nonzero-tests npm test)
+UNIT_SUITES=(python web control-plane viz evals motion render file-convert scripts ci)
+function unit:python { uv run pytest "$THIS_DIR/tests/unit_tests/"; }
+function unit:web { (cd "$THIS_DIR/packages/web" && nonzero-tests npm run test:unit); }
+function unit:control-plane { (cd "$THIS_DIR/packages/control-plane" && nonzero-tests npm test); }
+function unit:viz {
     node --test "$THIS_DIR/viz-benchmarks/check-synthetic-fixtures.test.mjs"
     node --test "$THIS_DIR/viz-benchmarks/critic-packet-isolation.test.mjs"
     node --test "$THIS_DIR/viz-benchmarks/visualization-cases/cases.test.mjs" "$THIS_DIR/viz-benchmarks/visualization-cases/baseline.test.mjs" "$THIS_DIR/viz-benchmarks/visualization-cases/corpus-run.test.mjs"
-    # Relative glob: node --test does not expand an absolute /c/... glob under Git Bash and would run 0 tests, exiting 0.
+}
+# Relative glob: node --test does not expand an absolute /c/... glob under Git Bash and would run 0 tests, exiting 0.
+function unit:evals {
     (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/learn-grade/*.test.mjs")
     (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/explain-review/*.test.mjs")
     (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/explain-back/*.test.mjs")
-    (cd "$THIS_DIR" && nonzero-tests node --test --test-timeout=180000 "packages/learn-render/motion/*.test.mjs" "packages/learn-render/motion/service/*.test.mjs")
     (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/tutor-session/*.test.mjs")
-    # The file converter and its production activation commands (stub tools, no network, no production credential).
-    (cd "$THIS_DIR" && nonzero-tests node --test "packages/file-convert/*.test.mjs" "packages/file-convert/activation/*.test.mjs")
-    # Every script test: dev-deploy and prod-release.
-    (cd "$THIS_DIR" && nonzero-tests node --test "scripts/*.test.mjs")
+}
+function unit:motion { (cd "$THIS_DIR" && nonzero-tests node --test --test-timeout=180000 "packages/learn-render/motion/*.test.mjs" "packages/learn-render/motion/service/*.test.mjs"); }
+# The whiteboard renderer's contract, gate, routes and composition tests (the real render and the Linux sandbox skip unless asked).
+function unit:render { (cd "$THIS_DIR" && nonzero-tests node --test "packages/learn-render/whiteboard/*.test.mjs"); }
+# The file converter and its production activation commands (stub tools, no network, no production credential).
+function unit:file-convert { (cd "$THIS_DIR" && nonzero-tests node --test "packages/file-convert/*.test.mjs" "packages/file-convert/activation/*.test.mjs"); }
+# Every script test: dev-deploy and prod-release.
+function unit:scripts { (cd "$THIS_DIR" && nonzero-tests node --test "scripts/*.test.mjs"); }
+# The CI planner and its map (scripts/ci/check-map.json: every file classified, every row covered).
+function unit:ci { (cd "$THIS_DIR" && nonzero-tests node --test "scripts/ci/*.test.mjs"); }
+function test:unit {
+    local s
+    [ $# -gt 0 ] || set -- "${UNIT_SUITES[@]}"
+    for s in "$@"; do declare -F "unit:$s" > /dev/null || { echo "unknown unit suite: $s (one of ${UNIT_SUITES[*]})" >&2; return 2; }; done
+    for s in "$@"; do echo "--- unit suite: $s"; "unit:$s"; done
 }
 
 # full integration tests: real deploy to Fly through the published CLI (~30s)

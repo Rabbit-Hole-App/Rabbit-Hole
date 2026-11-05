@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { checkEvidence, lockDigest, LOCKS, runBlockers, latestRun } from './verify-evidence.mjs';
+import { checkEvidence, coverGap, lockDigest, LOCKS, runBlockers, latestRun, verdicts } from './verify-evidence.mjs';
 
 const SHA = 'a'.repeat(40), TREE = 'b'.repeat(40);
 const locks = { 'package-lock.json': '0123456789abcdef', 'uv.lock': 'fedcba9876543210' };
@@ -20,6 +20,28 @@ test('a passing run of the exact commit, tree and lockfiles is accepted; anythin
   assert.match(checkEvidence({ ...good, unit: 'exit 1' }, { sha: SHA, tree: TREE, locks }), /did not pass \(unit exit 1/);
   assert.match(checkEvidence({ ...good, build: 'exit 2' }, { sha: SHA, tree: TREE, locks }), /build exit 2/);
   assert.match(checkEvidence({ ...good, run: 'local' }, { sha: SHA, tree: TREE, locks }), /names no run/);
+});
+
+// ci-speed item 3: verify runs only the suites the changed paths need; the note records which, and what it built.
+test('a selective note may skip the build only when it ran no web suite; a full note never skips it', () => {
+  const ids = { sha: SHA, tree: TREE, locks };
+  const sel = { ...good, suites: ['control-plane'], pages: 'none', build: 'skipped' };
+  assert.equal(checkEvidence(sel, ids), null);
+  assert.match(checkEvidence({ ...sel, suites: ['web'] }, ids), /build skipped/);
+  assert.match(checkEvidence({ ...good, build: 'skipped' }, ids), /build skipped/);
+  assert.match(checkEvidence({ ...sel, unit: 'exit 1' }, ids), /unit exit 1/);
+});
+test('verdicts: a note records the suites and pages it ran; without them it is a full run, as before', () => {
+  assert.deepEqual(verdicts({ unit: '0', build: 'skipped', suites: 'control-plane scripts', pages: 'none' }), { unit: 'pass', build: 'skipped', suites: ['control-plane', 'scripts'], pages: 'none' });
+  assert.deepEqual(verdicts({ unit: '0', build: '0' }), { unit: 'pass', build: 'pass' });
+  assert.deepEqual(verdicts({ unit: '1', build: '0', suites: '', pages: 'dist-dev' }), { unit: 'exit 1', build: 'pass', suites: [], pages: 'dist-dev' });
+});
+test('coverGap: a full note covers any plan; a selective one only its own suites and pages', () => {
+  assert.equal(coverGap(good, { suites: ['web'], build: 'both' }), null);
+  const sel = { ...good, suites: ['control-plane'], pages: 'none' };
+  assert.equal(coverGap(sel, { suites: ['control-plane'], build: 'none' }), null);
+  assert.match(coverGap(sel, { suites: ['control-plane', 'web'], build: 'dist-dev' }), /also needs web/);
+  assert.match(coverGap({ ...sel, suites: ['web'], pages: 'dist-dev' }, { suites: ['web'], build: 'both' }), /built dist-dev; this push needs both/);
 });
 
 test('the lockfile digest is the same from a Windows and a Linux checkout, and covers both lockfiles', () => {
