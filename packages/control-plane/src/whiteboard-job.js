@@ -42,7 +42,6 @@ import { base64, renderRequest, renderStep } from './whiteboard-render-client.js
 import { ORPHAN_MS, assetKey, captionsVtt, sweepOrphans, transcriptOf } from './whiteboard-assets.js';
 import { learnMedia } from './learn-storage.js';
 
-// ci-speed after-number probe (a): a one-file control-plane change, reverted by the next ci-speed commit.
 export const WHITEBOARD_COMMAND = 'whiteboard-video';
 export const whiteboardEnabled = env => env.WHITEBOARD_ENABLED === 'true';
 export const whiteboardKilled = env => env.WHITEBOARD_EXECUTION_KILL === 'true';

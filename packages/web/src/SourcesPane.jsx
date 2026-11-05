@@ -15,7 +15,6 @@ import { addFileToCanvas, canvasFamilyOf } from './file-to-canvas.js';
 import { wsHeaders } from './api.js';
 import { studyReaderPin } from './study-state.js';
 
-// ci-speed after-number probe (b): a one-file web change, reverted by the next ci-speed commit.
 // The Context panel (UI-26, owner brief 2026-10-22 sections 1-4): the companion column's Context view. Its header (PanelHeader
 // CompanionHeader) holds "Context", the one blue Add context (ContextUpload below; owner brief 2026-10-29) and Close. The body is either the file list or
 // one file's reader, never both: a filename opens its reader in place of the list, "Back to Files" returns. Each row: file icon,
