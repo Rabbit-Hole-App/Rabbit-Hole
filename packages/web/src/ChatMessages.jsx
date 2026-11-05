@@ -14,7 +14,7 @@ import AnswerSuggestions from './AnswerSuggestions.jsx';
 import SyllabusMessage from './SyllabusMessage.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
 import GenerationProposalCard from './GenerationProposalCard.jsx';
-import { EXPLAIN_STOPPED, durationRefinement, jobReviewCopy, PROPOSAL_REFUSED_EVENT, approvesJob, editPath, editTarget, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
+import { EXPLAIN_STOPPED, durationRefinement, jobReviewCopy, proposalOnly, PROPOSAL_REFUSED_EVENT, approvesJob, editPath, editTarget, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
 import { confirmProposal, fetchProposal, problemOf, saveProposal } from './generation-review-client.js';
 import { withPrompt } from './card-prompt.js';
 import { reportClientError } from './client-telemetry.js';
@@ -393,7 +393,7 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
           // its one utility row (section 10). data-answer-body is what Copy puts on the clipboard as HTML.
           <AnswerBoundary key={m.messageId ?? i} text={m.content}>
           <div data-answer className="group/answer min-w-0">
-            <div data-answer-body><Md doc text={m.content} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} /></div>
+            {!proposalOnly(m) && <div data-answer-body><Md doc text={m.content} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} /></div>}
             {/* A Tutor syllabus (contract B6): an editable list under its answer; edits save to this message (chat-syllabus-route.js)
                 once it has its server id. */}
             {m.meta?.proposal?.proposal_id && <ProposalSlot m={m} i={i} msgs={msgs} setMsgs={setMsgs} ops={outputOps} />}

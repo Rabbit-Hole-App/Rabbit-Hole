@@ -64,6 +64,9 @@ export const whiteboardCostNote = p => (Number.isFinite(p?.usage?.max_credits) ?
 // or null when the length did not change.
 export const durationRefinement = (before, after) => (after?.command === 'whiteboard-video' && Number.isInteger(after.settings?.duration_seconds)
   && after.settings.duration_seconds !== before?.settings?.duration_seconds ? `duration: ${after.settings.duration_seconds}` : null);
+// A /whiteboard plan message shows only its review card (owner try, 2026-11-05): the server writes the plan as the message text for the
+// history, and the card already shows it. Every other answer, proposals included, shows its text.
+export const proposalOnly = m => m?.meta?.proposal?.command === 'whiteboard-video';
 // A job-approving proposal's heading and cost note, by its command.
 export const jobReviewCopy = p => (p?.command === 'whiteboard-video' ? { eyebrow: WHITEBOARD_REVIEW_HEADING, ...(whiteboardCostNote(p) ? { note: whiteboardCostNote(p) } : {}) } : p?.command === 'animation' ? { eyebrow: ANIMATION_REVIEW_HEADING, ...(animationCostNote(p) ? { note: animationCostNote(p) } : {}) } : { eyebrow: EXPLAIN_REVIEW_HEADING, note: EXPLAIN_COST_NOTE });
 // How a proposal starts, by its command's adapter: 'output' (add the output card, needs ops.insertCard), 'job' (approve the existing job, needs

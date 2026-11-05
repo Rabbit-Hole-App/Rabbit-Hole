@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { RETRY_LABELS, WHITEBOARD_ROUTES, whiteboardAssetUrl, whiteboardClient, whiteboardPollDelay, whiteboardRefusal, whiteboardRunning } from './client.js';
 import { describeWhiteboard, downloadName, pendingBlock, settleWhiteboard, stageWord, videoOf } from './card.js';
-import { approvesJob, durationRefinement, jobReviewCopy, startAdapter } from '../generation-proposal-chat.js';
+import { approvesJob, durationRefinement, jobReviewCopy, proposalOnly, startAdapter } from '../generation-proposal-chat.js';
 import { commandDefinition, settingsOf, validateSettings } from '../generation-confirmation-schema.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'whiteboard-card-')), outfile = join(dir, 'card.cjs');
@@ -134,4 +134,18 @@ test('the review card: Generate approves the job, the heading and cost line are 
   const def = commandDefinition('whiteboard-video');
   assert.deepEqual([def.cancel, def.review_policy, def.editable_fields], [true, 'always', ['duration_seconds']]);
   assert.ok(validateSettings('whiteboard-video', { duration_seconds: 70 }).error, 'W1 serves at most 60 s');
+});
+
+// Owner try 2026-11-05: the plan showed twice (the message text, then the card). A /whiteboard plan message shows only its card; its text stays
+// in the data (history, Copy reads data-answer-body when there is one). Other proposals and plain answers keep their text.
+test('a whiteboard-video proposal message draws no answer body; animation, motion, explain proposals and plain answers do', () => {
+  const msg = command => ({ role: 'assistant', content: 'The learner will understand. Scene 1 (12 s): ...', meta: { proposal: { proposal_id: 'p', command } } });
+  assert.equal(proposalOnly(msg('whiteboard-video')), true);
+  for (const command of ['animation', 'motion', 'explain', 'generate-image']) assert.equal(proposalOnly(msg(command)), false, command);
+  assert.equal(proposalOnly({ role: 'assistant', content: 'An answer.', meta: {} }), false);
+  assert.equal(proposalOnly(null), false);
+  const source = readFileSync(new URL('../ChatMessages.jsx', import.meta.url), 'utf8');
+  assert.ok(source.includes('{!proposalOnly(m) && <div data-answer-body><Md doc text={m.content}'), 'only the body is gated');
+  assert.ok(source.includes('{m.meta?.proposal?.proposal_id && <ProposalSlot '), 'the card still renders');
+  assert.ok(readFileSync(new URL('../AnswerFooter.jsx', import.meta.url), 'utf8').includes("querySelector('[data-answer-body]')?.innerHTML || null"), 'Copy copes with no body');
 });
