@@ -220,6 +220,8 @@ plus `<stage> exit 0  N/N checks passed  attested-by-fast-e2e run=<id> sha=<40-h
 carry no tag. collect.mjs re-reads the run through the API (same commit, completed success) and the candidate's `gateVerdict`
 (scripts/gate-attest.mjs) judges the tags independently. Tests: `attest.test.mjs`, `collect.test.mjs`.
 
+fast-e2e artifacts expire after 7 days: a gate run after expiry attests nothing and runs the full gate. A part with no `tripwire.log`, a tripwire count other than 0 or a restarted stack attests none of its stages. Drift of the attestable list: `gate-attestable.json` is a byte-identical copy of the application `scripts/fixtures/gate-attestable.json` (a test here pins `ATTESTABLE` to it, the application has the same test), and collect.mjs compares `ATTESTABLE` with the candidate's own `scripts/gate-attest.mjs` and fails the gate on any difference or when the candidate has none. Change both fixtures in one review.
+
 ## Speed baseline (2026-10-13)
 
 Measured with `node scripts/r36-gate/timing.mjs <run> [attempt] --artifacts <dir>` on three green runs of

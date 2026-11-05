@@ -218,17 +218,27 @@ test('a gate with no retry records an empty retried list', () => {
   assert.deepEqual(r.receipt.retried, []);
 });
 
-// Item 1: collect re-checks the attested fast-e2e run itself, whatever the preflight passed on.
-test('an attestation for another commit, or a run collect cannot read, fails the gate before any merge', () => {
+// Item 1: collect re-checks the attested fast-e2e run and the candidate itself, whatever the preflight passed on.
+test('an attestation the candidate cannot judge, a drifted list, another commit or an unreadable run fails the gate before any merge', () => {
   const attest = (extra = {}) => JSON.stringify({ run: 77, sha, stages: { dive: '5/5 checks passed' }, ...extra });
-  for (const [name, value, want] of [['att-other-sha', attest({ sha: 'd'.repeat(40) }), /^attestation: attested for d+, not a+$/], ['att-unreadable-run', attest(), /^attestation: /]]) {
-    const c = collectRun(name, 1, listing(1), { GATE_ATTEST: value });
-    for (const p of PARTS) put(c.input, p, 1);
-    const r = c.go();
-    assert.ok(r.failures.some(f => want.test(f)), r.failures.join('\n'));
-    assert.ok(r.failures.some(f => f.startsWith('merge: the attestation is refused')), r.failures.join('\n'));
-    assert.equal(r.verdict.pass, false);
-  }
+  const fixture = JSON.parse(readFileSync(new URL('./gate-attestable.json', import.meta.url), 'utf8'));
+  const judge = join(root, 'scripts', 'gate-attest.mjs'), writeJudge = list => { mkdirSync(dirname(judge), { recursive: true }); writeFileSync(judge, `export const ATTESTABLE = ${JSON.stringify(list)};\n`); };
+  const files = Object.fromEntries(Object.entries(fixture).map(([stage, name]) => [stage, `${name}-check.mjs`]));
+  try {
+    for (const [name, list, value, want] of [
+      ['att-no-judge', null, attest(), /^attestation: the candidate has no scripts\/gate-attest\.mjs/],
+      ['att-drift', { ...files, 'rh-app': 'shared-rabbit-hole-check.mjs' }, attest(), /^attestation: the harness and the candidate list different attestable stages: rh-app$/],
+      ['att-other-sha', files, attest({ sha: 'd'.repeat(40) }), /^attestation: attested for d+, not a+$/],
+      ['att-unreadable-run', files, attest(), /^attestation: /]]) {
+      if (list) writeJudge(list); else rmSync(judge, { force: true });
+      const c = collectRun(name, 1, listing(1), { GATE_ATTEST: value });
+      for (const p of PARTS) put(c.input, p, 1);
+      const r = c.go();
+      assert.ok(r.failures.some(f => want.test(f)), `${name}: ${r.failures.join('\n')}`);
+      assert.ok(r.failures.some(f => f.startsWith('merge: the attestation is refused')), r.failures.join('\n'));
+      assert.equal(r.verdict.pass, false);
+    }
+  } finally { rmSync(join(root, 'scripts'), { recursive: true, force: true }); }
   const none = collectRun('att-none', 1, listing(1), { GATE_ATTEST: 'null' });
   for (const p of PARTS) put(none.input, p, 1);
   assert.deepEqual(none.go().failures.filter(f => f.startsWith('attestation')), [], 'no attestation, no check');

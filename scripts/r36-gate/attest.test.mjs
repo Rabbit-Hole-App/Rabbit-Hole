@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { readPart, attestedStages, attestation, checkRun } from './attest.mjs';
+import { readPart, attestedStages, attestation, checkRun, attestableDiff } from './attest.mjs';
 import { plan } from './dispatch-preflight.mjs';
 import { layoutFor, pack } from './pack.mjs';
 import { ORDER, SHARDS, UNIT_STAGES, ATTESTABLE, TAG, PARTS, partsOf, shardsOf, mergeShards } from './shards.mjs';
@@ -149,4 +149,19 @@ test('the merge refuses a stage that both ran and was attested, an attestation w
   assert.throws(run({ run: 'x' }), /numeric fast-e2e run and a full commit sha/);
   assert.throws(() => mergeShards(logs, () => true, unitsLog, {}, { shards: layout }), /missing.*sketch/, 'without the attestation the stages are missing');
   assert.throws(() => mergeShards(SHARDS.map(shardLog), () => true, unitsLog, {}, { shards: layout }), /Expected \d+ shard records/);
+});
+
+test('drift guard: the harness list equals its committed fixture, the candidate\'s list, and any difference is named', () => {
+  const fixture = JSON.parse(readFileSync(new URL('./gate-attestable.json', import.meta.url), 'utf8'));
+  assert.deepEqual(ATTESTABLE, fixture, 'gate-attestable.json must be a byte-identical copy of the application scripts/fixtures/gate-attestable.json and list exactly shards.mjs ATTESTABLE');
+  const asFiles = Object.fromEntries(Object.entries(fixture).map(([s, n]) => [s, `${n}-check.mjs`]));
+  assert.equal(attestableDiff(asFiles), null);
+  assert.match(attestableDiff({ ...asFiles, 'rh-app': 'shared-rabbit-hole-check.mjs' }), /different attestable stages: rh-app$/, 'a stage only the candidate lists');
+  const { dive, ...fewer } = asFiles;
+  assert.match(attestableDiff(fewer), /: dive$/, 'a stage only the harness lists');
+  assert.match(attestableDiff({ ...asFiles, dive: 'other-check.mjs' }), /: dive$/, 'the same stage, another check');
+  assert.match(attestableDiff(undefined), /different attestable stages/);
+  // Against the real candidate's list, when its checkout is at hand (CI runs this check for real in collect.mjs).
+  const root = process.env.R36_FIXTURE_SOURCE_ROOT;
+  if (root && existsSync(join(root, 'scripts/gate-attest.mjs'))) return import(new URL(`file:///${join(root, 'scripts/gate-attest.mjs').replaceAll('\\', '/')}`)).then(app => assert.equal(attestableDiff(app.ATTESTABLE), null));
 });

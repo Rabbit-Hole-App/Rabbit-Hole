@@ -58,3 +58,11 @@ export function attestation({ repo, sha, api, download }) {
   const stages = attestedStages(parts);
   return { run: run.id, sha, stages, why: Object.keys(stages).length ? null : `fast-e2e run ${run.id} left no clean result line for a gate stage` };
 }
+
+// Drift guard: the harness list (shards.mjs ATTESTABLE: stage -> fast-e2e check name) against the candidate's own
+// scripts/gate-attest.mjs ATTESTABLE (stage -> check file). -> a one-line difference, or null when they are the same list.
+export function attestableDiff(appList, ours = ATTESTABLE) {
+  const theirs = Object.fromEntries(Object.entries(appList ?? {}).map(([stage, file]) => [stage, String(file).replace(/-check\.mjs$/, '')]));
+  const diff = [...new Set([...Object.keys(ours), ...Object.keys(theirs)])].filter(s => ours[s] !== theirs[s]).sort();
+  return diff.length ? `the harness and the candidate list different attestable stages: ${diff.join(', ')}` : null;
+}

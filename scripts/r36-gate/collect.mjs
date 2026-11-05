@@ -13,7 +13,7 @@ import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { UNIT_STAGES, shardsOf, partsOf, mergeShards, retriedStages } from './shards.mjs';
-import { checkRun } from './attest.mjs';
+import { checkRun, attestableDiff } from './attest.mjs';
 import { prerequisite, extraReceipts } from './phases.mjs';
 import { sha256 } from './prepare.mjs';
 import { awaitVerify } from './verify-check.mjs';
@@ -34,6 +34,11 @@ const failures = [];
 const SHARDS = shardsOf(), PARTS = partsOf(SHARDS), attest = process.env.GATE_ATTEST && process.env.GATE_ATTEST !== 'null' ? JSON.parse(process.env.GATE_ATTEST) : null;
 if (attest) {
   try {
+    // The candidate must be able to judge the tags, and list exactly the stages this harness may take (drift guard).
+    const judge = join(app, 'scripts/gate-attest.mjs');
+    if (!existsSync(judge)) throw Error('the candidate has no scripts/gate-attest.mjs, so it cannot judge an attested stage');
+    const drift = attestableDiff((await import(pathToFileURL(judge))).ATTESTABLE);
+    if (drift) throw Error(drift);
     if (attest.sha !== APP_SHA) throw Error(`attested for ${attest.sha}, not ${APP_SHA}`);
     checkRun(JSON.parse(execFileSync('gh', ['api', `repos/${process.env.GITHUB_REPOSITORY}/actions/runs/${attest.run}`], { encoding: 'utf8', timeout: 60000 })), APP_SHA);
   } catch (error) { failures.push(`attestation: ${error.message.split('\n')[0]}`); }
