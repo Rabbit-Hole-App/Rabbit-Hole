@@ -161,8 +161,12 @@ test('the units record supplies the two unit stages; a shard record carrying one
 });
 
 test('the workflow matrix runs exactly the parts collect judges, so a passing extra entry cannot go unjudged', () => {
-  const yml = readFileSync(new URL('../../.github/workflows/gate-sharded.yml', import.meta.url), 'utf8');
-  assert.deepEqual(yml.match(/^\s*part: \[([^\]]+)\]/m)[1].split(',').map(p => p.trim()), PARTS);
+  const yml = readFileSync(new URL('../../.github/workflows/gate-sharded.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  // Item 1: the matrix is the preflight's parts output (partsOf(layout)); its fallback is the committed nine.
+  const m = yml.match(/^\s*part: \$\{\{ fromJSON\(needs\.preflight\.outputs\.parts \|\| '(\[[^']+\])'\) \}\}$/m);
+  assert.deepEqual(JSON.parse(m[1]), PARTS);
+  assert.match(yml, /^ {6}GATE_LAYOUT: \$\{\{ needs\.preflight\.outputs\.layout \}\}$/m, 'every part reads the one layout the preflight chose');
+  assert.match(yml, /^ {10}GATE_LAYOUT: \$\{\{ needs\.preflight\.outputs\.layout \}\}\n {10}GATE_ATTEST: \$\{\{ needs\.preflight\.outputs\.attest \}\}$/m, 'collect reads the same layout and the attestation');
 });
 test('no Windows runner starts before the dispatch preflight, which runs dispatch-preflight.mjs on Linux for every trigger', () => {
   const yml = readFileSync(new URL('../../.github/workflows/gate-sharded.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -170,10 +174,11 @@ test('no Windows runner starts before the dispatch preflight, which runs dispatc
   const pre = job('preflight');
   assert.match(job('run'), /^ {4}needs: preflight$/m);
   assert.match(job('run'), /^ {4}runs-on: windows-/m);
-  assert.match(job('collect'), /^ {4}needs: run$/m);
+  assert.match(job('collect'), /^ {4}needs: \[preflight, run\]$/m);
   assert.match(pre, /^ {4}runs-on: ubuntu-latest$/m);
   assert.doesNotMatch(pre, /needs:|inputs\.|event_name|continue-on-error/, 'it waits for nothing, ignores the inputs and cannot be skipped past');
-  assert.match(pre, /^ {10}sparse-checkout: scripts\/r36-gate\/dispatch-preflight\.mjs$/m);
+  assert.match(pre, /^ {10}sparse-checkout: scripts\/r36-gate$/m);
+  assert.match(pre, /^ {4}outputs:\n {6}attest: \$\{\{ steps\.preflight\.outputs\.attest \}\}\n {6}layout: .*\n {6}parts: .*$/m);
   assert.match(pre, /^ {10}GH_TOKEN: \$\{\{ github\.token \}\}\n {8}run: node scripts\/r36-gate\/dispatch-preflight\.mjs$/m);
   assert.match(yml, /^env:\n {2}APP_SHA: .*\n {2}APP_TREE: /m, 'the script reads the workflow-level APP_SHA and APP_TREE');
 });
