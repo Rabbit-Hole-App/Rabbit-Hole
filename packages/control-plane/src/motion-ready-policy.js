@@ -27,7 +27,10 @@ export const MEASURED_RENDERER_REVISION = '03f2a1efc08e8d5c0d73aadced534b614c13f
 // The renderer CODE the receipts were taken on: the 12-hex hash the service reports in /health `version` ("motion-renderer-1-<hash>/...") and
 // the orchestrator checks (orchestrator.mjs rendererCodeHashes). A test compares it with this checkout's hash, so editing a renderer file after
 // the measurement fails CI until the pairs are measured again.
-export const MEASURED_RENDERER_CODE_HASH = '02d5069eeb4d';
+// Re-pinned 2026-11-04 from 02d5069eeb4d (owner decision A): the whiteboard renderer routes added 17 lines to service/server.mjs and 3 to service/child.mjs (one job.type branch,
+// the route mount, one /health field). They are inert for Motion (its routes, limits and tests are unchanged). Motion's renderer and orchestrator are NOT redeployed
+// by the whiteboard roadmap; a future orchestrator deploy from this code needs Motion's renderer redeployed from the same commit first (docs/features/whiteboard/fix.md FX-WB-002).
+export const MEASURED_RENDERER_CODE_HASH = 'deab3fc22359';
 // p3 (owner decision 2026-10-27): the two 15 s pairs also cover the static class 'standard' (STANDARD_PAIRS). A new version makes every card signed under p2 stale, as an allowance change must.
 export const MEASURED_POLICY_VERSION = 'p3-03f2a1efc08e';
 // Owner decision 2026-10-27, OWNER-ONLY validation: the 16:9 and 9:16 pairs at 15 s allow 'simple' AND 'standard'. Evidence: the one model-built 16:9 15 s composition that rendered and was accepted (job bc05caf2) measures 'standard' (146 elements,
