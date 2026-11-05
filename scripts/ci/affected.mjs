@@ -1,12 +1,15 @@
 // scripts/ci/affected.mjs - fast-tier selection. Compares HEAD with the newest green fast-tier run that is an ancestor
 // (so pushes whose runs were cancelled are included), or the merge-base with main. Renames count both paths, deletes
-// count the old path. An executable path with no class runs the conservative default set (check-map.json defaultChecks)
-// and is reported as missing its mapping; it is never silently skipped, never runs everything and never fails on its own.
+// count the old path. An executable path with no class selects nothing and fails the plan with the one-line fix (owner ruling B,
+// ci-speed item 2, 2026-11-05): it is never silently skipped and never runs a default set. A mapped row may name unit-test files
+// (entries with a slash) beside browser checks: they are listed as unitTests, which verify runs and fast-e2e never does.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 // Tokenized so an inserted `.*` is never rewritten by a later replacement.
-const rx = g => new RegExp('^' + g.split(/(\*\*\/|\*\*|\*)/).map(t => t === '**/' ? '(?:.*/)?' : t === '**' ? '.*' : t === '*' ? '[^/]*'
+const rxCache = new Map();
+const rx = g => rxCache.get(g) ?? rxCache.set(g, rxOf(g)).get(g);
+const rxOf = g => new RegExp('^' + g.split(/(\*\*\/|\*\*|\*)/).map(t => t === '**/' ? '(?:.*/)?' : t === '**' ? '.*' : t === '*' ? '[^/]*'
   : t.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('') + '$');
 const any = (globs, p) => globs.some(g => rx(g).test(p));
 export function classify(p, map) {
@@ -21,19 +24,19 @@ export function classify(p, map) {
 // force: readiness (fast-e2e workflow_dispatch readiness=1) selects every Linux check, as a broad path would.
 export function select(changes, map, force = false) {
   const linux = Object.keys(map.checks).filter(c => map.checks[c].runner !== 'windows-only');
-  const checks = new Set(), reasons = force ? ['readiness: broad'] : [], unmapped = []; let broad = force;
+  const checks = new Set(), unitTests = new Set(), reasons = force ? ['readiness: broad'] : [], unmapped = []; let broad = force;
   for (const c of changes) for (const p of [c.path, c.oldPath].filter(Boolean)) {
     const k = classify(p, map);
     if (k === 'broad') { broad = true; reasons.push(`${p}: broad`); }
-    else if (k === 'unmapped') { unmapped.push(p); for (const h of map.defaultChecks) { checks.add(h); reasons.push(`${h}: ${p} (unmapped, default set)`); } }
+    else if (k === 'unmapped') { unmapped.push(p); reasons.push(`${p}: unmapped`); }
     else if (k === 'mapped') {
       const own = /^packages\/web\/e2e\/([^/]+-check\.mjs)$/.exec(p)?.[1];
       const hits = own ? [own] : Object.entries(map.mapped).filter(([g]) => rx(g).test(p)).flatMap(([, v]) => v);
-      for (const h of hits) { checks.add(h); reasons.push(`${h}: ${p}`); }
+      for (const h of hits) { (h.includes('/') ? unitTests : checks).add(h); reasons.push(`${h}: ${p}`); }
     }
   }
   if (broad) linux.forEach(c => checks.add(c));
-  return { checks: [...checks].filter(c => map.checks[c]?.runner !== 'windows-only').sort(), reasons, unmapped, broad,
+  return { checks: [...checks].filter(c => map.checks[c]?.runner !== 'windows-only').sort(), unitTests: [...unitTests].sort(), reasons, unmapped, broad,
     notCovered: [...checks, ...(broad ? Object.keys(map.checks) : [])].filter(c => map.checks[c]?.runner === 'windows-only').filter((c, i, a) => a.indexOf(c) === i) };
 }
 export function baseline({ head, greenShas, isAncestor, mergeBaseMain }) {
@@ -67,16 +70,16 @@ export function partArgs(argv) {
 }
 // The CLI contract: JSON on stdout; exit 2 for bad arguments; exit 1 when a selected check (in any part) has no entry in
 // check-map.json checks, so the selection fails before any install or build (run 38667324551 built for 70 s, then stopped in
-// run-part.sh). An unmapped path is a warning, not a failure.
+// run-part.sh), or when a changed path has no mapping (owner ruling B, 2026-11-05).
 export function plan({ part, of, changes, map, baseline: base, force }) {
   const s = select(changes, map, force);
   const checks = parts(s.checks, map, of)[part - 1];
   // engines: the non-Chromium browsers this part launches; fast-e2e installs their system libraries before the build (engine-deps.sh).
   const engines = [...new Set(checks.map(c => map.checks[c]?.engine).filter(Boolean))].sort();
-  const out = { part, checks, engines, reasons: s.reasons, notCovered: s.notCovered, baseline: base, unmapped: s.unmapped };
-  const r = s.unmapped.length ? { code: 0, out, warning: `no mapping for ${s.unmapped.join(', ')}: ran the default set (${map.defaultChecks.length} checks); add it to scripts/ci/check-map.json` } : { code: 0, out };
-  const unknown = s.checks.filter(c => !map.checks[c]);
-  return unknown.length ? { ...r, code: 1, err: unknown.map(c => `${c}: not in scripts/ci/check-map.json; add it there with runner fork, harness or windows-only`).join('\n') } : r;
+  const out = { part, checks, unitTests: s.unitTests, engines, reasons: s.reasons, notCovered: s.notCovered, baseline: base, unmapped: s.unmapped };
+  const err = [...s.unmapped.map(p => `${p}: no mapping; add it to scripts/ci/check-map.json (mapped to its checks or unit tests, or none/docs with a reason)`),
+    ...s.checks.filter(c => !map.checks[c]).map(c => `${c}: not in scripts/ci/check-map.json; add it there with runner fork, harness or windows-only`)];
+  return err.length ? { code: 1, out, err: err.join('\n') } : { code: 0, out };
 }
 if (process.argv[1] && basename(process.argv[1]) === 'affected.mjs') {
   const args = partArgs(process.argv);
@@ -89,6 +92,5 @@ if (process.argv[1] && basename(process.argv[1]) === 'affected.mjs') {
   const base = baseline({ head, greenShas: runs.map(r => r.headSha), isAncestor, mergeBaseMain: git('merge-base', head, 'origin/main') });
   const r = plan({ ...args, changes: changedPaths(base, head), map, baseline: base, force: process.env.READINESS === '1' });
   console.log(JSON.stringify(r.out));
-  if (r.warning) console.error(r.warning);
   if (r.code) { console.error(r.err); process.exit(r.code); }
 }

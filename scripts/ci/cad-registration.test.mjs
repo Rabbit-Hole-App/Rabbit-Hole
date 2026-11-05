@@ -12,7 +12,7 @@ test('CAD manual checks are registered but never enter automated Linux or readin
  assert.match(map.checks['cad-real-check.mjs'].why,/MANUAL PAID VERIFICATION ONLY/);
 });
 test('CAD source changes retain existing browser regression checks and disclose manual coverage',()=>{
- assert.equal(classify('packages/cad-execute/server.mjs',map),'broad');
+ assert.equal(classify('packages/cad-execute/server.mjs',map),'mapped'); // ci-speed item 2: its own row, no longer broad
  const result=select([{path:'packages/web/src/CadCard.jsx'}],map);
  assert.ok(result.checks.includes('card-select-check.mjs'));
  assert.ok(result.notCovered.includes('cad-check.mjs'));
