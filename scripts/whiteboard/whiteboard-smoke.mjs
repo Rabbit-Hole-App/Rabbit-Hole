@@ -52,11 +52,13 @@ async function until(ctx, id, done, label, limitMs = 40 * 60000) {
   }
   throw new Error(`${label}: timed out`);
 }
-async function proposalOf(job) {
-  const t = await api('GET', `/api/ask/threads/${encodeURIComponent(job.threadId)}`);
+async function proposalOf(ctx) {
+  // The job posts its plan into the canvas's open Chat thread (it makes one the open thread when there is none): read it back as the UI does.
+  const active = await api('GET', `/api/learn/chat/active?app=${encodeURIComponent(ctx.app)}`);
+  const t = active.data?.threadId ? await api('GET', `/api/ask/threads/${encodeURIComponent(active.data.threadId)}`) : { data: null };
   const msgs = t.data?.messages ?? [];
   const withProposal = [...msgs].reverse().find(m => m.meta?.proposal?.proposal_id);
-  return withProposal ? { proposal: withProposal.meta.proposal, text: msgs.map(m => m.content).filter(Boolean).slice(-3) } : { proposal: null, text: msgs.map(m => m.content).filter(Boolean).slice(-3) };
+  return { proposal: withProposal?.meta?.proposal ?? null, text: msgs.map(m => m.content).filter(Boolean).slice(-3) };
 }
 const planText = job => `goal: ${job.plan?.goal}\n${(job.plan?.scenes ?? []).map((s, i) => `  Scene ${i + 1} (${((s.endFrame - s.startFrame) / 30)} s): ${s.learningPoint}`).join('\n')}`;
 
@@ -76,9 +78,9 @@ async function videoCase(seconds) {
   const job = await create(ctx, seconds);
   const planned = await until(ctx, job.id, j => ['awaiting_approval', 'failed', 'cancelled'].includes(j.stage), `${seconds}s plan`);
   if (planned.job.stage !== 'awaiting_approval') { say('  NOT PLANNED:', JSON.stringify(planned.job.failure ?? planned.job.stage)); return { ok: false }; }
-  const { proposal, text } = await proposalOf(planned.job);
-  say(planText(planned.job)); say('  chat text rows:', JSON.stringify(text).slice(0, 300));
-  say(`  proposal usage: ${JSON.stringify(proposal?.usage)}  -> "up to ${proposal?.usage?.max_credits} credits"`);
+  const { proposal, text } = await proposalOf(ctx);
+  say(planText(planned.job)); say('  chat text rows:', text.length, JSON.stringify(text).slice(0, 200));
+  say(`  proposal usage: ${JSON.stringify(proposal?.usage)} -> "up to ${proposal?.usage?.max_credits} credits" (estimate ${proposal?.usage?.estimate_credits})`);
   if (!proposal) return { ok: false };
   const generateAt = Date.now();
   const approved = await api('POST', `/api/learn/whiteboard/jobs/${job.id}/approve`, { boardId: ctx.boardId, proposal });
@@ -103,7 +105,7 @@ async function refusalCase() {
   const ctx = await canvas('refusal'), before = await usage();
   const job = await create(ctx, 60, 'make a game I can play');
   const d = await until(ctx, job.id, j => !['queued', 'planning'].includes(j.stage), 'refusal');
-  const { text } = await proposalOf(d.job);
+  const { text } = await proposalOf(ctx);
   say('  stage:', d.job.stage, JSON.stringify(d.job.outcome ?? d.job.unsupported ?? d.job.failure)); say('  chat:', JSON.stringify(text).slice(0, 500));
   say('  usage before:', before, '\n  usage after: ', await usage());
 }
