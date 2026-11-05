@@ -7,16 +7,19 @@
 import { execFileSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { checkEvidence, lockDigest } from './verify-evidence.mjs';
+import { checkEvidence, coverGap, lockDigest } from './verify-evidence.mjs';
 
 export const VERIFY_PATH = '.github/workflows/verify.yml';
 
 // -> { reuse: true, url, run } | { reuse: false, why }. runInfo: the API's run attempt object, or null if it could not be read.
-export function reuseDecision({ note, sha, tree, locks, repo, runInfo }) {
+// need (ci-speed item 3): this push's suites and build from scripts/ci/verify-plan.mjs; a note that ran fewer is not reused.
+export function reuseDecision({ note, sha, tree, locks, repo, runInfo, need = null }) {
   if (!note) return { reuse: false, why: 'no verify note for this commit' };
   let evidence; try { evidence = JSON.parse(note); } catch { return { reuse: false, why: 'the verify note is not valid evidence' }; }
   const bad = checkEvidence(evidence, { sha, tree, locks });
   if (bad) return { reuse: false, why: bad };
+  const gap = need && coverGap(evidence, need);
+  if (gap) return { reuse: false, why: gap };
   const [id, attempt] = evidence.run.split('.');
   if (!runInfo) return { reuse: false, why: `run ${evidence.run} could not be confirmed` };
   if (runInfo.repository?.full_name !== repo) return { reuse: false, why: `run ${evidence.run} is not in ${repo}` };
@@ -44,10 +47,11 @@ async function main() {
         headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'user-agent': 'rabbit-hole-verify-reuse' }, signal: AbortSignal.timeout(15000) });
       if (r.ok) runInfo = await r.json();
     }
-    d = reuseDecision({ note, sha, tree: git('rev-parse', `${sha}^{tree}`), locks: lockDigest(root), repo, runInfo });
+    const need = process.env.SUITES === undefined ? null : { suites: process.env.SUITES.split(/\s+/).filter(Boolean), build: process.env.BUILD || 'none' };
+    d = reuseDecision({ note, sha, tree: git('rev-parse', `${sha}^{tree}`), locks: lockDigest(root), repo, runInfo, need });
   } catch (e) { d = { reuse: false, why: `the reuse check failed (${e.message})` }; }
   const line = d.reuse
-    ? `Verification reused: run [${d.run}](${d.url}) already passed unit suites and both page builds for exactly ${sha.slice(0, 8)} (same tree and lockfiles). No new note is written; that run's evidence stays the record.`
+    ? `Verification reused: run [${d.run}](${d.url}) already passed every unit suite and page build this push needs for exactly ${sha.slice(0, 8)} (same tree and lockfiles). No new note is written; that run's evidence stays the record.`
     : `Verification runs here: ${d.why}.`;
   console.log(line);
   if (out) appendFileSync(out, `reuse=${d.reuse}\n`);

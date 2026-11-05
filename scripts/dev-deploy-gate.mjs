@@ -17,6 +17,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { checkEvidence, lockDigest, runBlockers } from './verify-evidence.mjs';
+import { FAST, attestedRunBlockers, attestedStages } from './gate-attest.mjs';
 
 export function parseGatesNote(text) {
   const m = text.match(/^reuse ([0-9a-f]{40})[ \t]*\r?(\n|$)/);
@@ -40,6 +41,11 @@ export function gatePlan({ note, gNote, gDev }) {
   return { reuse: n.reuse, rerun: n.rerun, seed };
 }
 
+// Item 1: stages of a full gate record that the sharded gate took from a fast-e2e run (gate-attest.mjs). Each attested run
+// must be a completed success of fast-e2e at this exact commit. A reuse has no stages of its own; the gated commit's were
+// judged when it deployed (its dev-deploy row), and a rerun record may not carry any (dev-deploy.mjs rerunVerdict).
+export const attestedBlockers = (plan, note, runs, sha) => plan.full ? attestedRunBlockers(attestedStages(note), runs?.runs?.[FAST], sha) : [];
+
 function main() {
   const arg = k => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : undefined; };
   const root = fileURLToPath(new URL('..', import.meta.url));
@@ -58,6 +64,8 @@ function main() {
   console.log(`✓ fast-e2e and verify: the newest run of each passed for ${sha.slice(0, 8)}`);
   const plan = gatePlan({ note, gNote, gDev: reuse && git('notes', `--ref=${devRef}`, 'show', reuse) });
   if (plan.refuse) { console.error(`✗ ${plan.refuse}: nothing deployed`); process.exitCode = 1; return; }
+  const att = attestedBlockers(plan, note, runs, sha);
+  if (att.length) { console.error(`✗ the gate record took stages from a fast-e2e run that does not stand:\n- ${att.join('\n- ')}\nnothing deployed`); process.exitCode = 1; return; }
   const file = (name, text) => { const p = join(tmpdir(), `dev-deploy-gate-${name}.log`); writeFileSync(p, text); return p; };
   let args = ['--gate', arg('gate')];
   if (plan.reuse) {

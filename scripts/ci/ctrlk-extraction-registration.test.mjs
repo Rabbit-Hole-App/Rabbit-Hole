@@ -14,6 +14,6 @@ test('new extraction and evidence fixtures remain manual, never automatic integr
 });
 test('extraction and repository inspector source changes identify their actual focused checks',()=>{
  for(const [path,check] of [['packages/web/src/inline-code-client.js','ctrlk-code-run-check.mjs'],['packages/web/src/InlineCodeRunPreview.jsx','ctrlk-code-run-check.mjs'],['packages/web/src/inline-image-action.js','ctrlk-image-action-check.mjs'],['packages/web/src/RegionalImageEdit.jsx','ctrlk-regional-image-check.mjs'],['packages/web/src/inline-regional-mask.js','ctrlk-regional-image-check.mjs'],['packages/web/src/inline-background-removal.js','ctrlk-background-removal-check.mjs'],['packages/web/src/BackgroundRemovalPreview.jsx','ctrlk-background-removal-check.mjs'],['packages/web/src/inline-image-job-client.js','ctrlk-background-removal-check.mjs'],['packages/web/src/inline-extraction.js','ctrlk-extraction-check.mjs'],['packages/web/src/InlineRepositoryEvidence.jsx','ctrlk-repository-evidence-check.mjs']]){
-  assert.equal(classify(path,map),path.endsWith('/RegionalImageEdit.jsx')?'broad':'mapped');const result=select([{path}],map);assert.ok(result.notCovered.includes(check));assert.deepEqual(result.unmapped,[]);
+  assert.equal(classify(path,map),'mapped'); // ci-speed item 2: RegionalImageEdit.jsx is no longer broadconst result=select([{path}],map);assert.ok(result.notCovered.includes(check));assert.deepEqual(result.unmapped,[]);
  }
 });
