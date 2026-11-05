@@ -18,7 +18,7 @@ const SCENE = {
     seconds: { type: 'integer', minimum: 5, description: 'How long this scene lasts, in whole seconds, at least 5. The scenes\' seconds add up exactly to input.durationSeconds.' },
     learningPoint: { type: 'string', maxLength: 200, description: 'The one thing the learner takes from this scene, in one sentence.' },
     visualIntent: { type: 'string', maxLength: 400, description: 'What is drawn, with its numbers and labels: lines, arrows, boxes, a sampled graph, an equation as text.' },
-    narrationSummary: { type: 'string', maxLength: 600, description: 'What the voice says, summarised.' },
+    narrationSummary: { type: 'string', maxLength: 600, description: 'What the voice says, summarised: at most 2.0 x seconds words (a 15-second scene: at most 30 words).' },
     facts: { type: 'array', maxItems: 8, items: FACT, description: 'Every number or labelled quantity this scene draws or says.' },
   },
 };
@@ -71,7 +71,7 @@ A partial mismatch is not unsupported: plan the closest useful video and record 
 <planning_rules>
 Scenes: at most limits.maxScenes; each at least 5 seconds; their seconds add up exactly to durationSeconds. One learning point per scene, in teaching order.
 Numbers: every quantitative claim goes in facts with its value; compute it and say so (computed) or mark it as a claim. Only computed values may be drawn as a graph.
-Narration: about 2.5 words per second, at most limits.narrationWords words in the whole video; one voice, plain spoken English.
+Narration: the voice speaks about 2.0 words per second, pauses included, at most limits.narrationWords words in the whole video; one voice, plain spoken English. Each scene's narrationSummary is at most 2.0 x its seconds words (a 10-second scene: at most 20 words): the author treats it as what to convey, never as a length to reach.
 Language: plain words for the learner; an essential technical term once, with a brief explanation. No ids or code in any field.
 </planning_rules>
 
