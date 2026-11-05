@@ -17,7 +17,7 @@ export const refusalText = (asked, alternative) => [`Whiteboard makes a narrated
 // The proposal body: <goal>, one line per scene, then the narration line.
 export function planLines(plan) {
   return [plan.goal, ...plan.scenes.map((s, i) => `Scene ${i + 1} (${(s.endFrame - s.startFrame) / L.fps} s): ${s.learningPoint}`),
-    `Narrated by one voice; ${plan.scenes.length} scenes; ${plan.durationSeconds} seconds.`].join('\n');
+    `Narrated by one voice; ${plan.scenes.length} ${plan.scenes.length === 1 ? 'scene' : 'scenes'}; ${plan.durationSeconds} seconds.`].join('\n');
 }
 
 // The planner's reply as the contract's plan. The model gives each scene's seconds; frames, ids and every fixed field are the server's.

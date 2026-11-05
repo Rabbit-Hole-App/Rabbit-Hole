@@ -1,0 +1,21 @@
+{
+ "usage": {
+  "estimate_credits": 36,
+  "max_credits": 125,
+  "reserve_credits": null
+ },
+ "title": "One Step of Gradient Descent on x Squared",
+ "settings": {
+  "duration_seconds": 10
+ },
+ "input": {
+  "org": "example-com",
+  "app": "canvas-9605fecc",
+  "job": "wj_f1b61d1111ca4992a8da61231930b78e",
+  "plan_hash": "037af1381e42cc2a863dae55ad60faaa17a3e25445e25fff5dd8bd7ca5962613",
+  "request": "explain gradient descent with one worked example",
+  "scenes": 1
+ },
+ "requirements": [],
+ "description": "The learner sees how gradient descent uses the slope to take one step downhill, from x = 3 to x = 2.4 on the curve x squared.\nScene 1 (10 s): Gradient descent moves against the slope: new x = old x minus step size times slope.\nNarrated by one voice; 1 scenes; 10 seconds."
+}

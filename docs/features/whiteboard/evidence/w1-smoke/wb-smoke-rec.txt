@@ -1,0 +1,30 @@
+
+=== refusal: "make a game I can play" ===
+  [refusal] stage planning +0s
+  [refusal] stage failed +7s
+  stage: failed "unsupported"
+  chat: ["Whiteboard makes a narrated video, so it can't be played. It can explain the rules with one example. Edit the request or try /animation for something you can run."]
+  usage before: {"enforced":true,"period":"2026-11","resetsAt":"2026-12-01T00:00:00.000Z","allowanceCredits":2500,"usedCredits":5.356,"reservedCredits":0,"estimatedCredits":0,"remainingCredits":2494.644,"unknownAttempts":0,"byFeature":[{"feature":"artifact","usedCredits":5.356,"reservedCredits":0,"unknownAttempts":0}]} 
+  usage after:  {"enforced":true,"period":"2026-11","resetsAt":"2026-12-01T00:00:00.000Z","allowanceCredits":2500,"usedCredits":5.6904,"reservedCredits":0,"estimatedCredits":0,"remainingCredits":2494.3096,"unknownAttempts":0,"byFeature":[{"feature":"artifact","usedCredits":5.6904,"reservedCredits":0,"unknownAttempts":0}]}
+
+=== Edit (refine) ===
+  [edit plan] stage planning +0s
+  [edit plan] stage awaiting_approval +16s
+  refine HTTP 202
+  [edit replan] stage planning +0s
+  [edit replan] stage awaiting_approval +13s
+  plan revision 2
+goal: The learner will understand that gradient descent finds the lowest point by stepping against the slope, and will see two simple steps worked out on x squared.
+  Scene 1 (12 s): To go downhill, step the opposite way to the slope.
+  Scene 2 (18 s): Each step is new x = x minus a quarter of the slope, and the steps get smaller as the curve flattens.
+  usage before: {"enforced":true,"period":"2026-11","resetsAt":"2026-12-01T00:00:00.000Z","allowanceCredits":2500,"usedCredits":5.6904,"reservedCredits":0,"estimatedCredits":0,"remainingCredits":2494.3096,"unknownAttempts":0,"byFeature":[{"feature":"artifact","usedCredits":5.6904,"reservedCredits":0,"unknownAttempts":0}]} 
+  usage after:  {"enforced":true,"period":"2026-11","resetsAt":"2026-12-01T00:00:00.000Z","allowanceCredits":2500,"usedCredits":12.5008,"reservedCredits":0,"estimatedCredits":0,"remainingCredits":2487.4992,"unknownAttempts":0,"byFeature":[{"feature":"artifact","usedCredits":12.5008,"reservedCredits":0,"unknownAttempts":0}]}
+
+=== Cancel before Generate ===
+  [cancel plan] stage planning +0s
+  [cancel plan] stage awaiting_approval +16s
+  cancel HTTP 200 stage now cancelled
+  usage before: {"enforced":true,"period":"2026-11","resetsAt":"2026-12-01T00:00:00.000Z","allowanceCredits":2500,"usedCredits":12.5008,"reservedCredits":0,"estimatedCredits":0,"remainingCredits":2487.4992,"unknownAttempts":0,"byFeature":[{"feature":"artifact","usedCredits":12.5008,"reservedCredits":0,"unknownAttempts":0}]} 
+  usage after:  {"enforced":true,"period":"2026-11","resetsAt":"2026-12-01T00:00:00.000Z","allowanceCredits":2500,"usedCredits":15.7656,"reservedCredits":0,"estimatedCredits":0,"remainingCredits":2484.2344,"unknownAttempts":0,"byFeature":[{"feature":"artifact","usedCredits":15.7656,"reservedCredits":0,"unknownAttempts":0}]}
+
+SMOKE OK (0 failing case(s))

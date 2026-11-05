@@ -1,0 +1,38 @@
+{
+ "result": {
+  "schema": "whiteboard-result/1",
+  "artifactId": "wa_af774b48e8914d2d85f295102b60de4c",
+  "revision": 1,
+  "planHash": "34d50eea0b505dbae817973d7c1ea67632490c99c92de72a1de2f6574a6dfce5",
+  "manifestHash": "e7877c4e920a11f38445cada38163844eb426884272275d1776b02368c36633b",
+  "rendererVersion": "whiteboard-renderer-1",
+  "keys": {
+   "mp4": "learn-whiteboard/example-com/canvas-54fcf36d/main/wa_af774b48e8914d2d85f295102b60de4c/final.mp4",
+   "poster": "learn-whiteboard/example-com/canvas-54fcf36d/main/wa_af774b48e8914d2d85f295102b60de4c/poster.png",
+   "captions": "learn-whiteboard/example-com/canvas-54fcf36d/main/wa_af774b48e8914d2d85f295102b60de4c/captions.vtt",
+   "transcript": "learn-whiteboard/example-com/canvas-54fcf36d/main/wa_af774b48e8914d2d85f295102b60de4c/transcript.json",
+   "manifest": "learn-whiteboard/example-com/canvas-54fcf36d/main/wa_af774b48e8914d2d85f295102b60de4c/manifest.json"
+  },
+  "measured": {
+   "seconds": 30,
+   "frames": 900,
+   "width": 1920,
+   "height": 1080,
+   "bytes": 1882855
+  },
+  "timings": {
+   "video_seconds": 30,
+   "plan": 16.55,
+   "author": 45.32,
+   "narration": 16.559,
+   "timing_fit": 1,
+   "render": [
+    124.032
+   ],
+   "pull_store": 2.031,
+   "total": 205.492
+  }
+ },
+ "cardId": "6279df68-097f-4bb7-820c-821de31a3188",
+ "title": "Gradient Descent: Stepping Down x Squared"
+}

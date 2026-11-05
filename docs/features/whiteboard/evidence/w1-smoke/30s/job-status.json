@@ -1,0 +1,160 @@
+{
+ "job": {
+  "id": "wj_05571143845b4930969cfc236f685e9f",
+  "version": 1,
+  "boardId": "740c02f0-1d00-4617-bc4d-0654c8179509",
+  "cardId": "6279df68-097f-4bb7-820c-821de31a3188",
+  "stage": "ready",
+  "attempt": 1,
+  "terminal": true,
+  "title": "Gradient Descent: Stepping Down x Squared",
+  "durationSeconds": 30,
+  "outcome": "supported",
+  "failure": null,
+  "plan": {
+   "schema": "whiteboard-plan/1",
+   "planId": "wj_05571143845b4930969cfc236f685e9f",
+   "revision": 1,
+   "goal": "Understand that gradient descent finds a minimum by repeatedly stepping opposite the slope, and see two steps worked out on f(x) = x squared.",
+   "audience": "a curious learner",
+   "durationSeconds": 30,
+   "language": "en",
+   "voice": "whiteboard-default-v1",
+   "quality": "whiteboard-1080p-v1",
+   "sourceRefs": [],
+   "scenes": [
+    {
+     "id": "s1",
+     "startFrame": 0,
+     "endFrame": 360,
+     "learningPoint": "Gradient descent finds a function's lowest point by repeatedly stepping opposite the slope, which means downhill.",
+     "visualIntent": "Axes with the curve f(x) = x squared, sampled at 15 points from x = -3.5 to 3.5. A dot at x = 3 (height 9), a short tangent line there, and an arrow pointing downhill toward x = 0, labelled 'step opposite the slope'.",
+     "narrationSummary": "Gradient descent finds the lowest point of a curve by repeatedly taking small steps downhill, opposite the slope.",
+     "facts": [
+      {
+       "text": "starting point x",
+       "value": 3,
+       "provenance": "claim"
+      },
+      {
+       "text": "f(3) = 3 squared",
+       "value": 9,
+       "provenance": "computed"
+      },
+      {
+       "text": "minimum of x squared is at x",
+       "value": 0,
+       "provenance": "computed"
+      }
+     ],
+     "illustration": false
+    },
+    {
+     "id": "s2",
+     "startFrame": 360,
+     "endFrame": 900,
+     "learningPoint": "Each step uses new x = x minus step size times slope, and the steps shrink as the slope flattens near the minimum.",
+     "visualIntent": "Written rule: 'slope = 2x', 'new x = x − 0.25 × slope'. Line 1: 'x = 3, slope 6, new x = 3 − 1.5 = 1.5'. Line 2: 'x = 1.5, slope 3, new x = 1.5 − 0.75 = 0.75'. On the same curve, dots at x = 3, 1.5, 0.75 joined by arrows, heights 9, 2.25, 0.5625 labelled.",
+     "narrationSummary": "For x squared, the slope is 2x. Starting at 3, slope 6; times step size 0.25 moves us to 1.5. Then slope 3 moves us to 0.75, approaching zero.",
+     "facts": [
+      {
+       "text": "step size",
+       "value": 0.25,
+       "provenance": "claim"
+      },
+      {
+       "text": "slope at x = 3 (2 × 3)",
+       "value": 6,
+       "provenance": "computed"
+      },
+      {
+       "text": "new x after step 1 (3 − 0.25 × 6)",
+       "value": 1.5,
+       "provenance": "computed"
+      },
+      {
+       "text": "slope at x = 1.5 (2 × 1.5)",
+       "value": 3,
+       "provenance": "computed"
+      },
+      {
+       "text": "new x after step 2 (1.5 − 0.25 × 3)",
+       "value": 0.75,
+       "provenance": "computed"
+      },
+      {
+       "text": "f(1.5)",
+       "value": 2.25,
+       "provenance": "computed"
+      },
+      {
+       "text": "f(0.75)",
+       "value": 0.5625,
+       "provenance": "computed"
+      }
+     ],
+     "illustration": false
+    }
+   ],
+   "substitutions": [],
+   "limitations": [
+    "Uses a one-variable curve, x squared; real uses have many variables, but the step rule is the same.",
+    "The starting point 3 and step size 0.25 are illustrative numbers chosen to keep the arithmetic simple.",
+    "Only two steps are shown; the process continues until the steps become tiny."
+   ]
+  },
+  "planHash": "34d50eea0b505dbae817973d7c1ea67632490c99c92de72a1de2f6574a6dfce5",
+  "result": {
+   "schema": "whiteboard-result/1",
+   "artifactId": "wa_af774b48e8914d2d85f295102b60de4c",
+   "revision": 1,
+   "planHash": "34d50eea0b505dbae817973d7c1ea67632490c99c92de72a1de2f6574a6dfce5",
+   "manifestHash": "e7877c4e920a11f38445cada38163844eb426884272275d1776b02368c36633b",
+   "rendererVersion": "whiteboard-renderer-1",
+   "keys": {
+    "mp4": "learn-whiteboard/example-com/canvas-54fcf36d/main/wa_af774b48e8914d2d85f295102b60de4c/final.mp4",
+    "poster": "learn-whiteboard/example-com/canvas-54fcf36d/main/wa_af774b48e8914d2d85f295102b60de4c/poster.png",
+    "captions": "learn-whiteboard/example-com/canvas-54fcf36d/main/wa_af774b48e8914d2d85f295102b60de4c/captions.vtt",
+    "transcript": "learn-whiteboard/example-com/canvas-54fcf36d/main/wa_af774b48e8914d2d85f295102b60de4c/transcript.json",
+    "manifest": "learn-whiteboard/example-com/canvas-54fcf36d/main/wa_af774b48e8914d2d85f295102b60de4c/manifest.json"
+   },
+   "measured": {
+    "seconds": 30,
+    "frames": 900,
+    "width": 1920,
+    "height": 1080,
+    "bytes": 1882855
+   },
+   "timings": {
+    "video_seconds": 30,
+    "plan": 16.55,
+    "author": 45.32,
+    "narration": 16.559,
+    "timing_fit": 1,
+    "render": [
+     124.032
+    ],
+    "pull_store": 2.031,
+    "total": 205.492
+   }
+  },
+  "usage": {
+   "credits": 15,
+   "unknown": false
+  },
+  "chatPending": false,
+  "createdAt": 1793866524198,
+  "updatedAt": 1793866733328
+ },
+ "block": {
+  "artifactId": "wa_af774b48e8914d2d85f295102b60de4c",
+  "revision": 1,
+  "planHash": "34d50eea0b505dbae817973d7c1ea67632490c99c92de72a1de2f6574a6dfce5",
+  "measured": {
+   "seconds": 30,
+   "frames": 900,
+   "bytes": 1882855
+  },
+  "status": "ready"
+ }
+}

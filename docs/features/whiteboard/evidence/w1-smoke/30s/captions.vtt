@@ -1,0 +1,25 @@
+WEBVTT
+
+1
+00:00:00.000 --> 00:00:03.067
+Gradient descent finds a curve's lowest point.
+
+2
+00:00:03.400 --> 00:00:05.333
+Start at three, height nine.
+
+3
+00:00:05.667 --> 00:00:09.400
+Step opposite the slope, downhill, toward zero.
+
+4
+00:00:12.000 --> 00:00:17.100
+For x squared, the slope is two x; each step subtracts a quarter of it.
+
+5
+00:00:17.600 --> 00:00:21.133
+From three, slope six takes us to one point five.
+
+6
+00:00:21.633 --> 00:00:25.967
+Then slope three: point seven five, nearing zero.

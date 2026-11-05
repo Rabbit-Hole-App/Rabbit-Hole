@@ -1,0 +1,45 @@
+
+=== 30 s video ===
+  [30s plan] stage planning +0s
+  [30s plan] stage awaiting_approval +19s
+goal: Understand that gradient descent finds a minimum by repeatedly stepping opposite the slope, and see two steps worked out on f(x) = x squared.
+  Scene 1 (12 s): Gradient descent finds a function's lowest point by repeatedly stepping opposite the slope, which means downhill.
+  Scene 2 (18 s): Each step uses new x = x minus step size times slope, and the steps shrink as the slope flattens near the minimum.
+  chat text rows: 1 ["Understand that gradient descent finds a minimum by repeatedly stepping opposite the slope, and see two steps worked out on f(x) = x squared.\nScene 1 (12 s): Gradient descent finds a function's low
+  proposal usage: {"estimate_credits":70,"max_credits":176,"reserve_credits":null} -> "up to 176 credits" (estimate 70)
+  [30s generate] stage authoring +0s
+  [30s generate] stage narrating +47s
+  [30s generate] stage timing +63s
+  [30s generate] stage rendering +66s
+  [30s generate] stage ready +190s
+  generate to ready: 191 s wall; total with plan 211 s
+  block: {"artifactId":"wa_af774b48e8914d2d85f295102b60de4c","revision":1,"planHash":"34d50eea0b505dbae817973d7c1ea67632490c99c92de72a1de2f6574a6dfce5","measured":{"seconds":30,"frames":900,"bytes":1882855},"status":"ready"}
+  timings: undefined
+  result timings: {"video_seconds":30,"plan":16.55,"author":45.32,"narration":16.559,"timing_fit":1,"render":[124.032],"pull_store":2.031,"total":205.492}
+  MP4 C:\Users\cyudhist\AppData\Local\Temp\wb-smoke-DqyKEW\30s.mp4: {"codec_name":"h264","width":1920,"height":1080,"pix_fmt":"yuv420p","color_space":"bt709","r_frame_rate":"30/1","duration":"30.000000","nb_read_frames":"900","side_data_list":[{}],"audio":"aac"}
+  usage before: {"enforced":true,"period":"2026-11","resetsAt":"2026-12-01T00:00:00.000Z","allowanceCredits":2500,"usedCredits":24.6238,"reservedCredits":0,"estimatedCredits":0,"remainingCredits":2475.3762,"unknownAttempts":0,"byFeature":[{"feature":"artifact","usedCredits":24.6238,"reservedCredits":0,"unknownAttempts":0}]} 
+  usage after:  {"enforced":true,"period":"2026-11","resetsAt":"2026-12-01T00:00:00.000Z","allowanceCredits":2500,"usedCredits":39.3494,"reservedCredits":0,"estimatedCredits":0,"remainingCredits":2460.6506,"unknownAttempts":0,"byFeature":[{"feature":"artifact","usedCredits":39.3494,"reservedCredits":0,"unknownAttempts":0}]}
+
+=== 60 s video ===
+  [60s plan] stage planning +0s
+  [60s plan] stage awaiting_approval +22s
+goal: The learner will understand how gradient descent repeatedly steps against the slope to reach a minimum, by following three steps on f(x) = x squared.
+  Scene 1 (12 s): Gradient descent finds the lowest point of a curve by repeatedly stepping downhill.
+  Scene 2 (16 s): Each step moves x against the slope, scaled by a learning rate.
+  Scene 3 (18 s): Repeating the rule moves x closer to the minimum each time.
+  Scene 4 (14 s): The learning rate controls step size: too small is slow, too big overshoots.
+  chat text rows: 1 ["The learner will understand how gradient descent repeatedly steps against the slope to reach a minimum, by following three steps on f(x) = x squared.\nScene 1 (12 s): Gradient descent finds the lowe
+  proposal usage: {"estimate_credits":134,"max_credits":240,"reserve_credits":null} -> "up to 240 credits" (estimate 134)
+  [60s generate] stage authoring +1s
+  [60s generate] stage narrating +97s
+  [60s generate] stage rendering +138s
+  [60s generate] stage ready +359s
+  generate to ready: 359 s wall; total with plan 383 s
+  block: {"artifactId":"wa_bd940f782fa748a6a1bf0a8beb019105","revision":1,"planHash":"8309bba7c2b51aa620d6c4a3803368b3807eb1c23ae45c23f6c674b049db0d25","measured":{"seconds":60,"frames":1800,"bytes":3542713},"status":"ready"}
+  timings: undefined
+  result timings: {"video_seconds":60,"plan":20.24,"author":95.173,"narration":40.989,"timing_fit":1,"render":[218.43],"pull_store":1.938,"total":377.77}
+  MP4 C:\Users\cyudhist\AppData\Local\Temp\wb-smoke-Q76Dx7\60s.mp4: {"codec_name":"h264","width":1920,"height":1080,"pix_fmt":"yuv420p","color_space":"bt709","r_frame_rate":"30/1","duration":"60.000000","nb_read_frames":"1800","side_data_list":[{}],"audio":"aac"}
+  usage before: {"enforced":true,"period":"2026-11","resetsAt":"2026-12-01T00:00:00.000Z","allowanceCredits":2500,"usedCredits":39.3494,"reservedCredits":0,"estimatedCredits":0,"remainingCredits":2460.6506,"unknownAttempts":0,"byFeature":[{"feature":"artifact","usedCredits":39.3494,"reservedCredits":0,"unknownAttempts":0}]} 
+  usage after:  {"enforced":true,"period":"2026-11","resetsAt":"2026-12-01T00:00:00.000Z","allowanceCredits":2500,"usedCredits":65.5659,"reservedCredits":0,"estimatedCredits":0,"remainingCredits":2434.4341,"unknownAttempts":0,"byFeature":[{"feature":"artifact","usedCredits":65.5659,"reservedCredits":0,"unknownAttempts":0}]}
+
+SMOKE OK (0 failing case(s))

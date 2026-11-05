@@ -1,0 +1,129 @@
+{
+ "job": {
+  "id": "wj_f1b61d1111ca4992a8da61231930b78e",
+  "version": 1,
+  "boardId": "01b5263c-ddf2-4189-8c7a-f8378510c66a",
+  "cardId": "349e24b6-c998-4dfe-9616-722e26a6a780",
+  "stage": "ready",
+  "attempt": 1,
+  "terminal": true,
+  "title": "One Step of Gradient Descent on x Squared",
+  "durationSeconds": 10,
+  "outcome": "supported",
+  "failure": null,
+  "plan": {
+   "schema": "whiteboard-plan/1",
+   "planId": "wj_f1b61d1111ca4992a8da61231930b78e",
+   "revision": 1,
+   "goal": "The learner sees how gradient descent uses the slope to take one step downhill, from x = 3 to x = 2.4 on the curve x squared.",
+   "audience": "a curious learner",
+   "durationSeconds": 10,
+   "language": "en",
+   "voice": "whiteboard-default-v1",
+   "quality": "whiteboard-1080p-v1",
+   "sourceRefs": [],
+   "scenes": [
+    {
+     "id": "s1",
+     "startFrame": 0,
+     "endFrame": 300,
+     "learningPoint": "Gradient descent moves against the slope: new x = old x minus step size times slope.",
+     "visualIntent": "Axes with the curve y = x squared drawn from 25 points between x = -4 and 4. A dot at (3, 9) with a short tangent line labelled 'slope 6'. An arrow points downhill to a dot at (2.4, 5.76). Handwritten text: 'x = 3 - 0.1 × 6 = 2.4'.",
+     "narrationSummary": "At x equals 3, the slope is 6. Step downhill: 3 minus 0.1 times 6 gives 2.4, lower on the curve.",
+     "facts": [
+      {
+       "text": "starting x",
+       "value": 3,
+       "provenance": "claim"
+      },
+      {
+       "text": "height x squared at 3",
+       "value": 9,
+       "provenance": "computed"
+      },
+      {
+       "text": "slope 2x at 3",
+       "value": 6,
+       "provenance": "computed"
+      },
+      {
+       "text": "step size",
+       "value": 0.1,
+       "provenance": "claim"
+      },
+      {
+       "text": "new x = 3 - 0.1 × 6",
+       "value": 2.4,
+       "provenance": "computed"
+      },
+      {
+       "text": "height x squared at 2.4",
+       "value": 5.76,
+       "provenance": "computed"
+      }
+     ],
+     "illustration": false
+    }
+   ],
+   "substitutions": [],
+   "limitations": [
+    "Shows a single step only, not the repeated steps that reach the minimum.",
+    "Uses a one-variable curve; real models adjust many variables at once.",
+    "The step size of 0.1 is picked for illustration."
+   ]
+  },
+  "planHash": "037af1381e42cc2a863dae55ad60faaa17a3e25445e25fff5dd8bd7ca5962613",
+  "result": {
+   "schema": "whiteboard-result/1",
+   "artifactId": "wa_4f9571e331854c8d91fabbb4833b51c7",
+   "revision": 1,
+   "planHash": "037af1381e42cc2a863dae55ad60faaa17a3e25445e25fff5dd8bd7ca5962613",
+   "manifestHash": "17be27d0160db085efdee96c838a7a83630616333f0240f5f604156e593a1866",
+   "rendererVersion": "whiteboard-renderer-1",
+   "keys": {
+    "mp4": "learn-whiteboard/example-com/canvas-9605fecc/main/wa_4f9571e331854c8d91fabbb4833b51c7/final.mp4",
+    "poster": "learn-whiteboard/example-com/canvas-9605fecc/main/wa_4f9571e331854c8d91fabbb4833b51c7/poster.png",
+    "captions": "learn-whiteboard/example-com/canvas-9605fecc/main/wa_4f9571e331854c8d91fabbb4833b51c7/captions.vtt",
+    "transcript": "learn-whiteboard/example-com/canvas-9605fecc/main/wa_4f9571e331854c8d91fabbb4833b51c7/transcript.json",
+    "manifest": "learn-whiteboard/example-com/canvas-9605fecc/main/wa_4f9571e331854c8d91fabbb4833b51c7/manifest.json"
+   },
+   "measured": {
+    "seconds": 10,
+    "frames": 300,
+    "width": 1920,
+    "height": 1080,
+    "bytes": 572697
+   },
+   "timings": {
+    "video_seconds": 10,
+    "plan": 10.462,
+    "author": 18.766,
+    "narration": 6.164,
+    "timing_fit": 1,
+    "render": [
+     65.287
+    ],
+    "pull_store": 1.498,
+    "total": 103.177
+   }
+  },
+  "usage": {
+   "credits": 9,
+   "unknown": false
+  },
+  "chatPending": false,
+  "createdAt": 1793866401026,
+  "updatedAt": 1793866507981
+ },
+ "block": {
+  "artifactId": "wa_4f9571e331854c8d91fabbb4833b51c7",
+  "revision": 1,
+  "planHash": "037af1381e42cc2a863dae55ad60faaa17a3e25445e25fff5dd8bd7ca5962613",
+  "measured": {
+   "seconds": 10,
+   "frames": 300,
+   "bytes": 572697
+  },
+  "status": "ready"
+ }
+}

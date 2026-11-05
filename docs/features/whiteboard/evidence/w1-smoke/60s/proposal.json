@@ -1,0 +1,21 @@
+{
+ "usage": {
+  "estimate_credits": 134,
+  "max_credits": 240,
+  "reserve_credits": null
+ },
+ "title": "Gradient Descent: Walking Down x Squared",
+ "settings": {
+  "duration_seconds": 60
+ },
+ "input": {
+  "org": "example-com",
+  "app": "canvas-75b3cf33",
+  "job": "wj_246f720363704899ab33121b4f92df65",
+  "plan_hash": "8309bba7c2b51aa620d6c4a3803368b3807eb1c23ae45c23f6c674b049db0d25",
+  "request": "explain gradient descent with one worked example",
+  "scenes": 4
+ },
+ "requirements": [],
+ "description": "The learner will understand how gradient descent repeatedly steps against the slope to reach a minimum, by following three steps on f(x) = x squared.\nScene 1 (12 s): Gradient descent finds the lowest point of a curve by repeatedly stepping downhill.\nScene 2 (16 s): Each step moves x against the slope, scaled by a learning rate.\nScene 3 (18 s): Repeating the rule moves x closer to the minimum each time.\nScene 4 (14 s): The learning rate controls step size: too small is slow, too big overshoots.\nNarrated by one voice; 4 scenes; 60 seconds."
+}

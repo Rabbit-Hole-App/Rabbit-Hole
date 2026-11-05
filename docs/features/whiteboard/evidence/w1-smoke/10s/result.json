@@ -1,0 +1,38 @@
+{
+ "result": {
+  "schema": "whiteboard-result/1",
+  "artifactId": "wa_4f9571e331854c8d91fabbb4833b51c7",
+  "revision": 1,
+  "planHash": "037af1381e42cc2a863dae55ad60faaa17a3e25445e25fff5dd8bd7ca5962613",
+  "manifestHash": "17be27d0160db085efdee96c838a7a83630616333f0240f5f604156e593a1866",
+  "rendererVersion": "whiteboard-renderer-1",
+  "keys": {
+   "mp4": "learn-whiteboard/example-com/canvas-9605fecc/main/wa_4f9571e331854c8d91fabbb4833b51c7/final.mp4",
+   "poster": "learn-whiteboard/example-com/canvas-9605fecc/main/wa_4f9571e331854c8d91fabbb4833b51c7/poster.png",
+   "captions": "learn-whiteboard/example-com/canvas-9605fecc/main/wa_4f9571e331854c8d91fabbb4833b51c7/captions.vtt",
+   "transcript": "learn-whiteboard/example-com/canvas-9605fecc/main/wa_4f9571e331854c8d91fabbb4833b51c7/transcript.json",
+   "manifest": "learn-whiteboard/example-com/canvas-9605fecc/main/wa_4f9571e331854c8d91fabbb4833b51c7/manifest.json"
+  },
+  "measured": {
+   "seconds": 10,
+   "frames": 300,
+   "width": 1920,
+   "height": 1080,
+   "bytes": 572697
+  },
+  "timings": {
+   "video_seconds": 10,
+   "plan": 10.462,
+   "author": 18.766,
+   "narration": 6.164,
+   "timing_fit": 1,
+   "render": [
+    65.287
+   ],
+   "pull_store": 1.498,
+   "total": 103.177
+  }
+ },
+ "cardId": "349e24b6-c998-4dfe-9616-722e26a6a780",
+ "title": "One Step of Gradient Descent on x Squared"
+}

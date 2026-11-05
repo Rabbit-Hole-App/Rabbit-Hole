@@ -1,0 +1,200 @@
+{
+ "job": {
+  "id": "wj_246f720363704899ab33121b4f92df65",
+  "version": 1,
+  "boardId": "57178762-58d8-46b8-b71a-4deda158d63e",
+  "cardId": "31eb8aff-7af6-4d09-a823-7f34b323ece8",
+  "stage": "ready",
+  "attempt": 1,
+  "terminal": true,
+  "title": "Gradient Descent: Walking Down x Squared",
+  "durationSeconds": 60,
+  "outcome": "supported",
+  "failure": null,
+  "plan": {
+   "schema": "whiteboard-plan/1",
+   "planId": "wj_246f720363704899ab33121b4f92df65",
+   "revision": 1,
+   "goal": "The learner will understand how gradient descent repeatedly steps against the slope to reach a minimum, by following three steps on f(x) = x squared.",
+   "audience": "a curious learner",
+   "durationSeconds": 60,
+   "language": "en",
+   "voice": "whiteboard-default-v1",
+   "quality": "whiteboard-1080p-v1",
+   "sourceRefs": [],
+   "scenes": [
+    {
+     "id": "s1",
+     "startFrame": 0,
+     "endFrame": 360,
+     "learningPoint": "Gradient descent finds the lowest point of a curve by repeatedly stepping downhill.",
+     "visualIntent": "Axes with the curve f(x) = x squared sampled from x = -3.5 to 3.5 at 15 points. A dot at x = 3, height 9. A circle marks the bottom at x = 0, labelled 'minimum'.",
+     "narrationSummary": "Gradient descent finds the lowest point of a curve. Picture standing on this hill at x equals three, and walking downhill step by step.",
+     "facts": [
+      {
+       "text": "starting point x",
+       "value": 3,
+       "provenance": "claim"
+      },
+      {
+       "text": "f(3) = 3 squared",
+       "value": 9,
+       "provenance": "computed"
+      },
+      {
+       "text": "minimum at x",
+       "value": 0,
+       "provenance": "computed"
+      }
+     ],
+     "illustration": false
+    },
+    {
+     "id": "s2",
+     "startFrame": 360,
+     "endFrame": 840,
+     "learningPoint": "Each step moves x against the slope, scaled by a learning rate.",
+     "visualIntent": "Write the rule as text: new x = x − rate × slope. Below: slope of x squared = 2x. A short tangent line at x = 3 labelled 'slope 6', and 'rate = 0.25' written beside it.",
+     "narrationSummary": "The slope tells which way is uphill. For x squared the slope is two x, so six at x equals three. We step the other way, scaled by a learning rate, here a quarter.",
+     "facts": [
+      {
+       "text": "slope of x squared",
+       "provenance": "claim"
+      },
+      {
+       "text": "slope at x = 3 is 2 × 3",
+       "value": 6,
+       "provenance": "computed"
+      },
+      {
+       "text": "learning rate",
+       "value": 0.25,
+       "provenance": "claim"
+      }
+     ],
+     "illustration": false
+    },
+    {
+     "id": "s3",
+     "startFrame": 840,
+     "endFrame": 1380,
+     "learningPoint": "Repeating the rule moves x closer to the minimum each time.",
+     "visualIntent": "Three arrows on the curve hopping from x = 3 to 1.5 to 0.75 to 0.375. Side table written as text: 3 − 0.25×6 = 1.5; 1.5 − 0.25×3 = 0.75; 0.75 − 0.25×1.5 = 0.375. Heights labelled 9, 2.25, 0.5625, 0.140625.",
+     "narrationSummary": "Step one: three minus a quarter of six gives one and a half. Step two: zero point seven five. Step three: zero point three seven five. Each step halves x, and the height drops toward zero.",
+     "facts": [
+      {
+       "text": "x after step 1: 3 − 0.25 × 6",
+       "value": 1.5,
+       "provenance": "computed"
+      },
+      {
+       "text": "x after step 2: 1.5 − 0.25 × 3",
+       "value": 0.75,
+       "provenance": "computed"
+      },
+      {
+       "text": "x after step 3: 0.75 − 0.25 × 1.5",
+       "value": 0.375,
+       "provenance": "computed"
+      },
+      {
+       "text": "height after step 1",
+       "value": 2.25,
+       "provenance": "computed"
+      },
+      {
+       "text": "height after step 2",
+       "value": 0.5625,
+       "provenance": "computed"
+      },
+      {
+       "text": "height after step 3",
+       "value": 0.140625,
+       "provenance": "computed"
+      }
+     ],
+     "illustration": false
+    },
+    {
+     "id": "s4",
+     "startFrame": 1380,
+     "endFrame": 1800,
+     "learningPoint": "The learning rate controls step size: too small is slow, too big overshoots.",
+     "visualIntent": "Two small sketches of the curve side by side. Left, 'rate 0.1': short arrow from 3 to 2.4. Right, 'rate 1': arrow jumping from 3 to −3 and back, labelled 'bounces forever'.",
+     "narrationSummary": "Step size matters. With rate zero point one, x only moves from three to two point four. With rate one, it jumps to minus three and bounces forever.",
+     "facts": [
+      {
+       "text": "rate 0.1: 3 − 0.1 × 6",
+       "value": 2.4,
+       "provenance": "computed"
+      },
+      {
+       "text": "rate 1: 3 − 1 × 6",
+       "value": -3,
+       "provenance": "computed"
+      }
+     ],
+     "illustration": false
+    }
+   ],
+   "substitutions": [],
+   "limitations": [
+    "Uses one simple curve with a single lowest point; real problems have many variables and can have several valleys.",
+    "The learning rate values are illustrative, chosen so the arithmetic stays clean."
+   ]
+  },
+  "planHash": "8309bba7c2b51aa620d6c4a3803368b3807eb1c23ae45c23f6c674b049db0d25",
+  "result": {
+   "schema": "whiteboard-result/1",
+   "artifactId": "wa_bd940f782fa748a6a1bf0a8beb019105",
+   "revision": 1,
+   "planHash": "8309bba7c2b51aa620d6c4a3803368b3807eb1c23ae45c23f6c674b049db0d25",
+   "manifestHash": "f8f3eb83218134683e752793943b0d7f5a3e7bef6df979668aff19544017a2d3",
+   "rendererVersion": "whiteboard-renderer-1",
+   "keys": {
+    "mp4": "learn-whiteboard/example-com/canvas-75b3cf33/main/wa_bd940f782fa748a6a1bf0a8beb019105/final.mp4",
+    "poster": "learn-whiteboard/example-com/canvas-75b3cf33/main/wa_bd940f782fa748a6a1bf0a8beb019105/poster.png",
+    "captions": "learn-whiteboard/example-com/canvas-75b3cf33/main/wa_bd940f782fa748a6a1bf0a8beb019105/captions.vtt",
+    "transcript": "learn-whiteboard/example-com/canvas-75b3cf33/main/wa_bd940f782fa748a6a1bf0a8beb019105/transcript.json",
+    "manifest": "learn-whiteboard/example-com/canvas-75b3cf33/main/wa_bd940f782fa748a6a1bf0a8beb019105/manifest.json"
+   },
+   "measured": {
+    "seconds": 60,
+    "frames": 1800,
+    "width": 1920,
+    "height": 1080,
+    "bytes": 3542713
+   },
+   "timings": {
+    "video_seconds": 60,
+    "plan": 20.24,
+    "author": 95.173,
+    "narration": 40.989,
+    "timing_fit": 1,
+    "render": [
+     218.43
+    ],
+    "pull_store": 1.938,
+    "total": 377.77
+   }
+  },
+  "usage": {
+   "credits": 27,
+   "unknown": false
+  },
+  "chatPending": false,
+  "createdAt": 1793866740035,
+  "updatedAt": 1793867120419
+ },
+ "block": {
+  "artifactId": "wa_bd940f782fa748a6a1bf0a8beb019105",
+  "revision": 1,
+  "planHash": "8309bba7c2b51aa620d6c4a3803368b3807eb1c23ae45c23f6c674b049db0d25",
+  "measured": {
+   "seconds": 60,
+   "frames": 1800,
+   "bytes": 3542713
+  },
+  "status": "ready"
+ }
+}

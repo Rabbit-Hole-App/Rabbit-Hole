@@ -1,0 +1,19 @@
+
+=== 10 s video ===
+  [10s plan] stage planning +0s
+  [10s plan] stage awaiting_approval +13s
+goal: The learner will understand that gradient descent finds a minimum by repeatedly stepping against the slope, shown with one worked step on x squared.
+  Scene 1 (10 s): Each gradient descent step moves x against the slope by step size times slope, bringing it closer to the minimum.
+  chat text rows: 1 ["The learner will understand that gradient descent finds a minimum by repeatedly stepping against the slope, shown with one worked step on x squared.\nScene 1 (10 s): Each gradient descent step moves
+  proposal usage: {"estimate_credits":36,"max_credits":125,"reserve_credits":null} -> "up to 125 credits" (estimate 36)
+  [10s generate] stage authoring +0s
+  [10s generate] stage narrating +22s
+  [10s generate] stage timing +35s
+  [10s generate] stage narrating +47s
+  [10s generate] stage failed +59s
+  generate to failed: 59 s wall; total with plan 73 s
+  FAILED: {"code":"narration_overrun","stage":"timing","reason":"the narration could not be made","previousRevisionAvailable":false,"message":"\"Gradient Descent: One Step Down x²\" was not finished: the narration could not be made. Your request and plan are kept; nothing was charged for the part that failed."}
+  usage before: {"enforced":true,"period":"2026-11","resetsAt":"2026-12-01T00:00:00.000Z","allowanceCredits":2500,"usedCredits":3.2532,"reservedCredits":0,"estimatedCredits":0,"remainingCredits":2496.7468,"unknownAttempts":0,"byFeature":[{"feature":"artifact","usedCredits":3.2532,"reservedCredits":0,"unknownAttempts":0}]} 
+  usage after:  {"enforced":true,"period":"2026-11","resetsAt":"2026-12-01T00:00:00.000Z","allowanceCredits":2500,"usedCredits":5.356,"reservedCredits":0,"estimatedCredits":0,"remainingCredits":2494.644,"unknownAttempts":0,"byFeature":[{"feature":"artifact","usedCredits":5.356,"reservedCredits":0,"unknownAttempts":0}]}
+
+SMOKE FAILED (1 failing case(s))

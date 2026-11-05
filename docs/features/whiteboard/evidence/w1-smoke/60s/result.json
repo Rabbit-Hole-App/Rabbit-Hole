@@ -1,0 +1,38 @@
+{
+ "result": {
+  "schema": "whiteboard-result/1",
+  "artifactId": "wa_bd940f782fa748a6a1bf0a8beb019105",
+  "revision": 1,
+  "planHash": "8309bba7c2b51aa620d6c4a3803368b3807eb1c23ae45c23f6c674b049db0d25",
+  "manifestHash": "f8f3eb83218134683e752793943b0d7f5a3e7bef6df979668aff19544017a2d3",
+  "rendererVersion": "whiteboard-renderer-1",
+  "keys": {
+   "mp4": "learn-whiteboard/example-com/canvas-75b3cf33/main/wa_bd940f782fa748a6a1bf0a8beb019105/final.mp4",
+   "poster": "learn-whiteboard/example-com/canvas-75b3cf33/main/wa_bd940f782fa748a6a1bf0a8beb019105/poster.png",
+   "captions": "learn-whiteboard/example-com/canvas-75b3cf33/main/wa_bd940f782fa748a6a1bf0a8beb019105/captions.vtt",
+   "transcript": "learn-whiteboard/example-com/canvas-75b3cf33/main/wa_bd940f782fa748a6a1bf0a8beb019105/transcript.json",
+   "manifest": "learn-whiteboard/example-com/canvas-75b3cf33/main/wa_bd940f782fa748a6a1bf0a8beb019105/manifest.json"
+  },
+  "measured": {
+   "seconds": 60,
+   "frames": 1800,
+   "width": 1920,
+   "height": 1080,
+   "bytes": 3542713
+  },
+  "timings": {
+   "video_seconds": 60,
+   "plan": 20.24,
+   "author": 95.173,
+   "narration": 40.989,
+   "timing_fit": 1,
+   "render": [
+    218.43
+   ],
+   "pull_store": 1.938,
+   "total": 377.77
+  }
+ },
+ "cardId": "31eb8aff-7af6-4d09-a823-7f34b323ece8",
+ "title": "Gradient Descent: Walking Down x Squared"
+}

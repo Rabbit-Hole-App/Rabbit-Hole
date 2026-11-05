@@ -46,3 +46,11 @@ test('the planner request: one cached system block, one tool on auto, medium eff
   assert.deepEqual(PLAN_TOOL.input_schema.properties.kind.enum, ['supported', 'unsupported']);
   assert.throws(() => whiteboardRequest({}, 'plan', { system: 's', tool: PLAN_TOOL, content: 'x'.repeat(200000) }), { code: 'input_too_large' });
 });
+
+test('the narration line says "1 scene" for one scene and "N scenes" from two (owner, 5 Nov 2026)', () => {
+  const one = { ...plan60, durationSeconds: 10, scenes: [{ ...plan60.scenes[0], startFrame: 0, endFrame: 300 }] };
+  assert.match(planLines(one), /Narrated by one voice; 1 scene; 10 seconds\.$/);
+  const two = { ...plan60, durationSeconds: 30, scenes: [{ ...plan60.scenes[0], startFrame: 0, endFrame: 360 }, { ...plan60.scenes[1], startFrame: 360, endFrame: 900 }] };
+  assert.match(planLines(two), /Narrated by one voice; 2 scenes; 30 seconds\.$/);
+  assert.match(planLines(plan60), /Narrated by one voice; 4 scenes; 60 seconds\.$/);
+});

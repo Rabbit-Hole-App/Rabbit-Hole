@@ -1,0 +1,53 @@
+WEBVTT
+
+1
+00:00:00.000 --> 00:00:03.033
+Gradient descent finds a curve's lowest point.
+
+2
+00:00:03.367 --> 00:00:05.967
+Stand on this hill at x equals three.
+
+3
+00:00:06.300 --> 00:00:09.067
+Walk downhill, step by step.
+
+4
+00:00:12.000 --> 00:00:14.267
+The rule: step against the slope.
+
+5
+00:00:14.600 --> 00:00:19.900
+For x squared, slope is two x: six at three, pointing uphill.
+
+6
+00:00:20.233 --> 00:00:23.867
+So step downhill, scaled by a learning rate of a quarter.
+
+7
+00:00:28.000 --> 00:00:32.167
+Step one: three minus a quarter of six: one point five.
+
+8
+00:00:32.500 --> 00:00:35.833
+Step two: zero point seven five.
+
+9
+00:00:36.167 --> 00:00:39.500
+Step three: zero point three seven five.
+
+10
+00:00:39.833 --> 00:00:43.000
+X halves each time; height nears zero.
+
+11
+00:00:46.000 --> 00:00:50.367
+Rate zero point one: x crawls from three to two point four.
+
+12
+00:00:50.700 --> 00:00:53.000
+Rate one jumps to minus three
+
+13
+00:00:53.167 --> 00:00:54.867
+and bounces forever.

@@ -1,0 +1,21 @@
+{
+ "usage": {
+  "estimate_credits": 70,
+  "max_credits": 176,
+  "reserve_credits": null
+ },
+ "title": "Gradient Descent: Stepping Down x Squared",
+ "settings": {
+  "duration_seconds": 30
+ },
+ "input": {
+  "org": "example-com",
+  "app": "canvas-54fcf36d",
+  "job": "wj_05571143845b4930969cfc236f685e9f",
+  "plan_hash": "34d50eea0b505dbae817973d7c1ea67632490c99c92de72a1de2f6574a6dfce5",
+  "request": "explain gradient descent with one worked example",
+  "scenes": 2
+ },
+ "requirements": [],
+ "description": "Understand that gradient descent finds a minimum by repeatedly stepping opposite the slope, and see two steps worked out on f(x) = x squared.\nScene 1 (12 s): Gradient descent finds a function's lowest point by repeatedly stepping opposite the slope, which means downhill.\nScene 2 (18 s): Each step uses new x = x minus step size times slope, and the steps shrink as the slope flattens near the minimum.\nNarrated by one voice; 2 scenes; 30 seconds."
+}
