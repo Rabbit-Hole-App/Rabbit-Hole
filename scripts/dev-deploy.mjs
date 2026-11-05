@@ -17,6 +17,7 @@ import { tmpdir } from 'node:os';
 import { join, posix, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ensureNatives } from './ensure-natives.mjs';
+import { attestGaps, attestedStages } from './gate-attest.mjs';
 
 export const WORKER = 'rabbit-hole-web-dev-small-parallel';
 export const CONFIRMATIONS = 5; // consecutive serves of the new build before the smoke
@@ -91,6 +92,8 @@ function attestationGaps(records, inTree) {
     if (!from) { gaps.push(`${stage}: not in the record`); continue; }
     if (from.last.get(stage) !== 0) continue; // a failed stage is reported as failed
     if (!(stageCount(from.tails.get(stage)) > 0)) gaps.push(`${stage}: no positive check count`);
+    // Item 1: a stage the sharded gate took from the exact-SHA fast-e2e run (gate-attest.mjs), checked here independently.
+    const bad = attestGaps(stage, from.tails.get(stage), from.sha); if (bad) gaps.push(bad);
     if (tripwire && !from.counts.some(c => !c.model && c.stage === tripwire && c.value === '0')) gaps.push(`${stage}: no "${tripwire} provider-tripwire hits: 0" line`);
   }
   if (!records.some(g => g.counts.some(c => c.model && c.value === '0'))) gaps.push('no "model key bindings in app log: 0" line');
@@ -98,9 +101,11 @@ function attestationGaps(records, inTree) {
 }
 
 // inTree defaults to "every check exists": without the tree to ask, every listed stage is required.
-export function gateVerdict(text, tree, inTree = () => true) {
+// sha: the commit the record gates; a stage attested by fast-e2e (gate-attest.mjs) must name exactly it.
+export function gateVerdict(text, tree, inTree = () => true, sha = null) {
   const g = readGate(text, tree);
   if (g.error) return g.error;
+  g.sha = sha;
   const bad = badCounts(g.counts);
   if (bad.length) return `provider tripwire or model key count not 0: ${bad.join(', ')}`;
   if (g.last.get('make test-unit') !== 0) return 'make test-unit did not exit 0';
@@ -110,14 +115,22 @@ export function gateVerdict(text, tree, inTree = () => true) {
   return null;
 }
 
+// -> which path each stage of a gate record took: ran in the gate, or attested by the fast-e2e run its line names.
+export function gatePaths(text) {
+  const att = attestedStages(text), done = new Set(att.map(a => a.stage));
+  const ran = [...new Set([...text.matchAll(/^([^:\r\n]+?) exit \d+\b/gm)].map(m => m[1]))].filter(s => !done.has(s));
+  return { ran, attested: att.map(a => a.stage), run: att[0]?.run ?? null };
+}
+
 // A full gate on G plus a later rerun on R of what changed after it (owner, 2026-10-08: "reuse valid unchanged results
 // and rerun affected checks"). R's record must finish clean, every stage G failed must pass in R, and G must hold the
 // unit run unless R ran it; tripwire and model-key counts are 0 in both.
-export function rerunVerdict(gText, gTree, rText, rTree, { unitChanged = false, inTree = () => true } = {}) {
+export function rerunVerdict(gText, gTree, rText, rTree, { unitChanged = false, inTree = () => true, gSha = null } = {}) {
   const g = readGate(gText, gTree);
   if (g.error) return `gate: ${g.error}`;
   const r = readGate(rText, rTree);
   if (r.error) return `rerun: ${r.error}`;
+  g.sha = gSha; // the rerun record has no commit of its own to attest against, so it may not carry attested stages
   if (!r.last.size) return 'rerun: the record ran no stage';
   if (r.failed.length) return `rerun: failed stages: ${r.failed.join(', ')}`;
   const rBad = badCounts(r.counts);
@@ -401,13 +414,15 @@ async function main() {
   if (rerun && !reuse) stop('--rerun goes with --reuse <gated sha>');
   const gated = reuse || sha, tree = git('rev-parse', `${gated}^{tree}`);
   const gateText = readFileSync(arg('gate') ?? stop('--gate <gate record> is required'), 'utf8');
+  const paths = gatePaths(gateText);
   // A beta stage is required where the commit being deployed carries its check (GATE_STAGES).
   const inTree = p => { try { execFileSync('git', ['cat-file', '-e', `${sha}:${p}`], { cwd: root, stdio: 'ignore' }); return true; } catch { return false; } };
   let gatedId = null;
   if (!rerun) {
-    const verdict = gateVerdict(gateText, tree, inTree);
+    const verdict = gateVerdict(gateText, tree, inTree, gated);
     if (verdict) stop(`gate: ${verdict} - the last passing deployment stays`);
     say(`✓ gate passed for ${gated.slice(0, 8)} (tree ${tree.slice(0, 8)})`);
+    say(paths.attested.length ? `✓ gate path: ${paths.ran.length} stages ran in the gate, ${paths.attested.length} attested by fast-e2e run ${paths.run} (${paths.attested.join(', ')})` : `✓ gate path: all ${paths.ran.length} stages ran in the gate`);
   }
   if (reuse) {
     if (reuse === sha) stop('--reuse names the candidate itself; deploy it without --reuse');
@@ -423,7 +438,7 @@ async function main() {
       if (notTest.length) stop(`policy A: ${notTest.join(', ')} changed between the gated ${reuse.slice(0, 8)} and the rerun; only tests may, so a full gate is needed`);
       const outsideAfter = notReusable(after, worker);
       if (outsideAfter.length) stop(`policy A: ${outsideAfter.join(', ')} changed after the rerun ${rerun.sha.slice(0, 8)}; this commit needs its own gate`);
-      const verdict = rerunVerdict(gateText, tree, readFileSync(rerun.file, 'utf8'), git('rev-parse', `${rerun.sha}^{tree}`), { unitChanged: tested.some(p => UNIT_TEST.test(p)), inTree });
+      const verdict = rerunVerdict(gateText, tree, readFileSync(rerun.file, 'utf8'), git('rev-parse', `${rerun.sha}^{tree}`), { unitChanged: tested.some(p => UNIT_TEST.test(p)), inTree, gSha: reuse });
       if (verdict) stop(`${verdict} - the last passing deployment stays`);
       say(`✓ gate of ${reuse.slice(0, 8)} plus the rerun on ${rerun.sha.slice(0, 8)} (changed in between: ${tested.join(', ') || 'nothing'})`);
       changed = [...new Set([...tested, ...after])];
@@ -494,7 +509,7 @@ async function main() {
     // Provenance (r34 audit): the commit's tree, the gate record it passed on (digest of the note's text), the run that
     // deployed it and the dev version it became. prod-release refuses a record without them.
     const run = process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_RUN_ID}.${process.env.GITHUB_RUN_ATTEMPT ?? 1}` : 'local';
-    appendFileSync(record, `${JSON.stringify({ sha, tree: git('rev-parse', `${sha}^{tree}`), ...gates, gate_digest: digest(gateText), build, bundle, smoke: smokeVerdict, worker: WORKER, version, run, at: new Date().toISOString() })}\n`);
+    appendFileSync(record, `${JSON.stringify({ sha, tree: git('rev-parse', `${sha}^{tree}`), ...gates, gate_digest: digest(gateText), ...(!reuse && paths.attested.length ? { attested: { run: paths.run, sha, stages: paths.attested } } : {}), build, bundle, smoke: smokeVerdict, worker: WORKER, version, run, at: new Date().toISOString() })}\n`);
     if (smokeVerdict === 'fail') {
       if (before.version) {
         wrangler(['rollback', before.version, '--name', WORKER, '-y', '-m', `rollback to main ${before.sha}: smoke failed for ${sha.slice(0, 8)}`]);

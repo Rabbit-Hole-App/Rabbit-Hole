@@ -124,6 +124,28 @@ Owner, 2026-10-08: "create a dev branch where when pushing on dev deploys to the
 - **Production:** a push to `main` runs `.github/workflows/deploy-prod.yml`, which releases a commit only after its own green dev deploy; see [prod-release.md](prod-release.md).
 - `dev-deploy.mjs` accepts only `--branch origin/main` (the default, by hand) or `--branch rabbit-hole/dev`.
 
+## Stages taken from fast-e2e (item 1, CI and release speed, 2026-11-05)
+
+The gate runs nothing the exact-SHA fast-e2e run already ran green. For 20 browser stages (`ATTESTABLE` in
+`scripts/gate-attest.mjs`) the sharded gate (harness `scripts/r36-gate/attest.mjs`) does not run the check when the fast-e2e
+artifact of that commit shows the check's own `exit 0  N/N checks passed` line and the part's `tripwire.log` reads
+`provider-tripwire hits: 0`; the run's green conclusion alone never counts, because fast-e2e selects by diff. The gate record then
+holds, for that stage, `<stage> provider-tripwire hits: 0` and
+`<stage> exit 0  N/N checks passed  attested-by-fast-e2e run=<id> sha=<40-hex>`; a stage that ran carries no tag. A `gate paths:`
+line counts both.
+
+- `gateVerdict` (given the gated commit) refuses a tag on any stage outside `ATTESTABLE`, a malformed tag, a sha that is not the gated
+  commit, a missing or non-N/N count, and a missing tripwire line. `dev-deploy-gate.mjs` requires each attested run to be a completed
+  success of fast-e2e at this exact commit in the runs it read. A rerun record may not carry a tag.
+- `dev-deploy.mjs` says which path it saw (`gate path: ...`) and records `"attested":{"run","sha","stages"}` on the dev row.
+  `prod-release.mjs prepare` accepts a row with or without it: with it, the stages must be attestable, the sha this commit's, and the
+  run a completed success of fast-e2e among the runs prepare read.
+- Never attested, on every path: `make test-unit` and the fixture regression (paidRefusal, escrow and auth tests), both
+  production-bundle checks, the stack-app, journey and tutor stages, share-revocation and library-folders. The secret and schema
+  preflights, the production-bundle check in `prepare` and the smoke are not gate stages and are untouched.
+- `fast-e2e.yml` reads the stack's provider tripwire into `tripwire.log` before it stops the stack; without that file a part's checks
+  are not attested.
+
 ## Policy A: reusing a gate
 
 Owner policy, 2026-10-08:

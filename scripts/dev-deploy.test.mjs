@@ -221,7 +221,7 @@ test('pages and the packaged Worker have separate identities, both recorded and 
   const src = readFileSync(new URL('./dev-deploy.mjs', import.meta.url), 'utf8');
   assert.match(src, /'--dry-run', '--outdir', out\]/, 'the bundle hash is of wrangler\'s own bundle');
   assert.match(src, /`main \$\{sha\} build \$\{build\} bundle \$\{bundle\}`/, 'the upload message names both');
-  assert.match(src, /\{ sha, tree: git\('rev-parse', `\$\{sha\}\^\{tree\}`\), \.\.\.gates, gate_digest: digest\(gateText\), build, bundle, smoke: smokeVerdict, worker: WORKER, version, run,/, 'the dev record names both, with its provenance');
+  assert.match(src, /\{ sha, tree: git\('rev-parse', `\$\{sha\}\^\{tree\}`\), \.\.\.gates, gate_digest: digest\(gateText\), \.\.\.\(!reuse && paths\.attested\.length \? \{ attested: \{ run: paths\.run, sha, stages: paths\.attested \} \} : \{\}\), build, bundle, smoke: smokeVerdict, worker: WORKER, version, run,/, 'the dev record names both, with its provenance');
   assert.equal(digest('a\r\nb\n'), digest('a\nb\n'), 'a gate note digests the same from a CRLF checkout');
   assert.match(src, /gatedId\?\.bundle && bundle !== gatedId\.bundle/, 'reuse refuses a different Worker bundle');
   const sha = 'a'.repeat(40);
