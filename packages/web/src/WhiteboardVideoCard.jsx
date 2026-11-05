@@ -77,8 +77,23 @@ function Video({ block, appName }) {
   );
 }
 
+// A committed sample video (the Slash Commands window's /whiteboard example): the block carries its own `src` and `poster` and plays as a plain
+// video, with no job, no asset route and no owner check. A real card never has `src` (its video is read by artifact id).
+function Sample({ block }) {
+  return (
+    <div data-whiteboard-video-card data-whiteboard-phase="sample" className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3">
+      <p data-drag-zone className="-mx-4 -mt-3 cursor-grab px-4 pt-3 text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <div data-player className="aspect-video w-full overflow-hidden rounded-md bg-black">
+        <video data-whiteboard-player controls preload="metadata" poster={block.poster} src={block.src} className="h-full w-full" />
+      </div>
+      <div className="text-xs text-ink-2"><span data-whiteboard-caption>{WHITEBOARD_CAPTION}</span></div>
+    </div>
+  );
+}
+
 export default function WhiteboardVideoCard({ block, onChange, onChangeQuiet, readOnly = false, appName = '', fetchJson = api }) {
   const owner = useContext(AnimationBoard)?.kind === 'owner';
+  if (typeof block.src === 'string' && (block.src.startsWith('/lesson-assets/') || block.src.startsWith('blob:'))) return <Sample block={block} />;
   const ready = !!videoOf(block), waiting = !ready && !!jobOf(block);
   return (
     <div data-whiteboard-video-card data-whiteboard-phase={ready ? 'ready' : waiting ? jobOf(block).stage : 'none'} className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3">
