@@ -19,6 +19,7 @@ import { CHAT_CAPABILITIES, chatCapability } from '../../web/src/inline-ai-route
 import { hmacHex } from './token.js';
 import { explainReservation } from './explain-policy.js';
 import { animationReservation } from './animation-policy.js';
+import { maxScenesFor, whiteboardReservation } from './whiteboard-policy.js';
 import { SCHEMA_VERSION, commandDefinition, firstReadOnly, settingsOf, validateSettings as validateCommandSettings } from '../../web/src/generation-confirmation-schema.js';
 import { MOTION_DEFAULT_RATIO, MOTION_RATIOS, motionBinding, motionMaxCredits, motionQuote, motionQuoteInputs, motionReadiness } from './motion-settings.js';
 import { REVIEW_LISTS, escapeText, plainPrompt, reviewHash, reviewOf, validateReview } from '../../web/src/generation-review.js';
@@ -41,7 +42,8 @@ export const WIRED = Object.freeze(Object.keys(CHAT_CAPABILITIES).filter(reviewR
 // Owner spec 2026-10-29: the simple material briefs (web/src/material-brief.js) are signed by the server from the person's own explicit command,
 // with no model call (chat-proposal-route.js material-proposals); they are never offered to the chat model (WIRED).
 // AN-05: /animation's plan is prepared and signed by the server (animation-job.js), as /explain's brief; it is not offered to the chat model.
-export const SIGNABLE = Object.freeze([...new Set([...WIRED, 'explain', 'animation', 'generate-image', ...BRIEF_COMMANDS])]);
+// /whiteboard (roadmap W1.2): its plan is signed by the server too (whiteboard-job.js), as the 'whiteboard-video' command.
+export const SIGNABLE = Object.freeze([...new Set([...WIRED, 'explain', 'animation', 'whiteboard-video', 'generate-image', ...BRIEF_COMMANDS])]);
 
 // Motion's settings (learn-render motion/duration.js DURATION). Audio On stays unavailable until narration works.
 // The bounds are the declaration's Duration field: one definition with the card.
@@ -160,7 +162,7 @@ export const reviewAvailable = env => !!v2Secret(env);
 // (MOTION_ESTIMATE_USD), Motion's maximum charge (MOTION_MAX_CHARGE_USD) and the temporary reservation while it runs
 // (MOTION_JOB_RESERVATION_USD). Unsigned: display only (the binding signs the same estimate and maximum).
 const credits = usd => (Number.isFinite(usd) && usd > 0 ? Math.ceil(Number((usd * 100).toFixed(6))) : null);
-export function proposalUsage(env, command, settings) {
+export function proposalUsage(env, command, settings, input = null) {
   // /explain: its estimate when configured (EXPLAIN_ESTIMATE_USD, from measured runs), and the policy's generation worst case
   // as what the job checks the allowance for. Never Motion's estimate or hold.
   if (command === 'explain') {
@@ -172,6 +174,13 @@ export function proposalUsage(env, command, settings) {
   if (command === 'animation') {
     const estimate = Number(String(env.ANIMATION_ESTIMATE_USD ?? '').trim() || NaN);
     return { estimate_credits: credits(estimate), max_credits: credits(animationReservation().generationMicros / 1e6), reserve_credits: null };
+  }
+  // /whiteboard (W1.2): the policy's estimate and generation worst case (whiteboard-policy.js) for the plan's scene count, signed in input.scenes
+  // (the duration's scene cap when none is given). No environment variable: the figures are the policy's. Nothing is held.
+  if (command === 'whiteboard-video') {
+    const n = Number.isSafeInteger(input?.scenes) ? input.scenes : maxScenesFor(settings?.duration_seconds ?? 60);
+    const r = whiteboardReservation({ scenes: Array.from({ length: n }) });
+    return { estimate_credits: credits(r.estimate.generationMicros / 1e6), max_credits: credits(r.generationMicros / 1e6), reserve_credits: null };
   }
   if (command !== 'motion') return { estimate_credits: null, reserve_credits: null };
   const hold = motionReservationMicros(env);
@@ -223,9 +232,9 @@ export async function signProposal(env, fields, user, { id = null, version = 1, 
     if (p.command === 'generate-image') r.quote = imageProposalQuote(env, r);
     Object.assign(p, { description: plainPrompt(r.prompt, r.references), schema_version: SCHEMA_VERSION, mode: r.mode, original_request: r.original_request, prompt: r.prompt, visual_constraints: r.visual_constraints,
       references: r.references, ...Object.fromEntries(REVIEW_LISTS.map(k => [k, r[k]])), destination: r.destination, quote: r.quote, review_hash: await reviewHash(r) });
-    return { ...p, sig: await signature(env, p, user, 'v3'), usage: p.command === 'generate-image' ? quoteUsage(r.quote) : proposalUsage(env, p.command, p.settings), ...readinessOf(env, p) };
+    return { ...p, sig: await signature(env, p, user, 'v3'), usage: p.command === 'generate-image' ? quoteUsage(r.quote) : proposalUsage(env, p.command, p.settings, p.input), ...readinessOf(env, p) };
   }
-  return { ...p, sig: await signature(env, p, user, signingVersion(env)), usage: proposalUsage(env, p.command, p.settings), ...readinessOf(env, p) };
+  return { ...p, sig: await signature(env, p, user, signingVersion(env)), usage: proposalUsage(env, p.command, p.settings, p.input), ...readinessOf(env, p) };
 }
 
 // The shape only (synchronous, for motion_request validation); verifyProposal checks the signature.
@@ -319,7 +328,7 @@ export const PROPOSAL_STALE = 'A newer version of this proposal exists. Use the 
 export const PROPOSAL_EDIT_STALE = 'This proposal changed since you chose Edit. Review the latest version, then press Edit on it.';
 export const PROPOSAL_USED = 'This proposal already made a video. Ask for a new version in chat to make another.';
 // The used text per capability (Motion's unchanged).
-export const proposalUsedText = command => (command === 'explain' ? 'This proposal already made an explanation. Ask for a new version in chat to make another.' : command === 'animation' ? 'This proposal already made an animation. Ask for a new version in chat to make another.' : command === 'generate-image' ? 'This proposal already made an image. Ask for a new one to make another.'
+export const proposalUsedText = command => (command === 'explain' ? 'This proposal already made an explanation. Ask for a new version in chat to make another.' : command === 'animation' ? 'This proposal already made an animation. Ask for a new version in chat to make another.' : command === 'whiteboard-video' ? 'This proposal already made a whiteboard video. Ask for a new version in chat to make another.' : command === 'generate-image' ? 'This proposal already made an image. Ask for a new one to make another.'
   : isBriefCommand(command) ? 'This brief already made its card. Send the command again to make another.' : PROPOSAL_USED);
 export const proposalState = p => ({ version: p.version, sig: p.sig, used: null });
 // -> {rows, root, state, current}: current is the published revision's proposal (null while its answer is being written).
