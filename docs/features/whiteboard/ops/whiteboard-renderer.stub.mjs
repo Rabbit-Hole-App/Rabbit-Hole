@@ -19,12 +19,18 @@ if (tool === 'fly') {
   }
 }
 if (tool === 'wrangler') {
-  if (a[0] === 'secret' && a[1] === 'list') out(S.workerSecrets.map(name => ({ name, type: 'secret_text' })));
-  if (a[0] === 'secret' && a[1] === 'put') { S.tokenWorker = stdin().trim(); S.workerSecrets = ['WHITEBOARD_RENDERER_TOKEN']; save(); out(''); }
+  const worker = a[a.indexOf('--name') + 1];
+  if (a[0] === 'secret' && a[1] === 'list') out((worker === 'rabbit-hole-app' ? S.workerSecrets : (S.cloneSecrets ?? [])).map(name => ({ name, type: 'secret_text' })));
+  if (a[0] === 'secret' && a[1] === 'put') {
+    const value = stdin().trim();
+    if (worker === 'rabbit-hole-app') { S.tokenWorker = value; S.workerSecrets = ['WHITEBOARD_RENDERER_TOKEN']; }
+    else { S.cloneSecrets = [...new Set([...(S.cloneSecrets ?? []), a[2]])]; S.cloneValues = { ...(S.cloneValues ?? {}), [a[2]]: value }; }
+    save(); out('');
+  }
 }
 if (tool === 'curl') {
   const url = a.at(-1);
-  if (url.endsWith('/health')) out(S.revision ? { ok: true, service: 'rabbit-hole-motion-renderer', version: 'stub', settings: { git_revision: S.revision }, limits: { concurrent_renders: 1 } } : '');
+  if (url.endsWith('/health')) out(S.revision ? { ok: true, service: 'rabbit-hole-motion-renderer', version: 'stub', settings: { git_revision: S.revision }, whiteboard: 'whiteboard-renderer-1', limits: { concurrent_renders: 1 } } : '');
   if (/\/render\//.test(url)) { const m = stdin().match(/Bearer (\S+)"/); out('{}\n' + (m && m[1] === S.tokenFly ? '404' : '401')); }
 }
 if (tool === 'sh') { const ctx = a.at(-1); mkdirSync(ctx, { recursive: true }); writeFileSync(join(ctx, 'fly.whiteboard.toml'), ''); writeFileSync(join(ctx, 'src.tar'), ''); out(''); }
