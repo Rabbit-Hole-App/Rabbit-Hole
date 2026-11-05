@@ -1,0 +1,29 @@
+{
+  "schema": "whiteboard-plan/1",
+  "planId": "wp_fixture10",
+  "revision": 1,
+  "goal": "See what one step of gradient descent does to a guess.",
+  "audience": "a learner who knows what a slope is",
+  "durationSeconds": 10,
+  "language": "en",
+  "voice": "whiteboard-default-v1",
+  "quality": "whiteboard-1080p-v1",
+  "sourceRefs": [],
+  "scenes": [
+    {
+      "id": "s1",
+      "startFrame": 0,
+      "endFrame": 300,
+      "learningPoint": "A step moves the guess downhill, against the slope.",
+      "visualIntent": "A parabola, a dot at x = 3, an arrow to x = 1.8.",
+      "narrationSummary": "The slope at 3 is 6; a step of 0.2 times 6 moves the guess to 1.8.",
+      "facts": [
+        { "text": "slope of x squared at 3", "value": 6, "provenance": "computed" },
+        { "text": "new guess", "value": 1.8, "provenance": "computed" }
+      ],
+      "illustration": false
+    }
+  ],
+  "substitutions": [],
+  "limitations": []
+}

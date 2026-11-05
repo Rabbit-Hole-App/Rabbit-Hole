@@ -1,0 +1,14 @@
+{
+  "schema": "whiteboard-scene/1",
+  "sceneId": "s1",
+  "primitives": [
+    { "id": "curve", "kind": "path", "color": "#37352f", "width": 3, "points": [[360, 180], [600, 620], [960, 820], [1320, 620], [1560, 180]] },
+    { "id": "dot", "kind": "ellipse", "color": "#2383e2", "width": 4, "cx": 1440, "cy": 400, "rx": 14, "ry": 14 },
+    { "id": "step", "kind": "arrow", "color": "#e03e3e", "width": 4, "x1": 1440, "y1": 400, "x2": 1250, "y2": 680 },
+    { "id": "label", "kind": "equation", "color": "#37352f", "width": 2, "x": 1100, "y": 120, "size": 56, "text": "x = 3 - 0.2 * 6 = 1.8" }
+  ],
+  "beats": [
+    { "id": "b1", "narration": "Here is our guess at x equals 3 on the curve.", "reveals": ["curve", "dot"], "pauseFrames": 0 },
+    { "id": "b2", "narration": "The slope there is 6, so a step of 0.2 times 6 moves us to 1.8.", "reveals": ["step", "label"], "pauseFrames": 15 }
+  ]
+}

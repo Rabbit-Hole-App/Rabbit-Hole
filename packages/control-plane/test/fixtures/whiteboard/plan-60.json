@@ -1,0 +1,59 @@
+{
+  "schema": "whiteboard-plan/1",
+  "planId": "wp_fixture60",
+  "revision": 1,
+  "goal": "Explain gradient descent with one worked example on f(x) = x squared.",
+  "audience": "a learner who knows what a slope is",
+  "durationSeconds": 60,
+  "language": "en",
+  "voice": "whiteboard-default-v1",
+  "quality": "whiteboard-1080p-v1",
+  "sourceRefs": [],
+  "scenes": [
+    {
+      "id": "s1",
+      "startFrame": 0,
+      "endFrame": 450,
+      "learningPoint": "We want the lowest point of a curve.",
+      "visualIntent": "Axes and the parabola y = x squared, its minimum marked.",
+      "narrationSummary": "The curve is a loss; the goal is the x where it is lowest.",
+      "facts": [{ "text": "minimum of x squared", "value": 0, "provenance": "computed" }],
+      "illustration": false
+    },
+    {
+      "id": "s2",
+      "startFrame": 450,
+      "endFrame": 900,
+      "learningPoint": "The slope says which way is downhill.",
+      "visualIntent": "A tangent line at x = 3 with its slope written beside it.",
+      "narrationSummary": "The slope of x squared is 2x, so at 3 it is 6: uphill to the right.",
+      "facts": [{ "text": "slope at x = 3", "value": 6, "provenance": "computed" }],
+      "illustration": false
+    },
+    {
+      "id": "s3",
+      "startFrame": 900,
+      "endFrame": 1350,
+      "learningPoint": "One step: new x = x minus rate times slope.",
+      "visualIntent": "The update written out with numbers, an arrow from 3 to 1.8.",
+      "narrationSummary": "With a rate of 0.2 the step is 1.2, so the guess moves from 3 to 1.8.",
+      "facts": [
+        { "text": "learning rate", "value": 0.2, "provenance": "claim" },
+        { "text": "new x", "value": 1.8, "provenance": "computed" }
+      ],
+      "illustration": false
+    },
+    {
+      "id": "s4",
+      "startFrame": 1350,
+      "endFrame": 1800,
+      "learningPoint": "Repeating the step walks the guess to the minimum.",
+      "visualIntent": "Dots at 3, 1.8, 1.08 and 0.65 getting closer to 0.",
+      "narrationSummary": "Each step shrinks x by 40 percent, so the guesses approach 0.",
+      "facts": [{ "text": "third guess", "value": 1.08, "provenance": "computed" }],
+      "illustration": false
+    }
+  ],
+  "substitutions": [],
+  "limitations": ["The learning rate is fixed for the example."]
+}
