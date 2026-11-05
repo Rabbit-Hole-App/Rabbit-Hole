@@ -12,23 +12,29 @@ import { buildSlash3dGlb } from '../scripts/make-slash-3d-glb.mjs';
 import { Box3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { filterSections } from './command-search.js';
-import { REMOVED_COMMANDS, SLASH, typedOf } from './agent/slash.js';
+import { REMOVED_COMMANDS, SLASH, setWhiteboardVideo, typedOf } from './agent/slash.js';
 import { validateGraph } from '../../control-plane/src/learn-graph-schema.js';
 
 // Owner spec 2026-10-29 (C:/Users/cyudhist/Desktop/RH_SLASH_COMMANDS_CLEANUP_SPEC.md sections 7, 8 and 9): View > Slash Commands lists
 // the picker's 18 commands in its three sections, each with its title, description, example and one preview on the example's subject.
 const names = sections => sections.flatMap(section => section.items.map(item => item.name));
-// Where Motion and image generation are offered: every public command is listed.
+// Where Motion, image generation and the whiteboard video are offered: every public command is listed.
+setWhiteboardVideo(true);
 const all = pickerSections('/', { motionDev: true, imageGeneration: true });
+setWhiteboardVideo(false);
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8');
 const asset = path => existsSync(new URL(`../public${path}`, import.meta.url));
 const sheet = read('./SlashCommandsSheet.jsx'), stage = read('./SlashCommandPreview.jsx');
 const argsOf = name => parseSlash(EXAMPLES[name]).args;
 
-test('the window reads the picker sections: 19 commands, each with an example and exactly one preview of its own', () => {
+test('the window reads the picker sections: 20 commands, each with an example and exactly one preview of its own', () => {
   assert.deepEqual(all.map(section => section.title), ['Learn', 'Create', 'Search']);
   const listed = names(all);
-  assert.equal(listed.length, 19, 'owner, 2026-10-30: /animation added');
+  assert.equal(listed.length, 20, 'owner, 2026-10-30: /animation added; owner roadmap 2026-11-04: /whiteboard added');
+  // /whiteboard (id whiteboard-video): the roadmap 1.3 example line, a card preview, and its about as the window's description.
+  assert.equal(EXAMPLES['whiteboard-video'], '/whiteboard explain gradient descent with one worked example');
+  assert.equal(previewOf('whiteboard-video').kind, 'card');
+  assert.match(all[1].items.find(item => item.name === 'whiteboard-video').about, /^Whiteboard turns a request into a narrated video that draws itself/);
   assert.deepEqual(Object.keys(PREVIEWS).sort(), [...listed].sort(), 'one preview per listed command, and none for anything else');
   assert.deepEqual(SLASH.map(command => command.name).sort(), [...listed].sort(), 'the registry, the picker and the window agree');
   for (const name of listed) {
@@ -39,7 +45,7 @@ test('the window reads the picker sections: 19 commands, each with an example an
 });
 
 test('the removed commands have no preview, example or brief, and the window keeps no list of its own', () => {
-  for (const name of [...REMOVED_COMMANDS, 'dive', 'whiteboard', 'video']) {
+  for (const name of [...REMOVED_COMMANDS, 'dive', 'video']) {
     assert.equal(PREVIEWS[name], undefined, name);
     assert.equal(BRIEFS[name], undefined, name);
     assert.equal(EXAMPLES[name], undefined, name);

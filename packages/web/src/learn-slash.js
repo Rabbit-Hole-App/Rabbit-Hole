@@ -60,7 +60,8 @@ export const EXAMPLES = {
   motion: '/motion 15s explain me softmax func',
   cad: '/cad a 60 x 40 x 5 mm plate with four 4 mm through holes and a centred 20 x 10 mm pocket, 3 mm deep',
   // The window's first /animation example is the saved scene made from this line (animation3d/pendulum-demo.js); slash-sheet.js ANIMATION_OPTIONS has the others.
-  animation: '/animation Let me change the length of a pendulum from 0.5 to 3 metres and see how its period changes, with the period shown as a number.', '3d': '/3d perspective projection: a camera frustum with a cube inside it and a ray',
+  animation: '/animation Let me change the length of a pendulum from 0.5 to 3 metres and see how its period changes, with the period shown as a number.',
+  'whiteboard-video': '/whiteboard explain gradient descent with one worked example', '3d': '/3d perspective projection: a camera frustum with a cube inside it and a ray',
   browser: '/browser https://jalammar.github.io/illustrated-transformer/',
   image: '/photos cat', youtube: '/youtube attention in transformers step by step 3blue1brown', arxiv: '/arxiv 1706.03762',
   wikipedia: '/wikipedia https://en.wikipedia.org/wiki/Transformer_(deep_learning_architecture)',
@@ -104,7 +105,7 @@ export const isLearnCommand = name => commandsFor('learn').some(command => comma
 // user message either way (UI changes brief 1; bug lane 3aba249a: /motion and /image were recorded by both paths). The commands that
 // prompt the chat are /image where the server offers it and every proposal capability (the declaration's flow, reviewRequired), each
 // with words: the same two tests runLearnCommand makes. chat-turn-owner.test.mjs holds this to runLearnCommand.
-const RUN_ACTIONS = new Set(['cad', 'animation', 'open_source', 'insert_notebook', 'insert_whiteboard', 'insert_webpage', 'goal']);
+const RUN_ACTIONS = new Set(['cad', 'animation', 'whiteboard-video', 'open_source', 'insert_notebook', 'insert_whiteboard', 'insert_webpage', 'goal']);
 // A simple material brief (material-brief.js) is a chat turn too: the brief route saves the line with its brief, so it is never recorded twice.
 export const promptsChat = name => (name === 'generate-image' && imageGenerationLive()) || reviewRequired(name) || isBriefCommand(name);
 // selected: whether the line is about a selected card (a bare brief command then prepares its brief from it).
@@ -256,6 +257,15 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
     const started = await canvas.startAnimation(args.trim(), { context: target?.text ? String(target.text).slice(0, 8000) : null, promptUsed });
     return started && !started.failed ? { notice: { tone: 'done', text: 'Preparing the scene plan. Review it above the chat box.', ...(started.blockId ? { blockId: started.blockId } : {}) } }
       : { notice: { tone: 'error', text: `The 3D animation could not be started${started?.failed ? `: ${started.failed}` : ''}. Try again.` }, keep: `/animation ${args}` };
+  }
+  // /whiteboard (id whiteboard-video; roadmap rabbit-hole-whiteboard-roadmap-v1.md 5.1): a durable job whose pending card is placed at
+  // once; the server posts its plan as the reviewed proposal. A bare /whiteboard asks and keeps the line. The words are owner-approved (1.3).
+  // ponytail: LearnPage has no startWhiteboard until the whiteboard client lands (W1.5 proposal wiring); until then it says unavailable.
+  if (name === 'whiteboard-video') {
+    if (!args.trim()) return { notice: { tone: 'question', text: 'Say what to explain.' }, keep: '/whiteboard ' };
+    const started = canvas.startWhiteboard && await canvas.startWhiteboard(args.trim(), { context: target?.text ? String(target.text).slice(0, 8000) : null, promptUsed });
+    return started && !started.failed ? { notice: { tone: 'done', text: 'Planning', ...(started.blockId ? { blockId: started.blockId } : {}) } }
+      : { notice: { tone: 'error', text: '/whiteboard isn\'t available here.' }, keep: `/whiteboard ${args}` };
   }
   if (reviewRequired(name)) {
     // Missing information is asked for inside the command's own flow, and the line is kept (owner, 2026-10-24: the Tutor never answers it).

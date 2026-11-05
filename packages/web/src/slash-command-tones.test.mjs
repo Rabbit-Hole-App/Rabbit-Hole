@@ -82,7 +82,7 @@ test('the same command looks the same everywhere: the / picker, the composer pil
 test('every command in the registry has its own colour in both themes; no two share one', async () => {
   const { SLASH } = await import('./agent/slash.js');
   const names = SLASH.map((command) => command.name);
-  assert.equal(names.length, 19 /* /animation added, owner 2026-10-30 */);
+  assert.equal(names.length, 20 /* /animation added, owner 2026-10-30; /whiteboard (whiteboard-video), owner roadmap 2026-11-04 */);
   const accent = token('light', '--color-accent');
   for (const theme of ['light', 'dark']) {
     const seen = new Map();
@@ -98,6 +98,6 @@ test('every command in the registry has its own colour in both themes; no two sh
   }
   for (const name of names) assert.ok(css.includes(`[data-command-tone="${name}"] { --cmd-bg: var(--cmd-${name}-bg); --cmd-fg: var(--cmd-${name}-fg); --cmd-line: var(--cmd-${name}-line); }`), `/${name} rule`);
   // A removed command keeps no colour; the bar draws no command mark or pill (it has no slash commands since 2026-10-20).
-  for (const name of ['ask', 'teach', 'research', 'do', 'find', 'more', 'simplify', 'compare', 'walkthrough', 'source', 'paper', 'dive', 'whiteboard', 'video']) assert.ok(!css.includes(`--cmd-${name}-`), name);
+  for (const name of ['ask', 'teach', 'research', 'do', 'find', 'more', 'simplify', 'compare', 'walkthrough', 'source', 'paper', 'dive', 'video']) assert.ok(!css.includes(`--cmd-${name}-`), name);
   assert.doesNotMatch(read('./agent/AgentBar.jsx'), /CommandMark|data-command-pill/);
 });

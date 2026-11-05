@@ -273,6 +273,9 @@ html {
   --cmd-animation-bg: #f1ecfd;
   --cmd-animation-fg: #3f1e76;
   --cmd-animation-line: #ccb5f2;
+  --cmd-whiteboard-video-bg: #f5f8e6;
+  --cmd-whiteboard-video-fg: #4a5a0c;
+  --cmd-whiteboard-video-line: #d3dca6;
 }
 [data-command-tone] { background-color: var(--cmd-bg); color: var(--cmd-fg); border-color: var(--cmd-line); }
 [data-command-tone="motion"] { --cmd-bg: var(--cmd-motion-bg); --cmd-fg: var(--cmd-motion-fg); --cmd-line: var(--cmd-motion-line); }
@@ -294,6 +297,7 @@ html {
 [data-command-tone="wikipedia"] { --cmd-bg: var(--cmd-wikipedia-bg); --cmd-fg: var(--cmd-wikipedia-fg); --cmd-line: var(--cmd-wikipedia-line); }
 [data-command-tone="goal"] { --cmd-bg: var(--cmd-goal-bg); --cmd-fg: var(--cmd-goal-fg); --cmd-line: var(--cmd-goal-line); }
 [data-command-tone="animation"] { --cmd-bg: var(--cmd-animation-bg); --cmd-fg: var(--cmd-animation-fg); --cmd-line: var(--cmd-animation-line); }
+[data-command-tone="whiteboard-video"] { --cmd-bg: var(--cmd-whiteboard-video-bg); --cmd-fg: var(--cmd-whiteboard-video-fg); --cmd-line: var(--cmd-whiteboard-video-line); }
 
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
    so one override block re-skins every token - including bg-white surfaces via
@@ -413,6 +417,9 @@ html {
   --cmd-animation-bg: #1f1434;
   --cmd-animation-fg: #c9b4f9;
   --cmd-animation-line: #4a2682;
+  --cmd-whiteboard-video-bg: #1e230b;
+  --cmd-whiteboard-video-fg: #dce9a3;
+  --cmd-whiteboard-video-line: #4b5721;
   --shadow-pop: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 3px 6px rgba(0, 0, 0, 0.3), 0 9px 24px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 

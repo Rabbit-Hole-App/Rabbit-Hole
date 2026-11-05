@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cardsFor, commandLine, commandUi, holdsLine, lineCommand, materialCommands, MOTION_OFF, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
+import { answersInChat, cardsFor, commandLine, commandUi, holdsLine, lineCommand, materialCommands, MOTION_OFF, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
 import { generationField } from './generation-proposal-chat.js';
-import { commandsFor, idOfTyped, learnRequest, typedOf } from './agent/slash.js';
+import { commandsFor, idOfTyped, learnRequest, setWhiteboardVideo, typedOf } from './agent/slash.js';
 import { readFileSync } from 'node:fs';
 import { PRIMITIVES } from '../../control-plane/src/learn-primitives.js';
 import { blockModality, modalityOf } from './learn-tutor-actions.js';
@@ -48,11 +48,35 @@ test('/notebook inserts an empty notebook directly, with no model call; trailing
   await run('/notebook plot a sine wave');
   assert.deepEqual(did.map(entry => entry[0]), ['notebook', 'notebook']);
   assert.ok(!did.some(entry => entry[0] === 'post'));
-  // The Tutor's own create_material still adds a whiteboard (agent/slash.js MATERIAL_TOOLS); a typed /whiteboard says it is gone.
+  // The Tutor's own create_material still adds a whiteboard (agent/slash.js MATERIAL_TOOLS); a typed /whiteboard is the whiteboard
+  // video (owner roadmap 2026-11-04), not offered here until the server says so.
   const tutor = [];
   await runLearnCommand('/whiteboard forces', { app: 'demo', canvas: { insertBlock: block => tutor.push(block.type) }, post: async () => ({}), internal: true });
   assert.deepEqual(tutor, ['whiteboard']);
-  assert.match((await run('/whiteboard forces')).notice.text, /^\/whiteboard is no longer available/);
+  assert.equal((await run('/whiteboard forces')).notice.text, "/whiteboard isn't available here.");
+});
+
+// Owner roadmap 2026-11-04 (rabbit-hole-whiteboard-roadmap-v1.md 1.3, 5.1 step 3): /whiteboard starts the whiteboard video job with the
+// selected card's text as context; a bare line asks and keeps it; no canvas starter says unavailable; the Tutor's line is the board.
+test('/whiteboard: starts the video job, asks when bare, and the Tutor\'s create_material still inserts the board', async () => {
+  setWhiteboardVideo(true);
+  try {
+    const started = [];
+    const canvas = { startWhiteboard: async (prompt, options) => { started.push([prompt, options]); return { blockId: 'wb1' }; }, insertBlock: block => started.push(['insert', block.type]) };
+    const post = async () => { throw new Error('no artifact call'); };
+    const target = { id: 'b1', title: 'Gradient descent', text: 'x'.repeat(9000) };
+    const out = await runLearnCommand('/whiteboard explain gradient descent', { app: 'demo', canvas, post, target });
+    assert.deepEqual(out, { notice: { tone: 'done', text: 'Planning', blockId: 'wb1' } });
+    assert.deepEqual(started, [['explain gradient descent', { context: 'x'.repeat(8000), promptUsed: '/whiteboard explain gradient descent' }]]);
+    assert.deepEqual(await runLearnCommand('/whiteboard', { app: 'demo', canvas, post }), { notice: { tone: 'question', text: 'Say what to explain.' }, keep: '/whiteboard ' });
+    assert.deepEqual(await runLearnCommand('/whiteboard tides', { app: 'demo', canvas: {}, post }), { notice: { tone: 'error', text: "/whiteboard isn't available here." }, keep: '/whiteboard tides' });
+    started.length = 0;
+    await runLearnCommand('/whiteboard forces', { app: 'demo', canvas, post, internal: true });
+    assert.deepEqual(started, [['insert', 'whiteboard']], 'the Tutor\'s material tool, never the video job');
+    assert.equal(answersInChat('/whiteboard explain gradient descent'), false, 'one turn, owned by the job');
+    assert.ok(!materialCommands().some(entry => entry.command === 'whiteboard-video'), 'the Tutor does not make the video');
+    assert.deepEqual(pickerSections('/whi')[0].items.map(item => item.name), ['whiteboard-video']);
+  } finally { setWhiteboardVideo(false); }
 });
 
 // Owner spec 2026-10-29: /browser is the canvas's webpage capture. No URL opens its address dialog; a URL is checked and captured;

@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { answersInChat, EXAMPLES, runLearnCommand } from './learn-slash.js';
-import { commandsFor, setImageGeneration } from './agent/slash.js';
+import { commandsFor, setImageGeneration, setWhiteboardVideo } from './agent/slash.js';
 import { reviewRequired } from './proposal-capabilities.js';
 
 // briefs: a Chat canvas (simple material commands prepare a brief, material-brief.js).
@@ -16,15 +16,16 @@ const run = line => runLearnCommand(line, { app: 'demo', canvas, post, openSearc
 // User messages one submission makes: the Chat records the line unless the chat route owns it; the chat route records a { prompt }.
 const turns = async line => (answersInChat(line, { motionDev: true }) ? 0 : 1) + ((await run(line)).prompt ? 1 : 0);
 
-test('every Learn command line makes exactly one user turn, with Motion on and image generation offered', async () => {
+test('every Learn command line makes exactly one user turn, with Motion on and image generation and /whiteboard offered', async () => {
   setImageGeneration(true);
+  setWhiteboardVideo(true);
   try {
-    for (const command of commandsFor('learn', { motionDev: true, imageGeneration: true })) {
+    for (const command of commandsFor('learn', { motionDev: true, imageGeneration: true, whiteboard: true })) {
       for (const line of [EXAMPLES[command.name] || `/${command.name} something`, `/${command.name} 15s explain photosynthesis, 16:9`, `/${command.name}`]) {
         assert.equal(await turns(line), 1, `${line} must be one user turn`);
       }
     }
-  } finally { setImageGeneration(false); }
+  } finally { setImageGeneration(false); setWhiteboardVideo(false); }
 });
 
 test('the owner line /motion 15s explain photosynthesis, 16:9 is the chat route\'s turn alone', async () => {

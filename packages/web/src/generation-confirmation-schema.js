@@ -116,6 +116,9 @@ export const GENERATION_COMMANDS = Object.freeze({
     sections: ['references', 'requirements', 'assumptions', 'limitations', 'usage'], section_titles: { requirements: 'Plan', limitations: 'Limitations' },
     editable_fields: ['title', 'description', 'references', 'assumptions', 'experience'],
   }),
+  // /whiteboard (id whiteboard-video; roadmap rabbit-hole-whiteboard-roadmap-v1.md 5.1): always reviewed, so the fail-closed rule holds.
+  // ponytail: its Length select (10 to 60 s), sections and editable fields come with the W1.5 proposal wiring, not the registry commit.
+  'whiteboard-video': define({ label: 'Whiteboard', review_policy: 'always' }),
   // CAD: the job's own brief (cad-jobs.js), approved by its exact hash. Units are fixed by the brief; the parameter VALUES change
   // without a new brief, the parameter list does not (structuralChange in the job); requirements, assumptions, missing information
   // and unsupported items are the person's lists. Review is the server's CAD_BRIEF_FIRST decision, so it is conditional here and

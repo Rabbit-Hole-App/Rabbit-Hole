@@ -2,7 +2,7 @@
 // the same 18 commands as Chat, each explicit one handed to Chat's dispatcher).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SLASH, commandsFor, setImageGeneration, typedOf } from './agent/slash.js';
+import { SLASH, commandsFor, setImageGeneration, setWhiteboardVideo, typedOf } from './agent/slash.js';
 import { pickerSections } from './learn-slash.js';
 import { ctrlkCommands, filterCommands, pick, pickerQuery, showsPill, submission, switchMode, unsupportedText } from './inline-ai-command.js';
 import { EXPLICIT_ROUTES, ROUTES, routeRequest } from './inline-ai-route.js';
@@ -108,12 +108,13 @@ test('Ctrl+K: a typed leading command replaces the selected one; aliases and upp
   assert.deepEqual(submission({ mode: 'explain', command: 'quiz', text: '/photo cat' }), { handoff: { command: 'image', line: '/photos cat' } });
 });
 
-test('Ctrl+K: each of the 19 picked, typed, uppercase or replacing a selected command submits its id and typed line', () => {
+test('Ctrl+K: each of the 20 picked, typed, uppercase or replacing a selected command submits its id and typed line', () => {
   setImageGeneration(true);
+  setWhiteboardVideo(true);
   try {
-    const typedNames = { 'generate-image': 'image', image: 'photos' };
+    const typedNames = { 'generate-image': 'image', image: 'photos', 'whiteboard-video': 'whiteboard' };
     const all = ctrlkCommands({ motionDev: true });
-    assert.equal(all.length, 19, 'owner, 2026-10-30: /animation added');
+    assert.equal(all.length, 20, 'owner, 2026-10-30: /animation added; owner roadmap 2026-11-04: /whiteboard added');
     for (const command of all) {
       const typed = typedNames[command.name] || command.name;
       const want = command.kind === 'source' ? { source: { source: command.source, query: 'a b' } } : { handoff: { command: command.name, line: `/${typed} a b` } };
@@ -125,7 +126,7 @@ test('Ctrl+K: each of the 19 picked, typed, uppercase or replacing a selected co
       const other = command.name === 'quiz' ? 'code' : 'quiz';
       assert.deepEqual(submission({ mode: 'explain', command: other, text: `/${typed} a b` }), want, `replaces ${other} with ${typed}`);
     }
-  } finally { setImageGeneration(false); }
+  } finally { setImageGeneration(false); setWhiteboardVideo(false); }
 });
 
 test('removing a pill keeps the words: what is sent is then the words alone', () => {

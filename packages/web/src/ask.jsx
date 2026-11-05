@@ -47,6 +47,7 @@ import { imageGenerationOn, requestImagePlan } from './generate-image.js';
 import { isBriefCommand, requestMaterialBrief } from './material-brief.js';
 import { problemOf } from './generation-review-client.js';
 import { loadImageCapability } from './image-capability.js';
+import { loadWhiteboardCapability } from './whiteboard-capability.js';
 import { EXPLAIN_BRIEF_EVENT } from './explain-client.js';
 import RouteDecision from './RouteDecision.jsx';
 import { reviewRequired } from './proposal-capabilities.js';
@@ -359,6 +360,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // IMG-01: /image (id `generate-image`) is listed only where the server offers it to this person (image-capability.js); the answer re-renders the menu.
   const [, setImageOffered] = useState(false);
   useEffect(() => { if (conversation === 'learn') loadImageCapability((url, init) => fetch(url, init), wsHeaders()).then(setImageOffered); }, [conversation]);
+  // /whiteboard (id `whiteboard-video`) the same way: listed only where the server answers available (whiteboard-capability.js).
+  const [, setWhiteboardOffered] = useState(false);
+  useEffect(() => { if (conversation === 'learn') loadWhiteboardCapability((url, init) => fetch(url, init), wsHeaders()).then(setWhiteboardOffered); }, [conversation]);
   // A guided Rabbit Hole opening that coaching may not send here (owner 4a): shown above the composer, sent only on the learner's press.
   const [waitingOpening, setWaitingOpening] = useState(null);
   const [choices, setChoices] = useState(null); // { message, candidates }
