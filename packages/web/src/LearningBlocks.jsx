@@ -57,6 +57,8 @@ import { lazyFeature } from './lazy-feature.jsx';
 import { describeExcerpt, isExcerpt } from './pdf-excerpt.js';
 import { ExcerptNote, ExcerptSource } from './ExcerptCard.jsx';
 import { CitableLines } from './TutorCitations.jsx';
+import WhiteboardVideoCard from './WhiteboardVideoCard.jsx';
+import { describeWhiteboard } from './whiteboard/card.js';
 
 // The canvas's drawing surface for an Explain Back sketch (AdaptiveCanvas renderSketch): { render, hold, release,
 // capture, readOnly }. Null wherever a card renders outside a canvas, so no sketch is offered there.
@@ -805,6 +807,8 @@ export const BLOCK_TYPES = {
   // The sample is a built-in example (fixtures.js), shown as one on the card. Until a scene is attached (a generation waiting, running,
   // stopped or failed) the card is its content's height, not an empty viewport (owner, 2026-10-31).
   animation3d: { label: 'Animation', width: 640, height: 640, autoMax: 900, sizeFor: block => (block.animation3d?.ref || block.fixtureId ? null : { width: 640, height: undefined }), sample: () => ({ id: crypto.randomUUID(), type: 'animation3d', title: 'Beam balance', fixtureId: 'beam-balance-experiment', dx: 0, dy: 0 }) },
+  // /whiteboard (roadmap W1.6): a narrated 16:9 video with its caption line; made only by the command, so it has no Insert sample.
+  whiteboardVideo: { label: 'Whiteboard', width: 640, height: 470, autoMax: 900 },
   model3d: {
     label: '3D model',
     width: 560,
@@ -2265,6 +2269,7 @@ export function describeBlock(block) {
   if (block.type === 'cad') return cadContext(block);
   // ponytail: lane A's animation3d/context.js replaces this with the accepted revision and activity (AN-06/AN-13).
   if (block.type === 'animation3d') return { kind: 'Animation', title: block.title, text: [`3D animation on the canvas: ${block.title}`, block.fixtureId ? 'A built-in example scene, not generated from a request.' : '', block.animation3dJob ? `Generation status: ${block.animation3dJob.stage}` : ''].filter(Boolean).join(NEWLINE) };
+  if (block.type === 'whiteboardVideo') return describeWhiteboard(block);
   if (block.type === 'notebook') return describeNotebook(block);
   if (block.type === 'code') return { kind: 'Code exercise', title: block.title, text: `Code exercise: ${block.title}\n${block.brief}\nGiven setup:\n${block.setup}\nLearner's current code:\n${block.draft ?? block.starter}\nChecks it must pass:\n${block.checks}` };
   if (block.type === 'audio') return { kind: 'Narration', title: block.title, text: [`Narration block: ${block.title}`, block.text].join(NEWLINE) };
@@ -2309,6 +2314,7 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   // Its own Suspense (as WhiteboardBlock): a lazy card inserted on a live canvas must not suspend the canvas, which unmounted the
   // surface and threw in insertBlock's chromeTop (fast-e2e 41129301739, animation-mvp step 23).
   if (block.type === 'animation3d') return <Suspense fallback={<p role="status" className="p-4 text-xs text-ink-2">Loading the 3D animation</p>}><Animation3DCard block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} selected={selected} readOnly={readOnly} /></Suspense>;
+  if (block.type === 'whiteboardVideo') return <WhiteboardVideoCard block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} readOnly={readOnly} appName={appName} />;
   if (block.type === 'model3d') return <ThreeDBody block={block} onChange={onChange} />;
   if (block.type === 'audio') return <AudioBody block={block} appName={appName} onChange={onChange} />;
   if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return <SceneActivityBody block={block} onChange={onChange} onAskScene={onAskScene} />;

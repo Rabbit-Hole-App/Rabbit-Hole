@@ -2297,7 +2297,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // instead of adding a second card; the result attaches to it later (ExplainPending).
       // /animation (AN-05): its pending card (storage.js withJob) placed where the learner looks, once per card id.
       placeAnimation: (card, { into = null } = {}) => {
-        if (!alive.current || readOnlyRef.current || !card?.id || card.type !== 'animation3d') return null;
+        if (!alive.current || readOnlyRef.current || !card?.id || !['animation3d', 'whiteboardVideo'].includes(card.type)) return null; // and /whiteboard's pending card (W1.5)
         if (blocksRef.current.some(block => block.id === card.id)) return card.id;
         snapshot();
         const added = { ...card, dx: 0, dy: 0 };
@@ -3532,7 +3532,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       return target && { target };
     }
     const held = document.activeElement;
-    if (fromKey && held && held !== document.body && !held.matches?.('[data-block-id]') && (typingIn(held) || held.closest?.('[data-chat-composer],[data-toc-composer],[role="dialog"],[role="menu"],input,textarea,select,[contenteditable="true"]'))) return null;
+    if (fromKey && held && held !== document.body && !held.matches?.('[data-block-id]') && (typingIn(held) || held.closest?.('[data-chat-composer],[data-toc-composer],[role="dialog"],[role="menu"],input,textarea,select,[contenteditable="true"],[data-player]'))) return null;
     const target = freezeTarget(board, selectedRef.current);
     if (target) return { target };
     // Nothing selected (a populated canvas is not a blank one): the same editor, to add. From the keyboard only while the

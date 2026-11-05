@@ -260,12 +260,13 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   }
   // /whiteboard (id whiteboard-video; roadmap rabbit-hole-whiteboard-roadmap-v1.md 5.1): a durable job whose pending card is placed at
   // once; the server posts its plan as the reviewed proposal. A bare /whiteboard asks and keeps the line. The words are owner-approved (1.3).
-  // ponytail: LearnPage has no startWhiteboard until the whiteboard client lands (W1.5 proposal wiring); until then it says unavailable.
+  // A refusal the server words (whiteboard/client.js WHITEBOARD_REFUSALS, owner-approved by code) is said as it is; anything else, or a
+  // canvas with no starter, is the unavailable line.
   if (name === 'whiteboard-video') {
     if (!args.trim()) return { notice: { tone: 'question', text: 'Say what to explain.' }, keep: '/whiteboard ' };
     const started = canvas.startWhiteboard && await canvas.startWhiteboard(args.trim(), { context: target?.text ? String(target.text).slice(0, 8000) : null, promptUsed });
     return started && !started.failed ? { notice: { tone: 'done', text: 'Planning', ...(started.blockId ? { blockId: started.blockId } : {}) } }
-      : { notice: { tone: 'error', text: '/whiteboard isn\'t available here.' }, keep: `/whiteboard ${args}` };
+      : { notice: { tone: 'error', text: started?.refused || '/whiteboard isn\'t available here.' }, keep: `/whiteboard ${args}` };
   }
   if (reviewRequired(name)) {
     // Missing information is asked for inside the command's own flow, and the line is kept (owner, 2026-10-24: the Tutor never answers it).

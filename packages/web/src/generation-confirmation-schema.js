@@ -24,6 +24,8 @@ export const PROPOSAL_EDITABLE = Object.freeze(['title', 'description', 'referen
 
 const field = (key, label, type, rest = {}) => Object.freeze({ key, label, type, required: false, editable: true, ...rest });
 const seconds = Array.from({ length: 12 }, (_, i) => ({ value: (i + 1) * 5, label: `${(i + 1) * 5} seconds` }));
+// /whiteboard's lengths served in W1 (roadmap 1.3: "10 seconds" to "60 seconds"; control-plane whiteboard-policy.js servedMaxSeconds).
+const whiteboardSeconds = Array.from({ length: 6 }, (_, i) => ({ value: (i + 1) * 10, label: `${(i + 1) * 10} seconds` }));
 // Motion's supported aspect ratios: ITS declaration over the shared table, never a promise about any image model (those declare their own
 // in IMAGE_MODELS). A control-plane test keeps this list equal to the ratios the renderer has a stage size for (learn-render stage-sizes.js).
 export const MOTION_RATIOS = Object.freeze(['9:16', '1:1', '16:9', '3:4', '4:3', '2:3', '3:2', '4:5', '5:4']);
@@ -116,9 +118,14 @@ export const GENERATION_COMMANDS = Object.freeze({
     sections: ['references', 'requirements', 'assumptions', 'limitations', 'usage'], section_titles: { requirements: 'Plan', limitations: 'Limitations' },
     editable_fields: ['title', 'description', 'references', 'assumptions', 'experience'],
   }),
-  // /whiteboard (id whiteboard-video; roadmap rabbit-hole-whiteboard-roadmap-v1.md 5.1): always reviewed, so the fail-closed rule holds.
-  // ponytail: its Length select (10 to 60 s), sections and editable fields come with the W1.5 proposal wiring, not the registry commit.
-  'whiteboard-video': define({ label: 'Whiteboard', review_policy: 'always' }),
+  // /whiteboard (id whiteboard-video; roadmap rabbit-hole-whiteboard-roadmap-v1.md 5.1 step 5): the server's plan (whiteboard-job.js), always
+  // reviewed. Its one setting is the length: W1 serves 10 to 60 s (W2 adds 70 to 120); a change re-plans (W-D7: the PUT, then a refine
+  // `duration: <n>`, ChatMessages.jsx). The plan's scene lines are its requirements, read only. cancel: the brief's pre-Generate cancel.
+  'whiteboard-video': define({
+    label: 'Whiteboard', review_policy: 'always', cancel: true,
+    settings: [field('duration_seconds', 'Length', 'select', { required: true, unit: 'seconds', options: whiteboardSeconds, default: 60 })],
+    sections: ['requirements', 'assumptions', 'limitations', 'usage'], editable_fields: ['duration_seconds'],
+  }),
   // CAD: the job's own brief (cad-jobs.js), approved by its exact hash. Units are fixed by the brief; the parameter VALUES change
   // without a new brief, the parameter list does not (structuralChange in the job); requirements, assumptions, missing information
   // and unsupported items are the person's lists. Review is the server's CAD_BRIEF_FIRST decision, so it is conditional here and
