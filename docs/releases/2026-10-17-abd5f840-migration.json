@@ -1,0 +1,16 @@
+{
+  "implementationSha": "abd5f840cd701b072630e6405f93a78978875acc",
+  "migration": "0023-file-imports.sql",
+  "database": "rabbit-hole-learn-prod",
+  "status": "applied",
+  "datePacific": "2026-10-17",
+  "applicationEvidence": "Explicitly approved application: preflight found exactly six missing tables and five missing indexes, no unrelated schema differences. Wrangler exited 0; wrapper then failed parsing progress text as JSON. Migration was not reapplied.",
+  "verification": {
+    "at": "2026-10-17T17:59:40.542Z",
+    "mode": "read-only",
+    "remainingSchemaDifferences": [],
+    "originalAppliedFlag": false,
+    "flagMeaning": "This subsequent invocation verified only; it did not apply the migration again."
+  },
+  "independentEvidence": "Production workflow 39056178155 passed schema preflight and released abd5f840."
+}

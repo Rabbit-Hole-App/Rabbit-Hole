@@ -1,5 +1,7 @@
 # Beta 1 release manifest
 
+Latest shipped receipt: [October 17, 2026 — Release C, UI/TOC, Imports, Search and card-scroll](2026-10-17-card-scroll.md), implementation `abd5f840`. The earlier milestone entries below are historical and do not describe current migration or deployment status.
+
 Stage: **personal beta** (the owner is the only tester; paying-user launch is deferred). Each release ships only after a full attested gate of its exact tree, a green dev deploy, and the owner's release GO plus a GO for every production migration it carries. Pushing Rabbit-Hole-App main triggers production.
 
 Ownership: Parallel owns items, SHAs and gates; Home owns migrations, production and recovery.
