@@ -22,9 +22,13 @@ Release authority (owner, 4 Nov 2026): standing GO to release W1, W2 and W3 to p
 
 ## W0 (renderer, secrets, bindings)
 
-- [x] W0.1 `/health` of the production and dev Motion renderers read (see `evidence/w0-2026-11-04.md` when written).
-- [ ] W0.2 ffmpeg concat probe in the Linux image (`packages/learn-render/whiteboard/ffmpeg-probe.mjs`). Not started on the image: the Windows build is not evidence for it.
+- [x] W0.1 `/health` of the production and dev Motion renderers read (`evidence/w0-2026-11-04.md`).
+- [x] W0.2 ffmpeg concat probe in the Linux image (`packages/learn-render/whiteboard/ffmpeg-probe.mjs`): the bundled build stitches H.264 + AAC with `-c copy`; Dockerfile unchanged (a).
 - [x] W0.3 `fly.whiteboard.toml`, the `whiteboard` target of `context.sh`, the owner launcher (`ops/whiteboard-renderer.*`). The owner ran it: the app is serving the deployed commit.
-- [ ] W0.4 Binding commit: `WHITEBOARD_JOBS` with migration `whiteboard-jobs-1`, `WHITEBOARD_ENABLED` (`"false"` in production, `"true"` in dev), `WHITEBOARD_RENDERER_URL`; no `WHITEBOARD_ESTIMATE_USD`. Full gate.
-- [ ] W0.5 Owner steps (launcher run done; W-D9 recorded above).
-- [ ] W0.6 Receipt.
+- [x] W0.4 Binding commit: `WHITEBOARD_JOBS` with migration `whiteboard-jobs-1`, `WHITEBOARD_ENABLED` (`"false"` in production, `"true"` in dev), `WHITEBOARD_RENDERER_URL`; no `WHITEBOARD_ESTIMATE_USD`. Released: `71162c729`, gate 41938211033, release run 41940668346, 4 Nov 2026 4:23 PM PT.
+- [x] W0.5 Owner steps (launcher run; W-D9 recorded above).
+- [x] W0.6 Receipt: `evidence/w0-2026-11-04.md`.
+
+## W1
+
+Standing orders (owner, 4 Nov 2026): W1 is the last MVP started until the owner says otherwise; after it is released and its receipt posted, no W2 candidate or W2 file work. The View > Slash Commands entry (`EXAMPLES` line and `PREVIEWS` row, kind `card`, "/whiteboard explain gradient descent with one worked example") lands in the W1.5 registry commit, and W1 acceptance includes the window showing it on the preview (screenshot in the receipt).
