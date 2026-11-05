@@ -1,8 +1,8 @@
 -- Learning journeys (docs/features/adaptive-learning-path-v1-architecture.md §9-§10): one row per adaptive learning
 -- journey - its state, the learner's exact request, intake answers, constraints, the journey's claim registry, the
 -- diagnostic with its server-only answer key, the evidence store and the current section's plan - and one immutable
--- row per version of its learning path. Additive and re-runnable; LEARN_DB only. Applied locally only until an
--- explicit GO: the shared dev and production LEARN_DB wait for it.
+-- row per version of its learning path. Additive and re-runnable; LEARN_DB only. Applied to the production
+-- LEARN_DB (verified by the release preflight schema identity, 5 November 2026).
 --
 -- A journey is scoped to (org, owner_user_id, app, board), where owner_user_id is users.id (migration 0026), the stable
 -- internal id the session carries as uid; never an email (§10.2, owner 2026-10-05). Only its owner reads or writes it.

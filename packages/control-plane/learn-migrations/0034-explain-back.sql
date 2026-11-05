@@ -4,7 +4,7 @@
 -- Kind timeline is a Sketch recording's JSON drawing timeline. meta_json is the Sketch capture's marks/text beside its PNG,
 -- set once. Transcripts are immutable derivatives of one audio
 -- hash (a failed one is replaced only by an explicit retry). Drafts are the learner's unsubmitted answer with a revision for
--- conflict protection. Additive and re-runnable; LEARN_DB only. Production: an owner command; never applied by a lane.
+-- conflict protection. Additive and re-runnable; LEARN_DB only. Applied to the production LEARN_DB (verified by the release preflight schema identity, 5 November 2026); production migrations are an owner command, never applied by a lane.
 CREATE TABLE IF NOT EXISTS learn_attempt_assets (
   id TEXT PRIMARY KEY,
   org TEXT NOT NULL,
