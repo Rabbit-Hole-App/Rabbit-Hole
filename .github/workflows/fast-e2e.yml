@@ -146,6 +146,13 @@ jobs:
       - name: Run checks
         if: steps.sel.outputs.n != '0'
         run: bash scripts/ci/run-part.sh "$RUNNER_TEMP/fast/sel.json" "$RUNNER_TEMP/fast"
+      # Gate attestation (item 1): the sharded gate takes a fork check from this run only when this file reads "hits: 0" for the
+      # part that ran it (scripts/r36-gate/attest.mjs). The count is the stack's, since it started, so any check of the part counts.
+      - name: Provider tripwire hits of this part's stack (read before the stack stops)
+        if: always() && steps.sel.outputs.n != '' && steps.sel.outputs.n != '0'
+        run: |
+          n=$(curl -s -m 10 http://127.0.0.1:8878/__provider-tripwire | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).hits.length)}catch{console.log("unreadable")}})')
+          echo "provider-tripwire hits: ${n:-unreadable}" > "$RUNNER_TEMP/fast/tripwire.log"
       - name: Stop the stack (removes the per-run .dev.vars before anything is uploaded)
         if: always() && steps.sel.outputs.n != '' && steps.sel.outputs.n != '0'
         run: bash scripts/ci/stack.sh stop "$RUNNER_TEMP/fast/stack"

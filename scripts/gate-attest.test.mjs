@@ -155,3 +155,10 @@ test('the attestable list equals the committed fixture, which the harness copies
   const own = Object.fromEntries(Object.entries(ATTESTABLE).map(([stage, file]) => [stage, file.replace(/-check\.mjs$/, '')]));
   assert.deepEqual(own, fixture, 'scripts/fixtures/gate-attestable.json must list exactly gate-attest.mjs ATTESTABLE (stage -> fast-e2e check name); copy it to the harness scripts/r36-gate/gate-attestable.json');
 });
+
+test('fast-e2e reads each part\'s provider tripwire into tripwire.log before the stack stops, which the gate\'s attestation requires', () => {
+  const wf = readFileSync(new URL('../.github/workflows/fast-e2e.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const at = wf.indexOf('Provider tripwire hits of this part');
+  assert.ok(at > 0 && at < wf.indexOf('Stop the stack'), 'read while the stack is up');
+  assert.match(wf.slice(at, wf.indexOf('Stop the stack')), /if: always\(\) && steps\.sel\.outputs\.n != '' && steps\.sel\.outputs\.n != '0'[\s\S]*__provider-tripwire[\s\S]*provider-tripwire hits: \$\{n:-unreadable\}" > "\$RUNNER_TEMP\/fast\/tripwire\.log"/);
+});
