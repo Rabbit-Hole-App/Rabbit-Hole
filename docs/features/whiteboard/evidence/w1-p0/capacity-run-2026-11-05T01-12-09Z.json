@@ -1,0 +1,2135 @@
+{
+ "renderer": {
+  "revision": "28ae0afdde2dfd0a423d45224f6bb81876ad4096",
+  "cpus": 1.5,
+  "memory_gib": 3,
+  "timeout_seconds": 420
+ },
+ "rows": [
+  {
+   "seconds": 10,
+   "started": "2026-11-05T00:55:24.198Z",
+   "wall_seconds": 80.1,
+   "status": "ready",
+   "frame_count": 300,
+   "output_bytes": 440351,
+   "capacity": {
+    "video_seconds": 10,
+    "frames": 300,
+    "ffprobe": {
+     "codec": "h264",
+     "pix_fmt": "yuv420p",
+     "color_space": "bt709",
+     "width": 1920,
+     "height": 1080,
+     "frame_count": 300,
+     "audio_codec": "aac"
+    },
+    "mp4_bytes": 440351,
+    "timings": {
+     "bundle_and_browser": 16.96,
+     "render": 32.89,
+     "mux_silent_aac": 0.08,
+     "stills_first_context": 0.91,
+     "contact_sheet": 4.95,
+     "second_context_bundle_and_browser": 14.87,
+     "stills_second_context": 0.88,
+     "deterministic": true,
+     "total": 73.04
+    },
+    "render_fps": 9.12,
+    "progress": [
+     {
+      "seconds": 0,
+      "rendered": 0,
+      "encoded": 0
+     },
+     {
+      "seconds": 13.1,
+      "rendered": 150,
+      "encoded": 0
+     },
+     {
+      "seconds": 26.4,
+      "rendered": 300,
+      "encoded": 0
+     },
+     {
+      "seconds": 27.5,
+      "rendered": 300,
+      "encoded": 9
+     },
+     {
+      "seconds": 28,
+      "rendered": 300,
+      "encoded": 36
+     },
+     {
+      "seconds": 28.5,
+      "rendered": 300,
+      "encoded": 62
+     },
+     {
+      "seconds": 29,
+      "rendered": 300,
+      "encoded": 90
+     },
+     {
+      "seconds": 29.5,
+      "rendered": 300,
+      "encoded": 118
+     },
+     {
+      "seconds": 30,
+      "rendered": 300,
+      "encoded": 144
+     },
+     {
+      "seconds": 30.5,
+      "rendered": 300,
+      "encoded": 170
+     },
+     {
+      "seconds": 31,
+      "rendered": 300,
+      "encoded": 194
+     },
+     {
+      "seconds": 31.5,
+      "rendered": 300,
+      "encoded": 217
+     },
+     {
+      "seconds": 32,
+      "rendered": 300,
+      "encoded": 238
+     },
+     {
+      "seconds": 32.5,
+      "rendered": 300,
+      "encoded": 268
+     },
+     {
+      "seconds": 32.8,
+      "rendered": 300,
+      "encoded": 300
+     }
+    ],
+    "density": {
+     "scenes": [
+      {
+       "scene": 1,
+       "seconds": 10,
+       "primitives": 47
+      }
+     ],
+     "primitives": 47,
+     "max_per_scene": 47,
+     "path_points": 323,
+     "kinds": {
+      "text": 16,
+      "path": 7,
+      "rect": 9,
+      "line": 3,
+      "arrow": 6,
+      "ellipse": 3,
+      "cross": 3
+     }
+    },
+    "peak_rss_mib": 1443,
+    "peak_tmp_mib": 50,
+    "exceeds_420s": false
+   },
+   "resources": {
+    "exit_status": 0,
+    "backend": "cgroup-v1",
+    "memory_bytes": 3221225472,
+    "swap_bytes": 0,
+    "memsw_limit": 3221225472,
+    "pids_max": 1024,
+    "cpu_period_us": 100000,
+    "cpu_quota_us": 150000,
+    "oom_kills": 0,
+    "memory_peak": 1258762240,
+    "memory_failcnt": 0,
+    "memsw_peak": 1258762240,
+    "pids_peak": 131,
+    "pids_limit_hits": 0,
+    "cpu_nr_periods": 752,
+    "cpu_throttled": 147,
+    "cpu_throttled_time_us": 3752600,
+    "cpu_usage_us": 87138343,
+    "cpu_quota": 1.5,
+    "controllers": [
+     "memory",
+     "memsw",
+     "pids",
+     "cpu",
+     "cpuacct",
+     "freezer"
+    ],
+    "cleanup": {
+     "freezer": "used",
+     "terminated": 0,
+     "killed": 0,
+     "remaining": 0,
+     "settle_ms": 3,
+     "groups_removed": true,
+     "render_user_processes": 0,
+     "ok": true
+    }
+   },
+   "deadline_seconds": 900
+  },
+  {
+   "seconds": 30,
+   "started": "2026-11-05T00:56:44.296Z",
+   "wall_seconds": 150.1,
+   "status": "ready",
+   "frame_count": 900,
+   "output_bytes": 1294922,
+   "capacity": {
+    "video_seconds": 30,
+    "frames": 900,
+    "ffprobe": {
+     "codec": "h264",
+     "pix_fmt": "yuv420p",
+     "color_space": "bt709",
+     "width": 1920,
+     "height": 1080,
+     "frame_count": 900,
+     "audio_codec": "aac"
+    },
+    "mp4_bytes": 1294922,
+    "timings": {
+     "bundle_and_browser": 12.43,
+     "render": 103.53,
+     "mux_silent_aac": 0.17,
+     "stills_first_context": 1.06,
+     "contact_sheet": 5.18,
+     "second_context_bundle_and_browser": 15.63,
+     "stills_second_context": 0.84,
+     "deterministic": true,
+     "total": 141.96
+    },
+    "render_fps": 8.69,
+    "progress": [
+     {
+      "seconds": 0,
+      "rendered": 0,
+      "encoded": 0
+     },
+     {
+      "seconds": 13.1,
+      "rendered": 150,
+      "encoded": 0
+     },
+     {
+      "seconds": 26.9,
+      "rendered": 300,
+      "encoded": 0
+     },
+     {
+      "seconds": 42.5,
+      "rendered": 450,
+      "encoded": 0
+     },
+     {
+      "seconds": 56.7,
+      "rendered": 600,
+      "encoded": 0
+     },
+     {
+      "seconds": 69.4,
+      "rendered": 750,
+      "encoded": 0
+     },
+     {
+      "seconds": 83.7,
+      "rendered": 900,
+      "encoded": 0
+     },
+     {
+      "seconds": 84.8,
+      "rendered": 900,
+      "encoded": 10
+     },
+     {
+      "seconds": 85.3,
+      "rendered": 900,
+      "encoded": 32
+     },
+     {
+      "seconds": 85.8,
+      "rendered": 900,
+      "encoded": 59
+     },
+     {
+      "seconds": 86.3,
+      "rendered": 900,
+      "encoded": 85
+     },
+     {
+      "seconds": 86.8,
+      "rendered": 900,
+      "encoded": 110
+     },
+     {
+      "seconds": 87.3,
+      "rendered": 900,
+      "encoded": 133
+     },
+     {
+      "seconds": 87.8,
+      "rendered": 900,
+      "encoded": 156
+     },
+     {
+      "seconds": 88.3,
+      "rendered": 900,
+      "encoded": 179
+     },
+     {
+      "seconds": 88.8,
+      "rendered": 900,
+      "encoded": 200
+     },
+     {
+      "seconds": 89.3,
+      "rendered": 900,
+      "encoded": 219
+     },
+     {
+      "seconds": 89.8,
+      "rendered": 900,
+      "encoded": 240
+     },
+     {
+      "seconds": 90.3,
+      "rendered": 900,
+      "encoded": 262
+     },
+     {
+      "seconds": 90.8,
+      "rendered": 900,
+      "encoded": 286
+     },
+     {
+      "seconds": 91.3,
+      "rendered": 900,
+      "encoded": 308
+     },
+     {
+      "seconds": 91.8,
+      "rendered": 900,
+      "encoded": 331
+     },
+     {
+      "seconds": 92.3,
+      "rendered": 900,
+      "encoded": 353
+     },
+     {
+      "seconds": 92.8,
+      "rendered": 900,
+      "encoded": 375
+     },
+     {
+      "seconds": 93.3,
+      "rendered": 900,
+      "encoded": 396
+     },
+     {
+      "seconds": 93.8,
+      "rendered": 900,
+      "encoded": 417
+     },
+     {
+      "seconds": 94.3,
+      "rendered": 900,
+      "encoded": 438
+     },
+     {
+      "seconds": 94.8,
+      "rendered": 900,
+      "encoded": 460
+     },
+     {
+      "seconds": 95.3,
+      "rendered": 900,
+      "encoded": 481
+     },
+     {
+      "seconds": 95.8,
+      "rendered": 900,
+      "encoded": 499
+     },
+     {
+      "seconds": 96.3,
+      "rendered": 900,
+      "encoded": 519
+     },
+     {
+      "seconds": 96.8,
+      "rendered": 900,
+      "encoded": 547
+     },
+     {
+      "seconds": 97.3,
+      "rendered": 900,
+      "encoded": 570
+     },
+     {
+      "seconds": 97.8,
+      "rendered": 900,
+      "encoded": 597
+     },
+     {
+      "seconds": 98.3,
+      "rendered": 900,
+      "encoded": 625
+     },
+     {
+      "seconds": 98.8,
+      "rendered": 900,
+      "encoded": 650
+     },
+     {
+      "seconds": 99.3,
+      "rendered": 900,
+      "encoded": 676
+     },
+     {
+      "seconds": 99.8,
+      "rendered": 900,
+      "encoded": 702
+     },
+     {
+      "seconds": 100.3,
+      "rendered": 900,
+      "encoded": 728
+     },
+     {
+      "seconds": 100.8,
+      "rendered": 900,
+      "encoded": 750
+     },
+     {
+      "seconds": 101.3,
+      "rendered": 900,
+      "encoded": 777
+     },
+     {
+      "seconds": 101.8,
+      "rendered": 900,
+      "encoded": 803
+     },
+     {
+      "seconds": 102.3,
+      "rendered": 900,
+      "encoded": 825
+     },
+     {
+      "seconds": 102.8,
+      "rendered": 900,
+      "encoded": 852
+     },
+     {
+      "seconds": 103.3,
+      "rendered": 900,
+      "encoded": 887
+     },
+     {
+      "seconds": 103.5,
+      "rendered": 900,
+      "encoded": 900
+     }
+    ],
+    "density": {
+     "scenes": [
+      {
+       "scene": 1,
+       "seconds": 17,
+       "primitives": 70
+      },
+      {
+       "scene": 2,
+       "seconds": 13,
+       "primitives": 61
+      }
+     ],
+     "primitives": 131,
+     "max_per_scene": 70,
+     "path_points": 814,
+     "kinds": {
+      "text": 42,
+      "path": 17,
+      "rect": 27,
+      "line": 10,
+      "arrow": 16,
+      "ellipse": 9,
+      "cross": 10
+     }
+    },
+    "peak_rss_mib": 1445,
+    "peak_tmp_mib": 51,
+    "exceeds_420s": false
+   },
+   "resources": {
+    "exit_status": 0,
+    "backend": "cgroup-v1",
+    "memory_bytes": 3221225472,
+    "swap_bytes": 0,
+    "memsw_limit": 3221225472,
+    "pids_max": 1024,
+    "cpu_period_us": 100000,
+    "cpu_quota_us": 150000,
+    "oom_kills": 0,
+    "memory_peak": 970018816,
+    "memory_failcnt": 0,
+    "memsw_peak": 970018816,
+    "pids_peak": 130,
+    "pids_limit_hits": 0,
+    "cpu_nr_periods": 1455,
+    "cpu_throttled": 284,
+    "cpu_throttled_time_us": 8969259,
+    "cpu_usage_us": 167234646,
+    "cpu_quota": 1.5,
+    "controllers": [
+     "memory",
+     "memsw",
+     "pids",
+     "cpu",
+     "cpuacct",
+     "freezer"
+    ],
+    "cleanup": {
+     "freezer": "used",
+     "terminated": 0,
+     "killed": 0,
+     "remaining": 0,
+     "settle_ms": 2,
+     "groups_removed": true,
+     "render_user_processes": 0,
+     "ok": true
+    }
+   },
+   "deadline_seconds": 900
+  },
+  {
+   "seconds": 60,
+   "started": "2026-11-05T00:59:14.417Z",
+   "wall_seconds": 270.2,
+   "status": "ready",
+   "frame_count": 1800,
+   "output_bytes": 2536853,
+   "capacity": {
+    "video_seconds": 60,
+    "frames": 1800,
+    "ffprobe": {
+     "codec": "h264",
+     "pix_fmt": "yuv420p",
+     "color_space": "bt709",
+     "width": 1920,
+     "height": 1080,
+     "frame_count": 1800,
+     "audio_codec": "aac"
+    },
+    "mp4_bytes": 2536853,
+    "timings": {
+     "bundle_and_browser": 14.9,
+     "render": 214.48,
+     "mux_silent_aac": 0.39,
+     "stills_first_context": 1.1,
+     "contact_sheet": 5.72,
+     "second_context_bundle_and_browser": 16.09,
+     "stills_second_context": 0.95,
+     "deterministic": true,
+     "total": 260.14
+    },
+    "render_fps": 8.39,
+    "progress": [
+     {
+      "seconds": 0,
+      "rendered": 0,
+      "encoded": 0
+     },
+     {
+      "seconds": 13.3,
+      "rendered": 150,
+      "encoded": 0
+     },
+     {
+      "seconds": 27.6,
+      "rendered": 300,
+      "encoded": 0
+     },
+     {
+      "seconds": 43.9,
+      "rendered": 450,
+      "encoded": 0
+     },
+     {
+      "seconds": 58.7,
+      "rendered": 600,
+      "encoded": 0
+     },
+     {
+      "seconds": 71.8,
+      "rendered": 750,
+      "encoded": 0
+     },
+     {
+      "seconds": 86.4,
+      "rendered": 900,
+      "encoded": 0
+     },
+     {
+      "seconds": 102.8,
+      "rendered": 1050,
+      "encoded": 0
+     },
+     {
+      "seconds": 115.5,
+      "rendered": 1200,
+      "encoded": 0
+     },
+     {
+      "seconds": 130.1,
+      "rendered": 1350,
+      "encoded": 0
+     },
+     {
+      "seconds": 145.5,
+      "rendered": 1500,
+      "encoded": 0
+     },
+     {
+      "seconds": 158.5,
+      "rendered": 1650,
+      "encoded": 0
+     },
+     {
+      "seconds": 173.9,
+      "rendered": 1800,
+      "encoded": 0
+     },
+     {
+      "seconds": 175,
+      "rendered": 1800,
+      "encoded": 5
+     },
+     {
+      "seconds": 175.5,
+      "rendered": 1800,
+      "encoded": 27
+     },
+     {
+      "seconds": 176,
+      "rendered": 1800,
+      "encoded": 50
+     },
+     {
+      "seconds": 176.5,
+      "rendered": 1800,
+      "encoded": 74
+     },
+     {
+      "seconds": 177,
+      "rendered": 1800,
+      "encoded": 98
+     },
+     {
+      "seconds": 177.5,
+      "rendered": 1800,
+      "encoded": 122
+     },
+     {
+      "seconds": 178,
+      "rendered": 1800,
+      "encoded": 147
+     },
+     {
+      "seconds": 178.5,
+      "rendered": 1800,
+      "encoded": 171
+     },
+     {
+      "seconds": 179,
+      "rendered": 1800,
+      "encoded": 193
+     },
+     {
+      "seconds": 179.5,
+      "rendered": 1800,
+      "encoded": 214
+     },
+     {
+      "seconds": 180,
+      "rendered": 1800,
+      "encoded": 236
+     },
+     {
+      "seconds": 180.5,
+      "rendered": 1800,
+      "encoded": 258
+     },
+     {
+      "seconds": 181,
+      "rendered": 1800,
+      "encoded": 282
+     },
+     {
+      "seconds": 181.5,
+      "rendered": 1800,
+      "encoded": 306
+     },
+     {
+      "seconds": 182,
+      "rendered": 1800,
+      "encoded": 328
+     },
+     {
+      "seconds": 182.5,
+      "rendered": 1800,
+      "encoded": 350
+     },
+     {
+      "seconds": 183,
+      "rendered": 1800,
+      "encoded": 371
+     },
+     {
+      "seconds": 183.5,
+      "rendered": 1800,
+      "encoded": 392
+     },
+     {
+      "seconds": 184,
+      "rendered": 1800,
+      "encoded": 412
+     },
+     {
+      "seconds": 184.5,
+      "rendered": 1800,
+      "encoded": 432
+     },
+     {
+      "seconds": 185,
+      "rendered": 1800,
+      "encoded": 453
+     },
+     {
+      "seconds": 185.5,
+      "rendered": 1800,
+      "encoded": 474
+     },
+     {
+      "seconds": 186,
+      "rendered": 1800,
+      "encoded": 495
+     },
+     {
+      "seconds": 186.5,
+      "rendered": 1800,
+      "encoded": 512
+     },
+     {
+      "seconds": 187,
+      "rendered": 1800,
+      "encoded": 540
+     },
+     {
+      "seconds": 187.5,
+      "rendered": 1800,
+      "encoded": 567
+     },
+     {
+      "seconds": 188,
+      "rendered": 1800,
+      "encoded": 595
+     },
+     {
+      "seconds": 188.5,
+      "rendered": 1800,
+      "encoded": 619
+     },
+     {
+      "seconds": 189,
+      "rendered": 1800,
+      "encoded": 644
+     },
+     {
+      "seconds": 189.5,
+      "rendered": 1800,
+      "encoded": 669
+     },
+     {
+      "seconds": 190,
+      "rendered": 1800,
+      "encoded": 691
+     },
+     {
+      "seconds": 190.5,
+      "rendered": 1800,
+      "encoded": 713
+     },
+     {
+      "seconds": 191,
+      "rendered": 1800,
+      "encoded": 737
+     },
+     {
+      "seconds": 191.5,
+      "rendered": 1800,
+      "encoded": 760
+     },
+     {
+      "seconds": 192,
+      "rendered": 1800,
+      "encoded": 783
+     },
+     {
+      "seconds": 192.5,
+      "rendered": 1800,
+      "encoded": 806
+     },
+     {
+      "seconds": 193,
+      "rendered": 1800,
+      "encoded": 827
+     },
+     {
+      "seconds": 193.5,
+      "rendered": 1800,
+      "encoded": 848
+     },
+     {
+      "seconds": 194,
+      "rendered": 1800,
+      "encoded": 868
+     },
+     {
+      "seconds": 194.5,
+      "rendered": 1800,
+      "encoded": 889
+     },
+     {
+      "seconds": 195,
+      "rendered": 1800,
+      "encoded": 909
+     },
+     {
+      "seconds": 195.5,
+      "rendered": 1800,
+      "encoded": 931
+     },
+     {
+      "seconds": 196.1,
+      "rendered": 1800,
+      "encoded": 951
+     },
+     {
+      "seconds": 196.5,
+      "rendered": 1800,
+      "encoded": 973
+     },
+     {
+      "seconds": 197,
+      "rendered": 1800,
+      "encoded": 994
+     },
+     {
+      "seconds": 197.6,
+      "rendered": 1800,
+      "encoded": 1013
+     },
+     {
+      "seconds": 198.1,
+      "rendered": 1800,
+      "encoded": 1036
+     },
+     {
+      "seconds": 198.6,
+      "rendered": 1800,
+      "encoded": 1060
+     },
+     {
+      "seconds": 199.1,
+      "rendered": 1800,
+      "encoded": 1089
+     },
+     {
+      "seconds": 199.6,
+      "rendered": 1800,
+      "encoded": 1112
+     },
+     {
+      "seconds": 200.1,
+      "rendered": 1800,
+      "encoded": 1136
+     },
+     {
+      "seconds": 200.6,
+      "rendered": 1800,
+      "encoded": 1162
+     },
+     {
+      "seconds": 201.1,
+      "rendered": 1800,
+      "encoded": 1188
+     },
+     {
+      "seconds": 201.6,
+      "rendered": 1800,
+      "encoded": 1211
+     },
+     {
+      "seconds": 202.1,
+      "rendered": 1800,
+      "encoded": 1234
+     },
+     {
+      "seconds": 202.6,
+      "rendered": 1800,
+      "encoded": 1253
+     },
+     {
+      "seconds": 203.1,
+      "rendered": 1800,
+      "encoded": 1276
+     },
+     {
+      "seconds": 203.6,
+      "rendered": 1800,
+      "encoded": 1298
+     },
+     {
+      "seconds": 204.1,
+      "rendered": 1800,
+      "encoded": 1320
+     },
+     {
+      "seconds": 204.6,
+      "rendered": 1800,
+      "encoded": 1340
+     },
+     {
+      "seconds": 205.1,
+      "rendered": 1800,
+      "encoded": 1360
+     },
+     {
+      "seconds": 205.6,
+      "rendered": 1800,
+      "encoded": 1380
+     },
+     {
+      "seconds": 206.1,
+      "rendered": 1800,
+      "encoded": 1400
+     },
+     {
+      "seconds": 206.6,
+      "rendered": 1800,
+      "encoded": 1419
+     },
+     {
+      "seconds": 207.1,
+      "rendered": 1800,
+      "encoded": 1439
+     },
+     {
+      "seconds": 207.6,
+      "rendered": 1800,
+      "encoded": 1460
+     },
+     {
+      "seconds": 208.1,
+      "rendered": 1800,
+      "encoded": 1489
+     },
+     {
+      "seconds": 208.6,
+      "rendered": 1800,
+      "encoded": 1515
+     },
+     {
+      "seconds": 209.1,
+      "rendered": 1800,
+      "encoded": 1541
+     },
+     {
+      "seconds": 209.6,
+      "rendered": 1800,
+      "encoded": 1566
+     },
+     {
+      "seconds": 210.1,
+      "rendered": 1800,
+      "encoded": 1589
+     },
+     {
+      "seconds": 210.6,
+      "rendered": 1800,
+      "encoded": 1615
+     },
+     {
+      "seconds": 211.1,
+      "rendered": 1800,
+      "encoded": 1637
+     },
+     {
+      "seconds": 211.6,
+      "rendered": 1800,
+      "encoded": 1659
+     },
+     {
+      "seconds": 212.1,
+      "rendered": 1800,
+      "encoded": 1680
+     },
+     {
+      "seconds": 212.6,
+      "rendered": 1800,
+      "encoded": 1700
+     },
+     {
+      "seconds": 213.1,
+      "rendered": 1800,
+      "encoded": 1723
+     },
+     {
+      "seconds": 213.6,
+      "rendered": 1800,
+      "encoded": 1748
+     },
+     {
+      "seconds": 214.1,
+      "rendered": 1800,
+      "encoded": 1779
+     },
+     {
+      "seconds": 214.4,
+      "rendered": 1800,
+      "encoded": 1800
+     }
+    ],
+    "density": {
+     "scenes": [
+      {
+       "scene": 1,
+       "seconds": 17,
+       "primitives": 70
+      },
+      {
+       "scene": 2,
+       "seconds": 16.8,
+       "primitives": 70
+      },
+      {
+       "scene": 3,
+       "seconds": 14.2,
+       "primitives": 66
+      },
+      {
+       "scene": 4,
+       "seconds": 12,
+       "primitives": 56
+      }
+     ],
+     "primitives": 262,
+     "max_per_scene": 70,
+     "path_points": 1744,
+     "kinds": {
+      "text": 85,
+      "path": 35,
+      "rect": 47,
+      "line": 21,
+      "arrow": 36,
+      "ellipse": 19,
+      "cross": 19
+     }
+    },
+    "peak_rss_mib": 1310,
+    "peak_tmp_mib": 52,
+    "exceeds_420s": false
+   },
+   "resources": {
+    "exit_status": 0,
+    "backend": "cgroup-v1",
+    "memory_bytes": 3221225472,
+    "swap_bytes": 0,
+    "memsw_limit": 3221225472,
+    "pids_max": 1024,
+    "cpu_period_us": 100000,
+    "cpu_quota_us": 150000,
+    "oom_kills": 0,
+    "memory_peak": 959762432,
+    "memory_failcnt": 0,
+    "memsw_peak": 959762432,
+    "pids_peak": 129,
+    "pids_limit_hits": 0,
+    "cpu_nr_periods": 2661,
+    "cpu_throttled": 495,
+    "cpu_throttled_time_us": 18293769,
+    "cpu_usage_us": 307065267,
+    "cpu_quota": 1.5,
+    "controllers": [
+     "memory",
+     "memsw",
+     "pids",
+     "cpu",
+     "cpuacct",
+     "freezer"
+    ],
+    "cleanup": {
+     "freezer": "used",
+     "terminated": 0,
+     "killed": 0,
+     "remaining": 0,
+     "settle_ms": 4,
+     "groups_removed": true,
+     "render_user_processes": 0,
+     "ok": true
+    }
+   },
+   "deadline_seconds": 900
+  },
+  {
+   "seconds": 120,
+   "started": "2026-11-05T01:03:44.608Z",
+   "wall_seconds": 500.3,
+   "status": "ready",
+   "frame_count": 3600,
+   "output_bytes": 4991342,
+   "capacity": {
+    "video_seconds": 120,
+    "frames": 3600,
+    "ffprobe": {
+     "codec": "h264",
+     "pix_fmt": "yuv420p",
+     "color_space": "bt709",
+     "width": 1920,
+     "height": 1080,
+     "frame_count": 3600,
+     "audio_codec": "aac"
+    },
+    "mp4_bytes": 4991342,
+    "timings": {
+     "bundle_and_browser": 19.74,
+     "render": 431.11,
+     "mux_silent_aac": 0.64,
+     "stills_first_context": 1.02,
+     "contact_sheet": 5.6,
+     "second_context_bundle_and_browser": 17.57,
+     "stills_second_context": 0.87,
+     "deterministic": true,
+     "total": 487.21
+    },
+    "render_fps": 8.35,
+    "progress": [
+     {
+      "seconds": 0,
+      "rendered": 0,
+      "encoded": 0
+     },
+     {
+      "seconds": 13.5,
+      "rendered": 150,
+      "encoded": 0
+     },
+     {
+      "seconds": 28.3,
+      "rendered": 300,
+      "encoded": 0
+     },
+     {
+      "seconds": 44.4,
+      "rendered": 450,
+      "encoded": 0
+     },
+     {
+      "seconds": 58.8,
+      "rendered": 600,
+      "encoded": 0
+     },
+     {
+      "seconds": 72,
+      "rendered": 750,
+      "encoded": 0
+     },
+     {
+      "seconds": 87.3,
+      "rendered": 900,
+      "encoded": 0
+     },
+     {
+      "seconds": 104.6,
+      "rendered": 1050,
+      "encoded": 0
+     },
+     {
+      "seconds": 117.6,
+      "rendered": 1200,
+      "encoded": 0
+     },
+     {
+      "seconds": 132.7,
+      "rendered": 1350,
+      "encoded": 0
+     },
+     {
+      "seconds": 148,
+      "rendered": 1500,
+      "encoded": 0
+     },
+     {
+      "seconds": 161.4,
+      "rendered": 1650,
+      "encoded": 0
+     },
+     {
+      "seconds": 177,
+      "rendered": 1800,
+      "encoded": 0
+     },
+     {
+      "seconds": 190.6,
+      "rendered": 1950,
+      "encoded": 0
+     },
+     {
+      "seconds": 204.9,
+      "rendered": 2100,
+      "encoded": 0
+     },
+     {
+      "seconds": 221.7,
+      "rendered": 2250,
+      "encoded": 0
+     },
+     {
+      "seconds": 238.2,
+      "rendered": 2400,
+      "encoded": 0
+     },
+     {
+      "seconds": 251.6,
+      "rendered": 2550,
+      "encoded": 0
+     },
+     {
+      "seconds": 267.4,
+      "rendered": 2700,
+      "encoded": 0
+     },
+     {
+      "seconds": 283.8,
+      "rendered": 2850,
+      "encoded": 0
+     },
+     {
+      "seconds": 296.7,
+      "rendered": 3000,
+      "encoded": 0
+     },
+     {
+      "seconds": 310.6,
+      "rendered": 3150,
+      "encoded": 0
+     },
+     {
+      "seconds": 325.8,
+      "rendered": 3300,
+      "encoded": 0
+     },
+     {
+      "seconds": 338.7,
+      "rendered": 3450,
+      "encoded": 0
+     },
+     {
+      "seconds": 352.9,
+      "rendered": 3600,
+      "encoded": 0
+     },
+     {
+      "seconds": 353.9,
+      "rendered": 3600,
+      "encoded": 11
+     },
+     {
+      "seconds": 354.4,
+      "rendered": 3600,
+      "encoded": 36
+     },
+     {
+      "seconds": 354.9,
+      "rendered": 3600,
+      "encoded": 64
+     },
+     {
+      "seconds": 355.4,
+      "rendered": 3600,
+      "encoded": 90
+     },
+     {
+      "seconds": 355.9,
+      "rendered": 3600,
+      "encoded": 114
+     },
+     {
+      "seconds": 356.4,
+      "rendered": 3600,
+      "encoded": 139
+     },
+     {
+      "seconds": 356.9,
+      "rendered": 3600,
+      "encoded": 160
+     },
+     {
+      "seconds": 357.4,
+      "rendered": 3600,
+      "encoded": 180
+     },
+     {
+      "seconds": 357.9,
+      "rendered": 3600,
+      "encoded": 200
+     },
+     {
+      "seconds": 358.4,
+      "rendered": 3600,
+      "encoded": 221
+     },
+     {
+      "seconds": 358.9,
+      "rendered": 3600,
+      "encoded": 241
+     },
+     {
+      "seconds": 359.4,
+      "rendered": 3600,
+      "encoded": 262
+     },
+     {
+      "seconds": 359.9,
+      "rendered": 3600,
+      "encoded": 283
+     },
+     {
+      "seconds": 360.4,
+      "rendered": 3600,
+      "encoded": 305
+     },
+     {
+      "seconds": 360.9,
+      "rendered": 3600,
+      "encoded": 329
+     },
+     {
+      "seconds": 361.4,
+      "rendered": 3600,
+      "encoded": 354
+     },
+     {
+      "seconds": 361.9,
+      "rendered": 3600,
+      "encoded": 376
+     },
+     {
+      "seconds": 362.5,
+      "rendered": 3600,
+      "encoded": 399
+     },
+     {
+      "seconds": 363,
+      "rendered": 3600,
+      "encoded": 421
+     },
+     {
+      "seconds": 363.5,
+      "rendered": 3600,
+      "encoded": 440
+     },
+     {
+      "seconds": 364,
+      "rendered": 3600,
+      "encoded": 461
+     },
+     {
+      "seconds": 364.5,
+      "rendered": 3600,
+      "encoded": 483
+     },
+     {
+      "seconds": 365,
+      "rendered": 3600,
+      "encoded": 504
+     },
+     {
+      "seconds": 365.5,
+      "rendered": 3600,
+      "encoded": 524
+     },
+     {
+      "seconds": 366,
+      "rendered": 3600,
+      "encoded": 550
+     },
+     {
+      "seconds": 366.5,
+      "rendered": 3600,
+      "encoded": 578
+     },
+     {
+      "seconds": 367,
+      "rendered": 3600,
+      "encoded": 602
+     },
+     {
+      "seconds": 367.5,
+      "rendered": 3600,
+      "encoded": 628
+     },
+     {
+      "seconds": 368,
+      "rendered": 3600,
+      "encoded": 651
+     },
+     {
+      "seconds": 368.5,
+      "rendered": 3600,
+      "encoded": 677
+     },
+     {
+      "seconds": 369,
+      "rendered": 3600,
+      "encoded": 701
+     },
+     {
+      "seconds": 369.5,
+      "rendered": 3600,
+      "encoded": 726
+     },
+     {
+      "seconds": 370,
+      "rendered": 3600,
+      "encoded": 750
+     },
+     {
+      "seconds": 370.5,
+      "rendered": 3600,
+      "encoded": 775
+     },
+     {
+      "seconds": 371,
+      "rendered": 3600,
+      "encoded": 799
+     },
+     {
+      "seconds": 371.5,
+      "rendered": 3600,
+      "encoded": 822
+     },
+     {
+      "seconds": 372,
+      "rendered": 3600,
+      "encoded": 844
+     },
+     {
+      "seconds": 372.5,
+      "rendered": 3600,
+      "encoded": 865
+     },
+     {
+      "seconds": 373,
+      "rendered": 3600,
+      "encoded": 889
+     },
+     {
+      "seconds": 373.5,
+      "rendered": 3600,
+      "encoded": 909
+     },
+     {
+      "seconds": 374,
+      "rendered": 3600,
+      "encoded": 932
+     },
+     {
+      "seconds": 374.5,
+      "rendered": 3600,
+      "encoded": 954
+     },
+     {
+      "seconds": 375,
+      "rendered": 3600,
+      "encoded": 977
+     },
+     {
+      "seconds": 375.5,
+      "rendered": 3600,
+      "encoded": 999
+     },
+     {
+      "seconds": 376,
+      "rendered": 3600,
+      "encoded": 1021
+     },
+     {
+      "seconds": 376.5,
+      "rendered": 3600,
+      "encoded": 1049
+     },
+     {
+      "seconds": 377,
+      "rendered": 3600,
+      "encoded": 1076
+     },
+     {
+      "seconds": 377.5,
+      "rendered": 3600,
+      "encoded": 1102
+     },
+     {
+      "seconds": 378,
+      "rendered": 3600,
+      "encoded": 1125
+     },
+     {
+      "seconds": 378.5,
+      "rendered": 3600,
+      "encoded": 1149
+     },
+     {
+      "seconds": 379,
+      "rendered": 3600,
+      "encoded": 1174
+     },
+     {
+      "seconds": 379.5,
+      "rendered": 3600,
+      "encoded": 1200
+     },
+     {
+      "seconds": 380,
+      "rendered": 3600,
+      "encoded": 1225
+     },
+     {
+      "seconds": 380.5,
+      "rendered": 3600,
+      "encoded": 1245
+     },
+     {
+      "seconds": 381,
+      "rendered": 3600,
+      "encoded": 1265
+     },
+     {
+      "seconds": 381.5,
+      "rendered": 3600,
+      "encoded": 1285
+     },
+     {
+      "seconds": 382,
+      "rendered": 3600,
+      "encoded": 1305
+     },
+     {
+      "seconds": 382.5,
+      "rendered": 3600,
+      "encoded": 1329
+     },
+     {
+      "seconds": 383,
+      "rendered": 3600,
+      "encoded": 1350
+     },
+     {
+      "seconds": 383.5,
+      "rendered": 3600,
+      "encoded": 1372
+     },
+     {
+      "seconds": 384,
+      "rendered": 3600,
+      "encoded": 1397
+     },
+     {
+      "seconds": 384.5,
+      "rendered": 3600,
+      "encoded": 1420
+     },
+     {
+      "seconds": 385,
+      "rendered": 3600,
+      "encoded": 1442
+     },
+     {
+      "seconds": 385.5,
+      "rendered": 3600,
+      "encoded": 1461
+     },
+     {
+      "seconds": 386,
+      "rendered": 3600,
+      "encoded": 1489
+     },
+     {
+      "seconds": 386.5,
+      "rendered": 3600,
+      "encoded": 1515
+     },
+     {
+      "seconds": 387,
+      "rendered": 3600,
+      "encoded": 1542
+     },
+     {
+      "seconds": 387.5,
+      "rendered": 3600,
+      "encoded": 1565
+     },
+     {
+      "seconds": 388,
+      "rendered": 3600,
+      "encoded": 1590
+     },
+     {
+      "seconds": 388.5,
+      "rendered": 3600,
+      "encoded": 1613
+     },
+     {
+      "seconds": 389,
+      "rendered": 3600,
+      "encoded": 1637
+     },
+     {
+      "seconds": 389.5,
+      "rendered": 3600,
+      "encoded": 1657
+     },
+     {
+      "seconds": 390,
+      "rendered": 3600,
+      "encoded": 1679
+     },
+     {
+      "seconds": 390.5,
+      "rendered": 3600,
+      "encoded": 1702
+     },
+     {
+      "seconds": 391,
+      "rendered": 3600,
+      "encoded": 1727
+     },
+     {
+      "seconds": 391.5,
+      "rendered": 3600,
+      "encoded": 1750
+     },
+     {
+      "seconds": 392,
+      "rendered": 3600,
+      "encoded": 1775
+     },
+     {
+      "seconds": 392.5,
+      "rendered": 3600,
+      "encoded": 1799
+     },
+     {
+      "seconds": 393,
+      "rendered": 3600,
+      "encoded": 1822
+     },
+     {
+      "seconds": 393.5,
+      "rendered": 3600,
+      "encoded": 1840
+     },
+     {
+      "seconds": 394,
+      "rendered": 3600,
+      "encoded": 1866
+     },
+     {
+      "seconds": 394.5,
+      "rendered": 3600,
+      "encoded": 1895
+     },
+     {
+      "seconds": 395,
+      "rendered": 3600,
+      "encoded": 1921
+     },
+     {
+      "seconds": 395.6,
+      "rendered": 3600,
+      "encoded": 1947
+     },
+     {
+      "seconds": 396.1,
+      "rendered": 3600,
+      "encoded": 1969
+     },
+     {
+      "seconds": 396.6,
+      "rendered": 3600,
+      "encoded": 1994
+     },
+     {
+      "seconds": 397.1,
+      "rendered": 3600,
+      "encoded": 2020
+     },
+     {
+      "seconds": 397.6,
+      "rendered": 3600,
+      "encoded": 2046
+     },
+     {
+      "seconds": 398.1,
+      "rendered": 3600,
+      "encoded": 2071
+     },
+     {
+      "seconds": 398.6,
+      "rendered": 3600,
+      "encoded": 2093
+     },
+     {
+      "seconds": 399.1,
+      "rendered": 3600,
+      "encoded": 2119
+     },
+     {
+      "seconds": 399.6,
+      "rendered": 3600,
+      "encoded": 2142
+     },
+     {
+      "seconds": 400.1,
+      "rendered": 3600,
+      "encoded": 2165
+     },
+     {
+      "seconds": 400.6,
+      "rendered": 3600,
+      "encoded": 2189
+     },
+     {
+      "seconds": 401.1,
+      "rendered": 3600,
+      "encoded": 2211
+     },
+     {
+      "seconds": 401.6,
+      "rendered": 3600,
+      "encoded": 2233
+     },
+     {
+      "seconds": 402.1,
+      "rendered": 3600,
+      "encoded": 2256
+     },
+     {
+      "seconds": 402.6,
+      "rendered": 3600,
+      "encoded": 2278
+     },
+     {
+      "seconds": 403.1,
+      "rendered": 3600,
+      "encoded": 2300
+     },
+     {
+      "seconds": 403.6,
+      "rendered": 3600,
+      "encoded": 2323
+     },
+     {
+      "seconds": 404.1,
+      "rendered": 3600,
+      "encoded": 2344
+     },
+     {
+      "seconds": 404.6,
+      "rendered": 3600,
+      "encoded": 2368
+     },
+     {
+      "seconds": 405.1,
+      "rendered": 3600,
+      "encoded": 2394
+     },
+     {
+      "seconds": 405.6,
+      "rendered": 3600,
+      "encoded": 2422
+     },
+     {
+      "seconds": 406.1,
+      "rendered": 3600,
+      "encoded": 2447
+     },
+     {
+      "seconds": 406.6,
+      "rendered": 3600,
+      "encoded": 2472
+     },
+     {
+      "seconds": 407.1,
+      "rendered": 3600,
+      "encoded": 2495
+     },
+     {
+      "seconds": 407.6,
+      "rendered": 3600,
+      "encoded": 2520
+     },
+     {
+      "seconds": 408.1,
+      "rendered": 3600,
+      "encoded": 2541
+     },
+     {
+      "seconds": 408.6,
+      "rendered": 3600,
+      "encoded": 2564
+     },
+     {
+      "seconds": 409.1,
+      "rendered": 3600,
+      "encoded": 2581
+     },
+     {
+      "seconds": 409.6,
+      "rendered": 3600,
+      "encoded": 2603
+     },
+     {
+      "seconds": 410.1,
+      "rendered": 3600,
+      "encoded": 2627
+     },
+     {
+      "seconds": 410.6,
+      "rendered": 3600,
+      "encoded": 2648
+     },
+     {
+      "seconds": 411.1,
+      "rendered": 3600,
+      "encoded": 2669
+     },
+     {
+      "seconds": 411.6,
+      "rendered": 3600,
+      "encoded": 2693
+     },
+     {
+      "seconds": 412.1,
+      "rendered": 3600,
+      "encoded": 2712
+     },
+     {
+      "seconds": 412.6,
+      "rendered": 3600,
+      "encoded": 2732
+     },
+     {
+      "seconds": 413.1,
+      "rendered": 3600,
+      "encoded": 2756
+     },
+     {
+      "seconds": 413.6,
+      "rendered": 3600,
+      "encoded": 2779
+     },
+     {
+      "seconds": 414.1,
+      "rendered": 3600,
+      "encoded": 2802
+     },
+     {
+      "seconds": 414.6,
+      "rendered": 3600,
+      "encoded": 2824
+     },
+     {
+      "seconds": 415.1,
+      "rendered": 3600,
+      "encoded": 2850
+     },
+     {
+      "seconds": 415.6,
+      "rendered": 3600,
+      "encoded": 2877
+     },
+     {
+      "seconds": 416.1,
+      "rendered": 3600,
+      "encoded": 2903
+     },
+     {
+      "seconds": 416.6,
+      "rendered": 3600,
+      "encoded": 2924
+     },
+     {
+      "seconds": 417.1,
+      "rendered": 3600,
+      "encoded": 2944
+     },
+     {
+      "seconds": 417.6,
+      "rendered": 3600,
+      "encoded": 2967
+     },
+     {
+      "seconds": 418.1,
+      "rendered": 3600,
+      "encoded": 2990
+     },
+     {
+      "seconds": 418.6,
+      "rendered": 3600,
+      "encoded": 3013
+     },
+     {
+      "seconds": 419.1,
+      "rendered": 3600,
+      "encoded": 3038
+     },
+     {
+      "seconds": 419.6,
+      "rendered": 3600,
+      "encoded": 3055
+     },
+     {
+      "seconds": 420.1,
+      "rendered": 3600,
+      "encoded": 3078
+     },
+     {
+      "seconds": 420.6,
+      "rendered": 3600,
+      "encoded": 3101
+     },
+     {
+      "seconds": 421.1,
+      "rendered": 3600,
+      "encoded": 3122
+     },
+     {
+      "seconds": 421.6,
+      "rendered": 3600,
+      "encoded": 3142
+     },
+     {
+      "seconds": 422.1,
+      "rendered": 3600,
+      "encoded": 3163
+     },
+     {
+      "seconds": 422.6,
+      "rendered": 3600,
+      "encoded": 3183
+     },
+     {
+      "seconds": 423.1,
+      "rendered": 3600,
+      "encoded": 3204
+     },
+     {
+      "seconds": 423.6,
+      "rendered": 3600,
+      "encoded": 3227
+     },
+     {
+      "seconds": 424.1,
+      "rendered": 3600,
+      "encoded": 3249
+     },
+     {
+      "seconds": 424.6,
+      "rendered": 3600,
+      "encoded": 3265
+     },
+     {
+      "seconds": 425.1,
+      "rendered": 3600,
+      "encoded": 3293
+     },
+     {
+      "seconds": 425.6,
+      "rendered": 3600,
+      "encoded": 3321
+     },
+     {
+      "seconds": 426.1,
+      "rendered": 3600,
+      "encoded": 3348
+     },
+     {
+      "seconds": 426.6,
+      "rendered": 3600,
+      "encoded": 3376
+     },
+     {
+      "seconds": 427.1,
+      "rendered": 3600,
+      "encoded": 3402
+     },
+     {
+      "seconds": 427.6,
+      "rendered": 3600,
+      "encoded": 3425
+     },
+     {
+      "seconds": 428.1,
+      "rendered": 3600,
+      "encoded": 3451
+     },
+     {
+      "seconds": 428.6,
+      "rendered": 3600,
+      "encoded": 3470
+     },
+     {
+      "seconds": 429.1,
+      "rendered": 3600,
+      "encoded": 3490
+     },
+     {
+      "seconds": 429.6,
+      "rendered": 3600,
+      "encoded": 3511
+     },
+     {
+      "seconds": 430.1,
+      "rendered": 3600,
+      "encoded": 3536
+     },
+     {
+      "seconds": 430.6,
+      "rendered": 3600,
+      "encoded": 3568
+     },
+     {
+      "seconds": 431,
+      "rendered": 3600,
+      "encoded": 3600
+     }
+    ],
+    "density": {
+     "scenes": [
+      {
+       "scene": 1,
+       "seconds": 17,
+       "primitives": 70
+      },
+      {
+       "scene": 2,
+       "seconds": 16.8,
+       "primitives": 70
+      },
+      {
+       "scene": 3,
+       "seconds": 14.2,
+       "primitives": 66
+      },
+      {
+       "scene": 4,
+       "seconds": 13.1,
+       "primitives": 61
+      },
+      {
+       "scene": 5,
+       "seconds": 17.8,
+       "primitives": 70
+      },
+      {
+       "scene": 6,
+       "seconds": 14.6,
+       "primitives": 68
+      },
+      {
+       "scene": 7,
+       "seconds": 15.2,
+       "primitives": 70
+      },
+      {
+       "scene": 8,
+       "seconds": 11.3,
+       "primitives": 53
+      }
+     ],
+     "primitives": 528,
+     "max_per_scene": 70,
+     "path_points": 3537,
+     "kinds": {
+      "text": 169,
+      "path": 72,
+      "rect": 94,
+      "line": 42,
+      "arrow": 75,
+      "ellipse": 39,
+      "cross": 37
+     }
+    },
+    "peak_rss_mib": 1363,
+    "peak_tmp_mib": 54,
+    "exceeds_420s": true
+   },
+   "resources": {
+    "exit_status": 0,
+    "backend": "cgroup-v1",
+    "memory_bytes": 3221225472,
+    "swap_bytes": 0,
+    "memsw_limit": 3221225472,
+    "pids_max": 1024,
+    "cpu_period_us": 100000,
+    "cpu_quota_us": 150000,
+    "oom_kills": 0,
+    "memory_peak": 1141399552,
+    "memory_failcnt": 0,
+    "memsw_peak": 1141399552,
+    "pids_peak": 130,
+    "pids_limit_hits": 0,
+    "cpu_nr_periods": 4984,
+    "cpu_throttled": 890,
+    "cpu_throttled_time_us": 33600641,
+    "cpu_usage_us": 570369940,
+    "cpu_quota": 1.5,
+    "controllers": [
+     "memory",
+     "memsw",
+     "pids",
+     "cpu",
+     "cpuacct",
+     "freezer"
+    ],
+    "cleanup": {
+     "freezer": "used",
+     "terminated": 0,
+     "killed": 0,
+     "remaining": 0,
+     "settle_ms": 3,
+     "groups_removed": true,
+     "render_user_processes": 0,
+     "ok": true
+    }
+   },
+   "deadline_seconds": 900
+  }
+ ]
+}
