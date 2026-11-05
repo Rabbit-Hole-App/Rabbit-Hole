@@ -8,14 +8,16 @@ const all = Object.keys(ROUTES);
 const answer = (choice, confidence, probabilities) => ({ answers: { route: { type: 'choice', choice, confidence, probabilities } } });
 
 test('every registered Learn command has exactly one inline status (A6), and navigation is never inline', () => {
-  for (const command of commandsFor('learn', { motionDev: true })) assert.notEqual(inlineStatus(command.name), 'unknown', command.name);
+  for (const command of commandsFor('learn', { motionDev: true, whiteboard: true })) assert.notEqual(inlineStatus(command.name), 'unknown', command.name);
+  // Owner roadmap 2026-11-04: /whiteboard (id whiteboard-video) runs only by its explicit command, as /animation does.
+  assert.equal(inlineStatus('whiteboard-video'), 'explicit');
   for (const name of ['goal', 'notebook', 'browser']) {
     assert.equal(inlineStatus(name), 'n/a', name);
     assert.ok(planRoute({ mode: 'explain', prompt: `/${name} x`, enabled: all }).clarify, `/${name} is refused inline`);
   }
   // Owner, 2026-10-20: a removed command is unavailable inline, even /compare and /walkthrough, whose routes plain words still reach.
-  // Owner spec 2026-10-29: /dive, /whiteboard and /video likewise; plain words still reach the video route.
-  for (const name of ['simplify', 'example', 'deeper', 'source', 'more', 'paper', 'ask', 'teach', 'compare', 'walkthrough', 'dive', 'whiteboard', 'video']) {
+  // Owner spec 2026-10-29: /dive and /video likewise; plain words still reach the video route (/whiteboard returned 2026-11-04).
+  for (const name of ['simplify', 'example', 'deeper', 'source', 'more', 'paper', 'ask', 'teach', 'compare', 'walkthrough', 'dive', 'video']) {
     assert.equal(inlineStatus(name), ['compare', 'walkthrough', 'video'].includes(name) ? 'route' : 'unknown', name);
     assert.deepEqual(planRoute({ mode: 'explain', prompt: `/${name} x`, enabled: all }), { clarify: { question: `/${name} is no longer available. Type / to see the commands, or ask in your own words.`, options: [] } }, name);
   }

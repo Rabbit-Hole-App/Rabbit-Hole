@@ -56,7 +56,7 @@ test('every registered command (Chat, Ctrl+K and Insert) has a pill with its typ
       assert.ok(pill.includes(`aria-label="Remove ${labelOf(command)}"`), `/${command.name}: Remove ${labelOf(command)}`);
     }
   }
-  assert.equal(SLASH.length, 19 /* /animation added, owner 2026-10-30 */);
+  assert.equal(SLASH.length, 20 /* /animation added, owner 2026-10-30; /whiteboard (whiteboard-video), owner roadmap 2026-11-04 */);
   // The Home, Library and Project bar has no slash commands since 2026-10-20 (owner), so it draws no command pill at all.
   const bar = readFileSync(new URL('./agent/AgentBar.jsx', import.meta.url), 'utf8');
   assert.doesNotMatch(bar, /data-command-pill|commandLabel/);

@@ -13,7 +13,7 @@ import * as esbuild from 'esbuild';
 import * as token from './command-token.js';
 import { draftSlot } from './chat-draft.js';
 import { commandLine, lineCommand, runLearnCommand } from './learn-slash.js';
-import { setImageGeneration } from './agent/slash.js';
+import { setImageGeneration, setWhiteboardVideo } from './agent/slash.js';
 
 const { NO_STEPS, historyKey, recordStep, removesToken, sentCommand, travel } = token;
 
@@ -159,18 +159,21 @@ test('ask.jsx wires the token: boundary Backspace, x, Undo/Redo steps, and Send 
 
 // Slash pills (owner brief 2026-10-29, BRIEF-PILLS 1-4): what the Chat composer stores, shows and sends for a picked, typed or pasted
 // command. typed is what a learner types; id the stable command id stored in the draft and the saved message (agent/slash.js typed).
-const EIGHTEEN = [
+// Owner roadmap 2026-11-04: /whiteboard (id whiteboard-video) joins them where the server offers it, so 19.
+const NINETEEN = [
   ['explain', 'explain'], ['practice', 'practice'], ['quiz', 'quiz'], ['flashcards', 'flashcards'], ['goal', 'goal'], ['code', 'code'],
   ['graph', 'graph'], ['diagram', 'diagram'], ['notebook', 'notebook'], ['image', 'generate-image'], ['motion', 'motion'], ['cad', 'cad'],
   ['3d', '3d'], ['browser', 'browser'], ['photos', 'image'], ['youtube', 'youtube'], ['arxiv', 'arxiv'], ['wikipedia', 'wikipedia'],
+  ['whiteboard', 'whiteboard-video'],
 ];
 const LIVE = { motionDev: true };
 const withImages = (on, run) => { setImageGeneration(on); try { return run(); } finally { setImageGeneration(false); } };
+const withWhiteboard = run => { setWhiteboardVideo(true); try { return run(); } finally { setWhiteboardVideo(false); } };
 const shownPill = name => B.renderToStaticMarkup(B.createElement(B.CommandPill, { name })).match(/data-command-pill="([^"]+)".*?font-medium">([^<]*)</).slice(1);
 
-test('Chat: each of the 18 picked, typed, uppercase or pasted stores its id, shows its typed pill and sends its typed line', () => withImages(true, () => {
-  assert.equal(EIGHTEEN.length, 18);
-  for (const [typed, id] of EIGHTEEN) {
+test('Chat: each of the 19 picked, typed, uppercase or pasted stores its id, shows its typed pill and sends its typed line', () => withImages(true, () => withWhiteboard(() => {
+  assert.equal(NINETEEN.length, 19);
+  for (const [typed, id] of NINETEEN) {
     // Picked (LearnSlash choose writes "/typed ") and typed with a separator: the pill, and the words typed before the palette come back.
     assert.deepEqual(token.composerCommand(`/${typed} `, 'my draft', LIVE), { command: id, text: 'my draft' }, `picked /${typed}`);
     assert.deepEqual(token.composerCommand(`/${typed} `, null, LIVE), { command: id, text: '' }, `typed /${typed}`);
@@ -187,7 +190,7 @@ test('Chat: each of the 18 picked, typed, uppercase or pasted stores its id, sho
   }
   // Not a command and its separator: text.
   for (const value of ['/image', '/', 'the /image of it', ' /image ', '/usr/bin/env ', '/nope ']) assert.equal(token.composerCommand(value, null, LIVE), null, value);
-}));
+})));
 
 test('Chat: /image is the generation and /photos the search; aliases resolve; a typed command replaces the pill; nothing else changes', () => withImages(true, () => {
   // The confirmed bug: "/image " became the photos pill (id image) and sent /photos; "/photos " made no pill and left the old one.
@@ -223,10 +226,14 @@ test('Chat: unavailable /image says image generation is unavailable and never be
   // /photo still searches with generation off.
   assert.deepEqual(token.composerCommand('/photo ', null), { command: 'image', text: '' });
   // Removed commands, and /motion where it is not offered, stay text: Send says they are unavailable.
-  for (const name of ['dive', 'whiteboard', 'video']) {
+  for (const name of ['dive', 'video']) {
     assert.equal(token.composerCommand(`/${name} x`, null, LIVE), null, name);
     assert.match((await runLearnCommand(`/${name} x`, { app: 'a', canvas, post })).notice.text, new RegExp(`^/${name} is no longer available`), name);
   }
+  // /whiteboard where the server has not offered it: text, and Send says it is not available here; nothing is inserted.
+  assert.equal(token.composerCommand('/whiteboard x', null, LIVE), null);
+  assert.equal((await runLearnCommand('/whiteboard x', { app: 'a', canvas, post })).notice.text, "/whiteboard isn't available here.");
+  assert.deepEqual(inserted, []);
   assert.equal(token.composerCommand('/motion ', null, { motionDev: false }), null);
 });
 

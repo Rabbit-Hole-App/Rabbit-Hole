@@ -23,7 +23,8 @@
 // resolveCommand/idOfTyped; every line built from an id goes through typedOf. Saved ids are never remapped:
 // an old `image` message keeps reading as the photo search it was.
 // needs: 'image_generation' is offered only where image generation is on (IMAGE_GENERATION, below); 'motion_dev' only in a
-// development or review build (MOTION_DEV, below), never in production.
+// development or review build (MOTION_DEV, below), never in production; 'whiteboard' only where the server offers the whiteboard
+// video (WHITEBOARD_VIDEO, below).
 
 // Selection context: what the learner has selected when they send. The bar produces 'project' and
 // 'map_node' today; the owning branches add the rest when they expose them (shapes in the contract doc).
@@ -36,9 +37,9 @@ const CTRLK = ['learn', 'ctrlk'];
 // Plain text is checked first, so "/explain in plain text: <an interactive request>" (the failed-scene offer) is text.
 export const PLAIN_WORDS = /\bplain[- ](text|words|explanation)\b|\btext[- ]only\b|\bin text\b|\bwithout (a |an )?(visual|interactive)/i;
 export const INTERACTIVE_WORDS = /\binteractive\b|\bsimulat(e|ion|or)\b|\bsliders?\b|\bvisuali[sz](e|ation)\b|\banimat(e|ed|ion)\b|\bexplorable\b/i;
-// The 18 slash commands a learner can type or pick (owner spec 2026-10-29, docs/features/rabbit-hole-commands.md): /dive, /whiteboard
-// and /video are removed (REMOVED_COMMANDS), /browser is added. Home, Library and Project offer none: their bar takes plain words
-// (router.js). desc is the command's title (the picker line and the Slash Commands window), about its one-sentence description,
+// The 18 slash commands a learner can type or pick (owner spec 2026-10-29, docs/features/rabbit-hole-commands.md): /dive
+// and /video are removed (REMOVED_COMMANDS), /browser is added; /whiteboard returned as the whiteboard video (2026-11-04).
+// Home, Library and Project offer none: their bar takes plain words (router.js). desc is the command's title (the picker line and the Slash Commands window), about its one-sentence description,
 // placeholder the composer's hint while its pill is chosen. kind: 'generate' makes canvas material, 'prompt' is a Learn intent
 // worded for the tutor that makes a card (/practice, /quiz), 'source' opens the shared source finder (no model), 'dialog' opens or
 // inserts something of its own (no generation). Which commands prepare a brief before Generate: learn-slash.js BRIEF_COMMANDS.
@@ -75,6 +76,10 @@ export const SLASH = [
   // play (the animation3d card). A reviewed proposal like /motion: no model call before the plan, nothing generated before Generate.
   // Not /animate (removed) and not /explain's 2D `animation` primitive.
   { name: 'animation', kind: 'generate', group: 'create', places: CTRLK, label: '3D animation', desc: '3D animation', about: 'Describe an idea to see as a live 3D scene you can watch, adjust or play; review its plan, then generate it. Works best for mechanisms, loops and small games.', placeholder: 'What should the 3D scene show or let you try?', action: 'animation', deterministic: true },
+  // /whiteboard (owner roadmap rabbit-hole-whiteboard-roadmap-v1.md, 2026-11-04): a narrated whiteboard video card. Id
+  // `whiteboard-video` (a hyphen: saved chat commands are /^[a-z0-9][a-z0-9-]{0,39}$/), typed /whiteboard; the Tutor's
+  // MATERIAL_TOOLS `whiteboard` (the editable board) keeps its name and is reached only by the internal path (resolveCommand).
+  { name: 'whiteboard-video', typed: 'whiteboard', kind: 'generate', group: 'create', places: CTRLK, label: 'Whiteboard', desc: 'Whiteboard', about: 'Whiteboard turns a request into a narrated video that draws itself: a few scenes, one voice, 10 to 120 seconds. You review the plan first and can change its length or ask for edits. Works best for one idea, a worked example or a process.', placeholder: 'what to explain', action: 'whiteboard-video', deterministic: true, needs: 'whiteboard' },
   { name: '3d', kind: 'generate', group: 'create', places: CTRLK, label: '3D scene', desc: '3D scene', about: 'Create a 3D scene to explore a spatial idea.', placeholder: 'What objects and relationships should the scene show?', family: ['3d_model', 'blender_scene'] },
   // /browser (owner spec 2026-10-29): the existing saved webpage capture (AdaptiveCanvas insertWebpage), not a web browser. A URL is
   // captured as a webpage card; none opens the address dialog. No model.
@@ -118,7 +123,7 @@ export const idOfTyped = (typed) => entryOfTyped(typed)?.name ?? typed;
 export const REMOVED_COMMANDS = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper',
   'simplify', 'example', 'compare', 'source', 'paper', 'animate',
   // Owner spec 2026-10-29: Rabbit Hole navigation, Whiteboard cards and Motion's video stay; only the typed commands go.
-  'dive', 'whiteboard', 'video'];
+  'dive', 'video'];
 // Image generation from a command: off while the image_generate primitive is not ready (learn-primitives.js; slash.test.mjs
 // holds the two equal). /generate-image is hidden and refused while it is off; this cleanup does not turn it on.
 export const IMAGE_GENERATION = false;
@@ -128,12 +133,20 @@ export const IMAGE_GENERATION = false;
 let imageOffered = false;
 export const setImageGeneration = on => { imageOffered = on === true; };
 export const imageGenerationLive = () => IMAGE_GENERATION || imageOffered;
+// /whiteboard (id whiteboard-video) the same way: off in the build, on where the server answers available (GET
+// /api/learn/whiteboard/jobs, whiteboard-capability.js; WHITEBOARD_ENABLED on the server).
+export const WHITEBOARD_VIDEO = false;
+let whiteboardOffered = false;
+export const setWhiteboardVideo = on => { whiteboardOffered = on === true; };
+export const whiteboardVideoLive = () => WHITEBOARD_VIDEO || whiteboardOffered;
 // What a typed command that is not offered says: a removed one, or /image (or its alias /generate-image) while image generation
 // is off. name is what the learner TYPED, never an id: the string `image` means the generation here. null for any other name
 // (each surface words its own line). listed: false where / lists nothing (the Home, Library and Project bar).
-export function unavailableCommand(name, { listed = true, imageGeneration = imageGenerationLive() } = {}) {
+export function unavailableCommand(name, { listed = true, imageGeneration = imageGenerationLive(), whiteboard = whiteboardVideoLive() } = {}) {
   if (REMOVED_COMMANDS.includes(name)) return `/${name} is no longer available. ${listed ? 'Type / to see the commands, or ask' : 'Ask'} in your own words.`;
   if (entryOfTyped(name)?.needs === 'image_generation' && !imageGeneration) return 'Image generation is not available here. /photos searches for real photos.';
+  // ponytail: no approved /whiteboard refusal string yet; this is Ctrl+K's existing generic line (inline-ai-command.js unsupportedText).
+  if (entryOfTyped(name)?.needs === 'whiteboard' && !whiteboard) return `/${name} isn't available here.`;
   return null;
 }
 
@@ -141,7 +154,7 @@ export function unavailableCommand(name, { listed = true, imageGeneration = imag
 // exactly one (slash.test.mjs), so no surface keeps a list of its own.
 export const LEARN_MENU = {
   learn: ['explain', 'practice', 'quiz', 'flashcards', 'goal'],
-  create: ['code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', 'animation', '3d', 'browser'],
+  create: ['code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', 'animation', 'whiteboard-video', '3d', 'browser'],
   search: ['image', 'youtube', 'arxiv', 'wikipedia'],
 };
 export const MENU_TITLES = { learn: 'Learn', create: 'Create', search: 'Search' };
@@ -180,8 +193,8 @@ const MOTION_DEV = import.meta.env?.VITE_MOTION === 'true' || import.meta.env?.V
 // internal: true adds the Tutor's material tools (MATERIAL_TOOLS), for its create_material, a journey's steps and Ctrl+K's
 // automatic routing; never for a picker, the Slash commands window or a typed line.
 const placeFor = (surface) => (surface === 'chat' ? 'learn' : surface);
-export const commandsFor = (place, { motionDev = MOTION_DEV, imageGeneration = imageGenerationLive(), internal = false } = {}) =>
-  (internal ? [...SLASH, ...MATERIAL_TOOLS] : SLASH).filter((c) => c.places.includes(placeFor(place)) && !(c.needs === 'motion_dev' && !motionDev) && !(c.needs === 'image_generation' && !imageGeneration));
+export const commandsFor = (place, { motionDev = MOTION_DEV, imageGeneration = imageGenerationLive(), whiteboard = whiteboardVideoLive(), internal = false } = {}) =>
+  (internal ? [...SLASH, ...MATERIAL_TOOLS] : SLASH).filter((c) => c.places.includes(placeFor(place)) && !(c.needs === 'motion_dev' && !motionDev) && !(c.needs === 'image_generation' && !imageGeneration) && !(c.needs === 'whiteboard' && !whiteboard));
 
 // The selected-command pill's text: the short pill label, else the menu label (/explain: Add explanation; /3d: 3D). A name the
 // registry no longer has (a saved message's removed command) reads as its capitalised name (/simplify: Simplify).
@@ -198,7 +211,10 @@ export function resolveCommand(text, surface, options = {}) {
   const match = String(text ?? '').trim().match(/^\/([\w-]+)(?:\s+([\s\S]*))?$/);
   if (!match) return null;
   const name = match[1].toLowerCase();
-  const command = commandsFor(surface, options).find((c) => c.name === idOfTyped(name));
+  // The Tutor's own line (runMaterials types `/${typedOf(tool)}`) names a material tool first: its /whiteboard is the editable
+  // board (MATERIAL_TOOLS whiteboard), a learner's /whiteboard the video (whiteboard-video).
+  const id = options.internal && MATERIAL_TOOLS.some((c) => c.name === name) ? name : idOfTyped(name);
+  const command = commandsFor(surface, options).find((c) => c.name === id);
   return command ? { command, arg: (match[2] || '').trim() } : { unsupported: name };
 }
 

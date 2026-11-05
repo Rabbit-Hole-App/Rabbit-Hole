@@ -9,18 +9,20 @@ const names = (list) => list.map((c) => c.name);
 // order. /dive, /whiteboard and /video are removed, /browser is added. /motion needs a Motion build and /image (id generate-image)
 // the server's image offer.
 // Owner, 2026-10-30 (docs/superpowers/plans/2026-10-30-animation.md sections 3 and 17): /animation is added, so 19.
-const PUBLIC = ['explain', 'practice', 'quiz', 'flashcards', 'goal', 'code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', 'animation', '3d', 'browser', 'image', 'youtube', 'arxiv', 'wikipedia'];
-const LEARN = PUBLIC.filter((n) => n !== 'motion' && n !== 'generate-image');
+// Owner roadmap 2026-11-04 (rabbit-hole-whiteboard-roadmap-v1.md 5.1): /whiteboard returns as the whiteboard video (id
+// whiteboard-video), so 20; it needs the server's whiteboard offer.
+const PUBLIC = ['explain', 'practice', 'quiz', 'flashcards', 'goal', 'code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', 'animation', 'whiteboard-video', '3d', 'browser', 'image', 'youtube', 'arxiv', 'wikipedia'];
+const LEARN = PUBLIC.filter((n) => n !== 'motion' && n !== 'generate-image' && n !== 'whiteboard-video');
 
-test('exactly 19 public commands in the shared sections; the removed three are gone and /browser is one entry', () => {
-  assert.equal(SLASH.length, 19);
+test('exactly 20 public commands in the shared sections; the removed two are gone and /browser is one entry', () => {
+  assert.equal(SLASH.length, 20);
   assert.deepEqual(names(SLASH), PUBLIC);
   assert.deepEqual([...LEARN_MENU.learn, ...LEARN_MENU.create, ...LEARN_MENU.search], PUBLIC, 'every command in exactly one section, in order');
   assert.deepEqual(LEARN_MENU.learn, ['explain', 'practice', 'quiz', 'flashcards', 'goal']);
-  assert.deepEqual(LEARN_MENU.create, ['code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', 'animation', '3d', 'browser']);
+  assert.deepEqual(LEARN_MENU.create, ['code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', 'animation', 'whiteboard-video', '3d', 'browser']);
   assert.deepEqual(LEARN_MENU.search, ['image', 'youtube', 'arxiv', 'wikipedia']);
-  for (const name of ['dive', 'whiteboard', 'video']) assert.ok(!names(SLASH).includes(name) && REMOVED_COMMANDS.includes(name), name);
-  assert.deepEqual(names(commandsFor('learn', { motionDev: true, imageGeneration: true })), PUBLIC);
+  for (const name of ['dive', 'video']) assert.ok(!names(SLASH).includes(name) && REMOVED_COMMANDS.includes(name), name);
+  assert.deepEqual(names(commandsFor('learn', { motionDev: true, imageGeneration: true, whiteboard: true })), PUBLIC);
   assert.deepEqual([learnRequest('browser').action, learnRequest('browser').deterministic, learnRequest('browser').allowedPrimitives], ['insert_webpage', true, null]);
   // Explain Back is a Practice mode, never a command.
   assert.ok(!SLASH.some((c) => /explain.?back|challenge/.test(c.name)));
@@ -270,12 +272,12 @@ test('resolveCommand: a typed command is the very entry the picker lists; an uno
 // /whiteboard and /video. None is listed or resolves for a typed line on any surface; each says it is unavailable. The Tutor's
 // material tools (compare, walkthrough, animate, whiteboard, video) resolve only for its own create_material (internal).
 test('the removed commands are gone from every surface list and every typed dispatch, and say they are unavailable', () => {
-  assert.equal(REMOVED_COMMANDS.length, 21);
-  assert.deepEqual([...REMOVED_COMMANDS].sort(), ['animate', 'ask', 'compare', 'connect', 'deeper', 'dive', 'do', 'example', 'find', 'more', 'new', 'open', 'paper', 'research', 'run', 'simplify', 'source', 'teach', 'video', 'walkthrough', 'whiteboard']);
+  assert.equal(REMOVED_COMMANDS.length, 20);
+  assert.deepEqual([...REMOVED_COMMANDS].sort(), ['animate', 'ask', 'compare', 'connect', 'deeper', 'dive', 'do', 'example', 'find', 'more', 'new', 'open', 'paper', 'research', 'run', 'simplify', 'source', 'teach', 'video', 'walkthrough']);
   for (const name of REMOVED_COMMANDS) {
     assert.ok(!names(SLASH).includes(name), name);
     for (const surface of ['chat', 'learn', 'ctrlk', 'insert', 'home', 'project']) {
-      assert.ok(!names(commandsFor(surface, { motionDev: true, imageGeneration: true })).includes(name), `${surface} lists /${name}`);
+      assert.ok(!names(commandsFor(surface, { motionDev: true, imageGeneration: true, whiteboard: true })).includes(name), `${surface} lists /${name}`);
       assert.deepEqual(resolveCommand(`/${name} something`, surface, { motionDev: true }), { unsupported: name }, `${surface} /${name}`);
     }
     assert.match(unavailableCommand(name), new RegExp(`^/${name} is no longer available\\.`));
@@ -288,6 +290,30 @@ test('the removed commands are gone from every surface list and every typed disp
   for (const name of names(MATERIAL_TOOLS)) {
     assert.ok(names(commandsFor('learn', { internal: true })).includes(name), name);
     assert.equal(resolveCommand(`/${name} x`, 'chat', { internal: true }).command.name, name);
-    assert.deepEqual(resolveCommand(`/${name} x`, 'chat'), { unsupported: name });
+    assert.equal(resolveCommand(`/${name} x`, 'chat', { internal: true, whiteboard: true }).command.name, name, `${name}: also where /whiteboard is the video`);
+    if (name !== 'whiteboard') assert.deepEqual(resolveCommand(`/${name} x`, 'chat', { whiteboard: true }), { unsupported: name });
   }
+});
+
+// Owner roadmap 2026-11-04 (rabbit-hole-whiteboard-roadmap-v1.md 1.3 and 5.1): a learner's /whiteboard is the whiteboard video (id
+// whiteboard-video), offered only where the server says so; the Tutor's own create_material line still adds the editable board.
+test('/whiteboard: the public path is the video (whiteboard-video), the internal path the Tutor\'s board; hidden and refused while off', () => {
+  const video = toolOf('whiteboard-video');
+  assert.deepEqual([video.typed, video.kind, video.group, video.places, video.label, video.desc, video.placeholder, video.action, video.deterministic, video.needs],
+    ['whiteboard', 'generate', 'create', ['learn', 'ctrlk'], 'Whiteboard', 'Whiteboard', 'what to explain', 'whiteboard-video', true, 'whiteboard']);
+  assert.equal(video.about, 'Whiteboard turns a request into a narrated video that draws itself: a few scenes, one voice, 10 to 120 seconds. You review the plan first and can change its length or ask for edits. Works best for one idea, a worked example or a process.');
+  assert.match(video.name, /^[a-z0-9][a-z0-9-]{0,39}$/, 'a saved chat command id (canvases.js)');
+  assert.deepEqual([typedOf('whiteboard-video'), idOfTyped('whiteboard'), typedOf('whiteboard')], ['whiteboard', 'whiteboard-video', 'whiteboard']);
+  for (const surface of ['chat', 'ctrlk']) {
+    assert.deepEqual(resolveCommand('/whiteboard explain gradient descent', surface, { whiteboard: true }), { command: video, arg: 'explain gradient descent' }, surface);
+    assert.ok(names(commandsFor(surface, { whiteboard: true })).includes('whiteboard-video'), surface);
+    // Off (the default here: the build constant is off and no server has answered): unlisted, and a typed line is refused.
+    assert.ok(!names(commandsFor(surface)).includes('whiteboard-video'), surface);
+    assert.deepEqual(resolveCommand('/whiteboard x', surface), { unsupported: 'whiteboard' }, surface);
+  }
+  // The Tutor's line (runMaterials: Chat, internal) is its board, also where the video is offered.
+  assert.equal(resolveCommand('/whiteboard forces', 'chat', { whiteboard: true, internal: true }).command, toolOf('whiteboard'));
+  assert.equal(toolOf('whiteboard').action, 'insert_whiteboard');
+  assert.equal(unavailableCommand('whiteboard'), "/whiteboard isn't available here.");
+  assert.equal(unavailableCommand('whiteboard', { whiteboard: true }), null);
 });

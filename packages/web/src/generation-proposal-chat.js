@@ -40,7 +40,8 @@ const ADAPTERS = {
 export const proposalBlock = p => ADAPTERS[p?.command]?.(p) ?? null;
 // /explain (EXP-T20, Lane C) and /animation (AN-05, control-plane animation-job.js): no card to add, because the job's card already
 // waits on its canvas; Generate approves that job (ops.approveExplain sends it to the command's own job route).
-export const approvesJob = p => (p?.command === 'explain' || p?.command === 'animation') && typeof p.input?.job === 'string' && !proposalBlock(p);
+// /whiteboard (roadmap W1.5, control-plane whiteboard-job.js) likewise: its pending card waits for the plan's Generate.
+export const approvesJob = p => ['explain', 'animation', 'whiteboard-video'].includes(p?.command) && typeof p.input?.job === 'string' && !proposalBlock(p);
 // The Explain review card (owner, 2026-10-29): its heading, and what it says about cost. The brief it shows was a model call, as a
 // change asked for in Chat is; Save is not (generation-review-client.js); Generate starts the paid work. Said as CAD's brief says it.
 export const EXPLAIN_REVIEW_HEADING = 'Review explanation';
@@ -55,8 +56,16 @@ export const animationCostNote = p => {
   return [planCredits ? `Edit plan uses up to ${planCredits} AI credits to rewrite the plan.` : null,
     Number.isFinite(max) ? `Generate: up to ${max.toLocaleString('en-US')} credits; most animations use 50–100; a failed one is refunded.` : null].filter(Boolean).join(' ') || null;
 };
+// /whiteboard's review card (roadmap 1.3): its heading, and the cost line "up to <N> credits" with the SERVER's worst case for this plan
+// (proposal.usage.max_credits, whiteboardReservation; W-D2). No figure from the server, no cost line.
+export const WHITEBOARD_REVIEW_HEADING = 'Review your whiteboard';
+export const whiteboardCostNote = p => (Number.isFinite(p?.usage?.max_credits) ? `up to ${p.usage.max_credits.toLocaleString('en-US')} credits` : null);
+// A length change on the whiteboard card re-plans (W-D7): after its saved revision, the job's refine with the note `duration: <n>`. -> the note,
+// or null when the length did not change.
+export const durationRefinement = (before, after) => (after?.command === 'whiteboard-video' && Number.isInteger(after.settings?.duration_seconds)
+  && after.settings.duration_seconds !== before?.settings?.duration_seconds ? `duration: ${after.settings.duration_seconds}` : null);
 // A job-approving proposal's heading and cost note, by its command.
-export const jobReviewCopy = p => (p?.command === 'animation' ? { eyebrow: ANIMATION_REVIEW_HEADING, ...(animationCostNote(p) ? { note: animationCostNote(p) } : {}) } : { eyebrow: EXPLAIN_REVIEW_HEADING, note: EXPLAIN_COST_NOTE });
+export const jobReviewCopy = p => (p?.command === 'whiteboard-video' ? { eyebrow: WHITEBOARD_REVIEW_HEADING, ...(whiteboardCostNote(p) ? { note: whiteboardCostNote(p) } : {}) } : p?.command === 'animation' ? { eyebrow: ANIMATION_REVIEW_HEADING, ...(animationCostNote(p) ? { note: animationCostNote(p) } : {}) } : { eyebrow: EXPLAIN_REVIEW_HEADING, note: EXPLAIN_COST_NOTE });
 // How a proposal starts, by its command's adapter: 'output' (add the output card, needs ops.insertCard), 'job' (approve the existing job, needs
 // ops.approveExplain) or null (this build cannot start it). Generate is enabled by THIS, never by one command's adapter.
 // 'image' (IMG-01, generate-image.js): the image job is started and followed from the card, behind the web flag.

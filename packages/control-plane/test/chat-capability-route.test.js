@@ -94,6 +94,27 @@ test('typed /image, /photos and /generate-image: ids stay stable; the photo sear
   assert.equal(ask.calls.length, 0, 'no router call');
 });
 
+// Owner roadmap 2026-11-04 (rabbit-hole-whiteboard-roadmap-v1.md 5.1 step 2): /whiteboard (id whiteboard-video) runs only where the
+// server's WHITEBOARD_ENABLED is 'true'; the browser's enabled list alone never turns it on.
+test('/whiteboard: refused unless WHITEBOARD_ENABLED, whatever the browser lists; on, a direct route with no router call', async t => {
+  noFetch(t);
+  const ask = counted(jev('motion', 0.99));
+  const on = { ...ENV, WHITEBOARD_ENABLED: 'true' };
+  for (const env of [ENV, { ...ENV, WHITEBOARD_ENABLED: 'false' }]) {
+    for (const enabled of [null, ['whiteboard-video']]) {
+      const typed = await decideWith(ask, '/whiteboard explain gradient descent', { env, enabled });
+      assert.deepEqual([typed.route, typed.token, typed.message], ['unsupported', null, "/whiteboard isn't available here."]);
+      const picked = await decideWith(ask, 'gradient descent', { env, enabled, capability: 'whiteboard-video' });
+      assert.deepEqual([picked.route, picked.token], ['unsupported', null]);
+    }
+  }
+  const typed = await decideWith(ask, '/whiteboard explain gradient descent', { env: on });
+  assert.deepEqual([typed.route, typed.capability, typed.flow, typed.args], ['capability:whiteboard-video', 'whiteboard-video', 'direct', 'explain gradient descent']);
+  assert.ok(typed.token);
+  assert.equal((await decideWith(ask, 'gradient descent', { env: on, capability: 'whiteboard-video', enabled: ['youtube'] })).route, 'unsupported', 'not in this canvas\'s enabled list');
+  assert.equal(ask.calls.length, 0, 'no router call');
+});
+
 test('plain words: one JEV call and nothing else; Motion gets a proposal route, never a job, render or reservation', async t => {
   const fetches = noFetch(t);
   const ask = counted(jev('motion', 0.93, 0.8, { motion: 0.93, answer: 0.05 }));

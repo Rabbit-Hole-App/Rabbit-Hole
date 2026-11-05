@@ -137,9 +137,12 @@ import { rekeyed } from './chat-threads.js';
 import { ANIMATION_JOB_EVENT, animationClient, requestRef } from './animation3d/client.js';
 import { withJob } from './animation3d/storage.js';
 import { AnimationBoard } from './animation3d/board-context.js';
+import { WHITEBOARD_JOB_EVENT, whiteboardClient, whiteboardRefusal } from './whiteboard/client.js';
+import { pendingBlock as whiteboardPending } from './whiteboard/card.js';
 
-// A reviewed plan's job route (/explain's or /animation's) and the event its waiting card listens for.
-const jobRoute = (proposal, boardId) => (proposal?.command === 'animation' ? [animationClient(api, boardId), ANIMATION_JOB_EVENT] : [explainClient(api, boardId), EXPLAIN_JOB_EVENT]);
+// A reviewed plan's job route (/explain's, /animation's or /whiteboard's) and the event its waiting card listens for.
+const jobRoute = (proposal, boardId) => (proposal?.command === 'animation' ? [animationClient(api, boardId), ANIMATION_JOB_EVENT]
+  : proposal?.command === 'whiteboard-video' ? [whiteboardClient(api, boardId), WHITEBOARD_JOB_EVENT] : [explainClient(api, boardId), EXPLAIN_JOB_EVENT]);
 
 const LearnNotes = lazyFeature(() => import('./LearnNotes.jsx'), 'Notes');
 // Follow-up R3 item 3: this browser's copy of a board cannot be read (blocked storage, a value that is not a board), so a save
@@ -547,7 +550,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       if (!boardId || typeof proposal?.input?.job !== 'string') throw new Error('This explanation can be generated only on its own canvas.');
       const [client, event] = jobRoute(proposal, boardId);
       const { job } = await client.action(proposal.input.job, 'approve', { proposal });
-      track('rh_generation_requested', { feature: proposal.command === 'animation' ? 'animation' : 'explain', action_id: proposal.input.job }, { once: `gen:${proposal.input.job}` });
+      track('rh_generation_requested', { feature: proposal.command === 'animation' ? 'animation' : proposal.command === 'whiteboard-video' ? 'whiteboard' : 'explain', action_id: proposal.input.job }, { once: `gen:${proposal.input.job}` });
       window.dispatchEvent(new CustomEvent(event, { detail: { jobId: proposal.input.job } }));
       // /animation: Generate found the edited plan needs a change first (FX-AN-031); its choices were posted, so the Chat reads its thread again.
       if (job?.choiceOpen && job.threadId) window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId: job.threadId, jobId: job.id } }));
@@ -583,7 +586,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     },
     // A Chat turn while that brief waits (EXP-T20 slice 3, ask.jsx): the job prepares its next version (Lane C refine); the
     // previous approval no longer counts, and the card observes the job again.
-    explainWaiting: jobId => !!canvasApi.current?.blocks?.().some(block => [block.explainJob, block.animation3dJob].some(waiting => waiting?.id === jobId && waiting.stage === 'awaiting_approval')),
+    explainWaiting: jobId => !!canvasApi.current?.blocks?.().some(block => [block.explainJob, block.animation3dJob, block.whiteboardJob].some(waiting => waiting?.id === jobId && waiting.stage === 'awaiting_approval')),
     // expected (the card's Edit): { proposal_id, version } the instruction was written for; the job refines only that revision.
     refineExplain: async (proposal, message, expected) => {
       const boardId = commentBoardRef.current;
@@ -1016,6 +1019,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           // pinned and temporary refs, which the server resolves under this canvas's authorization.
           startExplain: async (prompt, options) => { const result = await startExplain(prompt, { ...options, thread: turn?.thread ?? null, refs: turn?.refs ?? null }); if (result?.blockId) sink?.(result.blockId); return result; },
           startAnimation: async (prompt, options) => { const result = await startAnimation(prompt, { ...options, thread: turn?.thread ?? null, refs: turn?.refs ?? null }); if (result?.blockId) sink?.(result.blockId); return result; },
+          startWhiteboard: async (prompt, options) => { const result = await startWhiteboard(prompt, { ...options, thread: turn?.thread ?? null }); if (result?.blockId) sink?.(result.blockId); return result; },
           insertNotebook: () => canvasApi.current?.insertNotebook(),
           insertBlock: (block, options) => canvasApi.current?.insertBlock(block, options),
           // A paid Generate whose job a card here already shows reveals that card (learn-slash.js existingGeneration).
@@ -1163,6 +1167,29 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // Titled by its kind until the scene's own title arrives: the request is already the Chat line above it (owner, 2026-10-31).
     const card = withJob(withPrompt({ id: job.cardId, type: 'animation3d', title: '3D animation' }, promptUsed), { job, boardId: board, requestId: body.requestId, sourceKey: await requestRef(body.requestId, words) });
     const blockId = canvasApi.current?.placeAnimation(threadId ? { ...card, animation3dJob: { ...card.animation3dJob, threadId } } : card);
+    return { blockId: blockId || job.cardId };
+  };
+  // /whiteboard (roadmap W1.5, 5.1 step 3; control-plane whiteboard-job.js): as /animation, one job per press and its pending card placed at
+  // once under the job's card id; the server posts the plan in Chat for review, and nothing is made before its Generate. The selected
+  // card's text (at most 8,000 characters, sliced by learn-slash.js) is its context. -> { blockId } or { failed, refused? } (refused: the
+  // server's approved words for its refusal code, whiteboard/client.js).
+  // ponytail: the Chat's pinned references (context_refs) are W4's; W1 sends the prompt and the selected text only.
+  const whiteboardRequests = useRef(new Map());
+  const startWhiteboard = async (prompt, { context = null, promptUsed = prompt, thread = null } = {}) => {
+    const words = String(prompt || '').trim();
+    if (!words) return null;
+    let board = commentBoardRef.current;
+    if (!board) { await Promise.race([boardReady.current, new Promise(done => setTimeout(done, 10000))]); board = commentBoardRef.current; }
+    if (!board) { saveError.current = null; await pushBoard(null, { now: true }); board = commentBoardRef.current; }
+    if (!board) return { failed: 'unsaved' };
+    const threadId = (await Promise.race([Promise.resolve(thread).catch(() => null), new Promise(done => setTimeout(done, 5000, null))])) || chat?.thread?.id || null;
+    const payload = { prompt: words, ...(context ? { context } : {}), ...(threadId ? { threadId } : {}) };
+    let result;
+    try { result = await submitCadOnce(whiteboardRequests.current, JSON.stringify({ board, ...payload }), async body => ({ ...(await whiteboardClient(api, board).create(body)), body }), payload); }
+    catch (error) { return { failed: error?.status ? String(error.status) : 'refused', refused: whiteboardRefusal(error) }; }
+    const { job, body } = result;
+    track('rh_planning_requested', { feature: 'whiteboard', action_id: job.id }, { once: `plan:${job.id}` });
+    const blockId = canvasApi.current?.placeAnimation(withPrompt(whiteboardPending(job, { boardId: board, requestId: body.requestId, threadId }), promptUsed));
     return { blockId: blockId || job.cardId };
   };
   // EXP-T21: the Tutor (a turn's create_material, a coaching activity's material) opens the same job and card, read through a ref

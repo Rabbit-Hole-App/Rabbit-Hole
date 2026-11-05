@@ -42,7 +42,7 @@ const api = async (path, init = {}) => {
 // Ids stay the data-* attributes; TYPED is what a person types for an id that differs.
 const TYPED = { image: 'photos' };
 const RETAINED = ['explain', 'practice', 'quiz', 'flashcards', 'goal', 'code', 'graph', 'diagram', 'notebook', 'motion', 'cad', '3d', 'browser', 'image', 'youtube', 'arxiv', 'wikipedia'];
-const REMOVED = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper', 'animate', 'dive', 'whiteboard', 'video'];
+const REMOVED = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper', 'animate', 'dive', 'video']; // /whiteboard returned as the whiteboard video (owner roadmap 2026-11-04)
 // Owner spec 2026-10-29: Ctrl+K offers exactly Chat's commands (it hands each to Chat's dispatcher).
 const CTRLK = RETAINED;
 const removedText = name => `/${name} is no longer available. Type / to see the commands, or ask in your own words.`;

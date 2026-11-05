@@ -449,7 +449,7 @@ await run('every explicit command is handed to Chat once as its typed line; remo
   // The removed commands (owner, 2026-10-20; owner spec 2026-10-29: /dive, /whiteboard, /video): each says it is no longer
   // available, and nothing is sent or run.
   const handed = (await calls(page, 'handoff')).length;
-  for (const name of ['dive', 'whiteboard', 'video', 'walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper']) {
+  for (const name of ['dive', 'video', 'walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper']) {
     await clickShape(page, 'n4');
     await ctrlK(page);
     await submitPrompt(page, `/${name} x`);
@@ -457,6 +457,14 @@ await run('every explicit command is handed to Chat once as its typed line; remo
     check(`removed /${name} is unavailable in Ctrl+K: the editor says so, nothing runs`, (await page.locator('[data-inline-unsupported]').innerText()) === `/${name} is no longer available. Type / to see the commands, or ask in your own words.` && (await calls(page, 'decide')).length === 0 && (await calls(page, 'handoff')).length === handed);
     await page.keyboard.press('Escape');
   }
+  // Owner roadmap 2026-11-04: /whiteboard is the whiteboard video again, offered only where the server says so (Chat asks; this harness
+  // has no Chat), so here it is not offered: the editor says so and nothing runs.
+  await clickShape(page, 'n4');
+  await ctrlK(page);
+  await submitPrompt(page, '/whiteboard x');
+  await page.waitForSelector('[data-inline-unsupported="whiteboard"]');
+  check('/whiteboard where the server has not offered it: the editor says so, nothing runs', (await page.locator('[data-inline-unsupported]').innerText()) === '/whiteboard isn\'t available here.' && (await calls(page, 'decide')).length === 0 && (await calls(page, 'handoff')).length === handed);
+  await page.keyboard.press('Escape');
   await context.close();
 });
 

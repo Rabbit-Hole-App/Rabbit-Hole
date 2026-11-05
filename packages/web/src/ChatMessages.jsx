@@ -14,7 +14,7 @@ import AnswerSuggestions from './AnswerSuggestions.jsx';
 import SyllabusMessage from './SyllabusMessage.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
 import GenerationProposalCard from './GenerationProposalCard.jsx';
-import { EXPLAIN_STOPPED, jobReviewCopy, PROPOSAL_REFUSED_EVENT, approvesJob, editPath, editTarget, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
+import { EXPLAIN_STOPPED, durationRefinement, jobReviewCopy, PROPOSAL_REFUSED_EVENT, approvesJob, editPath, editTarget, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
 import { confirmProposal, fetchProposal, problemOf, saveProposal } from './generation-review-client.js';
 import { withPrompt } from './card-prompt.js';
 import { reportClientError } from './client-telemetry.js';
@@ -89,6 +89,9 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
       // The person's own settings change on the targeted card: the target follows it to the revision they now see.
       if (targeted) editing.set(editTarget(result.proposal, m.messageId, target.threadId));
       setStates(result.references?.length ? result.references : null);
+      // /whiteboard: a new length re-plans (W-D7): the job's refine of the revision just saved; the plan returns as the next revision.
+      const note = durationRefinement(base, result.proposal);
+      if (note && ops?.refineExplain) await ops.refineExplain(result.proposal, note, { proposal_id: result.proposal.proposal_id, version: result.proposal.version });
     } catch (failure) {
       const next = edit.settings && Object.keys(edit).length === 1 ? settingsConflict(failure, edit.settings, m.messageId) : null;
       if (next?.here) setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, meta: { ...x.meta, proposal: next.current } } : x)));

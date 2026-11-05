@@ -34,6 +34,7 @@ function availability(env, cap, enabled, email = null) {
   if (Array.isArray(enabled) && !enabled.includes(cap.name)) return false;
   if (cap.name === 'motion') return motionOffered(env, email);
   if (cap.needs === 'image_generation') return imageAllowed(env, email); // the server decides per caller (public flag, else the listed operator)
+  if (cap.needs === 'whiteboard') return env.WHITEBOARD_ENABLED === 'true'; // the server's own switch, never the browser's list alone
   if (cap.needs) return Array.isArray(enabled);
   return true;
 }
@@ -51,7 +52,7 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
   // A named capability: its declaration (or, for an undeclared Learn command, its registry entry run directly), checked
   // for availability, and a token bound to this turn.
   const pick = async (name, via, args, extra = {}) => {
-    const removed = unavailableCommand(typedOf(name), { imageGeneration: imageAllowed(env, email) }); // name is a stable id; unavailableCommand takes what was typed
+    const removed = unavailableCommand(typedOf(name), { imageGeneration: imageAllowed(env, email), whiteboard: env.WHITEBOARD_ENABLED === 'true' }); // name is a stable id; unavailableCommand takes what was typed
     if (removed) return refuse(via, removed);
     const declared = chatCapability(name);
     const entry = SLASH.find(command => command.name === name && command.places.includes('learn'));

@@ -65,7 +65,8 @@ for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
     : await sheet.locator('button[data-slash-help]').evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp));
   const offered = SLASH.map(command => command.name);
   // Owner, 2026-10-30 (docs/superpowers/plans/2026-10-30-animation.md sections 3 and 17): /animation is added, so 17 always offered of 19.
-  ok(`${tag}: lists only registry commands, at least the 17 always offered, none removed`, listed.length >= 17 && listed.length <= 19 && listed.every(name => offered.includes(name)) && !listed.some(name => REMOVED_COMMANDS.includes(name)), listed.join(' '));
+  // Owner roadmap 2026-11-04: /whiteboard (id whiteboard-video) is added where the server offers it, so of 20.
+  ok(`${tag}: lists only registry commands, at least the 17 always offered, none removed`, listed.length >= 17 && listed.length <= 20 && listed.every(name => offered.includes(name)) && !listed.some(name => REMOVED_COMMANDS.includes(name)), listed.join(' '));
   const choose = async name => {
     if (narrow) await sheet.locator('[data-slash-select]').selectOption(name);
     else await sheet.locator(`button[data-slash-help="${name}"]`).click();
