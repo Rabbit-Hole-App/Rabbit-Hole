@@ -33,6 +33,8 @@ const tool = spec => { const [exe, ...lead] = spec.split('|'); return (args, o =
 const flyRun = tool(pins.FLY), wranglerRun = tool(pins.WRANGLER), curlRun = tool(pins.CURL), shRun = tool(pins.SH), git = tool('git');
 const FLY_ENV = { FLY_API_TOKEN: flyToken }, CF_ENV = { CLOUDFLARE_API_TOKEN: cfToken, CLOUDFLARE_ACCOUNT_ID: cfAccount };
 const mutations = [];
+const CLONE = pins.CLONE || null, PROVIDERS = (pins.PROVIDER_SECRETS || '').split(',').filter(Boolean);   // optional: a review clone that also gets the token and the provider keys
+const providerValue = Object.fromEntries(PROVIDERS.map(n => [n, named(n)]));
 let issued = null;                                         // the token this run generated, kept only to prove the app accepts it
 
 // Preflight: the commit being deployed is the pinned one and the tree is clean.
@@ -48,17 +50,22 @@ const appExists = apps.includes(pins.APP);
 const hasSecret = (list, n) => list.some(s => (s.Name ?? s.name) === n);
 const flySecret = appExists && hasSecret(json(flyRun(['secrets', 'list', '-a', pins.APP, '--json'], { env: FLY_ENV }), 'fly secrets list'), 'MOTION_RENDERER_TOKEN');
 const workerSecret = hasSecret(json(wranglerRun(['secret', 'list', '--name', pins.WORKER, '--format', 'json'], { env: CF_ENV, cwd: tmpdir() }), 'wrangler secret list'), 'WHITEBOARD_RENDERER_TOKEN');
+const cloneNames = CLONE ? json(wranglerRun(['secret', 'list', '--name', CLONE, '--format', 'json'], { env: CF_ENV, cwd: tmpdir() }), 'wrangler secret list (clone)').map(x => x.name ?? x.Name) : [];
+const cloneToken = !CLONE || cloneNames.includes('WHITEBOARD_RENDERER_TOKEN');
+const missingProviders = CLONE ? PROVIDERS.filter(n => !cloneNames.includes(n)) : [];
 const health = () => { const r = curlRun(['-s', '-m', '30', `https://${pins.APP}.fly.dev/health`]); try { return JSON.parse(r.stdout); } catch { return null; } };
 let h = appExists ? health() : null;
 const deployed = h?.ok === true && h?.settings?.git_revision === pins.SHA;
-const needToken = !(flySecret && workerSecret);
+const needToken = !(flySecret && workerSecret && cloneToken);
 say(`${appExists ? '✓' : '·'} app ${pins.APP}: ${appExists ? 'exists' : 'will be created in ' + pins.ORG}`);
 say(`${flySecret ? '✓' : '·'} app secret MOTION_RENDERER_TOKEN: ${flySecret ? 'present' : 'will be set'}`);
 say(`${workerSecret ? '✓' : '·'} Worker secret WHITEBOARD_RENDERER_TOKEN on ${pins.WORKER}: ${workerSecret ? 'present' : 'will be set'}`);
 say(`${deployed ? '✓' : '·'} image at ${pins.SHA.slice(0, 9)}: ${deployed ? 'already serving' : 'will be deployed'}`);
+if (CLONE) say(`${cloneToken ? '✓' : '·'} clone ${CLONE}: token ${cloneToken ? 'present' : 'will be set'}; provider secrets still to set: ${missingProviders.join(', ') || 'none'}`);
 if (needToken && (flySecret || workerSecret)) say('· one of the two secrets is missing, so both get a fresh value (nothing uses either yet)');
 if (CHECK) { say(`CHECK OK: nothing was changed.`); process.exit(0); }
-if (deployed && !needToken) { say('OK: already done; nothing to change.'); process.exit(0); }
+for (const n of missingProviders) if (!providerValue[n]) stop(`${n} is missing from the credentials file`);
+if (deployed && !needToken && !missingProviders.length) { say('OK: already done; nothing to change.'); process.exit(0); }
 
 // Mutations, in this order; each one stops the run with the exact error and a rerun resumes.
 const must = (r, what) => { if (r.status !== 0) stop(`${what} failed (exit ${r.status}): ${clean((r.stderr || r.stdout).slice(-400))}`); };
@@ -68,9 +75,11 @@ if (needToken) {
   mutations.push('app-secret'); must(flyRun(['secrets', 'import', '--stage', '-a', pins.APP], { env: FLY_ENV, input: `MOTION_RENDERER_TOKEN=${token}\n` }), 'fly secrets import');
   say('✓ app secret MOTION_RENDERER_TOKEN staged');
   mutations.push('worker-secret'); must(wranglerRun(['secret', 'put', 'WHITEBOARD_RENDERER_TOKEN', '--name', pins.WORKER], { env: CF_ENV, cwd: tmpdir(), input: token }), 'wrangler secret put');
-  say('✓ Worker secret WHITEBOARD_RENDERER_TOKEN set (the Worker still has WHITEBOARD_ENABLED false: no learner sees a change)');
+  say('✓ Worker secret WHITEBOARD_RENDERER_TOKEN set ');
+  if (CLONE) { mutations.push('clone-token'); must(wranglerRun(['secret', 'put', 'WHITEBOARD_RENDERER_TOKEN', '--name', CLONE], { env: CF_ENV, cwd: tmpdir(), input: token }), 'wrangler secret put (clone token)'); say(`✓ clone secret WHITEBOARD_RENDERER_TOKEN set on ${CLONE}`); }
   issued = token;
 }
+for (const n of missingProviders) { mutations.push('clone-provider'); must(wranglerRun(['secret', 'put', n, '--name', CLONE], { env: CF_ENV, cwd: tmpdir(), input: providerValue[n] }), `wrangler secret put ${n} (clone)`); say(`✓ clone secret ${n} set`); }
 const ctx = mkdtempSync(join(tmpdir(), 'whiteboard-renderer-'));
 try {
   must(shRun([pins.CONTEXT_SH, '--target', 'whiteboard', ctx], { cwd: pins.W }), 'context.sh');
@@ -83,6 +92,7 @@ say('✓ deployed');
 // Probe: /health reports this commit, and the new bearer token is accepted (an unknown render id is 404 with a good token, 401 without).
 for (let i = 0; i < 18 && !(h?.ok && h?.settings?.git_revision === pins.SHA); i++) { if (i) spawnSync(process.execPath, ['-e', 'setTimeout(()=>{},10000)']); h = health(); }
 if (!(h?.ok && h?.settings?.git_revision === pins.SHA)) stop(`/health does not report ${pins.SHA.slice(0, 9)} after the deploy (${h ? 'revision ' + String(h?.settings?.git_revision).slice(0, 9) : 'no answer'}); rerun to resume`);
+if (h.whiteboard !== 'whiteboard-renderer-1') stop(`/health does not report whiteboard-renderer-1 (got ${String(h.whiteboard)}); the image is not the whiteboard renderer`);
 say(`✓ /health: ${h.service} ${h.version}, revision ${pins.SHA.slice(0, 9)}, ${h.limits?.concurrent_renders} render at a time`);
 if (issued) {
   const probe = curlRun(['-s', '-m', '30', '-w', '\n%{http_code}', '-K', '-', `https://${pins.APP}.fly.dev/render/${'0'.repeat(32)}`], { input: `header = "Authorization: Bearer ${issued}"\n` });
