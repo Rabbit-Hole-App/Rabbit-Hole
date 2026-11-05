@@ -203,8 +203,8 @@ CREATE INDEX IF NOT EXISTS shared_ask_events_share ON shared_ask_events(share_ke
 -- Learning journeys (docs/features/adaptive-learning-path-v1-architecture.md §9-§10): one row per adaptive learning
 -- journey - its state, the learner's exact request, intake answers, constraints, the journey's claim registry, the
 -- diagnostic with its server-only answer key, the evidence store and the current section's plan - and one immutable
--- row per version of its learning path. Additive and re-runnable; LEARN_DB only. Applied locally only until an
--- explicit GO: the shared dev and production LEARN_DB wait for it.
+-- row per version of its learning path. Additive and re-runnable; LEARN_DB only. Applied to the production
+-- LEARN_DB (verified by the release preflight schema identity, 5 November 2026).
 --
 -- A journey is scoped to (org, owner_user_id, app, board), where owner_user_id is users.id (migration 0026), the stable
 -- internal id the session carries as uid; never an email (§10.2, owner 2026-10-05). Only its owner reads or writes it.
@@ -599,7 +599,7 @@ CREATE INDEX IF NOT EXISTS inline_ai_telemetry_run ON inline_ai_telemetry (sourc
 
 -- learn-migrations/0019-chat-message-meta.sql
 -- Chat workspace answers (agent-coordination/tasks/chat-workspace-CONTRACT.md B7; owner decision 2026-10-13 11:45 PM PT: local
--- and shared dev; production needs its own GO). Side tables beside the canvas chat's threads and messages
+-- and shared dev). Applied to the production LEARN_DB (verified by the release preflight schema identity, 5 November 2026). Side tables beside the canvas chat's threads and messages
 -- (repository-schema.sql), which stay untouched: a message with no meta row is an old message and renders as plain text.
 -- chat_message_meta: one row per message. User rows hold {mode, command, contextRefs}; assistant rows hold
 -- {version, mode, kind, contextRefs, actions, followUps, syllabus} or {status: 'stopped'}. alternative_of: a regenerated
@@ -840,7 +840,7 @@ CREATE INDEX IF NOT EXISTS pdf_highlights_owner_source ON pdf_highlights (org, o
 -- milestone criteria and activities. Attempts, assessments and evidence links are learn 0026 (Tasks 05/06, their own lane
 -- and GOs; C:/s/spec/tutor-workflow/migrations.md section 6). Additive and re-runnable, CREATE only
 -- (scripts/schema-check.test.mjs: schema identity is a learn migration's identity); LEARN_DB only.
--- Applied locally only until its learn-dev GO; production waits for its own GO. 0020 stays reserved by fix/chat-save-unique.
+-- Applied to the production LEARN_DB (verified by the release preflight schema identity, 5 November 2026). 0020 stays reserved by fix/chat-save-unique.
 --
 -- Every row is scoped to owner_user_id (users.id, never an email) and only its owner reads or writes it: a shared or forked
 -- canvas carries no one's personal state. There is no SQL backfill (a migration is DDL only): the store seeds a learner's
@@ -901,7 +901,7 @@ CREATE INDEX IF NOT EXISTS learn_activities_goal ON learn_activities (goal_id);
 -- what each assessment observed.
 -- Rules:
 --   * Additive and re-runnable, CREATE only (scripts/schema-check.test.mjs). LEARN_DB only. Mirrored in repository-schema.sql.
---   * Applied locally until its learn-dev GO; production waits for its own GO. 0020 stays reserved by fix/chat-save-unique.
+--   * Applied to the production LEARN_DB (verified by the release preflight schema identity, 5 November 2026). 0020 stays reserved by fix/chat-save-unique.
 --   * Goals, criteria and activities belong to learn 0025 (Task 02). These rows name them by id.
 --   * Every row is scoped to owner_user_id (users.id, never an email), and only that learner reads it. A shared or forked
 --     canvas carries none of it.
@@ -1154,7 +1154,7 @@ CREATE INDEX IF NOT EXISTS canvas_context_captures_source ON canvas_context_capt
 -- Kind timeline is a Sketch recording's JSON drawing timeline. meta_json is the Sketch capture's marks/text beside its PNG,
 -- set once. Transcripts are immutable derivatives of one audio
 -- hash (a failed one is replaced only by an explicit retry). Drafts are the learner's unsubmitted answer with a revision for
--- conflict protection. Additive and re-runnable; LEARN_DB only. Production: an owner command; never applied by a lane.
+-- conflict protection. Additive and re-runnable; LEARN_DB only. Applied to the production LEARN_DB (verified by the release preflight schema identity, 5 November 2026); production migrations are an owner command, never applied by a lane.
 CREATE TABLE IF NOT EXISTS learn_attempt_assets (
   id TEXT PRIMARY KEY,
   org TEXT NOT NULL,
