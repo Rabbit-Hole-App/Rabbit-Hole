@@ -1,12 +1,13 @@
 // Roadmap W0.2: can Remotion's bundled ffmpeg (the only one in the renderer image) concatenate H.264 + AAC segments with -c copy?
 // Reads the build's capabilities, then does the real thing on a file you give it. Mutates nothing outside a temp directory.
 //   node packages/learn-render/whiteboard/ffmpeg-probe.mjs [some-h264.mp4]   (prints one JSON object; exits 1 unless the stitched frame counts double)
-// This build has no video test source and no decoder for lavfi video, so without an argument the probe makes its own video: one second of a
-// blank BMP, looped at 30 fps and encoded to H.264. A sine track is then encoded to AAC (audio lavfi sources work) and muxed on with the video
+// This build has no video test source and no decoder for lavfi video, (and the Linux build has no bmp decoder), so without an argument the probe makes its own video: one second of a
+// blank PNG, looped at 30 fps and encoded to H.264. A sine track is then encoded to AAC (audio lavfi sources work) and muxed on with the video
 // copied, so the stitched file has the H.264 + AAC streams the whiteboard produces.
 // Run it where the answer matters: inside the renderer image (fly ssh console), not on a developer machine.
 import { RenderInternals } from '@remotion/renderer';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { crc32, deflateSync } from 'node:zlib';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 
@@ -20,6 +21,8 @@ result.concatDemuxer = has(formats, 'concat');
 result.h264Mp4toannexb = has(bsfs, 'h264_mp4toannexb');
 result.aacEncoder = has(encoders, 'aac');
 result.libx264 = has(encoders, 'libx264');
+const decoders = await text('ffmpeg', ['-hide_banner', '-decoders']);
+result.imageDecoders = ['png', 'bmp', 'mjpeg', 'gif'].filter(d => has(decoders, d));   // the Windows and Linux builds differ here
 
 const input = process.argv[2] ?? null;
 if (result.concatDemuxer) {
@@ -30,13 +33,14 @@ if (result.concatDemuxer) {
     let source;
     if (input) source = resolve(input);
     else {
-      // A 320x180 24-bit BMP (the image2 demuxer and bmp decoder are in this build), looped for one second at 30 fps.
-      const bmp = Buffer.alloc(54 + 320 * 180 * 3); bmp.write('BM'); bmp.writeUInt32LE(bmp.length, 2); bmp.writeUInt32LE(54, 10); bmp.writeUInt32LE(40, 14);
-      bmp.writeInt32LE(320, 18); bmp.writeInt32LE(180, 22); bmp.writeUInt16LE(1, 26); bmp.writeUInt16LE(24, 28); bmp.fill(0x80, 54);
-      writeFileSync(join(dir, 'blank.bmp'), bmp);
+      // A 320x180 grey PNG (the image2 demuxer and png decoder are in the builds seen so far), looped for one second at 30 fps.
+      const chunk = (type, data) => { const body = Buffer.concat([Buffer.from(type), data]); const c = Buffer.alloc(4); c.writeUInt32BE(crc32(body)); const n = Buffer.alloc(4); n.writeUInt32BE(data.length); return Buffer.concat([n, body, c]); };
+      const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(320, 0); ihdr.writeUInt32BE(180, 4); ihdr[8] = 8; ihdr[9] = 0;
+      const rows = Buffer.alloc(180 * (1 + 320), 0x80); for (let y = 0; y < 180; y++) rows[y * 321] = 0;
+      writeFileSync(join(dir, 'blank.png'), Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(rows)), chunk('IEND', Buffer.alloc(0))]));
       source = join(dir, 'blank.mp4');
-      await ff('ffmpeg', ['-y', '-loop', '1', '-framerate', '30', '-t', '1', '-i', join(dir, 'blank.bmp'), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', source]);
-      result.videoMade = 'one second of a blank BMP looped at 30 fps and encoded to H.264';
+      await ff('ffmpeg', ['-y', '-loop', '1', '-framerate', '30', '-t', '1', '-i', join(dir, 'blank.png'), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', source]);
+      result.videoMade = 'one second of a blank PNG looped at 30 fps and encoded to H.264';
     }
     if (!(await count(source)).some(s => s.type === 'audio')) {
       const muxed = join(dir, 'with-audio.mp4');
