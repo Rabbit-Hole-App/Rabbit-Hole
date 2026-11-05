@@ -128,6 +128,29 @@ The record is one JSON object per line, appended by `scripts/dev-deploy.mjs` aft
 - Default path: `$(git rev-parse --git-common-dir)/rabbit-hole-dev-deploys.jsonl`. Every worktree of the clone shares it, and it is never tracked. Override it with `--dev-record <path>`.
 - Prepare accepts only an exact sha whose `gates` and `smoke` are both `pass`. With `--mvp` it takes an MVP preview record instead ([MVP fast path](#mvp-fast-path)).
 
+## Gate stages attested by fast-e2e (item 1, owner 2026-11-05)
+
+The gate does not run a browser stage again when the exact-SHA fast-e2e run already ran that check green. The rules, which the
+dev record and `prepare` enforce (details and the stage list: [dev-auto-deploy.md](dev-auto-deploy.md#stages-taken-from-fast-e2e-item-1-ci-and-release-speed-2026-11-05)):
+
+- **Attestation rule.** A stage counts as already green only when the fast-e2e artifact of that exact commit shows that check's own
+  `exit 0  N/N checks passed` line. The green conclusion of the run alone does not count, because fast-e2e selects its checks by
+  diff and a green run may not have run the check. A stage with no such line runs in the gate. The gate record marks each
+  attested stage with `attested-by-fast-e2e run=<id> sha=<sha>`, the dev record carries an `attested` field, and `prepare`
+  accepts a row with or without it. It refuses an attested run that is not a completed fast-e2e success at this commit.
+- **Tripwire rule (stricter than the result line).** The provider tripwire proof is kept. fast-e2e writes `tripwire.log` for each
+  part before its stack stops; a part with no `tripwire.log`, a count other than 0, or a restarted stack attests none of its
+  stages. A single provider hit in a part therefore blocks every attested stage of that part, and those stages run in the gate.
+- **Expiry rule.** fast-e2e artifacts expire after 7 days. A gate run after expiry attests nothing and runs the full gate.
+- **Never attested.** The unit run and fixture regression (paidRefusal, escrow and auth tests), both production-bundle checks, every
+  stack-app, journey and tutor stage, share-revocation and library-folders always run. The secret and schema preflights, the
+  production-bundle check in `prepare` and the smoke are not gate stages and run on every release path.
+- **One list, two copies.** The list of attestable stages lives in `scripts/gate-attest.mjs` (this repository) and in the gate harness
+  `scripts/r36-gate/shards.mjs`. Drift is caught three ways: `scripts/fixtures/gate-attestable.json` must equal the app list (a test
+  here), the harness keeps a byte-identical copy `scripts/r36-gate/gate-attestable.json` and a test that its list equals it, and the
+  gate's collect job compares the two lists on the real candidate and fails the gate when they differ or the candidate has no
+  `scripts/gate-attest.mjs`. Changing the list means changing both fixtures in the same review.
+
 ## MVP fast path
 
 Standing owner policy, 2026-11-03 (canonical text: [CLAUDE.md](../../CLAUDE.md#mvp-fast-path); commands and record format: [mvp-fast-path.md](mvp-fast-path.md)).
