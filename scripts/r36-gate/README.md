@@ -202,6 +202,24 @@ Kept on purpose: the Dive checkpoint (fresh stack) and shard dive (after fork) -
 if any stage runs in more than one part, and checks that the old configuration shows exactly the four focused duplicates.
 The `focused` phase of `run.mjs` stays for r36-windows-gate.yml; gate-sharded.yml no longer runs it.
 
+## Stages taken from fast-e2e (item 1 of the CI and release speed lane, 2026-11-05)
+
+The preflight job (`dispatch-preflight.mjs`, `attest.mjs`) reads the newest green fast-e2e run of the exact commit and, per
+part artifact, `fast.log` and `tripwire.log`. A gate stage is not run when its check printed its own `exit 0  N/N checks passed`
+line there, the part's provider tripwire read 0 (`tripwire.log`, written by a fast-e2e step) and the part's stack did not restart.
+The run's green conclusion alone never counts: fast-e2e selects by diff. Any doubt (no artifact, expired, repeated or failed
+line, a readiness run) leaves the stage running. `shards.mjs` `ATTESTABLE` lists the 20 stages that may be taken: sketch,
+project-canvases, fork, dive, handle, explore-holes, card-select, naming, visibility, sidebar, card-redesign, project-menu,
+creator-profile, analytics-ui, workspace, card-context-menu, panel-header, slash-sheet, thumbnails, cross-device. Always run: the
+unit run and fixture regression (paidRefusal, escrow, auth tests; item 3 may later let verify cover the Linux copy), both bundle
+checks, every stack-app, journey and tutor stage, share-revocation (access) and library-folders (same `for beta` block).
+
+The remaining stages are repacked by `pack.mjs` (`layoutFor`) into fewer shards; the preflight passes the layout (`GATE_LAYOUT`),
+the parts (matrix) and the attestation (`GATE_ATTEST`) as job outputs. `mergeShards` writes each taken stage as its tripwire line
+plus `<stage> exit 0  N/N checks passed  attested-by-fast-e2e run=<id> sha=<40-hex>`, and a `gate paths:` line; stages that ran
+carry no tag. collect.mjs re-reads the run through the API (same commit, completed success) and the candidate's `gateVerdict`
+(scripts/gate-attest.mjs) judges the tags independently. Tests: `attest.test.mjs`, `collect.test.mjs`.
+
 ## Speed baseline (2026-10-13)
 
 Measured with `node scripts/r36-gate/timing.mjs <run> [attempt] --artifacts <dir>` on three green runs of

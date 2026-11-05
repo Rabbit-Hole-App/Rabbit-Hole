@@ -12,7 +12,8 @@ import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from
 import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { SHARDS, UNIT_STAGES, PARTS, mergeShards, retriedStages } from './shards.mjs';
+import { UNIT_STAGES, shardsOf, partsOf, mergeShards, retriedStages } from './shards.mjs';
+import { checkRun } from './attest.mjs';
 import { prerequisite, extraReceipts } from './phases.mjs';
 import { sha256 } from './prepare.mjs';
 import { awaitVerify } from './verify-check.mjs';
@@ -28,6 +29,15 @@ mkdirSync(out, { recursive: true });
 const inTree = p => { try { execFileSync('git', ['cat-file', '-e', `${APP_SHA}:${p}`], { cwd: app, stdio: 'ignore' }); return true; } catch { return false; } };
 const json = p => { try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return null; } };
 const failures = [];
+// Item 1: this run's shard layout and the stages taken from the exact-SHA fast-e2e run (the preflight job's outputs). The run is
+// read again here, so a wrong sha or a red run is a failure of its own, whatever the preflight passed on.
+const SHARDS = shardsOf(), PARTS = partsOf(SHARDS), attest = process.env.GATE_ATTEST && process.env.GATE_ATTEST !== 'null' ? JSON.parse(process.env.GATE_ATTEST) : null;
+if (attest) {
+  try {
+    if (attest.sha !== APP_SHA) throw Error(`attested for ${attest.sha}, not ${APP_SHA}`);
+    checkRun(JSON.parse(execFileSync('gh', ['api', `repos/${process.env.GITHUB_REPOSITORY}/actions/runs/${attest.run}`], { encoding: 'utf8', timeout: 60000 })), APP_SHA);
+  } catch (error) { failures.push(`attestation: ${error.message.split('\n')[0]}`); }
+}
 // Each part's newest attempt decides it: a part not rerun is read from the attempt it ran in (a rerun lists it again
 // under the new run_attempt, as a copy of that run; attempts.mjs), a rerun part from the newer one, and a newer failure
 // is never replaced by an older pass.
@@ -83,11 +93,12 @@ let verdict = 'not computed: shard records incomplete', extraPassed = false;
 if ([units, ...shards].every(s => s.log !== null)) {
   try {
     // Each part's record must carry the grant of the attempt it ran in (a failed-only rerun mixes attempts of this run).
-    const record = mergeShards(shards.map(s => s.log), inTree, units.log, Object.fromEntries(PARTS.map(p => [p, identityOf(p).grant])));
+    if (failures.some(f => f.startsWith('attestation:'))) throw Error('the attestation is refused, so the gate cannot be merged');
+    const record = mergeShards(shards.map(s => s.log), inTree, units.log, Object.fromEntries(PARTS.map(p => [p, identityOf(p).grant])), { shards: SHARDS, attest });
     writeFileSync(join(out, 'gate.log'), record);
     // Identical to run.mjs's gate phase verdict.
     const { gateVerdict, stageCount } = await import(pathToFileURL(join(app, 'scripts/dev-deploy.mjs')));
-    verdict = gateVerdict(record, APP_TREE, inTree);
+    verdict = gateVerdict(record, APP_TREE, inTree, APP_SHA);
     extraPassed = extraReceipts(record, stageCount);
     if (verdict || !extraPassed) failures.push(`complete gate rejected: ${verdict || 'routing/project-menu receipts missing'}`);
   } catch (error) { verdict = `not computed: ${error.message}`; failures.push(`merge: ${error.message}`); }
@@ -95,7 +106,7 @@ if ([units, ...shards].every(s => s.log !== null)) {
 const pass = failures.length === 0;
 const sharded = { units: { part: 'units', stages: UNIT_STAGES, pass: units.pass }, shards: SHARDS.map((stages, k) => ({ part: `shard-${k + 1}`, stages, pass: shards[k].pass })), failures };
 // attempts: the run attempt each part was judged from, so the gate note shows a rerun's mix of attempts.
-writeFileSync(join(out, 'gate-verdict.json'), JSON.stringify({ ...identity, grant: undefined, gateVerdict: verdict, extraPassed, pass, attempts, retried, sharded }, null, 2));
+writeFileSync(join(out, 'gate-verdict.json'), JSON.stringify({ ...identity, grant: undefined, gateVerdict: verdict, extraPassed, pass, attempts, retried, sharded, attested: attest ? { run: attest.run, stages: Object.keys(attest.stages) } : null }, null, 2));
 writeFileSync(join(out, 'receipt.json'), JSON.stringify({ ...identity, phase: 'gate', sharded: true, started, ended: new Date().toISOString(), node: process.version, attempts, retried,
   prerequisite: diveError ? null : { phase: 'dive', sha256: sha256(diveFile) }, units: (({ log, ...u }) => u)(units), shards: shards.map(({ log, ...s }) => s), verify: verified, failures, pass }, null, 2));
 console.log(JSON.stringify({ applicationSha: APP_SHA, harnessSha: identity.harnessSha, gateVerdict: verdict, extraPassed, pass, failures }));

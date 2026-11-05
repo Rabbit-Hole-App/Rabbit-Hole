@@ -3,11 +3,26 @@
 // this repository whose tree is APP_TREE, with a successful verify.yml push run and a successful fast-e2e.yml push or
 // dispatch run on that exact commit. Fails closed in one line naming what is missing; collect still re-checks verify.
 import { execFileSync } from 'node:child_process';
-import { basename } from 'node:path';
+import { appendFileSync, existsSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { basename, join } from 'node:path';
+import { attestation } from './attest.mjs';
+import { layoutFor } from './pack.mjs';
+import { SHARDS, partsOf } from './shards.mjs';
 
 const HEX40 = /^[0-9a-f]{40}$/;
 const NEEDED = [['verify.yml', ['push']], ['fast-e2e.yml', ['push', 'workflow_dispatch']]];
 // api(path) is the parsed answer of GET path, or null for a 404. Returns what is missing, empty when the gate may start.
+// Item 1: what this run may take from the exact-SHA fast-e2e run instead of running it (attest.mjs), and the shard layout and
+// parts that leave. Never throws: any doubt (no artifact, an expired one, an API error) is an empty attestation, so every stage
+// runs and the layout is the committed SHARDS. -> { attest: { run, sha, stages }, layout, parts, why }.
+export function plan({ repo, sha, api, download, durations }) {
+  let a;
+  try { a = attestation({ repo, sha, api, download }); } catch (e) { a = { run: null, sha, stages: {}, why: `attestation failed: ${String(e.message).split('\n')[0]}` }; }
+  const skip = Object.keys(a.stages), layout = (skip.length && layoutFor(durations, skip)) || SHARDS;
+  return { attest: skip.length ? { run: a.run, sha: a.sha, stages: a.stages } : null, layout, parts: partsOf(layout), why: a.why };
+}
+
 export function missing({ repo, sha, tree, api }) {
   if (!HEX40.test(sha ?? '') || !HEX40.test(tree ?? '')) return [`app_sha and app_tree must be full lowercase 40-hex ids (got '${sha}' and '${tree}')`];
   const out = [], commit = api(`repos/${repo}/git/commits/${sha}`);
@@ -34,4 +49,16 @@ if (process.argv[1] && basename(process.argv[1]) === 'dispatch-preflight.mjs') {
     process.exit(1);
   }
   console.log(`gate preflight: ${sha} (tree ${tree}) is in ${repo}; verify.yml and fast-e2e.yml passed on it`);
+  // Fast-e2e's per-part artifacts: fast.log (the result lines) and tripwire.log, read from the downloaded artifact.
+  const download = (runId, name) => {
+    const dir = mkdtempSync(join(tmpdir(), 'fast-e2e-'));
+    try { execFileSync('gh', ['run', 'download', String(runId), '-R', repo, '-n', name, '-D', dir], { stdio: ['ignore', 'pipe', 'pipe'], timeout: 120000 }); } catch { return null; }
+    const find = f => { const walk = d => readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(join(d, e.name)) : e.name === f ? [join(d, f)] : []); return walk(dir).sort((x, y) => x.length - y.length)[0]; };
+    const read = f => { const p = find(f); return p && existsSync(p) ? readFileSync(p, 'utf8') : null; };
+    return { fastLog: read('fast.log') ?? '', tripwireLog: read('tripwire.log') };
+  };
+  const durations = JSON.parse(readFileSync(new URL('./durations.json', import.meta.url), 'utf8'));
+  const p = plan({ repo, sha, api, download, durations }), n = Object.keys(p.attest?.stages ?? {}).length;
+  console.log(n ? `gate preflight: ${n} stages attested by fast-e2e run ${p.attest.run} (${Object.keys(p.attest.stages).join(', ')}); ${p.layout.length} shards` : `gate preflight: no stage attested (${p.why}); every stage runs in ${p.layout.length} shards`);
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `attest=${JSON.stringify(p.attest)}\nlayout=${JSON.stringify(p.layout)}\nparts=${JSON.stringify(p.parts)}\n`);
 }

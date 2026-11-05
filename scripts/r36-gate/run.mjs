@@ -4,7 +4,7 @@ import { resolve, join, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { SOURCE, prepare, files, sha256 } from './prepare.mjs';
 import { prerequisite, keepsProbeStack, extraReceipts } from './phases.mjs';
-import { SHARDS, CONDITIONAL, canary } from './shards.mjs';
+import { shardsOf, CONDITIONAL, canary } from './shards.mjs';
 import { runBounded } from './bounded.mjs';
 
 const APP_SHA=process.env.TESTED_SHA, APP_TREE=process.env.TESTED_TREE;
@@ -170,6 +170,7 @@ try {
   if(shard) {
     // One slice of int35.sh on this fresh runner (shards.mjs). collect.mjs merges the slices and runs gateVerdict.
     const n=Number(phase.slice(6)),script=join(gate,`${phase}.sh`);
+    const SHARDS=shardsOf(); // this run's layout (GATE_LAYOUT): fewer shards when fast-e2e's results are attested
     if(!SHARDS[n-1])throw Error(`Unknown gate shard: ${phase}`);
     writeFileSync(script,canary(readFileSync(script,'utf8'),process.env.GATE_CANARY_FAIL_STAGE));
     await command(bash,[script],{log:join(out,'gate-shard.log'),timeout:1800000,stream:true}); // the whole shard: startup, restarts, stages and its own cleanup

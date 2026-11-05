@@ -34,10 +34,11 @@ export function cost(stages, d) {
     + (sections.has('prod') ? C.build * (1 + sections.has('journey')) : 0);
 }
 
-export function pack(d, k) {
-  const browser = ORDER.filter(s => !UNIT_STAGES.includes(s));
+// skip: stages the gate does not run this time (attested by fast-e2e, attest.mjs); a unit keeps its remaining members together.
+export function pack(d, k, skip = []) {
+  const gone = new Set(skip), browser = ORDER.filter(s => !UNIT_STAGES.includes(s) && !gone.has(s));
   const grouped = new Set(UNITS.flat());
-  const units = [...UNITS, ...browser.filter(s => !grouped.has(s)).map(s => [s])];
+  const units = [...UNITS.map(u => u.filter(s => !gone.has(s))).filter(u => u.length), ...browser.filter(s => !grouped.has(s)).map(s => [s])];
   units.sort((a, b) => cost(b, d) - cost(a, d) || ORDER.indexOf(a[0]) - ORDER.indexOf(b[0]));
   const shards = Array.from({ length: k }, () => []);
   for (const u of units) {
@@ -48,13 +49,17 @@ export function pack(d, k) {
 }
 
 // -> [{ k, wall, runner }] for each K: predicted wall of the slowest shard, and the runner minutes the K shards use.
-export const kTable = (d, ks = [4, 5, 6, 7]) => ks.map(k => {
-  const costs = pack(d, k).map(sh => C.fixed + cost(sh, d));
+export const kTable = (d, ks = [4, 5, 6, 7], skip = []) => ks.map(k => {
+  const costs = pack(d, k, skip).map(sh => C.fixed + cost(sh, d));
   return { k, wall: Math.max(...costs), runner: costs.reduce((a, b) => a + b) };
 });
 
 // The smallest K whose predicted wall is within 0.5 min of the best: fewer shards use fewer runner minutes.
-export function chooseK(d) {
-  const table = kTable(d), best = Math.min(...table.map(r => r.wall));
+export function chooseK(d, skip = []) {
+  // With stages skipped there is less to spread, so fewer shards are considered too (every shard pays C.fixed).
+  const table = kTable(d, skip.length ? [1, 2, 3, 4, 5, 6, 7] : [4, 5, 6, 7], skip), best = Math.min(...table.map(r => r.wall));
   return table.find(r => r.wall <= best + 0.5).k;
 }
+
+// The shards of one run: the committed SHARDS when nothing is attested, else the packer's layout for the stages that still run.
+export const layoutFor = (d, skip = []) => skip.length ? pack(d, chooseK(d, skip), skip) : null;

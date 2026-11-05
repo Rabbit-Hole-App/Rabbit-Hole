@@ -3,7 +3,7 @@ import { resolve, dirname, join } from 'node:path';
 import { randomBytes, createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { adaptSharedCanvas, adaptSelectedPill, adaptTutorSlice, adaptRepoBrowser } from './fixture-adapters.mjs';
-import { SHARDS, shardScript } from './shards.mjs';
+import { shardsOf, shardScript } from './shards.mjs';
 export const FIXTURE_ADAPTERS = {
   'shared-canvas-ask-check.mjs': adaptSharedCanvas,
   'selected-pill-check.mjs': adaptSelectedPill,
@@ -100,7 +100,7 @@ $taskSnapshot = @(Get-CimInstance Win32_Process)`);
     const out=join(gate,relative);mkdirSync(dirname(out),{recursive:true});writeFileSync(out,text);
     if(relative==='int35.sh') {
       writeFileSync(join(gate,'focused.sh'),focusedScript(text));
-      SHARDS.forEach((_,k)=>writeFileSync(join(gate,`shard-${k+1}.sh`),shardScript(text,k+1)));
+      const shards=shardsOf();shards.forEach((_,k)=>writeFileSync(join(gate,`shard-${k+1}.sh`),shardScript(text,k+1,shards)));
     }
   }
   for(const name of ['supervise.mjs','process-watch.ps1','process-ownership.ps1'])copyFileSync(join(SOURCE,name),join(gate,name));

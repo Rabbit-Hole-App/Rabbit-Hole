@@ -13,6 +13,20 @@ export const ORDER = ['make test-unit', 'fixture regression', 'rh-app', 'comment
   'thumbnails', 'canvas-shell', 'canvas-toolbar', 'rh-local', 'cross-device', 'filedrop', 'library-folders', 'share-revocation',
   'bundle(dist)', 'bundle(dist-dev)', 'journey J1-J8', 'tutor-slice', 'blank-hooks', 'practice-card', 'canvas-chrome'];
 
+// Item 1 (CI and release speed): the stages the gate may take from the exact-SHA fast-e2e run instead of running them -> the name
+// fast-e2e's run-part.sh prints for that check (its file without "-check.mjs"). The candidate's scripts/gate-attest.mjs lists the
+// same stages and refuses any other tagged, so a stage outside this list can never carry the tag. Never in it: the unit run and
+// the fixture regression (paidRefusal, escrow and auth tests), both production-bundle checks, the stack-app, journey and tutor
+// stages, share-revocation (access) and library-folders (it shares the `for beta` block with it).
+export const TAG = 'attested-by-fast-e2e';
+export const ATTESTABLE = {
+  sketch: 'explain-back-sketch', 'project-canvases': 'project-canvases', fork: 'canvas-forking', dive: 'dive', handle: 'handle',
+  'explore-holes': 'explore-holes', 'card-select': 'card-select', naming: 'naming', visibility: 'visibility', sidebar: 'sidebar',
+  'card-redesign': 'card-redesign', 'project-menu': 'project-menu', 'creator-profile': 'creator-profile', 'analytics-ui': 'analytics-ui',
+  workspace: 'workspace', 'card-context-menu': 'card-context-menu', 'panel-header': 'panel-header', 'slash-sheet': 'slash-sheet',
+  thumbnails: 'card-thumbnails', 'cross-device': 'cross-device',
+};
+
 // The two stages the units part runs (run.mjs units), so no shard does: the same commands on the same windows-2022 image
 // and tree that shard 1 used to repeat. mergeShards takes their lines from the units record.
 export const UNIT_STAGES = ['make test-unit', 'fixture regression'];
@@ -33,7 +47,18 @@ export const SHARDS = [
 
 // The parts of a run, as the workflow matrix (gate-sharded.yml) lists them and collect.mjs judges them; shards.test.mjs
 // fails when the matrix lists any other, so a passing extra entry cannot go unjudged.
-export const PARTS = ['units', 'checkpoints', ...SHARDS.map((_, k) => `shard-${k + 1}`)];
+export const partsOf = (shards = SHARDS) => ['units', 'checkpoints', ...shards.map((_, k) => `shard-${k + 1}`)];
+export const PARTS = partsOf();
+
+// This run's shard layout: GATE_LAYOUT (the preflight job's repack around the stages fast-e2e attested, attest.mjs) or SHARDS.
+// Every part of the run and the collect job read the same value, so they cannot disagree about the shards.
+export function shardsOf(env = process.env) {
+  if (!env.GATE_LAYOUT) return SHARDS;
+  const layout = JSON.parse(env.GATE_LAYOUT), flat = layout.flat();
+  if (!Array.isArray(layout) || !layout.length || layout.some(s => !Array.isArray(s) || !s.length) || flat.some(s => !ORDER.includes(s) || UNIT_STAGES.includes(s)) || new Set(flat).size !== flat.length)
+    throw Error('GATE_LAYOUT is not a layout of the gate\'s browser stages');
+  return layout;
+}
 
 // Stages int35.sh runs only when the candidate tree carries their check (and gateVerdict then requires).
 export const CONDITIONAL = {
@@ -70,8 +95,8 @@ function blocks(text) {
 
 // The shard script: int35.sh with every other shard's stages removed, and any stack section none of its stages need.
 // Exports (LOCAL_CP_VARS after sketch) always stay where they are, so every kept stage sees the environment it had.
-export function shardScript(full, n) {
-  const want = new Set(SHARDS[n - 1] ?? []);
+export function shardScript(full, n, shards = SHARDS) {
+  const want = new Set(shards[n - 1] ?? []);
   if (!want.size) throw Error(`Unknown gate shard ${n}`);
   const at = SECTIONS.map(([marker]) => full.indexOf(marker)), end = full.lastIndexOf('check_tree\n');
   if (at.some((i, k) => i < 0 || (k && i <= at[k - 1])) || end <= at.at(-1)) throw Error('Original gate section boundaries changed');
@@ -114,8 +139,16 @@ const headOf = (name, lines, want) => {
   if (want !== undefined && grant !== want) throw Error(`${name} record has grant ${grant}, expected ${want}`);
   return text.replace(ATTEMPT, '$1<attempt>;');
 };
-export function mergeShards(logs, inTree = () => true, unitsLog = null, grants = {}) {
-  if (logs.length !== SHARDS.length) throw Error(`Expected ${SHARDS.length} shard records, got ${logs.length}`);
+// opts.shards: this run's layout. opts.attest: { run, sha, stages: { <stage>: "N/N checks passed" } }, the stages taken from the
+// exact-SHA fast-e2e run (attest.mjs) instead of run: each gets its tripwire line and an exit line carrying the tag the
+// candidate's gateVerdict checks, no shard may also have run it, and no stage outside ATTESTABLE can be named.
+export function mergeShards(logs, inTree = () => true, unitsLog = null, grants = {}, { shards = SHARDS, attest = null } = {}) {
+  for (const [stage, count] of Object.entries(attest?.stages ?? {})) {
+    if (!(stage in ATTESTABLE)) throw Error(`Stage ${stage} cannot be attested by fast-e2e; it always runs in the gate`);
+    if (!/^[0-9a-f]{40}$/.test(attest.sha || '') || !/^\d+$/.test(String(attest.run))) throw Error('The attestation needs a numeric fast-e2e run and a full commit sha');
+    if (!/^(\d+)\/\1 checks passed$/.test(count) || /^0\//.test(count)) throw Error(`Stage ${stage} is attested without an N/N result: ${count}`);
+  }
+  if (logs.length !== shards.length) throw Error(`Expected ${shards.length} shard records, got ${logs.length}`);
   const chunks = new Map(), closing = [];
   let head, first;
   logs.forEach((log, k) => {
@@ -130,7 +163,7 @@ export function mergeShards(logs, inTree = () => true, unitsLog = null, grants =
       chunk.push(line);
       const stage = line.match(STAGE_EXIT)?.[1];
       if (!ORDER.includes(stage)) continue;
-      if (!SHARDS[k].includes(stage)) throw Error(`Shard ${k + 1} ran ${stage}, which belongs to another shard`);
+      if (!shards[k].includes(stage)) throw Error(`Shard ${k + 1} ran ${stage}, which belongs to another shard`);
       if (chunks.has(stage)) throw Error(`Stage ${stage} is duplicated`);
       chunks.set(stage, chunk); chunk = [];
     }
@@ -142,9 +175,15 @@ export function mergeShards(logs, inTree = () => true, unitsLog = null, grants =
     if (headOf('Units', lines.slice(0, tree + 1), grants.units) !== first) throw Error('Units record has a different preflight or tree line');
     for (const line of lines) { const s = line.match(STAGE_EXIT)?.[1]; if (UNIT_STAGES.includes(s)) { if (chunks.has(s)) throw Error(`Stage ${s} is duplicated`); chunks.set(s, [line]); } }
   }
+  for (const [stage, count] of Object.entries(attest?.stages ?? {})) {
+    if (chunks.has(stage)) throw Error(`Stage ${stage} both ran and was attested`);
+    chunks.set(stage, [`${stage} provider-tripwire hits: 0`, `${stage} exit 0  ${count}  ${TAG} run=${attest.run} sha=${attest.sha}`]);
+  }
   const missing = ORDER.filter(s => !chunks.has(s) && !(CONDITIONAL[s] && !inTree(CONDITIONAL[s])));
   if (missing.length) throw Error(`Stages missing from the shard records: ${missing.join(', ')}`);
-  return [...head, ...ORDER.flatMap(s => chunks.get(s) ?? []), ...closing, 'INT35-DONE', ''].join('\n');
+  const taken = Object.keys(attest?.stages ?? {}).length;
+  const paths = taken ? [`gate paths: ${chunks.size - taken} stages ran in the gate, ${taken} attested by fast-e2e run ${attest.run} (${ORDER.filter(s => s in attest.stages).join(', ')})`] : [];
+  return [...head, ...ORDER.flatMap(s => chunks.get(s) ?? []), ...closing, ...paths, 'INT35-DONE', ''].join('\n');
 }
 
 // Proof only (dispatch input canary_fail_stage): that run-line stage gets a check file that does not exist, so it
