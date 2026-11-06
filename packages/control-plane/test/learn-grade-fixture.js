@@ -1,5 +1,5 @@
 // packages/control-plane/test/learn-grade-fixture.js
-// learn_grades on node:sqlite, built from the same schema file the dev D1 gets,
+// The Learn D1 on node:sqlite, built from the same schema file the dev D1 gets,
 // behind the slice of the D1 API the store uses.
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
