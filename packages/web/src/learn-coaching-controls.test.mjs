@@ -305,6 +305,6 @@ test('wiring: the Chat mode is the canvas control, the switch sits beside select
   assert.match(read('./use-learn-coaching.jsx'), /aria-label="Proactive Tutor suggestions"/);
   assert.match(ask, /mode: askMode\(chat\.thread\.mode, tocView\)/);
   assert.match(ask, /!openGuided\(chat\.coaching, chat\.thread,/);
-  assert.match(page, /<NextStepsHost on=\{nextStepsHere\} coaching=\{hooksCoaching\}/);
+  assert.match(page, /<NextStepsHost on=\{nextStepsHere && !roadmap\.active\} coaching=\{hooksCoaching\}/);
   assert.match(steps, /gateHooks\(gate, steps\.state\(\), \{ allowed: !!coaching\?\.allowed/);
 });
