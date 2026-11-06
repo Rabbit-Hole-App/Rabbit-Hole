@@ -1,6 +1,6 @@
 # Cleanup P6b (schema source and table drop) candidate note
 
-Branch `feat/tutor-cleanup-p6b` (MVP fast path, owner label 2026-11-05), stacked on `feat/tutor-cleanup-p6a`, which is on `d870aef1f9511c54f8cab2ba13b92dfbe79542d1`. **Not releasable on its own:** the release is one window with the table drop, and the commit must be rebased on current `main` first (`p6-db-runbook.md`, "Decisions and base"). No migration is added; no database operation has been run.
+Branch `feat/tutor-cleanup-p6b-release` (MVP fast path, owner label 2026-11-05), the P6b commits rebuilt on the P6a release `feat/tutor-cleanup-p6a-release` (`84d94faabca3e653e0e6b77c954aadcae084a57b`, itself on main `3b9348449`), so it is a fast-forward of the P6a release once that is live. The older `feat/tutor-cleanup-p6b` (on the superseded P6a base `d870aef1f`) is kept only as history. **Not releasable on its own:** the release is one window with the table drop (`p6-db-runbook.md`, Part 2). No migration is added; no database operation has been run. Two changes on top of the three original commits: `P6A_SHA` is the P6a release, and the production window deletes every P6a recovery branch found by the pattern `feat/tutor-cleanup-p6a*recovery*` (there are three), not one fixed name; the launcher also refuses a checkout without wrangler before running anything.
 
 ## Commits
 
@@ -14,7 +14,7 @@ Branch `feat/tutor-cleanup-p6b` (MVP fast path, owner label 2026-11-05), stacked
 
 ## Recovery
 
-`feat/tutor-cleanup-p6b-recovery`: a strict descendant of the P6b release commit that turns the launcher's `retire` command into a refusal (it can never drop anything again) and keeps the schema sources and application files exactly as P6b has them. Valid after the drop. A branch that does not descend from P6b fails the preflight (`missing ...`).
+`feat/tutor-cleanup-p6b-release-recovery`: a strict descendant of the P6b release commit that turns the launcher's `retire` command into a refusal (it can never drop anything again) and keeps the schema sources and application files exactly as P6b has them. Valid after the drop. A branch that does not descend from P6b fails the preflight (`missing ...`).
 
 ## Check-map
 
