@@ -3,6 +3,7 @@
 // slots with their state dimensions; the body comes only from the entitled result routes. Built from D1 on every read, so a reload and a second
 // device see the same state.
 import { readRoadmap, readUnfinishedRoadmap } from './roadmap-store.js';
+import { d1PublicRefs } from './roadmap-source-read.js';
 
 const iso = seconds => new Date(seconds * 1000).toISOString();
 const json = text => { try { return JSON.parse(text); } catch { return null; } };
@@ -19,13 +20,15 @@ export async function roadmapView(db, access, roadmap) {
   const { results: stepRows } = await db.prepare('SELECT * FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? ORDER BY position').bind(id, roadmap.plan_version).all();
   const scopeJson = json(roadmap.scope_json) || {};
   const sourceName = scopeJson.sourceName || '';
-  const steps = (stepRows || []).map(s => ({ id: s.id, position: s.position, title: s.title, goal: s.goal, format: s.format, passage: { start: s.passage_start, end: s.passage_end }, sourceRef: null, state: s.state,
+  // R3's reference for each step, minted at Accept plan (roadmap-source-refs.js); null where none was minted.
+  const refs = await d1PublicRefs({ LEARN_DB: db }, access, (stepRows || []).map(s => s.source_ref_id));
+  const steps = (stepRows || []).map(s => ({ id: s.id, position: s.position, title: s.title, goal: s.goal, format: s.format, passage: { start: s.passage_start, end: s.passage_end }, sourceRef: refs.get(s.source_ref_id) ?? null, state: s.state,
     ...(s.card_removed ? { cardRemoved: true } : {}), ...(s.answered ? { answered: true } : {}) }));
   const offered = await db.prepare("SELECT * FROM learn_step_proposals WHERE roadmap_id = ? AND state IN ('checking', 'held', 'pending') ORDER BY created_at DESC LIMIT 1").bind(id).first();
   const position = offered ? steps.find(s => s.id === offered.step_id)?.position : null;
   const proposal = offered && {
     id: offered.id, stepId: offered.step_id, version: offered.version, state: offered.state, title: offered.title, description: offered.description, format: offered.format,
-    sourceRelation: { kind: 'from', source: { key: roadmap.source_key, rev: roadmap.source_rev, name: sourceName }, sourceRef: null }, position: { index: position ?? null, total: steps.length }, acceptable: offered.state === 'pending' && !offered.stale && roadmap.state === 'active',
+    sourceRelation: { kind: 'from', source: { key: roadmap.source_key, rev: roadmap.source_rev, name: sourceName }, sourceRef: steps.find(s => s.id === offered.step_id)?.sourceRef ?? null }, position: { index: position ?? null, total: steps.length }, acceptable: offered.state === 'pending' && !offered.stale && roadmap.state === 'active',
   };
   const { results: resultRows } = await db.prepare(`SELECT r.* FROM learn_step_results r WHERE r.roadmap_id = ? AND r.decision = 'accepted' ORDER BY r.created_at, r.slot_index`).bind(id).all();
   const results = (resultRows || []).map(r => {

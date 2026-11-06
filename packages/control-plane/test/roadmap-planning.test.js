@@ -16,7 +16,7 @@ const R3 = `CREATE TABLE IF NOT EXISTS learn_source_refs (id TEXT PRIMARY KEY, o
 test('generic context asks one focused question; the answer is appended (never replacing the original) and planning resumes to a plan', async t => {
   const h = await loop(t, { plans: [QUESTION, FULL] });
   const made = await create(h);
-  let view = made.body.view;
+  let view = made.body;
   assert.equal(view.roadmap.state, 'questioning');
   assert.deepEqual(view.plan.steps ?? view.steps, []);
   assert.deepEqual(view.question, { id: 'q_1', kind: 'focus', text: 'This note covers several topics. Which should the explanation focus on?', options: [{ id: 'o1', label: 'Gradients' }, { id: 'o2', label: 'Learning rate' }] });
@@ -24,13 +24,13 @@ test('generic context asks one focused question; the answer is appended (never r
   assert.equal(wrong.status, 400);
   const answered = await h.json('POST', `/api/learn/roadmap/${made.body.roadmapId}/answer`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('answer'), questionId: 'q_1', optionId: 'o2' });
   assert.equal(answered.status, 202);
-  view = answered.body.view;
+  view = answered.body;
   assert.equal(view.roadmap.state, 'proposed');
   assert.equal(view.question, null);
   assert.equal(view.roadmap.instruction, INSTRUCTION, 'the original instruction is what the roadmap reports');
   assert.deepEqual(rows(h.w.sqlite, 'SELECT version, origin, text FROM learn_roadmap_instructions ORDER BY version').map(r => [r.version, r.origin, r.text]), [[1, 'create', INSTRUCTION], [2, 'answer', 'Learning rate']]);
   // The same answer again replays; another key is a stale revision (the question was answered).
-  const replay = await h.json('POST', `/api/learn/roadmap/${made.body.roadmapId}/answer`, { boardId: BOARD, revision: made.body.view.roadmap.revision, actionKey: KEY('answer'), questionId: 'q_1', optionId: 'o2' });
+  const replay = await h.json('POST', `/api/learn/roadmap/${made.body.roadmapId}/answer`, { boardId: BOARD, revision: made.body.roadmap.revision, actionKey: KEY('answer'), questionId: 'q_1', optionId: 'o2' });
   assert.equal(replay.status, 202);
   assert.equal(rows(h.w.sqlite, 'SELECT * FROM learn_roadmap_instructions').length, 2);
 });
@@ -40,7 +40,7 @@ test('the original instruction reaches the planner unchanged on the draft and on
   const h = await loop(t, { plans: [FULL, FULL] });
   registerRoadmapHandlers({ callModel: async (role, body) => { seen.push([role, JSON.parse(String(body.messages[0].content).split('\n\n<source')[0])]); return h.m.callModel(role, body); }, checkCallModel: h.m.callModel, classify, base: h.p.base });
   const made = await create(h);
-  const revised = await h.json('POST', `/api/learn/roadmap/${made.body.roadmapId}/revise`, { boardId: BOARD, revision: made.body.view.roadmap.revision, actionKey: KEY('revise'), instruction: 'Make it shorter.' });
+  const revised = await h.json('POST', `/api/learn/roadmap/${made.body.roadmapId}/revise`, { boardId: BOARD, revision: made.body.roadmap.revision, actionKey: KEY('revise'), instruction: 'Make it shorter.' });
   assert.equal(revised.status, 202);
   assert.deepEqual(seen.map(s => s[0]), ['roadmap_draft', 'roadmap_revise']);
   assert.equal(seen[0][1].instruction.original, INSTRUCTION);
@@ -52,9 +52,9 @@ test('the original instruction reaches the planner unchanged on the draft and on
   reteach.instructionAck.skips = [];
   const bad = await loop(t, { plans: [reteach] });
   const failed = await create(bad);
-  assert.equal(failed.body.view.roadmap.state, 'questioning');
-  assert.equal(failed.body.view.limitation.code, 'plan_failed');
-  assert.deepEqual(failed.body.view.steps, [], 'a rejected plan records no steps');
+  assert.equal(failed.body.roadmap.state, 'questioning');
+  assert.equal(failed.body.limitation.code, 'plan_failed');
+  assert.deepEqual(failed.body.steps, [], 'a rejected plan records no steps');
 });
 
 test('a typed model limitation retries later and records nothing; the same event then completes', async t => {
@@ -62,7 +62,7 @@ test('a typed model limitation retries later and records nothing; the same event
   let calls = 0;
   registerRoadmapHandlers({ callModel: async (role, body) => { if (calls++ === 0) throw new Error('model down'); return h.m.callModel(role, body); }, checkCallModel: h.m.callModel, classify, base: h.p.base });
   const made = await create(h);
-  assert.equal(made.body.view.roadmap.state, 'draft', 'planning is waiting, not failed');
+  assert.equal(made.body.roadmap.state, 'draft', 'planning is waiting, not failed');
   const [event] = rows(h.w.sqlite, "SELECT processed_at, attempts, next_at FROM learn_roadmap_outbox WHERE kind = 'plan_requested'");
   assert.equal(event.processed_at, null);
   assert.equal(event.attempts, 1);
@@ -76,7 +76,7 @@ test('no new planning while the flag is off: the event waits and completes when 
   const h = await loop(t);
   h.deps.startPlanning = async () => {};
   const made = await create(h);
-  assert.equal(made.body.view.roadmap.state, 'draft');
+  assert.equal(made.body.roadmap.state, 'draft');
   const dark = { ...h.env, ROADMAP_ENABLED: undefined };
   const [event] = rows(h.w.sqlite, "SELECT next_at FROM learn_roadmap_outbox WHERE kind = 'plan_requested'");
   await runDueRoadmapEvents(dark);
@@ -96,7 +96,7 @@ test('a source that changed before planning ran is a limitation the learner sees
   assert.equal(view.limitation.code, 'source_changed');
   assert.equal(view.limitation.message, 'The source changed since this plan was made. Update the plan to continue.');
   assert.equal(h.m.calls.length, 0);
-  assert.equal(made.body.view.roadmap.state, 'draft');
+  assert.equal(made.body.roadmap.state, 'draft');
 });
 
 test('an oversize source is explained with selectable scopes and never read as a prefix: 422, zero model calls, no roadmap', async t => {
@@ -120,7 +120,7 @@ test('a passage scope is R3\'s reference resolved on the server: the quote is fo
   h.w.sqlite.prepare("INSERT INTO learn_source_refs (id, org, owner_email, kind, source_key, source_name, source_rev, anchor_json, anchor_hash, created_at) VALUES (?, 'team', 'u-alice@example.test', 'markdown', ?, 'n', ?, ?, 'h', 1)").run(ref, `file:${ID_B}`, h.rev, anchor);
   const made = await create(h, {}, { scope: { kind: 'passage', sourceRefId: ref } });
   assert.equal(made.status, 202);
-  const view = made.body.view;
+  const view = made.body;
   assert.equal(view.roadmap.scope.kind, 'passage');
   assert.equal(view.roadmap.scope.chars, exact.length);
   assert.equal(view.roadmap.state, 'proposed');
@@ -144,18 +144,20 @@ test('Accept plan mints one R3 reference per step; the delivered card carries it
   const h = await loop(t);
   h.w.sqlite.exec(R3);
   const made = await create(h);
-  const id = made.body.roadmapId, view = made.body.view;
+  const id = made.body.roadmapId, view = made.body;
   const plan = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('plan'), planVersion: 1 });
   assert.equal(plan.status, 200);
   const refs = rows(h.w.sqlite, 'SELECT s.position, s.source_ref_id, r.anchor_json FROM learn_roadmap_steps s JOIN learn_source_refs r ON r.id = s.source_ref_id ORDER BY s.position');
   assert.equal(refs.length, 3);
   assert.equal(JSON.parse(refs[1].anchor_json).quote.exact, MD.slice(AT.update, AT.rate));
   assert.match(refs[0].source_ref_id, /^sref_[0-9a-f]{24}$/);
-  const proposed = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: plan.body.view.roadmap.revision, actionKey: KEY('propose') });
-  const accept = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${proposed.body.view.proposal.id}/accept`, { boardId: BOARD, revision: proposed.body.view.roadmap.revision, actionKey: KEY('accept'), proposalVersion: 1 });
-  const result = accept.body.view.results[0];
+  const proposed = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: plan.body.roadmap.revision, actionKey: KEY('propose') });
+  assert.equal(proposed.body.steps[0].sourceRef.id, refs[0].source_ref_id, 'the view carries each step's reference');
+  assert.equal(proposed.body.proposal.sourceRelation.sourceRef.source.key, `file:${ID_B}`);
+  const accept = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${proposed.body.proposal.id}/accept`, { boardId: BOARD, revision: proposed.body.roadmap.revision, actionKey: KEY('accept'), proposalVersion: 1 });
+  const result = accept.body.results[0];
   assert.equal(result.generation, 'generated');
-  const deliver = await h.json('POST', `/api/learn/roadmap/${id}/results/${result.id}/deliver`, { boardId: BOARD, revision: accept.body.view.roadmap.revision, actionKey: KEY('deliver') });
+  const deliver = await h.json('POST', `/api/learn/roadmap/${id}/results/${result.id}/deliver`, { boardId: BOARD, revision: accept.body.roadmap.revision, actionKey: KEY('deliver') });
   const card = deliver.body.cards[0].block;
   assert.deepEqual([card.sourceRef.v, card.sourceRef.id, card.sourceRef.kind, card.sourceRef.source.key], [1, refs[0].source_ref_id, 'markdown', `file:${ID_B}`]);
   assert.equal(card.sourceRef.anchor.quote.exact, MD.slice(0, AT.update));
@@ -165,7 +167,7 @@ test('Accept plan mints one R3 reference per step; the delivered card carries it
   h2.deps.startPlanning = deps => deps;
   const made2 = await create(h2);
   h2.w.sqlite.prepare("UPDATE file_sources SET sha256 = 'changed' WHERE id = ?").run(ID_B);
-  const refused = await h2.json('POST', `/api/learn/roadmap/${made2.body.roadmapId}/accept-plan`, { boardId: BOARD, revision: made2.body.view.roadmap.revision, actionKey: KEY('plan'), planVersion: 1 });
+  const refused = await h2.json('POST', `/api/learn/roadmap/${made2.body.roadmapId}/accept-plan`, { boardId: BOARD, revision: made2.body.roadmap.revision, actionKey: KEY('plan'), planVersion: 1 });
   assert.equal(refused.status, 409);
   assert.equal(refused.body.code, 'source_changed');
 });
@@ -174,12 +176,12 @@ test('revision limits: Depth alone applies at once to an accepted roadmap; an in
   const h = await loop(t);
   const made = await create(h);
   const id = made.body.roadmapId;
-  const plan = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: made.body.view.roadmap.revision, actionKey: KEY('plan'), planVersion: 1 });
-  let view = plan.body.view;
+  const plan = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: made.body.roadmap.revision, actionKey: KEY('plan'), planVersion: 1 });
+  let view = plan.body;
   const depth = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('depth'), settings: { depth: 'overview' } });
   assert.equal(depth.status, 200);
-  assert.deepEqual([depth.body.view.roadmap.depth, depth.body.view.roadmap.ceiling], ['overview', 5]);
-  view = depth.body.view;
+  assert.deepEqual([depth.body.roadmap.depth, depth.body.roadmap.ceiling], ['overview', 5]);
+  view = depth.body;
   const edit = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('edit'), instruction: 'Skip the learning rate.' });
   assert.equal(edit.status, 409);
   assert.equal(edit.body.code, 'invalid_transition');
@@ -200,7 +202,7 @@ test('Explain on canvas from an invitation carries no typed words: an empty inst
   const iv = (await h.json('POST', '/api/learn/roadmap/invitations', { boardId: BOARD, sourceKeys: [`file:${ID_B}`], idleKey: 'idle-1-aaaaaaaa' })).body.invitation;
   const made = await create(h, { invitationId: iv.id, instruction: '', actionKey: KEY('create2') });
   assert.equal(made.status, 202);
-  assert.equal(made.body.view.roadmap.instruction, '');
-  assert.equal(made.body.view.roadmap.state, 'proposed');
+  assert.equal(made.body.roadmap.instruction, '');
+  assert.equal(made.body.roadmap.state, 'proposed');
   assert.deepEqual(seen, [{ original: '' }]);
 });

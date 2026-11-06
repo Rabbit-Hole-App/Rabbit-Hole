@@ -37,6 +37,16 @@ export async function d1PublicRef(env, access, id) {
   } catch (error) { if (TABLE_MISSING.test(String(error?.message))) return null; throw error; }
 }
 
+// Many references at once, for the view: id -> public reference (the same shape as d1PublicRef). Absent table or unknown ids give an empty map.
+export async function d1PublicRefs(env, access, ids) {
+  const wanted = [...new Set(ids.filter(id => SREF_ID.test(id || '')))];
+  if (!wanted.length) return new Map();
+  try {
+    const { results } = await env.LEARN_DB.prepare(`SELECT * FROM learn_source_refs WHERE org = ? AND owner_email = ? AND id IN (${wanted.map(() => '?').join(',')})`).bind(access.org, access.actorEmail, ...wanted).all();
+    return new Map((results || []).map(row => [row.id, { v: 1, id: row.id, kind: row.kind, source: { key: row.source_key, rev: row.source_rev, name: row.source_name, home: row.source_home ?? null }, anchor: JSON.parse(row.anchor_json) }]));
+  } catch (error) { if (TABLE_MISSING.test(String(error?.message))) return new Map(); throw error; }
+}
+
 // The offsets of a quote inside the source text: its only occurrence, or the only one its prefix and suffix settle. null = zero or several.
 export function locateUnique(text, { exact, prefix = '', suffix = '' }) {
   const at = [];

@@ -15,18 +15,18 @@ import { BAD, BOARD, FAIL, FULL, GOOD, ID_A, ID_B, INSTRUCTION, KEY, ORIGIN, SHO
 async function toProposal(h, { revise = false } = {}) {
   const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'standard', actionKey: KEY('create') });
   assert.equal(created.status, 202);
-  let view = created.body.view, id = created.body.roadmapId;
+  let view = created.body, id = created.body.roadmapId;
   assert.equal(view.roadmap.state, 'proposed', 'planning ran from the outbox event');
   if (revise) {
     const revised = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('revise'), instruction: 'Make it shorter.' });
     assert.equal(revised.status, 202);
-    view = revised.body.view;
+    view = revised.body;
   }
   const accepted = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('plan'), planVersion: view.roadmap.planVersion });
   assert.equal(accepted.status, 200);
-  const proposed = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: accepted.body.view.roadmap.revision, actionKey: KEY('propose') });
+  const proposed = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: accepted.body.roadmap.revision, actionKey: KEY('propose') });
   assert.equal(proposed.status, 200);
-  return { id, view: proposed.body.view };
+  return { id, view: proposed.body };
 }
 const acceptBody = (view, key) => ({ boardId: BOARD, revision: view.roadmap.revision, actionKey: key, proposalVersion: view.proposal.version });
 
@@ -47,7 +47,7 @@ test('the complete loop: invitation, dismiss, accept, plan, revise, accept plan,
   assert.equal(created.status, 202);
   const id = created.body.roadmapId;
   assert.equal(rows(h.w.sqlite, 'SELECT state FROM learn_roadmap_invitations WHERE id = ?', second.id)[0].state, 'accepted');
-  let view = created.body.view;
+  let view = created.body;
   assert.equal(view.roadmap.state, 'proposed');
   assert.equal(view.roadmap.instruction, INSTRUCTION);
   assert.equal(view.plan.steps.length, 3);
@@ -55,7 +55,7 @@ test('the complete loop: invitation, dismiss, accept, plan, revise, accept plan,
   // 3 Revise once through the ToC conversation: a new plan version that needs acceptance; the original instruction row is untouched.
   const revised = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('revise'), instruction: 'Make it shorter.' });
   assert.equal(revised.status, 202);
-  view = revised.body.view;
+  view = revised.body;
   assert.equal(view.roadmap.planVersion, 2);
   assert.equal(view.plan.steps.length, 2);
   assert.equal(view.roadmap.acceptedPlanVersion, null, 'a revision is not accepted by being made');
@@ -64,19 +64,19 @@ test('the complete loop: invitation, dismiss, accept, plan, revise, accept plan,
   // 4 Accept the plan: nothing is generated, nothing is charged.
   const plan = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('plan'), planVersion: 2 });
   assert.equal(plan.status, 200);
-  assert.equal(plan.body.view.roadmap.state, 'active');
+  assert.equal(plan.body.roadmap.state, 'active');
   assert.equal((await h.totals()).used, 0);
   assert.equal(h.p.used.length, 0, 'plan acceptance buys nothing');
   // 5 One proposal, then Tab: one purchase, the card is made from the accepted records (one schema repair on the way).
-  const proposed = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: plan.body.view.roadmap.revision, actionKey: KEY('propose') });
-  view = proposed.body.view;
+  const proposed = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: plan.body.roadmap.revision, actionKey: KEY('propose') });
+  view = proposed.body;
   assert.equal(view.proposal.state, 'pending');
   assert.equal(view.proposal.acceptable, true);
   assert.equal(view.proposal.sourceRelation.source.name, 'Gradient descent notes.md');
   assert.deepEqual(view.results, []);
   const accept = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${view.proposal.id}/accept`, acceptBody(view, KEY('accept')));
   assert.equal(accept.status, 202);
-  view = accept.body.view;
+  view = accept.body;
   const result = view.results[0];
   assert.equal(result.generation, 'generated', 'generation ran from the step_accepted event');
   assert.equal(result.billing, 'settled');
@@ -101,26 +101,26 @@ test('the complete loop: invitation, dismiss, accept, plan, revise, accept plan,
   assert.deepEqual(again.body.cards, deliver.body.cards, 'idempotent: reload and a second device get the same block');
   const ack = await h.json('POST', `/api/learn/roadmap/${id}/results/${result.id}/ack`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('ack'), resultVersion: 1, cardId: card.id, boardRevision: 7 });
   assert.equal(ack.status, 200);
-  assert.equal(ack.body.view.roadmap.deliveredCount, 1);
-  assert.equal(ack.body.view.steps[0].state, 'delivered');
+  assert.equal(ack.body.roadmap.deliveredCount, 1);
+  assert.equal(ack.body.steps[0].state, 'delivered');
   // A share or a fork of the board carries the card, never the step relationship.
   const board = { blocks: [card] };
   assert.equal(forkState(board).blocks[0].stepId, undefined);
   assert.equal(sharedState(board, 'viewer').blocks[0].stepId, undefined);
   assert.equal(sharedState(board, 'viewer').blocks[0].title, card.title);
   // 7 Manual next step, then Cancel pauses it (the learner decides when to continue).
-  view = ack.body.view;
+  view = ack.body;
   const next = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('propose2') });
-  view = next.body.view;
+  view = next.body;
   assert.equal(view.proposal.title, 'Choosing a rate');
   const cancelled = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${view.proposal.id}/cancel`, acceptBody(view, KEY('cancel')));
-  assert.equal(cancelled.body.view.roadmap.state, 'paused');
+  assert.equal(cancelled.body.roadmap.state, 'paused');
   assert.equal(h.p.used.length, 2, 'cancel buys nothing');
   // 8 Nothing planned is left: asking for the next step reaches the stopping point. Then End; delivered cards and history stay.
-  const done = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: cancelled.body.view.roadmap.revision, actionKey: KEY('propose3') });
-  assert.equal(done.body.view.roadmap.state, 'completed');
-  const ended = await h.json('POST', `/api/learn/roadmap/${id}/end`, { boardId: BOARD, revision: done.body.view.roadmap.revision, actionKey: KEY('end') });
-  assert.equal(ended.body.view.roadmap.state, 'ended');
+  const done = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: cancelled.body.roadmap.revision, actionKey: KEY('propose3') });
+  assert.equal(done.body.roadmap.state, 'completed');
+  const ended = await h.json('POST', `/api/learn/roadmap/${id}/end`, { boardId: BOARD, revision: done.body.roadmap.revision, actionKey: KEY('end') });
+  assert.equal(ended.body.roadmap.state, 'ended');
   const history = await h.json('GET', `/api/learn/roadmap?boardId=${BOARD}&history=1`);
   assert.equal(history.body.roadmaps[0].state, 'ended');
   assert.equal(history.body.roadmaps[0].instruction, INSTRUCTION);
@@ -152,14 +152,14 @@ test('insufficient allowance leaves the proposal pending and the same key succee
   h.env.AI_MONTHLY_ALLOWANCE_USD = '10'; // credits arrive: the same key is still unconsumed
   const retried = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${view.proposal.id}/accept`, acceptBody(view, KEY('accept')));
   assert.equal(retried.status, 202);
-  assert.equal(retried.body.view.results[0].generation, 'generated');
+  assert.equal(retried.body.results[0].generation, 'generated');
 });
 
 test('a failed card is refunded: the transient failure earns one automatic retry after the refund, the second failure is terminal, the learner nets zero', async t => {
   const h = await loop(t, { script: [FAIL, FAIL] });
   const { id, view } = await toProposal(h);
   const accept = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${view.proposal.id}/accept`, acceptBody(view, KEY('accept')));
-  const result = accept.body.view.results[0];
+  const result = accept.body.results[0];
   assert.equal(result.generation, 'failed');
   assert.equal(result.billing === 'refunded' || result.billing === 'failed', true, result.billing);
   assert.deepEqual(result.recovery, ['retry', 'replace', 'omit']);
@@ -167,10 +167,10 @@ test('a failed card is refunded: the transient failure earns one automatic retry
   const spent = await h.totals();
   assert.equal(spent.used, 0, 'the learner is charged nothing for a failed card');
   assert.equal(spent.reserved, 0, 'the hold is released');
-  assert.equal(accept.body.view.steps[0].state, 'incomplete');
+  assert.equal(accept.body.steps[0].state, 'incomplete');
   // Omit is the learner's choice from Chat or the ToC; the step is skipped, nothing is charged.
-  const omit = await h.json('POST', `/api/learn/roadmap/${id}/steps/${accept.body.view.steps[0].id}/omit`, { boardId: BOARD, revision: accept.body.view.roadmap.revision, actionKey: KEY('omit') });
-  assert.equal(omit.body.view.steps[0].state, 'skipped');
+  const omit = await h.json('POST', `/api/learn/roadmap/${id}/steps/${accept.body.steps[0].id}/omit`, { boardId: BOARD, revision: accept.body.roadmap.revision, actionKey: KEY('omit') });
+  assert.equal(omit.body.steps[0].state, 'skipped');
 });
 
 test('End while a card is generating is refused with a 409 that carries the current state (State keeps this guard)', async t => {
@@ -182,7 +182,7 @@ test('End while a card is generating is refused with a 409 that carries the curr
   h.deps.onAccepted = async () => {};
   const accept = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${view.proposal.id}/accept`, acceptBody(view, KEY('accept')));
   assert.equal(accept.status, 202);
-  const end = await h.json('POST', `/api/learn/roadmap/${id}/end`, { boardId: BOARD, revision: accept.body.view.roadmap.revision, actionKey: KEY('end') });
+  const end = await h.json('POST', `/api/learn/roadmap/${id}/end`, { boardId: BOARD, revision: accept.body.roadmap.revision, actionKey: KEY('end') });
   assert.equal(end.status, 409);
   assert.equal(end.body.current.roadmap.state, 'active');
   h.deps.onAccepted = stop;
@@ -195,7 +195,7 @@ test('flag off during generation: routes 404 while the accepted work still compl
   h.deps.onAccepted = async () => {}; // the accept commits its event; nothing has run yet
   const accept = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${view.proposal.id}/accept`, acceptBody(view, KEY('accept')));
   assert.equal(accept.status, 202);
-  const resultId = accept.body.view.results[0].id;
+  const resultId = accept.body.results[0].id;
   // The flag is switched off, then the durable event runs: generation does not read the flag.
   const dark = { ...h.env, ROADMAP_ENABLED: undefined };
   assert.equal((await roadmapRoute('/api/learn/roadmap', new Request(`${ORIGIN}/api/learn/roadmap?boardId=${BOARD}`), dark, h.deps)).status, 404);
@@ -205,8 +205,8 @@ test('flag off during generation: routes 404 while the accepted work still compl
   assert.equal(h.p.used.length, 1);
   // Restored: deliver returns the same minted card, and nothing is charged again.
   h.deps.onAccepted = live;
-  const deliver = await h.json('POST', `/api/learn/roadmap/${id}/results/${resultId}/deliver`, { boardId: BOARD, revision: accept.body.view.roadmap.revision, actionKey: KEY('deliver') });
-  assert.equal(deliver.body.cards[0].block.id, accept.body.view.results[0].slot.cardId);
+  const deliver = await h.json('POST', `/api/learn/roadmap/${id}/results/${resultId}/deliver`, { boardId: BOARD, revision: accept.body.roadmap.revision, actionKey: KEY('deliver') });
+  assert.equal(deliver.body.cards[0].block.id, accept.body.results[0].slot.cardId);
   assert.deepEqual(await h.totals(), charged);
   assert.equal(await runDueRoadmapEvents(h.env), 0, 'nothing left to run');
   assert.equal(h.p.used.length, 1);

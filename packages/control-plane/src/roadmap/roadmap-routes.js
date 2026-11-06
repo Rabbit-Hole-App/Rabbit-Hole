@@ -45,7 +45,8 @@ export async function roadmapRoute(path, req, env, deps = {}) {
   const arg = { actionKey: body.actionKey, expectedRevision: body.expectedRevision ?? body.revision, ...(now ? { now } : {}) };
   const reply = async result => {
     if (result.refusal) return json({ ...refusalBody(result.refusal), current: await currentView(db, access, rest[0]) }, result.refusal.reason === 'unavailable' || result.refusal.reason === 'payer_unavailable' || result.refusal.reason === 'allowance_unavailable' ? 503 : 429);
-    return json(result.body && result.status < 300 ? { ...result.body, view: await currentView(db, access, result.body.roadmapId ?? rest[0]) } : result.body, result.status);
+    // api.md 3: a mutating response IS the RoadmapView (the UI reads it as one); the action's own fields (roadmapId, slots) ride beside it.
+    return json(result.body && result.status < 300 ? { ...result.body, ...(await currentView(db, access, result.body.roadmapId ?? rest[0])) } : result.body, result.status);
   };
   try {
     // GET /  (status for this board)
