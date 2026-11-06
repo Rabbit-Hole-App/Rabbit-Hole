@@ -16,8 +16,6 @@ const mintId = () => `sref_${[...crypto.getRandomValues(new Uint8Array(12))].map
 
 // -> { ref } | { ref: null, skipped: true }
 export async function d1MintSourceRef(env, access, { key, rev, name, quote, now = Date.now() }) {
-  // R7b: a PDF page range has no R3 anchor (R3's PDF anchor is a rectangle set from the viewer). The card is made without a sourceRef; it never carries a guessed one.
-  if (!String(key).startsWith('file:')) return { ref: null, skipped: true };
   const anchorJson = JSON.stringify({ quote: { exact: quote.exact, prefix: quote.prefix, suffix: quote.suffix } }), anchorHash = await sha256(anchorJson), db = env.LEARN_DB;
   try {
     await db.prepare(`INSERT INTO learn_source_refs (id, org, owner_email, kind, source_key, source_home, source_name, source_rev, anchor_json, anchor_hash, status, checked_at, created_at)
