@@ -11,7 +11,7 @@ import { withSystemUsage } from '../learn-usage.js';
 import { SAFETY_QUESTIONS } from '../agents/roadmap-check.js';
 import { JEV_TRANSPORTS } from '../learn-grade-jev.js';
 import { withRoadmapProviderCall, planCall, advanceCall, markCallUnknown } from './roadmap-money.js';
-import { reserveRoadmapQuota } from './roadmap-quota.js';
+import { reserveRoadmapQuota, recordCallQuota, releaseCallQuota } from './roadmap-quota.js';
 import { BLIND_RETRY_FORBIDDEN } from './roadmap-contract.js';
 
 export const ROLE_STAGE = Object.freeze({ roadmap_subject: 'subject', roadmap_draft: 'draft', roadmap_revise: 'revise', roadmap_proposal: 'proposal',
@@ -22,13 +22,13 @@ const fail = (code, message = code) => Object.assign(new Error(message), { code 
 
 // callModel for one roadmap and one plan/check version. The identity the calls hang on is all server ids: { roadmapId, version, anchor }, where
 // anchor is the card id for checks (two steps' proposals can share a version number) and the roadmap id for planning.
-// quota: 'plan' | 'check' | null, counted per call before it is made.
+// quota: 'plan' | 'check' | null, counted per call right before it is dispatched, after every local check and the planned row. A call proven
+// undispatched (row still 'planned') gives its unit back; an unknown or dispatched outcome keeps it.
 export function platformCallModel(env, access, { roadmapId, version, anchor = roadmapId, quota = null, registry = LEARN_TASKS, transport = anthropic, now = nowSeconds }) {
   const counters = {};
   return async function callModel(role, body) {
     const task = registry[role], stage = ROLE_STAGE[role];
     if (!task || !stage) throw fail('role_not_registered');
-    if (quota && !(await reserveRoadmapQuota(env.LEARN_DB, access, quota, { now: now() })).ok) throw fail('quota_exhausted');
     const call = counters[stage] = (counters[stage] ?? -1) + 1;
     const db = env.LEARN_DB, prefix = `rm.${roadmapId}.${version}.${anchor}.${stage}.${call}.`;
     // A fresh handler attempt gets the next retry number; an earlier attempt that may have reached the provider blocks it (reconcile first).
@@ -37,7 +37,14 @@ export function platformCallModel(env, access, { roadmapId, version, anchor = ro
     const retry = (earlier || []).length;
     const { env: scoped, opId, key } = await withRoadmapProviderCall(withSystemUsage(env, 'roadmap'), { proposalId: roadmapId, proposalVersion: version, cardId: anchor, stage, call, retry, authorizationId: roadmapId }, { platform: true });
     await planCall(db, access, { opId, key, roadmapId, stage, call, retry, payer: 'platform', task: role, model: task.model, now: now() });
-    const response = await checkpointed(db, opId, now, () => loggedModel(role, transport)(scoped, { ...body, ...(task.effort ? { output_config: { effort: task.effort } } : {}) }, task.model, null));
+    let response;
+    try {
+      if (quota) {
+        if (!(await reserveRoadmapQuota(db, access, quota, { now: now() })).ok) throw fail('quota_exhausted');
+        await recordCallQuota(db, opId, quota, now());
+      }
+      response = await checkpointed(db, opId, now, () => loggedModel(role, transport)(scoped, { ...body, ...(task.effort ? { output_config: { effort: task.effort } } : {}) }, task.model, null));
+    } catch (error) { await releaseCallQuota(db, access, opId, { now: now() }).catch(() => {}); throw error; } // no-op unless the row is still 'planned'
     if (!response.ok) throw fail('model_unavailable', `model ${response.status}`);
     return response.json();
   };
