@@ -1,243 +1,71 @@
 # Tutor ladder and cleanup: owner inbox
 
-Self-contained status for the owner and for a reviewer who has not seen the chat. Written by Claude (Lead). Times are Pacific.
+Current state as of 2026-11-06 09:05 PT. Older per-release notes, superseded plans and the full decision history are in `OWNER-INBOX-archive-2026-11-06.md` (same folder). Claude never sets `MVP_ALLOWED_SHA`, pushes `main`, deploys production, applies a migration (dev needs your GO announced first; prod is always yours), or spends beyond an approved cap.
 
-- **Last updated:** see the git log of this file (the Lead updates it after every event).
-- **Where:** branch `feat/tutor-owner-inbox` on `rabbit-hole`, file `docs/features/explain-on-canvas/OWNER-INBOX.md`. Desktop mirror: `C:\Users\cyudhist\Desktop\TUTOR-OWNER-INBOX.md`.
-- **Authority in force:** the Tutor ladder (R1-R16) and cleanup P1-P7 are MVP-labelled (MVP fast path; broad CI and the broad gate are recorded as bypassed, never passed). Claude never sets `MVP_ALLOWED_SHA`, pushes `main`, deploys production, applies a migration to dev or prod D1, or spends beyond an approved cap. Those are owner actions, listed per release below.
-- **Documents (all on the Desktop):** `cleanup-v0.5.md` (cleanup), `tutor-roadmap-v1.4.md` (ladder), `tutor-implementation-checklist.md` (executable tasks), `tutor-ladder-manifest.md` (task map, migration reservations, single file writers).
-- **Rule:** I tick a box and add a dated line when something resolves. Overnight I keep working on everything that does not depend on an open item.
+Three states are kept apart everywhere below: **Deployed** (the production deploy run for that SHA succeeded), **Flag** (is the feature switched on in production), **Accepted** (focused functional checks passed). "Deployed" never means a browser check on digrabbithole.com: none has been done.
 
----
+## 1. Where everything is
 
-## DEV 0039 APPLIED AND STRINGS APPROVED 2026-11-06 ~09:15 PT
+| Item | Deployed to prod | Flag in prod | Functional acceptance |
+|---|---|---|---|
+| Cleanup P1 | yes | no flag (removal) | tests/preview only |
+| Cleanup P2 Browser Tutor off | yes (run 42247063137) | no flag | tests/preview only |
+| R1 Card feedback | yes (with R2) | no flag | tests/preview only |
+| R3 Source refs | yes (with R2) | no flag | tests/preview only |
+| Cleanup P3 Server Tutor off | yes (with R2) | no flag | tests/preview only |
+| Cleanup P4 Journeys/syllabus off | yes (with R2) | no flag | tests/preview only |
+| R2 Depth, Auto-suggest | yes (run 42250400898, SHA d2428e357) | no flag | tests/preview only |
+| Cleanup P5 Duplicate grading off | yes (run 42253670464, SHA d870aef1f) | no flag | tests/preview only |
+| R4 Roadmap loop | **no**: release 63 (SHA fe9410689) waits for prod 0039 | `ROADMAP_ENABLED` **false** (unset everywhere) | fakes only; real-model and Durable Object run in progress (section 3) |
+| R6 Automatic next proposals | no, in build (lane A) | false | not started |
+| R5 Proposal editing | no, queued behind R6 in lane A | false | not started |
+| R7a Long Markdown | no, in build (lane B) | false | not started |
+| R7b PDF text | no, queued behind R7a in lane B | false | not started |
+| Cleanup P6a join removal, P6b drop scripts, P7 docs | no, in build (lane C); DB steps need your GO | n/a | not started |
+| R8-R16 | no | false | not started; each follows its own dependencies, not a blanket R7 |
 
-- **D-DEVDB-0039 APPLIED** (owner: "yes dev 0039"): `0039-roadmap-core.sql` applied to the dev Learn D1 `rabbit-hole-learn-dev` only (file sha256 `4c8555fe...`, identical to the R4 tips); script `C:\s\specelease-queuepply-dev-migration-0039.sh`, log `C:\s\spec\logspply-dev-migration-0039-*.log`; the verify query lists the roadmap and step tables. Production 0039 is still owner-run (`apply-prod-migration-0039.cmd`) and comes after P5 (live) and right before release 63.
-- **D-R4-4 DECIDED: "approve strings as recommended"** = S1-S10 and S28 approved now; S11-S25 and S29 approved as one bundle; S26/S27 (safety wording) NOT written: a personal-risk request is refused and refunded as `policy_block` with no supportive text until the owner writes it. D-R1-S/D-R2-S/D-R3-S and the P4 mode-line strings are not covered by this reply and stay open.
+Production Learn D1 has migrations 0036, 0037, 0038 (you applied them). The release preflight requires the prod schema to equal the candidate's schema exactly, so 0039 goes in only immediately before release 63. Dev Learn D1 has 0036-0039.
 
-## OWNER DECISIONS 2026-11-06 ~09:00 PT (message: "adopt D2, adopt D43, approve $25"; "I always mean production")
+## 2. Commands for you now
 
-- **D-R4-1 DECIDED: adopt the D2 routing exception.** **D-R4-2 DECIDED: adopt D43 (contextual safety policy).** **D-R4-3 DECIDED: $25 cap approved** for real-model qualification of the R4 planner/safety checks (worst-case estimate $24.72; hard stop at $25; spend ledger kept in the lane receipts).
-- **Owner intent:** turn `ROADMAP_ENABLED` to true in PRODUCTION (always means production). Plan: release 63 (R4, flag off, needs prod 0039 first) -> settings-reader wiring -> pin 64 (flag-on, separate revertable release).
-- **Still open before pin 64 is recommended:** D-R4-4 strings (recommended: approve S1-S10 and S28 now, S11-S25 and S29 as a bundle; S26/S27 stay unimplemented so a personal-risk request is refused and refunded as `policy_block` with no supportive text until the owner writes it); dev 0039 apply for the qualification run (not yet authorised).
+1. `C:\s\spec\release-queue\apply-prod-migration-0039.cmd --check` (read-only; expect 0/14), then `C:\s\spec\release-queue\apply-prod-migration-0039.cmd` (type `APPLY PROD`; expect 14/14).
+2. `"C:\Users\cyudhist\AppData\Local\Programs\Git\usr\bin\bash.exe" C:/s/spec/release-queue/morning-release.sh 63-tutor-r4-mvp` (type `RELEASE 63`; main must be d870aef1f). R4 deploys with the flag off; it creates the Durable Object class in production for the first time.
+3. Obsolete pins, do not run: 57, 58, 60, 61.
 
-## LIVE RELEASE STATE 2026-11-06 08:15 PT (supersedes the queue order above)
+Pins 64 (settings wiring and safety responses, flag off) and 65 (turns the roadmap ON in production) are being built; commands come only after the qualification run is reviewed.
 
-- Released and deployed: 54 P2 (`409f4e8f3`, deploy run 42247063137 success). Pushed to main but deploy blocked: 55 R1 (`15141c05a`), 56 R3 (`4b754b6c2`); main is `4b754b6c2`.
-- **Blocker found:** the production release preflight requires the prod Learn schema to match the candidate's schema EXACTLY (it reports missing AND unexpected tables). Migrations 0036, 0037 and 0038 were applied to prod together; R3's deploy therefore fails with `unexpected table: learn_canvas_depth, learn_user_settings` (0037 belongs to R2). Earlier advice to apply all three at once was wrong; the per-release order was right.
-- **Resolution:** release 59 R2 (`d2428e357`) next. It descends from P3 and P4, so one fast-forward lands 57, 58 and 59 together, and its schema (0036-0038) equals prod. Pin 59 now accepts main at R3. Skip 57 and 58 (they are ancestors of 59). Command: `bash C:/s/spec/release-queue/morning-release.sh 59-tutor-r2-mvp`.
-- **Next blocker (60 R4, 61 P5):** both candidates carry `0039-roadmap-core.sql`, so their preflight wants the 0039 tables in prod. Applying 0039 is NOT authorised and not done. Decision D-R4-0039: either you approve a prod 0039 apply (inert tables, flag stays off) right before 60, or P5 is re-stacked without R4 (Claude can do this) so 61 ships without 0039. Recommended: re-stack P5 independent of R4; hold 60 until the R4 decisions are made.
+## 3. R4 activation path (priority lane)
 
-## 1. Morning summary (kept current)
+Order: 63 deployed, then 64 wiring plus safety responses, then qualification reviewed, then 65 flag-on.
+Decided: D2 routing exception adopted, D43 safety policy adopted, $25 real-model cap approved (hard stop $25; inbox worst case $24.72), dev 0039 applied, strings S1-S10, S28, S11-S25, S29 approved. Defaults applied for D-R4-5..10 (active-to-proposed edits, deterministic proposals, empty click allowed, held card refunded, Durable Object alarm for the 24 h deadline).
+In progress: one agent builds 64/65 (settings reader wiring, S26/S27 safety responses as DRAFT text, one-line prod flag); another runs the real-model and Worker/Durable Object qualification in a dev clone (not production) with a spend ledger at `C:\s\spec\logs\r4-qual-ledger.md`.
+Still unmeasured: planner quality, grounding and safety thresholds, roadmap check seconds (placeholders 10/15 s because the CI split is saturated).
 
-### Ready for your release commands
-| Release | State | SHA |
-| --- | --- | --- |
-| Cleanup P1 | RELEASED 2026-11-05 23:13 PT (main 9b798f77; production smoke passed) | 9b798f776 |
-| 54 Cleanup P2 (Browser Tutor off) | READY, previewed (record 9ce5cfe6d1648796). CI on this tip is fully green: `verify` success and `fast-e2e` success after rerunning the one flaky shard (`stars-surfaces`, which P2 does not touch) | 409f4e8f3 |
-| 55 R1 card feedback | READY, previewed. Needs prod migration 0036 | 15141c05a |
-| 56 R3 source references | READY, previewed. Needs prod migration 0038 | 4b754b6c2 |
-| 57 Cleanup P3 (Server Tutor off) | READY, previewed (after a transient Cloudflare 503). No migration | 0c322bd50 |
-| 58 Cleanup P4 (Journeys and syllabus off) | READY, previewed. No migration | 37f377f39 |
-| 59 R2 Depth and Auto-suggest | READY, previewed. Needs prod migration 0037 | d2428e357 |
-| 60 R4 explanation loop (flag OFF) | READY, previewed. Optional: inert code + a new Durable Object class | 369aaca76 |
-| 61 Cleanup P5 (Duplicate grading off) | READY, previewed. No migration | 8ed4cb20e |
+## 4. Lanes, bases and migration numbers
 
-> **FIXED (04:40 PT): a pre-release scope scan found render-time `ReferenceError`s in the P4 candidate; they are fixed and releases 58-61 were re-stacked on the fix.** Cause: P4's web commit removed declarations but left uses behind in `LearnPage.jsx` (`journey`, `pathEntries`, `openEntry`, `setOpenEntry`; the Learn canvas would have crashed on first render) and `ask.jsx` (`tray`; every Chat composer render would have thrown). Fix commit `b5b3a88bf` on top of P4 plus a guard test `no-unbound-identifiers.test.mjs` (proven to fail on the old P4 tip; it scans LearnPage.jsx and ask.jsx and is now in each launcher smoke). Unit tests and the build were green with the bug, because nothing renders those components; only static scope analysis caught it. **Still true:** a P2-introduced `tutor={tutor.active ? tutor : null}` in the block follow-up composer is latent in releases 54-57 (throws only when "Follow up in this block" opens) and is removed by the P4 fix, so **run the queue through 58 in one sitting**. P4's recovery branch reverts to the P3 state, which carries the same latent `tutor` reference. NEW SHAs for 58-61 are in the table below; the old SHAs/branches (`cdac8cfc`, `e44aa04f`, `d692444e`, `da062592`) are SUPERSEDED. The queue script reads the updated pins, so its commands are correct.
+| Lane | Work | Base (frozen) | Branch |
+|---|---|---|---|
+| A | R6, then R5 (R6 does not wait for R5; R11 speculative generation is not in scope) | R4 release tip `fe941068917184a183faa533344cde18524a0598` | feat/tutor-r6, feat/tutor-r5 |
+| B | R7a, then R7b (incremental; no silent truncation) | same R4 tip | feat/tutor-r7a, feat/tutor-r7b |
+| C | P6a, P6b scripts, P7 docs (journey writers retired, backfill verified per environment, join removal verified, controlled drop) | main `d870aef1f9511c54f8cab2ba13b92dfbe79542d1` | feat/tutor-cleanup-p6a, -p6b, -p7 |
+| R4 | 63 release, 64 wiring, 65 flag-on, qualification | 63: `fe941068`; 64 from 63 | feat/tutor-r4-release-3, -wire, -flagon, -qual |
+| Verifier | independent review of committed candidates as they become ready | n/a | starts when the first lane candidate is committed |
 
-All eight form ONE linear chain on main `9b798f77`: each candidate's pinned `MAIN_PREV` is the previous candidate's SHA (verified by a dry run of the queue script), so they must be released in the order above.
+Migration numbers (allocated centrally; none beyond 0039 is authorised on any database): 0040 R6 (only if needed), 0041 R5 drafts, 0042 R7a source index, 0043 R7b (only if needed).
+R9 assessment: `learn-assessment.js` (rubric and Explain-back assessment) is retained after P5, so deferring R9 is a prioritisation choice, not a missing grader. R7 is not a blanket prerequisite for R8-R16.
+Lead-only files (single writer): learn-models.js, route mounts, wrangler*.jsonc, check-map.json, LearnPage.jsx, learn-usage.js, repository-schema.sql. Lanes A and B hand these over as lead patches; lane C edits them only on its own cleanup branches.
 
-### Blocked or waiting (details in sections 2 and 3)
-Nothing blocks the eight candidates above. Waiting on you (non-blocking for them): learner-string approvals, the R4 records (D2, D43, the $25 cap) before the R4 flag is ever set, cleanup P6a/P6b (not started: needs the backfill GO), and cleanup P7 (docs/receipt, not started).
+## 5. Open decisions (none stops other work)
 
-### Exact release commands
-Section 3 holds the per-release command blocks. They are valid only once a release's status there says READY.
+- **S26/S27 final wording (R4 safety refusal and personal-risk support).** Drafts arrive with candidate 64 and are replaceable. Needed: approve or replace.
+- **Strings of live releases, never signed off:** R1 (D-R1-S), R2 (D-R2-S), R3 (D-R3-S) and the P4 mode-line strings. Texts are in the archive file, section 2. Recommended: approve.
+- **D-P2-1:** keep the static Tutor entry card until R4 is on (recommended) or remove it.
+- **D-R2-1:** the per-canvas "Proactive Tutor suggestions" and the per-learner Auto-suggest coexist; recommended one control bound to the per-learner setting.
+- **D-N3:** the `fast-e2e.yml` `only` input needs your `!` command; prepared when that phase is ready.
+- **D-DB (P6a/P6b):** backfill per environment, join-removal release verification, the schema-source commit and the table drop each need your GO at the moment of the step. Not pre-approvable.
+- **D-FLAG-ON (pin 65):** I will recommend running 65 only after the qualification report shows the Durable Object and the end-to-end flow working, S26/S27 are approved or accepted as drafted, and releases 63 and 64 are live.
+- Not verified anywhere: browser behavior of any release, workerd for R4 (in progress), real classifier and safety thresholds (in progress).
 
-**One-command queue (written overnight, dry-run tested):** `bash C:/s/spec/release-queue/morning-release.sh <name> [<name> ...]` releases the listed candidates in order, one at a time. For each it prints the candidate, asks you to type `RELEASE <number>`, sets `MVP_ALLOWED_SHA` for that exact SHA, runs `release-mvp.sh --check`, then the release, waits for its final line, and only then deletes the variable. It stops at the first failure and removes the variable on exit. It never touches a database. Use `--dry-run` to preview and `--check-only` to check without pushing. **Full queue (dry-run verified, all eight pins consistent):** `bash C:/s/spec/release-queue/morning-release.sh 54-tutor-cleanup-p2-mvp 55-tutor-r1-mvp 56-tutor-r3-mvp 57-tutor-p3-mvp 58-tutor-p4-mvp 59-tutor-r2-mvp 60-tutor-r4-mvp 61-tutor-p5-mvp`. You can stop after any item (answer anything but `RELEASE <number>` at the prompt); the chain stays valid because each item only needs its predecessor on main. Every preview has already run (records are in `C:\s\spec\logs\preview-*.log` and in the dev-deploys notes the launcher publishes), so there is no preview step in the morning. Sensible stopping points: after 56 (the first Tutor features: R1 + R3), after 59 (R2), and R4 (60) is optional.
-**Production migrations are your step before the release that needs them:** R1 needs 0036 on the prod `LEARN_DB`; R3 needs 0038; R2 needs 0037 (each file is in its lane's `learn-migrations/` directory and is additive).
+## 6. Decided (2026-11-06)
 
----
-
-## 2. Decisions and blockers needing you
-
-Format per item: ID, exact blocker, evidence, recommended resolution, precise decision or command needed. None of these stops other work.
-
-- [ ] **D-R4-1 (R4, D2 routing exception).**
-  - Blocker: R4 cannot activate without the owner record.
-  - Evidence: `contracts/decision-records.md` on branch `feat/tutor-r4-contracts`; code facts in `contracts/adapter.md` (`generateArtifact` has no allowlist parameter; `allowedPrimitives` is read nowhere on main).
-  - Recommended: adopt. A trusted server-only roadmap text/table adapter (formats `explanation` and `table` only); typed and Quick Edit `/explain` unchanged.
-  - Decision needed: reply "adopt D2" (or amend the wording in decision-records.md).
-- [ ] **D-R4-2 (R4, D43 contextual safety policy).** Same file. Recommended: adopt. Decision needed: reply "adopt D43".
-- [ ] **D-R4-3 (R4, first real-model candidate spend).**
-  - Blocker: no paid check may run without an approved cap.
-  - Evidence: decision-records.md estimate: 12 scenarios (8 development + 4 holdout); typical about $9.80, worst single pass about $23.10, expected with one repair pass about $14.70; stop and report at $20.
-  - Recommended: approve **$25**. Decision needed: "approve $25" or another cap. No spend happens before this.
-- [x] **D-DEVDB: AUTHORISED by the owner 2026-11-06 ("yes dev migrations").** Scope: additive CREATE-only migrations 0036, 0037 and 0038 on the DEV D1 (`rabbit-hole-learn-dev`) only, in number order; never production. Claude applies each only after its lane's migration file is final (lane corrections are still editing 0036/0037/0038), announces the run in this file first, and verifies the schema afterwards. Production application remains an owner action at release time. The original item follows.
-- [x] **D-DEVDB APPLIED 2026-11-06 about 00:10 PT** (announcement and result in one line): migrations 0036 (card feedback, with revision), 0037 (user settings and per-canvas Depth) and 0038 (source refs and the board-save-derived index) were applied to the dev Learn D1 `rabbit-hole-learn-dev` only, in order, from the lane worktrees at their corrected commits (R1 9763fcf3a, R2 a3f090b8a, R3 91e0eb632). Verified: tables `learn_card_feedback`, `learn_user_settings`, `learn_canvas_depth`, `learn_source_refs`, `learn_source_ref_cards` exist; the script (`C:\s\spec\release-queue\apply-dev-migrations-tutor.sh`) refuses any non-additive statement and any CREATE without IF NOT EXISTS; log in `C:\s\spec\logs\apply-dev-migrations-tutor-*.log`. **Production still needs the same three files applied by you before each release goes live** (commands will be in each release block).
-- [x] (original text) **D-DEVDB (R1, R2, R3 previews: additive migrations on the shared dev D1).**
-  - Blocker: the previews of R1, R2 and R3 can only exercise their new tables if migrations 0036, 0037 and 0038 exist on the dev D1 (`rabbit-hole-learn-dev`), which every dev clone shares. Without them each preview shows the feature's "unavailable / not saved" path, so the preview cannot verify the feature.
-  - Evidence: the clone shares the dev D1 (docs/features/mvp-fast-path.md, Limits). All three files are CREATE-only (schema-check enforces it).
-  - Recommended: authorise Claude to apply 0036-0038 to the DEV D1 only, in number order, after announcing it here. Production stays an owner action at release time.
-  - Decision needed: "yes dev migrations" (before sleeping) or "no". Without a yes, Claude applies nothing, and the three previews are recorded as partially verified.
-- [ ] **D-R4-4 (R4 learner strings S1-S30).** Recommended: approve S1-S10 and S28 now; approve S11-S25 and S29 as one bundle; you write S26-S27 (safety wording including the personal-risk support text). List: `contracts/decision-records.md`.
-- [ ] **D-R1-S (R1 strings).** Wording, aligned to the checklist (the R1 lane is applying it): "Understood" / "Still unclear" (thumb labels and Progress states); "Your feedback" (Progress heading); "Rate this card" (pair label); "Your rating was not saved. Try again."; "Private to you. What you said about a card, not an assessment of what you know." Recommended: approve. Needed before the R1 release.
-- [ ] **D-R2-S (R2 strings).** "Depth"; "Overview" (The short version: the central idea and what matters most); "Standard" (A balanced explanation); "Deep" (Thorough: reasoning, a worked example and edge cases); "Auto-suggest" (Offer suggestions without being asked, on every canvas; tooltip: Offer suggestions without being asked. Your questions are always answered.); "Could not load your Depth setting."; "Not saved: this change applies in this tab only."; "Retry". Recommended: approve. Needed before the R2 release.
-- [ ] **D-R3-S (R3 strings).** "From <name>, p. <label>"; "View passage"; "View explanation"; "Explain"; "Explain this passage"; "Source changed"; "Source not available"; "This source changed after the explanation was written, so the passage is not shown."; "This source is not available here, so the passage cannot be shown."; "You cannot open this source."; "The file this passage is in is not on this canvas."; "This source changed since you selected this passage. Select the passage again."; "This source is not available to you now. Select the passage again from a source you can open." Recommended: approve. Needed before the R3 release.
-- [ ] **D-P2-1 (cleanup P2, static Tutor entry card).** Blocker: v0.4 said the guided-entry flow goes, but the Keep table keeps `learn-coaching-entry.js` and the codebase menu depends on the entry card. P2 removed only the guided opening and kept the static card. Recommended: keep until R4. Needed: confirm, or say remove.
-- [ ] **D-R2-1 (R2, two Tutor switches).** The per-canvas "Proactive Tutor suggestions" and the per-learner Auto-suggest can coexist, and P2 also relabelled the per-canvas switch "Auto-suggest". Recommended: one control bound to the per-learner setting; the Lead rebases R2 after P4 and writes the exact merge. Needed: confirm.
-- [ ] **D-N3 (cleanup, `fast-e2e.yml` `only` input).** A workflow push needs your `!` command. I prepare it when that phase is ready, not before.
-- [ ] **D-DB (cleanup P6a and P6b).** The backfill, the joins removal, the schema-source commit and the table drop each need your GO at the moment of the step, per environment. Not pre-approvable.
-
----
-
-## 3. Release queue
-
-The sequence for every release is the P1 one (verified working):
-1. Run the release's preview launcher.
-2. `gh variable set MVP_ALLOWED_SHA --body <sha> -R Rabbit-Hole-App/Rabbit-Hole`
-3. `C:\s\spec\release-queue\release-mvp.cmd <name> --check`
-4. `C:\s\spec\release-queue\release-mvp.cmd <name>`
-5. `gh variable delete MVP_ALLOWED_SHA -R Rabbit-Hole-App/Rabbit-Hole` **only after the launcher prints its final line.** Deleting earlier made P1's launcher print a false STOP message, although that release was valid.
-
-Releases fast-forward `main` one at a time, so queue them in the order below.
-
-**SHA CORRECTION (supersedes the SHAs in the blocks 58, 59, 60 and 61 below):** 58 P4 `37f377f3910df2af7fdb77abeb78dc2c5f47d6d9` (branch `feat/tutor-p4-release`, recovery `feat/tutor-p4-release-recovery-2` `c15f2c94792cd2c27d09fcdb48a0d4460131d346`); 59 R2 `d2428e357fd40416b2ca83ec0ab6a7bfc3c203f2` (`feat/tutor-r2-release-2`, recovery `-recovery-2` `0be0a72256a8963b23c2307a9d8a2c59bc562601`); 60 R4 `369aaca76c9713bba295d86535f009fde5d9fe20` (`feat/tutor-r4-release-2`, a merge of the new R2 tip into the old R4 tip, so it carries the old R2 commits as duplicates but is a fast-forward descendant; recovery `b34e8766786a9d3e24c6e6c029947255faa162b8`); 61 P5 `8ed4cb20efe4a048b29f32e50a04d616be89234a` (`feat/tutor-p5-release-2`, recovery `cd810605dd000a7bd0b99649133251b53b3d1400`). All four previews were re-run on the new SHAs and passed (exit 0, first attempt): clones `rabbit-hole-web-dev-tutor-p4-release`, `-r2-release`, `-r4-release`, `-p5-release`. Everything else in those blocks (migrations, strings, behaviour notes) is unchanged. Full suites at the final tip: control-plane 3483/3484, web 4735/4762, build exit 0.
-
-
-### P2 cleanup (Browser Tutor off): BUILT, release package in preparation
-- Branch `feat/tutor-cleanup-p2`, tip `cdeb7727494e6f4f79abc084a3661b4fe504cc40`, on top of main 9b798f77 (pushed).
-- Results: cp 3589/3591, web 4787/4816 (flakes pass singly), build exit 0, check-map/fast-e2e/run-part/affected 70/70. 26 cp and 336 web tests were removed with the Tutor code.
-- Risk: about 43 browser checks were rewritten without ever being executed. 13 fork checks run in Linux CI (informational); about 30 windows-only checks need the Windows launcher.
-- Windows launcher: `C:\s\spec\owner-local\run-checks.cmd --worktree C:/Users/cyudhist/Desktop/workspace/tutor-cleanup-p2 <check files>` (add `--dry-run` first). The per-phase list is being finalised from cleanup-v0.5 section 10.
-- **Open item (P2, CI): `allowance-enforcement` failed in `fast-e2e` (run 42182472387).** 95 of 96 checks passed, including all 13 blind-edited fork checks. The failing step: with the AI allowance exhausted, the first Chat Send showed no refusal toast within 30 s (`allowance-enforcement-check.mjs:91`). It passed on P1. Likely cause: P2 sends every Chat turn to `/api/learn/ask`, while the check may have relied on the removed Tutor planner route for the refusal, or the ask path's refusal is not shown. A fixer agent is diagnosing it from the code. Recommended resolution: fix the product if a learner at exhausted allowance sees no refusal; otherwise update the check to assert the same visible refusal through the retained route. A fix changes the P2 SHA, so the release package below is regenerated. Until then the commands below are PROVISIONAL.
-- **RESOLVED (P2 CI item above), 2026-11-06:** the failure was a check-stack problem, not a product regression. On P1 the exhausted-allowance Send went through the browser Tutor to `/api/learn/tutor/plan`, which the real server refused with the toast. After P2 every Chat Send first calls `POST /api/learn/chat/route`; the keyless CI stack has no router key, so the route returned its fallback ("Couldn't check whether this asks for a video...") and `/api/learn/ask` was never sent, so no toast. Fix: commit `409f4e8` (check only) stubs the chat route as the sibling checks do; the refusal, credit and reservation assertions still come from the real server. P2's new tip is `409f4e8f3e4638bcc4b0477a2d2a26041ab40ec3` and the release package below is being regenerated for it. Product note: the router call is admitted against the platform ledger, so if the router is down a learner sees the fallback notice and must press "Answer normally" (existing behaviour in Ask mode); not changed by P2 beyond making it apply to Auto canvases.
-- **P2 tip `409f4e8` CI result:** `verify` passed; `fast-e2e` (run 42187262342): `allowance-enforcement` now passes 6/6, one other failure `stars-surfaces` (32/33 assertions; Stars profile and library pages, which P2 does not touch; it passed on the previous P2 tip). Only a failing count is visible in the log. The failed shard was re-run once at 01:05 PT per the CI rule for known-flaky shards; result below if it has landed. Under the MVP policy this is information only. P2 release package for `409f4e8`: preview launcher `preview-54-tutor-cleanup-p2.cmd` (agents are denied running it), recovery branch `feat/tutor-cleanup-p2-recovery-2` at `056924c78` (revert of all four P2 commits, tree identical to main), pins `54-tutor-cleanup-p2-mvp`; commands as in the block below with SHA `409f4e8f3e4638bcc4b0477a2d2a26041ab40ec3`.
-- (superseded by the item above) Provisional release package for tip `cdeb7727494e6f4f79abc084a3661b4fe504cc40` (valid only if no fix is needed): smoke = 5 non-browser commands, all exit 0 (dangling-import proof, 350 web tests, 35 cp tests, 70 map tests, worker bundle); affected-tests selection 980 web + 35 cp pass, uncovered: `TutorActivity.jsx`; recovery branch `feat/tutor-cleanup-p2-recovery` pushed at `1978ff65` (revert of all three P2 commits, tree identical to main 9b798f77).
-  1. `C:\s\spec\release-queue\preview-54-tutor-cleanup-p2.cmd`
-  2. `gh variable set MVP_ALLOWED_SHA --body cdeb7727494e6f4f79abc084a3661b4fe504cc40 -R Rabbit-Hole-App/Rabbit-Hole`
-  3. `C:\s\spec\release-queue\release-mvp.cmd 54-tutor-cleanup-p2-mvp --check`
-  4. `C:\s\spec\release-queue\release-mvp.cmd 54-tutor-cleanup-p2-mvp`
-  5. `gh variable delete MVP_ALLOWED_SHA -R Rabbit-Hole-App/Rabbit-Hole` (only after the launcher prints its final line)
-- Learner-visible changes in P2: a Next Steps hook click is one plain Chat turn; the Tutor switch is now "Auto-suggest" (aria-label `Auto-suggest`, tooltip `Auto-suggest on this canvas. Your questions are always answered.`); the dive suggestion card and the guided opening ("Start with:" bar) are gone; the mic shows paused; a broad learning request in Chat no longer starts a journey until P4. Optional glance on the preview: the switch reads Auto-suggest; a hook click becomes a Chat question with an answer; a message sent with the allowance exhausted shows the refusal.
-
-### R1 card feedback: CANDIDATE READY (release second, after P2)
-- Release tip `15141c05a931e082aaa2e59693d288a421d73938`, branch `feat/tutor-r1-release` (pushed), stacked on the P2 tip `409f4e8f3`. 10 commits on P2: the 6 R1 lane commits, the Lead patch (dev-worker mount + LearnPage scope provider), the check-map rows, and the prerequisites receipt (`docs/features/explain-on-canvas/receipts/r1-prerequisites.md`).
-- Verified: R1 tests 11/11, 13/13, 5/5, 7/7; schema-check + CI-script tests 77/77; `plan()` no unmapped path; web build exit 0; worker bundle exit 0. Browser checks `card-feedback-command-check.mjs` and `card-feedback-mvp-check.mjs` are written and mapped but have never run (CI will run them).
-- Preview ALREADY RUN (exit 0): record `0536d72e1cc07bfd`, build `fd9b40e94b70`, clone `https://rabbit-hole-web-dev-tutor-r1-release.tryrabbithole.workers.dev` (clones refuse sign-in; use your signed-in launcher). Recovery branch `feat/tutor-r1-release-recovery` at `64938d38897e4d33cbe1d35701a44bc4e83b2f66` (sets `feedbackScope = null`; no control drawn, route and stored ratings stay).
-- **Before release:** P2 must be on main (release rule: main must equal `MAIN_PREV` = `409f4e8f3...` or the SHA). **Production migration:** apply `packages/control-plane/learn-migrations/0036-card-feedback.sql` to the prod `LEARN_DB` before or with the release (the route returns 503 `feedback_unavailable` while the table is missing). Dev D1 is already done.
-- Commands after P2 is released: (1) `gh variable set MVP_ALLOWED_SHA --body 15141c05a931e082aaa2e59693d288a421d73938 -R Rabbit-Hole-App/Rabbit-Hole` (2) `C:\s\spec\release-queue\release-mvp.cmd 55-tutor-r1-mvp --check` (3) `C:\s\spec\release-queue\release-mvp.cmd 55-tutor-r1-mvp` (4) `gh variable delete MVP_ALLOWED_SHA -R Rabbit-Hole-App/Rabbit-Hole` only after the launcher's final line.
-- Learner-visible: thumbs "Understood" / "Still unclear" on hover or keyboard focus on generated cards (including quiz, flashcards, challenge and code), owner's own canvas only; Progress "Your feedback" section (private note, empty state "Nothing rated yet.", Retry). Strings are in D-R1-S above.
-- Superseded notes follow.
-
-### R1 card feedback (earlier notes)
-- Local branch `feat/tutor-r1-feedback`; being corrected to the checklist (revision, unknown-property rejection, data attributes, imported look-alike proof, Progress tests and wording).
-- Needs: migration `learn-migrations/0036-card-feedback.sql` on the dev D1 (announced first) and on production; Lead-only edits (`dev-worker.js` mount, `LearnPage.jsx` provider) after rebase; check-map rows.
-- Focused smoke (no browser): control-plane `card-feedback.test.js`, web `card-feedback.test.mjs`, `scripts/schema-check.test.mjs`.
-
-### R3 source references: CANDIDATE READY (release third, after P2 then R1)
-- Release tip `4b754b6c2b36a41dc651ed4c2608ca239668d656`, branch `feat/tutor-r3-release` (pushed), stacked on the R1 release tip `15141c05` (on P2 `409f4e8f3`). Receipt `docs/features/explain-on-canvas/receipts/r3-prerequisites.md`. Recovery `feat/tutor-r3-release-recovery` at `639719c195ff2b8800b1f401eaee60b003756100` (reverts the Lead-patch commit: no chip, no listener, no route; the Markdown "Explain" button is still drawn in that state and shows an error if clicked: acceptable, stays inert).
-- Verified: all R3 and R1 focused tests pass singly (source-refs 19 cp, 17+2 web; learn-boards 18; canvas-forking 28; explain-job 20; learn-artifact 20; etc.); schema + CI-script tests 77/77; plan() no unmapped; web build and worker bundle exit 0. Browser checks `source-ref-command-check.mjs` and `source-ref-mvp-check.mjs` never executed (CI first).
-- Preview ALREADY RUN (exit 0, second run; the first run hit the `genuine-card` timing flake outside R3's diff): record `c1defc9aff43b0bc`, build `6658547c6b23`, clone `https://rabbit-hole-web-dev-tutor-r3-release.tryrabbithole.workers.dev`.
-- **Before release:** P2 and R1 on main (release rule: main must equal `MAIN_PREV` = `15141c05...`). **Production migration:** apply `packages/control-plane/learn-migrations/0038-source-refs.sql` (two tables) to the prod `LEARN_DB` before this release goes live; 0036 for R1 first. Dev D1 is done.
-- Commands (after R1 is released): (1) `gh variable set MVP_ALLOWED_SHA --body 4b754b6c2b36a41dc651ed4c2608ca239668d656 -R Rabbit-Hole-App/Rabbit-Hole` (2) `C:\s\spec\release-queue\release-mvp.cmd 56-tutor-r3-mvp --check` (3) `C:\s\spec\release-queue\release-mvp.cmd 56-tutor-r3-mvp` (4) `gh variable delete MVP_ALLOWED_SHA -R Rabbit-Hole-App/Rabbit-Hole` only after the launcher's final line. Or use the queue script with `54-tutor-cleanup-p2-mvp 55-tutor-r1-mvp 56-tutor-r3-mvp`.
-- Learner-visible: card line "From <source>" with "View passage"; "Source changed" / "Source not available" with the tooltips in D-R3-S; Markdown selection toolbar button "Explain" and highlight item "View explanation"; messages "This passage appears more than once in the file, so it cannot be shown." and "This passage was not found in the file." (two new strings beyond D-R3-S).
-- Superseded notes follow.
-
-### R3 source references (earlier notes)
-- Local branch `feat/tutor-r3-source-refs`; being corrected (unique-quote wrapper, index in the board-save batch).
-- Needs: migration 0038; Lead patches in `dev-worker.js`, `LearnPage.jsx`, `AdaptiveCanvas.jsx`.
-
-### P3 cleanup (Server Tutor off): CANDIDATE READY (release fourth, after P2, R1, R3)
-- Release tip `0c322bd50eed1bed9bef09cb5826f51ff565ced4`, branch `feat/tutor-p3-release` (pushed), stacked on the R3 release tip `4b754b6c`. Note `docs/features/explain-on-canvas/receipts/p3-cleanup-note.md`. Recovery `feat/tutor-p3-release-recovery` at `dc95d92d0aff684443c5b265318a760717e304da` (reverts both P3 commits but keeps the attempts usage feature free under both names `tutor_evaluate` and `attempt_assessment`).
-- Removes: the Tutor planner route, escalation, handoff, evaluation archive, Tutor telemetry route and avatar modules; `/api/learn/tutor/plan|evaluate|handoff`, `/api/telemetry/tutor`, `/api/learn/tutor-eval/*` are gone (`/tutor/next-steps` and `/tutor/attempts` stay). Attempts usage feature renamed `attempt_assessment`, still free. Settings "Learning analytics" notice copy trimmed. Known cost: the owner dashboard's Tutor hook funnel reads empty from now on.
-- Verified: P3 control-plane smoke 207/207, R1/R3 regression 63/63, web notice trio 18/18, tripwire 4/4, CI-script tests 77/77, plan() no unmapped, build and worker bundle exit 0, dangling proof passes. First three preview attempts failed with Cloudflare `503 Service Unavailable, no healthy upstream` on the deploy step (not a code problem); the retry succeeded (exit 0), clone `https://rabbit-hole-web-dev-tutor-p3-release.tryrabbithole.workers.dev`.
-- No production migration. Commands (after R3 is released): `gh variable set MVP_ALLOWED_SHA --body 0c322bd50eed1bed9bef09cb5826f51ff565ced4 -R Rabbit-Hole-App/Rabbit-Hole`; `C:\s\spec\release-queue\release-mvp.cmd 57-tutor-p3-mvp --check`; `C:\s\spec\release-queue\release-mvp.cmd 57-tutor-p3-mvp`; `gh variable delete MVP_ALLOWED_SHA -R Rabbit-Hole-App/Rabbit-Hole` only after the final line (or the queue script). Pending Push B check-map clean-up for P2/P3 (drop the `none` rows and stale `checks` entries) is listed in the P3 note.
-
-### P4 candidate READY (release fifth, after P2, R1, R3, P3)
-- Release tip `cdac8cfc534614d98388695e8a2ff8e9a4138e31`, branch `feat/tutor-p4-release` (pushed), stacked on P3 `0c322bd5`. Note `docs/features/explain-on-canvas/receipts/p4-cleanup-note.md`. Recovery `feat/tutor-p4-release-recovery` at `d5d05567fcbbadb507cf5a12c7842f2b729f17ae` (reverts the four P4 commits; journey writers and syllabus route come back; if it is ever used, rerun the archive backfill/verify before P6a).
-- Preview ALREADY RUN (exit 0, no retries): record `34dd6d03f77645bb`, build `e10839c6a3ed`, clone `https://rabbit-hole-web-dev-tutor-p4-release.tryrabbithole.workers.dev`. Verified: P4 web smoke 361/361, control-plane smoke 281 (1 skipped), P3/R1/R3 regression 269 cp + 66 web, CI-script tests 77/77, preview affected-tests web 888/888 and cp 1131, dangling proofs pass (new `check-p4-dangling.mjs`; self-test exits 1 with 148 hits on the P3 tip), build and worker bundle exit 0. One pre-existing break fixed: `next-steps-wiring-ui.test.mjs` line 85 was already failing at the P3 tip (R1's scope wrapper broke its mount-pin regex).
-- Commands (after P3 is released): `gh variable set MVP_ALLOWED_SHA --body cdac8cfc534614d98388695e8a2ff8e9a4138e31 -R Rabbit-Hole-App/Rabbit-Hole`; `C:\s\spec\release-queue\release-mvp.cmd 58-tutor-p4-mvp --check`; `C:\s\spec\release-queue\release-mvp.cmd 58-tutor-p4-mvp`; `gh variable delete ...` after the final line (or the queue script). No production migration (code-only; journey tables and data untouched; journey joins remain read-only until P6a).
-- Mode lines (new wording for approval): Auto "Answers your questions, using your materials and canvas"; Ask "Answers only: questions, explanations and your materials"; Tutor "Answers with next-step suggestions you can switch off".
-- Details below.
-
-### P4 cleanup (Journeys and syllabus off): builder notes
-- Builder branch `feat/tutor-cleanup-p4` (4 commits). Results: control-plane 3290/3293, web 4640/4667 (removed 121 cp + 149 web tests with their subjects), build exit 0, check-map tests 70/70, plan() 0 unmapped. Journey data is NOT touched; the coaching/attempt journey joins stay until P6a.
-- Learner-visible: Auto reads "Answers your questions, using your materials and canvas"; Tutor reads "Answers with next-step suggestions you can switch off" (new wording written by the lane; needs your approval); a course request in Auto is an ordinary answer (no syllabus card; old saved syllabus messages render as plain text); no learning-path tray, rail or ToC plan; the nanoGPT supplied-course lesson and plan preview are gone; Home "teach me" creates the canvas titled with the sentence and PREFILLS Chat without sending.
-- **Held / follow-ups (non-blocking):** the `nanogpt/` card directory and two demo-scenes review boards stay because four checks still drive board `nanogpt-deep-dive` (`dive-check`, `canvas-skeleton-check`, `canvas-shell-check`, `dive-local`); smallest resolution: retarget those four to another review board, then delete. `progress-chat-check.mjs` and `toc-cap-check.mjs` are stale (marked `ponytail:`). `learn-handoff-check.mjs` was rewritten teach-only and is unrun.
-
-### R2 Depth and Auto-suggest: CANDIDATE READY (release sixth, after P2, R1, R3, P3, P4)
-- Release tip `e44aa04f00147d58e578e4d890dd1738b8e9e6ca`, branch `feat/tutor-r2-release` (pushed), stacked on P4 `cdac8cfc`. Receipt `docs/features/explain-on-canvas/receipts/r2-prerequisites.md`. Recovery `feat/tutor-r2-release-recovery` at `5048007c7ea074d1205726fd92f6b1b7a2cb8051` (removes the Depth menu, the Depth field in the Chat payload and the Auto-suggest override; the P4 per-canvas Tutor switch comes back; Standard is read everywhere; mount and tables stay inert).
-- Preview ALREADY RUN (exit 0, no flakes): record `9ee33f076446bf79`, build `ce3af6ac8111`, clone `https://rabbit-hole-web-dev-tutor-r2-release.tryrabbithole.workers.dev`. Verified: R2 control-plane tests (chat-depth 6, learn-user-settings 13, explain-depth 8, learn-chat 67, chat-modes 38, learn-artifact 20, explain-job 20), web 131 pass, launcher smokes (P4 web 361, cp 281 + 206, R1/R3 63 + 44, ci/schema 77, dangling proofs), plan() no unmapped, build exit 0.
-- **Production migration before this release goes live:** `packages/control-plane/learn-migrations/0037-learn-user-settings.sql` on the prod `LEARN_DB` (until then Depth reads Standard and Auto-suggest reads On, nothing saves; graceful). Dev D1 is done.
-- Commands (after P4): `gh variable set MVP_ALLOWED_SHA --body e44aa04f00147d58e578e4d890dd1738b8e9e6ca -R Rabbit-Hole-App/Rabbit-Hole`; `C:\s\spec\release-queue\release-mvp.cmd 59-tutor-r2-mvp --check`; `C:\s\spec\release-queue\release-mvp.cmd 59-tutor-r2-mvp`; `gh variable delete ...` after the final line (or the queue script).
-- **Behaviour changes to know (decision D-R2-1 default applied):** one Auto-suggest switch now (per learner, every canvas; shown in Auto and Tutor, hidden in Ask); the per-canvas `tutor_enabled` is ignored and never rewritten, so a canvas previously switched off WILL suggest again after R2 (the new switch defaults On). The old "Continue my own work" action still hides the entry card but no longer stops suggestions. The status note "Tutor off for this canvas." became "Auto-suggest off." The Auto-suggest switch has no inline save-error (a failed save shows only in the Depth menu as "Not saved ... Retry"). A submit made before settings load sends Standard. The two Depth browser checks and `tutor-controls-check` / `tutor-codebase-check` were rewritten unrun.
-- Strings: see D-R2-S plus the switch title "Auto-suggest for you, on every canvas. Your questions are always answered." and "Auto-suggest off."
-- Superseded notes follow.
-
-### R2 Depth and Auto-suggest (earlier notes)
-- Local branch `feat/tutor-r2-depth`; being corrected (client-captured Depth, fingerprint, revision guard).
-- Needs: migration 0037; dependency on `chat-modes.js`, `ModeSelector.jsx`, `ask.jsx`, `effectiveControls`.
-
-### R4 CANDIDATE READY (release seventh, flag OFF; after P2, R1, R3, P3, P4, R2)
-- Release tip `d692444ec2dc017f1d30d05627ca04f055f82b46`, branch `feat/tutor-r4-release` (pushed; one merge of `feat/tutor-r4-integration`, 6 conflicted files resolved), stacked on R2 `e44aa04f`. Receipt `docs/features/explain-on-canvas/receipts/r4-prerequisites.md`. Recovery `feat/tutor-r4-release-recovery` at `0a2f96adc0cd1cae092d2cff77fa8478e5718267` (removes the dev-worker route, the LearnPage/ask mount and the scheduled kick; the DO class, binding, handlers and tables stay inert).
-- Preview ALREADY RUN (exit 0, first try): record `31177e46451f093b`, build `879269406972`, clone `https://rabbit-hole-web-dev-tutor-r4-release.tryrabbithole.workers.dev`. Verified: 16 smoke commands exit 0 (R4 control-plane 183/183, models/config/privacy/artifact/source-refs 160/160, web roadmap 69/69, R2 chain groups, dangling proofs, worker bundle); CI-script tests 77/77; plan() no unmapped; build and dist-dev exit 0; with the flag unset every `/api/learn/roadmap*` path 404s before identity/DB reads (tested for unset, empty, false, 1, TRUE) and `ROADMAP_ENABLED` is unset in app, dev, parallel and control-plane configs.
-- **A learner sees nothing after this release** (flag off). Each canvas open still makes one `GET /api/learn/roadmap` that returns 404.
-- Two findings fixed by the lane: (1) polled view carried source text via the plan step's `sourceRef.anchor.quote`; now only `{v,id,kind,source}` is kept per step (the delivered card still carries the full reference); (2) the CI split test ("six parts under 15 minutes") is saturated at 900 s at the R2 tip, so the two roadmap checks are recorded at 10 s and 15 s (placeholders; need CI-measured seconds plus a seventh part, or retirement of slower checks, before activation).
-- Risks of a released-but-disabled build: deploy creates the `RoadmapJobs` Durable Object class (tag `roadmap-jobs-1`; additive but not cheaply reversible); the scheduled handler queries the roadmap tables every cron tick and, without 0039, the error is caught (`.catch(() => 0)`) so it is harmless but noisy. Unverified: the Durable Object under workerd, any browser check, any real model or classifier, 0039 against real D1.
-- **Release decision for you:** releasing R4 (flag off) is optional. It ships inert code plus a new Durable Object class; skip it from the queue if you prefer to hold R4 until the owner records and 0039 are ready. The queue script lets you stop after R2.
-- Commands (after R2): optionally `git push rabbit-hole refs/notes/dev-deploys` if the launcher needs the record remote; `gh variable set MVP_ALLOWED_SHA --body d692444ec2dc017f1d30d05627ca04f055f82b46 -R Rabbit-Hole-App/Rabbit-Hole`; `C:\s\spec\release-queue\release-mvp.cmd 60-tutor-r4-mvp --check`; `C:\s\spec\release-queue\release-mvp.cmd 60-tutor-r4-mvp`; `gh variable delete ...` after the final line (or the queue script).
-- **Required before the flag is ever set (NOT part of this release):** 0039 on the prod `LEARN_DB` (not applied anywhere, dev included); D2, D43 and the $25 cap (D-R4-3); strings S1-S34 approved plus your S26/S27 text; wire R2's settings reader into the mount (the Lead patch calls `roadmapDeps(env, ctx)` without `{ settings }`, so Auto-suggest defaults on and mode Tutor); set `ROADMAP_ENABLED=true` on the app Worker; measure the roadmap checks' seconds in CI.
-
-### R4 integration notes (earlier; the branch before stacking): `feat/tutor-r4-integration` at `f8a0f8c11` (pushed), flag OFF everywhere
-- Merges the State, Tools and UI lanes and adds the glue: wired `readSource`/`startPlanning`/`compose`/models/classifier, invitation offer/get/dismiss, answer and revise routes, history, plan-time source-reference minting, request-less source revalidation, per-learner quota counters, the generation job, the scheduler hook and a delivery-deadline sweep (an accepted, checked, unplaced card is acknowledged after 24 h if the saved board holds it, otherwise refunded). UI mount script applied to `LearnPage.jsx`/`ask.jsx` on its base.
-- Full-loop test `roadmap-loop.test.js` (7 tests) passes through the real routes, store, money and lifecycle with only model transports, source bytes, classifier and session doubled: dismiss one invitation, accept another, plan, revise, accept plan, Tab = one purchase, one repair path, checks pass, delivery with a server-minted card id, fork/share carry no step state, next step, Cancel, stopping point, End, history; plus concurrent accept (one purchase), insufficient allowance, failed card refunded, End while generating (409), flag off mid-generation then restored with no second charge, source changed after the plan (no provider call, refunded). Control-plane 3800/3802 (the one failure is the known `image-jobs` flake, passes alone), web 5175/5202 pass, schema-check 7/7, build exit 0.
-- Not run: workerd (the Durable Object is exercised through fakes only), any browser check, any real model or classifier. Planner quality, grounding and safety thresholds are unmeasured (blocked on D-R4-3).
-- Lead patches (not applied) in `docs/features/explain-on-canvas/lead-patches/` on that branch: models roles (6 rows), wrangler `ROADMAP_JOBS` binding + `roadmap-jobs-1` migration tag (dev, parallel, prod; `ROADMAP_ENABLED` stays unset everywhere), dev-worker/app-worker mounts, `rh_roadmap_step` analytics, check-map (42 rows, 2 checks). Production needs migration `0039-roadmap-core.sql` and the Durable Object migration tag before the flag is ever set.
-- **Decisions the R4 lanes need (default applied unless you object; none blocks the other releases):**
-  - D-R4-5: allow editing the plan after acceptance by adding an `active -> proposed` transition (keeps delivered steps, no generation until re-accepted). Recommended: yes (today instruction/Scope edits after acceptance are refused with a misleading stale-state sentence).
-  - D-R4-6: proposal composition stays deterministic for R4 (the validated plan step is the proposal; no model call); a Sonnet proposal role arrives with R5/R6 editing. Recommended: yes.
-  - D-R4-7: a click on "Explain on canvas" with no typed words is allowed; the planner asks one focused question instead of inventing an instruction (resolves the UI lane's earlier question; supersedes my earlier "Explain this source" default). Recommended: yes.
-  - D-R4-8: a card held by the support check is refunded in R4 rather than regenerated once. Recommended: yes.
-  - D-R4-9: move the 24 h delivery deadline from the scheduler scan to a Durable Object alarm once the DO is mounted (Cloudflare cron has missed ticks). Recommended: yes.
-  - D-R4-10: S26 (safety refusal) and S27 (personal-risk supportive help) wording is yours to write; neither is implemented (a personal-risk card is refused and refunded as `policy_block`).
-  - Extra strings needing approval (beyond the lists above): S15 "This source is longer than one roadmap can read completely. Choose a section or a passage and it will be covered fully."; S16 "Select a passage" / "Pick a section"; S32 "This source is not available."; S33 "This passage could not be found in the source exactly once. Select it again."; S34 "The plan could not be made. Edit your request or end the roadmap."; "Plan"; aria labels "Proposal" and "Explain on canvas".
-- **Release position:** R4 sits after R2 in the chain (it needs R1-R3 and P4's cleanup); the candidate will be stacked once R2 is. Even then the flag stays OFF: releasing the code changes nothing a learner sees until `ROADMAP_ENABLED` is set (owner step, plus D-R4-1 to D-R4-4).
-
-### R4: contracts pushed (`feat/tutor-r4-contracts-2`); Tools lane built (`feat/tutor-r4-tools`, pushed): bounded Markdown read with an honest coverage limit (whole source within 40,000 characters, otherwise a clarification, never a prefix), invitation, subject, plan draft and revise with validators (original instruction preserved), the trusted text/table adapter with 12 escape tests, source-support and safety checks (unknown is held, never published). 154 focused tests pass with injected doubles; no model was called. State and UI lanes are still building. Activation needs D-R4-1 to D-R4-4 and R1-R3 integrated.
-  - R4 UI lane built (`feat/tutor-r4-ui`, pushed; 6 commits; 50 new tests pass; build exit 0): reducer, controller, invitation, plan in the ToC with Edit plan and Accept plan, one proposal pill with the Tab ownership truth table, Next step ready indicator, Retry/Replace/Omit in Chat and ToC, manual next step, End roadmap, 409 handling, and a fake job server with the fork-tier check pair (never run). It is NOT mounted yet (LearnPage.jsx is Lead-only; an exact-anchor mount script was proven on the P2, R1, R2 and R3 branches). Known gaps recorded by the lane: no canvas skeleton bound to the minted card id, flow placement instead of outward placement, hover step label needs an AdaptiveCanvas hunk, source-ready trigger and Depth host stub need wiring, `previewWriteAllowed` needs `/api/learn/roadmap`.
-  - **Open question from the UI lane (for you, non-blocking):** when the learner just clicks "Explain on canvas" there are no learner words to preserve as the roadmap's original `instruction`. Recommended: use the learner's most recent Chat message if any, otherwise the text "Explain this source" (an ordinary stored default, shown in the plan), so the instruction is never empty. Confirm or give another default.
-  - R4 UI strings needing approval beyond S1-S10 and S28: S3 `I can explain "<title>" on the canvas, step by step.`; S11 section titles Roadmap, Assumptions, Steps, Stopping point; S12 Explanations; S13 Planning your roadmap; S14 Your plan is ready to review.; S17 Question about your plan; S18 Paused. Propose the next step when you are ready.; S19 You reached the stopping point of this roadmap. Ask for more or revise the plan to continue.; S20 This explanation could not be made. You were not charged.; S21 Checking this explanation before it is added.; S22 This roadmap changed. Showing the latest.; S23 The source changed since this plan was made. Update the plan to continue.; S24 Step <n> of <total>; S25 From <source title>; S29 Roadmap ended. Your cards stay on the canvas.; S31 Proposal cancelled; ToC step status words Planned, Proposed, Being made, Delivered, Incomplete, Cancelled, Omitted, Already understood; Card removed; `Depth: <name> · Explanations`.
-  - New R4 string for approval (Tools lane): "Your note is in a different language than your request. Which should the explanations use?"
-  - Proposed, unmeasured engineering settings (not approvals): safety thresholds and `MAX_UNCERTAINTY` 0.4; source bound 40,000 characters; 2 MiB Markdown read cap. Real-model qualification stays blocked on D-R4-3.
-
----
-
-## 4. Decided (done)
-
-- [x] 2026-11-06: `tutor-implementation-checklist.md` adopted as the executable companion; recorded owner decisions supersede it where it says cleanup is not MVP-labelled or that the narrower per-release prerequisites are not adopted.
-- [x] Cleanup P1-P7 (including P6a) and the whole Tutor ladder are MVP-labelled; focused checks, DB authority and the backfill/drop order are unchanged.
-- [x] Dependencies are per release, not a blanket M0/P7 gate: R1 and R3 after P2; R2 after P4. Each release writes a short prerequisites receipt. P7 is cleanup closeout only.
-- [x] Cleanup plan section 5 items 1-6 (nanoGPT course retired, `coaching/*` removed, curriculum scripts removed, Progress next activity kept, eval archive data deleted).
-- [x] Journey joins stay until P6; archive backfill verified per environment first; P6a (joins removed) then P6b (schema and drop).
-- [x] Home "teach me" prefills Chat without sending; title is the raw sentence (80 characters), no model call. `learn-tutor-handoff.js` is deleted in P3; `learnHandoff` enables `teach` only.
-- [x] Syllabus checks deleted; covering checks rewritten and executed (Windows launcher or corrected Linux tier). The owner's browser try is waived; verification is not.
-- [x] Cleanup v0.5 N1-N5 accepted (small AgentBar rewrite and the bar stays hidden; Settings notice trimmed in P3 and `tutor-telemetry-check.mjs` rewritten in place; `only` input; promote a check or trim the `Md.jsx` row, never the threshold constant; Windows launcher built).
-- [x] R1 thumbs go on every generated card (including quiz, flashcards, challenge, code); imported cards are excluded.
-- [x] tldraw stays as is.
-- [x] Standing yes: push lane branches (`feat/tutor-*`, `feat/tutor-cleanup-*`) to `rabbit-hole`.
-- [x] **Cleanup P1 RELEASED** 2026-11-05 23:13-23:15 PT; rollback branch `feat/tutor-cleanup-p1-recovery`.
-
----
-
-## 5. Status snapshot
-
-| Item | State |
-| --- | --- |
-| Cleanup P1 | Released (main 9b798f77) |
-| Cleanup P2 | Built (cdeb77274), pushed, CI running; release package in preparation |
-| Cleanup P3-P7 | Not started (P3 needs P2 merged) |
-| R1 | Built locally; corrections in progress; waits for P2 |
-| R2 | Built locally; corrections in progress; waits for P4 |
-| R3 | Built locally; corrections in progress; waits for P2 |
-| R4 | Contracts pushed; reconciling with the checklist |
-| Windows checks launcher | Written and statically validated; has never started a stack |
+R4: D2 and D43 adopted, $25 cap, dev 0039, strings as recommended. Landing order of releases: P2, then R1 and R3 (their deploys were blocked by the exact-schema preflight and went out with R2), P3 and P4 (inside the R2 fast-forward), R2, P5 (re-stacked without R4). Dev migrations 0036-0039 applied. P6 DB steps, prod migrations and every push to main remain owner actions.
