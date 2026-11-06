@@ -16,7 +16,7 @@ async function undelivered(t, at = Math.floor(Date.now() / 1000)) {
   const made = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'standard', actionKey: KEY('create') });
   const id = made.body.roadmapId;
   const plan = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: made.body.roadmap.revision, actionKey: KEY('plan'), planVersion: 1 });
-  const proposed = plan; // accepting the plan offers the first proposal
+  const proposed = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: plan.body.roadmap.revision, actionKey: KEY('propose') });
   const accept = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${proposed.body.proposal.id}/accept`, { boardId: BOARD, revision: proposed.body.roadmap.revision, actionKey: KEY('accept'), proposalVersion: 1 });
   assert.equal(accept.body.results[0].generation, 'generated');
   h.w.sqlite.prepare('UPDATE learn_step_results SET created_at = ?').run(at);

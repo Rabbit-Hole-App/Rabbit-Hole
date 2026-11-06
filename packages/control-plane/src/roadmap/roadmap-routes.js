@@ -86,18 +86,7 @@ export async function roadmapRoute(path, req, env, deps = {}) {
       // The session is present only here: mint each step's R3 reference now (api.md 12.2). A source that changed refuses the acceptance.
       const minted = await deps.mintStepRefs?.(env, access, roadmapId);
       if (minted && !minted.ok) return json({ error: minted.error, code: minted.code, current: await currentView(db, access, roadmapId) }, 409);
-      const planned = await acceptPlan(db, access, { roadmapId, planVersion: body.planVersion, ...arg });
-      // Accepting the plan offers the FIRST proposal, once: the same deterministic compose and offer as Propose next step, under a key derived from the accept's key
-      // (a replay of the accept, or a second device's accept, offers nothing more; a busy roadmap refuses and is left as is). It generates, authorizes and charges nothing.
-      // The proposal belongs to the learner's own Accept plan click, so Auto-suggest does not gate it (the client still hides it in Ask). A failure here leaves the
-      // accepted plan and the manual Propose next step working.
-      if (!planned.replayed && !planned.refusal && planned.status < 300 && deps.compose) {
-        try {
-          const fresh = await readRoadmap(db, access, roadmapId);
-          await proposeNextStep(db, access, { roadmapId, compose: deps.compose, expectedRevision: fresh.revision, actionKey: `${body.actionKey}_first`, ...(now ? { now } : {}) });
-        } catch (error) { if (!(error instanceof StateError)) throw error; }
-      }
-      return reply(planned);
+      return reply(await acceptPlan(db, access, { roadmapId, planVersion: body.planVersion, ...arg }));
     }
     if (kind === 'end' && rest.length === 2) return reply(await endRoadmap(db, access, { roadmapId, ...arg }));
     if (kind === 'mode' && rest.length === 2) {

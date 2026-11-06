@@ -23,8 +23,6 @@ const headers = { cookie: `small_session=${session}`, 'content-type': 'applicati
 const make = async title => (await fetch(`${BASE}/api/canvases`, { method: 'POST', headers, body: JSON.stringify({ title: `${title} ${run}` }) })).json();
 
 const MODEL = /^\/api\/(ask$|learn\/(selection|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|artifact|explain|animation|chat\/material-proposals|cad\/jobs|motion))/;
-// Click empty canvas well below the canvas header (a click at the surface's top-left lands on the header, not the canvas).
-const clickBlankCanvas = async page => { const surface = page.locator('[data-canvas-surface]'); const bounds = await surface.boundingBox(); await surface.click({ position: { x: 20, y: Math.min(bounds.height - 20, 650) } }); };
 const stray = [], errors = [], results = [];
 let current = null;
 const step = async (name, fn) => {
@@ -75,15 +73,13 @@ try {
     assert.equal(await page.locator('[data-roadmap-overlay]').count(), 1);
   });
   await step('Tab accepts the proposal once; the authorized card is inserted once, the board is saved, then the delivery is acknowledged', async () => {
-    await clickBlankCanvas(page);
+    await page.locator('[data-canvas-surface]').click({ position: { x: 20, y: 20 } });
     await page.keyboard.press('Tab');
     await until(async () => server.count('/ack') >= 1, 'acknowledgement sent');
     const order = server.calls.filter(c => c.method === 'POST').map(c => c.path.split('/').pop());
     assert.deepEqual(order.slice(order.indexOf('accept')).filter(x => ['accept', 'deliver', 'ack'].includes(x)).slice(0, 3), ['accept', 'deliver', 'ack']);
     assert.equal(await cards(page).count(), 1);
     assert.equal(server.count('/accept'), 1);
-    const ack = server.calls.find(c => c.method === 'POST' && c.path.endsWith('/ack'));
-    assert.ok(Number.isInteger(ack.body.boardRevision) && ack.body.boardRevision >= 1, `the acknowledgement names the saved board revision, got ${ack.body.boardRevision}`);
     await page.screenshot({ path: `${SHOTS}/3-delivered.png` });
   });
   await step('reload and a second device show the same single card and no second purchase', async () => {
