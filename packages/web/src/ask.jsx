@@ -350,6 +350,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     return () => document.removeEventListener('pointerdown', away, true);
   }, [paletteOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const [busy, setBusy] = useState(false);
+  const reportAnswering = workspace?.reportAnswering;
+  useEffect(() => { if (!busy || !reportAnswering) return undefined; reportAnswering(1); return () => reportAnswering(-1); }, [busy, reportAnswering]); // R4: a streaming answer holds a roadmap invitation back
   // IMG-01: /image (id `generate-image`) is listed only where the server offers it to this person (image-capability.js); the answer re-renders the menu.
   const [, setImageOffered] = useState(false);
   useEffect(() => { if (conversation === 'learn') loadImageCapability((url, init) => fetch(url, init), wsHeaders()).then(setImageOffered); }, [conversation]);

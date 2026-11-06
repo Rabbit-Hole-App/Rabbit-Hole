@@ -196,6 +196,22 @@ export function planDelivery(body, hasBlock) {
   return { insert: cards.filter(c => !hasBlock(c.block.id)).map(c => c.block), cardIds: cards.map(c => c.block.id), ackRequired: body?.ackRequired !== false && cards.length > 0 };
 }
 
+// --- a dropped Markdown source becoming ready ----------------------------------------------------------------------------------
+// A Markdown card the learner just dropped (pending: block ids) is a ready source once its STORED source (fileRef.source.id + rev, the
+// sha256 the server checks) is named by the board that was SAVED: that save writes the reference the server authorizes reads by.
+// -> [{ blockId, key: 'file:<id>', rev }] for the cards to report now; the key is the server's `file:<id>` (no revision suffix).
+export function readyMarkdownSources({ pending, blocks = [], savedBlocks = [] }) {
+  const named = block => (block?.fileRef?.source?.id && block.fileRef.source.rev ? `${block.fileRef.source.id}@${block.fileRef.source.rev}` : null);
+  const saved = new Map(savedBlocks.map(block => [block?.id, named(block)]));
+  const ready = [];
+  for (const block of blocks) {
+    const at = named(block);
+    if (!pending.has(block.id) || block.type !== 'file' || block.kind !== 'markdown' || !at || saved.get(block.id) !== at) continue;
+    ready.push({ blockId: block.id, key: `file:${block.fileRef.source.id}`, rev: block.fileRef.source.rev });
+  }
+  return ready;
+}
+
 // --- invitation idle rule ------------------------------------------------------------------------------------------------
 // Sources that become ready are collected and reported together once the learner is idle (not typing, no answer streaming):
 // one grouped report per idle window. Reporting never interrupts: nothing is shown here, the server answers with the invitation.

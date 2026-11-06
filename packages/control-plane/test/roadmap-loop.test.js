@@ -100,6 +100,7 @@ test('the complete loop: invitation, dismiss, accept, plan, revise, accept plan,
   assert.equal(deliver.body.ackRequired, true);
   const again = await h.json('POST', `/api/learn/roadmap/${id}/results/${result.id}/deliver`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('deliver2') });
   assert.deepEqual(again.body.cards, deliver.body.cards, 'idempotent: reload and a second device get the same block');
+  h.w.sqlite.prepare('UPDATE learn_boards SET state_json = ?, version = 7 WHERE id = ?').run(JSON.stringify({ blocks: [card] }), BOARD);
   const ack = await h.json('POST', `/api/learn/roadmap/${id}/results/${result.id}/ack`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('ack'), resultVersion: 1, cardId: card.id, boardRevision: 7 });
   assert.equal(ack.status, 200);
   assert.equal(ack.body.roadmap.deliveredCount, 1);
