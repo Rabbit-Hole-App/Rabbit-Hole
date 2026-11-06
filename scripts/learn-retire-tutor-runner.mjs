@@ -20,11 +20,14 @@ import { MASTER_SQL, expectedSchema, schemaDiff, schemaOf } from './schema-check
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // sha256 of scripts/learn-retire-tutor-data.mjs with LF line endings. A different file refuses to run.
 export const GENERATOR_SHA256 = '392207f1d42fe11ffcae718b0bf4593b5c95e254b70b38b578c790f4e06995e3';
-// The P6a release commit (feat/tutor-cleanup-p6a): the served pair the window must start from, and the commit the recovery grep reads.
-export const P6A_SHA = '388888d02022e9bcd539d3063445f108747a8e1a';
+// The P6a release commit (feat/tutor-cleanup-p6a-release): the served pair the window must start from, and the commit the recovery grep reads.
+// Pinned: if the Lead re-stacks P6a, bump this to the commit that is actually served and rebuild this branch (p6-db-runbook.md, Pins).
+export const P6A_SHA = '84d94faabca3e653e0e6b77c954aadcae084a57b';
 export const REMOTE = 'rabbit-hole';
-export const P6A_RECOVERY = 'feat/tutor-cleanup-p6a-recovery';
-export const P6B_RECOVERY = 'feat/tutor-cleanup-p6b-recovery';
+// Every P6a recovery branch restores code that joins the retired tables (feat/tutor-cleanup-p6a-recovery, ...-p6a-release-recovery, -r2 and any
+// later restack), so the production window deletes all of them: the pattern is matched on the remote, not a fixed list.
+export const P6A_RECOVERY = 'feat/tutor-cleanup-p6a*recovery*';
+export const P6B_RECOVERY = 'feat/tutor-cleanup-p6b-release-recovery';
 const D1 = { dev: ['rabbit-hole-learn-dev', '028f800f-ce8e-4461-adb2-827f417492eb'], prod: ['rabbit-hole-learn-prod', 'f28417c4-d8ce-448e-8687-cc7bc2edf3a8'] };
 // parallel and dev bind the same D1 (wrangler.parallel.jsonc and wrangler.dev.jsonc both name rabbit-hole-learn-dev, same id).
 export const ENVS = {
@@ -191,22 +194,28 @@ async function window({ env, command, database, sql, presentTables, unarchived, 
   if ((await prompt(`Type ${phrase} to drop the six tables in ${database.name}: `)) !== phrase) throw new Stop('cancelled; nothing was changed', 3);
   if ((await prompt('Confirm the served pair is the P6a build and no rollback below it is permitted after the drop. Type P6A SERVED: ')) !== 'P6A SERVED') throw new Stop('cancelled; nothing was changed', 3);
 
-  // The P6a recovery branch restores the journey joins: valid only while the tables exist, so the production window deletes it.
-  // (A dev window leaves it: production still needs it until its own window.)
+  // The P6a recovery branches restore the journey joins: valid only while the tables exist, so the production window deletes them all.
+  // (A dev window leaves them: production still needs them until its own window.)
   let recoveryDeleted = 'kept (not the production window)';
+  const deletedBranches = [];
   if (env === 'prod') {
-    const del = git(['push', REMOTE, '--delete', P6A_RECOVERY]);
-    if (del.status === 0) recoveryDeleted = 'deleted';
-    else if (/remote ref does not exist/i.test(del.stderr || '')) recoveryDeleted = 'already absent';
-    else throw new Stop(`could not delete ${REMOTE}/${P6A_RECOVERY}: ${(del.stderr || '').slice(0, 300)}; nothing was dropped`);
-    log(`${P6A_RECOVERY}: ${recoveryDeleted}`);
+    const found = git(['ls-remote', '--heads', REMOTE, P6A_RECOVERY]);
+    if (found.status !== 0) throw new Stop(`could not list ${REMOTE}/${P6A_RECOVERY}: ${(found.stderr || '').slice(0, 300)}; nothing was dropped`);
+    const branches = (found.stdout || '').split(/\r?\n/).filter(Boolean).map(l => l.split('\t')[1].replace(/^refs\/heads\//, ''));
+    for (const branch of branches) {
+      const del = git(['push', REMOTE, '--delete', branch]);
+      if (del.status !== 0 && !/remote ref does not exist/i.test(del.stderr || '')) throw new Stop(`could not delete ${REMOTE}/${branch}: ${(del.stderr || '').slice(0, 300)}; nothing was dropped`);
+      deletedBranches.push(branch);
+    }
+    recoveryDeleted = deletedBranches.length ? 'deleted' : 'already absent';
+    log(`${P6A_RECOVERY}: ${recoveryDeleted}${deletedBranches.length ? ` (${deletedBranches.join(', ')})` : ''}`);
   }
 
   const done = [];
   for (const step of steps) { sql(step.sql); done.push(step.name); log(`done: ${step.name}`); }
   const after = windowDiff(sql(MASTER_SQL).results);
   if (after.diff.length) throw new Stop(`after the retire the preflight diff is not clean:\n  ${after.diff.join('\n  ')}\nrerun retire (every step is idempotent)`, 4);
-  writeReceipt(receiptFile('retire-done'), { env, database: database.name, database_id: database.id, retired_at: now(), head, p6a: P6A_SHA, recovery_tip: recoveryTip, p6a_recovery_branch: recoveryDeleted, steps: done, preflight_diff: [], generator_sha256: generator });
+  writeReceipt(receiptFile('retire-done'), { env, database: database.name, database_id: database.id, retired_at: now(), head, p6a: P6A_SHA, recovery_tip: recoveryTip, p6a_recovery_branch: recoveryDeleted, p6a_recovery_branches: deletedBranches, steps: done, preflight_diff: [], generator_sha256: generator });
   log(`RESULT OK retire ${env}: the preflight diff against ${head.slice(0, 12)} is clean; prepare and release the P6b commit now`);
   return 0;
 }

@@ -36,7 +36,7 @@ function world(t) {
     return { status: 0, stdout: ` wrangler banner\n${JSON.stringify([{ results, success: true, meta: {} }])}\n`, stderr: '' };
   };
   const readFile = f => (f.endsWith('.env') ? 'CLOUDFLARE_API_TOKEN=tok\nCLOUDFLARE_ACCOUNT_ID=acct\n' : readFileSync(f, 'utf8'));
-  const gitState = { dirty: '', grep: {}, ancestor: 0, remoteDelete: { status: 0, stderr: '' } };
+  const gitState = { dirty: '', grep: {}, ancestor: 0, remoteDelete: { status: 0, stderr: '' }, remoteBranches: ['feat/tutor-cleanup-p6a-recovery', 'feat/tutor-cleanup-p6a-release-recovery', 'feat/tutor-cleanup-p6a-release-recovery-r2'] };
   const git = args => {
     gitCalls.push(args.join(' '));
     if (args[0] === 'rev-parse' && args[1] === 'HEAD') return { status: 0, stdout: 'a'.repeat(40) + '\n' };
@@ -45,6 +45,7 @@ function world(t) {
     if (args[0] === 'fetch' || args[0] === 'cat-file') return { status: 0, stdout: '' };
     if (args[0] === 'merge-base') return { status: gitState.ancestor, stdout: '' };
     if (args[0] === 'grep') { const rev = args[3]; return gitState.grep[rev] ? { status: 0, stdout: gitState.grep[rev] } : { status: 1, stdout: '' }; }
+    if (args[0] === 'ls-remote') return { status: 0, stdout: gitState.remoteBranches.map(b => `${'c'.repeat(40)}\trefs/heads/${b}`).join('\n') };
     if (args[0] === 'push') return { status: gitState.remoteDelete.status, stdout: '', stderr: gitState.remoteDelete.stderr };
     throw new Error(`unexpected git ${args.join(' ')}`);
   };
@@ -164,7 +165,7 @@ test('retire: wrong or missing confirmations change nothing and never touch the 
   assert.equal(w.names().has('table:learn_grades'), true);
 });
 
-test('retire (prod): follows v0.5 7.3 exactly, deletes the P6a recovery branch, leaves a clean preflight diff and a receipt', async t => {
+test('retire (prod): follows v0.5 7.3 exactly, deletes every P6a recovery branch, leaves a clean preflight diff and a receipt', async t => {
   const w = window(t);
   await ready(w, 'prod');
   assert.equal(await main({ argv: ['prod', 'retire'], ...w.deps(['RETIRE PROD', 'P6A SERVED']) }), 0);
@@ -172,10 +173,11 @@ test('retire (prod): follows v0.5 7.3 exactly, deletes the P6a recovery branch, 
   const goals = w.sqlite.prepare('SELECT id, lifecycle FROM learn_goals ORDER BY id').all().map(r => [r.id, r.lifecycle]);
   assert.deepEqual(goals, [['lg_lj_arch', 'archived'], ['lg_lj_att', 'open'], ['lg_lj_crit', 'open'], ['lg_lj_obs', 'open'], ['lg_lj_renamed', 'open']], 'only the untouched placeholder went; the archived goal stayed archived');
   assert.equal(w.sqlite.prepare('SELECT active_goal_id FROM learn_coaching_state').get().active_goal_id, null);
-  assert.ok(w.gitCalls.includes(`push rabbit-hole --delete ${P6A_RECOVERY}`));
+  assert.ok(w.gitCalls.includes(`ls-remote --heads rabbit-hole ${P6A_RECOVERY}`));
+  for (const b of w.gitState.remoteBranches) assert.ok(w.gitCalls.includes(`push rabbit-hole --delete ${b}`), b);
   assert.ok(w.gitCalls.includes(`grep -nE learning_journeys|learning_path_versions|learn_grades|tutor_eval_ ${P6A_SHA} -- packages/control-plane/src packages/web/src packages/web/dev-worker.js packages/web/app-worker.js`));
   const [, done] = [...w.receipts.entries()].find(([f]) => f.endsWith('prod-retire-done.json'));
-  assert.deepEqual([done.preflight_diff, done.p6a_recovery_branch, done.steps.length], [[], 'deleted', 9]);
+  assert.deepEqual([done.preflight_diff, done.p6a_recovery_branch, done.p6a_recovery_branches, done.steps.length], [[], 'deleted', w.gitState.remoteBranches, 9]);
   assert.match(w.lines.join('\n'), /RESULT OK retire prod: the preflight diff/);
 });
 
@@ -216,7 +218,7 @@ test('window refusals: a dirty checkout, a recovery branch that does not descend
   assert.equal(w.statements.filter(isWrite).length, 0);
 });
 
-test('retire (prod) stops before any SQL when the P6a recovery branch cannot be deleted', async t => {
+test('retire (prod) stops before any SQL when a P6a recovery branch cannot be deleted', async t => {
   const w = window(t);
   await ready(w, 'prod');
   w.gitState.remoteDelete = { status: 1, stderr: 'remote: Permission denied' };
@@ -224,6 +226,16 @@ test('retire (prod) stops before any SQL when the P6a recovery branch cannot be 
   assert.equal(w.statements.filter(isWrite).length, 0);
   w.gitState.remoteDelete = { status: 1, stderr: 'error: unable to delete: remote ref does not exist' };
   assert.equal(await main({ argv: ['prod', 'retire'], ...w.deps(['RETIRE PROD', 'P6A SERVED']) }), 0);
+});
+
+test('retire (prod) with no P6a recovery branch left on the remote reports already absent', async t => {
+  const w = window(t);
+  await ready(w, 'prod');
+  w.gitState.remoteBranches = [];
+  await main({ argv: ['prod', 'retire'], ...w.deps(['RETIRE PROD', 'P6A SERVED']) });
+  const [, done] = [...w.receipts.entries()].find(([f]) => f.endsWith('prod-retire-done.json'));
+  assert.deepEqual([done.p6a_recovery_branch, done.p6a_recovery_branches], ['already absent', []]);
+  assert.equal(w.gitCalls.some(c => c.startsWith('push')), false);
 });
 
 // --- enforced isolation ----------------------------------------------------------------------------------------------------
