@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import * as esbuild from 'esbuild';
 
 const FIRST_BYTE_MS = 210, BODY_MS = 2000, TICK_MS = 50, RUNS = 5;
-const mp3 = readFileSync(new URL('../public/audio/nanogpt-l1-p1-5.mp3', import.meta.url));
+const mp3 = readFileSync(new URL('../../control-plane/test/fixtures/whiteboard/audio/narration-5.mp3', import.meta.url));
 const bundle = (await esbuild.build({ entryPoints: [new URL('../src/voice-tts.js', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')], bundle: true, format: 'iife', globalName: 'VoiceTts', write: false })).outputFiles[0].text;
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 

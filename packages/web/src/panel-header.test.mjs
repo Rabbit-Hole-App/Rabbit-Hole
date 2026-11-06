@@ -105,7 +105,6 @@ test('Progress: the last tab of the panel, its tabpanel inside Chat\'s panel, ne
   const chat = page.indexOf('<ResizableSidePanel aria-label="Learn agent chat"'), tab = page.indexOf('data-progress-tab');
   assert.ok(chat > 0 && tab > chat, 'inside Chat\'s panel');
   assert.match(page, /onClose=\{\(\) => \{ setPanelTab\('chat'\); requestAnimationFrame\(\(\) => document\.querySelector\('\[data-panel-tab="chat"\]'\)\?\.focus\(\)\); \}\}/, 'Close goes back to Chat, focus on its tab');
-  assert.match(page, /onProgress=\{panels\.openProgress\}/, 'the Table of contents opens the same tab');
   assert.match(read('./ContextChips.jsx'), /chat\.panels\.openProgress\(\)/, 'a progress chip opens the same tab');
   // The tab keeps the focus on open (arrow keys walk the tabs): the pane never takes it on mount.
   assert.doesNotMatch(read('./LearnProgress.jsx'), /useEffect\(\(\) => \{ heading\.current\?\.focus\(\); \}, \[\]\);/);

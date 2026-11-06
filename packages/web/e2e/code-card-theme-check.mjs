@@ -126,8 +126,7 @@ const fresh = async ({ owner = true } = {}) => {
     const request = route.request(), url = new URL(request.url());
     if (url.protocol === 'blob:' || url.protocol === 'data:') return route.continue();
     if (url.origin !== BASE) { facts.outside.push(`${request.method()} ${url.hostname}`); return route.abort(); }
-    // GET /api/learn/journey only reads the board's journey (learn-journey.js journeyRoute: no model on GET); its POST may call one.
-    if (MODEL.test(url.pathname) && !(request.method() === 'GET' && url.pathname === '/api/learn/journey')) { facts.model.push(`${request.method()} ${url.pathname}`); return route.abort(); }
+    if (MODEL.test(url.pathname)) { facts.model.push(`${request.method()} ${url.pathname}`); return route.abort(); }
     if (url.pathname === '/api/repositories/card-source' || /^\/api\/learn\/boards\/shared\/[^/]+\/cards\/[^/]+\/source$/.test(url.pathname)) facts.sourceReads.push(url.pathname + url.search);
     return route.continue();
   });

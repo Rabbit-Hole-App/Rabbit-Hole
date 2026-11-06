@@ -65,7 +65,7 @@ const PRIMARY = 'rgb(27, 111, 194)', HOVER = 'rgb(22, 92, 163)';
 const browser = await chromium.launch();
 const errors = [], model = [], writes = [];
 const modelRoute = (path, method) => path === '/api/learn/ask' || path === '/api/learn/chat/route' || path.startsWith('/api/learn/tutor/') || path === '/api/learn/artifact'
-  || path === '/api/learn/home-ask' || path === '/api/ask' || path.startsWith('/api/learn/inline') || (path === '/api/learn/journey' && method === 'POST');
+  || path === '/api/learn/home-ask' || path === '/api/ask' || path.startsWith('/api/learn/inline');
 // A press released off the button must not click it: a publish or a fork would be the proof that it did.
 const clickRoute = (path, method) => method !== 'GET' && (/^\/api\/apps\/[^/]+\/publish$/.test(path) || path === '/api/learn/boards/fork');
 const contextFor = async (who, theme, extra = {}) => {

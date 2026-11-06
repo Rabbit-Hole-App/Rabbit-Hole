@@ -31,7 +31,6 @@ import { NO_REFS, canvasTargetField, tocAskProps } from './learn-ask-target.js';
 import { MAX_OUTLINE_HEADINGS, outlineRevision } from './learn-outline-model.js';
 import CommandPill from './CommandPill.jsx';
 import { NO_STEPS, composerCommand, historyKey, recordStep, removesToken, travel } from './command-token.js';
-import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { composerKey } from './composer-keys.js';
 import { chatSendKey, sendKeyLabel } from './ui-prefs.js';
 import { answersInChat, commandLine, holdsLine, lineCommand, releaseLine } from './learn-slash.js';
@@ -264,7 +263,7 @@ export function NextStepsCard({ steps, onPick }) {
   );
 }
 
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null, nextStepRef = null, codebase = null, hideConversation = false }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, nextStepRef = null, codebase = null, hideConversation = false }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -286,7 +285,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // its own progress and errors; none of the canvas selection and none of Chat's extras (learn-ask-target.js tocAskProps,
   // TOC_HIDDEN; lead ruling 2026-10-16 on owner brief item 7).
   const tocView = !!workspace?.tocView;
-  if (tocView) ({ canvasTarget, onClearCanvasTarget, slash, tray, voice, nextStepRef, boardContext } = tocAskProps({ canvasTarget, onClearCanvasTarget, slash, tray, voice, nextStepRef, boardContext }));
+  if (tocView) ({ canvasTarget, onClearCanvasTarget, slash, voice, nextStepRef, boardContext } = tocAskProps({ canvasTarget, onClearCanvasTarget, slash, voice, nextStepRef, boardContext }));
   const chat = workspace && learnChat && !composerOnly && !canvasSeed ? workspace : null, chatThread = chat ? chat.thread : null;
   // TOC has no attachments, including the canvas documents auto-offered to a new chat.
   const attachedRefs = tocView ? NO_REFS : (chat?.context.attached || NO_REFS);
@@ -549,46 +548,15 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   useEffect(() => { if (editSpent(editTarget, msgs, outputOps?.proposalMade)) chat.editing.clear(); }, [msgs, editTarget]); // eslint-disable-line react-hooks/exhaustive-deps
   // prompted: raw is a command's prompt coming back from LearnSlash (onPrompt), the chat turn itself. Answers false when it
   // refuses that turn, so LearnSlash gives the line back with an error instead of losing it.
-  const send = async (raw, scopeOverride, { skipJourney = false, command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false, routeAs = null } = {}) => {
+  const send = async (raw, scopeOverride, { command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false, routeAs = null } = {}) => {
     // A chosen command pill sends exactly "/command text" and a typed /command replaces the pill (learn-slash.js commandLine);
     // LearnSlash runs it and the slot goes back to "/". The composer shows the line until it runs, so a line LearnSlash holds
     // while another command runs is still there to release (releaseLine).
     const line = !regenerate && slash ? commandLine(raw, { command, prompted }) : null;
     if (line) { promptCommand.current = lineCommand(line); sentDraft.current = { command: raw.trim().startsWith('/') ? null : command, text: raw }; commandSteps.current = NO_STEPS; setCommand(null); setInput(line); if (slashRef.current?.intercept(line)) return; }
-    // TOC refinements and explicit Ask never go to the journey resolver or start a journey: a course or journey
-    // on this canvas must not turn an Ask turn into syllabus work.
-    if (tocView || chat?.thread.mode === 'ask') skipJourney = true;
-    // An Edit target's turn is that proposal's revision: never a journey answer. keepDraft: a turn another surface sent (Ctrl+K, about
+    // An Edit target's turn is that proposal's revision. keepDraft: a turn another surface sent (Ctrl+K, about
     // its own selection) is never the Chat's Edit, and below it neither uses nor clears any of the Chat's own context, sent or refused.
     const edit = !regenerate && !keepDraft ? editTarget : null;
-    if (edit) skipJourney = true;
-    // conflicts.md Q4: typing "not now" while a tray is open is the Not now control too (suggestions paused, saved).
-    if (!tocView && tray?.tray && /^\s*not now[.!]?\s*$/i.test(raw)) chat?.coaching?.dispatch({ type: 'not_now' });
-    // Learning journeys (LearnJourney.jsx, adaptive-learning-path-v1-architecture.md §6.1, §7.2): on a board with a
-    // journey (or an open Tutor Prompt Tray) a turn goes through the shared resolver first. A tray answer, path edit,
-    // cancel, clarification or a second broad intent (continue or start?) is the journey's: no chat bubble, no card, no
-    // /api/learn/ask. An unrelated question goes on to the responder below. A failed journey request gives the words back to
-    // the composer. ponytail: journeys go in Tutor cleanup P4; this resolver is all that is left of them in the composer.
-    let routed = null;
-    if ((journey?.journey || journey?.tray) && !skipJourney && raw.trim() && !busy) {
-      if (journey.busy) return; // the words stay in the composer while the tray works
-      setInput('');
-      routed = await journey.handleText(raw.trim());
-      if (routed.handled) {
-        if (routed.failed) setInput(current => current || raw);
-        return;
-      }
-      raw = routed.text ?? raw;
-    }
-    // A broad learning intent on a canvas with no journey starts one on the server (§6.1); the tray opens.
-    if (!routed?.text && !skipJourney && !busy && journeyStartsHere(raw, { journeyStarter })) {
-      setInput('');
-      const started = await journeyStarter(raw.trim());
-      if (started.handled) {
-        if (started.failed) setInput(current => current || raw);
-        return;
-      }
-    }
     // @-chips ride at the front of the message text
     const chips = keepDraft ? [] : mentions;
     const message = [...chips.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
@@ -612,12 +580,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       return;
     }
     // The main composer starts a new block; the sheet keeps its own thread.
-    // A journey in setup (intake, diagnostic, path review) gets no permanent card before its path is accepted: the
-    // Tutor's answer stays in the sheet, even about a selected card, and opens no reader on the canvas.
     // Legacy streaming asks keep their destination at Send. Tutor turns resolve it from the completed plan below.
-    let panelAsk = sheetMode && (!canvasTarget || (canvasTarget.card && !canvasTarget.asked) || journeySetup);
+    let panelAsk = sheetMode && (!canvasTarget || (canvasTarget.card && !canvasTarget.asked));
     if (composerOnly && !canvasSeed) threadId.current = panelAsk ? sheetThread.current : null;
-    let exchange = panelAsk || journeySetup ? null : onExchange;
+    let exchange = panelAsk ? null : onExchange;
     const isDemo = demo && message.toLowerCase().replace(/[.!?]+$/, '') === demo.prompt.toLowerCase() && !file;
     if (isDemo && demo.disabled) return;
     if (!isDemo) { boardContext?.pause(); boardContext?.setAnswering(true); }
@@ -875,12 +841,12 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           if (!type || !data || late()) continue; // read on to the end, so the server finishes and saves the turn
           const d = JSON.parse(data);
           if (type === 'chunk') mirror(d.text);
-          else if (type === 'progress') { if (d.card && !slots[d.card] && !journeySetup) slots[d.card] = boardContext?.reserveCard?.(d.card); exchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? (chatThread ? { ...item, stage: d.stage } : { ...item, status: d.stage }) : item)); }
+          else if (type === 'progress') { if (d.card && !slots[d.card]) slots[d.card] = boardContext?.reserveCard?.(d.card); exchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? (chatThread ? { ...item, stage: d.stage } : { ...item, status: d.stage }) : item)); }
           else if (type === 'graph') { responseGraph=d; setMsgs(messages=>messages.map(item=>item.id===replyId?{...item,graph:d}:item)); }
           else if (type === 'outline') { boardContext?.onOutlineProposal?.({ ops: d.ops, base: d.base ?? null, source: 'tutor', ...(questionPlan !== undefined ? { planBase: questionPlan } : {}) }); }
-          else if (type === 'paper') { if (!journeySetup) cardSink?.(boardContext?.onShowPaper?.(d, slots.paper)); }
-          else if (type === 'wiki') { if (!journeySetup) cardSink?.(boardContext?.onShowWiki?.(d, slots.wiki)); }
-          else if (type === 'video') { if (!journeySetup) cardSink?.(boardContext?.onShowVideo?.(d, slots.video)); }
+          else if (type === 'paper') { cardSink?.(boardContext?.onShowPaper?.(d, slots.paper)); }
+          else if (type === 'wiki') { cardSink?.(boardContext?.onShowWiki?.(d, slots.wiki)); }
+          else if (type === 'video') { cardSink?.(boardContext?.onShowVideo?.(d, slots.video)); }
           else if (type === 'papers') setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, papers: d.papers } : item));
           else if (type === 'proposal') setMsgs((m) => [...m, { role: 'proposal', proposal: d }]);
           else if (type === 'answer_meta') setMsgs(messages => withAnswerMeta(messages, replyId, d));
@@ -924,10 +890,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // typed here, about Ctrl+K's selection; the composer's draft and chips are never touched. false: not taken (another command runs).
   useEffect(() => (chatThread ? chat.registerSender(({ regenerate, prompt, command: asked, about, line } = {}) => {
     if (line) { if (!slashRef.current?.handoff) return false; promptCommand.current = lineCommand(line); return slashRef.current.handoff(line, { about: about ?? null, target: about?.selection ?? null }); }
-    if (prompt) return send(prompt, undefined, { skipJourney: true, command: asked, prompted: true, about, keepDraft: true });
+    if (prompt) return send(prompt, undefined, { command: asked, prompted: true, about, keepDraft: true });
     const index = msgs.findIndex(m => m.messageId === regenerate?.messageId);
     const question = index > 0 ? msgs.slice(0, index).findLast(m => m.role === 'user')?.content : null;
-    return question ? send(question, undefined, { skipJourney: true, regenerate }) : undefined;
+    return question ? send(question, undefined, { regenerate }) : undefined;
   }) : undefined));
 
   // Professor Next Steps (docs/features/professor-next-steps.md §1.4): a hook the learner clicked (NextStepsCard) is an ordinary
@@ -1131,8 +1097,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
             ))}
           </div>
         )}
-        {!(sheetMode && sheetHistory) && <ChatMessages msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} follow={follow}
-          toContents={boardContext?.outline && boardContext?.onOutlineProposal ? { outline: boardContext.outline, propose: boardContext.onOutlineProposal } : null} />}
+        {!(sheetMode && sheetHistory) && <ChatMessages msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} follow={follow} />}
         {choices && (
           <div className="py-2">
             <div className="pb-1.5 text-sm text-ink-2">Which one do you mean?</div>
@@ -1214,7 +1179,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         {!chat && boardPending}
         {chat && !tocView && chat.coaching && <TutorCoaching chat={chat} send={text => send(text)} messages={msgs.length} busy={busy} />}
         {chat && !tocView && chat.coaching?.state && <TutorActivity chat={chat} board={chat.board || 'main'} />}
-        {tray?.tray && <TutorPromptTray tray={tray.tray} onOption={async id => { const out = await tray.onOption(id); if (out?.ask) send(out.ask, undefined, { skipJourney: true }); }} />}
         {!tocView && <GenerationIndicator entries={generation.entries} ops={outputOps} onDismiss={generation.dismiss} />}
         {/* A /cad request's design brief to approve before anything is generated (CAD_BRIEF_FIRST; CadReview.jsx). */}
         {!tocView && <CadReview ops={workspace?.canvasOps} />}

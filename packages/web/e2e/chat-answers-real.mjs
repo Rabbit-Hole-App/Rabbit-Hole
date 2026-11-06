@@ -147,27 +147,12 @@ if (want('regen') && rich?.done) {
   }
 }
 
-// 4. Auto: a plain question stays an answer; an explicit course request gives a syllabus in the journey path shape, and an
-// edit to it saves.
+// 4. Auto: a plain question stays an answer (Tutor cleanup P4: an explicit course request no longer gives a syllabus).
 const music = await canvasWith('Untitled');
 if (want('auto-plain')) {
   const plain = await paid('auto-plain', () => turn(music, { message: 'What is a chord in music?', mode: 'auto', context_refs: [] }));
-  if (plain?.done) { check(plain.summary.kind !== 'syllabus', `Auto keeps a plain question an answer (kind ${plain.summary.kind})`); check(plain.text.trim().length > 40, `the answer has text (${plain.text.trim().length} chars), even when the model used a tool`); }
+  if (plain?.done) { check(plain.summary.kind === 'answer', `Auto keeps a plain question an answer (kind ${plain.summary.kind})`); check(plain.text.trim().length > 40, `the answer has text (${plain.text.trim().length} chars), even when the model used a tool`); }
 }
-if (want('auto-course')) {
-  const course = await paid('auto-course', () => turn(music, { message: 'Make me a course on music theory. I am a complete beginner and I play a little guitar.', mode: 'auto', context_refs: [] }));
-  if (course?.done) {
-    const syllabus = course.meta?.syllabus;
-    check(course.summary.kind === 'syllabus' && syllabus?.topics?.length >= 3, `Auto turns an explicit course request into a syllabus (kind ${course.summary.kind}, ${syllabus?.topics?.length ?? 0} topics)`);
-    writeFileSync(`${OUT}/syllabus.json`, JSON.stringify(syllabus, null, 2));
-    if (syllabus?.topics?.length) {
-      const topics = syllabus.topics.map((t, i) => (i === 0 ? { ...t, title: `${t.title} (edited)` } : t));
-      const saved = await api(`/api/learn/chat/messages/${course.done.messageId}/syllabus`, { method: 'PUT', body: JSON.stringify({ topics }) });
-      check(saved.status === 200 && JSON.parse(metaRow(course.done.messageId).meta_json).syllabus.topics[0].title.endsWith('(edited)'), 'a syllabus edit saves to the message');
-    }
-  }
-}
-
 // 5. An unrelated subject with code in the answer: suggested actions come from the registry, and Open in Notebook reuses the
 // answer's own code (generationRequired false).
 if (want('code')) {

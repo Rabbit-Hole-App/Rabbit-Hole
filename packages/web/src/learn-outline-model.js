@@ -125,13 +125,10 @@ export function moreFit(count) {
 }
 
 // ---- Task 11 (C:/s/spec/tutor-workflow/draft.md "Table of Contents, tutoring, and progress"): the accepted plan beside the
-// outline. The outline stays the canvas headings and the plan stays the learner's own journey path: no second syllabus store.
+// outline. The journey path is gone (Tutor cleanup P4); the plan-revision checks below stay with a null plan.
 
 export const READ_ONLY_OUTLINE = 'You can view this table of contents but not edit it.';
 export const STALE_PLAN = 'Your learning plan changed since this proposal. Ask the Tutor again.';
-
-// The accepted plan's revision: its journey and path version, or null while none exists.
-export const planRevisionOf = (journey, path) => (journey?.id ? `${journey.id}@${path?.version ?? 0}` : null);
 
 // Task 11 applyOutlineAction: permission, then every base the action names (the plan revision, then the outline revision)
 // is checked before anything changes, and the changes apply whole or not at all (applyOutlineProposal). A newer learner edit
@@ -144,43 +141,6 @@ export function applyOutlineAction(blocks, { baseOutlineRevision = null, basePla
   const result = applyOutlineProposal(blocks, changes, { base: baseOutlineRevision, source, newId });
   return result.ok ? { ...result, outlineRevision: outlineRevision(outlineFrom(result.blocks)), planRevision } : result;
 }
-
-// The plan as the contents show it, for one learner: their own journey and its goal (callers pass nothing for anyone else).
-//   linked { headingId: { sectionId, criteria: [{ criterionId, version, label }] } }: the heading holding a step's material.
-//     The learner's journey record names it (a section's heading_block_id); until the board save records it, the heading the
-//     materializer stamped with this journey's id (a stamp names a journey, never anyone's evidence). One heading per step,
-//     so a copied section is never a second link. Criteria are the goal's agreed criteria on the step's expected claims
-//     (skillKey), held by id: renaming the heading changes neither them nor their names.
-//   steps [{ sectionId, n, title, purpose, state }]: accepted steps with no heading. 'planned': material not prepared
-//     (opening one shows its purpose and generates nothing). 'removed': its recorded heading was removed; the cards stay
-//     and the heading is not drawn again.
-//   learningNow { headingId } | { sectionId, title, removed } | null: the current step of the current goal, which is not
-//     the section being viewed.
-const OPEN_STEP = ['upcoming', 'current', 'needs_review', 'optional'];
-export function outlinePlan({ headings = [], journey = null, path = null, goal = null } = {}) {
-  const out = { linked: {}, steps: [], learningNow: null };
-  if (!journey?.id || !['active', 'paused', 'completed'].includes(journey.state)) return out;
-  const on = new Set(headings.map(heading => heading.id));
-  (path?.sections || []).forEach((section, index) => {
-    const recorded = section.heading_block_id ?? null;
-    const id = recorded ? (on.has(recorded) && !out.linked[recorded] ? recorded : null)
-      : headings.find(heading => heading.journey_section_id === section.id && heading.journey_id === journey.id && !out.linked[heading.id])?.id ?? null;
-    if (id) {
-      const claims = new Set((section.expected_evidence || []).map(expected => expected?.claim));
-      out.linked[id] = { sectionId: section.id, criteria: (goal?.criteria || []).filter(c => c.skillKey && claims.has(c.skillKey)).map(({ criterionId, version, label }) => ({ criterionId, version, label })) };
-    } else if (recorded || (journey.state !== 'completed' && OPEN_STEP.includes(section.status))) {
-      out.steps.push({ sectionId: section.id, n: index + 1, title: section.title, purpose: section.purpose, state: recorded ? 'removed' : 'planned' });
-    }
-    if (journey.state === 'active' && section.id === journey.active_section_id) out.learningNow = id ? { headingId: id } : { sectionId: section.id, title: section.title, removed: !!recorded };
-  });
-  return out;
-}
-
-// A linked heading's personal evidence from the learner's own Progress read, each named by its criterion and never by the
-// heading. Nothing until that read is in, so nothing flashes Not checked.
-export const evidenceOf = (link, progress) => (progress ? (link?.criteria || [])
-  .map(c => ({ ...c, status: progress.criteria?.find(row => row.criterionId === c.criterionId && row.version === c.version)?.status }))
-  .filter(c => c.status) : []);
 
 // What Apply would say, before it is pressed: the stale or invalid message, or null. plan: the current plan revision.
 export function proposalProblem(outline, proposal, plan = null) {
@@ -332,7 +292,7 @@ export const linkTocHeading = (toc, { id, level = 1, text = '' }) => (!Array.isA
 // framing the heading being viewed.
 export const tocHeading = (toc, id) => (Array.isArray(toc) ? toc.find(entry => entry.id === id)?.heading ?? (toc.some(entry => entry.id === id) ? null : id) : id);
 export const tocEntryFor = (toc, headingId) => (Array.isArray(toc) && headingId != null ? toc.find(entry => entry.heading === headingId)?.id ?? null : headingId);
-// The canvas headings the contents still link (outlinePlan's input): an entry removed from the contents leaves its step
+// The canvas headings the contents still link (the linked-heading read): an entry removed from the contents leaves its step
 // "Section removed" while the canvas heading and its cards stay.
 export const linkedHeadings = (blocks, toc) => {
   const headings = (blocks || []).filter(block => block.type === 'heading');

@@ -1,8 +1,9 @@
 // Tutor and the table of contents (R4, Tutor lane: owner decisions 4A and 5B, contract C4, C6, C8, C9). Against the LOCAL stack
 // only. No model is ever called: /api/learn/ask is answered here with canned SSE and its request bodies are captured; every
 // other model-capable route is aborted and counted.
-// 1 a Tutor syllabus with descriptions and subtopics renders in Chat; 2 Use as table of contents proposes it to the page's
-// Apply/Discard flow, and Apply makes the headings (descriptions kept, nothing completed); 3 pressing it again proposes nothing;
+// Tutor cleanup P4 removed the syllabus message and its Use as table of contents button (old steps 1-3 and 8).
+// 1 the TOC conversation opens as a compact entry, Tutor its only mode, and an outline request builds the contents at once
+// (descriptions kept, nothing completed);
 // 4 a Tutor turn sends the current headings with ids, descriptions and outlineRevision, and its outline event { ops, base }
 // becomes a proposal whose Apply adds the subtopic at the end of its topic, completion untouched; 5 an ordinary Tutor question
 // proposes nothing; 9 the TOC conversation (owner brief 2026-10-16 item 7): a request sent from the Table of contents, Tutor its
@@ -32,11 +33,6 @@ const inkKey = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${canvas.n
 // One card and no headings: the contents start empty.
 const seeds = { [inkKey]: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [{ id: 'k1', type: 'explanation', dx: 0, dy: 0, title: 'Why the sea moves', body: 'Notes from the beach.' }] } };
 
-const SYLLABUS = { journeyId: null, goal: 'Read a tide table', topics: [
-  { id: 't1', title: 'Tides', description: 'Why the sea rises and falls twice a day.', objectives: ['Explain the bulges'], subtopics: [{ id: 't1.1', title: 'The moon', description: 'Its pull makes the bulges.' }, { id: 't1.2', title: 'The sun' }], refs: [] },
-  { id: 't2', title: 'Tide tables', objectives: ['Read a height'], refs: [] },
-] };
-
 // A real canvas context document is offered automatically to new Chat threads. TOC must not inherit it.
 const chatFile = new FormData();
 chatFile.append('app', canvas.name);
@@ -46,7 +42,7 @@ assert.ok(chatUpload.document?.id, 'the isolation test has a real uploaded conte
 const chatOnlySource = `doc:${chatUpload.document.id}`;
 // ---------------------------------------------------------------- routes: capture and canned answers
 const captured = [], refused = [], outside = [], errors = [];
-const next = [];   // what the next /api/learn/ask answers: { syllabus } or { outline: ops => ops } or {}
+const next = [];   // what the next /api/learn/ask answers: { outline: ops => ops } or {}
 let replies = 0;
 const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(artifact|assess|grade|home-ask|image|inline\/(generate|route)|journey|scene|transcribe|tts|voice\/|tutor\/|dive|explore))/;
@@ -63,7 +59,7 @@ const router = async route => {
     const outline = plan.outline ? frame('outline', { ops: plan.outline(body), base: body.outlineRevision ?? null }) : '';
     return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body:
       frame('chunk', { text: `Canned reply ${reply}.` }) + outline
-      + frame('answer_meta', { messageId, actions: [], followUps: [], alternatives: [messageId], kind: plan.syllabus ? 'syllabus' : 'clarify', syllabus: plan.syllabus || null })
+      + frame('answer_meta', { messageId, actions: [], followUps: [], alternatives: [messageId], kind: 'answer', syllabus: null })
       + frame('done', { ok: true, threadId: plan.threadId || body.thread_id || 'toc-thread-1', userMessageId: `u-${reply}`, messageId }) });
   }
   if (/^\/api\/learn\/chat\/(threads|messages)\//.test(path)) return route.fulfill({ json: { ok: true } });
@@ -140,7 +136,7 @@ async function turn(text, plan) {
 }
 
 let adopted = [];
-await check('1 a Tutor syllabus in the TOC conversation renders its topic descriptions and numbered subtopics, with Use as table of contents', async () => {
+await check('1 the TOC conversation opens as a compact entry with Tutor its only mode; an outline request builds the contents at once, descriptions kept, none completed', async () => {
   // First use (owner UI brief 2026-10-20 section 6): with no TOC messages there is only the compact entry; pressed, its composer.
   await tab('Chat').click();
   await pane().locator('[data-chat-composer] textarea').first().fill('A Chat draft');
@@ -153,42 +149,22 @@ await check('1 a Tutor syllabus in the TOC conversation renders its topic descri
   assert.equal(await tocField().getAttribute('placeholder'), 'Describe your goal or refine the outline');
   assert.equal(await tocField().inputValue(), '', 'Chat\'s draft stays in Chat');
   assert.equal(await contents().locator('[data-toc-goal]').count(), 0, 'no TOC request yet, no goal line - never sample text');
-  const body = await turn('make me a syllabus on tides', { syllabus: SYLLABUS });
+  const body = await turn('set up my contents for tides', { outline: () => [
+    { op: 'add', key: 'k-tides', text: 'Tides', level: 1, description: 'Why the sea rises and falls twice a day.' },
+    { op: 'add', text: 'The moon', level: 2, parent: 'k-tides', description: 'Its pull makes the bulges.' },
+    { op: 'add', text: 'The sun', level: 2, parent: 'k-tides' },
+    { op: 'add', text: 'Tide tables', level: 1 }] });
   assert.equal(body.mode, 'tutor');
   assert.ok(!(body.context_refs || []).some(ref => ref.sourceId === chatOnlySource), 'the TOC never carries Chat\'s uploaded document');
   assert.equal(body.outline, undefined, 'no headings yet, so no outline rides');
   assert.equal(body.outlineRevision, undefined);
-  const card = tocBox().locator('[data-syllabus]').last();
-  await card.waitFor({ timeout: 10000 });
-  assert.equal(await card.locator('[data-syllabus-topic]').count(), 2);
-  assert.deepEqual(await card.locator('[data-syllabus-subtopic]').allInnerTexts().then(t => t.map(s => s.replace(/\s+/g, ' ').trim())), ['1.1 The moon Its pull makes the bulges.', '1.2 The sun']);
-  assert.equal(await card.locator('[data-syllabus-description]').first().innerText(), 'Why the sea rises and falls twice a day.');
-  assert.ok(await card.locator('[data-syllabus-contents]').isEnabled());
-  await card.screenshot({ path: `${OUT}/1-syllabus.png` });
-});
-
-await check('2 Use as table of contents in the TOC conversation makes the headings with their descriptions at once, none completed', async () => {
-  const card = tocBox().locator('[data-syllabus]').last();
-  assert.deepEqual(await headings(), [], 'nothing changes before the press');
-  await card.locator('[data-syllabus-contents]').click();
-  assert.match(await card.locator('[data-syllabus-contents-status]').innerText(), /Proposed in Table of contents/);
   adopted = await waitFor(async () => { const h = await headings(); return h.length === 4 && h; });
   assert.deepEqual(adopted.map(h => [h.level, h.text, h.description, h.done]), [
     [1, 'Tides', 'Why the sea rises and falls twice a day.', false], [2, 'The moon', 'Its pull makes the bulges.', false], [2, 'The sun', '', false], [1, 'Tide tables', '', false],
   ]);
   assert.equal(await apply().count(), 0, 'nothing waits for Apply');
   assert.equal(await canvasHeadings(), 0, 'owner brief 2026-10-23: the contents only, no canvas heading');
-  await contents().screenshot({ path: `${OUT}/2-adopted.png` });
-});
-
-await check('3 pressing it again proposes nothing: the syllabus is already the contents', async () => {
-  await openToc();
-  const card = tocBox().locator('[data-syllabus]').last();
-  await card.locator('[data-syllabus-contents]').click();
-  assert.equal(await card.locator('[data-syllabus-contents-status]').innerText(), 'Already in the table of contents.');
-  await tab('Table of contents').click();
-  assert.equal(await apply().count(), 0);
-  assert.equal((await headings()).length, 4);
+  await contents().screenshot({ path: `${OUT}/1-contents.png` });
 });
 
 await check('4 a Tutor turn sends the headings with ids, descriptions and outlineRevision; its proposal adds a subtopic at the end of its topic', async () => {
@@ -214,10 +190,10 @@ await check('5 an ordinary Tutor question proposes nothing', async () => {
   assert.equal((await headings()).length, 5);
 });
 
-// The PANEL lane's proposal card (stale refusal, contract C7) and its 96-op cap for syllabus proposals (lead ruling C8 size A):
-// run on the integrated release with TOC_PANEL=1. A lane branch without that card skips them, and says so.
+// The PANEL lane's proposal card (stale refusal, contract C7): run on the integrated release with TOC_PANEL=1. A lane branch
+// without that card skips it, and says so.
 const panel = process.env.TOC_PANEL === '1';
-if (!panel) console.log('skip 7 and 8: TOC_PANEL=1 runs them on the integrated release');
+if (!panel) console.log('skip 7: TOC_PANEL=1 runs it on the integrated release');
 if (panel) await check('7 a proposal made against an older revision is refused as stale and changes nothing', async () => {
   const before = await headings();
   const body = await turn('add a part on neap tides', { outline: () => [{ op: 'add', text: 'Neap tides', level: 2, parent: before[0].id }] });
@@ -234,19 +210,6 @@ if (panel) await check('7 a proposal made against an older revision is refused a
   await contents().getByText('The contents changed since this proposal. Ask the Tutor again.').first().waitFor({ timeout: 5000 });
   assert.equal((await headings()).some(h => h.text === 'Neap tides'), false, 'nothing applied');
 });
-if (panel) await check('8 a full syllabus (12 topics, 6 subtopics each: 84 adds) adopts in one Apply', async () => {
-  const big = { journeyId: null, goal: 'A long course', topics: Array.from({ length: 12 }, (_, i) => ({ id: `b${i + 1}`, title: `Unit ${i + 1}`, objectives: ['o'], refs: [], subtopics: Array.from({ length: 6 }, (_, j) => ({ id: `b${i + 1}.${j + 1}`, title: `Part ${i + 1}.${j + 1}` })) })) };
-  const before = (await headings()).length;
-  await turn('plan a long course', { syllabus: big });
-  await tab('Chat').click();
-  const card = pane().locator('[data-syllabus]').last();
-  await card.locator('[data-syllabus-contents]').click();
-  assert.doesNotMatch(await card.locator('[data-syllabus-contents-status]').innerText(), /Too many/);
-  await tab('Table of contents').click();
-  await apply().click();
-  await waitFor(async () => (await headings()).length === before + 84, 15000);
-});
-
 // Owner brief 2026-10-16 item 7. The TOC's thread is a real one on the server, as /api/learn/ask (canned here) would leave it,
 // so a reload restores it through the TOC's own open-thread pointer (slot 'toc').
 // Owner UI brief 2026-10-20 section 6: with no TOC messages there is only the compact entry (data-toc-start); pressed, its

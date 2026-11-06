@@ -4,8 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { nextStepsController, nextStepsInput } from './learn-next-steps.js';
-import { NANOGPT, cardModule } from './learn-tutor-claims.js';
-import { cardBlock } from './nanogpt/board.js';
+import { NANOGPT_FIRST_BATCH, NANOGPT_LATER_BATCHES, cardBlock } from './nanogpt/board.js';
 import { AQUEDUCTS, TIDES } from './__fixtures__/journey-synthetic-domains.mjs';
 import { planNextSteps } from '../../control-plane/src/learn-next-steps-planner.js';
 import { fixtureModel } from '../../control-plane/src/learn-next-steps-fixtures.js';
@@ -129,33 +128,25 @@ const entries = text => {
 
 // What a registry-free product module may never name. Card ids and titles come from the card registry helpers, claim ids from all
 // three registries (whole slug and the slug after the slash). The 4 character floor stays: nothing here is ever shortened.
-const REGISTRIES = [NANOGPT, AQUEDUCTS.diagnostic.registry, TIDES.diagnostic.registry];
+// Tutor cleanup P4: the claim registry of the retired nanoGPT course went with learn-tutor-claims.js; its cards stay as review boards.
+const NANOGPT_CARDS = [...NANOGPT_FIRST_BATCH, ...NANOGPT_LATER_BATCHES.flat()];
+const REGISTRIES = [AQUEDUCTS.diagnostic.registry, TIDES.diagnostic.registry];
 const VOCAB = [...new Set([
   ...REGISTRIES.flatMap(r => Object.entries(r.concepts).flatMap(([id, c]) => [id, c.label, ...(c.names || [])])),
   ...REGISTRIES.flatMap(r => Object.keys(r.claims).flatMap(id => [id, id.split('/').at(-1)])),
-  ...NANOGPT.cards, ...NANOGPT.cards.map(id => cardBlock(cardModule(id)).title),
+  ...NANOGPT_CARDS.map(card => card.evidence?.card), ...NANOGPT_CARDS.map(card => cardBlock(card).title),
   ...[AQUEDUCTS, TIDES].flatMap(d => d.topic.split(' ')), 'aqueduct',
   'softmax', 'logistic regression', 'photosynthesis', 'binary search', 'french revolution', 'nanogpt', 'kitchen chemistry', 'bridge loads', 'karpathy', '-foundations', '-core/', '-practice/', 'c11-', 'depth-attention',
 ].filter(word => String(word).length >= 4))];
 const named = (code, word) => new RegExp(`(^|[^a-z0-9])${String(word).toLowerCase().replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}([^a-z0-9]|$)`).test(code);
 
-// Registered-course references that are legitimate in an otherwise registry-free module. A strip is [pattern, reason, count]: exact,
-// reasoned, and pinned to the number of matches it has today. A new match (a runtime use of the course, another course import) fails,
-// and so does a strip nothing needs any more (delete it), so none of them can grow into a blind spot.
-const escaped = text => text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-// The registered course board and registry imports, each pinned as its exact full line: a new name, an alias or another line fails.
-const courseImports = (...lines) => [new RegExp(`^(?:${lines.map(escaped).join('|')})$`, 'gm'), `the registered course imports (${lines.map(line => line.match(/from '([^']*)'/)[1]).join(', ')})`, lines.length];
-// The default domain parameter only (in a parameter list or a destructuring), never a runtime assignment.
-const courseDefault = count => [/(?<=[({,]\s*)domain = NANOGPT(?=\s*[,})])/g, 'the default domain parameter is the registered course', count];
 // Scanned: the modules Professor Next Steps and the Auto Tutor added or changed. Not scanned, on purpose: the course registry files
-// where a course is legitimately registered and named (learn-tutor-domains.js, learn-tutor-claims.js, nanogpt/*), learn-slash.js
+// where a course is legitimately named (nanogpt/*), learn-slash.js
 // (command placeholder copy) and learn-next-steps-fixtures.js (test-only fixture topics).
 const SCANNED = [
   ['../../control-plane/src/agents/learn-next-steps.js'], ['../../control-plane/src/learn-next-steps-routes.js'], ['./learn-next-steps.js'], ['./LearnNextSteps.jsx'], ['../../control-plane/src/learn-next-steps-planner.js'],
-  ['./learn-tutor-actions.js'], ['../../control-plane/src/agents/learn-labels.js'],
-  ['../../control-plane/src/learn-journey-planners.js'], ['./learn-journey-domain.js'],
+  ['../../control-plane/src/agents/learn-labels.js'],
   ['../../control-plane/src/learn-boards.js'], ['../../control-plane/src/learn-shared-ask.js'], ['./voice-session.js'], ['./LearnVoice.jsx'], ['../../control-plane/src/learn-models.js'],
-  ['./learn-tutor-evidence.js', courseImports("import { CLAIMS, NANOGPT, claimsOfConceptIn } from './learn-tutor-claims.js';"), courseDefault(1)],
 ];
 // A comparison of a hook, claim, concept, block or id list length with 2 to 4 (a word length filter is not one of them).
 const COUNT = /\b(?:options|hooks|claims|concepts|blocks|goals|ids)\.length\s*(?:[!=]=?=|[<>]=?)\s*[2-4]\b|\blength\s*===\s*3\b/;

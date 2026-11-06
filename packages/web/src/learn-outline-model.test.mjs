@@ -350,7 +350,7 @@ test('a syllabus adoption may carry up to 96 changes; anything else stays at 24 
 // drives the canvas command as the panel calls it (TableOfContents.jsx -> canvasApi.applyOutline / moveSection /
 // toggleSectionDone / removeSection -> AdaptiveCanvas -> these functions) on a canvas with headings and cards, and checks
 // the canvas blocks stay exactly as they were.
-import { applyTocAction, moveTocSection, toggleTocDone, removeTocEntry, linkTocHeading, tocOf, tocHeading, tocEntryFor, linkedHeadings, outlinePlan } from './learn-outline-model.js';
+import { applyTocAction, moveTocSection, toggleTocDone, removeTocEntry, linkTocHeading, tocOf, tocHeading, tocEntryFor, linkedHeadings } from './learn-outline-model.js';
 import { readFileSync } from 'node:fs';
 
 const canvasBoard = () => [h('t1', 1, 'Kitchen chemistry'), card('c1'), h('s11', 2, 'Maillard browning', true), card('c11'), h('t2', 1, 'Baking'), card('c2')];
@@ -446,15 +446,12 @@ test('TOC: a title frames its linked canvas heading; an entry without one frames
   assert.equal(tocEntryFor(null, 's11'), 's11');
 });
 
-test('TOC: a journey heading the contents no longer list reads as Section removed; the canvas heading and its cards stay', () => {
+test('TOC: a heading the contents no longer list stays on the canvas with its cards, and a board reading its headings links them all', () => {
   const blocks = [h('notes', 1, 'Notes'), { id: 'hj', type: 'heading', level: 1, text: 'Step 1', journey_section_id: 's1', journey_id: 'j1' }, { id: 'k1', type: 'explanation', journey: { section_id: 's1' } }];
-  const journey = { id: 'j1', state: 'active', active_section_id: 's1' }, path = { sections: [{ id: 's1', title: 'Step 1', status: 'current', heading_block_id: 'hj' }] };
   const listed = toggleTocDone(blocks, null, 'notes');
-  assert.deepEqual(outlinePlan({ headings: linkedHeadings(blocks, listed), journey, path }).learningNow, { headingId: 'hj' });
+  assert.deepEqual(linkedHeadings(blocks, listed).map(b => b.id), ['notes', 'hj']);
   const removed = removeTocEntry(blocks, listed, 'hj');
-  const plan = outlinePlan({ headings: linkedHeadings(blocks, removed), journey, path });
-  assert.deepEqual(plan.steps.map(s => [s.sectionId, s.state]), [['s1', 'removed']]);
-  assert.deepEqual(plan.learningNow, { sectionId: 's1', title: 'Step 1', removed: true });
+  assert.deepEqual(linkedHeadings(blocks, removed).map(b => b.id), ['notes'], 'a removed entry is no longer linked');
   assert.equal(blocks.length, 3, 'the canvas heading and its card stay');
   assert.deepEqual(linkedHeadings(blocks, null).map(b => b.id), ['notes', 'hj'], 'a board reading its headings links them all');
   assert.deepEqual(linkTocHeading(removed, { id: 'hj', text: 'Step 1' }).at(-1), { id: 'hj', level: 1, text: 'Step 1', done: false, heading: 'hj' });

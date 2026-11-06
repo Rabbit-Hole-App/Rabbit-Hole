@@ -93,13 +93,8 @@ test('repository canvas review fixes: graph keys stay in the column, Retry refet
 
 test('the canvas has no Tutor or Practice button: the composer is the Tutor on the NanoGPT course and its Rabbit Holes', () => {
   assert.doesNotMatch(learn, /data-learn-tutor|data-learn-practice|experience/);
-  // A live learning journey also makes the composer the Tutor (LP1 Task 12).
-  // Task 0 (owner, 2026-10-06): the NanoGPT course, its slice board and their holes are one registry entry
-  // (learn-tutor-domains.js); LearnPage asks the resolver, never the course name.
-  assert.match(learn, /const suppliedCourse = learnPreview && !!registeredCourse\(\{ app \}\)\?\.capabilities\?\.suppliedCourse;/);
-  assert.match(read('learn-tutor-domains.js'), /\{ id: 'nanogpt-attention', match: \{ repo: 'karpathy\/nanoGPT', board: TUTOR_BOARD \}, domain: NANOGPT, capabilities: \{ tutor: true, evidence: 'session', suppliedCourse: true \} \},/);
-  // A hole opened from a journey section, once its parent journey is read (LP1 Task 14), too: the resolver's order.
-  assert.match(read('learn-tutor-domains.js'), /if \(journey\?\.journey\) return[^\n]*\n  if \(parentJourney && record\?\.journey\) \{[\s\S]*?const entry = registeredCourse\(\{ app, board, root \}, registry\);/);
+  // Tutor cleanup P4: the supplied nanoGPT course, the journeys and their registry resolver are gone from LearnPage.
+  assert.doesNotMatch(learn, /suppliedCourse|registeredCourse|useJourney|LearnJourney/);
   // ?board= stays review-only.
   assert.match(learn, /const named = hole \|\| !reviewTools \? null : new URLSearchParams\(window\.location\.search\)\.get\('board'\);/);
 });

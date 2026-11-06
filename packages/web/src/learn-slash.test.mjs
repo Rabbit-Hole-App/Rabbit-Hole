@@ -5,7 +5,7 @@ import { generationField } from './generation-proposal-chat.js';
 import { commandsFor, idOfTyped, learnRequest, setWhiteboardVideo, typedOf } from './agent/slash.js';
 import { readFileSync } from 'node:fs';
 import { PRIMITIVES } from '../../control-plane/src/learn-primitives.js';
-import { blockModality, modalityOf } from './learn-tutor-actions.js';
+import { isExplainBackCard } from './explain-back-private.js';
 import { newNotebookBlock } from './learn-notebook.js';
 
 // A canvas and network stand-in that records what a command did.
@@ -447,6 +447,9 @@ test('materialCommands: the Learn commands that can make a card now, from the re
 
 // Any spec: every field reads as an empty value, so a primitive's own builder returns its block without a model.
 const ANY = new Proxy(() => ANY, { get: (_, key) => (key === Symbol.toPrimitive ? () => '' : key === 'length' ? 0 : ANY) });
+// The block type a card is inserted as, where that differs from its palette name (learn-slash.js CARD_OF); every challenge is the one Practice card.
+const INSERTED = { challenge: 'explain_back', explainBack: 'explain_back', plot: 'graph', walkthrough: 'scene', videoGenerate: 'video', mathAnimation: 'video' };
+const blockModality = block => (!block ? null : isExplainBackCard(block) ? 'explain_back' : block.type ?? null);
 test('every card a material command can make: its modality is the block type runLearnCommand really inserts', async () => {
   for (const m of materialCommands()) for (const { primitive, card } of cardsFor(m.command)) {
     const inserted = [];
@@ -454,7 +457,7 @@ test('every card a material command can make: its modality is the block type run
     const post = async () => ({ result: m.paid ? 'paid_proposal' : 'artifact', primitive, message: 'Uses paid generation.', block: PRIMITIVES[primitive].block(ANY) });
     (await runLearnCommand(`/${typedOf(m.command)} the topic`, { app: 'demo', canvas, post, openSearch: () => {}, internal: true })).proposal?.generate();
     assert.equal(inserted.length, 1, `${m.command} ${card}`);
-    assert.equal(modalityOf({ type: 'create_material', command: m.command }, { materials: [{ ...m, cards: [card] }] }), blockModality(inserted[0]), `${m.command} ${card}`);
+    assert.equal(INSERTED[card] ?? card, blockModality(inserted[0]), `${m.command} ${card}`);
   }
 });
 

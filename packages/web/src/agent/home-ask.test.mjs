@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { LEARN_INTENT, route } from './router.js';
-import { journeyMessage, journeyStarted, NEEDS_TOPIC, teachPlan } from './teach-plan.js';
+import { teachPlan } from './teach-plan.js';
+import { titleFromQuestion } from '../start.js';
 
 const at = (text) => route(text, { mode: 'auto', catalog: [], scope: { kind: 'workspace' } });
 
@@ -37,101 +38,43 @@ test('the bar sends a Home question to /api/learn/home-ask, never the old apps a
   assert.equal((home.match(/teach\(/g) || []).length, 1);
 });
 
-// LP1 D4: a learning request typed on Home starts the journey on the server with the learner's exact words; a
-// factual question never reaches teach(), and a teach with no journey reading keeps today's learnAction path.
-test('teachPlan: a journey request starts a journey and titles the canvas by its topic', () => {
-  assert.deepEqual(teachPlan('I want to learn logistic regression'), { journey: true, title: 'Logistic regression' });
-  assert.deepEqual(teachPlan('Give me a 10-minute visual overview of attention'), { journey: true, title: 'Attention' });
-  assert.deepEqual(teachPlan('Show me how to build a tokenizer'), { journey: true, title: 'Tokenizer' });
+// Tutor cleanup P4 (owner, 2026-11-05, Q1/Q3): teach prefills Chat and never sends. The canvas is titled with the learner's own
+// sentence under the 80 character cap titleFromQuestion allows; no journey is read, started or planned.
+test('teachPlan: the title is the raw sentence through titleFromQuestion, whatever the wording', () => {
+  for (const text of ['I want to learn logistic regression', 'Show me how to build a tokenizer', 'teach me', 'What is softmax?', 'Skip setup and start', 'teach me CNNs', 'Teach me Node.js'])
+    assert.deepEqual(teachPlan(text), { title: text }, text);
+  assert.equal(teachPlan('teach me   logistic  regression please').title, 'teach me logistic regression please', 'whitespace collapses');
+  assert.deepEqual(Object.keys(teachPlan('Teach me attention')), ['title'], 'no journey, needsTopic or other reading');
 });
 
-test('teachPlan: no topic, no journey reading, or a question keeps the raw sentence as the title and starts no journey', () => {
-  assert.deepEqual(teachPlan('teach me'), { journey: false, title: 'teach me' });
-  assert.deepEqual(teachPlan('What is softmax?'), { journey: false, title: 'What is softmax?' });
-  assert.deepEqual(teachPlan('Teach me this'), { journey: false, title: 'Teach me this' });
-  // The router's Start a Rabbit Hole offer re-teaches the question that was asked.
-  assert.deepEqual(teachPlan('Explain attention'), { journey: false, title: 'Explain attention' });
-});
-
-test('teachPlan: skip setup with a topic is a journey titled by the topic', () => {
-  assert.deepEqual(teachPlan('Teach me transformers, skip setup'), { journey: true, title: 'Transformers' });
-});
-
-// Controller ruling (Task 10 review): "Skip setup and start" names nothing to learn, so Home never creates a canvas for it.
-test('teachPlan: skip setup with no topic starts nothing and creates no canvas; the bar asks for a topic', () => {
-  assert.deepEqual(teachPlan('Skip setup and start'), { journey: false, title: 'Skip setup and start', needsTopic: true });
-  assert.match(NEEDS_TOPIC, /^Tell me what you want to learn, for example: Teach me logistic regression, skip setup\.$/);
-});
-
-test('teachPlan: the title keeps the learner casing, first letter capitalized', () => {
-  assert.equal(teachPlan('teach me CNNs').title, 'CNNs');
-  assert.equal(teachPlan('I want to learn SQL window functions').title, 'SQL window functions');
-  assert.equal(teachPlan('Teach me Node.js').title, 'Node.js');
-  assert.equal(teachPlan('I want to learn C++').title, 'C++');
-  assert.equal(teachPlan('teach me   logistic  regression please').title, 'Logistic regression');
-  assert.equal(teachPlan('teach me JAVASCRIPT').title, 'JAVASCRIPT');
-  assert.deepEqual(teachPlan('teach me transformers'), { journey: true, title: 'Transformers' });
-});
-
-test('teachPlan: a long request still gets a canvas title the POST accepts (80 characters, journey kept)', () => {
+test('teachPlan: a long request still gets a canvas title the POST accepts (80 characters), the request itself is untouched', () => {
   const text = `I want to learn ${'logistic regression '.repeat(7).trim()}`;
   assert.ok(text.length >= 130, String(text.length));
   const plan = teachPlan(text);
-  assert.equal(plan.journey, true);
-  assert.ok(plan.title.length <= 80, String(plan.title.length));
-  assert.ok(plan.title.startsWith('Logistic regression logistic'));
+  assert.equal(plan.title, titleFromQuestion(text));
+  assert.equal(plan.title.length, 80);
+  assert.ok(text.startsWith(plan.title), 'the title is a prefix of the full request, which keeps its every word');
 });
 
-test('journeyMessage turns a server code into a one-line fix', () => {
-  assert.equal(journeyMessage({ message: 'topic_required' }), NEEDS_TOPIC);
-  assert.match(journeyMessage({ message: 'live_journey' }), /already/);
-  assert.equal(journeyMessage({ message: 'Board not found' }), 'Board not found');
+test('teach-plan.js reads no journey intent', () => {
+  const source = readFileSync(new URL('./teach-plan.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /learner-intent-journey|journeyIntent|STARTS|NEEDS_TOPIC/);
 });
 
-test('a planner failure after the journey was created is a started journey with a one-line message, never the raw planner text', () => {
-  const failed = Object.assign(new Error('Planner returned invalid JSON at position 4'), { status: 502, data: { journey: { id: 'j1' } } });
-  assert.equal(journeyStarted(failed), true);
-  assert.match(journeyMessage(failed), /Open Learn to retry/);
-  assert.doesNotMatch(journeyMessage(failed), /JSON|position/);
-  // A refusal creates no journey: the draft is kept.
-  for (const e of [{ status: 400, message: 'topic_required', data: { error: 'topic_required' } }, { status: 409, message: 'live_journey', data: { journey: { id: 'old' } } }, new Error('offline')])
-    assert.equal(journeyStarted(e), false);
-});
-
-test('teach() starts the journey on the server with the exact typed text and never hands cards to Learn', () => {
+test('teach() creates the canvas titled by the sentence, prefills Chat through learnAction, and never calls the journey or ask routes', () => {
   const bar = readFileSync(new URL('./AgentBar.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const body = bar.slice(bar.indexOf('async function teach('), bar.indexOf('// Scope is frozen at Send'));
-  assert.match(body, /teachPlan\(text\)/);
-  assert.match(body, /api\('\/api\/learn\/journey', \{ method: 'POST', body: JSON\.stringify\(\{ app, board: 'main', action: 'start', text, channel: 'text' \}\) \}\)/);
-  // The journey path opens Learn itself, on the tray; only a non-journey teach goes through learnAction.
-  assert.match(body, /navigate\(`\/apps\/\$\{app\}\?tab=learn`\)/);
-  assert.equal((body.match(/learnAction\(/g) || []).length, 1);
-  assert.ok(body.indexOf("'/api/learn/journey'") < body.indexOf('learnAction('));
-});
-
-test('teach() journey path: the draft clears only after the await succeeds, a failure toasts, and Learn opens after the try', () => {
-  const bar = readFileSync(new URL('./AgentBar.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  const body = bar.slice(bar.indexOf('async function teach('), bar.indexOf('// Scope is frozen at Send'));
-  const call = body.indexOf("await api('/api/learn/journey'"), caught = body.indexOf('} catch (e) {', call), nav = body.indexOf('navigate(`/apps/${app}?tab=learn`)');
-  assert.ok(call > 0 && caught > call && nav > caught);
-  const tried = body.slice(call, caught), failed = body.slice(caught, nav);
-  assert.equal((tried.match(/clearDraft\(scope, raw\)/g) || []).length, 1); // after the await, inside the try
-  assert.ok(tried.indexOf('clearDraft(') > tried.indexOf('\n'));
-  assert.match(failed, /toast\(`✗ \$\{journeyMessage\(e\)\}`, \{ tone: 'error' \}\)/);
-  assert.match(failed, /if \(journeyStarted\(e\)\) clearDraft\(scope, raw\)/); // the journey exists: a resend would make a second canvas
-  assert.ok(failed.trimEnd().endsWith('}')); // navigate is after the whole try/catch, so Learn opens on success and failure
-});
-
-test('teach() creates no canvas for a topicless request and leaves no Undo behind for a journey canvas', () => {
-  const bar = readFileSync(new URL('./AgentBar.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  const body = bar.slice(bar.indexOf('async function teach('), bar.indexOf('// Scope is frozen at Send'));
-  const asked = body.slice(body.indexOf('if (plan?.needsTopic)'), body.indexOf("runCommand('create_canvas'"));
-  assert.ok(asked.length > 0 && body.indexOf('plan?.needsTopic') < body.indexOf("runCommand('create_canvas'"));
-  assert.match(asked, /toast\(`✗ \$\{NEEDS_TOPIC\}`, \{ tone: 'error' \}\)/);
-  assert.match(asked, /return;/);
-  assert.doesNotMatch(asked, /clearDraft/); // the draft stays
-  // The Canvas created note carries Undo, which deletes the row and would orphan the server journey: a journey canvas is silent.
-  assert.match(body, /runCommand\('create_canvas', \{ title: plan\.title \}, raw, scope, true, plan\.journey\)/);
+  assert.match(body, /runCommand\('create_canvas', \{ title: teachPlan\(text\)\.title \}, raw, scope, true\)/, 'an ordinary, undoable creation that keeps the draft');
+  assert.match(body, /learnAction\('teach', \{ app, prompt: text \}, /, 'the full, unmodified request');
+  assert.doesNotMatch(body, /\/api\/learn\/journey|\/api\/learn\/ask|api\(/);
+  assert.ok(body.indexOf("runCommand('create_canvas'") < body.indexOf('learnAction('));
+  // The draft clears only when Learn answered 'prefilled' (learnOutcome.done); otherwise it stays in this scope's draft.
+  assert.match(body, /if \(outcome\.done\) clearDraft\(scope, raw\);/);
+  assert.equal((body.match(/clearDraft\(/g) || []).length, 1);
   assert.match(bar, /async function runCommand\(name, args, raw, scope, keep = false, silent = false\)/);
-  assert.match(bar, /if \(!silent\) report\(scope, name, result, ctx, raw\);/);
+});
+
+test('the bar imports no journey helper', () => {
+  const bar = readFileSync(new URL('./AgentBar.jsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(bar, /journeyMessage|journeyStarted|NEEDS_TOPIC|learner-intent-journey/);
 });

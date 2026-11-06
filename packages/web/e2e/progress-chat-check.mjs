@@ -1,6 +1,9 @@
 // Progress questions and feedback review in chat (C:/s/spec/tutor-workflow/draft.md Task 10; acceptance 58-60), against the
-// LOCAL stack only, with real persistence: a real journey goal from the stack's fixture planners (JOURNEY_MODEL_STUB), a
-// keyed choice answer graded in code through the real attempt route, real /api/learn/coaching and /api/learn/progress. No
+// LOCAL stack only, with real persistence: a goal made through the real /api/learn/coaching route (Tutor cleanup P4: no journey), an
+// activity and a choice answer submitted through the real attempt route, real /api/learn/progress.
+// ponytail: STALE since Tutor cleanup P1/P4. The keyed grader (route 'keyed', status 'completed') was removed in P1, so the submitted
+// choice now reads unavailable, not assessed: the steps that need a completed assessment (dispute, history labels) cannot pass until a
+// retained assessor can be driven offline. Seeding no longer uses a journey; rewrite the later steps before running this. No
 // model is called: the page answers the Learn ask with a canned stream after recording its body (a keyless stack refuses
 // every ask at apiAsk's first line, so the server half of a progress question - resolving the scope and the read-only
 // context - is proven by control-plane test/chat-modes.test.js and test/learn-progress-context.test.js, not here); every
@@ -30,24 +33,19 @@ const post = (path, body) => call(path, { method: 'POST', body: JSON.stringify(b
 // --- setup through the real routes --------------------------------------------------------------------------------------
 const canvas = await post('/api/canvases', { title: `Logistic Regression ${Date.now().toString(36)}` });
 const APP = canvas.name, BOARD = 'main', at = { app: APP, board: BOARD };
-// A journey goal: start, skip the intake, and the stack's fixture planner opens the diagnostic with keyed probes.
-await post('/api/learn/journey', { ...at, action: 'start', text: 'I want to learn logistic regression' });
-const diag = await post('/api/learn/journey', { ...at, action: 'intake_skip' });
-assert.equal(diag.journey.state, 'diagnostic', 'the fixture planner opened the diagnostic');
 const coaching = async () => (await call(`/api/learn/coaching?app=${APP}&board=${BOARD}`)).state;
 let state = await coaching();
 const act = async (action, payload) => { state = (await post('/api/learn/coaching', { ...at, actionId: `${action}-${Math.random().toString(36).slice(2)}`, expectedRevision: state.revision, action, payload })).state; return state; };
-const knn = state.goals.find(goal => goal.journeyId === diag.journey.id)?.goalId;
-assert.ok(knn, 'the journey is a goal of this canvas');
-// p1 (learn-journey-fixtures.js probesFor): a keyed multiple choice on the vocabulary claim; option b is a known misconception.
-await act('change_scope', { goalId: knn, criteria: [
-  { criterionId: 'vote', label: 'Explain the majority vote', requirement: 'Pick the statement that holds on a new case', requiresReasoning: false, skillKey: 'logistic-regression-foundations/vocabulary' },
+await act('create_goal', { label: 'Logistic regression', criteria: [
+  { criterionId: 'vote', label: 'Explain the majority vote', requirement: 'Pick the statement that holds on a new case', requiresReasoning: false },
   { criterionId: 'k', label: 'Explain what changes with k', requirement: 'Say what a larger k changes', requiresReasoning: true },
 ] });
-await act('activate_activity', { activity: { goalId: knn, objective: 'The vocabulary on a new case', prompt: 'On a case you have not seen before, which statement holds?', responseKind: 'choice', criterionRefs: [{ criterionId: 'vote', version: 1 }], sourceRefs: [{ kind: 'journey_probe', id: 'p1', version: 1 }] } });
+const knn = state.activeGoalId;
+assert.ok(knn, 'the goal is made on this canvas');
+await act('activate_activity', { activity: { goalId: knn, objective: 'The vocabulary on a new case', prompt: 'On a case you have not seen before, which statement holds?', responseKind: 'choice', criterionRefs: [{ criterionId: 'vote', version: 1 }] } });
 const activity = state.activities.find(a => a.activityId === state.activeActivityId);
 const answered = await post('/api/learn/tutor/attempts', { ...at, activityId: activity.activityId, activityRevision: activity.revision, submissionKey: `pchat-${Date.now().toString(36)}`, submittedContent: { optionId: 'b' } });
-assert.deepEqual([answered.assessment.status, answered.assessment.route], ['completed', 'keyed'], 'graded in code');
+assert.equal(answered.assessment.status, 'unavailable', 'no retained assessor grades a choice offline (the keyed grader went in Tutor cleanup P1)');
 const ATTEMPT = answered.attempt.attemptId, ORIGINAL = answered.assessment;
 // The submit stepped its activity to awaiting_feedback, then feedback_ready, each a coaching revision (learn-coaching-store.js
 // advanceActivity, Tutor T5 gap a): read the state again, as the app does after Check my answer (TutorActivity.jsx).
@@ -85,7 +83,7 @@ await context.route('**/api/**', async route => {
   if (url.pathname.includes('/threads/canvaschat-pchat-')) return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
   if (/\/reassess$/.test(url.pathname)) reviews.push(request.postDataJSON());
   if (url.pathname === '/api/learn/progress') progressReads.push(url.searchParams.get('goalId'));
-  if (MODEL.test(url.pathname) || (url.pathname === '/api/learn/journey' && request.method() === 'POST' && request.postDataJSON()?.action === 'resolve')) { model.push(`${request.method()} ${url.pathname}`); return route.abort(); }
+  if (MODEL.test(url.pathname)) { model.push(`${request.method()} ${url.pathname}`); return route.abort(); }
   return route.continue();
 });
 const page = await context.newPage();

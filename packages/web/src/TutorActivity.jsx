@@ -53,8 +53,8 @@ export function startActivity(chat, board, choice, actionId = crypto.randomUUID(
 }
 
 // Progress's next step for the learner's current goal, when the read model names none (view.nextAction). Only for the
-// active goal: viewing another goal is read only. view: the ProgressView just read; journey: useJourney's { journey, path }.
-export function NextActivity({ chat, board, goal, view, journey, onClose }) {
+// active goal: viewing another goal is read only. view: the ProgressView just read.
+export function NextActivity({ chat, board, goal, view, onClose }) {
   const [choice, setChoice] = useState(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState(null);
@@ -62,14 +62,13 @@ export function NextActivity({ chat, board, goal, view, journey, onClose }) {
   const activity = state?.activities?.find(a => a.goalId === goal.goalId && a.activityId === goal.activityId) || null;
   const statuses = Object.fromEntries((view?.criteria || []).map(row => [row.criterionId, row.status]));
   const evidence = Object.fromEntries((view?.criteria || []).map(row => [row.criterionId, row.evidence || []]));
-  const own = journey?.journey?.id && journey.journey.id === goal.journeyId ? journey : null;
-  const input = request => ({ goal, statuses, evidence, activity, journey: own?.journey ?? null, path: own?.path ?? null, request,
+  const input = request => ({ goal, statuses, evidence, activity, request,
     capabilities: { materials: materialCommands(), blocks: chat.canvasOps?.tutorCanvas?.()?.blocks?.() || [] } });
   useEffect(() => {
     let live = true;
     chooseNextActivity(input({})).then(next => { if (live) setChoice(next); }, () => { if (live) setChoice(null); });
     return () => { live = false; };
-  }, [view, state?.revision, own?.journey?.revision]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [view, state?.revision]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!choice) return null;
   const run = async fn => { setBusy(true); setNote(null); try { await fn(); } catch (error) { setNote(error?.data?.error === 'revision' ? 'Your Tutor state changed meanwhile; try again.' : 'That could not be saved. Nothing was lost; try again.'); } finally { setBusy(false); } };
   const start = next => run(async () => {

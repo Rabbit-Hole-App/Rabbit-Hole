@@ -62,9 +62,6 @@ import { checkImport, codeBlock, importBlock, importKind, pasteBlock, pasteName 
 import { insertCodeCard } from './code-card.js';
 import { copiedCode, languageOf } from './map-files.js';
 import { withSource, withRetainedSource, toggleSource, isAttached } from './learn-sources.js';
-import LessonPlanPreview from './LessonPlanPreview.jsx';
-import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
-import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
 import { CanvasChromeLoading, CHAT_PANEL, OWNER_CANVAS, OWNER_HEADER, OWNER_HEADER_GROUP, OWNER_HEADER_OVER, OWNER_MAIN, phoneCanvasHeight as phoneHeightFor } from './CanvasLoading.jsx';
 import { RepositoryBadge } from './repository-canvas.jsx';
@@ -77,7 +74,6 @@ import { useCanvasSearch } from './use-canvas-search.jsx';
 import { SearchContentProvider } from './canvas-search-content.jsx';
 import { sourceTarget } from './card-sources.js';
 import TocConversation from './TocConversation.jsx';
-import { linkedHeadings, outlinePlan, planRevisionOf } from './learn-outline-model.js';
 import SourcesPane, { ContextUpload } from './SourcesPane.jsx';
 import CanvasRefPicker from './CanvasRefPicker.jsx';
 import { useCanvasLinks } from './LinksPanel.jsx';
@@ -115,9 +111,6 @@ import { explainBackEnabled, useExplainBackService } from './explain-back-servic
 import { createExplainBackAssets } from './explain-back-assets.js';
 import { withVoicePlayer } from './VoiceNote.jsx';
 import { stopAllExplainBackCaptures } from './explain-back-media.js';
-import { registeredCourse } from './learn-tutor-domains.js';
-import { inJourneySetup, journeyDiveContext, useJourney } from './LearnJourney.jsx';
-import { pathEntries } from './learn-journey.js';
 import { useVoiceSession } from './LearnVoice.jsx';
 import { TutorCaption } from './VoiceMode.jsx';
 import { ProvenanceRow, useProvenance } from './ProvenanceGroup.jsx';
@@ -185,45 +178,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const provenance = useProvenance(isCanvas || isRepository ? `/api/learn/provenance/apps/${encodeURIComponent(app.name)}` : null);
   const course = useLearnCourse(app);
   const [courseView, setCourseView] = useState(false);
-  // The canonical NanoGPT course is product content, so it ships wherever Rabbit Hole does (VITE_RABBIT_HOLE in
-  // production, VITE_COACHING_DEV in dev/review), not only in the dev build; the dev tools stay behind their own gates.
-  // Which app is that course is registry data (learn-tutor-domains.js, capabilities.suppliedCourse), never a name here.
-  const suppliedCourse = learnPreview && !!registeredCourse({ app })?.capabilities?.suppliedCourse;
-  const nanoProgress = useNanoProgress(app, suppliedCourse);
-  const canAuthor = canEditCourse(course.canAuthor, suppliedCourse);
+  // ponytail: the supplied nanoGPT course is retired (Tutor cleanup P4); canEditCourse keeps its second argument for generated courses.
+  const canAuthor = canEditCourse(course.canAuthor, false);
   // A canvas shared with this learner to view only (no edit rights): its Table of contents is read-only and takes no proposals
   // (R4). Repository Learn boards are each learner's own, so only a canvas's canEdit counts.
   const canEditCanvas = !(app.kind === 'canvas' && app.canEdit === false);
   const canEditRef = useRef(canEditCanvas);
   canEditRef.current = canEditCanvas;
   const [lessonSource, setLessonSource] = useState(null);
-  const [plannedLesson, setPlannedLesson] = useState(null);
-  const [planOpen, setPlanOpen] = useState(false);
-  const [sectionTarget, setSectionTarget] = useState(null);
-  const [planEdits, setPlanEdits] = useState({});
-  const [planStorageError, setPlanStorageError] = useState('');
-  const planKey = `small.lesson-plan:${app.org}:${app.email || app.owner_email}:${app.name}`;
-  useEffect(() => {
-    if (!canAuthor) return;
-    try { setPlanEdits(JSON.parse(localStorage.getItem(planKey) || '{}')); }
-    catch { setPlanStorageError('Could not restore draft edits from this browser.'); }
-  }, [planKey, canAuthor]);
-  const sectionEditor = {
-    target: sectionTarget,
-    clear: () => setSectionTarget(null),
-    revise: async instruction => {
-      const target = sectionTarget;
-      const result = await api(`/api/apps/${encodeURIComponent(app.name)}/learn-course`, { method: 'POST', body: JSON.stringify({ action: 'revise_section', revision: course.course?.revision || 0, sourceVersion: app.commit_sha, section: { id: target.id, title: target.title, text: target.text }, page: target.page, context: target.context, instruction }) });
-      setPlanEdits(previous => {
-        const updated = { ...previous, [target.id]: result.section.text };
-        try { localStorage.setItem(planKey, JSON.stringify(updated)); setPlanStorageError(''); }
-        catch { setPlanStorageError('Draft updated, but browser storage is unavailable. Keep this page open to retain it.'); }
-        return updated;
-      });
-      setSectionTarget(previous => previous?.id === target.id ? { ...previous, text: result.section.text } : previous);
-      return result.section;
-    },
-  };
   const [learnerOpen, setLearnerOpen] = useState(false);
   const [sampleOutline, setSampleOutline] = useState(app.kind !== 'repository' && !/^canvas-[a-f0-9]{8}$/.test(app.name));
   const [practiceMode, setPracticeMode] = useState('quiz');
@@ -1314,23 +1276,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   } : null;
   // Graded canvas answers so far: a Professor Next Steps basis trigger (contract §2.3), bumped as gradeCanvasAnswer resolves.
   const [graded, setGraded] = useState(0);
-  // /dive: nested Rabbit Holes from the selected card (docs/features/dive-v1.md). A hole opened on an active journey
-  // carries its journey context (LP1 Task 14); `journey` (below) is read when the dive starts, not during render.
-  // ponytail: a hole inside a journey hole carries no journey (the hole board has no live journey of its own); hand the
-  // record's journey down when nested journey holes need their cause too.
-  const dive = useDive({ app, board: boardName, hole, canvasApi, canvasState, baseFor: name => `small.adaptive-canvas:${app.org}:${app.email || app.owner_email}:${name}`, onTitle: title => saveTitle(title), referent: () => exchangesRef.current.at(-1)?.question || '', journeyContext: block => journeyDiveContext(journey.journey, journey.path, block) });
-  // Learning journeys (LearnJourney.jsx) on Learn canvases: its tray sits in the Chat composer, and a broad intent starts
-  // one while the board has none. Not on repository apps (the route refuses them; the supplied nanoGPT course is one) nor
-  // on a pending hole, which has no canvas row yet.
-  const journey = useJourney({ app, board: boardName, access: askScope, canvasApi, enabled: learnPreview && isCanvas && !hole });
+  // /dive: nested Rabbit Holes from the selected card (docs/features/dive-v1.md).
+  const dive = useDive({ app, board: boardName, hole, canvasApi, canvasState, baseFor: name => `small.adaptive-canvas:${app.org}:${app.email || app.owner_email}:${name}`, onTitle: title => saveTitle(title), referent: () => exchangesRef.current.at(-1)?.question || '' });
   // Professor Next Steps (docs/features/professor-next-steps.md §1.7): the hooks mount only with Rabbit Hole on and a Chat
   // composer, never on a review board; a click opens Chat and goes through its AskPanel (nextStepRef, chatAskProps).
   const nextStepsHere = learnPreview && (app.hosting !== 'aws' || !!app.app_chat) && !(reviewTools && board);
   // Owner 3a: hooks are proactive, so they ask only in selected, enabled, unpaused Tutor with Chat open (LearnNextSteps.jsx).
   const hooksCoaching = { allowed: !!chat?.coaching && canCoach(effectiveControls(chat.coaching, chat.thread), { chatOpen: true, ready: ['ready', 'local'].includes(chat.coaching.status) }), visible: panels.chatOpen };
   const nextStepSend = useRef(null);
-  // The path rail's upcoming section whose purpose is open (a click on it never generates anything, §8).
-  const [openEntry, setOpenEntry] = useState(null);
   // The board path whose saved board the canvas holds: the server's copy may replace this browser's (canvasEpoch) when
   // the board GET lands, so until then the canvas may be an empty stand-in.
   const [restoredBoard, setRestoredBoard] = useState(null);
@@ -1374,24 +1327,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // showed the TOC conversation's latest request (owner decision 2a). No accepted goal, nothing shown.
   const coachingState = chat?.coaching?.state;
   const tocGoal = coachingState?.goals?.find(goal => goal.goalId === coachingState.activeGoalId)?.label || null;
-  // Task 11: the accepted plan beside the outline (learn-outline-model.js outlinePlan), all of it this learner's own: their
-  // journey, its goal's criteria, and the canvas headings the contents still link (linkedHeadings), read for their journey
-  // stamps only. A proposal carries the plan
-  // revision it was asked on (boardContext.planRevision) and applies only while it still holds.
-  const journeyGoal = journey.journey?.id ? coachingState?.goals?.find(goal => goal.journeyId === journey.journey.id) || null : null;
-  const tocPlan = outlinePlan({ headings: linkedHeadings(canvasApi.current?.blocks?.(), canvasApi.current?.toc?.()), journey: journey.journey, path: journey.path, goal: journeyGoal });
-  const planRevision = planRevisionOf(journey.journey, journey.path);
-  const planRevisionRef = useRef(planRevision);
-  planRevisionRef.current = planRevision;
-  // Start/Resume of the current step (draft: a separate explicit action from navigating a title): start_guided clears Suggestions
-  // paused only in selected, enabled Tutor and changes nothing in Auto, Ask or Off; then its section and Chat come forward.
-  // No model call and no goal change.
-  const resumeFromToc = () => {
-    chat.coaching?.dispatch({ type: 'start_guided' });
-    if (tocPlan.learningNow?.headingId) canvasApi.current?.showSection(tocPlan.learningNow.headingId);
-    panels.openChat();
-    chat.composer?.focus?.();
-  };
   const tocPanel = useRef(null), tocScroll = useRef(0); // the tabpanel's onScrollCapture keeps the contents' scrollTop
   useLayoutEffect(() => {
     const list = panelOpen && panelTab === 'toc' && tocPanel.current?.querySelector('[data-toc]');
@@ -1625,10 +1560,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       .finally(() => { ready(); if (live) setRestoredBoard(boardPath); });
     return () => { live = false; };
   }, [boardPath, boardLoad]);
-  // The journey's section materializer reads the canvas for a section an earlier visit drew (ruling C-3): only once the
-  // board is restored and the canvas has reported (onCanvasState runs after it published canvasApi), never an empty
-  // canvas before the restore, which would get a second heading. canvasReady acts once per board.
-  useEffect(() => { if (restoredBoard === boardPath) journey.canvasReady?.(); }, [restoredBoard, boardPath, canvasState, journey.canvasReady]);
   // Accepted jobs survive a tab closing before the pending card's first board save.
   useEffect(() => {
     if(restoredBoard!==boardPath || !canvasApi.current)return;
@@ -1873,7 +1804,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // A cited source names its own revision (and repository, for the link out);
   // a bare path reference reads the lesson's.
   const openCanvasFile = (path, line, lineEnd, cited = {}) => {
-    const commit = cited.commit || (nanoActive ? nanoSourceVersion : repositoryContext?.commit);
+    const commit = cited.commit || repositoryContext?.commit;
     if (chatWorkspace.current) return chatWorkspace.current.openSource(codeRef({ repo: cited.repo || '', commit: commit || '', path, start: line, end: lineEnd }));
     setPaperOpen(false); setSourceOpen(false); setWikiOpen(false); setPanelOpen(true);
     setLessonSource({ path, line, lineEnd, commit, repo: cited.repo });
@@ -1911,7 +1842,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const recordProgress = value => {
     setProgress(value);
     const id = lesson.current?.lessonId;
-    if (suppliedCourse && id === nanoLesson.id) nanoProgress.record(value);
     if (value.pageComplete && id) {
       const key = `${id}:${value.page}`;
       setCompleted(previous => previous[key] ? previous : { ...previous, [key]: true });
@@ -2035,7 +1965,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     releaseCard: id => canvas()?.release(id),
     // Read at send time, so a question always carries the outline as it is now.
     outline: () => canvasStateRef.current.outline || [],
-    planRevision: () => planRevisionRef.current,
     // R4 (lead, 2026-10-16): 'Use as table of contents' (source 'syllabus') is the learner's click, so the contents come
     // forward with the Apply/Discard card; a Tutor proposal arrives unasked, so it only marks the tab (PanelHeader
     // tocPending) and never switches tabs or scrolls. A canvas the learner cannot edit takes no proposals.
@@ -2068,7 +1997,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       playback.current.play();
     },
   };
-  const previewLesson = async (generated, resume = false) => {
+  const previewLesson = async generated => {
     if (!editor) return;
     clearRegionMarker(); setLessonSource(null); setPaperOpen(false); setSourceOpen(false);
     playback.current?.dispose(); pinned.current = null; removeImage();
@@ -2081,15 +2010,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     if (cancelled) return;
     editor.updateViewportScreenBounds(editor.getContainer());
     lesson.current = { runId: crypto.randomUUID(), currentStage: 'page-1', recentExplanations: [] };
-    const resumeAt = generated.id === nanoLesson.id && resume ? nanoProgress.saved.timeline : null;
     playback.current = playSigmoid(editor, setNarration, lesson.current, recordProgress, generated);
-    if (Number.isFinite(resumeAt) && resumeAt > 0) playback.current.scrub(resumeAt);
-    else playback.current.play();
+    playback.current.play();
   };
-  const nanoActive = suppliedCourse && lesson.current?.lessonId === nanoLesson.id;
   const pages = progress?.pages || [{ label: 'What is logistic regression?' }, { label: 'The formula' }, { label: 'The sigmoid function' }];
   const sampleIndex = sampleCourse.lessons.findIndex(item => item.id === (lesson.current?.lessonId || 'sigmoid-demo'));
-  const currentLesson = nanoActive ? nanoLesson : isRepository ? course.course?.lesson : sampleIndex >= 0 ? sampleCourse.lessons[sampleIndex] : course.course?.lesson;
+  const currentLesson = isRepository ? course.course?.lesson : sampleIndex >= 0 ? sampleCourse.lessons[sampleIndex] : course.course?.lesson;
   const courseTitle = app.kind === 'repository' ? course.course?.curriculum?.title || app.repo : courseView || sampleIndex < 0 ? course.course?.curriculum?.title || sampleCourse.title : sampleCourse.title;
   const noteSnapshot = (value, kind, id) => ({
     id, kind, lessonId: lesson.current.lessonId, lessonTitle: lesson.current.topic,
@@ -2106,7 +2032,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       editor.setCurrentPage(record.pageId);
       return;
     }
-    const content = suppliedCourse && record.lessonId === nanoLesson.id ? nanoLesson : sampleCourse.lessons.find(item => item.id === record.lessonId) || (course.course?.lesson?.id === record.lessonId ? course.course.lesson : null);
+    const content = sampleCourse.lessons.find(item => item.id === record.lessonId) || (course.course?.lesson?.id === record.lessonId ? course.course.lesson : null);
     if (!content) { setNotesError('This lesson version is no longer available. Your saved notes are still here.'); return; }
     if (lesson.current?.lessonId !== record.lessonId) {
       if (content.id === 'sigmoid-demo') await demo.run(setNarration);
@@ -2126,7 +2052,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   };
   const changeLearningView = value => {
     clearRegionMarker(); pauseLesson(); setSourceOpen(false); setLessonSource(null); setPaperOpen(false);
-    setLearningView(value); if (value !== 'curriculum') setSectionTarget(null); setCourseView(value === 'curriculum' && canAuthor);
+    setLearningView(value); setCourseView(value === 'curriculum' && canAuthor);
     setLearnerOpen(value === 'curriculum' && !canAuthor);
     setSetupChat(value === 'curriculum' && canAuthor);
   };
@@ -2153,21 +2079,17 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   useEffect(() => {
     if (learningView === 'lesson' && editor) requestAnimationFrame(() => editor.updateViewportScreenBounds(editor.getContainer()));
   }, [learningView, sourceOpen, lessonSource, editor]);
-  useEffect(() => {
-    if (learningView === 'lesson' && suppliedCourse && editor && nanoProgress.loaded && !lesson.current && !answering) previewLesson(nanoLesson, true);
-  }, [learningView, editor, nanoProgress.loaded, answering]);
   const canvas = () => canvasApi.current;
   // The Agent Bar's way in, from Home, Library and Project. A request arrives
   // as the one-shot sessionStorage key small.learn.request, written before
   // navigating here, or as a small:learn-request event while Learn is open:
-  //   { id, kind: 'teach', app, prompt }
-  //   { id, kind: 'research', app, board?, source: { kind: 'arxiv' | 'wiki' | 'youtube', ref } }
+  //   { id, kind: 'teach', app, prompt, contextRefs? }
   // Each id gets one small:learn-result { id, kind, status, reason?, resourceId? },
   // also kept at small.learn.result:<id> for a caller that remounted. A
   // repeated id replays its result and does nothing twice. Teach only fills
   // the dock composer - the learner sends it, with whatever context Send adds.
   const handoff = useRef({ busy: new Set() });
-  handoff.current.latest = { app: app.name, board, pickResult, lessonShown: learningView === 'lesson' && !courseView, requestLearningView };
+  handoff.current.latest = { app: app.name, board, lessonShown: learningView === 'lesson' && !courseView, requestLearningView };
   useEffect(() => {
     const until = async (check, ms) => {
       for (const end = Date.now() + ms; ; await new Promise(resolve => setTimeout(resolve, 50))) {
@@ -2184,36 +2106,15 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const no = (status, reason) => ({ id, kind, status, reason });
       if (request.app !== latest.app) return no('rejected', `This request is for ${request.app || 'no app'}, but Learn is open on ${latest.app}.`);
       if ((request.board ? boardSlug(request.board) : null) !== latest.board) return no('rejected', `Learn is open on another canvas. Open /apps/${latest.app}?tab=learn${request.board ? `&board=${boardSlug(request.board)}` : ''} first.`);
-      if (kind === 'research' && request.source?.kind === 'pdf') return no('rejected', 'Uploaded PDFs do not have a portable source reference for this handoff. Add/upload the PDF from Learn instead.');
-      const from = kind === 'research' && { arxiv: 'arxiv', wiki: 'wikipedia', youtube: 'youtube' }[request.source?.kind];
-      const ref = String(request.source?.ref || '').trim();
-      if (kind === 'research' && !from) return no('rejected', 'Unsupported source kind. Use arxiv, wiki or youtube.');
-      if (kind === 'research' && !ref) return no('rejected', 'The source reference is empty.');
       const prompt = typeof request.prompt === 'string' ? request.prompt.trim() : '';
-      if (kind === 'teach' && !prompt) return no('rejected', 'The prompt is empty.');
+      if (!prompt) return no('rejected', 'The prompt is empty.');
       if (!latest.lessonShown) latest.requestLearningView('lesson');
-      if (kind === 'teach') {
-        // The right-side Chat's composer (contract A6 prepare): it opens Chat and focuses, and never sends.
-        const chat = await until(() => chatRef.current, 10000);
-        if (!chat) return no('failed', 'The Learn chat did not open. Open Learn and try again.');
-        if (chat.composer.text.trim() && chat.composer.text !== prompt) return no('rejected', 'The Learn chat already has a draft. Send or clear it, then try again.');
-        chat.composer.prepare(chat.composer.text === prompt ? {} : { text: prompt });
-        return { id, kind, status: 'prefilled' };
-      }
-      if (!await until(() => canvasApi.current, 10000)) return no('failed', 'The Learn canvas did not open. Open Learn and try again.');
-      let results;
-      try {
-        // The Search bar's own lookup, so a link or id resolves exactly and a
-        // title finds what Search would put first.
-        const response = await fetch(`/api/learn/search?app=${encodeURIComponent(latest.app)}&source=${from}&q=${encodeURIComponent(ref)}`, { headers: wsHeaders() });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data?.error || 'Search failed. Try again.');
-        results = data.results || [];
-      } catch (problem) { return no('failed', problem.message); }
-      if (!results[0]?.item) return no('rejected', `Nothing on ${request.source.kind} matched ${ref}.`);
-      const blockId = handoff.current.latest.pickResult(from, results[0].item);
-      const card = blockId && await until(() => window.document.querySelector(`[data-block-id="${CSS.escape(blockId)}"]`), 5000);
-      return card ? { id, kind, status: 'added', resourceId: blockId } : no('failed', 'The card did not appear on the canvas.');
+      // The right-side Chat's composer (contract A6 prepare): it opens Chat and focuses, and never sends.
+      const chat = await until(() => chatRef.current, 10000);
+      if (!chat) return no('failed', 'The Learn chat did not open. Open Learn and try again.');
+      if (chat.composer.text.trim() && chat.composer.text !== prompt) return no('rejected', 'The Learn chat already has a draft. Send or clear it, then try again.');
+      chat.composer.prepare(chat.composer.text === prompt ? {} : { text: prompt, contextRefs: Array.isArray(request.contextRefs) ? request.contextRefs : undefined });
+      return { id, kind, status: 'prefilled' };
     };
     const take = async request => {
       const id = typeof request?.id === 'string' ? request.id : '';
@@ -2221,8 +2122,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       let done = null;
       try { done = JSON.parse(sessionStorage.getItem(`small.learn.result:${id}`) || 'null'); } catch { /* treat as new */ }
       if (done) { window.dispatchEvent(new CustomEvent('small:learn-result', { detail: done })); return; }
-      const kind = request.kind === 'teach' || request.kind === 'research' ? request.kind : null;
-      if (!kind) { settle({ id, kind: request.kind, status: 'rejected', reason: 'Unknown request kind. Use teach or research.' }); return; }
+      const kind = request.kind === 'teach' ? request.kind : null;
+      if (!kind) { settle({ id, kind: request.kind, status: 'rejected', reason: 'Unknown request kind. Use teach.' }); return; }
       handoff.current.busy.add(id);
       try { settle(await run(id, kind, request)); }
       catch (problem) { settle({ id, kind, status: 'failed', reason: problem.message }); }
@@ -2328,18 +2229,17 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // project by its repository unless one of its course lessons is running,
   // and never the sample course on a canvas or project route.
   const fallbackTitle = isCanvas ? app.title || 'Untitled canvas'
-    : isRepository ? (nanoActive || lesson.current?.lessonId?.startsWith('course-') ? courseTitle : project ? 'Main canvas' : app.repo || app.name)
+    : isRepository ? (lesson.current?.lessonId?.startsWith('course-') ? courseTitle : project ? 'Main canvas' : app.repo || app.name)
     : courseTitle || app.repo || app.name;
   titleNow.current = canvasTitle || fallbackTitle;
   // Never the canvas id: its title, or plain words when there is none.
   // A canvas title is a weak hint (chat brief section 8), so the canvas composer never names it.
   const askPlaceholder = isCanvas ? 'Ask about this canvas' : `Ask about ${app.repo || app.name}`;
   // The right-side Chat is the one main Learn composer (owner brief 2026-10-13 section 4): the canvas dock is gone, and what it
-  // carried rides on the Chat's AskPanel (ChatPane, A1 spreads these): the / commands, the Tutor, the journey's starter and tray,
+  // carried rides on the Chat's AskPanel (ChatPane, A1 spreads these): the / commands, the Tutor,
   // Voice Mode, the Next Steps hook sends and the selected card's chip. Its answers never land on the canvas by themselves (no
   // onExchange): Add as card is Lane B's footer, through the provider's canvasOps.
-  // ponytail: journeyStarter null keeps a broad Chat request from starting a journey, as the plain-canvas Tutor did; journeys go in P4.
-  const chatAskProps = { slash: learnSlash, journey, journeyStarter: null, journeySetup: inJourneySetup(journey.journey), tray: journey.trayProps, voice, nextStepRef: nextStepSend, canvasTarget: askTarget, onClearCanvasTarget: clearAskTarget };
+  const chatAskProps = { slash: learnSlash, voice, nextStepRef: nextStepSend, canvasTarget: askTarget, onClearCanvasTarget: clearAskTarget };
   const [titleDraft, setTitleDraft] = useState(null); // non-null only while the title is focused
   // Renaming a canvas from the top bar saves it on the server through the Rabbit Hole map's rename
   // (Dive.jsx), so the map, Home, Library and the placeholder follow; that rename calls saveTitle back.
@@ -2367,7 +2267,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   ];
   const canvasOutline = canvasState.outline || [];
   const outlineDisabled = !editor || answering || !!noteEditing;
-  const coursePanel = <CoursePanel planningOnly={suppliedCourse} state={course} app={app} onPreview={previewLesson} onDeleted={() => {
+  const coursePanel = <CoursePanel state={course} app={app} onPreview={previewLesson} onDeleted={() => {
           if (lesson.current?.lessonId?.startsWith('course-')) {
             playback.current?.dispose(); playback.current = null;
             lesson.current = null; setProgress(null); setNarration('');
@@ -2511,11 +2411,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           <ProvenanceRow provenance={provenance} repository={repository} end={false}>{repository && <RepositoryBadge repository={repository} />}</ProvenanceRow>
           </div>
         </div>}
-        {learningView === 'curriculum' && canAuthor && !(suppliedCourse && planOpen) && <div role="tablist" aria-label="Curriculum views" className="mb-4 flex gap-1">{[['edit', 'Edit course'], ['learner', 'Learner view']].map(([value, label]) => <button key={value} role="tab" aria-selected={value === 'edit' ? courseView : learnerOpen} disabled={course.dirty} className={`rounded px-3 py-1.5 text-xs hover:bg-hover ${(value === 'edit' ? courseView : learnerOpen) ? 'bg-hover font-medium' : 'text-ink-2'}`} onClick={() => { setCourseView(value === 'edit'); setSetupChat(value === 'edit'); setLearnerOpen(value === 'learner'); }}>{label}</button>)}</div>}
-        {planStorageError && <p role="alert" className="mb-3 text-xs text-red-700">{planStorageError}</p>}
-        {suppliedCourse && learningView === 'curriculum' && <LessonPlanPreview onPreview={editor && nanoProgress.loaded && !answering ? () => previewLesson(nanoLesson, true) : null} edits={canAuthor ? planEdits : {}} selectedSection={sectionTarget?.id} onEdit={target => { setSectionTarget(target); setSetupChat(true); }} course={course.course} learnerView={!canAuthor || learnerOpen} editorPanel={courseView ? coursePanel : null} view={planOpen ? 'plan' : 'curriculum'} selected={plannedLesson} onBack={() => { setPlanOpen(false); setSectionTarget(null); }} onSelect={index => { setPlannedLesson(index); setPlanOpen(true); }} />}
-        {courseView && !suppliedCourse && coursePanel}
-        {learnerOpen && !suppliedCourse && <LearnOutline allowSample={!isRepository && !isCanvas} onToggleComplete={toggleSection} completed={completed} state={course} sample={sampleOutline} onSampleChange={setSampleOutline} activeId={lesson.current?.lessonId} activePage={progress?.page} disabled={outlineDisabled} onOpen={openFromOutline} />}
+        {learningView === 'curriculum' && canAuthor && <div role="tablist" aria-label="Curriculum views" className="mb-4 flex gap-1">{[['edit', 'Edit course'], ['learner', 'Learner view']].map(([value, label]) => <button key={value} role="tab" aria-selected={value === 'edit' ? courseView : learnerOpen} disabled={course.dirty} className={`rounded px-3 py-1.5 text-xs hover:bg-hover ${(value === 'edit' ? courseView : learnerOpen) ? 'bg-hover font-medium' : 'text-ink-2'}`} onClick={() => { setCourseView(value === 'edit'); setSetupChat(value === 'edit'); setLearnerOpen(value === 'learner'); }}>{label}</button>)}</div>}
+        {courseView && coursePanel}
+        {learnerOpen && <LearnOutline allowSample={!isRepository && !isCanvas} onToggleComplete={toggleSection} completed={completed} state={course} sample={sampleOutline} onSampleChange={setSampleOutline} activeId={lesson.current?.lessonId} activePage={progress?.page} disabled={outlineDisabled} onOpen={openFromOutline} />}
         <div className={`${courseView || learningView !== 'lesson' ? 'hidden' : 'flex'} relative min-h-0 flex-1 flex-col`}>
         {!canvasState.presenting && ((!isRepository && !isCanvas) || progress) && <div aria-label="Current lesson and section" className="mb-4"><h2 className="text-lg font-semibold">Lesson {sampleIndex >= 0 ? sampleIndex + 1 : 1}: {currentLesson?.title}</h2><p className="mt-1 text-sm text-ink-2">Section {(progress?.page || 0) + 1} of {pages.length}: {progress?.label || pages[0].label}</p></div>}
         {graphError && <p role="alert" className="text-sm text-red-700">{graphError}</p>}
@@ -2526,7 +2424,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             iframe never move to another parent. */}
         {study.open && <StudyPane study={study} canvasApi={canvasApi} canvasFrame={canvasFrame} canvasState={canvasState} ready={restoredBoard === boardPath} />}
         <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className={OWNER_CANVAS} style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={<CanvasChromeLoading feedback top={48} study={study} />}><SearchContentProvider key={searchScope} registry={canvasSearch.registry}><DivePortals.Provider value={dive.portals}><NextStepsHost on={nextStepsHere} coaching={hooksCoaching} canvasApi={canvasApi} canvasState={canvasState} record={dive.tree?.dive || null} liveTitle={dive.tree?.path?.at(-1)?.title ?? app.title ?? null} recordPending={/^canvas-[a-f0-9]{8}$/.test(app.name) && !dive.tree} access={askScope} title={app.title || ''} graded={graded} describe={describeBlock} repositoryCommit={repository?.commit || null} shown={canvasState.curious !== false}>{steps => <ExplainBackService.Provider value={explainBack}><AnimationBoard.Provider value={animationBoard}><CardFeedbackScope.Provider value={feedbackScope}><AdaptiveCanvas key={canvasEpoch} {...comments.canvasProps} leftRail={voiceOn ? <TutorCaption caption={voice.caption} state={voice.state} /> : null}
-          hooks={steps ? <NextStepsCard steps={steps} onPick={(step, hook) => (step.section ? journey?.nextSection?.() : (chatRef.current?.panels.openChat(), nextStepSend.current?.(step, hook.hook)))} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} refLinks={refLinks} onLinkCanvas={setRefPick} onPinForStudy={study.pinCard} study={study} docView={docView} docReady={restoredBoard === boardPath} docError={restoredBoard === boardPath && sharing?.unavailable ? sharing.unavailable : null} onDocRetry={() => setBoardLoad(load => load + 1)} onDocDirty={() => setSaveState(previous => (previous?.state === 'error' ? previous : { state: 'saving' }))} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => openSourceFinder({ source })} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={journey.path ? 52 : (!panelOpen && canvasOutline.length ? 52 : 0)} storageKey={boardStorageKey} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} tutor={tutor.active ? tutor : null} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block" autoFocus /> : null} /></CardFeedbackScope.Provider></AnimationBoard.Provider></ExplainBackService.Provider>}</NextStepsHost></DivePortals.Provider></SearchContentProvider></Suspense>{/* The journey's Adaptive Contents Rail (§8, D5): inside the canvas frame, so it stays beside the Learn agent chat panel; pinned open while the path is reviewed. A materialized section frames its heading, any other entry opens its purpose. */}{journey.path && <ContentsRail placement="canvas" entries={pathEntries(journey.path, journey.prevPath).map(entry => ({ ...entry, open: entry.id === openEntry }))} pinned={journey.journey?.state === 'path_review'} empty={canvasEmpty(canvasState, exchanges)} onOpen={entry => (entry.heading_block_id ? canvasApi.current?.showSection(entry.heading_block_id) : setOpenEntry(id => (id === entry.id ? null : entry.id)))} />}{dive.emptyHint}{dive.confirmDialog}{refPick && <CanvasRefPicker exclude={commentBoard} onClose={() => setRefPick(null)}
+          hooks={steps ? <NextStepsCard steps={steps} onPick={(step, hook) => (chatRef.current?.panels.openChat(), nextStepSend.current?.(step, hook.hook))} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} refLinks={refLinks} onLinkCanvas={setRefPick} onPinForStudy={study.pinCard} study={study} docView={docView} docReady={restoredBoard === boardPath} docError={restoredBoard === boardPath && sharing?.unavailable ? sharing.unavailable : null} onDocRetry={() => setBoardLoad(load => load + 1)} onDocDirty={() => setSaveState(previous => (previous?.state === 'error' ? previous : { state: 'saving' }))} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => openSourceFinder({ source })} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={journey.path ? 52 : (!panelOpen && canvasOutline.length ? 52 : 0)} storageKey={boardStorageKey} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} tutor={tutor.active ? tutor : null} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block" autoFocus /> : null} /></CardFeedbackScope.Provider></AnimationBoard.Provider></ExplainBackService.Provider>}</NextStepsHost></DivePortals.Provider></SearchContentProvider></Suspense>{/* The journey's Adaptive Contents Rail (§8, D5): inside the canvas frame, so it stays beside the Learn agent chat panel; pinned open while the path is reviewed. A materialized section frames its heading, any other entry opens its purpose. */}{journey.path && <ContentsRail placement="canvas" entries={pathEntries(journey.path, journey.prevPath).map(entry => ({ ...entry, open: entry.id === openEntry }))} pinned={journey.journey?.state === 'path_review'} empty={canvasEmpty(canvasState, exchanges)} onOpen={entry => (entry.heading_block_id ? canvasApi.current?.showSection(entry.heading_block_id) : setOpenEntry(id => (id === entry.id ? null : entry.id)))} />}{dive.emptyHint}{dive.confirmDialog}{refPick && <CanvasRefPicker exclude={commentBoard} onClose={() => setRefPick(null)}
             linked={refPick.blockId ? ((canvasApi.current?.liveRefs?.() || []).find(entry => entry.blockId === refPick.blockId)?.refs || []).map(ref => ref.target) : []}
             returnFocus={() => (refPick.blockId ? document.querySelector(`[data-block-id="${CSS.escape(refPick.blockId)}"]`) : null)}
             onPick={async canvas => {
@@ -2557,7 +2455,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         </div>}
         {/* ponytail: the lesson reading strip is parked while the adaptive canvas
             fills the lesson surface; its content model moves onto the canvas */}
-        {false && <div className="mt-5">{nanoActive ? <NanoLessonReading page={progress?.page || 0} progress={nanoProgress} canvasPick={canvasPick} onSource={source => { pauseLesson(); setPaperOpen(false); setSourceOpen(false); setLessonSource(source); }} /> : isRepository ? <p className="whitespace-pre-wrap text-sm text-ink-2">{narration}</p> : <LessonReading architecture={lesson.current?.lessonId === architectureLesson.id} page={progress?.page || 0} narration={narration} onSource={() => { pauseLesson(); setSourceOpen(true); }} onNotebook={() => changeLearningView('notebook')} />}</div>}
+        {false && <div className="mt-5">{isRepository ? <p className="whitespace-pre-wrap text-sm text-ink-2">{narration}</p> : <LessonReading architecture={lesson.current?.lessonId === architectureLesson.id} page={progress?.page || 0} narration={narration} onSource={() => { pauseLesson(); setSourceOpen(true); }} onNotebook={() => changeLearningView('notebook')} />}</div>}
         </div>
         {/* the agent textbox now docks inside the canvas, level with the zoom pill */}
         {!courseView && learningView === 'notes' && <Suspense fallback={<p className="text-sm text-ink-2">Loading notes</p>}><LearnNotes saveRef={noteSave} onChange={setNoteChanged} records={noteRecords} editing={noteEditing} onSave={saveNote} onDelete={removeNote} onResume={returnToNoteLesson} onEdit={record => { setNoteChanged(false); setNoteEditing(record); }} onReturn={() => setNoteEditing(null)} loaded={notesLoaded} error={notesError} /></Suspense>}
@@ -2589,16 +2487,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       {/* Progress (owner 2026-10-22: a tab here, no column beside Chat) keeps its viewed goal, open skill and goal drafts while
           another tab shows. Its Close and Escape go back to Chat. */}
       {shown.current.has('progress') && <div role="tabpanel" aria-label="Progress" data-progress-tab className={`${panelTab === 'progress' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}>
-        <LearnProgress scope={{ app: chat.canvas, board: boardName }} coaching={chat.coaching} composer={chat.composer} chat={chat} journey={journey} onClose={() => { setPanelTab('chat'); requestAnimationFrame(() => document.querySelector('[data-panel-tab="chat"]')?.focus()); }} /></div>}
+        <LearnProgress scope={{ app: chat.canvas, board: boardName }} coaching={chat.coaching} composer={chat.composer} chat={chat} onClose={() => { setPanelTab('chat'); requestAnimationFrame(() => document.querySelector('[data-panel-tab="chat"]')?.focus()); }} /></div>}
       {/* The Table of contents tab: the outline, and under it any open reader, as before the header. */}
       <div role="tabpanel" aria-label="Table of contents" className={`${panelTab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}
         ref={tocPanel} onScrollCapture={event => { if (event.target.matches?.('[data-toc]')) tocScroll.current = event.target.scrollTop; }}>
       {/* The table of contents IS the lesson's structure (TableOfContents.jsx). Its scroll container's sizing is the page's. */}
       <TableOfContents subtitle={project?.repo || app.repo || (project ? cardModel(project).title : null)} goal={tocGoal} outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={canvasState.activeSection ?? null} readOnly={!canEditCanvas} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
-        plan={tocPlan} planRevision={planRevision} evidence={journeyGoal ? { app: chat.canvas, board: boardName, goalId: journeyGoal.goalId, revision: coachingState?.revision } : null}
-        onProgress={panels.openProgress} onResume={tocPlan.learningNow ? resumeFromToc : null}
         className={`mb-3 flex ${setupChat ? 'max-h-[45%] shrink-0' : 'min-h-0'} flex-col overflow-y-auto`} />
-      {setupChat && <CourseInterview state={course} app={app} sectionEditor={suppliedCourse ? sectionEditor : null} />}
+      {setupChat && <CourseInterview state={course} app={app} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} shrink-0 flex-col`}>
       {narration && !paperOpen && !wikiOpen && !sourceOpen && !lessonSource && !learnerOpen && <details className="mb-3 max-h-40 overflow-auto rounded border border-line p-3 text-sm" open><summary className="cursor-pointer text-xs font-medium">Current page explanation</summary><p className="mt-2 whitespace-pre-wrap text-ink-2">{narration}</p></details>}
       </div>
@@ -2606,11 +2502,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           the learner's own request, so it applies to the contents at once (the outline renumbers itself); one that cannot
           apply (stale or refused) waits as the Apply/Discard card with its reason. */}
       {!setupChat && (app.hosting !== 'aws' || app.app_chat) && <TocWorkspace key={app.name}><TocConversation {...chatAskProps} scope={askScope} appName={app.name} chatConfig={app.app_chat} conversation="learn" placeholder="Describe your goal or refine the outline"
-        codebase={repository} repositoryExcerpt={repositoryExcerpt} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository}
-        boardContext={{ ...boardContext, onOutlineProposal: canEditCanvas ? proposal => { const result = canvasApi.current?.applyOutline(proposal.ops, { base: proposal.base, source: proposal.source, planBase: proposal.planBase, plan: planRevisionRef.current }); if (!result?.ok) setProposal(proposal); } : undefined }} /></TocWorkspace>}
+        codebase={repository} repositoryExcerpt={repositoryExcerpt} repositoryContext={!repoAttached ? null : repositoryContext} onClearRepository={onClearRepository}
+        boardContext={{ ...boardContext, onOutlineProposal: canEditCanvas ? proposal => { const result = canvasApi.current?.applyOutline(proposal.ops, { base: proposal.base, source: proposal.source }); if (!result?.ok) setProposal(proposal); } : undefined }} /></TocWorkspace>}
       </div>
       <ChatPane key={app.name} hidden={panelTab !== 'chat'} chatAskProps={chatAskProps} unavailable={app.hosting === 'aws' && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : null}
-        codebase={repository} onGraph={onGraph} repositoryExcerpt={repositoryExcerpt} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" boardContext={boardContext} placeholder={askPlaceholder}
+        codebase={repository} onGraph={onGraph} repositoryExcerpt={repositoryExcerpt} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" boardContext={boardContext} placeholder={askPlaceholder}
         // Focus on open only beside the canvas (lg up): below lg the pane stacks under the canvas, and focusing it scrolled
         // the page past Learn's header strip.
         autoFocus={!!globalThis.matchMedia?.('(min-width: 1024px)').matches} />
@@ -2624,8 +2520,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     {/* With sections on the canvas the rail mirrors the panel's table of
         contents - hover opens it, a click frames that section, and the panel
         stays closed. A canvas with no sections shows no rail (user, 2026-09-29).
-        A canvas with a journey path shows the path rail in the canvas frame instead. */}
-    {!panelOpen && !journey.path && <ContentsRail entries={canvasOutline.map((entry, index) => ({ n: index + 1, label: entry.label, available: true, active: false, section: entry.id }))}
+        */}
+    {!panelOpen && <ContentsRail entries={canvasOutline.map((entry, index) => ({ n: index + 1, label: entry.label, available: true, active: false, section: entry.id }))}
       onOpen={entry => { if (entry.section) { canvasApi.current?.showSection(entry.section); return; } setPanelOpen(false); openFromOutline(entry.content, 'lesson', 0); }} />}
   </main>;
 }
