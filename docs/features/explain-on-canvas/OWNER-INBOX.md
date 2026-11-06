@@ -16,7 +16,7 @@ Three states are kept apart everywhere below: **Deployed** (the production deplo
 | Cleanup P4 Journeys/syllabus off | yes (with R2) | no flag | tests/preview only |
 | R2 Depth, Auto-suggest | yes (run 42250400898, SHA d2428e357) | no flag | tests/preview only |
 | Cleanup P5 Duplicate grading off | yes (run 42253670464, SHA d870aef1f) | no flag | tests/preview only |
-| R4 Roadmap loop | yes (run 42257418795, SHA fe9410689; Durable Object class created in prod) | `ROADMAP_ENABLED` **false** (unset everywhere) | fakes only; real-model and Durable Object run in progress (section 3) |
+| R4 Roadmap loop (63 loop, 64 wiring + S26/S27 drafts, 65 flag-on) | yes: 63 run 42257418795, 64 run 42262160608, 65 run 42265221173 (SHA 3b9348449, 09:57 PT, after one retry of a Cloudflare D1 time-travel 500) | `ROADMAP_ENABLED` **true** in prod | NOT done: real-model and Durable Object qualification pending (section 3); S26/S27 are unapproved drafts |
 | R6 Automatic next proposals | no, in build (lane A) | false | not started |
 | R5 Proposal editing | no, queued behind R6 in lane A | false | not started |
 | R7a Long Markdown | no, in build (lane B) | false | not started |
@@ -36,7 +36,7 @@ Pin 65 (turns the roadmap ON in production; SHA `3b9348449e36fcfde1be02256d742ab
 
 ## 3. R4 activation path (priority lane)
 
-Order: 63 deployed (done), then 64 wiring plus safety responses, then qualification reviewed, then 65 flag-on.
+Order: 63, 64 and 65 are all deployed (the owner chose to release 65 before the qualification finished); the roadmap is ON in production without functional acceptance. Qualification continues.
 Decided: D2 routing exception adopted, D43 safety policy adopted, $25 real-model cap approved (hard stop $25; inbox worst case $24.72), dev 0039 applied, strings S1-S10, S28, S11-S25, S29 approved. Defaults applied for D-R4-5..10 (active-to-proposed edits, deterministic proposals, empty click allowed, held card refunded, Durable Object alarm for the 24 h deadline).
 Built: 64 (settings reader wiring, S26/S27 safety responses as DRAFT text) and 65 (one-line prod flag), both previewed. Blocked: the real-model and Worker/Durable Object qualification needs the dev clone deployed by you (launcher above); nothing has been spent (ledger `C:\s\spec\logs\r4-qual-ledger.md` at $0.00 of $25). S26 DRAFT: "I can't make this explanation. It is outside what I can create here. You were not charged." S27 DRAFT: "I did not make this explanation, and you were not charged. If you are in danger or thinking about hurting yourself, please call your local emergency number or a crisis line in your area. You do not have to deal with this alone."
 Still unmeasured: planner quality, grounding and safety thresholds, roadmap check seconds (placeholders 10/15 s because the CI split is saturated).
