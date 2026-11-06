@@ -16,6 +16,7 @@ Stacked release candidate `feat/tutor-r4-release` (MVP fast path, owner label 20
 
 - `shared-privacy.js`, `repository-schema.sql` (0039 mirror moved to the tail after 0038; `schema-check` passes), `scripts/ci/check-map.json` (textual insert) resolved; `LearnPage.jsx` and `ask.jsx` kept the chain's version and the mount re-applied.
 - Lead patches, each its own commit: six `roadmap_*` model roles (registry-order test line adapted to P3/P4's `learn-models.js`), `ROADMAP_JOBS` binding and tag `roadmap-jobs-1` (dev, parallel, production; pinned production config test), dev-worker route mount + `export { RoadmapJobs }` + `registerRoadmapHandlers()` + scheduled kick, `rh_roadmap_step` analytics event, check-map rows.
+- check-map seconds: the broad fast-e2e split (`check-map.test.mjs`, six parts, 15 minutes each) is saturated at the R2 tip (largest part exactly 900 s). The two roadmap checks (never executed; browser rule) are recorded at the 10 s floor and 15 s, which is the most the split admits (the Lead patch's 60/90 gives 925). These are placeholders, not measurements: before activation measure them in CI and either raise them with a seventh part or retire slower checks.
 - One stack fix found by the full-loop test: with R3's table present, a plan step's `sourceRef.anchor.quote` in the polled view was source text ("polling never carries the text"). `roadmap-view.js` now keeps only `{v,id,kind,source}` in the view; the delivered card still carries the full reference. The UI reads only `source.name` and `source.key`.
 
 ## Migrations and bindings

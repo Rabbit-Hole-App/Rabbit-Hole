@@ -1449,8 +1449,8 @@
   ],
   "secondsSource": "Linux checks: the slowest of their own run times in the broad fast-e2e runs 40949767874, 40962133652, 40972238197, 40976026821 and 40980272647 (2026-10-29), rounded up to 5 s, at least 10 (a check not in those runs keeps its earlier value, from run 38501772960, Task B4, or as added); windows-only: placeholder. The planner (affected.mjs parts) balances on these, so a value far from the real time puts too much on one part: run 40969234666 hit the 20-minute job limit that way",
   "checks": {
-    "roadmap-command-check.mjs": {"runner": "fork", "seconds": 60},
-    "roadmap-mvp-check.mjs": {"runner": "fork", "seconds": 90},
+    "roadmap-command-check.mjs": {"runner": "fork", "seconds": 10},
+    "roadmap-mvp-check.mjs": {"runner": "fork", "seconds": 15},
     "brand-title-check.mjs": {"runner":"fork","seconds":15},
     "client-telemetry-check.mjs": {"runner": "fork", "seconds": 10},
     "usage-analytics-check.mjs": {"runner": "fork", "seconds": 30},
