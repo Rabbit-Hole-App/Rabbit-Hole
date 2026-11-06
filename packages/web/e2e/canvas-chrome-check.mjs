@@ -12,10 +12,9 @@
 // clear of the composer, the hooks, the minimap and zoom (a bottom inset). UI-19 (owner, 2026-10-21): the tools stay one
 // vertical column at the canvas's left edge at every width (floating over it since the owner decision of 2026-10-22), and the one minimap sits above the zoom row at every width, a phone too. Against the
 // LOCAL keyless stack only: the hook planner answers from its fixtures, the provider tripwire must count 0, nothing is sent but
-// the owned pages' one learner turn each, answered here. Owner decision 3a (2026-10-20, Tutor workflow): owned-canvas hooks are
-// proactive Tutor suggestions - only while Tutor is selected, On and unpaused, never on open, loaded only after a meaningful
-// learner change - so the owned canvas selects Tutor (its saved control) and each owned page takes one finished learner turn
-// before its hooks are measured, as next-steps-wiring-check does. The shared canvas reads its saved set at rest and never
+// a model route. Owner decision 3a (2026-10-20, Tutor workflow): owned-canvas hooks are proactive suggestions - only while Tutor
+// is selected, On and unpaused, never on open - so the owned canvas selects Tutor (its saved control) and each owned page presses the
+// card's Suggest before its hooks are measured, as next-steps-wiring-check does. The shared canvas reads its saved set at rest and never
 // generates on open (owner priority 1, 2026-10-21): with none saved its card offers Suggest, pressed here (sharedReady).
 // Usage: BASE=http://127.0.0.1:8858 SMALL_CP=http://127.0.0.1:8859 [TEST_BYPASS_SECRET=<that stack's>] node e2e/canvas-chrome-check.mjs [shotsDir]
 // The hooks must load, so the stack's hook planner must answer without a model: a keyless stack (e2e/journey-local-stack.md,
@@ -56,22 +55,18 @@ assert.ok(token, 'a share link');
   const picked = await fetch(`${BASE}/api/learn/coaching`, { method: 'POST', headers: { cookie: `small_session=${owner.session}`, 'content-type': 'application/json' }, body: JSON.stringify({ app: canvas.name, board: 'main', actionId: `tutor-${run}`, expectedRevision: state.revision, action: 'save_controls', payload: { event: { type: 'select_mode', mode: 'tutor' } } }) });
   assert.equal(picked.status, 200, 'Tutor selected on the owned canvas');
 }
-const QUESTION = 'Why does bread dough rise?', REPLY = 'Yeast makes gas and the gluten traps it.';
 
 const browser = await chromium.launch();
-const errors = [], sent = [], turns = [];
+const errors = [], sent = [];
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
-const open = async (who, path, viewport, { turn = false } = {}) => {
+const open = async (who, path, viewport) => {
   const context = await browser.newContext({ viewport });
   await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
   await context.addInitScript(entries => { for (const [key, value] of Object.entries(entries)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, seed);
   // Nothing else is asked: a question would be a send. The hook requests are the real route, answered by the stack's fixtures.
   // The Chat pane's thread list (/api/ask/threads) is not a question: it passes.
-  await context.route(/\/api\/(ask(?!\/threads)|learn\/(ask|tutor\/plan|home-ask|artifact))\b/, route => { sent.push(new URL(route.request().url()).pathname); return route.abort(); });
-  // An owned page's one learner turn (owner 3a): the Tutor plan answered here, never by a model (the keyless stack has no
-  // Tutor-plan fixture). Registered last, so it runs before the refusal above.
-  if (turn) await context.route('**/api/learn/tutor/plan', route => { turns.push(route.request().postDataJSON()?.context?.learner_intent?.raw_user_message ?? null); return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: REPLY }] } }); });
+  await context.route(/\/api\/(ask(?!\/threads)|learn\/(ask|tutor\/(plan|evaluate|handoff)|home-ask|artifact))\b/, route => { sent.push(new URL(route.request().url()).pathname); return route.abort(); });
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message.slice(0, 160)));
   await page.goto(`${BASE}${path}`);
@@ -181,14 +176,12 @@ const settle = page => page.getByText('You are seeing the latest saved version o
 
 for (const [label, viewport, phone] of [['1440', { width: 1440, height: 900 }, false], ['1024', { width: 1024, height: 768 }, false], ['phone', { width: 390, height: 844 }, true]]) {
   await check(`owned canvas at ${label}: the canvas runs under the floating strip; the minimap above the zoom row, the hooks at the lower right on the strip's baseline${phone ? ' (a phone: at the right, above the Chat pane)' : ''}; no chrome over the Chat pane; the controls and the Chat composer take the pointer, the empty strip passes it on; a fit clears the chrome`, async () => {
-    const page = await open(owner, `/apps/${canvas.name}`, viewport, { turn: true });
+    const page = await open(owner, `/apps/${canvas.name}`, viewport);
     await page.locator('[data-block-id="c-1"]').waitFor({ timeout: 60000 });
-    // Owner 3a: the saved controls read (Tutor On), then the learner's own finished turn brings the first set.
+    // Owner 3a: the saved controls read (Tutor On), then the card's own Suggest brings the first set (since Tutor cleanup P2 a finished
+    // Chat turn is no trigger, so no turn is sent here).
     await page.locator('[data-chat-pane] [data-tutor-switch="on"] [role="switch"]:enabled').waitFor({ timeout: 60000 });
-    const field = page.locator('[data-chat-pane] [data-chat-composer] textarea').first();
-    await field.fill(QUESTION);
-    await field.press('Enter');
-    await page.locator('[data-chat-pane] [data-answer]').filter({ hasText: REPLY }).first().waitFor({ timeout: 30000 });
+    await page.locator('[data-hooks-slot] [data-next-steps-request]').click({ timeout: 30000 });
     await page.locator('[data-canvas-surface]').scrollIntoViewIfNeeded();
     await ready(page);
     await page.waitForTimeout(600);
@@ -250,10 +243,9 @@ await check('a set on its way is a skeleton with a spinner - the same card size 
 // A stack without the tripwire (the keyless journey stack: no key to trip) answers it with no JSON: counted as absent.
 const tripwire = await Promise.all([BASE, CP].map(async origin => (await (await fetch(`${origin}/__provider-tripwire`)).json().catch(() => null))?.hits?.length ?? 0));
 console.log(`provider tripwire: ${tripwire.join(', ')}`);
-await check('no page errors, nothing sent but the 3 owned pages\' learner turns (answered here), the provider tripwire at 0 where present', async () => {
+await check('no page errors, nothing sent to a model route, the provider tripwire at 0 where present', async () => {
   assert.deepEqual(errors, []);
   assert.deepEqual(sent, []);
-  assert.deepEqual(turns, [QUESTION, QUESTION, QUESTION]);
   assert.deepEqual(tripwire, [0, 0]);
 });
 await browser.close();

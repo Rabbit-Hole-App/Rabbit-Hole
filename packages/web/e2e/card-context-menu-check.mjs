@@ -44,9 +44,6 @@ const contextFor = async (who, viewport = { width: 1440, height: 900 }) => {
   await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
   await context.addInitScript(seeds => { for (const [key, value] of Object.entries(seeds)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, SEEDS);
   await context.route('**/api/learn/ask', route => { asks.push(route.request().url()); return route.abort(); });
-  // Start Rabbit Hole opens a hole whose opening question is a Tutor turn (#46): answered here, as shared-rabbit-hole-check
-  // does; the planner's real wiring is covered on the journey stack.
-  await context.route('**/api/learn/tutor/plan', route => route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'What would you like to explore first?' }] } }));
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   return { context, page };
@@ -191,26 +188,14 @@ await check('5 a kept hole: the card is its portal, and right-click Start Rabbit
   // holes open from (Dive.jsx dive(): no tree). Wait for that state - the navigator showing this level alone - not a
   // fixed time: under load the reload outlasted the 800 ms above and the Start click went nowhere (2026-10-13).
   await page.waitForFunction(root => { const levels = [...document.querySelectorAll('[data-dive-navigator] [data-dive-level]')]; return levels.length === 1 && levels[0].dataset.diveLevel === root; }, ROOT.split('/').pop(), { timeout: 30000 });
-  // #46 review finding: a command typed while the hole's opening Tutor turn is in flight is held (never dropped) and runs
-  // once it ends. Owner decision 4a: the opening waits above the composer until the learner presses it, so the check presses
-  // it; its plan request is held here until the command is typed.
-  let release;
-  const held = new Promise(resolve => { release = resolve; }), opening = page.waitForRequest('**/api/learn/tutor/plan', { timeout: 45000 });
-  await page.route('**/api/learn/tutor/plan', async route => { await held; return route.fallback(); });
+  // A Rabbit Hole sends no opening question (the browser Tutor is gone), so a command typed in the new hole runs at once and
+  // asks no model (asks stays empty, checked at the end).
   await rightClick('m-b');
   await startItem().click();
   await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 15000 });
-  await page.locator('[data-tutor-opening-waiting] button').first().click({ timeout: 15000 }); // owner 4a
-  await opening;
   const composer = page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
   await composer.click(); await composer.fill('/notebook'); await page.waitForTimeout(150); await composer.press('Enter'); // /whiteboard left the commands (owner spec 2026-10-29)
-  await page.waitForTimeout(500);
-  assert.ok(url().searchParams.get('hole'), 'the command waits while the opening turn runs');
-  assert.equal(await composer.inputValue(), '/notebook', 'held, not dropped or cleared');
-  release();
-  await page.getByText('What would you like to explore first?').first().waitFor({ timeout: 20000 });
   await page.waitForFunction(() => /^\/apps\/canvas-[a-f0-9]{8}$/.test(location.pathname) && !location.search.includes('hole='), null, { timeout: 20000 });
-  await page.unroute('**/api/learn/tutor/plan');
   const kept = url().pathname.split('/').pop();
   const children = (await tree()).children;
   assert.deepEqual(children.map(child => [child.name, child.origin_block_id]), [[kept, 'm-b']]);

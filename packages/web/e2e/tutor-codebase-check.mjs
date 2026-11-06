@@ -90,7 +90,7 @@ const coachingOf = async name => (await api(`/api/learn/coaching?app=${name}&boa
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1600, height: 950 } });
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
-const errors = [], model = [], asks = [], plans = [], hooks = [], codebasePosts = [], attempts = [];
+const errors = [], model = [], asks = [], hooks = [], codebasePosts = [], attempts = [];
 const MODEL = path => path.startsWith('/api/learn/tutor/') && !path.startsWith('/api/learn/tutor/attempts')
   || ['/api/learn/artifact', '/api/learn/home-ask', '/api/ask', '/api/learn/assess', '/api/learn/inline/generate', '/api/learn/inline/route'].includes(path)
   || /^\/api\/repositories\/[^/]+\/(ask|learn-course)$/.test(path);
@@ -107,16 +107,9 @@ await context.route('**/*', route => {
       + frame('answer_meta', { messageId: `m-${n}`, actions: [], followUps: [], alternatives: [`m-${n}`], kind: 'answer', syllabus: null })
       + frame('done', { ok: true, threadId: body.thread_id || `tcode-thread-${run}`, userMessageId: `u-${n}`, messageId: `m-${n}` }) });
   }
-  // Proactive hooks (owner 3a): in selected, enabled Tutor a finished Tutor turn may refresh them (learn-next-steps.js
-  // hooksTrigger); answered empty and counted, so the check can show what does and does not ask.
+  // Proactive hooks (owner 3a): in selected, enabled Tutor they ask only on a canvas change or the card's Suggest (learn-next-steps.js
+  // hooksTrigger; a Chat turn is no trigger since Tutor cleanup P2); answered empty and counted, so the check can show what asks.
   if (path === '/api/learn/tutor/next-steps') { hooks.push(1); return route.fulfill({ json: { set_id: `tcode-set-${hooks.length}`, generated_at: new Date().toISOString(), options: [] } }); }
-  // The teaching Tutor's planner on a repository canvas (tutor-entry-check's script): one plain answer, no handoff.
-  if (path === '/api/learn/tutor/plan' && request.method() === 'POST') {
-    const body = JSON.parse(request.postData() || '{}'), n = plans.push(body);
-    const plan = { strategy: 'none', move: 'explain', reason: '', actions: [{ type: 'respond_text', text: `Scripted Tutor answer ${n}.` }] };
-    return body.stream ? route.fulfill({ contentType: 'application/x-ndjson', body: `${JSON.stringify({ type: 'plan', ...plan })}
-` }) : route.fulfill({ json: plan });
-  }
   if (MODEL(path)) { model.push(`${request.method()} ${path}`); return route.abort(); }
   return route.continue();
 });
@@ -146,7 +139,7 @@ await check('a project canvas in Tutor offers the five codebase goals; opening a
   assert.deepEqual(await menu().locator('[data-codebase-goal]').evaluateAll(nodes => nodes.map(n => n.dataset.codebaseGoal)), ['understand_feature', 'debug_behavior', 'make_change', 'prepare_contribute', 'learn_concept']);
   for (const name of ['Learn something else', 'Continue my own work', 'Not now']) assert.equal(await menu().getByRole('button', { name, exact: true }).count(), 1, name);
   assert.equal(await page.locator('[data-tutor-entry]').count(), 0, 'the codebase menu stands in for the general welcome');
-  assert.deepEqual([model, plans, hooks, codebasePosts], [[], [], [], []], 'nothing read for a goal, no Tutor turn, no hook, no model');
+  assert.deepEqual([model, asks, hooks, codebasePosts], [[], [], [], []], 'nothing read for a goal, no Chat turn, no hook, no model');
   await shot('codebase-01-menu');
 });
 
@@ -160,14 +153,15 @@ await check('Learn something else returns the general welcome; a typed unrelated
   await page.waitForTimeout(500);
   assert.equal(await menu().count(), 0, 'typing skips the menu');
   await field().press('Enter');
-  // Tutor mode on a repository canvas answers through the Tutor's planner; the request is the learner's words and the canvas,
-  // never repository source (the repository_context handoff refuses an unrelated request on the server: unit-tested).
-  await pane().getByText('Scripted Tutor answer 1.').first().waitFor({ timeout: 15000 });
-  const plan = plans.at(-1), sent = JSON.stringify(plan);
-  assert.equal(plan.context.learner_intent.raw_user_message, 'Explain the water cycle');
+  // Tutor mode on a repository canvas is an ordinary Chat turn, POST /api/learn/ask (Tutor cleanup P2); the request is the learner's
+  // words and the canvas, never repository source.
+  await pane().getByText(/Scripted answer \d+\./).first().waitFor({ timeout: 15000 });
+  const ask = asks.at(-1), sent = JSON.stringify(ask);
+  assert.equal(asks.length, 1, 'one Chat turn');
+  assert.equal(ask.message, 'Explain the water cycle');
   for (const source of ['completionPercent', 'src/progress.js', 'Math.round', SECRET_VALUE]) assert.equal(sent.includes(source), false, `no repository source in the request (${source})`);
-  assert.deepEqual([model, codebasePosts], [[], []], 'no codebase route, no handoff, no model');
-  await page.waitForTimeout(4000); // the finished Tutor turn's hook refresh (debounced 1.2 s) lands here, not in the next step
+  assert.deepEqual([model, codebasePosts], [[], []], 'no codebase route, no model');
+  await page.waitForTimeout(4000); // a Chat turn is no hook trigger: nothing is asked here either
   await shot('codebase-02-water-cycle');
 });
 
@@ -441,7 +435,7 @@ await check('returning: Continue where I left off is primary beside Short recap,
   await page.waitForFunction(() => document.querySelector('[data-tutor-switch]')?.dataset.tutorSwitch === 'off', null, { timeout: 10000 });
   assert.equal(await entry().count(), 0);
   assert.equal((await controlsOf(CANVAS)).tutorEnabled, false, 'Continue my own work turns proactive Tutor Off');
-  await pane().getByRole('switch', { name: 'Proactive Tutor suggestions' }).click();
+  await pane().getByRole('switch', { name: 'Auto-suggest' }).click();
   await page.waitForFunction(() => document.querySelector('[data-tutor-switch]')?.dataset.tutorSwitch === 'on', null, { timeout: 10000 });
   assert.deepEqual(model, []);
 });
@@ -497,10 +491,10 @@ await check('Tutor Off shows no codebase menu; Not now keeps it away across a re
   await open(name);
   await pickMode('Tutor');
   await menu().waitFor({ timeout: 15000 });
-  await pane().getByRole('switch', { name: 'Proactive Tutor suggestions' }).click();
+  await pane().getByRole('switch', { name: 'Auto-suggest' }).click();
   await page.waitForTimeout(800);
   assert.equal(await menu().count(), 0, 'Off: no unsolicited offer');
-  await pane().getByRole('switch', { name: 'Proactive Tutor suggestions' }).click();
+  await pane().getByRole('switch', { name: 'Auto-suggest' }).click();
   await menu().waitFor({ timeout: 10000 });
   await menu().getByRole('button', { name: 'Not now', exact: true }).click();
   await page.waitForTimeout(800);
@@ -512,7 +506,7 @@ await check('Tutor Off shows no codebase menu; Not now keeps it away across a re
 
 assert.deepEqual(model, [], `no model request: ${model.join()}`);
 assert.deepEqual(errors, [], `page errors: ${errors.join(' | ')}`);
-console.log(`codebase posts: ${codebasePosts.join(',')}; attempts: ${attempts.length}; scripted Tutor turns: ${plans.length}; hook refreshes: ${hooks.length}; scripted asks: ${asks.length}`);
+console.log(`codebase posts: ${codebasePosts.join(',')}; attempts: ${attempts.length}; hook refreshes: ${hooks.length}; scripted asks: ${asks.length}`);
 const total = 13;
 console.log(`PASS ${results.length}/${total} checks`);
 assert.equal(results.length, total);

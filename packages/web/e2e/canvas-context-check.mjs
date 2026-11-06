@@ -1,9 +1,9 @@
 // Whole-canvas context payload check (owner brief 2026-10-14, agent-coordination/tasks/2026-10-14-whole-canvas-context-OWNER.md,
 // contract v1.1; sub-lanes: tasks/canvas-context-SUBLANES.md). Against the LOCAL stack only: local D1 and fresh browser profiles.
-// No model is ever called: the Learn ask (an SSE stream: chunk, answer_meta, done) and the Tutor planner (a plain JSON plan) are
-// answered here with canned text, their request bodies are CAPTURED, and every other model-capable route is aborted and counted.
-// The wiring under test: the package arrives as top-level `canvas_context` in the JSON body of /api/learn/ask and
-// /api/learn/tutor/plan, and the "This canvas" chip ([data-canvas-context]) carries data-canvas-coverage = coverage.summary.
+// No model is ever called: the Learn ask (an SSE stream: chunk, answer_meta, done) is
+// answered here with canned text, its request bodies are CAPTURED, and every other model-capable route is aborted and counted.
+// The wiring under test: the package arrives as top-level `canvas_context` in the JSON body of /api/learn/ask (every Chat mode
+// posts there since Tutor cleanup P2), and the "This canvas" chip ([data-canvas-context]) carries data-canvas-coverage = coverage.summary.
 // Also covered: freehand ink (unavailable, never full), a repo-* project canvas (the repositoryAsk path, via the repository fixture
 // nanogpt-repository-fixture.mjs: no clone, no D1 row) and a large package against that route's 64,000-character body gate.
 // Prints `ok <label>` per check, counts and ids only (no cookies, no secrets, no request bodies); exits 1 on any failure.
@@ -176,11 +176,6 @@ const router = async route => {
       frame('chunk', { text: `Canned reply ${reply}.` })
       + frame('answer_meta', { messageId, actions: [], followUps: [], alternatives: [messageId], kind: body.mode === 'tutor' ? 'clarify' : 'answer', syllabus: null })
       + frame('done', { ok: true, threadId: body.thread_id || `cc-thread-${++threads}`, userMessageId: `u-${reply}`, messageId }) });
-  }
-  if (path === '/api/learn/tutor/plan') {
-    const reply = ++replies;
-    captured.push({ route: 'plan', path, body, raw, reply });
-    return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', constraints_add: [], actions: [{ type: 'respond_text', text: `Canned reply ${reply}.` }] } });
   }
   if (path === '/api/learn/tutor/evaluate') return route.fulfill({ json: { status: 'settled', evaluator: 'jev', events: [] } });
   if (/^\/api\/learn\/chat\/(threads|messages)\//.test(path)) return route.fulfill({ json: { ok: true } }); // the canned thread ids exist nowhere
@@ -424,7 +419,7 @@ const A = boards.A, packs = {};
 const ABOUT_OLD = 'Walk me through how a fresh key finds its slot and becomes a leaf.';
 const WHOLE = 'Look across everything here and tell me what stands out.';
 const SEL = 'f-16', X = 'f-14';
-const NAME = { auto: 'Auto (Tutor plan)', ask: 'Ask', tutor: 'Tutor' };
+const NAME = { auto: 'Auto', ask: 'Ask', tutor: 'Tutor' };
 
 await openBoard(A);
 
@@ -446,26 +441,21 @@ await check('the "This canvas" chip keeps its words and describes its coverage o
   assert.ok(text.includes(String(A.ids.length)) || /\d+ objects/.test(text), 'it counts the objects');
 });
 
-// Auto (Tutor plan), Ask and Tutor, each with no selection and with a selection.
+// Auto, Ask and Tutor, each with no selection and with a selection.
 for (const mode of ['auto', 'ask', 'tutor']) {
   for (const selected of [false, true]) {
     const key = `${mode}-${selected ? 'selection' : 'no-selection'}`;
     await check(`${NAME[mode]}, ${selected ? `with ${SEL} selected and a whole-board request` : 'no selection, a request about the old block'}: the package is complete, valid and the chip agrees`, async () => {
-      const before = { ask: captured.filter(c => c.route === 'ask').length, plan: captured.filter(c => c.route === 'plan').length };
+      const before = captured.filter(c => c.route === 'ask').length;
       const cap = await turn(selected ? WHOLE : ABOUT_OLD, { mode, pick: selected ? SEL : null });
       packs[key] = cap;
       const pkg = cap.pkg, body = cap.body;
-      // The route: Auto and Tutor go to the Tutor planner (beside its context), Ask to /api/learn/ask with its mode. Owner decision
-      // 1a (2026-10-20): Chat's Tutor is the teaching Tutor; the syllabus moved to the Table of contents conversation.
-      if (mode === 'auto' || mode === 'tutor') {
-        assert.equal(cap.route, 'plan', `${mode} posts to /api/learn/tutor/plan`);
-        assert.ok(body.context && typeof body.context === 'object', 'the plan keeps its context');
-        assert.ok(!body.context.canvas_context?.cards, 'the six-block cards slice is gone from the plan context');
-      } else {
-        assert.equal(cap.route, 'ask', `${mode} posts to /api/learn/ask`);
-        assert.equal(body.mode, mode, 'the ask carries its mode');
-      }
-      assert.equal(captured.filter(c => c.route === 'ask').length + captured.filter(c => c.route === 'plan').length, before.ask + before.plan + 1, 'one model request');
+      // The route: every mode posts to /api/learn/ask. Chat's Tutor mode is sent as 'auto' (askMode in chat-route.js; the
+      // syllabus 'tutor' mode belongs to the Table of contents conversation).
+      assert.equal(cap.route, 'ask', `${mode} posts to /api/learn/ask`);
+      assert.equal(body.mode, mode === 'tutor' ? 'auto' : mode, 'the ask carries its mode');
+      assert.ok(!pkg?.cards, 'the six-block cards slice is gone from the package');
+      assert.equal(captured.filter(c => c.route === 'ask').length, before + 1, 'one model request');
       validate(pkg);
       // The inventory lists every seeded object; the selected card is excerpted; the old block is excerpted for a request about it.
       const listed = new Set(idsOf(pkg)), missing = A.ids.filter(id => !listed.has(id));
@@ -705,7 +695,7 @@ await check('overflow: 423 objects; listed < objects_total, the overflow is reco
 // On a project canvas the page posts the same /api/learn/ask; the dev worker (web/dev-worker.js) forwards a scope.app of repo-*
 // to /api/repositories/<app>/ask, i.e. control-plane repositoryAsk. Answered here, so no model is called.
 await openBoard(boards.R);
-// Owner decision 1a (2026-10-20): Chat's Tutor takes the Tutor planner (board A above), so Ask is the repositoryAsk path here.
+// Tutor mode is sent as Auto (board A above), so Ask is the repositoryAsk path checked here.
 for (const mode of ['ask']) {
   await check(`repo-* canvas, ${NAME[mode]}: /api/learn/ask (repositoryAsk) carries canvas_context, valid, with the whole inventory and the chip agreeing`, async () => {
     const cap = await turn(mode === 'ask' ? ABOUT_OLD : WHOLE, { mode });

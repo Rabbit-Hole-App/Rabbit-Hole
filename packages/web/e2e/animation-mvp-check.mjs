@@ -721,7 +721,6 @@ export function evaluate({ state }) {
       return route.fulfill({ json: { proposal: next, references: [] } });
     }
     if (path === '/api/learn/chat/route' && method === 'POST') return route.fulfill({ status: 404, json: { error: 'Not found' } });
-    if (path === '/api/learn/tutor/plan') return route.fulfill({ json: { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Canned Tutor reply.' }] } });
     return route.fallback();
   };
   const genSession = await open({ canvas: gen, first: null, extra: genRouter });

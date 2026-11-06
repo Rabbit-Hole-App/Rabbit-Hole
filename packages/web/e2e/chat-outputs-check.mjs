@@ -92,9 +92,9 @@ const cadReply = (request, url) => {
   return { jobs: listed.map(entry => reply(entry).job), blocks: listed.map(blockOf) };
 };
 const artifacts = [], refused = [], outside = [], errors = [];
-// Steps 13-14: any chat turn a command would make (/api/learn/ask bodies, Tutor plans), and a gate that holds /api/learn/artifact so a
+// Steps 13-14: any chat turn a command would make (/api/learn/ask bodies), and a gate that holds /api/learn/artifact so a
 // command is still running.
-const asks = [], plans = [];
+const asks = [];
 let artifactHold = null, threadHold = null; // threadHold: the saved thread's GET, held until step 15 releases it
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|selection|board$|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|video|transcribe|tts|voice\/|dive|explore|course))/;
 const router = async route => {
@@ -103,8 +103,6 @@ const router = async route => {
   if (threadHold && request.method() === 'GET' && /^\/api\/ask\/threads\/[^/]+$/.test(url.pathname)) await threadHold;
   if (url.pathname === '/api/learn/artifact') { artifacts.push(request.postDataJSON()); await artifactHold; return route.fulfill({ json: { result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'A token id is only an index', body: 'The embedding table turns the index into a vector.' } } }).catch(() => {}); }
   if (url.pathname === '/api/learn/ask') { const body = request.postDataJSON(); asks.push(body); return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: `event: chunk\ndata: ${JSON.stringify({ text: 'Canned answer.' })}\n\nevent: done\ndata: ${JSON.stringify({ threadId: body.thread_id })}\n\n` }); }
-  if (url.pathname === '/api/learn/tutor/plan') { plans.push(request.postDataJSON()); return route.fulfill({ json: { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Canned Tutor reply.' }] } }); }
-  if (url.pathname === '/api/learn/tutor/evaluate') return route.fulfill({ json: { status: 'settled', evaluator: 'jev', events: [] } });
   if (url.pathname.startsWith('/api/learn/cad/jobs')) return route.fulfill({ json: cadReply(request, url) });
   if (url.pathname === THUMB) return route.fulfill({ status: 200, contentType: 'image/png', body: PNG });
   if (['/api/learn/tutor/next-steps', '/api/learn/next-steps'].includes(url.pathname)) return route.fulfill({ json: { options: [], suggestions: [], fingerprint: null } });
@@ -397,7 +395,7 @@ await step('the removed prompt commands, typed in Auto and in Ask, say they are 
   // The saved thread restores after the board and may replace the composer's draft: wait for it, as step 12 does, before typing.
   await bubble(page, CAD_LINE).waitFor();
   diag(`page ${pages} restored thread shown`);
-  const before = { asks: asks.length, plans: plans.length };
+  const before = { asks: asks.length };
   assert.equal(await pane(page).locator('[data-chat-mode]').getAttribute('data-chat-mode'), 'auto', 'Auto first');
   for (const mode of ['auto', 'ask']) {
     if (mode === 'ask') await askMode(page);
@@ -409,7 +407,7 @@ await step('the removed prompt commands, typed in Auto and in Ask, say they are 
     }
   }
   await idle(page);
-  assert.deepEqual([asks.length, plans.length], [before.asks, before.plans], 'no Tutor plan and no /api/learn/ask');
+  assert.equal(asks.length, before.asks, 'no /api/learn/ask');
   await page.screenshot({ path: `${OUT}/13-removed-prompts-${THEME}.png` });
 });
 
@@ -499,15 +497,13 @@ await step('a chip attached and a mode switched while the saved chat is still re
       throw Error(`${error.message}: the server's thread ${now?.id === saved.id ? 'is the one seeded' : `is ${now?.id}, not the seeded ${saved.id}`} and holds refs ${JSON.stringify(now?.contextRefs?.map(ref => ref.sourceId))}; the chip is ${sourceId}`);
     });
     await until(async () => (await tutorMode()) === 'auto', 'the mode was not saved to the canvas Tutor controls').catch(async error => { throw Error(`${error.message}: they hold ${await tutorMode()}`); });
-    // Auto on a canvas with an active Tutor is the Tutor workflow (chat-route.js tutorTurn): a plan, no /api/learn/ask, and the saved
-    // question names the turn's mode. Only an Ask turn posts /api/learn/ask, which is where the chip rides (below).
-    const turns = [], QUESTION = 'why is a token id only an index', before = { asks: asks.length, plans: plans.length };
-    page.on('request', request => { const path = new URL(request.url()).pathname; if (request.method() === 'POST' && path.startsWith('/api/learn/chat/threads/') && path.endsWith('/messages')) turns.push(request.postDataJSON()); });
+    // Every Chat turn, Auto included, posts /api/learn/ask (the browser Tutor is gone) and names its mode there; the server saves the
+    // turn, so the stubbed ask is what this step reads. The chip is checked on the Ask turn below.
+    const QUESTION = 'why is a token id only an index', before = { asks: asks.length };
     await send(page, QUESTION);
-    await until(async () => turns.some(turn => turn.role === 'user' && turn.content === QUESTION), 'the question was not saved as a message').catch(error => { throw Error(`${error.message}: saved ${JSON.stringify(turns.map(turn => [turn.role, turn.mode]))}, plans ${plans.length - before.plans}, asks ${asks.length - before.asks}`); });
-    assert.equal(turns.find(turn => turn.role === 'user' && turn.content === QUESTION).mode, 'auto', 'the question names the mode chosen meanwhile');
-    assert.deepEqual([asks.length, plans.length > before.plans], [before.asks, true], 'and, in Auto on this canvas, is a Tutor turn: a plan and no /api/learn/ask');
-    await until(async () => turns.some(turn => turn.role === 'assistant'), 'the Tutor reply was not saved');
+    await until(async () => asks.length > before.asks, 'the Auto question was not sent to /api/learn/ask').catch(error => { throw Error(`${error.message}: asks ${asks.length - before.asks}`); });
+    assert.equal(asks.at(-1).message, QUESTION);
+    assert.equal(asks.at(-1).mode, 'auto', 'the question names the mode chosen meanwhile');
     await page.screenshot({ path: `${OUT}/16-chip-and-mode-while-restoring-${THEME}.png` });
     await page.reload();
     await page.locator(`[data-block-id="${OLD.id}"]`).waitFor({ timeout: 60000 });

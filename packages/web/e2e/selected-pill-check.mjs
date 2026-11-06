@@ -1,7 +1,7 @@
 // The selected card's pill above the composer, for every kind of card (owner, 2026-10-08: "when we click on a card meaning
 // it is selected we should have a pill above the chat composer to know it is selected and we can use chat to ask questions
 // above it"), on the owner's canvas and on a shared canvas. Against the LOCAL stack only: local D1 and fresh browser
-// profiles. No model is called: the Learn ask, the Tutor planner and the shared ask are answered here, every other write
+// profiles. No model is called: the Learn ask and the shared ask are answered here, every other write
 // and every outside host is refused, and the stack's provider tripwire must count 0. Prints no secrets.
 // Home, Library and Explore used to have a dock whose pill followed a card click (owner, 2026-10-09); the composer is gone from
 // them (owner, 2026-10-22), so those cases now pin its absence.
@@ -61,7 +61,7 @@ const token = shared.body?.sharing?.view;
 assert.ok(token, `share: HTTP ${shared.status}`);
 
 const browser = await chromium.launch();
-const errors = [], asks = [], plans = [], sharedAsks = [], refused = [];
+const errors = [], asks = [], sharedAsks = [], refused = [];
 const OUTSIDE = /youtube|ytimg|googlevideo|arxiv|wikipedia|tryrabbithole|workers\.dev|notebook/;
 const contextFor = async who => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -72,12 +72,11 @@ const contextFor = async who => {
     if (url.origin !== BASE) return OUTSIDE.test(url.hostname) || url.protocol !== 'http:' ? route.abort() : route.continue();
     if (['GET', 'HEAD'].includes(request.method())) return route.continue();
     const path = url.pathname;
-    // The question, answered here: the Learn ask, the Tutor planner (a canvas turn, #46) and the shared ask. No model.
+    // The question, answered here: the Learn ask and the shared ask. No model.
     const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     if (path === '/api/learn/ask') { asks.push(JSON.parse(request.postData() || '{}')); return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: frame('chunk', { text: 'Answered here.' }) + frame('done', {}) }); }
     // CR-1 route decision (dev-cp.mjs chatRouteAnswer): an answer. CI has no JEV key, so the real route would fall back and send nothing.
     if (path === '/api/learn/chat/route') return route.fulfill({ json: chatRouteAnswer(JSON.parse(route.request().postData() || '{}')) });
-    if (path === '/api/learn/tutor/plan') { plans.push(JSON.parse(request.postData() || '{}')); return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'Answered here.' }] } }); }
     if (/^\/api\/learn\/boards\/shared\/[^/]+\/ask$/.test(path)) { sharedAsks.push(JSON.parse(request.postData() || '{}')); return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: frame('chunk', { text: 'Answered here.' }) + frame('done', { ok: true }) }); }
     // Next Steps' hook on canvas open is expected; the stack's tripwire answers its planner with fixtures.
     if (/\/next-steps$/.test(path) || /^\/api\/learn\/(board|boards|evaluate|tutor\/state|moments|perf|events)\b/.test(path)) return route.continue();
@@ -157,18 +156,14 @@ for (const kind of KINDS) {
     await pill(page).locator('button[aria-label="Remove selected card context"]').click();
     await page.waitForTimeout(250);
     assert.equal(await pill(page).count(), 0, 'x clears it');
-    // Send: the question goes with the card, on whichever path this canvas asks (the Learn ask, or the Tutor planner).
+    // Send: the question goes with the card, as a Learn ask (every Chat turn is POST /api/learn/ask since Tutor cleanup P2).
     await press(page, kind);
-    const a0 = asks.length, p0 = plans.length;
+    const a0 = asks.length;
     await composer.fill(`What is this ${kind.label}?`);
     await composer.press('Enter');
-    for (let i = 0; i < 40 && asks.length + plans.length === a0 + p0; i++) await page.waitForTimeout(150);
-    assert.equal(asks.length + plans.length, a0 + p0 + 1, 'one question');
-    if (asks.length > a0) assert.equal(asks.at(-1).canvas_target?.id, kind.id, `canvas_target: ${JSON.stringify(asks.at(-1).canvas_target)?.slice(0, 120)}`);
-    else {
-      const plan = JSON.stringify(plans.at(-1)?.context?.target || null);
-      assert.ok(words(kind) && (plan.includes(words(kind).replace(/_/g, ' ')) || plan.includes(words(kind))), `the Tutor's target names the ${kind.label}: ${plan.slice(0, 160)}`);
-    }
+    for (let i = 0; i < 40 && asks.length === a0; i++) await page.waitForTimeout(150);
+    assert.equal(asks.length, a0 + 1, 'one question');
+    assert.equal(asks.at(-1).canvas_target?.id, kind.id, `canvas_target: ${JSON.stringify(asks.at(-1).canvas_target)?.slice(0, 120)}`);
     assert.equal(await pill(page).getAttribute('data-selected-card'), kind.id, 'the pill stays after the send');
     // The answer window opens over the canvas; collapse it so the next card is in reach.
     await page.waitForTimeout(400);
@@ -251,7 +246,7 @@ for (const { kind } of ASKS) {
       assert.deepEqual(covered, [], `the pin covers no control: ${JSON.stringify(pin)}`);
     }
     await page.screenshot({ path: `${SHOTS}/ask-${kind.id}-pill.png` });
-    const sent = asks.length + plans.length;
+    const sent = asks.length;
     await askPill().click();
     await page.waitForTimeout(500);
     // The chat workspace (chat-workspace-CONTRACT.md A5): the object is one context chip in the Chat pane, and the card's
@@ -263,7 +258,7 @@ for (const { kind } of ASKS) {
     assert.ok(named?.includes(words(kind)), `the chip is the object: ${named}`);
     assert.equal(await page.locator('[data-canvas-target]').count(), 0, 'the selection pill steps aside');
     assert.equal(await composer.inputValue(), '', 'no question is written');
-    assert.equal(asks.length + plans.length, sent, 'nothing sent');
+    assert.equal(asks.length, sent, 'nothing sent');
     await page.screenshot({ path: `${SHOTS}/ask-${kind.id}-armed.png` });
     // A chip stays attached to the chat until removed (contract A5), so its x clears it for the next object's one chip.
     await chip.locator('button').last().click();
@@ -356,7 +351,7 @@ assert.ok(publication, 'the viewer canvas is published');
 ({ page } = await contextFor(owner));
 const dock = page.locator('[data-agent-bar]');
 const homePill = page.locator('[data-home-pill]');
-const sent = () => asks.length + sharedAsks.length + plans.length;
+const sent = () => asks.length + sharedAsks.length;
 // A press on the card's picture: its body, never the title, Open, the menu or a link.
 const pickAt = async card => { const box = await card.locator('[data-card-thumbnail]').boundingBox(); await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2); await page.waitForTimeout(300); };
 await page.goto(`${BASE}/apps/${canvas.name}`); // this browser opened it: Home's Recent lists it

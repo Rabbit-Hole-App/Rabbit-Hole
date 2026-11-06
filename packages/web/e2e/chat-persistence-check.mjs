@@ -1,6 +1,6 @@
 // Chat persistence across Rabbit Hole navigation (owner brief 2026-10-14, agent-coordination/tasks/2026-10-14-chat-persistence-OWNER.md):
-// the eight focused checks, plus a failed restore with Retry and a Stop, against the LOCAL stack only. The Tutor's plan and
-// /api/learn/ask get canned answers in the browser; every other model-capable request is aborted, so no model is ever
+// the eight focused checks, plus a failed restore with Retry and a Stop, against the LOCAL stack only.
+// /api/learn/ask gets canned answers in the browser (the stub saves the turn as the server would); every other model-capable request is aborted, so no model is ever
 // called. The persistence routes are REAL (POST /api/learn/chat/threads/<id>/messages, GET/PUT /api/learn/chat/active,
 // GET /api/ask/threads): what each canvas shows after a move, a reload or a late reply is read back from the server too.
 // Fails on 26892668: an Auto (Tutor) exchange was never saved, so check 1 finds an empty parent.
@@ -43,25 +43,34 @@ const context = await browser.newContext({ viewport: { width: 1600, height: 900 
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
 await context.addInitScript(seeds => { for (const [key, value] of Object.entries(seeds)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, SEEDS);
 
-// Canned answers. replies: the Tutor's next words (respond_text); hold: a plan answer waits on it (a pending reply).
-const plans = [], asks = [], aborted = [], replies = [];
+// Canned answers. replies: the next Auto/Tutor answer text; hold: an answer waits on it (a pending reply). asks: every
+// /api/learn/ask body; autoAsks: those that are not an explicit Ask (Auto, and Tutor mode which is sent as auto).
+const asks = [], autoAsks = [], aborted = [], replies = [];
 let hold = null;
-const holdPlans = () => { let release; hold = new Promise(done => { release = done; }); return () => { hold = null; release(); }; };
+const holdAsks = () => { let release; hold = new Promise(done => { release = done; }); return () => { hold = null; release(); }; };
+// Since Tutor cleanup P2 every Chat turn is POST /api/learn/ask and the SERVER saves the turn (the browser no longer does).
+// The stub stands in for that server: it saves the question, answers, then saves the answer (or a Stop) through the real
+// persistence route, so what a canvas restores is still read back from the server.
+let canned = 0;
+const savePost = (threadId, app, body) => api(`/api/learn/chat/threads/${encodeURIComponent(threadId)}/messages`, { method: 'POST', body: JSON.stringify({ app, client_id: crypto.randomUUID(), ...body }) });
 const MODEL = /^\/api\/learn\/(tutor\/(handoff|next-steps)|artifact|home-ask|inline\/(generate|route)|image|scene|grade|assess|journey|tts|voice|transcribe|selection|video)/;
 await context.route(url => url.pathname.startsWith('/api/learn/'), async route => {
   const request = route.request(), path = new URL(request.url()).pathname;
-  if (path === '/api/learn/tutor/plan') {
-    plans.push(request.postDataJSON());
-    const text = replies.shift() ?? 'Canned Tutor reply.';
-    if (hold) await hold;
-    return route.fulfill({ json: { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text }] } }).catch(() => {}); // a Stop aborted it
-  }
   if (path === '/api/learn/tutor/evaluate') return route.fulfill({ json: { status: 'settled', evaluator: 'jev', events: [] } });
   if (path === '/api/learn/ask') {
-    const body = request.postDataJSON();
+    const body = request.postDataJSON(), turn = ++canned, app = body.scope?.app;
     asks.push(body);
-    const events = [['chunk', { text: `${body.mode === 'tutor' ? 'Canned Tutor-mode' : 'Canned Ask'} answer.` }], ['done', { threadId: body.thread_id }]];
-    return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: events.map(([event, data]) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`).join('') });
+    if (body.mode !== 'ask') autoAsks.push(body);
+    const text = body.mode === 'ask' ? 'Canned Ask answer.' : replies.shift() ?? 'Canned Tutor reply.';
+    const threadId = body.thread_id || `canvaschat-${crypto.randomUUID()}`;
+    const asked = await savePost(threadId, app, { role: 'user', content: body.message, mode: body.mode, ...(body.thread_id ? {} : { title: String(body.message).slice(0, 120) }) });
+    if (hold) await hold;
+    const events = [['chunk', { text }], ['done', { threadId, userMessageId: String(asked.messageId), messageId: `canned-${turn}` }]];
+    let delivered = true;
+    await route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: events.map(([event, data]) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`).join('') }).catch(() => { delivered = false; }); // a Stop aborted it
+    // ponytail: a Stop is detected by route.fulfill failing; the real server saves whatever text had streamed, here none had.
+    await savePost(threadId, app, delivered ? { role: 'assistant', content: text, status: 'done', mode: body.mode } : { role: 'assistant', content: 'Stopped.', status: 'interrupted', mode: body.mode });
+    return;
   }
   if (request.method() !== 'GET' && MODEL.test(path)) { aborted.push(path); return route.abort(); }
   return route.continue();
@@ -142,11 +151,11 @@ await ready(P);
 
 let parentThread;
 await check('1. a completed Auto exchange, a hole, and back: the parent shows the same transcript', async () => {
-  const before = plans.length;
+  const before = autoAsks.length;
   await send('[P] Why do tides happen?', '[P] The moon pulls the near ocean.');
   await answered('[P] The moon pulls the near ocean.');
-  assert.equal(plans.length, before + 1, 'Auto went through the Tutor');
-  assert.equal(asks.length, 0, 'and not /api/learn/ask');
+  assert.equal(autoAsks.length, before + 1, 'Auto posted one turn to /api/learn/ask');
+  assert.equal(asks.at(-1).mode, 'auto', 'in mode auto');
   await until('the exchange is saved', async () => (await has(P, 'user', '[P] Why do tides happen?')) && (await has(P, 'assistant', '[P] The moon pulls the near ocean.')));
   [{ id: parentThread }] = await threadsOf(P);
   assert.equal(await activeOf(P), parentThread, 'the parent\'s active thread');
@@ -155,7 +164,7 @@ await check('1. a completed Auto exchange, a hole, and back: the parent shows th
   assert.equal(await title(), 'New chat');
   await go(P);
   assert.match(await text(), /\[P\] Why do tides happen\?[\s\S]*\[P\] The moon pulls the near ocean\./);
-  assert.equal(plans.length, before + 1, 'nothing regenerated on return');
+  assert.equal(autoAsks.length, before + 1, 'nothing regenerated on return');
 });
 await shot('01-parent-restored');
 
@@ -195,9 +204,9 @@ await check('4. a reload after a completed exchange restores it', async () => {
 await shot('04-after-reload');
 
 await check('5. a reply still pending when the learner moves: never shown or saved in the hole; saved in the parent, shown on return, not regenerated', async () => {
-  const release = holdPlans(), before = plans.length;
+  const release = holdAsks(), before = autoAsks.length;
   await send('[P] And spring tides?', '[P] Sun and moon in line: the late answer.');
-  await until('the plan is asked', () => plans.length === before + 1);
+  await until('the ask is sent', () => autoAsks.length === before + 1);
   await pane.getByText('[P] And spring tides?').waitFor();
   await go(H);
   release();
@@ -207,7 +216,7 @@ await check('5. a reply still pending when the learner moves: never shown or sav
   assert.ok(!(await savedOn(H)).some(m => /spring tides|late answer/.test(m.content)), 'nor saves it');
   await go(P);
   assert.match(await text(), /\[P\] And spring tides\?[\s\S]*\[P\] Sun and moon in line: the late answer\./);
-  assert.equal(plans.length, before + 1, 'returning regenerates nothing');
+  assert.equal(autoAsks.length, before + 1, 'returning regenerates nothing');
   await clean();
 });
 await shot('05-late-reply-in-parent');
@@ -232,20 +241,19 @@ await check('6. an older thread opened from History, a move away and back: that 
 });
 await shot('06-older-thread-restored');
 
-await check('7. Ask and Tutor modes still answer in the open thread (Ask with its mode, Tutor through the Tutor, owner 1a); New chat starts empty in the canvas mode', async () => {
+await check('7. Ask and Tutor modes still answer in the open thread (Ask with its mode, Tutor sent as auto); New chat starts empty in the canvas mode', async () => {
   const mode = async name => { await pane.getByRole('button', { name: 'Mode', exact: true }).click(); await page.getByRole('menuitemradio', { name: new RegExp(`^${name}`) }).click(); };
-  const before = plans.length;
+  const before = autoAsks.length, asksBefore = asks.length;
   await mode('Ask');
   await send('[P] Ask mode question');
   await answered('Canned Ask answer.');
-  // Owner decision 1a (2026-10-20, C:/s/spec/tutor-workflow/decisions.md): Tutor is the teaching Tutor and answers a typed
-  // question through the Tutor workflow, as Auto does (chat-route.js tutorTurn); only the Table of contents conversation
-  // still posts mode 'tutor' (the syllabus) to /api/learn/ask.
+  // Chat's Tutor mode is sent as mode 'auto' (chat-route.js askMode), like Auto; only the Table of contents conversation
+  // still posts mode 'tutor' (the syllabus).
   await mode('Tutor');
   await send('[P] Tutor mode question', '[P] The Tutor-mode answer.');
   await answered('[P] The Tutor-mode answer.');
-  assert.deepEqual(asks.map(a => [a.mode, a.thread_id]), [['ask', olderThread]], 'Ask in the open thread, so the server saves it there');
-  assert.equal(plans.length, before + 1, 'one Tutor plan, for the Tutor turn; none for the explicit Ask turn');
+  assert.deepEqual(asks.slice(asksBefore).map(a => [a.mode, a.thread_id]), [['ask', olderThread], ['auto', olderThread]], 'Ask in mode ask and Tutor in mode auto, both in the open thread, so the server saves them there');
+  assert.equal(autoAsks.length, before + 1, 'one auto-mode turn, for the Tutor turn; none for the explicit Ask turn');
   await until('the Tutor exchange is saved in the open thread', async () => (await messagesOf(olderThread)).some(m => m.role === 'assistant' && m.content === '[P] The Tutor-mode answer.'));
   await pane.getByRole('button', { name: 'New chat', exact: true }).click();
   assert.equal(await title(), 'New chat');
@@ -263,20 +271,20 @@ await check('7. Ask and Tutor modes still answer in the open thread (Ask with it
 
 await check('8. a lost save answer and a retry: one copy of each message, nothing on another canvas', async () => {
   await go(H);
-  loseNextSave = true;
+  // ponytail: the lost-save fault (loseNextSave) is skipped. The browser no longer saves a Chat turn, the server does inside
+  // /api/learn/ask, so there is no client save to lose or retry; this step now checks one copy of each message.
   await send('[H] Retry: why does the moon not fall?', '[H] It does fall, and keeps missing.');
   await answered('[H] It does fall, and keeps missing.');
-  await until('the retried exchange is saved', () => has(H, 'assistant', '[H] It does fall, and keeps missing.'));
-  assert.equal(loseNextSave, false, 'the fault fired');
+  await until('the exchange is saved', () => has(H, 'assistant', '[H] It does fall, and keeps missing.'));
   const saved = (await savedOn(H)).filter(m => m.content === '[H] Retry: why does the moon not fall?');
   assert.equal(saved.length, 1, 'the question the server got twice is saved once');
   await clean();
 });
 
 await check('9. a Stop is saved as interrupted; back on the hole it reads Stopped, and nothing is asked again', async () => {
-  const release = holdPlans(), before = plans.length;
+  const release = holdAsks(), before = autoAsks.length;
   await send('[H] Stop this one', '[H] Never shown.');
-  await until('the plan is asked', () => plans.length === before + 1);
+  await until('the ask is sent', () => autoAsks.length === before + 1);
   await pane.getByRole('button', { name: 'Stop', exact: true }).click();
   release();
   await pane.getByText('Stopped.').last().waitFor();
@@ -285,7 +293,7 @@ await check('9. a Stop is saved as interrupted; back on the hole it reads Stoppe
   await go(H);
   assert.match(await text(), /\[H\] Stop this one[\s\S]*Stopped\./);
   assert.doesNotMatch(await text(), /Never shown/);
-  assert.equal(plans.length, before + 1);
+  assert.equal(autoAsks.length, before + 1);
 });
 
 await check('10. a failed restore is an error with Retry, never an empty New chat; Retry restores', async () => {

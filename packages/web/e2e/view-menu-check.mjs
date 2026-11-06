@@ -4,12 +4,13 @@
 // device across a reload. Off hides the widget and frees its room without resetting it; Curious on still shows only what
 // Tutor allows (Off, or paused, shows nothing). Toggling makes no request a model could answer. Against the LOCAL keyless
 // stack only (toc-up.sh: JOURNEY_MODEL_STUB=fixtures, no model key): the hook planner answers from its fixtures, the one
-// learner turn per hook set is answered here, and every other model-capable route is aborted and counted. Prints no secrets.
+// learner turns are answered here (the chat route and Learn ask, as one plain Chat turn each), and every other model-capable route is aborted and counted. Since Tutor cleanup P2 a Chat turn is no hook trigger, so a set comes from the card's Suggest. Prints no secrets.
 // Usage: BASE=http://127.0.0.1:9631 SMALL_CP=http://127.0.0.1:9633 VARS=<cp .dev.vars> node e2e/view-menu-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { usageFeature } from '../../control-plane/src/learn-usage.js';
+import { chatRouteAnswer } from './dev-cp.mjs';
 import { closeMenus, menubar, openMenu, openShowHide, showHideRow, topMenu } from './canvas-menu-helpers.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:9631';
@@ -41,17 +42,20 @@ await control({ type: 'select_mode', mode: 'tutor' });
 const browser = await chromium.launch();
 const errors = [], model = [], hooksAsked = [], turns = [];
 // Every model-capable route (the accounting list, learn-usage.js usageFeature, plus /api/ask) is aborted and counted, except
-// the hooks (answered by the keyless stack's fixtures, counted apart) and the one learner turn per set, answered here.
+// the hooks (answered by the keyless stack's fixtures, counted apart) and the learner turns, answered here.
 // Reading the Chat pane's threads (GET /api/ask/threads...) is not a question: it passes.
 const modelRoute = (method, path) => (/^\/api\/ask(\/|$)/.test(path) && !(method === 'GET' && path.startsWith('/api/ask/threads'))) || !!usageFeature(method, path);
 const REPLY = 'Yeast makes gas and the gluten traps it.';
+const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 const fresh = async (viewport = { width: 1600, height: 900 }, extra = {}) => {
   const context = await browser.newContext({ viewport, ...extra });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.addInitScript(entries => { for (const [key, value] of Object.entries(entries)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, seed);
   await context.route('**/api/**', route => {
     const request = route.request(), path = new URL(request.url()).pathname;
-    if (path === '/api/learn/tutor/plan') { turns.push(path); return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: REPLY }] } }); }
+    // A plain Chat turn: the chat route decision, then Learn ask as server-sent events (answered here, never by a model).
+    if (path === '/api/learn/chat/route' && request.method() === 'POST') return route.fulfill({ json: chatRouteAnswer(JSON.parse(request.postData() || '{}')) });
+    if (path === '/api/learn/ask' && request.method() === 'POST') { const n = turns.push(path); return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: frame('chunk', { text: REPLY }) + frame('done', { ok: true, threadId: `view-thread-${n}`, messageId: `view-m-${n}` }) }); }
     if (/\/next-steps$/.test(path)) { hooksAsked.push(path); return route.fallback(); }
     if (modelRoute(request.method(), path)) { model.push(`${request.method()} ${path}`); return route.abort(); }
     return route.fallback();
@@ -93,7 +97,7 @@ const open = async page => {
   await page.locator('[data-block-id="c-1"]').waitFor({ timeout: 60000 });
   await page.locator(MAP).first().waitFor({ timeout: 30000 });
 };
-// One learner turn, the Tutor plan answered here; turn() then waits for the hook set from the stack's fixtures.
+// One learner turn, a plain Chat turn answered here; turn() then presses the card's Suggest if no set is up and waits for the hook set from the stack's fixtures.
 const ask = async (page, question) => {
   await page.locator('[data-chat-pane] [data-tutor-switch="on"] [role="switch"]:enabled').waitFor({ timeout: 60000 });
   const answers = await page.locator('[data-chat-pane] [data-answer]').filter({ hasText: REPLY }).count();
@@ -104,7 +108,9 @@ const ask = async (page, question) => {
 };
 const turn = async (page, question) => {
   await ask(page, question);
-  await page.locator('[data-hooks-slot] section[data-next-steps="ready"]').waitFor({ timeout: 60000 });
+  const card = page.locator('[data-hooks-slot] section[data-next-steps="ready"]');
+  if (!(await card.count())) await page.locator('[data-hooks-slot] [data-next-steps-request]').click({ timeout: 30000 });
+  await card.waitFor({ timeout: 60000 });
 };
 const hookTexts = page => page.locator('[data-hooks-slot] [data-next-step]').allInnerTexts();
 
@@ -134,7 +140,7 @@ await check('2 the Show / hide rows are identical: one height, one width, labels
   await closeView(page);
 });
 
-await check('3 a learner turn brings the Curious set (fixtures; the turn answered here)', async () => {
+await check('3 a learner turn then the Suggest button brings the Curious set (fixtures; the turn answered here)', async () => {
   await turn(page, 'Why does bread dough rise?');
   assert.equal((await hookTexts(page)).length, 3);
   assert.deepEqual(model, [], 'no model-capable request was let through');
@@ -339,7 +345,7 @@ await check('8c at rest, nothing saved: Curious on shows the empty state, off hi
 
 await check('9 Tutor Off: the set leaves; Curious off and on again shows nothing and asks nothing', async () => {
   const before = counts();
-  await page.locator('[data-chat-pane]').getByRole('switch', { name: 'Proactive Tutor suggestions' }).click();
+  await page.locator('[data-chat-pane]').getByRole('switch', { name: 'Auto-suggest' }).click();
   await page.locator('[data-chat-pane] [data-tutor-switch="off"]').waitFor({ timeout: 10000 });
   await page.locator(HOOKS).waitFor({ state: 'detached', timeout: 10000 });
   await setSwitch(page, 'Learning suggestions', false);
@@ -348,7 +354,7 @@ await check('9 Tutor Off: the set leaves; Curious off and on again shows nothing
   assert.equal(await page.locator('[data-next-steps]').count(), 0, 'Curious on brought back a set Tutor Off hides');
   await shot(page, 'view-09-tutor-off');
   await quiet(page, 'Tutor Off', before);
-  await page.locator('[data-chat-pane]').getByRole('switch', { name: 'Proactive Tutor suggestions' }).click();
+  await page.locator('[data-chat-pane]').getByRole('switch', { name: 'Auto-suggest' }).click();
   await page.locator('[data-chat-pane] [data-tutor-switch="on"]').waitFor({ timeout: 10000 });
 });
 
@@ -551,8 +557,9 @@ await check('17 View > Slash Commands opens the window over a written Chat draft
 await check('13 no model-capable request was let through, and hook sets came only after learner turns with Curious shown or the empty state request', async () => {
   assert.deepEqual(model, []);
   // The no-request windows themselves are asserted in 4-10; here only the totals: three shown turns and the one click asked.
-  assert.ok(turns.length >= 3, `Tutor turns ${turns.length}`);
-  assert.ok(hooksAsked.length >= 4 && hooksAsked.length <= 5, `hook requests ${hooksAsked.length}`);
+  assert.ok(turns.length >= 3, `Chat turns ${turns.length}`);
+  // ponytail: was 4 to 5 when a finished Tutor turn refreshed the set; a turn is no trigger now, so a set is asked on Suggest only.
+  assert.ok(hooksAsked.length >= 3 && hooksAsked.length <= 5, `hook requests ${hooksAsked.length}`);
 });
 
 await browser.close();
