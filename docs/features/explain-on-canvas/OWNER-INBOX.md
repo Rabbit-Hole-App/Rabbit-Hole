@@ -55,6 +55,14 @@ Migration numbers (allocated centrally; none beyond 0039 is authorised on any da
 R9 assessment: `learn-assessment.js` (rubric and Explain-back assessment) is retained after P5, so deferring R9 is a prioritisation choice, not a missing grader. R7 is not a blanket prerequisite for R8-R16.
 Lead-only files (single writer): learn-models.js, route mounts, wrangler*.jsonc, check-map.json, LearnPage.jsx, learn-usage.js, repository-schema.sql. Lanes A and B hand these over as lead patches; lane C edits them only on its own cleanup branches.
 
+## R7 verifier findings (2026-11-06 ~10:00 PT): both releasable as inert flag-off candidates; fix BEFORE their switches are turned on
+
+- Verdict: R7a and R7b are releasable with `ROADMAP_ENABLED`, `ROADMAP_LONG_MARKDOWN_ENABLED` and `ROADMAP_PDF_ENABLED` unset (no D1 statement, no model call, no new field; probes and 273 regression tests pass). All defects below are on flag-on paths.
+- R7a, medium: concurrent summary runs pay twice and can overwrite a done batch (no compare-and-set); the summary budget is per run, not per index (a 2,000,000-character source took 5 runs and 58 calls; `budget_chars` can never fire); the summary trigger is unmounted, so nothing is live.
+- R7a, low/medium: fenced code is not recognised in CRLF files (code comments become headings); an over-2-MiB source never shows its message to the learner (empty choices hide S41/S47); `maxChars` can cut a surrogate pair; a DOMException unknown outcome is recorded as failed and retried; guard gaps on PDF-kind rows.
+- R7b, medium: PDF page text can change under an unchanged revision (the page PUT route rewrites text without changing the byte hash, so `source_changed` never fires and saved offsets point at different text). Low: a tiny text layer counts as readable; a whole read with a cut page discloses nothing on success; a no-match search returns ok with no limitation; page-count check skipped when meta is missing; surrogate cut; two unflagged shared-file branches (`revalidateSourceAsJob`, `d1MintSourceRef`) unreachable with the flags off; page-range choices are not capped.
+- Next: a fix lane after releases 66/67 (or before the switches are enabled), starting with the two medium items. Not blocking release because the switches stay off.
+
 ## 5. Open decisions (none stops other work)
 
 - **S26/S27 final wording (R4 safety refusal and personal-risk support).** Drafts arrive with candidate 64 and are replaceable. Needed: approve or replace.
