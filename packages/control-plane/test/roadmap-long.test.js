@@ -98,7 +98,8 @@ test('the whole flow: a late section of a long document is planned from the outl
   assert.equal(JSON.parse(refs[0].anchor_json).quote.exact, DOC.slice(APPENDIX, DOC.length));
   assert.equal(refs[0].source_rev, h.rev);
   // The first step is explained from the late passage.
-  const proposed = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: accepted.body.roadmap.revision, actionKey: KEY('propose') });
+  const proposed = accepted; // accepting the plan offers the first proposal (core 74)
+  assert.equal(proposed.body.proposal.title, 'What the appendix says about zebrafish');
   const bought = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${proposed.body.proposal.id}/accept`, { boardId: BOARD, revision: proposed.body.roadmap.revision, actionKey: KEY('accept'), proposalVersion: proposed.body.proposal.version });
   assert.equal(bought.status, 202);
   assert.equal(bought.body.results[0].generation, 'generated');
