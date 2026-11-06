@@ -25,6 +25,8 @@ Self-contained status for the owner and for a reviewer who has not seen the chat
 | 60 R4 explanation loop (flag OFF) | READY, previewed. Optional: inert code + a new Durable Object class | d692444ec |
 | 61 Cleanup P5 (Duplicate grading off) | READY, previewed. No migration | da0625923 |
 
+> **BLOCKER FOUND AND BEING FIXED (04:10 PT): do not release 58-61 until this note says FIXED.** An independent scope scan of the stacked tip found render-time `ReferenceError`s introduced by P4 (release 58) that no unit test or build catches: `LearnPage.jsx` (~line 2419) still uses `journey`, `pathEntries`, `openEntry`, `setOpenEntry` (the canvas would crash on first render) and `ask.jsx` (~line 1198) still uses `tray` (every Chat composer render would throw). A third, P2-introduced reference, `tutor={tutor.active ? tutor : null}` in the block follow-up composer, is latent in releases 54-57 (it only throws when "Follow up in this block" opens); the same fix commit removes it, so **run the queue contiguously through 58 in one sitting** (or accept that the block follow-up composer throws until 58 is released). A fix commit plus a failing-on-old guard test is being added on top of P4, and R2, R4 and P5 are being re-stacked on it as new branches (`...-2`); pins, previews and recovery branches are regenerated. Releases 54-57 are unaffected and stay valid. Status below until the fixer reports.
+
 All eight form ONE linear chain on main `9b798f77`: each candidate's pinned `MAIN_PREV` is the previous candidate's SHA (verified by a dry run of the queue script), so they must be released in the order above.
 
 ### Blocked or waiting (details in sections 2 and 3)
