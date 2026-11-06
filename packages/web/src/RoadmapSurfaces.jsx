@@ -27,8 +27,7 @@ export function RoadmapToc({ roadmap }) {
     </div>
   );
 }
-// hosted: the page draws the proposal as the canvas slot itself (AdaptiveCanvas SlotCard beside its source), so the fixed overlay is not drawn: never both.
-export function RoadmapCanvas({ roadmap, hosted = false }) {
+export function RoadmapCanvas({ roadmap }) {
   const c = roadmap.controller, st = roadmap.state, pill = roadmap.pill;
   const store = useRef(null), [, tick] = useState(0), told = useRef(new Set());
   // A withheld card is announced once per result through the app's existing error toast (ui.jsx), with Retry when the server allows it.
@@ -54,7 +53,7 @@ export function RoadmapCanvas({ roadmap, hosted = false }) {
   const edit = pill?.canEdit && { open: st.editing, draft: st.draft, busy: st.busy.length > 0, onOpen: () => c.openEditor(), onPreview: text => c.previewEdit(text), onApply: () => c.applyEdit(), onDiscard: () => c.closeEditor() };
   return (
     <>
-      {pill && roadmap.showOverlay && !hosted && <ProposalOverlay pill={pill} position={position} onAccept={() => c.acceptProposal()} onCancel={() => c.cancelProposal()} edit={edit} drag={startDrag} />}
+      {pill && roadmap.showOverlay && <ProposalOverlay pill={pill} position={position} onAccept={() => c.acceptProposal()} onCancel={() => c.cancelProposal()} edit={edit} drag={startDrag} />}
       <NextStepIndicator indicator={roadmap.indicator} onGo={() => roadmap.go({ kind: 'proposal' })} />
     </>
   );

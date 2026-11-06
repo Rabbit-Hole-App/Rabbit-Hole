@@ -63,11 +63,8 @@ import { DivePortals } from './Dive.jsx';
 import { canvasObjects } from './dive.js';
 import { VIEW_ONLY_CONTROLS, openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
-import { BAND_ROOM, anchoredSlots, cardBox, chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, openingPan, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
+import { BAND_ROOM, cardBox, chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, openingPan, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
-import { planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
-import { deliveredSpot } from './roadmap-placement.js';
-import { SlotCard } from './SlotCard.jsx';
 import { areaTarget, cropBinding } from './area-crop.js';
 import { flushBoard, lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
 import { withFlushedAnimations } from './animation3d/storage.js';
@@ -462,6 +459,29 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
     </div>
   );
   return cardLayout?.slot ? <div data-card-slot={id} className={`relative mx-auto shrink-0 overflow-visible ${selected ? 'z-[5]' : ''}`} style={{ width: cardLayout.slot.w, height: cardLayout.slot.h, marginTop: space || undefined }}>{node}</div> : node;
+}
+
+// A reserved slot (canvas-slots.js): the coming card's frame - its size, and CanvasNode's border, radius,
+// shadow and drag strip - with a spinner, what is being made, and how long it has taken. Not a block: it
+// cannot be selected, moved or asked about, and it is gone when the card lands or the wait ends.
+function SlotCard({ slot }) {
+  const [now, setNow] = useState(() => performance.now());
+  useEffect(() => { const timer = setInterval(() => setNow(performance.now()), 100); return () => clearInterval(timer); }, []);
+  return (
+    <div data-slot-id={slot.id} role="status" aria-label={slot.label} style={{ width: slot.w, height: slot.h, marginTop: slot.top || undefined }}
+      className="relative mx-auto flex shrink-0 cursor-default flex-col overflow-hidden rounded-xl border border-line bg-white shadow-sm">
+      <div className="flex h-6 shrink-0 items-center justify-center"><span className="h-1 w-12 rounded-full bg-line" /></div>
+      <div className="flex items-center gap-2 px-4 pb-4 text-sm">
+        <Loader2 size={14} className="shrink-0 animate-spin text-ink-3" />
+        <span className="shimmer min-w-0 truncate">{slot.label}</span>
+        <span aria-hidden="true" data-slot-elapsed className="ml-auto shrink-0 text-xs text-ink-3 tabular-nums">{((now - slot.started) / 1000).toFixed(1)}s</span>
+      </div>
+      <div aria-hidden="true" className="flex flex-col gap-3 px-4">
+        <span className="skeleton-line h-4 w-2/3 rounded" />
+        {['w-full', 'w-11/12', 'w-full', 'w-3/4'].map((width, index) => <span key={index} className={`skeleton-line h-3 rounded ${width}`} />)}
+      </div>
+    </div>
+  );
 }
 
 // One conversation node: the learner's message, a separator, then the agent's
@@ -1574,7 +1594,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, roadmap = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -2329,34 +2349,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // insertAtView would use now - or the nearest one nothing drawn covers (freeSlot: a dragged card keeps its
       // offset) - the card's size (slotSize: `card` names its BLOCK_TYPES entry, `samples` the cards it can be),
       // the camera on it. Returns the slot id the card fills (insert*'s `into`); release() drops it, a no-op once filled.
-      // `at` { x, y } (world units): the slot stands there instead of in the column, and `quiet` leaves the camera where it is; both default off, so every
-      // other caller reserves exactly as before. `state` is the slot's own word for what it shows ('generating' unless a roadmap card says otherwise).
-      reserve: ({ label, card = null, samples = [], at = null, quiet = false, state = 'generating' }) => {
+      reserve: ({ label, card = null, samples = [] }) => {
         const id = `slot:${crypto.randomUUID()}`;
         const size = slotSize(card, BLOCK_TYPES, samples);
-        const place = at ? { at: null, top: 0 } : freeSlot(columnItems(), flowIndexAtView(), size, { column: COLUMN });
-        const before = at ? null : blocksRef.current[place.at]?.id ?? null;
+        const place = freeSlot(columnItems(), flowIndexAtView(), size, { column: COLUMN });
+        const before = blocksRef.current[place.at]?.id ?? null;
         // moves: the learner's camera moves so far; once they move it, nothing about this slot moves it again.
-        setSlots(previous => [...previous, { id, before, top: place.top, label, ...size, started: performance.now(), moves: manualMoves.current, ...(at ? { at } : {}), ...(state !== 'generating' ? { state } : {}) }]);
-        if (!quiet) cameraRef.current = { id, smooth: true, centre: true };
+        setSlots(previous => [...previous, { id, before, top: place.top, label, ...size, started: performance.now(), moves: manualMoves.current }]);
+        cameraRef.current = { id, smooth: true, centre: true };
         return id;
-      },
-      // The Tutor's card for a step lands where its placeholder stood (roadmap-canvas.js): at the slot's own position, or the one its proposal was given,
-      // else where the learner is looking. Once per card id (a reload or a second poll finds it). Quiet: nothing moves the camera; Chat's Go to card does.
-      placeRoadmapCard: (block, { key = block?.stepId } = {}) => {
-        if (!alive.current || readOnlyRef.current || !block?.id) return null;
-        if (blocksRef.current.some(entry => entry.id === block.id)) return block.id;
-        const slot = key != null ? slotsRef.current.find(entry => entry.id === slotIdOf(key)) : null;
-        const at = slot?.at || (key != null ? roadmapSpots.current.get(key) : null) || null;
-        const added = { ...block, dx: 0, dy: 0 };
-        snapshot();
-        if (!at) { blocksRef.current = [...blocksRef.current, added]; return insertAtView(added, slot?.id || null); }
-        perfMark(added.id, 'insert');
-        pendingAt.current.set(added.id, at);
-        blocksRef.current = [...blocksRef.current, added];
-        setBlocks(previous => [...previous, added]);
-        if (slot) setSlots(previous => fillSlot(previous, slot.id, added.id));
-        return added.id;
       },
       release,
       insertDivider: () => {
@@ -5211,48 +5212,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (slot) setSlots(previous => fillSlot(previous, into, block.id));
     return revealAfter(block.id, slot?.moves);
   };
-  // The Tutor's offers on the canvas (roadmap-canvas.js, Fix C): `roadmap.cards` are the placeholders the server's view asks for. Each stands at ONE world position
-  // beside its source passage, chosen when it first appears and kept (roadmapSpots) through proposal, generation and delivery; nothing moves the camera, and nothing
-  // existing moves (obstacles only). A card whose source is not on this canvas, or not measured yet, waits (it is retried when the bounds change).
-  const roadmapSpots = useRef(new Map()), pendingAt = useRef(new Map());
-  const roadmapSpot = (card, size) => {
-    const kept = roadmapSpots.current.get(card.key);
-    if (kept) return kept;
-    const source = sourceBlockOf(blocksRef.current, card.sourceKey), box = source && boundsRef.current[source.id];
-    if (source && !box) return null; // the source card is not measured yet: the next bounds retry
-    const taken = anchoredSlots(slotsRef.current).filter(entry => entry.id !== slotIdOf(card.key)).map(entry => ({ id: entry.id, x: entry.at.x, y: entry.at.y, w: entry.w, h: entry.h }));
-    // Beside the source card's canvas box (placeNote's sides, then rings), clear of everything on the board; never its scrolled text, never the camera. No source card on this
-    // canvas: once, beside where the learner is looking, so an offer is never invisible.
-    const spot = box ? deliveredSpot(size, box, [...boardObstacles([source.id]), ...taken, box], null) : deliveredSpot(size, viewCenter(), [...boardObstacles(), ...taken], null);
-    roadmapSpots.current.set(card.key, spot);
-    return spot;
-  };
-  useLayoutEffect(() => {
-    if (readOnly) return;
-    const plan = planSlots(slotsRef.current, roadmap?.cards || []);
-    if (!plan.add.length && !plan.update.length && !plan.remove.length) return;
-    const added = plan.add.flatMap(card => {
-      const size = slotSize(card.format, BLOCK_TYPES), at = roadmapSpot(card, size);
-      return at ? [{ id: slotIdOf(card.key), before: null, top: 0, label: card.title, ...size, at, state: card.state, started: performance.now(), moves: manualMoves.current, roadmap: card }] : [];
-    });
-    const changed = new Map(plan.update.map(({ id, card }) => [id, card]));
-    if (!added.length && !changed.size && !plan.remove.length) return;
-    setSlots(previous => [...previous.filter(slot => !plan.remove.includes(slot.id)).map(slot => (changed.has(slot.id)
-      ? { ...slot, label: changed.get(slot.id).title, state: changed.get(slot.id).state, roadmap: changed.get(slot.id), ...(changed.get(slot.id).state !== slot.state ? { started: performance.now() } : {}) } : slot)), ...added]);
-  }, [roadmap, bounds, blocks]); // eslint-disable-line react-hooks/exhaustive-deps
-  // A delivered card was inserted without an offset (placeRoadmapCard): once it is measured, its offset is what puts its top-left on the position it was promised.
-  useLayoutEffect(() => {
-    if (!pendingAt.current.size) return;
-    const moves = new Map();
-    for (const [id, at] of pendingAt.current) {
-      const box = bounds[id], owner = blocksRef.current.find(entry => entry.id === id);
-      if (!box || !owner) continue;
-      moves.set(id, { dx: Math.round(at.x - (box.x - (owner.dx || 0))), dy: Math.round(at.y - (box.y - (owner.dy || 0))) });
-      pendingAt.current.delete(id);
-      for (const [key, spot] of roadmapSpots.current) if (spot === at) roadmapSpots.current.delete(key);
-    }
-    if (moves.size) setBlocks(previous => previous.map(block => (moves.has(block.id) ? { ...block, ...moves.get(block.id) } : block)));
-  }, [bounds]); // eslint-disable-line react-hooks/exhaustive-deps
   // Open in notebook: a new notebook card from one code card, beside it in free space - placeNote and its obstacles
   // (inlineCanvas.obstacles: obstaclesOf), the inline editor's, so nothing else moves - selected, and panned to when the
   // spot is off-screen, as the editor's ghost is; one undo step. The code card is left as it is.
@@ -6098,7 +6057,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; } }}>
-            {anchoredSlots(slots).map(slot => <SlotCard key={slot.id} slot={slot} actions={roadmap} />)}{columnEntries(blocks, slots).flatMap(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : [<LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />, roomAfter[block.id] ? <div key={`room:${block.id}`} data-group-room aria-hidden="true" style={{ height: roomAfter[block.id] }} /> : null])}
+            {columnEntries(blocks, slots).flatMap(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : [<LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />, roomAfter[block.id] ? <div key={`room:${block.id}`} data-group-room aria-hidden="true" style={{ height: roomAfter[block.id] }} /> : null])}
           </CanvasRefs.Provider></CardOpen.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its
