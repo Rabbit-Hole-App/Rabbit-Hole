@@ -6,7 +6,7 @@ const ghost = 'h-7 rounded-md border border-line px-2.5 text-xs outline-none hov
 // stopping point, checking, a focused question, an oversize-source limitation) and a failed card's Retry/Replace/Omit.
 // Nothing here is saved in the chat thread: the server owns every line, so a reload or a second device shows the same.
 // invitation: invitationOf (or null); lines: chatOf. Free typing stays in the composer below; the buttons are not required.
-export default function RoadmapInvitation({ invitation, lines, onExplain, onKeep, onAnswer, onRecover, onOffer }) {
+export default function RoadmapInvitation({ invitation, lines, onExplain, onKeep, onAnswer, onRecover, onOffer, onChoose }) {
   if (!invitation && !lines.length) return null;
   return (
     <div data-roadmap-chat className="mb-2 flex flex-col gap-2">
@@ -26,6 +26,12 @@ export default function RoadmapInvitation({ invitation, lines, onExplain, onKeep
               {line.label && <p className="mb-0.5 text-xs font-medium text-ink-2">{line.label}</p>}
               <p className="break-words">{line.text}</p>
               {line.kind === 'question' && <div className="mt-1.5 flex flex-wrap gap-1.5">{line.options.map(option => <button key={option.id} type="button" data-roadmap-option={option.id} onClick={() => onAnswer({ optionId: option.id })} className={ghost}>{option.label}</button>)}</div>}
+              {line.kind === 'coverage' && (
+                <>
+                  {line.notes.map(note => <p key={note} data-roadmap-coverage className="mt-1 break-words text-xs text-ink-2">{note}</p>)}
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">{line.choices.map(choice => <button key={`${choice.locationId}:${choice.part}`} type="button" data-roadmap-choice={`${choice.locationId}:${choice.part}`} onClick={() => onChoose?.(choice)} className={ghost}>{choice.label}</button>)}</div>
+                </>
+              )}
               {line.kind === 'limitation' && line.offers.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1.5">{line.offers.map(offer => <button key={offer.kind} type="button" data-roadmap-offer={offer.kind} onClick={() => onOffer(offer)} className={ghost}>{offer.label}</button>)}</div>}
             </>
           )}
