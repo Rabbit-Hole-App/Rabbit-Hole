@@ -32,7 +32,7 @@ export default function RoadmapPlan({ toc, onAcceptPlan, onEdit, onProposeNext, 
       )}
       {toc.stoppingPoint && <div><h4 className="mb-1 text-xs font-medium text-ink-2">{STRINGS.stoppingPoint}</h4><p className="break-words text-[13px] text-ink-2">{toc.stoppingPoint}</p></div>}
       <div className="flex flex-wrap gap-1.5">
-        {toc.actions.acceptPlan && <button type="button" data-roadmap-accept-plan disabled={toc.actions.acceptPlan.busy} aria-busy={toc.actions.acceptPlan.busy || undefined} onClick={onAcceptPlan} className="h-8 rounded-md bg-accent px-3 text-xs font-medium text-white outline-none hover:bg-accent/90 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60">{toc.actions.acceptPlan.busy ? STRINGS.accepting : STRINGS.acceptPlan}</button>}
+        {toc.actions.acceptPlan && <button type="button" data-roadmap-accept-plan onClick={onAcceptPlan} className="h-8 rounded-md bg-accent px-3 text-xs font-medium text-white outline-none hover:bg-accent/90 focus-visible:ring-2 focus-visible:ring-accent/60">{STRINGS.acceptPlan}</button>}
         {toc.actions.editPlan && <button type="button" data-roadmap-edit-plan onClick={onEdit} className={button}>{STRINGS.editPlan}</button>}
         {toc.actions.proposeNext && <button type="button" data-roadmap-propose-next onClick={onProposeNext} className={button}>{STRINGS.proposeNext}</button>}
         {toc.actions.end && <button type="button" data-roadmap-end onClick={onEnd} className={button}>{STRINGS.end}</button>}

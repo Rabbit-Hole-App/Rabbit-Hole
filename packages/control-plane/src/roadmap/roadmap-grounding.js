@@ -7,9 +7,8 @@ import { CHECK_PROMPTS, ROADMAP_CHECK_VERSION, GROUNDING_TOOL } from '../agents/
 import { ROADMAP_LIMITS } from './roadmap-policy.js';
 import { sha256 } from './roadmap-source.js';
 
-// A quote matches the raw Markdown passage whatever its emphasis/code marks, curly quotes or dashes: both sides are folded the same way, so only markup is forgiven.
-const norm = s => String(s).replace(/[*_`~#]/g, '').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim().toLowerCase();
-const inPassage = (passage, span) => !!span && !!norm(span) && norm(passage).includes(norm(span)); // a quote that is only markup folds to nothing and supports nothing
+const norm = s => String(s).replace(/\s+/g, ' ').trim().toLowerCase();
+const inPassage = (passage, span) => !!span && norm(passage).includes(norm(span));
 
 // The text of a delivered text/table card, for claims and screening.
 export function cardText(block) {
