@@ -23,6 +23,11 @@ export const STRINGS = Object.freeze({
   // DRAFT for owner approval (S26, S27; receipts/r4-safety-strings.md). Short, no diagnosis, no model or price. The owner replaces or approves the exact text.
   safetyLimit: "I can't make this explanation. It is outside what I can create here. You were not charged.", // S26 DRAFT
   personalRisk: 'I did not make this explanation, and you were not charged. If you are in danger or thinking about hurting yourself, please call your local emergency number or a crisis line in your area. You do not have to deal with this alone.', // S27 DRAFT
+  // DRAFT for owner approval (Fix A): a withheld card says why. A source problem and an unfinished check are not a refusal, so Retry stays offered.
+  notInSource: 'This explanation quoted words that are not in your source, so I did not add it. You were not charged.',
+  contradictsSource: 'This explanation disagreed with your source, so I did not add it. You were not charged.',
+  notMatchedToSource: 'Some of this explanation could not be matched to your source, so I did not add it. You were not charged.',
+  checkUnavailable: 'The check could not finish, so I did not add this explanation. You were not charged.',
   checking: 'Checking this explanation before it is added.', // S21 NEW
   stale: 'This roadmap changed. Showing the latest.', // S22 NEW
   sourceChanged: 'The source changed since this plan was made. Update the plan to continue.', // S23 NEW

@@ -6,7 +6,7 @@
 // is off (v1.4 4.1); only routes and unsolicited stages are gated.
 // ponytail: a held card (unsupported claims) is refunded rather than regenerated once; a checked regeneration is a later change.
 import { generateRoadmapCard } from './roadmap-generate.js';
-import { checkRoadmapCard } from './roadmap-check.js';
+import { checkRoadmapCard, withheldCause } from './roadmap-check.js';
 import { modelAdjudicator } from './roadmap-safety.js';
 import { failCard, readRoadmap, recordGenerated } from './roadmap-store.js';
 import { learnerUsageEnv, planCall, withRoadmapProviderCall } from './roadmap-money.js';
@@ -96,6 +96,8 @@ async function finish(env, access, roadmap, result, ids, out, { passage, origina
   await recordGenerated(db, access, { resultId: result.id, primitive: out.primitive, body: out.block, validation: verdict.validation, checkJson, now: now() });
   if (verdict.validation === 'passed' && verdict.publishable) return 'generated';
   // Withheld: the body stays private (entitlement requires passed checks) and the learner is refunded; the reason class picks no retry.
-  await fail(verdict.validation === 'blocked' || verdict.pauseSupport ? 'policy_block' : verdict.terminal ? 'checking_unavailable' : 'terminal_validation_failure', retryNo);
+  // Only a genuine safety block or personal risk is policy_block; a source problem and an unfinished check keep their own class (and Retry).
+  const cause = withheldCause(verdict);
+  await fail(cause === 'safety' || cause === 'personal_risk' ? 'policy_block' : cause === 'unavailable' ? 'checking_unavailable' : 'terminal_validation_failure', retryNo);
   return 'failed';
 }

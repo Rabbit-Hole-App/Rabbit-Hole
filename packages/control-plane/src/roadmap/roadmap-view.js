@@ -3,6 +3,7 @@
 // slots with their state dimensions; the body comes only from the entitled result routes. Built from D1 on every read, so a reload and a second
 // device see the same state.
 import { readRoadmap, readUnfinishedRoadmap } from './roadmap-store.js';
+import { withheldCause } from './roadmap-check.js';
 import { d1PublicRefs } from './roadmap-source-read.js';
 import { STRINGS } from '../../../web/src/roadmap-strings.js';
 
@@ -16,10 +17,18 @@ const json = text => { try { return JSON.parse(text); } catch { return null; } }
 export const FAILURE_MESSAGE = 'This explanation could not be made. You were not charged.';
 // A held or refused card (failure class policy_block, refunded) tells the learner why in the S26 sentence; the learner's own signs of danger (the safety record's
 // pause_support action) get the S27 supportive message instead. Both are DRAFT strings pending owner approval; neither retries (the same request would be refused again).
+// Fix A: the cause is read from the stored checks, so a row an earlier build stored as policy_block for a grounding block reads honestly too.
+// Only a safety block or personal risk loses Retry; a source problem or an unfinished check is not a refusal.
+const SOURCE_MESSAGE = { quote_not_in_passage: STRINGS.notInSource, contradicts_source: STRINGS.contradictsSource };
+const WITHHELD = new Set(['policy_block', 'terminal_validation_failure', 'checking_unavailable']);
 function failureOf(r) {
-  if (r.failure_class !== 'policy_block') return { failure: { code: 'generation_failed', message: FAILURE_MESSAGE }, recovery: ['retry', 'replace', 'omit'] };
-  const personal = json(r.check_json)?.safety?.action === 'pause_support';
-  return { failure: { code: personal ? 'personal_risk' : 'policy_block', message: personal ? STRINGS.personalRisk : STRINGS.safetyLimit }, recovery: ['replace', 'omit'] };
+  const check = WITHHELD.has(r.failure_class) && r.validation !== 'passed' ? json(r.check_json) : null;
+  const cause = check ? withheldCause(check) : r.failure_class === 'policy_block' ? 'safety' : null;
+  if (cause === 'personal_risk') return { failure: { code: 'personal_risk', message: STRINGS.personalRisk }, recovery: ['replace', 'omit'] };
+  if (cause === 'safety') return { failure: { code: 'policy_block', message: STRINGS.safetyLimit }, recovery: ['replace', 'omit'] };
+  if (cause === 'source') return { failure: { code: 'source_check_failed', message: SOURCE_MESSAGE[check.grounding.reason] || STRINGS.notMatchedToSource }, recovery: ['retry', 'replace', 'omit'] };
+  if (cause === 'unavailable') return { failure: { code: 'checking_unavailable', message: STRINGS.checkUnavailable }, recovery: ['retry', 'replace', 'omit'] };
+  return { failure: { code: 'generation_failed', message: FAILURE_MESSAGE }, recovery: ['retry', 'replace', 'omit'] };
 }
 
 export async function roadmapView(db, access, roadmap) {
@@ -53,7 +62,8 @@ export async function roadmapView(db, access, roadmap) {
       ...(r.generation === 'generated' && r.validation !== 'passed' && !failed ? { held: true } : {}),
       ...(failed ? failureOf(r) : {}) };
   });
-  const quiet = !offered && results.every(r => r.delivery !== 'not_delivered' || r.generation === 'failed');
+  // Next step ready: an acceptable pending proposal that follows a delivery, with no earlier work still in flight (the offered proposal is not in `results`).
+  const settled = results.some(r => r.delivery === 'delivered') && results.every(r => r.delivery !== 'not_delivered' || r.generation === 'failed');
   const next = steps.some(s => s.state === 'planned');
   const busy = results.some(r => r.generation === 'pending' || r.generation === 'generating');
   return {
@@ -63,7 +73,7 @@ export async function roadmapView(db, access, roadmap) {
     question: plan?.question ?? null, limitation: plan?.limitation ?? null,
     plan: plan && { version: roadmap.plan_version, outcome: plan.outcome, assumptions: plan.assumptions ?? [], formats: plan.formats ?? [], steps, stoppingPoint: plan.stoppingPoint, ...(plan.sourceCoverage ? { sourceCoverage: plan.sourceCoverage } : {}) },
     steps, proposal: proposal ?? null, results,
-    nextStepReady: !!proposal?.acceptable && quiet,
+    nextStepReady: !!proposal?.acceptable && settled,
     poll: { afterMs: busy || roadmap.state === 'draft' ? 1500 : proposal ? 2000 : next ? 5000 : 10000, etag: `rv-${roadmap.revision}`, ...(roadmap.state === 'completed' || roadmap.state === 'ended' ? { afterMs: 30000 } : {}) },
   };
 }
