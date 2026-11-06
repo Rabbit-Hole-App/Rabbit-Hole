@@ -22,7 +22,10 @@ export const CAPABILITIES = freeze([
   freeze({ name: 'index_source', release: 'R7a', enabled: false, paid: true }),
   freeze({ name: 'read_pdf_page', release: 'R7b', enabled: false, paid: false }),
   freeze({ name: 'research_gap', release: 'R8a', enabled: false, paid: true }),
-  freeze({ name: 'calculate_expression', release: 'R8b', enabled: false, paid: false }),
+  // R8b: opt-in. Offered and dispatchable only when flags.calculate_expression === true (toolFlags(env): ROADMAP_ENABLED and ROADMAP_CALCULATOR both 'true').
+  freeze({ name: 'calculate_expression', release: 'R8b', enabled: true, optIn: true, paid: false, purposes: ['propose', 'check'],
+    description: 'Evaluate one arithmetic expression over named numeric variables with a restricted deterministic calculator (+ - * / % ^, parentheses, listed functions). Not code execution; assumptions are not checked.',
+    args: freeze({ expression: arg('text', { max: 500 }), variables: arg('number_map', { max: 16 }), units: arg('string_map', { max: 16 }), premises: arg('string_map', { max: 16 }), resultUnit: arg('text', { max: 24 }) }), required: freeze(['expression']) }),
   freeze({ name: 'read_learning_evidence', release: 'R9', enabled: false, paid: false }),
   freeze({ name: 'inspect_figure', release: 'R15', enabled: false, paid: true }),
   freeze({ name: 'execute_code', release: 'R16', enabled: false, paid: true }),
@@ -39,14 +42,20 @@ export const ROADMAP_FORMATS = freeze(FORMATS.filter(f => f.enabled).map(f => f.
 export const isFormatEnabled = id => ROADMAP_FORMATS.includes(id);
 
 // Capability flags (v1.3 4.1): a separate flag disables one capability without touching the others. flags[name] === false turns it off.
-export const enabledCapabilities = (flags = {}, caps = CAPABILITIES) => caps.filter(c => c.enabled && flags[c.name] !== false);
+export const enabledCapabilities = (flags = {}, caps = CAPABILITIES) => caps.filter(c => c.enabled && (c.optIn ? flags[c.name] === true : flags[c.name] !== false));
+
+// The environment's per-capability switches. An opt-in tool is on only when its own switch AND ROADMAP_ENABLED are exactly 'true'; unset adds nothing.
+export const toolFlags = env => ({ ...(env?.ROADMAP_ENABLED === 'true' && env?.ROADMAP_CALCULATOR === 'true' ? { calculate_expression: true } : {}) });
 
 // What the model is shown: only enabled tools with a schema. Disabled tools are omitted, not described.
 export function capabilityCatalogue(flags = {}, caps = CAPABILITIES) {
   return enabledCapabilities(flags, caps).filter(c => c.args).map(c => ({ name: c.name, description: c.description,
     input_schema: { type: 'object', additionalProperties: false, required: [...c.required],
       properties: Object.fromEntries(Object.entries(c.args).map(([k, a]) => [k, a.type === 'enum' ? { type: 'string', enum: [...a.values] } : a.type === 'int' ? { type: 'integer', minimum: a.min }
-        : a.type === 'strings' ? { type: 'array', maxItems: a.max, items: { type: 'string', maxLength: a.itemMax } } : { type: 'string' }])) } }));
+        : a.type === 'strings' ? { type: 'array', maxItems: a.max, items: { type: 'string', maxLength: a.itemMax } }
+        : a.type === 'number_map' ? { type: 'object', maxProperties: a.max, additionalProperties: { type: 'number' } }
+        : a.type === 'string_map' ? { type: 'object', maxProperties: a.max, additionalProperties: { type: 'string', maxLength: 64 } }
+        : a.type === 'text' ? { type: 'string', maxLength: a.max } : { type: 'string' }])) } }));
 }
 
 // Dispatch: resolve before running. unknown -> unsupported; known but not enabled -> unavailable (never a silent fallback).
@@ -57,6 +66,8 @@ export function resolveToolCall(call, flags = {}, caps = CAPABILITIES) {
   if (!enabledCapabilities(flags, caps).includes(cap)) return { status: 'unavailable', reason: 'not_enabled', release: cap.release };
   return { status: 'ok', cap };
 }
+
+const isMap = (v, spec, ok) => v && typeof v === 'object' && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype && Object.keys(v).length <= spec.max && Object.entries(v).every(([k, x]) => k.length <= 32 && ok(x));
 
 // -> null when args match the tool's closed schema, else a reason. Unknown keys are refused (a tool's input is data, never authority).
 export function argProblem(cap, args) {
@@ -69,6 +80,8 @@ export function argProblem(cap, args) {
     if (spec.type === 'enum' && !spec.values.includes(v)) return `${k} must be one of ${spec.values.join(', ')}`;
     if (spec.type === 'int' && !(Number.isInteger(v) && v >= spec.min && v <= 1e9)) return `${k} must be a non-negative integer`;
     if (spec.type === 'id' && !(typeof v === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(v))) return `${k} must be a server id`;
+    if (spec.type === 'text' && !(typeof v === 'string' && v.length > 0 && v.length <= spec.max)) return `${k} must be 1-${spec.max} characters`;
+    if ((spec.type === 'number_map' || spec.type === 'string_map') && !isMap(v, spec, spec.type === 'number_map' ? x => typeof x === 'number' && Number.isFinite(x) : x => typeof x === 'string' && x.length > 0 && x.length <= 64)) return `${k} must be a map of at most ${spec.max} entries`;
     if (spec.type === 'strings' && !(Array.isArray(v) && v.length >= 1 && v.length <= spec.max && v.every(s => typeof s === 'string' && s.length > 0 && s.length <= spec.itemMax))) return `${k} must be 1-${spec.max} short strings`;
   }
   return null;
