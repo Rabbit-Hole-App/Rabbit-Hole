@@ -65,6 +65,9 @@ export function viewPassage(ref, { blocks = state.blocks, focus = state.focus, e
   return 'opened';
 }
 
+// The camera to one explanation card (a reader's "View explanation" on a passage that has several).
+export const focusExplanation = (cardId, { focus = state.focus } = {}) => focus?.(cardId);
+
 // Passage to explanation: the camera to the first explanation card for this source (at this revision, for a PDF on this page).
 // Returns how many there are.
 export function viewExplanation(where, { blocks = state.blocks, focus = state.focus } = {}) {

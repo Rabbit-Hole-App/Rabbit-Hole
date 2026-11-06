@@ -188,24 +188,24 @@ async function world(t) {
 test('SMOKE a selected Markdown passage: id, revision and anchor go through the job to the delivered card, and survive a reload of the job object', async t => {
   const w = await world(t);
   const ref = (await w.f.mint(w.f.markdown())).body.ref;
-  const created = await w.post({ source_ref: ref.id });
+  const created = await w.post({ sourceRefId: ref.id });
   assert.equal(created.status, 202);
   const { job } = await created.json();
   assert.deepEqual(job.sourceRef, ref, 'the job holds the ref the server read, with its id, revision and anchor');
   // The pending card carries it from the first moment.
   const pending = explainPendingBlock({ job });
-  assert.deepEqual(pending.source_ref, ref);
+  assert.deepEqual(pending.sourceRef, ref);
   const done = await w.s.run(job.id);
   assert.equal(done.stage, 'ready');
   const view = await w.get(job.id);
-  assert.deepEqual([view.block.source_ref.id, view.block.source_ref.source.rev, view.block.source_ref.anchor], [ref.id, sha(MD), { quote: QUOTE }]);
+  assert.deepEqual([view.block.sourceRef.id, view.block.sourceRef.source.rev, view.block.sourceRef.anchor], [ref.id, sha(MD), { quote: QUOTE }]);
   assert.equal(view.job.result.cardId, 'card-0001');
   // The card the browser saves.
   const saved = explainResultBlock(pending, view.job, view.block);
   assert.deepEqual(sourceRefOf(saved), ref);
   // Reload: a new durable object over the same storage, and a card read from the saved board.
   const reloaded = await w.get(job.id, w.onto(w.s.object()));
-  assert.deepEqual(reloaded.block.source_ref, ref);
+  assert.deepEqual(reloaded.block.sourceRef, ref);
   assert.deepEqual(sourceRefOf(JSON.parse(JSON.stringify(saved))), ref, 'the saved board round trips');
   // Passage to explanation and back, from the saved board alone.
   const board = [{ id: 'file-1', kind: 'markdown', fileRef: { source: { id: MD, rev: sha(MD) } } }, saved];
@@ -218,30 +218,30 @@ test('SMOKE a selected Markdown passage: id, revision and anchor go through the 
 test('SMOKE a selected PDF excerpt: the page anchor reaches the delivered card and opens the reader at that page', async t => {
   const w = await world(t);
   const ref = (await w.f.mint(w.f.pdf())).body.ref;
-  const { job } = await (await w.post({ source_ref: ref.id })).json();
+  const { job } = await (await w.post({ sourceRefId: ref.id })).json();
   assert.equal((await w.s.run(job.id)).stage, 'ready');
-  const card = (await w.get(job.id)).block.source_ref;
+  const card = (await w.get(job.id)).block.sourceRef;
   assert.deepEqual(card, ref);
-  const open = readerRef(sourceRefOf({ source_ref: card }));
+  const open = readerRef(sourceRefOf({ sourceRef: card }));
   assert.deepEqual([open.sourceId, open.kind, open.range.page, open.range.excerpt.source.sha256, open.range.excerpt.page, open.range.excerpt.rects], [w.f.docKey, 'doc', 3, sha(PDF), { index: 3, label: 'iii' }, [[72, 600, 540, 614]]]);
   assert.equal(open.range.excerpt.quote, undefined, 'the quote rides as the card text, not twice');
-  const cards = [{ id: 'card-0001', source_ref: card }, { id: 'card-0002', source_ref: { ...card, id: ref.id, anchor: { ...card.anchor, page: { index: 9, label: null } } } }];
+  const cards = [{ id: 'card-0001', sourceRef: card }, { id: 'card-0002', sourceRef: { ...card, id: ref.id, anchor: { ...card.anchor, page: { index: 9, label: null } } } }];
   assert.deepEqual(explanationsFor(cards, { key: w.f.docKey, rev: sha(PDF), page: 3 }).current.map(c => c.cardId), ['card-0001'], 'a PDF page lists only its own explanations');
 });
 
 test('SMOKE refusals before anything is spent: a changed source, a removed source, another learner\'s id and a forged sourceRef', async t => {
   const w = await world(t);
   const ref = (await w.f.mint(w.f.markdown())).body.ref;
-  // A client-sent sourceRef is not read: only source_ref, resolved by the server, reaches the job.
+  // A client-sent sourceRef is not read: only sourceRefId, resolved by the server, reaches the job.
   const forged = await (await w.post({ requestId: 'req-00000002', cardId: 'card-0002', sourceRef: { id: 'sref_' + 'a'.repeat(24), source: { key: 'file:x' } } })).json();
   assert.equal(forged.job.sourceRef, undefined);
-  assert.equal((await w.post({ requestId: 'req-00000003', cardId: 'card-0003', source_ref: 'sref_' + 'b'.repeat(24) })).status, 404, "an id nobody minted");
+  assert.equal((await w.post({ requestId: 'req-00000003', cardId: 'card-0003', sourceRefId: 'sref_' + 'b'.repeat(24) })).status, 404, "an id nobody minted");
   const before = w.s.state.data.size;
   w.f.sqlite.prepare('UPDATE file_sources SET sha256 = ? WHERE id = ?').run(sha('edited'), MD);
-  const stale = await w.post({ requestId: 'req-00000004', cardId: 'card-0004', source_ref: ref.id });
+  const stale = await w.post({ requestId: 'req-00000004', cardId: 'card-0004', sourceRefId: ref.id });
   assert.deepEqual([stale.status, (await stale.json()).code], [409, 'source_changed']);
   w.f.sqlite.prepare('DELETE FROM file_sources WHERE id = ?').run(MD);
-  const gone = await w.post({ requestId: 'req-00000005', cardId: 'card-0005', source_ref: ref.id });
+  const gone = await w.post({ requestId: 'req-00000005', cardId: 'card-0005', sourceRefId: ref.id });
   assert.deepEqual([gone.status, (await gone.json()).code], [409, 'source_unavailable']);
   assert.equal(w.s.state.data.size, before, 'no job, no fence and no reservation for a refused request');
   assert.equal(w.s.sqlite.prepare('SELECT count(*) AS n FROM usage_operations').get().n, 0, 'nothing was admitted');
@@ -254,26 +254,26 @@ test('SMOKE the artifact route: the card a command makes carries the ref; a stal
   const generate = async () => { calls += 1; return { result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'Loss', body: 'The loss is the mean squared error.' } }; };
   const deps = { identity: async () => SRC_OWNER, sourceRef: (req, _env, user, app, id) => trustedSourceRef(req, f.env, user, app, id), images: async () => null };
   const send = body => artifactFetch(new Request('https://dev.test/api/learn/artifact', { method: 'POST', headers: f.headers('owner'), body: JSON.stringify({ app: MINE, command: 'explain', args: 'the loss', ...body }) }), f.env, generate, deps);
-  const made = await send({ source_ref: ref.id });
+  const made = await send({ sourceRefId: ref.id });
   const body = await made.json();
-  assert.deepEqual([made.status, calls, body.block.source_ref], [200, 1, ref]);
+  assert.deepEqual([made.status, calls, body.block.sourceRef], [200, 1, ref]);
   const plain = await (await send({})).json();
-  assert.equal(plain.block.source_ref, undefined, 'a command with no selected passage is unchanged');
+  assert.equal(plain.block.sourceRef, undefined, 'a command with no selected passage is unchanged');
   f.sqlite.prepare('UPDATE file_sources SET sha256 = ? WHERE id = ?').run(sha('edited'), MD);
-  const stale = await send({ source_ref: ref.id });
+  const stale = await send({ sourceRefId: ref.id });
   assert.deepEqual([stale.status, (await stale.json()).code, calls], [409, 'source_changed', 2], 'no model call for a stale passage');
-  assert.equal((await send({ source_ref: 'sref_' + 'c'.repeat(24) })).status, 404);
+  assert.equal((await send({ sourceRefId: 'sref_' + 'c'.repeat(24) })).status, 404);
 });
 
 test('SMOKE sharing and forking: a shared reader keeps only where the card came from; a link fork opens nothing; the owner\'s own copy keeps the ref', async t => {
   const f = await setup(t);
   const md = (await f.mint(f.markdown())).body.ref, pdf = (await f.mint(f.pdf())).body.ref;
-  const state = { blocks: [{ id: 'a', type: 'explanation', title: 'A', source_ref: md, step_id: 'private-step' }, { id: 'b', type: 'explanation', title: 'B', source_ref: pdf }, { id: 'c', type: 'explanation', title: 'C' }] };
+  const state = { blocks: [{ id: 'a', type: 'explanation', title: 'A', sourceRef: md, stepId: 'private-step' }, { id: 'b', type: 'explanation', title: 'B', sourceRef: pdf }, { id: 'c', type: 'explanation', title: 'C' }] };
   const shared = sharedState(state);
   const [a, b, c] = shared.blocks;
-  assert.deepEqual(a.source_ref, { v: 1, kind: 'markdown', source: { name: `${MD}.md` } });
-  assert.deepEqual(b.source_ref, { v: 1, kind: 'pdf', source: { name: 'Attention Is All You Need.pdf' }, anchor: { page: { label: 'iii' } } });
-  assert.equal('source_ref' in c, false);
+  assert.deepEqual(a.sourceRef, { v: 1, kind: 'markdown', source: { name: `${MD}.md` } });
+  assert.deepEqual(b.sourceRef, { v: 1, kind: 'pdf', source: { name: 'Attention Is All You Need.pdf' }, anchor: { page: { label: 'iii' } } });
+  assert.equal('sourceRef' in c, false);
   const text = JSON.stringify(shared);
   for (const private_ of [md.id, pdf.id, f.mdKey, f.docKey, sha(MD), sha(PDF), QUOTE.exact, 'Attention is all you need.']) assert.equal(text.includes(private_), false, `a shared reader never sees ${private_}`);
   // The reader's card is a label: it cannot open and says what it is.
@@ -288,14 +288,14 @@ test('SMOKE sharing and forking: a shared reader keeps only where the card came 
   assert.equal((await f.resolve([md.id], { as: 'friend' }, THEIRS)).body.refs[0].status, 'unavailable');
   // The owner's own copy (Duplicate, Fork of your own canvas) may open what the owner may open.
   const copy = forkState(state, MINE);
-  assert.deepEqual(copy.blocks.map(block => block.source_ref), [md, pdf, undefined]);
+  assert.deepEqual(copy.blocks.map(block => block.sourceRef), [md, pdf, undefined]);
   assert.equal((await f.resolve([md.id])).body.refs[0].status, 'current');
 });
 
-test('a block saved with a malformed source_ref is read as none, never thrown on', () => {
-  for (const source_ref of [null, 'x', 3, [], {}, { v: 2, kind: 'pdf' }, { v: 1, kind: 'html' }, { v: 1, kind: 'markdown', id: 'sref_' + 'a'.repeat(24), source: { key: 'file:fs_zz', rev: 'x', name: 'n' }, anchor: { quote: { exact: 'x' } } }]) {
-    const ref = sourceRefOf({ source_ref });
-    assert.ok(ref === null || ref.id === null, JSON.stringify(source_ref));
+test('a block saved with a malformed sourceRef is read as none, never thrown on', () => {
+  for (const sourceRef of [null, 'x', 3, [], {}, { v: 2, kind: 'pdf' }, { v: 1, kind: 'html' }, { v: 1, kind: 'markdown', id: 'sref_' + 'a'.repeat(24), source: { key: 'file:fs_zz', rev: 'x', name: 'n' }, anchor: { quote: { exact: 'x' } } }]) {
+    const ref = sourceRefOf({ sourceRef });
+    assert.ok(ref === null || ref.id === null, JSON.stringify(sourceRef));
   }
   assert.equal(sourceRefOf({}), null);
   assert.equal(sourceRefOf(null), null);

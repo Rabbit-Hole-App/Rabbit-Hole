@@ -1,5 +1,5 @@
 // Source passage references (Tutor release R3, docs/features/source-refs.md). A card made from a selected passage carries
-// `source_ref`: the source, its immutable revision (the sha256 of the stored bytes) and where in it the passage sits. Pure and
+// `sourceRef`: the source, its immutable revision (the sha256 of the stored bytes) and where in it the passage sits. Pure and
 // shared: the browser builds drafts and reads cards with it, the control plane sanitizes with it, so both sides read one
 // shape. The server mints the ref (control-plane source-refs.js); nothing here grants access.
 //
@@ -13,7 +13,9 @@ export const SOURCE_KEY = /^((doc:ctx|pdf:upload):[0-9a-f]{12}|file:fs_[0-9a-f]{
 export const SHA256 = /^[0-9a-f]{64}$/;
 export const STATUSES = Object.freeze(['current', 'changed', 'missing', 'unavailable']);
 export const QUOTE_LIMITS = Object.freeze({ exact: 8000, context: 500 });
-export const SOURCE_REF_EVENT = 'rh:source-passage';
+// SOURCE_REF_EVENT: View passage asks a Markdown file card to emphasize a quote. EXPLAIN_PASSAGE_EVENT: a card's Explain on a selected passage
+// hands LearnPage the minted ref id and the passage text to start the explanation with.
+export const SOURCE_REF_EVENT = 'rh:source-passage', EXPLAIN_PASSAGE_EVENT = 'rh:explain-passage';
 
 export const kindOfKey = key => (typeof key !== 'string' ? null : key.startsWith('file:') ? 'markdown' : /^(doc:ctx|pdf:upload):/.test(key) ? 'pdf' : null);
 
@@ -21,10 +23,10 @@ const text = (value, max) => (typeof value === 'string' ? value.slice(0, max) : 
 const quoteOf = quote => (quote && typeof quote.exact === 'string' && quote.exact
   ? { exact: quote.exact.slice(0, QUOTE_LIMITS.exact), prefix: text(quote.prefix, QUOTE_LIMITS.context), suffix: text(quote.suffix, QUOTE_LIMITS.context) } : null);
 
-// The card's source_ref as this module reads it, or null for anything malformed (a saved board can hold any JSON). A ref
+// The card's sourceRef as this module reads it, or null for anything malformed (a saved board can hold any JSON). A ref
 // with an id opens; one without (a shared reader's) is a label.
 export function sourceRefOf(block) {
-  const ref = block?.source_ref;
+  const ref = block?.sourceRef;
   if (!ref || typeof ref !== 'object' || ref.v !== 1 || (ref.kind !== 'markdown' && ref.kind !== 'pdf')) return null;
   const name = text(ref.source?.name, 160) || (ref.kind === 'pdf' ? 'PDF' : 'Markdown file');
   const opens = SOURCE_REF_ID.test(ref.id || '') && kindOfKey(ref.source?.key) === ref.kind && SHA256.test(ref.source?.rev || '');
@@ -45,12 +47,12 @@ export function sharedSourceRef(ref) {
   const label = ref.kind === 'pdf' ? text(ref.anchor?.page?.label, 40) || null : null;
   return { v: 1, kind: ref.kind, source: { name: text(ref.source?.name, 160) || (ref.kind === 'pdf' ? 'PDF' : 'Markdown file') }, ...(label ? { anchor: { page: { label } } } : {}) };
 }
-// A block with its source_ref reduced for sharing; a block without one is returned as it is.
+// A block with its sourceRef reduced for sharing; a block without one is returned as it is.
 export function withSharedSourceRef(block) {
-  if (!block || typeof block !== 'object' || !('source_ref' in block)) return block;
-  const { source_ref: ref, ...rest } = block;
+  if (!block || typeof block !== 'object' || !('sourceRef' in block)) return block;
+  const { sourceRef: ref, ...rest } = block;
   const shared = sharedSourceRef(ref);
-  return shared ? { ...rest, source_ref: shared } : rest;
+  return shared ? { ...rest, sourceRef: shared } : rest;
 }
 
 // "notes.md" or "paper.pdf, p. 3": where the passage is, in the words the chip shows.
@@ -66,6 +68,9 @@ export const STATUS_TEXT = Object.freeze({
   missing: 'This source is not available here, so the passage cannot be shown.',
   unavailable: 'You cannot open this source.',
 });
+// The same, as the one short line a card shows; the long form is its title and what a screen reader says.
+export const STATUS_SHORT = Object.freeze({ changed: 'Source changed', missing: 'Source not available', unavailable: 'Source not available' });
+export const NO_FILE_CARD = 'The file this passage is in is not on this canvas.';
 export const CREATE_REFUSED = Object.freeze({
   source_changed: 'This source changed since you selected this passage. Select the passage again.',
   source_unavailable: 'This source is not available to you now. Select the passage again from a source you can open.',

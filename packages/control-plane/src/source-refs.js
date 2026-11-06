@@ -1,6 +1,6 @@
 // Source passage references (Tutor release R3, docs/features/source-refs.md; learn-migrations/0038). The server mints a ref from
 // a selection the learner can read now, binds it to the source's immutable revision (the sha256 of the stored bytes) and keeps
-// its last resolution. A job or a card carries a source_ref only through this module: a client-supplied id or anchor is never
+// its last resolution. A job or a card carries a sourceRef only through this module: a client-supplied id or anchor is never
 // proof of access. Reuses pdf-excerpts.js's reader (readSource) and hash, so the access rule and the revision are exactly the
 // highlight and crop routes': a fork or share viewer, another account, a removed file or a changed document get no way in.
 //

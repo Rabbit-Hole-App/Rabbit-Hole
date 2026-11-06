@@ -190,7 +190,7 @@ export const imageSearchBlock = args => ({ type: 'image', mode: 'search', title:
 // proposal: the signed brief this Generate makes (material-brief.js): the server consumes it once and generates from its own words.
 export function generateCommand(name, args, { app, selection = null, context = null, image = null, proposal = null, sourceRef = null, post, signal = null }) {
   const timeout = AbortSignal.timeout(ARTIFACT_TIMEOUT_MS);
-  return post('/api/learn/artifact', { app, command: name, args, selection, context, ...(proposal ? { proposal } : {}), ...(sourceRef ? { source_ref: sourceRef } : {}), ...(image ? { image_context: { id: image }, image_role: 'layout_reference' } : {}) }, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+  return post('/api/learn/artifact', { app, command: name, args, selection, context, ...(proposal ? { proposal } : {}), ...(sourceRef ? { sourceRefId: sourceRef } : {}), ...(image ? { image_context: { id: image }, image_role: 'layout_reference' } : {}) }, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
 }
 
 // What a typed /motion says in a build that does not offer it (production): it runs nothing.
@@ -308,7 +308,7 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   // A bare /explain about a selected card is the same explicit job (owner spec 2026-10-29 5.2): its subject is that card, never the
   // legacy route because the words are empty; with neither words nor a selection it asks.
   // R3 (source-ref.js): a selected passage (target.sourceDraft: a PDF excerpt card's anchor, a Markdown quote) is minted into a server-held
-  // source_ref first. The job or the card carries its id; a source that changed since the selection stops here, before anything is made.
+  // sourceRef first. The job or the card carries its id; a source that changed since the selection stops here, before anything is made.
   let sourceRef = null;
   if (target?.sourceDraft) {
     try { sourceRef = (await mintSourceRef(post, target.sourceDraft)).id; }

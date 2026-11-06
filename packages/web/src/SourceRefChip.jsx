@@ -1,0 +1,63 @@
+// The source line under a card made from a selected passage (source-ref.js, Tutor release R3; docs/features/source-refs.md): where
+// the card came from, one quiet row in the card's footer like Sources and evidence. "View passage" opens the source at the
+// passage: the PDF reader at the page with the anchor emphasized, or the Markdown file card with the quote emphasized. A source
+// that changed, went away or is not yours says so and offers nothing: the passage is never found by position or by text.
+// A shared reader's card has no id: it shows only the name.
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { BookOpen, FileText } from 'lucide-react';
+import { api } from './api.js';
+import { NO_FILE_CARD, STATUS_SHORT, STATUS_TEXT, navigable, refLabel, sourceRefOf } from './source-ref.js';
+import { publishBlocks, published, resolveSourceRef, subscribeBlocks, viewPassage } from './source-refs.js';
+
+const NONE = [];
+const post = (path, body) => api(path, { method: 'POST', body: JSON.stringify(body) });
+
+// The canvas publishes its blocks and camera so the readers outside its React tree (the PDF reader, a Markdown file card) can
+// find an explanation card and move to it. One line in AdaptiveCanvas: useSourceRefIndex(blocks, focusCard).
+export function useSourceRefIndex(blocks, focus) {
+  const latest = useRef(focus);
+  latest.current = focus;
+  const stable = useCallback(id => latest.current?.(id), []);
+  useEffect(() => { publishBlocks(blocks, stable); }, [blocks, stable]);
+  useEffect(() => () => publishBlocks([], null), []);
+}
+// The published blocks, for a reader that lists explanations for its own source.
+export const useSourceRefBlocks = () => useSyncExternalStore(subscribeBlocks, () => published().blocks, () => NONE); // NONE: the server render (and its test) sees no blocks
+
+export default function SourceRefChip({ block, app, onHeight = null }) {
+  const ref = sourceRefOf(block);
+  const root = useRef(null);
+  const [status, setStatus] = useState(null); // null: not asked yet, or the answer failed
+  const [note, setNote] = useState('');
+  const id = ref?.id ?? null;
+  useEffect(() => {
+    if (!id || !app) return undefined;
+    let live = true;
+    resolveSourceRef(post, app, id).then(found => { if (live) setStatus(found?.status ?? null); });
+    return () => { live = false; };
+  }, [id, app, block.sourceRef?.source?.rev]);
+  // The card's frame grows by exactly this row, as the Sources row does.
+  useEffect(() => {
+    if (!onHeight || !root.current) return undefined;
+    const observer = new ResizeObserver(() => onHeight(root.current ? root.current.offsetHeight : 0));
+    observer.observe(root.current);
+    return () => { observer.disconnect(); onHeight(0); };
+  }, [onHeight]);
+  if (!ref) return null;
+  const bad = status && status !== 'current';
+  const open = () => { if (viewPassage(ref) === 'no-card') setNote(NO_FILE_CARD); else setNote(''); };
+  return (
+    <div ref={root} data-source-ref data-source-ref-status={status || 'unknown'} className="shrink-0 px-4 pb-3" onPointerDown={event => event.stopPropagation()}>
+      <div className="flex items-center gap-1.5 border-t border-line pt-1.5 text-[11px] text-ink-3">
+        <FileText size={12} className="shrink-0" aria-hidden="true" />
+        <span className="min-w-0 flex-1 truncate" title={refLabel(ref)}>From {refLabel(ref)}</span>
+        {bad && <span data-source-ref-note role="status" title={STATUS_TEXT[status]} aria-label={STATUS_TEXT[status]} className="shrink-0 text-ink-2">{STATUS_SHORT[status]}</span>}
+        {!bad && note && <span data-source-ref-note role="status" className="shrink-0 text-ink-2">{note}</span>}
+        {navigable(ref) && status === 'current' && (
+          <button type="button" data-source-ref-open aria-label="View passage" title="View passage" onClick={open}
+            className="flex shrink-0 items-center rounded p-1 text-ink-2 hover:bg-hover hover:text-ink"><BookOpen size={12} aria-hidden="true" /></button>
+        )}
+      </div>
+    </div>
+  );
+}

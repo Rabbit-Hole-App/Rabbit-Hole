@@ -247,15 +247,15 @@ export async function explainRoute(path, req, env, deps = {}) {
   delete body.context_refs;
   // UI-15.1: Generate on a reviewed brief. The proposal's references are read here, under this learner's access, and the job gets only what
   // this read says (never a client field): a deleted, changed, refused or unsupported one answers 409 with every state, before anything is consumed.
-  // R3: a selected passage's source_ref is an id the server minted for this learner (source-refs.js). It is read again here, under
+  // R3: a selected passage's sourceRef is an id the server minted for this learner (source-refs.js). It is read again here, under
   // this canvas's access, and the job gets only that read (sourceRef); a changed or unavailable source refuses before anything is spent.
   delete body.sourceRef;
-  if (action === 'create' && body.source_ref != null) {
-    const got = await (deps.sourceRef || (await import('./source-refs.js')).trustedSourceRef)(req, env, user, board.app, body.source_ref, deps.sourceRead);
+  if (action === 'create' && body.sourceRefId != null) {
+    const got = await (deps.sourceRef || (await import('./source-refs.js')).trustedSourceRef)(req, env, user, board.app, body.sourceRefId, deps.sourceRead);
     if (got.error) return json({ error: got.error, code: got.code }, got.status);
     body.sourceRef = got.ref;
   }
-  delete body.source_ref;
+  delete body.sourceRefId;
   delete body.approved_refs;
   if (action === 'approve' && body.proposal?.references?.length && isReviewProposal(body.proposal)) {
     const found = await (deps.resolveReferences || resolveReferences)(env, { ...body.proposal, command: 'explain' }, { req, user, app: board.app }, { read: deps.read });
@@ -545,8 +545,8 @@ export class ExplainJobs {
   async block(job) {
     const saved = await this.state.storage.get(`result:${job.resultId}`);
     // A program card keeps a reference on the canvas, never its source: the player reads the artifact through the result route.
-    if (saved?.kind === 'program') return { type: 'animation', id: job.cardId, title: saved.artifact.manifest.title, program: programReference(saved.artifact, job.resultId), explain: job.result, ...(job.sourceRef ? { source_ref: job.sourceRef } : {}) };
-    return saved && { type: 'animation', id: job.cardId, scene: saved.compiled?.scene ?? saved.compiled, explain: job.result, ...(job.sourceRef ? { source_ref: job.sourceRef } : {}) };
+    if (saved?.kind === 'program') return { type: 'animation', id: job.cardId, title: saved.artifact.manifest.title, program: programReference(saved.artifact, job.resultId), explain: job.result, ...(job.sourceRef ? { sourceRef: job.sourceRef } : {}) };
+    return saved && { type: 'animation', id: job.cardId, scene: saved.compiled?.scene ?? saved.compiled, explain: job.result, ...(job.sourceRef ? { sourceRef: job.sourceRef } : {}) };
   }
 
   usageEnv(job, key) {

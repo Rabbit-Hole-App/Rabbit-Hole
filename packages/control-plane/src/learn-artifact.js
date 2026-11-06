@@ -183,14 +183,14 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
   if (access instanceof Response) return access;
   const ownerRefused = subscriptionOwnerRefusal(env, access);
   if (ownerRefused) return ownerRefused;
-  // R3: the card's source_ref is the id the server minted for this learner's selected passage, read again now (source-refs.js). It is
+  // R3: the card's sourceRef is the id the server minted for this learner's selected passage, read again now (source-refs.js). It is
   // metadata on the card the command makes, never model input; a changed or unavailable source refuses before any model call.
   let passage = null;
-  if (body.source_ref != null) {
+  if (body.sourceRefId != null) {
     if (!env.LEARN_DB) return json({ error: 'Source references are not available here yet.', code: 'not_configured' }, 503);
     const user = await (identity || repositoryIdentity)(req, env);
     if (user instanceof Response) return user;
-    const got = await (sourceRef || (await import('./source-refs.js')).trustedSourceRef)(req, env, user, body.app, body.source_ref);
+    const got = await (sourceRef || (await import('./source-refs.js')).trustedSourceRef)(req, env, user, body.app, body.sourceRefId);
     if (got.error) return json({ error: got.error, code: got.code }, got.status);
     passage = got.ref;
   }
@@ -224,7 +224,7 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
     const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}) });
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
     if (out?.result !== 'artifact' && out?.result !== 'paid_proposal') await giveBack();
-    return json(passage && out?.block ? { ...out, block: { ...out.block, source_ref: passage } } : out);
+    return json(passage && out?.block ? { ...out, block: { ...out.block, sourceRef: passage } } : out);
   }
   catch (error) { await giveBack(); return json({ error: error.message }, 502); }
 }

@@ -10,6 +10,9 @@ import { deleteHighlight, getSource, listHighlights, newId, putHighlight } from 
 import { EXCERPT_DRAG, EXCERPT_EVENT, excerptDraft, put, sendExcerpt } from './pdf-excerpt-drafts.js';
 import { renderCrop } from './pdf-crop.js';
 import { Boxes, ToolButton, placeNear } from './selection-toolbar.jsx';
+import { explanationsFor } from './source-ref.js';
+import { focusExplanation } from './source-refs.js';
+import { useSourceRefBlocks } from './SourceRefChip.jsx';
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const pct = n => `${n * 100}%`;
@@ -187,6 +190,9 @@ export default function LearnPaper({ app, paper, onClose, onPage, zoomStart = 1,
 
   // ---- The companion reader's excerpts (pdf-excerpts contract). Selecting alone saves and sends nothing. ----
   const key = companion?.key || null, home = companion?.home ?? null;
+  // The cards on the canvas made from a passage of this page of this revision (source-ref.js): their passages are underlined.
+  const refBlocks = useSourceRefBlocks();
+  const explained = key && identity?.sha256 ? explanationsFor(refBlocks, { key, rev: identity.sha256, page: paper.page }).current : [];
   const ready = !!(key && identity?.sha256), plain = !!companion && (!key || !!identity?.error);
   const at = () => ({ app, key, home });
   useEffect(() => {
@@ -462,6 +468,12 @@ export default function LearnPaper({ app, paper, onClose, onPage, zoomStart = 1,
           onClick={event => setMenu(menu?.h.id === h.id ? null : { h, el: event.currentTarget })}
           className="pointer-events-none rounded-sm focus-visible:outline-2 focus-visible:outline-accent"
           boxClassName="pointer-events-auto cursor-pointer bg-yellow-300/40 group-data-[pressing]/page:pointer-events-none" />)}
+      </div>}
+      {/* Passage to explanation (source-ref.js): a quiet dotted underline under a passage a card on the canvas was made from. */}
+      {companion && view && explained.length > 0 && <div className="pointer-events-none absolute inset-0 z-[2]">
+        {explained.map(({ cardId, ref }) => <Boxes key={cardId} as="button" type="button" data-pdf-source-ref aria-label="View explanation" title="View explanation" parts={toViewport(ref.anchor, view)}
+          onClick={() => focusExplanation(cardId)} className="pointer-events-none rounded-sm focus-visible:outline-2 focus-visible:outline-accent"
+          boxClassName="pointer-events-auto cursor-pointer border-b-2 border-dotted border-accent/60 hover:bg-accent/10 group-data-[pressing]/page:pointer-events-none" />)}
       </div>}
       {emphasis && view && <Boxes ref={emphasisEl} data-pdf-emphasis aria-hidden="true" parts={toViewport(anchor, view)} className="pointer-events-none z-[3]"
         boxClassName="bg-orange-300/35 ring-2 ring-orange-500 motion-safe:animate-pulse" />}

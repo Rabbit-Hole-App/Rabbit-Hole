@@ -1,13 +1,17 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Highlighter, Trash2, X } from 'lucide-react';
+import { BookOpen, Highlighter, Lightbulb, Trash2, X } from 'lucide-react';
 import { Button } from './ui.jsx';
 import { Md } from './Md.jsx';
 import { ToolButton, placeNear } from './selection-toolbar.jsx';
 import { EXCERPT_LIMIT } from './pdf-anchor.js';
 import { deleteHighlight, listHighlights, newId, putHighlight } from './pdf-highlights.js';
 import { canWrite, fileScope } from './file-source-client.js';
-import { paintHighlights, quoteFromRange, rangeFromOffsets } from './learn-wiki-highlights.js';
+import { containsOffset, locateQuote, paintHighlights, quoteFromRange, rangeFromOffsets } from './learn-wiki-highlights.js';
 import { currentHighlights, highlightAt, markdownHighlightBody, markdownHighlightSource, placeHighlights } from './file-doc-highlights.js';
+import { EXPLAIN_PASSAGE_EVENT, SOURCE_REF_EVENT, STATUS_TEXT, explanationsFor, markdownDraft } from './source-ref.js';
+import { focusExplanation, mintSourceRef } from './source-refs.js';
+import { api } from './api.js';
+import { useSourceRefBlocks } from './SourceRefChip.jsx';
 
 // A Markdown file card's rendered text with the PDF reader's selection popover (Highlight) and the webpage card's highlight menu
 // (Remove highlight), docs/features/pdf-excerpts.md "Markdown cards". Highlights are text quotes painted over the rendered text
@@ -22,6 +26,7 @@ export function MarkdownText({ block, text, children }) {
   const [menu, setMenu] = useState(null); // { h, range }: the highlight offered Remove
   const wrap = useRef(null), scroller = useRef(null), root = useRef(null), barEl = useRef(null), menuEl = useRef(null);
   const key = source?.key;
+  const refBlocks = useSourceRefBlocks(); // cards made from a passage of this file (source-ref.js): the passage opens its explanation
 
   useEffect(() => {
     if (!source) { setAnswer(null); return undefined; }
@@ -46,6 +51,31 @@ export function MarkdownText({ block, text, children }) {
     observer.observe(node, { childList: true, subtree: true, characterData: true });
     return () => { observer.disconnect(); paintHighlights(paintKey, []); };
   }, [marks, block.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Card to passage (SourceRefChip View passage): the quote is emphasized for a moment, only on the revision the card was made from.
+  // A changed file shows that instead; the passage is never searched for in other text.
+  useEffect(() => {
+    const onPassage = event => {
+      const { cardId, rev: from, quote } = event.detail || {};
+      const node = root.current;
+      if (cardId !== block.id || !node) return;
+      if (from !== rev) { setMessage({ text: STATUS_TEXT.changed }); return; }
+      const span = locateQuote(node.textContent, quote), range = span && rangeFromOffsets(node, span.start, span.end);
+      if (!range) { setMessage({ text: STATUS_TEXT.changed }); return; }
+      const paintKey = `srcref:${block.id}`;
+      paintHighlights(paintKey, [range]);
+      (range.startContainer.parentElement || node).scrollIntoView?.({ block: 'center' });
+      setTimeout(() => paintHighlights(paintKey, []), 2500);
+    };
+    window.addEventListener(SOURCE_REF_EVENT, onPassage);
+    return () => window.removeEventListener(SOURCE_REF_EVENT, onPassage);
+  }, [block.id, rev]);
+  useEffect(() => {
+    if (!menu?.cardId) return undefined;
+    const paintKey = `srcref-open:${block.id}`;
+    paintHighlights(paintKey, [menu.range]);
+    return () => paintHighlights(paintKey, []);
+  }, [menu, block.id]);
 
   const evaluate = () => {
     const node = root.current, selection = window.getSelection?.();
@@ -81,16 +111,19 @@ export function MarkdownText({ block, text, children }) {
     return () => { window.removeEventListener('keydown', escape, true); window.removeEventListener('pointerdown', away, true); };
   }, [bar, menu]);
 
-  // A click on a highlight (a collapsed caret inside one) offers Remove, as the webpage card's highlight does.
+  // A click on a highlight (a collapsed caret inside one) offers Remove, as the webpage card's highlight does. A click on a passage an
+  // explanation was made from offers View explanation, with the passage shown while the menu is open (source-ref.js explanationsFor).
   const click = () => {
     const selection = window.getSelection?.(), node = root.current;
-    if (!saveable || !selection?.rangeCount || !selection.isCollapsed || !node?.contains(selection.anchorNode)) return;
+    if (!selection?.rangeCount || !selection.isCollapsed || !node?.contains(selection.anchorNode)) return;
     const caret = selection.getRangeAt(0), before = document.createRange();
     before.setStart(node, 0); before.setEnd(caret.startContainer, caret.startOffset);
-    const placed = placeHighlights(node.textContent, highlights), h = highlightAt(placed, before.toString().length);
-    if (!h) { setMenu(null); return; }
-    const { span } = placed.find(entry => entry.h === h);
-    setMenu({ h, range: rangeFromOffsets(node, span.start, span.end) });
+    const offset = before.toString().length, placed = saveable ? placeHighlights(node.textContent, highlights) : [], h = highlightAt(placed, offset);
+    const passage = explanationsFor(refBlocks, { key: `file:${block.fileRef?.source?.id}`, rev }).current
+      .flatMap(({ cardId, ref }) => { const span = locateQuote(node.textContent, ref.anchor.quote); return span && containsOffset(span, offset) ? [{ cardId, span }] : []; })[0];
+    if (!h && !passage) { setMenu(null); return; }
+    const { span } = h ? placed.find(entry => entry.h === h) : passage;
+    setMenu({ h: h || null, cardId: passage?.cardId ?? null, range: rangeFromOffsets(node, span.start, span.end) });
   };
 
   const highlight = quote => {
@@ -108,6 +141,17 @@ export function MarkdownText({ block, text, children }) {
       }
     };
     put();
+  };
+  // Explain this passage (source-ref.js): the server mints the reference to this revision of the file and this quote, then LearnPage starts the
+  // explanation with it, so the card that comes back can open the passage again. A file that changed since it was shown stops here.
+  const explain = async quote => {
+    const draft = markdownDraft({ block, quote, app: source.app });
+    window.getSelection?.()?.removeAllRanges(); setBar(null);
+    if (!draft) return;
+    try {
+      const ref = await mintSourceRef((path, body) => api(path, { method: 'POST', body: JSON.stringify(body) }), draft);
+      window.dispatchEvent(new CustomEvent(EXPLAIN_PASSAGE_EVENT, { detail: { sourceRef: ref.id, text: quote.exact } }));
+    } catch (problem) { setMessage({ text: problem.message }); }
   };
   const remove = async h => {
     setMenu(null);
@@ -127,9 +171,11 @@ export function MarkdownText({ block, text, children }) {
     </div>
     {bar && <div ref={barEl} data-file-doc-selection-toolbar role="toolbar" aria-label="Selected text" className="absolute z-30 flex items-center gap-0.5 rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>
       <ToolButton label="Highlight" icon={Highlighter} onClick={() => highlight(bar.quote)} />
+      <ToolButton label="Explain" icon={Lightbulb} onClick={() => explain(bar.quote)} />
     </div>}
     {menu && <div ref={menuEl} data-file-doc-highlight-menu role="menu" aria-label="Highlight" className="absolute z-30 flex w-44 flex-col rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>
-      <button type="button" role="menuitem" autoFocus onClick={() => remove(menu.h)} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><Trash2 size={14} className="shrink-0 text-ink-2" />Remove highlight</button>
+      {menu.cardId && <button type="button" role="menuitem" data-file-doc-view-explanation autoFocus onClick={() => { const id = menu.cardId; setMenu(null); focusExplanation(id); }} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><BookOpen size={14} className="shrink-0 text-ink-2" />View explanation</button>}
+      {menu.h && <button type="button" role="menuitem" autoFocus={!menu.cardId} onClick={() => remove(menu.h)} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><Trash2 size={14} className="shrink-0 text-ink-2" />Remove highlight</button>}
     </div>}
   </div>;
 }
