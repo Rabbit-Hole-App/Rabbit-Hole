@@ -1,8 +1,7 @@
 // Tutor v2 turn trace: one trace_id, per-stage timing, status and result category. TutorDecisionEvent v1 below.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { turnTrace, decisionEvent, hooksEvent, shownEvent, emitDecision, addSink, tracing, harnessSink, newSessionId, ROW_REASON } from './learn-tutor-trace.js';
-import { inputSummary } from './learn-next-steps.js';
+import { turnTrace, decisionEvent, hooksEvent, shownEvent, emitDecision, addSink, tracing, harnessSink, newSessionId, inputSummary, ROW_REASON } from './learn-tutor-trace.js';
 import { runTurn } from './learn-tutor.js';
 import { emptyStore } from './learn-tutor-evidence.js';
 import { journeyDomain } from './learn-journey-domain.js';

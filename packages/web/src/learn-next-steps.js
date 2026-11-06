@@ -1,37 +1,42 @@
 // Professor Next Steps, browser side (docs/features/professor-next-steps.md §2.1, §2.3): the hook planner's input, built from
 // structured state only (never a chat dump, never intake self-report), its staleness basis and the stopping points. Pure.
-import { NEXT_STEPS_LIMITS as L, STATES, capText as cap, trimToFit } from '../../control-plane/src/agents/learn-next-steps.js';
+import { NEXT_STEPS_LIMITS as L, capText as cap, needsRepair, nextStepsScope, trimToFit } from '../../control-plane/src/agents/learn-next-steps.js';
+import { nextSectionOf, sectionCompletion } from './learn-journey.js';
+import { deriveClaimStates } from './learn-tutor-evidence.js';
+import { claimsOfConceptIn, holeConcept } from './learn-tutor-claims.js';
 import { resolveTarget } from './learn-target.js';
+import { enterHole, markOpened, openingQuestion, sameCanvas } from './learn-tutor.js';
+import { safely } from './learn-tutor-trace.js';
+import { takeGuidedEntry } from './learn-opening.js';
+import { TUTOR_DOMAINS } from './learn-tutor-domains.js';
 
-// Tutor decision telemetry is gone with the browser Tutor; these two outlived it. safely runs a callback so a throwing sink or
-// subscriber never fails the caller, and counts the swallowed error (globalThis.__smallTutorTraceErrors).
-export const count = () => { globalThis.__smallTutorTraceErrors = (globalThis.__smallTutorTraceErrors || 0) + 1; };
-export const safely = build => { try { return build(); } catch { count(); return null; } };
+const SETUP = ['intake', 'diagnostic', 'path_review'];
+const claimIdsOf = section => (section?.expected_evidence || []).map(e => e?.claim).filter(id => typeof id === 'string');
 
-// The hook planner's input in telemetry terms: claim ids by state, the canvas's block kinds and presented claims, targets. The
-// server stores it beside a shared set (learn-next-steps-routes.js).
-const byState = pairs => Object.fromEntries(STATES.map(state => [state, pairs.filter(([, s]) => s === state).map(([id]) => id)]));
-const tally = names => { const out = {}; for (const name of names) out[name] = (out[name] || 0) + 1; return out; };
-export function inputSummary(input) {
-  const claims = input?.scope?.claims || {}, blocks = input?.canvas?.blocks || [];
-  return {
-    evidence_summary: byState(Object.entries(claims).map(([id, claim]) => [id, claim?.state])),
-    canvas_summary: { blocks: blocks.length, kinds: tally(blocks.map(block => block.kind)), presented_claim_ids: [...new Set(blocks.flatMap(block => block.claim_ids || []))] },
-    target_concept_ids: [...new Set(Object.values(claims).map(claim => claim?.concept).filter(Boolean))], target_claim_ids: Object.keys(claims),
-  };
-}
-
+// Ruling T7: structured sources only - the journey goal; a hole's hook goal, else its parent's goal (a journey's, or the
+// course subject) and its title; else the course subject or canvas title. The learner's words travel as recent.question.
+// Shared by the input and its basis (owner eleventh message 3): a rename that changes the goal changes the basis.
+// liveTitle (fix round 3): a hole's live title (useTutor's, from the dives path); record.title is its creation-time title.
 // A title that says what a canvas is about, else '' (owner 2026-10-08, blank canvases): not blank, not the default Untitled
 // (start.js UNTITLED) and not an auto canvas name (canvas-<8 hex>).
 export const informativeTitle = title => { const t = String(title || '').trim(); return /^(untitled( canvas)?|canvas-[0-9a-f]{8})$/i.test(t) ? '' : t; };
-// Owner task 2 (2026-10-13, Curious): a plain canvas's title is background, never its goal (sent as canvas.title): the planner reads
-// the canvas's content for what the learner is working on, and the title only when the canvas holds nothing. A hole's goal is its
-// learning_goal, else its live title (liveTitle: the dives path's, record.title is its creation-time title), else the canvas title.
-// Shared by the input and its basis (owner eleventh message 3): a rename that changes the goal changes the basis.
-export function goalOf({ record = null, title = '', liveTitle = null }) {
-  const holeTitle = liveTitle || record?.title;
-  if (!record) return { goal: '', parentGoal: null, background: informativeTitle(liveTitle || title) };
-  return { goal: informativeTitle(record.learning_goal || holeTitle || title), parentGoal: null, background: '' };
+// Owner task 2 (2026-10-13, Curious): a plain canvas's title is background, never its goal (background, sent as
+// canvas.title): the planner reads the canvas's content for what the learner is working on, and the title only when the
+// canvas holds nothing. A journey, course or hole goal stays the goal.
+export function goalOf({ context = null, record = null, title = '', liveTitle = null }) {
+  const domain = context?.domain ?? null, holeTitle = liveTitle || record?.title;
+  const parentGoal = !record ? null : context?.source === 'dive' ? domain.context?.goal : context?.source === 'registry' ? domain.subject : null;
+  const plain = context?.source === 'canvas' && !record;
+  const goal = context?.source === 'journey' ? domain.context?.goal || title
+    // A canvas-domain hole (fix round 2): its learning_goal (the domain's subject), else its live title, so a rename reaches
+    // the input and the basis. An uninformative title (blank, Untitled, an auto name) is no goal. The Tutor's own domain never
+    // takes a title as its goal (topic restriction, owner 2026-10-14); a hook goal here is a suggestion's focus, not a limit.
+    : plain ? ''
+    : context?.source === 'canvas' ? informativeTitle(domain.subject || holeTitle || title)
+    : record ? record.learning_goal || (parentGoal ? `${cap(parentGoal, 120)} - ${cap(holeTitle, 80)}` : holeTitle)
+    : domain?.subject || title;
+  // An uninformative title is no background either: a blank canvas then gets distinct starter hooks.
+  return { goal, parentGoal, background: plain ? informativeTitle(domain.subject || holeTitle || title) : '' };
 }
 
 // Owner task 2: the canvas's native content, from the shared snapshot (canvas-semantics.js semanticSnapshot, already
@@ -43,50 +48,129 @@ const nativeOf = snapshot => (!snapshot ? {} : {
   relations: snapshot.relations || [], groups: snapshot.groups || [], omitted: snapshot.omitted || { objects: 0, chars: 0 }, fingerprint: snapshot.fingerprint,
 });
 
-// record: a hole's dive record (read only). liveTitle: the hole's live title. lastTurn: the last finished turn the page knows, if
-// any ({ kind, question }). previous: { hooks, goals } already shown and chosen. describe: LearningBlocks' describeBlock when the
-// page passes it; only its title is read. snapshot: the canvas's semantic snapshot (canvasApi.semantic(), owner task 2), its native
-// content carried beside the cards. The input is the canvas's own content (Tutor cleanup P1): no claims, evidence states, journey
-// sections or Tutor session; the scope stays empty, which the planner reads as a plain canvas.
+// context: tutorContext's (or a hook turn's) { domain, source }, null where none resolves; a plain canvas or hole has the
+// canvas domain (Task 10: empty scope, block titles as grounding). store: the canvas's Tutor session store. journey:
+// useJourney's view. record/parent: a hole's dive record and its parent journey (read only). liveTitle: the hole's live
+// title (fix round 3; the record title is its creation title). previous: { hooks, goals } already shown and chosen.
+// describe: LearningBlocks' describeBlock when the page passes it; only its title is read. snapshot: the canvas's semantic
+// snapshot (canvasApi.semantic(), owner task 2), its native content carried beside the cards.
 // Returns { input, trim } - trim is structured counts beside the input, never inside it (owner sixth message 4) - or
-// { problem: 'input_too_large' } when nothing fits the 9000-character cap.
-export function nextStepsInput({ blocks = [], record = null, title = '', liveTitle = null, lastTurn = null, previous = {}, basis, describe = null, snapshot = null }) {
-  // kind is the block type. A chat card ({ id, question, answer }, no type) is kind chat titled by the learner's own question -
-  // grounding only: topicOf skips it - and never its answer.
+// { problem: 'input_too_large' } when the 9000-character cap would leave a registry canvas with no claim, or nothing fits.
+export function nextStepsInput({ context = null, store = null, journey = null, blocks = [], record = null, parent = null, title = '', liveTitle = null, lastTurn = null, previous = {}, basis, describe = null, snapshot = null }) {
+  const domain = context?.domain ?? null, claims = domain?.claims || {}, concepts = domain?.concepts || {}, events = store?.events || [];
+  const known = id => typeof id === 'string' && Object.hasOwn(claims, id);
+  const states = domain ? deriveClaimStates(events, claims) : {};
+  // kind is the block type, as TutorDecisionEvent's canvas_summary.kinds. A chat card ({ id, question, answer }, no type) is
+  // kind chat titled by the learner's own question - grounding only: topicOf skips it - and never its answer.
   const words = new Map((snapshot?.cards || []).map(card => [card.id, card.text]));
   const shown = blocks.slice(-L.blocks).map(block => {
     const chat = !block.type, text = chat ? '' : words.get(block.id) || '';
     let named = null;
     try { named = chat ? null : describe?.(block) ?? null; } catch { /* the block's own title */ }
+    const t = resolveTarget(block);
     return {
       id: block.id, kind: chat ? 'chat' : cap(block.type, 40), title: cap(chat ? block.question : named?.title ?? block.title ?? block.question ?? block.prompt ?? block.text, L.block_title),
-      concept_ids: [], claim_ids: [],
+      concept_ids: t.concept_ids.filter(c => Object.hasOwn(concepts, c)).slice(0, L.ids),
+      claim_ids: (domain?.targetClaims?.({ block_id: block.id, card_id: t.card_id, part_id: t.part_id, selected_object: t.selected_object, concept_ids: t.concept_ids }) || []).filter(known).slice(0, L.ids),
       practice: block.activity ? block.attemptLog?.at(-1)?.result ?? 'open' : null,
       // Owner task 2: the card's visible words (the snapshot's, budgeted; never a hidden answer), so a text edit re-plans.
       ...(text ? { text } : {}),
     };
   });
-  const { goal, background } = goalOf({ record, title, liveTitle });
+  const mode = context?.source === 'journey' ? 'journey' : record ? 'dive' : 'canvas';
+  const sections = journey?.path?.sections || [], completed = sections.filter(s => s.status === 'completed');
+  const current = mode === 'journey' ? sections.find(s => s.id === domain.sectionId) : null;
+  // Completed-section claims (owner sixth message 2), from every completed section: a claim only in a completed section takes a
+  // scope place only for repair - needsRepair (the validator's rule, on settled counts), or the concept a prerequisite_gap
+  // claim names (a missing prerequisite), and then only while that gap claim is in the kept scope. Understood or unseen stay out.
+  const done = new Set(completed.flatMap(claimIdsOf)), now = new Set(claimIdsOf(current));
+  const negatives = id => events.filter(e => e.claim === id && e.settled && (e.result === 'fail' || e.result === 'misconception')).length;
+  const repairState = id => needsRepair({ state: states[id]?.state, settled_negatives: negatives(id) });
+  const missing = new Set(Object.values(states).filter(s => s.state === 'prerequisite_gap' && s.prerequisite).map(s => s.prerequisite));
+  const repairing = id => repairState(id) || missing.has(claims[id]?.concept);
+  const completedOnly = id => done.has(id) && !now.has(id);
+  const active = id => !completedOnly(id) || repairing(id);
+  // A completed-only claim kept only as a missing prerequisite, with no gap claim naming its concept left in this scope.
+  const orphans = kept => Object.keys(kept).filter(id => completedOnly(id) && !repairState(id) && !Object.values(kept).some(c => c.state === 'prerequisite_gap' && c.prerequisite === kept[id].concept));
+  // Scope priority (§2.1): the section's or hole's claims, the newest blocks' claims, claims with evidence (newest first),
+  // the prerequisites of those, then completed-section claims that need repair.
+  const first = (domain?.defaultClaims?.({ canvas: { dive: record ? { record } : null } }) || []).filter(known);
+  const lead = [...first, ...[...shown.slice(-6).reverse().flatMap(b => b.claim_ids), ...events.map(e => e.claim).reverse().filter(known)].filter(active)];
+  const prerequisites = lead.flatMap(id => [states[id]?.prerequisite, ...(claims[id].prerequisites || [])]).filter(Boolean).flatMap(c => claimsOfConceptIn(claims, c)).filter(active);
+  const repair = [...done].filter(id => known(id) && !now.has(id) && repairing(id));
+  // The 12 cap, from the full priority order on every pass: a missing prerequisite whose gap claim the cap cut is excluded; once
+  // leaving it out lets that gap claim in, the gap claim keeps its place (pinned) and the prerequisite comes back ahead of the
+  // lowest claim. A claim is excluded at most once and readmitted at most once, so the passes end.
+  const order = [...new Set([...lead, ...prerequisites, ...repair])], excluded = new Set(), pinned = new Set();
+  const gapsOf = (kept, id) => Object.keys(kept).filter(g => kept[g].state === 'prerequisite_gap' && kept[g].prerequisite === claims[id].concept);
+  let scope;
+  for (;;) {
+    const pool = order.filter(id => !excluded.has(id));
+    let room = L.scope_claims - pool.filter(id => pinned.has(id)).length;
+    scope = nextStepsScope({ claims, concepts, order: pool.filter(id => pinned.has(id) || room-- > 0), states, events, presented: shown.flatMap(b => b.claim_ids) });
+    const lost = orphans(scope.claims), back = [...excluded].filter(id => gapsOf(scope.claims, id).length);
+    if (!lost.length && !back.length) break;
+    for (const id of lost) excluded.add(id);
+    for (const id of back) { excluded.delete(id); for (const g of gapsOf(scope.claims, id)) pinned.add(g); }
+  }
+
+  const { goal, parentGoal, background } = goalOf({ context, record, title, liveTitle });
+  const next = mode === 'journey' ? nextSectionOf(journey?.journey, journey?.path) : null, completion = sectionCompletion(journey?.journey);
+  const tutorSaid = cap(store?.turns?.at(-1)?.tutor || '', 300);
   const asked = ['question', 'request'].includes(lastTurn?.kind) && lastTurn.question ? cap(lastTurn.question, L.question) : null;
+  // recent names only claims and cards still in the kept input (set by fits below, after every trim step).
+  const transitions = (lastTurn?.transitions || []).map(({ claim, from, to }) => ({ claim, from, to }));
   const practice = shown.filter(b => b.practice && b.practice !== 'open').map(b => ({ block_id: b.id, result: b.practice }));
+  const parentStates = record?.journey && parent?.journey ? deriveClaimStates(parent.journey.evidence?.events || [], parent.journey.registry?.claims || {}) : {};
   const input = {
-    mode: record ? 'dive' : 'canvas', basis, goal: cap(goal, L.goal_text),
-    canvas: { ...(background ? { title: cap(background, L.block_title) } : {}), blocks: shown, ...nativeOf(snapshot) }, scope: { concepts: {}, claims: {} },
-    recent: { intent: lastTurn?.kind ?? null, ...(asked ? { question: asked } : {}), transitions: [], modalities: [], practice: [] },
+    mode, basis, goal: cap(goal, L.goal_text),
+    ...(mode === 'journey' ? { path: {
+      current: current ? { id: current.id, title: cap(current.title, 80), purpose: cap(current.purpose, 240), claim_ids: claimIdsOf(current) } : null,
+      completed: completed.slice(-6).map(s => ({ id: s.id, title: cap(s.title, 80), claim_ids: claimIdsOf(s) })),
+      upcoming: sections.filter(s => s.status === 'upcoming').slice(0, 4).map(s => cap(s.title, 80)),
+      // r29 (owner 2026-10-08): the next section, once the current section's checks were tried (sectionCompletion.attempted);
+      // completes says whether moving on completes this section or skips it (the journey route decides).
+      ...(next && completion.attempted ? { next: { id: next.id, title: cap(next.title, 80), completes: completion.met } } : {}),
+    } } : {}),
+    canvas: { ...(background ? { title: cap(background, L.block_title) } : {}), blocks: shown, ...nativeOf(snapshot) }, scope,
+    recent: {
+      intent: lastTurn?.kind ?? null, ...(asked ? { question: asked } : {}),
+      // r29: the Tutor's last reply on this canvas (the session store, as the Tutor planner reads it): the example being taught.
+      ...(tutorSaid ? { tutor: tutorSaid } : {}),
+      transitions: [], modalities: (store?.modalities || []).slice(-L.modalities), practice: [],
+    },
     previous: { hooks: (previous?.hooks || []).slice(-L.previous_hooks), goals: (previous?.goals || []).slice(-L.previous_goals) },
-    ...(record ? { dive: { title: cap(liveTitle || record.title, 80), concept: null, claim_ids: [], parent_goal: null, parent_section: null, parent_states: {} } } : {}),
-    constraints: { learner: [] },
+    ...(record ? { dive: {
+      title: cap(liveTitle || record.title, 80), concept: domain?.conceptOf ? holeConcept(record, domain) : null, claim_ids: first,
+      parent_goal: parentGoal ? cap(parentGoal, 200) : null, parent_section: record.journey?.section_id ?? null,
+      parent_states: Object.fromEntries((record.journey?.claim_ids || []).filter(id => parentStates[id]).map(id => [id, parentStates[id].state])),
+    } } : {}),
+    constraints: { learner: [...(store?.constraints || [])], ...(domain?.context?.constraints || {}) },
   };
   // The 9000-character cap (owner sixth message 1), by structured priority only, never titles or text (trimToFit, shared with the
-  // shared route): the least relevant, oldest cards go first down to the block floor, the newest card last.
-  const newest = shown.at(-1)?.id;
-  const sizes = () => ({ block_count: input.canvas.blocks.length, claim_count: 0 });
-  const sync = () => { input.recent.practice = practice.filter(p => input.canvas.blocks.some(b => b.id === p.block_id)).slice(-L.practice); };
-  const before = sizes();
-  const problem = trimToFit(input, { rank: b => (b.id === newest ? 1 : 0), sync });
+  // shared route): first the least relevant, oldest cards down to the block floor that feeds the scope (a card naming no kept
+  // claim, then one naming a kept claim or the newest card, then one naming an essential claim or the current section heading),
+  // then the lowest-priority claims, the essential claims only after every card. Essential: the section's or hole's claims, else
+  // the first claim. Every card and recent names only what is still kept; a missing prerequisite leaves with its gap claim.
+  const lead1 = new Set(first), had = Object.keys(input.scope.claims), core = new Set(first.length ? first : had.slice(0, 1));
+  const heading = journey?.journey?.section_plan?.heading_block_id ?? null, newest = shown.at(-1)?.id;
+  const count = () => ({ block_count: input.canvas.blocks.length, claim_count: Object.keys(input.scope.claims).length });
+  const sync = () => {
+    const keep = input.scope.claims;
+    input.recent.transitions = transitions.filter(t => Object.hasOwn(keep, t.claim)).slice(-L.transitions);
+    input.recent.practice = practice.filter(p => input.canvas.blocks.some(b => b.id === p.block_id)).slice(-L.practice);
+  };
+  const rank = b => (b.id === heading || b.claim_ids.some(id => core.has(id)) ? 2 : b.claim_ids.length || b.id === newest ? 1 : 0);
+  const before = count();
+  // Never a planner input with zero usable claims where the registry offered some, and never one over the cap.
+  const problem = trimToFit(input, { rank, essential: core, leaving: (_id, rest) => orphans(rest), sync });
+  const after = count();
   if (problem) return { problem };
-  const after = sizes();
-  return { input, trim: { before, after, trimmed: { block_count: before.block_count - after.block_count, claim_count: 0 } } };
+  const kept = ids => (ids.length ? ids.every(id => Object.hasOwn(input.scope.claims, id)) : null);
+  return { input, trim: {
+    before, after, trimmed: { block_count: before.block_count - after.block_count, claim_count: before.claim_count - after.claim_count },
+    current_section_claims_kept: kept(had.filter(id => lead1.has(id))), repair_claims_kept: kept(had.filter(repairing)),
+  } };
 }
 
 // The basis with the canvas repository's commit (repo-graph Release 1): short, so it stays inside the server's 400-character
@@ -100,24 +184,34 @@ const fnv = text => {
   for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
   return (h >>> 0).toString(16).padStart(8, '0');
 };
-// §2.3: a finished turn, a card added or removed (ids only, order ignored: never moved, selected or zoomed), a practice attempt,
-// a graded answer, entering or leaving a hole, the goal the input is grounded on (goalOf, so a rename that changes it re-asks) and
-// a hole's live dive title (a renamed learning_goal hole re-asks too). Owner task 2: the plain canvas's background title and the
-// canvas's semantic fingerprint (words, labels, kinds, relations and groups; never positions, selection or camera), so a text
-// edit with the same ids re-asks. Nothing else is read.
-export function nextStepsBasis({ lastTurn = null, canvasState = null, graded = 0, record = null, title = '', liveTitle = null, fingerprint = null }) {
-  const { goal, background } = goalOf({ record, title, liveTitle });
-  return `nb_${fnv(JSON.stringify([lastTurn?.turn_id ?? null, (canvasState?.cards || []).map(entry => entry[0]).sort(), canvasState?.attempts ?? 0, graded,
-    record?.dive_id ?? null, goal ?? null, record ? liveTitle || record.title : null, background, fingerprint]))}`;
+// §2.3: a finished Tutor turn, an evidence event (the session store's or the journey's, so an option answer outside a turn
+// counts), a path version, section change or section materialized, a card added or removed (ids only, order ignored: never
+// moved, selected or zoomed), a practice attempt, a graded answer, entering or leaving a hole. Task 10 fix round 1 (owner
+// eleventh message 2, 3): also the effective Tutor context (context, parent: the snapshot's) - its kind (journey, dive,
+// registry, canvas), the journey it stands on (a live one, or a hole's read parent), its section - and the goal the input
+// is grounded on (goalOf, so a rename that changes it re-asks), and a hole's live dive title, which every hole's input carries
+// (fix round 4: a renamed learning_goal hole re-asks too). Owner task 2: the plain canvas's background title and the
+// canvas's semantic fingerprint (words, labels, kinds, relations and groups; never positions, selection or camera), so a
+// text edit with the same ids re-asks. Nothing else is read.
+export function nextStepsBasis({ lastTurn = null, store = null, journey = null, canvasState = null, graded = 0, record = null, context = null, parent = null, title = '', liveTitle = null, fingerprint = null }) {
+  const j = journey?.journey;
+  return `nb_${fnv(JSON.stringify([lastTurn?.turn_id ?? null, store?.seq ?? 0, j?.evidence?.seq ?? null, journey?.path?.version ?? null, j?.active_section_id ?? null,
+    j?.section_plan?.heading_block_id ?? null, (canvasState?.cards || []).map(entry => entry[0]).sort(), canvasState?.attempts ?? 0, graded, record?.dive_id ?? null, !!store?.returned,
+    context?.source ?? null, j?.id ?? parent?.journey?.id ?? null, context?.domain?.sectionId ?? null, goalOf({ context, record, title, liveTitle }).goal ?? null, record ? liveTitle || record.title : null,
+    goalOf({ context, record, title, liveTitle }).background, fingerprint]))}`;
 }
 
-// Not a stopping point (contract §1.2): a turn answering, or nothing to suggest from. Voice Mode is deliberately not an input:
-// hooks stay visible and clickable while it is on. plain: a canvas that is not a hole. A blank plain canvas gets hooks at rest
-// (owner 2026-10-08, reversing the eleventh message 8): grounded in an informative title, else three distinct starter directions
-// (goalOf gives no goal). blocks are the canvas blocks (canvasApi.blocks()); chat exchanges are not among them. objects: how many
-// native objects it holds (owner task 2): a canvas of shapes and text alone is not blank.
-export function stoppingPoint({ busy = false, blocks = [], objects = 0, goal = '', plain = false }) {
-  if (busy) return 'not_now';
+// Not a stopping point (contract §1.2): the Tutor answering, journey work (a pending action, a section being built) or
+// setup, an open tray, an open Tutor question or a pending return on this canvas, or nothing to suggest from. Voice Mode is
+// deliberately not an input: hooks stay visible and clickable while it is on. plain: a canvas-domain canvas that is not a
+// hole. A blank plain canvas gets hooks at rest (owner 2026-10-08, reversing the eleventh message 8): grounded in an
+// informative title, else three distinct starter directions (goalOf gives no goal). blocks are the canvas blocks
+// (canvasApi.blocks()); chat exchanges are not among them. objects: how many native objects it holds (owner task 2): a
+// canvas of shapes and text alone is not blank.
+export function stoppingPoint({ busy = false, journey = null, store = null, here = null, blocks = [], objects = 0, goal = '', plain = false }) {
+  const j = journey?.journey;
+  if (busy || journey?.busy || j?.pending || (j && SETUP.includes(j.state)) || journey?.trayProps) return 'not_now';
+  if ((store?.open && sameCanvas(store.open.canvas, here)) || (store?.returned && sameCanvas(store.returned.parent, here))) return 'not_now';
   if (!blocks.length && !objects && !plain && !String(goal || '').trim()) return 'not_now';
   return null;
 }
@@ -134,7 +228,7 @@ export function stoppingPoint({ busy = false, blocks = [], objects = 0, goal = '
 // beside it, never inside it; { problem } is failed and posts nothing. Hooks are kept as opaque strings for previous, never
 // read. Callbacks get copies of the stored set. A throwing onSet, onShown or subscriber is swallowed and counted like a trace
 // sink error.
-// cap here is the tab ceiling: it shadows the imported capText (also cap), which this function must not call.
+// cap here is the tab ceiling: it shadows the capText import (also cap), which this function must not call.
 export function nextStepsController({ post, onSet = () => {}, onShown = () => {}, setTimer = setTimeout, clearTimer = clearTimeout, now = Date.now, debounce = L.debounce_ms, cap = L.tab_cap }) {
   let basis = null, stop = 'off', build = null, shown = null, timer = null, flying = null, requests = 0, changedAt = 0, disposed = false;
   // Owner task 2: the canvas's words are changing and not yet read (settling): the set on screen is stale at once, and
@@ -279,6 +373,44 @@ export function takePendingStep(storage, token, suggestionId) {
   return kept?.token === token && kept.suggestion_id === suggestionId ? take(storage, PENDING)?.step ?? null : null;
 }
 
+// The signed-in viewer's own evidence (their tab's Tutor store), only on claims of public registered courses and only claims
+// with evidence, newest evidence first across every such course, at most 12 (the scope cap). The server filters it again to
+// the board's own scope.
+export function viewerStates(store, registry = TUTOR_DOMAINS) {
+  const events = store?.events || [], out = {};
+  const states = Object.assign({}, ...registry.filter(e => e.domain && e.capabilities?.suppliedCourse === true).map(e => deriveClaimStates(events, e.domain.claims)));
+  for (const id of new Set(events.map(e => e?.claim).reverse())) {
+    if (Object.keys(out).length >= L.scope_claims) break;
+    if (states[id] && states[id].state !== 'not_yet_observed') out[id] = states[id].state;
+  }
+  return out;
+}
+
+// A hole's opening (LearnTutor.jsx's effect; contract §1.4, §6.4): where hook turns run, a hook carried from a shared canvas
+// opens the hole once as a next_step (marked opened, so the usual opening question never follows); otherwise, where the
+// Tutor is active, the pending question once (title is the live title, Task 10 fix round 4). Nothing is read or taken where
+// hook turns do not run (Ruling F4), so a carried step waits for them, nor until settled: the hook context is resolved (the
+// dives record and a journey hole's parent read), so a carried step never runs on the canvas domain a parent journey
+// replaces. load and domain are thunks (load mints a session id). Returns { store: to save or null, opening: for setOpening
+// or null }.
+// Each opening's key is minted here, the hole id plus a fresh id (mint), so it names that one opening: a later, distinct carry
+// into the same hole is a new opening (learn-opening.js openOnce).
+export function holeOpening({ storage, load, record, title = null, hookTurns, settled, active, domain, mint = () => crypto.randomUUID().slice(0, 8) }) {
+  const none = { store: null, opening: null };
+  if (!hookTurns || !settled || !record?.dive_id) return none;
+  const carried = takeCarriedStep(storage, record.dive_id);
+  // A carried hook is itself the learner's explicit entry; entry: the controls it was made under, when marked.
+  if (carried) return { store: markOpened(load(), record), opening: { key: `${record.dive_id}:${mint()}`, next_step: carried, entry: takeGuidedEntry(storage, record.dive_id)?.controls ?? null } };
+  if (!active) return none;
+  const store = enterHole(load(), record, domain());
+  const question = openingQuestion(store, record, title);
+  // Owner 4a: only an explicit guided entry opens with a turn. Without its mark (a URL restore, a refresh in another tab,
+  // Back, a reopened hole) the hole is restored as saved and is never opened again.
+  const guided = question ? takeGuidedEntry(storage, record.dive_id) : null;
+  if (!guided) return { store: question ? markOpened(store, record) : store, opening: null };
+  return { store: markOpened(store, record), opening: { key: `${record.dive_id}:${mint()}`, question, entry: guided.controls ?? null } };
+}
+
 // Professor Next Steps under the Tutor controls (owner 3a; conflicts.md Q5 "hooks"). Hooks are proactive: only while
 // `allowed` (Tutor selected, On, unpaused, the saved controls read). Opening, restoring, selecting Tutor or switching it On
 // asks nothing: the trigger at that moment is the baseline, and only a meaningful learner change after it asks - a finished
@@ -290,7 +422,8 @@ export function takePendingStep(storage, token, suggestionId) {
 // last set stays saved. Shown again, that saved set comes back as it was and nothing is asked for the turns made while hidden;
 // with none saved the stop is 'curious_empty' (the card's explicit request, memory.ask, asks once). Tutor's rules still come
 // first: shown never brings back what Off or paused hides.
-export const hooksTrigger = ({ lastTurn = null, canvasState = null, graded = 0 }) => JSON.stringify([lastTurn?.turn_id ?? null, canvasState?.attempts ?? 0, graded]);
+export const hooksTrigger = ({ lastTurn = null, journey = null, canvasState = null, graded = 0 }) => JSON.stringify([lastTurn?.turn_id ?? null,
+  journey?.journey?.evidence?.seq ?? null, journey?.path?.version ?? null, journey?.journey?.active_section_id ?? null, canvasState?.attempts ?? 0, graded]);
 export function gateHooks(memory, state, { allowed, visible = true, shown = true, trigger }) {
   if (!allowed) { memory.baseline = memory.trigger = memory.basis = null; memory.resumed = memory.ask = false; return { basis: null, stop: 'off' }; }
   if (!shown) { memory.hidden = true; memory.ask = false; return { basis: memory.basis ?? null, stop: 'curious_hidden' }; }

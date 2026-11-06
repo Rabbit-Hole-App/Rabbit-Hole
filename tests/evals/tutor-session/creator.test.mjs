@@ -112,7 +112,7 @@ test('the public creator profile reads plain counts only, over listed explainers
   assert.deepEqual(profile, { public_explainer_count: 1, aggregate_unique_learners: 3, aggregate_fork_count: 3 });
 });
 
-test('Next Steps impressions and selections come from the product\'s own hook events', { skip: 'ponytail: skipped by Tutor cleanup P1 - Next Steps no longer reads journey sections, claims or a Tutor session, which this simulated session drove; the whole tutor-session eval is deleted in P3 (docs cleanup-v0.3 section 4.7)' }, async () => {
+test('Next Steps impressions and selections come from the product\'s own hook events', async () => {
   // One real-product session (provider boundary, keyless), replayed as twelve learners on one publication.
   const topic = loadTopic('logistic-regression'), profiles = loadProfiles(), profile = profiles[0];
   const boundary = providerBoundary(stubAnswers());

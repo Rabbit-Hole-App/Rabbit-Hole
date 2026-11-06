@@ -2,6 +2,7 @@
 //   POST /api/learn/tutor/evaluate  free text -> evidence events: JEV (800 ms, one batched request),
 //                                   then the larger evaluator only when JEV is uncertain (8 s)
 //   POST /api/learn/tutor/plan      one forced-tool planner call -> TutorResponse
+//   POST /api/learn/tutor/next-steps  the hook planner -> HookSet (learn-next-steps-routes.js)
 //   POST /api/learn/tutor/handoff   one Tutor turn handed to an existing capability (learn-tutor-handoff.js)
 // evaluate and plan carry `telemetry` (per-rung ms, outcome, requested/served model, usage) for the bench; next-steps
 // carries the hook planner's (tier, escalation, model, prompt version, usage, cost) for the decision trace.
@@ -19,14 +20,15 @@ import { modelFailure } from './learn-research.js';
 import { LEARN_TASKS, costUsd, loggedModel, promptVersion } from './learn-models.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { escalation } from './agents/learn-tutor-escalation.js';
-import { HANDOFF_ACTION, handoffProblem } from './agents/learn-handoff.js';
-import { evaluationFrom, firstSentence, largerInstruction, parseLarger, parsePartial, PLANNER_EFFORTS, plannerRequest, readTutorAnswers, tutorJevRequest, TUTOR_TOOL, tutorTool } from './agents/learn-tutor.js';
+import { evaluationFrom, firstSentence, HANDOFF_ACTION, handoffProblem, largerInstruction, parseLarger, parsePartial, PLANNER_EFFORTS, plannerRequest, readTutorAnswers, tutorJevRequest, TUTOR_TOOL, tutorTool } from './agents/learn-tutor.js';
 import { normalizeToolInput } from './tool-input.js';
 import { JourneyConflict, appendJourneyEvidence, loadJourneyById } from './learn-journey-store.js';
 import { claimsOfConceptIn } from '../../web/src/learn-tutor-claims.js';
 import { JOURNEY_LIMITS } from '../../web/src/learn-journey.js';
+import { NEXT_STEPS_BODY_CHARS, ownedNextSteps } from './learn-next-steps-routes.js';
 import { HANDOFF_BODY_CHARS, HANDOFF_PATH, handoff } from './learn-tutor-handoff.js';
-import { spendCallModel } from './learn-spend.js';
+import { spendTransport } from './learn-spend.js';
+import { journeyCallModel } from './learn-journey-planners.js';
 import { withAttemptKind, usageRefusal } from './learn-usage.js';
 import { refusalBody } from './learn-spend-ledger.js';
 
@@ -37,6 +39,12 @@ const CONTEXT_LIMIT = 60000; // characters of planner context (about 12k tokens,
 
 const text = (value, max) => typeof value === 'string' && value.length <= max;
 
+// Each request/retry reserves independently. The private transport token prevents double admission.
+export function spendCallModel(env, access, category, callModel) {
+  return (callEnv, body, model, org, ...rest) => spendTransport(callEnv, body, model, org || access.org,
+    admittedEnv => callModel(admittedEnv, body, model, org, ...rest),
+    { userId: access.user_id || access.email, category });
+}
 export function validateEvaluateBody(body) {
   const { message, spec } = body || {};
   if (typeof message !== 'string' || !message.trim() || message.length > 4000) return { error: 'message must be 1-4000 characters' };
@@ -443,13 +451,13 @@ async function pageBlocks(env, access, page, { readPaper = uploadedPaperAsDocume
 }
 
 export async function tutorRoute(path, req, env, deps = {}) {
-  if (path !== '/api/learn/tutor/evaluate' && path !== '/api/learn/tutor/plan' && path !== HANDOFF_PATH) return null;
+  if (path !== '/api/learn/tutor/evaluate' && path !== '/api/learn/tutor/plan' && path !== '/api/learn/tutor/next-steps' && path !== HANDOFF_PATH) return null;
   if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
   let body;
-  if (path === HANDOFF_PATH) {
-    // The raw body is bounded before parsing, so padding outside input is refused too.
-    const raw = await req.text();
-    if (raw.length > HANDOFF_BODY_CHARS) return json({ error: `the request body must be at most ${HANDOFF_BODY_CHARS} characters`, failure: 'too_large' }, 400);
+  if (path === '/api/learn/tutor/next-steps' || path === HANDOFF_PATH) {
+    // The raw body is bounded before parsing, so padding outside input is refused too (input itself: 12000, checked later).
+    const raw = await req.text(), limit = path === HANDOFF_PATH ? HANDOFF_BODY_CHARS : NEXT_STEPS_BODY_CHARS;
+    if (raw.length > limit) return json({ error: `the request body must be at most ${limit} characters`, ...(path === HANDOFF_PATH ? { failure: 'too_large' } : {}) }, 400);
     try { body = JSON.parse(raw); } catch { return json({ error: 'Invalid JSON' }, 400); }
   } else {
     try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
@@ -459,13 +467,17 @@ export async function tutorRoute(path, req, env, deps = {}) {
   if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
   const ownerRefused = subscriptionOwnerRefusal(env, access);
   if (ownerRefused) return ownerRefused;
-  const category = path === HANDOFF_PATH ? 'tutor_handoff' : path.endsWith('/evaluate') ? 'tutor_evaluate' : 'tutor_plan';
-  const defaultCallModel = path === HANDOFF_PATH
-    ? loggedModel('chat', anthropic)
-    : path.endsWith('/evaluate')
-      ? loggedModel('tutor_evaluator', anthropic)
-      : loggedModel('tutor', anthropic);
+  const category = path === HANDOFF_PATH ? 'tutor_handoff' : path.endsWith('/next-steps') ? 'tutor_next_steps' : path.endsWith('/evaluate') ? 'tutor_evaluate' : 'tutor_plan';
+  const defaultCallModel = path === '/api/learn/tutor/next-steps'
+    ? journeyCallModel(env)
+    : path === HANDOFF_PATH
+      ? loggedModel('chat', anthropic)
+      : path.endsWith('/evaluate')
+        ? loggedModel('tutor_evaluator', anthropic)
+        : loggedModel('tutor', anthropic);
   const paidDeps = { ...deps, callModel: spendCallModel(env, access, category, deps.callModel || defaultCallModel) };
+  // Professor Next Steps (learn-next-steps-routes.js): the same gates, a separate call, never part of a Tutor turn.
+  if (path === '/api/learn/tutor/next-steps') return ownedNextSteps(env, access, body, paidDeps);
   if (path === HANDOFF_PATH) return handoff(env, access, body, paidDeps);
   if (path === '/api/learn/tutor/evaluate') {
     if (body.journey_id != null) return journeyEvaluate(env, access, body, paidDeps);

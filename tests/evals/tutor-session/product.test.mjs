@@ -46,7 +46,7 @@ test('only stub worlds select test mode: a real-provider world still refuses an 
   assert.equal(boundary.requests.filter(entry => entry.provider === 'anthropic' && roleOf(entry.body) === 'tutor').length, 0);
 });
 
-test('the real product path: an LP1 journey through its route, typed turns through JEV and the planner, hooks through the controller and the route, a click as a next_step turn', { skip: 'ponytail: skipped by Tutor cleanup P1 - Next Steps no longer reads journey sections, claims or a Tutor session, which this simulated session drove; the whole tutor-session eval is deleted in P3 (docs cleanup-v0.3 section 4.7)' }, async () => {
+test('the real product path: an LP1 journey through its route, typed turns through JEV and the planner, hooks through the controller and the route, a click as a next_step turn', async () => {
   const { bundle, boundary } = await realSession();
   assert.equal(bundle.simulator.stop_reason, 'max_decisions', bundle.simulator.error?.message);
   for (const event of bundle.events) assert.deepEqual(validateEvent(event), [], event.type);
@@ -206,7 +206,7 @@ test('tracing on or off under the product\'s normal randomness: requests, refere
   assert.notDeepEqual(other.requests, b.requests);
 });
 
-test('the production validators and escalations run, as no eval copy could: a dropped action and an escalated hook set', { skip: 'ponytail: skipped by Tutor cleanup P1 - Next Steps no longer reads journey sections, claims or a Tutor session, which this simulated session drove; the whole tutor-session eval is deleted in P3 (docs cleanup-v0.3 section 4.7)' }, async () => {
+test('the production validators and escalations run, as no eval copy could: a dropped action and an escalated hook set', async () => {
   // The planner proposes an action its route does not allow; the hook planner's routine reply names a format, and its
   // escalation answers with the product's own fixture set. JEV stays unsettled, so no claim contradicts itself.
   const answers = stubAnswers({
@@ -228,7 +228,7 @@ test('the production validators and escalations run, as no eval copy could: a dr
   assert.deepEqual(roles(bundle).filter(role => role.startsWith('tutor_next_steps')), ['tutor_next_steps', 'tutor_next_steps_escalation']);
 });
 
-test('a Tutor question waiting for an answer is not a stopping point: no hooks, so the learner types', { skip: 'ponytail: skipped by Tutor cleanup P1 - Next Steps no longer reads journey sections, claims or a Tutor session, which this simulated session drove; the whole tutor-session eval is deleted in P3 (docs cleanup-v0.3 section 4.7)' }, async () => {
+test('a Tutor question waiting for an answer is not a stopping point: no hooks, so the learner types', async () => {
   const answers = stubAnswers({ plan: context => ({ strategy: 'socrates', actions: [{ type: 'ask_question', text: 'What would the output be for a very large score?', claim: context.relevant_evidence?.[0]?.claim ?? context.allowed_claims?.[0], purpose: 'check' }], reason_codes: ['check_understanding'], reason: 'Check the idea.' }) });
   const { bundle } = await realSession({ answers, maxDecisions: 2 });
   assert.ok(bundle.steps[0].trace.decision.actions.some(action => action.action_type === 'ask_question'), JSON.stringify(bundle.steps[0].trace.runtime.validation));
@@ -403,7 +403,7 @@ test("r29: an explicit move-on is an accepted next_section; the route completes 
   }
 });
 
-test('r29: a click on the next-section hook moves on with no Tutor turn; the learner then types on the new section', { skip: 'ponytail: skipped by Tutor cleanup P1 - Next Steps no longer reads journey sections, claims or a Tutor session, which this simulated session drove; the whole tutor-session eval is deleted in P3 (docs cleanup-v0.3 section 4.7)' }, async () => {
+test('r29: a click on the next-section hook moves on with no Tutor turn; the learner then types on the new section', async () => {
   // JEV sure of every idea and of transfer, so section 1's criterion has an answer and the fixture offers the section hook.
   const jev = request => ({ answers: Object.fromEntries(Object.keys(request.questions || {}).map(key => [key, { type: 'noul', noul: /^attempt$|_idea\d+$|_transfer$/.test(key) ? 0.95 : 0.05 }])) });
   // Pick the section hook whenever one is offered (the opening's evidence already answers section 1's criterion), else type.

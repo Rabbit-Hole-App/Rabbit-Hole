@@ -1,8 +1,7 @@
 // The Tutor action contract (docs/features/professor-next-steps.md §3.1, §3.2; owner 2026-10-06): what each accepted
 // TutorAction is, in the product's own names. runTurn returns one contract per accepted action; the session's modality
 // history and the decision trace both read these fields and never recompute them. Pure; it imports no course module.
-import { HANDOFF_ACTION } from '../../control-plane/src/agents/learn-handoff.js';
-import { REASON_CODES } from '../../control-plane/src/agents/learn-next-steps.js';
+import { HANDOFF_ACTION, REASON_CODES } from '../../control-plane/src/agents/learn-tutor.js';
 import { insertsWithoutModel } from './learn-slash.js';
 import { isExplainBackCard } from './explain-back-private.js';
 

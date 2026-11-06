@@ -1,7 +1,6 @@
 // Voice Mode on the Learn page (docs/features/voice-tutor-mvp.md §6b): one voice session per canvas
 // while the Tutor is active. It owns no brain: every utterance is tutor.voiceTurn, the same Tutor turn
-// as a typed message. Without a Tutor (Tutor cleanup P1) the hook still returns the paused mic's state, so the composer keeps its
-// mic; the rebuild binds a new Tutor turn to it. ?voice=fake swaps in the scripted adapters and exposes window.__voiceFake, in the dev/review
+// as a typed message. ?voice=fake swaps in the scripted adapters and exposes window.__voiceFake, in the dev/review
 // build only (reviewTools): production ignores it and always runs the real providers.
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { api, wsHeaders } from './api.js';
@@ -18,10 +17,7 @@ let onAcrossMove = false;
 // LISTENING_PAUSED (r36) pauses new Scribe listening sessions; the token route refuses them on the same switch (FX-71).
 // Metered Fish narration is unchanged. The scripted ?voice=fake adapters make no provider call, so the voice checks keep running.
 
-// Without a Tutor: Voice Mode is off and its mic paused (VoiceToggle reads paused), say takes no turn.
-const NO_TUTOR = Object.freeze({ state: 'off', caption: Object.freeze({ current: '', previous: null, error: null }), enter: () => {}, exit: () => {}, interrupt: () => {}, on: false, say: () => false, paused: true });
-
-// -> { state, caption: { current, previous, error }, enter, exit, interrupt, on, say, paused }, NO_TUTOR without the Tutor.
+// -> { state, caption: { current, previous, error }, enter, exit, interrupt } | null without the Tutor.
 // onTargetUsed: the armed card rides one voice turn and is then cleared, as a typed turn clears it (ask.jsx).
 export function useVoiceSession({ tutor, app, access, targetId, onTargetUsed = null }) {
   const active = !!tutor?.active;
@@ -67,10 +63,10 @@ export function useVoiceSession({ tutor, app, access, targetId, onTargetUsed = n
       stt, tts, telemetry: voiceEvent,
       tutor: { voiceTurn: args => {
         // A hook click (say with nextStep) is about the hook, never the armed card: the card stays for the next turn.
-        if (args.nextStep) return live.current.tutor?.voiceTurn?.(args);
+        if (args.nextStep) return live.current.tutor.voiceTurn(args);
         const used = live.current.targetId ?? null;
         if (used) live.current.onTargetUsed?.();
-        return live.current.tutor?.voiceTurn?.({ ...args, targetId: used });
+        return live.current.tutor.voiceTurn({ ...args, targetId: used });
       } },
     });
     const unsubscribe = voice.subscribe(rerender);
@@ -85,7 +81,7 @@ export function useVoiceSession({ tutor, app, access, targetId, onTargetUsed = n
     };
   }, [active, appName]);
 
-  if (!active || !session) return NO_TUTOR;
+  if (!active || !session) return null;
   // on: Voice Mode is on or turning on (it re-enters after a Rabbit Hole move); say: a Tutor turn without learner speech.
   return { state: session.state, caption: session.caption, enter: session.enter, exit: session.exit, interrupt: session.interrupt, on: session.state !== 'off' || session.starting, say: session.say, paused: LISTENING_PAUSED && !scripted.current };
 }

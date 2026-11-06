@@ -13,8 +13,7 @@
 // text: outcome failed | refused and a category. cost_usd stays null when the served model has no MODEL_PRICES entry
 // (Auto serves claude-opus-5, which has none): a price is never guessed; tokens are still recorded.
 import { LEARN_SYSTEM } from './learn-context.js';
-import { HANDOFF_REQUEST_MAX } from './agents/learn-handoff.js';
-export { HANDOFF_ACTION, HANDOFF_CAPABILITY_NAMES, HANDOFF_REQUEST_MAX, handoffProblem } from './agents/learn-handoff.js';
+import { HANDOFF_REQUEST_MAX } from './agents/learn-tutor.js';
 import { CANVAS_TARGET_LIMIT, appendCanvasTarget } from './learn-ask-context.js';
 import { anthropic } from './ask.js';
 import { researchAnswer } from './learn-research.js';

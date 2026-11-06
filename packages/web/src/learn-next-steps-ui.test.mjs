@@ -1,32 +1,20 @@
-
-// Professor Next Steps UI wiring (contract §1.3, §1.4): useTutor's askStep and useNextSteps (which reads nothing of the Tutor's state any more, Tutor cleanup P1), bundled with esbuild and
+// Professor Next Steps UI wiring (contract §1.3, §1.4): useTutor's askStep and useNextSteps, bundled with esbuild and
 // rendered once on the server as learn-tutor-domains.test.mjs does (effects never run). useNextSteps' logic (ownedSteps) runs
 // here through the real controller with a fake clock. A fake fetch answers the routes; no network, no model, no Send. One
 // bundle, so the registry, the sinks and the hooks share module instances.
 import test from 'node:test';
-
 import assert from 'node:assert/strict';
-
 import { createRequire } from 'node:module';
-
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-
 import { tmpdir } from 'node:os';
-
 import { join } from 'node:path';
-
 import { fileURLToPath } from 'node:url';
-
 import * as esbuild from 'esbuild';
-
 import { journeyDomain } from './learn-journey-domain.js';
-
-import { emptyStore } from './learn-tutor-evidence.js';
-
+import { appendEvents, emptyStore } from './learn-tutor-evidence.js';
 import { TIDES } from './__fixtures__/journey-synthetic-domains.mjs';
 
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-
 const dir = mkdtempSync(join(tmpdir(), 'next-steps-ui-')), outfile = join(dir, 'ui.cjs');
 await esbuild.build({
   stdin: { contents: ["export { useTutor, hookContext } from './LearnTutor.jsx';", "export { useNextSteps, ownedSteps, useSharedNextSteps, sharedSteps } from './LearnNextSteps.jsx';", "export { TUTOR_DOMAINS } from './learn-tutor-domains.js';",
@@ -34,29 +22,19 @@ await esbuild.build({
     resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
 });
-
 const B = createRequire(import.meta.url)(outfile);
 rmSync(dir, { recursive: true, force: true });
 
 // A course registered only in this test's registry data, on the TIDES registry (session evidence: the dive form).
 const IDS = Object.keys(TIDES.diagnostic.registry.claims).slice(0, 2);
-
 const J = { id: 'lj_ui', state: 'active', registry: TIDES.diagnostic.registry, evidence: { seq: 0, events: [] }, active_section_id: 's1', request: { topic: TIDES.topic }, intake: { slots: {} } };
-
 const PATH = { version: 1, goal: 'Understand tidal power', sections: [{ id: 's1', title: 'Ranges', purpose: 'p', status: 'current', expected_evidence: IDS.map(claim => ({ claim, kind: 'explain' })) }] };
-
 const DOMAIN = journeyDomain({ journey: J, path: PATH, blocks: [], dive: { journey_id: 'lj_ui', section_id: 's1', concept_ids: [], claim_ids: IDS } });
-
 const COURSE = { id: 'tides-ui', match: { repo: 'example/tides-ui' }, domain: DOMAIN, capabilities: { tutor: true, evidence: 'session' } };
-
 const STEP = { v: 1, set_id: 'ns_0c0c0c0c', suggestion_id: 'ns_0c0c0c0c.1', basis: 'b', hook: 'Why do some coasts barely see a tide?', learning_goal: 'Explain how basin shape changes tidal range', concept_ids: [], claim_ids: [IDS[1]], scope: 'owned' };
-
 const TEXT = { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Here is something to try.' }] };
-
 const MATERIAL = B.materialCommands().find(m => !m.paid)?.command;
-
 const ticks = async (done, n = 50) => { for (let i = 0; i < n && !done(); i++) await new Promise(resolve => setImmediate(resolve)); };
-
 const KEY = 'small.tutor:o:e@x.com';
 
 // course: the registry entry for this canvas (null: none). journey: a journey view on the board. card/blocks: the selection.
@@ -90,7 +68,6 @@ function rig({ plan = TEXT, artifact = null, course = COURSE, journey = null, ca
   };
   return { run, calls, inserted, storage, tutor: () => tutor, planBody: () => calls.find(c => c.path === '/api/learn/tutor/plan').body, paths: () => calls.map(c => c.path) };
 }
-
 const withMaterial = { strategy: 'feynman', constraints_add: [], actions: [{ type: 'respond_text', text: 'Here is something to try.' }, { type: 'create_material', command: MATERIAL, request: 'tidal range by basin shape' }] };
 
 test('askStep: one next_step turn, no evaluate call, the reply text; create_material runs the Learn command path', async () => {
@@ -107,13 +84,9 @@ test('askStep: one next_step turn, no evaluate call, the reply text; create_mate
 
 // The tutor's extras are read when drawn, so this server-rendered hook shows a proposal or notice that arrived after its render.
 const elements = node => (!node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(elements) : [node, ...elements(node.props?.children)]);
-
 const paidIn = tutor => elements(tutor.extras).find(e => typeof e.props?.onGenerate === 'function') || null;
-
 const drawn = tutor => (tutor.extras ? B.renderToStaticMarkup(tutor.extras) : '');
-
 const paidMaterial = { strategy: 'feynman', constraints_add: [], actions: [{ type: 'respond_text', text: 'Here is something to try.' }, { type: 'create_material', command: 'animate', request: 'tidal range by basin shape' }] };
-
 const proposal = message => ({ result: 'paid_proposal', primitive: 'maths_animation', message, block: { type: 'mathAnimation', title: 't' } });
 
 test('askStep with a paid material: the offer is shown with Generate and Cancel in extras, nothing is inserted on its own; Generate inserts it', async () => {
@@ -170,7 +143,7 @@ test('voiceTurn with a next step: the next_step turn in voice, no learner words,
   assert.deepEqual(r.paths(), ['/api/learn/tutor/plan'], 'no evaluate: a click is never evidence');
   assert.equal(JSON.parse(r.storage.get(KEY)).turns.at(-1).next_step, STEP.suggestion_id);
   const voice = read('LearnVoice.jsx');
-  assert.match(voice, /tutor: \{ voiceTurn: args => \{\n\s+\/\/ [^\n]*\n\s+if \(args\.nextStep\) return live\.current\.tutor\?\.voiceTurn\?\.\(args\);\n\s+const used = /, 'a hook click never takes the armed card');
+  assert.match(voice, /tutor: \{ voiceTurn: args => \{\n\s+\/\/ [^\n]*\n\s+if \(args\.nextStep\) return live\.current\.tutor\.voiceTurn\(args\);\n\s+const used = /, 'a hook click never takes the armed card');
 });
 
 // Review fix 2: the web bundle never pulls the journey agent for the hook validator's label list.
@@ -286,7 +259,8 @@ test('useNextSteps: exactly the steps shape, unavailable/off without a Tutor; th
   assert.match(source, /JSON\.stringify\(\{ \.\.\.read\(\)\.access, input, \.\.\.extra \}\)/);
   assert.match(source, /JSON\.stringify\(\{ \.\.\.body, \.\.\.extra, /);
   assert.match(source, /internal[^\n]*not part of contract §1\.3/, 'ownedSteps is documented as internal');
-  assert.doesNotMatch(source, /learn-tutor-trace|learn-tutor-evidence|emitDecision|viewerStates/, 'the hooks read no Tutor state and emit no decision events');
+  assert.match(source, /emitDecision\(hooksEvent\(/);
+  assert.match(source, /emitDecision\(shownEvent\(/);
   // The update effect depends on the trigger state alone: never on a click, pan, zoom, hover or pointer movement. The
   // semantic snapshot (owner task 2) rides along with the basis its fingerprint is in, never as a trigger of its own.
   assert.match(source, /useEffect\(\(\) => \{ steps\.update\(\{ basis, stop, semantic, settling \}\); \}, \[basis, stop, settling\]\);/);
@@ -299,36 +273,30 @@ function clock() {
   return { setTimer: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimer: id => { if (timers[id - 1]) timers[id - 1].fn = null; },
     fire: async () => { const t = timers.filter(x => x.fn).at(-1); const fn = t?.fn; if (t) t.fn = null; await fn?.(); await new Promise(r => setImmediate(r)); }, pending: () => timers.filter(x => x.fn).length };
 }
-
 const setFor = n => ({ set_id: `ns_0000000${n}`, generated_at: '2026-10-06T10:00:00.000Z', basis: 'x', telemetry: { tier: 'routine', calls: 1, ms: 700, planner_version: 'p1', model_role: 'tutor_next_steps', model_id: 'm', prompt_version: 'abc', usage: {}, cost_usd: 0.001 },
   options: [1, 2, 3].map(i => ({ id: `ns_0000000${n}.${i}`, hook: `Hook ${n}.${i} about basins?`, selected_next_step: { v: 1, set_id: `ns_0000000${n}`, suggestion_id: `ns_0000000${n}.${i}`, basis: 'x', hook: `Hook ${n}.${i} about basins?`, learning_goal: `goal ${n}.${i}`, concept_ids: [], claim_ids: [IDS[0]], scope: 'owned' } })) });
-
 // A tutor stub with useTutor's step surface: snapshot() reads the live store and context.
 function tutorStub(over = {}) {
   const shown = [];
   const t = { askStep: async () => 'ok', lastTurn: null, busy: false, store: { ...emptyStore(), session_id: 'ts_00000000000000aa' }, context: { domain: DOMAIN, capabilities: COURSE.capabilities, source: 'registry' }, record: null,
     showing: options => shown.push(options.map(o => o.id)), shown, ...over };
+  t.snapshot = () => ({ context: t.context, store: t.store, parent: null, record: t.record });
   return t;
 }
-
 function stepsRig({ tutor = tutorStub(), replies = [setFor(1)], props = {} } = {}) {
   const c = clock(), bodies = [];
-  const live = { tutor, canvasApi: { current: { blocks: () => [{ id: 'k1', type: 'explanation', title: 'Basins' }] } }, canvasState: { cards: [['k1']] }, record: null, access: { app: 'canvas-0000test' }, title: 'Tidal power', graded: 0, describe: null, ...props };
+  const live = { tutor, journey: null, canvasApi: { current: { blocks: () => [{ id: 'k1', type: 'explanation', title: 'Basins' }] } }, canvasState: { cards: [['k1']] }, record: null, access: { app: 'canvas-0000test' }, title: 'Tidal power', graded: 0, canvasVersion: 7, board: 'main', describe: null, ...props };
   const steps = B.ownedSteps(() => live, { post: async input => { bodies.push(input); const r = await replies.shift(); if (r instanceof Error) throw r; return structuredClone(r); }, setTimer: c.setTimer, clearTimer: c.clearTimer });
   const step = () => steps.update(steps.state());
   return { c, live, steps, bodies, step, tutor };
 }
 
-test('ownedSteps: off while a hole\'s record is still loading (recordPending); nothing is posted; a Tutor is not needed', async () => {
-  const pending = stepsRig({ props: { recordPending: true } });
-  assert.deepEqual(pending.steps.state(), { basis: null, stop: 'off' });
-  pending.step(); await pending.c.fire();
-  assert.deepEqual([pending.steps.view().status, pending.steps.view().reason, pending.bodies.length, pending.c.pending()], ['unavailable', 'off', 0, 0]);
-  for (const tutor of [{ active: false }, null]) {
-    const r = stepsRig({ tutor, replies: [setFor(1)] });
-    assert.equal(r.steps.state().stop, null, JSON.stringify(tutor));
+test('ownedSteps: off where snapshot().context is null or there is no askStep; nothing is posted', async () => {
+  for (const tutor of [tutorStub({ context: null }), { active: false }, null]) {
+    const r = stepsRig({ tutor });
+    assert.deepEqual(r.steps.state(), { basis: null, stop: 'off' });
     r.step(); await r.c.fire();
-    assert.deepEqual([r.steps.view().status, r.bodies.length, r.bodies[0].mode], ['ready', 1, 'canvas'], JSON.stringify(tutor));
+    assert.deepEqual([r.steps.view().status, r.steps.view().reason, r.bodies.length, r.c.pending()], ['unavailable', 'off', 0, 0]);
   }
 });
 
@@ -340,66 +308,90 @@ const withSession = async fn => {
   Object.defineProperty(globalThis, 'sessionStorage', { value: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, String(v)) }, configurable: true, writable: true });
   try { return await fn(); } finally { if (saved) Object.defineProperty(globalThis, 'sessionStorage', saved); else delete globalThis.sessionStorage; }
 };
-
+const plainTutor = (title, blocks) => {
+  let t;
+  const Page = () => { t = B.useTutor({ app: { name: 'canvas-0000abcd', org: 'o', email: 'e@x.com', title: 'Created as' }, board: 'main', access: { app: 'canvas-0000abcd' }, canvasApi: { current: { blocks: () => blocks, block: () => null } }, canvasState: { card: null },
+    dive: { tree: { path: [{ app: 'canvas-0000abcd', board: 'main', kind: 'canvas', title }], children: [], dive: null }, suggestionCard: null }, courseCanvas: true, journey: null }); return null; };
+  B.renderToStaticMarkup(B.createElement(Page));
+  return t;
+};
 // Owner 2026-10-08 (reversing the eleventh message 8): a blank plain canvas gets hooks at rest, grounded in its title; a card
 // or a rename re-asks. An uninformative title (Untitled, an auto name) is no goal: three distinct starter hooks (the planner).
-// Owner task 2 (2026-10-13): the title travels as background (canvas.title), never as the goal. A rename: Dive reloads the dives
-// path with the server title (liveTitle); app.title and the page title prop never change.
-test('ownedSteps on a plain canvas: a blank canvas asks at rest with its title as background; a card and a rename re-ask', async () => {
+// Owner task 2 (2026-10-13): the title travels as background (canvas.title), never as the goal.
+test('ownedSteps on a plain canvas: a blank canvas asks at rest with its title as background; a card and a rename re-ask', () => withSession(async () => {
   const card = [{ id: 'k1', type: 'explanation', title: 'Starter culture' }];
-  const r = stepsRig({ replies: [setFor(1), setFor(2), setFor(3)], props: { title: 'Created as', liveTitle: 'Sourdough', canvasApi: { current: { blocks: () => [] } }, canvasState: { cards: [] }, access: { app: 'canvas-0000abcd' } } });
+  const r = stepsRig({ tutor: plainTutor('Sourdough', []), replies: [setFor(1), setFor(2), setFor(3)], props: { title: 'Sourdough', canvasApi: { current: { blocks: () => [] } }, canvasState: { cards: [] }, access: { app: 'canvas-0000abcd' } } });
   assert.equal(r.steps.state().stop, null, 'nothing waits on a first question');
   r.step(); await r.c.fire();
   assert.deepEqual([r.bodies.length, r.bodies[0].mode, r.bodies[0].goal, r.bodies[0].canvas.title, r.bodies[0].canvas.blocks, Object.keys(r.bodies[0].scope.claims)], [1, 'canvas', '', 'Sourdough', [], []]);
   r.live.canvasApi = { current: { blocks: () => card } };
   r.live.canvasState = { cards: [['k1']] };
-  const { basis } = r.steps.state();
-  assert.equal(r.steps.state().stop, null);
+  r.live.tutor = plainTutor('Sourdough', card);
+  const { basis, stop } = r.steps.state();
+  assert.equal(stop, null);
   r.step(); await r.c.fire();
   assert.deepEqual([r.bodies.length, r.bodies[1].mode, r.bodies[1].canvas.title, r.bodies[1].canvas.blocks.length], [2, 'canvas', 'Sourdough', 1], 'a card re-asks');
-  r.live.liveTitle = 'Sourdough, renamed';
+  // The rename: the dives path reloads with the server title; app.title stays 'Created as' and the page title prop stays stale.
+  r.live.tutor = plainTutor('Sourdough, renamed', card);
   assert.notEqual(r.steps.state().basis, basis, 'the renamed title is in the input');
   r.step(); await r.c.fire();
   assert.deepEqual([r.bodies.length, r.bodies[2].canvas.title], [3, 'Sourdough, renamed']);
-});
+}));
 
-test('ownedSteps on a blank canvas with an uninformative title: asked at rest with no goal, so the planner suggests distinct starters', async () => {
+test('ownedSteps on a blank canvas with an uninformative title: asked at rest with no goal, so the planner suggests distinct starters', () => withSession(async () => {
   for (const title of ['Untitled canvas', 'untitled', '', 'canvas-0000abcd']) {
-    const r = stepsRig({ replies: [setFor(1)], props: { title, liveTitle: title, canvasApi: { current: { blocks: () => [] } }, canvasState: { cards: [] }, access: { app: 'canvas-0000abcd' } } });
+    const r = stepsRig({ tutor: plainTutor(title, []), replies: [setFor(1)], props: { title, canvasApi: { current: { blocks: () => [] } }, canvasState: { cards: [] }, access: { app: 'canvas-0000abcd' } } });
     assert.equal(r.steps.state().stop, null, JSON.stringify(title));
     r.step(); await r.c.fire();
     assert.deepEqual([r.bodies.length, r.bodies[0].mode, r.bodies[0].goal, r.bodies[0].canvas.blocks], [1, 'canvas', '', []], JSON.stringify(title));
     assert.equal(r.steps.view().status, 'ready');
   }
-});
+}));
 
 // Fix round 4 (owner eleventh message 3): a hole's dive title is in its hook input, so renaming a hole with a learning_goal
 // re-asks too - its goal stays the learning_goal and the new set carries the new dive title. Renamed as it happens: Dive
-// reloads the dives path with the server title (liveTitle); the record keeps its creation title.
-test('ownedSteps on a renamed learning_goal hole: the basis changes, the goal stays, the next input carries the new dive title', async () => {
+// reloads the dives path with the server title; the record keeps its creation title.
+test('ownedSteps on a renamed learning_goal hole: the basis changes, the goal stays, the next input carries the new dive title', () => withSession(async () => {
   const card = [{ id: 'k1', type: 'explanation', title: 'Starter culture' }];
   const record = { dive_id: 'canvas-0000abce', title: 'Hole as created', learning_goal: 'Explain why a starter needs feeding', origin: { parent: { app: 'share:0f0f', board: 'main' } }, source: { title: 'Bread science' } };
-  const r = stepsRig({ replies: [setFor(1), setFor(2)], props: { record, title: 'Hole as created', liveTitle: 'Hole as created', canvasApi: { current: { blocks: () => card } }, canvasState: { cards: [['k1']] }, access: { app: 'canvas-0000abce' } } });
+  const holeTutor = title => {
+    let t;
+    const Page = () => { t = B.useTutor({ app: { name: 'canvas-0000abce', org: 'o', email: 'e@x.com', title: 'Hole as created' }, board: 'main', access: { app: 'canvas-0000abce' }, canvasApi: { current: { blocks: () => card, block: () => null } }, canvasState: { card: null },
+      dive: { tree: { path: [{ app: 'share:0f0f', board: 'main', title: 'Bread science', kind: 'shared' }, { app: 'canvas-0000abce', board: 'main', kind: 'canvas', title }], children: [], dive: record }, suggestionCard: null }, courseCanvas: true, journey: null }); return null; };
+    B.renderToStaticMarkup(B.createElement(Page));
+    return t;
+  };
+  const r = stepsRig({ tutor: holeTutor('Hole as created'), replies: [setFor(1), setFor(2)], props: { record, title: 'Hole as created', canvasApi: { current: { blocks: () => card } }, canvasState: { cards: [['k1']] }, access: { app: 'canvas-0000abce' } } });
   const { basis } = r.steps.state();
   r.step(); await r.c.fire();
-  assert.deepEqual([r.bodies[0].mode, r.bodies[0].goal, r.bodies[0].dive.title], ['dive', 'Explain why a starter needs feeding', 'Hole as created']);
-  r.live.liveTitle = 'Starter notes';
+  assert.deepEqual([r.bodies[0].goal, r.bodies[0].dive.title], ['Explain why a starter needs feeding', 'Hole as created']);
+  r.live.tutor = holeTutor('Starter notes');
   assert.notEqual(r.steps.state().basis, basis, 'the dive title grounds the input');
   r.step(); await r.c.fire();
   assert.deepEqual([r.bodies.length, r.bodies[1].goal, r.bodies[1].dive.title], [2, 'Explain why a starter needs feeding', 'Starter notes']);
-});
+}));
 
-// Probe D, as recordPending (LearnPage: a canvas named like a hole whose dives record has not landed): nothing is posted and no
-// set is shown until the record lands; the first set is the hole's (mode dive), never a temporary plain one.
-test('probe D: a hole whose record lands late - no post and no set until it settles, never a temporary plain set', async () => {
-  const record = { dive_id: 'canvas-0000d0d0', title: 'Falls up close' };
-  const r = stepsRig({ replies: [setFor(1)], props: { recordPending: true, record: null, title: 'Falls up close' } });
+// Probe D (review fix round 2): the dives record and then the parent journey load after the debounce. Nothing is posted and no
+// set is shown until both settle; the first set is the hole's (mode dive), never a temporary plain one. snapshot() as useTutor
+// builds it, through hookContext, at each stage (useTutor's own read state is an effect, which a server render never runs).
+test('probe D: a hole whose record and parent journey land late - no post and no set until both settle, never a temporary plain set', async () => {
+  const record = { dive_id: 'canvas-0000d0d0', title: 'Falls up close', journey: { journey_id: 'lj_ui', section_id: 's1', concept_ids: [], claim_ids: IDS } };
+  const stage = { tree: null, read: null, parent: null };
+  const tutor = tutorStub();
+  tutor.snapshot = () => {
+    const rec = stage.tree?.dive ?? null;
+    return { context: B.hookContext({ record: rec, root: stage.tree?.path?.[0], parentJourney: stage.parent, title: 'Falls up close' }, stage.read, !stage.tree), store: tutor.store, parent: stage.parent, record: rec };
+  };
+  const r = stepsRig({ tutor, replies: [setFor(1)] });
   const seen = [];
   r.steps.subscribe(() => seen.push(r.steps.view().status));
-  r.step(); await r.c.fire();                                       // the dives GET has not answered
+  r.step(); await r.c.fire();                                       // 1. the dives GET has not answered
+  stage.tree = { path: [{ app: 'canvas-0000aaaa', board: 'main', kind: 'canvas' }, { app: record.dive_id }], children: [], dive: record };
+  r.live.record = record;
+  r.step(); await r.c.fire();                                       // 2. the record landed, the parent read pending
   assert.deepEqual([r.bodies.length, r.steps.view().status, r.steps.view().reason], [0, 'unavailable', 'off']);
-  Object.assign(r.live, { recordPending: false, record });
-  r.step(); await r.c.fire();                                       // the record landed
+  stage.parent = { journey: J, path: PATH }; stage.read = record.dive_id;
+  r.step(); await r.c.fire();                                       // 3. the parent journey arrived
   assert.deepEqual([r.bodies.length, r.bodies[0].mode, r.steps.view().status], [1, 'dive', 'ready']);
   assert.equal(seen.slice(0, seen.indexOf('ready')).every(status => status !== 'ready' && status !== 'stale'), true, JSON.stringify(seen));
   assert.equal(r.bodies.some(body => body.mode === 'canvas'), false, 'never a temporary plain set');
@@ -417,7 +409,7 @@ test('ownedSteps: the trigger state, the input from the live snapshot at send ti
   r.live.title = 'Tidal power, renamed before the debounce ends';
   await r.c.fire();
   assert.equal(r.bodies.length, 1);
-  assert.deepEqual([r.bodies[0].basis, r.bodies[0].mode, r.bodies[0].goal], [basis, 'canvas', '']);
+  assert.deepEqual([r.bodies[0].basis, r.bodies[0].mode, r.bodies[0].goal], [basis, 'canvas', DOMAIN.subject || 'Tidal power, renamed before the debounce ends']);
   const v = r.steps.view();
   assert.deepEqual(Object.keys(v), ['status', 'reason', 'set_id', 'generated_at', 'options']);
   assert.deepEqual([v.status, v.set_id, v.options.map(o => Object.keys(o))], ['ready', 'ns_00000001', [['id', 'hook', 'selected_next_step'], ['id', 'hook', 'selected_next_step'], ['id', 'hook', 'selected_next_step']]]);
@@ -458,6 +450,38 @@ test('ownedSteps: a finished turn changes the basis and the shown set turns stal
   assert.deepEqual(r.bodies[1].previous.hooks, setFor(1).options.map(o => o.hook), 'the shown hooks are not offered again');
 });
 
+test('ownedSteps telemetry: next_steps_computed at landing with the identity of the sent input, next_steps_shown once at first show; never when off', async () => {
+  const events = [];
+  const quiet = stepsRig();
+  quiet.step(); await quiet.c.fire();
+  assert.equal(quiet.steps.view().status, 'ready', 'no sink: the same behaviour');
+  const off = [B.addSink(e => events.push(e)), B.addSink(() => { throw new Error('sink'); })];
+  try {
+    let release; const slow = new Promise(resolve => { release = resolve; });
+    const r = stepsRig({ replies: [slow, setFor(2)] });
+    r.step();
+    const first = r.c.fire();
+    // The live state moves on (a hole is entered, a new session store) while the first request is in flight.
+    r.tutor.store = { ...r.tutor.store, session_id: 'ts_00000000000000bb', seq: 3 };
+    r.tutor.record = r.live.record = { dive_id: 'canvas-0000hole', title: 'Basins' };
+    r.live.canvasVersion = 8;
+    r.step();
+    release(setFor(1)); await first;
+    await ticks(() => events.length > 0);
+    assert.deepEqual(events.map(e => [e.event, e.step_id, e.flags]), [['next_steps_computed', 'ns_00000001', ['discarded']]]);
+    assert.deepEqual([events[0].identity.session_id, events[0].identity.canvas_version, events[0].identity.dive_id, events[0].identity.mode, events[0].identity.canvas_id, events[0].identity.board_id],
+      ['ts_00000000000000aa', 7, null, 'course', 'canvas-0000test', 'main'], 'identity from when the input was sent, not live state');
+    await r.c.fire();
+    await ticks(() => events.length >= 3);
+    assert.deepEqual(events.map(e => [e.event, e.step_id]), [['next_steps_computed', 'ns_00000001'], ['next_steps_computed', 'ns_00000002'], ['next_steps_shown', 'ns_00000002']]);
+    assert.deepEqual([events[1].identity.session_id, events[1].identity.dive_id, events[1].identity.mode, events[2].identity.dive_id, events[2].identity.canvas_version], ['ts_00000000000000bb', 'canvas-0000hole', 'dive', 'canvas-0000hole', 8]);
+    assert.deepEqual(events[2].decision.next_step_options.map(o => [o.suggestion_id, o.position]), [['ns_00000002.1', 1], ['ns_00000002.2', 2], ['ns_00000002.3', 3]]);
+    r.step();
+    assert.equal(events.filter(e => e.event === 'next_steps_shown').length, 1, 'once per set');
+    assert.equal(JSON.stringify(r.bodies).includes('ts_0000'), false, 'the session id is never sent');
+  } finally { off.forEach(remove => remove()); }
+});
+
 test('LearnTutor.jsx source pins: block null and no journey resolver on a click, materials through runMaterials, trace only when tracing', () => {
   const source = read('LearnTutor.jsx');
   assert.match(source, /const block = nextStep \? null :/);
@@ -479,7 +503,7 @@ test('LearnTutor.jsx source pins: block null and no journey resolver on a click,
 });
 
 // ---- Shared canvases (Task 11): useSharedNextSteps and its logic (sharedSteps) through the real controller. ----
-test('useSharedNextSteps: off without a token; posts the origin only', () => {
+test('useSharedNextSteps: off without a token; posts the origin; viewer_states only when signed in', () => {
   let steps = null;
   const Page = () => { steps = B.useSharedNextSteps({ token: null, card: null, version: 1, signedIn: false }); return null; };
   B.renderToStaticMarkup(B.createElement(Page));
@@ -488,14 +512,13 @@ test('useSharedNextSteps: off without a token; posts the origin only', () => {
   const source = read('LearnNextSteps.jsx');
   assert.match(source, /\/api\/learn\/boards\/shared\/\$\{encodeURIComponent\(\w+\)\}\/next-steps/);
   assert.match(source, /origin: card \? \{ block_id: card \} : null/);
-  assert.doesNotMatch(source, /viewer_states|learn-tutor-evidence/, 'no viewer evidence rides on the shared post');
+  assert.match(source, /viewer_states/);
   assert.match(source, /useEffect\(\(\) => \{ shared\.update\(\{ basis, stop \}\); \}, \[basis, stop\]\);/, 'the update effect reads the trigger state alone');
 });
 
 const sharedSet = n => ({ ...setFor(n), basis: 'k:1::root', telemetry: { ...setFor(n).telemetry, share_key: 'f00d'.repeat(16), cached: false,
   summary: { evidence_summary: { understood: [], uncertain: [IDS[0]], misconception: [], prerequisite_gap: [], not_yet_observed: [] }, canvas_summary: { blocks: 2, kinds: { explanation: 2 }, presented_claim_ids: [IDS[0]] }, target_concept_ids: ['c'], target_claim_ids: [IDS[0]] } },
   options: setFor(n).options.map(o => ({ ...o, selected_next_step: { ...o.selected_next_step, scope: 'shared', source: { share_version: 4, origin_block_id: 'k1' } } })) });
-
 function sharedRig({ props = {}, replies = [sharedSet(1)] } = {}) {
   const c = clock(), bodies = [], live = { token: 'tok-abc', card: 'k1', version: 4, signedIn: true, ...props };
   const shared = B.sharedSteps(() => live, { post: async body => { bodies.push(body); const r = await replies.shift(); if (r instanceof Error) throw r; return structuredClone(r); }, setTimer: c.setTimer, clearTimer: c.clearTimer });
@@ -559,6 +582,29 @@ test('sharedSteps: a view never asks to generate; idle is the Suggest state; req
   assert.deepEqual([r.bodies.at(-1), r.bodies.length, r.shared.view().reason], [{ origin: { block_id: 'k2' } }, 3, 'curious_empty'], 'another card is a view again');
 });
 
+test('sharedSteps telemetry: next_steps_computed and next_steps_shown with scope and mode shared, the set source and the server summary; nothing of the sharer', async () => {
+  const events = [];
+  const remove = B.addSink(e => events.push(e));
+  try {
+    // Merge fix d (owner sixth message 4): the route's trim counts, beside the set in its reply telemetry, reach planner_input.
+    const trim = { before: { chars: 10700, block_count: 20, claim_count: 12 }, after: { chars: 8900, block_count: 14, claim_count: 12 }, trimmed: { block_count: 6, claim_count: 0 } };
+    const reply = sharedSet(1);
+    const r = sharedRig({ replies: [{ ...reply, telemetry: { ...reply.telemetry, trim } }] });
+    r.step(); await r.c.fire();
+    await ticks(() => events.length >= 2);
+    assert.deepEqual(events.map(e => e.event), ['next_steps_computed', 'next_steps_shown']);
+    assert.deepEqual(events[0].runtime.planner_input, { before: { block_count: 20, claim_count: 12 }, after: { block_count: 14, claim_count: 12 }, trimmed: { block_count: 6, claim_count: 0 },
+      current_section_claims_kept: null, repair_claims_kept: null });
+    for (const e of events) {
+      assert.deepEqual([e.identity.scope, e.identity.mode, e.identity.user_id, e.identity.canvas_id], ['shared', 'shared', null, null]);
+      assert.deepEqual(e.identity.source, { share_key: 'f00d'.repeat(16), share_version: 4, origin_block_id: 'k1' });
+      assert.deepEqual([e.decision.evidence_summary.uncertain, e.decision.target_claim_ids, e.decision.canvas_summary.blocks], [[IDS[0]], [IDS[0]], 2]);
+      assert.deepEqual(Object.keys(e.decision.next_step_options[0]).sort(), ['claim_ids', 'concept_ids', 'hook', 'learning_goal', 'position', 'set_id', 'suggestion_id']);
+      assert.equal(JSON.stringify(e).includes('tok-abc'), false, 'never the raw token');
+    }
+  } finally { remove(); }
+});
+
 // Fix round 1 items 4 and 7: the real request (sharedSteps' default post) with fetch and sessionStorage stubbed.
 function wire(t, { me = [] } = {}) {
   const calls = [], m = new Map(), had = { fetch: globalThis.fetch, storage: Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage') }, w = { calls, status: 200 };
@@ -569,24 +615,27 @@ function wire(t, { me = [] } = {}) {
     return Response.json(w.idle ? { idle: true } : w.status === 200 ? sharedSet(calls.length) : { error: 'paused', limited: true }, { status: w.status });
   };
   t.after(() => { globalThis.fetch = had.fetch; if (had.storage) Object.defineProperty(globalThis, 'sessionStorage', had.storage); else delete globalThis.sessionStorage; });
-  return w;
+  return Object.assign(w, { store: (who, events) => m.set(`small.tutor:${who.org}:${who.email}`, JSON.stringify(appendEvents(emptyStore(), events).store)) });
 }
-
+// One registered claim of the supplied course (registry data, read from the bundle) and a claim of no public course.
+const REAL = Object.keys(B.TUTOR_DOMAINS.find(entry => entry.capabilities?.suppliedCourse === true).domain.claims)[0];
+const failOn = (claim, concept = 'x') => ({ concept, claim, result: 'fail', kind: null, settled: true, evaluator: 'jev', source: 'free_text' });
 function realRig(props) {
   const c = clock(), live = { token: 'tok/abc', card: null, version: 4, signedIn: false, ...props };
   const shared = B.sharedSteps(() => live, { setTimer: c.setTimer, clearTimer: c.clearTimer });
   return { c, live, shared, step: () => shared.update(shared.state()) };
 }
 
-test('sharedPost: signed out sends nothing at all; signed in sends only the origin; a 429 is limited', async t => {
+test('sharedPost: signed out sends nothing at all; signed in sends only public registry evidence; a 429 is limited', async t => {
   const w = wire(t, { me: [{ org: 'ben-ws', email: 'ben@test' }] });
   const out = realRig();
   out.step(); await out.c.fire();
   assert.deepEqual([w.calls, out.shared.view().status, out.shared.view().reason], [[], 'unavailable', 'off'], 'owner R3 decision: no request signed out');
+  w.store({ org: 'ben-ws', email: 'ben@test' }, [failOn(REAL, B.TUTOR_DOMAINS[0].domain.claims[REAL].concept), failOn('not.a/public-claim')]);
   const signed = realRig({ signedIn: true, card: 'k1' });
   signed.step(); await signed.c.fire();
   assert.deepEqual(w.calls.map(call => call.url), ['/api/me', '/api/learn/boards/shared/tok%2Fabc/next-steps']);
-  assert.deepEqual(w.calls.at(-1).body, { origin: { block_id: 'k1' } });
+  assert.deepEqual(w.calls.at(-1).body, { origin: { block_id: 'k1' }, viewer_states: { [REAL]: 'uncertain' } });
   w.status = 429;
   const limited = realRig({ signedIn: true });
   limited.step(); await limited.c.fire();
@@ -613,15 +662,19 @@ test('sharedPost: a view never sends generate; the explicit ask does; a reload s
   assert.deepEqual([reload.shared.view().status, reload.shared.view().set_id], ['ready', shown]);
 });
 
-test('sharedPost: a failed /api/me is never cached, and each request reads the identity signed in now; no body ever carries viewer_states', async t => {
+test('sharedPost: a failed /api/me is never cached, and each request reads the identity signed in now', async t => {
   const ben = { org: 'ben-ws', email: 'ben@test' }, cara = { org: 'cara-ws', email: 'cara@test' };
   const w = wire(t, { me: [null, ben, cara] });
+  const concept = B.TUTOR_DOMAINS[0].domain.claims[REAL].concept;
+  w.store(ben, [failOn(REAL, concept)]);
   const r = realRig({ signedIn: true });
   r.step(); await r.c.fire();
+  assert.equal('viewer_states' in w.calls.at(-1).body, false, '/api/me failed: no states');
   r.live.card = 'k1'; r.step(); await r.c.fire();
+  assert.deepEqual(w.calls.at(-1).body.viewer_states, { [REAL]: 'uncertain' }, 'the failure was not kept: ben is read');
   r.live.card = 'k2'; r.step(); await r.c.fire();
-  assert.equal(w.calls.filter(call => call.url === '/api/me').length, 3, 'the failure was not kept: each request asks again');
-  assert.deepEqual(w.calls.filter(call => call.body).map(call => call.body), [{ origin: null }, { origin: { block_id: 'k1' } }, { origin: { block_id: 'k2' } }]);
+  assert.equal('viewer_states' in w.calls.at(-1).body, false, 'cara signed in: her own (empty) store, never ben');
+  assert.equal(w.calls.filter(call => call.url === '/api/me').length, 3);
 });
 
 test('LearnNextSteps.jsx: one controller lifecycle shared by ownedSteps and sharedSteps; LearnTutor opens a hole through holeOpening', () => {
@@ -654,7 +707,6 @@ function hookTimeouts(t) {
   t.after(() => { AbortSignal.timeout = had; globalThis.fetch = fetched; if (store) Object.defineProperty(globalThis, 'localStorage', store); else delete globalThis.localStorage; });
   return { made, calls };
 }
-
 const settle = () => ticks(() => false, 10);
 
 test('A-M1 owned: a hung post times out at 60 s, its basis records failed, the next basis is posted, and its late reply never replaces newer hooks', async t => {
@@ -775,18 +827,16 @@ test('C-M1: a typed turn on a live journey traces the hooks on screen at send, e
 
 // ---- Curious context (owner task 2, 2026-10-13): the semantic fingerprint is in the basis; the request carries its snapshot. ----
 const { curiousSnapshot } = await import('./curious-context.js');
-
 // The reported case: a board titled Linked List, with no lesson cards, about a binary search tree.
 const treeBoard = () => ({
   shapes: [{ id: 's1', kind: 'ellipse', x1: 0, y1: 0, x2: 40, y2: 40, text: '8' }, { id: 's2', kind: 'ellipse', x1: -80, y1: 100, x2: -40, y2: 140, text: '3' }],
   items: [{ id: 't1', kind: 'text', x: 200, y: 0, w: 220, text: 'binary search tree: left < root < right' }],
   links: [], blocks: [], groups: [], exchanges: [{ id: 'c1', question: 'what is a linked list?', answer: 'A chain of nodes.' }],
 });
-
 const semanticRig = (replies = [setFor(1), setFor(2), setFor(3), setFor(4)]) => {
   const canvas = { board: treeBoard(), focus: [] };
   const semantic = () => { const snapshot = curiousSnapshot(canvas.board, canvas.focus); return { snapshot, fingerprint: snapshot.fingerprint }; };
-  const r = stepsRig({ replies, props: { title: 'Linked List', canvasApi: { current: { blocks: () => canvas.board.blocks, semantic } }, canvasState: { cards: [] }, access: { app: 'canvas-0000abcd' } } });
+  const r = stepsRig({ tutor: plainTutor('Linked List', []), replies, props: { title: 'Linked List', canvasApi: { current: { blocks: () => canvas.board.blocks, semantic } }, canvasState: { cards: [] }, access: { app: 'canvas-0000abcd' } } });
   return { ...r, canvas };
 };
 

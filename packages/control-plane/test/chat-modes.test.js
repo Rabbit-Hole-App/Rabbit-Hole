@@ -9,7 +9,7 @@ import * as chatModes from '../src/chat-modes.js';
 import { chatFields, contextRefs, courseIntent, resolveMode, validateSyllabus, syllabusPath, chatContext, TUTOR_SYSTEM, TUTOR_OUTLINE_SYSTEM } from '../src/chat-modes.js';
 import { outlineRevision } from '../../web/src/learn-outline-model.js';
 import { pathOutput } from '../src/agents/learn-journey.js';
-import { REQUEST_FIRST } from '../src/agents/learn-chat.js';
+import { REQUEST_FIRST } from '../src/agents/learn-tutor.js';
 import { CUT_NOTE, DECLINE } from '../src/learn-research.js';
 import { WITHHELD } from '../src/canvas-conversation.js';
 import { canvasApp, canvasAskSeam, canvasesFetch, validContextRefs } from '../src/canvases.js';

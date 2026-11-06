@@ -32,6 +32,9 @@ import { tutorContext } from '../src/learn-tutor-domains.js';
 import { materialCommands, runMaterials } from '../src/learn-slash.js';
 import { STARTS, journeyIntent } from '../../control-plane/src/learner-intent-journey.js';
 import { HANDOFF_SYSTEM, MODE_SLASHES, plannerRequest } from '../../control-plane/src/agents/learn-tutor.js';
+import { NANOGPT, cardModule } from '../src/learn-tutor-claims.js';
+import { cardBlock } from '../src/nanogpt/board.js';
+import { resolveTarget } from '../src/learn-target.js';
 import { rabbitOrigin } from '../src/shared-rabbit-hole.js';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
@@ -123,7 +126,7 @@ async function n1() {
   await ok(owner, 'PUT', `/api/learn/boards/${name}/main`, { state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], blocks, exchanges: [] } });
   const saved = (await ok(owner, 'GET', `/api/learn/boards/${name}/main`)).state?.blocks || [];
   state.canvas = { name, title, blocks: saved };
-  const built = nextStepsInput({ blocks: saved, title, basis: `n1-${run}` });
+  const built = nextStepsInput({ context: null, store: emptyStore(), blocks: saved, title, basis: `n1-${run}` });
   if (!built.input) throw Error(`nextStepsInput: ${built.problem}`);
   const first = await call(owner, 'POST', '/api/learn/tutor/next-steps', { app: name, input: built.input });
   const problem = first.status === 200 ? setProblem(first.body, 'owned') : `HTTP ${first.status} ${first.body?.error || ''}`;
@@ -150,16 +153,15 @@ async function n2() {
   view = await journeyOf();
   const { journey, path } = view, registry = journey.registry || { concepts: {}, claims: {} };
   const domain = journeyDomain({ journey, path, blocks: [] });
-  // Tutor cleanup P1: Next Steps no longer reads the journey; its input is the canvas's own content, so a journey canvas plans as a plain one.
-  const built = nextStepsInput({ blocks: [], title: `Next steps journey ${run}`, basis: `n2-${run}` });
+  const built = nextStepsInput({ context: { domain, source: 'journey' }, store: emptyStore(), journey: view, blocks: [], title: `Next steps journey ${run}`, basis: `n2-${run}` });
   if (!built.input) throw Error(`nextStepsInput: ${built.problem}`);
   const set = await call(owner, 'POST', '/api/learn/tutor/next-steps', { app: name, input: built.input });
   const problem = set.status === 200 ? setProblem(set.body, 'owned') : `HTTP ${set.status} ${set.body?.error || ''}`;
   const steps = set.body?.options?.map(o => o.selected_next_step) || [];
   const claimIds = steps.flatMap(s => s.claim_ids), conceptIds = steps.flatMap(s => s.concept_ids);
   const foreign = [...claimIds.filter(id => !Object.hasOwn(registry.claims, id)), ...conceptIds.filter(id => !Object.hasOwn(registry.concepts, id))];
-  check('N2 hooks carry no registry ids', !problem && !claimIds.length && !conceptIds.length && !foreign.length, `3 hooks on a journey canvas, grounded in its content, naming no claim or concept`,
-    problem || `ids named: ${[...claimIds, ...conceptIds].join(', ')}`);
+  check('N2 hooks carry registry ids only', !problem && claimIds.length > 0 && !foreign.length, `3 journey hooks naming ${new Set(claimIds).size} registry claim(s), nothing else`,
+    problem || (foreign.length ? `ids outside the registry: ${foreign.join(', ')}` : 'no claim ids on a journey with a registry'));
   // The click: one next_step turn; /plan answered here, anything else to the stack. The learner's words ride beside the step (the
   // composer is not empty, as when a step is clicked with something typed): runTurn's own `if (nextStep) raw = ''` is what keeps
   // them from being evaluated, so with that guard gone this turn would POST /api/learn/tutor/evaluate and N2 would fail.
@@ -217,8 +219,11 @@ async function shareCanvas(title, blocks) {
   const shared = await ok(owner, 'POST', `/api/learn/boards/${name}/main/share`, { shared: true, view: true, public_view: true, state: BOARD(blocks) });
   return { name, token: shared.sharing.view, state: BOARD(blocks) };
 }
-// The two unrelated boards of shared-rabbit-hole-check.mjs, and a third one signed-in viewers share (N5).
-const REG_BLOCK = { id: 'reg1', type: 'explanation', dx: 0, dy: 0, title: 'Attention weights', body: 'Each token scores every other token.' };
+// The two unrelated boards of shared-rabbit-hole-check.mjs, and one carrying a card of the public registered course, so
+// the server-built scope has claims a viewer's own states can name (N5).
+const REG_CARD = NANOGPT.cards.find(id => NANOGPT.targetClaims({ card_id: id }).length);
+const REG_BLOCK = { ...cardBlock(cardModule(REG_CARD)), id: 'reg1' };
+const REG_CLAIM = NANOGPT.targetClaims(resolveTarget(REG_BLOCK))[0];
 async function boards() {
   return state.boards ||= {
     kitchen: await shareCanvas('Kitchen chemistry', [
@@ -256,21 +261,25 @@ async function n4() {
   }
 }
 
-// ---- N5: signed-in viewers; their own evidence states are ignored (Tutor cleanup P1) ----
+// ---- N5: signed-in viewers with their own evidence ----
 async function n5() {
   const { course } = await boards();
   const a = await sessionFor(`pns-viewer-a-${run}@example.org`), b = await sessionFor(`pns-viewer-b-${run}@example.org`);
   const anonymous = await sharedHooks(null, course, { origin: null });
-  if (noRoute(anonymous)) return skip('N5 viewer states', `${NO_ROUTE} (HTTP ${anonymous.status})`);
-  // With the edge cache off every set id is fresh, so the shared set could never repeat whatever the product does: the cache is
-  // what this check is about, so without it it would only pass.
-  if (!state.cacheWorks) return skip('N5 viewer states', `the local Cache API is unavailable (N1's repeat was not a cache hit), so a shared set cannot be told from a fresh one here`);
-  const states = { 'any/claim': 'uncertain' };
+  if (noRoute(anonymous)) return skip('N5 personalized hooks', `${NO_ROUTE} (HTTP ${anonymous.status})`);
+  // With the edge cache off every set id is fresh, so A would differ from the anonymous set and B could never be served A's whatever
+  // the product does: the cache is what these checks are about, so without it they would only pass.
+  if (!state.cacheWorks) return skip('N5 personalized hooks', `the local Cache API is unavailable (N1's repeat was not a cache hit), so personal sets cannot be told from fresh ones here`);
+  const states = { [REG_CLAIM]: 'uncertain' };
   const mine = await sharedHooks(a, course, { origin: null, viewer_states: states });
-  const plain = await sharedHooks(b, course, { origin: null });
   const problem = mine.status === 200 ? setProblem(mine.body, 'shared') : `HTTP ${mine.status} ${mine.body?.error || ''}`;
-  check('N5 viewer states are ignored', anonymous.status === 200 && !problem && mine.body.set_id === anonymous.body?.set_id && plain.body?.set_id === anonymous.body?.set_id,
-    `A with states, B without and the anonymous viewer all get ${anonymous.body?.set_id}: one content-only set`, problem || `A ${mine.body?.set_id}, B ${plain.body?.set_id} (HTTP ${plain.status}), anonymous ${anonymous.body?.set_id} (HTTP ${anonymous.status})`);
+  check('N5 viewer A personal set', anonymous.status === 200 && !problem && mine.body.set_id !== anonymous.body?.set_id && mine.body.telemetry?.cached !== true,
+    `A's set ${mine.body?.set_id} differs from the anonymous ${anonymous.body?.set_id} and is not from the cache`, problem || `A ${mine.body?.set_id}, anonymous ${anonymous.body?.set_id} (HTTP ${anonymous.status}), cached ${mine.body?.telemetry?.cached}`);
+  const plain = await sharedHooks(b, course, { origin: null }), same = await sharedHooks(b, course, { origin: null, viewer_states: states });
+  const got = [plain.body?.set_id, same.body?.set_id];
+  // B without states is served the anonymous (cached) set, and never a set made from what was stored for A.
+  check('N5 viewer B never gets A', plain.status === 200 && same.status === 200 && !!mine.body?.set_id && !got.includes(mine.body.set_id) && plain.body.set_id === anonymous.body?.set_id,
+    `B without states gets the anonymous ${plain.body?.set_id}; with the same states ${same.body?.set_id}; never A's ${mine.body?.set_id}`, `B HTTP ${plain.status}/${same.status}, sets ${got.join(', ')}, A ${mine.body?.set_id}, anonymous ${anonymous.body?.set_id}`);
 }
 
 // ---- N6: Start Rabbit Hole with a step; a board save makes it stale ----

@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { tutorRoute } from '../src/learn-tutor-routes.js';
 import { HANDOFF_BODY_CHARS, HANDOFF_CAPABILITIES, HANDOFF_CAPS, HANDOFF_READER_RULE } from '../src/learn-tutor-handoff.js';
-import { HANDOFF_REQUEST_MAX, handoffProblem } from '../src/agents/learn-handoff.js';
+import { HANDOFF_REQUEST_MAX, handoffProblem } from '../src/agents/learn-tutor.js';
 import { CANVAS_TARGET_HEADER, LEARN_RESEARCH_SYSTEM } from '../src/agents/learn-chat.js';
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS } from '../src/repository-context.js';
 import { repositoryApp } from '../src/repositories.js';

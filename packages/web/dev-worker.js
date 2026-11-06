@@ -48,7 +48,6 @@ import { apiAsk } from '../control-plane/src/index.js';
 import { boardFetch, authorizedBoardApp, paperFetch, mediaFetch, momentFeedback, videoGone, canvasSearch, wikiArticle } from '../control-plane/src/learn-board.js';
 import { learnGradeRoute, assessAnswer } from '../control-plane/src/learn-grade-routes.js';
 import { tutorRoute } from '../control-plane/src/learn-tutor-routes.js';
-import { ownedNextStepsRoute } from '../control-plane/src/learn-next-steps-routes.js';
 import { tutorEvalRoute } from '../control-plane/src/tutor-eval-routes.js';
 import { journeyRoute } from '../control-plane/src/learn-journey.js';
 import { coachingRoute } from '../control-plane/src/learn-coaching-routes.js';
@@ -312,8 +311,6 @@ const routes = {
     if (path === '/api/learn/assess') return assessAnswer(req, env);
     // The owner's private Tutor evaluation archive (learn-migrations/0017): 404 to anyone but TUTOR_EVAL_OWNER_USER_ID.
     if (path.startsWith('/api/learn/tutor-eval/')) return tutorEvalRoute(path, req, env);
-    // Professor Next Steps on the learner's own canvas (learn-next-steps-routes.js): its own mount, ahead of tutorRoute; null for any other path.
-    { const steps = await ownedNextStepsRoute(path, req, env); if (steps) return steps; }
     if (path.startsWith('/api/learn/tutor/')) { const tutored = await tutorRoute(path, req, env); if (tutored) return tutored; }
     // Submitted attempts and their assessments (learn-migrations/0026): the signed-in learner's own records only.
     if (path.startsWith('/api/learn/tutor/attempts')) { const attempted = await attemptRoute(path, req, env); if (attempted) return attempted; }

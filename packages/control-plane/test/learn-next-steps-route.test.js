@@ -5,9 +5,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { learnDb } from './learn-grade-fixture.js';
-import { ownedNextStepsRoute } from '../src/learn-next-steps-routes.js';
-import { planSection } from '../src/learn-journey-planners.js';
-import { planNextSteps } from '../src/learn-next-steps-planner.js';
+import { tutorRoute } from '../src/learn-tutor-routes.js';
+import { planNextSteps, planSection } from '../src/learn-journey-planners.js';
 import { fixtureFor, fixtureModel } from '../src/learn-journey-fixtures.js';
 import { LEARN_TASKS, costUsd } from '../src/learn-models.js';
 import { NO_CAP, admitUsage } from '../src/learn-shared-ask.js';
@@ -160,7 +159,7 @@ function world(t, vars = {}) {
   const store = new Map(), cache = { match: async key => store.get(key)?.clone(), put: async (key, response) => { store.set(key, response); } };
   const env = { LEARN_DB, SMALL_ENV: 'test', JOURNEY_MODEL_STUB: 'fixtures', ...vars };
   const who = { org: 'team', email: 'maker@test', user_id: 'u-maker-1' };
-  const post = (body, as = who, deps = {}) => ownedNextStepsRoute('/api/learn/tutor/next-steps', new Request('https://dev.test/api/learn/tutor/next-steps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), env,
+  const post = (body, as = who, deps = {}) => tutorRoute('/api/learn/tutor/next-steps', new Request('https://dev.test/api/learn/tutor/next-steps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), env,
     { authorize: async () => ({ ...as, app: body.app }), cache, ...deps });
   return { sqlite, store, post };
 }
@@ -320,16 +319,16 @@ test('owned route: 400 on bad input or more than 12000 characters, 502 when the 
   assert.equal((await w.post({ app: 'canvas-0a1b2c3d', input: { ...INPUT(), goal: 'x'.repeat(12001) } })).status, 400);
   const failing = await w.post({ app: 'canvas-0a1b2c3d', input: { ...INPUT(), basis: 'z' } }, undefined, { callModel: async () => Response.json({ content: [] }) });
   assert.equal(failing.status, 502);
-  const bare = await ownedNextStepsRoute('/api/learn/tutor/next-steps', new Request('https://dev.test/x', { method: 'POST', body: JSON.stringify({ app: 'a', input: INPUT() }) }), {}, { authorize: async () => ({ org: 'o', email: 'e@x', app: 'a' }) });
+  const bare = await tutorRoute('/api/learn/tutor/next-steps', new Request('https://dev.test/x', { method: 'POST', body: JSON.stringify({ app: 'a', input: INPUT() }) }), {}, { authorize: async () => ({ org: 'o', email: 'e@x', app: 'a' }) });
   assert.equal(bare.status, 503);
 });
 
-// Task 14 A-M6: the owned hook route sits behind the origin and subscription-owner gates of its mount (ownedNextStepsRoute), so moving its dispatch
+// Task 14 A-M6: the owned hook route sits behind the tutorRoute origin and subscription-owner gates, so moving its dispatch
 // above them fails here: a cross-origin call and a non-owner on a SUBSCRIPTION_ONLY worker get 403 with no planner call.
 test('owned route: a cross-origin call and a non-owner on a SUBSCRIPTION_ONLY worker answer 403 with no planner call', async t => {
   const { sqlite, LEARN_DB } = learnDb(t);
   const calls = [], callModel = async () => { calls.push(1); return reply(fixtureFor('suggest_next_steps', INPUT())); };
-  const post = (env, headers = {}) => ownedNextStepsRoute('/api/learn/tutor/next-steps', new Request('https://dev.test/api/learn/tutor/next-steps', { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ app: 'canvas-0a1b2c3d', input: INPUT() }) }),
+  const post = (env, headers = {}) => tutorRoute('/api/learn/tutor/next-steps', new Request('https://dev.test/api/learn/tutor/next-steps', { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ app: 'canvas-0a1b2c3d', input: INPUT() }) }),
     { LEARN_DB, SMALL_ENV: 'test', ...env }, { authorize: async () => ({ org: 'team', email: 'maker@test', user_id: 'u-maker-1', app: 'canvas-0a1b2c3d' }), callModel, cache: { match: async () => undefined, put: async () => {} } });
   assert.equal((await post({}, { origin: 'https://elsewhere.test' })).status, 403, 'cross-origin');
   const owner = await post({ SUBSCRIPTION_ONLY: 'true', SUBSCRIPTION_OWNER_EMAIL: 'someone@test' });
@@ -418,21 +417,4 @@ test('the fixture hooks a native-only canvas on its words, and a blank one on it
   assert.ok(hooks.every(h => /Binary search tree/.test(h) && !/Linked List/.test(h)), hooks.join(' | '));
   const blank = { ...plain, canvas: { title: 'Tide pools', blocks: [] } };
   assert.ok(fixtureFor('suggest_next_steps', blank).options.every(o => /Tide pools/.test(o.hook)));
-});
-
-// Tutor cleanup P1: the owned route has its own mount in dev-worker.js, so the gates tutorRoute ran are asserted here one by one.
-test('owned mount: other paths fall through, a non-POST answers 405, an unauthorized board is refused before any planner call', async t => {
-  const { LEARN_DB } = learnDb(t);
-  const calls = [], callModel = async () => { calls.push(1); return reply(fixtureFor('suggest_next_steps', INPUT())); };
-  const send = (path, init, deps) => ownedNextStepsRoute(path, new Request(`https://dev.test${path}`, init), { LEARN_DB, SMALL_ENV: 'test' }, deps);
-  assert.equal(await send('/api/learn/tutor/plan', { method: 'POST', body: '{}' }), null);
-  assert.equal(await send('/api/learn/tutor/handoff', { method: 'POST', body: '{}' }), null);
-  const get = await send('/api/learn/tutor/next-steps', { method: 'GET' });
-  assert.deepEqual([get.status, (await get.json()).error], [405, 'POST required']);
-  const badJson = await send('/api/learn/tutor/next-steps', { method: 'POST', body: '{nope' }, { authorize: async () => ({ org: 'team', email: 'm@test', app: 'a' }), callModel });
-  assert.deepEqual([badJson.status, (await badJson.json()).error], [400, 'Invalid JSON']);
-  const denied = await send('/api/learn/tutor/next-steps', { method: 'POST', body: JSON.stringify({ app: 'canvas-0a1b2c3d', input: INPUT() }) },
-    { authorize: async () => Response.json({ error: 'forbidden' }, { status: 403 }), callModel });
-  assert.equal(denied.status, 403);
-  assert.equal(calls.length, 0, 'no planner call for any refusal');
 });

@@ -3,7 +3,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
-import { DIGEST_LIMITS, curiousRepository, ownedCacheKey, ownedNextStepsRoute, repositoryDigest } from '../src/learn-next-steps-routes.js';
+import { tutorRoute } from '../src/learn-tutor-routes.js';
+import { DIGEST_LIMITS, curiousRepository, ownedCacheKey, repositoryDigest } from '../src/learn-next-steps-routes.js';
 import { NEXT_STEPS_LIMITS, NEXT_STEPS_SYSTEM, withRepository } from '../src/agents/learn-next-steps.js';
 import { ANSWER_META_REPOSITORY, ANSWER_META_SYSTEM, answerMetaSystem } from '../src/chat-answer-meta.js';
 
@@ -32,7 +33,7 @@ function world(t, { repository = null, load = async () => SNAPSHOT } = {}) {
     const { fixtureFor } = await import('../src/learn-journey-fixtures.js');
     return Response.json({ model: 'fixture', content: [{ type: 'tool_use', name: 'suggest_next_steps', input: fixtureFor('suggest_next_steps', input) }] });
   };
-  const post = (body, deps = {}) => ownedNextStepsRoute('/api/learn/tutor/next-steps', new Request('https://dev.test/api/learn/tutor/next-steps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), env,
+  const post = (body, deps = {}) => tutorRoute('/api/learn/tutor/next-steps', new Request('https://dev.test/api/learn/tutor/next-steps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), env,
     { authorize: async () => ({ ...who, app: body.app }), cache, callModel, repositoryOf: async () => repository, loadSnapshot: async (...args) => { loads.push(args[2]); return load(...args); }, ...deps });
   return { sqlite, env, store, post, inputs, loads };
 }
