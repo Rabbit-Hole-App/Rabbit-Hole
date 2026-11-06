@@ -8,7 +8,7 @@ import { toast } from './ui.jsx';
 // no control is drawn. The value is kept beside the board on the server (card-feedback-routes.js), never in the card.
 export const CardFeedbackScope = createContext(null);
 
-const BUTTON = 'flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-line bg-white text-ink-3 shadow-sm hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-select aria-pressed:border-accent aria-pressed:text-accent';
+const BUTTON = 'flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-line bg-white text-ink-3 shadow-sm hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-select aria-pressed:border-accent aria-pressed:text-accent hover:aria-pressed:text-accent';
 
 function Thumbs({ block, scope }) {
   const store = feedbackStoreFor(scope);
@@ -18,8 +18,8 @@ function Thumbs({ block, scope }) {
     const failed = await store.set(block.id, value === clicked ? null : clicked, block.title);
     if (failed) toast('Your rating was not saved. Try again.', { tone: 'error' });
   };
-  // Under the card, out of the way until the pointer is on the card or focus is on the pair itself: a selected or focused card
-  // alone does not show it. The buttons stay in the Tab order while hidden; focus reveals the pair and rings the button.
+  // Under the card, out of the way until the pointer is on the card or keyboard focus is on the pair itself: a selected or focused
+  // card, or a thumb just clicked, does not hold it open. The buttons stay in the Tab order while hidden; focus-visible reveals the pair and rings the button.
   // Enter and Space belong to the button, not to the card's own keys.
   const keys = event => { if (event.key === 'Enter' || event.key === ' ') event.stopPropagation(); };
   const item = (which, Icon, label) => (
@@ -30,7 +30,7 @@ function Thumbs({ block, scope }) {
   );
   return (
     <div role="group" aria-label="Rate this card" data-card-feedback-pair data-thumbnail-hide
-      className="absolute top-full right-3 z-10 flex gap-1.5 pt-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
+      className="absolute top-full right-3 z-10 flex gap-1.5 pt-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 has-[:focus-visible]:opacity-100 pointer-coarse:opacity-100">
       {item('up', ThumbsUp, 'Good card')}
       {item('down', ThumbsDown, 'Bad card')}
     </div>

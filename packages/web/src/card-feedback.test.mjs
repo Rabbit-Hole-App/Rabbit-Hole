@@ -115,8 +115,8 @@ test('wiring: scope-gated, read-only-safe, hover or own-focus reveal, no-goal Pr
   const reveal = pair.match(/className="absolute top-full[^"]*"/)[0];
   assert.match(reveal, /opacity-0/);
   assert.match(reveal, /group-hover:opacity-100/);
-  assert.match(reveal, /(^|\s)focus-within:opacity-100/);
-  assert.doesNotMatch(reveal, /group-focus-within|selected|aria-current/, 'selection or card focus must not reveal the pair');
+  assert.match(reveal, /has-\[:focus-visible\]:opacity-100/, 'keyboard focus on the pair reveals it; a mouse click does not hold it open');
+  assert.doesNotMatch(reveal, /group-focus-within|(^|\s)focus-within:|selected|aria-current/, 'selection, card focus or a clicked thumb must not reveal the pair');
   assert.match(progress, /\{!managing && <CardFeedbackSummary scope=\{scope\}/, 'outside the goal branches, so no goal is needed');
   for (const [, , text] of pair.matchAll(/(['"])((?:(?!\1)[^\n])*)\1/g)) assert.doesNotMatch(text, /\.\.\.|…/, `no ellipsis in "${text}"`);
 });
