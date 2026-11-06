@@ -8,7 +8,8 @@ import { deleteHighlight, listHighlights, newId, putHighlight } from './pdf-high
 import { canWrite, fileScope } from './file-source-client.js';
 import { containsOffset, paintHighlights, quoteFromRange, rangeFromOffsets } from './learn-wiki-highlights.js';
 import { currentHighlights, highlightAt, markdownHighlightBody, markdownHighlightSource, placeHighlights } from './file-doc-highlights.js';
-import { EXPLAIN_PASSAGE_EVENT, PASSAGE_TEXT, SOURCE_REF_EVENT, explanationsFor, markdownDraft, passageTarget, resolvePassage } from './source-ref.js';
+import { EXPLAIN_PASSAGE_EVENT, PASSAGE_TEXT, SOURCE_REF_EVENT, explanationsFor, markdownDraft, passageTarget, resolveQuote, resolveRawPassage } from './source-ref.js';
+import { textSegments } from './markdown-anchor.js';
 import { focusExplanation, mintSourceRef } from './source-refs.js';
 import { api } from './api.js';
 import { useSourceRefBlocks } from './SourceRefChip.jsx';
@@ -60,10 +61,13 @@ export function MarkdownText({ block, text, children }) {
   passageView.current = detail => {
     const node = root.current;
     if (!node) return;
-    const found = passageTarget({ text: node.textContent, rev, detail }), range = found.status === 'resolved' && rangeFromOffsets(node, found.start, found.end);
+    let found = passageTarget({ text: node.textContent, rev, detail });
     const more = found.status === 'missing' && scroller.current?.querySelector('[data-file-doc-more]');
     if (more) { pendingPassage.current = detail; more.click(); return; }
     pendingPassage.current = null;
+    // Only a roadmap card's raw quote, and only now that the whole file is drawn, is matched folded; a learner's own passage stays exact or missing.
+    if (found.status === 'missing' && detail.raw) found = resolveRawPassage(textSegments(node), detail.quote);
+    const range = found.status === 'resolved' && rangeFromOffsets(node, found.start, found.end);
     if (!range) { setMessage({ text: PASSAGE_TEXT[found.status] || PASSAGE_TEXT.missing }); return; }
     const paintKey = `srcref:${block.id}`;
     paintHighlights(paintKey, [range]);
@@ -126,7 +130,7 @@ export function MarkdownText({ block, text, children }) {
     before.setStart(node, 0); before.setEnd(caret.startContainer, caret.startOffset);
     const offset = before.toString().length, placed = saveable ? placeHighlights(node.textContent, highlights) : [], h = highlightAt(placed, offset);
     const passage = explanationsFor(refBlocks, { key: `file:${block.fileRef?.source?.id}`, rev }).current
-      .flatMap(({ cardId, ref }) => { const span = resolvePassage(node.textContent, ref.anchor.quote); return span.status === 'resolved' && containsOffset(span, offset) ? [{ cardId, span }] : []; })[0];
+      .flatMap(({ cardId, ref, raw }) => { const exact = resolveQuote(node.textContent, ref.anchor.quote), span = exact.status === 'missing' && raw && !scroller.current?.querySelector('[data-file-doc-more]') ? resolveRawPassage(textSegments(node), ref.anchor.quote) : exact; return span.status === 'resolved' && containsOffset(span, offset) ? [{ cardId, span }] : []; })[0];
     if (!h && !passage) { setMenu(null); return; }
     const { span } = h ? placed.find(entry => entry.h === h) : passage;
     setMenu({ h: h || null, cardId: passage?.cardId ?? null, range: rangeFromOffsets(node, span.start, span.end) });

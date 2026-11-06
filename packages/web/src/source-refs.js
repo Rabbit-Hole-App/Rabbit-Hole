@@ -54,14 +54,15 @@ export function subscribeBlocks(listener) { listeners.add(listener); return () =
 // 'small:excerpt-source' event, ExcerptCard.jsx); a Markdown passage focuses its file card, which then emphasizes the quote.
 // Returns what happened, so the chip can say so: 'opened' | 'unavailable' (the ref cannot open) | 'no-card' (the Markdown card is
 // not on this canvas).
-export function viewPassage(ref, { blocks = state.blocks, focus = state.focus, emit = event => window.dispatchEvent(event), wait = setTimeout } = {}) {
+// raw: the card is a roadmap card (stepId), so its Markdown quote is raw Markdown and may be matched folded once the whole file is drawn (source-ref.js resolveRawPassage).
+export function viewPassage(ref, { blocks = state.blocks, focus = state.focus, emit = event => window.dispatchEvent(event), wait = setTimeout, raw = false } = {}) {
   if (!navigable(ref)) return 'unavailable';
   if (ref.kind === 'pdf') { emit(new CustomEvent('small:excerpt-source', { detail: { ref: readerRef(ref) } })); return 'opened'; }
   const cardId = markdownCardOf(blocks, ref);
   if (!cardId) return 'no-card';
   focus?.(cardId);
   // The camera moves first; the card paints its emphasis once it is on screen.
-  wait(() => emit(new CustomEvent(SOURCE_REF_EVENT, { detail: { cardId, key: ref.source.key, rev: ref.source.rev, quote: ref.anchor.quote } })), 250);
+  wait(() => emit(new CustomEvent(SOURCE_REF_EVENT, { detail: { cardId, key: ref.source.key, rev: ref.source.rev, quote: ref.anchor.quote, ...(raw ? { raw: true } : {}) } })), 250);
   return 'opened';
 }
 
