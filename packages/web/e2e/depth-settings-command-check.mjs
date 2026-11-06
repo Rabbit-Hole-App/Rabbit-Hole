@@ -2,7 +2,7 @@
 // call: the settings API is a fake server in this browser (GET/POST /api/learn/user-settings, kept per canvas and learner), and every
 // model-capable request is aborted and counted (none may come from these steps).
 // Covers: the Chat composer shows a Depth control reading Standard; its menu offers Overview, Standard and Deep; Auto-suggest is in the
-// menu in Auto and in Tutor and absent in Ask; choosing Deep posts { app, board, depth: "deep" } once and the control reads Deep;
+// menu in Auto and in Tutor and absent in Ask; choosing Deep posts { app, board, depth: "deep", expectedRevision: 0 } once and the control reads Deep;
 // switching Auto-suggest off posts { autoSuggest: false } and the menu shows it off; a save the server refuses says "Not saved: this
 // change applies in this tab only." with Retry, and the choice stays in the tab; no page error and no model request.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/depth-settings-command-check.mjs [shotsDir]
@@ -25,7 +25,7 @@ const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify
 const MODEL = /^\/api\/(ask$|learn\/(ask|selection|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|artifact|explain|animation|chat\/material-proposals|cad\/jobs|motion))/;
 const stray = [], errors = [], results = [], posts = [];
 let refuse = false; // the fake server refuses the next POSTs (a save that fails)
-const store = { depth: 'standard', autoSuggest: true };
+const store = { depth: 'standard', autoSuggest: true, depthRevision: 0 };
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
   catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message}`); await page?.screenshot({ path: `${SHOTS}/fail-${results.length}.png` }).catch(() => {}); }
@@ -35,12 +35,17 @@ const until = async (fn, label, ms = 15000) => { const end = Date.now() + ms; wh
 const router = async route => {
   const request = route.request(), path = new URL(request.url()).pathname, method = request.method();
   if (path === '/api/learn/user-settings') {
-    if (method === 'GET') return route.fulfill({ json: { settings: { ...store }, learner: 'aaaaaaaaaaaaaaaa' } });
+    const answer = () => ({ settings: { depth: store.depth, autoSuggest: store.autoSuggest }, depthRevision: store.depthRevision, learner: 'aaaaaaaaaaaaaaaa' });
+    if (method === 'GET') return route.fulfill({ json: answer() });
     const body = request.postDataJSON();
     posts.push(body);
     if (refuse) return route.fulfill({ status: 503, json: { error: 'settings_unavailable' } });
-    Object.assign(store, ...[body.depth !== undefined && { depth: body.depth }, body.autoSuggest !== undefined && { autoSuggest: body.autoSuggest }].filter(Boolean));
-    return route.fulfill({ json: { settings: { ...store }, learner: 'aaaaaaaaaaaaaaaa' } });
+    if (body.depth !== undefined) {
+      if (body.expectedRevision !== store.depthRevision) return route.fulfill({ status: 409, json: { error: 'stale_depth', ...answer() } });
+      Object.assign(store, { depth: body.depth, depthRevision: store.depthRevision + 1 });
+    }
+    if (body.autoSuggest !== undefined) store.autoSuggest = body.autoSuggest;
+    return route.fulfill({ json: answer() });
   }
   if (path === '/api/learn/chat/route' && method === 'POST') return route.fulfill({ status: 404, json: { error: 'Not found' } });
   if (MODEL.test(path) && method !== 'GET') { stray.push(`${method} ${path}`); return route.abort(); }
@@ -96,7 +101,7 @@ try {
     await openMenu();
     await menu.locator('[data-depth-option="deep"]').click();
     await until(async () => posts.length === before + 1, 'one POST');
-    assert.deepEqual(posts.at(-1), { app: canvas.name, board: 'main', depth: 'deep' });
+    assert.deepEqual([posts.at(-1).app, posts.at(-1).board, posts.at(-1).depth, posts.at(-1).expectedRevision], [canvas.name, 'main', 'deep', 0]);
     await until(async () => (await depthButton.innerText()).trim() === 'Deep', 'the control reads Deep');
     assert.equal(await menu.count(), 0);
   });

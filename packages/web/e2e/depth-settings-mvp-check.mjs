@@ -26,8 +26,8 @@ const second = await api('/api/canvases', { method: 'POST', body: JSON.stringify
 
 const MODEL = /^\/api\/(ask$|learn\/(selection|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|artifact|explain|animation|chat\/material-proposals|cad\/jobs|motion))/;
 const stray = [], errors = [], results = [], turns = [];
-const depthOf = {}, learner = { autoSuggest: true }; // the fake server's rows: Depth per canvas, Auto-suggest per learner
-const view = app => ({ settings: { depth: depthOf[app] || 'standard', autoSuggest: learner.autoSuggest }, learner: 'aaaaaaaaaaaaaaaa' });
+const depthOf = {}, revisionOf = {}, learner = { autoSuggest: true }; // the fake server's rows: Depth and its revision per canvas, Auto-suggest per learner
+const view = app => ({ settings: { depth: depthOf[app] || 'standard', autoSuggest: learner.autoSuggest }, depthRevision: revisionOf[app] || 0, learner: 'aaaaaaaaaaaaaaaa' });
 let current = null;
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -40,7 +40,10 @@ const router = async route => {
   if (path === '/api/learn/user-settings') {
     if (method === 'GET') return route.fulfill({ json: view(url.searchParams.get('app')) });
     const body = request.postDataJSON();
-    if (body.depth !== undefined) depthOf[body.app] = body.depth;
+    if (body.depth !== undefined) {
+      if (body.expectedRevision !== (revisionOf[body.app] || 0)) return route.fulfill({ status: 409, json: { error: 'stale_depth', ...view(body.app) } });
+      depthOf[body.app] = body.depth; revisionOf[body.app] = (revisionOf[body.app] || 0) + 1;
+    }
     if (body.autoSuggest !== undefined) learner.autoSuggest = body.autoSuggest;
     return route.fulfill({ json: view(body.app) });
   }

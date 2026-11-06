@@ -1,9 +1,15 @@
 // packages/control-plane/src/learn-user-settings.js
 // Learn user settings on LEARN_DB (learn-migrations/0037; Tutor ladder R2, decisions D11 and D12):
-//   Auto-suggest: one value per learner (learn_user_settings), default on.
-//   Depth: overview | standard | deep, one value per learner and canvas (learn_canvas_depth), default standard.
-//   GET  /api/learn/user-settings?app=&board= -> { settings: { depth, autoSuggest }, learner }
-//   POST /api/learn/user-settings { app, board, depth?, autoSuggest? } -> the same answer (a field left out keeps its value)
+//   Auto-suggest: one value per learner (learn_user_settings), default on. One boolean, idempotent: the last write wins.
+//   Depth: overview | standard | deep, one value per learner and canvas (learn_canvas_depth), default standard. Guarded writes.
+//   GET  /api/learn/user-settings?app=&board= -> { settings: { depth, autoSuggest }, depthRevision, learner }
+//   POST /api/learn/user-settings { app, board, autoSuggest } -> the same answer
+//   POST /api/learn/user-settings { app, board, depth, expectedRevision, actionId? } -> the same answer (set_depth)
+// Exactly one setting per POST. A Depth write names the revision it was made from (0: no row yet). It is applied only at that
+// revision, and then the row's revision is one more and last_action_id is its actionId. At any other revision it writes nothing:
+// the same actionId again is a replay (200, replayed: true, the current state, nothing written); anything else is 409
+// stale_depth with the current settings and revision, so the caller adopts them. Auto-suggest never copies a canvas's own
+// learn_coaching_state.tutor_enabled: a learner with no row has the default (on), whatever any canvas holds.
 // Only the signed-in learner's own rows, resolved as the coaching route resolves them: an app they may open, a canvas, the
 // account's users.id (never an email, never from the body). Nothing here calls a model. `learner` is an opaque short hash of
 // that identity, so one browser shared by two accounts never applies one learner's change to the other's tab.
@@ -16,23 +22,27 @@ import { DEFAULT_DEPTH, validDepth } from './chat-depth.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/; // learn-boards.js board names, as the coaching route
+const ACTION = /^[A-Za-z0-9_-]{8,64}$/;
 export const DEFAULT_SETTINGS = Object.freeze({ depth: DEFAULT_DEPTH, autoSuggest: true });
+const DEPTH_ROW = 'org = ? AND owner_user_id = ? AND app = ? AND board = ?';
+const depthKey = a => [a.org, a.userId, a.app, a.board];
 
-// actor: { org, userId, app, board }, server-resolved. -> { depth, autoSuggest }; the defaults for anything not saved.
+// actor: { org, userId, app, board }, server-resolved. -> { depth, autoSuggest, depthRevision }; the defaults (revision 0) for anything not saved.
 export async function readSettings(env, actor) {
   const [user, canvas] = await Promise.all([
     env.LEARN_DB.prepare('SELECT auto_suggest FROM learn_user_settings WHERE org = ? AND owner_user_id = ?').bind(actor.org, actor.userId).first(),
-    env.LEARN_DB.prepare('SELECT depth FROM learn_canvas_depth WHERE org = ? AND owner_user_id = ? AND app = ? AND board = ?').bind(actor.org, actor.userId, actor.app, actor.board).first(),
+    env.LEARN_DB.prepare(`SELECT depth, revision FROM learn_canvas_depth WHERE ${DEPTH_ROW}`).bind(...depthKey(actor)).first(),
   ]);
-  return { depth: validDepth(canvas?.depth) ?? DEFAULT_SETTINGS.depth, autoSuggest: user ? user.auto_suggest === 1 : DEFAULT_SETTINGS.autoSuggest };
+  return { depth: validDepth(canvas?.depth) ?? DEFAULT_SETTINGS.depth, autoSuggest: user ? user.auto_suggest === 1 : DEFAULT_SETTINGS.autoSuggest, depthRevision: canvas?.revision ?? 0 };
 }
 
-// The Depth a model call should honor: the stored one, or Standard when there is none, no identity or the tables are not there
-// yet. Never throws: Depth is a preference, and a failed read must not stop an answer.
+// The Depth a model call should honor: the stored one, or Standard when there is none, no identity, no canvas or board, or the tables
+// are not there yet (no 'main' fallback: an unnamed board is Standard). Never throws: Depth is a preference, and a failed read must
+// not stop an answer.
 export async function readDepth(env, actor) {
-  if (!env?.LEARN_DB || !actor?.org || !actor?.userId) return DEFAULT_DEPTH;
+  if (!env?.LEARN_DB || !actor?.org || !actor?.userId || !actor?.app || !actor?.board) return DEFAULT_DEPTH;
   try {
-    const row = await env.LEARN_DB.prepare('SELECT depth FROM learn_canvas_depth WHERE org = ? AND owner_user_id = ? AND app = ? AND board = ?').bind(actor.org, actor.userId, actor.app, actor.board).first();
+    const row = await env.LEARN_DB.prepare(`SELECT depth FROM learn_canvas_depth WHERE ${DEPTH_ROW}`).bind(...depthKey(actor)).first();
     return validDepth(row?.depth) ?? DEFAULT_DEPTH;
   } catch { return DEFAULT_DEPTH; }
 }
@@ -47,12 +57,24 @@ export async function readAutoSuggest(env, actor) {
   } catch { return DEFAULT_SETTINGS.autoSuggest; }
 }
 
-// patch: { depth?, autoSuggest? }, already validated. One statement per field.
-export async function saveSettings(env, actor, patch) {
-  const now = new Date().toISOString(), statements = [];
-  if (patch.autoSuggest !== undefined) statements.push(env.LEARN_DB.prepare('INSERT INTO learn_user_settings (org, owner_user_id, auto_suggest, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT (org, owner_user_id) DO UPDATE SET auto_suggest = excluded.auto_suggest, updated_at = excluded.updated_at').bind(actor.org, actor.userId, patch.autoSuggest ? 1 : 0, now));
-  if (patch.depth !== undefined) statements.push(env.LEARN_DB.prepare('INSERT INTO learn_canvas_depth (org, owner_user_id, app, board, depth, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (org, owner_user_id, app, board) DO UPDATE SET depth = excluded.depth, updated_at = excluded.updated_at').bind(actor.org, actor.userId, actor.app, actor.board, patch.depth, now));
-  if (statements.length) await env.LEARN_DB.batch(statements);
+// Auto-suggest: a boolean, already validated.
+export async function saveAutoSuggest(env, actor, autoSuggest) {
+  await env.LEARN_DB.prepare('INSERT INTO learn_user_settings (org, owner_user_id, auto_suggest, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT (org, owner_user_id) DO UPDATE SET auto_suggest = excluded.auto_suggest, updated_at = excluded.updated_at')
+    .bind(actor.org, actor.userId, autoSuggest ? 1 : 0, new Date().toISOString()).run();
+}
+
+// set_depth: { depth, expectedRevision, actionId? }, already validated. One conditional statement, so a stale write changes nothing.
+// -> 'applied' | 'replayed' | 'stale'
+export async function setDepth(env, actor, { depth, expectedRevision, actionId = null }) {
+  const now = new Date().toISOString();
+  const written = expectedRevision === 0
+    ? await env.LEARN_DB.prepare('INSERT INTO learn_canvas_depth (org, owner_user_id, app, board, depth, revision, last_action_id, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?) ON CONFLICT DO NOTHING')
+      .bind(...depthKey(actor), depth, actionId, now).run()
+    : await env.LEARN_DB.prepare(`UPDATE learn_canvas_depth SET depth = ?, revision = revision + 1, last_action_id = ?, updated_at = ? WHERE ${DEPTH_ROW} AND revision = ?`)
+      .bind(depth, actionId, now, ...depthKey(actor), expectedRevision).run();
+  if (written.meta?.changes > 0) return 'applied';
+  const row = await env.LEARN_DB.prepare(`SELECT last_action_id FROM learn_canvas_depth WHERE ${DEPTH_ROW}`).bind(...depthKey(actor)).first();
+  return actionId && row?.last_action_id === actionId ? 'replayed' : 'stale';
 }
 
 const learnerKey = async actor => (await sha256Hex(`learn-settings|${actor.org}|${actor.userId}`)).slice(0, 16);
@@ -77,20 +99,30 @@ export async function userSettingsRoute(path, req, env, deps = {}) {
   if (access.kind !== 'canvas') return json({ error: 'settings_on_canvases_only' }, 400);
   if (!access.user_id) return json({ error: 'identity_unavailable' }, 401);
   const actor = { org: access.org, userId: access.user_id, app: body.app, board: body.board };
-  const patch = {};
+  let write = null;
   if (req.method === 'POST') {
-    if (body.depth !== undefined) { if (!validDepth(body.depth)) return json({ error: 'depth must be overview, standard or deep' }, 400); patch.depth = body.depth; }
-    if (body.autoSuggest !== undefined) { if (typeof body.autoSuggest !== 'boolean') return json({ error: 'autoSuggest must be true or false' }, 400); patch.autoSuggest = body.autoSuggest; }
-    if (!Object.keys(patch).length) return json({ error: 'Send depth or autoSuggest' }, 400);
+    if ((body.depth === undefined) === (body.autoSuggest === undefined)) return json({ error: 'Send depth or autoSuggest, one per request' }, 400);
+    if (body.autoSuggest !== undefined) {
+      if (typeof body.autoSuggest !== 'boolean') return json({ error: 'autoSuggest must be true or false' }, 400);
+      write = () => saveAutoSuggest(env, actor, body.autoSuggest);
+    } else {
+      if (!validDepth(body.depth)) return json({ error: 'depth must be overview, standard or deep' }, 400);
+      if (!Number.isInteger(body.expectedRevision) || body.expectedRevision < 0) return json({ error: 'expectedRevision must be the revision this change was made from (0 when none was saved)' }, 400);
+      if (body.actionId !== undefined && !ACTION.test(body.actionId)) return json({ error: 'actionId must be 8-64 letters, digits, dashes or underscores' }, 400);
+      write = () => setDepth(env, actor, { depth: body.depth, expectedRevision: body.expectedRevision, actionId: body.actionId ?? null });
+    }
   }
   try {
-    if (req.method === 'POST') await saveSettings(env, actor, patch);
-    return json({ settings: await readSettings(env, actor), learner: await learnerKey(actor) });
+    const outcome = write ? await write() : 'applied';
+    const { depthRevision, ...settings } = await readSettings(env, actor);
+    const answer = { settings, depthRevision, learner: await learnerKey(actor) };
+    if (outcome === 'stale') return json({ error: 'stale_depth', ...answer }, 409);
+    return json(outcome === 'replayed' ? { ...answer, replayed: true } : answer);
   } catch (error) {
     // ids only, never the account id or a value
     console.error(JSON.stringify({ event: 'learn_user_settings_error', app: actor.app, error: error?.name || 'Error', message: String(error?.message || '').slice(0, 120) }));
     // A read of a database without 0037 is the defaults; a write is refused so the learner is told it was not kept.
-    if (req.method === 'GET') return json({ settings: { ...DEFAULT_SETTINGS }, learner: await learnerKey(actor), unsaved: true });
+    if (req.method === 'GET') return json({ settings: { ...DEFAULT_SETTINGS }, depthRevision: 0, learner: await learnerKey(actor), unsaved: true });
     return json({ error: 'settings_unavailable' }, 503);
   }
 }

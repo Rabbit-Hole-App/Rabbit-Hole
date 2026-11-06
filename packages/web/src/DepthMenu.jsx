@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { COMPOSER_TOOL } from './ChatComposer.jsx';
 import { cn } from './ui.jsx';
-import { AUTO_SUGGEST_MODES, DEPTHS } from './learn-settings.js';
+import { DEPTHS, autoSuggestShown } from './learn-settings.js';
 
 // Depth (Overview, Standard, Deep) and Auto-suggest in the Chat composer toolbar, beside the mode selector (Tutor ladder R2,
 // decisions D11, D12, D22). One menu: Depth is this canvas's, Auto-suggest is the learner's on every canvas and is shown only in
@@ -18,7 +18,7 @@ export default function DepthMenu({ settings, mode, disabled = false }) {
   }, [open]);
   const at = Math.max(0, DEPTHS.findIndex(([id]) => id === settings.depth));
   const current = DEPTHS[at];
-  const suggests = AUTO_SUGGEST_MODES.includes(mode);
+  const suggests = autoSuggestShown(mode);
   const failed = settings.status === 'error' || settings.saveStatus === 'error';
   const count = DEPTHS.length + (suggests ? 1 : 0);
   const show = () => { setOpen(true); requestAnimationFrame(() => items.current[at]?.focus()); };

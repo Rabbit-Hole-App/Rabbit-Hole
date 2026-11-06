@@ -232,9 +232,11 @@ export async function explainRoute(path, req, env, deps = {}) {
   }
   const stub = env.EXPLAIN_JOBS.get(env.EXPLAIN_JOBS.idFromName(board.id));
   const who = { org: user.org, email: user.email, userId: user.userId || user.user_id || null };
-  // R2: Depth is the server's read of this learner's saved setting for this canvas, never a browser field.
-  delete body.depth;
-  if (action === 'create') body.depth = await readDepth(env, { org: who.org, userId: who.userId, app: board.app, board: board.board });
+  // R2: Depth is the learner's selection when they pressed Generate (the client's snapshot), validated here; omitted, their saved Depth for
+  // this canvas. It is stored on the job at create and never rebound to a later preference.
+  if (action !== 'create') delete body.depth;
+  else if (body.depth !== undefined && !validDepth(body.depth)) return json({ error: 'depth must be overview, standard or deep' }, 400);
+  else body.depth ??= await readDepth(env, { org: who.org, userId: who.userId, app: board.app, board: board.board });
   // Task 9.2: an Edit re-reads the sources its accepted base was made from (its private provenance), under this learner's access now.
   const lineage = action === 'create' && body.requestClass === 'edit' && typeof body.cardId === 'string' && typeof body.baseRevision === 'string'
     ? await stub.fetch('https://explain/action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'lineage', payload: { cardId: body.cardId, baseRevision: body.baseRevision }, board, user: who }) })
@@ -333,7 +335,10 @@ export class ExplainJobs {
 
   async create(payload, board, user, origin) {
     validateCreate(payload);
-    const fingerprint = await sha256Hex(JSON.stringify([payload.cardId, payload.prompt, payload.context ?? null, payload.requestClass, payload.baseRevision ?? null, payload.examples ?? [], payload.image_context ?? null, payload.sourceRef?.id ?? null]));
+    // The resolved Depth is part of the request: the same request id with another Depth conflicts (409) instead of replaying a job made
+    // at a different one. Standard (and no Depth, and a job made before Depth) adds nothing, so those fingerprints are unchanged.
+    const depth = validDepth(payload.depth) || DEFAULT_DEPTH;
+    const fingerprint = await sha256Hex(JSON.stringify([payload.cardId, payload.prompt, payload.context ?? null, payload.requestClass, payload.baseRevision ?? null, payload.examples ?? [], payload.image_context ?? null, payload.sourceRef?.id ?? null, ...(depth !== DEFAULT_DEPTH ? [depth] : [])]));
     const fence = await this.state.storage.get(`request:${payload.requestId}`);
     if (fence) {
       if (fence.fingerprint !== fingerprint) throw fail('This request id belongs to a different explanation.', 409);
@@ -348,7 +353,7 @@ export class ExplainJobs {
       id: `ej_${hex()}`, version: 1, policyVersion: EXPLAIN_POLICY_VERSION, boardId: board.id, app: board.app, board: board.board,
       owner: { org: user.org, email: user.email, userId: user.userId || null }, origin, cardId: payload.cardId, requestId: payload.requestId,
       // R2: the learner's Depth when the request was made (the route reads it); the brief and author stages read it from here.
-      depth: validDepth(payload.depth) || DEFAULT_DEPTH,
+      depth,
       prompt: payload.prompt.trim(), sourceRef: payload.sourceRef ?? null, context: payload.context ?? null, examples: payload.examples ?? [], evidence: payload.evidence ?? [], source: payload.source ?? 'explicit', base, reference: payload.reference ?? null, requestClass: payload.requestClass, baseRevision: payload.baseRevision ?? null,
       // Preparation (a brief) is the server's decision (explain-brief.js needsPreparation): every new explanation prepares one and
       // waits for Generate, whatever requestClass the client sent; a job stored before that rule keeps its own prepare flag.

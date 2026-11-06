@@ -102,7 +102,7 @@ export const validOpen = (kind, open) => open === undefined || ((kind === 'excer
 
 // The A4 fields, or null for an old client that sends none of them (it then behaves exactly as before).
 export function chatFields(body) {
-  if (!['mode', 'command', 'context_refs', 'regenerate'].some(key => body[key] !== undefined)) return null;
+  if (!['mode', 'command', 'context_refs', 'regenerate', 'depth'].some(key => body[key] !== undefined)) return null;
   const mode = body.mode ?? 'auto';
   if (!MODES.includes(mode)) throw Error('mode must be auto, ask or tutor');
   const command = body.command ?? null;
