@@ -3,7 +3,7 @@
 What I (Claude) need from you, what is waiting on whom, and what is already decided. Tick a box when it is resolved. Tell me in chat and I will tick it and push the update; you can also edit the file on its branch.
 
 - **Branch:** `feat/tutor-owner-inbox` on `rabbit-hole`. Path: `docs/features/explain-on-canvas/OWNER-INBOX.md`. A Desktop mirror is at `C:\Users\cyudhist\Desktop\TUTOR-OWNER-INBOX.md`.
-- **Last updated:** 2026-11-05 23:50 PT.
+- **Last updated:** 2026-11-05 23:43 PST.
 - **Rule:** I keep this file current each time a blocker appears or clears. Times are Pacific.
 
 Plans: `cleanup-v0.5.md` (cleanup), `tutor-roadmap-v1.4.md` (Tutor ladder R1-R16), `tutor-ladder-manifest.md` (who writes which file).
@@ -28,6 +28,8 @@ Paste-ready texts are in `docs/features/explain-on-canvas/contracts/decision-rec
 
 ### Cleanup P2 question
 - [ ] **Static Tutor entry card.** v0.4 said the `resolveTutorEntry` / `guidedOpening` flow goes, but the Keep table keeps `learn-coaching-entry.js` and the codebase menu depends on the entry card. P2 removed only the guided-opening part and kept the static entry card. Recommended: keep it until the Tutor rebuild (R4). Confirm, or tell me to remove it.
+
+- [ ] **R3 strings:** "From <name>, p. <label>" (chip line); "View passage"; "View explanation"; "Explain" (Markdown selection toolbar button); "Explain this passage" (prompt on the created card); "Source changed"; "Source not available"; long forms: "This source changed after the explanation was written, so the passage is not shown." / "This source is not available here, so the passage cannot be shown." / "You cannot open this source."; "The file this passage is in is not on this canvas."; refusals: "This source changed since you selected this passage. Select the passage again." / "This source is not available to you now. Select the passage again from a source you can open."
 
 ### R2 product questions
 - [ ] **Two Tutor switches.** The per-canvas "Proactive Tutor suggestions" and the new per-learner Auto-suggest can both show in Tutor mode. Recommended: merge them when R4 reworks Tutor. Confirm.
@@ -77,7 +79,7 @@ I prepare the preview, the focused-check results, the recovery branch and the ex
 | Cleanup P2 | Built locally (tip `cdeb77274`). Cp 3589/3591 pass, web 4787/4816 pass (flakes pass singly), build exit 0, check-map 70/70. 26 cp and 336 web tests were removed with the Tutor code. Release package in preparation |
 | R1 card feedback | Built locally (5 commits). Waiting on P2 merge, then rebase plus the two Lead-only edits |
 | R2 Depth settings | Built locally (4 commits). Waiting on P4 merge |
-| R3 source refs | Building locally |
+| R3 source refs | Built locally (2 commits). Control-plane 3638/3639, web 5154/5183 (flakes pass singly), build exit 0. Needs migration 0038, the Lead-only patches (LearnPage, AdaptiveCanvas, dev-worker) and P2 merged. R4 gap noted: a background Durable Object cannot read a source without a signed-in request |
 | R4 contracts | Done and pushed (`feat/tutor-r4-contracts`); no release yet |
 | Windows checks launcher | Being built |
 | v0.5 plan | Written (`cleanup-v0.5.md`) |
