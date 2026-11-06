@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { saveAutoSuggest } from '../src/learn-user-settings.js';
 import { claimRoadmapEvent, dueRoadmapEvents } from '../src/roadmap/roadmap-events.js';
 import { rows } from './roadmap-fixture.js';
+import { roadmapDeps } from '../src/roadmap/roadmap-wire.js';
 import { delivered, doubles, flags, offeredNow, registerAutoHandlers, resetDoubles, T0 } from './roadmap-auto-fixture.js';
 
 registerAutoHandlers();
@@ -126,4 +127,16 @@ test('flag off: a pending learner event is consumed without any fan-out, and the
   assert.equal(events(w, 'autosuggest_changed').length, 0, 'no children without ROADMAP_AUTO_ENABLED');
   assert.equal(offeredNow(w, o.roadmapId).length, 0);
   assert.equal(doubles.kicks.length, 0);
+});
+
+test('ROADMAP_ENABLED on and ROADMAP_AUTO_ENABLED unset: the ack/mode wake is a no-op (no RoadmapJobs fetch); with the switch on it wakes the board', async t => {
+  const { w, access } = await delivered(t);
+  const fetched = [];
+  const jobs = { idFromName: n => n, get: () => ({ fetch: async url => { fetched.push(url); return new Response('ok'); } }) };
+  const off = roadmapDeps({ ...flags(w.env, { auto: null }), ROADMAP_JOBS: jobs });
+  assert.equal(off.onFact, undefined, 'routes use deps.onFact?.(), so nothing runs');
+  assert.equal(typeof off.onAccepted, 'function', 'accept still wakes (R4 behavior)');
+  const on = roadmapDeps({ ...flags(w.env), ROADMAP_JOBS: jobs });
+  await on.onFact(null, access, {});
+  assert.equal(fetched.length, 1);
 });
