@@ -10,7 +10,6 @@ import { mintStepRefs } from './roadmap-source-refs.js';
 import { planningHandler } from './roadmap-planning.js';
 import { generationHandler } from './roadmap-run.js';
 import { sweepUndelivered } from './roadmap-sweep.js';
-import { readAutoSuggest } from '../learn-user-settings.js';
 
 const scopeOf = access => ({ org: access.org, ownerUserId: access.actorUserId, boardId: access.boardId });
 
@@ -25,23 +24,11 @@ export function roadmapKick(env, ctx) {
   };
 }
 
-// The learner's own settings for roadmap invitations (R2): Auto-suggest per learner (learn_user_settings, on when unsaved) and the canvas's coaching mode
-// (learn_coaching_state.mode, joined from the board id; no row yet = no stored mode, so the client hint applies). Read-only: never creates a coaching row.
-export const learnerSettings = env => async (_db, access) => {
-  const autoSuggest = await readAutoSuggest(env, { org: access.org, userId: access.actorUserId });
-  let mode;
-  try {
-    mode = (await env.LEARN_DB.prepare('SELECT s.mode FROM learn_boards b JOIN learn_coaching_state s ON s.org = b.org AND s.app = b.app AND s.board = b.board AND s.owner_user_id = ? WHERE b.id = ? AND b.org = ?')
-      .bind(access.actorUserId, access.boardId, access.org).first())?.mode;
-  } catch { /* a database without learn_coaching_state: no stored mode */ }
-  return { autoSuggest, mode };
-};
-
-// deps for roadmapRoute. `settings` is the reader seam (Auto-suggest, mode); the default reads the learner's saved settings (learnerSettings).
-export function roadmapDeps(env, ctx = null, { settings = learnerSettings(env), readSourceOptions } = {}) {
+// deps for roadmapRoute. `settings` is R2's reader seam (Auto-suggest, mode): with R2 merged the Lead passes its readers; the default is on and Tutor.
+export function roadmapDeps(env, ctx = null, { settings, readSourceOptions } = {}) {
   const kick = roadmapKick(env, ctx);
   return { readSource: makeReadSource(env, readSourceOptions), startPlanning: kick, onAccepted: kick, compose: (roadmap, step) => composeProposal(env.LEARN_DB, roadmap, step),
-    mintStepRefs: (e, access, roadmapId) => mintStepRefs(e, access, roadmapId), settings };
+    mintStepRefs: (e, access, roadmapId) => mintStepRefs(e, access, roadmapId), ...(settings ? { settings } : {}) };
 }
 
 // The two durable handlers. `deps` is the test/injection seam of the handlers (callModel, registry, transport, classify, base, ...). Idempotent.
