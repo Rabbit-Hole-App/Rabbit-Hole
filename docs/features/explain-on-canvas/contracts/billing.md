@@ -97,6 +97,8 @@ R4 learner charge = the settled provider cost of the learner-payer attempts (`US
 11. `spendTransport` returns early with no admission when `SMALL_ENV === 'test'` or `SUBSCRIPTION_ONLY === 'true'` (`learn-spend.js:67,69`). Tests of money paths must set the enforcement on, as `learn-usage.test.js` does.
 12. The roadmap DO runs outside a request: it needs the payer forwarded the way `forwardUsagePayer`/`usageFromForwarded` do (`learn-usage.js:254-267`, header `x-rh-usage-payer`), or the `job.owner` pattern in `ExplainJobs`; the owner identity is stored on the roadmap row at creation.
 
+13. JEV does not go through `spendTransport`: `askJev` admits each POST itself with `operationId('jev')` (`learn-grade-jev.js:150`), so the operation-id hook (section 3) must also be applied there for the safety screen, or the screen stays unkeyed (its cost is negligible, $0.042/MTok input; the risk is only duplicate admission on a replayed stage).
+
 ## 9. Tests State must write (money)
 
 Two concurrent accepts (one hold, one card, one charge); accept with insufficient allowance (proposal `pending`, zero rows consumed); crash at each write boundary of the accept batch (nothing half-applied: single batch); hold released on completion and on terminal failure; replay of the same op id (no second provider call); unknown outcome never resent; refund-then-retry order; refund replay (second refund is 0); held card refunded on terminal check failure; ack lost then reload (one card, one charge); Ask mode with accepted work in flight (finishes and delivers); flag off during generation and after settlement (v1.4 4.1), restored with no duplicate charge.
