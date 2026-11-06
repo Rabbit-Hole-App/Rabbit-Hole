@@ -7,7 +7,7 @@ import { anthropic } from './ask.js';
 import { modelFailure } from './learn-research.js';
 import { LEARN_TASKS, costUsd, loggedModel, promptVersion } from './learn-models.js';
 import { NEXT_STEPS_PLANNER_VERSION, NEXT_STEPS_SYSTEM, NEXT_STEPS_TOOL, nextStepsOutput, words } from './agents/learn-next-steps.js';
-import { fixtureModel } from './learn-journey-fixtures.js';
+import { fixtureModel } from './learn-next-steps-fixtures.js';
 import { normalizeToolInput } from './tool-input.js';
 import { withAttemptKind } from './learn-usage.js';
 

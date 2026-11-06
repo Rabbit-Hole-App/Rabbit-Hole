@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { learnDb } from './learn-grade-fixture.js';
 import { CoachingConflict, applyCoachingAction, readCoachingState } from '../src/learn-coaching-store.js';
 import { coachingRoute } from '../src/learn-coaching-routes.js';
-import { archiveJourney, createJourney, loadJourney, loadJourneyById } from '../src/learn-journey-store.js';
+import { archiveJourney, createJourney, loadJourney, loadJourneyById } from './learn-journey-rows.js';
 
 const MIGRATION = readFileSync(new URL('../learn-migrations/0025-tutor-coaching-state.sql', import.meta.url), 'utf8');
 const SCHEMA = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');

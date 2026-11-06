@@ -8,7 +8,7 @@ import { learnDb } from './learn-grade-fixture.js';
 import { ownedNextStepsRoute } from '../src/learn-next-steps-routes.js';
 import { planSection } from '../src/learn-journey-planners.js';
 import { planNextSteps } from '../src/learn-next-steps-planner.js';
-import { fixtureFor, fixtureModel } from '../src/learn-journey-fixtures.js';
+import { fixtureFor, fixtureModel } from '../src/learn-next-steps-fixtures.js';
 import { LEARN_TASKS, costUsd } from '../src/learn-models.js';
 import { NO_CAP, admitUsage } from '../src/learn-shared-ask.js';
 import { NEXT_STEPS_SYSTEM, nextStepsOutput } from '../src/agents/learn-next-steps.js';

@@ -29,7 +29,7 @@ function world(t, { repository = null, load = async () => SNAPSHOT } = {}) {
   const callModel = async (_env, body) => {
     const input = JSON.parse(body.messages.at(-1).content.slice('input = '.length));
     inputs.push(input);
-    const { fixtureFor } = await import('../src/learn-journey-fixtures.js');
+    const { fixtureFor } = await import('../src/learn-next-steps-fixtures.js');
     return Response.json({ model: 'fixture', content: [{ type: 'tool_use', name: 'suggest_next_steps', input: fixtureFor('suggest_next_steps', input) }] });
   };
   const post = (body, deps = {}) => ownedNextStepsRoute('/api/learn/tutor/next-steps', new Request('https://dev.test/api/learn/tutor/next-steps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), env,

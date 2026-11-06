@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PlannerInvalid, journeyCallModel, journeyLogged } from '../src/learn-next-steps-planner.js';
-import { fixtureModel } from '../src/learn-journey-fixtures.js';
+import { fixtureModel } from '../src/learn-next-steps-fixtures.js';
 
 const env = {};
 

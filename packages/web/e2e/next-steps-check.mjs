@@ -103,7 +103,7 @@ async function n1() {
   const first = await call(owner, 'POST', '/api/learn/tutor/next-steps', { app: name, input: built.input });
   const problem = first.status === 200 ? setProblem(first.body, 'owned') : `HTTP ${first.status} ${first.body?.error || ''}`;
   check('N1 hook set', !problem, `200, 3 owned hooks with ${first.body?.set_id}.1-3 ids (${saved.length} saved blocks, mode ${built.input.mode})`, problem);
-  // The key name, and the stub's value (learn-journey-fixtures.js: "fixture <kind>") under any other key.
+  // The key name, and the stub's value (learn-next-steps-fixtures.js: "fixture <kind>") under any other key.
   check('N1 no reason_internal', !/reason_internal|"fixture /.test(first.text), 'neither reason_internal nor its fixture value is in the reply text', 'the reply text carries reason_internal or its fixture value');
   const again = await call(owner, 'POST', '/api/learn/tutor/next-steps', { app: name, input: built.input });
   state.cacheWorks = again.body?.telemetry?.cached === true;

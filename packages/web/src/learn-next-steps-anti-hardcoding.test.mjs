@@ -8,7 +8,7 @@ import { NANOGPT, cardModule } from './learn-tutor-claims.js';
 import { cardBlock } from './nanogpt/board.js';
 import { AQUEDUCTS, TIDES } from './__fixtures__/journey-synthetic-domains.mjs';
 import { planNextSteps } from '../../control-plane/src/learn-next-steps-planner.js';
-import { fixtureModel } from '../../control-plane/src/learn-journey-fixtures.js';
+import { fixtureModel } from '../../control-plane/src/learn-next-steps-fixtures.js';
 import { NEXT_STEPS_LIMITS as L, mintSet, nextStepsInputProblem, nextStepsOutput, selectedStepProblem } from '../../control-plane/src/agents/learn-next-steps.js';
 import { sharedInput, sharedStepIds, titleFingerprint } from '../../control-plane/src/learn-next-steps-routes.js';
 
@@ -149,7 +149,7 @@ const courseImports = (...lines) => [new RegExp(`^(?:${lines.map(escaped).join('
 const courseDefault = count => [/(?<=[({,]\s*)domain = NANOGPT(?=\s*[,})])/g, 'the default domain parameter is the registered course', count];
 // Scanned: the modules Professor Next Steps and the Auto Tutor added or changed. Not scanned, on purpose: the course registry files
 // where a course is legitimately registered and named (learn-tutor-domains.js, learn-tutor-claims.js, nanogpt/*), learn-slash.js
-// (command placeholder copy) and learn-journey-fixtures.js (test-only fixture topics).
+// (command placeholder copy) and learn-next-steps-fixtures.js (test-only fixture topics).
 const SCANNED = [
   ['../../control-plane/src/agents/learn-next-steps.js'], ['../../control-plane/src/learn-next-steps-routes.js'], ['./learn-next-steps.js'], ['./LearnNextSteps.jsx'], ['../../control-plane/src/learn-next-steps-planner.js'],
   ['./learn-tutor-actions.js'], ['../../control-plane/src/agents/learn-labels.js'],

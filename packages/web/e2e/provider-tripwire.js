@@ -7,10 +7,10 @@
 //
 // Expected requests (owner, 2026-10-08): the Professor Next Steps hook planner (tool suggest_next_steps) runs whenever a
 // canvas opens, so it is answered here, at the outgoing provider boundary, with the keyless journey stack's deterministic
-// fixture (learn-journey-fixtures.js): the real hook route, its input checks and its output validation all run. Those
+// fixture (learn-next-steps-fixtures.js): the real hook route, its input checks and its output validation all run. Those
 // answers are counted as fixtures, never as hits; any other provider request is still a hit and fails the gate. The hook
 // requests the worker receives are logged too (route and basis), so a wrong trigger or a request loop shows in the counts.
-import { fixtureModel } from '../../control-plane/src/learn-journey-fixtures.js';
+import { fixtureModel } from '../../control-plane/src/learn-next-steps-fixtures.js';
 
 export const PROVIDER_HOSTS = ['api.anthropic.com', 'api.openai.com', 'api.typesafe.ai', 'api.fish.audio', 'api.elevenlabs.io', 'api.heygen.com', 'api.exa.ai', 'generativelanguage.googleapis.com'];
 export const FIXTURE_TOOLS = ['suggest_next_steps'];

@@ -590,7 +590,7 @@ test('legacy image generation is unavailable by default: no provider call, no se
 // visitor gets no generation and no action; a signed-in viewer pays.
 test('shared canvas Next Steps: a signed-out visitor is asked to sign in and records nothing, a signed-in viewer pays, never the canvas owner', async t => {
   const { setup } = await import('./shared-canvas-fixture.js');
-  const { fixtureModel } = await import('../src/learn-journey-fixtures.js');
+  const { fixtureModel } = await import('../src/learn-next-steps-fixtures.js');
   t.mock.method(console, 'log', () => {});
   const original = globalThis.fetch;
   globalThis.fetch = async (url, options) => { assert.equal(new URL(url).host, 'api.anthropic.com'); return fixtureModel(null, JSON.parse(options.body)); };
@@ -626,7 +626,7 @@ test('shared canvas Next Steps: a signed-out visitor is asked to sign in and rec
 // view, by anyone, is that cached set, free.
 test('shared canvas Next Steps: viewing or reloading never generates or charges; an explicit ask charges the asker once and later views are the cached set, free', async t => {
   const { setup } = await import('./shared-canvas-fixture.js');
-  const { fixtureModel } = await import('../src/learn-journey-fixtures.js');
+  const { fixtureModel } = await import('../src/learn-next-steps-fixtures.js');
   t.mock.method(console, 'log', () => {});
   const original = globalThis.fetch;
   let provider = 0;
