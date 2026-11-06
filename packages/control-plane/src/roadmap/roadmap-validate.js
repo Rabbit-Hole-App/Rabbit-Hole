@@ -12,7 +12,7 @@ const overlap = (a, b) => Math.max(0, Math.min(a.end, b.end) - Math.max(a.start,
 // The learner says they already know something / want it skipped (planning.md 5.3).
 export const KNOWN_TOPIC = /\b(already know|i know|skip|don'?t need|no need|not interested|beyond|ya s[eé]|d[eé]j[aà] (connais|sais)|kenne ich schon)\b/i;
 // Cheap price/credit guard: a plan never talks about money (v1.4 5.1, D24).
-const MONEY = /\b(credits?|price[sd]?|cost[s]?|dollars?|usd|free of charge)\b|[$€£]\s?\d/i;
+const MONEY = /\b(credits?|price[sd]?|costs?|free of charge)\b|[$€£]\s?\d/i;
 const URL = /https?:\/\/[^\s)"']+/gi;
 
 const err = (code, detail) => ({ code, detail });
