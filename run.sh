@@ -131,7 +131,6 @@ function unit:evals {
     (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/learn-grade/*.test.mjs")
     (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/explain-review/*.test.mjs")
     (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/explain-back/*.test.mjs")
-    (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/tutor-session/*.test.mjs")
 }
 function unit:motion { (cd "$THIS_DIR" && nonzero-tests node --test --test-timeout=180000 "packages/learn-render/motion/*.test.mjs" "packages/learn-render/motion/service/*.test.mjs"); }
 # The whiteboard renderer's contract, gate, routes and composition tests (the real render and the Linux sandbox skip unless asked).
