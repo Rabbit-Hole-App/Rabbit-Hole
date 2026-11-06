@@ -25,6 +25,8 @@ import { decisionEvent, handoffUsage, safely, turnTrace } from './learn-tutor-tr
 import { validSources } from './card-sources.js';
 import { actionContract, reasonCodes } from './learn-tutor-actions.js';
 import { handleAiRefusal } from './ai-refusal.js';
+import { takeCarriedStep } from './learn-next-steps.js';
+import { takeGuidedEntry } from './learn-opening.js';
 
 // The slashes the Tutor accepts (LearnTutor slash()). /deeper and /simplify fix the move (row slash, no words read) only on a
 // domain with a depth ladder; elsewhere they are ordinary turns from the composer's words (Task 11b fix B5). /ask and /teach
@@ -866,4 +868,29 @@ export function executeActions(actions, { canvas, suggestDive, climb, slot = nul
     else if (action.type === NEXT_SECTION_ACTION && nextSection) nextSection();
   }
   return chips;
+}
+
+// A hole's opening (LearnTutor.jsx's effect; contract §1.4, §6.4): where hook turns run, a hook carried from a shared canvas
+// opens the hole once as a next_step (marked opened, so the usual opening question never follows); otherwise, where the
+// Tutor is active, the pending question once (title is the live title, Task 10 fix round 4). Nothing is read or taken where
+// hook turns do not run (Ruling F4), so a carried step waits for them, nor until settled: the hook context is resolved (the
+// dives record and a journey hole's parent read), so a carried step never runs on the canvas domain a parent journey
+// replaces. load and domain are thunks (load mints a session id). Returns { store: to save or null, opening: for setOpening
+// or null }.
+// Each opening's key is minted here, the hole id plus a fresh id (mint), so it names that one opening: a later, distinct carry
+// into the same hole is a new opening (learn-opening.js openOnce).
+export function holeOpening({ storage, load, record, title = null, hookTurns, settled, active, domain, mint = () => crypto.randomUUID().slice(0, 8) }) {
+  const none = { store: null, opening: null };
+  if (!hookTurns || !settled || !record?.dive_id) return none;
+  const carried = takeCarriedStep(storage, record.dive_id);
+  // A carried hook is itself the learner's explicit entry; entry: the controls it was made under, when marked.
+  if (carried) return { store: markOpened(load(), record), opening: { key: `${record.dive_id}:${mint()}`, next_step: carried, entry: takeGuidedEntry(storage, record.dive_id)?.controls ?? null } };
+  if (!active) return none;
+  const store = enterHole(load(), record, domain());
+  const question = openingQuestion(store, record, title);
+  // Owner 4a: only an explicit guided entry opens with a turn. Without its mark (a URL restore, a refresh in another tab,
+  // Back, a reopened hole) the hole is restored as saved and is never opened again.
+  const guided = question ? takeGuidedEntry(storage, record.dive_id) : null;
+  if (!guided) return { store: question ? markOpened(store, record) : store, opening: null };
+  return { store: markOpened(store, record), opening: { key: `${record.dive_id}:${mint()}`, question, entry: guided.controls ?? null } };
 }

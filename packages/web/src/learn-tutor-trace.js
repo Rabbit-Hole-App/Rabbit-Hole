@@ -9,6 +9,8 @@ import { STATES } from './learn-tutor-evidence.js';
 import { resolveTarget } from './learn-target.js';
 import { learnPreview } from './flags.js';
 import { browserTutorSink } from './tutor-telemetry.js';
+import { count, inputSummary, safely } from './learn-next-steps.js';
+export { safely };
 
 // Fix round 2 (R1-M3): a Stop or barge-in (AbortError) is stopped, never timeout; a TimeoutError or a timed-out message is timeout.
 const statusOf = error => (error?.name === 'AbortError' ? 'stopped' : /timed? ?out|timeout|abort/i.test(`${error?.name || ''} ${error?.message || ''}`) ? 'timeout' : 'error');
@@ -47,8 +49,6 @@ export function turnTrace(now = () => performance.now(), id = null) {
 const hex = n => [...crypto.getRandomValues(new Uint8Array(n))].map(b => b.toString(16).padStart(2, '0')).join('');
 // The Tutor session id: minted once per canvas session store, never sent to a planner.
 export const newSessionId = () => `ts_${hex(8)}`;
-const count = () => { globalThis.__smallTutorTraceErrors = (globalThis.__smallTutorTraceErrors || 0) + 1; };
-export const safely = build => { try { return build(); } catch { count(); return null; } };
 // One deep copy per event: a sink that mutates it never reaches the result, its contracts or the live HookSet.
 const safe = build => (...args) => safely(() => structuredClone(build(...args)));
 const byState = pairs => Object.fromEntries(STATES.map(state => [state, pairs.filter(([, s]) => s === state).map(([id]) => id)]));
@@ -194,16 +194,6 @@ export const decisionEvent = safe(({ result, domain, identity = {}, blocks = [],
     flags,
   };
 });
-
-// The hook planner's input (§2.1) in event terms: claim ids by state, the canvas's block kinds and presented claims, targets.
-export function inputSummary(input) {
-  const claims = input?.scope?.claims || {}, blocks = input?.canvas?.blocks || [];
-  return {
-    evidence_summary: byState(Object.entries(claims).map(([id, claim]) => [id, claim?.state])),
-    canvas_summary: canvasSummary(blocks.map(block => block.kind), blocks.flatMap(block => block.claim_ids || [])),
-    target_concept_ids: [...new Set(Object.values(claims).map(claim => claim?.concept).filter(Boolean))], target_claim_ids: Object.keys(claims),
-  };
-}
 
 // The hook planner input's trim (nextStepsInput's trim, owner sixth message 4): structured counts only, picked field by field so
 // nothing of the input itself can ride along.

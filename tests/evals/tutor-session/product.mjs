@@ -22,6 +22,7 @@ import { goalOf, nextStepsBasis, nextStepsController, nextStepsInput, stoppingPo
 import { hooksEvent, newSessionId, shownEvent } from '../../../packages/web/src/learn-tutor-trace.js';
 import { modalityOf } from '../../../packages/web/src/learn-tutor-actions.js';
 import { tutorRoute } from '../../../packages/control-plane/src/learn-tutor-routes.js';
+import { ownedNextStepsRoute } from '../../../packages/control-plane/src/learn-next-steps-routes.js';
 import { journeyRoute } from '../../../packages/control-plane/src/learn-journey.js';
 import { fixtureFor } from '../../../packages/control-plane/src/learn-journey-fixtures.js';
 import { JEV_TRANSPORTS } from '../../../packages/control-plane/src/learn-grade-jev.js';
@@ -236,7 +237,7 @@ export async function productWorld({ topic, ids, boundary, board = 'main', trace
   const request = (route, path, body) => route(path, new Request(`https://eval.invalid${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), env, { authorize: async () => access });
   // The browser's post: a non-2xx answer throws with its status, as the page's api() does.
   const post = async (path, body) => {
-    const response = await request(tutorRoute, path, body);
+    const response = await request(path === '/api/learn/tutor/next-steps' ? ownedNextStepsRoute : tutorRoute, path, body);
     const data = await response.json().catch(() => null);
     if (!response.ok) throw Object.assign(Error(data?.error || `${path} answered ${response.status}`), { status: response.status });
     return data;
@@ -366,7 +367,7 @@ export async function productWorld({ topic, ids, boundary, board = 'main', trace
     },
     // The product's stopping point after a turn (contract §1.2): with one, hooks are requested after the debounce while the
     // learner reads; without one (a Tutor question waiting, setup, nothing to ground on) there are none.
-    hookStart: () => (stoppingPoint({ busy: false, journey: view, store, here, blocks: blocks(), goal: goalOf({ context: context(), title: topic.title }).goal, plain: context()?.source === 'canvas' }) ? 'none' : 'with_material'),
+    hookStart: () => (stoppingPoint({ busy: false, journey: view, store, here, blocks: blocks(), goal: goalOf({ title: topic.title }).goal, plain: true }) ? 'none' : 'with_material'),
     // One recompute through the production controller (basis, previous hooks, one request per basis) and the owned route.
     async hooks(_, meter) {
       attribute(meter);

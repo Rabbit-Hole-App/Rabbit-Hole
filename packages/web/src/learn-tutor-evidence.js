@@ -7,7 +7,7 @@
 // the domain; a journey derives over its own registry, with the same locked rules.
 import { CLAIMS, NANOGPT, claimsOfConceptIn } from './learn-tutor-claims.js';
 
-export const STATES = ['understood', 'uncertain', 'misconception', 'prerequisite_gap', 'not_yet_observed'];
+export { STATES } from '../../control-plane/src/agents/learn-next-steps.js';
 
 export const emptyStore = () => ({
   seq: 0, events: [],

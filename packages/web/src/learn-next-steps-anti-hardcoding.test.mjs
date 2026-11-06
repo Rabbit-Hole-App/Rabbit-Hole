@@ -4,73 +4,45 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { nextStepsController, nextStepsInput } from './learn-next-steps.js';
-import { canvasDomain, journeyDomain } from './learn-journey-domain.js';
-import { runTurn } from './learn-tutor.js';
-import { emptyStore } from './learn-tutor-evidence.js';
 import { NANOGPT, cardModule } from './learn-tutor-claims.js';
 import { cardBlock } from './nanogpt/board.js';
-import { AQUEDUCTS, TIDES, reordered } from './__fixtures__/journey-synthetic-domains.mjs';
+import { AQUEDUCTS, TIDES } from './__fixtures__/journey-synthetic-domains.mjs';
 import { planNextSteps } from '../../control-plane/src/learn-next-steps-planner.js';
 import { fixtureModel } from '../../control-plane/src/learn-journey-fixtures.js';
 import { NEXT_STEPS_LIMITS as L, mintSet, nextStepsInputProblem, nextStepsOutput, selectedStepProblem } from '../../control-plane/src/agents/learn-next-steps.js';
 import { sharedInput, sharedStepIds, titleFingerprint } from '../../control-plane/src/learn-next-steps-routes.js';
 
-const rename = (registry, prefix) => {
-  const map = new Map(Object.keys(registry.concepts).map((id, i) => [id, `${prefix}-k${i}`]));
-  const claims = Object.fromEntries(Object.entries(registry.claims).reverse().map(([id, c], i) => [`${map.get(c.concept)}/q${i}`, { ...c, concept: map.get(c.concept), prerequisites: (c.prerequisites || []).map(p => map.get(p)) }]));
-  const concepts = Object.fromEntries([...map].reverse().map(([old, id]) => [id, { ...registry.concepts[old], prerequisites: (registry.concepts[old].prerequisites || []).map(p => map.get(p)) }]));
-  return { concepts, claims };
-};
-const cut = (registry, n) => ({ concepts: registry.concepts, claims: Object.fromEntries(Object.entries(registry.claims).slice(0, n)) });
-// A journey over any registry: a completed section on its last claim, the current one on its first `size` claims.
-const journeyCase = (registry, size = 2) => {
-  const ids = Object.keys(registry.claims);
-  const journey = { id: 'lj_x', state: 'active', registry, evidence: { seq: 0, events: [] }, active_section_id: 'sB', request: { topic: 'x' }, intake: { slots: {} } };
-  const path = { version: 1, goal: 'A goal', current_section_id: 'sB', sections: [{ id: 'sA', title: 'First', purpose: 'p', status: 'completed', expected_evidence: [{ claim: ids.at(-1), kind: 'explain' }] },
-    { id: 'sB', title: 'Second', purpose: 'p', status: 'current', expected_evidence: ids.slice(0, size).map(claim => ({ claim, kind: 'explain' })) }] };
-  return { domain: journeyDomain({ journey, path, blocks: [] }), journey: { journey, path, busy: false, trayProps: null }, source: 'journey' };
-};
-const ML_BLOCKS = NANOGPT.cards.slice(0, 2).map((id, i) => ({ ...cardBlock(cardModule(id)), id: `n${i}` }));
-// What the page offers a turn from structural state (LearnTutor.jsx turnOffers): the same on every domain.
-const MATERIALS = [{ command: 'flashcards', cards: ['flashcards'], paid: false }];
-const OFFERS = ['create_material', 'suggest_research', 'suggest_journey'];
+// Tutor cleanup P1: Next Steps plans from the canvas's own content alone (cards, native objects, the hole record), so the cases are
+// canvases of different subjects, sizes and ids; none of them carries a registry, claims, a journey or a Tutor session.
+const ml = ids => ids.map((id, i) => ({ id, type: i % 2 ? 'quiz' : 'explanation', title: ['Attention scores', 'Softmax over keys', 'Residual streams'][i % 3], question: 'Which tokens attend to each other?' }));
+const loom = ids => ids.map((id, i) => ({ id, type: i % 2 ? 'quiz' : 'explanation', title: ['Warp tension', 'Heddle lift', 'Weft beat-up'][i % 3], question: 'Which thread stays fixed?' }));
+const ML_BLOCKS = ml(['n0', 'n1']);
 
-// input (nextStepsInput) -> the fixture planner (planNextSteps) -> mintSet -> controller select -> a next_step runTurn.
-// Every id in the set, the step and the turn stays inside this case's own domain; no evaluate call.
-async function chain({ domain, journey = null, source = 'registry', blocks = [] }) {
-  const built = nextStepsInput({ context: { domain, source }, store: emptyStore(), journey, blocks, record: null, parent: null, title: 'A canvas', lastTurn: null, previous: { hooks: [], goals: [] }, basis: 'b1' });
+// input (nextStepsInput) -> the fixture planner (planNextSteps) -> mintSet -> controller select. Every id in the set and the step
+// stays inside the case's own (empty) scope.
+async function chain({ blocks = [], title = 'A canvas', record = null }) {
+  const built = nextStepsInput({ blocks, record, title, lastTurn: null, previous: { hooks: [], goals: [] }, basis: 'b1' });
   assert.equal(built.problem, undefined, 'the case fits the input cap');
   const { input } = built;
   assert.equal(nextStepsInputProblem(input), null, 'the route accepts this input');
+  assert.deepEqual(input.scope, { concepts: {}, claims: {} });
   const planned = await planNextSteps({}, input, { callModel: fixtureModel });
+  assert.equal(nextStepsOutput({ options: planned.options }, input).ok, true);
   const set = mintSet(planned.options, input);
-  const known = new Set([...Object.keys(domain.claims), ...Object.keys(domain.concepts)]);
-  for (const o of set.options) for (const id of [...o.selected_next_step.claim_ids, ...o.selected_next_step.concept_ids]) assert.ok(known.has(id), `${id} is outside this domain`);
+  for (const o of set.options) assert.deepEqual([o.selected_next_step.claim_ids, o.selected_next_step.concept_ids], [[], []]);
   const ctl = nextStepsController({ post: async () => set, setTimer: fn => { queueMicrotask(fn); return 1; }, clearTimer: () => {} });
   ctl.update({ basis: 'b1', stop: null, input: () => built });
   for (let i = 0; i < 10 && ctl.view().status !== 'ready'; i++) await new Promise(resolve => setImmediate(resolve));
   const picked = ctl.select(set.options[0].id);
   assert.equal(picked.ok, true);
-  const sent = [];
-  const post = async path => { sent.push(path); return { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'ok' }] }; };
-  const r = await runTurn({ raw: '', nextStep: picked.selected_next_step, materials: MATERIALS, research: true, journeyOffer: true, canvas: { app: 'c', board: 'main' }, access: { app: 'c' }, block: null, store: emptyStore(), post, domain });
-  assert.deepEqual(sent, ['/api/learn/tutor/plan'], 'no evaluate call');
-  for (const id of r.bench.claims) assert.ok(domain.claims[id], `${id} in the turn is outside this domain`);
-  for (const offer of OFFERS) assert.ok(r.routed.allowed.includes(offer), `${offer} is offered on row ${r.routed.row}`);
   return { input, set };
 }
-// Ceiling: renamed ids run through the journey branch only. The registered-course branch (card blocks, targetClaims) and the shared
-// course path run on the original course ids; the vocabulary scan below backs that side. Section sizes 3, 4, 1 and 2 differ on purpose.
 const CASES = [
-  ['ML owned: the registered course domain, its cards on the canvas', () => ({ domain: NANOGPT, blocks: ML_BLOCKS })],
-  ['ML owned: the same registry renamed, reordered and cut to 5 claims, as a journey', () => journeyCase(rename(cut({ concepts: NANOGPT.concepts, claims: NANOGPT.claims }, 5), 'mlx'), 3)],
-  ['non-ML owned: the aqueducts journey', () => journeyCase(AQUEDUCTS.diagnostic.registry, 4)],
-  ['non-ML owned: the tides journey, reordered', () => journeyCase(reordered(TIDES).diagnostic.registry, 1)],
-  ['non-ML owned: renamed with 2 claims', () => journeyCase(rename(cut(TIDES.diagnostic.registry, 2), 'tz'))],
-  ['plain canvas, no registry', () => {
-    const blocks = [{ id: 'w1', type: 'explanation', title: 'Warp tension' }];
-    return { domain: canvasDomain({ goal: 'Weaving on a backstrap loom', blocks }), source: 'canvas', blocks };
-  }],
+  ['ML canvas: two cards', () => ({ blocks: ML_BLOCKS, title: 'Language models' })],
+  ['non-ML canvas: three cards, renamed ids', () => ({ blocks: loom(['z9', 'a2', 'q5']), title: 'Weaving' })],
+  ['non-ML canvas: the same cards reordered, with one more', () => ({ blocks: loom(['q5', 'a2', 'z9', 'b7']), title: 'Weaving' })],
+  ['plain blank canvas', () => ({ blocks: [], title: 'Untitled canvas' })],
+  ['a hole with a learning goal', () => ({ blocks: loom(['h1']), title: 'Weaving', record: { dive_id: 'canvas-0000beef', title: 'Heddles', learning_goal: 'See why a heddle lifts alternate threads' } })],
 ];
 for (const [name, make] of CASES) {
   test(`same code path: ${name}`, async () => {
@@ -79,12 +51,6 @@ for (const [name, make] of CASES) {
     assert.ok(JSON.stringify(input).length <= 9000);
   });
 }
-test('a renamed registry reaches the input under its new ids only', async () => {
-  const { input } = await chain(CASES[1][1]());
-  const text = JSON.stringify(input);
-  assert.ok(Object.keys(input.scope.claims).every(id => id.startsWith('mlx-k')), 'every claim id is a renamed one');
-  for (const id of [...Object.keys(NANOGPT.claims), ...Object.keys(NANOGPT.concepts)]) assert.equal(text.includes(`"${id}"`), false, `the original id ${id} reached the input`);
-});
 
 // A shared canvas has no registry of its own: the same sharedInput, planner and mint on any blocks. Block ids are renamed,
 // reordered and counted differently across the cases.
@@ -109,9 +75,8 @@ async function sharedChain(state, { origin = { root: true }, title = 'A shared b
   }
   return { input, set };
 }
-const loom = ids => ids.map((id, i) => ({ id, type: i % 2 ? 'quiz' : 'explanation', title: ['Warp tension', 'Heddle lift', 'Weft beat-up'][i % 3], question: 'Which thread stays fixed?' }));
 const SHARED = [
-  ['ML: the course cards as the shared blocks', { blocks: ML_BLOCKS, exchanges: [] }, 'claims'],
+  ['ML: two cards as the shared blocks', { blocks: ML_BLOCKS, exchanges: [] }, 'none'],
   ['unrelated: two blocks', { blocks: [{ id: 'm1', type: 'explanation', title: 'Mapping star charts' }, { id: 'm2', type: 'quiz', question: 'Which star stays fixed?' }], exchanges: [] }, 'none'],
   ['unrelated: three blocks, renamed ids', { blocks: loom(['z9', 'a2', 'q5']), exchanges: [] }, 'none'],
   ['unrelated: the same three, reordered, with one more', { blocks: loom(['q5', 'a2', 'z9', 'b7']), exchanges: [] }, 'none'],
@@ -129,13 +94,11 @@ test('same code path: an unrelated shared canvas with no registry claims gives g
   assert.ok(set.options.every(o => o.selected_next_step.claim_ids.length === 0));
 });
 
-test('the cases differ in their scope counts', async () => {
-  const counts = [];
-  for (const [, make] of CASES) counts.push(Object.keys((await chain(make())).input.scope.claims).length);
-  for (const [, state] of SHARED) counts.push(Object.keys((await sharedChain(state)).input.scope.claims).length);
-  assert.ok(new Set(counts).size >= 3, counts.join(','));
-  // The four journey cases (ML renamed, aqueducts, tides, tides renamed) plan on sections of 3, 4, 1 and 2 claims.
-  assert.ok(new Set(counts.slice(1, 5)).size >= 3, `journey scope counts: ${counts.slice(1, 5).join(',')}`);
+test('the cases differ in their card counts and none carries a claim', async () => {
+  const cards = [];
+  for (const [, make] of CASES) { const { input } = await chain(make()); cards.push(input.canvas.blocks.length); assert.equal(Object.keys(input.scope.claims).length, 0); }
+  for (const [, state] of SHARED) { const { input } = await sharedChain(state); cards.push(input.canvas.blocks.length); assert.equal(Object.keys(input.scope.claims).length, 0); }
+  assert.ok(new Set(cards).size >= 3, cards.join(','));
 });
 
 // ---------- Scans over product source (read only) ----------
@@ -188,7 +151,7 @@ const courseDefault = count => [/(?<=[({,]\s*)domain = NANOGPT(?=\s*[,})])/g, 't
 // where a course is legitimately registered and named (learn-tutor-domains.js, learn-tutor-claims.js, nanogpt/*), learn-slash.js
 // (command placeholder copy) and learn-journey-fixtures.js (test-only fixture topics).
 const SCANNED = [
-  ['../../control-plane/src/agents/learn-next-steps.js'], ['../../control-plane/src/learn-next-steps-routes.js'], ['./learn-next-steps.js'], ['./LearnNextSteps.jsx'], ['./learn-tutor-trace.js'],
+  ['../../control-plane/src/agents/learn-next-steps.js'], ['../../control-plane/src/learn-next-steps-routes.js'], ['./learn-next-steps.js'], ['./LearnNextSteps.jsx'], ['./learn-tutor-trace.js'], ['../../control-plane/src/learn-next-steps-planner.js'],
   ['../../control-plane/src/learn-tutor-handoff.js'], ['./learn-tutor-actions.js'], ['../../control-plane/src/agents/learn-labels.js'],
   ['./LearnTutor.jsx'], ['../../control-plane/src/learn-journey-planners.js'], ['../../control-plane/src/learn-tutor-routes.js'], ['./learn-journey-domain.js'],
   ['../../control-plane/src/learn-boards.js'], ['../../control-plane/src/learn-shared-ask.js'], ['./voice-session.js'], ['./LearnVoice.jsx'], ['../../control-plane/src/learn-models.js'],

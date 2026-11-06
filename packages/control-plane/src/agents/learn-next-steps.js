@@ -2,7 +2,6 @@
 // Professor Next Steps hook contract (docs/features/professor-next-steps.md §1.1, §2.2): the planner's tool, its limits,
 // the server validator, minted HookSets and the check of an incoming selected_next_step. Pure: no model call, no storage.
 import { LEARNER_LABELS } from './learn-labels.js';
-import { STATES, claimCoverage } from '../../../web/src/learn-tutor-evidence.js';
 
 // The journey prompts (LP1 Task 16, owner 2026-10-05): six separate prompts, the five journey planners
 // (agents/learn-journey.js) and the journey Tutor turn below, each in these seven tagged sections in this order. Each is a
@@ -49,6 +48,9 @@ export function learningGoalProblem(goal, learnerMessage = '') {
 // Generic reason codes (Professor Next Steps contract §3.2, owner 2026-10-06): no topic codes. vary_modality is never the
 // only code (the decision event adds the route row's code and flags it).
 export const REASON_CODES = ['advance_goal', 'deepen_mechanism', 'repair_misconception', 'fill_prerequisite_gap', 'check_understanding', 'test_transfer', 'consolidate', 'respond_to_question', 'follow_learner_interest', 'increase_interactivity', 'vary_modality', 'reduce_cognitive_load', 'resume_context'];
+
+// The five evidence states a planner input's scope claims may carry (nextStepsInputProblem); the web evidence store reads the same list.
+export const STATES = ['understood', 'uncertain', 'misconception', 'prerequisite_gap', 'not_yet_observed'];
 
 export const NEXT_STEPS_PLANNER_VERSION = 'next-steps-planner-3';
 export const NEXT_STEPS_LIMITS = Object.freeze({
@@ -318,31 +320,6 @@ export function trimToFit(input, { rank = () => 0, essential = new Set(), leavin
     else break;
   }
   return !fits() || (had && !Object.keys(scope.claims).length) ? 'input_too_large' : null;
-}
-
-// The one scope builder (§2.1, Ruling F15): the owned input (web learn-next-steps.js) and the shared route pass the candidate
-// claim ids highest priority first (order); the first scope_claims the registry knows are kept, each with its statement,
-// ideas, drawn case, evidence state (states: deriveClaimStates' shape, a missing id not_yet_observed), misconception id,
-// prerequisite, settled counts from events (as the journey route's claimStates) and whether it is presented on the canvas.
-// scope.concepts labels the kept claims' concepts. Never a misconception check, an answer or a level.
-const partial = (events, id, claims) => { const c = claimCoverage(events, id, claims); return c.settled_ideas.length && c.missing_ideas.length ? { missing_ideas: c.missing_ideas.map(i => capText(claims[id].ideas[i], LIMITS.idea)) } : {}; };
-export function nextStepsScope({ claims = {}, concepts = {}, order = [], states = {}, events = [], presented = [] }) {
-  const shown = new Set(presented), scope = { concepts: {}, claims: {} };
-  for (const id of new Set(order)) {
-    if (Object.keys(scope.claims).length >= LIMITS.scope_claims) break;
-    if (typeof id !== 'string' || !Object.hasOwn(claims, id)) continue;
-    const c = claims[id], s = states[id] || {}, settled = events.filter(e => e?.claim === id && e.settled);
-    scope.claims[id] = {
-      concept: c.concept, statement: capText(c.statement, LIMITS.statement), ideas: (c.ideas || []).slice(0, LIMITS.ideas).map(i => capText(i, LIMITS.idea)), drawn: capText(c.drawn, LIMITS.drawn),
-      state: STATES.includes(s.state) ? s.state : 'not_yet_observed', ...(s.misconception_id ? { misconception_id: s.misconception_id } : {}), ...(s.prerequisite ? { prerequisite: s.prerequisite } : {}),
-      settled_passes: settled.filter(e => e.result === 'pass').length, settled_negatives: settled.filter(e => e.result === 'fail' || e.result === 'misconception').length,
-      presented: shown.has(id),
-      // r29: once part of a claim is settled, the ideas still missing (all of them otherwise: ideas says it).
-      ...partial(events, id, claims),
-    };
-    scope.concepts[c.concept] ??= capText(concepts[c.concept]?.label ?? c.concept, 60);
-  }
-  return scope;
 }
 
 const randomHex = () => [...crypto.getRandomValues(new Uint8Array(4))].map(b => b.toString(16).padStart(2, '0')).join('');
