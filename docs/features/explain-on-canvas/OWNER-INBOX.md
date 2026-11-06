@@ -61,8 +61,8 @@ Reviewed main still has: Markdown import never calls `roadmap.sourceReady()`; ro
 | R2 Depth, Auto-suggest | yes (run 42250400898, d2428e357) | no flag | tests/preview only |
 | Cleanup P5 Duplicate grading off | yes (run 42253670464, d870aef1f) | no flag | tests/preview only |
 | R4 Roadmap loop (63 loop, 64 wiring + S26/S27 drafts, 65 flag-on) | yes: runs 42257418795, 42262160608, 42265221173 (3b9348449, 09:57 PT) | `ROADMAP_ENABLED` **true** in prod | NOT done. Durable Object alarm, retry, one-object-per-board verified on a dev clone (phase 1, no spend); the D1 LIKE bug above found; real-model phase not run |
-| Hotfix for the D1 LIKE bug (pin 71) | no, in build | n/a | n/a |
-| Roadmap flag-OFF containment (pin 72) | no, in build; command sent when previewed | would set `ROADMAP_ENABLED` unset | n/a |
+| Hotfix for the D1 LIKE bug (pin 71, SHA a305a83f5) | no: READY, previewed; real-D1 evidence collected (range form returns exactly the same-identity keys, old 70-byte LIKE rejected by real D1); the owner's first attempt hit a GitHub TLS timeout, retry pending | n/a | n/a |
+| Roadmap flag-OFF containment (pin 72, SHA 92ba70062, recovery feat/tutor-r4-flagoff-recovery 3fa5ccb3b) | no: READY, previewed (exit 0); sibling of pin 71, so only one of 71/72 lands as built; if 71 lands first, 72 is re-stacked | would set `ROADMAP_ENABLED` unset | n/a |
 | Quota reservation fix + stalled-roadmap repair | no, in build (`feat/tutor-r4-quota`) | n/a | n/a |
 | R4 integration gaps (sourceReady, Depth, typing timing, delivery ack) | no, in build (`feat/tutor-r4-integration-2`) | n/a | n/a |
 | Cleanup P6a join removal (pin 68, SHA `84d94faab`) | no: ready, previewed (exit 0), held behind the hotfix | n/a | backfill gates PASSED on dev and prod (0 goals to archive; receipts under `C:\s\spec\release-queue\tutor-cleanup\receipts`) |
