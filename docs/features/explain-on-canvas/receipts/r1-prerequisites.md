@@ -3,7 +3,7 @@
 Stacked release candidate `feat/tutor-r1-release` (MVP fast path, owner label 2026-11-05).
 
 - Main integrated onto: `9b798f7760b7af5aa2446d281a07eebfc4e10b84` (P1 released). R1's lane commits (6, built on 4102f8ea) were cherry-picked without conflicts onto the P2 tip.
-- Stacked on: cleanup P2 tip `cdeb7727494e6f4f79abc084a3661b4fe504cc40` (`feat/tutor-cleanup-p2`). **P2 must be released to main first**; this branch then fast-forwards from the released P2.
+- Stacked on: cleanup P2 tip `409f4e8f3e4638bcc4b0477a2d2a26041ab40ec3` (`feat/tutor-cleanup-p2`). **P2 must be released to main first**; this branch then fast-forwards from the released P2.
 - Cleanup phase depended on: P2 only. Verified, not assumed (commands run in this worktree):
   - Card hosting: `grep -n CardFeedback packages/web/src/AdaptiveCanvas.jsx` shows the import and the single mount under a generated card (`!cadPermissions.readOnly && !cadPermissions.localCopy`).
   - Access: `card-feedback-routes.js` imports `authorizedBoardApp` from `learn-board.js`, which lazy-loads `canvasAccess` from `canvases.js`; both exist unchanged by P2 (`git diff 9b798f776 cdeb77274 --stat -- learn-boards.js shared-privacy.js learn-board.js canvases.js` is empty).
