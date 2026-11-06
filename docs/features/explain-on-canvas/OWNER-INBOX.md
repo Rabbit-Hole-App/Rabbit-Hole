@@ -28,16 +28,17 @@ Production Learn D1 has migrations 0036-0039 (you applied them; 0039 went in rig
 
 ## 2. Commands for you now
 
-1. None right now. Release 63 (R4, flag off) is live.
-2. Obsolete pins, do not run: 57, 58, 60, 61.
+1. Release 64 (R4 settings wiring + S26/S27 DRAFT safety responses, flag stays off, no migration, SHA `b01631bf5e6b04a115f8cbcabe0c527cbde8d016`, recovery `feat/tutor-r4-wire-recovery` `d11d71d8b`, preview exit 0): `"C:\Users\cyudhist\AppData\Local\Programs\Git\usr\bin\bash.exe" C:/s/spec/release-queue/morning-release.sh 64-tutor-r4-wire-mvp` (type `RELEASE 64`).
+2. Qualification clone (dev only, zero spend first): `C:\s\spec\r4-qual\r4-qual-clone.cmd deploy`, then `... secrets` only after the free Durable Object check, then `... delete`. The agent's own `wrangler deploy` was denied by the permission classifier and was not worked around.
+3. Obsolete pins, do not run: 57, 58, 60, 61.
 
-Pins 64 (settings wiring and safety responses, flag off) and 65 (turns the roadmap ON in production) are being built; commands come only after the qualification run is reviewed.
+Pin 65 (turns the roadmap ON in production; SHA `3b9348449e36fcfde1be02256d742abcc5f298a1`, recovery `feat/tutor-r4-flagon-recovery` `92ba70062`, preview exit 0) is BUILT but NOT to be run until the qualification report is reviewed and S26/S27 are approved or accepted as drafted. Its command will be sent only then.
 
 ## 3. R4 activation path (priority lane)
 
 Order: 63 deployed (done), then 64 wiring plus safety responses, then qualification reviewed, then 65 flag-on.
 Decided: D2 routing exception adopted, D43 safety policy adopted, $25 real-model cap approved (hard stop $25; inbox worst case $24.72), dev 0039 applied, strings S1-S10, S28, S11-S25, S29 approved. Defaults applied for D-R4-5..10 (active-to-proposed edits, deterministic proposals, empty click allowed, held card refunded, Durable Object alarm for the 24 h deadline).
-In progress: one agent builds 64/65 (settings reader wiring, S26/S27 safety responses as DRAFT text, one-line prod flag); another runs the real-model and Worker/Durable Object qualification in a dev clone (not production) with a spend ledger at `C:\s\spec\logs\r4-qual-ledger.md`.
+Built: 64 (settings reader wiring, S26/S27 safety responses as DRAFT text) and 65 (one-line prod flag), both previewed. Blocked: the real-model and Worker/Durable Object qualification needs the dev clone deployed by you (launcher above); nothing has been spent (ledger `C:\s\spec\logs\r4-qual-ledger.md` at $0.00 of $25). S26 DRAFT: "I can't make this explanation. It is outside what I can create here. You were not charged." S27 DRAFT: "I did not make this explanation, and you were not charged. If you are in danger or thinking about hurting yourself, please call your local emergency number or a crisis line in your area. You do not have to deal with this alone."
 Still unmeasured: planner quality, grounding and safety thresholds, roadmap check seconds (placeholders 10/15 s because the CI split is saturated).
 
 ## 4. Lanes, bases and migration numbers
