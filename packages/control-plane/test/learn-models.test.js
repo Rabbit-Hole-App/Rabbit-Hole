@@ -149,7 +149,22 @@ test('the task configuration states what the requests above carry, and the limit
 // the /explain roles (EXP-T12; their values: explain-policy.test.js).
 test('the journey roles are gone; the hook planner roles follow home_ask', () => {
   assert.deepEqual(Object.keys(LEARN_TASKS).filter(key => key.startsWith('journey_')), []);
-  assert.deepEqual(Object.keys(LEARN_TASKS).slice(Object.keys(LEARN_TASKS).indexOf('home_ask'), -2), ['home_ask', 'tutor_next_steps', 'tutor_next_steps_escalation', 'explore_find', 'explain_brief', 'explain_author', 'explain_review', 'explain_repair', 'animation_brief', 'animation_author', 'animation_review', 'animation_repair', 'whiteboard_plan', 'whiteboard_author']);
+  assert.deepEqual(Object.keys(LEARN_TASKS).slice(Object.keys(LEARN_TASKS).indexOf('home_ask'), -2), ['home_ask', 'tutor_next_steps', 'tutor_next_steps_escalation', 'explore_find', 'explain_brief', 'explain_author', 'explain_review', 'explain_repair', 'animation_brief', 'animation_author', 'animation_review', 'animation_repair', 'whiteboard_plan', 'whiteboard_author', 'roadmap_subject', 'roadmap_draft', 'roadmap_revise', 'roadmap_grounding_check', 'roadmap_grounding_escalation', 'roadmap_safety_adjudicate']);
+});
+
+// Tutor R4 roadmap roles: pinned exactly as v1.4 6.1 proposes (Sonnet 5.5 low for subject and the support check, Opus 5.5 for drafting, revising, the escalation and the adjudication).
+test('the roadmap roles: six registered entries, one tool each, no fallback, platform-funded models as proposed; roadmap_proposal is not registered in R4', () => {
+  const role = (model, effort, maxTokens) => ({ provider: 'anthropic', model, effort, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens });
+  const roadmap = Object.fromEntries(Object.entries(LEARN_TASKS).filter(([key]) => key.startsWith('roadmap_')));
+  assert.deepEqual(roadmap, {
+    roadmap_subject: role('claude-sonnet-5-5', 'low', 1000),
+    roadmap_draft: role('claude-opus-5-5', null, 12000),
+    roadmap_revise: role('claude-opus-5-5', null, 12000),
+    roadmap_grounding_check: role('claude-sonnet-5-5', 'low', 1500),
+    roadmap_grounding_escalation: role('claude-opus-5-5', null, 4000),
+    roadmap_safety_adjudicate: role('claude-opus-5-5', null, 1500),
+  });
+  assert.ok(Object.values(roadmap).every(Object.isFrozen));
 });
 
 // Professor Next Steps (docs/features/professor-next-steps.md §2.4): Sonnet low first, Opus once as the escalation; the

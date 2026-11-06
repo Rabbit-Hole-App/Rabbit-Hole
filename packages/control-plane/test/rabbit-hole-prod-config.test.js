@@ -90,9 +90,9 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   // placed before an applied one would never run.
   // ImageJobs (IMG-01) likewise: bound everywhere, its image-jobs-1 tag last in prod, after the applied explain-jobs-1.
   // AnimationJobs (AN-05, owner production GO 2026-11-02): the dev binding and dev tag, its animation-jobs-1 last in prod, after the applied file-jobs-1.
-  const devOnly = { bindings: [...dev.durable_objects.bindings.filter(b => !['FileJobs','CadJobs','ExplainJobs','ImageJobs','AnimationJobs','WhiteboardJobs'].includes(b.class_name)), {name:'CAD_JOBS',class_name:'CadJobs'}, {name:'EXPLAIN_JOBS',class_name:'ExplainJobs'}, {name:'IMAGE_JOBS',class_name:'ImageJobs'}, {name:'FILE_JOBS',class_name:'FileJobs'}, {name:'ANIMATION_JOBS',class_name:'AnimationJobs'}, {name:'WHITEBOARD_JOBS',class_name:'WhiteboardJobs'}] };
+  const devOnly = { bindings: [...dev.durable_objects.bindings.filter(b => !['FileJobs','CadJobs','ExplainJobs','ImageJobs','AnimationJobs','WhiteboardJobs','RoadmapJobs'].includes(b.class_name)), {name:'CAD_JOBS',class_name:'CadJobs'}, {name:'EXPLAIN_JOBS',class_name:'ExplainJobs'}, {name:'IMAGE_JOBS',class_name:'ImageJobs'}, {name:'FILE_JOBS',class_name:'FileJobs'}, {name:'ANIMATION_JOBS',class_name:'AnimationJobs'}, {name:'WHITEBOARD_JOBS',class_name:'WhiteboardJobs'}, {name:'ROADMAP_JOBS',class_name:'RoadmapJobs'}] };
   assert.deepEqual(app.durable_objects, devOnly);
-  assert.deepEqual(app.migrations, [...dev.migrations.filter(m => !['file-jobs-1','cad-jobs-1','explain-jobs-1','image-jobs-1','animation-jobs-1','whiteboard-jobs-1'].includes(m.tag)), {tag:'cad-jobs-1',new_sqlite_classes:['CadJobs']}, {tag:'explain-jobs-1',new_sqlite_classes:['ExplainJobs']}, {tag:'image-jobs-1',new_sqlite_classes:['ImageJobs']}, {tag:'file-jobs-1',new_sqlite_classes:['FileJobs']}, {tag:'animation-jobs-1',new_sqlite_classes:['AnimationJobs']}, {tag:'whiteboard-jobs-1',new_sqlite_classes:['WhiteboardJobs']}]);
+  assert.deepEqual(app.migrations, [...dev.migrations.filter(m => !['file-jobs-1','cad-jobs-1','explain-jobs-1','image-jobs-1','animation-jobs-1','whiteboard-jobs-1','roadmap-jobs-1'].includes(m.tag)), {tag:'cad-jobs-1',new_sqlite_classes:['CadJobs']}, {tag:'explain-jobs-1',new_sqlite_classes:['ExplainJobs']}, {tag:'image-jobs-1',new_sqlite_classes:['ImageJobs']}, {tag:'file-jobs-1',new_sqlite_classes:['FileJobs']}, {tag:'animation-jobs-1',new_sqlite_classes:['AnimationJobs']}, {tag:'whiteboard-jobs-1',new_sqlite_classes:['WhiteboardJobs']}, {tag:'roadmap-jobs-1',new_sqlite_classes:['RoadmapJobs']}]);
   assert.deepEqual(dev.migrations.find(m => m.tag === 'animation-jobs-1'), { tag: 'animation-jobs-1', new_sqlite_classes: ['AnimationJobs'] }, 'the same tag as dev');
   // A migration tag is applied once per worker: every config's tags are unique, and image-jobs-1 adds only ImageJobs.
   for (const c of [app, dev]) assert.equal(new Set(c.migrations.map(m => m.tag)).size, c.migrations.length);
@@ -149,7 +149,7 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
 test('production binds FILE_JOBS and enables file conversion and Ctrl+K image edit, not JavaScript runs', () => {
   const app = config(APP);
   assert.deepEqual(app.durable_objects.bindings.filter(b => b.name === 'FILE_JOBS'), [{ name: 'FILE_JOBS', class_name: 'FileJobs' }]);
-  assert.deepEqual(app.migrations.at(-3), { tag: 'file-jobs-1', new_sqlite_classes: ['FileJobs'] }, 'a new tag goes after every applied one');
+  assert.deepEqual(app.migrations.at(-4), { tag: 'file-jobs-1', new_sqlite_classes: ['FileJobs'] }, 'a new tag goes after every applied one');
   for (const name of ['FILE_JOB_CONCURRENCY',
     'INLINE_CODE_ENABLED', 'INLINE_CODE_MAX_RUNS', 'INLINE_CODE_MAX_MICROS', 'INLINE_CODE_RESERVE_MICROS']) assert.equal(app.vars[name], undefined, name);
   // Ctrl+K image edit is the one feature activated here (ctrlk-completion.md): its flag and hold are set; its OPENAI_API_KEY secret is never in the config.
@@ -182,7 +182,7 @@ test('production /animation: bound, on, kill switch off, no diagnostics; each ro
   const { animationEnabled, animationExecution, animationRoute, ANIMATION_PROBE_PATH, ANIMATION_SEED_FIXTURE_PATH } = await import('../src/animation-job.js');
   const app = config(APP), cp = config(CP);
   assert.deepEqual(app.durable_objects.bindings.filter(b => b.class_name === 'AnimationJobs'), [{ name: 'ANIMATION_JOBS', class_name: 'AnimationJobs' }]);
-  assert.deepEqual(app.migrations.at(-2), { tag: 'animation-jobs-1', new_sqlite_classes: ['AnimationJobs'] }, 'animation-jobs-1 is followed only by whiteboard-jobs-1');
+  assert.deepEqual(app.migrations.at(-3), { tag: 'animation-jobs-1', new_sqlite_classes: ['AnimationJobs'] }, 'animation-jobs-1 is followed only by whiteboard-jobs-1 and roadmap-jobs-1');
   assert.equal(app.vars.ANIMATION_ENABLED, 'true');
   assert.equal(app.vars.ANIMATION_EXECUTION_KILL, 'false');
   assert.deepEqual(Object.keys(app.vars).filter(k => k.startsWith('ANIMATION_')).sort(), ['ANIMATION_ENABLED', 'ANIMATION_EXECUTION_KILL'], 'no ANIMATION_DIAGNOSTICS or other Animation var');
@@ -275,11 +275,11 @@ test('production email (sign-in, invitations, feedback) goes out as Rabbit Hole 
 
 // /whiteboard (roadmap W0, binding commit): WHITEBOARD_JOBS and whiteboard-jobs-1 on the app Worker, the feature OFF, the renderer URL the
 // whiteboard's own Fly app (never Motion's). W0 shipped it OFF; the W1 release flips WHITEBOARD_ENABLED (owner decision 5 Nov 2026).
-test('production /whiteboard: bound last, on (W1), its own renderer, no secret in the file; dev points at the same renderer', () => {
+test('production /whiteboard: bound, on (W1), its own renderer, no secret in the file; dev points at the same renderer', () => {
   const app = config(APP), dev = config('../../web/wrangler.dev.jsonc'), cp = config(CP);
   assert.deepEqual(app.durable_objects.bindings.filter(b => b.class_name === 'WhiteboardJobs'), [{ name: 'WHITEBOARD_JOBS', class_name: 'WhiteboardJobs' }]);
-  assert.deepEqual(app.migrations.at(-1), { tag: 'whiteboard-jobs-1', new_sqlite_classes: ['WhiteboardJobs'] });
-  assert.deepEqual(dev.migrations.at(-1), { tag: 'whiteboard-jobs-1', new_sqlite_classes: ['WhiteboardJobs'] }, 'the same tag as dev');
+  assert.deepEqual(app.migrations.at(-2), { tag: 'whiteboard-jobs-1', new_sqlite_classes: ['WhiteboardJobs'] });
+  assert.deepEqual(dev.migrations.at(-2), { tag: 'whiteboard-jobs-1', new_sqlite_classes: ['WhiteboardJobs'] }, 'the same tag as dev');
   assert.deepEqual(Object.keys(app.vars).filter(k => k.startsWith('WHITEBOARD_')).sort(), ['WHITEBOARD_ENABLED', 'WHITEBOARD_RENDERER_URL'], 'no WHITEBOARD_ESTIMATE_USD and no token');
   assert.equal(app.vars.WHITEBOARD_ENABLED, 'true');
   assert.equal(dev.vars.WHITEBOARD_ENABLED, 'true');
@@ -287,4 +287,17 @@ test('production /whiteboard: bound last, on (W1), its own renderer, no secret i
   assert.equal(dev.vars.WHITEBOARD_RENDERER_URL, app.vars.WHITEBOARD_RENDERER_URL, 'W-D9: dev clones use the whiteboard renderer, there is no dev renderer');
   assert.notEqual(app.vars.WHITEBOARD_RENDERER_URL, app.vars.MOTION_ORCHESTRATOR_URL);
   assert.deepEqual(Object.keys(cp.vars).filter(k => k.startsWith('WHITEBOARD_')), [], 'the control plane Worker runs no /whiteboard');
+});
+
+// Tutor R4 roadmap (docs/features/explain-on-canvas): ROADMAP_JOBS and roadmap-jobs-1 are bound last on the app Worker, dev and the parallel clone configs, and the feature is
+// OFF everywhere: ROADMAP_ENABLED is unset until the owner's production GO, so every roadmap route answers 404 as if absent.
+test('production roadmap: ROADMAP_JOBS bound last with roadmap-jobs-1, ROADMAP_ENABLED unset in every config', () => {
+  const app = config(APP), dev = config('../../web/wrangler.dev.jsonc'), parallel = config('../../web/wrangler.parallel.jsonc'), cp = config(CP);
+  for (const [name, c] of [['app', app], ['dev', dev], ['parallel', parallel]]) {
+    assert.deepEqual(c.durable_objects.bindings.filter(b => b.class_name === 'RoadmapJobs'), [{ name: 'ROADMAP_JOBS', class_name: 'RoadmapJobs' }], name);
+    assert.deepEqual(c.migrations.at(-1), { tag: 'roadmap-jobs-1', new_sqlite_classes: ['RoadmapJobs'] }, `${name}: a new tag goes after every applied one`);
+    assert.equal(c.vars?.ROADMAP_ENABLED, undefined, `${name}: the feature stays off until the production GO`);
+  }
+  assert.equal(cp.vars?.ROADMAP_ENABLED, undefined);
+  assert.equal(new Set(app.migrations.map(m => m.tag)).size, app.migrations.length, 'every tag is unique');
 });

@@ -273,6 +273,6 @@ test('wiring: the Chat mode is the canvas control, the switch sits beside select
   assert.match(read('./use-learn-coaching.jsx'), /aria-label="Auto-suggest"/);
   assert.doesNotMatch(read('./DepthMenu.jsx'), /data-auto-suggest|settings.autoSuggest/, 'one control carries the Auto-suggest name');
   assert.match(ask, /mode: askMode\(chat\.thread\.mode, tocView\)/);
-  assert.match(page, /<NextStepsHost on=\{nextStepsHere\} coaching=\{hooksCoaching\}/);
+  assert.match(page, /<NextStepsHost on=\{nextStepsHere && !roadmap\.active\} coaching=\{hooksCoaching\}/);
   assert.match(steps, /gateHooks\(gate, steps\.state\(\), \{ allowed: !!coaching\?\.allowed/);
 });

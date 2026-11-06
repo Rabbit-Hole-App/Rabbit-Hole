@@ -4,6 +4,14 @@
 import { admissionPayer, attemptKind, beginAttempt, noteUsageRefusal, periodOf, periodReset, toMicros, usagePayer, usageRefusal, usageTotals, releaseStaleHolds, BALANCE_SCOPE, USED_SUM, heldSum } from './learn-usage.js';
 import { allowanceFor } from './learn-entitlement.js';
 
+// Trusted, server-only provider-operation identity (Tutor ladder R4.06). A Symbol on the env copy, like withAttemptKind in learn-usage.js:
+// no JSON, header or query can set it, only code that imports this export (roadmap/roadmap-money.js). opId makes the ledger row stable
+// across a replay. allocation names the step authorization whose hold this one call draws from (R4.07) instead of reserving the allowance again.
+const OPERATION = Symbol('server provider operation');
+export const withOperation = (env, operation) => ({ ...env, [OPERATION]: Object.freeze({ ...operation }) });
+export const operationOf = env => env?.[OPERATION] || null;
+export const STABLE_OP = /^[a-z0-9._-]{16,120}$/;
+
 export const spendError = reason => Object.assign(new Error(reason), { code: reason });
 const number = value => { const n = Number(String(value ?? '').trim()); return Number.isFinite(n) && n > 0 ? n : null; };
 export const platformCaps = env => ({ usd: number(env?.USAGE_PLATFORM_DAY_USD), operations: number(env?.USAGE_PLATFORM_DAY) ?? 2000 });
@@ -48,7 +56,7 @@ function refuse(env, reason, period = null) {
 }
 
 // Why a chargeable reservation was refused, for the person's explanation only; it never admits anything.
-async function explain(db, payer, need, now) {
+export async function explainAllowance(db, payer, need, now) {
   try {
     const row = await db.prepare(`SELECT ${USED_SUM} AS used, ${heldSum(now)} AS held ${BALANCE_SCOPE}`).bind(payer.userId, payer.period).first();
     const left = payer.allowance - Number(row?.used || 0), held = Number(row?.held || 0);
@@ -61,11 +69,19 @@ async function explain(db, payer, need, now) {
   }
 }
 
-export async function admitSpend(db, env, { opId, userId, org, category, reservedUsd, kind, provider = null, model = null, now = Math.floor(Date.now() / 1000), deadlineAt = now + 120 }) {
+export async function admitSpend(db, env, { opId, userId, org, category, reservedUsd, kind, provider = null, model = null, stable = false, allocation = null, now = Math.floor(Date.now() / 1000), deadlineAt = now + 120 }) {
   const caps = platformCaps(env);
   if (!caps.usd) return refuse(env, 'cap_unset');
   if (!db || !opId || !userId || !org || !category) return refuse(env, 'spend_identity_unavailable');
   if (!Number.isFinite(reservedUsd) || reservedUsd <= 0) return refuse(env, 'spend_bound_unavailable');
+  if (stable) {
+    // A stable id promises this exact call is admitted once: a second admission reports the first and never reaches the provider.
+    if (!STABLE_OP.test(opId)) return refuse(env, 'spend_identity_unavailable');
+    try {
+      const seen = await db.prepare('SELECT status FROM usage_operations WHERE op_id = ?').bind(opId).first();
+      if (seen) return { refused: true, reason: 'operation_exists', state: seen.status };
+    } catch { return refuse(env, 'spend_schema_unavailable'); }
+  }
   const payer = await admissionPayer(env, db);
   if (payer.refused) return refuse(env, payer.reason, payer.period || periodOf(now));
   const reservedMicros = toMicros(reservedUsd);
@@ -82,6 +98,7 @@ export async function admitSpend(db, env, { opId, userId, org, category, reserve
     return { refused: false, opId, attemptId: await beginAttempt(env, { attemptId: opId, kind, provider, model, reservedMicros, now }) };
   }
   await releaseStaleHolds(db, { userId: payer.userId, now }); // calls that outlived their bound stop holding credits (idempotent)
+  if (allocation) return consumeStepAllocation(db, env, { payer, platform, opId, reservedMicros, kind, provider, model, allocation, now });
   try {
     // One D1 batch is one transaction: no other request reads the balance between this check and this reservation.
     const [admitted, reserved] = await db.batch([
@@ -94,7 +111,46 @@ export async function admitSpend(db, env, { opId, userId, org, category, reserve
   } catch {
     return refuse(env, 'allowance_unavailable', payer.period);
   }
-  return refuse(env, await explain(db, payer, reservedMicros, now), payer.period);
+  return refuse(env, await explainAllowance(db, payer, reservedMicros, now), payer.period);
+}
+
+// R4.07 consumeStepAllocation: a call drawing on a step hold. One transaction holds the platform guard, a check that the hold and this card's
+// allocation still cover the call, the call's own reservation, and the transfer moving the same amount out of the hold and the allocation.
+// Held plus reserved never grows, and a lapsed hold or exhausted allocation changes nothing. No allowance term: the hold already set those
+// credits aside, and a call beyond the allocation is refused rather than falling back to the allowance (D38).
+async function consumeStepAllocation(db, env, { payer, platform, opId, reservedMicros, kind, provider, model, allocation, now }) {
+  const fits = `
+        AND EXISTS (SELECT 1 FROM learn_step_allocations al JOIN learn_step_authorizations z ON z.id = al.authorization_id
+          JOIN usage_attempts h ON h.attempt_id = z.hold_attempt_id
+          WHERE z.id = ? AND al.card_id = ? AND z.payer_user_id = ? AND z.period = ? AND z.state = 'admitted' AND al.state <> 'released'
+            AND al.remaining_micros >= ? AND h.action_id = ? AND h.status = 'running' AND h.cost_state = 'reserved' AND h.reserved_micros >= ?)`;
+  const token = crypto.randomUUID();
+  const moved = 'EXISTS (SELECT 1 FROM learn_step_allocation_transfers WHERE op_id = ? AND token = ?)';
+  try {
+    const [admitted, reserved, transfer] = await db.batch([
+      db.prepare(PLATFORM_INSERT + fits).bind(...platform, allocation.authorizationId, allocation.cardId, payer.userId, payer.period, reservedMicros, payer.actionId, reservedMicros),
+      db.prepare(RESERVE).bind(opId, payer.actionId, attemptKind(env, kind), provider, model, reservedMicros, now, opId, now),
+      db.prepare(`INSERT INTO learn_step_allocation_transfers (transfer_id, allocation_id, op_id, micros, token, created_at)
+        SELECT ?, al.id, ?, ?, ?, ? FROM learn_step_allocations al JOIN learn_step_authorizations z ON z.id = al.authorization_id
+        WHERE z.id = ? AND al.card_id = ? AND EXISTS (SELECT 1 FROM usage_operations WHERE op_id = ? AND admitted_at = ? AND status = 'admitted')
+          AND EXISTS (SELECT 1 FROM usage_attempts WHERE attempt_id = ? AND started_at = ?)`)
+        .bind(`xfer-${opId}`, opId, reservedMicros, token, now, allocation.authorizationId, allocation.cardId, opId, now, opId, now),
+      db.prepare(`UPDATE usage_attempts SET reserved_micros = reserved_micros - ? WHERE attempt_id = (SELECT hold_attempt_id FROM learn_step_authorizations WHERE id = ?) AND ${moved}`)
+        .bind(reservedMicros, allocation.authorizationId, opId, token),
+      db.prepare(`UPDATE learn_step_allocations SET remaining_micros = remaining_micros - ?, state = 'in_use', version = version + 1 WHERE authorization_id = ? AND card_id = ? AND ${moved}`)
+        .bind(reservedMicros, allocation.authorizationId, allocation.cardId, opId, token),
+      db.prepare(`UPDATE learn_step_authorizations SET remaining_micros = remaining_micros - ? WHERE id = ? AND ${moved}`)
+        .bind(reservedMicros, allocation.authorizationId, opId, token),
+    ]);
+    if (admitted.meta?.changes === 1 && reserved.meta?.changes === 1 && transfer.meta?.changes === 1) return { refused: false, opId, attemptId: opId };
+  } catch {
+    return refuse(env, 'allowance_unavailable', payer.period);
+  }
+  // Nothing was written: either the platform guard or the authorization refused. Say which; never fall back to the allowance.
+  const covered = await db.prepare(`SELECT 1 AS ok FROM learn_step_allocations al JOIN learn_step_authorizations z ON z.id = al.authorization_id JOIN usage_attempts h ON h.attempt_id = z.hold_attempt_id
+    WHERE z.id = ? AND al.card_id = ? AND z.payer_user_id = ? AND z.state = 'admitted' AND al.state <> 'released' AND al.remaining_micros >= ? AND h.status = 'running' AND h.reserved_micros >= ?`)
+    .bind(allocation.authorizationId, allocation.cardId, payer.userId, reservedMicros, reservedMicros).first().catch(() => null);
+  return refuse(env, covered ? 'daily_cap_reached' : 'step_allocation_unavailable', payer.period);
 }
 
 export async function settleSpend(db, opId, { status = 'settled', calls = 0, costUsd = null, provider = null, model = null, error = null, now = Math.floor(Date.now() / 1000) } = {}) {

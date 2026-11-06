@@ -48,6 +48,11 @@
       {
         "name": "IMAGE_JOBS",
         "class_name": "ImageJobs"
+      },
+      // Tutor R4 roadmap jobs (control-plane/src/roadmap/roadmap-jobs.js); routes stay off unless ROADMAP_ENABLED is "true" (unset here).
+      {
+        "name": "ROADMAP_JOBS",
+        "class_name": "RoadmapJobs"
       }
     ]
   },
@@ -92,6 +97,12 @@
       "tag": "animation-jobs-1",
       "new_sqlite_classes": [
         "AnimationJobs"
+      ]
+    },
+    {
+      "tag": "roadmap-jobs-1",
+      "new_sqlite_classes": [
+        "RoadmapJobs"
       ]
     }
   ],

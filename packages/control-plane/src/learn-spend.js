@@ -2,7 +2,7 @@
 // The platform cap is deliberately fail-closed: an unset cap or missing 0016 table refuses admission.
 import { anthropicQuantities, mtokRates, priceUsage } from './pricing-registry.js';
 
-import { platformCaps, admitSpend, settleSpend, operationId, spendEnforced, refusalReply } from './learn-spend-ledger.js';
+import { platformCaps, admitSpend, settleSpend, operationId, spendEnforced, refusalReply, operationOf } from './learn-spend-ledger.js';
 import { settleAttempt, toMicros, usageRefusal } from './learn-usage.js';
 export { spendError, platformCaps, platformSpendStatus, admitSpend, settleSpend, operationId, spendEnforced, spendMessage } from './learn-spend-ledger.js';
 
@@ -75,11 +75,15 @@ export async function spendTransport(env, body, model, org, transport, identity 
   }
   const reservedUsd = requestSpendBound(body, model, provider);
   if (reservedUsd == null) return refusal('spend_bound_unavailable');
-  const opId = operationId(identity.category || 'provider');
+  // A trusted server caller (roadmap-money.js withRoadmapProviderCall) supplies a stable id and optionally the step hold it draws from.
+  const operation = operationOf(env);
+  const opId = operation?.opId || operationId(identity.category || 'provider');
   // The one admission (learn-spend-ledger.js): the platform guard and, for chargeable work, the session payer's monthly
   // allowance, reserved in one transaction. identity.userId only labels the ledger row; it never chooses the payer.
   const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: identity.userId || `provider:${org || 'platform'}`, org: org || 'platform', category: identity.category || 'provider', reservedUsd,
-    kind: identity.kind, provider, model });
+    kind: operation?.kind || identity.kind, provider, model, stable: !!operation?.opId, allocation: operation?.allocation || null });
+  // The same stable call again: the first one's outcome stands and the provider is not asked twice.
+  if (gate.reason === 'operation_exists') return Response.json({ error: 'operation_replayed', code: 'operation_replayed', state: gate.state }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
   if (gate.refused) return refusalReply({ reason: gate.reason, period: usageRefusal(env)?.period });
   const begun = gate.attemptId;
   const token = { request: JSON.stringify(body), model, provider, db: env.LEARN_DB };
