@@ -146,3 +146,10 @@ export async function spendTransport(env, body, model, org, transport, identity 
   }
 }
 
+// Wraps a model call so each request/retry reserves independently. The private transport token prevents double admission.
+export function spendCallModel(env, access, category, callModel) {
+  return (callEnv, body, model, org, ...rest) => spendTransport(callEnv, body, model, org || access.org,
+    admittedEnv => callModel(admittedEnv, body, model, org, ...rest),
+    { userId: access.user_id || access.email, category });
+}
+

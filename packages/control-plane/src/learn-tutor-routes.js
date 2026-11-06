@@ -27,7 +27,7 @@ import { claimsOfConceptIn } from '../../web/src/learn-tutor-claims.js';
 import { JOURNEY_LIMITS } from '../../web/src/learn-journey.js';
 import { NEXT_STEPS_BODY_CHARS, ownedNextSteps } from './learn-next-steps-routes.js';
 import { HANDOFF_BODY_CHARS, HANDOFF_PATH, handoff } from './learn-tutor-handoff.js';
-import { spendTransport } from './learn-spend.js';
+import { spendCallModel } from './learn-spend.js';
 import { journeyCallModel } from './learn-journey-planners.js';
 import { withAttemptKind, usageRefusal } from './learn-usage.js';
 import { refusalBody } from './learn-spend-ledger.js';
@@ -39,12 +39,6 @@ const CONTEXT_LIMIT = 60000; // characters of planner context (about 12k tokens,
 
 const text = (value, max) => typeof value === 'string' && value.length <= max;
 
-// Each request/retry reserves independently. The private transport token prevents double admission.
-export function spendCallModel(env, access, category, callModel) {
-  return (callEnv, body, model, org, ...rest) => spendTransport(callEnv, body, model, org || access.org,
-    admittedEnv => callModel(admittedEnv, body, model, org, ...rest),
-    { userId: access.user_id || access.email, category });
-}
 export function validateEvaluateBody(body) {
   const { message, spec } = body || {};
   if (typeof message !== 'string' || !message.trim() || message.length > 4000) return { error: 'message must be 1-4000 characters' };

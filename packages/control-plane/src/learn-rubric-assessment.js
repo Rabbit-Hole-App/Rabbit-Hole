@@ -28,7 +28,7 @@ import { anthropic } from './ask.js';
 import { ownerRow } from './learn-boards.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { LEARN_TASKS, costUsd, loggedModel, promptVersion } from './learn-models.js';
-import { spendCallModel } from './learn-tutor-routes.js';
+import { spendCallModel } from './learn-spend.js';
 import { readableVersion, repositorySnapshot } from './repositories.js';
 import { CODEBASE_RUBRIC, REPOSITORY_SOURCE, SOURCE_EVIDENCE_CRITERIA, excludedReason, isCitation, isRepositorySource } from '../../web/src/learn-codebase-goals.js';
 
