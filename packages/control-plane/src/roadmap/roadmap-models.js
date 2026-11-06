@@ -32,7 +32,7 @@ export function platformCallModel(env, access, { roadmapId, version, anchor = ro
     const call = counters[stage] = (counters[stage] ?? -1) + 1;
     const db = env.LEARN_DB, prefix = `rm.${roadmapId}.${version}.${anchor}.${stage}.${call}.`;
     // A fresh handler attempt gets the next retry number; an earlier attempt that may have reached the provider blocks it (reconcile first).
-    const { results: earlier } = await db.prepare('SELECT checkpoint FROM learn_roadmap_calls WHERE operation_key >= ? AND operation_key < ?').bind(prefix, `${prefix}~`).all(); // ids are [A-Za-z0-9_.-], so ~ sorts after every key under the prefix. Not LIKE: D1 rejects a LIKE pattern over 50 bytes once the table has a row
+    const { results: earlier } = await db.prepare('SELECT checkpoint FROM learn_roadmap_calls WHERE operation_key LIKE ?').bind(`${prefix}%`).all();
     if ((earlier || []).some(r => BLIND_RETRY_FORBIDDEN.includes(r.checkpoint))) throw fail('unknown_provider_outcome');
     const retry = (earlier || []).length;
     const { env: scoped, opId, key } = await withRoadmapProviderCall(withSystemUsage(env, 'roadmap'), { proposalId: roadmapId, proposalVersion: version, cardId: anchor, stage, call, retry, authorizationId: roadmapId }, { platform: true });
@@ -90,7 +90,7 @@ export function platformJevAsk(env, access, { roadmapId, version, anchor, ask, n
   let call = -1;
   return async function jev(request) {
     const db = env.LEARN_DB, n = ++call, prefix = `rm.${roadmapId}.${version}.${anchor}.safety.${n}.`;
-    const { results: earlier } = await db.prepare('SELECT checkpoint FROM learn_roadmap_calls WHERE operation_key >= ? AND operation_key < ?').bind(prefix, `${prefix}~`).all(); // ids are [A-Za-z0-9_.-], so ~ sorts after every key under the prefix. Not LIKE: D1 rejects a LIKE pattern over 50 bytes once the table has a row
+    const { results: earlier } = await db.prepare('SELECT checkpoint FROM learn_roadmap_calls WHERE operation_key LIKE ?').bind(`${prefix}%`).all();
     if ((earlier || []).some(r => BLIND_RETRY_FORBIDDEN.includes(r.checkpoint))) throw fail('unknown_provider_outcome');
     const retry = (earlier || []).length;
     const { env: scoped, opId, key } = await withRoadmapProviderCall(withSystemUsage(env, 'roadmap'), { proposalId: roadmapId, proposalVersion: version, cardId: anchor, stage: 'safety', call: n, retry, authorizationId: roadmapId }, { platform: true });

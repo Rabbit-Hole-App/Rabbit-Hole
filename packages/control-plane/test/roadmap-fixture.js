@@ -14,9 +14,6 @@ export const accessFor = (userId = 'u-alice', boardId = 'lb_board00000000000001'
 
 export function world(t, { allowanceMicros = 10_000_000 } = {}) {
   const { sqlite, LEARN_DB } = learnDb(t);
-  // D1 rejects a LIKE or GLOB pattern over 50 bytes (SQLITE_MAX_LIKE_PATTERN_LENGTH) once the table has a row; node:sqlite does not. Found on the dev clone 2026-11-06.
-  const prepare = LEARN_DB.prepare;
-  LEARN_DB.prepare = sql => { const st = prepare(sql), bind = st.bind; st.bind = function (...v) { if (/\b(LIKE|GLOB)\b/i.test(sql) && v.some(x => typeof x === 'string' && Buffer.byteLength(x) > 50)) throw new Error('LIKE or GLOB pattern too complex'); return bind.apply(this, v); }; return st; };
   const env = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '100', AI_MONTHLY_ALLOWANCE_USD: usd(allowanceMicros) };
   for (const user of ["u-alice", "u-bob"]) sqlite.prepare("INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, updated_at) VALUES (?, 'team', ?, 'learn', 'main', '{}', '2026-11-06')").run(user === "u-alice" ? "lb_board00000000000001" : "lb_board00000000000003", `${user}@example.test`);
   return { sqlite, LEARN_DB, env, access: accessFor() };
