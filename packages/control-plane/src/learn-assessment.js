@@ -4,12 +4,9 @@
 //   assessAttempt(env, actor, attemptId, deps) -> AssessmentRecord
 // It works only on a saved attempt, and only through the operation it claimed (learn-attempt-store.js).
 //
-// Routes. An attempt's criteria name registered claims through criterion.skillKey, a claim id in the goal's journey
-// registry.
-//   keyed  A choice that answers a journey probe with a server-only key. It is graded in code (probeEvaluation), with no
-//          provider call. A keyed answer establishes no reasoning.
-//   jev    Short text, checked against those claims: one JEV batch. The escalation policy may then ask for one admitted
-//          call to LEARN_TASKS.tutor_evaluator, on consequential uncertainty or on a contradiction, confident or not (7a).
+// Routes. The journey routes (keyed: a choice graded against a journey probe's server-only key; jev: short text checked against a
+// journey registry's claims by JEV and the larger evaluator) were removed in the Tutor cleanup P1 with the journeys. Rows they
+// wrote (route 'keyed', 'jev', 'larger') are history and stay readable.
 //   rubric Text or code whose criteria carry a rubric (rubricVersion 'rubric-…'): one admitted call to LEARN_TASKS.tutor_rubric
 //          (learn-rubric-assessment.js, Task 13). A coaching goal without a journey is assessable this way. A codebase goal's
 //          criteria carry the codebase rubric; its cited repository files are read at their commit, and an answer whose
@@ -19,15 +16,15 @@
 //   explain_back  A combined Explain-back answer (explainBackOf): one admitted call judging every frozen criterion, with the
 //          parent attempt and its pinned review for a revision, under TUTOR_EXPLAIN_BACK_ENABLED alone.
 //   none   Otherwise a drawing is unavailable: visual_not_supported. Code and numeric answers are unavailable:
-//          rubric_not_supported. Text with no registered claim is unavailable: no_registered_claims.
+//          rubric_not_supported. Text is unavailable: no_registered_claims. A choice that answered a journey probe, whose
+//          key is gone, is unavailable: no_answer_key (progress degrades to not assessed, never an error).
 //
 // The capability gate (richRoute): the rubric and visual routes run only where the deployment enables them
 // (TUTOR_RUBRIC_ASSESSMENT_ENABLED / TUTOR_VISUAL_ASSESSMENT_ENABLED = 'true'; off until their real-model quality check
 // passes, draft Task 15; TUTOR_CODEBASE_ASSESSMENT_ENABLED for codebase answers alone) and only for criteria that carry a rubric. Anything else stays visibly unassessed (owner 7a).
 // Criteria of such an attempt that carry no rubric are listed unassessed (no_rubric).
 //
-// Spend. Every provider request passes the existing spend admission: askJev admits itself, and the larger evaluator goes
-// through spendTransport (spendCallModel).
+// Spend. Every provider request passes the existing spend admission (spendCallModel, learn-spend.js).
 //
 // Outcomes:
 //   * A refusal is 'unavailable'.
@@ -39,59 +36,11 @@
 //
 // Provenance records each call's role, requested and served model, reason, latency, usage and known cost. Unknown usage
 // and cost are null, never 0.
-//
-// Journeys. A completed assessment of a journey activity also becomes that journey's evidence, once (feedJourney).
-import { askJev, JEV_TRANSPORTS } from './learn-grade-jev.js';
-import { anthropic } from './ask.js';
-import { costUsd, loggedModel } from './learn-models.js';
-import { TUTOR_PROTOCOL_VERSION } from './agents/learn-tutor.js';
-import { evaluateFreeText, journeySpec, probeEvaluation } from './learn-tutor-routes.js';
-import { spendCallModel } from './learn-spend.js';
-import { JourneyConflict, appendJourneyEvidence, loadJourneyById } from './learn-journey-store.js';
 import { claimAssessment, commitAssessment, ownActivity, pendingOperation, readAttempt } from './learn-attempt-store.js';
 import { assessRubricAttempt, carriesRubric, rubricSources } from './learn-rubric-assessment.js';
 import { assessVisualAttempt, resolveDrawing } from './learn-visual-assessment.js';
 import { assessExplainBack, explainBackOf } from './learn-explain-assessment.js';
 import { CODEBASE_RUBRIC, REPOSITORY_SOURCE, isRepositorySource } from '../../web/src/learn-codebase-goals.js';
-
-export const KEYED_VERSION = 'journey-probe-key-v1';
-// askJev's spend-guard refusals (learn-grade-jev.js): no call was made, so nothing is unknown about them.
-const REFUSED = new Set(['cap_unset', 'daily_cap_reached', 'spend_schema_unavailable', 'spend_bound_unavailable', 'spend_identity_unavailable', 'allowance_exhausted', 'allowance_insufficient', 'allowance_reserved', 'allowance_unavailable', 'payer_unavailable']);
-const int = v => (Number.isSafeInteger(v) && v >= 0 ? v : null);
-const usd = v => (v != null && Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : null);
-
-/**
- * Turn evaluator events into one Observation per criterion. It is pure, and the deployed code and the tests use the same
- * function. The rules, in order:
- *   1. A contested idea left unsettled is an unresolved conflict: fit unclear, conflict true (Needs review).
- *   2. Settled passes and negatives on the same claim: partial.
- *   3. Settled negatives only: not_met.
- *   4. Settled passes covering every idea of the claim (or a keyed pass): met. Passes covering only some ideas: partial.
- *   5. Anything else is unclear and is not counted.
- * Application is 'applied' only when every pass of a met criterion was a transfer pass.
- */
-export function observationsFrom({ events, criteria, claims, assistance, keyed }) {
-  return criteria.map(c => {
-    const own = events.filter(e => e.claim === c.skillKey);
-    const conflict = own.some(e => e.contested && !e.settled);
-    const settled = own.filter(e => e.settled);
-    const passes = settled.filter(e => e.result === 'pass');
-    const negatives = settled.filter(e => ['fail', 'misconception', 'gap'].includes(e.result));
-    const ideas = claims[c.skillKey]?.ideas?.length ?? 0;
-    const covered = keyed ? passes.length > 0 : ideas > 0 && new Set(passes.map(e => e.idea)).size >= ideas;
-    const negative = negatives[0];
-    const why = negative && (negative.result === 'misconception' ? `misconception:${negative.misconception_id}` : negative.result === 'gap' ? `prerequisite_gap:${negative.prerequisite}` : keyed ? 'wrong_option' : 'contradicted');
-    let fit, reason;
-    if (conflict) [fit, reason] = ['unclear', 'contradiction_unresolved'];
-    else if (negatives.length && passes.length) [fit, reason] = ['partial', why];
-    else if (negatives.length) [fit, reason] = ['not_met', why];
-    else if (passes.length) [fit, reason] = covered ? ['met', keyed ? 'correct_option' : 'all_ideas_stated'] : ['partial', 'some_ideas_stated'];
-    else [fit, reason] = ['unclear', own.some(e => e.result === 'non_attempt') ? 'non_attempt' : own.length ? 'uncertain' : 'not_addressed'];
-    const reasoning = keyed ? (c.requiresReasoning ? 'missing' : 'not_required') : { met: 'supported', partial: 'partial', not_met: 'missing', unclear: 'unclear' }[fit];
-    const application = fit === 'met' && passes.every(e => e.kind === 'demonstrated_in_transfer') ? 'applied' : 'not_assessed';
-    return { criterionId: c.criterionId, criterionVersion: c.version, fit, reasoning, assistance, validity: 'valid', conflict, application, reason };
-  });
-}
 
 // The criterion rows the attempt froze, at their exact versions.
 async function criteriaOf(env, attempt) {
@@ -131,18 +80,6 @@ async function assessRich(env, actor, attempt, criteria, route, deps) {
   return { rubricVersion, ...await assessRubricAttempt(env, attempt, { ...context, ...read }, deps) };
 }
 
-// The keyed probe a choice activity answers. Its source ref is {kind: 'journey_probe', id, version, locator?: {sectionId}}.
-// With a sectionId, the probe is a check of that section's plan; with diagnostic: true, a diagnostic probe reused as a
-// practice check after the diagnostic (Task 07: existing material); without either, the journey's state decides, as in
-// learn-tutor-routes.js openProbe. The key never leaves the server.
-function probeOf(journey, ref) {
-  const plan = journey.section_plan, section = ref.locator?.sectionId;
-  const list = section != null ? (plan?.section_id === section ? plan.checks : null)
-    : ref.locator?.diagnostic === true || journey.state === 'diagnostic' ? journey.diagnostic?.probes : plan?.checks;
-  const probe = list?.find(p => p.id === ref.id);
-  return probe?.key ? probe : null;
-}
-
 async function assess(env, actor, attempt, deps, assessmentId) {
   const criteria = await criteriaOf(env, attempt);
   const rubricVersion = [...new Set(criteria.map(c => c.rubricVersion))].join(',').slice(0, 200) || null;
@@ -160,98 +97,12 @@ async function assess(env, actor, attempt, deps, assessmentId) {
   const gate = { gate: criteria.some(carriesRubric) ? 'disabled' : 'no_rubric' };
   if (kind === 'drawing') return none('unavailable', 'visual_not_supported', gate);
   if (kind !== 'text' && kind !== 'choice') return none('unavailable', 'rubric_not_supported', gate);
-  const activity = await ownActivity(env, actor, attempt.activityId);
-  const journey = activity?.journey_id ? await loadJourneyById(env, activity.journey_id, { org: actor.org, owner_user_id: actor.userId }) : null;
-  const claims = journey?.registry?.claims || {};
-  const assessable = criteria.filter(c => c.skillKey && Object.hasOwn(claims, c.skillKey));
-  const unassessed = criteria.filter(c => !assessable.includes(c)).map(c => ({ criterionId: c.criterionId, version: c.version, reason: 'no_registered_claim' }));
-  if (!assessable.length) return none('unavailable', 'no_registered_claims', { unassessed });
-  const sameVersion = activity.revision === attempt.activityRevision;
-
-  if (kind === 'choice') {
-    // The key belongs to the prompt version the learner answered.
-    if (!sameVersion) return none('unavailable', 'activity_changed', { unassessed });
-    const ref = JSON.parse(activity.source_refs_json).find(r => r.kind === 'journey_probe');
-    const probe = ref && probeOf(journey, ref);
-    if (!probe) return none('unavailable', 'no_answer_key', { unassessed });
-    const option = attempt.submittedContent.optionId;
-    if (!probe.options?.some(o => o.id === option)) return none('unavailable', 'unknown_option', { unassessed });
-    const graded = assessable.filter(c => probe.claims.includes(c.skillKey));
-    const skipped = [...unassessed, ...assessable.filter(c => !graded.includes(c)).map(c => ({ criterionId: c.criterionId, version: c.version, reason: 'not_in_probe' }))];
-    if (!graded.length) return none('unavailable', 'no_registered_claims', { unassessed: skipped });
-    const evaluation = probeEvaluation(journey.registry, probe, option), { events } = evaluation;
-    const tag = { probe_id: probe.id, ...(ref.locator?.sectionId != null ? { section_id: ref.locator.sectionId } : {}) };
-    return {
-      journey: { journeyId: journey.id, evaluation, tag },
-      status: 'completed', route: 'keyed', rubricVersion, evaluatorVersion: KEYED_VERSION,
-      observations: observationsFrom({ events, criteria: graded, claims, assistance: attempt.assistance, keyed: true }),
-      provenance: { route: 'keyed', checker: 'journey_probe_key', calls: [], unassessed: skipped },
-    };
-  }
-
-  const ids = [...new Set(assessable.map(c => c.skillKey))];
-  // The prompt the learner answered, while it is still that version and within the evaluator's bound. Otherwise the
-  // claims alone define the checks.
-  const question = sameVersion && activity.prompt.length <= 1200 ? activity.prompt : null;
-  const spec = journeySpec(journey, { message: attempt.submittedContent.text, claims: ids, answering: true, ...(question ? { question } : {}) });
-  if (spec.error) return none('unavailable', spec.error === 'claims must be 1-6 claim ids' ? 'too_many_claims' : 'not_eligible', { unassessed });
-
-  // Watch both calls without changing them: what JEV served and any spend refusal of the escalation.
-  const seen = { jev: null, refused: null };
-  const ask = async (...args) => {
-    try { const r = await (deps.ask || askJev)(...args); seen.jev = { ok: true, body: r.body, cost: r.cost }; return r; }
-    catch (error) { seen.jev = { ok: false, code: error.code ?? null }; throw error; }
-  };
-  const paid = spendCallModel(env, { org: actor.org, user_id: actor.userId }, 'tutor_evaluate', deps.callModel || loggedModel('tutor_evaluator', anthropic));
-  const callModel = async (...args) => {
-    const response = await paid(...args);
-    if (response.status === 429 || response.status === 503) {
-      const body = await response.clone().json().catch(() => null);
-      if (body?.code === 'spend_limited' || body?.code === 'allowance_limited') seen.refused = body.reason || body.code;
-    }
-    return response;
-  };
-  const result = await evaluateFreeText(env, spec.value, attempt.submittedContent.text, { ask, callModel, ...(deps.timeoutMs ? { timeoutMs: deps.timeoutMs } : {}) });
-
-  const transport = env.TYPESAFE_API_KEY ? 'direct' : env.VERCEL_TYPESAFE_API_KEY ? 'gateway' : null;
-  const { jev: jevT, larger: largerT } = result.telemetry;
-  const calls = [];
-  if (seen.jev) {
-    const refused = !seen.jev.ok && REFUSED.has(seen.jev.code);
-    calls.push({
-      role: 'jev', requestedModel: transport ? JEV_TRANSPORTS[transport].model : null, servedModel: seen.jev.body?.model ?? null, reason: 'claim_check',
-      latencyMs: jevT.ms, outcome: refused ? 'refused' : jevT.outcome,
-      usage: { inputTokens: int(seen.jev.body?.usage?.input_tokens), outputTokens: int(seen.jev.body?.usage?.output_tokens) }, costUsd: usd(seen.jev.cost),
-    });
-  }
-  if (largerT.called) {
-    const tokens = { inputTokens: largerT.input_tokens, outputTokens: largerT.output_tokens };
-    const known = largerT.served_model && int(tokens.inputTokens) != null && int(tokens.outputTokens) != null;
-    calls.push({
-      role: 'tutor_evaluator', requestedModel: largerT.requested_model, servedModel: largerT.served_model, reason: largerT.reason,
-      latencyMs: largerT.ms, outcome: seen.refused ? 'refused' : largerT.outcome,
-      usage: tokens, costUsd: known ? costUsd({ model: largerT.served_model, input_tokens: tokens.inputTokens, output_tokens: tokens.outputTokens }) : null,
-    });
-  }
-  const base = { rubricVersion, evaluatorVersion: TUTOR_PROTOCOL_VERSION };
-  if (result.status === 'error') {
-    const code = seen.jev?.code;
-    const [status, reason] = !seen.jev ? ['unavailable', 'evaluator_unconfigured']
-      : seen.jev.ok ? ['failed', 'malformed_evaluation']
-        : REFUSED.has(code) ? ['unavailable', 'allowance_refused']
-          : code === 'timeout' || code === 'network' ? ['unknown', 'completion_unknown']
-            : ['failed', 'evaluator_error'];
-    return { ...base, status, reason, provenance: { route: null, calls, escalation: null, unassessed } };
-  }
-  const esc = result.escalation;
-  const outcome = !esc?.escalate ? 'not_needed' : seen.refused ? 'refused' : result.larger_error ? (largerT.outcome === 'timeout' ? 'unknown' : 'failed') : 'completed';
-  return {
-    journey: { journeyId: journey.id, evaluation: { status: result.status, evaluator: result.evaluator, events: result.events } },
-    ...base, status: 'completed', route: result.evaluator === 'larger' ? 'larger' : 'jev',
-    reason: esc?.escalate && outcome !== 'completed' ? `escalation_${outcome}` : null,
-    observations: observationsFrom({ events: result.events, criteria: assessable, claims, assistance: attempt.assistance, keyed: false }),
-    provenance: { route: result.evaluator === 'larger' ? 'larger' : 'jev', calls, escalation: esc ? { requested: esc.escalate, reason: esc.reason, uncertain: esc.uncertain, outcome } : null, unassessed },
-  };
+  // Tutor cleanup P1: no journey registry, so no registered claim to check text against and no probe key to grade a choice by. A
+  // choice that answered a journey probe says so (no_answer_key); every other answer is as it was for a goal with no journey.
+  const activity = kind === 'choice' ? await ownActivity(env, actor, attempt.activityId) : null;
+  const keyless = activity != null && JSON.parse(activity.source_refs_json || '[]').some(r => r.kind === 'journey_probe');
+  const unassessed = criteria.map(c => ({ criterionId: c.criterionId, version: c.version, reason: 'no_registered_claim' }));
+  return none('unavailable', keyless ? 'no_answer_key' : 'no_registered_claims', { unassessed });
 }
 
 /**
@@ -272,35 +123,7 @@ export async function assessAttempt(env, actor, attemptId, deps = {}) {
       console.error(JSON.stringify({ event: 'learn_assessment_error', assessment: op.id, error: error?.name || 'Error', message: String(error?.message || '').slice(0, 120) }));
       result = { status: 'failed', reason: 'assessment_error', provenance: { route: null, calls: [] } };
     }
-    const { journey, ...outcome } = result;
-    const saved = await commitAssessment(env, actor, { assessmentId: op.id, token, attemptId, goalId: attempt.goalId, ...outcome });
-    const record = saved && journey ? (await readAttempt(env, actor, attemptId)).assessments.find(a => a.assessmentId === op.id) : null;
-    if (record?.status === 'completed') {
-      await feedJourney(env, actor, attempt, record, journey)
-        .catch(error => console.error(JSON.stringify({ event: 'learn_assessment_journey_error', assessment: op.id, error: error?.name || 'Error' })));
-    }
+    await commitAssessment(env, actor, { assessmentId: op.id, token, attemptId, goalId: attempt.goalId, ...result });
   }
   return (await readAttempt(env, actor, attemptId)).assessment;
-}
-
-/**
- * Slice A gap b (T3-report §7.6): a completed assessment of a journey activity is that journey's evidence too, so the
- * walker's probe reading (probeResult), section completion and the planners see it. Once per attempt: when the journey
- * already holds evidence for this attempt, one of its observations or, for a keyed check, that probe (a reassessment, a
- * retried request, an answer through the journey's own evaluate route), nothing is added, so nothing counts twice. The ref
- * carries ids only, never learner text. A journey moved by another tab meanwhile is reloaded once, as journeyEvaluate does.
- * @returns {Promise<boolean>} whether evidence was added
- */
-export async function feedJourney(env, actor, attempt, record, { journeyId, evaluation, tag = null }) {
-  const ids = record.observations.map(o => o.observationId);
-  const ref = { attempt_id: attempt.attemptId, assessment_id: record.assessmentId, observation_ids: ids, ...tag, canvas: { app: actor.app, board: actor.board } };
-  const held = j => j.evidence.events.some(e => e.ref?.attempt_id === attempt.attemptId || e.ref?.observation_ids?.some(id => ids.includes(id))
-    || (tag && e.ref?.probe_id === tag.probe_id && (e.ref.section_id ?? null) === (tag.section_id ?? null)));
-  for (let tries = 0; tries < 2; tries += 1) {
-    const journey = await loadJourneyById(env, journeyId, { org: actor.org, owner_user_id: actor.userId });
-    if (!journey || held(journey)) return false;
-    try { return (await appendJourneyEvidence(env, journey, evaluation, ref)).events !== journey.evidence.events; }
-    catch (error) { if (!(error instanceof JourneyConflict) || error.code !== 'revision') throw error; }
-  }
-  return false;
 }

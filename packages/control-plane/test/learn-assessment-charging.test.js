@@ -1,12 +1,11 @@
 // packages/control-plane/test/learn-assessment-charging.test.js
-// Owner item 4 (2026-10-21): assessment stays free to the learner. Every assessment route - keyed, JEV and its escalation,
-// rubric, codebase and visual - runs here under the attempts route's own usage context (as the dev-worker boundary makes it
+// Owner item 4 (2026-10-21): assessment stays free to the learner. Every assessment route - rubric, codebase, Explain-back and
+// visual; the keyed and JEV routes were removed with the journeys in the Tutor cleanup P1 - runs here under the attempts route's own usage context (as the dev-worker boundary makes it
 // from usageFeature), with spend enforced and a learner whose monthly allowance is used up. Each provider call is admitted
 // platform-funded (FREE_FEATURES: payer reason free_action, charge class free), its cost is recorded, the platform daily
 // guard still applies, and the learner's balance does not move. Providers are stubs that count their calls; nothing is paid.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { askJev } from '../src/learn-grade-jev.js';
 import { readAttempt } from '../src/learn-attempt-store.js';
 import { noteUsageIdentity, payerOf, periodOf, toMicros, usageFeature, usageTotals, withUsage } from '../src/learn-usage.js';
 import { readCoachingState } from '../src/learn-coaching-store.js';
@@ -14,7 +13,7 @@ import { codebaseActivity, learningSourceMap } from '../src/learn-codebase-sourc
 import { putUploadedMedia } from '../src/learn-media.js';
 import { paperIdentity } from '../src/learn-paper.js';
 import { goalOf } from '../../web/src/learn-codebase-goals.js';
-import { ANA, CHECK, act, journeyActivity, larger, never, submit, world } from './learn-attempt-fixture.js';
+import { ANA, CHECK, act, journeyActivity, never, submit, world } from './learn-attempt-fixture.js';
 import { ANA_EMAIL, SIGMOID, VISUAL_CASES, WRITING, WRITING_CASES, coachingActivity, replying } from './learn-rich-fixtures.js';
 import { taskboard } from './learn-codebase-fixtures.js';
 
@@ -36,16 +35,6 @@ const asRoute = (env, path = ATTEMPTS) => {
   noteUsageIdentity(scoped, { userId: ANA.userId, email: ANA_EMAIL });
   return scoped;
 };
-// The real askJev (its own spend admission) over a stub transport answering every question: values[key], else a confident no.
-function jevTransport(values = {}) {
-  const calls = [];
-  const ask = (env, request, options) => askJev(env, request, { ...options, fetchImpl: async (_url, init) => {
-    const { questions } = JSON.parse(init.body);
-    calls.push(questions);
-    return Response.json({ model: 'jev-1.13.0', usage: { input_tokens: 1200 }, answers: Object.fromEntries(Object.keys(questions).map(key => [key, { type: 'noul', noul: values[key] ?? 0.02 }])) });
-  } });
-  return { calls, ask };
-}
 // A codebase goal and its first activity, made as the codebase route makes them, on ANA's own readable TaskBoard import.
 async function codebaseWorld(w) {
   const snapshot = taskboard('v1');
@@ -65,20 +54,6 @@ const CODE_REPLY = { criteria: [
 
 // Each assessment route: how to make its activity, what the learner submits, and the stubs that stand in for its providers.
 const ROUTES = {
-  keyed: async w => {
-    const { activity } = await journeyActivity(w.env, ANA, { responseKind: 'choice', prompt: CHECK.prompt, sourceRefs: [{ kind: 'journey_probe', id: 'c1', version: 1, locator: { sectionId: 's1' } }] });
-    return { activity, content: { optionId: 'y' }, deps: never, providerCalls: () => 0 };
-  },
-  jev: async w => {
-    const { activity } = await journeyActivity(w.env, ANA);
-    const jev = jevTransport({ c0_idea0: 0.95 });
-    return { activity, content: { text: 'The weighted score goes through the sigmoid.' }, deps: { ask: jev.ask, callModel: never.callModel }, providerCalls: () => jev.calls.length };
-  },
-  jev_escalation: async w => {
-    const { activity } = await journeyActivity(w.env, ANA);
-    const jev = jevTransport({ c0_idea0: 0.95, c0_contra0: 0.95 }), escalation = larger(['c0_idea0']);
-    return { activity, content: { text: 'The weighted score goes through the sigmoid.' }, deps: { ask: jev.ask, callModel: escalation.callModel }, providerCalls: () => jev.calls.length + escalation.calls.length };
-  },
   rubric: async w => {
     const { activity } = await coachingActivity(w.env, { criteria: WRITING });
     const stub = replying(WRITING_CASES.proposalA.reply);
@@ -121,11 +96,8 @@ test('item 4: with the learner\'s allowance used up, every assessment route stil
     assert.equal(r.status, 200, route);
     assert.equal(r.body.assessment.status, 'completed', `${route}: ${r.body.assessment.reason}`);
     const actions = rows(w, 'usage_actions'), attempts = rows(w, 'usage_attempts');
-    if (route === 'keyed') {
-      assert.deepEqual([providerCalls(), actions.length, attempts.length], [0, 0, 0], 'graded in code: no provider, nothing to record');
-    } else {
+    {
       assert.ok(providerCalls() > 0, route);
-      if (route === 'jev_escalation') assert.deepEqual([providerCalls(), r.body.assessment.provenance.escalation?.outcome], [2, 'completed'], 'JEV, then the larger evaluator');
       assert.equal(attempts.length, providerCalls(), `${route}: every provider call is recorded`);
       assert.deepEqual(actions.map(a => [a.feature, a.payer, a.payer_reason, a.charge_class, a.user_id]), [['tutor_evaluate', 'user', 'free_action', 'free', ANA.userId]], `${route}: one free action`);
       for (const a of attempts) {
@@ -147,7 +119,6 @@ test('item 4: with the learner\'s allowance used up, every assessment route stil
 
 test('item 4: the platform daily guard still applies: refused before any provider call, the answer saved and unassessed', async t => {
   for (const [route, make] of Object.entries(ROUTES)) {
-    if (route === 'keyed') continue;
     const w = paidWorld(t, { platformUsd: '0.000001' });
     const { activity, content, deps, providerCalls } = await make(w);
     const r = await submit(asRoute(w.env), ANA, activity, { submissionKey: `sub-${route}-guard`, submittedContent: content }, deps);
@@ -163,4 +134,17 @@ test('item 4 contrast: the same assessment dispatched under a chargeable context
   const { activity, content, deps, providerCalls } = await ROUTES.codebase(w);
   const r = await submit(asRoute(w.env, '/api/learn/tutor/plan'), ANA, activity, { submissionKey: 'sub-plan-charge', submittedContent: content }, deps);
   assert.deepEqual([r.body.assessment.status, r.body.assessment.reason, providerCalls()], ['unavailable', 'allowance_refused', 0]);
+});
+
+// A choice that answered a journey probe, whose key left with the journeys (Tutor cleanup P1): saved, unassessed, no provider, nothing
+// recorded or charged.
+test('item 4: a journey-probe choice is unavailable (no_answer_key): no provider call, no usage row, the balance does not move', async t => {
+  const w = paidWorld(t);
+  const before = await usageTotals(w.env.LEARN_DB, ANA.userId, PERIOD);
+  const { activity } = await journeyActivity(w.env, ANA, { responseKind: 'choice', prompt: CHECK.prompt, sourceRefs: [{ kind: 'journey_probe', id: 'c1', version: 1, locator: { sectionId: 's1' } }] });
+  const r = await submit(asRoute(w.env), ANA, activity, { submissionKey: 'sub-keyless-charge', submittedContent: { optionId: 'y' } }, never);
+  assert.equal(r.status, 200);
+  assert.deepEqual([r.body.assessment.status, r.body.assessment.reason, r.body.assessment.observations], ['unavailable', 'no_answer_key', []]);
+  assert.deepEqual([rows(w, 'usage_actions'), rows(w, 'usage_attempts')], [[], []]);
+  assert.deepEqual(await usageTotals(w.env.LEARN_DB, ANA.userId, PERIOD), before);
 });

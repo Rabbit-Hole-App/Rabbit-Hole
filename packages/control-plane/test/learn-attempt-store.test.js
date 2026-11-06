@@ -3,17 +3,30 @@
 // Attempts are saved before any evaluator is dispatched, retries replay, and every dispatch is counted. JEV and the larger
 // evaluator are stubs; no provider is reached.
 import { test } from 'node:test';
+
 import assert from 'node:assert/strict';
+
 import { readFileSync } from 'node:fs';
+
 import { DatabaseSync } from 'node:sqlite';
+
 import { ATTEMPT_LIMITS, CLAIM_TTL_MS, acceptAttempt, claimAssessment, readAttempt } from '../src/learn-attempt-store.js';
+
 import { assessAttempt } from '../src/learn-assessment.js';
-import { JevError } from '../src/learn-grade-jev.js';
-import { ANA, BEN, act, call, jev, journeyActivity, never, submit, world } from './learn-attempt-fixture.js';
+
+
+import { ANA, BEN, act, call, journeyActivity, never, submit, world } from './learn-attempt-fixture.js';
+import { WRITING, WRITING_CASES, coachingActivity, replying } from './learn-rich-fixtures.js';
 
 const MIGRATION = readFileSync(new URL('../learn-migrations/0026-tutor-attempts.sql', import.meta.url), 'utf8');
+
 const SCHEMA = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');
-const STATED = { c0_idea0: 0.95 }; // MECH's one idea stated, everything else a confident no
+
+// Tutor cleanup P1: the dispatch rules are shown on the rubric route (the JEV route left with the journeys); its model call is a stub.
+const ON = { TUTOR_RUBRIC_ASSESSMENT_ENABLED: 'true' };
+const TEXT = WRITING_CASES.proposalA.text, REPLY = WRITING_CASES.proposalA.reply, ANSWER = { submittedContent: { text: TEXT } };
+const rubricWorld = async (t, extra = {}) => { const w = world(t, { ...ON, ...extra }); return { ...w, ...await coachingActivity(w.env, { criteria: WRITING }) }; };
+
 const count = (sqlite, table) => sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n;
 
 test('learn 0026 is CREATE-only, re-runnable, applies on top of 0025, and is mirrored verbatim in repository-schema.sql', () => {
@@ -35,100 +48,97 @@ test('learn 0026 is CREATE-only, re-runnable, applies on top of 0025, and is mir
 });
 
 test('submission_saved_before_dispatch: the attempt and its claimed operation exist before the evaluator runs; a failed save dispatches nothing', async t => {
-  const w = world(t);
-  const { activity } = await journeyActivity(w.env);
+  const w = await rubricWorld(t);
   const seenAtDispatch = [];
-  const { ask } = jev(STATED);
-  const watching = async (env, request, options) => {
+  const stub = replying(REPLY);
+  const watching = async (...args) => {
     seenAtDispatch.push({ attempts: count(w.sqlite, 'learn_attempts'), claimed: w.sqlite.prepare("SELECT count(*) AS n FROM learn_assessments WHERE status = 'pending' AND claim_token IS NOT NULL").get().n });
-    return ask(env, request, options);
+    return stub.callModel(...args);
   };
-  const r = await submit(w.env, ANA, activity, {}, { ask: watching, callModel: never.callModel });
+  const r = await submit(w.env, ANA, w.activity, ANSWER, { ...never, callModel: watching });
   assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.deepEqual(seenAtDispatch, [{ attempts: 1, claimed: 1 }]);
   assert.equal(r.body.assessment.status, 'completed');
-  assert.deepEqual(r.body.attempt.submittedContent, { text: 'The weighted score goes through the sigmoid.' });
+  assert.deepEqual(r.body.attempt.submittedContent, { text: TEXT });
 
   // A save that fails: nothing stored, nothing dispatched, and the response never claims a save.
-  const f = world(t);
-  const { activity: other } = await journeyActivity(f.env);
+  const f = await rubricWorld(t);
   const batch = f.env.LEARN_DB.batch;
   f.env.LEARN_DB.batch = async statements => { if (statements.length === 2) throw new Error('D1 unavailable'); return batch(statements); };
-  const dispatched = jev(STATED);
-  const failed = await submit(f.env, ANA, other, {}, { ask: dispatched.ask, callModel: never.callModel });
+  const dispatched = replying(REPLY);
+  const failed = await submit(f.env, ANA, f.activity, ANSWER, { ...never, callModel: dispatched.callModel });
   assert.deepEqual([failed.status, failed.body.error], [503, 'attempts_unavailable']);
-  assert.deepEqual([count(f.sqlite, 'learn_attempts'), count(f.sqlite, 'learn_assessments'), dispatched.asked.length], [0, 0, 0]);
+  assert.deepEqual([count(f.sqlite, 'learn_attempts'), count(f.sqlite, 'learn_assessments'), dispatched.calls.length], [0, 0, 0]);
 });
 
 test('same_key_same_hash_replays: a double click or a retry after a lost response is one attempt and one dispatch', async t => {
-  const w = world(t);
-  const { activity } = await journeyActivity(w.env);
-  const stub = jev(STATED);
-  const first = await submit(w.env, ANA, activity, {}, { ask: stub.ask, callModel: never.callModel });
-  const again = await submit(w.env, ANA, activity, { submittedContent: { text: 'The weighted score goes through the sigmoid.' } }, { ask: stub.ask, callModel: never.callModel });
+  const w = await rubricWorld(t);
+  const stub = replying(REPLY);
+  const first = await submit(w.env, ANA, w.activity, ANSWER, { ...never, callModel: stub.callModel });
+  const again = await submit(w.env, ANA, w.activity, ANSWER, { ...never, callModel: stub.callModel });
   assert.equal(again.status, 200);
   assert.deepEqual([again.body.replayed, again.body.attempt.attemptId, again.body.assessment.assessmentId], [true, first.body.attempt.attemptId, first.body.assessment.assessmentId]);
-  assert.deepEqual([count(w.sqlite, 'learn_attempts'), count(w.sqlite, 'learn_assessments'), stub.asked.length], [1, 1, 1]);
+  assert.deepEqual([count(w.sqlite, 'learn_attempts'), count(w.sqlite, 'learn_assessments'), stub.calls.length], [1, 1, 1]);
   // Key order in the content is not a different submission.
+  const activity = w.activity;
   const reordered = await acceptAttempt(w.env, ANA, { activityId: activity.activityId, activityRevision: activity.revision, submissionKey: 'sub-0002-bbbb', submittedContent: { b: 1, text: 'x' }, sourceRefs: [], assistanceRefs: [] });
   const same = await acceptAttempt(w.env, ANA, { activityId: activity.activityId, activityRevision: activity.revision, submissionKey: 'sub-0002-bbbb', submittedContent: { text: 'x', b: 1 }, sourceRefs: [], assistanceRefs: [] });
   assert.deepEqual([same.replayed, same.attemptId], [true, reordered.attemptId]);
 });
 
 test('same_key_changed_hash_conflicts: one key with different content is a 409 and the saved attempt is unchanged', async t => {
-  const w = world(t);
-  const { activity } = await journeyActivity(w.env);
-  const stub = jev(STATED);
-  const first = await submit(w.env, ANA, activity, {}, { ask: stub.ask, callModel: never.callModel });
-  const changed = await submit(w.env, ANA, activity, { submittedContent: { text: 'Something else entirely.' } }, never);
+  const w = await rubricWorld(t);
+  const stub = replying(REPLY);
+  const first = await submit(w.env, ANA, w.activity, ANSWER, { ...never, callModel: stub.callModel });
+  const changed = await submit(w.env, ANA, w.activity, { submittedContent: { text: 'Something else entirely.' } }, never);
   assert.deepEqual([changed.status, changed.body.error], [409, 'submission_key_conflict']);
   const view = await call(w.env, ANA, 'GET', `/api/learn/tutor/attempts/${first.body.attempt.attemptId}`);
   assert.deepEqual(view.body.attempt, first.body.attempt);
-  assert.equal(stub.asked.length, 1);
+  assert.equal(stub.calls.length, 1);
 });
 
 test('concurrent_claim_has_one_dispatch: parallel dispatches and parallel same-key submissions call the evaluator once', async t => {
-  const w = world(t);
-  const { activity } = await journeyActivity(w.env);
-  const accepted = await acceptAttempt(w.env, ANA, { activityId: activity.activityId, activityRevision: 1, submissionKey: 'sub-race-0001', submittedContent: { text: 'The weighted score goes through the sigmoid.' }, sourceRefs: [], assistanceRefs: [] });
-  const stub = jev(STATED);
-  const records = await Promise.all(Array.from({ length: 5 }, () => assessAttempt(w.env, ANA, accepted.attemptId, { ask: stub.ask, callModel: never.callModel })));
-  assert.equal(stub.asked.length, 1, 'one claim, one dispatch');
+  const w = await rubricWorld(t);
+  const { activity } = w;
+  const accepted = await acceptAttempt(w.env, ANA, { activityId: activity.activityId, activityRevision: 1, submissionKey: 'sub-race-0001', submittedContent: { text: TEXT }, sourceRefs: [], assistanceRefs: [] });
+  const stub = replying(REPLY);
+  const records = await Promise.all(Array.from({ length: 5 }, () => assessAttempt(w.env, ANA, accepted.attemptId, { ...never, callModel: stub.callModel })));
+  assert.equal(stub.calls.length, 1, 'one claim, one dispatch');
   assert.ok(records.every(r => r.assessmentId === accepted.assessmentId));
   assert.equal((await readAttempt(w.env, ANA, accepted.attemptId)).assessment.status, 'completed');
 
-  const tabs = jev(STATED);
-  const both = await Promise.all([1, 2].map(() => submit(w.env, ANA, activity, { submissionKey: 'sub-two-tabs' }, { ask: tabs.ask, callModel: never.callModel })));
+  const tabs = replying(REPLY);
+  const both = await Promise.all([1, 2].map(() => submit(w.env, ANA, activity, { submissionKey: 'sub-two-tabs', submittedContent: { text: TEXT } }, { ...never, callModel: tabs.callModel })));
   assert.deepEqual(both.map(r => r.status), [200, 200]);
   assert.equal(both[0].body.attempt.attemptId, both[1].body.attempt.attemptId);
-  assert.equal(tabs.asked.length, 1);
+  assert.equal(tabs.calls.length, 1);
   assert.equal(w.sqlite.prepare("SELECT count(*) AS n FROM learn_attempts WHERE submission_key = 'sub-two-tabs'").get().n, 1);
 });
 
 test('unknown_completion_is_not_auto_retried: a timeout or an abandoned claim is unknown; replays and reads call nothing until an explicit review', async t => {
-  const w = world(t);
-  const { activity } = await journeyActivity(w.env);
+  const w = await rubricWorld(t);
+  const { activity } = w;
   let calls = 0;
-  const timeout = async () => { calls++; throw new JevError('timeout', 'Jev timed out after 800 ms'); };
-  const first = await submit(w.env, ANA, activity, {}, { ask: timeout, callModel: never.callModel });
+  const lost = async () => { calls++; throw new Error('the connection was lost'); };
+  const first = await submit(w.env, ANA, activity, ANSWER, { ...never, callModel: lost });
   assert.deepEqual([first.body.assessment.status, first.body.assessment.reason, first.body.assessment.observations], ['unknown', 'completion_unknown', []]);
-  const replay = await submit(w.env, ANA, activity, {}, { ask: timeout, callModel: never.callModel });
+  const replay = await submit(w.env, ANA, activity, ANSWER, { ...never, callModel: lost });
   await call(w.env, ANA, 'GET', `/api/learn/tutor/attempts/${first.body.attempt.attemptId}`);
   assert.deepEqual([replay.body.replayed, replay.body.assessment.status, calls], [true, 'unknown', 1]);
 
   // A worker that claimed the operation and died: past CLAIM_TTL_MS the read reconciles it to unknown, and a dispatch
   // finds nothing to claim.
-  const crashed = await acceptAttempt(w.env, ANA, { activityId: activity.activityId, activityRevision: 1, submissionKey: 'sub-crash-0001', submittedContent: { text: 'abc' }, sourceRefs: [], assistanceRefs: [] });
+  const crashed = await acceptAttempt(w.env, ANA, { activityId: activity.activityId, activityRevision: 1, submissionKey: 'sub-crash-0001', submittedContent: { text: TEXT }, sourceRefs: [], assistanceRefs: [] });
   assert.ok(await claimAssessment(w.env, ANA, crashed.assessmentId));
   assert.equal((await readAttempt(w.env, ANA, crashed.attemptId)).assessment.status, 'pending', 'still within its claim');
   const later = Date.now() + CLAIM_TTL_MS + 1000;
   assert.deepEqual((({ status, reason }) => [status, reason])((await readAttempt(w.env, ANA, crashed.attemptId, { now: () => later })).assessment), ['unknown', 'completion_unknown']);
-  const stub = jev(STATED);
-  await assessAttempt(w.env, ANA, crashed.attemptId, { ask: stub.ask, callModel: never.callModel });
-  assert.equal(stub.asked.length, 0);
+  const stub = replying(REPLY);
+  await assessAttempt(w.env, ANA, crashed.attemptId, { ...never, callModel: stub.callModel });
+  assert.equal(stub.calls.length, 0);
   // Only an explicit review calls again: one new operation, one dispatch.
-  const review = await call(w.env, ANA, 'POST', `/api/learn/tutor/attempts/${crashed.attemptId}/reassess`, { requestKey: 'review-0001' }, { ask: stub.ask, callModel: never.callModel });
-  assert.deepEqual([review.status, review.body.assessments.map(a => a.status), stub.asked.length], [200, ['unknown', 'completed'], 1]);
+  const review = await call(w.env, ANA, 'POST', `/api/learn/tutor/attempts/${crashed.attemptId}/reassess`, { requestKey: 'review-0001' }, { ...never, callModel: stub.callModel });
+  assert.deepEqual([review.status, review.body.assessments.map(a => a.status), stub.calls.length], [200, ['unknown', 'completed'], 1]);
 });
 
 test('draft_edit_does_not_mutate_attempt: later edits of the object, the activity checkpoint or a new submission leave the saved attempt as submitted', async t => {
@@ -147,27 +157,27 @@ test('draft_edit_does_not_mutate_attempt: later edits of the object, the activit
 });
 
 test('unicode_limit_preserves_draft: an over-limit answer is refused with both sizes and stores nothing; an at-limit emoji answer is kept whole', async t => {
-  const w = world(t);
-  const { activity } = await journeyActivity(w.env);
-  const stub = jev(STATED);
+  const w = world(t, ON);
+  const { activity, goalId } = await coachingActivity(w.env, { criteria: WRITING });
+  const stub = replying(REPLY);
   const over = '😀'.repeat(2001); // 2001 code points, 4002 UTF-16 units
-  const refused = await submit(w.env, ANA, activity, { submissionKey: 'sub-uni-0001', submittedContent: { text: over } }, { ask: stub.ask, callModel: never.callModel });
+  const refused = await submit(w.env, ANA, activity, { submissionKey: 'sub-uni-0001', submittedContent: { text: over } }, { ...never, callModel: stub.callModel });
   assert.deepEqual([refused.status, refused.body.error, refused.body.detail], [413, 'submission_too_large', { field: 'text', unit: 'characters', max: ATTEMPT_LIMITS.textChars, actual: 4002 }]);
-  assert.deepEqual([count(w.sqlite, 'learn_attempts'), stub.asked.length], [0, 0]);
+  assert.deepEqual([count(w.sqlite, 'learn_attempts'), stub.calls.length], [0, 0]);
   const atLimit = 'é😀'.repeat(1333) + 'é'; // 4000 UTF-16 units, 9331 UTF-8 bytes
   assert.equal(atLimit.length, 4000);
-  const kept = await submit(w.env, ANA, activity, { submissionKey: 'sub-uni-0002', submittedContent: { text: atLimit } }, { ask: stub.ask, callModel: never.callModel });
+  const kept = await submit(w.env, ANA, activity, { submissionKey: 'sub-uni-0002', submittedContent: { text: atLimit } }, { ...never, callModel: stub.callModel });
   assert.equal(kept.status, 200, JSON.stringify(kept.body));
   assert.equal(kept.body.attempt.submittedContent.text, atLimit, 'stored whole, never truncated');
   // The byte bound counts UTF-8 bytes, not characters.
-  const code = (await act(w.env, ANA, 'activate_activity', { activity: { goalId: activity.goalId, objective: 'Code it', prompt: 'Write the sigmoid.', responseKind: 'code', criterionRefs: [{ criterionId: 'mech', version: 1 }] } })).state.activeActivityId;
+  const code = (await act(w.env, ANA, 'activate_activity', { activity: { goalId, objective: 'Code it', prompt: 'Write the sigmoid.', responseKind: 'code', criterionRefs: [{ criterionId: 'claim', version: 1 }] } })).state.activeActivityId;
   const big = await submit(w.env, ANA, { activityId: code, revision: 1 }, { submissionKey: 'sub-uni-0003', submittedContent: { text: 'x', notes: 'é'.repeat(9000) } }, never);
   assert.deepEqual([big.status, big.body.detail.unit, big.body.detail.max, big.body.detail.actual > ATTEMPT_LIMITS.contentBytes], [413, 'bytes', ATTEMPT_LIMITS.contentBytes, true]);
 });
 
 test('references are resolved on the server: another learner, another canvas, a stale activity revision or an unknown source is refused', async t => {
-  const w = world(t);
-  const { activity } = await journeyActivity(w.env, ANA, { sourceRefs: [{ kind: 'card', id: 'b1', version: 2 }] });
+  const w = world(t, ON);
+  const { activity } = await coachingActivity(w.env, { sourceRefs: [{ kind: 'card', id: 'b1', version: 2 }] });
   const ben = await submit(w.env, BEN, activity, {}, never);
   assert.deepEqual([ben.status, ben.body.error], [404, 'unknown_activity']);
   const elsewhere = await submit(w.env, { ...ANA, board: 'other' }, activity, {}, never);
@@ -178,15 +188,15 @@ test('references are resolved on the server: another learner, another canvas, a 
   const stale = await submit(w.env, ANA, activity, {}, never);
   assert.deepEqual([stale.status, stale.body.error, stale.body.detail], [409, 'stale_activity', { activityRevision: 2 }]);
   w.sqlite.prepare('UPDATE learn_activities SET revision = 1 WHERE id = ?').run(activity.activityId);
-  const stub = jev(STATED);
-  const mine = await submit(w.env, ANA, activity, { sourceRefs: [{ kind: 'card', id: 'b1', version: 2 }] }, { ask: stub.ask, callModel: never.callModel });
+  const stub = replying(REPLY);
+  const mine = await submit(w.env, ANA, activity, { sourceRefs: [{ kind: 'card', id: 'b1', version: 2 }], submittedContent: { text: TEXT } }, { ...never, callModel: stub.callModel });
   assert.equal(mine.status, 200);
   // Ben cannot read or review Ana's attempt; to him it does not exist.
   for (const [method, path, body] of [['GET', `/api/learn/tutor/attempts/${mine.body.attempt.attemptId}`], ['POST', `/api/learn/tutor/attempts/${mine.body.attempt.attemptId}/reassess`, { requestKey: 'review-ben-01' }]]) {
     const r = await call(w.env, BEN, method, path, body, never);
     assert.deepEqual([r.status, r.body.error], [404, 'unknown_attempt'], `${method} ${path}`);
   }
-  assert.equal(stub.asked.length, 1);
+  assert.equal(stub.calls.length, 1);
 });
 
 test('known help is resolved on the server: refs from the learner or the activity checkpoint make the attempt assisted; none is none', async t => {

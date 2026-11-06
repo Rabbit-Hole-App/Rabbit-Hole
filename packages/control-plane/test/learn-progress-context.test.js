@@ -5,12 +5,17 @@
 // throws, and the evaluator stubs count their calls.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ANA, BEN, act, call, jev, journeyActivity, never, world } from './learn-attempt-fixture.js';
+import { ANA, BEN, act, call, never, world } from './learn-attempt-fixture.js';
+import { WRITING, WRITING_CASES, coachingActivity, replying } from './learn-rich-fixtures.js';
 import { acceptAttempt, claimAssessment, commitAssessment, readAttempt, requestReassessment } from '../src/learn-attempt-store.js';
 import { readProgress } from '../src/learn-progress.js';
 import { QUESTION_LIMITS, progressQuestionContext, progressQuestionText, resolveProgressQuestion } from '../src/learn-progress-context.js';
 import { progressScope } from '../../web/src/learn-progress-question.js';
 
+// Tutor cleanup P1: the review tests run on the rubric route (the JEV route left with the journeys); its model call is a stub.
+const ON = { TUTOR_RUBRIC_ASSESSMENT_ENABLED: 'true' };
+const TEXT = WRITING_CASES.proposalA.text, REPLY = WRITING_CASES.proposalA.reply;
+const withModel = () => ({ ...never, callModel: replying(REPLY).callModel });
 const APP2 = 'canvas-0e0e0e0e';
 const ANA2 = { ...ANA, app: APP2 }; // Ana's second canvas
 const BEN_HOME = { ...BEN, app: 'canvas-0b0b0b0b' };
@@ -19,8 +24,8 @@ const C = (criterionId, label, extra = {}) => ({ criterionId, label, requirement
 const TABLES = ['learn_goals', 'learn_goal_criteria', 'learn_activities', 'learn_attempts', 'learn_assessments', 'learn_observations'];
 const snapshot = sqlite => Object.fromEntries(TABLES.map(t => [t, JSON.stringify(sqlite.prepare(`SELECT * FROM ${t} ORDER BY rowid`).all())]));
 
-function setup(t) {
-  const w = world(t);
+function setup(t, extra = {}) {
+  const w = world(t, extra);
   w.sqlite.prepare('INSERT INTO canvases(org, name, owner_email, title) VALUES (?, ?, ?, ?)').run(ANA.org, APP2, 'ana@test', 'Debugging');
   w.sqlite.prepare('INSERT INTO canvases(org, name, owner_email, title) VALUES (?, ?, ?, ?)').run(BEN.org, BEN_HOME.app, 'ben@test', 'Ben');
   const original = globalThis.fetch;
@@ -213,9 +218,9 @@ test('progress_question_does_not_assess: resolving, wording and the chat path wr
 });
 
 test('review_preserves_original_assessment: a dispute keeps the original judgment, shows Needs review while pending, and a validated review becomes a new version', async t => {
-  const w = setup(t);
-  const { goalId, activity } = await journeyActivity(w.env);
-  const sent = await call(w.env, ANA, 'POST', '/api/learn/tutor/attempts', { activityId: activity.activityId, activityRevision: activity.revision, submissionKey: 'sub-0001-aaaa', submittedContent: { text: 'The weighted score goes through the sigmoid.' } }, jev({ c0_idea0: 0.95 }));
+  const w = setup(t, ON);
+  const { goalId, activity } = await coachingActivity(w.env, { criteria: WRITING });
+  const sent = await call(w.env, ANA, 'POST', '/api/learn/tutor/attempts', { activityId: activity.activityId, activityRevision: activity.revision, submissionKey: 'sub-0001-aaaa', submittedContent: { text: TEXT } }, withModel());
   assert.equal(sent.body.assessment.status, 'completed');
   const original = sent.body.assessment;
   const originalRows = JSON.stringify(w.sqlite.prepare('SELECT id, fit, reasoning, assistance, application, reason, observed_at FROM learn_observations WHERE assessment_id = ?').all(original.assessmentId));
@@ -229,32 +234,32 @@ test('review_preserves_original_assessment: a dispute keeps the original judgmen
   assert.deepEqual([pending.criteria[0].status, pending.criteria[0].reason], ['needs_review', 'disputed']);
   assert.deepEqual(pending.pendingAssessments, [filed.assessmentId]);
   assert.deepEqual(pending.criteria[0].evidence.map(e => [e.assessmentId, e.validity, e.fit]), [[original.assessmentId, 'disputed', 'met']]);
-  const asked = await resolve(w.env, ANA, progressScope({ ...scopeFor(confirmed, 'mech'), review: { attemptId: sent.body.attempt.attemptId, assessmentId: original.assessmentId, board: 'main' } }));
+  const asked = await resolve(w.env, ANA, progressScope({ ...scopeFor(confirmed, 'claim'), review: { attemptId: sent.body.attempt.attemptId, assessmentId: original.assessmentId, board: 'main' } }));
   assert.equal(asked.resolvedScope.review.state, 'review_requested');
   assert.ok(codes(asked).includes('under_review') && codes(asked).includes('pending_assessment'));
   assert.match(progressQuestionText(asked), /The original judgment is kept unchanged and shows as Needs review/);
 
   // The review runs (the one stub call) and saves a validated result as a new version that supersedes the original.
-  const stub = jev({ c0_idea0: 0.95 });
+  const stub = replying(REPLY);
   const { assessAttempt } = await import('../src/learn-assessment.js');
-  await assessAttempt(w.env, ANA, sent.body.attempt.attemptId, { ask: stub.ask, callModel: never.callModel });
-  assert.equal(stub.asked.length, 1);
+  await assessAttempt(w.env, ANA, sent.body.attempt.attemptId, { ...never, callModel: stub.callModel });
+  assert.equal(stub.calls.length, 1);
   const { assessments } = await readAttempt(w.env, ANA, sent.body.attempt.attemptId);
   assert.deepEqual(assessments.map(a => [a.assessmentId, a.status, a.supersedesAssessmentId ?? null]), [[original.assessmentId, 'completed', null], [filed.assessmentId, 'completed', original.assessmentId]]);
   assert.equal(JSON.stringify(w.sqlite.prepare('SELECT id, fit, reasoning, assistance, application, reason, observed_at FROM learn_observations WHERE assessment_id = ?').all(original.assessmentId)), originalRows, 'every original finding is kept');
   const reviewed = await readProgress(w.env, ANA, { goalId });
   assert.equal(reviewed.criteria[0].status, 'demonstrated_independently');
   assert.deepEqual(reviewed.criteria[0].evidence.map(e => [e.assessmentId, e.validity]), [[original.assessmentId, 'superseded'], [filed.assessmentId, 'valid']], 'the original stays in the history, labelled');
-  assert.equal((await resolve(w.env, ANA, progressScope({ ...scopeFor(confirmed, 'mech'), review: { attemptId: sent.body.attempt.attemptId, assessmentId: original.assessmentId, board: 'main' } }))).resolvedScope.review.state, 'reviewed');
+  assert.equal((await resolve(w.env, ANA, progressScope({ ...scopeFor(confirmed, 'claim'), review: { attemptId: sent.body.attempt.attemptId, assessmentId: original.assessmentId, board: 'main' } }))).resolvedScope.review.state, 'reviewed');
 });
 
 test('a dispute through the route: filed once per key, refused review leaves Needs review, and a plain reassessment labels nothing', async t => {
-  const w = setup(t);
-  const { goalId, activity } = await journeyActivity(w.env);
-  const sent = await call(w.env, ANA, 'POST', '/api/learn/tutor/attempts', { activityId: activity.activityId, activityRevision: activity.revision, submissionKey: 'sub-0002-bbbb', submittedContent: { text: 'The weighted score goes through the sigmoid.' } }, jev({ c0_idea0: 0.95 }));
+  const w = setup(t, ON);
+  const { goalId, activity } = await coachingActivity(w.env, { criteria: WRITING });
+  const sent = await call(w.env, ANA, 'POST', '/api/learn/tutor/attempts', { activityId: activity.activityId, activityRevision: activity.revision, submissionKey: 'sub-0002-bbbb', submittedContent: { text: TEXT } }, withModel());
   const path = `/api/learn/tutor/attempts/${sent.body.attempt.attemptId}/reassess`;
-  // The review's evaluator refuses (JEV unavailable): the original stays, disputed, and Progress keeps Needs review.
-  const refused = { ask: async () => { throw Object.assign(new Error('jev down'), { name: 'TypeError' }); }, callModel: never.callModel };
+  // The review's evaluator fails (the model is down): the original stays, disputed, and Progress keeps Needs review.
+  const refused = { ...never, callModel: async () => { throw new Error('the model is down'); } };
   const first = await call(w.env, ANA, 'POST', path, { requestKey: 'dispute-as_original', dispute: true }, refused);
   assert.equal(first.status, 200, JSON.stringify(first.body));
   assert.notEqual(first.body.assessment.status, 'completed');
@@ -266,9 +271,9 @@ test('a dispute through the route: filed once per key, refused review leaves Nee
   assert.equal((await call(w.env, BEN, 'POST', path, { requestKey: 'dispute-as_other', dispute: true }, refused)).status, 404);
 
   // Task 05's plain reassessment is unchanged: it supersedes, and labels nothing disputed.
-  const other = await journeyActivity(w.env, ANA2);
-  const plain = await call(w.env, ANA2, 'POST', '/api/learn/tutor/attempts', { activityId: other.activity.activityId, activityRevision: other.activity.revision, submissionKey: 'sub-0003-cccc', submittedContent: { text: 'The weighted score goes through the sigmoid.' } }, jev({ c0_idea0: 0.95 }));
-  await call(w.env, ANA2, 'POST', `/api/learn/tutor/attempts/${plain.body.attempt.attemptId}/reassess`, { requestKey: 'review-0001' }, refused);
+  const other = await coachingActivity(w.env, { label: 'A second paragraph', criteria: WRITING });
+  const plain = await call(w.env, ANA, 'POST', '/api/learn/tutor/attempts', { activityId: other.activity.activityId, activityRevision: other.activity.revision, submissionKey: 'sub-0003-cccc', submittedContent: { text: TEXT } }, withModel());
+  await call(w.env, ANA, 'POST', `/api/learn/tutor/attempts/${plain.body.attempt.attemptId}/reassess`, { requestKey: 'review-0001' }, refused);
   assert.deepEqual(w.sqlite.prepare('SELECT DISTINCT validity FROM learn_observations WHERE assessment_id = ?').all(plain.body.assessment.assessmentId).map(r => r.validity), ['valid']);
 });
 
