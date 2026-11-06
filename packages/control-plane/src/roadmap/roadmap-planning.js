@@ -103,9 +103,10 @@ async function requestPlan(db, access, { roadmapId, expectedRevision, actionKey,
 export async function answerQuestion(db, access, { roadmapId, expectedRevision, actionKey, questionId, optionId, text, now = nowSeconds() }) {
   const roadmap = await readRoadmap(db, access, roadmapId);
   if (!roadmap) throw new StateError('not_found', 'Not available', 404);
-  const planRow = await db.prepare('SELECT plan_json FROM learn_roadmap_plan_versions WHERE roadmap_id = ? AND version = ?').bind(roadmapId, roadmap.plan_version).first();
-  const question = parse(planRow?.plan_json)?.question;
-  if (!question || question.id !== questionId) throw new StateError('invalid_request', 'questionId', 400);
+  // The question is found in any plan version of this roadmap, so a replay of an answer already given still resolves to the same text (and replays).
+  const { results: versions } = await db.prepare('SELECT plan_json FROM learn_roadmap_plan_versions WHERE roadmap_id = ? ORDER BY version DESC').bind(roadmapId).all();
+  const question = (versions || []).map(v => parse(v.plan_json)?.question).find(q => q && q.id === questionId);
+  if (!question) throw new StateError('invalid_request', 'questionId', 400);
   const option = question.options.find(o => o.id === optionId);
   const answer = typeof text === 'string' && text.trim() ? text.trim() : option?.label;
   if (!answer || answer.length > 1000) throw new StateError('invalid_request', 'an answer is required', 400);
