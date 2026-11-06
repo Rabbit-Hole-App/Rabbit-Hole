@@ -40,7 +40,8 @@ Format per item: ID, exact blocker, evidence, recommended resolution, precise de
   - Blocker: no paid check may run without an approved cap.
   - Evidence: decision-records.md estimate: 12 scenarios (8 development + 4 holdout); typical about $9.80, worst single pass about $23.10, expected with one repair pass about $14.70; stop and report at $20.
   - Recommended: approve **$25**. Decision needed: "approve $25" or another cap. No spend happens before this.
-- [ ] **D-DEVDB (R1, R2, R3 previews: additive migrations on the shared dev D1).**
+- [x] **D-DEVDB: AUTHORISED by the owner 2026-11-06 ("yes dev migrations").** Scope: additive CREATE-only migrations 0036, 0037 and 0038 on the DEV D1 (`rabbit-hole-learn-dev`) only, in number order; never production. Claude applies each only after its lane's migration file is final (lane corrections are still editing 0036/0037/0038), announces the run in this file first, and verifies the schema afterwards. Production application remains an owner action at release time. The original item follows.
+- [x] (original text) **D-DEVDB (R1, R2, R3 previews: additive migrations on the shared dev D1).**
   - Blocker: the previews of R1, R2 and R3 can only exercise their new tables if migrations 0036, 0037 and 0038 exist on the dev D1 (`rabbit-hole-learn-dev`), which every dev clone shares. Without them each preview shows the feature's "unavailable / not saved" path, so the preview cannot verify the feature.
   - Evidence: the clone shares the dev D1 (docs/features/mvp-fast-path.md, Limits). All three files are CREATE-only (schema-check enforces it).
   - Recommended: authorise Claude to apply 0036-0038 to the DEV D1 only, in number order, after announcing it here. Production stays an owner action at release time.
