@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createRoadmapController } from './roadmap-controller.js';
 import { anchorState, overlayPosition } from './roadmap-placement.js';
-import { chatOf, indicatorOf, invitationOf, keyboardOwned, pillOf, tabAccepts, tocOf } from './roadmap-client.js';
+import { chatOf, claimsFocus, indicatorOf, invitationOf, keyboardOwned, pillOf, statusOf, tabAccepts, tocOf } from './roadmap-client.js';
 import { pageKeyAllowed } from './shortcut-owner.js';
 import { opensEditor } from './inline-ai-proposal.js';
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
@@ -64,6 +64,23 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto', 
     return () => window.removeEventListener('keydown', onKey, true);
   }, []);
 
+  // Accept plan hands the keyboard to the first proposal: the button unmounts when the plan is accepted, so the learner is left on the
+  // page with nothing focused. One shot per Accept plan; dropped when focus moves anywhere else, the learner is typing, the request
+  // fails, or the overlay is not on screen. Tab then accepts through the same acceptProposal() as the button.
+  const handoff = useRef(false);
+  const acceptPlan = useCallback(() => { handoff.current = true; return controller.acceptPlan().then(body => { if (!body) handoff.current = false; return body; }); }, [controller]);
+  useEffect(() => {
+    const moved = event => { if (!event.target?.closest?.('[data-roadmap-accept-plan]')) handoff.current = false; };
+    document.addEventListener('focusin', moved);
+    return () => document.removeEventListener('focusin', moved);
+  }, []);
+  const showOverlay = !!pill && where.visible;
+  useEffect(() => {
+    if (!handoff.current || !pill) return;
+    handoff.current = false;
+    if (showOverlay && claimsFocus(document.activeElement, { typing: busyRef.current })) document.querySelector('[data-roadmap-overlay]')?.focus({ preventScroll: true });
+  }, [pill?.proposalId, pill?.version, showOverlay]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Edit plan routes into the ToC conversation: the next message the learner sends there is the plan revision (divert).
   const editing = useRef(false);
   const editPlan = useCallback(() => {
@@ -76,7 +93,7 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto', 
 
   return {
     state, controller, pill, active: !!state.view && state.flag !== 'off' && isUnfinishedRoadmap(state.view.roadmap.state), toc: tocOf(state), lines: chatOf(state), invitation: invitationOf(state, { typing, answering }),
-    indicator: indicatorOf(state, { offscreen: where.offscreen }), position: overlayPosition(geometry.anchor, surface), surface, showOverlay: !!pill && where.visible,
-    editPlan, divert, go, sourceReady: key => controller.sourceReady(key),
+    indicator: indicatorOf(state, { offscreen: where.offscreen }), position: overlayPosition(geometry.anchor, surface), surface, showOverlay, status: statusOf(state),
+    acceptPlan, editPlan, divert, go, sourceReady: key => controller.sourceReady(key),
   };
 }

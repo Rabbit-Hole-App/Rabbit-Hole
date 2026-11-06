@@ -99,7 +99,7 @@ export function pillOf(state) {
   const gesture = `accept:${proposal.id}:${proposal.version}`;
   return {
     proposalId: proposal.id, version: proposal.version, title: proposal.title, description: proposal.description, format: proposal.format,
-    source: relationTitle(proposal), sourceKey: proposal.sourceRelation?.sourceRef?.source?.key || proposal.sourceRelation?.source?.key || null, position: proposal.position, accept: proposal.acceptable === true && !state.editing && !state.busy.includes(gesture), gesture,
+    source: relationTitle(proposal), sourceKey: proposal.sourceRelation?.sourceRef?.source?.key || proposal.sourceRelation?.source?.key || null, position: proposal.position, accept: proposal.acceptable === true && !state.editing && !state.busy.includes(gesture), accepting: state.busy.includes(gesture), gesture,
     cancelGesture: `cancel:${proposal.id}:${proposal.version}`, link: proposal.link || null, stepId: proposal.stepId, canEdit: state.view.edit === true && !proposal.link,
   };
 }
@@ -140,12 +140,24 @@ export function tocOf(state) {
     }),
     recovery: recoveryOf(view), question: view.question, limitation: view.limitation,
     actions: {
-      acceptPlan: rm.state === 'proposed' && plan ? { planVersion: plan.version } : null,
+      acceptPlan: rm.state === 'proposed' && plan ? { planVersion: plan.version, busy: state.busy.includes(`plan:${rm.id}:${plan.version}`) } : null,
       editPlan: ['questioning', 'proposed', 'active', 'paused', 'completed'].includes(rm.state),
       proposeNext: canProposeNext(state),
       end: isUnfinishedRoadmap(rm.state) || rm.state === 'completed',
     },
   };
+}
+// A result the server is still making (not failed, not yet generated). Nothing is predicted: the words follow the view.
+const making = r => (r.generation === 'pending' || r.generation === 'generating') && !r.failure;
+// The one honest sentence for accepted work, shown where the learner is looking (over the canvas): failed, checking or making, in that order.
+export function statusOf(state) {
+  const view = state.view;
+  if (!enabled(state) || !view) return null;
+  const failed = recoveryOf(view)[0];
+  if (failed) return { kind: 'failed', text: failed.message };
+  if (resultsOf(view).some(r => r.held)) return { kind: 'checking', text: STRINGS.checking };
+  if (resultsOf(view).some(making)) return { kind: 'making', text: STRINGS.making };
+  return null;
 }
 // Chat lines for the current state. Ask mode hides new initiative lines but never an accepted card's progress.
 export function chatOf(state) {
@@ -162,6 +174,7 @@ export function chatOf(state) {
     if (rm.state === 'completed') lines.push({ id: 'completed', kind: 'status', text: STRINGS.completed });
     if (view.limitation) lines.push({ id: 'limitation', kind: 'limitation', text: view.limitation.message, offers: view.limitation.offers || [] });
     if (view.question) lines.push({ id: view.question.id, kind: 'question', label: STRINGS.questionLabel, text: view.question.text, options: view.question.options || [] });
+    for (const r of resultsOf(view)) if (making(r)) lines.push({ id: `making:${r.id}`, kind: 'status', text: STRINGS.making });
     for (const r of resultsOf(view)) if (r.held) lines.push({ id: `held:${r.id}`, kind: 'status', text: STRINGS.checking });
     for (const item of recoveryOf(view)) lines.push({ id: `recover:${item.resultId}`, kind: 'recovery', text: item.message, item });
   }
@@ -191,7 +204,7 @@ export const texts = state => [...chatOf(state).flatMap(l => [l.text, l.label, .
 export function tabAccepts(ctx) {
   const e = ctx.event;
   if (!e || e.key !== 'Tab' || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.repeat || e.isComposing || e.keyCode === 229) return false;
-  if (!ctx.pill || !ctx.pill.accept) return false;
+  if (!ctx.pill || !(ctx.pill.accept || ctx.pill.accepting)) return false; // accepting: the press is still the proposal's, it only does nothing more
   if (ctx.blocked || ctx.editorOpen || ctx.presenting || ctx.readOnly) return false;
   return true;
 }
@@ -199,6 +212,10 @@ export function tabAccepts(ctx) {
 // Who holds the keyboard for Tab: the page, the canvas surface or the proposal overlay itself. Any other focused control (toolbar,
 // ToC row, composer, panel) keeps its normal Tab meaning. active: document.activeElement (duck-typed for tests).
 export const keyboardOwned = active => !active || active.tagName === 'BODY' || active === active.ownerDocument?.documentElement || !!active.closest?.('[data-canvas-surface],[data-roadmap-overlay]');
+
+// After Accept plan the first proposal takes the keyboard from nothing or from the control that started it, never from a field the
+// learner moved to or is typing in. active: document.activeElement (duck-typed for tests).
+export const claimsFocus = (active, { typing = false } = {}) => !typing && (!active || active.tagName === 'BODY' || active === active.ownerDocument?.documentElement || !!active.matches?.('[data-roadmap-accept-plan]'));
 
 // --- idempotent delivery -------------------------------------------------------------------------------------------------
 // Results to deliver now: generated, not held, not yet delivered. The deliver route runs the entitlement predicate; a result that

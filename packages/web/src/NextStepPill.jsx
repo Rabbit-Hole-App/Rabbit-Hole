@@ -7,9 +7,9 @@ import { editKey } from './inline-ai-proposal.js';
 export function StepPill({ pill, onAccept, onCancel }) {
   return (
     <div role="group" aria-label="Proposal" data-roadmap-pill className="inline-flex h-8 overflow-hidden rounded-none text-xs font-medium text-white">
-      <button type="button" data-roadmap-accept disabled={!pill.accept} onClick={onAccept}
+      <button type="button" data-roadmap-accept disabled={!pill.accept} aria-busy={pill.accepting || undefined} onClick={onAccept}
         className="inline-flex items-center gap-1.5 rounded-none bg-green-600 px-2.5 outline-none hover:bg-green-700 focus-visible:ring-2 focus-visible:ring-green-300 disabled:bg-green-600/40">
-        {STRINGS.accept}<kbd className="rounded-none border border-white/60 px-1 text-[10px] leading-4">{STRINGS.tab}</kbd>
+        {pill.accepting ? STRINGS.accepting : <>{STRINGS.accept}<kbd className="rounded-none border border-white/60 px-1 text-[10px] leading-4">{STRINGS.tab}</kbd></>}
       </button>
       <button type="button" data-roadmap-cancel onClick={onCancel}
         className="rounded-none border-l border-white/70 bg-red-600 px-2.5 outline-none hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-300">{STRINGS.cancel}</button>
@@ -65,4 +65,11 @@ export function NextStepIndicator({ indicator, onGo }) {
     <button type="button" data-roadmap-next-ready onClick={onGo}
       className="fixed right-4 bottom-4 z-30 h-8 rounded-none border border-line bg-white px-2.5 text-xs font-medium text-ink shadow-md outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent/60">{indicator.label}</button>
   );
+}
+
+// What the accepted work is doing now (making, checking, or the failure sentence), from the server view only: no percentage, no estimate.
+// Text, not a control: Retry, Replace and Omit stay in Chat and the Contents.
+export function RoadmapStatus({ status }) {
+  if (!status) return null;
+  return <p role="status" data-roadmap-status={status.kind} className="fixed right-4 bottom-4 z-30 max-w-xs rounded-none border border-line bg-white px-2.5 py-1.5 text-xs text-ink shadow-md">{status.text}</p>;
 }
