@@ -312,8 +312,7 @@ export async function acknowledgeDelivery(db, access, { roadmapId, resultId, exp
 // Settles a card's failure from the job. Replay-safe by a system receipt keyed on result + retry number (the same failure reported twice changes
 // nothing). An eligible transient failure with its one automatic retry unused refunds the card's learner charges and puts the result back to
 // pending (the caller then dispatches the retry with retry_no + 1 and a fresh operation identity). Anything else is terminal: refund the card's
-// learner charges, mark generation failed and close the step (skipped: there is no Retry, Replace or Omit, owner 2026-11-06), release the card's allocation.
-// Provider expense rows are never touched.
+// learner charges, mark generation failed and the step incomplete, release the card's allocation. Provider expense rows are never touched.
 export async function failCard(db, access, { roadmapId, resultId, failureClass, retryNo = null, now = nowSeconds() }) {
   const row = await readResult(db, access, resultId);
   if (!row || row.roadmap_id !== roadmapId) throw new StateError('not_found', 'Not available', 404);
@@ -333,7 +332,7 @@ export async function failCard(db, access, { roadmapId, resultId, failureClass, 
         WHEN EXISTS (SELECT 1 FROM usage_attempt_detail d WHERE d.refund_reason = 'roadmap_card_failed' AND d.refunded_micros > 0 AND d.attempt_id IN (SELECT op_id FROM learn_roadmap_calls WHERE result_id = learn_step_results.id)) THEN 'refunded' ELSE 'failed' END,
         failure_class = ?, updated_at = ? WHERE id = ? AND ${r.and}`).bind(retry ? 'pending' : 'failed', retry ? 1 : 0, retry ? null : failureClass, now, resultId, ...r.binds),
       ...(retry ? [] : [
-        db.prepare(`UPDATE learn_roadmap_steps SET state = 'skipped', updated_at = ? WHERE id = ? AND ${r.and}`).bind(now, row.step_id, ...r.binds),
+        db.prepare(`UPDATE learn_roadmap_steps SET state = 'incomplete', updated_at = ? WHERE id = ? AND ${r.and}`).bind(now, row.step_id, ...r.binds),
         eventStatement(db, access, { roadmapId, kind: 'card_failed', factId: resultId, factRevision: failedAt + 1, payload: { resultId, failureClass }, now }, r),
       ]),
     ],

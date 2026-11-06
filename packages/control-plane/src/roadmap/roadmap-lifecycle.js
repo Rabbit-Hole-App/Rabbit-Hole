@@ -1,9 +1,11 @@
-// R4.12 backend: Cancel, manual next step, End roadmap, the mode fact, and card removal. Each is an applyRoadmapAction batch (receipt-guarded,
+// R4.12 backend: Cancel, manual next step, End roadmap, omit, the mode fact, and card removal. Each is an applyRoadmapAction batch (receipt-guarded,
 // replay-safe) and commits its outbox event with the fact. No model call happens here: composing a proposal is an injected dependency (Tools).
 import { StateError } from './roadmap-contract.js';
 import { applyRoadmapAction, eventStatement, offerProposal, readRoadmap, readProposal, readResult } from './roadmap-store.js';
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
+const SCOPE = 'org = ? AND owner_user_id = ? AND board_id = ?';
+const scope = access => [access.org, access.actorUserId, access.boardId];
 
 // Cancel pauses automatic progression for that proposal: proposal and step cancelled, roadmap paused. Nothing re-offers the cancelled position by itself.
 export async function cancelProposal(db, access, { roadmapId, expectedRevision, proposalId, proposalVersion, actionKey, now = nowSeconds() }) {
@@ -23,13 +25,13 @@ export async function cancelProposal(db, access, { roadmapId, expectedRevision, 
 }
 
 // Manual Propose next step: the next planned step by position (a cancelled position is never silently re-offered), only when nothing is offered,
-// or generating (a failed card closed its step: owner 2026-11-06, no recovery). With no planned step left, or the ceiling reached, the roadmap completes at its stopping point.
+// generating or waiting on a recovery choice. With no planned step left, or the ceiling reached, the roadmap completes at its stopping point.
 // compose(roadmap, step) -> { format, title, description, contentHash, state? } is the Tools lane's checked proposal.
 export async function proposeNextStep(db, access, { roadmapId, expectedRevision, actionKey, compose, now = nowSeconds() }) {
   const roadmap = await readRoadmap(db, access, roadmapId);
   if (!roadmap) throw new StateError('not_found', 'Not available', 404);
   if (!['active', 'paused'].includes(roadmap.state)) throw new StateError('roadmap_not_active', 'Not available', 409);
-  const busy = await db.prepare("SELECT 1 AS n FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND state IN ('proposed', 'generating') LIMIT 1").bind(roadmapId, roadmap.plan_version).first();
+  const busy = await db.prepare("SELECT 1 AS n FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND state IN ('proposed', 'generating', 'incomplete') LIMIT 1").bind(roadmapId, roadmap.plan_version).first();
   if (busy) throw new StateError('proposal_not_pending', 'Finish or resolve the current step first.', 409);
   const next = await db.prepare("SELECT * FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND state = 'planned' ORDER BY position LIMIT 1").bind(roadmapId, roadmap.plan_version).first();
   if (!next || roadmap.delivered_count >= roadmap.ceiling) {
@@ -58,6 +60,15 @@ export async function endRoadmap(db, access, { roadmapId, expectedRevision, acti
       db.prepare(`UPDATE learn_roadmaps SET state = 'ended', ended_at = ? WHERE id = ? AND ${r.and}`).bind(now, roadmapId, ...r.binds),
       eventStatement(db, access, { roadmapId, kind: 'roadmap_ended', factId: roadmapId, factRevision: expectedRevision + 1, payload: {}, now }, r),
     ],
+  });
+}
+
+// Omit records that a failed step is skipped; the card slot, charge history and siblings are untouched.
+export async function omitStep(db, access, { roadmapId, expectedRevision, stepId, actionKey, now = nowSeconds() }) {
+  return applyRoadmapAction(db, access, {
+    operation: 'omit_step', actionKey, roadmapId, expectedRevision, parts: [stepId], now, outcome: { status: 200, body: { roadmapId, stepId, state: 'skipped' } },
+    guard: { sql: `EXISTS (SELECT 1 FROM learn_roadmap_steps WHERE id = ? AND roadmap_id = ? AND ${SCOPE} AND state = 'incomplete') AND (SELECT state FROM learn_roadmaps WHERE id = ?) IN ('active', 'paused')`, binds: [stepId, roadmapId, ...scope(access), roadmapId] },
+    statements: r => [db.prepare(`UPDATE learn_roadmap_steps SET state = 'skipped', omitted_at = ?, updated_at = ? WHERE id = ? AND ${r.and}`).bind(now, now, stepId, ...r.binds)],
   });
 }
 
@@ -93,3 +104,26 @@ export async function setMode(db, access, { roadmapId, mode, actionKey, now = no
   });
 }
 
+// R4.11 recovery of a failed card. Both are a new proposal VERSION for the incomplete step, so each gets its own checked offer, its own authorization
+// and fresh operation identities (the version is part of every operation key). Nothing here reuses the former charge or loops behind the original Tab.
+// Retry: same content, offered and accepted in one learner action (derived keys, so a replay of either half is recorded). Replace: a newly composed
+// proposal for only the failed card, pending until the learner accepts it. An agent's reading of Chat may propose these, it cannot authorize them.
+async function latestProposalOf(db, stepId) {
+  return db.prepare('SELECT * FROM learn_step_proposals WHERE step_id = ? ORDER BY version DESC LIMIT 1').bind(stepId).first();
+}
+export async function retryStep(env, access, { roadmapId, stepId, expectedRevision, actionKey, callMicros, now = nowSeconds() }) {
+  const db = env.LEARN_DB;
+  const prior = await latestProposalOf(db, stepId);
+  if (!prior || prior.roadmap_id !== roadmapId) throw new StateError('not_found', 'Not available', 404);
+  const offer = await offerProposal(db, access, { roadmapId, expectedRevision, actionKey: `${actionKey}_o`, stepId, format: prior.format, title: prior.title, description: prior.description, contentHash: prior.content_hash, now });
+  const roadmap = await readRoadmap(db, access, roadmapId);
+  const { acceptRoadmapStep } = await import('./roadmap-store.js');
+  return acceptRoadmapStep(env, access, { roadmapId, revision: roadmap.revision, proposalId: offer.body.proposalId, proposalVersion: offer.body.version, actionKey: `${actionKey}_a`, callMicros, now });
+}
+export async function replaceStep(db, access, { roadmapId, stepId, expectedRevision, actionKey, compose, now = nowSeconds() }) {
+  const roadmap = await readRoadmap(db, access, roadmapId);
+  const step = roadmap && await db.prepare('SELECT * FROM learn_roadmap_steps WHERE id = ? AND roadmap_id = ?').bind(stepId, roadmapId).first();
+  if (!step) throw new StateError('not_found', 'Not available', 404);
+  const proposal = await compose(roadmap, step);
+  return offerProposal(db, access, { roadmapId, expectedRevision, actionKey, stepId, ...proposal, now });
+}

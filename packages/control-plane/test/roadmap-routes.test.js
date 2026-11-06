@@ -144,8 +144,7 @@ test('flag off while a card failed: the refund still happens server-side and is 
   assert.equal((await totals()).used, 0);
   const view = await (await call(on(w.env), 'GET', `/api/learn/roadmap?boardId=${BOARD}`)).json();
   assert.equal(view.results[0].billing, 'refunded');
-  assert.equal(view.results[0].recovery, undefined, 'no recovery set (owner 2026-11-06)');
-  assert.equal(view.steps[0].state, 'skipped', 'the step is closed');
+  assert.deepEqual(view.results[0].recovery, ['retry', 'replace', 'omit']);
   assert.equal(view.results[0].failure.message, 'This explanation could not be made. You were not charged.');
   assert.equal(rows(w.sqlite, 'SELECT * FROM usage_adjustments').length, 1);
 });

@@ -39,7 +39,7 @@
     "result-ack-request": "Placement acknowledgement after the board save succeeded. A lost ack is a delivery reconciliation case, not a new purchase.",
     "status-delivered-next-ready": "Step 1 delivered. The next proposal exists but may be offscreen: the Next step ready indicator only navigates.",
     "status-cancelled-paused": "Cancel marks the proposal cancelled and pauses automatic progression. Manual Propose next step stays available.",
-    "status-failed-card": "Card failed after its one automatic retry; learner charges refunded; the step is closed (skipped). No Retry, Replace or Omit (owner 2026-11-06).",
+    "status-failed-card": "Card failed after its one automatic retry; learner charges refunded. Retry, Replace and Omit resolve to the same actions from Chat and ToC.",
     "status-held-for-checking": "Generated but checks unavailable: withheld. No text is surfaced until the bounded check finishes; terminal inability refunds the card.",
     "status-completed": "Stopping point reached. Continuing needs a new explicit request or accepted revision.",
     "end-request": "End roadmap keeps delivered cards and history.",

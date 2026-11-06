@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { actionKeys, canProposeNext, chatOf, claimsFocus, deliverable, keyboardOwned, idleGrouper, indicatorOf, initialState, invitationOf, pillOf, planDelivery, readyMarkdownSources, failuresOf, reduce, routes, stepLabelFor, tabAccepts, texts, tocOf } from './roadmap-client.js';
+import { actionKeys, canProposeNext, chatOf, claimsFocus, deliverable, keyboardOwned, idleGrouper, indicatorOf, initialState, invitationOf, pillOf, planDelivery, readyMarkdownSources, recoveryOf, reduce, routes, stepLabelFor, tabAccepts, texts, tocOf } from './roadmap-client.js';
 import { STRINGS } from './roadmap-strings.js';
 import { pageKeyAllowed } from './shortcut-owner.js';
 import { ROADMAP_STATES } from './roadmap-contract.js';
@@ -168,12 +168,16 @@ test('deliverable results: generated, not held, not yet delivered', () => {
   assert.equal(deliverable(generated).length, 1);
 });
 
-test('failed card: its sentence comes from the server once (the existing error toast), with no recovery actions; the next step can follow (owner 2026-11-06: no Retry, Replace or Omit on explanation cards)', () => {
+test('failed card: the recovery set comes from the server once (shown through the existing error toast, not a Chat block)', () => {
   const state = withView('status-failed-card');
   assert.equal(chatOf(state).some(l => l.kind === 'recovery'), false, 'no recovery block in Chat');
-  assert.deepEqual(failuresOf(state.view), [{ resultId: state.view.results[0].id, stepId: state.view.results[0].stepId, message: 'This explanation could not be made. You were not charged.' }]);
-  assert.equal('recovery' in tocOf(state), false);
-  assert.equal(canProposeNext(state), true, 'a failed card closed its step: Propose next step is offered');
+  const [item] = recoveryOf(state.view);
+  assert.equal(item.message, 'This explanation could not be made. You were not charged.');
+  assert.deepEqual(item.actions, ['retry', 'replace', 'omit']);
+  assert.deepEqual(tocOf(state).recovery, recoveryOf(state.view));
+  assert.equal(canProposeNext(state), false, 'failure must be resolved first');
+  const omitted = { ...state, view: { ...state.view, steps: state.view.steps.map(s => (s.state === 'incomplete' ? { ...s, state: 'skipped' } : s)), results: [] } };
+  assert.equal(canProposeNext(omitted), true);
 });
 
 test('ToC: plan, assumptions, stopping point; Accept plan only while proposed; navigation only where something exists', () => {

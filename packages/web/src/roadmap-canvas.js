@@ -18,7 +18,7 @@ const formatOf = value => (FORMATS.has(value) ? value : 'explanation');
 //   pending     the offer, not accepted: type, title, description, Accept / Cancel; no timer, no spinner.
 //   checking    the server is checking the accepted card's output: private, nothing to accept (drawn as generating). An offer being checked is not drawn.
 //   generating  accepted: the existing skeleton with its honest label.
-//   failed      the terminal failure with its sentence (owner 2026-11-06: no Retry, Replace or Omit on explanation cards).
+//   failed      the terminal failure with its sentence and the recoveries the server allows.
 // busy: the gestures in flight (roadmap-client state.busy); hasBlock(id): whether the canvas already holds that card (delivered: no placeholder).
 export function canvasCardsOf(view, { state: roadmapState = null, busy = roadmapState?.busy || [], hasBlock = () => false } = {}) {
   if (!view?.roadmap || !['active', 'paused', 'completed'].includes(view.roadmap.state)) return [];
@@ -34,7 +34,7 @@ export function canvasCardsOf(view, { state: roadmapState = null, busy = roadmap
     const failed = result.generation === 'failed' || result.generation === 'expired' || (result.billing === 'refunded' && result.delivery === 'not_delivered');
     const state = failed ? 'failed' : result.held ? 'checking' : 'generating';
     cards.set(result.stepId, { ...base(step, { stepId: result.stepId, title: step.title, format: step.format }), state, resultId: result.id, cardId: result.slot?.cardId ?? null,
-      ...(failed ? { failure: result.failure ?? null } : {}) });
+      ...(failed ? { failure: result.failure ?? null, recovery: result.recovery ?? [] } : {}) });
   }
   // The offer is shown, and can be accepted, exactly when the pill would be (roadmap-client.js pillOf: the flag on, an active roadmap, not Ask mode, the editor closed, no
   // acceptance in flight). A proposal the server is still checking draws NOTHING (its words have not passed the check and it may yet be held or blocked; the pill is null
@@ -59,7 +59,7 @@ export const liveCards = (cards, placed) => (cards || []).filter(card => !(card.
 
 // What a slot shows of a card; two cards with the same visible fields leave the slot alone.
 const SHOWN = ['state', 'title', 'description', 'format', 'acceptable', 'accepting', 'proposalId', 'version', 'resultId', 'cardId'];
-const same = (a, b) => SHOWN.every(field => (a[field] ?? null) === (b[field] ?? null)) && JSON.stringify(a.failure ?? null) === JSON.stringify(b.failure ?? null);
+const same = (a, b) => SHOWN.every(field => (a[field] ?? null) === (b[field] ?? null)) && JSON.stringify(a.failure ?? null) === JSON.stringify(b.failure ?? null) && JSON.stringify(a.recovery ?? null) === JSON.stringify(b.recovery ?? null);
 
 // The change that brings the canvas's roadmap slots to `cards`: { add: [card], update: [{ id, card }], remove: [id] }. A slot keeps its position for as long as it stands.
 export function planSlots(slots, cards) {

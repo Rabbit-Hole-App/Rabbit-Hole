@@ -1,5 +1,5 @@
 {
-  "description": "Card failed after its one automatic retry; learner charges refunded; the step is closed (skipped). No Retry, Replace or Omit (owner 2026-11-06).",
+  "description": "Card failed after its one automatic retry; learner charges refunded. Retry, Replace and Omit resolve to the same actions from Chat and ToC.",
   "response": {
     "status": 200,
     "body": {
@@ -116,7 +116,7 @@
               }
             }
           },
-          "state": "skipped"
+          "state": "incomplete"
         },
         {
           "id": "st_a1b2c3d4e5f60718293a4b02",
@@ -194,7 +194,12 @@
           "failure": {
             "code": "generation_failed",
             "message": "This explanation could not be made. You were not charged."
-          }
+          },
+          "recovery": [
+            "retry",
+            "replace",
+            "omit"
+          ]
         }
       ],
       "nextStepReady": false,

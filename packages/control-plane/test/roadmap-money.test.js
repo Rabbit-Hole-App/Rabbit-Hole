@@ -130,7 +130,7 @@ test('completion releases the unused allocation: the hold is sealed at zero, onl
   assert.equal(await recordGenerated(w.LEARN_DB, w.access, { resultId, primitive: 'explanation', body: { type: 'explanation' }, validation: 'passed' }), false);
 });
 
-test('a terminal failure refunds the card once, keeps the provider expense, releases the hold and closes the step (skipped: no recovery, owner 2026-11-06)', async t => {
+test('a terminal failure refunds the card once, keeps the provider expense, releases the hold and marks the step incomplete', async t => {
   const { w, o, resultId, totals, call } = await accepted(t);
   const { reply } = provider();
   const { opId } = await call(0, 0, reply());
@@ -146,7 +146,7 @@ test('a terminal failure refunds the card once, keeps the provider expense, rele
   assert.equal(rows(w.sqlite, 'SELECT cost_micros, cost_state FROM usage_attempts WHERE attempt_id = ?', opId)[0].cost_micros, cost);
   const [result] = rows(w.sqlite, 'SELECT generation, billing, failure_class FROM learn_step_results');
   assert.deepEqual(result, { generation: 'failed', billing: 'refunded', failure_class: 'terminal_validation_failure' });
-  assert.equal(rows(w.sqlite, 'SELECT state FROM learn_roadmap_steps WHERE id = ?', o.stepId)[0].state, 'skipped');
+  assert.equal(rows(w.sqlite, 'SELECT state FROM learn_roadmap_steps WHERE id = ?', o.stepId)[0].state, 'incomplete');
   assert.equal(rows(w.sqlite, 'SELECT state FROM learn_step_authorizations')[0].state, 'released');
   // replay: nothing is refunded twice, no second adjustment
   const again = await failCard(w.LEARN_DB, w.access, { roadmapId: o.roadmapId, resultId, failureClass: 'terminal_validation_failure' });

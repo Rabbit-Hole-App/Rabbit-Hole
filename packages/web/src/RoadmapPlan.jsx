@@ -5,7 +5,7 @@ const button = 'h-8 rounded-md border border-line px-3 text-xs font-medium text-
 // The roadmap in the ToC (tocOf): outcome, assumptions, scope settings, steps with navigation, stopping point and the actions.
 // Rendered above the plain headings, which stay. Edit plan goes to the ToC conversation (onEdit); a step navigates only when
 // something exists to navigate to. The practice setting is read-only text (Explanations only until R9).
-export default function RoadmapPlan({ toc, onAcceptPlan, onEdit, onProposeNext, onEnd, onGo }) {
+export default function RoadmapPlan({ toc, onAcceptPlan, onEdit, onProposeNext, onEnd, onRecover, onGo }) {
   if (!toc) return null;
   return (
     <section data-roadmap-plan aria-label={STRINGS.roadmap} className="mb-6 flex flex-col gap-3 border-b border-line pb-4">

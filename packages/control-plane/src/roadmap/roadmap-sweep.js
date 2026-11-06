@@ -20,7 +20,7 @@ export async function expireUndelivered(db, access, { resultId, stepId, roadmapI
       db.prepare(`UPDATE learn_step_results SET generation = 'failed', failure_class = NULL, updated_at = ?,
         billing = CASE WHEN EXISTS (SELECT 1 FROM usage_attempt_detail d WHERE d.refund_reason = 'roadmap_delivery_deadline' AND d.refunded_micros > 0 AND d.attempt_id IN (SELECT op_id FROM learn_roadmap_calls WHERE result_id = learn_step_results.id)) THEN 'refunded' ELSE 'failed' END
         WHERE id = ? AND ${r.and}`).bind(now, resultId, ...r.binds),
-      db.prepare(`UPDATE learn_roadmap_steps SET state = 'skipped', updated_at = ? WHERE id = ? AND ${r.and}`).bind(now, stepId, ...r.binds), // closed: no recovery (owner 2026-11-06)
+      db.prepare(`UPDATE learn_roadmap_steps SET state = 'incomplete', updated_at = ? WHERE id = ? AND ${r.and}`).bind(now, stepId, ...r.binds),
       eventStatement(db, access, { roadmapId, kind: 'card_failed', factId: resultId, factRevision: 1, payload: { resultId, failureClass: 'delivery_deadline' }, now }, r),
     ],
   });

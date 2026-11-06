@@ -169,25 +169,22 @@ test('insufficient allowance leaves the proposal pending and the same key succee
   assert.equal(retried.body.results[0].generation, 'generated');
 });
 
-test('a failed card is refunded: the transient failure earns one automatic retry after the refund, the second failure is terminal and closes the step, the learner nets zero, the next step follows', async t => {
+test('a failed card is refunded: the transient failure earns one automatic retry after the refund, the second failure is terminal, the learner nets zero', async t => {
   const h = await loop(t, { script: [FAIL, FAIL] });
   const { id, view } = await toProposal(h);
   const accept = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${view.proposal.id}/accept`, acceptBody(view, KEY('accept')));
   const result = accept.body.results[0];
   assert.equal(result.generation, 'failed');
   assert.equal(result.billing === 'refunded' || result.billing === 'failed', true, result.billing);
-  assert.equal(result.recovery, undefined, 'no Retry, Replace or Omit (owner 2026-11-06)');
+  assert.deepEqual(result.recovery, ['retry', 'replace', 'omit']);
   assert.equal(h.p.used.length, 2, 'the first call and exactly one automatic retry');
   const spent = await h.totals();
   assert.equal(spent.used, 0, 'the learner is charged nothing for a failed card');
   assert.equal(spent.reserved, 0, 'the hold is released');
-  assert.equal(accept.body.steps[0].state, 'skipped', 'the failed card closed its step');
+  assert.equal(accept.body.steps[0].state, 'incomplete');
+  // Omit is the learner's choice from Chat or the ToC; the step is skipped, nothing is charged.
   const omit = await h.json('POST', `/api/learn/roadmap/${id}/steps/${accept.body.steps[0].id}/omit`, { boardId: BOARD, revision: accept.body.roadmap.revision, actionKey: KEY('omit') });
-  assert.equal(omit.status, 404, 'the recovery routes are gone');
-  const next = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: accept.body.roadmap.revision, actionKey: KEY('propose') });
-  assert.equal(next.status, 200, 'Propose next step proceeds after a failed card');
-  assert.equal(next.body.proposal.stepId, accept.body.steps[1].id);
-  assert.equal(next.body.proposal.state, 'pending');
+  assert.equal(omit.body.steps[0].state, 'skipped');
 });
 
 test('End while a card is generating is refused with a 409 that carries the current state (State keeps this guard)', async t => {
@@ -255,7 +252,7 @@ test('invitations follow the learner\'s saved Auto-suggest and canvas mode, not 
   assert.equal((await invite('idle-3-aaaaaaaa')).body.invitation.state, 'offered', 'saved Auto-suggest on and Tutor mode offer');
 });
 
-// The safety refusal is shown to the learner (S26 / S27 DRAFT): refunded, no card, no automatic retry, no recovery set.
+// The safety refusal is shown to the learner (S26 / S27 DRAFT): refunded, no card, no automatic retry, recovery without Retry.
 async function refused(t, classifier) {
   const h = await loop(t, { classifier });
   const { id, view } = await toProposal(h);
@@ -266,7 +263,7 @@ async function refused(t, classifier) {
   assert.equal(result.delivery, 'not_delivered', 'no card');
   assert.equal(rows(h.w.sqlite, 'SELECT failure_class, billing FROM learn_step_results')[0].failure_class, 'policy_block');
   assert.ok(rows(h.w.sqlite, 'SELECT * FROM usage_adjustments').length >= 1, 'the refund is recorded');
-  assert.equal(result.recovery, undefined);
+  assert.deepEqual(result.recovery, ['replace', 'omit']);
   return result;
 }
 test('a card held for safety shows the S26 message, refunded, no card', async t => {
