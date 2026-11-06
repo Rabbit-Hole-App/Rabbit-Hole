@@ -1,89 +1,117 @@
 # Tutor ladder and cleanup: owner inbox
 
-What I (Claude) need from you, what is waiting on whom, and what is already decided. Tick a box when it is resolved. Tell me in chat and I will tick it and push the update; you can also edit the file on its branch.
+Self-contained status for the owner and for a reviewer who has not seen the chat. Written by Claude (Lead). Times are Pacific.
 
-- **Branch:** `feat/tutor-owner-inbox` on `rabbit-hole`. Path: `docs/features/explain-on-canvas/OWNER-INBOX.md`. A Desktop mirror is at `C:\Users\cyudhist\Desktop\TUTOR-OWNER-INBOX.md`.
-- **Last updated:** 2026-11-05 23:46 PST.
-- **Rule:** I keep this file current each time a blocker appears or clears. Times are Pacific.
-
-Plans: `cleanup-v0.5.md` (cleanup), `tutor-roadmap-v1.4.md` (Tutor ladder R1-R16), `tutor-ladder-manifest.md` (who writes which file).
-
----
-
-## 1. Needs you now
-
-Nothing blocks building. These are the decisions I would like when you next check in. None stops the lanes that are running.
-
-### R4 decisions (separate from R1-R3; none delays them)
-Paste-ready texts are in `docs/features/explain-on-canvas/contracts/decision-records.md` on branch `feat/tutor-r4-contracts`.
-
-- [ ] **D2 routing exception.** Adopt a trusted server-only roadmap text/table adapter over `generateArtifact` (allowed formats `explanation` and `table` only; typed and Quick Edit `/explain` unchanged). Recommended: adopt.
-- [ ] **D43 contextual safety policy.** Adopt the policy text in `decision-records.md`. Recommended: adopt.
-- [ ] **Paid-testing cap for the first real-model R4 candidate.** Proposed: **$25** (12 scenarios: 8 development + 4 holdout). Typical about $9.80, worst single pass about $23.10, expected with a repair pass about $14.70. I stop and report at $20. No spend happens until you approve. Approve $25, or give another cap.
-- [ ] **R4 learner strings S1-S30.** Approve S1-S10 and S28 now (already specified or existing). Approve S11-S25 and S29 as one bundle. You write S26-S27 (safety wording, including the personal-risk support text).
-
-### R1 and R2 learner strings (go with their release handoffs)
-- [ ] **R1 strings (updated 2026-11-06 to the checklist's wording; the R1 lane is applying it):** "Understood" / "Still unclear" (thumb labels and Progress states); "Your feedback" (Progress heading); "Rate this card" (pair label); "Your rating was not saved. Try again."; "Private to you. What you said about a card, not an assessment of what you know."
-- [ ] **R2 strings:** "Depth"; "Overview" (hint: The short version: the central idea and what matters most); "Standard" (A balanced explanation); "Deep" (Thorough: reasoning, a worked example and edge cases); "Auto-suggest" (Offer suggestions without being asked, on every canvas; tooltip: Offer suggestions without being asked. Your questions are always answered.); "Could not load your Depth setting."; "Not saved: this change applies in this tab only."; "Retry".
-
-### Cleanup P2 question
-- [ ] **Static Tutor entry card.** v0.4 said the `resolveTutorEntry` / `guidedOpening` flow goes, but the Keep table keeps `learn-coaching-entry.js` and the codebase menu depends on the entry card. P2 removed only the guided-opening part and kept the static entry card. Recommended: keep it until the Tutor rebuild (R4). Confirm, or tell me to remove it.
-
-- [ ] **R3 strings:** "From <name>, p. <label>" (chip line); "View passage"; "View explanation"; "Explain" (Markdown selection toolbar button); "Explain this passage" (prompt on the created card); "Source changed"; "Source not available"; long forms: "This source changed after the explanation was written, so the passage is not shown." / "This source is not available here, so the passage cannot be shown." / "You cannot open this source."; "The file this passage is in is not on this canvas."; refusals: "This source changed since you selected this passage. Select the passage again." / "This source is not available to you now. Select the passage again from a source you can open."
-
-### R2 product questions
-- [ ] **Two Tutor switches.** The per-canvas "Proactive Tutor suggestions" and the new per-learner Auto-suggest can both show in Tutor mode. Recommended: merge them when R4 reworks Tutor. Confirm.
-- [ ] **Auto-suggest in Auto mode.** It controls nothing deployed in Auto today. Recommended: keep it shown in Auto and Tutor per the roadmap (D22); narrow it to Tutor only if P4 leaves nothing unasked in Auto. Confirm.
+- **Last updated:** see the git log of this file (the Lead updates it after every event).
+- **Where:** branch `feat/tutor-owner-inbox` on `rabbit-hole`, file `docs/features/explain-on-canvas/OWNER-INBOX.md`. Desktop mirror: `C:\Users\cyudhist\Desktop\TUTOR-OWNER-INBOX.md`.
+- **Authority in force:** the Tutor ladder (R1-R16) and cleanup P1-P7 are MVP-labelled (MVP fast path; broad CI and the broad gate are recorded as bypassed, never passed). Claude never sets `MVP_ALLOWED_SHA`, pushes `main`, deploys production, applies a migration to dev or prod D1, or spends beyond an approved cap. Those are owner actions, listed per release below.
+- **Documents (all on the Desktop):** `cleanup-v0.5.md` (cleanup), `tutor-roadmap-v1.4.md` (ladder), `tutor-implementation-checklist.md` (executable tasks), `tutor-ladder-manifest.md` (task map, migration reservations, single file writers).
+- **Rule:** I tick a box and add a dated line when something resolves. Overnight I keep working on everything that does not depend on an open item.
 
 ---
 
-## 2. Coming up: needs you at release time
+## 1. Morning summary (kept current)
 
-I prepare the preview, the focused-check results, the recovery branch and the exact commands together. You run them; I never set `MVP_ALLOWED_SHA` or run `release-mvp`.
+### Ready for your release commands
+| Release | State | SHA |
+| --- | --- | --- |
+| Cleanup P1 | RELEASED 2026-11-05 23:13 PT (main 9b798f77; production smoke passed) | 9b798f776 |
+| Cleanup P2 | Built, pushed, CI running (verify passed; fast-e2e informational). Release package (smoke, recovery branch, preview launcher, commands) is being finalised; see section 3 | cdeb77274 |
 
-- [ ] **Cleanup P2 release.** P2 is built and committed locally (3 commits, 142 files, tip `cdeb77274`). I am pushing the branch for CI information and preparing the release package (smoke list, recovery branch, preview launcher, exact commands). Steps (same as P1): run the preview launcher, `gh variable set MVP_ALLOWED_SHA`, `release-mvp.cmd <name> --check`, `release-mvp.cmd <name>`, then `gh variable delete MVP_ALLOWED_SHA` (delete only after the launcher prints its final line).
-- [ ] **Run the P2 Windows checks.** About 30 `windows-only` checks and 13 `fork` checks were rewritten without being executed (static edits and `node --check` only). The 13 fork checks run in Linux CI. The Windows ones need the `run-checks` launcher (below). Highest risk: `chat-persistence-check` (its lost-save fault step was removed), then `next-steps-check`, `tutor-controls-check`, `voice-check`.
-- [ ] **R1 card feedback release.** Needs P2 merged, then rebase, then the preview. Needs migration `0036` applied to the dev D1 (announced first) and to production before release.
-- [ ] **R3 source references release.** Needs P2 merged. Migration `0038` provisional.
-- [ ] **R2 Depth settings release.** Needs P4 merged. Migration `0037` provisional.
-- [ ] **First run of the Windows checks launcher** (`C:\s\spec\owner-local\run-checks.cmd`). Being built. When ready I will give the exact command per phase.
-- [ ] **`fast-e2e.yml` `only` input** (cleanup N3): a workflow push needs your `!` command. I will prepare it when that phase is ready.
-- [ ] **Cleanup P6a/P6b database steps.** Not pre-approvable: needs your GO at the moment of each step, per environment: archive backfill verified, then P6a (joins removed), then P6b schema source and the controlled table drop in one window.
+### Blocked or waiting (details in sections 2 and 3)
+R1 (waits for the P2 merge), R3 (waits for the P2 merge), R2 (waits for P4), R4 (owner records D2, D43 and the paid cap), cleanup P3-P7 (not started).
+
+### Exact release commands
+Section 3 holds the per-release command blocks. They are valid only once a release's status there says READY.
 
 ---
 
-## 3. Decided (done)
+## 2. Decisions and blockers needing you
 
-- [x] Cleanup plan section 5 items 1-6: retire the nanoGPT course, remove `coaching/*`, remove the curriculum scripts, keep Progress's next activity, delete the evaluation archive data.
-- [x] Journey joins stay until P6; archive backfill is verified first, in each environment.
-- [x] Home "teach me" is kept and **prefills** ordinary Chat without sending; canvas title is the raw sentence (80-character limit, no model call).
-- [x] `/api/learn/tutor/handoff` is retired with its last caller; `learn-tutor-handoff.js` is deleted in P3 after a final import check.
-- [x] `learnHandoff` enables `teach` only; the unused `research` branch is removed.
-- [x] Syllabus checks are deleted (`toc-plan-check.mjs` only after confirming nothing the ToC needs is lost).
-- [x] Covering checks are rewritten with the affected phase and executed (Windows launcher or corrected Linux tier). Your browser **try** is waived; verification is not.
-- [x] 2026-11-06: `tutor-implementation-checklist.md` is adopted as the executable companion to the roadmap (later owner decisions win). Where it still says cleanup P1-P7 are not MVP-labelled or that the narrower per-release prerequisites are not adopted, the recorded decisions below supersede it. The three finished lanes were mapped to its task IDs in the manifest and sent corrections.
-- [x] Cleanup P1-P7 (including P6a) and the whole Tutor ladder are MVP-labelled; broad CI and the broad gate are nonblocking. Focused checks, database authority and the backfill/drop order are unchanged.
-- [x] Dependencies are per release, not a blanket M0/P7 gate: R1 and R3 after P2, R2 after P4. Each release writes a short prerequisites receipt. P7 is only cleanup's closeout.
+Format per item: ID, exact blocker, evidence, recommended resolution, precise decision or command needed. None of these stops other work.
+
+- [ ] **D-R4-1 (R4, D2 routing exception).**
+  - Blocker: R4 cannot activate without the owner record.
+  - Evidence: `contracts/decision-records.md` on branch `feat/tutor-r4-contracts`; code facts in `contracts/adapter.md` (`generateArtifact` has no allowlist parameter; `allowedPrimitives` is read nowhere on main).
+  - Recommended: adopt. A trusted server-only roadmap text/table adapter (formats `explanation` and `table` only); typed and Quick Edit `/explain` unchanged.
+  - Decision needed: reply "adopt D2" (or amend the wording in decision-records.md).
+- [ ] **D-R4-2 (R4, D43 contextual safety policy).** Same file. Recommended: adopt. Decision needed: reply "adopt D43".
+- [ ] **D-R4-3 (R4, first real-model candidate spend).**
+  - Blocker: no paid check may run without an approved cap.
+  - Evidence: decision-records.md estimate: 12 scenarios (8 development + 4 holdout); typical about $9.80, worst single pass about $23.10, expected with one repair pass about $14.70; stop and report at $20.
+  - Recommended: approve **$25**. Decision needed: "approve $25" or another cap. No spend happens before this.
+- [ ] **D-R4-4 (R4 learner strings S1-S30).** Recommended: approve S1-S10 and S28 now; approve S11-S25 and S29 as one bundle; you write S26-S27 (safety wording including the personal-risk support text). List: `contracts/decision-records.md`.
+- [ ] **D-R1-S (R1 strings).** Wording, aligned to the checklist (the R1 lane is applying it): "Understood" / "Still unclear" (thumb labels and Progress states); "Your feedback" (Progress heading); "Rate this card" (pair label); "Your rating was not saved. Try again."; "Private to you. What you said about a card, not an assessment of what you know." Recommended: approve. Needed before the R1 release.
+- [ ] **D-R2-S (R2 strings).** "Depth"; "Overview" (The short version: the central idea and what matters most); "Standard" (A balanced explanation); "Deep" (Thorough: reasoning, a worked example and edge cases); "Auto-suggest" (Offer suggestions without being asked, on every canvas; tooltip: Offer suggestions without being asked. Your questions are always answered.); "Could not load your Depth setting."; "Not saved: this change applies in this tab only."; "Retry". Recommended: approve. Needed before the R2 release.
+- [ ] **D-R3-S (R3 strings).** "From <name>, p. <label>"; "View passage"; "View explanation"; "Explain"; "Explain this passage"; "Source changed"; "Source not available"; "This source changed after the explanation was written, so the passage is not shown."; "This source is not available here, so the passage cannot be shown."; "You cannot open this source."; "The file this passage is in is not on this canvas."; "This source changed since you selected this passage. Select the passage again."; "This source is not available to you now. Select the passage again from a source you can open." Recommended: approve. Needed before the R3 release.
+- [ ] **D-P2-1 (cleanup P2, static Tutor entry card).** Blocker: v0.4 said the guided-entry flow goes, but the Keep table keeps `learn-coaching-entry.js` and the codebase menu depends on the entry card. P2 removed only the guided opening and kept the static card. Recommended: keep until R4. Needed: confirm, or say remove.
+- [ ] **D-R2-1 (R2, two Tutor switches).** The per-canvas "Proactive Tutor suggestions" and the per-learner Auto-suggest can coexist, and P2 also relabelled the per-canvas switch "Auto-suggest". Recommended: one control bound to the per-learner setting; the Lead rebases R2 after P4 and writes the exact merge. Needed: confirm.
+- [ ] **D-N3 (cleanup, `fast-e2e.yml` `only` input).** A workflow push needs your `!` command. I prepare it when that phase is ready, not before.
+- [ ] **D-DB (cleanup P6a and P6b).** The backfill, the joins removal, the schema-source commit and the table drop each need your GO at the moment of the step, per environment. Not pre-approvable.
+
+---
+
+## 3. Release queue
+
+The sequence for every release is the P1 one (verified working):
+1. Run the release's preview launcher.
+2. `gh variable set MVP_ALLOWED_SHA --body <sha> -R Rabbit-Hole-App/Rabbit-Hole`
+3. `C:\s\spec\release-queue\release-mvp.cmd <name> --check`
+4. `C:\s\spec\release-queue\release-mvp.cmd <name>`
+5. `gh variable delete MVP_ALLOWED_SHA -R Rabbit-Hole-App/Rabbit-Hole` **only after the launcher prints its final line.** Deleting earlier made P1's launcher print a false STOP message, although that release was valid.
+
+Releases fast-forward `main` one at a time, so queue them in the order below.
+
+### P2 cleanup (Browser Tutor off): BUILT, release package in preparation
+- Branch `feat/tutor-cleanup-p2`, tip `cdeb7727494e6f4f79abc084a3661b4fe504cc40`, on top of main 9b798f77 (pushed).
+- Results: cp 3589/3591, web 4787/4816 (flakes pass singly), build exit 0, check-map/fast-e2e/run-part/affected 70/70. 26 cp and 336 web tests were removed with the Tutor code.
+- Risk: about 43 browser checks were rewritten without ever being executed. 13 fork checks run in Linux CI (informational); about 30 windows-only checks need the Windows launcher.
+- Windows launcher: `C:\s\spec\owner-local\run-checks.cmd --worktree C:/Users/cyudhist/Desktop/workspace/tutor-cleanup-p2 <check files>` (add `--dry-run` first). The per-phase list is being finalised from cleanup-v0.5 section 10.
+- Release commands: pending (preview launcher `preview-54-tutor-cleanup-p2`, pins `54-tutor-cleanup-p2-mvp`, recovery branch `feat/tutor-cleanup-p2-recovery`).
+
+### R1 card feedback: WAITING on the P2 merge, then rebase
+- Local branch `feat/tutor-r1-feedback`; being corrected to the checklist (revision, unknown-property rejection, data attributes, imported look-alike proof, Progress tests and wording).
+- Needs: migration `learn-migrations/0036-card-feedback.sql` on the dev D1 (announced first) and on production; Lead-only edits (`dev-worker.js` mount, `LearnPage.jsx` provider) after rebase; check-map rows.
+- Focused smoke (no browser): control-plane `card-feedback.test.js`, web `card-feedback.test.mjs`, `scripts/schema-check.test.mjs`.
+
+### R3 source references: WAITING on the P2 merge and R1's AdaptiveCanvas
+- Local branch `feat/tutor-r3-source-refs`; being corrected (unique-quote wrapper, index in the board-save batch).
+- Needs: migration 0038; Lead patches in `dev-worker.js`, `LearnPage.jsx`, `AdaptiveCanvas.jsx`.
+
+### R2 Depth and Auto-suggest: WAITING on P4 (mode and Chat cleanup)
+- Local branch `feat/tutor-r2-depth`; being corrected (client-captured Depth, fingerprint, revision guard).
+- Needs: migration 0037; dependency on `chat-modes.js`, `ModeSelector.jsx`, `ask.jsx`, `effectiveControls`.
+
+### R4: contracts only (branch `feat/tutor-r4-contracts`, pushed). Activation needs D-R4-1 to D-R4-4 and R1-R3 integrated.
+
+---
+
+## 4. Decided (done)
+
+- [x] 2026-11-06: `tutor-implementation-checklist.md` adopted as the executable companion; recorded owner decisions supersede it where it says cleanup is not MVP-labelled or that the narrower per-release prerequisites are not adopted.
+- [x] Cleanup P1-P7 (including P6a) and the whole Tutor ladder are MVP-labelled; focused checks, DB authority and the backfill/drop order are unchanged.
+- [x] Dependencies are per release, not a blanket M0/P7 gate: R1 and R3 after P2; R2 after P4. Each release writes a short prerequisites receipt. P7 is cleanup closeout only.
+- [x] Cleanup plan section 5 items 1-6 (nanoGPT course retired, `coaching/*` removed, curriculum scripts removed, Progress next activity kept, eval archive data deleted).
+- [x] Journey joins stay until P6; archive backfill verified per environment first; P6a (joins removed) then P6b (schema and drop).
+- [x] Home "teach me" prefills Chat without sending; title is the raw sentence (80 characters), no model call. `learn-tutor-handoff.js` is deleted in P3; `learnHandoff` enables `teach` only.
+- [x] Syllabus checks deleted; covering checks rewritten and executed (Windows launcher or corrected Linux tier). The owner's browser try is waived; verification is not.
+- [x] Cleanup v0.5 N1-N5 accepted (small AgentBar rewrite and the bar stays hidden; Settings notice trimmed in P3 and `tutor-telemetry-check.mjs` rewritten in place; `only` input; promote a check or trim the `Md.jsx` row, never the threshold constant; Windows launcher built).
+- [x] R1 thumbs go on every generated card (including quiz, flashcards, challenge, code); imported cards are excluded.
+- [x] tldraw stays as is.
 - [x] Standing yes: push lane branches (`feat/tutor-*`, `feat/tutor-cleanup-*`) to `rabbit-hole`.
-- [x] Cleanup v0.5 N1-N5: keep the small AgentBar rewrite and leave the bar hidden; trim the Settings notice in P3 and rewrite `tutor-telemetry-check.mjs` in place; add the `only` input; promote a check or trim `Md.jsx` rather than change the area-threshold constant; build the Windows checks launcher.
-- [x] R1 gives the thumbs pair to every generated card (including quiz, flashcards, challenge, code); imported cards stay without it.
-- [x] tldraw stays as it is (no deletion, license key setup unchanged).
-- [x] **Cleanup P1 released to production** 2026-11-05 23:13-23:15 PT. Main `9b798f77`; production smoke passed; rollback via `feat/tutor-cleanup-p1-recovery`.
+- [x] **Cleanup P1 RELEASED** 2026-11-05 23:13-23:15 PT; rollback branch `feat/tutor-cleanup-p1-recovery`.
 
 ---
 
-## 4. Status snapshot
+## 5. Status snapshot
 
 | Item | State |
 | --- | --- |
-| Cleanup P1 | Released (main `9b798f77`) |
-| Cleanup P2 | Built locally (tip `cdeb77274`). Cp 3589/3591 pass, web 4787/4816 pass (flakes pass singly), build exit 0, check-map 70/70. 26 cp and 336 web tests were removed with the Tutor code. Release package in preparation |
-| R1 card feedback | Built locally (5 commits). Waiting on P2 merge, then rebase plus the two Lead-only edits |
-| R2 Depth settings | Built locally (4 commits). Waiting on P4 merge |
-| R3 source refs | Built locally (2 commits). Control-plane 3638/3639, web 5154/5183 (flakes pass singly), build exit 0. Needs migration 0038, the Lead-only patches (LearnPage, AdaptiveCanvas, dev-worker) and P2 merged. R4 gap noted: a background Durable Object cannot read a source without a signed-in request |
-| R4 contracts | Done and pushed (`feat/tutor-r4-contracts`); no release yet |
-| Windows checks launcher | Being built |
-| v0.5 plan | Written (`cleanup-v0.5.md`) |
-
-## 5. How I update this file
-When something resolves, I tick the box, add a dated line under Decided, move anything newly blocked into section 1 or 2, and push the branch.
+| Cleanup P1 | Released (main 9b798f77) |
+| Cleanup P2 | Built (cdeb77274), pushed, CI running; release package in preparation |
+| Cleanup P3-P7 | Not started (P3 needs P2 merged) |
+| R1 | Built locally; corrections in progress; waits for P2 |
+| R2 | Built locally; corrections in progress; waits for P4 |
+| R3 | Built locally; corrections in progress; waits for P2 |
+| R4 | Contracts pushed; reconciling with the checklist |
+| Windows checks launcher | Written and statically validated; has never started a stack |
