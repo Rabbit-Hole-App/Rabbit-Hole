@@ -6,8 +6,6 @@ export const STRINGS = Object.freeze({
   invite: title => `I can explain "${title}" on the canvas, step by step.`, // S3 NEW
   accept: 'Accept', cancel: 'Cancel', tab: 'Tab', // S4 approved (Accept [Tab] | Cancel)
   nextReady: 'Next step ready', // S5 approved
-  accepting: 'Accepting', // Fix A: the click was received (button label while the request is in flight)
-  making: 'Making this explanation.', // Fix A: result generation pending/generating, from the server view
   proposeNext: 'Propose next step', // S6 approved
   end: 'End roadmap', // S7 approved
   acceptPlan: 'Accept plan', // S8 approved
@@ -25,11 +23,6 @@ export const STRINGS = Object.freeze({
   // DRAFT for owner approval (S26, S27; receipts/r4-safety-strings.md). Short, no diagnosis, no model or price. The owner replaces or approves the exact text.
   safetyLimit: "I can't make this explanation. It is outside what I can create here. You were not charged.", // S26 DRAFT
   personalRisk: 'I did not make this explanation, and you were not charged. If you are in danger or thinking about hurting yourself, please call your local emergency number or a crisis line in your area. You do not have to deal with this alone.', // S27 DRAFT
-  // DRAFT for owner approval (Fix A): a withheld card says why. A source problem and an unfinished check are not a refusal, so Retry stays offered.
-  notInSource: 'This explanation quoted words that are not in your source, so I did not add it. You were not charged.',
-  contradictsSource: 'This explanation disagreed with your source, so I did not add it. You were not charged.',
-  notMatchedToSource: 'Some of this explanation could not be matched to your source, so I did not add it. You were not charged.',
-  checkUnavailable: 'The check could not finish, so I did not add this explanation. You were not charged.',
   checking: 'Checking this explanation before it is added.', // S21 NEW
   stale: 'This roadmap changed. Showing the latest.', // S22 NEW
   sourceChanged: 'The source changed since this plan was made. Update the plan to continue.', // S23 NEW

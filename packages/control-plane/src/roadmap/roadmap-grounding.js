@@ -7,10 +7,8 @@ import { CHECK_PROMPTS, ROADMAP_CHECK_VERSION, GROUNDING_TOOL } from '../agents/
 import { ROADMAP_LIMITS } from './roadmap-policy.js';
 import { sha256 } from './roadmap-source.js';
 
-// A quote matches the raw Markdown passage whatever its emphasis/code marks, curly quotes or dashes: both sides are folded the same way, so only markup is forgiven.
-const norm = s => String(s).replace(/[*_`~#]/g, '').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim().toLowerCase();
-const edges = s => s.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''); // "…learning," quoted with American punctuation still matches "…learning."
-const inPassage = (passage, span) => !!span && !!edges(norm(span)) && norm(passage).includes(edges(norm(span))); // a quote that is only markup folds to nothing and supports nothing
+const norm = s => String(s).replace(/\s+/g, ' ').trim().toLowerCase();
+const inPassage = (passage, span) => !!span && norm(passage).includes(norm(span));
 
 // The text of a delivered text/table card, for claims and screening.
 export function cardText(block) {
@@ -20,8 +18,7 @@ export function cardText(block) {
 }
 
 // Quoted spans the card claims to take from the source: "..." / curly quotes of at least 12 characters.
-// An opening quote must not follow a letter or digit and a closing quote must not precede one, so the gap between two short quotes ("Yes" ... "No") is never read as a quotation.
-export const quotedSpans = text => [...String(text).matchAll(/(?<![\p{L}\p{N}])["“]([^"“”\n]{12,300})["”](?![\p{L}\p{N}])/gu)].map(m => m[1]);
+export const quotedSpans = text => [...String(text).matchAll(/["“]([^"”\n]{12,300})["”]/g)].map(m => m[1]);
 
 // Step 1, no model: the card's sourceRef names the roadmap's source at its revision, and every long quotation in the card is really in
 // the passage. A mismatch blocks that result version. -> [] when clean, else reasons.

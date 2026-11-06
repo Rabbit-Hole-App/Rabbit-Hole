@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkSupport, referenceProblems, cardText, groundingCacheKey, quotedSpans } from '../src/roadmap/roadmap-grounding.js';
+import { checkSupport, referenceProblems, cardText, groundingCacheKey } from '../src/roadmap/roadmap-grounding.js';
 import { CHECK_PROMPTS } from '../src/agents/roadmap-check.js';
 import { promptVersion } from '../src/learn-models.js';
 
@@ -71,23 +71,6 @@ test('deterministic reference checks run first and spend nothing: wrong revision
   const out = await check(m, { block: quoted });
   assert.deepEqual([out.validation, out.reason, m.seen.length], ['blocked', 'quote_not_in_passage', 0]);
   assert.deepEqual(referenceProblems({ block: { ...block, body: 'It says "direction of steepest increase" exactly.' }, passage, rev: REV }), []);
-});
-
-test('a real quotation survives the passage being raw Markdown or using curly quotes; an invented one still blocks', () => {
-  const raw = '## Splits\nA tree asks **yes/no questions** about `feature values`; it isn’t a black box.';
-  const quoting = body => referenceProblems({ block: { ...block, sourceRef: undefined, body }, passage: raw, rev: REV });
-  assert.deepEqual(quoting('It asks “yes/no questions about feature values”.'), []);
-  assert.deepEqual(quoting('It says "it isn\'t a black box" outright.'), []);
-  assert.deepEqual(quoting('It says "a forest always beats a single tree" outright.'), ['quote_not_in_passage']);
-  assert.deepEqual(quoting('It says "************" outright.'), ['quote_not_in_passage'], 'a quote that is only markup folds to nothing and supports nothing');
-});
-
-test('the owner\'s withheld cards: the gap between two short quotes is not a quotation, and a quote closed with a comma still matches the sentence it came from', () => {
-  const raw = 'Tree-based models consistently outperform deep learning. Kaggle is dominated by them.';
-  const quoting = body => referenceProblems({ block: { ...block, sourceRef: undefined, body }, passage: raw, rev: REV });
-  assert.deepEqual(quotedSpans('Answering "Yes" sends you to `Income > 50k?`, "No" to `Credit Score > 700?`.'), []);
-  assert.deepEqual(quoting('Reports that tree models "consistently outperform deep learning," and that Kaggle is won by them.'), []);
-  assert.deepEqual(quoting('A common misconception\n"Trees beat neural networks, so trees are better models." The passage says less.'), ['quote_not_in_passage'], 'a sentence in quotes that the source does not contain still blocks');
 });
 
 test('table cards are checked on their cells; the cache key changes with the text, the revision and the policy', async () => {
