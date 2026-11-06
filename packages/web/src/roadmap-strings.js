@@ -13,7 +13,6 @@ export const STRINGS = Object.freeze({
   end: 'End roadmap', // S7 approved
   acceptPlan: 'Accept plan', // S8 approved
   editPlan: 'Edit plan', // S9 approved
-  retry: 'Retry', replace: 'Replace', omit: 'Omit', // S10 approved
   roadmap: 'Roadmap', assumptions: 'Assumptions', steps: 'Steps', stoppingPoint: 'Stopping point', // S11 NEW
   explanationsOnly: 'Explanations', // S12 NEW
   planning: 'Planning your roadmap', // S13 NEW

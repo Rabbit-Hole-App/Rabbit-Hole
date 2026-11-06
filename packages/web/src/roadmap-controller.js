@@ -186,7 +186,5 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     },
     linkCard: (cardId, reason) => mutateView(`link:${cardId}`, key => routes.linkCard(state.view, cardId, reason, key)),
     end: () => mutateView(`end:${state.view?.roadmap.id}`, key => routes.end(state.view, key)),
-    // Retry, Replace and Omit are the same three calls from Chat and from the ToC (D36).
-    recover: (stepId, action) => mutateView(`${action}:${stepId}`, key => routes.recover(state.view, stepId, action, key)),
   };
 }

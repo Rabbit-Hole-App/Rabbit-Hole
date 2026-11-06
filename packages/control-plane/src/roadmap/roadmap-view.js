@@ -16,19 +16,19 @@ const json = text => { try { return JSON.parse(text); } catch { return null; } }
 // their code until the owner approves more strings; the UI maps codes.
 export const FAILURE_MESSAGE = 'This explanation could not be made. You were not charged.';
 // A held or refused card (failure class policy_block, refunded) tells the learner why in the S26 sentence; the learner's own signs of danger (the safety record's
-// pause_support action) get the S27 supportive message instead. Both are DRAFT strings pending owner approval; neither retries (the same request would be refused again).
+// pause_support action) get the S27 supportive message instead. Both are DRAFT strings pending owner approval.
 // Fix A: the cause is read from the stored checks, so a row an earlier build stored as policy_block for a grounding block reads honestly too.
-// Only a safety block or personal risk loses Retry; a source problem or an unfinished check is not a refusal.
+// No recovery set (owner 2026-11-06: no Retry, Replace or Omit on explanation cards): a failed card closes its step and the roadmap moves on.
 const SOURCE_MESSAGE = { quote_not_in_passage: STRINGS.notInSource, contradicts_source: STRINGS.contradictsSource };
 const WITHHELD = new Set(['policy_block', 'terminal_validation_failure', 'checking_unavailable']);
 function failureOf(r) {
   const check = WITHHELD.has(r.failure_class) && r.validation !== 'passed' ? json(r.check_json) : null;
   const cause = check ? withheldCause(check) : r.failure_class === 'policy_block' ? 'safety' : null;
-  if (cause === 'personal_risk') return { failure: { code: 'personal_risk', message: STRINGS.personalRisk }, recovery: ['replace', 'omit'] };
-  if (cause === 'safety') return { failure: { code: 'policy_block', message: STRINGS.safetyLimit }, recovery: ['replace', 'omit'] };
-  if (cause === 'source') return { failure: { code: 'source_check_failed', message: SOURCE_MESSAGE[check.grounding.reason] || STRINGS.notMatchedToSource }, recovery: ['retry', 'replace', 'omit'] };
-  if (cause === 'unavailable') return { failure: { code: 'checking_unavailable', message: STRINGS.checkUnavailable }, recovery: ['retry', 'replace', 'omit'] };
-  return { failure: { code: 'generation_failed', message: FAILURE_MESSAGE }, recovery: ['retry', 'replace', 'omit'] };
+  if (cause === 'personal_risk') return { failure: { code: 'personal_risk', message: STRINGS.personalRisk } };
+  if (cause === 'safety') return { failure: { code: 'policy_block', message: STRINGS.safetyLimit } };
+  if (cause === 'source') return { failure: { code: 'source_check_failed', message: SOURCE_MESSAGE[check.grounding.reason] || STRINGS.notMatchedToSource } };
+  if (cause === 'unavailable') return { failure: { code: 'checking_unavailable', message: STRINGS.checkUnavailable } };
+  return { failure: { code: 'generation_failed', message: FAILURE_MESSAGE } };
 }
 
 export async function roadmapView(db, access, roadmap) {

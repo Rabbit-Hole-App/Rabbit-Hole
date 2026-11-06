@@ -143,14 +143,14 @@ test('a mode change between the decision and the reveal blocks the reveal (the o
   assert.equal(doubles.timings.at(-1).reason, 'ask', 'the second look reads Ask');
 });
 
-test('unfinished, failed or retrying accepted work is not finished; a changed source stops it; the first proposal stays manual', async t => {
+test('unfinished or retrying accepted work is not finished; a changed source stops it; the first proposal stays manual', async t => {
   // 1 The step is still being made: no step is delivered yet.
   const a = await delivered(t);
-  a.w.sqlite.prepare("UPDATE learn_roadmap_steps SET state = 'incomplete' WHERE id = ?").run(a.o.stepId);
+  a.w.sqlite.prepare("UPDATE learn_roadmap_steps SET state = 'generating' WHERE id = ?").run(a.o.stepId);
   await run(a.env, a.access);
   assert.equal(proposals(a.w, a.o.roadmapId).length, 0);
   assert.equal(doubles.timings.at(-1).reason, 'nothing_delivered');
-  // 2 A delivered step but another step is retrying or incomplete: the lifecycle's busy rule holds.
+  // 2 A delivered step but another step is still being made: the lifecycle's busy rule holds.
   const b = await delivered(t, { n: 2, boardId: 'lb_board00000000000007' });
   b.w.sqlite.prepare("UPDATE learn_roadmap_steps SET state = 'generating' WHERE roadmap_id = ? AND position = 2").run(b.o.roadmapId);
   await run(b.env, b.access);

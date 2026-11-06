@@ -2,7 +2,7 @@
 // step by itself. This composes METADATA only: it reuses the R4 composer (roadmap-compose.js, deterministic, no model call) and the R4 manual offer
 // (proposeNextStep), so there is no card generation, no authorization, no hold and no learner charge here, by construction. It is not R5 (editing)
 // and not R11 (preparing results before acceptance): nothing is generated until the learner accepts.
-// Triggers are outbox events (card_delivered, mode_changed, autosuggest_changed per roadmap; settings_changed per learner, expanded below). Every
+// Triggers are outbox events (card_delivered, card_failed, mode_changed, autosuggest_changed per roadmap; settings_changed per learner, expanded below). Every
 // handler re-reads the CURRENT roadmap, mode and preference before acting, so an old Tutor event cannot resume work after a newer Ask.
 // Gate: ROADMAP_ENABLED and ROADMAP_AUTO_ENABLED both 'true'. Unset, handlers do nothing and the manual Propose next step is unchanged.
 import { StateError } from './roadmap-contract.js';
@@ -14,7 +14,7 @@ import { AUTO_FACT, roadmapAutoEnabled } from './roadmap-settings-events.js';
 import { readAutoSuggest } from '../learn-user-settings.js';
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
-export const AUTO_KINDS = Object.freeze(['card_delivered', 'mode_changed', 'autosuggest_changed']);
+export const AUTO_KINDS = Object.freeze(['card_delivered', 'card_failed', 'mode_changed', 'autosuggest_changed']); // card_failed: a failed card closed its step (owner 2026-11-06)
 const FANOUT_PAGE = 25, FANOUT_PAGES = 8; // a run expands at most 200 roadmaps, then yields; the retry continues from what is left
 const newEventId = () => `ev_${crypto.randomUUID().replace(/-/g, '')}`;
 
@@ -24,8 +24,9 @@ async function ineligible(db, access, roadmap, { autoSuggest, revalidate }) {
   if (roadmap.state !== 'active') return 'not_active'; // paused (Cancel), completed, ended, failed or not yet accepted: nothing unsolicited
   if (roadmap.mode === 'ask') return 'ask';
   if (!autoSuggest) return 'auto_suggest_off';
-  // The first proposal after Accept plan stays the learner's (Propose next step); automatic ones follow a step that was delivered or omitted.
-  const finished = await db.prepare("SELECT 1 AS n FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND state IN ('delivered', 'skipped') LIMIT 1").bind(roadmap.id, roadmap.plan_version).first();
+  // The first proposal after Accept plan stays the learner's (Propose next step); automatic ones follow a step that was delivered or closed (skipped, or
+  // incomplete from before 2026-11-06).
+  const finished = await db.prepare("SELECT 1 AS n FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND state IN ('delivered', 'skipped', 'incomplete') LIMIT 1").bind(roadmap.id, roadmap.plan_version).first();
   if (!finished) return 'nothing_delivered';
   const source = await revalidate(db, access, roadmap);
   if (!source.ok) return source.code || 'source_unavailable'; // the manual Propose next step and the plan revision flow own the recovery
@@ -55,7 +56,7 @@ export async function ensureNextProposal(env, access, { roadmapId, triggerEventI
   return { status: 'skipped', reason: 'stale_revision' };
 }
 
-// The handler for card_delivered, mode_changed and autosuggest_changed. deps: { autoSuggest?(env, access), compose?, revalidate?, timing?(record), ignoreFlag? }.
+// The handler for card_delivered, card_failed, mode_changed and autosuggest_changed. deps: { autoSuggest?(env, access), compose?, revalidate?, timing?(record), ignoreFlag? }.
 export async function autoProposalHandler(env, event, { now = nowSeconds() } = {}, deps = {}) {
   if (!roadmapAutoEnabled(env) && !deps.ignoreFlag) return { done: true };
   const db = env.LEARN_DB;

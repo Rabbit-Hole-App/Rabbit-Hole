@@ -167,14 +167,14 @@ test('a shared or read-only view stays silent: no request at all', async () => {
   assert.equal(calls.length, 0);
 });
 
-test('manual progression, End roadmap and Retry/Replace/Omit send their own actions with the current revision', async () => {
+test('manual progression and End roadmap send their own actions with the current revision', async () => {
   const paused = view('status-cancelled-paused');
-  const { controller, calls } = harness({ routes: { 'GET ': () => paused, 'POST /rm_[^/]+/steps/propose': () => view('status-delivered-next-ready'), 'POST /rm_[^/]+/end': () => view('status-completed'), 'POST /rm_[^/]+/steps/st_[^/]+/omit': () => paused } });
+  const { controller, calls } = harness({ routes: { 'GET ': () => paused, 'POST /rm_[^/]+/steps/propose': () => view('status-delivered-next-ready'), 'POST /rm_[^/]+/end': () => view('status-completed') } });
   controller.start(); await settle();
   await controller.proposeNext(); await settle();
   assert.equal(post(calls, '/steps/propose')[0].body.revision, 11);
-  await controller.recover('st_a1b2c3d4e5f60718293a4b01', 'omit'); await controller.end(); await settle();
-  assert.equal(post(calls, '/omit').length, 1);
+  assert.equal('recover' in controller, false, 'no recovery action (owner 2026-11-06)');
+  await controller.end(); await settle();
   assert.equal(post(calls, '/end').length, 1);
 });
 

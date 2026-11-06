@@ -3,10 +3,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerRoadmapHandlers } from '../src/roadmap/roadmap-wire.js';
+import { runDueRoadmapEvents } from '../src/roadmap/roadmap-events.js';
 import { withheldCause } from '../src/roadmap/roadmap-check.js';
 import { rows } from './roadmap-fixture.js';
 import { STRINGS } from '../../web/src/roadmap-strings.js';
-import { BOARD, FULL, GOOD, ID_B, INSTRUCTION, KEY, answer, calm, loop } from './roadmap-loop-fixture.js';
+import { BOARD, FAIL, FULL, GOOD, ID_B, INSTRUCTION, KEY, answer, calm, loop } from './roadmap-loop-fixture.js';
 
 async function toProposal(h) {
   const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'standard', actionKey: KEY('create') });
@@ -35,7 +36,23 @@ test('owner MVP: a card that quotes or paraphrases freely is not held by a citat
   h.w.sqlite.prepare("UPDATE learn_step_results SET failure_class = 'policy_block', validation = 'blocked', delivery = 'not_delivered', billing = 'refunded', check_json = ?").run(JSON.stringify({ grounding: { validation: 'blocked', reason: 'quote_not_in_passage' }, safety: { decision: 'allow', action: 'continue' } }));
   const old = (await h.status()).results[0];
   assert.deepEqual(old.failure, { code: 'source_check_failed', message: STRINGS.notInSource });
-  assert.deepEqual(old.recovery, ['retry', 'replace', 'omit']);
+  assert.equal(old.recovery, undefined, 'no Retry, Replace or Omit (owner 2026-11-06)');
+});
+
+// Owner 2026-11-06: no recovery UI or code on explanation cards. A failed card closes its step, and the automatic next step follows it.
+test('with the automatic switch on, a failed card closes its step and the next step is offered by itself, with no recovery set', async t => {
+  const h = await loop(t, { script: [FAIL, FAIL], envExtra: { ROADMAP_AUTO_ENABLED: 'true' } });
+  const { id, view } = await toProposal(h);
+  const result = await accept(h, id, view);
+  assert.equal(result.generation, 'failed');
+  assert.equal(result.recovery, undefined);
+  assert.equal((await h.totals()).used, 0, 'refunded');
+  await runDueRoadmapEvents(h.env);
+  const now = await h.status();
+  assert.equal(now.steps[0].state, 'skipped');
+  assert.equal(now.proposal?.stepId, now.steps[1].id, 'the card_failed event offered the next step');
+  assert.equal(now.proposal.state, 'pending');
+  assert.equal(now.nextStepReady, false, 'nothing was delivered: the indicator stays off');
 });
 
 test('owner MVP: the citation checker being down does not hold an ordinary card (it is not called)', async t => {

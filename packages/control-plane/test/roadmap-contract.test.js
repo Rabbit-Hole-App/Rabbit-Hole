@@ -96,7 +96,8 @@ test('an invalidated check goes back to pending and is stale', () => {
 test('cancel pauses progression: a cancelled step returns only by an explicit proposal; accepted work cannot be cancelled', () => {
   assert.ok(S.canTransition('step', 'cancelled', 'proposed'));
   assert.ok(!S.canTransition('step', 'generating', 'cancelled'));
-  assert.deepEqual(S.STEP_TRANSITIONS.incomplete, ['generating', 'proposed', 'skipped'], 'Retry, Replace, Omit');
+  assert.deepEqual(S.STEP_TRANSITIONS.generating, ['delivered', 'skipped'], 'a failed card closes its step: no Retry, Replace or Omit (owner 2026-11-06)');
+  assert.deepEqual(S.STEP_TRANSITIONS.incomplete, [], 'legacy incomplete steps stay as they are');
 });
 
 test('one unfinished roadmap per learner and board includes paused and questioning', () => {

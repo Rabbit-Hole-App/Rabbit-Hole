@@ -1,6 +1,6 @@
 // The R4 smoke against the LOCAL stack with a fake roadmap job server and no model call (Tutor ladder R4, fork tier): invitation to
 // plan to accept to Tab to one delivered card (save before acknowledgement), reload and a second device (still one card), Cancel,
-// Propose next step, End roadmap, a failed card's Retry/Replace/Omit in Chat and the ToC, and a stale 409 showing the latest state; then the R6 automatic
+// Propose next step, End roadmap, a failed card announced once by the existing error toast with no Retry, and a stale 409 showing the latest state; then the R6 automatic
 // next proposal (flag-off server fake offers it): it appears by itself, Ask holds it back, a server offering nothing leaves manual Propose working, reload shows it once.
 // What it cannot show: a real explanation (the server is faked; the real-model smoke is a separate, bounded paid check) or the
 // Next step ready indicator for an offscreen source card (covered by roadmap-client.test.mjs until a source card can be placed).
@@ -117,14 +117,14 @@ try {
     await page.getByText('You reached the stopping point of this roadmap.', { exact: false }).first().waitFor();
     assert.ok(await cards(page).count() >= 1, 'delivered cards stay');
   });
-  await step('a failed card is announced once through the existing error toast, and its Retry sends one retry', async () => {
+  await step('a failed card is announced once through the existing error toast, with no Retry (owner 2026-11-06)', async () => {
     server.stage = 'failed';
     await page.reload();
     const note = page.locator('[data-toast-error]').filter({ hasText: 'could not be made' });
     await note.waitFor();
     assert.equal(await page.locator('[data-roadmap-recovery]').count(), 0, 'no recovery block in Chat or the Contents');
-    await note.locator('[data-toast-action]').click();
-    await until(async () => server.count('/retry') === 1, 'retry sent once');
+    assert.equal(await note.locator('[data-toast-action]').count(), 0, 'the toast offers no Retry');
+    assert.equal(['/retry', '/replace', '/omit'].reduce((n, suffix) => n + server.count(suffix), 0), 0, 'no recovery request');
   });
   await step('a stale accept (another device went first) shows the latest state with the plain sentence and buys nothing more', async () => {
     server.stage = 'pending';

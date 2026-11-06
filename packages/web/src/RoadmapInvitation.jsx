@@ -2,10 +2,10 @@
 const ghost = 'h-7 rounded-md border border-line px-2.5 text-xs outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent/60';
 
 // The right-side Chat strip for the roadmap: the two-choice invitation, then the state lines (planning, plan ready, paused,
-// stopping point, checking, a focused question, an oversize-source limitation) and a failed card's Retry/Replace/Omit.
+// stopping point, checking, a focused question, an oversize-source limitation).
 // Nothing here is saved in the chat thread: the server owns every line, so a reload or a second device shows the same.
 // invitation: invitationOf (or null); lines: chatOf. Free typing stays in the composer below; the buttons are not required.
-export default function RoadmapInvitation({ invitation, lines, onExplain, onKeep, onAnswer, onRecover, onOffer, onChoose }) {
+export default function RoadmapInvitation({ invitation, lines, onExplain, onKeep, onAnswer, onOffer, onChoose }) {
   if (!invitation && !lines.length) return null;
   return (
     <div data-roadmap-chat className="mb-2 flex flex-col gap-2">

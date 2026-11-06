@@ -1,4 +1,4 @@
-// R4 integration glue: compose(roadmap, step) for Propose next step and Replace (roadmap-lifecycle.js proposeNextStep / replaceStep).
+// R4 integration glue: compose(roadmap, step) for Propose next step (roadmap-lifecycle.js proposeNextStep).
 // READING OF R4.04 / R4.10 / R4.12: the proposal is the plan step the learner already accepted as part of the plan: its validated title, goal and format
 // (no price, no invented link: validatePlan checked those). Composing it needs no model call in R4, so there is none, and no `roadmap_proposal`
 // role is registered for R4; a model-written proposal, and a safety screen of the proposal's own words, are the later R5/R6 change. The content

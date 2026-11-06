@@ -41,10 +41,11 @@ export const ROADMAP_TRANSITIONS = freeze({
 export const STEP_TRANSITIONS = freeze({
   planned: ['proposed', 'skipped', 'already_understood', 'cancelled'],
   proposed: ['generating', 'cancelled', 'skipped', 'already_understood'],
-  // Accepted work is never cancelled by Cancel (that belongs to the proposal): it ends delivered or incomplete.
-  generating: ['delivered', 'incomplete'],
-  // Retry (fresh operation identity), Replace (new proposal) and Omit (skipped) are the three recovery actions (D36).
-  incomplete: ['generating', 'proposed', 'skipped'],
+  // Accepted work is never cancelled by Cancel (that belongs to the proposal): it ends delivered or, failed, closed.
+  // A failed card closes its step (skipped): there is no Retry, Replace or Omit (owner 2026-11-06, replacing D36).
+  generating: ['delivered', 'skipped'],
+  // Legacy: steps a failure left incomplete before 2026-11-06 stay as they are; they no longer block the next step.
+  incomplete: [],
   delivered: [],
   // Cancel pauses automatic progression; only an explicit learner action re-proposes (2.3): guard 'explicit_learner_action'.
   cancelled: ['proposed', 'skipped'],

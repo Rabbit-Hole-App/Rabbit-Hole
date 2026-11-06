@@ -78,7 +78,7 @@ test('the Chat strip renders the coverage line and one choice button per part, a
     bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent' });
   const lib = createRequire(import.meta.url)(outfile);
   const state = reduce(initialState(), { type: 'refused', message: 'long', limitation: limitation() });
-  const markup = lib.renderToStaticMarkup(lib.createElement(lib.RoadmapInvitation, { invitation: null, lines: chatOf({ ...state, flag: 'on' }), onExplain() {}, onKeep() {}, onAnswer() {}, onRecover() {}, onOffer() {}, onChoose() {} }));
+  const markup = lib.renderToStaticMarkup(lib.createElement(lib.RoadmapInvitation, { invitation: null, lines: chatOf({ ...state, flag: 'on' }), onExplain() {}, onKeep() {}, onAnswer() {}, onOffer() {}, onChoose() {} }));
   assert.match(markup, /data-roadmap-line="coverage"/);
   assert.match(markup, /data-roadmap-coverage[^>]*>The outline covers all 900,000 characters of the source\./);
   assert.deepEqual([...markup.matchAll(/data-roadmap-choice="([^"]+)"[^>]*>([^<]+)</g)].map(m => `${m[1]}=${m[2]}`), ['s0:1=Chapter 1', 's41:2=Appendix, part 2 of 3']);

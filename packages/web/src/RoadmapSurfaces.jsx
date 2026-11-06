@@ -3,18 +3,17 @@ import RoadmapPlan from './RoadmapPlan.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { NextStepIndicator, ProposalOverlay } from './NextStepPill.jsx';
 import { toast } from './ui.jsx';
-import { recoveryOf } from './roadmap-client.js';
-import { STRINGS } from './roadmap-strings.js';
+import { failuresOf } from './roadmap-client.js';
 import { createDragStore, dragged } from './roadmap-proposal-context.js';
 
 // The three places the roadmap shows, each fed by the object useRoadmap returns, so a page mounts each with one line:
-//   RoadmapChat   above the Chat composer (invitation, state lines, a failed card's Retry/Replace/Omit)
+//   RoadmapChat   above the Chat composer (invitation and state lines)
 //   RoadmapToc    at the top of the Table of contents tab (plan, steps, actions)
 //   RoadmapCanvas over the canvas pane (the pending proposal overlay and the Next step ready indicator)
 export function RoadmapChat({ roadmap }) {
   const c = roadmap.controller;
   return <RoadmapInvitation invitation={roadmap.invitation} lines={roadmap.lines} onExplain={() => c.explain()} onKeep={() => c.dismiss()}
-    onAnswer={fields => c.answer(fields)} onRecover={(stepId, action) => c.recover(stepId, action)} onOffer={() => roadmap.editPlan()} onChoose={choice => c.explainPart(choice)} />;
+    onAnswer={fields => c.answer(fields)} onOffer={() => roadmap.editPlan()} onChoose={choice => c.explainPart(choice)} />;
 }
 export function RoadmapToc({ roadmap }) {
   const c = roadmap.controller;
@@ -22,8 +21,7 @@ export function RoadmapToc({ roadmap }) {
   // A long plan scrolls inside its own region (the headings below keep theirs): steps, stopping point and every action stay reachable.
   return (
     <div data-roadmap-scroll className="mb-3 max-h-[50vh] min-h-0 shrink overflow-y-auto">
-      <RoadmapPlan toc={roadmap.toc} onAcceptPlan={() => roadmap.acceptPlan()} onEdit={roadmap.editPlan} onProposeNext={() => c.proposeNext()} onEnd={() => c.end()}
-        onRecover={(stepId, action) => c.recover(stepId, action)} onGo={roadmap.go} />
+      <RoadmapPlan toc={roadmap.toc} onAcceptPlan={() => roadmap.acceptPlan()} onEdit={roadmap.editPlan} onProposeNext={() => c.proposeNext()} onEnd={() => c.end()} onGo={roadmap.go} />
     </div>
   );
 }
@@ -32,13 +30,13 @@ export function RoadmapToc({ roadmap }) {
 export function RoadmapCanvas({ roadmap, hosted = false }) {
   const c = roadmap.controller, st = roadmap.state, pill = roadmap.pill;
   const store = useRef(null), [, tick] = useState(0), told = useRef(new Set());
-  // A withheld card is announced once per result through the app's existing error toast (ui.jsx), with Retry when the server allows it.
-  const failures = recoveryOf(st?.view);
+  // A withheld card is announced once per result through the app's existing error toast (ui.jsx), its message only (owner 2026-11-06: no Retry, Replace or Omit on explanation cards).
+  const failures = failuresOf(st?.view);
   useEffect(() => {
     for (const item of failures) {
       if (told.current.has(item.resultId)) continue;
       told.current.add(item.resultId);
-      toast(item.message, { tone: 'error', ...(item.actions.includes('retry') ? { action: { label: STRINGS.retry, run: () => c.recover(item.stepId, 'retry') } } : {}) });
+      toast(item.message, { tone: 'error' });
     }
   }, [failures.map(f => f.resultId).join(' ')]);
   store.current ||= createDragStore();

@@ -5,7 +5,7 @@ import { repositoryIdentity } from '../repositories.js';
 import { refusalBody } from '../learn-spend-ledger.js';
 import { StateError, ERROR_CODES, conflictReply } from './roadmap-contract.js';
 import { acceptPlan, acceptRoadmapStep, acknowledgeDelivery, createRoadmap, readEntitledResult, readRoadmap, readResult } from './roadmap-store.js';
-import { cancelProposal, endRoadmap, markResultRemoved, omitStep, proposeNextStep, replaceStep, retryStep, setMode } from './roadmap-lifecycle.js';
+import { cancelProposal, endRoadmap, markResultRemoved, proposeNextStep, setMode } from './roadmap-lifecycle.js';
 import { currentView, roadmapHistory } from './roadmap-view.js';
 import { acceptInvitation, dismissInvitation, offerInvitation, pendingInvitation } from './roadmap-invitations.js';
 import { answerQuestion, revisePlan } from './roadmap-planning.js';
@@ -135,9 +135,6 @@ export async function roadmapRoute(path, req, env, deps = {}) {
     if (kind === 'drafts' && verb === 'apply' && rest.length === 4) return reply(await applyProposalDraft(db, access, { roadmapId, draftId: id, draftRevision: body.draftRevision, proposalVersion: body.proposalVersion, actionKey: body.actionKey, ...(now ? { now } : {}) }));
     if (kind === 'drafts' && verb === 'discard' && rest.length === 4) { const done = await discardProposalDraft(db, access, { roadmapId, draftId: id }); return json(done.body, done.status); }
     if (kind === 'steps' && id === 'link' && rest.length === 3) return reply(await offerLinkProposal(db, access, { roadmapId, cardId: body.cardId, reason: body.reason, origin: body.origin === 'tutor' ? 'tutor' : 'learner', ...arg }));
-    if (kind === 'steps' && verb === 'retry' && rest.length === 4) return reply(await retryStep(env, access, { roadmapId, stepId: id, ...arg }));
-    if (kind === 'steps' && verb === 'replace' && rest.length === 4) return deps.compose ? reply(await replaceStep(db, access, { roadmapId, stepId: id, compose: deps.compose, ...arg })) : json({ error: 'Not available', code: 'not_found' }, 503);
-    if (kind === 'steps' && verb === 'omit' && rest.length === 4) return reply(await omitStep(db, access, { roadmapId, stepId: id, ...arg }));
     if (kind === 'proposals' && verb === 'accept' && rest.length === 4) {
       if (roadmapEditEnabled(env) && await readLink(db, id, body.proposalVersion).catch(() => null)) return reply(await acceptLinkProposal(db, access, { roadmapId, revision: arg.expectedRevision, proposalId: id, proposalVersion: body.proposalVersion, actionKey: body.actionKey, ...(now ? { now } : {}) }));
       const done = await acceptRoadmapStep(env, access, { roadmapId, revision: arg.expectedRevision, proposalId: id, proposalVersion: body.proposalVersion, actionKey: body.actionKey, ...(now ? { now } : {}) });

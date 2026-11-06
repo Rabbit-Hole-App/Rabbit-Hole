@@ -47,7 +47,7 @@ limitation null | { code, message, readChars, sourceChars, offers:[{kind,label}]
 plan      null | { version, outcome, assumptions[], formats:['explanation','table'], steps[], stoppingPoint }
 steps     [{ id, position, title, goal, format, passage:{start,end}, sourceRef|null, state }]   // sourceRef = R3 SourceRef, minted at Accept plan; passage = private offsets
 proposal  null | { id, stepId, version, state, title, description, format, sourceRelation:{kind, sourceRef}, position:{index,total}, acceptable }
-results   [{ id, stepId, proposalVersion, resultVersion, slot:{index,cardId}, generation, delivery, billing, held?, failure?, recovery? }]   // accepted work only; NO body
+results   [{ id, stepId, proposalVersion, resultVersion, slot:{index,cardId}, generation, delivery, billing, held?, failure? }]   // accepted work only; NO body. No recovery set (owner 2026-11-06)
 nextStepReady  boolean                                                                   // drives the Next step ready indicator
 poll      { afterMs, etag }
 ```
@@ -75,7 +75,7 @@ Every row has request/response fixtures. "G" = GET, "P" = POST. Guards listed ar
 | 13 | `P /:rm/results/:rs/deliver` `{ boardId, revision, actionKey }` | Runs `canDeliver`; returns the authorized `cards[]` (idempotent: same blocks every call). Also the resume path after reload or a second device | active paused | `result-deliver-response` |
 | 14 | `P /:rm/results/:rs/ack` `{ revision, actionKey, resultVersion, cardId, boardRevision }` | `acknowledgeRoadmapDelivery`: the client inserted the card and the board save succeeded. Sets delivery `delivered`, step `delivered`, `deliveredCount`. The server verifies `cardId` is the minted slot of that `resultVersion` and, where available, that it is in the saved board (never accepts another id) | active paused | `result-ack-request` |
 | 15 | `P /:rm/results/:rs/removed` `{ revision, actionKey, cardId }` | Card deleted from the canvas (persisted). delivery `removed`; record kept; no refund (D7) | any unfinished or completed | none (trivial) |
-| 16 | `P /:rm/steps/:st/retry` / `replace` / `omit` `{ revision, actionKey }` | Failed card: Retry = fresh operation identity and its own bounded authorization (billing.md 6); Replace = new proposal for the step; Omit = step `skipped`. Same endpoints from Chat and ToC (D36) | active paused | `status-failed-card` |
+| 16 | ~~`P /:rm/steps/:st/retry` / `replace` / `omit`~~ | **Removed (owner 2026-11-06: no Retry, Replace or Omit on explanation cards).** A failed card is refunded, its step is closed (`skipped`) and the roadmap moves on: `card_failed` triggers the R6 automatic next step, and Propose next step is available. The failure sentence is shown once through the existing error toast | - | `status-failed-card` |
 | 17 | `P /:rm/mode` `{ revision?, mode:'auto'\|'ask'\|'tutor' }` | Records the mode fact; server increments `modeRevision` per distinct change. Ask pauses new initiative (no invitation, no proposal); accepted work still finishes. Idempotent by value | any unfinished | none |
 | 18 | `P /:rm/end` `{ revision, actionKey }` | End roadmap: `ended`; delivered cards and history kept | draft..completed | `end-request` |
 | 19 | `G /?boardId&history=1` | Optional: ended/completed roadmaps for the ToC history | any | none |

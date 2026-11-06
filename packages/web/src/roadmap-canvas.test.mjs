@@ -27,7 +27,8 @@ test('the same step keeps its key through generating, checking and failed, so it
   assert.deepEqual(canvasCardsOf(view('status-held-for-checking')).map(c => [c.key, c.state]), [[STEP, 'checking']]);
   const [failed] = canvasCardsOf(view('status-failed-card'));
   assert.deepEqual([failed.key, failed.state], [STEP, 'failed']);
-  assert.ok(failed.failure.message && Array.isArray(failed.recovery));
+  assert.ok(failed.failure.message);
+  assert.equal('recovery' in failed, false, 'no recovery actions on a failed card (owner 2026-11-06)');
 });
 
 test('a delivered card, a card already on the canvas, a linked existing card, a cancelled or ended roadmap leave no placeholder', () => {

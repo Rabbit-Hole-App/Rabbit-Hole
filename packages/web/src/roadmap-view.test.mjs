@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
-import { chatOf, initialState, invitationOf, pillOf, recoveryOf, reduce, tocOf } from './roadmap-client.js';
+import { chatOf, failuresOf, initialState, invitationOf, pillOf, reduce, tocOf } from './roadmap-client.js';
 import { anchorState, deliveredSpot, overlayPosition } from './roadmap-placement.js';
 
 const DIR = fileURLToPath(new URL('../../../docs/features/explain-on-canvas/contracts/fixtures/', import.meta.url));
@@ -64,7 +64,7 @@ test('Next step ready indicator renders only with an indicator', () => {
 
 test('the invitation offers exactly the two choices; no other control', () => {
   const state = reduce(initialState(), { type: 'invitation', invitation: JSON.parse(readFileSync(DIR + 'invitation-offered.json', 'utf8')).response.body.invitation });
-  const markup = html(lib.RoadmapInvitation, { invitation: invitationOf(state), lines: [], onExplain: noop, onKeep: noop, onAnswer: noop, onRecover: noop, onOffer: noop });
+  const markup = html(lib.RoadmapInvitation, { invitation: invitationOf(state), lines: [], onExplain: noop, onKeep: noop, onAnswer: noop, onOffer: noop });
   assert.equal((markup.match(/<button/g) || []).length, 2);
   assert.match(markup, />Explain on canvas</);
   assert.match(markup, />Just keep it here</);
@@ -73,7 +73,7 @@ test('the invitation offers exactly the two choices; no other control', () => {
 });
 
 test('the ToC plan: outcome, assumptions, steps, stopping point, Accept plan and Edit plan; no practice control', () => {
-  const markup = html(lib.RoadmapPlan, { toc: tocOf(at('status-proposed-plan')), onAcceptPlan: noop, onEdit: noop, onProposeNext: noop, onEnd: noop, onRecover: noop, onGo: noop });
+  const markup = html(lib.RoadmapPlan, { toc: tocOf(at('status-proposed-plan')), onAcceptPlan: noop, onEdit: noop, onProposeNext: noop, onEnd: noop, onGo: noop });
   for (const needle of ['data-roadmap-outcome', 'Assumptions', 'Stopping point', 'data-roadmap-accept-plan', 'data-roadmap-edit-plan', 'Explanations', 'data-roadmap-end']) assert.match(markup, new RegExp(needle));
   assert.doesNotMatch(markup, /data-roadmap-propose-next/);
   assert.doesNotMatch(markup, /practice/i);
@@ -81,26 +81,26 @@ test('the ToC plan: outcome, assumptions, steps, stopping point, Accept plan and
 });
 
 test('ToC steps navigate only where there is something to navigate to; paused offers Propose next step and End roadmap', () => {
-  const delivered = html(lib.RoadmapPlan, { toc: tocOf(at('status-delivered-next-ready')), onAcceptPlan: noop, onEdit: noop, onProposeNext: noop, onEnd: noop, onRecover: noop, onGo: noop });
+  const delivered = html(lib.RoadmapPlan, { toc: tocOf(at('status-delivered-next-ready')), onAcceptPlan: noop, onEdit: noop, onProposeNext: noop, onEnd: noop, onGo: noop });
   assert.equal((delivered.match(/data-roadmap-go=/g) || []).length, 2, 'delivered card and pending proposal');
-  const paused = html(lib.RoadmapPlan, { toc: tocOf(at('status-cancelled-paused')), onAcceptPlan: noop, onEdit: noop, onProposeNext: noop, onEnd: noop, onRecover: noop, onGo: noop });
+  const paused = html(lib.RoadmapPlan, { toc: tocOf(at('status-cancelled-paused')), onAcceptPlan: noop, onEdit: noop, onProposeNext: noop, onEnd: noop, onGo: noop });
   assert.match(paused, /data-roadmap-propose-next/);
   assert.match(paused, /data-roadmap-end/);
   assert.doesNotMatch(paused, /data-roadmap-accept-plan/);
 });
 
-test('a failed card adds no recovery block to Chat or the Contents (the existing error toast carries it)', () => {
+test('a failed card adds no recovery block to Chat or the Contents (the existing error toast carries its sentence)', () => {
   const state = at('status-failed-card');
-  const chat = html(lib.RoadmapInvitation, { invitation: null, lines: chatOf(state), onExplain: noop, onKeep: noop, onAnswer: noop, onRecover: noop, onOffer: noop });
-  const toc = html(lib.RoadmapPlan, { toc: tocOf(state), onAcceptPlan: noop, onEdit: noop, onProposeNext: noop, onEnd: noop, onRecover: noop, onGo: noop });
+  const chat = html(lib.RoadmapInvitation, { invitation: null, lines: chatOf(state), onExplain: noop, onKeep: noop, onAnswer: noop, onOffer: noop });
+  const toc = html(lib.RoadmapPlan, { toc: tocOf(state), onAcceptPlan: noop, onEdit: noop, onProposeNext: noop, onEnd: noop, onGo: noop });
   assert.doesNotMatch(chat + toc, /data-roadmap-recover/);
-  assert.equal(recoveryOf(state.view).length, 1);
+  assert.equal(failuresOf(state.view).length, 1);
 });
 
 test('no learner string anywhere has an ellipsis', () => {
   for (const name of ['status-proposed-plan', 'status-failed-card', 'status-held-for-checking', 'status-limitation', 'status-questioning', 'status-cancelled-paused']) {
     const state = at(name);
-    const markup = html(lib.RoadmapInvitation, { invitation: null, lines: chatOf(state), onExplain: noop, onKeep: noop, onAnswer: noop, onRecover: noop, onOffer: noop }) + html(lib.RoadmapPlan, { toc: tocOf(state), onAcceptPlan: noop, onEdit: noop, onProposeNext: noop, onEnd: noop, onRecover: noop, onGo: noop });
+    const markup = html(lib.RoadmapInvitation, { invitation: null, lines: chatOf(state), onExplain: noop, onKeep: noop, onAnswer: noop, onOffer: noop }) + html(lib.RoadmapPlan, { toc: tocOf(state), onAcceptPlan: noop, onEdit: noop, onProposeNext: noop, onEnd: noop, onGo: noop });
     assert.doesNotMatch(markup, /\.\.\.|…|&hellip;/, name);
   }
 });

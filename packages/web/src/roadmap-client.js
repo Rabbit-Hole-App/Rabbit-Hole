@@ -26,7 +26,6 @@ export const routes = {
   deliver: (view, resultId, actionKey) => mutate(view, `results/${resultId}/deliver`, {}, actionKey),
   ack: (view, result, cardId, boardRevision, actionKey) => mutate(view, `results/${result.id}/ack`, { resultVersion: result.resultVersion ?? 1, cardId, boardRevision }, actionKey),
   removed: (view, resultId, cardId, actionKey) => mutate(view, `results/${resultId}/removed`, { cardId }, actionKey),
-  recover: (view, stepId, action, actionKey) => mutate(view, `steps/${stepId}/${action}`, {}, actionKey),
   // R5: preview an edit of the pending proposal, apply or discard the preview, and offer an existing card as the next step.
   draft: (view, instruction, actionKey) => mutate(view, `proposals/${view.proposal.id}/drafts`, { proposalVersion: view.proposal.version, instruction }, actionKey),
   applyDraft: (view, draft, actionKey) => mutate(view, `drafts/${draft.draftId}/apply`, { draftRevision: draft.revision, proposalVersion: draft.proposalVersion }, actionKey),
@@ -113,16 +112,17 @@ const stepNav = (step, view) => {
   if (view.proposal?.stepId === step.id && view.proposal.state === 'pending') return { kind: 'proposal' };
   return null; // an entry with neither does not pretend there is anything to navigate to
 };
-export function recoveryOf(view) {
-  return resultsOf(view).filter(r => r.failure && r.recovery?.length).map(r => ({ resultId: r.id, stepId: r.stepId, message: r.failure.message || STRINGS.failed, actions: r.recovery }));
+// The failed cards the server reports, each with its sentence (shown once through the existing error toast; owner 2026-11-06: no Retry, Replace or Omit on explanation cards).
+export function failuresOf(view) {
+  return resultsOf(view).filter(r => r.failure).map(r => ({ resultId: r.id, stepId: r.stepId, message: r.failure.message || STRINGS.failed }));
 }
 
-// Manual Propose next step: at most one next independent step, after the accepted step's cards are ready or its failure resolved.
+// Manual Propose next step: at most one next independent step, after the accepted step's cards are ready or it failed (a failure closes its step).
 export function canProposeNext(state) {
   const view = state.view;
   if (!enabled(state) || !view || !['active', 'paused'].includes(view.roadmap.state)) return false;
   if (view.proposal && ['checking', 'held', 'pending'].includes(view.proposal.state)) return false;
-  if (resultsOf(view).some(r => r.generation === 'pending' || r.generation === 'generating' || (r.generation === 'generated' && r.delivery === 'not_delivered') || (r.failure && r.recovery?.length))) return false;
+  if (resultsOf(view).some(r => r.generation === 'pending' || r.generation === 'generating' || (r.generation === 'generated' && r.delivery === 'not_delivered'))) return false;
   if (view.roadmap.deliveredCount >= view.roadmap.ceiling) return false;
   return view.steps.some(s => s.state === 'planned');
 }
@@ -138,7 +138,7 @@ export function tocOf(state) {
       const result = resultsOf(view).find(r => r.stepId === s.id);
       return { id: s.id, position: s.position, title: s.title, state: s.state, status: STRINGS.stepState[s.state] || s.state, removed: result?.delivery === 'removed', nav: stepNav(s, view) };
     }),
-    recovery: recoveryOf(view), question: view.question, limitation: view.limitation,
+    question: view.question, limitation: view.limitation,
     actions: {
       acceptPlan: rm.state === 'proposed' && plan ? { planVersion: plan.version, busy: state.busy.includes(`plan:${rm.id}:${plan.version}`) } : null,
       editPlan: ['questioning', 'proposed', 'active', 'paused', 'completed'].includes(rm.state),

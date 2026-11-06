@@ -23,7 +23,7 @@ async function undelivered(t, at = Math.floor(Date.now() / 1000)) {
   return { h, id, result: accept.body.results[0] };
 }
 
-test('after the deadline an unplaced card is refunded: the learner nets zero, the card is no longer readable, the step can be retried or omitted', async t => {
+test('after the deadline an unplaced card is refunded: the learner nets zero, the card is no longer readable, the step is closed (no recovery, owner 2026-11-06)', async t => {
   const { h, id, result } = await undelivered(t, 1000);
   assert.ok((await h.totals()).used > 0, 'charged for the generation');
   assert.deepEqual(await sweepUndelivered(h.env, { now: 1000 + DEADLINE - 1 }), { acknowledged: 0, refunded: 0 }, 'before the deadline nothing changes');
@@ -32,7 +32,8 @@ test('after the deadline an unplaced card is refunded: the learner nets zero, th
   const row = rows(h.w.sqlite, 'SELECT generation, billing, delivery FROM learn_step_results')[0];
   assert.deepEqual(row, { generation: 'failed', billing: 'refunded', delivery: 'not_delivered' });
   const view = await h.status();
-  assert.deepEqual(view.results[0].recovery, ['retry', 'replace', 'omit']);
+  assert.equal(view.results[0].recovery, undefined);
+  assert.equal(view.steps.find(s => s.id === result.stepId).state, 'skipped');
   assert.equal((await h.json('POST', `/api/learn/roadmap/${id}/results/${result.id}/deliver`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('deliver') })).status, 404, 'a refunded card is not served');
   assert.deepEqual(await sweepUndelivered(h.env, { now: 1000 + DEADLINE + 5 }), { acknowledged: 0, refunded: 0 }, 'a repeat finds nothing to do');
   assert.equal(rows(h.w.sqlite, "SELECT * FROM learn_roadmap_actions WHERE operation = 'delivery_expired'").length, 1);
