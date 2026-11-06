@@ -35,8 +35,9 @@ async function deliverAndAck(h, id, view, result, n) {
   const blocks = JSON.parse(rows(h.w.sqlite, 'SELECT state_json FROM learn_boards WHERE id = ?', BOARD)[0]?.state_json || '{"blocks":[]}').blocks || [];
   h.w.sqlite.prepare('UPDATE learn_boards SET state_json = ?, version = ? WHERE id = ?').run(JSON.stringify({ blocks: [...blocks, card] }), 7 + n, BOARD);
   const ackOnce = revision => h.json('POST', `/api/learn/roadmap/${id}/results/${result.id}/ack`, { boardId: BOARD, revision, actionKey: KEY(`ack${n}`), resultVersion: 1, cardId: card.id, boardRevision: 7 + n });
+  // As the client does: on stale_revision show the latest and act again (background events may bump the revision more than once).
   let ack = await ackOnce((await h.status()).roadmap.revision);
-  if (ack.status === 409 && ack.body.code === 'stale_revision') ack = await ackOnce(ack.body.currentRevision); // as the client does: show the latest, act once more
+  for (let i = 0; i < 5 && ack.status === 409 && ack.body.code === 'stale_revision'; i++) ack = await ackOnce(ack.body.currentRevision);
   assert.equal(ack.status, 200, JSON.stringify(ack.body).slice(0, 300));
   return ack.body;
 }
@@ -77,12 +78,15 @@ test('the first and second accepted steps both generate and persist, one authori
   assert.equal(h.p.bodies.length, 1, 'no second authoring call for a repeated accept');
   const charged = (await h.totals()).used;
   const acked = await deliverAndAck(h, id, first.body, first.body.results[0], 1);
-  const next = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: acked.roadmap.revision, actionKey: KEY('propose2') });
+  const proposeOnce = revision => h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision, actionKey: KEY('propose2') });
+  let next = await proposeOnce(acked.roadmap.revision);
+  for (let i = 0; i < 5 && next.status === 409 && next.body.code === 'stale_revision'; i++) next = await proposeOnce(next.body.currentRevision);
   assert.equal(next.body.proposal.title, 'Entropy');
   const second = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${next.body.proposal.id}/accept`, acceptBody(next.body, KEY('accept2')));
-  assert.equal(second.body.results.at(-1).generation, 'generated');
+  const secondResult = second.body.results.find(r => r.id !== first.body.results[0].id); // results created in the same second have no stable order
+  assert.equal(secondResult.generation, 'generated');
   assert.equal(h.p.bodies.length, 2, 'one authoring call per accepted card');
-  await deliverAndAck(h, id, second.body, second.body.results.at(-1), 2);
+  await deliverAndAck(h, id, second.body, secondResult, 2);
   const stored = rows(h.w.sqlite, "SELECT delivery, billing FROM learn_step_results WHERE decision = 'accepted' ORDER BY created_at");
   assert.deepEqual(stored.map(r => [r.delivery, r.billing]), [['delivered', 'settled'], ['delivered', 'settled']]);
   assert.equal(rows(h.w.sqlite, "SELECT * FROM usage_actions WHERE client_key LIKE 'rmact_%'").length, 2, 'one learner action per accepted card');
