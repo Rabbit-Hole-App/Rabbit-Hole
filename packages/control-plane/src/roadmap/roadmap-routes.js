@@ -67,7 +67,7 @@ export async function roadmapRoute(path, req, env, deps = {}) {
       if (!deps.readSource) return json({ error: 'Not available', code: 'source_unavailable' }, 503);
       const source = await deps.readSource(access, { sourceId: body.source?.key ?? body.source?.sourceId, revision: body.source?.rev ?? body.source?.revision, scope: body.source?.scope });
       if (source?.error) return json({ error: source.error, code: source.code || 'source_unsupported', ...(source.limitation ? { limitation: source.limitation } : {}) }, source.status || 422);
-      const created = await createRoadmap(db, access, { actionKey: body.actionKey, app: board.app, instruction: body.instruction, source: { key: source.key, rev: source.rev }, scope: source.scope, scopeFingerprint: source.scopeFingerprint, depth: body.depth, language: source.language ?? null, ...(now ? { now } : {}) });
+      const created = await createRoadmap(db, access, { actionKey: body.actionKey, app: board.app, instruction: body.instruction, allowEmpty: !!body.invitationId, source: { key: source.key, rev: source.rev }, scope: source.scope, scopeFingerprint: source.scopeFingerprint, depth: body.depth, language: source.language ?? null, ...(now ? { now } : {}) });
       if (!created.replayed) { await acceptInvitation(db, access, body.invitationId, created.body.roadmapId, now); await deps.startPlanning?.(env, access, created.body.roadmapId); }
       return reply(created);
     }

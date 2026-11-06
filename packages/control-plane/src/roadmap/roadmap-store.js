@@ -91,9 +91,10 @@ export async function applyRoadmapAction(db, access, { operation, actionKey, roa
 
 // --- create ---------------------------------------------------------------------------------------------------------------------------
 // instruction is the learner's original words, stored verbatim as version 1 and never replaced by an inferred topic (v1.4 3.5).
-export async function createRoadmap(db, access, { actionKey, app, instruction, source, scope, scopeFingerprint, depth, language = null, mode = 'tutor', now = nowSeconds(), roadmapId = newId('rm_') }) {
+// allowEmpty: the Explain-on-canvas choice of an invitation carries no typed words; the planner then asks one focused question when the source covers several topics (v1.4 3.5).
+export async function createRoadmap(db, access, { actionKey, app, instruction, source, scope, scopeFingerprint, depth, language = null, mode = 'tutor', allowEmpty = false, now = nowSeconds(), roadmapId = newId('rm_') }) {
   requireAccess(access);
-  if (typeof instruction !== 'string' || !instruction.trim() || instruction.length > ROADMAP_LIMITS.source.instructionChars) throw new StateError('invalid_request', 'instruction is required', 400);
+  if (typeof instruction !== 'string' || (!instruction.trim() && !allowEmpty) || instruction.length > ROADMAP_LIMITS.source.instructionChars) throw new StateError('invalid_request', 'instruction is required', 400);
   if (!source?.key || !source?.rev || !scopeFingerprint) throw new StateError('invalid_request', 'source is required', 400);
   const ceiling = ceilingFor(depth);
   const view = { roadmapId };

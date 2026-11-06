@@ -190,3 +190,17 @@ test('revision limits: Depth alone applies at once to an accepted roadmap; an in
   for (const mode of ['ask', 'tutor', 'ask']) assert.equal((await h.json('POST', `/api/learn/roadmap/${id}/mode`, { boardId: BOARD, mode })).status, 200);
   assert.equal(rows(h.w.sqlite, "SELECT * FROM learn_roadmap_outbox WHERE kind = 'mode_changed'").length, 3);
 });
+
+test('Explain on canvas from an invitation carries no typed words: an empty instruction is allowed only there, and the planner receives it empty', async t => {
+  const seen = [];
+  const h = await loop(t, { plans: [FULL] });
+  registerRoadmapHandlers({ callModel: async (role, body) => { seen.push(JSON.parse(String(body.messages[0].content).split('\n\n<source')[0]).instruction); return h.m.callModel(role, body); }, checkCallModel: h.m.callModel, classify, base: h.p.base });
+  const blank = await create(h, { instruction: '   ' });
+  assert.equal(blank.status, 400, 'a typed request must say something');
+  const iv = (await h.json('POST', '/api/learn/roadmap/invitations', { boardId: BOARD, sourceKeys: [`file:${ID_B}`], idleKey: 'idle-1-aaaaaaaa' })).body.invitation;
+  const made = await create(h, { invitationId: iv.id, instruction: '', actionKey: KEY('create2') });
+  assert.equal(made.status, 202);
+  assert.equal(made.body.view.roadmap.instruction, '');
+  assert.equal(made.body.view.roadmap.state, 'proposed');
+  assert.deepEqual(seen, [{ original: '' }]);
+});
