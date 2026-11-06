@@ -29,6 +29,14 @@ test('a delivered card makes one pending proposal for the next step, with no gen
   assert.ok(doubles.timings[0].composeEndedAt >= doubles.timings[0].composeStartedAt);
 });
 
+test('migration 0040 absent: the delivery trigger still offers the next step once (the Auto-suggest reader falls back to the default)', async t => {
+  const { w, access, o, env } = await delivered(t, { withSettings: false });
+  await run(env, access);
+  assert.equal(offeredNow(w, o.roadmapId).length, 1);
+  await run(env, access);
+  assert.equal(proposals(w, o.roadmapId).length, 1, 'no duplicate');
+});
+
 test('replaying the same event, or a second trigger, never makes a second offer', async t => {
   const { w, access, o, env } = await delivered(t);
   await run(env, access);

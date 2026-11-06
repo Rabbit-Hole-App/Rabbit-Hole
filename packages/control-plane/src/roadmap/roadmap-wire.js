@@ -12,6 +12,7 @@ import { generationHandler } from './roadmap-run.js';
 import { sweepUndelivered } from './roadmap-sweep.js';
 import { readAutoSuggest } from '../learn-user-settings.js';
 import { AUTO_KINDS, autoProposalHandler, settingsFanoutHandler } from './roadmap-auto.js';
+import { roadmapAutoEnabled } from './roadmap-settings-events.js';
 
 const scopeOf = access => ({ org: access.org, ownerUserId: access.actorUserId, boardId: access.boardId });
 
@@ -41,7 +42,8 @@ export const learnerSettings = env => async (_db, access) => {
 // deps for roadmapRoute. `settings` is the reader seam (Auto-suggest, mode); the default reads the learner's saved settings (learnerSettings).
 export function roadmapDeps(env, ctx = null, { settings = learnerSettings(env), readSourceOptions } = {}) {
   const kick = roadmapKick(env, ctx);
-  return { readSource: makeReadSource(env, readSourceOptions), startPlanning: kick, onAccepted: kick, onFact: kick, compose: (roadmap, step) => composeProposal(env.LEARN_DB, roadmap, step),
+  return { readSource: makeReadSource(env, readSourceOptions), startPlanning: kick, onAccepted: kick, onFact: roadmapAutoEnabled(env) ? kick : undefined, // R6: no wake on ack/mode change unless the automatic switch is on
+    compose: (roadmap, step) => composeProposal(env.LEARN_DB, roadmap, step),
     mintStepRefs: (e, access, roadmapId) => mintStepRefs(e, access, roadmapId), settings };
 }
 
