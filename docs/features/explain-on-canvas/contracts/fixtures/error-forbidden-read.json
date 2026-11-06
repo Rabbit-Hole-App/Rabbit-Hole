@@ -1,0 +1,10 @@
+{
+  "description": "Result route for a result the actor is not entitled to read: 404, indistinguishable from a missing id.",
+  "response": {
+    "status": 404,
+    "body": {
+      "error": "Not available",
+      "code": "not_found"
+    }
+  }
+}

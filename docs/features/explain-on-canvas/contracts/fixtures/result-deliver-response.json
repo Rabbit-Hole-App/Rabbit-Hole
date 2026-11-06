@@ -1,0 +1,39 @@
+{
+  "description": "Predicate passed: authorized blocks to insert idempotently. Then the client saves the board and posts the ack.",
+  "response": {
+    "status": 200,
+    "body": {
+      "resultId": "rs_90ab12cd34ef56789a0b1c2d",
+      "stepId": "st_a1b2c3d4e5f60718293a4b01",
+      "cards": [
+        {
+          "slot": {
+            "index": 0,
+            "cardId": "cd_71e20ac49f8b3d5612a7c0e4"
+          },
+          "block": {
+            "id": "cd_71e20ac49f8b3d5612a7c0e4",
+            "type": "explanation",
+            "title": "What a gradient tells you",
+            "body": "The gradient of the loss at a point is the slope there. Moving against it lowers the loss.",
+            "stepId": "st_a1b2c3d4e5f60718293a4b01",
+            "sourceRef": {
+              "sourceId": "src_md_41c9e0a7",
+              "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+              "title": "Gradient descent notes.md",
+              "anchor": {
+                "kind": "heading",
+                "path": [
+                  "Gradients"
+                ],
+                "start": 0,
+                "end": 1840
+              }
+            }
+          }
+        }
+      ],
+      "ackRequired": true
+    }
+  }
+}

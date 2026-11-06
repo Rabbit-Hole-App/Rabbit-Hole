@@ -1,0 +1,21 @@
+{
+  "description": "Server offered the two-choice invitation after a Markdown source became ready and the chat was idle.",
+  "response": {
+    "status": 200,
+    "body": {
+      "invitation": {
+        "id": "iv_2b7d9e41c8a05f36d1e0a9b4",
+        "state": "offered",
+        "sourceIds": [
+          "src_md_41c9e0a7"
+        ],
+        "title": "Gradient descent notes.md",
+        "choices": [
+          "explain_on_canvas",
+          "keep_here"
+        ],
+        "offeredAt": "2026-11-06T17:02:00.000Z"
+      }
+    }
+  }
+}

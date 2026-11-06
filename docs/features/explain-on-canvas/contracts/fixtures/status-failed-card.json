@@ -1,0 +1,199 @@
+{
+  "description": "Card failed after its one automatic retry; learner charges refunded. Retry, Replace and Omit resolve to the same actions from Chat and ToC.",
+  "response": {
+    "status": 200,
+    "body": {
+      "roadmap": {
+        "id": "rm_5f0c1a7e9b3d4c2a8e6f1b07",
+        "boardId": "lb_7c1e5a90d2b84f63a1c07e92",
+        "state": "active",
+        "revision": 9,
+        "planVersion": 2,
+        "acceptedPlanVersion": 2,
+        "depth": "standard",
+        "practiceMode": "explanations",
+        "instruction": "I already know what a derivative is. Teach me how gradient descent uses it.",
+        "language": "en",
+        "scope": {
+          "kind": "whole",
+          "sourceId": "src_md_41c9e0a7",
+          "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+          "title": "Gradient descent notes.md"
+        },
+        "ceiling": 10,
+        "deliveredCount": 0,
+        "mode": "tutor",
+        "modeRevision": 3,
+        "createdAt": "2026-11-06T17:02:11.000Z",
+        "updatedAt": "2026-11-06T17:04:40.000Z"
+      },
+      "question": null,
+      "limitation": null,
+      "plan": {
+        "version": 2,
+        "outcome": "Be able to run one gradient descent update and choose a sensible learning rate.",
+        "assumptions": [
+          "You know what a derivative is (your instruction), so it is not retaught.",
+          "You have not yet seen the update rule in this source."
+        ],
+        "formats": [
+          "explanation",
+          "table"
+        ],
+        "steps": [
+          {
+            "id": "st_a1b2c3d4e5f60718293a4b01",
+            "position": 1,
+            "title": "What a gradient tells you",
+            "goal": "Read the slope of the loss at a point.",
+            "sourceRef": {
+              "sourceId": "src_md_41c9e0a7",
+              "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+              "title": "Gradient descent notes.md",
+              "anchor": {
+                "kind": "heading",
+                "path": [
+                  "Gradients"
+                ],
+                "start": 0,
+                "end": 1840
+              }
+            },
+            "state": "planned"
+          },
+          {
+            "id": "st_a1b2c3d4e5f60718293a4b02",
+            "position": 2,
+            "title": "One update step",
+            "goal": "Apply w - lr * grad by hand.",
+            "sourceRef": {
+              "sourceId": "src_md_41c9e0a7",
+              "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+              "title": "Gradient descent notes.md",
+              "anchor": {
+                "kind": "heading",
+                "path": [
+                  "Update rule"
+                ],
+                "start": 1840,
+                "end": 3320
+              }
+            },
+            "state": "planned"
+          },
+          {
+            "id": "st_a1b2c3d4e5f60718293a4b03",
+            "position": 3,
+            "title": "Choosing a learning rate",
+            "goal": "Compare too small, good and too large rates.",
+            "sourceRef": {
+              "sourceId": "src_md_41c9e0a7",
+              "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+              "title": "Gradient descent notes.md",
+              "anchor": {
+                "kind": "heading",
+                "path": [
+                  "Learning rate"
+                ],
+                "start": 3320,
+                "end": 5210
+              }
+            },
+            "state": "planned"
+          }
+        ],
+        "stoppingPoint": "You can trace one gradient descent update by hand and say why the learning rate matters."
+      },
+      "steps": [
+        {
+          "id": "st_a1b2c3d4e5f60718293a4b01",
+          "position": 1,
+          "title": "What a gradient tells you",
+          "goal": "Read the slope of the loss at a point.",
+          "sourceRef": {
+            "sourceId": "src_md_41c9e0a7",
+            "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+            "title": "Gradient descent notes.md",
+            "anchor": {
+              "kind": "heading",
+              "path": [
+                "Gradients"
+              ],
+              "start": 0,
+              "end": 1840
+            }
+          },
+          "state": "incomplete"
+        },
+        {
+          "id": "st_a1b2c3d4e5f60718293a4b02",
+          "position": 2,
+          "title": "One update step",
+          "goal": "Apply w - lr * grad by hand.",
+          "sourceRef": {
+            "sourceId": "src_md_41c9e0a7",
+            "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+            "title": "Gradient descent notes.md",
+            "anchor": {
+              "kind": "heading",
+              "path": [
+                "Update rule"
+              ],
+              "start": 1840,
+              "end": 3320
+            }
+          },
+          "state": "planned"
+        },
+        {
+          "id": "st_a1b2c3d4e5f60718293a4b03",
+          "position": 3,
+          "title": "Choosing a learning rate",
+          "goal": "Compare too small, good and too large rates.",
+          "sourceRef": {
+            "sourceId": "src_md_41c9e0a7",
+            "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+            "title": "Gradient descent notes.md",
+            "anchor": {
+              "kind": "heading",
+              "path": [
+                "Learning rate"
+              ],
+              "start": 3320,
+              "end": 5210
+            }
+          },
+          "state": "planned"
+        }
+      ],
+      "proposal": null,
+      "results": [
+        {
+          "id": "rs_90ab12cd34ef56789a0b1c2d",
+          "stepId": "st_a1b2c3d4e5f60718293a4b01",
+          "slot": {
+            "index": 0,
+            "cardId": "cd_71e20ac49f8b3d5612a7c0e4"
+          },
+          "generation": "failed",
+          "delivery": "not_delivered",
+          "billing": "refunded",
+          "failure": {
+            "code": "generation_failed",
+            "message": "This explanation could not be made. You were not charged."
+          },
+          "recovery": [
+            "retry",
+            "replace",
+            "omit"
+          ]
+        }
+      ],
+      "nextStepReady": false,
+      "poll": {
+        "afterMs": 2000,
+        "etag": "rv-7"
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "description": "Plan revision through the ToC conversation. A material change returns a revised plan for acceptance.",
+  "request": {
+    "boardId": "lb_7c1e5a90d2b84f63a1c07e92",
+    "expectedRevision": 4,
+    "actionKey": "ak_revise_0001",
+    "instruction": "Make it shorter and skip the learning rate.",
+    "settings": {
+      "depth": "overview"
+    }
+  }
+}
