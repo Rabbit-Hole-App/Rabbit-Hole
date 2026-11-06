@@ -13,6 +13,7 @@ export const CANVAS_TARGET_MAX = 32000;
 export const NO_REFS = Object.freeze([]);
 export function tocAskProps(props) {
   return { ...props, canvasTarget: null, onClearCanvasTarget: null, slash: null, tray: null, voice: null, nextStepRef: null,
+    tutor: props.tutor ? { ...props.tutor, extras: null, opening: null } : props.tutor,
     // The owner (2026-10-16): a TOC request never inherits Chat's attachments. The open paper, article, video, image and canvas
     // preview stay Chat's; preserve the outline and proposal handler without clearing Chat's image or paper selection.
     boardContext: props.boardContext ? { ...props.boardContext, paper: null, wiki: null, video: null, image: null, preview: null, removeImage: () => {} } : props.boardContext };
@@ -41,6 +42,7 @@ export const TOC_VIEW = {
     'data-context-button': 'Context documents (never on the Learn Chat either)',
     'data-command-slot': 'the / command control (slash is null)',
     'data-voice-error': 'voice (voice is null)',
+    'data-tutor-extras': "the Tutor's suggestion chips and the suggested Rabbit Hole (tutor.extras is null)",
     ContextChips: 'the context pills (chips is null)',
     TutorPromptTray: 'the prompt tray (tray is null)',
     VoiceToggle: 'the mic (voice is null)',

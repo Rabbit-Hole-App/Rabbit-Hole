@@ -32,7 +32,7 @@ test('a kept hole is still deleted through the server, with the subtree warning'
 // Owner, 2026-10-27: the right-click menu's Delete Rabbit Hole opens this same dialog. Cancel only closes it and gives the focus
 // back: no request and no local change. Only Yes, delete runs doDelete.
 test('the delete dialog is the owner\'s wording, and Cancel sends nothing and changes nothing', () => {
-  const start = source.indexOf('confirmDialog: confirm &&'), dialog = source.slice(start, source.indexOf('};', start));
+  const dialog = source.slice(source.indexOf('confirmDialog: confirm &&'), source.indexOf('suggestionCard:'));
   assert.match(dialog, /title="Delete this Rabbit Hole\?"/);
   assert.match(dialog, /confirmLabel="Yes, delete"/);
   assert.match(dialog, /onConfirm=\{doDelete\}/);

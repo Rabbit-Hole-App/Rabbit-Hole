@@ -36,14 +36,14 @@
 //   9-13. MOT-20b (every entry point reaches the same shared proposal card; CR-1's POST /api/learn/chat/route MOCKED, a named
 //      capability decided with no router call): the picker (pill then words: route names motion, the turn carries its
 //      route_token); Auto-mode prose (owner, 2026-10-24: an explicit /motion in Auto requests the Motion flow, ordinary prose
-//      stays an ordinary chat turn): prose that mentions a video is routed as an answer and sent as one plain /api/learn/ask
-//      turn with no command and no route token, no proposal card and no video route; then, IN ASK MODE (the mode
+//      stays under normal Tutor routing): prose that mentions a video reaches /api/learn/tutor/plan, with no router call, no
+//      chat turn, no proposal card and no video route; then, IN ASK MODE (where the chat route still routes prose; the mode
 //      is set for the step and put back to Auto), natural language ("Create a 15-second animated explanation of
 //      photosynthesis", no /motion: the router's proposal, the same bound fields on route and turn); clarification (one
 //      question with its options, the draft kept, no turn; choosing Motion asks again with it named); router failure (Answer
 //      normally and Retry, the draft kept, never a paid capability); an answer suggestion (a click only prepares the composer;
-//      its Send proposes). CONTRACT CHANGE, not a weakening: those four steps used to run in Auto, whose prose then went to the
-//      browser Tutor (since removed; Auto now routes like Ask); their router assertions are unchanged except that the route body names mode 'ask';
+//      its Send proposes). CONTRACT CHANGE, not a weakening: those four steps used to run in Auto, whose prose now goes to the
+//      Tutor; their router assertions are unchanged except that the route body names mode 'ask';
 //   14-15. Ctrl+K on the selected card hands /motion to the Chat's proposal card (the editor says Sent to Chat, stages nothing,
 //      the Chat draft stays); a reload restores the saved proposals (MOCKED thread restore): the newest live, the generated one
 //      inactive, nothing sent, and exactly one user bubble per saved turn;
@@ -766,18 +766,16 @@ for (const theme of ['light', 'dark']) {
     await dismiss();
   });
 
-  // Owner, 2026-10-24: an explicit /motion in Auto requests the Motion flow; ordinary prose stays an ordinary chat turn. The
-  // router here answers it (unscripted words), so this proves the line became a plain answer turn, not a Motion proposal.
-  await step(`${theme}: Auto: prose that mentions a video is a plain chat turn: routed as an answer, one ask with no command or route token, no proposal card, no video route`, async () => {
+  // Owner, 2026-10-24: an explicit /motion in Auto requests the Motion flow; ordinary prose stays under normal Tutor routing. The
+  // Tutor's plan route is refused here (counted in model), so this proves where the line went, not what the Tutor would say.
+  await step(`${theme}: Auto: prose that mentions a video goes to the Tutor: its plan route is reached; no router call, no chat turn, no proposal card, no video route`, async () => {
     await setMode('auto');
-    const LINE = 'Can you show me a short video of how photosynthesis works?';
-    const r0 = routes.length, a0 = asks.length, cards = await proposalCards.count(), s0 = seen.length;
-    await composer().fill(LINE); await composer().press('Enter');
-    await until(() => asks.length > a0, 'the plain chat turn is sent to /api/learn/ask');
-    await dock.getByText('Photosynthesis turns light into sugar.').last().waitFor();
+    const planned = () => model.filter(path => path === '/api/learn/tutor/plan').length;
+    const p0 = planned(), r0 = routes.length, a0 = asks.length, cards = await proposalCards.count(), s0 = seen.length;
+    await composer().fill('Can you show me a short video of how photosynthesis works?'); await composer().press('Enter');
+    await until(() => planned() > p0, 'the Tutor plan route is reached');
     await page.waitForTimeout(600);
-    assert.deepEqual([routes.length - r0, asks.length - a0], [1, 1], 'one router call and one /api/learn/ask turn');
-    assert.deepEqual([asks[a0].message, asks[a0].command ?? null, asks[a0].route_token ?? null, asks[a0].mode], [LINE, null, null, 'auto'], 'an ordinary Auto turn: no command, no route token');
+    assert.deepEqual([routes.length - r0, asks.length - a0], [0, 0], 'neither the chat router nor /api/learn/ask');
     assert.equal(await proposalCards.count(), cards, 'no proposal card');
     assert.equal(seen.slice(s0).filter(r => r.path === '/api/learn/video' && r.method !== 'GET').length, 0, 'no video route');
     await dismiss();

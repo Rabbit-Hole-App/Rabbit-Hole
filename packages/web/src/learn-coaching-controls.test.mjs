@@ -1,14 +1,18 @@
 // Task 03 (C:/s/spec/tutor-workflow/draft.md; owner decisions 1a, 3a, 4a): the browser side of the personal Tutor controls -
 // the save queue against a fake /api/learn/coaching that applies the same reducer the Worker does, the Chat's mode under the
-// canvas controls, and the hooks gate. No network, no model. Browser checks:
+// canvas controls, the hooks gate and the guided Rabbit Hole opening. No network, no model. Browser checks:
 // e2e/tutor-controls-check.mjs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { reduceTutorControls } from './learn-coaching-contract.js';
-import { controlsNote, createCoachingSync, effectiveControls, threadWithControls } from './learn-coaching-client.js';
-import { askMode } from './chat-route.js';
+import { controlsNote, createCoachingSync, effectiveControls, guidedOpening, threadWithControls } from './learn-coaching-client.js';
+import { askMode, tutorTurn } from './chat-route.js';
 import { gateHooks, hooksTrigger, nextStepsController } from './learn-next-steps.js';
+import { holeOpening } from './learn-tutor.js';
+import { markGuidedEntry } from './learn-opening.js';
+import { emptyStore } from './learn-tutor-evidence.js';
+import { NANOGPT } from './learn-tutor-claims.js';
 
 const APP = 'canvas-0a1b2c3d', SCOPE = { app: APP, board: 'main' };
 const tick = async (n = 6) => { for (let i = 0; i < n; i += 1) await new Promise(resolve => setImmediate(resolve)); };
@@ -260,18 +264,47 @@ test('a late read for a canvas the page left is dropped; a hole not saved yet ke
   assert.deepEqual([failed.view().status, failed.canCoach({ chatOpen: true }), controlsNote(failed.view()).action], ['error', false, 'retry'], 'unavailable is never an empty default');
 });
 
-// Every Learn turn posts to /api/learn/ask (Tutor cleanup P2); only the Table of contents conversation names mode tutor.
-test('mode routing: Chat Tutor mode names auto on /api/learn/ask; the TOC conversation keeps tutor', () => {
+// Owner 1a: Chat's Tutor is the teaching Tutor; the Table of contents keeps the syllabus.
+test('mode routing: Tutor takes the Tutor workflow like Auto; Ask never does; the TOC keeps the syllabus on /api/learn/ask', () => {
+  const tutor = { ask: () => {} }, chat = {};
+  assert.deepEqual(['auto', 'tutor', 'ask'].map(mode => tutorTurn({ tutor, chat, mode })), [true, true, false]);
+  assert.equal(tutorTurn({ tutor, chat, mode: 'tutor', toc: true }), false, 'the TOC conversation posts its held Tutor to /api/learn/ask');
+  assert.equal(tutorTurn({ tutor, chat, mode: 'tutor', codeTurn: true }), false);
   assert.deepEqual([askMode('tutor'), askMode('tutor', true), askMode('ask'), askMode('auto')], ['auto', 'tutor', 'ask', 'auto'], 'only the TOC sends tutor (the syllabus)');
 });
 
-test('wiring: the Chat mode is the canvas control, the switch sits beside selected Tutor, hooks go through the gate', () => {
+// Owner 4a with the contract's guided entry (start_guided, then GUIDED_ENTRY: selected, enabled Tutor only).
+test('guided Rabbit Hole opening: one turn only from an explicit entry, and only where coaching may run', () => {
+  const ctx = { chatOpen: true, ready: true };
+  const tutorOn = { mode: 'tutor', tutorEnabled: true, suggestionsPaused: true, revision: 4 };
+  assert.equal(guidedOpening({ own: tutorOn, context: ctx }), true, 'the guided entry clears a pause in selected, enabled Tutor');
+  assert.equal(guidedOpening({ own: { ...tutorOn, tutorEnabled: false }, context: ctx }), false, 'Off: the static prompt instead');
+  assert.equal(guidedOpening({ own: { ...tutorOn, mode: 'auto' }, context: ctx }), false, 'Auto: the static prompt instead');
+  const fresh = { mode: 'auto', tutorEnabled: true, suggestionsPaused: false, revision: 0 };
+  assert.equal(guidedOpening({ own: fresh, entry: tutorOn, context: ctx }), true, 'a new hole follows the controls it was made under');
+  assert.equal(guidedOpening({ own: fresh, entry: null, context: ctx }), false);
+  assert.equal(guidedOpening({ own: { ...tutorOn, suggestionsPaused: false }, context: ctx }), true);
+  // holeOpening: no mark (a URL restore, a refresh in a new tab, Back, a reopen) - restored, never opened; a mark - once.
+  const memory = () => { const m = new Map(); return { m, getItem: k => m.get(k) ?? null, setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) }; };
+  const s = memory(), record = { dive_id: 'canvas-0000cafe', title: 'Masks' };
+  let saved = emptyStore();
+  const run = () => { const out = holeOpening({ storage: s, load: () => saved, record, hookTurns: true, settled: true, active: true, domain: () => NANOGPT, mint: () => 'o1' }); if (out.store) saved = out.store; return out.opening; };
+  assert.equal(run(), null, 'a reopened hole: no turn');
+  assert.equal(run(), null);
+  saved = emptyStore();
+  markGuidedEntry(s, record.dive_id, tutorOn);
+  assert.deepEqual(run(), { key: `${record.dive_id}:o1`, question: 'Take me into Masks.', entry: tutorOn });
+  assert.equal(run(), null, 'once: the refresh after it finds no mark');
+});
+
+test('wiring: the Chat mode is the canvas control, the switch sits beside selected Tutor, hooks and openings go through the gate', () => {
   const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const workspace = read('./chat-workspace.jsx'), selector = read('./ModeSelector.jsx'), ask = read('./ask.jsx'), page = read('./LearnPage.jsx'), steps = read('./LearnNextSteps.jsx');
   assert.match(workspace, /const thread = useMemo\(\(\) => threadWithControls\(ownThread, coaching\)/);
   assert.match(selector, /\{mode === 'tutor' && chat\.coaching && <TutorSwitch coaching=\{chat\.coaching\} \/>\}/, 'only beside selected Tutor');
-  assert.match(read('./use-learn-coaching.jsx'), /aria-label="Auto-suggest"/);
+  assert.match(read('./use-learn-coaching.jsx'), /aria-label="Proactive Tutor suggestions"/);
   assert.match(ask, /mode: askMode\(chat\.thread\.mode, tocView\)/);
+  assert.match(ask, /!openGuided\(chat\.coaching, chat\.thread,/);
   assert.match(page, /<NextStepsHost on=\{nextStepsHere\} coaching=\{hooksCoaching\}/);
   assert.match(steps, /gateHooks\(gate, steps\.state\(\), \{ allowed: !!coaching\?\.allowed/);
 });

@@ -24,6 +24,7 @@ await esbuild.build({
     contents: [
       "export { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray, resolveBody, journeyController, inJourneySetup, journeyDiveContext } from './LearnJourney.jsx';",
       "export { default as ContentsRail, PathList, flyoutRect, canvasEmpty } from './ContentsRail.jsx';",
+      "export { useTutor, tutorStoreKey } from './LearnTutor.jsx';",
       "export { createElement } from 'react';",
       "export { renderToStaticMarkup } from 'react-dom/server';",
     ].join('\n'),
@@ -176,6 +177,41 @@ test('resolveBody: rule 5 sends the open tray inside the route limits, and no ot
   assert.equal(body.tray.options.length, 6);
   assert.ok(body.tray.options.every(o => Object.keys(o).join() === 'id,label' && o.id.length === 40 && o.label.length === 120));
   assert.deepEqual(resolveBody('hi', previewTray).tray, { mode: 'path_preview', prompt: previewTray.prompt, options: previewTray.options, free_text: false });
+});
+
+test('ask.jsx: on a journey canvas the Tutor is the one path; the composer calls handleText only with no Tutor (a journey being started); the tray sits in the LearnSlash slot', () => {
+  const ask = read('ask.jsx');
+  // LP1 Task 12: a live journey makes the Tutor active, and its turn() runs the resolver for typed and voice turns. The
+  // composer's own call is left for a canvas with no Tutor, whose only trays belong to a journey being started.
+  assert.equal(ask.split('journey.handleText(').length, 2, 'one handleText call in the composer');
+  assert.match(ask, /if \(!tutor\) \{\n\s+setInput\(''\);\n\s+routed = await journey\.handleText\(raw\.trim\(\)\);/);
+  const journeyAt = ask.indexOf('journey.handleText(');
+  const starterAt = ask.indexOf('journeyStartsHere(');
+  assert.ok(journeyAt > 0 && starterAt > 0);
+  assert.ok(journeyAt < ask.indexOf("setMsgs((m) => [...m, { role: 'user'"), 'before any chat bubble, card or /api/learn/ask');
+  // The Tutor draws the turn's bubbles and exchange itself (begin), only for a turn it answers: a turn the journey takes
+  // has neither, and a failed one gives the words back. Ask the Tutor (skipJourney) goes straight to the planner.
+  // A question about attached repository lines or a file (codeTurn) goes to the repository's reader instead (repository-browser.md).
+  // The path is chat-route.js tutorTurn: the Tutor in Auto (and off the Chat pane); Ask and Tutor modes post to /api/learn/ask.
+  // A turn with an imported file attached goes to /api/learn/ask, which reads file refs (chat-route.js fileTurn).
+  assert.match(ask, /const viaTutor = tutorTurn\(\{ tutor, codeTurn, pageTurn: turnHasPage\(target, attachedRefs\) && !pdfPage, fileTurn, explicit: !!commandName && promptsChat\(commandName\), chat, mode: chat\?\.thread\.mode, toc: tocView \}\);\n\s+if \(!viaTutor \|\| isDemo\) begin\(\);/);
+  assert.match(ask, /await tutor\.ask\(\{ raw: raw\.trim\(\), targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null, image: tutorImage, page: pdfPage, opening, signal: flight\.signal, skipJourney, resolved: sheetMode, begin: sheetMode \? null : begin, \.\.\.canvasArgs, inspected: tutorImage && imageObject \? \[imageObject\] : \[\], onCard: cardSink \}\)/); // onCard: the turn's cards kept under its question (UI changes brief 5)
+  assert.match(ask, /if \(reply\?\.handled\) \{ if \(reply\.failed\) setInput\(current => current \|\| raw\); return; \}/);
+  assert.match(ask, /await journeyStarter\(/);
+  assert.match(ask, /<TutorPromptTray tray=\{tray\.tray\}/);
+  assert.ok(ask.indexOf('<TutorPromptTray') < ask.indexOf('<slash.Picker'), 'in the LearnSlash slot, above the composer');
+  assert.match(ask, /tray\?\.tray\?\.free_text \? 'Type your answer, or ask anything'/);
+});
+
+test('LearnPage.jsx: useJourney off the nanoGPT course, its props on the Chat composer, and useTutor takes the journey', () => {
+  const page = read('LearnPage.jsx');
+  // Canvases only (the route refuses repository apps, the nanoGPT course among them), and never a pending hole, which has
+  // no canvas row yet.
+  assert.match(page, /const journey = useJourney\(\{ app, board: boardName, access: askScope, canvasApi, enabled: learnPreview && isCanvas && !hole \}\)/);
+  assert.match(page, /journey, journeyStarter: journey\.journey \? null : journey\.start, journeySetup: inJourneySetup\(journey\.journey\), tray: journey\.trayProps/);
+  // LP1 Task 12: the journey reaches useTutor, so the Chat's tutor prop is the Tutor on a journey canvas (D1).
+  assert.match(page, /const journey = useJourney\([^\n]*\n[\s\S]*?const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock, canvasContext, coaching, startExplain: explainLatest }\);/);
+  assert.match(page, /tutor: tutor\.active \? tutor : null, journey,/);
 });
 
 // ---- journeyController: the hook's behaviour, driven with a fake fetchJson (no network) ----
@@ -1080,14 +1116,218 @@ test('final review B-C1: useJourney disposes its controller on unmount or a boar
   assert.match(src, /const fetchJson = \(\.\.\.args\) => \(s\.dead \? Promise\.reject\(new Error\('This journey view has closed\.'\)\) : send\(\.\.\.args\)\);/);
 });
 
-
-// ---- fixtures the journey controller tests below share (the Tutor harness that sat here went with the browser Tutor, Tutor cleanup P2) ----
+// ---- useTutor on a journey canvas (LP1 Task 12; architecture §0 D1 and D6, §7.2, §12): the real hook, rendered once on
+// the server (its effects never run), with ask and voiceTurn driven over the journey controller above. A fake fetch
+// answers the Tutor routes and writes their requests into the same call log as the journey's, so the order shows. No
+// network, no model, no Send. ----
 const SIGMOID = {
   concepts: { sigmoid: { label: 'Sigmoid', names: ['sigmoid'], prerequisites: [] } },
   claims: Object.fromEntries(['range', 'shape'].map(id => [`sigmoid/${id}`, { concept: 'sigmoid', statement: `The sigmoid has its ${id}.`, ideas: [`its ${id}`], misconceptions: [], prerequisites: [], drawn: 'one S curve' }])),
 };
 const settled = (claim, seq) => ({ seq, concept: 'sigmoid', claim, result: 'pass', kind: 'demonstrated_here', settled: true, evaluator: 'jev', source: 'free_text', ref: {} });
+const PLAN = { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'A sigmoid squashes any number into 0 to 1.' }] };
 const diagnosing = (over = {}) => journeyOf({ state: 'diagnostic', diagnostic: { probes }, registry: SIGMOID, evidence: { seq: 0, events: [] }, ...over });
+// h: a harness (its journey already read). evaluate: the evaluate route's reply; by default an evaluator error, which
+// stores nothing. blocks: the canvas blocks (canvasApi.blocks and block(id)).
+function tutorOn(h, { evaluate = { status: 'error', evaluator: 'jev', events: [] }, blocks = [], plan = PLAN, board = 'main' } = {}) {
+  const storage = new Map(), began = [];
+  const globals = {
+    window: { dispatchEvent: () => true },
+    sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)) },
+    localStorage: { getItem: () => null },
+    fetch: async (path, options) => {
+      h.calls.push({ path, body: JSON.parse(options.body) });
+      return new Response(JSON.stringify(path === '/api/learn/tutor/evaluate' ? evaluate : plan), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    },
+  };
+  let tutor = null;
+  const journey = h.view();
+  const Page = () => {
+    tutor = useTutor({ app: { name: APP, org: 'o', email: 'e@x.com' }, board, access: { app: APP }, canvasApi: { current: { blocks: () => blocks, block: id => blocks.find(block => block.id === id) || null } }, canvasState: { card: null }, dive: { tree: null, suggestionCard: null }, journey });
+    return null;
+  };
+  renderToStaticMarkup(createElement(Page));
+  return {
+    tutor, began,
+    // ask.jsx's begin: where the composer draws the turn's bubbles and exchange, marked at its place in the call log.
+    begin: () => began.push(h.calls.length),
+    run: async fn => {
+      const saved = Object.fromEntries(Object.keys(globals).map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
+      for (const [name, value] of Object.entries(globals)) Object.defineProperty(globalThis, name, { value, configurable: true, writable: true });
+      try { return await fn(tutor); } finally {
+        for (const [name, descriptor] of Object.entries(saved)) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else delete globalThis[name]; }
+      }
+    },
+    stored: () => JSON.parse(storage.get('small.tutor:o:e@x.com:journey:j1') ?? 'null'),
+    storage,
+  };
+}
+const tutorRoutes = h => h.calls.filter(c => c.path.startsWith('/api/learn/tutor/'));
+
+// Task 11b (owner eleventh message 6-7): a blank canvas no longer keeps the Learn chat - natural typing there is Auto Tutor
+// input with the plain-canvas Tutor (source canvas), and a journey is never a prerequisite; the journey Tutor runs only on a journey.
+test('useTutor on a journey canvas: the journey Tutor is active there; a blank canvas gets the plain-canvas Auto Tutor', async () => {
+  const h = harness(ok(journeyOf({ state: 'active', registry: SIGMOID }), null));
+  await h.refresh();
+  assert.equal(tutorOn(h).tutor.active, true);
+  const blank = harness(none);
+  await blank.refresh();
+  // Which Tutor answers (journey or plain canvas) is asserted through the resolver in learn-tutor-domains.test.mjs and A-K.
+  assert.equal(tutorOn(blank).tutor.active, true, 'a blank canvas: the plain-canvas Auto Tutor');
+});
+
+test('useTutor on a journey canvas: a free-text probe answer is runTurn({ plan: false }) - the evaluate body names the journey, board, probe and turn; no planner call - then the walker steps on', async () => {
+  const j = diagnosing();
+  const h = harness(ok(j, explainTray), [{ status: 200, d: { kind: 'tray_answer' } }, ok({ ...j, revision: 5 }, previewTray)]);
+  await h.refresh();
+  const t = tutorOn(h, { evaluate: { status: 'settled', evaluator: 'jev', events: [], journey: { events: [settled('sigmoid/shape', 1)], seq: 1 } } });
+  const reply = await t.run(tutor => tutor.ask({ raw: 'It squashes any number into 0 to 1', begin: t.begin }));
+  assert.equal(reply.handled, true);
+  assert.deepEqual(h.actions(), ['resolve', '/api/learn/tutor/evaluate', 'probe_advance'], 'no /api/learn/tutor/plan: plan false');
+  const { turn_id, ...body } = h.calls[2].body;
+  assert.deepEqual(body, { app: APP, board: 'main', journey_id: 'j1', message: 'It squashes any number into 0 to 1', claims: ['sigmoid/shape'], answering: true, question: 'Explain the sigmoid in your words.', probe_id: 'p3' });
+  assert.equal(typeof turn_id, 'string');
+  assert.deepEqual(t.began, [], 'a turn the journey takes draws no bubble and no card');
+  assert.equal(t.stored().open, null, 'the probe is closed in the journey store');
+  assert.deepEqual(t.stored().events, [settled('sigmoid/shape', 1)], 'the server evidence, adopted');
+});
+
+test('useTutor on a journey canvas: with no tray, an unrelated question is a Tutor turn in the journey domain, drawn once; the store holds the journey evidence', async () => {
+  const evidence = { seq: 2, events: [settled('sigmoid/range', 1), settled('sigmoid/shape', 2)] };
+  const h = harness(ok(journeyOf({ state: 'active', registry: SIGMOID, evidence }), null));
+  await h.refresh();
+  const t = tutorOn(h);
+  const reply = await t.run(tutor => tutor.ask({ raw: 'What is a sigmoid?', begin: t.begin }));
+  assert.equal(reply, PLAN.actions[0].text);
+  assert.deepEqual(h.actions(), ['/api/learn/tutor/plan'], 'no resolver call with no tray');
+  assert.equal(h.calls[1].body.context.journey_context.phase, 'active', 'domain.kind journey: the journey context rides');
+  assert.deepEqual(t.began, [1], 'drawn once, before the plan request');
+  assert.deepEqual(t.stored().events, evidence.events, 'the journey store holds the server evidence');
+  // Ask the Tutor (skipJourney, from a clarification) on an open tray: straight to the planner, in the setup phase.
+  const setup = harness(ok(journeyOf({ registry: SIGMOID }), goalTray));
+  await setup.refresh();
+  const s = tutorOn(setup);
+  await s.run(tutor => tutor.ask({ raw: 'What is a sigmoid?', skipJourney: true, begin: s.begin }));
+  assert.deepEqual(setup.actions(), ['/api/learn/tutor/plan']);
+  assert.equal(setup.calls[1].body.context.journey_context.phase, 'setup');
+  assert.deepEqual(setup.calls[1].body.context.allowed_actions, ['respond_text', 'suggest_journey'], 'off_slice in setup: words only, no card; and the learning-path offer (owner 2026-10-07)');
+});
+
+test('useTutor on a journey canvas: a typed and a voice turn with the same words take the same route (D6, one resolver)', async () => {
+  const cases = [
+    ['a free-text probe answer', ok(diagnosing(), explainTray), [{ status: 200, d: { kind: 'tray_answer' } }, ok(diagnosing({ revision: 5 }), previewTray)], 'It squashes any number into 0 to 1', ['resolve', '/api/learn/tutor/evaluate', 'probe_advance']],
+    ['an option label', ok(journeyOf({ registry: SIGMOID }), familiarityTray), [ok(journeyOf({ revision: 5 }), depthTray)], 'Seen it before', ['intake_answer']],
+    ['an unrelated question over a tray', ok(journeyOf({ registry: SIGMOID }), goalTray), [{ status: 200, d: { kind: 'unrelated_question' } }], 'What is a sigmoid?', ['resolve', '/api/learn/tutor/plan']],
+    ['a path edit on the preview', ok(journeyOf({ state: 'path_review', path_version: 1, registry: SIGMOID }), previewTray), [ok(journeyOf({ state: 'path_review', revision: 5, pending: 'revise' }), null)], 'Could we do Python first?', ['path_edit']],
+  ];
+  for (const [name, first, replies, raw, route] of cases) {
+    const runs = [];
+    for (const voice of [false, true]) {
+      const h = harness(first, replies);
+      await h.refresh();
+      const t = tutorOn(h);
+      const out = await t.run(tutor => (voice ? tutor.voiceTurn({ raw, turnId: 'turn-1' }) : tutor.ask({ raw, turnId: 'turn-1', begin: t.begin })));
+      // The planner's context says which modality asked (learner_intent.input_modality); every other request is equal.
+      runs.push({ actions: h.actions(), bodies: h.calls.slice(1).map(c => (c.path === '/api/learn/tutor/plan' ? 'plan' : c.body)), out });
+    }
+    const [typed, spoken] = runs;
+    assert.deepEqual(typed.actions, route, name);
+    assert.deepEqual(spoken.actions, typed.actions, `${name}: voice routes as typed`);
+    assert.deepEqual(spoken.bodies, typed.bodies, `${name}: the same requests`);
+    const planned = route.includes('/api/learn/tutor/plan');
+    assert.equal(spoken.out.speech, planned ? PLAN.actions[0].text : '', `${name}: a turn the journey takes says nothing`);
+    assert.equal(planned ? typed.out : typed.out.handled, planned ? PLAN.actions[0].text : true, name);
+  }
+});
+
+test('useTutor on a journey canvas: "Can we skip this?" with a tray open is the journey cancel and never reaches runTurn, typed or spoken', async () => {
+  for (const [first, tray] of [[journeyOf({ registry: SIGMOID }), goalTray], [diagnosing(), explainTray], [diagnosing(), probeTray]]) {
+    for (const voice of [false, true]) {
+      const h = harness(ok(first, tray), [ok({ ...first, revision: 5 }, null)]);
+      await h.refresh();
+      const t = tutorOn(h);
+      const out = await t.run(tutor => (voice ? tutor.voiceTurn({ raw: 'Can we skip this?', turnId: 'turn-1' }) : tutor.ask({ raw: 'Can we skip this?', begin: t.begin })));
+      assert.deepEqual(h.actions(), ['cancel'], tray.mode);
+      assert.deepEqual(tutorRoutes(h), [], `${tray.mode}: no evaluate, no plan`);
+      assert.equal(voice ? out.speech : out.handled, voice ? '' : true);
+      assert.deepEqual(t.began, []);
+    }
+  }
+});
+
+// ---- Task 12 review round 1 ----
+
+test('useTutor on a journey canvas: a voice turn while an action is in flight is refused - one intake_answer, never two', async () => {
+  let land;
+  const h = harness(ok(journeyOf({ registry: SIGMOID }), familiarityTray), [() => new Promise(resolve => { land = () => resolve(ok(journeyOf({ revision: 5 }), depthTray)); })]);
+  await h.refresh();
+  const t = tutorOn(h);
+  const clicked = h.view().answer('seen'); // the option click, still posting
+  assert.equal(h.view().busy, true);
+  const spoken = await t.run(tutor => tutor.voiceTurn({ raw: 'Seen it before', turnId: 'turn-1' }));
+  assert.equal(spoken.speech, '', 'a refused spoken turn says nothing');
+  const typed = await t.run(tutor => tutor.ask({ raw: 'Seen it before', begin: t.begin }));
+  assert.deepEqual([typed.handled, typed.failed], [true, true], 'a typed one gets its words back');
+  land();
+  await clicked;
+  assert.deepEqual(h.actions(), ['intake_answer']);
+  assert.deepEqual(tutorRoutes(h), []);
+  assert.deepEqual(t.began, []);
+});
+
+test('useTutor: slash(null) drops a waiting /deeper, and a slash prompt is a Tutor turn even while the journey works', async () => {
+  let land;
+  const h = harness(ok(journeyOf({ registry: SIGMOID }), goalTray), [ok(journeyOf({ registry: SIGMOID, revision: 5 }), goalTray), () => new Promise(resolve => { land = () => resolve(ok(journeyOf({ revision: 6 }), goalTray)); })]);
+  await h.refresh();
+  const t = tutorOn(h);
+  // The composer refused the prompt (busy) and cleared the command: the next turn is the learner's own words, and goes
+  // through the journey's resolver like any other (a waiting slash would have skipped it).
+  t.tutor.slash('deeper', '/deeper the old question');
+  t.tutor.slash(null);
+  const out = await t.run(tutor => tutor.ask({ raw: 'Can we skip this?', begin: t.begin }));
+  assert.equal(out.handled, true);
+  assert.deepEqual(h.actions(), ['cancel']);
+  // While an action posts, the slash prompt (sent with skipJourney) still reaches the planner. Task 11b fix B5: a journey has no
+  // depth ladder, so /deeper is an ordinary turn from the composer's words (until 11b it reached the planner as kind slash).
+  const busy = h.view().retry();
+  t.tutor.slash('deeper', '/deeper the sigmoid');
+  await t.run(tutor => tutor.ask({ raw: 'Explain the sigmoid more deeply.', skipJourney: true, begin: t.begin }));
+  assert.deepEqual(h.actions().filter(a => a !== '/api/learn/tutor/evaluate'), ['cancel', 'retry', '/api/learn/tutor/plan']);
+  const intent = h.calls.at(-1).body.context.learner_intent;
+  assert.deepEqual([intent.kind, intent.raw_user_message, 'slash' in intent], ['request', 'Explain the sigmoid more deeply.', false]);
+  land();
+  await busy;
+});
+
+test('useTutor on a journey canvas: a block follow-up asks about that block (its targetId)', async () => {
+  const h = harness(ok(journeyOf({ state: 'active', registry: SIGMOID }), null));
+  await h.refresh();
+  const t = tutorOn(h, { blocks: [{ id: 'x1', type: 'explanation', title: 'Odds and log-odds', body: 'The logit is the log of the odds.' }] });
+  await t.run(tutor => tutor.ask({ raw: 'Why take the log?', targetId: 'x1', begin: t.begin }));
+  assert.deepEqual(h.actions(), ['/api/learn/tutor/plan']);
+  assert.match(h.calls[1].body.context.target.description, /Odds and log-odds/);
+  assert.equal(h.calls[1].body.context.journey_context.phase, 'active');
+});
+
+test('ask.jsx and LearnPage.jsx: the sheet opens only for a Tutor reply; slash prompts skip the journey and a refused turn clears the slash; block follow-ups on a journey canvas go to the Tutor', () => {
+  const ask = read('ask.jsx'), page = read('LearnPage.jsx');
+  // The sheet opens inside begin(): a turn the journey takes never reopens it.
+  assert.equal(ask.split('if (panelAsk) { setSheetOpen(true); setSheetHistory(false); }').length, 2, 'once');
+  assert.match(ask, /const begin = \(\) => \{\n\s+if \(begun\) return;\n\s+begun = true;\n\s+if \(panelAsk\) \{ setSheetOpen\(true\); setSheetHistory\(false\); \}/);
+  // A Ctrl+K line's prompt (owner spec 2026-10-29) carries its own selection and keeps the draft; it still skips the journey.
+  assert.match(ask, /onPrompt=\{\(prompt, handoff\) => send\(prompt, undefined, \{ skipJourney: true, command: promptCommand\.current, prompted: true, \.\.\.\(handoff \? \{ about: handoff\.about, keepDraft: true \} : \{\}\) \}\)\}/);
+  assert.match(ask, /if \(journey\.busy\) \{ tutor\?\.slash\?\.\(null\); return; \}/);
+  assert.match(ask, /if \(!message \|\| busy\) \{ tutor\?\.slash\?\.\(null\); return false; \}/);
+  assert.match(read('LearnTutor.jsx'), /slash: \(name, raw\) => \{ slashNext\.current = SLASHES\.includes\(name\) \? \{ name, raw \} : null; \}/);
+  // A block's composer gets the Tutor only on a canvas with a live journey, or in a hole opened from a journey section once
+  // its Tutor is active (LP1 Task 14 review round 1, D1); nanoGPT, blank canvases and other holes keep /api/learn/ask. It
+  // asks about the block it sits in.
+  assert.match(page, /renderBlockComposer=\{[^\n]*?canvasSeed=\{\{ question: exchange\.question, answer: exchange\.answer, target \}\} onExchange=\{onExchange\} tutor=\{tutor\.active \? tutor : null\}/);
+  assert.match(ask, /targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null/);
+  // Final review C-I1: a hole's opening turn is sent once, from the dock - never again from each block's composer
+  // (Continue convo), which gets the same Tutor in a journey hole.
+  assert.match(ask, /if \(!\(dock \|\| chat\) \|\| !tutor\?\.opening \|\| busy \|\| chat\?\.coaching\?\.status === 'loading' \|\| !openOnce\(openedHoles, tutor\.opening\.key\)\) return;/);
+});
 
 // ---- LP1 Task 14 (architecture §13): the minimal journey context a Rabbit Hole opened from a journey section carries.
 // journeyDiveContext is pure; useDive, LearnPage and useTutor are pinned in source (effects never run here). ----
@@ -1101,6 +1341,35 @@ const divePath = { current_section_id: 's2', sections: [
 ] };
 const activeDive = (over = {}) => journeyOf({ state: 'active', active_section_id: 's2', registry: DIVE_REGISTRY, ...over });
 const stampedBlock = (journey_id, section_id, claims) => ({ id: 'b7', type: 'explanation', title: 'Odds', journey: { journey_id, section_id, step_id: 'b7', claims } });
+
+/// Final review C-m5, now the shared strict guard (e2e/keyless-guard.mjs, the same one next-steps-check.mjs uses): the J1-J8 harness runs
+// only against the keyless stack - a vars file of the control plane or of the app worker that binds a model, voice or subscription key,
+// in any dotenv form, is refused before any request (the origins here answer nothing, so a request would fail differently), and the
+// refusal reports the file and line, never the value.
+test('journey-check.mjs refuses a vars file with a model, voice or subscription key in any dotenv form, before any request', () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'journey-check-'));
+  const GOOD = 'SMALL_ENV=test\nTEST_BYPASS_SECRET=local\nMASTER_KEY=local\nOAUTH_MOCK=true\nJOURNEY_MODEL_STUB=fixtures\n';
+  try {
+    for (const folder of ['cp', 'app']) { mkdirSync(join(tmp, folder)); writeFileSync(join(tmp, folder, 'wrangler.jsonc'), '{ "name": "x", "vars": { "SMALL_ENV": "test" } }'); }
+    const run = () => spawnSync(process.execPath, [fileURLToPath(new URL('../e2e/journey-check.mjs', import.meta.url)), '--base', 'http://127.0.0.1:9', '--cp', 'http://127.0.0.1:9', '--vars', join(tmp, 'cp', '.dev.vars'), '--out', join(tmp, 'out')], {
+      // A key in the test runner's own shell is the guard's business, not this test's: hand the child a filtered env.
+      encoding: 'utf8', env: Object.fromEntries(Object.entries(process.env).filter(([name]) => !/_API_KEY|^ELEVENLABS_|^SUBSCRIPTION_/.test(name))),
+    });
+    for (const folder of ['cp', 'app']) for (const line of ['ANTHROPIC_API_KEY=not-a-key', 'ANTHROPIC_API_KEY: not-a-key', 'export ELEVENLABS_VOICE=not-a-voice', 'SUBSCRIPTION_BRIDGE_TOKEN=not-a-token']) {
+      for (const other of ['cp', 'app']) writeFileSync(join(tmp, other, '.dev.vars'), other === folder ? `${GOOD}${line}\n` : GOOD);
+      const result = run();
+      assert.notEqual(result.status, 0, `${folder}: ${line.split(/[=:]/)[0]}`);
+      assert.match(result.stderr, /journey-check runs only against the keyless stack/, `${folder}: ${line.split(/[=:]/)[0]}`);
+      assert.match(result.stderr, new RegExp(`${folder}[\\\\/]\\.dev\\.vars: line 6 is not one of the stack's allowed lines \\(line 6 binds a model, voice or subscription key\\)`), `${folder}: ${line.split(/[=:]/)[0]}`);
+      assert.doesNotMatch(result.stderr, /not-a-key|not-a-voice|not-a-token/, 'a refusal never prints a value');
+    }
+    // A missing .dev.vars is refused too (wrangler would fall back to .env files), and clean files pass the guard (the run then fails on the connection).
+    writeFileSync(join(tmp, 'cp', '.dev.vars'), GOOD); rmSync(join(tmp, 'app', '.dev.vars'), { force: true });
+    assert.match(run().stderr, /app[\\/]\.dev\.vars: missing/);
+    writeFileSync(join(tmp, 'app', '.dev.vars'), GOOD);
+    assert.doesNotMatch(run().stderr, /runs only against the keyless stack/);
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+});
 
 test('journeyDiveContext: from a stamped section block - its claims (registry ids, at most 4) and its section; their concepts, then the section targets', () => {
   assert.deepEqual(journeyDiveContext(activeDive(), divePath, stampedBlock('j1', 's1', ['odds/log', 'gone/claim'])),
@@ -1122,6 +1391,26 @@ test('journeyDiveContext: null unless the journey is active', () => {
   assert.equal(journeyDiveContext(null, null, null), null);
 });
 
+test('Task 14 wiring: LearnPage hands the live journey to useDive, the dive record carries it, and the hole Tutor reads its parent journey once', () => {
+  assert.match(read('LearnPage.jsx'), /const dive = useDive\(\{[^\n]*journeyContext: block => journeyDiveContext\(journey\.journey, journey\.path, block\), entryControls: [^\n]*\}\);/);
+  const diveSource = read('Dive.jsx');
+  assert.match(diveSource, /export function useDive\(\{[^}]*journeyContext = \(\) => null, entryControls = \(\) => null \}\)/);
+  assert.match(diveSource, /diveRecord\(\{[^\n]*journey: journeyContext\(block\) \}\)/);
+  const tutor = read('LearnTutor.jsx'), domains = read('learn-tutor-domains.js');
+  // Active in a hole whose record carries a journey once the parent journey is read; a refusal (null) leaves it as it was.
+  // Task 0: the resolver (learn-tutor-domains.js tutorContext) decides, over the parent journey and the record.
+  assert.match(tutor, /const where = \{ app: courseCanvas \? app : null, board, root, parentJourney, record \};\n  \/\/ Ruling F4[^\n]*\n  \/\/ [^\n]*\n  const context = tutorContext\(\{ \.\.\.where, journey \}\), capabilities = context\?\.capabilities;\n  const active = capabilities\?\.tutor === true, hookTurns = active \|\| capabilities\?\.hook_turns === true;/);
+  assert.match(tutor, /diveJourney\(record, path => api\(path\)\)/);
+  // A hole reads its concept from the domain it runs in (anti-hardcoding audit F3), never the nanoGPT one by default.
+  // Task 11 fix round: the opening lives in learn-tutor.js holeOpening, handed this hole's domain.
+  assert.match(tutor, /holeOpening\(\{[^\n]*domain: \(\) => domainOf\(canvasApi\.current\) \}\)/);
+  assert.match(read('learn-tutor.js'), /enterHole\(load\(\), record, domain\(\)\)/);
+  assert.match(tutor, /const domainOf = canvas => tutorContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\] \}\)\?\.domain;/);
+  assert.match(domains, /if \(parentJourney && record\?\.journey\) \{\n    return \{ domain: journeyDomain\(\{ journey: parentJourney\.journey, path: parentJourney\.path, blocks, dive: record\.journey \}\)/);
+  // The parent's resolver and tray run only for a live journey on this board: the hole posts no journey action.
+  assert.match(tutor, /if \(live && !slash && !opening && !skipJourney && !nextStep\)/);
+});
+
 // ---- LP1 Task 14 review round 1 ----
 test('journeyDiveContext: a stamped step with no registry claims falls back to its section\'s expected_evidence', () => {
   const s1 = { journey_id: 'j1', section_id: 's1', concept_ids: ['odds'], claim_ids: ['odds/ratio'] };
@@ -1135,6 +1424,61 @@ test('journeyDiveContext: a dive from this journey\'s section heading uses that 
   assert.equal(journeyDiveContext(activeDive(), divePath, heading('j0', 's1')).section_id, 's2');
 });
 
+test('tutorStoreKey: a journey hole has its own store; nanoGPT, holes without a journey and journey canvases keep their keys', () => {
+  const app = { name: 'canvas-0000hole', org: 'o', email: 'e@x.com' };
+  assert.equal(tutorStoreKey(app, null, null), 'small.tutor:o:e@x.com');
+  assert.equal(tutorStoreKey(app, null, { dive_id: 'canvas-0000hole', origin: {} }), 'small.tutor:o:e@x.com');
+  assert.equal(tutorStoreKey(app, 'j1', null), 'small.tutor:o:e@x.com:journey:j1');
+  assert.equal(tutorStoreKey(app, null, { dive_id: 'canvas-0000hole', journey: { journey_id: 'j1' } }), 'small.tutor:o:e@x.com:dive:j1');
+  assert.equal(tutorStoreKey(app, 'j2', { dive_id: 'canvas-0000hole', journey: { journey_id: 'j1' } }), 'small.tutor:o:e@x.com:journey:j2', 'a live journey here wins');
+  // Task 10: a canvas-domain store (a plain canvas or hole) is its own; a journey or a journey hole still wins.
+  assert.equal(tutorStoreKey(app, null, { dive_id: 'canvas-0000hole', origin: {} }, 'canvas-0000hole|main'), 'small.tutor:o:e@x.com:canvas:canvas-0000hole|main');
+  assert.equal(tutorStoreKey(app, 'j1', null, 'canvas-0000hole|main'), 'small.tutor:o:e@x.com:journey:j1');
+  assert.equal(tutorStoreKey(app, null, { dive_id: 'canvas-0000hole', journey: { journey_id: 'j1' } }, 'canvas-0000hole|main'), 'small.tutor:o:e@x.com:dive:j1');
+  assert.match(read('LearnTutor.jsx'), /const key = tutorStoreKey\(app, journeyId, record, context\?\.source === 'canvas' \? `\$\{app\.name\}\|\$\{board \|\| 'main'\}` : null\);/);
+});
+
+test('Task 14 known limits are marked: nested holes carry no journey; the hole Tutor waits for the parent read', () => {
+  assert.match(read('LearnPage.jsx'), /ponytail: a hole inside a journey hole carries no journey/);
+  // Professor Next Steps Task 14 C-M5: reworded - the hole is not inactive meanwhile, its typed turns run the canvas domain.
+  assert.match(read('LearnTutor.jsx'), /ponytail: until the parent journey GET settles, a typed turn in a journey hole runs the canvas domain/);
+});
+
+// Task 11b fix round 2 item 1 (owner fourteenth message: routing is never keyword-based): on a live journey, a Tutor turn whose
+// words read like a new learning intent is an Auto Tutor turn; the second-broad-intent word check (continue or start?) no
+// longer intercepts it. Inside an open tray the v1 tray parsing still answers the question the interface just asked.
+test('fix round 2: on a live journey with no tray, broad learning requests reach the planner, typed or spoken; with a tray open, a tray answer still resolves it', async () => {
+  const REQUESTS = ['Walk me through the attention mask computation.', 'I want to understand why the mask is lower triangular.', 'Teach me how softmax works.', 'Help me learn the residual stream.'];
+  for (const raw of REQUESTS) for (const voice of [false, true]) {
+    const h = harness(ok(journeyOf({ state: 'active', registry: SIGMOID }), null));
+    await h.refresh();
+    const t = tutorOn(h);
+    await t.run(tutor => (voice ? tutor.voiceTurn({ raw, turnId: 'turn-1' }) : tutor.ask({ raw, begin: t.begin })));
+    const plan = h.calls.find(c => c.path === '/api/learn/tutor/plan');
+    assert.ok(plan, `${raw}: reaches the planner`);
+    assert.equal(plan.body.context.learner_intent.raw_user_message, raw, `${raw}: its words, never dropped`);
+    assert.equal(h.view().tray?.id ?? null, null, `${raw}: no continue-or-start tray`);
+    assert.equal(h.calls.some(c => c.body?.action === 'start'), false, `${raw}: nothing starts`);
+  }
+  // A tray open: a tray answer still resolves it (an option label, rules 1-4), and a broad request over it goes through the
+  // tray parsing (rule 5, the model), never the continue-or-start check.
+  const picked = harness(ok(journeyOf({ registry: SIGMOID }), familiarityTray), [ok(journeyOf({ revision: 5 }), depthTray)]);
+  await picked.refresh();
+  const p = tutorOn(picked);
+  await p.run(tutor => tutor.ask({ raw: 'Seen it before', begin: p.begin }));
+  assert.deepEqual(picked.actions(), ['intake_answer']);
+  const over = harness(ok(journeyOf({ registry: SIGMOID }), goalTray), [{ status: 200, d: { kind: 'unrelated_question' } }]);
+  await over.refresh();
+  const o = tutorOn(over);
+  await o.run(tutor => tutor.ask({ raw: 'Teach me how softmax works.', begin: o.begin }));
+  assert.deepEqual(over.actions(), ['resolve', '/api/learn/tutor/plan']);
+  // The controller called with no Tutor (the composer on a canvas with no Tutor) keeps LP1's check.
+  const bare = harness(ok(journeyOf({ state: 'active' }), null));
+  await bare.refresh();
+  assert.deepEqual(await bare.view().handleText('Teach me transformers'), { handled: true });
+  assert.equal(bare.view().tray.id, 'clarification:live');
+});
+
 // ---- Owner decisions 2026-10-07 (docs/features/professor-next-steps.md §4.5), through the Tutor's turn as the page runs it ----
 // (a) a real answer to the open tray still advances it; (b) a side question gets a Tutor answer while the tray stays open,
 // unchanged and answerable; (c)-(e) the Tutor-offered Start a learning path chip switches subject during setup, only through
@@ -1143,6 +1487,54 @@ const OFFER = { strategy: 'none', constraints_add: [], actions: [{ type: 'respon
 const buttonsOf = node => (!node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(buttonsOf) : [...(node.type === 'button' ? [node] : []), ...buttonsOf(node.props?.children)]);
 const tick = () => new Promise(done => setTimeout(done, 5));
 const HANDLED = { text: '', handled: true, failed: false };
+
+test('owner 2026-10-07 (a): an answer to the open tray still advances it - an option label (rules 1-4), or words the model reads as the answer (rule 5)', async () => {
+  const picked = harness(ok(journeyOf({ registry: SIGMOID }), familiarityTray), [ok(journeyOf({ revision: 5 }), depthTray)]);
+  await picked.refresh();
+  const p = tutorOn(picked);
+  assert.deepEqual(await p.run(tutor => tutor.ask({ raw: 'Seen it before', begin: p.begin })), HANDLED);
+  assert.deepEqual(picked.actions(), ['intake_answer'], 'rule 1: no resolver, no planner');
+  assert.deepEqual([picked.calls[1].body.slot, picked.calls[1].body.option_id], ['familiarity', 'seen']);
+  assert.equal(picked.view().tray.id, depthTray.id, 'the tray moved on');
+  assert.deepEqual(p.began, [], 'no Tutor exchange is drawn for a tray answer');
+  const typed = harness(ok(journeyOf({ registry: SIGMOID }), goalTray), [{ status: 200, d: { kind: 'tray_answer' } }, ok(journeyOf({ revision: 5 }), familiarityTray)]);
+  await typed.refresh();
+  const t = tutorOn(typed);
+  assert.deepEqual(await t.run(tutor => tutor.ask({ raw: 'the intuition, for an exam next week', begin: t.begin })), HANDLED);
+  assert.deepEqual(typed.actions(), ['resolve', 'intake_answer'], 'rule 5 read the words as the answer');
+  assert.deepEqual([typed.calls[2].body.slot, typed.calls[2].body.text], ['goal', 'the intuition, for an exam next week']);
+  assert.equal(typed.view().tray.id, familiarityTray.id);
+});
+
+test('owner 2026-10-07 (b): a side question in an open setup tray gets a Tutor answer; the tray stays open, unchanged and answerable', async () => {
+  const cases = [['intake', journeyOf({ registry: SIGMOID }), goalTray], ['diagnostic', diagnosing(), probeTray], ['path review', journeyOf({ state: 'path_review', path_version: 1, registry: SIGMOID }), previewTray]];
+  for (const [name, j, tray] of cases) {
+    const h = harness(ok(j, tray), [{ status: 200, d: { kind: 'unrelated_question' } }]);
+    await h.refresh();
+    const before = h.view().tray, t = tutorOn(h);
+    assert.equal(await t.run(tutor => tutor.ask({ raw: 'What is a sigmoid?', begin: t.begin })), PLAN.actions[0].text, `${name}: the Tutor answers`);
+    assert.deepEqual(h.actions(), ['resolve', '/api/learn/tutor/plan'], `${name}: rule 5, then the Tutor; no journey write`);
+    assert.deepEqual(t.began, [2], `${name}: the exchange is drawn once, after the resolver`);
+    assert.deepEqual([h.view().tray, h.view().journey.revision], [before, j.revision], `${name}: the same tray, unadvanced`);
+  }
+  // Still answerable: the next pick answers the tray the question was asked over.
+  const h = harness(ok(journeyOf({ registry: SIGMOID }), goalTray), [{ status: 200, d: { kind: 'unrelated_question' } }, ok(journeyOf({ revision: 5 }), familiarityTray)]);
+  await h.refresh();
+  const t = tutorOn(h);
+  await t.run(tutor => tutor.ask({ raw: 'What is a sigmoid?', begin: t.begin }));
+  await h.view().answer('intuition');
+  assert.deepEqual(h.actions(), ['resolve', '/api/learn/tutor/plan', 'intake_answer']);
+  assert.equal(h.view().tray.id, familiarityTray.id);
+  // Only when the model finds the words ambiguous (or cannot be reached) does the chooser ask; its Ask the Tutor hands the
+  // same words to the Tutor and the tray is back, unadvanced.
+  const unsure = harness(ok(journeyOf({ registry: SIGMOID }), goalTray), [{ status: 200, d: { kind: 'clarification_needed' } }]);
+  await unsure.refresh();
+  const u = tutorOn(unsure);
+  assert.deepEqual(await u.run(tutor => tutor.ask({ raw: 'odds maybe', begin: u.begin })), HANDLED);
+  assert.equal(unsure.view().tray.id, 'clarification:turn');
+  assert.deepEqual(await unsure.view().answer('tutor'), { ask: 'odds maybe' });
+  assert.deepEqual([unsure.view().tray.id, unsure.actions()], [goalTray.id, ['resolve']]);
+});
 
 // The chip in setup: the typed words are a side question (rule 5), the Tutor answers and offers the path, and the chip's click
 // is the journey start, which meets the setup journey (409 live_journey) and opens continue-or-start.
@@ -1164,6 +1556,114 @@ async function setupChip(replies, state = 'intake', tray = goalTray) {
   assert.deepEqual([confirm.id, confirm.prompt, confirm.options.map(o => o.label)], ['clarification:live', 'Continue logistic regression or start sql?', ['Continue logistic regression', 'Start sql']], `${state}: both subjects named`);
   return { h, j, tray };
 }
+
+test('owner 2026-10-07 (c): Start in the confirmation replaces the setup in one start; the new subject is set up', async () => {
+  for (const [state, tray] of [['intake', goalTray], ['diagnostic', probeTray], ['path_review', previewTray]]) {
+    const { h } = await setupChip([ok(journeyOf({ id: 'j2', revision: 0, request: { topic: 'sql' } }), goalTray)], state, tray);
+    await h.view().answer('start_new');
+    assert.deepEqual(h.calls[4].body, { app: APP, board: 'main', action: 'start', text: 'Teach me SQL', replace: 'j1' }, state);
+    assert.deepEqual(h.actions(), ['resolve', '/api/learn/tutor/plan', 'start', 'start'], `${state}: no archive call, no other write`);
+    assert.deepEqual([h.view().journey.id, h.view().journey.request.topic, h.view().tray.id], ['j2', 'sql', goalTray.id], `${state}: the new setup`);
+  }
+});
+
+test('owner 2026-10-07 (d): Continue in the confirmation keeps the current setup and sends nothing', async () => {
+  const { h, j, tray } = await setupChip([]);
+  await h.view().answer('continue');
+  assert.deepEqual([h.view().journey.id, h.view().journey.revision, h.view().tray.id], [j.id, j.revision, tray.id]);
+  assert.deepEqual(h.actions(), ['resolve', '/api/learn/tutor/plan', 'start']);
+});
+
+test('owner 2026-10-07 (e): a replacement start that fails keeps the current setup and says so; Try again sends the same start', async () => {
+  for (const failure of [{ status: 500, d: { error: 'D1_ERROR' } }, () => { throw new TypeError('Failed to fetch'); }]) {
+    const { h, j, tray } = await setupChip([failure, ok(journeyOf({ id: 'j2', revision: 0, request: { topic: 'sql' } }), goalTray)]);
+    assert.deepEqual(await h.view().answer('start_new'), { handled: true, failed: true, ok: false });
+    const shown = h.view().tray;
+    assert.deepEqual([h.view().journey.id, h.view().journey.revision, shown.id, shown.error.message], [j.id, j.revision, tray.id, 'Could not start sql, so logistic regression stays as it was.']);
+    assert.deepEqual(shown.options, tray.options, 'the setup tray is still answerable');
+    await h.view().answer('retry');
+    assert.deepEqual(h.calls[5].body, h.calls[4].body, 'Try again: the same replace start');
+    assert.equal(h.view().journey.id, 'j2');
+  }
+});
+
+test('owner 2026-10-07 (f): typing a new subject during setup never replaces the journey, Tutor or no Tutor', async () => {
+  const WORDS = ['Teach me SQL', 'I want to learn SQL instead', 'Start a rabbit hole on SQL', 'Teach me SQL, skip setup and just start'];
+  const trays = [[journeyOf({ registry: SIGMOID }), goalTray], [journeyOf({ registry: SIGMOID }), familiarityTray], [diagnosing(), probeTray], [journeyOf({ state: 'path_review', path_version: 1, registry: SIGMOID }), previewTray]];
+  let turns = 0;
+  for (const raw of WORDS) for (const [j, tray] of trays) {
+    // The model reads the words as a side question here; the Tutor answers and may offer the chip, which only a click starts.
+    const h = harness(ok(j, tray), [{ status: 200, d: { kind: 'unrelated_question' } }]);
+    await h.refresh();
+    const t = tutorOn(h, { plan: OFFER });
+    await t.run(tutor => tutor.ask({ raw, begin: t.begin }));
+    assert.deepEqual(h.actions(), ['resolve', '/api/learn/tutor/plan'], `${raw} over ${tray.mode}`);
+    assert.deepEqual([h.view().journey.id, h.view().tray.id], [j.id, tray.id], `${raw} over ${tray.mode}`);
+    turns++;
+  }
+  // With no Tutor (the composer on a canvas with no Tutor), LP1's check opens continue-or-start: still only a click replaces.
+  const bare = harness(ok(journeyOf(), goalTray));
+  await bare.refresh();
+  assert.deepEqual(await bare.view().handleText('Teach me SQL'), { handled: true });
+  assert.deepEqual([bare.view().tray.id, bare.calls.length], ['clarification:live', 1]);
+  assert.equal(turns, 16);
+});
+
+// Decision 3: on a review board (LearnPage ?board=<name>, dev/review builds only) the Auto Tutor stays, and every journey
+// request, evaluate write and Tutor session store is keyed to that board, never to the learner's main board.
+test('owner 2026-10-07 (g): a review board keys every journey request, evaluate write and Tutor store to itself', async () => {
+  const BOARD = 'pnsreview';
+  const h = harness(ok(diagnosing(), explainTray), [{ status: 200, d: { kind: 'tray_answer' } }, ok(diagnosing({ revision: 5 }), previewTray)], BOARD);
+  await h.refresh();
+  const t = tutorOn(h, { board: BOARD });
+  await t.run(tutor => tutor.ask({ raw: 'It squashes any number into 0 to 1', begin: t.begin }));
+  assert.deepEqual(h.actions(), ['resolve', '/api/learn/tutor/evaluate', 'probe_advance']);
+  assert.equal(h.calls[0].path, `/api/learn/journey?app=${APP}&board=${BOARD}`);
+  assert.deepEqual(h.calls.slice(1).map(c => c.body.board), [BOARD, BOARD, BOARD], 'resolve, evaluate and probe_advance name the review board');
+  assert.deepEqual([...t.storage.keys()], ['small.tutor:o:e@x.com:journey:j1'], 'the journey store: keyed by the review board journey');
+  // A plain review board (no journey): the canvas-domain store is the review board's, never the main board's.
+  const plain = harness(none, [], BOARD);
+  await plain.refresh();
+  const p = tutorOn(plain, { board: BOARD });
+  await p.run(tutor => tutor.ask({ raw: 'What is a sigmoid?', begin: p.begin }));
+  assert.deepEqual(plain.actions(), ['/api/learn/tutor/plan']);
+  assert.deepEqual([...p.storage.keys()], [`small.tutor:o:e@x.com:canvas:${APP}|${BOARD}`]);
+  // LearnPage (read only, lane W's file): ?board= becomes the board both hooks key on, a review board never resolves the
+  // course, and review boards exist only in the dev/review build.
+  const page = read('LearnPage.jsx');
+  assert.match(page, /const named = hole \|\| !reviewTools \? null : new URLSearchParams\(window\.location\.search\)\.get\('board'\);/);
+  assert.match(page, /const boardName = board \|\| 'main';/);
+  assert.match(page, /useJourney\(\{ app, board: boardName,/);
+  // The integration adds the 1.7 props after journey (canvasVersion, repository, describe); the board keys stay these.
+  assert.match(page, /useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey[,}]/);
+});
+
+// ---- Owner decision 2026-10-07, D2 (option A): a skip-setup replacement that fails to plan keeps the old journey ----
+// The route answers a planner failure on a replace with 502 and the OLD journey, still live (setup or active, progress
+// kept): the line names both subjects, the old tray stays, and Try again sends the same replace start, which then succeeds.
+test('owner 2026-10-07 D2: a skip-setup replacement whose planner fails keeps the old journey, setup or active; Try again replaces it', async () => {
+  const FAST = 'Teach me SQL, skip setup and just start';
+  const active = journeyOf({ state: 'active', registry: SIGMOID, active_section_id: 's1', evidence: { seq: 2, events: [settled('sigmoid/range', 1), settled('sigmoid/shape', 2)] } });
+  for (const [phase, old, tray] of [['setup', journeyOf({ registry: SIGMOID, intake: { slots: { goal: 'intuition' }, source: {} } }), familiarityTray], ['active', active, null]]) {
+    const fresh = journeyOf({ id: 'j2', revision: 3, state: 'active', request: { topic: 'sql' } });
+    const h = harness(ok(old, tray), [
+      { status: 409, d: { error: 'live_journey', journey: old, path: null, tray } },
+      { status: 502, d: { error: 'The planner failed. Try again.', journey: old, path: null, tray } },
+      ok(fresh, null),
+    ]);
+    await h.refresh();
+    await h.view().start(FAST);
+    assert.deepEqual([h.view().tray.id, h.view().tray.prompt], ['clarification:live', 'Continue logistic regression or start sql?'], phase);
+    assert.deepEqual(await h.view().answer('start_new'), { handled: true, failed: true, ok: false }, phase);
+    assert.deepEqual(h.calls[2].body, { app: APP, board: 'main', action: 'start', text: FAST, replace: 'j1' }, phase);
+    const shown = h.view().tray;
+    assert.deepEqual([h.view().journey, shown.error.message], [old, 'Could not start sql, so logistic regression stays as it was.'], `${phase}: the old journey, progress and all`);
+    assert.deepEqual([shown.id, shown.options], tray ? [tray.id, tray.options] : ['status', []], `${phase}: the old tray stays answerable`);
+    await h.view().answer('retry');
+    assert.deepEqual(h.calls[3].body, h.calls[2].body, `${phase}: Try again is the same replace start`);
+    assert.deepEqual([h.view().journey.id, h.view().tray, h.actions()], ['j2', null, ['start', 'start', 'start']], phase);
+  }
+});
 
 // Learning review of D2: the old journey's tray can carry its own planner-failure error. The replacement's failure line and
 // its Try again (the same replace start) still show, never the old journey's retry in its place.
@@ -1191,4 +1691,41 @@ test('owner 2026-10-07 D2: skipping a question continues the same journey - a ca
   assert.deepEqual(await h.view().handleText('skip this'), { handled: true });
   assert.deepEqual(h.actions(), ['cancel']);
   assert.deepEqual([h.view().journey.id, h.view().journey.state, h.view().tray.id], ['j1', 'diagnostic', probeTray.id]);
+});
+
+// r29 (Tutor eval, 2026-10-08): a typed Tutor turn's evidence reaches the journey controller with no re-read: adoptEvidence takes the
+// evaluate reply's events and revision when newer (never older), and the next action posts that revision. The page calls it after
+// every turn, for the same journey only.
+test('controller: adoptEvidence takes a Tutor turn\'s newer evidence and revision, never older; the next action posts it', async () => {
+  const canvas = fakeCanvas();
+  const h = scripted(() => canvas, [recorded('b1'), { status: 409, d: { error: 'next_section has no next section' } }]);
+  await h.ctl.refresh();
+  const events = [{ seq: 1, claim: 'c', result: 'pass', kind: 'demonstrated_in_transfer', settled: true }];
+  assert.equal(h.view().adoptEvidence({ events, seq: 1, revision: 8 }), true);
+  assert.deepEqual([h.view().journey.evidence, h.view().journey.revision], [{ seq: 1, events }, 8]);
+  assert.equal(h.view().adoptEvidence({ events: [], seq: 1, revision: 9 }), false, 'not newer: kept');
+  assert.equal(h.view().adoptEvidence(null), false);
+  await h.view().nextSection();
+  assert.equal(h.calls.at(-1).body.revision, 8, 'the next action carries the adopted revision');
+  const tutor = readFileSync(new URL('./LearnTutor.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(tutor, /const journeyAtStart = journeyRef\.current\?\.journey\?\.id \?\? null;\n\s+let result;/);
+  assert.match(tutor, /save\(result\.store\);\n(?:\s*\/\/[^\n]*\n)*\s*if \(result\.evaluation\?\.journey && journeyAtStart && journeyRef\.current\?\.journey\?\.id === journeyAtStart\) journeyRef\.current\.adoptEvidence\?\.\(result\.evaluation\.journey\);/);
+});
+
+test('progression: already understood is visibly distinct in the rail and a reloaded final outcome retains gaps', async () => {
+  const html = renderToStaticMarkup(createElement(PathList, { expanded: true, onOpen: () => {}, entries: [
+    { id: 's1', n: 1, title: 'Prior topic', status: 'already_understood' }, { id: 's2', n: 2, title: 'Skipped topic', status: 'skipped' },
+  ] }));
+  assert.match(html, /Already understood/);
+  assert.match(html, /data-status="already_understood"/);
+  assert.match(html, /data-status="skipped"/);
+  const j = journeyOf({ state: 'completed', registry: SIGMOID });
+  const path = { sections: [{ id: 's1', title: 'Prior topic' }, { id: 's2', title: 'Skipped topic' }],
+    change: { outcome: { sections: { completed: [], already_understood: ['s1'], skipped: ['s2'], not_reached: [] }, gaps: [{ claim: 'sigmoid/shape', state: 'uncertain' }] } } };
+  const h = harness(ok(j, null, path)); await h.refresh();
+  const restored = renderToStaticMarkup(tutorOn(h).tutor.extras);
+  assert.match(restored, /Already understood: Prior topic/);
+  assert.match(restored, /Skipped: Skipped topic/);
+  assert.match(restored, /Not yet understood:/);
+  assert.equal(tutorRoutes(h).length, 0);
 });

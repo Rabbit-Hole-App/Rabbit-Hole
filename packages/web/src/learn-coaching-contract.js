@@ -184,13 +184,17 @@ const proactive = c => c.mode === 'tutor' && c.tutorEnabled && !c.suggestionsPau
 
 // Which actions are proactive (integrator ruling Q5, 2026-10-20, decisions.md; provisional for owner review): what the
 // Tutor starts on its own runs only under canCoach (Tutor selected, On, unpaused, chat open and ready, no active input);
-// what the learner explicitly asks for runs in every mode, once, without changing the controls. An unknown kind runs
-// nowhere. After the browser Tutor went (Tutor cleanup P2) the one proactive kind left is a coaching activity's own material
-// (learn-coaching-materials.js); hooks read canCoach directly (LearnPage hooksCoaching).
-export const PROACTIVE_ACTIONS = ['unrequested_material'];
+// what the learner explicitly asks for runs in every mode, once, without changing the controls. Assessing work that was
+// not explicitly submitted never runs (owner 3a). An unknown kind runs nowhere.
+// guided_entry_turn is the owner's 4a exception: one opening turn for an explicit guided Rabbit Hole entry runs while Tutor
+// is selected and On, paused or not (the entry is the explicit resumption: dispatch start_guided to clear the pause); in
+// Auto, Ask or Off it never runs and the static prompt shows. Restoring a URL, refresh, Back or reopening is not an entry.
+export const PROACTIVE_ACTIONS = ['hook', 'opening_turn', 'hole_opening_turn', 'unrequested_question', 'suggest_practice', 'unrequested_material', 'next_step_offer', 'assess_unsubmitted'];
 export const EXPLICIT_ACTIONS = ['answer', 'requested_material', 'check_review', 'slash_command'];
+export const GUIDED_ENTRY = 'guided_entry_turn';
 export const mayRun = (kind, controls, context) => EXPLICIT_ACTIONS.includes(kind)
-  || (PROACTIVE_ACTIONS.includes(kind) && canCoach(controls, context));
+  || (kind === GUIDED_ENTRY && controls?.mode === 'tutor' && controls.tutorEnabled === true)
+  || (PROACTIVE_ACTIONS.includes(kind) && kind !== 'assess_unsubmitted' && canCoach(controls, context));
 
 // One reducer for the browser and the Worker (owner 3a; "Tutor controls and dismissal"). No effect ever asks for a model
 // call: show_choices shows saved or static choices only. Every change bumps revision; an event carrying expectedRevision

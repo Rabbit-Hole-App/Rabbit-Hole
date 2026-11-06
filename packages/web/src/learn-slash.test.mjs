@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { answersInChat, cardsFor, commandLine, commandUi, holdsLine, lineCommand, materialCommands, MOTION_OFF, pickerSections, parseSlash, releaseLine, runLearnCommand } from './learn-slash.js';
+import { answersInChat, cardsFor, commandLine, commandUi, holdsLine, lineCommand, materialCommands, MOTION_OFF, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
 import { generationField } from './generation-proposal-chat.js';
 import { commandsFor, idOfTyped, learnRequest, setWhiteboardVideo, typedOf } from './agent/slash.js';
 import { readFileSync } from 'node:fs';
@@ -445,6 +445,29 @@ test('materialCommands: the Learn commands that can make a card now, from the re
   assert.ok(tool('practice')?.cards.includes('explainBack') && !tool('practice')?.cards.includes('challenge'));
 });
 
+// The Tutor's own create_material runs its material tools through the internal path, with a stubbed model, and makes the
+// comparison table, challenge, explain-back and walkthrough cards; the same lines typed by a learner are refused.
+test('runMaterials makes comparison tables, challenges, explain-backs and walkthroughs; typed, /compare and /walkthrough run nothing', async () => {
+  const blocks = { compare: PRIMITIVES.table.block(ANY), practice: PRIMITIVES.challenge.block(ANY), quiz: PRIMITIVES.explain_back.block(ANY), walkthrough: PRIMITIVES.walkthrough.block(ANY) };
+  const primitives = { compare: 'table', practice: 'challenge', quiz: 'explain_back', walkthrough: 'walkthrough' };
+  const inserted = [], posts = [];
+  const canvas = { insertBlock: block => { inserted.push(block); return `b${inserted.length}`; }, reserve: () => 'slot', release: () => {} };
+  const post = async (path, body) => { posts.push(body.command); return { result: 'artifact', primitive: primitives[body.command], block: blocks[body.command] }; };
+  const actions = ['compare', 'practice', 'quiz', 'walkthrough'].map(command => ({ type: 'create_material', command, request: 'sigmoid against tanh' }));
+  const results = await runMaterials(actions, { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {} });
+  assert.deepEqual(posts, ['compare', 'practice', 'quiz', 'walkthrough']);
+  // A walkthrough card is the walkthrough_v1 interactive scene (learn-primitives.js).
+  // Owner 2026-10-30: one Practice card - a challenge block (any mode) is the explain_back modality.
+  assert.deepEqual(inserted.map(blockModality), ['table', 'explain_back', 'explain_back', 'scene']);
+  assert.equal(inserted[3].spec.behaviorId, 'walkthrough_v1');
+  assert.ok(results.every(result => result.notice?.tone === 'done'), JSON.stringify(results));
+  for (const name of ['compare', 'walkthrough']) {
+    const typed = await runLearnCommand(`/${name} sigmoid against tanh`, { app: 'demo', canvas, post, openSearch: () => {} });
+    assert.match(typed.notice.text, new RegExp(`^/${name} is no longer available`));
+  }
+  assert.equal(posts.length, 4, 'a typed /compare or /walkthrough posts nothing');
+});
+
 // Any spec: every field reads as an empty value, so a primitive's own builder returns its block without a model.
 const ANY = new Proxy(() => ANY, { get: (_, key) => (key === Symbol.toPrimitive ? () => '' : key === 'length' ? 0 : ANY) });
 test('every card a material command can make: its modality is the block type runLearnCommand really inserts', async () => {
@@ -456,6 +479,108 @@ test('every card a material command can make: its modality is the block type run
     assert.equal(inserted.length, 1, `${m.command} ${card}`);
     assert.equal(modalityOf({ type: 'create_material', command: m.command }, { materials: [{ ...m, cards: [card] }] }), blockModality(inserted[0]), `${m.command} ${card}`);
   }
+});
+
+// L10 + owner 2026-10-21 (message 19): interactive explanations survive through BOTH /explain and the Tutor's
+// create_material(command: explain). Only the internal animate/compare tools lost the animation primitive. This fails if explain
+// via create_material loses the interactive scene path.
+test('create_material(command: explain) still makes the interactive scene: the Tutor route keeps the animation primitive', async () => {
+  assert.ok(commandsFor('learn', { internal: true }).some(command => command.name === 'explain'), 'explain stays an internal material command');
+  assert.deepEqual(learnRequest('explain', { args: 'an interactive look at how binary search narrows the range' }).allowedPrimitives, ['animation']);
+  const inserted = [], posts = [];
+  const canvas = { insertBlock: block => { inserted.push(block); return 'b1'; }, reserve: () => 'slot', release: () => {} };
+  const post = async (path, body) => { posts.push([path, body.command]); return { result: 'artifact', primitive: 'animation', block: { type: 'animation', title: 'T', scene: { id: 's', duration: 1, objects: [], timeline: [] } } }; };
+  const [result] = await runMaterials([{ type: 'create_material', command: 'explain', request: 'an interactive look at how binary search narrows the range' }], { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {} });
+  assert.deepEqual(posts, [['/api/learn/artifact', 'explain']]);
+  assert.equal(inserted[0].type, 'animation');
+  assert.equal(result.notice.text, 'Added an interactive explanation.');
+});
+
+// EXP-T21: where /explain v2 is on, the Tutor's chosen explanation tool is the shared job and its card: no /api/learn/artifact
+// call (no second intent or generation path), recorded as source 'tutor'; a nonvisual answer or another material is unchanged.
+test('create_material(command: explain) opens the shared /explain job directly; other materials keep their path', async () => {
+  const started = [], posts = [];
+  const canvas = { insertBlock: () => 'b1', reserve: () => 'slot', release: () => {}, startExplain: async (prompt, options) => { started.push([prompt, options.source, options.promptUsed]); return { blockId: 'card-1' }; } };
+  const post = async (path, body) => { posts.push([path, body.command]); return { result: 'artifact', primitive: 'quiz', block: { type: 'quiz', title: 'Q' } }; };
+  const actions = [{ type: 'respond_text', text: 'A heap keeps the parent above its children.' }, { type: 'create_material', command: 'explain', request: 'how a heap keeps its order' }, { type: 'create_material', command: 'quiz', request: 'heaps' }];
+  const [explained, quizzed] = await runMaterials(actions, { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {}, promptUsed: 'show me heaps' });
+  assert.deepEqual(started, [['how a heap keeps its order', 'tutor', 'show me heaps']]);
+  assert.deepEqual([explained.notice.tone, explained.notice.blockId], ['done', 'card-1']);
+  assert.deepEqual(posts, [['/api/learn/artifact', 'quiz']], 'only the quiz uses the artifact route');
+  assert.equal(quizzed.notice.tone, 'done');
+  // A typed /explain is the same job with no Tutor source; off here (null) the Tutor's explain runs today's path.
+  started.length = 0;
+  await runLearnCommand('/explain how a heap keeps its order', { app: 'demo', canvas, post, openSearch: () => {} });
+  assert.equal(started[0][1], undefined);
+  posts.length = 0;
+  await runMaterials([actions[1]], { app: 'demo', canvas: { ...canvas, startExplain: async () => null }, post, openSearch: () => {}, offer: async () => {} });
+  assert.deepEqual(posts, [['/api/learn/artifact', 'explain']]);
+});
+
+const ticks = async (done, n = 50) => { for (let i = 0; i < n && !done(); i++) await new Promise(resolve => setImmediate(resolve)); };
+test('runMaterials: several create_material actions run in order through runLearnCommand; paid proposals are offered one at a time', async () => {
+  const posts = [], inserted = [], offered = [];
+  const replies = {
+    animate: { result: 'paid_proposal', primitive: 'maths_animation', message: 'first', block: { type: 'video', mode: 'generate', title: 'a' } },
+    flashcards: { result: 'artifact', primitive: 'flashcards', block: { type: 'flashcards', cards: [] } },
+    video: { result: 'paid_proposal', primitive: 'video_generate', message: 'second', block: { type: 'video', mode: 'generate', title: 'v' } },
+  };
+  const canvas = { insertBlock: block => { inserted.push(block.title ?? block.type); return 'id'; }, reserve: () => 'slot', release: () => {} };
+  const post = async (path, body) => { posts.push([path, body.command, body.args]); return replies[body.command]; };
+  const answers = [];
+  const offer = proposal => new Promise(resolve => { offered.push(proposal.message); answers.push(() => { proposal.generate(); resolve(); }); });
+  const actions = [{ type: 'respond_text', text: 'Three things.' }, ...['animate', 'flashcards', 'video'].map(command => ({ type: 'create_material', command, request: `about ${command}` }))];
+  const done = runMaterials(actions, { app: 'demo', canvas, post, openSearch: () => {}, offer });
+  await ticks(() => posts.length === 3 && inserted.length === 1);
+  assert.deepEqual(posts, ['animate', 'flashcards', 'video'].map(command => ['/api/learn/artifact', command, `about ${command}`]), 'the plan order, the existing artifact route');
+  assert.deepEqual([inserted, offered], [['flashcards'], ['first']], 'a free card never waits for a paid answer; one proposal at a time');
+  answers[0]();
+  await ticks(() => offered.length === 2);
+  assert.deepEqual([inserted, offered], [['flashcards', 'a'], ['first', 'second']]);
+  answers[1]();
+  const results = await done;
+  assert.deepEqual(inserted, ['flashcards', 'a', 'v']);
+  assert.equal(results.length, 3);
+});
+
+test('runMaterials: a failed command is reported and the next one still runs; no material, nothing runs', async () => {
+  const posts = [];
+  const post = async (path, body) => { posts.push(body.command); if (body.command === 'quiz') throw new Error('offline'); return { result: 'artifact', primitive: 'flashcards', block: { type: 'flashcards', cards: [] } }; };
+  const canvas = { insertBlock: () => 'id', reserve: () => 'slot', release: () => {} };
+  const results = await runMaterials([{ type: 'create_material', command: 'quiz', request: 'q' }, { type: 'create_material', command: 'flashcards', request: 'f' }], { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {} });
+  assert.deepEqual(posts, ['quiz', 'flashcards']);
+  assert.deepEqual(results.map(r => r.notice?.tone), ['error', 'done']);
+  assert.deepEqual(await runMaterials([{ type: 'respond_text', text: 'x' }], { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {} }), []);
+  assert.equal(posts.length, 2);
+});
+
+// docs/features/card-prompt.md: a card keeps the words typed to make it. A Tutor turn's cards keep the learner's words, never
+// the model-written command line; a hook click typed none, so its cards carry no prompt. /cad hands the typed line to startCad.
+test('card prompt: typed line on a command card, learner words on Tutor cards, none on a hook click, the line to /cad', async () => {
+  const inserted = [];
+  const canvas = { insertBlock: block => { inserted.push(block); return 'id'; }, reserve: () => 'slot', release: () => {}, startCad: (args, options) => inserted.push({ cad: args, ...options }) };
+  const post = async () => ({ result: 'artifact', primitive: 'quiz', block: { type: 'quiz', question: 'Q?', options: [] } });
+  await runLearnCommand('/quiz  softmax basics ', { app: 'demo', canvas, post, openSearch: () => {} });
+  const actions = [{ type: 'create_material', command: 'quiz', request: 'model words about softmax' }];
+  await runMaterials(actions, { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {}, promptUsed: 'help me get softmax' });
+  await runMaterials(actions, { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {}, promptUsed: null });
+  (await runLearnCommand('/cad a 40 mm bracket', { app: 'demo', canvas, post, openSearch: () => {} })).proposal.generate();
+  await ticks(() => inserted.length === 4);
+  assert.deepEqual(inserted.map(block => block.promptUsed), ['/quiz  softmax basics', 'help me get softmax', undefined, '/cad a 40 mm bracket']);
+  assert.equal(inserted[3].cad, 'a 40 mm bracket', 'the CAD job still gets the words after the command');
+  assert.equal(inserted[0].question, 'Q?', 'the quiz question is untouched');
+});
+
+// Task 9 review fix 4: a notice is handed over as soon as its command answers, never held behind a paid proposal.
+test('runMaterials: each notice reaches onNotice as its command answers, before an unanswered proposal ahead of it is decided', async () => {
+  const notices = [];
+  const replies = { animate: { result: 'paid_proposal', primitive: 'maths_animation', message: 'paid', block: { type: 'video', mode: 'generate', title: 'a' } }, quiz: { result: 'unsupported', message: 'Not here yet.' } };
+  const canvas = { insertBlock: () => 'id', reserve: () => 'slot', release: () => {} };
+  const post = async (path, body) => replies[body.command];
+  const actions = ['animate', 'quiz'].map(command => ({ type: 'create_material', command, request: 'r' }));
+  runMaterials(actions, { app: 'demo', canvas, post, openSearch: () => {}, offer: () => new Promise(() => {}), onNotice: notice => notices.push(notice) });
+  await ticks(() => notices.length === 1);
+  assert.deepEqual(notices, [{ tone: 'info', text: 'Not here yet.' }], 'the unsupported notice, while the paid proposal still waits');
 });
 
 // #46 review finding (card-context-menu): a /command sent while the dock is busy (a Tutor turn, a hole's opening turn) or

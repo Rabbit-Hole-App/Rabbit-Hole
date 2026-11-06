@@ -75,6 +75,12 @@ test('a slot for one of several known cards (the Tutor\'s) is their middle size,
   const types = { animation: { width: 560, height: 460, typicalRows: 180, sizeFor: block => ({ width: block.w, height: block.h }) } };
   const samples = [[970, 748], [964, 997], [1040, 948]].map(([w, h]) => ({ type: 'animation', w, h }));
   assert.deepEqual(slotSize('animation', types, samples), { w: 970, h: 1128 }, 'the scene frame plus the rows below it');
+  // The real slice: every card the Tutor may show, measured by its scene.
+  const { showableCards } = await import('./learn-tutor.js');
+  const { sceneLegibility } = await import('./scene-layout.js');
+  const real = { animation: { sizeFor: block => { const r = sceneLegibility(block.scene); return { width: r.viewport.w, height: r.viewport.h }; } } };
+  const size = slotSize('animation', real, showableCards());
+  assert.ok(size.w > 560 && size.h > 460, `the slice's cards are larger than the animation default: ${size.w}x${size.h}`);
 });
 
 test('the visible area leaves out the chat sheet over the composer, and a margin', async () => {

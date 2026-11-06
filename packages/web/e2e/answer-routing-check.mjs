@@ -7,7 +7,6 @@
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
-import { chatRouteAnswer } from './dev-cp.mjs';
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const SMALL_CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 const LOCAL_CP_VARS = process.env.LOCAL_CP_VARS;
@@ -51,15 +50,13 @@ const THREAD = `answer-routing-thread-${Date.now().toString(36)}`;
 await page.route('**/api/learn/**', async route => {
   const req = route.request(), path = new URL(req.url()).pathname;
   if (req.method() !== 'POST') return route.continue();
-  // CR-1 route decision (dev-cp.mjs chatRouteAnswer): an answer. CI has no JEV key, so the real route would fall back and send nothing.
-  // Not recorded in calls: it is not a model turn.
-  if (path === '/api/learn/chat/route') return route.fulfill({ json: chatRouteAnswer(req.postDataJSON()) });
   calls.push({ path, body: req.postDataJSON() });
   // The Chat pane posts every turn to /api/learn/ask (contract A4); the reply is the contract's SSE order: chunk, then answer_meta,
-  // then done (contract B2).
-  if (path === '/api/learn/ask') {
+  // then done (contract B2). Auto on a journey canvas goes to the Tutor planner instead, so both are scripted with the same answer.
+  if (path === '/api/learn/ask' || path === '/api/learn/tutor/plan') {
     assert.ok(plan, 'every chat request is scripted');
     if (plan.error) return route.fulfill({ status: 503, json: { error: 'Routing test unavailable' } });
+    if (path === '/api/learn/tutor/plan') return route.fulfill({ json: { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: plan.text }], ...(plan.kind === 'clarify' ? { clarification_requested: true } : {}) } });
     const turn = ++turns, messageId = String(turn * 2), event = (name, data) => `event: ${name}
 data: ${JSON.stringify(data)}
 
@@ -90,7 +87,7 @@ const pick = async id => {
 };
 // An answer in the Chat transcript (ChatMessages: data-answer; its footer's data-add-to-canvas button is Add as card).
 const answer = text => pane.locator('[data-answer]').filter({ hasText: text });
-const CHAT = ['/api/learn/ask'];
+const CHAT = ['/api/learn/ask', '/api/learn/tutor/plan'];
 const plans = () => calls.filter(c => CHAT.includes(c.path)).length;
 const conversationUi = () => page.evaluate(() => document.querySelectorAll('[data-card-conversation],[data-panel-tab="conversation"],[aria-label="Card conversation"]').length);
 const panelTabs = () => page.locator('[data-panel-tab]').evaluateAll(tabs => tabs.map(tab => tab.dataset.panelTab));

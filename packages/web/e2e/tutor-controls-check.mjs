@@ -43,7 +43,7 @@ const errors = [], model = [], coaching = [];
 const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
 await context.addInitScript(seeds => { for (const [key, value] of Object.entries(seeds)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, SEEDS);
-// Every model-capable route is aborted and counted (hooks, Learn ask, artifacts, Home ask, journey actions).
+// Every model-capable route is aborted and counted (Tutor plan, hooks, evaluate, Learn ask, artifacts, Home ask, journey actions).
 const modelRoute = (path, method) => path === '/api/learn/ask' || path.startsWith('/api/learn/tutor/') || path === '/api/learn/artifact' || path === '/api/learn/home-ask' || path === '/api/ask' || (path === '/api/learn/journey' && method === 'POST');
 await context.route('**/api/**', route => {
   const request = route.request(), path = new URL(request.url()).pathname;
@@ -60,7 +60,7 @@ const settle = (ms = 350) => page.waitForTimeout(ms);
 const pane = (p = page) => p.locator('[data-chat-pane]');
 const field = (p = page) => pane(p).locator('[data-chat-composer] textarea').first();
 const modeButton = (p = page) => pane(p).getByRole('button', { name: 'Mode', exact: true });
-const tutorSwitch = (p = page) => pane(p).getByRole('switch', { name: 'Auto-suggest' });
+const tutorSwitch = (p = page) => pane(p).getByRole('switch', { name: 'Proactive Tutor suggestions' });
 const pickMode = async (label, p = page) => { await modeButton(p).click(); await p.getByRole('menuitemradio', { name: new RegExp(`^${label}`) }).click(); await p.waitForTimeout(350); };
 const quiet = async (label, before, ms = 3000) => { await page.waitForTimeout(ms); assert.deepEqual(model.slice(before), [], `${label}: no model request`); };
 // Start Rabbit Hole from a card's right-click menu (owner spec 2026-10-29: /dive left the commands; the card menu is the way down,
@@ -280,18 +280,19 @@ await check('narrow screen: the switch stays beside Tutor and inside the compose
   await quiet('narrow', before, 500);
 });
 
-await check('owner 4a, Tutor cleanup P2: a hole made from Tutor On opens with no turn and no waiting prompt; a reload opens with none', async () => {
+await check('owner 4a: a hole made from Tutor On opens with one turn; a reload opens with none', async () => {
   await open(work.name);
   const select = page.locator(`[data-block-id="${CARD.id}"] [data-drag-zone]`).last();
   await select.click({ position: { x: 12, y: 8 }, force: true });
   await settle();
   const before = model.length;
-  // /dive left the commands (owner spec 2026-10-29): the hole is made from the card's menu. The browser Tutor is gone, so the hole
-  // sends no opening question and shows no waiting prompt (hooks are a separate request, left out of the count).
+  // /dive left the commands (owner spec 2026-10-29): the hole is made from the card's menu; its opening waits for the learner's
+  // press above the composer (owner decision 4a, card-context-menu-check.mjs), then runs once.
   await startHole(page, CARD.id);
+  await page.locator('[data-tutor-opening-waiting] button').first().click({ timeout: 10000 }).catch(() => {});
   await page.waitForTimeout(5000);
-  assert.deepEqual(model.slice(before).filter(entry => !entry.includes('/next-steps')), [], 'the new hole sends no opening turn');
-  assert.equal(await page.locator('[data-tutor-opening-waiting]').count(), 0, 'and shows no waiting prompt');
+  const opening = model.slice(before).filter(entry => entry.includes('/api/learn/tutor/plan') || entry.includes('/api/learn/ask'));
+  assert.equal(opening.length, 1, `one opening turn for the guided entry: ${model.slice(before).join()}`);
   const after = model.length;
   await page.reload();
   await page.waitForTimeout(6000);

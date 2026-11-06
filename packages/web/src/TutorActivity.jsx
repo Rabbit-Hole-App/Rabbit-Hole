@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 import { materialCommands } from './learn-slash.js';
 import { OFFER_LABEL, applyTutorAction, assessmentText, chooseNextActivity, settledAttempt } from './learn-coaching-materials.js';
+import { drawingContent } from './learn-tutor-image.js';
 import { citationLabel, isCitation, linesText } from './learn-codebase-goals.js';
 import { setCitationTarget, setCitations, useCitations } from './tutor-citations.js';
 import { CodebaseSources, codebasePost, openCited } from './TutorCodebase.jsx';
@@ -13,24 +14,6 @@ import { CodebaseSources, codebasePost, openCited } from './TutorCodebase.jsx';
 const BUTTON = 'cursor-pointer rounded-lg px-3 py-1.5 text-sm font-medium disabled:cursor-default disabled:opacity-50';
 const CHOICE = 'cursor-pointer rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-ink hover:bg-hover disabled:cursor-default disabled:opacity-50';
 const newKey = () => `sub-${crypto.randomUUID()}`;
-// A drawing answer (Task 14, T6): the selected image card, frozen only once the canvas saved it remotely, with the learner's
-// optional explanation. An image card names its stored revision (fileRef.source {id, rev}); strokes alone, an unsaved card or a
-// card without a stored revision submit nothing and say why, so autosaved work is never sent for assessment. (Inlined from
-// learn-tutor-image.js, Tutor cleanup P2.)
-async function drawingContent({ canvas, selection = [], explanation = '' }) {
-  const targetId = selection[0] ?? null, selected = targetId && canvas?.block?.(targetId);
-  let notice = 'Select the image of your drawing on the canvas, then check it.', image = null;
-  if (selected?.type === 'file' && selected.kind === 'image') {
-    notice = 'This drawing could not be saved as a stored image yet, so it was not submitted. Retry after the canvas saves.';
-    try {
-      const saved = await canvas.persist?.();
-      const source = saved?.ok && saved.remote === 'ok' ? canvas.block(targetId)?.fileRef?.source : null;
-      if (source?.id && /^[0-9a-f]{64}$/.test(source.rev || '')) image = { block_id: targetId, source: { id: source.id, rev: source.rev } };
-    } catch { /* the notice above */ }
-  }
-  if (!image) return { notice };
-  return { content: { image, ...(explanation.trim() ? { explanation: explanation.trim() } : {}) } };
-}
 const attemptUrl = (attemptId, app, board) => `/api/learn/tutor/attempts/${encodeURIComponent(attemptId)}?app=${encodeURIComponent(app)}&board=${encodeURIComponent(board)}`;
 
 // What the Tutor knows about the context now, read when a check runs (applyTutorAction rechecks it as the card arrives).

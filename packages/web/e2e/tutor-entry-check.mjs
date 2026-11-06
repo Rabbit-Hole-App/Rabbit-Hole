@@ -1,0 +1,182 @@
+// The NanoGPT Tutor in production (docs/features/production-tutor-entry.md): the Learn composer IS the Tutor on a
+// karpathy/nanoGPT repository, in the PRODUCTION build (VITE_RABBIT_HOLE=true, no VITE_COACHING_DEV), against the
+// LOCAL stack only. Setup as e2e/practice-check.mjs: a ready karpathy/nanoGPT repository app (PRACTICE_APP) owned by
+// PRACTICE_EMAIL, and another (LEARNER_APP) for LEARNER_EMAIL - repositories are private to whoever imported them,
+// so a learner always opens their own. Nothing here reaches a model: the Tutor routes are scripted, voice and ask
+// are refused.
+//   PRACTICE_BASE=http://127.0.0.1:8788 SMALL_CP=http://127.0.0.1:8790 node e2e/tutor-entry-check.mjs [outDir]
+// It proves:
+//   1. Opening the project lands on its canvas (repo-canvas-graph.md, owner 2026-10-15: no repository page); its composer is
+//      the Tutor (mic, a typed turn on /api/learn/tutor), for the owner and a learner alike; no Overview/Learn/Map pill,
+//      Tutor or Practice button and no Map icon on the canvas, the repository badge instead; a Rabbit Hole keeps the Tutor
+//      and climbs back to it; the code is one click away beside Chat (Explore codebase, Repository files).
+//   2. ?board= stays dead in production: no review board (the Tutor slice's included) opens from a URL.
+//   3. ?voice=fake is ignored: the mic takes the real Voice path (a scribe token request, refused here), no fake.
+//   4. The build is the production one: no review-only code reached the browser.
+import { chromium } from '@playwright/test';
+import { readFileSync, mkdirSync } from 'node:fs';
+import assert from 'node:assert/strict';
+import { BOARDS } from '../src/demo-scenes.js';
+
+const BASE = process.env.PRACTICE_BASE || 'http://127.0.0.1:8788';
+const CP = process.env.SMALL_CP || 'http://127.0.0.1:8790';
+for (const origin of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(origin)) throw Error('tutor-entry-check runs against the local stack only');
+const APP = process.env.PRACTICE_APP || 'repo-nanogpt';
+const PEOPLE = [[process.env.PRACTICE_EMAIL || 'owner@example.com', APP], [process.env.LEARNER_EMAIL || 'learner@example.com', process.env.LEARNER_APP || 'repo-nanogpt-learner']];
+const OUT = process.argv[2] || 'tutor-entry-shots';
+mkdirSync(OUT, { recursive: true });
+const secret = readFileSync(process.env.VARS || new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+// What only a review build carries (e2e/production-bundle-check.mjs DEV_MARKERS, plus the review-board notice).
+const REVIEW_ONLY = ['No review board is registered', 'Review fixtures are on', 'Insert a sample lesson block', 'Agent workspace', 'Quiz answer key', 'Edit and approve curriculum', '__voiceFake', 'failStt'];
+// Every review board's card titles: none may open from a URL.
+const titlesOf = name => BOARDS[name]().map(block => block.title || block.scene?.title).filter(Boolean);
+
+// A fake microphone device (Chromium's, not the app's), so the real Voice path can start without hardware.
+const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
+const errors = [], scripts = new Map();
+const results = {};
+
+async function personPage(email) {
+  const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret }) })).json();
+  assert.ok(session, `a session for ${email}`);
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, permissions: ['microphone'] });
+  await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
+  const page = await context.newPage();
+  page.on('pageerror', error => errors.push(`${email}: ${error.message}`));
+  page.on('response', async response => { if (/\.js(\?|$)/.test(response.url()) && !scripts.has(response.url())) scripts.set(response.url(), await response.text().catch(() => '')); });
+  const traffic = { plans: [], evaluations: [], refused: [] };
+  await page.route('**/api/learn/tutor/evaluate', async route => { traffic.evaluations.push(route.request().postDataJSON()); await route.fulfill({ json: { status: 'settled', evaluator: 'jev', events: [] } }); });
+  await page.route('**/api/learn/tutor/plan', async route => {
+    const body = route.request().postDataJSON(), { stream } = body;
+    traffic.plans.push(body);
+    const plan = { strategy: 'feynman', move: 'explain', reason: '', actions: [{ type: 'respond_text', text: 'Each position looks back at the earlier ones, never ahead.' }] };
+    if (stream) await route.fulfill({ contentType: 'application/x-ndjson', body: JSON.stringify({ type: 'plan', ...plan }) + '\n' });
+    else await route.fulfill({ json: plan });
+  });
+  await page.route(/\/api\/(learn\/(ask|voice|assess)|chat)/, route => { if (route.request().method() === 'GET') return route.continue(); traffic.refused.push(route.request().url()); return route.abort(); });
+  return { page, traffic, close: () => context.close() };
+}
+const shot = async (page, name) => { await page.waitForTimeout(400); await page.screenshot({ path: `${OUT}/${name}.png` }); console.log('shot', name); };
+// The Tutor's mic. Since r36 (a915cb1d, LearnVoice.jsx LISTENING_PAUSED) new listening sessions are paused, and the mic shows as
+// 'Voice mode is paused': either one proves the composer is the Tutor.
+const mic = page => page.getByRole('button', { name: /^Voice mode( is paused)?$/ });
+const paused = async page => (await mic(page).getAttribute('aria-label')) === 'Voice mode is paused';
+const cardTitles = page => page.locator('[data-block-id]:not([data-chat-block])').allInnerTexts();
+const settle = page => page.waitForSelector('[data-tool-gutter]', { timeout: 30000 }).then(() => page.waitForTimeout(1500));
+// Start Rabbit Hole from a card's right-click menu (owner spec 2026-10-29: /dive left the commands; the card menu is the way down,
+// card-context-menu-check.mjs). id: a card's block id, else the first content card whose menu offers it (a heading has none).
+const startHole = async (page, id = null) => {
+  const cards = id ? page.locator(`[data-block-id="${id}"]`) : page.locator('[data-block-id]:not([data-chat-block])');
+  const item = page.locator('[data-canvas-menu] [data-menu-start-rabbit-hole]');
+  for (let i = 0, n = Math.min(await cards.count(), 8); i < n; i++) {
+    const strip = cards.nth(i).locator('[data-drag-zone]').last();
+    if (!await strip.count()) continue;
+    await strip.scrollIntoViewIfNeeded();
+    await strip.click({ button: 'right', position: { x: 30, y: 10 } });
+    await page.locator('[data-canvas-menu]').waitFor({ timeout: 5000 });
+    if (await item.count()) {
+      await item.click();
+      await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 15000 });
+      return;
+    }
+    await page.keyboard.press('Escape');
+  }
+  throw Error(`no card here offers Start Rabbit Hole${id ? ` (${id})` : ''}`);
+};
+const composer = page => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
+
+// 1. The project opens on its canvas; its composer is the Tutor: the owner and a learner get the same.
+for (const [index, [email, app]] of PEOPLE.entries()) {
+  const who = index ? 'learner' : 'owner';
+  const { page, traffic, close } = await personPage(email);
+  await page.goto(`${BASE}/apps/${app}`);
+  await settle(page);
+  assert.equal(new URL(page.url()).pathname, `/apps/${app}`, `${who}: the canvas, at the project's own URL`);
+  await mic(page).waitFor({ timeout: 15000 });
+  assert.equal(await page.locator('[data-project-tabs]').count(), 0, `${who}: no Overview/Learn/Map pill on the canvas`);
+  assert.equal(await page.locator('[data-learn-tutor], [data-learn-practice]').count(), 0, `${who}: no Tutor or Practice button`);
+  assert.equal(await page.locator('[data-learn-map]').count(), 0, `${who}: no Map icon: there is no Map page`);
+  assert.equal(await page.locator('[data-repo-menu]').count(), 1, `${who}: the repository dropdown`);
+  await shot(page, `${who}-1-learn`);
+
+  // A typed turn is a Tutor turn: /api/learn/tutor, for this repository, never /api/learn/ask.
+  await composer(page).fill('Which characters does one position look at?');
+  await composer(page).press('Enter');
+  await page.getByText('Each position looks back at the earlier ones, never ahead.').first().waitFor({ timeout: 15000 });
+  const plan = traffic.plans.at(-1);
+  assert.ok(plan, `${who}: a Tutor plan request`);
+  assert.equal(plan.app, app, `${who}: the plan is for ${app}`);
+  assert.equal(plan.context.learner_intent.raw_user_message, 'Which characters does one position look at?', `${who}: the typed words`);
+  assert.deepEqual(traffic.refused, [], `${who}: nothing went to ask, voice or grading`);
+  await shot(page, `${who}-2-typed-turn`);
+
+  // A Rabbit Hole under the course keeps the Tutor and climbs back to the course canvas.
+  // /dive left the commands (owner spec 2026-10-29): the hole is made from a card's menu.
+  await startHole(page);
+  // The hole's Tutor waits for its Rabbit Hole path (the dives tree), which loads after the canvas.
+  await mic(page).waitFor({ timeout: 15000 }).catch(() => assert.fail(`${who}: the hole keeps the Tutor`));
+  await shot(page, `${who}-3-hole`);
+  await page.locator('[data-dive-navigator] [data-dive-level]').first().click();
+  await page.waitForURL(url => url.pathname === `/apps/${app}` && !url.searchParams.has('hole') && !url.searchParams.has('board'));
+  await settle(page);
+  await mic(page).waitFor({ timeout: 15000 });
+
+  // The code is one click away, beside Chat (owner brief 2026-10-16 items 3-4): the Chat header's one Context / Files / Graph
+  // control opens the companion column, its Graph and Files tabs switch the view; the URL stays and the composer stays the Tutor.
+  const url = page.url();
+  await page.locator('[data-panel-companion]').click();
+  await page.locator('[data-companion-view="graph"]').click();
+  await page.locator('[data-companion] [data-learn-graph] [data-graph-panel]').waitFor({ timeout: 20000 });
+  await page.locator('[data-companion-view="files"]').click();
+  await page.locator('[data-companion] [data-learn-files]').waitFor({ state: 'visible', timeout: 10000 });
+  assert.equal(page.url(), url, `${who}: viewing code does not navigate`);
+  await mic(page).waitFor({ timeout: 15000 });
+  await shot(page, `${who}-4-code-beside-chat`);
+  results[who] = { plans: traffic.plans.length, evaluations: traffic.evaluations.length };
+  await close();
+}
+assert.deepEqual(results.learner, results.owner, 'the owner and a learner get the same Tutor');
+
+// 2. URLs open no review board: every one (the Tutor slice's included) by ?board=.
+const { page, close } = await personPage(PEOPLE[0][0]);
+const blocked = Object.keys(BOARDS).map(name => `board=${name}`);
+for (const query of blocked) {
+  await page.goto(`${BASE}/apps/${APP}?tab=learn&${query}`);
+  await settle(page);
+  const body = await page.locator('body').innerText();
+  for (const marker of REVIEW_ONLY) assert.ok(!body.includes(marker), `${query}: ${marker}`);
+  const texts = (await cardTitles(page)).join('\n');
+  for (const name of Object.keys(BOARDS)) for (const title of titlesOf(name)) assert.ok(!texts.includes(title), `${query}: ${name} card "${title}" must not open`);
+  const keys = await page.evaluate(() => Object.keys(localStorage));
+  for (const name of Object.keys(BOARDS)) assert.ok(!keys.some(key => key.includes(`:${name}:`)), `${query}: no ${name} storage`);
+}
+await shot(page, '4-board-url-ignored');
+await close();
+
+// 3. ?voice=fake: production ignores it. The mic starts the REAL Voice path (its token request, refused here so
+// nothing is paid), and no scripted session or window.__voiceFake exists.
+{
+  const { page, traffic, close } = await personPage(PEOPLE[0][0]);
+  await page.goto(`${BASE}/apps/${APP}?tab=learn&voice=fake`);
+  await settle(page);
+  // While listening is paused (r36) the mic starts nothing, real or fake: what is left to prove is that no fake exists.
+  if (await paused(page)) {
+    assert.equal(await page.evaluate(() => typeof window.__voiceFake), 'undefined', 'no fake Voice harness in production');
+    results.voiceFakeIgnored = 'listening paused (LISTENING_PAUSED): no fake harness; the real-path probe needs listening on';
+    await close();
+  } else {
+  await mic(page).click();
+  for (let i = 0; i < 100 && !traffic.refused.some(url => url.includes('/api/learn/voice/scribe-token')); i++) await page.waitForTimeout(100);
+  assert.ok(traffic.refused.some(url => url.includes('/api/learn/voice/scribe-token')), `?voice=fake still takes the real Voice path: ${traffic.refused.join(', ')}`);
+  assert.equal(await page.evaluate(() => typeof window.__voiceFake), 'undefined', 'no fake Voice harness in production');
+  await shot(page, '5-voice-fake-ignored');
+  results.voiceFakeIgnored = true;
+  await close();
+  }
+}
+
+// 4. The production build: no review-only code reached the browser.
+for (const [url, source] of scripts) for (const marker of REVIEW_ONLY) assert.ok(!source.includes(marker), `${marker} in ${url}`);
+assert.deepEqual(errors, [], 'page errors');
+console.log(JSON.stringify({ ok: true, ...results, blockedUrls: blocked.length, scripts: scripts.size }));
+await browser.close();

@@ -286,8 +286,12 @@ test('a saved Stop restores as a stopped reply, never a spinner', () => {
   assert.deepEqual(restored.map(m => [m.content, m.status]), [['Stopped.', 'stopped'], ['Partial', 'stopped'], ['Done', 'done']]);
 });
 
-test('ask.jsx binds a turn to its canvas and thread at send and checks it is not late', () => {
+test('ask.jsx binds an Auto turn to its canvas and thread at send, saves the question in begin and the reply before the late check', () => {
   const ask = read('ask.jsx');
   assert.match(ask, /const sentKey = chatThread\?\.liveKey\(\), late = \(\) => !!chatThread && lateEvent\(sentKey, chatThread\.liveKey\(\)\);/);
+  assert.match(ask, /turnSaver\(\{ app: chat\.canvas, threadId: chatThread\.id \|\| newThreadId\(\), turnId: replyId,/);
+  assert.match(ask, /if \(viaTutor && autoSave\) \{ if \(!late\(\)\) chatThread\.adopt\(autoSave\.threadId, askedTitle, \{ remember: false \}\); savedId\(replyId, autoSave\.user\(message, \{ command: commandName \}\)\)[^\n]*\}\n\s+if \(late\(\)\) return;/); // the saved id keys the turn's outputs (UI changes brief 5)
+  // The save's answer gives the reply its server id and re-keys its card (duplicate card on reuse, 2026-10-21); still before the late check.
+  assert.match(ask, /autoSave\?\.assistant\(reply, stopped \? 'interrupted' : 'done'\)\.then\(saved => \{[\s\S]{0,400}?withSavedReply\(messages, replyId, saved\.messageId\)\);\n\s+\}\)\.catch\([^\n]*\n\s+if \(late\(\)\) return;\n\s+mirror\(reply\);/);
   assert.match(ask, /chatThread\?\.claim\(\);/);
 });

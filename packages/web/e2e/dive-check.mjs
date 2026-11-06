@@ -11,7 +11,6 @@
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
-import { mockChatRoute } from './dev-cp.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8788';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(BASE)) throw Error('dive-check runs against the local stack only');
@@ -34,13 +33,11 @@ const ROOT_URL = `/apps/${root.name}?board=${BOARD}`;
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
-// A typed Chat turn goes to POST /api/learn/ask (the browser Tutor is gone; a hole sends no opening question): this UI check
-// answers the route decision and the ask stream in the browser, so no model is called. Only the browser's own calls are stubbed;
-// the check's fetches from node (below) still reach the real server.
-const sseFrame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-let askCount = 0;
-await mockChatRoute(context);
-await context.route('**/api/learn/ask', route => { askCount += 1; return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: sseFrame('chunk', { text: 'It ties the pieces together.' }) + sseFrame('done', { ok: true, threadId: `dive-thread-${askCount}`, messageId: `dive-message-${askCount}` }) }); });
+// A hole's opening question and a typed turn are Tutor turns (#46): this UI check answers the Tutor plan in the browser, as
+// shared-rabbit-hole-check does; the planner's real wiring is covered on the journey stack (journey-check, tutor-slice-check,
+// next-steps-wiring-check). Next Steps hook requests go to the real route (answered at the provider boundary by the fixture).
+const plans = [];
+await context.route('**/api/learn/tutor/plan', route => { plans.push(route.request().url()); return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'What would you like to explore first?' }] } }); });
 // Card thumbnails (card-thumbnails.md) are not under test here, so their uploads are answered in the browser: on the Windows
 // lane stack a thumbnail upload took the local worker down mid-run three times (2026-10-09). card-thumbnails-check covers them.
 await context.route('**/main/thumbnail', route => (route.request().method() === 'PUT' ? route.fulfill({ status: 204 }) : route.continue()));
@@ -512,6 +509,19 @@ assert.equal(await page.locator(`[data-dive-portal="${softmax}"]`).count(), 0, '
 assert.equal(await page.locator(`[data-block-id="${card1}"] [data-hole-stack]`).count(), 0, 'the stacked layers go with the hole');
 console.log('flow I ok');
 
+// ---- the agent-suggested dive (structure only) ----
+// #46 (docs/features/professor-next-steps.md, LearnPage wiring): on a plain canvas the suggestion no longer floats over the
+// canvas; it draws inside the Tutor's extras under its reply in the dock sheet. A Tutor turn opens that sheet first.
+const card3 = (await blocks())[2];
+await composer().click(); await composer().fill('What should I look at next?'); await composer().press('Enter');
+await page.locator('[data-tutor-extras], [data-chat-pane]').first().waitFor();
+await page.waitForTimeout(800);
+await page.evaluate(id => window.dispatchEvent(new CustomEvent('small:dive-suggest', { detail: { blockId: id, topic: 'cross-entropy' } })), card3);
+await page.locator('[data-tutor-extras] [data-dive-suggestion]').waitFor();
+assert.equal(await page.locator('[data-dive-suggestion]').count(), 1, 'one suggestion, in the Tutor sheet, none floating');
+await shot('13-agent-suggestion');
+await page.getByRole('button', { name: 'Keep it on this canvas' }).click();
+assert.equal(await page.locator('[data-dive-suggestion]').count(), 0);
 
 // ---- Owner brief 2026-10-13: Ctrl+K is Quick Edit and stays on the canvas, with no card selected too - it never opens Search, which is
 // Ctrl/Cmd+Shift+F now (shortcut-owner.js) ----

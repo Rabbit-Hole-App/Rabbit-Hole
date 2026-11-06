@@ -9,7 +9,7 @@ import { SLASH } from './agent/slash.js';
 import { OVERVIEW_TAB } from './inspector.js';
 
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const page = read('RepositoryPage.jsx'), wired = read('repository-canvas.jsx'), loader = read('use-repository.js'), inspector = read('MapInspector.jsx'), learn = read('LearnPage.jsx'), bar = read('agent/AgentBar.jsx'), md = read('ask.jsx'), renderer = read('Md.jsx');
+const page = read('RepositoryPage.jsx'), wired = read('repository-canvas.jsx'), loader = read('use-repository.js'), inspector = read('MapInspector.jsx'), learn = read('LearnPage.jsx'), tutor = read('LearnTutor.jsx'), bar = read('agent/AgentBar.jsx'), md = read('ask.jsx'), renderer = read('Md.jsx');
 
 // repo-canvas-graph.md (owner, 2026-10-15, correction to decision 2): a repository is its canvas. No Files | Graph | Learn
 // switcher, no Map page, no file browser or graph landing; Files and Graph open beside Chat, the badge goes to GitHub.
@@ -95,10 +95,12 @@ test('the canvas has no Tutor or Practice button: the composer is the Tutor on t
   assert.doesNotMatch(learn, /data-learn-tutor|data-learn-practice|experience/);
   // A live learning journey also makes the composer the Tutor (LP1 Task 12).
   // Task 0 (owner, 2026-10-06): the NanoGPT course, its slice board and their holes are one registry entry
-  // (learn-tutor-domains.js); LearnPage asks the resolver, never the course name.
+  // (learn-tutor-domains.js); LearnPage and useTutor ask the resolver, never the course name.
+  assert.match(learn, /useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock, canvasContext, coaching, startExplain: explainLatest }\)/);
   assert.match(learn, /const suppliedCourse = learnPreview && !!registeredCourse\(\{ app \}\)\?\.capabilities\?\.suppliedCourse;/);
   assert.match(read('learn-tutor-domains.js'), /\{ id: 'nanogpt-attention', match: \{ repo: 'karpathy\/nanoGPT', board: TUTOR_BOARD \}, domain: NANOGPT, capabilities: \{ tutor: true, evidence: 'session', suppliedCourse: true \} \},/);
   // A hole opened from a journey section, once its parent journey is read (LP1 Task 14), too: the resolver's order.
+  assert.match(tutor, /const context = tutorContext\(\{ \.\.\.where, journey \}\), capabilities = context\?\.capabilities;\n  const active = capabilities\?\.tutor === true, hookTurns = active \|\| capabilities\?\.hook_turns === true;/);
   assert.match(read('learn-tutor-domains.js'), /if \(journey\?\.journey\) return[^\n]*\n  if \(parentJourney && record\?\.journey\) \{[\s\S]*?const entry = registeredCourse\(\{ app, board, root \}, registry\);/);
   // ?board= stays review-only.
   assert.match(learn, /const named = hole \|\| !reviewTools \? null : new URLSearchParams\(window\.location\.search\)\.get\('board'\);/);

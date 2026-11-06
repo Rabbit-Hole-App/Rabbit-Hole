@@ -1,6 +1,6 @@
 // Start Rabbit Hole from a shared canvas (docs/features/shared-canvas-rabbit-hole.md), the owner's fourteen cases, against
-// the LOCAL stack only: it writes to local D1 and fresh browser profiles. No model is called: a Chat or Tutor request is refused and
-// counted (a new hole sends none), and the stack's provider tripwire (e2e/provider-tripwire.js) must count no provider request. Two unrelated shared
+// the LOCAL stack only: it writes to local D1 and fresh browser profiles. No model is called: the Tutor's planner request is
+// answered in the browser, and the stack's provider tripwire (e2e/provider-tripwire.js) must count no provider request. Two unrelated shared
 // canvases prove the behaviour is generic: a root start on one, a selected-card start on the other (a different card
 // type), through the same code.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/shared-rabbit-hole-check.mjs [shotsDir]
@@ -75,14 +75,14 @@ const providerCalls = async () => {
   return (await response.json()).hits;
 };
 const providerBefore = (await providerCalls()).length;
-const turns = [], hooks = [], repeated = [];
+const plans = [], hooks = [], repeated = [];
 const browser = await chromium.launch();
 const errors = [];
 const contextFor = async who => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   if (who) await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
-  // A new hole sends no opening question (Tutor cleanup P2): any Chat turn or Tutor request is refused and counted, and the final check holds the count to none.
-  await context.route(/\/api\/learn\/(ask|tutor\/(plan|evaluate|handoff))$/, route => { turns.push(route.request().url()); return route.abort(); });
+  // A new hole's opening question is a Tutor turn; its plan is answered here, as next-steps-check and journey-check do.
+  await context.route('**/api/learn/tutor/plan', route => { plans.push(route.request().url()); return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'What would you like to explore first?' }] } }); });
   // Professor Next Steps (#46) asks for hooks when a canvas opens. The request goes to the real route; the gate stack answers
   // its planner at the provider boundary with the journey fixture (e2e/provider-tripwire.js), counted there as a fixture,
   // never a provider hit. Each request is recorded per page to hold it to §2.3 (never the same request twice).
@@ -321,9 +321,8 @@ await check('2 Fork is unchanged: a copy in the viewer\'s Library, counted on th
 
 await check('no request reached a model provider: the provider tripwire counted none during this check', async () => {
   const during = (await providerCalls()).slice(providerBefore);
-  console.log(`chat or tutor requests refused in the browser: ${turns.length}; next-steps hook requests: ${hooks.length} (repeated: ${repeated.length}); provider requests: ${during.length}`);
+  console.log(`tutor plans answered in the browser: ${plans.length}; next-steps hook requests: ${hooks.length} (repeated: ${repeated.length}); provider requests: ${during.length}`);
   assert.deepEqual(during, []);
-  assert.deepEqual(turns, [], 'a new hole sends no opening turn');
 });
 
 await check('Next Steps asked for hooks without repeating a request on any page (§2.3)', async () => {
