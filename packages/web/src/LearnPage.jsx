@@ -1071,7 +1071,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // the cache. Review boards (?board=, dev tooling) are saved there only while shared (canvas-sharing.md).
   const boardName = board || 'main';
   // Card feedback (R1): the owner's own canvas only; a member, a viewer or a project board has no rating control.
-  const feedbackScope = useMemo(() => (app.kind === 'canvas' && canEditCanvas ? { app: app.name, board: boardName, persist: () => canvasApi.current?.persist?.() } : null), [app.kind, app.name, boardName, canEditCanvas]);
+  // Recovery (R1): no rating control is drawn; the route and the stored ratings stay.
+  const feedbackScope = null;
   // PDF excerpts from the reader (pdf-excerpts contract, 'small:pdf-excerpt'; the canvas drop sends the same event with `at`).
   // canvas: the card - crop stored and highlight saved first, so a failure leaves none (Retry offers the same intent again) - one
   // insertion and one Undo step for the whole intent (draftIds: a split's parts). chat: attached to the conversation, nothing sent.
