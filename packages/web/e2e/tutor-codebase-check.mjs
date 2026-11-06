@@ -92,7 +92,7 @@ const context = await browser.newContext({ viewport: { width: 1600, height: 950 
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
 const errors = [], model = [], asks = [], hooks = [], codebasePosts = [], attempts = [];
 const MODEL = path => path.startsWith('/api/learn/tutor/') && !path.startsWith('/api/learn/tutor/attempts')
-  || ['/api/learn/artifact', '/api/learn/home-ask', '/api/ask', '/api/learn/inline/generate', '/api/learn/inline/route'].includes(path)
+  || ['/api/learn/artifact', '/api/learn/home-ask', '/api/ask', '/api/learn/assess', '/api/learn/inline/generate', '/api/learn/inline/route'].includes(path)
   || /^\/api\/repositories\/[^/]+\/(ask|learn-course)$/.test(path);
 const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 await context.route('**/*', route => {

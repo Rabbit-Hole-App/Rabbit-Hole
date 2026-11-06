@@ -128,6 +128,7 @@ function unit:viz {
 }
 # Relative glob: node --test does not expand an absolute /c/... glob under Git Bash and would run 0 tests, exiting 0.
 function unit:evals {
+    (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/learn-grade/*.test.mjs")
     (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/explain-review/*.test.mjs")
     (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/explain-back/*.test.mjs")
 }

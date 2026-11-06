@@ -16,6 +16,8 @@ import { VERIFY_SYSTEM } from '../src/agents/learn-scene-verify.js';
 import { generateBoardPlan } from '../src/learn-board.js';
 import { TEACHING_POLICY } from '../src/learn-teaching.js';
 import { VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE, PAPER_SHOWN_NOTE } from '../src/agents/learn-chat.js';
+import { challengePrompt } from '../../web/src/learn-grade-prompts.js';
+import { assessAnswer } from '../src/learn-grade-routes.js';
 
 const fingerprint = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
 const PINS = {
@@ -28,6 +30,7 @@ const PINS = {
   sceneVerify: '95072982913f0bc1', // 2026-10-21 L10 (owner): the verifier pass over a generated scene (learn-scene-author.test.js sends it)
   board: '4436c297d574838d', // env without DESMOS_API_KEY, so BOARD_NO_DESMOS is appended
   boardReview: 'bce6f95a93d18528',
+  gradingMessage: 'c26ecea8f9877e04', // the challengePrompt fixture below; 2026-10-28: ends with MATH_FORMAT
 };
 const CHAT_TOOLS = ['search_wikipedia', 'read_wikipedia', 'show_wikipedia', 'find_video_moments', 'show_video', 'search_arxiv', 'read_arxiv_paper'];
 const REPOSITORY_TOOLS = ['get_repo_overview', 'search_code', 'get_relationships', 'explain_symbol', 'find_connection_path', 'query_graph', 'read_source', 'find_video_moments', 'show_video', 'search_arxiv', 'read_arxiv_paper'];
@@ -146,6 +149,22 @@ test('a repository ask sends the chat prompt plus the repository and video instr
   assert.deepEqual(names(body), REPOSITORY_TOOLS);
   assert.ok(body.system.startsWith(TEACHING_POLICY));
   includesAll(body.system, [...CHAT_SAFEGUARDS, ...REPOSITORY_SAFEGUARDS]);
+});
+
+// prompts-12, owner decision 3: the grader's instruction, built on the server by
+// /api/learn/assess, is the whole request: no system prompt, no tools, no
+// context. A chat prompt edit no longer reaches the grader.
+const challenge = { prompt: 'Why does attention divide by the square root of d?', expects: ['dot products grow with dimension', 'softmax saturates'] };
+const gradingMessage = challengePrompt(challenge, 'So the numbers stay small.');
+test('grading: the challenge instruction is the only message, with no system prompt and no tools', async () => {
+  assert.equal(fingerprint(gradingMessage), PINS.gradingMessage);
+  const seen = [];
+  const env = { CONTROL_PLANE: { fetch: async () => Response.json({ name: 'demo-app' }) } };
+  const graded = await assessAnswer(new Request('https://dev.test/api/learn/assess', { method: 'POST', body: JSON.stringify({ app: 'demo-app', mode: 'challenge', ...challenge, answer: 'So the numbers stay small.' }) }), env, {
+    callModel: async (_env, body) => { seen.push(body); return Response.json({ content: [{ type: 'text', text: 'VERDICT: good' }], stop_reason: 'end_turn' }); },
+  });
+  await graded.text();
+  assert.deepEqual(seen, [{ max_tokens: 2400, messages: [{ role: 'user', content: gradingMessage }] }]);
 });
 
 const quiz = { question: 'What does softmax output sum to?', options: [{ text: '1', correct: true }, { text: '0', correct: false }], why: 'It normalises.' };

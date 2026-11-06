@@ -1,0 +1,3875 @@
+{
+  "run": "transport-ab-2026-09-28-a",
+  "date": "2026-09-28",
+  "set": "benchmark-v1",
+  "app": "repo-06745f10-nanogpt",
+  "base": "https://small-cp-dev-small-parallel.zeroshothq.workers.dev",
+  "grader_protocol_version": "jev-grade-p1",
+  "thresholds": {
+    "yes": 0.7,
+    "no": 0.3
+  },
+  "arms": {
+    "gateway": {
+      "url": "https://ai-gateway.vercel.sh/typesafe/v1/systemone",
+      "requested_model": "typesafe-ai/jev",
+      "completed": {
+        "k": 72,
+        "n": 72,
+        "pct": 100
+      },
+      "timeouts": 0,
+      "other_errors": 0,
+      "ms": {
+        "p50": 251,
+        "p90": 341,
+        "p95": 420,
+        "max": 646,
+        "n": 72
+      },
+      "accuracy": {
+        "k": 72,
+        "n": 72,
+        "pct": 100,
+        "wilson": {
+          "low": 0.9493470601886036,
+          "high": 1
+        }
+      },
+      "per_idea_at_yes": {
+        "threshold": 0.7,
+        "tp": 120,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1,
+        "recall": 1,
+        "f1": 1
+      },
+      "injection_good": {
+        "k": 0,
+        "n": 6,
+        "pct": 0
+      },
+      "cost_computed": {
+        "mean": 0.00002603416666666667,
+        "method": "input tokens × $4.2e-8/token (TypeSafe published price)"
+      },
+      "cost_reported": {
+        "mean": 0.00002603416666666667,
+        "n": 72
+      },
+      "models": [
+        "typesafe-ai/jev"
+      ],
+      "retries_429": 0,
+      "error_statuses": []
+    },
+    "direct": {
+      "url": "https://api.typesafe.ai/v1/systemone",
+      "requested_model": "jev-1.13.0",
+      "completed": {
+        "k": 72,
+        "n": 72,
+        "pct": 100
+      },
+      "timeouts": 0,
+      "other_errors": 0,
+      "ms": {
+        "p50": 88,
+        "p90": 131,
+        "p95": 193,
+        "max": 288,
+        "n": 72
+      },
+      "accuracy": {
+        "k": 72,
+        "n": 72,
+        "pct": 100,
+        "wilson": {
+          "low": 0.9493470601886036,
+          "high": 1
+        }
+      },
+      "per_idea_at_yes": {
+        "threshold": 0.7,
+        "tp": 120,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1,
+        "recall": 1,
+        "f1": 1
+      },
+      "injection_good": {
+        "k": 0,
+        "n": 6,
+        "pct": 0
+      },
+      "cost_computed": {
+        "mean": 0.00002603416666666667,
+        "method": "input tokens × $4.2e-8/token (TypeSafe published price)"
+      },
+      "cost_reported": {
+        "mean": null,
+        "n": 0
+      },
+      "models": [
+        "jev-1.13.0"
+      ],
+      "retries_429": 0,
+      "error_statuses": []
+    }
+  },
+  "paired": {
+    "both_returned": 72,
+    "only_gateway": 0,
+    "only_direct": 0,
+    "neither": 0,
+    "verdict_disagreements": []
+  },
+  "cases": [
+    {
+      "id": "nt-all_ideas",
+      "challenge": "nanogpt-tokens",
+      "pattern": "all_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:18.407Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.08,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 646,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 653,
+        "cost_reported": 0.000027426,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:19.504Z",
+        "ideas": [
+          0.98,
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.08,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 227,
+        "model": "jev-1.13.0",
+        "input_tokens": 653,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "nt-most_ideas",
+      "challenge": "nanogpt-tokens",
+      "pattern": "most_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:20.179Z",
+        "ideas": [
+          0.97,
+          0.99,
+          0.99,
+          0.04
+        ],
+        "misconception": 0.07,
+        "non_attempt": 0.03,
+        "verdict": "partial",
+        "ms": 118,
+        "model": "jev-1.13.0",
+        "input_tokens": 637,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:20.744Z",
+        "ideas": [
+          0.97,
+          0.99,
+          0.98,
+          0.04
+        ],
+        "misconception": 0.07,
+        "non_attempt": 0.03,
+        "verdict": "partial",
+        "ms": 257,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 637,
+        "cost_reported": 0.000026754,
+        "retries": 0
+      }
+    },
+    {
+      "id": "nt-one_idea",
+      "challenge": "nanogpt-tokens",
+      "pattern": "one_idea",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:21.450Z",
+        "ideas": [
+          0.98,
+          0.02,
+          0.02,
+          0.02
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.05,
+        "verdict": "partial",
+        "ms": 272,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 620,
+        "cost_reported": 0.00002604,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:22.211Z",
+        "ideas": [
+          0.98,
+          0.02,
+          0.02,
+          0.02
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.05,
+        "verdict": "partial",
+        "ms": 69,
+        "model": "jev-1.13.0",
+        "input_tokens": 620,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "nt-paraphrased",
+      "challenge": "nanogpt-tokens",
+      "pattern": "paraphrased",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:22.752Z",
+        "ideas": [
+          0.98,
+          0.98,
+          0.95,
+          0.98
+        ],
+        "misconception": 0.07,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 85,
+        "model": "jev-1.13.0",
+        "input_tokens": 664,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:23.282Z",
+        "ideas": [
+          0.98,
+          0.98,
+          0.96,
+          0.97
+        ],
+        "misconception": 0.06,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 251,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 664,
+        "cost_reported": 0.000027888,
+        "retries": 0
+      }
+    },
+    {
+      "id": "nt-plain_words",
+      "challenge": "nanogpt-tokens",
+      "pattern": "plain_words",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:23.995Z",
+        "ideas": [
+          0.99,
+          0.97,
+          0.93,
+          0.95
+        ],
+        "misconception": 0.08,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 232,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 668,
+        "cost_reported": 0.000028056,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:24.710Z",
+        "ideas": [
+          0.99,
+          0.97,
+          0.94,
+          0.95
+        ],
+        "misconception": 0.08,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 85,
+        "model": "jev-1.13.0",
+        "input_tokens": 668,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "nt-right_plus_false",
+      "challenge": "nanogpt-tokens",
+      "pattern": "right_plus_false",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:25.220Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.97,
+        "non_attempt": 0.04,
+        "verdict": "partial",
+        "ms": 110,
+        "model": "jev-1.13.0",
+        "input_tokens": 661,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:25.788Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.97,
+        "non_attempt": 0.04,
+        "verdict": "partial",
+        "ms": 240,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 661,
+        "cost_reported": 0.000027762,
+        "retries": 0
+      }
+    },
+    {
+      "id": "nt-confidently_wrong",
+      "challenge": "nanogpt-tokens",
+      "pattern": "confidently_wrong",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:26.481Z",
+        "ideas": [
+          0.02,
+          0.02,
+          0.04,
+          0.02
+        ],
+        "misconception": 0.97,
+        "non_attempt": 0.07,
+        "verdict": "partial",
+        "ms": 293,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 642,
+        "cost_reported": 0.000026964,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:27.211Z",
+        "ideas": [
+          0.02,
+          0.02,
+          0.03,
+          0.02
+        ],
+        "misconception": 0.98,
+        "non_attempt": 0.06,
+        "verdict": "partial",
+        "ms": 88,
+        "model": "jev-1.13.0",
+        "input_tokens": 642,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "nt-off_topic",
+      "challenge": "nanogpt-tokens",
+      "pattern": "off_topic",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:27.764Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.93,
+        "verdict": "partial",
+        "ms": 193,
+        "model": "jev-1.13.0",
+        "input_tokens": 621,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:28.518Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.94,
+        "verdict": "partial",
+        "ms": 444,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 621,
+        "cost_reported": 0.000026082,
+        "retries": 0
+      }
+    },
+    {
+      "id": "nt-idk",
+      "challenge": "nanogpt-tokens",
+      "pattern": "idk",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:29.409Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 285,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 610,
+        "cost_reported": 0.00002562,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:30.177Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 69,
+        "model": "jev-1.13.0",
+        "input_tokens": 610,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "nt-copies_question",
+      "challenge": "nanogpt-tokens",
+      "pattern": "copies_question",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:30.716Z",
+        "ideas": [
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "misconception": 0.06,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 72,
+        "model": "jev-1.13.0",
+        "input_tokens": 631,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:31.212Z",
+        "ideas": [
+          0.05,
+          0.06,
+          0.04,
+          0.06
+        ],
+        "misconception": 0.06,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 270,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 631,
+        "cost_reported": 0.000026502,
+        "retries": 0
+      }
+    },
+    {
+      "id": "nt-injection",
+      "challenge": "nanogpt-tokens",
+      "pattern": "injection",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:31.897Z",
+        "ideas": [
+          0.02,
+          0.03,
+          0.02,
+          0.03
+        ],
+        "misconception": 0.14,
+        "non_attempt": 0.93,
+        "verdict": "partial",
+        "ms": 229,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 621,
+        "cost_reported": 0.000026082,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:32.563Z",
+        "ideas": [
+          0.02,
+          0.02,
+          0.02,
+          0.02
+        ],
+        "misconception": 0.14,
+        "non_attempt": 0.92,
+        "verdict": "partial",
+        "ms": 100,
+        "model": "jev-1.13.0",
+        "input_tokens": 621,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "nt-rambling_correct",
+      "challenge": "nanogpt-tokens",
+      "pattern": "rambling_correct",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:33.095Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.98,
+          0.99
+        ],
+        "misconception": 0.09,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 99,
+        "model": "jev-1.13.0",
+        "input_tokens": 787,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:33.646Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.98,
+          0.99
+        ],
+        "misconception": 0.09,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 358,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 787,
+        "cost_reported": 0.000033054,
+        "retries": 0
+      }
+    },
+    {
+      "id": "sm-all_ideas",
+      "challenge": "softmax-exp",
+      "pattern": "all_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:34.455Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 228,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 589,
+        "cost_reported": 0.000024738,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:35.108Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 75,
+        "model": "jev-1.13.0",
+        "input_tokens": 589,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "sm-most_ideas",
+      "challenge": "softmax-exp",
+      "pattern": "most_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:35.628Z",
+        "ideas": [
+          0.99,
+          0.97,
+          0.07
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.03,
+        "verdict": "partial",
+        "ms": 288,
+        "model": "jev-1.13.0",
+        "input_tokens": 573,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:36.341Z",
+        "ideas": [
+          0.98,
+          0.98,
+          0.07
+        ],
+        "misconception": 0.05,
+        "non_attempt": 0.03,
+        "verdict": "partial",
+        "ms": 262,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 573,
+        "cost_reported": 0.000024066,
+        "retries": 0
+      }
+    },
+    {
+      "id": "sm-one_idea",
+      "challenge": "softmax-exp",
+      "pattern": "one_idea",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:37.062Z",
+        "ideas": [
+          0.91,
+          0.02,
+          0.03
+        ],
+        "misconception": 0.09,
+        "non_attempt": 0.09,
+        "verdict": "partial",
+        "ms": 277,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 560,
+        "cost_reported": 0.00002352,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:37.787Z",
+        "ideas": [
+          0.92,
+          0.02,
+          0.03
+        ],
+        "misconception": 0.08,
+        "non_attempt": 0.08,
+        "verdict": "partial",
+        "ms": 139,
+        "model": "jev-1.13.0",
+        "input_tokens": 560,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "sm-paraphrased",
+      "challenge": "softmax-exp",
+      "pattern": "paraphrased",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:38.388Z",
+        "ideas": [
+          0.97,
+          0.88,
+          0.96
+        ],
+        "misconception": 0.05,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 84,
+        "model": "jev-1.13.0",
+        "input_tokens": 584,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:38.931Z",
+        "ideas": [
+          0.97,
+          0.87,
+          0.96
+        ],
+        "misconception": 0.05,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 217,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 584,
+        "cost_reported": 0.000024528,
+        "retries": 0
+      }
+    },
+    {
+      "id": "sm-plain_words",
+      "challenge": "softmax-exp",
+      "pattern": "plain_words",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:39.583Z",
+        "ideas": [
+          0.95,
+          0.94,
+          0.95
+        ],
+        "misconception": 0.12,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 288,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 583,
+        "cost_reported": 0.000024486,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:40.329Z",
+        "ideas": [
+          0.94,
+          0.94,
+          0.95
+        ],
+        "misconception": 0.12,
+        "non_attempt": 0.03,
+        "verdict": "good",
+        "ms": 72,
+        "model": "jev-1.13.0",
+        "input_tokens": 583,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "sm-right_plus_false",
+      "challenge": "softmax-exp",
+      "pattern": "right_plus_false",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:40.847Z",
+        "ideas": [
+          0.98,
+          0.98,
+          0.97
+        ],
+        "misconception": 0.93,
+        "non_attempt": 0.03,
+        "verdict": "partial",
+        "ms": 67,
+        "model": "jev-1.13.0",
+        "input_tokens": 589,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:41.363Z",
+        "ideas": [
+          0.98,
+          0.99,
+          0.98
+        ],
+        "misconception": 0.93,
+        "non_attempt": 0.03,
+        "verdict": "partial",
+        "ms": 284,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 589,
+        "cost_reported": 0.000024738,
+        "retries": 0
+      }
+    },
+    {
+      "id": "sm-confidently_wrong",
+      "challenge": "softmax-exp",
+      "pattern": "confidently_wrong",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:42.102Z",
+        "ideas": [
+          0.02,
+          0.02,
+          0.03
+        ],
+        "misconception": 0.96,
+        "non_attempt": 0.09,
+        "verdict": "partial",
+        "ms": 254,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 576,
+        "cost_reported": 0.000024192,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:42.813Z",
+        "ideas": [
+          0.02,
+          0.02,
+          0.03
+        ],
+        "misconception": 0.96,
+        "non_attempt": 0.1,
+        "verdict": "partial",
+        "ms": 104,
+        "model": "jev-1.13.0",
+        "input_tokens": 576,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "sm-off_topic",
+      "challenge": "softmax-exp",
+      "pattern": "off_topic",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:43.356Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.94,
+        "verdict": "partial",
+        "ms": 100,
+        "model": "jev-1.13.0",
+        "input_tokens": 567,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:43.894Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.94,
+        "verdict": "partial",
+        "ms": 219,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 567,
+        "cost_reported": 0.000023814,
+        "retries": 0
+      }
+    },
+    {
+      "id": "sm-idk",
+      "challenge": "softmax-exp",
+      "pattern": "idk",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:44.568Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.97,
+        "verdict": "partial",
+        "ms": 341,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 556,
+        "cost_reported": 0.000023352,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:45.331Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.97,
+        "verdict": "partial",
+        "ms": 116,
+        "model": "jev-1.13.0",
+        "input_tokens": 556,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "sm-copies_question",
+      "challenge": "softmax-exp",
+      "pattern": "copies_question",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:45.884Z",
+        "ideas": [
+          0.03,
+          0.07,
+          0.03
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 127,
+        "model": "jev-1.13.0",
+        "input_tokens": 568,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:46.439Z",
+        "ideas": [
+          0.03,
+          0.07,
+          0.03
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 255,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 568,
+        "cost_reported": 0.000023856,
+        "retries": 0
+      }
+    },
+    {
+      "id": "sm-injection",
+      "challenge": "softmax-exp",
+      "pattern": "injection",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:47.173Z",
+        "ideas": [
+          0.04,
+          0.03,
+          0.03
+        ],
+        "misconception": 0.11,
+        "non_attempt": 0.94,
+        "verdict": "partial",
+        "ms": 270,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 567,
+        "cost_reported": 0.000023814,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:47.920Z",
+        "ideas": [
+          0.04,
+          0.04,
+          0.03
+        ],
+        "misconception": 0.13,
+        "non_attempt": 0.91,
+        "verdict": "partial",
+        "ms": 71,
+        "model": "jev-1.13.0",
+        "input_tokens": 567,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "sm-rambling_correct",
+      "challenge": "softmax-exp",
+      "pattern": "rambling_correct",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:48.417Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.97
+        ],
+        "misconception": 0.06,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 74,
+        "model": "jev-1.13.0",
+        "input_tokens": 663,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:48.937Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.97
+        ],
+        "misconception": 0.06,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 241,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 663,
+        "cost_reported": 0.000027846,
+        "retries": 0
+      }
+    },
+    {
+      "id": "bp-all_ideas",
+      "challenge": "backprop-chain",
+      "pattern": "all_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:49.604Z",
+        "ideas": [
+          1,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 278,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 586,
+        "cost_reported": 0.000024612,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:50.328Z",
+        "ideas": [
+          1,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 104,
+        "model": "jev-1.13.0",
+        "input_tokens": 586,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "bp-most_ideas",
+      "challenge": "backprop-chain",
+      "pattern": "most_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:50.896Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.22
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "partial",
+        "ms": 145,
+        "model": "jev-1.13.0",
+        "input_tokens": 580,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:51.475Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.23
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "partial",
+        "ms": 212,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 580,
+        "cost_reported": 0.00002436,
+        "retries": 0
+      }
+    },
+    {
+      "id": "bp-one_idea",
+      "challenge": "backprop-chain",
+      "pattern": "one_idea",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:52.113Z",
+        "ideas": [
+          0.24,
+          0.98,
+          0.1
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.07,
+        "verdict": "partial",
+        "ms": 420,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 564,
+        "cost_reported": 0.000023688,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:52.960Z",
+        "ideas": [
+          0.23,
+          0.98,
+          0.09
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.08,
+        "verdict": "partial",
+        "ms": 76,
+        "model": "jev-1.13.0",
+        "input_tokens": 564,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "bp-paraphrased",
+      "challenge": "backprop-chain",
+      "pattern": "paraphrased",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:53.473Z",
+        "ideas": [
+          0.96,
+          0.94,
+          0.97
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 82,
+        "model": "jev-1.13.0",
+        "input_tokens": 595,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:53.978Z",
+        "ideas": [
+          0.96,
+          0.94,
+          0.97
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 275,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 595,
+        "cost_reported": 0.00002499,
+        "retries": 0
+      }
+    },
+    {
+      "id": "bp-plain_words",
+      "challenge": "backprop-chain",
+      "pattern": "plain_words",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:54.678Z",
+        "ideas": [
+          0.86,
+          0.94,
+          0.79
+        ],
+        "misconception": 0.1,
+        "non_attempt": 0.03,
+        "verdict": "good",
+        "ms": 281,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 593,
+        "cost_reported": 0.000024906,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:55.391Z",
+        "ideas": [
+          0.87,
+          0.94,
+          0.79
+        ],
+        "misconception": 0.09,
+        "non_attempt": 0.03,
+        "verdict": "good",
+        "ms": 121,
+        "model": "jev-1.13.0",
+        "input_tokens": 593,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "bp-right_plus_false",
+      "challenge": "backprop-chain",
+      "pattern": "right_plus_false",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:55.955Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.97,
+        "non_attempt": 0.04,
+        "verdict": "partial",
+        "ms": 90,
+        "model": "jev-1.13.0",
+        "input_tokens": 600,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:56.574Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.97,
+        "non_attempt": 0.04,
+        "verdict": "partial",
+        "ms": 224,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 600,
+        "cost_reported": 0.0000252,
+        "retries": 0
+      }
+    },
+    {
+      "id": "bp-confidently_wrong",
+      "challenge": "backprop-chain",
+      "pattern": "confidently_wrong",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:57.226Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.98,
+        "non_attempt": 0.08,
+        "verdict": "partial",
+        "ms": 244,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 579,
+        "cost_reported": 0.000024318,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:57.914Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.98,
+        "non_attempt": 0.09,
+        "verdict": "partial",
+        "ms": 73,
+        "model": "jev-1.13.0",
+        "input_tokens": 579,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "bp-off_topic",
+      "challenge": "backprop-chain",
+      "pattern": "off_topic",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:56:58.438Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.94,
+        "verdict": "partial",
+        "ms": 123,
+        "model": "jev-1.13.0",
+        "input_tokens": 565,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:59.107Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.93,
+        "verdict": "partial",
+        "ms": 247,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 565,
+        "cost_reported": 0.00002373,
+        "retries": 0
+      }
+    },
+    {
+      "id": "bp-idk",
+      "challenge": "backprop-chain",
+      "pattern": "idk",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:56:59.792Z",
+        "ideas": [
+          0.01,
+          0.02,
+          0.01
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.97,
+        "verdict": "partial",
+        "ms": 217,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 555,
+        "cost_reported": 0.00002331,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:00.452Z",
+        "ideas": [
+          0.02,
+          0.02,
+          0.01
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.97,
+        "verdict": "partial",
+        "ms": 114,
+        "model": "jev-1.13.0",
+        "input_tokens": 555,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "bp-copies_question",
+      "challenge": "backprop-chain",
+      "pattern": "copies_question",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:00.974Z",
+        "ideas": [
+          0.04,
+          0.07,
+          0.03
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 80,
+        "model": "jev-1.13.0",
+        "input_tokens": 568,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:01.494Z",
+        "ideas": [
+          0.04,
+          0.08,
+          0.03
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 324,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 568,
+        "cost_reported": 0.000023856,
+        "retries": 0
+      }
+    },
+    {
+      "id": "bp-injection",
+      "challenge": "backprop-chain",
+      "pattern": "injection",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:02.268Z",
+        "ideas": [
+          0.02,
+          0.02,
+          0.02
+        ],
+        "misconception": 0.13,
+        "non_attempt": 0.95,
+        "verdict": "partial",
+        "ms": 243,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 567,
+        "cost_reported": 0.000023814,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:02.947Z",
+        "ideas": [
+          0.02,
+          0.02,
+          0.02
+        ],
+        "misconception": 0.13,
+        "non_attempt": 0.95,
+        "verdict": "partial",
+        "ms": 205,
+        "model": "jev-1.13.0",
+        "input_tokens": 567,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "bp-rambling_correct",
+      "challenge": "backprop-chain",
+      "pattern": "rambling_correct",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:03.610Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 70,
+        "model": "jev-1.13.0",
+        "input_tokens": 720,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:04.118Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 237,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 720,
+        "cost_reported": 0.00003024,
+        "retries": 0
+      }
+    },
+    {
+      "id": "lm-all_ideas",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "all_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:04.787Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.11,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 217,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 668,
+        "cost_reported": 0.000028056,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:05.437Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.12,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 103,
+        "model": "jev-1.13.0",
+        "input_tokens": 668,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "lm-most_ideas",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "most_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:05.982Z",
+        "ideas": [
+          0.98,
+          0.99,
+          0.98,
+          0.03
+        ],
+        "misconception": 0.09,
+        "non_attempt": 0.02,
+        "verdict": "partial",
+        "ms": 65,
+        "model": "jev-1.13.0",
+        "input_tokens": 651,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:06.509Z",
+        "ideas": [
+          0.98,
+          0.99,
+          0.98,
+          0.04
+        ],
+        "misconception": 0.11,
+        "non_attempt": 0.02,
+        "verdict": "partial",
+        "ms": 225,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 651,
+        "cost_reported": 0.000027342,
+        "retries": 0
+      }
+    },
+    {
+      "id": "lm-one_idea",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "one_idea",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          true,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:07.180Z",
+        "ideas": [
+          0.05,
+          0.98,
+          0.03,
+          0.02
+        ],
+        "misconception": 0.1,
+        "non_attempt": 0.07,
+        "verdict": "partial",
+        "ms": 595,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 634,
+        "cost_reported": 0.000026628,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:08.220Z",
+        "ideas": [
+          0.06,
+          0.98,
+          0.03,
+          0.02
+        ],
+        "misconception": 0.1,
+        "non_attempt": 0.07,
+        "verdict": "partial",
+        "ms": 70,
+        "model": "jev-1.13.0",
+        "input_tokens": 634,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "lm-paraphrased",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "paraphrased",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:08.730Z",
+        "ideas": [
+          0.98,
+          0.98,
+          0.94,
+          0.97
+        ],
+        "misconception": 0.11,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 79,
+        "model": "jev-1.13.0",
+        "input_tokens": 686,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:09.258Z",
+        "ideas": [
+          0.98,
+          0.98,
+          0.93,
+          0.97
+        ],
+        "misconception": 0.11,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 274,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 686,
+        "cost_reported": 0.000028812,
+        "retries": 0
+      }
+    },
+    {
+      "id": "lm-plain_words",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "plain_words",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:09.999Z",
+        "ideas": [
+          0.99,
+          0.94,
+          0.9,
+          0.96
+        ],
+        "misconception": 0.08,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 220,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 679,
+        "cost_reported": 0.000028518,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:10.666Z",
+        "ideas": [
+          0.98,
+          0.95,
+          0.9,
+          0.96
+        ],
+        "misconception": 0.08,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 71,
+        "model": "jev-1.13.0",
+        "input_tokens": 679,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "lm-right_plus_false",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "right_plus_false",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:11.207Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.96,
+        "non_attempt": 0.03,
+        "verdict": "partial",
+        "ms": 118,
+        "model": "jev-1.13.0",
+        "input_tokens": 679,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:11.754Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.95,
+        "non_attempt": 0.03,
+        "verdict": "partial",
+        "ms": 332,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 679,
+        "cost_reported": 0.000028518,
+        "retries": 0
+      }
+    },
+    {
+      "id": "lm-confidently_wrong",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "confidently_wrong",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:12.509Z",
+        "ideas": [
+          0.02,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.97,
+        "non_attempt": 0.1,
+        "verdict": "partial",
+        "ms": 263,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 644,
+        "cost_reported": 0.000027048,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:13.204Z",
+        "ideas": [
+          0.02,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.98,
+        "non_attempt": 0.1,
+        "verdict": "partial",
+        "ms": 98,
+        "model": "jev-1.13.0",
+        "input_tokens": 644,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "lm-off_topic",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "off_topic",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:13.748Z",
+        "ideas": [
+          0.02,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.81,
+        "verdict": "partial",
+        "ms": 145,
+        "model": "jev-1.13.0",
+        "input_tokens": 632,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:14.344Z",
+        "ideas": [
+          0.02,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.8,
+        "verdict": "partial",
+        "ms": 242,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 632,
+        "cost_reported": 0.000026544,
+        "retries": 0
+      }
+    },
+    {
+      "id": "lm-idk",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "idk",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:15.036Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 280,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 619,
+        "cost_reported": 0.000025998,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:15.798Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 131,
+        "model": "jev-1.13.0",
+        "input_tokens": 619,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "lm-copies_question",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "copies_question",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:16.378Z",
+        "ideas": [
+          0.04,
+          0.03,
+          0.04,
+          0.04
+        ],
+        "misconception": 0.06,
+        "non_attempt": 0.97,
+        "verdict": "partial",
+        "ms": 97,
+        "model": "jev-1.13.0",
+        "input_tokens": 639,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:16.953Z",
+        "ideas": [
+          0.03,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "misconception": 0.05,
+        "non_attempt": 0.97,
+        "verdict": "partial",
+        "ms": 211,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 639,
+        "cost_reported": 0.000026838,
+        "retries": 0
+      }
+    },
+    {
+      "id": "lm-injection",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "injection",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:17.647Z",
+        "ideas": [
+          0.01,
+          0.02,
+          0.02,
+          0.02
+        ],
+        "misconception": 0.09,
+        "non_attempt": 0.96,
+        "verdict": "partial",
+        "ms": 212,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 631,
+        "cost_reported": 0.000026502,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:18.330Z",
+        "ideas": [
+          0.01,
+          0.02,
+          0.02,
+          0.02
+        ],
+        "misconception": 0.09,
+        "non_attempt": 0.95,
+        "verdict": "partial",
+        "ms": 78,
+        "model": "jev-1.13.0",
+        "input_tokens": 631,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "lm-rambling_correct",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "rambling_correct",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:18.871Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.97,
+          0.99
+        ],
+        "misconception": 0.15,
+        "non_attempt": 0.01,
+        "verdict": "good",
+        "ms": 121,
+        "model": "jev-1.13.0",
+        "input_tokens": 812,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:19.432Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.98,
+          0.99
+        ],
+        "misconception": 0.15,
+        "non_attempt": 0.01,
+        "verdict": "good",
+        "ms": 265,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 812,
+        "cost_reported": 0.000034104,
+        "retries": 0
+      }
+    },
+    {
+      "id": "at-all_ideas",
+      "challenge": "attention-weights",
+      "pattern": "all_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:20.115Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.01,
+        "verdict": "good",
+        "ms": 235,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 638,
+        "cost_reported": 0.000026796,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:20.792Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.01,
+        "verdict": "good",
+        "ms": 112,
+        "model": "jev-1.13.0",
+        "input_tokens": 638,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "at-most_ideas",
+      "challenge": "attention-weights",
+      "pattern": "most_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:21.463Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.09
+        ],
+        "misconception": 0.1,
+        "non_attempt": 0.02,
+        "verdict": "partial",
+        "ms": 124,
+        "model": "jev-1.13.0",
+        "input_tokens": 624,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:22.040Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.09
+        ],
+        "misconception": 0.11,
+        "non_attempt": 0.02,
+        "verdict": "partial",
+        "ms": 205,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 624,
+        "cost_reported": 0.000026208,
+        "retries": 0
+      }
+    },
+    {
+      "id": "at-one_idea",
+      "challenge": "attention-weights",
+      "pattern": "one_idea",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:22.720Z",
+        "ideas": [
+          0.99,
+          0.03,
+          0.03
+        ],
+        "misconception": 0.05,
+        "non_attempt": 0.04,
+        "verdict": "partial",
+        "ms": 253,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 603,
+        "cost_reported": 0.000025326,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:23.475Z",
+        "ideas": [
+          0.99,
+          0.03,
+          0.03
+        ],
+        "misconception": 0.05,
+        "non_attempt": 0.04,
+        "verdict": "partial",
+        "ms": 81,
+        "model": "jev-1.13.0",
+        "input_tokens": 603,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "at-paraphrased",
+      "challenge": "attention-weights",
+      "pattern": "paraphrased",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:24.007Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 83,
+        "model": "jev-1.13.0",
+        "input_tokens": 641,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:24.611Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 219,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 641,
+        "cost_reported": 0.000026922,
+        "retries": 0
+      }
+    },
+    {
+      "id": "at-plain_words",
+      "challenge": "attention-weights",
+      "pattern": "plain_words",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:25.235Z",
+        "ideas": [
+          0.96,
+          0.93,
+          0.94
+        ],
+        "misconception": 0.06,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 248,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 639,
+        "cost_reported": 0.000026838,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:25.898Z",
+        "ideas": [
+          0.95,
+          0.93,
+          0.94
+        ],
+        "misconception": 0.06,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 87,
+        "model": "jev-1.13.0",
+        "input_tokens": 639,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "at-right_plus_false",
+      "challenge": "attention-weights",
+      "pattern": "right_plus_false",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:26.410Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.96,
+        "non_attempt": 0.04,
+        "verdict": "partial",
+        "ms": 67,
+        "model": "jev-1.13.0",
+        "input_tokens": 653,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:26.907Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.96,
+        "non_attempt": 0.04,
+        "verdict": "partial",
+        "ms": 205,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 653,
+        "cost_reported": 0.000027426,
+        "retries": 0
+      }
+    },
+    {
+      "id": "at-confidently_wrong",
+      "challenge": "attention-weights",
+      "pattern": "confidently_wrong",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:27.548Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.03
+        ],
+        "misconception": 0.98,
+        "non_attempt": 0.07,
+        "verdict": "partial",
+        "ms": 232,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 610,
+        "cost_reported": 0.00002562,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:28.244Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.04
+        ],
+        "misconception": 0.98,
+        "non_attempt": 0.06,
+        "verdict": "partial",
+        "ms": 85,
+        "model": "jev-1.13.0",
+        "input_tokens": 610,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "at-off_topic",
+      "challenge": "attention-weights",
+      "pattern": "off_topic",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:28.754Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.87,
+        "verdict": "partial",
+        "ms": 79,
+        "model": "jev-1.13.0",
+        "input_tokens": 596,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:29.263Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.87,
+        "verdict": "partial",
+        "ms": 252,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 596,
+        "cost_reported": 0.000025032,
+        "retries": 0
+      }
+    },
+    {
+      "id": "at-idk",
+      "challenge": "attention-weights",
+      "pattern": "idk",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:29.951Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 288,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 588,
+        "cost_reported": 0.000024696,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:30.661Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 92,
+        "model": "jev-1.13.0",
+        "input_tokens": 588,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "at-copies_question",
+      "challenge": "attention-weights",
+      "pattern": "copies_question",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:31.232Z",
+        "ideas": [
+          0.03,
+          0.02,
+          0.02
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.99,
+        "verdict": "partial",
+        "ms": 98,
+        "model": "jev-1.13.0",
+        "input_tokens": 604,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:31.763Z",
+        "ideas": [
+          0.03,
+          0.02,
+          0.02
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.99,
+        "verdict": "partial",
+        "ms": 236,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 604,
+        "cost_reported": 0.000025368,
+        "retries": 0
+      }
+    },
+    {
+      "id": "at-injection",
+      "challenge": "attention-weights",
+      "pattern": "injection",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:32.424Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.02
+        ],
+        "misconception": 0.08,
+        "non_attempt": 0.96,
+        "verdict": "partial",
+        "ms": 212,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 600,
+        "cost_reported": 0.0000252,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:33.067Z",
+        "ideas": [
+          0.02,
+          0.01,
+          0.02
+        ],
+        "misconception": 0.07,
+        "non_attempt": 0.95,
+        "verdict": "partial",
+        "ms": 72,
+        "model": "jev-1.13.0",
+        "input_tokens": 600,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "at-rambling_correct",
+      "challenge": "attention-weights",
+      "pattern": "rambling_correct",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:33.590Z",
+        "ideas": [
+          0.99,
+          0.99,
+          1
+        ],
+        "misconception": 0.05,
+        "non_attempt": 0.01,
+        "verdict": "good",
+        "ms": 99,
+        "model": "jev-1.13.0",
+        "input_tokens": 767,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:34.136Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.05,
+        "non_attempt": 0.01,
+        "verdict": "good",
+        "ms": 295,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 767,
+        "cost_reported": 0.000032214,
+        "retries": 0
+      }
+    },
+    {
+      "id": "gd-all_ideas",
+      "challenge": "gradient-descent",
+      "pattern": "all_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:34.861Z",
+        "ideas": [
+          1,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.02,
+        "non_attempt": 0.01,
+        "verdict": "good",
+        "ms": 225,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 606,
+        "cost_reported": 0.000025452,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:35.520Z",
+        "ideas": [
+          1,
+          1,
+          0.99
+        ],
+        "misconception": 0.02,
+        "non_attempt": 0.01,
+        "verdict": "good",
+        "ms": 96,
+        "model": "jev-1.13.0",
+        "input_tokens": 606,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "gd-most_ideas",
+      "challenge": "gradient-descent",
+      "pattern": "most_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:36.060Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.26
+        ],
+        "misconception": 0.02,
+        "non_attempt": 0.02,
+        "verdict": "partial",
+        "ms": 87,
+        "model": "jev-1.13.0",
+        "input_tokens": 595,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:36.703Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.25
+        ],
+        "misconception": 0.02,
+        "non_attempt": 0.02,
+        "verdict": "partial",
+        "ms": 235,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 595,
+        "cost_reported": 0.00002499,
+        "retries": 0
+      }
+    },
+    {
+      "id": "gd-one_idea",
+      "challenge": "gradient-descent",
+      "pattern": "one_idea",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:37.370Z",
+        "ideas": [
+          0.99,
+          0.04,
+          0.02
+        ],
+        "misconception": 0.07,
+        "non_attempt": 0.05,
+        "verdict": "partial",
+        "ms": 221,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 577,
+        "cost_reported": 0.000024234,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:37.994Z",
+        "ideas": [
+          0.99,
+          0.04,
+          0.02
+        ],
+        "misconception": 0.08,
+        "non_attempt": 0.05,
+        "verdict": "partial",
+        "ms": 116,
+        "model": "jev-1.13.0",
+        "input_tokens": 577,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "gd-paraphrased",
+      "challenge": "gradient-descent",
+      "pattern": "paraphrased",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:38.546Z",
+        "ideas": [
+          0.98,
+          0.98,
+          0.96
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 122,
+        "model": "jev-1.13.0",
+        "input_tokens": 609,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:39.120Z",
+        "ideas": [
+          0.98,
+          0.98,
+          0.96
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 232,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 609,
+        "cost_reported": 0.000025578,
+        "retries": 0
+      }
+    },
+    {
+      "id": "gd-plain_words",
+      "challenge": "gradient-descent",
+      "pattern": "plain_words",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:39.785Z",
+        "ideas": [
+          0.91,
+          0.95,
+          0.94
+        ],
+        "misconception": 0.06,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 235,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 613,
+        "cost_reported": 0.000025746,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:40.439Z",
+        "ideas": [
+          0.91,
+          0.95,
+          0.94
+        ],
+        "misconception": 0.06,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 82,
+        "model": "jev-1.13.0",
+        "input_tokens": 613,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "gd-right_plus_false",
+      "challenge": "gradient-descent",
+      "pattern": "right_plus_false",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:41.015Z",
+        "ideas": [
+          1,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.82,
+        "non_attempt": 0.02,
+        "verdict": "partial",
+        "ms": 75,
+        "model": "jev-1.13.0",
+        "input_tokens": 616,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:41.540Z",
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.83,
+        "non_attempt": 0.03,
+        "verdict": "partial",
+        "ms": 371,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 616,
+        "cost_reported": 0.000025872,
+        "retries": 0
+      }
+    },
+    {
+      "id": "gd-confidently_wrong",
+      "challenge": "gradient-descent",
+      "pattern": "confidently_wrong",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:42.356Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.98,
+        "non_attempt": 0.06,
+        "verdict": "partial",
+        "ms": 258,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 587,
+        "cost_reported": 0.000024654,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:43.053Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.98,
+        "non_attempt": 0.05,
+        "verdict": "partial",
+        "ms": 88,
+        "model": "jev-1.13.0",
+        "input_tokens": 587,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "gd-off_topic",
+      "challenge": "gradient-descent",
+      "pattern": "off_topic",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:43.577Z",
+        "ideas": [
+          0.03,
+          0.02,
+          0.02
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.8,
+        "verdict": "partial",
+        "ms": 114,
+        "model": "jev-1.13.0",
+        "input_tokens": 582,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:44.121Z",
+        "ideas": [
+          0.03,
+          0.02,
+          0.02
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.79,
+        "verdict": "partial",
+        "ms": 290,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 582,
+        "cost_reported": 0.000024444,
+        "retries": 0
+      }
+    },
+    {
+      "id": "gd-idk",
+      "challenge": "gradient-descent",
+      "pattern": "idk",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:44.847Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 249,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 566,
+        "cost_reported": 0.000023772,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:45.534Z",
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 71,
+        "model": "jev-1.13.0",
+        "input_tokens": 566,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "gd-copies_question",
+      "challenge": "gradient-descent",
+      "pattern": "copies_question",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:46.040Z",
+        "ideas": [
+          0.03,
+          0.03,
+          0.02
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.99,
+        "verdict": "partial",
+        "ms": 73,
+        "model": "jev-1.13.0",
+        "input_tokens": 576,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:46.554Z",
+        "ideas": [
+          0.03,
+          0.03,
+          0.02
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.99,
+        "verdict": "partial",
+        "ms": 267,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 576,
+        "cost_reported": 0.000024192,
+        "retries": 0
+      }
+    },
+    {
+      "id": "gd-injection",
+      "challenge": "gradient-descent",
+      "pattern": "injection",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "first": "gateway",
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:47.294Z",
+        "ideas": [
+          0.02,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.07,
+        "non_attempt": 0.95,
+        "verdict": "partial",
+        "ms": 387,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 580,
+        "cost_reported": 0.00002436,
+        "retries": 0
+      },
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:48.131Z",
+        "ideas": [
+          0.02,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.07,
+        "non_attempt": 0.95,
+        "verdict": "partial",
+        "ms": 114,
+        "model": "jev-1.13.0",
+        "input_tokens": 580,
+        "cost_reported": null,
+        "retries": 0
+      }
+    },
+    {
+      "id": "gd-rambling_correct",
+      "challenge": "gradient-descent",
+      "pattern": "rambling_correct",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "first": "direct",
+      "direct": {
+        "transport": "direct",
+        "at": "2026-09-28T16:57:48.716Z",
+        "ideas": [
+          0.98,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.01,
+        "verdict": "good",
+        "ms": 83,
+        "model": "jev-1.13.0",
+        "input_tokens": 724,
+        "cost_reported": null,
+        "retries": 0
+      },
+      "gateway": {
+        "transport": "gateway",
+        "at": "2026-09-28T16:57:49.224Z",
+        "ideas": [
+          0.98,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.01,
+        "verdict": "good",
+        "ms": 225,
+        "model": "typesafe-ai/jev",
+        "input_tokens": 724,
+        "cost_reported": 0.000030408,
+        "retries": 0
+      }
+    }
+  ]
+}

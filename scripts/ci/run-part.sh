@@ -13,7 +13,7 @@ REPEAT=1; [ "${READINESS:-}" = 1 ] && REPEAT=3
 # fast-e2e.test.mjs compares this table with check-map.json and with every source, so a new harness check fails loudly.
 declare -A PORT=(
   [canvas-editing-check.mjs]=5391 [markdown-highlight-check.mjs]=5391 [markdown-fences-check.mjs]=5391 [inline-ai-check.mjs]=5397 [voice-tts-stream-check.mjs]=0
-  [dark-ink-check.mjs]=5189 [delete-esc-check.mjs]=5189 [drop-ui-check.mjs]=5189
+  [dark-ink-check.mjs]=5189 [delete-esc-check.mjs]=5189 [drop-ui-check.mjs]=5189 [grade-shadow-check.mjs]=5189
   [learn-handoff-check.mjs]=5189 [menu-shortcuts-check.mjs]=5189 [paper-highlight-check.mjs]=5189 [search-files-check.mjs]=5189
   [video-check.mjs]=5189 [wiki-check.mjs]=5189 [wiki-card-check.mjs]=5189
 )

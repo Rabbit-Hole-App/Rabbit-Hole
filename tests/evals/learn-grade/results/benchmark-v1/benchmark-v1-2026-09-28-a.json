@@ -1,0 +1,2085 @@
+{
+  "run": "benchmark-v1-2026-09-28-a",
+  "date": "2026-09-28",
+  "set": "benchmark-v1",
+  "app": "repo-06745f10-nanogpt",
+  "grader_protocol_version": "jev-grade-p1",
+  "grader_protocol_fingerprint": "9d525f60874aed90",
+  "thresholds": {
+    "yes": 0.7,
+    "no": 0.3
+  },
+  "verdict_logic_version": "verdict-v1",
+  "verdict_logic_fingerprint": "f2c352e7f29e14d0",
+  "model_route": "https://ai-gateway.vercel.sh/typesafe/v1/systemone typesafe-ai/jev",
+  "holdout_sha256": null,
+  "n": {
+    "total": 72,
+    "challenge": 36,
+    "explain_back": 36
+  },
+  "accuracy": {
+    "jev": {
+      "overall": {
+        "k": 0,
+        "n": 72,
+        "pct": 0,
+        "wilson": {
+          "low": 0,
+          "high": 0.05065293981139638
+        },
+        "confusion": {
+          "good": {
+            "error": 24
+          },
+          "partial": {
+            "error": 48
+          }
+        }
+      },
+      "challenge": {
+        "k": 0,
+        "n": 36,
+        "pct": 0,
+        "wilson": {
+          "low": 0,
+          "high": 0.09642183044857634
+        },
+        "confusion": {
+          "good": {
+            "error": 12
+          },
+          "partial": {
+            "error": 24
+          }
+        }
+      },
+      "explain_back": {
+        "k": 0,
+        "n": 36,
+        "pct": 0,
+        "wilson": {
+          "low": 0,
+          "high": 0.09642183044857634
+        },
+        "confusion": {
+          "good": {
+            "error": 12
+          },
+          "partial": {
+            "error": 24
+          }
+        }
+      }
+    },
+    "opus": {
+      "overall": {
+        "k": 72,
+        "n": 72,
+        "pct": 100,
+        "wilson": {
+          "low": 0.9493470601886036,
+          "high": 1
+        },
+        "confusion": {
+          "good": {
+            "good": 24
+          },
+          "partial": {
+            "partial": 48
+          }
+        }
+      },
+      "challenge": {
+        "k": 36,
+        "n": 36,
+        "pct": 100,
+        "wilson": {
+          "low": 0.9035781695514236,
+          "high": 1
+        },
+        "confusion": {
+          "good": {
+            "good": 12
+          },
+          "partial": {
+            "partial": 24
+          }
+        }
+      },
+      "explain_back": {
+        "k": 36,
+        "n": 36,
+        "pct": 100,
+        "wilson": {
+          "low": 0.9035781695514236,
+          "high": 1
+        },
+        "confusion": {
+          "good": {
+            "good": 12
+          },
+          "partial": {
+            "partial": 24
+          }
+        }
+      }
+    }
+  },
+  "per_idea": {
+    "at_0_5": {
+      "threshold": 0.5,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "precision": null,
+      "recall": null,
+      "f1": null
+    },
+    "at_yes": {
+      "threshold": 0.7,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "precision": null,
+      "recall": null,
+      "f1": null
+    },
+    "best": null
+  },
+  "calibration": [
+    {
+      "low": 0,
+      "high": 0.1,
+      "n": 0,
+      "meanP": null,
+      "observed": null
+    },
+    {
+      "low": 0.1,
+      "high": 0.2,
+      "n": 0,
+      "meanP": null,
+      "observed": null
+    },
+    {
+      "low": 0.2,
+      "high": 0.3,
+      "n": 0,
+      "meanP": null,
+      "observed": null
+    },
+    {
+      "low": 0.3,
+      "high": 0.4,
+      "n": 0,
+      "meanP": null,
+      "observed": null
+    },
+    {
+      "low": 0.4,
+      "high": 0.5,
+      "n": 0,
+      "meanP": null,
+      "observed": null
+    },
+    {
+      "low": 0.5,
+      "high": 0.6,
+      "n": 0,
+      "meanP": null,
+      "observed": null
+    },
+    {
+      "low": 0.6,
+      "high": 0.7,
+      "n": 0,
+      "meanP": null,
+      "observed": null
+    },
+    {
+      "low": 0.7,
+      "high": 0.8,
+      "n": 0,
+      "meanP": null,
+      "observed": null
+    },
+    {
+      "low": 0.8,
+      "high": 0.9,
+      "n": 0,
+      "meanP": null,
+      "observed": null
+    },
+    {
+      "low": 0.9,
+      "high": 1,
+      "n": 0,
+      "meanP": null,
+      "observed": null
+    }
+  ],
+  "brier": null,
+  "injection_good": {
+    "k": 0,
+    "n": 6,
+    "pct": 0
+  },
+  "jev_ms": {
+    "p50": null,
+    "p95": null,
+    "n": 0,
+    "excluded": 72
+  },
+  "per_idea_items": {
+    "n": 0,
+    "excluded_cases": 72
+  },
+  "jev_cost_per_grade": {
+    "computed": {
+      "mean": null,
+      "n": 0
+    },
+    "method": "input tokens × $0.000000042/token published at https://ai-gateway.vercel.sh/v1/models (output $0)",
+    "gateway_reported": {
+      "mean": null,
+      "n": 0
+    }
+  },
+  "opus_ms": {
+    "p50": 4165,
+    "p95": 10209,
+    "n": 72
+  },
+  "jev_errors": {
+    "pending": 0,
+    "incomplete": 0,
+    "failed": 72
+  },
+  "cases": [
+    {
+      "id": "nt-all_ideas",
+      "challenge": "nanogpt-tokens",
+      "pattern": "all_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4113,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-most_ideas",
+      "challenge": "nanogpt-tokens",
+      "pattern": "most_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3755,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-one_idea",
+      "challenge": "nanogpt-tokens",
+      "pattern": "one_idea",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 5206,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-paraphrased",
+      "challenge": "nanogpt-tokens",
+      "pattern": "paraphrased",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4325,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-plain_words",
+      "challenge": "nanogpt-tokens",
+      "pattern": "plain_words",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 14111,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-right_plus_false",
+      "challenge": "nanogpt-tokens",
+      "pattern": "right_plus_false",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 10280,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-confidently_wrong",
+      "challenge": "nanogpt-tokens",
+      "pattern": "confidently_wrong",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 6897,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-off_topic",
+      "challenge": "nanogpt-tokens",
+      "pattern": "off_topic",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 6777,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-idk",
+      "challenge": "nanogpt-tokens",
+      "pattern": "idk",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4189,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-copies_question",
+      "challenge": "nanogpt-tokens",
+      "pattern": "copies_question",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4664,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-injection",
+      "challenge": "nanogpt-tokens",
+      "pattern": "injection",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 5364,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-rambling_correct",
+      "challenge": "nanogpt-tokens",
+      "pattern": "rambling_correct",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 3754,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-all_ideas",
+      "challenge": "softmax-exp",
+      "pattern": "all_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4608,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-most_ideas",
+      "challenge": "softmax-exp",
+      "pattern": "most_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4160,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-one_idea",
+      "challenge": "softmax-exp",
+      "pattern": "one_idea",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3466,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-paraphrased",
+      "challenge": "softmax-exp",
+      "pattern": "paraphrased",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 3359,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-plain_words",
+      "challenge": "softmax-exp",
+      "pattern": "plain_words",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 3506,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-right_plus_false",
+      "challenge": "softmax-exp",
+      "pattern": "right_plus_false",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 8034,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-confidently_wrong",
+      "challenge": "softmax-exp",
+      "pattern": "confidently_wrong",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4567,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-off_topic",
+      "challenge": "softmax-exp",
+      "pattern": "off_topic",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4533,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-idk",
+      "challenge": "softmax-exp",
+      "pattern": "idk",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 5148,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-copies_question",
+      "challenge": "softmax-exp",
+      "pattern": "copies_question",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4000,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-injection",
+      "challenge": "softmax-exp",
+      "pattern": "injection",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3712,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-rambling_correct",
+      "challenge": "softmax-exp",
+      "pattern": "rambling_correct",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4363,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-all_ideas",
+      "challenge": "backprop-chain",
+      "pattern": "all_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 3231,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-most_ideas",
+      "challenge": "backprop-chain",
+      "pattern": "most_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3527,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-one_idea",
+      "challenge": "backprop-chain",
+      "pattern": "one_idea",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3845,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-paraphrased",
+      "challenge": "backprop-chain",
+      "pattern": "paraphrased",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4101,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-plain_words",
+      "challenge": "backprop-chain",
+      "pattern": "plain_words",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 6499,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-right_plus_false",
+      "challenge": "backprop-chain",
+      "pattern": "right_plus_false",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 5364,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-confidently_wrong",
+      "challenge": "backprop-chain",
+      "pattern": "confidently_wrong",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3726,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-off_topic",
+      "challenge": "backprop-chain",
+      "pattern": "off_topic",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4625,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-idk",
+      "challenge": "backprop-chain",
+      "pattern": "idk",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4165,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-copies_question",
+      "challenge": "backprop-chain",
+      "pattern": "copies_question",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3842,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-injection",
+      "challenge": "backprop-chain",
+      "pattern": "injection",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 5038,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-rambling_correct",
+      "challenge": "backprop-chain",
+      "pattern": "rambling_correct",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4045,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-all_ideas",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "all_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 2823,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-most_ideas",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "most_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3846,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-one_idea",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "one_idea",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          true,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4258,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-paraphrased",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "paraphrased",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 10209,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-plain_words",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "plain_words",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4504,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-right_plus_false",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "right_plus_false",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 5321,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-confidently_wrong",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "confidently_wrong",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4370,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-off_topic",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "off_topic",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4077,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-idk",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "idk",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 5053,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-copies_question",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "copies_question",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3180,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-injection",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "injection",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4130,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-rambling_correct",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "rambling_correct",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4601,
+        "error": null
+      }
+    },
+    {
+      "id": "at-all_ideas",
+      "challenge": "attention-weights",
+      "pattern": "all_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4576,
+        "error": null
+      }
+    },
+    {
+      "id": "at-most_ideas",
+      "challenge": "attention-weights",
+      "pattern": "most_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3258,
+        "error": null
+      }
+    },
+    {
+      "id": "at-one_idea",
+      "challenge": "attention-weights",
+      "pattern": "one_idea",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3854,
+        "error": null
+      }
+    },
+    {
+      "id": "at-paraphrased",
+      "challenge": "attention-weights",
+      "pattern": "paraphrased",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4546,
+        "error": null
+      }
+    },
+    {
+      "id": "at-plain_words",
+      "challenge": "attention-weights",
+      "pattern": "plain_words",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 12313,
+        "error": null
+      }
+    },
+    {
+      "id": "at-right_plus_false",
+      "challenge": "attention-weights",
+      "pattern": "right_plus_false",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4603,
+        "error": null
+      }
+    },
+    {
+      "id": "at-confidently_wrong",
+      "challenge": "attention-weights",
+      "pattern": "confidently_wrong",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 5034,
+        "error": null
+      }
+    },
+    {
+      "id": "at-off_topic",
+      "challenge": "attention-weights",
+      "pattern": "off_topic",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3834,
+        "error": null
+      }
+    },
+    {
+      "id": "at-idk",
+      "challenge": "attention-weights",
+      "pattern": "idk",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3910,
+        "error": null
+      }
+    },
+    {
+      "id": "at-copies_question",
+      "challenge": "attention-weights",
+      "pattern": "copies_question",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3798,
+        "error": null
+      }
+    },
+    {
+      "id": "at-injection",
+      "challenge": "attention-weights",
+      "pattern": "injection",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 6360,
+        "error": null
+      }
+    },
+    {
+      "id": "at-rambling_correct",
+      "challenge": "attention-weights",
+      "pattern": "rambling_correct",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 3486,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-all_ideas",
+      "challenge": "gradient-descent",
+      "pattern": "all_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 2978,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-most_ideas",
+      "challenge": "gradient-descent",
+      "pattern": "most_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3456,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-one_idea",
+      "challenge": "gradient-descent",
+      "pattern": "one_idea",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3062,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-paraphrased",
+      "challenge": "gradient-descent",
+      "pattern": "paraphrased",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 3097,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-plain_words",
+      "challenge": "gradient-descent",
+      "pattern": "plain_words",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 7746,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-right_plus_false",
+      "challenge": "gradient-descent",
+      "pattern": "right_plus_false",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4478,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-confidently_wrong",
+      "challenge": "gradient-descent",
+      "pattern": "confidently_wrong",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3917,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-off_topic",
+      "challenge": "gradient-descent",
+      "pattern": "off_topic",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4506,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-idk",
+      "challenge": "gradient-descent",
+      "pattern": "idk",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4442,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-copies_question",
+      "challenge": "gradient-descent",
+      "pattern": "copies_question",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3402,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-injection",
+      "challenge": "gradient-descent",
+      "pattern": "injection",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3697,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-rambling_correct",
+      "challenge": "gradient-descent",
+      "pattern": "rambling_correct",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "error": "failed",
+        "message": "Jev 403: Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 3912,
+        "error": null
+      }
+    }
+  ]
+}
