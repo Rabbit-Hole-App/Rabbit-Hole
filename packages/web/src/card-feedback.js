@@ -6,18 +6,19 @@
 export const FEEDBACK_VALUES = Object.freeze(['up', 'down']);
 export const validFeedback = value => value === null || FEEDBACK_VALUES.includes(value);
 
-// A generated card is explanatory material the app made for the learner. Imported sources (files, PDFs, pages, YouTube moments,
+// A generated card is material the app made for the learner. Imported sources (files, PDFs, pages, YouTube moments,
 // papers, wiki, photos, repository code, canvas links) and the learner's own notes never are. The practice cards (challenge,
-// quiz, code exercise, flashcards) are assessed or answered, so their evidence is not a self-report: R9 owns that.
+// quiz, code exercise, flashcards) are generated too, so they get the pair (owner/Lead 2026-11-05); their thumbs stay a self-report,
+// apart from the assessed evidence R9 adds.
 // ponytail: an allowlist by saved block type; a card type added later gets no control until it is listed here.
-const EXPLANATORY = new Set(['explanation', 'table', 'snippet', 'graph', 'knowledge', 'flow', 'mermaid', 'scene', 'animation', 'animation3d', 'cad', 'whiteboardVideo']);
+const GENERATED = new Set(['explanation', 'table', 'snippet', 'graph', 'knowledge', 'flow', 'mermaid', 'scene', 'animation', 'animation3d', 'cad', 'whiteboardVideo', 'challenge', 'quiz', 'code', 'flashcards']);
 const PENDING = ['explainJob', 'animation3dJob', 'whiteboardJob']; // a card still waiting for its job has nothing to rate yet
 
 export function isFeedbackCard(block) {
   if (!block || typeof block !== 'object' || typeof block.id !== 'string') return false;
   if (PENDING.some(key => block[key])) return false;
   if (block.type === 'image' || block.type === 'video') return block.mode === 'generate' && !!block.src; // a made picture or clip, not a search result or a YouTube moment
-  if (!EXPLANATORY.has(block.type)) return false;
+  if (!GENERATED.has(block.type)) return false;
   if (block.type === 'animation') return !!(block.scene || block.program);
   if (block.type === 'whiteboardVideo') return block.whiteboard?.status === 'ready';
   if (block.type === 'cad') return !!block.manifest;

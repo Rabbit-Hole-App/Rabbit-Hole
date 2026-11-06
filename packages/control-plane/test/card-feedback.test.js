@@ -56,18 +56,18 @@ test('rate a generated card, reload, change it and clear it: one private value p
   assert.equal((await put(f, name, 'b1', null)).status, 200, 'clearing a card with no rating is a no-op');
 });
 
-test('imported source cards, practice cards, pending cards and unknown ids cannot be rated', async t => {
+test('imported source cards, pending cards and unknown ids cannot be rated; practice cards can', async t => {
   const state = { ...BOARD, blocks: [...BOARD.blocks,
     { id: 'q1', type: 'quiz', question: 'Which?', options: [] }, { id: 'c1', type: 'challenge', prompt: 'Explain' },
     { id: 'e2', type: 'animation', title: 'Pending', scene: null, explainJob: { id: 'j1' } },
     { id: 'e3', type: 'animation', title: 'Ready', scene: { duration: 1 } }, { id: 'i1', type: 'image', mode: 'search', src: 'x.png' }, { id: 'i2', type: 'image', mode: 'generate', src: 'y.png' }] };
   const f = setup(t); const name = await canvas(f, state);
-  for (const id of ['v1', 'w1', 'p1', 'h1', 'q1', 'c1', 'e2', 'i1']) assert.deepEqual([id, (await put(f, name, id, 'up')).body.error], [id, 'not_rateable']);
-  for (const id of ['b1', 'e3', 'i2']) assert.equal((await put(f, name, id, 'up')).status, 200, id);
+  for (const id of ['v1', 'w1', 'p1', 'h1', 'e2', 'i1']) assert.deepEqual([id, (await put(f, name, id, 'up')).body.error], [id, 'not_rateable']);
+  for (const id of ['b1', 'e3', 'i2', 'q1', 'c1']) assert.equal((await put(f, name, id, 'up')).status, 200, id);
   assert.deepEqual([(await put(f, name, 'nope', 'up')).status, (await put(f, name, 'nope', 'up')).body.error], [404, 'unknown_card']);
   for (const bad of ['sideways', '', 1, true, undefined]) assert.equal((await put(f, name, 'b1', bad)).body.error, 'invalid_value');
   for (const bad of ['', 'a/b', 'x'.repeat(101), 7, null]) assert.equal((await put(f, name, bad, 'up')).body.error, 'invalid_card');
-  assert.deepEqual(rows(f).map(r => r.card_id), ['b1', 'e3', 'i2'], 'nothing else was written');
+  assert.deepEqual(rows(f).map(r => r.card_id), ['b1', 'c1', 'e3', 'i2', 'q1'], 'nothing else was written');
 });
 
 test('only the canvas owner reads or writes; another account, a signed-out visitor and a foreign origin get nothing', async t => {

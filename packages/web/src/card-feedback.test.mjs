@@ -5,13 +5,12 @@ import { createFeedbackStore, feedbackSummary, isFeedbackCard, validFeedback } f
 
 const card = (type, extra = {}) => ({ id: `${type}-1`, type, title: type, ...extra });
 
-test('generated explanatory cards are rateable; imported, practice, pending and unmade cards are not', () => {
-  const yes = [card('explanation'), card('table'), card('snippet'), card('graph'), card('knowledge'), card('flow'), card('mermaid'), card('scene'), card('animation3d'),
+test('generated cards (practice cards included) are rateable; imported, pending and unmade cards are not', () => {
+  const yes = [card('challenge'), card('quiz'), card('code'), card('flashcards'), card('explanation'), card('table'), card('snippet'), card('graph'), card('knowledge'), card('flow'), card('mermaid'), card('scene'), card('animation3d'),
     card('animation', { scene: { duration: 1 } }), card('animation', { program: { bundleHash: 'h' } }), card('cad', { manifest: { files: [] } }),
     card('whiteboardVideo', { whiteboard: { status: 'ready', artifactId: 'a' } }), card('image', { mode: 'generate', src: 'x.png' }), card('video', { mode: 'generate', src: 'x.mp4' })];
   const no = [card('file'), card('pdf'), card('slide'), card('webpage'), card('wiki'), card('paper'), card('repo-code'), card('repo-graph'), card('canvas-ref'), card('heading'), card('divider'), card('notebook'), card('model3d'),
     card('video', { videoId: 'abc', start: 1 }), card('image', { mode: 'search', src: 'x.png' }), card('image', { mode: 'generate', src: '' }),
-    card('challenge'), card('quiz'), card('code'), card('flashcards'),
     card('animation', { scene: null, explainJob: { id: 'j' } }), card('animation', { scene: null }), card('animation3d', { animation3dJob: { id: 'j' } }), card('cad', {}),
     card('whiteboardVideo', { whiteboardJob: { id: 'j' } }), card('whiteboardVideo', { whiteboard: { status: 'rendering' } }), card('text'), card('sticky')];
   for (const block of yes) assert.equal(isFeedbackCard(block), true, `${block.type} ${JSON.stringify(Object.keys(block))}`);
