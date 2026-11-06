@@ -1,84 +1,82 @@
 # R4 contract: records, retention and sharing sanitizers
 
-Status: DRAFT CONTRACT. SQL: `roadmap-r4.draft.sql.txt` in this directory (12 tables, 11 indexes, 23 statements). No migration number: the Lead allocates one at R4 (v1.4 4.2: old numbers are not reservations). The file is not in any migrations directory and is not referenced by any test or script.
+Status: DRAFT CONTRACT, reconciled with the implementation checklist (R4.02, R4.07; `checklist-map.md`). SQL: two drafts in this directory, `roadmap-r4-core.draft.sql.txt` (core, 11 tables and 11 indexes) and `roadmap-r4-authorizations.draft.sql.txt` (R4.07, 3 tables and 2 indexes); 27 statements in all. They carry a `.txt` suffix on purpose: any `*.sql` path is `broad` in `scripts/ci/check-map.json`. No migration number: the Lead allocates them at R4 integration, against current main and the active R1-R3 branches (the checklist treats the reported 0036-0038 as those lanes' work). The files are not in any migrations directory and no test or script references them.
 
 ## 1. Checked against the repository's rules
 
-| Rule | Where it is enforced | Result for the draft |
+| Rule | Where it is enforced | Result for the drafts |
 |---|---|---|
-| A learn migration is DDL only: every statement, after comments are stripped and the text split on `;`, matches `/^CREATE (TABLE\|(UNIQUE )?INDEX) IF NOT EXISTS /i` | `scripts/schema-check.test.mjs`, test "learn migrations are DDL only" (reads `SOURCES.learn()` = `repository-schema.sql` + `learn-migrations/` from 0004) | 23 of 23 statements pass (run with the same regex on the draft). No `;` inside a comment or string. |
-| Schema identity: live LEARN_DB must equal `repository-schema.sql` + migrations, object by object, normalized SQL (`schema-check.mjs normalizeSql`: comments, `IF NOT EXISTS`, quoting, whitespace ignored; column order matters) | `scripts/schema-check.mjs` `expectedSchema('learn')`, release preflight `scripts/prod-release.mjs` | The Lead mirrors the migration into `repository-schema.sql` with the same header comment (see 6). Column order in the mirror must equal the migration. |
-| Re-runnable | same convention (`usage-operations.test.js:12` runs a migration twice) | The draft was executed twice on `repository-schema.sql` in `node:sqlite`: no error, no name collision with an existing object. |
-| No ALTER, no change to existing CHECK constraints | v1.4 4.2 | Satisfied: only new objects, no existing table touched. Settings that R2 adds (Depth, Auto-suggest) are R2 sidecars, not columns here. |
-| Partial unique index | allowed (`CREATE UNIQUE INDEX IF NOT EXISTS ... WHERE`) | Verified on `node:sqlite`; D1 is SQLite and supports it. Not previously used in `repository-schema.sql` (unverified on D1 itself: Lead to confirm on a dev D1 clone with the migration announce step). |
+| A learn migration is DDL only: every statement, after comments are stripped and the text split on `;`, matches `/^CREATE (TABLE\|(UNIQUE )?INDEX) IF NOT EXISTS /i` | `scripts/schema-check.test.mjs`, "learn migrations are DDL only" | 27 of 27 statements pass (the same regex run on both drafts). No `;` inside a comment or string. |
+| Schema identity: the live LEARN_DB must equal `repository-schema.sql` + migrations, object by object, normalized SQL (`schema-check.mjs normalizeSql`; column order matters) | `scripts/schema-check.mjs`, release preflight | The Lead mirrors each migration into `repository-schema.sql` verbatim (section 6). |
+| Re-runnable | convention (`usage-operations.test.js:12`) | Both drafts executed twice on `repository-schema.sql` in `node:sqlite`: no error, no name collision with an existing object. |
+| No ALTER, no change to existing CHECK constraints | v1.4 4.2 | Satisfied: new objects only. R2's Depth and Auto-suggest sidecars are not columns here. |
+| Partial unique indexes | allowed (`CREATE UNIQUE INDEX IF NOT EXISTS ... WHERE`) | Behavior verified on `node:sqlite` (second unfinished roadmap and second offered step refused). Not previously used in `repository-schema.sql`; unverified on D1 itself: confirm on a dev D1 clone at the announced migration step. |
 
-## 2. Tables
+## 2. Tables (checklist names; the first draft's `roadmap_*` names are retired)
 
-Every table has `org, owner_user_id, app, board` (the scope of `learn_boards`: `repository-schema.sql:70-88`, plus `owner_user_id` as `learn_attempt_assets`/`learn_explain_drafts` in 0034). All ids are server-minted; the client never supplies a primary key. All times are INTEGER unix seconds.
+Scope on every row: `org`, `owner_user_id`, `board_id` (`learn_boards.id`), and `app` where the source/board lookups need it. `learn_roadmaps` also holds `owner_email` because the request-less re-verification (api.md 12) queries `learn_boards` and `file_sources`, which are keyed on `owner_email`. All ids are server-minted; all times are INTEGER unix seconds.
 
-| Table | Purpose | Key / unique | Notes |
+| Table (draft) | Purpose | Key / unique | Notes |
 |---|---|---|---|
-| `roadmap_roadmaps` | The roadmap and its settings snapshot (depth, practice mode, source id + immutable revision + hash, scope, language, ceiling, mode + `mode_revision`, `revision` guard, `plan_version`) | PK `id`; unique partial index `roadmap_roadmaps_one_unfinished (org, owner_user_id, app, board) WHERE state IN draft/questioning/proposed/active/paused` | The index is the database-level form of "one unfinished roadmap per learner and board, paused and questioning included". A concurrent second create fails with a UNIQUE error mapped to 409 `roadmap_unfinished_exists`. |
-| `roadmap_instructions` | Learner instruction, versioned. Version 1 = the original words | PK `(roadmap_id, version)` | Never updated. `origin` create/revise/answer. The planner and scorer read the latest version, but version 1 is always sent as the original. |
-| `roadmap_plan_versions` | Draft and each revision, `plan_json`, `plan_hash`, `prompt_version`, `instruction_version` used | PK `(roadmap_id, version)` | `accepted_at` set by Accept plan. Accepted plan rows are immutable. |
-| `roadmap_invitations` | Offered / dismissed / accepted / suppressed per source set + revision | unique `(org, owner_user_id, app, board, source_key)` | Dismiss scopes to the row (2.1). `source_key = sha256(sorted sourceId:revision)`. A new source revision is a new key, so a changed source may be offered again. |
-| `roadmap_steps` | Private step with position and `source_ref_json` | unique `(roadmap_id, plan_version, position)` | `answered`, `card_removed` are the metadata flags from 4.3, not states. |
-| `roadmap_proposals` | Versioned offers (`format` is `explanation` or `table` by CHECK) | unique `(step_id, version)`; partial unique `(roadmap_id) WHERE state IN checking/held/pending` | Second index = "one offered step occupies the proposal position; a held proposal must not produce a second competing offer". Not stored in board state (D8). |
-| `roadmap_results` | One row per card slot, created with its minted `card_id` before generation writes | unique `(proposal_id, proposal_version, slot_index, attempt)`; unique `(org, owner_user_id, app, board, card_id)` | State dimensions as separate columns (generation, validation+stale, decision, delivery, billing, reconciliation). `body_json` NULL until generated and never in a poll. `primitive` CHECK limits to explanation/table. |
-| `roadmap_authorizations` | The aggregate allowance admission for an accepted proposal version: `usage_client_key`, `hold_attempt_id`, `aggregate_micros`, per-card `allocation_json` | PK `(proposal_id, proposal_version)` | Billing 4. `released` when unused allocation returns. |
-| `roadmap_actions` | Action replay records: `(org, owner_user_id, action_key)` -> fingerprint, status, body | PK as stated | The replay boundary of states.md 4. |
-| `roadmap_calls` | One row per provider call: `op_id` (= ledger `usage_operations.op_id` = `usage_attempts.attempt_id`), stage, call_no, retry_no, payer, task, model, state, reserved/cost micros, quota scope+window | PK `op_id`; unique `(roadmap_id, stage, call_no, retry_no, result_id)` | The stable identity (5.1). `state = unknown` blocks a retry until reconciled. |
-| `roadmap_quota` | Per-learner platform-work counters (D14): calls and micros per scope and time window | PK `(org, owner_user_id, scope, window_start)` | Incremented in the same D1 batch as the reservation (billing 5). |
-| `roadmap_events` | Durable outbox (5.4) | PK `event_id`; unique `(org, owner_user_id, roadmap_id, kind, fact_id, fact_revision)` | Payload ids and enums only. `next_at`, `attempts`, `deadline_at`, `claimed_until` (lease), `processed_at`. A mode string is not a revision: `fact_revision` = `roadmap.mode_revision`. Index `(processed_at, next_at)` is the dispatcher's scan. |
+| `learn_roadmaps` (core) | Roadmap, settings snapshot (depth, practice mode, R3 `source_key` + `source_rev`, `scope_json`, `scope_fingerprint`, `scope_snapshot_key`, language, ceiling, mode + `mode_revision`, `revision`, `plan_version`) | PK `id`; partial unique `learn_roadmaps_one_unfinished (org, owner_user_id, board_id) WHERE state IN draft/questioning/proposed/active/paused` | The index is the database form of "one unfinished roadmap per learner and board, paused and questioning included". A concurrent second create fails with UNIQUE, mapped to 409 `roadmap_unfinished_exists`. The scope snapshot text lives in `LEARN_MEDIA`, not in D1 (api.md 12). |
+| `learn_roadmap_instructions` (core, extra) | Learner instruction, versioned; version 1 is the original words | PK `(roadmap_id, version)` | Never updated. Latest wins for scope/format; the original still overrides an inferred topic (planning.md 5). |
+| `learn_roadmap_plan_versions` (core, extra) | Draft and each revision (`plan_json`, `plan_hash`, `prompt_version`, `instruction_version`) | PK `(roadmap_id, version)` | `accepted_at` set by Accept plan; accepted rows immutable. A revision is a plan version, not a roadmap state. |
+| `learn_roadmap_invitations` (core) | Offered / dismissed / accepted / suppressed per source set | unique `(org, owner_user_id, board_id, source_set_key)` | `source_set_key = sha256(sorted "key@rev")`; dismissal is by invitation id; a new revision is a new key. |
+| `learn_roadmap_steps` (core) | Private step: `position`, `format`, `passage_start/end` (offsets into the snapshot), `source_ref_id` (R3 `sref_` id, minted at Accept plan), `answered`, `card_removed`, `omitted_at`, `removed_at` | unique `(roadmap_id, plan_version, position)` | Omission/removal metadata is separate from delivery status (R4.02). |
+| `learn_step_proposals` (core) | Versioned offers (`format` CHECK explanation/table) | unique `(step_id, version)`; partial unique `(roadmap_id) WHERE state IN checking/held/pending` | The second index is "one current offered position; a held offer does not free it". Never in board state (D8). |
+| `learn_step_results` (core) | One row per card slot, created with its minted `card_id` before any generator can write | unique `(proposal_id, proposal_version, slot_index, result_version)`; unique `(org, owner_user_id, board_id, card_id, result_version)` | Separate columns for generation, validation + `stale`, decision, delivery, billing, reconciliation, `failure_class` (the contract's FAILURE_CLASSES). `body_json` is NULL until generated and never in a poll. `primitive` CHECK limits to explanation/table. |
+| `learn_roadmap_actions` (core) | Winning action receipts: operation, fingerprint, expected versions, recorded outcome | PK `(org, owner_user_id, action_key)` | `applyRoadmapAction` (R4.02): subordinate writes are guarded by this receipt; identical replay returns `outcome_json`; a changed payload under the same key or a stale action is 409 with no effects. |
+| `learn_roadmap_calls` (core) | One row per provider call: `op_id` (the ledger `usage_operations.op_id` = `usage_attempts.attempt_id`), `operation_key` (canonical `withRoadmapProviderCall` identity), `checkpoint` (planned, admitted, dispatched, response_recorded, settled, unknown, reconciling, failed, released), payer, task, request fingerprint, reserved and settled micros, quota scope/window, `output_ref` | PK `op_id`; unique `operation_key` | `unknown`/`reconciling` block a blind retry (contract `mayRetryCall`). A replay of a settled call reads `output_ref` instead of calling the provider. |
+| `learn_roadmap_quota` (core, extra) | Per-learner platform-work counters by scope and window (D14) | PK `(org, owner_user_id, scope, window_start)` | Incremented in the batch that reserves the call. |
+| `learn_roadmap_outbox` (core) | Durable events (R4.05) | PK `event_id`; unique `(org, owner_user_id, scope, board_id, roadmap_id, kind, fact_id, fact_revision)` | `scope` is `learner`, `board` or `roadmap` so R6's learner-global settings events fit; empty ids are `''` (not NULL) so the unique key dedupes. A claim is a lease (`lease_token`, `lease_until`), replayable after expiry; `processed_at` set with or after the durable effect. Ask -> Tutor -> Ask = three events because `fact_revision` is `mode_revision`. Payload: ids and enums only. |
+| `learn_step_authorizations` (authorizations) | The whole accepted step's learner hold: aggregate, per-card bound, remaining, payer, period, usage client key, content fingerprint | unique `(proposal_id, proposal_version)`; unique `(payer_user_id, usage_client_key)` | Included in the shared balance SQL (billing.md 4). |
+| `learn_step_allocations` (authorizations) | Per-card allocation (`bound`, `remaining`, `version`, state held/in_use/released) | unique `(authorization_id, result_id)` | |
+| `learn_step_allocation_transfers` (authorizations) | One row per per-call transfer from an allocation to the call's own reservation | PK `transfer_id`; unique `op_id` | A replayed call cannot transfer twice. |
 
-R4 writes `roadmap_events` rows for: step delivered, mode change, proposal ready, card failed (the first consumers are the status poll and the DO alarm; R6 adds notifications). If State judges the outbox premature for R4, keep the table (the v1.4 4.2 list names it for R4) and write only `proposal ready` and `delivery unacknowledged` kinds.
+`learn_roadmap_outbox` rows R4 writes: step delivered, mode change, proposal ready, delivery unacknowledged, card failed. R6's fan-out and R9's assessment events plug into the same table later.
 
 ## 3. Indexes the access paths need
 
-Status poll: `roadmap_roadmaps_board`. Step list: `roadmap_steps_roadmap`. Work finder for the DO alarm: `roadmap_results_work (generation, validation, updated_at)`. Open calls to reconcile: `roadmap_calls_open (state, created_at)`. Replay: PK. Events: `roadmap_events_due`.
+Status poll: `learn_roadmaps_board`. Step list: `learn_roadmap_steps_roadmap`. Work finder for the DO alarm: `learn_step_results_work (generation, validation, updated_at)`. Open calls to reconcile: `learn_roadmap_calls_open (checkpoint, created_at)`. Replay: the action PK. Events: `learn_roadmap_outbox_due (processed_at, next_at)`.
 
 ## 4. Retention
 
-| Data | Rule (proposed; versioned in `ROADMAP_POLICY`, v1.4 5.5) |
+| Data | Rule (proposed; versioned in `ROADMAP_LIMITS.retention`) |
 |---|---|
-| Delivered result `body_json` | Kept with the roadmap. The delivered card on the board is the learner's content; the row is the audit/replay source. |
-| Cancelled / superseded / failed result bodies | `body_json` cleared 30 days after the decision (carried default from D16; R4 has no cron consumer: the clear is done lazily on read of an old row. The daily cron is R11's) while ids, hashes, billing and delivery columns stay. |
-| `roadmap_actions` | 30 days after `created_at`; a replay older than that is a fresh action. Lazily pruned on the same board's next write. |
-| `roadmap_events` | Processed rows 30 days; unprocessed never deleted by age. |
-| `roadmap_calls`, `roadmap_authorizations` | Kept (cost and refund audit; small). |
-| Ended roadmap | Row kept; delivered cards stay on the board; ending is not immediate expiry. |
-| Account/board deletion | Rows for the board are deleted in the same cleanup that deletes `learn_boards` (State to wire into the existing board deletion path; not located here: unverified which function performs it). |
+| Delivered result `body_json` | Kept with the roadmap; the delivered card on the board is the learner's content. |
+| Cancelled / superseded / failed result bodies | `body_json` cleared 30 days after the decision, lazily on read of an old row (the daily cron is R11's); ids, hashes, billing and delivery columns stay. |
+| Scope snapshot (`LEARN_MEDIA`) | Deleted with the roadmap's board data; never copied to shares or forks. |
+| `learn_roadmap_actions` | 30 days from `created_at`; an older replay is a fresh action. |
+| `learn_roadmap_outbox` | Processed rows 30 days; unprocessed rows never deleted by age. |
+| `learn_roadmap_calls`, authorization tables | Kept (cost and refund audit; small). |
+| Ended roadmap | Row kept; delivered cards stay on the board. |
+| Board deletion | Roadmap rows and snapshots for the board are deleted by the same cleanup that deletes `learn_boards`; the function that does it was not located (unverified). |
 
 ## 5. Sharing and fork sanitizer rules per new card field
 
-Today there are two sanitizers and both must change in the release that introduces a field (v1.4 4.2: "Sharing and fork sanitizers ship with every new card field"):
+Two sanitizer paths exist and both change in the release that introduces a field (v1.4 4.2): `sharedState()` / `sharedBlock()` (`shared-privacy.js:24-40`; used by shared views, links, publications, a non-owner's board view `canvas-comments.js:971`, shared ask `learn-shared-ask.js:347`, analytics, and `forkable()` for a link visitor's fork `learn-boards.js:498`) and `forkState()` (`learn-boards.js:474-493`, also the owner's duplicate).
 
-| Path | Code | What to add |
-|---|---|---|
-| Shared view, link, publication, member's non-owner view, shared ask, analytics | `sharedState()` / `sharedBlock()` in `shared-privacy.js:24-40`, called from `learn-boards.js:901,929`, `canvas-comments.js:971`, `learn-shared-ask.js:347`, `publication-analytics.js:92,134,361`, and `forkable()` at `learn-boards.js:498` | Drop the private step fields from every card (`EVERY_CARD` list, `shared-privacy.js:22`). |
-| Fork / duplicate | `forkState()` blocks map, `learn-boards.js:474-493` (note: the owner's own duplicate also uses it) | Same drop in the blocks map next to `publicExplainBack`. |
-
-Rule table (card JSON field names follow the repository's camelCase for card state, e.g. `attemptId`, `confirmedStart`; the roadmap text says `step_id`/`source_ref`, see README Gap G6):
+R3 has already changed `sharedBlock` in its lane: `block = withSharedSourceRef(publicExplainBack(block))` (R3 commit 82988427d, `shared-privacy.js`): a shared reader's `sourceRef` is reduced to `{ v, kind, source: { name }, anchor?: { page: { label } } }` with no id, key, revision or quote (`sharedSourceRef`, `web/src/source-ref.js`). R4 adds only the step field.
 
 | Card field | Meaning | Shared view / link / publication | Fork or duplicate |
 |---|---|---|---|
-| `stepId` | Private relationship to a roadmap step (D9) | removed | removed |
-| `roadmapIndex` / any hover label source (D37) | Private position | never stored on the card (derived server-side from the actor's roadmap) | n/a |
-| `sourceRef` (R3 owns shape: source id, immutable revision, anchor, status) | Link to a source passage | kept only where the viewer may access the source; otherwise replaced by the generic "source not available" marker (R3 decides the exact marker) | kept and repointed only where the fork may access the source; private source bodies are never copied by inference (3.4) |
-| the pending proposal | Overlay, not a block (D8) | not in `blocks` at all | not in `blocks` at all |
-| roadmap rows, feedback, assessment, charges | Learner-scoped tables | never in board state | never |
+| `stepId` | Private relationship to a roadmap step (D9). Camel case like every card field (`attemptId`, `confirmedStart`, `sourceRef`); the roadmap and checklist text say `step_id` | removed | removed |
+| any roadmap index or hover label source (D37) | Private position | never stored on the card (derived from the actor's roadmap) | n/a |
+| `sourceRef` (R3 `{ v, id, kind, source:{key,rev,name,home}, anchor }`) | Link to a source passage | R3's `withSharedSourceRef`: label only | R3 owns re-pointing: kept and repointed only where the fork may access the source; private source bodies are never copied |
+| pending proposal | Overlay, not a block (D8) | not in `blocks` | not in `blocks` |
+| roadmap rows, snapshots, feedback, assessment, charges | Learner-scoped tables and R2 storage | never in board state | never |
 
-Implementation contract: one pure helper `publicRoadmapCard(block)` placed beside `publicExplainBack` (same pattern as `explain-back-private.js:35-50`: a frozen list of private keys, returns the same object when nothing to drop) imported by both sanitizers; its failing-on-old test (the R4 first slice for State) asserts a card with `stepId` loses it through `sharedState` and `forkState` and keeps `sourceRef` rules. Removing those fields must not alter any other key (existing tests in `shared-privacy` and `canvas-forking` stay green). The ToC entries stay ordinary `toc` items; `sharedState` already strips `done` from them (`shared-privacy.js:40`). Roadmap entries in the ToC are rendered from the private API, never written into `toc`.
+Implementation contract: one pure helper `publicRoadmapCard(block)` placed beside `publicExplainBack` (the pattern at `explain-back-private.js:35-50`: a frozen list of private keys, returns the same object when nothing to drop) imported by both sanitizers; its failing-on-old test asserts a card with `stepId` loses it through `sharedState` and `forkState` while R3's `sourceRef` rule is untouched, and that no other key changes. This is R4.12's `packages/control-plane/test/shared-privacy.test.js` (new). The ToC stays ordinary: `sharedState` already strips `done` from entries (`shared-privacy.js:40`), and roadmap entries are rendered from the private API, never written into `toc`.
 
-## 6. How the Lead turns the draft into a migration
+## 6. How the Lead turns the drafts into migrations
 
-1. Allocate the number from current main (`ls packages/control-plane/learn-migrations`; at the baseline the last file is `0035-publication-analytics.sql`; the manifest's provisional 0036-0038 belong to R1-R3 and must be re-checked at integration).
-2. Copy the SQL to `learn-migrations/00NN-roadmap-r4.sql` with a header comment like 0034's (what, owner scope, "Additive and re-runnable; LEARN_DB only", and the "production migrations are an owner command, never applied by a lane" sentence).
-3. Append the same text, verbatim, under `-- learn-migrations/00NN-roadmap-r4.sql` at the end of `repository-schema.sql` (the convention at `repository-schema.sql:1150`; the release preflight and tests compare it).
-4. Run `node --test scripts/schema-check.test.mjs` and the new tables' unit tests (`learnDb()` from `test/learn-grade-fixture.js` builds the DB from `repository-schema.sql`).
-5. Check-map: `.sql` files under `learn-migrations/` are `broad` by design (see README Gap G11). Dev D1 is shared: announce before any apply; the owner authorizes it; this lane applies nothing.
+1. Allocate numbers from current main and the active branches after the R1/R2/R3 numbers are known (BASE.01). At the checklist baseline the last committed Learn migration is `0035-publication-analytics.sql`; R3's lane has authored `0038-source-refs.sql`.
+2. For each draft: copy to `learn-migrations/<NNNN>-roadmap-core.sql` and `<NNNN>-roadmap-authorizations.sql` (R4.07 comes after core), add the repository's header comment (what, owner scope, "Additive and re-runnable; LEARN_DB only", the "production migrations are an owner command" sentence).
+3. Append each verbatim under `-- learn-migrations/<NNNN>-....sql` at the end of `repository-schema.sql` (the convention at `repository-schema.sql:1150`).
+4. Run `node --test scripts/schema-check.test.mjs` and the new store tests (`learnDb()` from `test/learn-grade-fixture.js` builds the DB from `repository-schema.sql`; the checklist also asks to update relevant `learnDb()` fixtures in the same change).
+5. `.sql` files under `learn-migrations/` are `broad` by design (README G11). The shared dev D1 needs an announcement and owner authorization; this lane applies nothing.
 
 ## 7. Open points for State
 
-- Whether `roadmap_results` splits `body_json` into R2 for large cards: R4 cards are bounded by the primitive schemas (explanation body 2000 chars, table at most 20 rows x 8 columns x 200 chars, `learn-primitives.js:43-55`), so D1 text is fine; R12 media uses R2.
-- `owner_user_id` vs email: 0034 uses `owner_user_id`; `learn_boards` uses `owner_email`. The access object carries both; every query binds `owner_user_id`.
+- `body_json` stays in D1 for R4 (explanation body <= 2000 characters, table <= 20 rows x 8 columns x 200 characters, `learn-primitives.js:43-55`); R12 media uses R2.
+- `owner_user_id` is the actor key; `owner_email` appears only where an existing table is queried by email.

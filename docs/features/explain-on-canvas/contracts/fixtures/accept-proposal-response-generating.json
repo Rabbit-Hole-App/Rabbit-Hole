@@ -16,9 +16,13 @@
         "language": "en",
         "scope": {
           "kind": "whole",
-          "sourceId": "src_md_41c9e0a7",
-          "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
-          "title": "Gradient descent notes.md"
+          "source": {
+            "key": "file:fs_41c9e0a7d2b84f63a1c07e92",
+            "rev": "3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+            "name": "Gradient descent notes.md"
+          },
+          "chars": 5210,
+          "fingerprint": "scope_9f1c2a7e"
         },
         "ceiling": 10,
         "deliveredCount": 0,
@@ -46,19 +50,12 @@
             "position": 1,
             "title": "What a gradient tells you",
             "goal": "Read the slope of the loss at a point.",
-            "sourceRef": {
-              "sourceId": "src_md_41c9e0a7",
-              "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
-              "title": "Gradient descent notes.md",
-              "anchor": {
-                "kind": "heading",
-                "path": [
-                  "Gradients"
-                ],
-                "start": 0,
-                "end": 1840
-              }
+            "format": "explanation",
+            "passage": {
+              "start": 0,
+              "end": 1840
             },
+            "sourceRef": null,
             "state": "planned"
           },
           {
@@ -66,19 +63,12 @@
             "position": 2,
             "title": "One update step",
             "goal": "Apply w - lr * grad by hand.",
-            "sourceRef": {
-              "sourceId": "src_md_41c9e0a7",
-              "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
-              "title": "Gradient descent notes.md",
-              "anchor": {
-                "kind": "heading",
-                "path": [
-                  "Update rule"
-                ],
-                "start": 1840,
-                "end": 3320
-              }
+            "format": "table",
+            "passage": {
+              "start": 1840,
+              "end": 3320
             },
+            "sourceRef": null,
             "state": "planned"
           },
           {
@@ -86,19 +76,12 @@
             "position": 3,
             "title": "Choosing a learning rate",
             "goal": "Compare too small, good and too large rates.",
-            "sourceRef": {
-              "sourceId": "src_md_41c9e0a7",
-              "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
-              "title": "Gradient descent notes.md",
-              "anchor": {
-                "kind": "heading",
-                "path": [
-                  "Learning rate"
-                ],
-                "start": 3320,
-                "end": 5210
-              }
+            "format": "table",
+            "passage": {
+              "start": 3320,
+              "end": 5210
             },
+            "sourceRef": null,
             "state": "planned"
           }
         ],
@@ -110,17 +93,27 @@
           "position": 1,
           "title": "What a gradient tells you",
           "goal": "Read the slope of the loss at a point.",
+          "format": "explanation",
+          "passage": {
+            "start": 0,
+            "end": 1840
+          },
           "sourceRef": {
-            "sourceId": "src_md_41c9e0a7",
-            "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
-            "title": "Gradient descent notes.md",
+            "v": 1,
+            "id": "sref_000000000000000000000001",
+            "kind": "markdown",
+            "source": {
+              "key": "file:fs_41c9e0a7d2b84f63a1c07e92",
+              "rev": "3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+              "name": "Gradient descent notes.md",
+              "home": null
+            },
             "anchor": {
-              "kind": "heading",
-              "path": [
-                "Gradients"
-              ],
-              "start": 0,
-              "end": 1840
+              "quote": {
+                "exact": "The gradient of the loss at a point is the slope there.",
+                "prefix": "",
+                "suffix": ""
+              }
             }
           },
           "state": "generating"
@@ -130,17 +123,27 @@
           "position": 2,
           "title": "One update step",
           "goal": "Apply w - lr * grad by hand.",
+          "format": "table",
+          "passage": {
+            "start": 1840,
+            "end": 3320
+          },
           "sourceRef": {
-            "sourceId": "src_md_41c9e0a7",
-            "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
-            "title": "Gradient descent notes.md",
+            "v": 1,
+            "id": "sref_000000000000000000000002",
+            "kind": "markdown",
+            "source": {
+              "key": "file:fs_41c9e0a7d2b84f63a1c07e92",
+              "rev": "3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+              "name": "Gradient descent notes.md",
+              "home": null
+            },
             "anchor": {
-              "kind": "heading",
-              "path": [
-                "Update rule"
-              ],
-              "start": 1840,
-              "end": 3320
+              "quote": {
+                "exact": "The update rule subtracts the learning rate times the gradient.",
+                "prefix": "",
+                "suffix": ""
+              }
             }
           },
           "state": "planned"
@@ -150,17 +153,27 @@
           "position": 3,
           "title": "Choosing a learning rate",
           "goal": "Compare too small, good and too large rates.",
+          "format": "table",
+          "passage": {
+            "start": 3320,
+            "end": 5210
+          },
           "sourceRef": {
-            "sourceId": "src_md_41c9e0a7",
-            "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
-            "title": "Gradient descent notes.md",
+            "v": 1,
+            "id": "sref_000000000000000000000003",
+            "kind": "markdown",
+            "source": {
+              "key": "file:fs_41c9e0a7d2b84f63a1c07e92",
+              "rev": "3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+              "name": "Gradient descent notes.md",
+              "home": null
+            },
             "anchor": {
-              "kind": "heading",
-              "path": [
-                "Learning rate"
-              ],
-              "start": 3320,
-              "end": 5210
+              "quote": {
+                "exact": "If the learning rate is too large the updates overshoot and diverge.",
+                "prefix": "",
+                "suffix": ""
+              }
             }
           },
           "state": "planned"
@@ -176,16 +189,23 @@
         "format": "explanation",
         "sourceRelation": {
           "kind": "explains",
-          "sourceId": "src_md_41c9e0a7",
-          "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
-          "title": "Gradient descent notes.md",
-          "anchor": {
-            "kind": "heading",
-            "path": [
-              "Gradients"
-            ],
-            "start": 0,
-            "end": 1840
+          "sourceRef": {
+            "v": 1,
+            "id": "sref_000000000000000000000001",
+            "kind": "markdown",
+            "source": {
+              "key": "file:fs_41c9e0a7d2b84f63a1c07e92",
+              "rev": "3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+              "name": "Gradient descent notes.md",
+              "home": null
+            },
+            "anchor": {
+              "quote": {
+                "exact": "The gradient of the loss at a point is the slope there.",
+                "prefix": "",
+                "suffix": ""
+              }
+            }
           }
         },
         "position": {
@@ -199,6 +219,7 @@
           "id": "rs_90ab12cd34ef56789a0b1c2d",
           "stepId": "st_a1b2c3d4e5f60718293a4b01",
           "proposalVersion": 1,
+          "resultVersion": 1,
           "slot": {
             "index": 0,
             "cardId": "cd_71e20ac49f8b3d5612a7c0e4"

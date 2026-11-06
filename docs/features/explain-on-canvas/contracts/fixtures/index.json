@@ -22,6 +22,7 @@
     "invitation-suppressed": "Auto-suggest is off: nothing is offered; an explicit request still creates a roadmap.",
     "invitation-dismiss": "Dismissing one invitation. It does not disable future invitations.",
     "create-request": "Create a roadmap from an invitation. instruction is the learner words, unchanged.",
+    "create-request-passage": "Create from a selected passage: R3 minted the sref_ id when the learner selected it. The server re-reads it under the session and finds the quote in the source once.",
     "create-response-draft": "Planning runs in the background; poll status. Nothing is generated and nothing is charged to the learner.",
     "status-questioning": "Generic context: one focused question before any plan.",
     "status-limitation": "Source above the supported bound: say so, offer a supported scope. Never a silent prefix.",

@@ -4,7 +4,7 @@ Status: DRAFT CONTRACT for the Tools and planning engineer. Nothing here is impl
 
 ## 1. Files (new; Tools writes them, none exists)
 
-Prompts follow the repo convention "server-only prompts in `packages/control-plane/src/agents/*.js`, pinned by `test/learn-prompts.test.js`" (`agents/learn-artifact.js:1-2`, `agents/explain-brief.js`). Proposed: `agents/roadmap-plan.js` (subject + plan + revise prompts and tool schemas), `agents/roadmap-propose.js`, `agents/roadmap-check.js` (support check + adjudication), `roadmap-policy.js` (versioned limits, language rule, safety policy constants), `roadmap-plan.js` (planner + validator), `roadmap-propose.js`, `roadmap-check.js`, `roadmap-safety.js`, `roadmap-source.js` (bounded reader), `roadmap-model-stub.js` (the keyless double). Model tasks are registered in `learn-models.js` by the Lead (section 2).
+Prompts follow the repo convention "server-only prompts in `packages/control-plane/src/agents/*.js`, pinned by `test/learn-prompts.test.js`" (`agents/learn-artifact.js:1-2`, `agents/explain-brief.js`). File names are the checklist's (R4.01, R4.03, R4.04, R4.09): `agents/roadmap-draft.js`, `agents/roadmap-revise.js`, `agents/roadmap-proposal.js` (prompts and tool schemas), plus the grounding and safety prompt modules; `roadmap-contract.js`, `roadmap-policy.js` (`ROADMAP_LIMITS`), `roadmap-validate.js` (structured-output validators), `roadmap-source.js` (bounded reader and request-less revalidation), `roadmap-tools.js` (capability catalogue, dispatch allowlist, `ROADMAP_FORMATS`), `roadmap-proposal.js` (composition coordinator), `roadmap-grounding.js`, `roadmap-safety.js`, `roadmap-publish.js`, `roadmap-model-stub.js` (the keyless double). The first three drafts (`roadmap-contract.js`, `roadmap-policy.js`, `roadmap-tools.js`) already exist under `src/roadmap/` with tests. Model tasks are registered in `learn-models.js` by the Lead (section 2), each only when its task is implemented.
 
 ## 2. Model roles (D10) against the real registry
 
@@ -13,13 +13,13 @@ Existing `LEARN_TASKS` entries (`learn-models.js`) that set the precedent. The `
 | Role | Proposed new task | Model / effort / maxTokens | Precedent (existing task, line) | Tool choice |
 |---|---|---|---|---|
 | Subject (what the source is about, for the invitation title and focus question) | `roadmap_subject` | `claude-sonnet-5-5`, effort `low`, 1000 | `home_ask` sonnet 5.5, 900 (`:59`); `tutor_next_steps` sonnet 5.5 low 1500 (`:81`) | auto, exactly one tool call |
-| Plan draft | `roadmap_plan` | `claude-opus-5-5`, effort null, 12000 | `journey_path` opus 5.5, 12000 (`:74`) | auto, exactly one call |
+| Plan draft | `roadmap_draft` | `claude-opus-5-5`, effort null, 12000 | `journey_path` opus 5.5, 12000 (`:74`) | auto, exactly one call |
 | Plan revision | `roadmap_revise` | `claude-opus-5-5`, effort null, 12000 | `journey_adapt` sonnet 5.5 4000 (`:78`) is lower; v1.4 6.1 names Opus for draft and revision | auto, exactly one call |
-| Step proposal composition | `roadmap_propose` | `claude-sonnet-5-5`, low, 3000 | `journey_section` sonnet 5.5 low 3000 (`:76`) | auto, exactly one call |
-| Text/table generation | `artifact` (existing) or new `roadmap_card` | existing is `claude-opus-5` (`ASK_MODELS.auto`, `:14,25,113`), provider `plan`, 4000 | `adapter.md` 3.7 | any (set by `generateArtifact`) |
-| Targeted support check | `roadmap_support` | `claude-sonnet-5-5`, low, 1500 | `tutor_next_steps` 1500 | auto |
-| One bounded escalation of an ambiguous check | `roadmap_support_escalation` | `claude-opus-5-5`, null, 4000 | `tutor_next_steps_escalation` opus 5.5, 4000 (`:82`) | auto |
-| Contextual adjudication (safety, at most one) | `roadmap_safety_adjudicate` | `claude-sonnet-5-5`, low, 1500 | same | auto |
+| Step proposal composition and proposal Quick Edit (R5) | `roadmap_proposal` | `claude-sonnet-5-5`, low, 3000 | `journey_section` sonnet 5.5 low 3000 (`:76`) | auto, exactly one call |
+| Text/table generation | retained `artifact` (checklist 2.2, R4.08) | existing: `claude-opus-5` (`ASK_MODELS.auto`, `:14,25,113`), provider `plan` (may be OpenAI), 4000; no new task in R4 | `adapter.md` 3.7 | any (set by `generateArtifact`) |
+| Targeted support verdict | `roadmap_grounding_check` | `claude-sonnet-5-5`, low, 1500 | `tutor_next_steps` 1500 | auto |
+| One bounded escalation of an ambiguous verdict | `roadmap_grounding_escalation` (checklist 2.2 names no separate task: "at most one logged Opus escalation") | `claude-opus-5-5`, null, 4000 | `tutor_next_steps_escalation` opus 5.5, 4000 (`:82`) | auto |
+| Contextual safety adjudication (one, after the eligible screening retry) | `roadmap_safety_adjudicate` | `claude-opus-5-5` (checklist 2.2; the first draft said Sonnet), 1500 | no existing task at this size; `explain_review` opus 5.5, 3000 (`:91`) | auto |
 | Fast routing and text screening | JEV (not a LEARN_TASK) | `jev-1.13.0` direct, `typesafe-ai/jev` via gateway (`learn-grade-jev.js:11-21`) | `webpage-screen.js` | n/a |
 | Explain-back assessor | existing `tutor_rubric` (`:56`) | unchanged, R9 | | |
 | Vision extraction | none in R4 | R15 | | |
@@ -32,13 +32,15 @@ Server decision, deterministic. Offer when all hold: a supported source (Markdow
 
 ## 4. Source reading and coverage (bounded Markdown only)
 
-- **Reader** (`roadmap-source.js`): authorize with `authorizeFileSource(req, env, sourceId)` (`file-access.js:25`; owner path) and read the stored text derivative: `file_derivatives WHERE source_id = ? AND source_sha256 = ? AND kind IN ('text') AND status = 'ready'` from `LEARN_MEDIA` (the pattern in `file-context.js:~122`). The immutable revision is `file_sources.sha256` (the `@<rev>` of a source ref; `file-context.js` rejects a ref whose `access.source.sha256 !== rev`). Do **not** reuse `fileContext` for planning: its `FILE_CONTEXT = { perRef: 4000, perTurn: 12000 }` caps exist for chat turns (`file-context.js:19`) and cut text silently as `partial`.
+- **Reader** (`roadmap-source.js`, `readRoadmapSource(access, { sourceId, sourceVersion, scope })` -> `{ status, passages, coverage, sourceFingerprint }`, status from `TOOL_STATUS`). The checklist (R4.03) names `learn-context-docs.js` `readOwnDocument` (`:90`) and `contextDocumentBlocks` (`:289`) as the existing readers; their aggregate attachment budgets cannot certify whole-document coverage, so they are not the planning reader. In a request handler the reader authorizes with `authorizeFileSource(req, env, sourceId)` (`file-access.js:25`; owner path) and reads the stored text derivative; the exact text is then **snapshotted** (api.md 12) and the Durable Object, which has no session, reads only the snapshot and revalidates ownership and revision by D1 query. Derivative read: `file_derivatives WHERE source_id = ? AND source_sha256 = ? AND kind IN ('text') AND status = 'ready'` from `LEARN_MEDIA` (the pattern in `file-context.js:~122`). The immutable revision is `file_sources.sha256` (the `@<rev>` of a source ref; `file-context.js` rejects a ref whose `access.source.sha256 !== rev`). Do **not** reuse `fileContext` for planning: its `FILE_CONTEXT = { perRef: 4000, perTurn: 12000 }` caps exist for chat turns (`file-context.js:19`) and cut text silently as `partial`.
 - **Bound:** `ROADMAP_SOURCE_CHARS` (versioned policy). Proposal: 40000 characters (about 10k tokens), measured, open decision D-B. `EXPLAIN_REF_TEXT` is 24000 (`explain-context-refs.js:18`) and a v2 job's whole context is capped at 60 KB (`explain-job.js:validateCreate`), shown for scale only.
 - **Whole source:** if `text.length <= bound` and the derivative says `complete` (`unitsOf(...).complete !== false`, `file-context.js:53-57`), the plan covers the whole source. Else `limitation: source_too_large` with the two offers (select a passage, pick a section); no plan is drafted from a prefix. A derivative that is `complete: false` or has `limited` text is the same limitation naming that reason.
 - **Passage / Visible section:** `scope = { kind:'passage', start, end }` in characters of the derivative text, captured with the revision at selection time (v1.4 2.2, M4.18); later scrolling never changes it. The passage must be `<= bound`, else the same limitation.
-- **Coverage record:** the roadmap stores `scope_json` (kind, offsets, revision, char length) and the plan's `coverage = [{start,end}]` of ranges assigned to steps plus `uncovered = [{start,end,reason}]` (e.g. appendix intentionally skipped by the learner's instruction). The validator requires every character of the scope to be either in a step anchor, in `uncovered` with a reason, or inside the declared stopping point's out-of-scope note; headingless and repeated-heading material is addressed by offsets, never by heading text alone (R7 expands this).
+- **Coverage record:** the roadmap stores `scope_json` (kind, offsets, revision, char length) and the plan's `coverage = [{start,end}]` of ranges assigned to steps plus `uncovered = [{start,end,reason}]` (e.g. appendix intentionally skipped by the learner's instruction). The validator requires every character of the scope to be either in a step passage, in `uncovered` with a reason, or inside the declared stopping point's out-of-scope note; headingless and repeated-heading material is addressed by offsets, never by heading text alone (R7 expands this).
 - **Per-step passage cap:** `<= 8000` characters (the adapter's context cap, `adapter.md` 3.3); the planner splits larger sections into several steps or marks partial coverage; truncation is never silent.
 - **Untrusted text:** the source is quoted data. Wrap it with the existing `untrustedBlock`/`looksLikeInstructions` conventions (`explain-evidence.js:40-47`): instruction-like lines are named as such in the prompt and change no permission, tool or policy. A fixture covers an injection attempt.
+
+**Tools in code.** The closed registry is `src/roadmap/roadmap-tools.js` (draft with tests): `read_source` and `check_claims` are the only enabled capabilities; `runRoadmapTool` refuses unknown or not-yet-enabled names before any handler or provider call, and no tool can authorize generation, supply a purchase or write assessed observations.
 
 ## 5. Instruction fidelity (v1.4 3.5, 4.2)
 
@@ -56,14 +58,14 @@ Tool `submit_roadmap` (exactly one call; schema via `validateToolInput`, `learn-
 { outcome: string(<=240)  // something the learner should be able to do
   assumptions: string(<=200)[0..5]
   instructionAck: { originalHash, honored[0..5], skips[0..5]{topic,reason} }
-  steps: [{ title(<=120), goal(<=240), format:'explanation'|'table', anchor:{start,end}, claimsToCover:string(<=160)[0..6], independent:boolean }]  // 1..ceiling
+  steps: [{ title(<=120), goal(<=240), format:'explanation'|'table', passage:{start,end}, claimsToCover:string(<=160)[0..6], independent:boolean }]  // 1..ceiling
   stoppingPoint: string(<=240)
   coverage:{ uncovered:[{start,end,reason}] }
   question: null | { kind:'focus'|'conflict'|'language'|'scope', text(<=200), options[0..4]{label(<=60)} }
 }
 ```
 
-Validator (deterministic, in `roadmap-plan.js`; a failure goes back to the model once, then the draft fails with a typed error and the roadmap -> `failed` or `questioning`): step count `1..ceiling(depth)` with ceilings 5/10/15 as upper bounds, never quotas; each step one coherent task, `format` in the adapter allowlist (`adapter.md` 3.1); anchors inside the declared scope, `end - start <= 8000`, `start < end`; pairwise anchor overlap > 50% with a similar goal (token Jaccard > 0.6) = redundancy error; every `claimsToCover` item non-empty; `stoppingPoint` present and the last step's goal consistent with it (same noun overlap check is optional); `outcome` starts with a verb phrase describing an ability (cheap regex guard, scorer is authority); no step mentions a price, credits or a URL absent from the source; at most 1 card per step in R4 (D45); if `question` is non-null `steps` must be empty (a focused question, not a half plan). Language check per section 6. Instruction checks per section 5.
+Validator (deterministic, in `roadmap-validate.js`; a failure goes back to the model once, then the draft fails with a typed error and the roadmap -> `failed` or `questioning`): step count `1..ceiling(depth)` with ceilings 5/10/15 as upper bounds, never quotas; each step one coherent task, `format` in the adapter allowlist (`adapter.md` 3.1); passages inside the declared scope, `end - start <= 8000`, `start < end`; pairwise passage overlap > 50% with a similar goal (token Jaccard > 0.6) = redundancy error; every `claimsToCover` item non-empty; `stoppingPoint` present and the last step's goal consistent with it (same noun overlap check is optional); `outcome` starts with a verb phrase describing an ability (cheap regex guard, scorer is authority); no step mentions a price, credits or a URL absent from the source; at most 1 card per step in R4 (D45); if `question` is non-null `steps` must be empty (a focused question, not a half plan). Language check per section 6. Instruction checks per section 5.
 
 ## 8. Revision
 
@@ -79,8 +81,8 @@ Evidence classes (v1.4 6.2): `source_supported`, `externally_supported` (unused 
 
 1. **Deterministic reference check:** the card's `sourceRef` resolves: source id + revision match the roadmap's, anchor inside the scope, and for each quoted span the text appears (normalized whitespace) in the derivative text at that range. Mismatch = `blocked` for that result version.
 2. **Format check:** the block validates against its primitive schema (already done by `artifactBlock`); table rows/columns consistent.
-3. **Targeted support check (`roadmap_support`):** claims = the card's material factual statements (the model that wrote the card also lists `claimsCovered` is NOT trusted: a separate call extracts at most 6 material claims from the card text and checks each against the passage) with verdict `supports | contradicts | not_established` plus the supporting quote span. Batch in one call; cache the verdict by `sha256(cardText) + sourceRevision + promptVersion`. `contradicts` = blocked; `not_established` = the claim must be classified `inferred` with premises and a checked derivation, otherwise it is `unresolved` and the card is held for repair (one regeneration with the unsupported claims listed) or removed from the card by the repair. An inference without premises is `unresolved` (calling a claim an inference does not validate it).
-4. **One bounded escalation** to `roadmap_support_escalation` for a genuinely ambiguous verdict only.
+3. **Targeted support verdict (`roadmap_grounding_check`):** claims = the card's material factual statements (the model that wrote the card also lists `claimsCovered` is NOT trusted: a separate call extracts at most 6 material claims from the card text and checks each against the passage) with verdict `supports | contradicts | not_established` plus the supporting quote span. Batch in one call; cache the verdict by `sha256(cardText) + sourceRevision + promptVersion`. `contradicts` = blocked; `not_established` = the claim must be classified `inferred` with premises and a checked derivation, otherwise it is `unresolved` and the card is held for repair (one regeneration with the unsupported claims listed) or removed from the card by the repair. An inference without premises is `unresolved` (calling a claim an inference does not validate it).
+4. **One bounded escalation** to `roadmap_grounding_escalation` for a genuinely ambiguous verdict only.
 5. **Text safety** (section 12).
 6. Checking unavailable (timeout, malformed, cap) = `held` (never passed). A bounded retry with the stage deadline; terminal inability triggers billing.md 6 refund and `unavailable` result retained for diagnosis.
 
@@ -118,13 +120,14 @@ Probabilistic classification, deterministic enforcement.
 
 | Stage | Deadline | Note |
 |---|---|---|
-| subject | 15 s | optional |
-| plan / revise | 120 s each | Opus 5.5 thinks inside maxTokens (`learn-models.js:62`); latency not measured by this lane (unverified) |
+| subject | 15 s | optional (`ROADMAP_LIMITS.deadlineMs.subject`) |
+| draft / revise | 120 s each | Opus 5.5 thinks inside maxTokens (`learn-models.js:62`); latency not measured by this lane (unverified) |
 | propose | 45 s | |
-| generate | 90 s per call; step total <= 5 min | must stay under `HOLD_SECONDS.artifact` (3600 s) with margin, billing.md 4 |
-| support check | 30 s, one retry | |
-| safety screen | 20 s per fetch x (1 + one retry) = 45 s per screen | do not sum multiple screens into a 30 s proposal deadline (v1.4 5.5) |
-| whole-proposal readiness (compose + checks) | 3 min | the 1-2 s target is R6's, measured not promised |
+| generate | 90 s per call; two calls per card | the step's total work, including the one automatic retry's copy, is `stepWork` = 660 s, computed by `stepWorkBudgetMs()` (652 s) and kept below half the usage hold window (`HOLD_SECONDS.artifact` 3600 s), billing.md 4 |
+| grounding check | 30 s, plus its one escalation | included in `checkingBudgetMs()` |
+| safety screen | 20 s per fetch x (1 + one admitted 429/529 retry) + 1 s sleep = 41 s per screen (`safetyScreenMs()`) | `askJev` retries once (`learn-grade-jev.js:139-151`); chunks of one screen run concurrently; never sum screens into a 30 s promise (v1.4 5.5) |
+| **overall checking** | 150 s | `checkingBudgetMs()` = 2 x 30 s (check + escalation) + 41 s (screen with retry) + 45 s (adjudication) = 146 s; the policy test refuses a deadline below this arithmetic (BASE.02) |
+| whole-proposal readiness (compose 45 s + checking) | 200 s | `readinessBudgetMs()` = 191 s; the 1-2 s next-proposal target is R6's, measured and reported, never a limit or permission to skip checks |
 
 ## 14. Keyless planner double
 

@@ -16,9 +16,13 @@
         "language": "en",
         "scope": {
           "kind": "whole",
-          "sourceId": "src_md_41c9e0a7",
-          "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
-          "title": "Gradient descent notes.md"
+          "source": {
+            "key": "file:fs_41c9e0a7d2b84f63a1c07e92",
+            "rev": "3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+            "name": "Gradient descent notes.md"
+          },
+          "chars": 5210,
+          "fingerprint": "scope_9f1c2a7e"
         },
         "ceiling": 10,
         "deliveredCount": 0,

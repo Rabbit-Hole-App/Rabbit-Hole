@@ -6,8 +6,8 @@
       "invitation": {
         "id": "iv_2b7d9e41c8a05f36d1e0a9b4",
         "state": "offered",
-        "sourceIds": [
-          "src_md_41c9e0a7"
+        "sourceKeys": [
+          "file:fs_41c9e0a7d2b84f63a1c07e92"
         ],
         "title": "Gradient descent notes.md",
         "choices": [
