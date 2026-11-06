@@ -31,12 +31,13 @@ const html = (Component, props) => lib.renderToStaticMarkup(lib.createElement(Co
 const noop = () => {};
 const BANNED = /\$|credit|cost|price|estimate|maximum|opus|sonnet|claude|token/i;
 
-test('the pill reads Accept [Tab] | Cancel, square, green and red with a divider, and shows no price', () => {
+// Owner spec 2026-11-06 (pill 28px, 4px corners) and plan section 4.2 ("Remove the saturated green/red blocks"): supersedes the earlier square green/red pill.
+test('the pill reads Accept [Tab] | Cancel: 28px, 4px corners, the selection bar small actions, no saturated colour, no price', () => {
   const markup = html(lib.StepPill, { pill: pillOf(at('status-active-proposal-pending')), onAccept: noop, onCancel: noop });
-  assert.match(markup, /bg-green-600[^>]*>Accept<kbd[^>]*>Tab<\/kbd>/);
-  assert.match(markup, /border-l[^>]*bg-red-600[^>]*>Cancel</);
-  assert.match(markup, /rounded-none/);
-  assert.doesNotMatch(markup, /rounded-(md|lg|full|xl)/);
+  assert.match(markup, /data-roadmap-pill="true"[^>]*class="inline-flex h-7[^"]* rounded border border-line/);
+  assert.match(markup, /data-roadmap-accept="true"[^>]*h-7 cursor-pointer[^>]*>Accept<kbd[^>]*>Tab<\/kbd>/);
+  assert.match(markup, /data-roadmap-cancel="true"[^>]*border-l[^>]*>Cancel</);
+  assert.doesNotMatch(markup, /bg-(green|red)-|text-white/);
   assert.doesNotMatch(markup.replace(/<[^>]+>/g, ' '), BANNED);
 });
 
