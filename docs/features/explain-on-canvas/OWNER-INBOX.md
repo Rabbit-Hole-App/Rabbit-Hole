@@ -4,6 +4,10 @@ Current state as of 2026-11-06 12:41 PT. Older per-release notes and the decisio
 
 Three states are kept apart: **Deployed** (the production deploy run for that SHA succeeded), **Flag** (switched on in production), **Accepted** (focused functional checks passed). Main is `da7a96da4` (R7a long-Markdown release 80, flag off; R5 edit release 79 `57bcc6b59`, flag off; core release 76 `e90b47083` below).
 
+## TOP PRIORITY (12:50 PT): FIX A, restore the working Tutor core
+
+Owner's production test of release 76 failed at Accept (no card; "I can't make this explanation... You were not charged"; Tab moved focus; Contents cannot scroll). Plan: `C:\Users\cyudhist\Desktop\explain-on-canvas-production-bugs-and-fix-plan.md` (TBF-01..10, T0..T9, actions A01..A26). Main now `da7a96da4` (releases 76, 79, 80 all deployed; R5/R7a flags off). **Fix A** = diagnose + fix the failed Accept->generation (grounding vs safety conflated into `policy_block`), Tab ownership, ToC scroll, `nextStepReady` (always false in `roadmap-view.js`), minimal honest feedback. Lanes: backend `feat/tutor-fixa-backend` (+ read-only prod diagnostic launcher the owner runs), UI `feat/tutor-fixa-ui`. Fix B (Chat transcript, Depth confirm) and Fix C (skeleton, source anchoring) follow; R5/R7a switches, P6, R8/R9 wait. Status: both lanes started 12:50 PT.
+
 ## CORE RELEASE 76 DEPLOYED (11:37 PT)
 
 **Served SHA `e90b47083196ecf909d2cc4b356c312e17737226`**, build `616670745a0c8249`, run 42280999792 (success): rabbit-hole-cp `ed4f6831-42be-4594-be0e-49eac55b1fb7`, rabbit-hole-app `603f74ea-f7c1-4c2d-9a8c-5852a510100c`. The release job's own signed-out production smoke passed. My read-only smoke (`prod-smoke.sh`, 11:37 PT): main is that SHA; `/` 200; `/library` 200; `/api/learn/roadmap` 401 signed out; `/api/learn/user-settings` 400 signed out; no 5xx.
