@@ -175,6 +175,6 @@ export const actionStartsFrom = (action, roadmapState) => (action === 'create_ro
 export const ERROR_CODES = freeze({
   roadmap_disabled: 404, not_found: 404, forbidden: 403, invalid_request: 400, stale_revision: 409, action_key_reused: 409,
   invalid_transition: 409, roadmap_unfinished_exists: 409, proposal_not_pending: 409, proposal_not_checked: 409, roadmap_not_active: 409,
-  insufficient_allowance: 429, spend_limited: 429, ai_unavailable: 503, source_changed: 409, source_unsupported: 422,
+  allowance_limited: 429, spend_limited: 429, source_changed: 409, source_unsupported: 422,
   source_too_large: 422, needs_clarification: 422, held_for_checking: 409, reconciliation_required: 409,
 });
