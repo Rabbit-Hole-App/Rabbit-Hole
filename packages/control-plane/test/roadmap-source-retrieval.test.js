@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { indexSource, readSourceEvidence, readSourceEvidenceHandler, withSourceEvidence, INDEX_LIMITS } from '../src/roadmap/roadmap-source-index.js';
-import { summarizeIndex, planBatches, readSummaries } from '../src/roadmap/roadmap-source-summary.js';
+import { summarizeIndex, planBatches, readSummaries, spentOf } from '../src/roadmap/roadmap-source-summary.js';
 import { CAPABILITIES, runRoadmapTool } from '../src/roadmap/roadmap-tools.js';
 import { dbFor, me, other, readerFor, file, rev, longDoc } from './roadmap-source-fixture.js';
 
@@ -205,7 +205,7 @@ test('an unknown provider outcome is reconciled, never retried blind; an exhaust
   assert.equal((await w.LEARN_DB.prepare("SELECT status FROM learn_source_index_batches WHERE batch_no = 0").first()).status, 'unknown');
   assert.equal(first.status, 'partial');
   // a crash left a reserved row: the next run marks it unknown instead of calling again
-  await w.LEARN_DB.prepare("UPDATE learn_source_index_batches SET status = 'reserved' WHERE batch_no = 1").run();
+  await w.LEARN_DB.prepare("UPDATE learn_source_index_batches SET status = 'reserved', updated_at = 0 WHERE batch_no = 1").run(); // a stale reservation
   const model = summarizer();
   await summarizeIndex(w.env, me, w.id, { ...w.deps, callModel: model.callModel });
   assert.ok(!model.calls.some(c => c.ids.includes(w.index.chunks[0].id)), 'batch 0 (unknown) is not retried');
@@ -242,4 +242,48 @@ test('the production callModel fails closed: an unregistered role, and a refused
   await assert.rejects(makeIndexCallModel({}, { registry: { roadmap_index: { model: 'm' } }, transport, reserve: async () => false })('roadmap_index', {}), { code: 'quota_exhausted' });
   await assert.rejects(makeIndexCallModel({}, { registry: { roadmap_index: { model: 'm' } }, transport })('roadmap_subject', {}), { code: 'role_not_registered' });
   assert.equal(sent.length, 0);
+});
+
+test('concurrent summary runs pay once per batch and never overwrite a done batch', async t => {
+  const w = await world(t), batches = planBatches(w.index.chunks).length, sent = [];
+  const slow = async (role, body) => { sent.push(body.messages[0].content.match(/<chunk id="(c\d+)"/)[1]); await new Promise(r => setTimeout(r, 5)); return summarizer().callModel(role, body); };
+  const [a, b] = await Promise.all([summarizeIndex(w.env, me, w.id, { ...w.deps, callModel: slow }), summarizeIndex(w.env, me, w.id, { ...w.deps, callModel: slow })]);
+  assert.equal(new Set(sent).size, sent.length, 'no batch was sent twice');
+  assert.equal(sent.length, batches);
+  assert.equal(a.calls + b.calls, batches);
+  const rows = (await w.LEARN_DB.prepare('SELECT status FROM learn_source_index_batches').all()).results;
+  assert.ok(rows.every(r => r.status === 'done'));
+  assert.equal((await spentOf(w.LEARN_DB, w.id)).calls, batches);
+});
+
+test('the budget is per index across runs: a second run cannot spend the first allowance again', async t => {
+  const w = await world(t), limits = { ...INDEX_LIMITS.summary, maxCalls: 3 }, model = summarizer();
+  assert.equal((await summarizeIndex(w.env, me, w.id, { ...w.deps, callModel: model.callModel, limits })).calls, 3);
+  const again = await summarizeIndex(w.env, me, w.id, { ...w.deps, callModel: model.callModel, limits });
+  assert.deepEqual([again.calls, again.reason], [0, 'budget_calls']);
+  assert.equal(model.calls.length, 3);
+  assert.equal(again.spent.calls, 3);
+  assert.ok(again.spent.chars > 0);
+  const chars = await summarizeIndex(w.env, me, w.id, { ...w.deps, callModel: model.callModel, limits: { ...INDEX_LIMITS.summary, maxChars: again.spent.chars } });
+  assert.deepEqual([chars.calls, chars.reason], [0, 'budget_chars']);
+  let t0 = 0; // elapsed time is persisted too: each call here takes 100 ms of the injected clock
+  const w2 = await world(t, longDoc({ chapters: 12 })), tick = () => (t0 += 50);
+  const timed = await summarizeIndex(w2.env, me, w2.id, { ...w2.deps, callModel: summarizer().callModel, clock: tick, limits: { ...INDEX_LIMITS.summary, maxMs: 100 } });
+  assert.equal(timed.calls, 2, 'two calls of 50 ms each reach the 100 ms ceiling');
+  assert.equal(timed.reason, 'budget_time');
+  const later = await summarizeIndex(w2.env, me, w2.id, { ...w2.deps, callModel: summarizer().callModel, clock: tick, limits: { ...INDEX_LIMITS.summary, maxMs: 100 } });
+  assert.deepEqual([later.calls, later.reason], [0, 'budget_time']);
+});
+
+test('an invalid answer is retried only up to the attempt cap, then left failed and reported', async t => {
+  const w = await world(t), limits = { ...INDEX_LIMITS.summary, maxAttempts: 2 };
+  const good = summarizer(), seen = [];
+  const bad = async (role, body) => { const first = body.messages[0].content.includes('<chunk id="c0"'); seen.push(first); return first ? { content: [] } : good.callModel(role, body); };
+  for (let run = 0; run < 4; run++) await summarizeIndex(w.env, me, w.id, { ...w.deps, callModel: bad, limits });
+  assert.equal(seen.filter(Boolean).length, 2, 'two attempts at the invalid batch, then no more payment');
+  const out = await summarizeIndex(w.env, me, w.id, { ...w.deps, callModel: summarizer().callModel, limits });
+  assert.equal(out.calls, 0);
+  assert.equal(out.status, 'partial');
+  assert.equal(out.reason, 'batch_attempts_exhausted');
+  assert.ok(out.coverage.summaryGaps.some(g => g.reason === 'invalid_output'));
 });
