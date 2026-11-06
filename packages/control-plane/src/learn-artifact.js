@@ -23,7 +23,7 @@ import { tutorImageContext } from './learn-image-context.js';
 import { IMAGE_EXTRACTION_SYSTEM, imageExtractionTool, checkImageExtraction } from './inline-image-extraction.js';
 import { SCENE_AUTHORING } from './agents/learn-scene-author.js';
 import { calculationProblem, cardAtSettings, sceneProblem, withDataSizes, withSamplesNote } from './learn-scene-gates.js';
-import { DEFAULT_DEPTH, DEPTH_COMMANDS, depthInstruction } from './chat-depth.js';
+import { DEFAULT_DEPTH, DEPTH_COMMANDS, depthInstruction, validDepth } from './chat-depth.js';
 import { readDepth } from './learn-user-settings.js';
 import { VERIFY_SYSTEM, VERIFY_TOOL, falseItems, verifyMessage } from './agents/learn-scene-verify.js';
 
@@ -180,6 +180,7 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
     body = JSON.parse(raw);
     if (!body || typeof body.command !== 'string' || typeof (body.args ?? '') !== 'string' || (body.args || '').length > 1000 || (body.context != null && (typeof body.context !== 'string' || body.context.length > 8000))) throw new Error('Invalid artifact request');
     artifactPlan(body.command, body); // unknown command or selection: 400 before auth or model
+    if (body.depth !== undefined && !validDepth(body.depth)) throw new Error('depth must be overview, standard or deep'); // R2: an explicit Depth the server does not know is refused, never normalized
     if (body.image_context !== undefined && body.command !== 'explain') throw new Error('Only /explain takes an attached image');
     if ((body.image_role ?? 'layout_reference') !== 'layout_reference' || (body.image_role !== undefined && body.image_context === undefined)) throw new Error('image_role must be layout_reference, with an image_context');
   } catch (error) { return json({ error: error.message }, 400); }
@@ -224,8 +225,11 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
     if (!got?.blocks?.some(part => part.type === 'image')) return json({ error: got?.notice || 'The attached image is unavailable. Attach it again and resend.', code: 'image_unavailable' }, 409);
     documents = [...documents, { type: 'text', text: IMAGE_ROLES.layout_reference }, ...got.blocks];
   }
-  // R2: the server's read of this learner's Depth for this canvas (never a browser field); the artifact body has no board, so it is the main board's.
-  const depth = DEPTH_COMMANDS.includes(body.command) ? await readDepth(env, { org: access.org, userId: access.user_id, app: body.app, board: typeof body.board === 'string' ? body.board : 'main' }) : DEFAULT_DEPTH;
+  // R2: the Depth the learner had selected when they submitted (the client snapshots it with the board), validated above; omitted, the
+  // saved Depth for that exact canvas. No board named is Standard: there is no fallback to the main board. Commands that make no
+  // explanation (DEPTH_COMMANDS) get none, whatever was sent.
+  const depth = !DEPTH_COMMANDS.includes(body.command) ? DEFAULT_DEPTH : body.depth !== undefined ? body.depth
+    : await readDepth(env, { org: access.org, userId: access.user_id, app: body.app, board: typeof body.board === 'string' ? body.board : null });
   try {
     const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}) });
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing

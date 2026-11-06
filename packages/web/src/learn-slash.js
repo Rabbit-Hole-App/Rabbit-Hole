@@ -12,6 +12,7 @@ import { isWebUrl } from './canvas-paste.js';
 import { briefSubject, isBriefCommand } from './material-brief.js';
 import { existingGeneration } from './generation-state.js';
 import { mintSourceRef } from './source-refs.js';
+import { settingsSnapshot } from './learn-settings.js';
 
 // Offered only when something can satisfy it now: no family (chat or a direct
 // action), or a family with a ready or direct primitive. A command typed by
@@ -188,9 +189,12 @@ export const imageSearchBlock = args => ({ type: 'image', mode: 'search', title:
 // image (EXP-T15, /explain only): an uploaded image's media id; the server reads its bytes under this canvas's own
 // authorization (learn-image-context.js), never from a browser URL. Its role is a layout reference by default.
 // proposal: the signed brief this Generate makes (material-brief.js): the server consumes it once and generates from its own words.
-export function generateCommand(name, args, { app, selection = null, context = null, image = null, proposal = null, sourceRef = null, post, signal = null }) {
+// depth, board (R2): the Depth the learner had selected when they submitted, with the board it was chosen for; taken from the canvas's
+// settings now unless the caller names them. Plain values copied into this request, so a later change in the menu never alters it.
+export function generateCommand(name, args, { app, selection = null, context = null, image = null, proposal = null, sourceRef = null, post, signal = null, ...chosen }) {
   const timeout = AbortSignal.timeout(ARTIFACT_TIMEOUT_MS);
-  return post('/api/learn/artifact', { app, command: name, args, selection, context, ...(proposal ? { proposal } : {}), ...(sourceRef ? { sourceRefId: sourceRef } : {}), ...(image ? { image_context: { id: image }, image_role: 'layout_reference' } : {}) }, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+  const picked = chosen.depth !== undefined || chosen.board !== undefined ? chosen : settingsSnapshot(app);
+  return post('/api/learn/artifact', { app, command: name, args, selection, context, ...(picked?.board ? { board: picked.board } : {}), ...(picked?.board && picked.depth ? { depth: picked.depth } : {}), ...(proposal ? { proposal } : {}), ...(sourceRef ? { sourceRefId: sourceRef } : {}), ...(image ? { image_context: { id: image }, image_role: 'layout_reference' } : {}) }, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
 }
 
 // What a typed /motion says in a build that does not offer it (production): it runs nothing.

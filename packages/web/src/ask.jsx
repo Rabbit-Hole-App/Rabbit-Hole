@@ -550,6 +550,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // prompted: raw is a command's prompt coming back from LearnSlash (onPrompt), the chat turn itself. Answers false when it
   // refuses that turn, so LearnSlash gives the line back with an error instead of losing it.
   const send = async (raw, scopeOverride, { command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false, routeAs = null } = {}) => {
+    // R2: the Depth selected at the moment of Send; a later change in the menu never alters this turn.
+    const depthSnapshot = depthField(chat?.settings);
     // A chosen command pill sends exactly "/command text" and a typed /command replaces the pill (learn-slash.js commandLine);
     // LearnSlash runs it and the slot goes back to "/". The composer shows the line until it runs, so a line LearnSlash holds
     // while another command runs is still there to release (releaseLine).
@@ -765,7 +767,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         // path), exactly the chips attached at Send with card, group, image and media text resolved now.
         ...(chat ? { mode: askMode(chat.thread.mode, tocView), command: commandName, context_refs: refsForSend(withPage(withPage(codeTurnRefs.refs, target?.docPage), target?.excerptCrop), { target: target?.ref }) } : {}),
         // R2: the learner's Depth for this canvas (Standard sends nothing).
-        ...depthField(chat?.settings),
+        ...depthSnapshot,
         // UI-15 / MOT-20: what a generation proposal would be about, and the live proposal this turn may refine (LearnPage).
         // An Edit target names its exact revision (edit: the server revises that one or refuses); otherwise the implicit latest live one.
         ...(chat && canvasOps?.generation ? ((generation) => (generation ? { generation } : {}))(canvasOps.generation(about?.selection ?? (target ? { ...target, text: targetText } : null), edit?.command === 'motion' ? edit.proposal : currentProposal(msgs, canvasOps.proposalMade), about?.concept, edit?.command === 'motion')) : {}),

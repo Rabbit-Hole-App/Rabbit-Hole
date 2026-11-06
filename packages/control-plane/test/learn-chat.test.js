@@ -1200,6 +1200,8 @@ test('R2 Depth reaches the model input of a Chat turn: Overview and Deep differ,
   assert.ok(overview.startsWith(plain.split('\n')[0]), 'the rest of the prompt is unchanged');
   // Ask stays an answer: Depth shapes it and never starts a plan, even beside a course request.
   assert.match(await system({ mode: 'ask', depth: 'deep' }), /Depth: Deep/);
+  // learner instruction survives: the words they typed reach the model unchanged beside the Depth.
+  assert.ok(env.answers.every(answer => answer.question === 'How does backpropagation work?' || answer.question === 'Make me a course on backpropagation'), "the question is the learner’s own words");
   const asked = await system({ mode: 'ask', depth: 'deep', message: 'Make me a course on backpropagation' });
   assert.doesNotMatch(asked, /Tutor mode: syllabus creation/);
   // The Tutor's syllabus planner is not an answer: no Depth line (R4 owns the roadmap's size).
