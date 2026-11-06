@@ -17,7 +17,7 @@ const KIND = Symbol('usage attempt kind');
 
 // One string per entry point (the design's list). Keep it here, the only list.
 export const FEATURES = ['ask', 'auto', 'attempt_assessment', 'next_steps', 'shared_next_steps', 'shared_ask', 'home_ask',
-  'explore_find', 'artifact', 'board', 'inline_route', 'inline_decide', 'inline_generate', 'assess', 'grade', 'course',
+  'explore_find', 'journey', 'artifact', 'board', 'inline_route', 'inline_decide', 'inline_generate', 'assess', 'grade', 'course',
   'image', 'image_generate', 'transcribe', 'tts', 'voice_tts', 'voice_scribe', 'video', 'scene', 'search', 'handoff', 'image_edit', 'legacy', 'render',
   'webpage_capture'];
 export const ATTEMPT_KINDS = ['routing', 'generation', 'repair', 'retry', 'evaluation', 'escalation', 'tool', 'media'];
@@ -42,6 +42,7 @@ const ROUTES = [
   [/^\/api\/learn\/boards\/shared\/[^/]+\/ask$/, 'shared_ask'],
   [/^\/api\/learn\/boards\/published\/find$/, 'explore_find'],
   [/^\/api\/learn\/home-ask$/, 'home_ask'],
+  [/^\/api\/learn\/journey(\/|$)/, 'journey'],
   [/^\/api\/learn\/artifact$/, 'artifact'],
   [/^\/api\/learn\/board$/, 'board'],
   [/^\/api\/learn\/inline\/route$/, 'inline_route'],
@@ -454,7 +455,7 @@ export const USED_SUM = "COALESCE(SUM(CASE WHEN t.cost_state = 'settled' THEN t.
 // Seconds a running call may hold credits, by feature: its longest execution plus a reconciliation window. A call still running
 // past it is sealed (releaseStaleHolds): failed, cost unknown, released once. HOLD_BACKSTOP_SECONDS caps every bound.
 export const HOLD_BACKSTOP_SECONDS = 24 * 3600;
-export const HOLD_SECONDS = { default: 30 * 60, artifact: 3600, board: 3600, course: 3600, scene: 3600, video: 2 * 3600, image_generate: 4 * 3600 };
+export const HOLD_SECONDS = { default: 30 * 60, artifact: 3600, board: 3600, course: 3600, journey: 3600, scene: 3600, video: 2 * 3600, image_generate: 4 * 3600 };
 export const holdCase = `CASE a.feature ${Object.entries(HOLD_SECONDS).filter(([feature]) => feature !== 'default').map(([feature, seconds]) => `WHEN '${feature}' THEN ${Math.min(seconds, HOLD_BACKSTOP_SECONDS)}`).join(' ')} ELSE ${HOLD_SECONDS.default} END`;
 const atTime = now => { if (!Number.isSafeInteger(now)) throw new Error('a balance is read at an integer time'); return now; };
 // -> the SQL for what is held at `now`. `now` is inlined as an integer, so it cannot change a statement's bind order.

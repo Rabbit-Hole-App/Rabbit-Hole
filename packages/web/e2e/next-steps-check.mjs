@@ -1,5 +1,5 @@
 // Professor Next Steps acceptance (docs/features/professor-next-steps.md): N1 the owned-canvas hook route, N2 a hook click in the
-// page (one plain Chat turn), N3 the dock (a typed broad request is one plain Chat turn), N4-N6 the shared-canvas
+// page (one plain Chat turn), N3 the dock (a typed broad request is one plain Chat turn, no journey start), N4-N6 the shared-canvas
 // routes (anonymous and signed-in viewers, Start Rabbit Hole with a step), against the KEYLESS local stack only
 // (e2e/journey-local-stack.md §6): no model key is bound and the hook planner answers from its fixtures (JOURNEY_MODEL_STUB=fixtures).
 // Node + HTTP for N1 and N4-N6; N2 and N3 use the browser, with the chat route and Learn ask answered in the page. Since Tutor cleanup
@@ -103,7 +103,7 @@ async function n1() {
   const first = await call(owner, 'POST', '/api/learn/tutor/next-steps', { app: name, input: built.input });
   const problem = first.status === 200 ? setProblem(first.body, 'owned') : `HTTP ${first.status} ${first.body?.error || ''}`;
   check('N1 hook set', !problem, `200, 3 owned hooks with ${first.body?.set_id}.1-3 ids (${saved.length} saved blocks, mode ${built.input.mode})`, problem);
-  // The key name, and the stub's value (learn-next-steps-fixtures.js: "fixture <kind>") under any other key.
+  // The key name, and the stub's value (learn-journey-fixtures.js: "fixture <kind>") under any other key.
   check('N1 no reason_internal', !/reason_internal|"fixture /.test(first.text), 'neither reason_internal nor its fixture value is in the reply text', 'the reply text carries reason_internal or its fixture value');
   const again = await call(owner, 'POST', '/api/learn/tutor/next-steps', { app: name, input: built.input });
   state.cacheWorks = again.body?.telemetry?.cached === true;
@@ -281,7 +281,7 @@ async function n2() {
 }
 
 // N3: the dock. The broad learning request typed into the composer of a plain canvas and sent is one plain Chat turn: one
-// /api/learn/ask with the words and no Tutor route (Tutor cleanup P4: the journey routes are gone).
+// /api/learn/ask with the words, no Tutor route, no /api/learn/journey POST, no journey on the canvas, no tray in the DOM.
 async function n3() {
   if (!state.canvas) return record('N3 dock', 'FAIL', 'no canvas from N1');
   const browser = await chromium.launch();
@@ -296,14 +296,29 @@ async function n3() {
     await asked.catch(() => null);
     const shown = await dock.page.getByText(CANNED).first().waitFor({ timeout: 10000 }).then(() => true, () => false);
     await dock.page.waitForTimeout(1000);
-    const asks = posted(dock.seen, '/api/learn/ask'), tutorCalls = dock.seen.filter(entry => TUTOR_ROUTES.test(entry.path));
+    const asks = posted(dock.seen, '/api/learn/ask'), trays = await dock.page.locator('[data-tutor-prompt-tray]').count(), tutorCalls = dock.seen.filter(entry => TUTOR_ROUTES.test(entry.path));
     check('N3 dock: one Chat turn', asks.length === 1 && asks[0].body?.message === BROAD && !tutorCalls.length && shown,
       'typing the broad request in the composer sent exactly one /api/learn/ask with the words, no Tutor route, and the reply showed',
       `${asks.length} ask(s); words ${asks[0]?.body?.message === BROAD ? 'match' : 'differ'}; Tutor routes ${tutorCalls.map(entry => entry.path).join(', ') || 'none'}; reply shown ${shown}`);
+    const starts = posted(dock.seen, '/api/learn/journey');
+    check('N3 dock: no journey start', !starts.length, 'the page made no POST to /api/learn/journey', `${starts.length} journey POST(s), actions ${starts.map(entry => entry.body?.action).join(',')}`);
+    const view = await ok(owner, 'GET', `/api/learn/journey?app=${state.canvas.name}&board=main`);
+    check('N3 dock: no journey, no tray', !view.journey && trays === 0, 'the canvas has no journey record and the DOM has no prompt tray', `journey on the canvas ${!!view.journey}; ${trays} tray(s)`);
     check('N3 dock: nothing else left the page', !dock.errors.length && !dock.aborted.length, `no console errors and no request aborted in the page${noiseOf(dock.ignored)}`,
       `${dock.errors.slice(0, 2).join(' | ')} aborted: ${dock.aborted.join(', ') || 'none'}`);
     await dock.page.screenshot({ path: `${OUT}/N3-dock.png` });
     await dock.context.close();
+    // Control: the observer does see a journey start when one is posted. Home's Agent Bar used to start one from a typed request;
+    // the bar is gone from Home (owner, 2026-10-22), so the control posts the same start from the page itself (the page aborts
+    // it, as it does any non-local write; the observer logs the request before that) and its POST /api/learn/journey is in the log.
+    const home = await pageFor(browser);
+    await home.page.goto(`${BASE}/apps`);
+    await home.page.waitForTimeout(3000);
+    await home.page.evaluate(async (text) => { await fetch('/api/learn/journey', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'start', text }) }).catch(() => null); }, REQUEST);
+    await home.page.waitForTimeout(1500);
+    const homeStarts = posted(home.seen, '/api/learn/journey').filter(entry => entry.body?.action === 'start');
+    check('N3 dock control', homeStarts.length === 1, 'control: a journey start posted from the page, and the same observer sees its one POST /api/learn/journey start', `${homeStarts.length} journey start POST(s) seen from Home (page at ${new URL(home.page.url()).pathname})`);
+    await home.context.close();
   } finally { await browser.close(); }
 }
 

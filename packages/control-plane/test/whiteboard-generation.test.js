@@ -15,7 +15,7 @@ import { BOARD, OWNER, d1, durable, rows } from './explain-fixture.js';
 
 const OTHER = { ...OWNER, email: 'other@example.com', userId: 'u-2' };
 const fixture = name => JSON.parse(readFileSync(new URL(`./fixtures/whiteboard/${name}`, import.meta.url), 'utf8'));
-const MP3 = new Uint8Array(readFileSync(new URL('./fixtures/whiteboard/audio/narration-0.mp3', import.meta.url))); // 3.788 s (114 frames)
+const MP3 = new Uint8Array(readFileSync(new URL('../../web/public/audio/nanogpt-l1-p1-0.mp3', import.meta.url))); // 3.788 s (114 frames)
 const LONG = new Uint8Array([...MP3, ...MP3, ...MP3, ...MP3, ...MP3]); // 18.94 s: over a 15 s window
 const PLAN = (() => {
   const p = fixture('plan-60.json');

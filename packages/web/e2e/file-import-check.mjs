@@ -72,7 +72,7 @@ if (process.env.OFFLINE !== '1') {
   // Another host is never contacted by an import: anything not the stack is recorded and refused.
   await context.route(url => !url.href.startsWith(BASE) && !url.href.startsWith(CP), route => { outside.push(route.request().url()); return route.abort(); });
   // Import acceptance never requires paid inference; next steps are a wiring-only fixture.
-  for (const path of ['ask', 'selection', 'artifact', 'home-ask', 'course', 'media']) await context.route('**/api/learn/' + path, route => route.abort());
+  for (const path of ['ask', 'selection', 'tutor/plan', 'artifact', 'home-ask', 'journey', 'course', 'media']) await context.route('**/api/learn/' + path, route => route.abort());
   await context.route('**/api/learn/tutor/next-steps', route => route.fulfill({ json: { steps: [] } }));
   // The app's existing notebook shell/prewarm is trusted UI, not a URL from the imported file.
   // Keep it offline as a blank fixture; arbitrary external requests still reach the refusal above.

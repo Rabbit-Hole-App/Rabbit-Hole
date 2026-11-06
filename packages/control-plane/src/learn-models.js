@@ -52,6 +52,19 @@ export const LEARN_TASKS = Object.freeze({
   tutor_visual: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools; one JSON reply)', maxTokens: 4000 }),
   // Home answers (/api/learn/home-ask, learn-home-ask.js): pinned to Sonnet 5.5 at effort low, grounded in the user's library.
   home_ask: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools; one JSON reply)', maxTokens: 900 }),
+  // The journey planners (learn-journey-planners.js, adaptive-learning-path-v1-architecture.md §11): one tool each on
+  // tool_choice auto; effort is output_config.effort, null the model default.
+  // Resolver rule 5: a tray message the deterministic rules missed -> one of the five kinds.
+  journey_resolver: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 300 }),
+  // The registry and the probe ladder (+ one background question). Final review A-I1: thinking counts against max_tokens.
+  journey_diagnostic: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 8000 }),
+  // The first path draft, and the escalation target of journey_adapt. Final review A-I1: with no diagnostic (fast start, a
+  // quick overview) one call returns the path and the whole registry, plus Opus thinking, under this cap.
+  journey_path: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 12000 }),
+  // The current section's SectionPlan.
+  journey_section: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 3000 }),
+  // Path revisions and adaptations.
+  journey_adapt: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 }),
   // Professor Next Steps (docs/features/professor-next-steps.md §2.4): the hook planner, one tool (suggest_next_steps) on
   // tool_choice auto; its escalation runs once on a missing tool call, a validator failure or an ambiguous reading.
   tutor_next_steps: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 1500 }),

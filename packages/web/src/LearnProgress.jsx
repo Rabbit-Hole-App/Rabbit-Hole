@@ -21,12 +21,12 @@ const day = iso => { const d = new Date(iso); return Number.isNaN(d.getTime()) ?
 const judged = criterion => criterion?.evidence?.filter(e => e.validity === 'valid').at(-1) ?? null;
 
 // scope { app, board }; coaching: the workspace's controls (use-learn-coaching.jsx); composer: the Chat draft (prepare and
-// focus never send); onClose: leaves Progress for Chat (the page moves focus to the Chat tab). chat (Task 07): the Chat
-// workspace, for the next step when the read model names none (TutorActivity.jsx NextActivity).
+// focus never send); onClose: leaves Progress for Chat (the page moves focus to the Chat tab). chat and journey (Task 07): the Chat
+// workspace and useJourney's view, for the next step when the read model names none (TutorActivity.jsx NextActivity).
 // The viewed goal and open skill outlive the pane, per canvas: the page keeps it mounted while another tab shows, and Close or
 // Ask tutor about this must reopen on the same selection (draft "Progress UI and access"; Task 10 step 2).
 const kept = new Map();
-export default function LearnProgress({ scope, coaching, composer, onClose, chat = null }) {
+export default function LearnProgress({ scope, coaching, composer, onClose, chat = null, journey = null }) {
   const keep = `${scope.app}\n${scope.board}`;
   const [viewedGoalId, setViewedGoalId] = useState(() => kept.get(keep)?.viewedGoalId ?? null);
   const [expanded, setExpanded] = useState(() => kept.get(keep)?.expanded ?? null);
@@ -151,7 +151,7 @@ export default function LearnProgress({ scope, coaching, composer, onClose, chat
               </li>
             ); })}
           </ul>}
-          {!model.nextAction && chat && model.active && !model.viewingOther && <NextActivity chat={chat} board={scope.board} goal={model.viewed} view={load.view} onClose={onClose} />}
+          {!model.nextAction && chat && model.active && !model.viewingOther && <NextActivity chat={chat} board={scope.board} goal={model.viewed} view={load.view} journey={journey} onClose={onClose} />}
           {model.nextAction && <div data-progress-next className="mt-4 rounded-xl bg-hover p-3">
             <p className="text-sm font-semibold text-ink">Next step</p>
             <p className="mt-1 text-sm text-ink">{model.nextAction.label || model.nextAction.text}</p>

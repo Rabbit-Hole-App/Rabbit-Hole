@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { learnDb } from './learn-grade-fixture.js';
 import { CoachingConflict, applyCoachingAction, readCoachingState } from '../src/learn-coaching-store.js';
 import { coachingRoute } from '../src/learn-coaching-routes.js';
-import { createJourney, loadJourney } from './learn-journey-rows.js';
+import { createJourney, loadJourney } from '../src/learn-journey-store.js';
 import { acceptAttempt, claimAssessment, commitAssessment } from '../src/learn-attempt-store.js';
 import { readProgress } from '../src/learn-progress.js';
 import { resolveProgressQuestion } from '../src/learn-progress-context.js';

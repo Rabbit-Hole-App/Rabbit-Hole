@@ -233,10 +233,11 @@ test('selectedStepProblem takes the topic: a format word is allowed only when th
   assert.equal(selectedStepProblem(step, ctx).status, 400, 'no topic given: no escape hatch');
 });
 
-test('LEARNER_LABELS is the one list, in a leaf module: the hook validator imports it', async () => {
+test('LEARNER_LABELS is the one list, in a leaf module: the journey agent and the hook validator import it', async () => {
   const src = name => readFileSync(new URL(`../src/agents/${name}`, import.meta.url), 'utf8');
+  assert.match(src('learn-journey.js'), /import \{ LEVEL_WORDS \} from '\.\/learn-labels\.js';/);
   assert.match(src('learn-next-steps.js'), /import \{ LEARNER_LABELS \} from '\.\/learn-labels\.js';/);
-  assert.doesNotMatch(src('learn-labels.js'), /^import /m, 'a leaf: the web bundle never pulls the planner prompts for it');
+  assert.doesNotMatch(src('learn-labels.js'), /^import /m, 'a leaf: the web bundle never pulls the journey agent for it');
   assert.ok(LEARNER_LABELS.length >= 6 && LEARNER_LABELS.every(re => re instanceof RegExp));
   assert.ok(LEARNER_LABELS.some(re => re.test('You are a natural at this')));
 });
@@ -377,7 +378,7 @@ test('r29 the prompt keeps hooks on the example and what is missing', () => {
 });
 
 test('r29 the keyless planner leads its third hook into path.next, and the set passes the validator', async () => {
-  const { fixtureFor } = await import('../src/learn-next-steps-fixtures.js');
+  const { fixtureFor } = await import('../src/learn-journey-fixtures.js');
   const input = { ...INPUT, mode: 'journey', path: { current: null, completed: [], upcoming: [], next: { id: 's2', title: 'From a linear score to probability', completes: false } }, previous: { hooks: [], goals: [] } };
   const out = fixtureFor('suggest_next_steps', input);
   assert.equal(out.options[2].section_id, 's2');
@@ -395,7 +396,7 @@ test('r29 repeat: the path.next hook may stay as it was across sets; a content h
   assert.deepEqual(nextStepsOutput({ options: [THREE[0], THREE[1], section] }, again).errors, ['repeat'], 'a content hook again');
   assert.deepEqual(nextStepsOutput({ options: [THREE[1], THREE[2], { ...section, section_id: undefined, concept_ids: ['annealing'], claim_ids: ['annealing.slow-cool'] }] }, again).errors, ['repeat'], 'the same words without the section are a repeat');
   assert.ok(NEXT_STEPS_SYSTEM.includes('Never repeat previous.hooks or a previous goal; only the path.next hook may stay as it was.'));
-  const { fixtureFor } = await import('../src/learn-next-steps-fixtures.js');
+  const { fixtureFor } = await import('../src/learn-journey-fixtures.js');
   const keyless = { ...withNext, previous: { hooks: [], goals: [] } };
   const first = fixtureFor('suggest_next_steps', keyless);
   const next = { ...keyless, previous: { hooks: first.options.map(o => o.hook), goals: [] } };

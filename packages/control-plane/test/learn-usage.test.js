@@ -401,7 +401,7 @@ test('route boundary features: every paid /api/learn route is one feature from t
   const cases = { '/api/learn/ask': 'ask', '/api/learn/selection': 'ask',
     '/api/learn/tutor/next-steps': 'next_steps', '/api/learn/boards/shared/abc/next-steps': 'shared_next_steps',
     '/api/learn/boards/shared/abc/ask': 'shared_ask', '/api/learn/boards/published/find': 'explore_find', '/api/learn/home-ask': 'home_ask',
-    '/api/learn/artifact': 'artifact', '/api/learn/board': 'board',
+    '/api/learn/journey': 'journey', '/api/learn/journey/plan': 'journey', '/api/learn/artifact': 'artifact', '/api/learn/board': 'board',
     '/api/learn/inline/route': 'inline_route', '/api/learn/inline/decide': 'inline_decide', '/api/learn/inline/generate': 'inline_generate',
     '/api/learn/assess': 'assess', '/api/learn/grade': 'grade', '/api/learn/grade/bench': 'grade', '/api/apps/repo-1a2b-x/learn-course': 'course',
     '/api/learn/image': 'image', '/api/learn/transcribe': 'transcribe', '/api/learn/tts': 'tts', '/api/learn/voice/tts': 'voice_tts',
@@ -590,7 +590,7 @@ test('legacy image generation is unavailable by default: no provider call, no se
 // visitor gets no generation and no action; a signed-in viewer pays.
 test('shared canvas Next Steps: a signed-out visitor is asked to sign in and records nothing, a signed-in viewer pays, never the canvas owner', async t => {
   const { setup } = await import('./shared-canvas-fixture.js');
-  const { fixtureModel } = await import('../src/learn-next-steps-fixtures.js');
+  const { fixtureModel } = await import('../src/learn-journey-fixtures.js');
   t.mock.method(console, 'log', () => {});
   const original = globalThis.fetch;
   globalThis.fetch = async (url, options) => { assert.equal(new URL(url).host, 'api.anthropic.com'); return fixtureModel(null, JSON.parse(options.body)); };
@@ -626,7 +626,7 @@ test('shared canvas Next Steps: a signed-out visitor is asked to sign in and rec
 // view, by anyone, is that cached set, free.
 test('shared canvas Next Steps: viewing or reloading never generates or charges; an explicit ask charges the asker once and later views are the cached set, free', async t => {
   const { setup } = await import('./shared-canvas-fixture.js');
-  const { fixtureModel } = await import('../src/learn-next-steps-fixtures.js');
+  const { fixtureModel } = await import('../src/learn-journey-fixtures.js');
   t.mock.method(console, 'log', () => {});
   const original = globalThis.fetch;
   let provider = 0;

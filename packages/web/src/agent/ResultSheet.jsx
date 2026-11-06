@@ -65,7 +65,7 @@ export function Turn({ t, onFile = null }) {
       {t.fixture && <Pill className="mb-1.5">Fixture · UI preview</Pill>}
       {t.text ? <Md text={t.text} onFile={onFile} /> : !t.done && <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{t.stage || 'Thinking'}</span></span>}
       {/* ponytail: no [Add to canvas] on sources - research runs only in canvas scope, where the bar is
-          hidden (routes.js), and the Learn handoff is teach only. Add it when the bar shows on a canvas. */}
+          hidden (routes.js), and learnHandoff is off (flags.js). Add it when the bar shows on a canvas. */}
       {t.sources?.length > 0 && (
         <div className="flex flex-wrap gap-1.5 pt-2">
           {t.sources.map((s, i) => <a key={i} href={s.href} target="_blank" rel="noreferrer" className="no-underline"><Pill>{s.label}</Pill></a>)}

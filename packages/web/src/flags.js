@@ -12,6 +12,11 @@ export const canEditCourse = (canAuthor, supplied) => !!canAuthor && (reviewTool
 // First-party product name: document title and first-party copy. Workspace names never change (T02 §2).
 export const PRODUCT = learnPreview ? 'Rabbit Hole' : 'small';
 
+// T02 §9: false until the Learn handoff (feature/parallel-work cc0cbf8) reaches main. The PR
+// that merges it flips this; it is never detected at runtime, because a missing hook and a
+// slow hook look the same.
+export const learnHandoff = false;
+
 // Gate C G1 (2026-09-24), decided OFF: the dev clone binds the live D1 'small'
 // (wrangler.dev.jsonc d1_databases DB), and /api/ask writes live chat history, so the preview's
 // workspace and app asks stay unavailable. Project and canvas asks keep their threads and moment

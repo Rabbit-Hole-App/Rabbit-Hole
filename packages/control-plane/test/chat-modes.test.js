@@ -6,8 +6,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import * as chatModes from '../src/chat-modes.js';
-import { chatFields, contextRefs, resolveMode, chatContext, TUTOR_OUTLINE_SYSTEM } from '../src/chat-modes.js';
+import { chatFields, contextRefs, courseIntent, resolveMode, validateSyllabus, syllabusPath, chatContext, TUTOR_SYSTEM, TUTOR_OUTLINE_SYSTEM } from '../src/chat-modes.js';
 import { outlineRevision } from '../../web/src/learn-outline-model.js';
+import { pathOutput } from '../src/agents/learn-journey.js';
 import { REQUEST_FIRST } from '../src/agents/learn-chat.js';
 import { CUT_NOTE, DECLINE } from '../src/learn-research.js';
 import { WITHHELD } from '../src/canvas-conversation.js';
@@ -51,15 +52,43 @@ test('request fields: an old client sends none; mode defaults to auto; refs foll
   assert.throws(() => contextRefs(Array(5).fill(ref({ sourceId: 'card:c', kind: 'card', text: 'x'.repeat(7000) }))), /32000/);
 });
 
-test('Auto: a course request is an Ask answer (no syllabus mode); only the table of contents conversation resolves to tutor', () => {
-  for (const text of ['make me a course on knife skills for home cooking', 'Can you plan a syllabus for tax law basics?', 'What is a roux?', 'I want to learn music theory'])
-    assert.deepEqual(resolveMode({ mode: 'auto', command: null }, text), { mode: 'ask', maybe: false }, text);
+test('Auto: only an explicit course request enters Tutor, across unrelated subjects; a topic word or a question never does', () => {
+  const asks = [
+    'make me a course on knife skills for home cooking', 'Can you plan a syllabus for tax law basics?', 'build a learning path for linked lists',
+    "I'd like a short study plan for music theory", 'Please create a 4 week beginner curriculum on sourdough baking', 'Turn these notes into a course',
+    'ok, help me design a curriculum covering capital gains tax', 'I want a course about chord progressions.',
+  ];
+  for (const text of asks) assert.equal(courseIntent(text), 'course', text);
+  const answers = [
+    'cooking', 'What is a roux?', 'how do I build a course on tax law?', "I'm taking a course on linked lists, why is insertion O(1)?",
+    'Explain the circle of fifths', 'Create a linked list in Python', 'Make pasta carbonara for me step by step', 'Is a syllabus required for tax law exams?',
+    'What makes a good curriculum?', 'tax law', 'music theory course', 'Should I take a course on linked lists?',
+  ];
+  for (const text of answers) assert.notEqual(courseIntent(text), 'course', text);
+  assert.equal(courseIntent('I want to learn music theory'), 'maybe');
+  assert.deepEqual(resolveMode({ mode: 'auto', command: null }, 'make me a course on knife skills'), { mode: 'tutor', maybe: false });
+  assert.deepEqual(resolveMode({ mode: 'auto', command: null }, 'What is a roux?'), { mode: 'ask', maybe: false });
+  assert.deepEqual(resolveMode({ mode: 'auto', command: null }, 'I want to learn music theory'), { mode: 'ask', maybe: true });
   assert.equal(resolveMode({ mode: 'ask', command: null }, 'make me a course on tax law').mode, 'ask', 'Ask is never a syllabus');
   assert.equal(resolveMode({ mode: 'tutor', command: 'diagram' }, 'make me a course on tax law').mode, 'ask', 'a command keeps its capability');
-  assert.equal(resolveMode({ mode: 'tutor', command: null }, 'linked lists').mode, 'tutor', 'the table of contents conversation keeps its mode');
-  assert.equal(resolveMode({ mode: 'tutor', command: null, contextRefs: [{ kind: 'progress' }] }).mode, 'ask', 'a progress question is a question in every mode');
-  assert.equal('courseIntent' in chatModes, false);
-  assert.equal('validateSyllabus' in chatModes, false);
+  assert.equal(resolveMode({ mode: 'tutor', command: null }, 'linked lists').mode, 'tutor');
+});
+
+test('a syllabus is the journey path shape: its version-1 draft passes the journey validator unchanged', () => {
+  const refs = [ref(), ref({ sourceId: 'card:shape:a', kind: 'card', name: 'Card', text: 'never stored' })];
+  const checked = validateSyllabus({ goal: 'Read a tax return', topics: [
+    { id: 'a', title: 'Income', objectives: ['Name the income types'], refs: ['doc:ctx:0123456789ab', 'doc:unknown'] },
+    { id: 'b', title: 'Deductions', objectives: ['Tell a deduction from a credit', 'Apply the standard deduction'], refs: [{ sourceId: 'card:shape:a' }] },
+  ] }, refs);
+  assert.equal(checked.ok, true);
+  assert.deepEqual(checked.value.topics.map(t => t.refs.map(r => r.sourceId)), [['doc:ctx:0123456789ab'], ['card:shape:a']]);
+  assert.equal(checked.value.topics[1].refs[0].text, undefined);
+  const path = syllabusPath(checked.value);
+  assert.equal(pathOutput({ path, concepts_added: { concepts: {}, claims: {} } }, { registry: { concepts: {}, claims: {} }, source: 'draft' }).ok, true, 'what pathOutput (planPath) accepts');
+  assert.equal(path.sections[1].purpose, 'Tell a deduction from a credit; Apply the standard deduction');
+  for (const s of [{ topics: [] }, { goal: 'g', topics: [] }, { goal: 'g', topics: [{ title: 't'.repeat(81), objectives: ['o'] }] }, { goal: 'g', topics: [{ title: 't', objectives: [] }] }, { goal: 'g', topics: [{ id: 'x', title: 't', objectives: ['o'] }, { id: 'x', title: 'u', objectives: ['o'] }] }]) {
+    assert.equal(validateSyllabus(s).ok, false, JSON.stringify(s).slice(0, 80));
+  }
 });
 
 test('chat context: summary and refs ride bounded, selection text as evidence, after the canvas scope', () => {
@@ -223,6 +252,85 @@ test('doc refs name exactly the context documents that ride; no context_refs kee
   assert.equal((await f.ask({ message: 'q', mode: 'nope' })).res.status, 400);
 });
 
+// R4 contract C9 (owner decisions 2A, 3A, 5B): topics gain a description and subtopics for the table of contents; a journey
+// stays flat (purpose = description, else objectives), and an old syllabus without either keeps exactly its shape.
+test('a syllabus topic may carry a description and up to 6 subtopics; the journey path stays flat', () => {
+  const checked = validateSyllabus({ goal: 'Read a tide table', topics: [
+    { id: 'a', title: 'Tides', description: ' Why the sea rises and falls twice a day. ', objectives: [], subtopics: [{ title: ' The moon ', description: 'Its pull makes the bulges.' }, { id: 'sun', title: 'The sun' }] },
+    { id: 'b', title: 'Tables', objectives: ['Read a height'] },
+  ] });
+  assert.equal(checked.ok, true, JSON.stringify(checked.errors));
+  assert.deepEqual(checked.value.topics[0], { id: 'a', title: 'Tides', description: 'Why the sea rises and falls twice a day.', objectives: [], subtopics: [{ id: 'a.1', title: 'The moon', description: 'Its pull makes the bulges.' }, { id: 'sun', title: 'The sun' }], refs: [] });
+  assert.deepEqual(checked.value.topics[1], { id: 'b', title: 'Tables', objectives: ['Read a height'], refs: [] }, 'no description or subtopics: the old shape');
+  const path = syllabusPath(checked.value);
+  assert.deepEqual(path.sections.map(section => [section.id, section.purpose]), [['a', 'Why the sea rises and falls twice a day.'], ['b', 'Read a height']]);
+  assert.equal(pathOutput({ path, concepts_added: { concepts: {}, claims: {} } }, { registry: { concepts: {}, claims: {} }, source: 'draft' }).ok, true);
+  const topic = { title: 't', objectives: ['o'] };
+  for (const bad of [
+    { ...topic, description: 'x'.repeat(241) },
+    { ...topic, subtopics: Array.from({ length: 7 }, (_, i) => ({ title: `s${i}` })) },
+    { ...topic, subtopics: [{ title: ' ' }] },
+    { ...topic, subtopics: [{ title: 'x'.repeat(81) }] },
+    { ...topic, subtopics: [{ title: 's', description: 'x'.repeat(241) }] },
+    { ...topic, subtopics: [{ id: 'd', title: 's' }, { id: 'd', title: 'u' }] },
+    { ...topic, subtopics: 'not a list' },
+  ]) assert.equal(validateSyllabus({ goal: 'g', topics: [bad] }).ok, false, JSON.stringify(bad).slice(0, 80));
+});
+
+test('Tutor: the model\'s descriptions and subtopics are clipped to their limits and given ids, never a reason to lose the syllabus', async t => {
+  const f = fixture(t);
+  f.replies.push(`A plan.\n<answer_meta>${JSON.stringify({ syllabus: { goal: 'Read a tide table', topics: [
+    { title: 'Tides', description: 'd'.repeat(300), objectives: ['Explain the bulges'], subtopics: [...Array.from({ length: 7 }, (_, i) => ({ title: `Part ${i + 1}`, description: i ? undefined : 'The first part.' })), { title: ' ' }] },
+    { title: 'Tables', objectives: ['Read a height'] },
+  ] } })}</answer_meta>`);
+  const { events } = await f.ask({ message: 'make me a syllabus on tides', mode: 'tutor' });
+  const { syllabus } = events.find(e => e.event === 'answer_meta').data;
+  assert.equal(syllabus.topics[0].description.length, 240);
+  assert.deepEqual(syllabus.topics[0].subtopics.map(u => u.id), ['t1.1', 't1.2', 't1.3', 't1.4', 't1.5', 't1.6']);
+  assert.deepEqual(syllabus.topics[0].subtopics[0], { id: 't1.1', title: 'Part 1', description: 'The first part.' });
+  assert.deepEqual(syllabus.topics[1], { id: 't2', title: 'Tables', objectives: ['Read a height'], refs: [] });
+  assert.match(TUTOR_SYSTEM, /"subtopics"/);
+  assert.match(TUTOR_SYSTEM, /"description"/);
+});
+
+test('Tutor: a syllabus answer is kind syllabus with journey-shaped topics; a missing goal is one clarify question', async t => {
+  const f = fixture(t);
+  const refs = [ref({ name: 'Notes.pdf' })];
+  f.replies.push(`Here is a plan.\n<answer_meta>${JSON.stringify({ followUps: [], syllabus: { goal: 'Cook weeknight dinners', topics: [{ title: 'Knife skills', objectives: ['Dice an onion'], refs: ['doc:ctx:0123456789ab', 'doc:invented'] }, { title: 'Sauces', objectives: ['Make a roux'] }] } })}</answer_meta>`);
+  const { events } = await f.ask({ message: 'make me a course on cooking', mode: 'auto', context_refs: refs });
+  const meta = events.find(e => e.event === 'answer_meta').data;
+  assert.equal(meta.kind, 'syllabus');
+  assert.deepEqual(meta.syllabus, { journeyId: null, goal: 'Cook weeknight dinners', topics: [
+    { id: 't1', title: 'Knife skills', objectives: ['Dice an onion'], refs },
+    { id: 't2', title: 'Sauces', objectives: ['Make a roux'], refs: [] },
+  ] });
+  assert.match(f.calls[0].system, /Tutor mode/);
+  const stored = JSON.parse(f.rows("SELECT meta_json FROM chat_message_meta WHERE role = 'assistant'")[0].meta_json);
+  assert.equal(stored.mode, 'tutor');
+  assert.deepEqual(stored.syllabus, meta.syllabus);
+  f.replies.push('What level are you starting from?\n<answer_meta>{}</answer_meta>');
+  const clarify = await f.ask({ message: 'plan me a syllabus', mode: 'tutor', thread_id: events.at(-1).data.threadId });
+  assert.equal(clarify.events.find(e => e.event === 'answer_meta').data.kind, 'clarify');
+  assert.equal(TUTOR_SYSTEM.includes('cooking'), false, 'no topic in the prompt');
+});
+
+test('Tutor plans only: one call with no tools, so no reader opens and no card lands; an overlong objective or an untitled topic never loses the syllabus', async t => {
+  const f = fixture(t);
+  f.replies.push(`A two-topic path.\n<answer_meta>${JSON.stringify({ syllabus: { goal: 'Read a tide table', topics: [{ title: ' ', objectives: ['dropped'] }, { title: 'Tides', objectives: ['x'.repeat(300)] }, { title: 'Spring and neap', objectives: ['Explain spring tides'] }] } })}</answer_meta>`);
+  const { events } = await f.ask({ message: 'I am a beginner; make me a syllabus on ocean tides', mode: 'tutor' });
+  assert.deepEqual(events.map(e => e.event), ['chunk', 'answer_meta', 'done'], 'no wiki, video, paper, outline or progress event');
+  assert.equal(f.calls.length, 1);
+  assert.equal('tools' in f.calls[0] || 'tool_choice' in f.calls[0], false, 'no tool is offered, so none can run');
+  assert.doesNotMatch(f.calls[0].system, /search_arxiv/, 'the paper research prompt stays out');
+  const meta = events[1].data;
+  assert.equal(meta.kind, 'syllabus');
+  assert.deepEqual(meta.syllabus.topics.map(topic => [topic.id, topic.title, topic.objectives[0].length]), [['t1', 'Tides', 240], ['t2', 'Spring and neap', 20]]);
+  assert.match(TUTOR_SYSTEM, /the trailer always carries the syllabus/);
+  // Ask keeps its tools: the Wikipedia reader is offered there.
+  await f.ask({ message: 'What causes tides?', mode: 'ask' });
+  assert.ok(f.calls[1].tools.some(tool => tool.name === 'show_wikipedia'));
+});
+
 // R4 owner decisions 4A and 5B, contract C4 and C6: with a table of contents, Tutor's one tool is the outline proposal, made
 // against the headings this turn sent (the learner's manual edits included), and the proposal comes back with that
 // revision as its base. An ordinary question proposes nothing. Stub model: no paid call.
@@ -249,7 +357,7 @@ test('Tutor with contents: the outline proposal is its one tool, the headings ri
   assert.equal(plain.events.some(e => e.event === 'outline'), false, 'an ordinary question proposes nothing');
   f.replies.push('A plan.\n<answer_meta>{}</answer_meta>');
   await f.ask({ message: 'make me a syllabus on tides', mode: 'tutor' });
-  assert.equal((f.calls.at(-1).tools || []).some(tool => tool.name === 'propose_lesson_outline'), false, 'without contents Tutor offers no outline tool');
+  assert.equal('tools' in f.calls.at(-1), false, 'without contents Tutor still offers no tool');
   assert.equal(f.calls.at(-1).system.includes(TUTOR_OUTLINE_SYSTEM), false);
 });
 
@@ -300,7 +408,7 @@ test('past 120 headings a chat turn still answers; the model hears the count, Tu
   f.replies.push('The table of contents is too large (121 headings, over 120) for me to edit; you can edit it in the Table of contents panel.\n<answer_meta>{}</answer_meta>');
   const tutor = await f.ask({ message: 'add a section on positional encoding', mode: 'tutor', outlineOmitted: { count: 121 } });
   assert.equal(tutor.res.status, 200);
-  assert.equal((f.calls[1].tools || []).some(tool => tool.name === 'propose_lesson_outline'), false, 'Tutor offers no outline tool');
+  assert.equal('tools' in f.calls[1], false, 'Tutor offers no outline tool');
   assert.equal(f.calls[1].system.includes(TUTOR_OUTLINE_SYSTEM), false);
   assert.match(JSON.stringify(f.calls[1].messages), /say once, in one sentence, that the table of contents is too large \(121 headings, over 120\)/);
   assert.equal(tutor.events.some(e => e.event === 'outline'), false);
@@ -351,7 +459,7 @@ test('canvas_context: every mode and any wording carries the same board block an
     assert.ok(JSON.stringify(call.messages.at(-1)).includes(JSON.stringify(block).slice(1, -1)), `${turns[i][1]}: the block rides whole`);
     assert.ok(call.system.includes(CANVAS_CONTEXT_RULES), `${turns[i][1]}: the rules ride`);
   });
-  assert.doesNotMatch(f.calls[3].system, /Tutor mode/, 'a course request in Auto is an ordinary answer (no syllabus mode)');
+  assert.match(f.calls[3].system, /Tutor mode/, 'Auto entered Tutor: the mode changes the workflow, not the context');
   f.replies.push('Answer.');
   await f.ask({ message: 'What am I missing in this canvas?', mode: 'ask' });
   assert.equal(JSON.stringify(f.calls.at(-1)).includes('CANVAS CONTEXT (built'), false, 'no package: nothing is added');
@@ -488,6 +596,33 @@ test('a long thread asks for a summary in the trailer, stores it versioned, then
   assert.deepEqual(later.constraints, ['Use metric units.'], 'a constraint the model dropped is kept');
 });
 
+test('PUT syllabus: the owner saves an edited syllabus over the answer meta, validated as the trailer is; anyone else gets 404', async t => {
+  const { chatSyllabusFetch } = await import('../src/chat-syllabus-route.js');
+  const f = fixture(t);
+  const refs = [ref()];
+  f.replies.push(`Plan.\n<answer_meta>${JSON.stringify({ syllabus: { goal: 'Learn linked lists', topics: [{ title: 'Nodes', objectives: ['Draw a node'] }] } })}</answer_meta>`);
+  const { events } = await f.ask({ message: 'build a learning path for linked lists', mode: 'auto', context_refs: refs });
+  const id = events.at(-1).data.messageId;
+  const put = (body, user = owner, path = `/api/learn/chat/messages/${id}/syllabus`, method = 'PUT') => chatSyllabusFetch(new Request(`https://dev.test${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), f.env, { identity: async () => user });
+  const topics = [{ id: 't2', title: 'Pointers', objectives: ['Follow next'], refs: [refs[0].sourceId, 'doc:other'] }, { id: 't1', title: 'Nodes, renamed', objectives: ['Draw a node', 'Name its fields'], refs: [] }];
+  const saved = await put({ topics });
+  assert.equal(saved.status, 200);
+  const expected = { journeyId: null, goal: 'Learn linked lists', topics: [{ ...topics[0], refs }, topics[1]] };
+  assert.deepEqual((await saved.json()).syllabus, expected);
+  const stored = JSON.parse(f.rows(`SELECT meta_json FROM chat_message_meta WHERE message_id = ${id}`)[0].meta_json);
+  assert.deepEqual(stored.syllabus, expected);
+  assert.equal(stored.kind, 'syllabus', 'the rest of the meta is kept');
+  assert.equal((await put({ topics: [{ id: 'a', title: 'x'.repeat(81), objectives: ['o'] }] })).status, 400);
+  const described = [{ id: 't1', title: 'Nodes', description: 'What a node holds.', objectives: ['Draw a node'], subtopics: [{ id: 't1.1', title: 'Fields' }], refs: [] }];
+  assert.deepEqual((await (await put({ topics: described })).json()).syllabus.topics, described, 'a description and subtopics survive an edit');
+  assert.equal((await put({ topics: [] })).status, 400);
+  assert.equal((await put({ topics }, { ...owner, email: 'other@example.test' })).status, 404);
+  assert.equal((await put({ topics }, owner, '/api/learn/chat/messages/99999/syllabus')).status, 404);
+  assert.equal((await put({ topics }, owner, `/api/learn/chat/messages/${events.at(-1).data.userMessageId}/syllabus`)).status, 404, 'a user message has no syllabus');
+  assert.equal((await put({ topics }, owner, `/api/learn/chat/messages/${id}/syllabus`, 'POST')).status, 405);
+  assert.equal(await chatSyllabusFetch(new Request('https://dev.test/api/learn/ask'), f.env), null);
+});
+
 // Live 2026-10-14: the model answered beside a Wikipedia tool call, then closed with only the trailer; the answer was lost.
 test('an answer written beside a show tool call survives a final turn that holds only the trailer', async t => {
   const f = fixture(t);
@@ -571,7 +706,7 @@ test('a progress ref rides every mode as a read-only question: its evidence reac
     const sent = JSON.stringify(f.calls.at(-1));
     assert.match(sent, /PROGRESS QUESTION \(read-only\)/, `${mode}: the progress block reaches the model`);
     assert.match(sent, /fit met, reasoning supported, help assisted/, `${mode}: the learner's own observation is in it`);
-    assert.doesNotMatch(sent, /Tutor mode/, `${mode}: a progress question never plans a syllabus, even worded as a course request`);
+    assert.doesNotMatch(sent, /Tutor mode: syllabus creation/, `${mode}: a progress question never plans a syllabus, even worded as a course request`);
   }
   assert.equal(JSON.stringify(f.rows('SELECT * FROM learn_assessments').concat(f.rows('SELECT * FROM learn_observations'))), before, 'nothing was assessed');
   const metas = f.rows("SELECT meta_json FROM chat_message_meta WHERE role = 'user'").map(r => JSON.parse(r.meta_json));

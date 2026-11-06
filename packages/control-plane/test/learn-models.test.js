@@ -161,11 +161,24 @@ test('the task configuration states what the requests above carry, and the limit
   assert.deepEqual([RESEARCH_STEPS, ARTIFACT_REPAIRS, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES], [8, 1, 7, 2]);
 });
 
-// The five journey roles were removed with the journeys (Tutor cleanup P4); the hook planner roles follow home_ask, then
-// the /explain roles (EXP-T12; their values: explain-policy.test.js).
-test('the journey roles are gone; the hook planner roles follow home_ask', () => {
-  assert.deepEqual(Object.keys(LEARN_TASKS).filter(key => key.startsWith('journey_')), []);
-  assert.deepEqual(Object.keys(LEARN_TASKS).slice(Object.keys(LEARN_TASKS).indexOf('home_ask'), -2), ['home_ask', 'tutor_next_steps', 'tutor_next_steps_escalation', 'explore_find', 'explain_brief', 'explain_author', 'explain_review', 'explain_repair', 'animation_brief', 'animation_author', 'animation_review', 'animation_repair', 'whiteboard_plan', 'whiteboard_author']);
+// The five journey roles (adaptive-learning-path-v1-architecture.md §11), moved here from learn-journey-planners.js by
+// LP1 Task 7 with identical entries: Sonnet 5.5 at effort low, Opus 5.5 at its default effort for the path draft.
+test('the journey roles: exactly five LEARN_TASKS entries, one tool each, no fallback, effort low except the path draft', () => {
+  const role = (model, effort, maxTokens) => ({ provider: 'anthropic', model, effort, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens });
+  const journey = Object.fromEntries(Object.entries(LEARN_TASKS).filter(([key]) => key.startsWith('journey_')));
+  assert.deepEqual(journey, {
+    journey_resolver: role('claude-sonnet-5-5', 'low', 300),
+    // Final review A-I1: room for Opus thinking plus a whole registry when a draft starts from an empty one (fast start,
+    // a quick overview: no diagnostic).
+    journey_diagnostic: role('claude-sonnet-5-5', 'low', 8000),
+    journey_path: role('claude-opus-5-5', null, 12000),
+    journey_section: role('claude-sonnet-5-5', 'low', 3000),
+    journey_adapt: role('claude-sonnet-5-5', 'low', 4000),
+  });
+  assert.ok(Object.values(journey).every(Object.isFrozen));
+  // Appended after the Avatar roles, which stay; the hook planner roles follow the journey block, then the /explain roles
+  // (EXP-T12; their values: explain-policy.test.js).
+  assert.deepEqual(Object.keys(LEARN_TASKS).slice(Object.keys(LEARN_TASKS).indexOf('home_ask'), -2), ['home_ask', ...Object.keys(journey), 'tutor_next_steps', 'tutor_next_steps_escalation', 'explore_find', 'explain_brief', 'explain_author', 'explain_review', 'explain_repair', 'animation_brief', 'animation_author', 'animation_review', 'animation_repair', 'whiteboard_plan', 'whiteboard_author']);
 });
 
 // Professor Next Steps (docs/features/professor-next-steps.md §2.4): Sonnet low first, Opus once as the escalation; the

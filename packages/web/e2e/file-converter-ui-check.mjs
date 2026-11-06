@@ -26,7 +26,7 @@ try{for(const [label,path,type,marker] of fixtures.filter(f=>!process.env.ONLY||
   await api(board,{method:'PUT',body:JSON.stringify({state:{...empty,blocks:[card]},version:(await api(board)).version})});
   const open=async()=>{
    context=await browser.newContext({viewport:{width:1600,height:1000}});await context.addCookies([{name:'small_session',value:session,url:BASE}]);
-   for(const path of ['ask','selection','artifact','home-ask','course','media'])await context.route('**/api/learn/'+path,r=>r.abort());
+   for(const path of ['ask','selection','tutor/plan','artifact','home-ask','journey','course','media'])await context.route('**/api/learn/'+path,r=>r.abort());
    await context.route('**/api/learn/tutor/next-steps',r=>r.fulfill({json:{steps:[]}}));
    const page=await context.newPage();page.on('response',async r=>{if(r.url().includes('/api/learn/files')&&r.status()>=400)console.log('HTTP '+r.status()+' '+new URL(r.url()).pathname);if(r.url().includes('/api/learn/files/jobs/')){const b=await r.json().catch(()=>null);if(b?.job)console.log('JOB '+JSON.stringify({id:b.job.id,state:b.job.state,error:b.job.error,attempt:b.job.attempt}));}});page.on('pageerror',e=>{errors.push(e.message);console.log('PAGEERROR '+label+' '+e.message);});await page.goto(BASE+'/apps/'+canvas.name);
    if(label==='audio'){

@@ -366,10 +366,11 @@ await check('4c revoking the share and removing the publication refuse every lat
 });
 
 // Reading cards calls no model: the card and file routes are plain reads. The page's own Professor Next Steps hook on a shared
-// canvas (LearnNextSteps.jsx useSharedNextSteps; signed in only since the owner R3 decision, 2026-10-16) is page behavior from
-// before this change, at most once per page opened, never per card; anything else model-capable fails the run.
-await check('no card read called a model-capable route; only the page-level Next Steps hook, once per page', async () => {
-  const pageLevel = facts.model.filter(r => /^POST \/api\/learn\/boards\/shared\/[^/]+\/next-steps$/.test(r));
+// canvas (LearnNextSteps.jsx useSharedNextSteps; signed in only since the owner R3 decision, 2026-10-16) and the owner canvas's
+// journey read are page behavior from before this change, at most once per page opened, never per card; anything else
+// model-capable fails the run.
+await check('no card read called a model-capable route; only the page-level Next Steps hook and journey read, once per page', async () => {
+  const pageLevel = facts.model.filter(r => /^POST \/api\/learn\/boards\/shared\/[^/]+\/next-steps$/.test(r) || r === 'GET /api/learn/journey');
   assert.deepEqual(facts.model.filter(r => !pageLevel.includes(r)), []);
   assert.ok(pageLevel.length <= facts.opens, `${pageLevel.length} page-level calls for ${facts.opens} pages`);
 });

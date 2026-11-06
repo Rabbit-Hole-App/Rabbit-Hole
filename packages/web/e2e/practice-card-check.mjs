@@ -11,13 +11,7 @@
 // Usage: TUTOR_BASE=http://127.0.0.1:8868 SMALL_CP=http://127.0.0.1:8869 TEST_BYPASS_SECRET=... node e2e/practice-card-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
-import * as weightedValues from '../src/nanogpt/cards/c10-weighted-values.js';
-import * as causalMask from '../src/nanogpt/cards/c11-causal-mask.js';
-
-// Tutor cleanup P4: the slice board and its claim registry (learn-tutor-claims.js) are gone; the two cards this check answers
-// are drawn on the nanoGPT deep dive review board, and their modules are read directly.
-const TUTOR_BOARD = 'nanogpt-deep-dive';
-const cardModule = id => ({ 'c10-weighted-values': weightedValues, 'c11-causal-mask': causalMask })[id];
+import { TUTOR_BOARD, cardModule } from '../src/learn-tutor-claims.js';
 
 const BASE = process.env.TUTOR_BASE || 'http://127.0.0.1:8788';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8790';
