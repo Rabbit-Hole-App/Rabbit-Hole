@@ -56,7 +56,6 @@ import FileImportDialog from './FileImportDialog.jsx';
 import { useDocImport } from './DocImport.jsx';
 import PdfAddDialog from './PdfAddDialog.jsx';
 import { pdfBytesUrl, pdfKeyOfRef } from './pdf-source.js';
-import { EXPLAIN_PASSAGE_EVENT } from './source-ref.js';
 import { PDF_PAGE_MAX, readPageTexts } from './context-doc-pages.js';
 import { checkImport, codeBlock, importBlock, importKind, pasteBlock, pasteName } from './learn-file-import.js';
 import { insertCodeCard } from './code-card.js';
@@ -1120,12 +1119,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // stamp: fields the pending card carries from its maker (a Tutor activity's tutor_action and coaching, learn-coaching-materials.js).
   // thread: a promise of the chat thread the line was saved in (or its id); else this canvas's open chat thread, so a brief
   // that needs review has a place to appear. refs: ContextRef[] (refsForSend), resolved by the server, never read as given.
-  const startExplain = async (prompt, { context = null, image = null, promptUsed = prompt, source = 'explicit', stamp = null, thread = null, refs = null, sourceRef = null } = {}) => {
+  const startExplain = async (prompt, { context = null, image = null, promptUsed = prompt, source = 'explicit', stamp = null, thread = null, refs = null } = {}) => {
     if (explainOff.current || !commentBoard || !prompt.trim()) return null;
     // shortcut: a line save slower than 5 s goes on without its thread (the open one, if any); the job never waits longer.
     const threadId = (await Promise.race([Promise.resolve(thread).catch(() => null), new Promise(done => setTimeout(done, 5000, null))])) || chat?.thread?.id || null;
     const payload = { prompt, requestClass: 'simple', source, ...(context ? { context: { text: context } } : {}), ...(image ? { image_context: { id: image }, image_role: 'layout_reference' } : {}),
-      ...(threadId ? { threadId } : {}), ...(refs?.length ? { context_refs: refs } : {}), ...(sourceRef ? { sourceRefId: sourceRef } : {}) };
+      ...(threadId ? { threadId } : {}), ...(refs?.length ? { context_refs: refs } : {}) };
     let result;
     try { result = await submitCadOnce(explainRequests.current, JSON.stringify({ board: commentBoard, ...payload }), explainClient(api, commentBoard).create, payload); }
     catch (error) { if (explainDisabled(error)) { explainOff.current = true; return null; } throw error; }
@@ -1198,15 +1197,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // EXP-T21: the Tutor (a turn's create_material, a coaching activity's material) opens the same job and card, read through a ref
   // so its long-lived callbacks see this render's canvas.
   startExplainRef.current = startExplain;
-  // R3: Explain on a selected Markdown passage (FileDocMarkdown.jsx). The ref id was minted by the server for this learner.
-  useEffect(() => {
-    const onPassage = event => {
-      const { sourceRef, text } = event.detail || {};
-      if (sourceRef && text) Promise.resolve(startExplainRef.current?.('Explain this passage', { context: text, sourceRef })).catch(error => toast(error.message));
-    };
-    window.addEventListener(EXPLAIN_PASSAGE_EVENT, onPassage);
-    return () => window.removeEventListener(EXPLAIN_PASSAGE_EVENT, onPassage);
-  }, []);
   // Ctrl+K Edit on an Explanation (EXP-T20 slice 2): an edit job bound to the card and the revision the learner saw; the card
   // shows its stage, then Current / Proposed with Apply changes and Discard (ExplainEditBar).
   const startExplainEdit = async (block, instruction) => {
