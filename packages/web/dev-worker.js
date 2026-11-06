@@ -54,6 +54,7 @@ import { journeyRoute } from '../control-plane/src/learn-journey.js';
 import { coachingRoute } from '../control-plane/src/learn-coaching-routes.js';
 import { codebaseRoute } from '../control-plane/src/learn-codebase-source-map.js';
 import { attemptRoute } from '../control-plane/src/learn-attempt-routes.js';
+import { cardFeedbackRoute } from '../control-plane/src/card-feedback-routes.js';
 import { homeAskFetch } from '../control-plane/src/learn-home-ask.js';
 import { voiceRoute } from '../control-plane/src/learn-voice-routes.js';
 import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
@@ -317,6 +318,8 @@ const routes = {
     if (path.startsWith('/api/learn/tutor/')) { const tutored = await tutorRoute(path, req, env); if (tutored) return tutored; }
     // Submitted attempts and their assessments (learn-migrations/0026): the signed-in learner's own records only.
     if (path.startsWith('/api/learn/tutor/attempts')) { const attempted = await attemptRoute(path, req, env); if (attempted) return attempted; }
+    // Card feedback (R1, learn-migrations/0036): the signed-in owner's private rating of a generated card.
+    if (path === '/api/learn/card-feedback') { const rated = await cardFeedbackRoute(path, req, env); if (rated) return rated; }
     if (path.startsWith('/api/learn/journey')) { const routed = await journeyRoute(path, req, env); if (routed) return routed; }
     // Personal Tutor controls and goals (learn-migrations/0025): the signed-in learner's own state only.
     if (path === '/api/learn/coaching') return coachingRoute(path, req, env);
