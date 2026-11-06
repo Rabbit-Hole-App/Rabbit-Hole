@@ -43,3 +43,53 @@ If the P4 recovery branch (`feat/tutor-p4-release-recovery-2`) is ever used in a
 
 * The real wrangler `--json` output of a remote `--command` SELECT/UPDATE was read from the existing owner launchers (`apply-prod-migrations-tutor.sh`), not run; `parseWrangler` takes the JSON from the first line that starts with `[`. The first `check` on dev is the proof; it writes nothing.
 * The launcher cannot tell that P4 is live in an environment; the typed phrase is the attestation.
+
+# P6b: the schema-source commit and the table drop (one window)
+
+Branch `feat/tutor-cleanup-p6b`, stacked on P6a. Nothing here has been run.
+
+## What the P6b commit contains
+
+* `repository-schema.sql` loses the `CREATE` statements (and indexes) of `learn_grades`, `learning_journeys`, `learning_path_versions`, `tutor_eval_executions`, `tutor_eval_artifacts`, `tutor_eval_artifact_chunks`; `learn-migrations/0006-learning-journeys.sql` and `0017-tutor-eval-archive.sql` are deleted (their content was already in the consolidated file; no kept table references them). Learn migrations stay additive: nothing non-additive was written (`scripts/schema-check.test.mjs`).
+* `scripts/learn-retire-tutor-data.mjs` gains `retire` (the ordered steps), `scripts/learn-retire-tutor-runner.mjs` gains `window-check` and `retire`, with their tests (`scripts/learn-retire-tutor-runner.test.mjs`, a fixture of the retired DDL in `scripts/fixtures/learn-retired-tables.sql`).
+* Test references to the dropped tables are gone (`shared-canvas-privacy.test.js` seed list, a fixture comment).
+
+## What the release job reports (read from `scripts/prod-release.mjs` `schemaBlockers` and `scripts/schema-check.mjs`)
+
+The preflight compares the live `rabbit-hole-learn-prod` schema with the schema built from the candidate's sources, in both directions. The difference between P6a and P6b is exactly 13 objects (computed with the same functions, not estimated): tables `learn_grades`, `learning_journeys`, `learning_path_versions`, `tutor_eval_artifact_chunks`, `tutor_eval_artifacts`, `tutor_eval_executions`; indexes `idx_learn_grades_created`, `idx_learn_grades_learner`, `learning_journeys_live`, `tutor_eval_artifacts_kind`, `tutor_eval_executions_date`, `tutor_eval_executions_sha`, `tutor_eval_executions_topic`.
+
+| Moment | `prepare` of | Reports |
+| --- | --- | --- |
+| Before the drop | P6b | `blocked:` then 13 lines `rabbit-hole-learn-prod schema: unexpected table:learn_grades` ... (`unexpected index:...`), then `each migration needs the owner's GO; this job never applies one`. Nothing is deployed. |
+| After the drop | any commit before P6b (P6a, the P6a recovery branch, any Tutor release not rebased on P6b) | the same 13 lines as `missing table:...` / `missing index:...`. Nothing is deployed. |
+| After the drop | P6b (or a descendant) | no schema blocker. |
+
+So the window order is forced: drop, then release P6b, with nothing else released in between. The automatic matched rollback of a failed P6b release returns to the P6a pair, which does not query the dropped tables.
+
+## Window order (production; dev first on the same steps)
+
+0. Before the window: P6a is released and served in this environment (the P6a build is the previous pair in the release receipt); the backfill receipt exists; the P6b candidate is rebased on current `main` (see below), previewed under the MVP fast path (build, affected tests, smoke, record), and `feat/tutor-cleanup-p6b-recovery` is pushed and descends from it; no other production release is queued; the owner has not set `MVP_ALLOWED_SHA` yet.
+1. `scripts\learn-retire-tutor.cmd prod window-check` (read-only). It refuses on: a modified checkout; a P6b recovery branch that does not descend from HEAD; any query of a retired table in the Worker source (the `git grep` of v0.5 6.5 step 5 (ii)) at HEAD, at the P6a commit or on the recovery tip; a missing backfill receipt; verify not 0; any live-schema difference other than the 13 retired objects (a migration the checkout's base lacks, for example). It prints the counts (`journeys`, `path_versions`, `grades`, eval rows, `goals_to_archive`, `placeholder_goals_to_delete`, `coaching_rows_to_clear`) and the ordered steps. Quote the output with the GO.
+2. Owner GO, quoting those counts.
+3. `scripts\learn-retire-tutor.cmd prod retire`, then type `RETIRE PROD` and `P6A SERVED`. On production it first deletes `rabbit-hole/feat/tutor-cleanup-p6a-recovery` (that branch restores code that joins the tables), then runs, one wrangler call each: the backfill again, clear the coaching pointers of placeholder goals, delete the placeholder goals, and the six drops (children first). It ends by running the preflight's own `schemaDiff` against this checkout: it must be empty, or the run fails with the diff and can be rerun (every step is idempotent). It writes `<env>-retire-done.json` beside the backfill receipt.
+4. Immediately: the owner sets `MVP_ALLOWED_SHA` for the P6b SHA, runs `C:\s\spec\release-queue\release-mvp.cmd <name>`, and deletes the variable. The release prints `MVP MODE`; its receipt names the P6a pair as `previous`.
+5. Record in the P7 receipt (`m0.md`): the counts, the typed GO, the retire output, the clean diff, the release receipt.
+
+The dev window is the same with `dev` (and `parallel` is the same database). It does not delete the P6a recovery branch. Because the dev D1 is shared by every clone, announce it first: a dev clone or branch that still runs code which queries the retired tables breaks as soon as step 3 finishes.
+
+## Recovery rules (v0.5 6.5 step 5)
+
+* Rollback below the P6a pair after the drop is not permitted: older code joins `learning_journeys`. The automatic matched rollback of the release job returns to the P6a pair and is the only supported one. The launcher text and step 3's second confirmation say so.
+* The P6b recovery branch `feat/tutor-cleanup-p6b-recovery` descends from the P6b commit, keeps the schema sources and every application file exactly as P6b has them, and only takes the `retire` tooling back to its P6a form, so a recovery release can never drop anything again and never mentions the retired tables in Worker source. A branch that does not descend from P6b fails the schema preflight (`missing ...`).
+* A D1 Time Travel restore across the drop (`wrangler d1 time-travel restore <db> --bookmark <the release receipt's bookmark>`) is destructive and a last resort: the six tables return and the P6b build's preflight then reports them `unexpected`. It needs its own plan and an owner GO.
+* Whether Cloudflare keeps Worker versions older than the P6a pair available to `wrangler rollback` is unverified; the rule does not depend on it.
+
+## Decisions and base for the owner
+
+* **N6 (new, recommended yes): the placeholder rule is stricter than v0.5 7.3 step 2.** Besides `origin = 'journey'` with no criterion, activity, attempt or observation, the launcher deletes a goal only if it is still `open` and was never touched since it was made (`revision = 0`). A placeholder the learner renamed or deleted through /goal, and the archived goal of an archived journey ("archived stays archived throughout"), are kept as dead rows. Without this, step 2 as written would also delete the archived placeholders the backfill just archived. `placeholder_goals_to_delete` in `count` is the stricter number.
+* **The P6b base.** `main` now carries the Tutor R4 migration `0039-roadmap-core.sql`; production's Learn D1 may already hold its tables (a production apply log exists; not read). The preflight needs the exact schema, so P6b must be rebased on current `main` before its preview (the schema commit touches only the three blocks above and does not overlap 0039). `window-check` names any difference it finds. Rebasing changes the SHA, the MVP record and the recovery branch; redo them.
+
+## Not verified
+
+* The launcher's real wrangler calls (remote `--command` per step, the `--json` output) were exercised only against a fake that runs the SQL on node:sqlite, never against D1. D1's handling of `DROP TABLE` on a parent with foreign-key children was not observed; the order is children first.
+* That the served production pair is the P6a build is an owner attestation (`P6A SERVED`), not a check.
