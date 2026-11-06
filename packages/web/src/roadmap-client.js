@@ -52,7 +52,7 @@ const newer = (held, next) => !held || !sameRoadmap(held, next) || next.roadmap.
 
 export function reduce(state, event) {
   switch (event.type) {
-    case 'view': return newer(state.view, event.view) ? { ...state, flag: 'on', view: event.view, notice: null } : state;
+    case 'view': if (!event.view?.roadmap) return { ...state, flag: 'on', view: null }; return newer(state.view, event.view) ? { ...state, flag: 'on', view: event.view, notice: null } : state;
     // 409: the response carries the current state; it replaces ours even when its revision looks lower (the server is the truth).
     case 'conflict': return { ...state, flag: 'on', view: event.current || state.view, notice: STRINGS.stale };
     // Anything else refused (credits, source changed): the sentence comes from the response; the proposal stays as the server has it.
@@ -180,6 +180,10 @@ export function tabAccepts(ctx) {
   if (ctx.blocked || ctx.editorOpen || ctx.presenting || ctx.readOnly) return false;
   return true;
 }
+
+// Who holds the keyboard for Tab: the page, the canvas surface or the proposal overlay itself. Any other focused control (toolbar,
+// ToC row, composer, panel) keeps its normal Tab meaning. active: document.activeElement (duck-typed for tests).
+export const keyboardOwned = active => !active || active.tagName === 'BODY' || active === active.ownerDocument?.documentElement || !!active.closest?.('[data-canvas-surface],[data-roadmap-overlay]');
 
 // --- idempotent delivery -------------------------------------------------------------------------------------------------
 // Results to deliver now: generated, not held, not yet delivered. The deliver route runs the entitlement predicate; a result that
