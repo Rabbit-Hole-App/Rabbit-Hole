@@ -1,4 +1,4 @@
-// R5.03: the learner's drag position of the proposal strip is kept per proposal version and clamped; the Chat reference shape is covered in inline-ai-proposal.test.mjs.
+// R5.03: the learner's drag position of the proposal strip is kept per proposal version and clamped.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDragStore, dragged } from './roadmap-proposal-context.js';

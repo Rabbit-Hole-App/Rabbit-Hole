@@ -14,11 +14,14 @@ export const roadmapEditEnabled = env => env?.ROADMAP_ENABLED === 'true' && env?
 const SCOPE = 'org = ? AND owner_user_id = ? AND board_id = ?';
 const scope = access => [access.org, access.actorUserId, access.boardId];
 export const readDraft = (db, access, draftId) => db.prepare(`SELECT * FROM learn_proposal_drafts WHERE id = ? AND ${SCOPE}`).bind(draftId, ...scope(access)).first();
-const view = d => ({ draftId: d.id, revision: d.revision, proposalId: d.proposal_id, proposalVersion: d.proposal_version, title: d.title, description: d.description, format: d.format, checkStatus: d.check_status });
+// Words that did not pass the safety screen are never shown back: a held draft carries only its identity and status.
+const view = d => ({ draftId: d.id, revision: d.revision, proposalId: d.proposal_id, proposalVersion: d.proposal_version, checkStatus: d.check_status,
+  ...(d.check_status === 'passed' ? { title: d.title, description: d.description, format: d.format } : {}) });
 
-// composeEdit({ access, roadmap, step, proposal, instruction }) -> { title, description, format } (roadmap-edit.js makeComposeEdit). screen(text) -> true when the
-// words pass the safety screen; absent, every validated edit passes (ponytail: the R4 classifier is not yet wired to proposal text).
-export async function saveProposalDraft(db, access, { roadmapId, proposalId, proposalVersion, instruction, actionKey, composeEdit, screen = null, now = nowSeconds() }) {
+// composeEdit({ access, roadmap, step, proposal, instruction }) -> { title, description, format } (roadmap-edit.js makeComposeEdit). screen(text, { role, access,
+// roadmap, proposal, actionKey }) -> true when the words pass the safety screen (roadmap-edit.js makeProposalScreen: the R4 classifier path). It is required: without
+// it nothing is composed (503). The learner's instruction is screened BEFORE composeEdit, so refused words cost no model call; the composed words are screened after.
+export async function saveProposalDraft(db, access, { roadmapId, proposalId, proposalVersion, instruction, actionKey, composeEdit, screen, now = nowSeconds() }) {
   const text = typeof instruction === 'string' ? instruction.trim() : '';
   if (!text || text.length > EDIT_LIMITS.instruction) throw new StateError('invalid_request', 'instruction is required', 400);
   const roadmap = await readRoadmap(db, access, roadmapId), proposal = await readProposal(db, access, proposalId);
@@ -29,6 +32,9 @@ export async function saveProposalDraft(db, access, { roadmapId, proposalId, pro
   if (replay) return replay;
   if (proposal.version !== proposalVersion || proposal.state !== 'pending' || proposal.stale || roadmap.state !== 'active') throw await currentConflict(db, access, roadmapId, 'proposal_not_pending');
   const step = await db.prepare('SELECT * FROM learn_roadmap_steps WHERE id = ?').bind(proposal.step_id).first();
+  if (typeof screen !== 'function') throw new StateError('edit_unavailable', 'Editing is not available right now.', 503);
+  const ctx = { access, roadmap, proposal, actionKey };
+  if (!(await screen(text, { ...ctx, role: 'learner' }))) throw new StateError('edit_rejected', 'That change could not be made.', 422);
   let edit;
   try { edit = await composeEdit({ access, roadmap, step, proposal, instruction: text }); } catch (error) {
     if (error?.code === 'edit_rejected') throw new StateError('edit_rejected', 'That change could not be made.', 422);
@@ -36,7 +42,7 @@ export async function saveProposalDraft(db, access, { roadmapId, proposalId, pro
   }
   const checked = validateEdit(edit);
   if (!checked.ok) throw new StateError('edit_rejected', 'That change could not be made.', 422);
-  const passed = screen ? !!(await screen(`${checked.edit.title}\n${checked.edit.description}`)) : true;
+  const passed = !!(await screen(`${checked.edit.title}\n${checked.edit.description}`, { ...ctx, role: 'output' }));
   const draft = { id: newId('pd_'), revision: 1, proposal_id: proposalId, proposal_version: proposalVersion, ...checked.edit, check_status: passed ? 'passed' : 'held' };
   return applyRoadmapAction(db, access, {
     operation: 'save_proposal_draft', actionKey, parts, bump: false, now, // a preview: the roadmap row does not change

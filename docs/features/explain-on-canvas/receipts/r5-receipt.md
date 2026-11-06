@@ -63,3 +63,10 @@ Learner-facing strings added (all NEW, pending owner approval; in `roadmap-strin
 ## Recovery
 
 `feat/tutor-r5-recovery`: one commit whose tree equals `feat/tutor-r6`'s tip (reverts R5 only).
+
+## Minimum follow-up (supersedes the Add to chat and safety-screen statements above)
+
+- Add to chat and the `proposal` ContextRef kind are removed from this branch (they broke the generation-review contract test); deferred. R5.03 keeps only the drag position.
+- Route gate: the 404 gate for draft and link paths now reads the decoded path segments (decoded until stable, case-insensitive, malformed escapes refused), so `%64rafts`, `%2564rafts`, `steps/%6Cink` and the rest answer 404 `not_found` before identity, any D1 statement, any screen or model call. The edit-off 404 is `not_found` (as if absent), so the web never reads it as `roadmap_disabled`.
+- Safety: the learner's instruction is screened (`learner` role) BEFORE the composer, so refused words cost no model call; the composed words are screened (`output`). Both go through R4's `screenText` over `makeClassify` over `platformJevAsk` (`roadmap-edit.js makeProposalScreen`, wired in `roadmap-wire.js`). No screen wired: 503. A held draft shows no words and cannot be applied in the UI. The D1 50-byte LIKE limit: the two `LIKE prefix%` reads in `roadmap-models.js` are now range reads.
+- Flag-aware web: with the edit flag on, every view carries `edit: true`; Edit, Ctrl/Cmd+K and the editor need it; Accept is disabled while the editor is open. Flag off: no new field.

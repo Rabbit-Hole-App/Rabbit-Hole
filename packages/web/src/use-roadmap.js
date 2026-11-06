@@ -53,7 +53,7 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto', 
       const { controller: current, pill: now } = live.current, h = hostRef.current || {};
       // R5: Ctrl/Cmd+K claims the editor only with the keyboard on the proposal overlay itself, so Quick Edit on a selected card is untouched.
       const editing = current.getState().editing;
-      if (opensEditor(event, { onProposal: !!now && !!document.activeElement?.closest?.('[data-roadmap-overlay]'), editorOpen: editing || !!h.editorOpen?.(), readOnly: !!h.readOnly?.() })) { event.preventDefault(); event.stopPropagation(); current.openEditor(); return; }
+      if (opensEditor(event, { onProposal: !!now?.canEdit && !!document.activeElement?.closest?.('[data-roadmap-overlay]'), editorOpen: editing || !!h.editorOpen?.(), readOnly: !!h.readOnly?.() })) { event.preventDefault(); event.stopPropagation(); current.openEditor(); return; }
       const blocked = !pageKeyAllowed(event) || !keyboardOwned(document.activeElement);
       if (!tabAccepts({ event, pill: now, blocked, editorOpen: editing || !!h.editorOpen?.(), presenting: !!h.presenting?.(), readOnly: !!h.readOnly?.() })) return;
       event.preventDefault();

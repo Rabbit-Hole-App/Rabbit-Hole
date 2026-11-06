@@ -1,4 +1,4 @@
-// Lead-only patch (scripts/ci/check-map.json): the R5 rows (proposal editing, Add to chat, existing-card links). Same textual method as apply-r4-check-map.mjs
+// Lead-only patch (scripts/ci/check-map.json): the R5 rows (proposal editing, existing-card links). Same textual method as apply-r4-check-map.mjs
 // and apply-r6-check-map.mjs (check-map.json has duplicate keys inside one object; edited by line, CRLF kept). Independent of the R6 script: apply either first.
 // Usage: node docs/features/explain-on-canvas/lead-patches/apply-r5-check-map.mjs [path-to-check-map.json]   (default: scripts/ci/check-map.json)
 // Idempotent: refuses when already applied.
@@ -13,7 +13,6 @@ export const ROWS = {
   [`${CP}src/roadmap/roadmap-edit.js`]: test('roadmap-proposal-drafts'),
   [`${CP}src/roadmap/roadmap-proposal-drafts.js`]: test('roadmap-proposal-drafts'),
   [`${CP}src/roadmap/roadmap-links.js`]: test('roadmap-links'),
-  [`${CP}src/roadmap/roadmap-proposal-context.js`]: test('roadmap-proposal-context'),
   [`${W}inline-ai-proposal.js`]: EDIT,
   [`${W}roadmap-proposal-context.js`]: EDIT,
 };
@@ -26,7 +25,7 @@ export const APPEND = {
   [`${CP}src/roadmap/roadmap-store.js`]: test('roadmap-proposal-drafts'),
   [`${CP}src/roadmap/roadmap-view.js`]: test('roadmap-links'),
   [`${CP}src/roadmap/roadmap-wire.js`]: test('roadmap-proposal-drafts'),
-  [`${CP}src/chat-modes.js`]: test('roadmap-proposal-context'),
+  [`${CP}src/roadmap/roadmap-models.js`]: test('roadmap-proposal-drafts'),
   [`${W}NextStepPill.jsx`]: EDIT,
   [`${W}RoadmapSurfaces.jsx`]: EDIT,
   [`${W}roadmap-client.js`]: EDIT,

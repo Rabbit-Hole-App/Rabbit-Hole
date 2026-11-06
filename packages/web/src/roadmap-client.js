@@ -62,7 +62,7 @@ export function reduce(state, event) {
     // 409: the response carries the current state; it replaces ours even when its revision looks lower (the server is the truth).
     case 'conflict': return withPreview({ ...state, flag: 'on', view: event.current || state.view, notice: STRINGS.stale });
     // R5: the editor box and its preview. A preview for a version the server no longer shows is dropped by withPreview (never trusted over the view).
-    case 'edit_open': return state.view?.proposal ? { ...state, editing: true } : state;
+    case 'edit_open': return state.view?.proposal && state.view.edit === true ? { ...state, editing: true } : state;
     case 'edit_close': return { ...state, editing: false, draft: null };
     case 'draft': return { ...state, draft: event.draft };
     // Anything else refused (credits, source changed): the sentence comes from the response; the proposal stays as the server has it.
@@ -79,7 +79,7 @@ export function reduce(state, event) {
 }
 
 // A preview whose proposal is no longer the pending one in the view is dropped; the editor closes with it.
-const withPreview = next => (next.draft && stalePreview(next.draft, next.view) ? { ...next, draft: null, editing: false } : next.editing && !next.view?.proposal ? { ...next, editing: false } : next);
+const withPreview = next => (next.draft && stalePreview(next.draft, next.view) ? { ...next, draft: null, editing: false } : next.editing && !(next.view?.proposal && next.view.edit === true) ? { ...next, editing: false } : next);
 
 // --- what each surface shows (all derived from the server view; the UI keeps nothing of its own) ---------------------------
 // Contract shape (R3 sourceRef): scope.source.name, relation.sourceRef.source.name.
@@ -98,8 +98,8 @@ export function pillOf(state) {
   const gesture = `accept:${proposal.id}:${proposal.version}`;
   return {
     proposalId: proposal.id, version: proposal.version, title: proposal.title, description: proposal.description, format: proposal.format,
-    source: relationTitle(proposal), sourceKey: proposal.sourceRelation?.sourceRef?.source?.key || proposal.sourceRelation?.source?.key || null, position: proposal.position, accept: proposal.acceptable === true && !state.busy.includes(gesture), gesture,
-    cancelGesture: `cancel:${proposal.id}:${proposal.version}`, link: proposal.link || null, stepId: proposal.stepId,
+    source: relationTitle(proposal), sourceKey: proposal.sourceRelation?.sourceRef?.source?.key || proposal.sourceRelation?.source?.key || null, position: proposal.position, accept: proposal.acceptable === true && !state.editing && !state.busy.includes(gesture), gesture,
+    cancelGesture: `cancel:${proposal.id}:${proposal.version}`, link: proposal.link || null, stepId: proposal.stepId, canEdit: state.view.edit === true && !proposal.link,
   };
 }
 // "Next step ready": only when a pending proposal exists, the server says it is ready and the overlay is offscreen. It navigates.

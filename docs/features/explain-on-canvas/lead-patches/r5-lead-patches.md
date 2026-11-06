@@ -1,20 +1,19 @@
-# R5 Lead patches (proposal editing, Chat reference, existing-card links)
+# R5 Lead patches (proposal editing minimum)
 
-Nothing here is applied. Each `.patch` was produced by actually editing the tree and `git diff`; `git apply --check` is clean on this branch.
-R5 is stacked on R6 (git order only; R5 does not use R6 code). Apply in this order after R4 is on main:
+Nothing here is applied. Each `.patch` is a real `git diff` and was proved with `git apply --cached --check` against a temporary index of the named base (no worktree touched).
+Proved against `rabbit-hole/main` `e90b47083` (core 76 merged, includes the R6 0040 mirror) and, where noted, `a28ed8f86`. The 76 chain will move main again: re-run the check before applying.
+R5 is stacked on R6 (git order only; R5 does not use R6 code). Apply in this order after R4 and R6 are on main:
 
-1. `git apply docs/features/explain-on-canvas/lead-patches/r5-repository-schema.patch` (mirror of migration 0041 at the tail of `repository-schema.sql`, after 0039/0040). `node --test scripts/schema-check.test.mjs` passes with it applied.
-2. `git apply docs/features/explain-on-canvas/lead-patches/r5-learn-models-roadmap-proposal.patch` registers the `roadmap_proposal` role (Sonnet 5.5, low effort, 600 tokens, platform-funded) and updates the two pinned expectations in `test/learn-models.test.js` (registry order, role table). Without it the edit composer fails closed: `POST .../proposals/:id/drafts` answers 503 `edit_unavailable` (`role_not_registered`). With it applied `test/learn-models.test.js` (15) and `test/roadmap-proposal-drafts.test.js` pass.
-3. `git apply docs/features/explain-on-canvas/lead-patches/r5-index-ask-proposal-context.patch` (`index.js`, the Lead-only ask route): attached `proposal` refs are resolved by `roadmap-proposal-context.js` under the asker's access right after the mentioned-canvas read; an unreadable or stale one refuses the turn with 403 `proposal_unavailable` naming nothing; the text rides into `context`. `node --check` passes. Without it a `proposal` ref passes validation (chat-modes.js) but adds no text, so Chat would answer without the proposal context.
-4. `git apply docs/features/explain-on-canvas/lead-patches/r5-learnpage-add-to-chat.patch` (`LearnPage.jsx`, one line): passes `addToChat` to `<RoadmapCanvas>` so the overlay's Add to chat button attaches the reference through `chatWorkspace.current.addToChat(ref)` and never sends. Without it the button is simply absent. Confirm `chatWorkspace` is in scope at the mount (it is used at line 1051 of the same component).
-5. `node docs/features/explain-on-canvas/lead-patches/apply-r5-check-map.mjs` (6 rows, 1 check `roadmap-edit-check.mjs` at 45 s estimate, 12 appended). Proved on a copy swapped in for one run (then restored), together with `apply-r6-check-map.mjs`: `check-map.test.mjs` passes 21 of 22; the one failure is the six-part time budget, which the R4 tip already fills (each added check pushes a part over 900 s: 915 s with R5 and R6 both added). Same Lead decision as `r6-lead-patches.md` section 2.
+1. `git apply docs/features/explain-on-canvas/lead-patches/r5-repository-schema.patch` (mirror of migration 0041 at the tail of `repository-schema.sql`, after the 0040 mirror). Clean on `e90b47083`. On `a28ed8f86` (no 0040 mirror yet) use `r5-repository-schema.on-a28ed8f.patch` instead; clean there.
+2. `git apply docs/features/explain-on-canvas/lead-patches/r5-learn-models-roadmap-proposal.patch` registers the `roadmap_proposal` role (Sonnet 5.5, low effort, 600 tokens, platform-funded) and updates the two pinned expectations in `test/learn-models.test.js`. Clean on both bases. Without it the edit composer fails closed: `POST .../proposals/:id/drafts` answers 503 `edit_unavailable`.
+3. `node docs/features/explain-on-canvas/lead-patches/apply-r5-check-map.mjs` (5 rows, 1 check `roadmap-edit-check.mjs` at 45 s estimate, 12 appended). Ran clean on a copy of `e90b47083`'s `check-map.json`. The `check-map.test.mjs` six-part time budget has no headroom (a Lead decision, see `r6-lead-patches.md` section 2).
 
-## Not patched, not done (for the Lead to place)
+## Removed from this minimum
 
-- The learner-selected link ("Use as my next step") has a route (`POST /roadmap/:id/steps/link`) and a controller method (`controller.linkCard(cardId, reason)`), but no card-menu entry: that row belongs in `canvas-actions.js` and needs the roadmap controller from `LearnPage.jsx`, which is Lead-only. Suggested: a card context-menu row shown when `roadmap.active` and the card type is linkable (`LINKABLE_TYPES` in `roadmap-links.js`).
-- Ctrl/Cmd+L / Add to chat for a proposal: the overlay button is wired (patch 4); the keyboard chord is not.
-- Passing the dragged position to R4's slot reservation (world space): the position is kept per proposal version in screen space (`roadmap-proposal-context.js`); converting it and handing it to `deliveredSpot` needs the canvas camera, which only `LearnPage.jsx` has.
+- The `proposal` ContextRef kind, Add to chat and the ask-route patch (`r5-index-ask-proposal-context.patch`, `r5-learnpage-add-to-chat.patch`) are gone: the kind broke `generation-review.test.js` (its pinned ContextRef list). Deferred; the first R5 commit (`8302dbb42`) holds the code if it is wanted back.
+- The learner-selected link ("Use as my next step") still has its route and controller method but no card-menu entry (`canvas-actions.js` plus the controller from `LearnPage.jsx`, Lead-only). Not part of the minimum.
+- Passing the dragged position to R4's slot reservation needs the canvas camera in `LearnPage.jsx`. Not part of the minimum.
 
 ## Activation (no patch)
 
-`ROADMAP_EDIT_ENABLED` is a new variable, unset everywhere; it must be `'true'` together with `ROADMAP_ENABLED`. Migration 0041 must exist on the target `LEARN_DB` first. Do not add it to a wrangler config as true by this release.
+`ROADMAP_EDIT_ENABLED` is a new variable, unset everywhere; it must be `'true'` together with `ROADMAP_ENABLED`. Migration 0041 must exist on the target `LEARN_DB` first (not applied anywhere). Do not add it to a wrangler config as true by this release. With it on, every roadmap view carries `edit: true` and the web renders Edit only then; with it off the views are R4's, byte for byte.

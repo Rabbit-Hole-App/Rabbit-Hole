@@ -8,10 +8,10 @@ import { fileURLToPath } from 'node:url';
 import { editKey, opensEditor, proposalTarget, sameTarget, stalePreview } from './inline-ai-proposal.js';
 import { createRoadmapController } from './roadmap-controller.js';
 import { pillOf, tabAccepts } from './roadmap-client.js';
-import { proposalContextRef } from './roadmap-proposal-context.js';
 
 const DIR = fileURLToPath(new URL('../../../docs/features/explain-on-canvas/contracts/fixtures/', import.meta.url));
-const fixture = name => JSON.parse(readFileSync(DIR + name + '.json', 'utf8')).response.body;
+// edit: true is the server's word that ROADMAP_EDIT_ENABLED is on (roadmap-routes.js viewOf); a view without it never offers Edit.
+const fixture = name => ({ ...JSON.parse(readFileSync(DIR + name + '.json', 'utf8')).response.body, edit: true });
 const clone = v => JSON.parse(JSON.stringify(v));
 const settle = () => new Promise(resolve => setTimeout(resolve, 5));
 const key = (k, extra = {}) => ({ key: k, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, repeat: false, isComposing: false, keyCode: 0, ...extra });
@@ -94,7 +94,7 @@ test('preview keeps the original proposal; Apply closes only after the server co
   await controller.previewEdit('make it a table'); await settle();
   assert.equal(controller.getState().draft.title, 'As a table');
   assert.equal(controller.getState().view.proposal.version, view.proposal.version, 'the original is still the pending proposal');
-  assert.equal(pillOf(controller.getState()).accept, true);
+  assert.equal(pillOf(controller.getState()).accept, false, 'Accept waits while the editor is open');
   assert.equal(tabAccepts({ event: key('Tab'), pill: pillOf(controller.getState()), blocked: false, editorOpen: controller.getState().editing, presenting: false, readOnly: false }), false, 'Tab does not accept while the editor is open');
   const apply = controller.applyEdit();
   assert.equal(controller.getState().editing, true, 'still open until the server confirms');
@@ -144,10 +144,19 @@ test('a repeated Apply press joins the first request; a failed preview shows the
   assert.equal(applies, 1);
 });
 
-test('the Chat reference is identity only, in the exact shape the server accepts', () => {
-  const ref = proposalContextRef({ id: 'pr_c0ffee0123456789abcdef02', version: 3, title: 'T'.repeat(300) });
-  assert.deepEqual(Object.keys(ref).sort(), ['kind', 'name', 'range', 'sourceId', 'version']);
-  assert.deepEqual([ref.kind, ref.sourceId, ref.version, ref.range], ['proposal', 'proposal:pr_c0ffee0123456789abcdef02', '3', null]);
-  assert.equal(ref.name.length, 120);
-  assert.equal(proposalContextRef(null), null);
+test('a view without edit: true never offers Edit: the pill cannot edit, Ctrl/Cmd+K state does not open, and an edit-route 404 does not clear the view', async () => {
+  const off = { ...fixture('status-active-proposal-pending'), edit: undefined };
+  const { controller } = harness({ get: () => off, onDraft: () => { throw Object.assign(new Error('x'), { status: 404, data: { code: 'not_found' } }); }, onApply: () => null, onAccept: () => null });
+  controller.start(); await settle();
+  assert.equal(pillOf(controller.getState()).canEdit, false);
+  controller.openEditor();
+  assert.equal(controller.getState().editing, false, 'the editor does not open');
+  assert.equal(pillOf({ ...controller.getState(), view: { ...off, edit: true } }).canEdit, true);
+  controller.stop();
+  const on = harness({ get: () => ({ ...off, edit: true }), onDraft: () => { throw Object.assign(new Error('x'), { status: 404, data: { code: 'not_found' } }); }, onApply: () => null, onAccept: () => null });
+  on.controller.start(); await settle();
+  on.controller.openEditor();
+  await on.controller.previewEdit('x'); await settle();
+  assert.equal(on.controller.getState().flag, 'on', 'a 404 from an edit route is not roadmap_disabled');
+  assert.ok(on.controller.getState().view.proposal, 'the view is kept');
 });

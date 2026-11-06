@@ -16,16 +16,25 @@ const PREFIX = '/api/learn/roadmap';
 export const roadmapEnabled = env => env?.ROADMAP_ENABLED === 'true';
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const NOT_AVAILABLE = { error: 'Not available', code: 'not_found' };
+const EDIT_SEGMENTS = new Set(['drafts', 'link']);
+// The gate's view of the path: every segment decoded until it stops changing (the dispatcher below decodes once); null when an escape is malformed.
+const decodeAll = segment => { let out = segment; for (let n = 0; n < 4; n += 1) { const next = decodeURIComponent(out); if (next === out) return out; out = next; } return out; };
+function pathSegments(path) {
+  try { return path.slice(PREFIX.length).split('/').filter(Boolean).flatMap(segment => { const full = decodeAll(segment); return full.split('/').filter(Boolean); }); } catch { return null; }
+}
 
 // deps (all optional in tests): identity(req, env), readSource(access, {sourceId, revision, scope}) -> { key, rev, scopeFingerprint, scope, language? } (Tools,
 // request-bound: the session reads the Markdown once; roadmap-source-read.js), startPlanning(env, access, roadmapId) (kicks the planning event),
-// compose(roadmap, step) (roadmap-compose.js), onAccepted(env, access, body) (kicks the RoadmapJobs object), composeEdit({ roadmap, step, proposal, instruction }) and screen(text) (R5 edit drafts), onFact(env, access, body) (the same kick after a delivery acknowledgment or a mode change: R6), mintStepRefs(env, access, roadmapId)
+// compose(roadmap, step) (roadmap-compose.js), onAccepted(env, access, body) (kicks the RoadmapJobs object), composeEdit({ roadmap, step, proposal, instruction }) and screen(text, { role, access, roadmap, proposal, actionKey }) (R5 edit drafts; both required, else 503), onFact(env, access, body) (the same kick after a delivery acknowledgment or a mode change: R6), mintStepRefs(env, access, roadmapId)
 // (R3 references at Accept plan, roadmap-source-refs.js), settings(db, access) (R2's Auto-suggest and mode readers), now. roadmap-wire.js builds them.
 export async function roadmapRoute(path, req, env, deps = {}) {
   if (path !== PREFIX && !path.startsWith(`${PREFIX}/`)) return null;
   if (!roadmapEnabled(env)) return json({ error: 'Not found', code: 'roadmap_disabled' }, 404);
-  // R5: draft and link routes answer 404 as if absent, before identity or any read, unless ROADMAP_EDIT_ENABLED is also 'true'.
-  if (/\/(drafts|link)(\/|$)|\/steps\/link$/.test(path) && !roadmapEditEnabled(env)) return json({ error: 'Not found', code: 'roadmap_disabled' }, 404);
+  // R5: draft and link routes answer 404 as if absent, before identity or any read, unless ROADMAP_EDIT_ENABLED is also 'true'. The gate reads the SAME decoded
+  // segments the dispatch below reads, and keeps decoding until the segment stops changing, so no spelling (%64rafts, %2564rafts, Drafts, a malformed escape) gets past it.
+  const editOn = roadmapEditEnabled(env), segments = pathSegments(path);
+  if (!segments) return json({ error: 'Not found', code: 'not_found' }, 404);
+  if (!editOn && segments.some(segment => EDIT_SEGMENTS.has(segment.toLowerCase()))) return json({ error: 'Not found', code: 'not_found' }, 404);
   if (!env.LEARN_DB) return json({ error: 'Not available', code: 'not_found' }, 503);
   const url = new URL(req.url);
   if (req.method !== 'GET' && req.headers.has('origin') && req.headers.get('origin') !== url.origin) return json({ error: 'Invalid origin', code: 'forbidden' }, 403);
@@ -44,19 +53,21 @@ export async function roadmapRoute(path, req, env, deps = {}) {
   if (!userId) return json(NOT_AVAILABLE, 404);
   const access = { org: user.org, actorUserId: userId, actorEmail: user.email, boardId: board.id, boardOwnerEmail: user.email, role: 'owner', payerUserId: userId, app: board.app };
   const rest = path.slice(PREFIX.length).split('/').filter(Boolean).map(decodeURIComponent);
+  // R5: with the edit flag on, every view tells the web so (the Edit button renders only then). Flag off: the view is exactly R4's, no new field.
+  const viewOf = async id => { const v = await currentView(db, access, id); return v && editOn ? { ...v, edit: true } : v; };
   const roadmapId = rest[0];
   const now = deps.now?.();
   const arg = { actionKey: body.actionKey, expectedRevision: body.expectedRevision ?? body.revision, ...(now ? { now } : {}) };
   const reply = async result => {
-    if (result.refusal) return json({ ...refusalBody(result.refusal), current: await currentView(db, access, rest[0]) }, result.refusal.reason === 'unavailable' || result.refusal.reason === 'payer_unavailable' || result.refusal.reason === 'allowance_unavailable' ? 503 : 429);
+    if (result.refusal) return json({ ...refusalBody(result.refusal), current: await viewOf(rest[0]) }, result.refusal.reason === 'unavailable' || result.refusal.reason === 'payer_unavailable' || result.refusal.reason === 'allowance_unavailable' ? 503 : 429);
     // api.md 3: a mutating response IS the RoadmapView (the UI reads it as one); the action's own fields (roadmapId, slots) ride beside it.
-    return json(result.body && result.status < 300 ? { ...result.body, ...(await currentView(db, access, result.body.roadmapId ?? rest[0])) } : result.body, result.status);
+    return json(result.body && result.status < 300 ? { ...result.body, ...(await viewOf(result.body.roadmapId ?? rest[0])) } : result.body, result.status);
   };
   try {
     // GET /  (status for this board)
     if (req.method === 'GET' && rest.length === 0) {
       if (url.searchParams.get('history') === '1') return json(await roadmapHistory(db, access)); // route 19: ended and completed roadmaps for the ToC
-      const view = await currentView(db, access);
+      const view = await viewOf();
       if (view && req.headers.get('if-none-match') === view.poll.etag) return new Response(null, { status: 304, headers: { ETag: view.poll.etag, 'Cache-Control': 'no-store' } });
       return json(view ?? { roadmap: null, poll: { afterMs: 5000, etag: 'rv-none' } });
     }
@@ -76,7 +87,7 @@ export async function roadmapRoute(path, req, env, deps = {}) {
       if (!created.replayed) { await acceptInvitation(db, access, body.invitationId, created.body.roadmapId, now); await deps.startPlanning?.(env, access, created.body.roadmapId); }
       return reply(created);
     }
-    if (req.method === 'GET' && rest.length === 1) { const view = await currentView(db, access, roadmapId); return view ? json(view) : json(NOT_AVAILABLE, 404); }
+    if (req.method === 'GET' && rest.length === 1) { const view = await viewOf(roadmapId); return view ? json(view) : json(NOT_AVAILABLE, 404); }
     // GET /:rm/results/:rs  (the entitlement predicate; not entitled is indistinguishable from unknown)
     if (req.method === 'GET' && rest[1] === 'results' && rest.length === 3) {
       const got = await readEntitledResult(db, access, { roadmapId, resultId: rest[2] });
@@ -89,7 +100,7 @@ export async function roadmapRoute(path, req, env, deps = {}) {
     if (kind === 'accept-plan' && rest.length === 2) {
       // The session is present only here: mint each step's R3 reference now (api.md 12.2). A source that changed refuses the acceptance.
       const minted = await deps.mintStepRefs?.(env, access, roadmapId);
-      if (minted && !minted.ok) return json({ error: minted.error, code: minted.code, current: await currentView(db, access, roadmapId) }, 409);
+      if (minted && !minted.ok) return json({ error: minted.error, code: minted.code, current: await viewOf(roadmapId) }, 409);
       return reply(await acceptPlan(db, access, { roadmapId, planVersion: body.planVersion, ...arg }));
     }
     if (kind === 'end' && rest.length === 2) return reply(await endRoadmap(db, access, { roadmapId, ...arg }));
@@ -106,9 +117,9 @@ export async function roadmapRoute(path, req, env, deps = {}) {
     }
     // R5: preview an edit of the pending proposal, apply or discard it, and offer an existing card as the next step. Gated above by ROADMAP_EDIT_ENABLED.
     if (kind === 'proposals' && verb === 'drafts' && rest.length === 4) {
-      if (!deps.composeEdit) return json({ error: 'Not available', code: 'edit_unavailable' }, 503);
+      if (!deps.composeEdit || !deps.screen) return json({ error: 'Not available', code: 'edit_unavailable' }, 503);
       const draft = await saveProposalDraft(db, access, { roadmapId, proposalId: id, proposalVersion: body.proposalVersion, instruction: body.instruction, actionKey: body.actionKey, composeEdit: deps.composeEdit, screen: deps.screen, ...(now ? { now } : {}) });
-      return json({ draft: draft.body, ...(await currentView(db, access, roadmapId)) }, draft.status);
+      return json({ draft: draft.body, ...(await viewOf(roadmapId)) }, draft.status);
     }
     if (kind === 'drafts' && verb === 'apply' && rest.length === 4) return reply(await applyProposalDraft(db, access, { roadmapId, draftId: id, draftRevision: body.draftRevision, proposalVersion: body.proposalVersion, actionKey: body.actionKey, ...(now ? { now } : {}) }));
     if (kind === 'drafts' && verb === 'discard' && rest.length === 4) { const done = await discardProposalDraft(db, access, { roadmapId, draftId: id }); return json(done.body, done.status); }
@@ -143,7 +154,7 @@ export async function roadmapRoute(path, req, env, deps = {}) {
     const out = { error: status === 409 ? 'This roadmap changed. Showing the latest.' : error.message, code: error.code };
     if (status === 409) {
       Object.assign(out, error.reply || conflictReply({ code: error.code, currentRevision: (roadmapId ? await readRoadmap(db, access, roadmapId) : null)?.revision ?? null }));
-      out.current = await currentView(db, access, roadmapId);
+      out.current = await viewOf(roadmapId);
     }
     return json(out, status);
   }

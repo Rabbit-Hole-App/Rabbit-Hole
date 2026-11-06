@@ -11,7 +11,7 @@ import { planningHandler } from './roadmap-planning.js';
 import { generationHandler } from './roadmap-run.js';
 import { sweepUndelivered } from './roadmap-sweep.js';
 import { platformCallModel } from './roadmap-models.js';
-import { makeComposeEdit } from './roadmap-edit.js';
+import { makeComposeEdit, makeProposalScreen } from './roadmap-edit.js';
 import { roadmapEditEnabled, sweepProposalDrafts } from './roadmap-proposal-drafts.js';
 import { AUTO_KINDS, autoProposalHandler, settingsFanoutHandler } from './roadmap-auto.js';
 
@@ -29,11 +29,13 @@ export function roadmapKick(env, ctx) {
 }
 
 // deps for roadmapRoute. `settings` is R2's reader seam (Auto-suggest, mode): with R2 merged the Lead passes its readers; the default is on and Tutor.
-export function roadmapDeps(env, ctx = null, { settings, readSourceOptions, callModel } = {}) {
+export function roadmapDeps(env, ctx = null, { settings, readSourceOptions, callModel, classify } = {}) {
   const kick = roadmapKick(env, ctx);
   return { readSource: makeReadSource(env, readSourceOptions), startPlanning: kick, onAccepted: kick, onFact: kick, compose: (roadmap, step) => composeProposal(env.LEARN_DB, roadmap, step),
     mintStepRefs: (e, access, roadmapId) => mintStepRefs(e, access, roadmapId), ...(settings ? { settings } : {}),
     // R5: the edit composer (platform-funded, role roadmap_proposal). Unregistered role: the route answers 503 edit_unavailable. `callModel` is the test seam.
+    // `screen` is R4's safety classifier path over the learner's words and the composed words (held when unknown); `classify` is the test seam.
+    screen: makeProposalScreen(env, classify ? { classify } : {}),
     composeEdit: args => makeComposeEdit({ callModel: callModel || platformCallModel(env, args.access, { roadmapId: args.roadmap.id, version: args.proposal.version, anchor: args.proposal.id, quota: 'plan' }) })(args) };
 }
 

@@ -1,7 +1,5 @@
-// R5.03 client parts: the exact ContextRef a proposal attaches to Chat, and the learner's drag position of the proposal strip.
-// The ref carries identity only (sourceId and version); the server reads the description from the actor's own proposal row (roadmap-proposal-context.js),
-// so nothing the browser says about the proposal's text is trusted. Attaching never sends and never accepts.
-export const proposalContextRef = proposal => (proposal?.id ? { kind: 'proposal', sourceId: `proposal:${proposal.id}`, name: String(proposal.title || 'Proposal').slice(0, 120), version: String(proposal.version), range: null } : null);
+// R5.03 client part: the learner's drag position of the proposal strip. ponytail: Add to chat for a proposal (a `proposal` ContextRef) is deferred; it breaks the
+// generation-review contract test and needs the ask-route patch.
 
 // A position is kept per immutable proposal identity and version until it is decided, so it survives re-renders and polls but never leaks onto the next
 // proposal. Screen-space offsets from the default overlay position; moving changes no content, version or request.

@@ -34,18 +34,11 @@ export function ProposalOverlay({ pill, position, onAccept, onCancel, edit = nul
   );
 }
 
-// R5: Edit (Ctrl/Cmd+K), the preview beside the still-pending original, Apply, Discard and Add to chat. Nothing here accepts, charges or generates.
+// R5: Edit (Ctrl/Cmd+K), the preview beside the still-pending original, Apply and Discard. Nothing here accepts, charges or generates.
 function ProposalTools({ pill, edit }) {
   const [text, setText] = useState('');
   const btn = 'h-7 rounded-none border border-line bg-white px-2 text-xs font-medium text-ink outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-40';
-  if (!edit.open) {
-    return (
-      <div className="flex gap-1.5">
-        {!pill.link && <button type="button" data-roadmap-edit onClick={edit.onOpen} className={btn}>{STRINGS.edit}</button>}
-        {edit.onChat && <button type="button" data-roadmap-chat-ref onClick={edit.onChat} className={btn}>{STRINGS.addToChat}</button>}
-      </div>
-    );
-  }
+  if (!edit.open) return <div className="flex gap-1.5"><button type="button" data-roadmap-edit onClick={edit.onOpen} className={btn}>{STRINGS.edit}</button></div>;
   const act = action => { if (action === 'preview') edit.onPreview(text); else if (action === 'apply') edit.onApply(); else if (action === 'discard') { setText(''); edit.onDiscard(); } };
   return (
     <div data-roadmap-editor className="flex flex-col gap-1.5">
@@ -54,12 +47,11 @@ function ProposalTools({ pill, edit }) {
         className="resize-none rounded-none border border-line bg-white p-1.5 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent/60" />
       {edit.draft && (
         <div data-roadmap-draft className="flex flex-col gap-0.5 border border-line bg-hover p-1.5">
-          <p className="break-words text-[13px] font-semibold text-ink">{edit.draft.title}</p>
-          <p className="break-words text-xs text-ink-2">{edit.draft.description}</p>
+          {edit.draft.checkStatus === 'passed' ? <><p className="break-words text-[13px] font-semibold text-ink">{edit.draft.title}</p><p className="break-words text-xs text-ink-2">{edit.draft.description}</p></> : <p className="break-words text-xs text-ink-2">{STRINGS.editRejected}</p>}
         </div>
       )}
       <div className="flex gap-1.5">
-        <button type="button" data-roadmap-apply disabled={!edit.draft || edit.busy} onClick={() => act('apply')} className={btn}>{STRINGS.apply}</button>
+        <button type="button" data-roadmap-apply disabled={edit.draft?.checkStatus !== 'passed' || edit.busy} onClick={() => act('apply')} className={btn}>{STRINGS.apply}</button>
         <button type="button" data-roadmap-discard onClick={() => act('discard')} className={btn}>{STRINGS.discard}</button>
       </div>
     </div>

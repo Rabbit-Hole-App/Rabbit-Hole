@@ -30,7 +30,7 @@ const until = async (fn, label, ms = 15000) => { const end = Date.now() + ms; wh
 
 const browser = await chromium.launch();
 const open = async () => {
-  const server = fakeRoadmapServer({ stage: 'pending' });
+  const server = fakeRoadmapServer({ stage: 'pending', edit: true });
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.route('**/api/learn/roadmap**', server.handler);

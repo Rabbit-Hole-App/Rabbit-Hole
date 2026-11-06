@@ -2,6 +2,10 @@
 // callModel(role, body) -> parsed message. Role `roadmap_proposal` (Sonnet, low effort, platform-funded) is a Lead patch to learn-models.js; until it is
 // registered platformCallModel throws role_not_registered and the route answers 503 edit_unavailable (fails closed, never substitutes). No card is
 // generated here: the output is three short fields, validated deterministically, and the instruction rides as quoted data.
+import { askJev } from '../learn-grade-jev.js';
+import { screenText } from './roadmap-safety.js';
+import { makeClassify, platformJevAsk } from './roadmap-models.js';
+import { sha256 } from './roadmap-money.js';
 export const EDIT_FORMATS = Object.freeze(['explanation', 'table']);
 export const EDIT_LIMITS = Object.freeze({ instruction: 300, title: 120, description: 600, maxTokens: 600 });
 export const EDIT_PROMPT = Object.freeze({
@@ -33,3 +37,17 @@ export function makeComposeEdit({ callModel }) {
     return verdict.edit;
   };
 }
+
+// R5-2: the safety screen of an edit, through the SAME path R4 uses for card text (screenText over makeClassify over platformJevAsk: platform-paid JEV,
+// one checkpointed operation per call). screen(text, { role, access, roadmap, proposal, actionKey }) -> true only when the words are publishable: the learner's
+// instruction is screened as `learner` BEFORE the composer runs (a failing instruction costs no model call), the composed words as `output`. Unknown, a block, a
+// personal-risk signal, a transport failure or a classifier that throws is false. The anchor holds the action key and the role, so the two screens of one save and
+// a second edit of the same version never share an operation key. `classify` and `askJev` are the injected seams (tests pass doubles).
+// ponytail: no Opus adjudication for proposal text; an unknown stays held rather than spending a second model call.
+export const makeProposalScreen = (env, { classify, askJev: ask = (e, request) => askJev(e, request, { transport: 'direct' }), now } = {}) => async (text, { role = 'output', access, roadmap, proposal, actionKey }) => {
+  try {
+    const anchor = `ed_${(await sha256(`${actionKey}:${role}`)).slice(0, 24)}`;
+    const use = classify || makeClassify({ ask: platformJevAsk(env, access, { roadmapId: roadmap.id, version: proposal.version, anchor, ask, ...(now ? { now } : {}) }) });
+    return (await screenText([{ role, text }], { classify: use })).publishable === true;
+  } catch { return false; }
+};

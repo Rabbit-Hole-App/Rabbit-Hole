@@ -6,7 +6,6 @@ import { STRINGS } from './roadmap-strings.js';
 import { actionKeys, canProposeNext, deliverable, idleGrouper, initialState, pillOf, planDelivery, reduce, routes } from './roadmap-client.js';
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
 import { FOLLOW_UP_MS, createAutoMeter } from './roadmap-auto.js';
-import { proposalContextRef } from './roadmap-proposal-context.js';
 
 // host: the canvas as the page sees it.
 //   hasBlock(id) -> bool, insertCard(block) -> id, persist() -> Promise (rejects when the save failed), boardRevision() -> number|null,
@@ -174,8 +173,6 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
       return mutateView(`apply:${draft.draftId}:${draft.revision}`, key => routes.applyDraft(state.view, draft, key)).then(body => { if (body) dispatch({ type: 'edit_close' }); return body; });
     },
     linkCard: (cardId, reason) => mutateView(`link:${cardId}`, key => routes.linkCard(state.view, cardId, reason, key)),
-    // The ContextRef for Add to chat (identity only; the server reads the text). Never sends.
-    chatRef: () => proposalContextRef(state.view?.proposal),
     end: () => mutateView(`end:${state.view?.roadmap.id}`, key => routes.end(state.view, key)),
     // Retry, Replace and Omit are the same three calls from Chat and from the ToC (D36).
     recover: (stepId, action) => mutateView(`${action}:${stepId}`, key => routes.recover(state.view, stepId, action, key)),

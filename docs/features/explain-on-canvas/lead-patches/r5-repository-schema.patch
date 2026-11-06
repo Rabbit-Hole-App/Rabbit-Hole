@@ -1,11 +1,11 @@
 diff --git a/packages/control-plane/repository-schema.sql b/packages/control-plane/repository-schema.sql
-index 05afc91e8..2a6a45303 100644
+index 18f30851d..45f9b5d76 100644
 --- a/packages/control-plane/repository-schema.sql
 +++ b/packages/control-plane/repository-schema.sql
-@@ -1703,3 +1703,46 @@ CREATE TABLE IF NOT EXISTS learn_step_allocation_transfers (
-   UNIQUE (op_id)
+@@ -1718,3 +1718,46 @@ CREATE TABLE IF NOT EXISTS learn_roadmap_settings_facts (
+   updated_at INTEGER NOT NULL,
+   PRIMARY KEY (org, owner_user_id)
  );
- CREATE INDEX IF NOT EXISTS learn_step_allocation_transfers_allocation ON learn_step_allocation_transfers (allocation_id);
 +
 +-- Tutor ladder R5 (proposal editing and reuse of existing cards): edit drafts and card links, as new tables so no retained CHECK constraint changes.
 +-- learn_proposal_drafts: a learner's edit preview of a PENDING proposal. A draft never changes the proposal, authorizes anything or places a card;

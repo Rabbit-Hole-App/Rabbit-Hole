@@ -18,7 +18,7 @@ export function RoadmapToc({ roadmap }) {
   return <RoadmapPlan toc={roadmap.toc} onAcceptPlan={() => c.acceptPlan()} onEdit={roadmap.editPlan} onProposeNext={() => c.proposeNext()} onEnd={() => c.end()}
     onRecover={(stepId, action) => c.recover(stepId, action)} onGo={roadmap.go} />;
 }
-export function RoadmapCanvas({ roadmap, addToChat = null }) {
+export function RoadmapCanvas({ roadmap }) {
   const c = roadmap.controller, st = roadmap.state, pill = roadmap.pill;
   const store = useRef(null), [, tick] = useState(0);
   store.current ||= createDragStore();
@@ -32,8 +32,7 @@ export function RoadmapCanvas({ roadmap, addToChat = null }) {
     const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
   };
-  const edit = pill && { open: st.editing, draft: st.draft, busy: st.busy.length > 0, onOpen: () => c.openEditor(), onPreview: text => c.previewEdit(text), onApply: () => c.applyEdit(), onDiscard: () => c.closeEditor(),
-    onChat: addToChat ? () => addToChat(c.chatRef()) : null };
+  const edit = pill?.canEdit && { open: st.editing, draft: st.draft, busy: st.busy.length > 0, onOpen: () => c.openEditor(), onPreview: text => c.previewEdit(text), onApply: () => c.applyEdit(), onDiscard: () => c.closeEditor() };
   return (
     <>
       {pill && roadmap.showOverlay && <ProposalOverlay pill={pill} position={position} onAccept={() => c.acceptProposal()} onCancel={() => c.cancelProposal()} edit={edit} drag={startDrag} />}

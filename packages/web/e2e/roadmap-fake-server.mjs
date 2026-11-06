@@ -22,9 +22,10 @@ const NEXT = { none: { create: 'draft' }, draft: { poll: 'proposed' }, proposed:
 
 // options: stage (start), invitation (offer one), enabled (false: every route answers 404 roadmap_disabled), auto (R6: an acknowledged delivery
 // is followed by the server offering the next step on its own after `autoAfterReads` status reads, with no propose request).
-export function fakeRoadmapServer({ stage = 'none', invitation = false, enabled = true, auto = false, autoAfterReads = 2 } = {}) {
+// edit (R5): the server has ROADMAP_EDIT_ENABLED on, so every view carries `edit: true` (the Edit button renders only then).
+export function fakeRoadmapServer({ stage = 'none', invitation = false, enabled = true, auto = false, autoAfterReads = 2, edit = false } = {}) {
   const server = { stage, invitation, enabled, auto, autoAfterReads, quietReads: 0, calls: [], dismissed: [] };
-  const view = () => VIEWS[server.stage]();
+  const view = () => (edit ? { ...VIEWS[server.stage](), edit: true } : VIEWS[server.stage]());
   const move = action => { const to = NEXT[server.stage]?.[action]; if (to) server.stage = to; return !!to; };
   server.count = suffix => server.calls.filter(c => c.method === 'POST' && c.path.endsWith(suffix)).length;
   server.handler = async route => {
