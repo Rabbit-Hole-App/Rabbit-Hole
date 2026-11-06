@@ -65,6 +65,7 @@ import { VIEW_ONLY_CONTROLS, openTarget, opensFrom, selectedCardContext } from '
 import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
 import { BAND_ROOM, anchoredSlots, cardBox, chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, openingPan, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
+import ProposalCard from './ProposalCard.jsx';
 import { planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
 import { areaTarget, cropBinding } from './area-crop.js';
@@ -466,7 +467,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
 // A reserved slot (canvas-slots.js): the coming card's frame - its size, and CanvasNode's border, radius,
 // shadow and drag strip - with a spinner, what is being made, and how long it has taken. Not a block: it
 // cannot be selected, moved or asked about, and it is gone when the card lands or the wait ends.
-function SlotCard({ slot }) {
+function PlainSlotCard({ slot }) {
   const [now, setNow] = useState(() => performance.now());
   useEffect(() => { const timer = setInterval(() => setNow(performance.now()), 100); return () => clearInterval(timer); }, []);
   // An anchored slot (canvas-slots.js anchoredSlots) stands at its own world position, out of the column's flow; any other slot is the column's, as always.
@@ -486,6 +487,11 @@ function SlotCard({ slot }) {
       </div>
     </div>
   );
+}
+
+// A roadmap card (roadmap-canvas.js) is the Tutor's offer drawn as a card (ProposalCard.jsx) in every state of its life; any other slot is the plain skeleton above.
+function SlotCard({ slot, actions }) {
+  return slot.roadmap ? <ProposalCard slot={slot} card={slot.roadmap} actions={actions} /> : <PlainSlotCard slot={slot} />;
 }
 
 // One conversation node: the learner's message, a separator, then the agent's
@@ -5243,9 +5249,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const kept = roadmapSpots.current.get(card.key);
     if (kept) return kept;
     const source = sourceBlockOf(blocksRef.current, card.sourceKey), box = source && boundsRef.current[source.id];
-    if (!box) return null;
+    if (source && !box) return null; // the source card is not measured yet: wait for the next bounds
     const taken = anchoredSlots(slotsRef.current).filter(entry => entry.id !== slotIdOf(card.key)).map(entry => ({ id: entry.id, x: entry.at.x, y: entry.at.y, w: entry.w, h: entry.h }));
-    const spot = deliveredSpot(size, proposalAnchor(box, passageBox(source.id, card)), [...boardObstacles([source.id]), ...taken, box], null);
+    // No source card on this canvas (deleted, or another board's): the offer still appears, once, beside where the learner is looking, never hidden and never pinned to the viewport.
+    const spot = box ? deliveredSpot(size, proposalAnchor(box, passageBox(source.id, card)), [...boardObstacles([source.id]), ...taken, box], null)
+      : deliveredSpot(size, viewCenter(), [...boardObstacles(), ...taken], null);
     roadmapSpots.current.set(card.key, spot);
     return spot;
   };
@@ -6122,7 +6130,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; } }}>
-            {anchoredSlots(slots).map(slot => <SlotCard key={slot.id} slot={slot} />)}{columnEntries(blocks, slots).flatMap(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : [<LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />, roomAfter[block.id] ? <div key={`room:${block.id}`} data-group-room aria-hidden="true" style={{ height: roomAfter[block.id] }} /> : null])}
+            {anchoredSlots(slots).map(slot => <SlotCard key={slot.id} slot={slot} actions={roadmap} />)}{columnEntries(blocks, slots).flatMap(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : [<LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />, roomAfter[block.id] ? <div key={`room:${block.id}`} data-group-room aria-hidden="true" style={{ height: roomAfter[block.id] }} /> : null])}
           </CanvasRefs.Provider></CardOpen.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its

@@ -24,7 +24,7 @@ export function canvasCardsOf(view, { busy = [], hasBlock = () => false } = {}) 
   const sourceKey = view.roadmap.scope?.source?.key ?? null;
   const cards = new Map();
   const base = (step, extra) => ({ key: extra.stepId, stepId: extra.stepId, title: extra.title ?? step?.title ?? '', description: extra.description ?? step?.goal ?? '', format: formatOf(extra.format ?? step?.format),
-    sourceKey: step?.sourceRef?.source?.key ?? sourceKey, sourceRef: step?.sourceRef ?? null, passage: step?.passage ?? null });
+    sourceKey: step?.sourceRef?.source?.key ?? sourceKey, sourceName: step?.sourceRef?.source?.name ?? view.roadmap.scope?.source?.name ?? null, sourceRef: step?.sourceRef ?? null, passage: step?.passage ?? null });
   for (const result of view.results || []) {
     if (result.existingCard || result.delivery === 'delivered' || result.delivery === 'removed' || hasBlock(result.slot?.cardId)) continue;
     const step = steps.get(result.stepId);
@@ -44,7 +44,7 @@ export function canvasCardsOf(view, { busy = [], hasBlock = () => false } = {}) 
 }
 
 // What a slot shows of a card; two cards with the same visible fields leave the slot alone.
-const SHOWN = ['state', 'title', 'description', 'format', 'acceptable', 'accepting', 'cancelling', 'proposalId', 'version', 'resultId', 'cardId'];
+const SHOWN = ['state', 'sourceName', 'title', 'description', 'format', 'acceptable', 'accepting', 'cancelling', 'proposalId', 'version', 'resultId', 'cardId'];
 const same = (a, b) => SHOWN.every(field => (a[field] ?? null) === (b[field] ?? null)) && JSON.stringify(a.failure ?? null) === JSON.stringify(b.failure ?? null) && JSON.stringify(a.recovery ?? null) === JSON.stringify(b.recovery ?? null);
 
 // The change that brings the canvas's roadmap slots to `cards`: { add: [card], update: [{ id, card }], remove: [id] }. A slot keeps its position for as long as it stands.
