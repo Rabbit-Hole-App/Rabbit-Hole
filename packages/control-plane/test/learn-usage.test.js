@@ -401,7 +401,7 @@ test('route boundary features: every paid /api/learn route is one feature from t
   const cases = { '/api/learn/ask': 'ask', '/api/learn/selection': 'ask',
     '/api/learn/tutor/next-steps': 'next_steps', '/api/learn/boards/shared/abc/next-steps': 'shared_next_steps',
     '/api/learn/boards/shared/abc/ask': 'shared_ask', '/api/learn/boards/published/find': 'explore_find', '/api/learn/home-ask': 'home_ask',
-    '/api/learn/journey': 'journey', '/api/learn/journey/plan': 'journey', '/api/learn/artifact': 'artifact', '/api/learn/board': 'board',
+    '/api/learn/artifact': 'artifact', '/api/learn/board': 'board',
     '/api/learn/inline/route': 'inline_route', '/api/learn/inline/decide': 'inline_decide', '/api/learn/inline/generate': 'inline_generate',
     '/api/learn/assess': 'assess', '/api/learn/grade': 'grade', '/api/learn/grade/bench': 'grade', '/api/apps/repo-1a2b-x/learn-course': 'course',
     '/api/learn/image': 'image', '/api/learn/transcribe': 'transcribe', '/api/learn/tts': 'tts', '/api/learn/voice/tts': 'voice_tts',

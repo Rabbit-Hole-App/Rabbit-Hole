@@ -81,7 +81,7 @@ export function explainTransport(env) {
 
 // The request body for one role call: its model's max_tokens, one tool on auto, no thinking, effort, fallbacks or betas.
 // content is the user turn's blocks (text and base64 images). The system prompt goes as one cacheable block, as callRole's
-// does (learn-journey-planners.js), except under SUBSCRIPTION_ONLY.
+// does (learn-next-steps-planner.js), except under SUBSCRIPTION_ONLY.
 export function explainRequest(env, role, { system, tool, content }) {
   const r = roleOf(role);
   if (!tool?.name || !tool.input_schema) throw new ExplainPolicyError('tool_required', `/explain ${role} needs one tool.`);

@@ -26,10 +26,10 @@ test('journeyLogged writes one sanitized line per call: task, requested and serv
   const stub = async () => new Response(JSON.stringify({ model: 'claude-sonnet-5-5-20261001', stop_reason: 'tool_use', content: [] }), { status: 200 });
   console.log = line => lines.push(line);
   try {
-    await journeyLogged(stub)(env, { system: 'S', tools: [{ name: 'journey_section' }], messages: [{ role: 'user', content: 'input = {"text":"my private answer"}' }] }, 'claude-sonnet-5-5', null);
+    await journeyLogged(stub)(env, { system: 'S', tools: [{ name: 'tutor_next_steps' }], messages: [{ role: 'user', content: 'input = {"text":"my private answer"}' }] }, 'claude-sonnet-5-5', null);
   } finally { console.log = log; }
   assert.equal(lines.length, 1);
   const line = JSON.parse(lines[0]);
-  assert.deepEqual([line.event, line.task, line.requested, line.source, line.served], ['learn_model', 'journey_section', 'claude-sonnet-5-5', 'task', 'claude-sonnet-5-5-20261001']);
+  assert.deepEqual([line.event, line.task, line.requested, line.source, line.served], ['learn_model', 'tutor_next_steps', 'claude-sonnet-5-5', 'task', 'claude-sonnet-5-5-20261001']);
   assert.equal(lines[0].includes('private'), false);
 });

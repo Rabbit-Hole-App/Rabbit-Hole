@@ -1267,9 +1267,9 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   if (chat) {
     await recordUserTurn(db, threadId, history.userMessageId, chat, !!turn);
     resolved = resolveMode(chat, message);
-    // Tutor plans a syllabus and nothing else (B6): no reader opens and no card lands. With a table of contents its one tool
-    // is the outline proposal, made against the headings this turn sent (R4 owner decision 4A).
-    if (resolved.mode === 'tutor') Object.assign(research, body.outline?.length ? { tools: [OUTLINE_TOOL], system: `${OUTLINE_SYSTEM}\n${TUTOR_OUTLINE_SYSTEM}`, arxiv: false } : { tools: [], system: null, arxiv: false });
+    // The table of contents conversation (mode 'tutor', B6): no reader opens and no card lands. Its one tool is the outline
+    // proposal, made against the headings this turn sent (R4 owner decision 4A). A turn with no outline answers as Ask.
+    if (resolved.mode === 'tutor' && body.outline?.length) Object.assign(research, { tools: [OUTLINE_TOOL], system: `${OUTLINE_SYSTEM}\n${TUTOR_OUTLINE_SYSTEM}`, arxiv: false });
     // A /motion turn proposes the video and nothing else: the learner's words arrive without the slash, so the model is told
     // what the turn is, and its one tool is the proposal (no research). Real-model run 2026-10-21: offered among the research
     // tools, the Opus answer read Wikipedia and wrote an essay instead.

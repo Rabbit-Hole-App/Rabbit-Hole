@@ -6,7 +6,6 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { learnDb } from './learn-grade-fixture.js';
 import { ownedNextStepsRoute } from '../src/learn-next-steps-routes.js';
-import { planSection } from '../src/learn-journey-planners.js';
 import { planNextSteps } from '../src/learn-next-steps-planner.js';
 import { fixtureFor, fixtureModel } from '../src/learn-next-steps-fixtures.js';
 import { LEARN_TASKS, costUsd } from '../src/learn-models.js';
@@ -133,13 +132,12 @@ test('planNextSteps: a self-contradicting claim goes straight to Opus; an Opus f
   await assert.rejects(planNextSteps({}, INPUT(), { callModel: bad.callModel }), { name: 'PlannerInvalid' });
 });
 
-test('planNextSteps: no usage in a reply means cost_usd null; an HTTP failure names the hook planner, the journey ones keep theirs', async () => {
+test('planNextSteps: no usage in a reply means cost_usd null; an HTTP failure names the hook planner', async () => {
   const unreported = (await planNextSteps({}, INPUT(), { callModel: fixtureModel })).telemetry;
   assert.equal(unreported.cost_usd, null, 'a fixture reply has no usage');
   assert.deepEqual(unreported.usage, { input_tokens: null, output_tokens: null, cache_creation_input_tokens: null, cache_read_input_tokens: null }, 'and no token counts: null, never 0');
   const down = async () => new Response('{}', { status: 503 });
   await assert.rejects(planNextSteps({}, INPUT(), { callModel: down }), { message: /^The next steps planner is unavailable \(model HTTP 503\)/ });
-  await assert.rejects(planSection({}, {}, { callModel: down }), { message: /^The journey planner is unavailable \(model HTTP 503\)/ });
 });
 
 test('the hook planner request: static cached system, one tool on auto, input only in the user message, never JEV', async () => {

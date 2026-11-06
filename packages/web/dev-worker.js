@@ -12,7 +12,6 @@ import { webpagesFetch, webpagesRoute } from '../control-plane/src/webpage-captu
 import { canvasesFetch, canvasRoute, ownerCanvases, refuseCanvasAsk, refuseLiveLearnAsk, canvasAskSeam } from '../control-plane/src/canvases.js';
 import { libraryTrashFetch, libraryTrashRoute } from '../control-plane/src/library-trash.js';
 import { chatMessageFetch, chatMessageRoute } from '../control-plane/src/chat-message-routes.js';
-import { chatSyllabusFetch } from '../control-plane/src/chat-syllabus-route.js';
 import { chatProposalFetch } from '../control-plane/src/chat-proposal-route.js';
 import { chatOutputsFetch } from '../control-plane/src/chat-outputs-route.js';
 import { libraryFoldersFetch, libraryFoldersRoute } from '../control-plane/src/library-folders.js';
@@ -49,7 +48,6 @@ import { apiAsk } from '../control-plane/src/index.js';
 import { boardFetch, authorizedBoardApp, paperFetch, mediaFetch, momentFeedback, videoGone, canvasSearch, wikiArticle } from '../control-plane/src/learn-board.js';
 import { learnGradeRoute, assessAnswer } from '../control-plane/src/learn-grade-routes.js';
 import { ownedNextStepsRoute } from '../control-plane/src/learn-next-steps-routes.js';
-import { journeyRoute } from '../control-plane/src/learn-journey.js';
 import { coachingRoute } from '../control-plane/src/learn-coaching-routes.js';
 import { codebaseRoute } from '../control-plane/src/learn-codebase-source-map.js';
 import { attemptRoute } from '../control-plane/src/learn-attempt-routes.js';
@@ -158,7 +156,6 @@ const routes = {
     if (path.startsWith('/api/repositories')) return repositoriesFetch(req, env, ctx);
     if (canvasRoute(new URL(req.url))) return canvasesFetch(req, env);
     if (chatMessageRoute(path)) return chatMessageFetch(req, env); // the answer footer's thumbs and alternatives (chat-message-routes.js)
-    { const syllabus = await chatSyllabusFetch(req, env); if (syllabus) return syllabus; } // a Tutor syllabus edit (chat-syllabus-route.js); null for any other path
     { const proposal = await chatProposalFetch(req, env); if (proposal) return proposal; } // a proposal card's settings (chat-proposal-route.js); null for any other path
     { const outputs = await chatOutputsFetch(req, env); if (outputs) return outputs; } // a Chat prompt's cards (chat-outputs-route.js); null for any other path
     // Settings > Profile: the person's own name and picture (LEARN_DB user_profiles).
@@ -173,7 +170,7 @@ const routes = {
     if (path === '/api/apps' && req.method === 'GET') {
       const user = await repositoryIdentity(req, env);
       if (user instanceof Response) return user;
-      const { userId, ...catalog } = user; // users.id stays server-side (journeys key on it, adaptive-learning-path-v1-architecture.md §10.2)
+      const { userId, ...catalog } = user; // users.id stays server-side (goals key on it)
       // Dev apps only: listing live apps is production GET /api/apps, whose sweepStaleRuns writes
       // (docs/features/dev-prod-write-barrier.md). A live app still opens by name (GET /api/apps/<name>).
       return Response.json({ ...catalog, folders: [], apps: [...(await ownerRepositories(env, catalog)), ...(await ownerCanvases(env, user))] }, { headers: { 'Cache-Control': 'no-store' } });
@@ -314,7 +311,6 @@ const routes = {
     if (path.startsWith('/api/learn/tutor/attempts')) { const attempted = await attemptRoute(path, req, env); if (attempted) return attempted; }
     // Card feedback (R1, learn-migrations/0036): the signed-in owner's private rating of a generated card.
     if (path === '/api/learn/card-feedback') { const rated = await cardFeedbackRoute(path, req, env); if (rated) return rated; }
-    if (path.startsWith('/api/learn/journey')) { const routed = await journeyRoute(path, req, env); if (routed) return routed; }
     // Personal Tutor controls and goals (learn-migrations/0025): the signed-in learner's own state only.
     if (path === '/api/learn/coaching') return coachingRoute(path, req, env);
     // The Tutor's codebase goals and source drift (learn-codebase-source-map.js): the learner's own canvas, no model, no execution.

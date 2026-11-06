@@ -54,7 +54,7 @@ test('both production configs pin the rabbit-hole account and name no dev, legac
 });
 
 // Final review A-m5: journey planner fixtures run only when SMALL_ENV is test AND JOURNEY_MODEL_STUB is fixtures
-// (learn-journey-planners.js journeyCallModel), so no production config names JOURNEY_MODEL_STUB at all, and the app
+// (learn-next-steps-planner.js journeyCallModel), so no production config names JOURNEY_MODEL_STUB at all, and the app
 // Worker sets no SMALL_ENV of its own.
 test('no production config names JOURNEY_MODEL_STUB, and the app Worker sets no SMALL_ENV', () => {
   for (const path of [APP, CP, '../wrangler.jsonc', '../../web/wrangler.rabbit-hole-notebook-prod.jsonc', '../../web/wrangler.rabbit-hole-canvas-notebook-prod.jsonc']) {
