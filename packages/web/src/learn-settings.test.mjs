@@ -8,7 +8,6 @@ import { learnDb } from '../../control-plane/test/learn-grade-fixture.js';
 import { userSettingsRoute } from '../../control-plane/src/learn-user-settings.js';
 import { AUTO_SUGGEST_MODES, DEFAULT_SETTINGS, DEPTHS, SUGGESTION_CAPABILITIES, autoSuggestShown, createSettingsSync, depthField, settingsSnapshot, withAutoSuggest } from './learn-settings.js';
 import { effectiveControls } from './learn-coaching-client.js';
-import { canCoach } from './learn-coaching-contract.js';
 import { generateCommand } from './learn-slash.js';
 
 const SCHEMA = readFileSync(new URL('../../control-plane/repository-schema.sql', import.meta.url), 'utf8');
@@ -61,26 +60,8 @@ test('the learner Auto-suggest setting overrides the canvas record and nothing e
   assert.equal(withAutoSuggest(on, { autoSuggest: true }), on); assert.equal(withAutoSuggest(on, null), on);
   assert.deepEqual(withAutoSuggest(off, { autoSuggest: true }), on, 'On overrides a canvas record that says off (no control for it remains)');
   assert.equal(withAutoSuggest(off, { autoSuggest: false }), off);
-  const coaching = { status: 'ready', controls: on, autoSuggest: false };
-  assert.equal(effectiveControls(coaching, { mode: 'tutor' }).tutorEnabled, false);
-  assert.equal(coaching.controls.tutorEnabled, true);
-  assert.equal(effectiveControls({ ...coaching, autoSuggest: true }, { mode: 'tutor' }).tutorEnabled, true);
-  assert.equal(effectiveControls({ ...coaching, controls: off, autoSuggest: true }, { mode: 'tutor' }).tutorEnabled, true, 'the canvas record is ignored');
-  assert.equal(effectiveControls({ ...coaching, status: 'local', controls: { ...on, mode: 'auto' }, autoSuggest: false }, { mode: 'tutor' }).tutorEnabled, false, 'also where the controls are local');
-});
-
-test('pause remains after enable: switching Auto-suggest back on does not erase a cancellation pause', () => {
-  const paused = { mode: 'tutor', tutorEnabled: true, suggestionsPaused: true, revision: 5 };
-  const ready = { chatOpen: true, ready: true };
-  for (const autoSuggest of [false, true]) {
-    const effective = effectiveControls({ status: 'ready', controls: paused, autoSuggest }, { mode: 'tutor' });
-    assert.equal(effective.suggestionsPaused, true, `Auto-suggest ${autoSuggest}: the pause is still there`);
-    assert.equal(canCoach(effective, ready), false, `Auto-suggest ${autoSuggest}: a paused Tutor suggests nothing`);
-  }
-  assert.deepEqual(effectiveControls({ status: 'ready', controls: paused, autoSuggest: true }, { mode: 'tutor' }), paused, 'on again: exactly the saved controls');
-  const live = { ...paused, suggestionsPaused: false };
-  assert.equal(canCoach(effectiveControls({ status: 'ready', controls: live, autoSuggest: true }, { mode: 'tutor' }), ready), true);
-  assert.equal(canCoach(effectiveControls({ status: 'ready', controls: live, autoSuggest: false }, { mode: 'tutor' }), ready), false);
+  // RECOVERY (R2 disabled): effectiveControls does not read the setting; the canvas record drives suggestions again.
+  assert.equal(effectiveControls({ status: 'ready', controls: on, autoSuggest: false }, { mode: 'tutor' }).tutorEnabled, true);
 });
 
 test('a learner with nothing saved has the defaults; a change applies at once, is saved, and survives a reload', async t => {

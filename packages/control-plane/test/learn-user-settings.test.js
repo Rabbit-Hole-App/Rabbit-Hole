@@ -50,7 +50,7 @@ test('Depth differs across canvases', async t => {
   assert.equal(await set(e, A, 'deep', 0), 'applied');
   assert.deepEqual(await readSettings(e, A2), DEFAULTS, 'a second canvas keeps its own Depth');
   assert.equal(await set(e, A2, 'overview', 0), 'applied');
-  assert.deepEqual([await readDepth(e, A), await readDepth(e, A2)], ['deep', 'overview']);
+  assert.deepEqual([await readDepth(e, A), await readDepth(e, A2)], ['standard', 'standard'], 'recovery: readDepth is Standard whatever is saved');
   assert.deepEqual([(await readSettings(e, A)).depthRevision, (await readSettings(e, A2)).depthRevision], [1, 1], 'a revision per (learner, canvas) row');
   assert.equal(await readDepth(e, { ...A, board: 'second' }), 'standard', 'and per board');
 });

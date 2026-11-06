@@ -105,7 +105,7 @@ test('v2 route: the selection at submit is validated and stored; omitted, the sa
   assert.equal(picked.status, 202);
   assert.equal(depthOf(picked.body.job.id), 'overview', 'what the learner had selected when they submitted, not what is saved');
   const saved = await post({ requestId: 'req-00000012', cardId: 'card-0012' });
-  assert.equal(depthOf(saved.body.job.id), 'deep', 'omitted: the saved Depth for this canvas');
+  assert.equal(depthOf(saved.body.job.id), 'standard', 'recovery: omitted is Standard, the saved Depth is not read');
   const other = await post({ requestId: 'req-00000013', cardId: 'card-0013' }, { id: 'board-2', app: 'canvas-b', board: 'main' });
   assert.equal(depthOf(other.body.job.id), 'standard', 'another canvas has its own');
   const jobs = s.state.data.size;
@@ -167,7 +167,7 @@ test('artifact route: invalid depth rejected before model, the saved Depth only 
   assert.equal((await post({ command: 'explain', args: 'a pendulum', board: 'main' })).status, 200);
   assert.equal((await post({ command: 'explain', args: 'a pendulum', board: 'unseen' })).status, 200);
   assert.equal((await post({ command: 'explain', args: 'a pendulum' })).status, 200);
-  assert.deepEqual(seen.map(input => input.depth), ['overview', 'deep', undefined, undefined]);
+  assert.deepEqual(seen.map(input => input.depth), [undefined, undefined, undefined, undefined], 'recovery: the saved Depth is not read');
   // A snapshot beats what is saved, and commands that make no explanation, deterministic ones included, are unchanged.
   seen.length = 0;
   assert.equal((await post({ command: 'explain', args: 'a pendulum', board: 'main', depth: 'standard' })).status, 200);

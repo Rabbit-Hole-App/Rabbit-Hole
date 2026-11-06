@@ -36,16 +36,9 @@ export async function readSettings(env, actor) {
   return { depth: validDepth(canvas?.depth) ?? DEFAULT_SETTINGS.depth, autoSuggest: user ? user.auto_suggest === 1 : DEFAULT_SETTINGS.autoSuggest, depthRevision: canvas?.revision ?? 0 };
 }
 
-// The Depth a model call should honor: the stored one, or Standard when there is none, no identity, no canvas or board, or the tables
-// are not there yet (no 'main' fallback: an unnamed board is Standard). Never throws: Depth is a preference, and a failed read must
-// not stop an answer.
-export async function readDepth(env, actor) {
-  if (!env?.LEARN_DB || !actor?.org || !actor?.userId || !actor?.app || !actor?.board) return DEFAULT_DEPTH;
-  try {
-    const row = await env.LEARN_DB.prepare(`SELECT depth FROM learn_canvas_depth WHERE ${DEPTH_ROW}`).bind(...depthKey(actor)).first();
-    return validDepth(row?.depth) ?? DEFAULT_DEPTH;
-  } catch { return DEFAULT_DEPTH; }
-}
+// RECOVERY (R2 disabled): Depth is Standard for every model call, whatever is saved; the settings route and tables stay inert.
+// Re-enable by restoring the stored read from the release commit (feat/tutor-r2-release).
+export const readDepth = async () => DEFAULT_DEPTH;
 
 // Whether this learner allows unasked suggestions (R4 invitations, R6 proposals read this). On when there is no row, no identity or
 // the table is not there yet: the default is today's behavior. Never throws.

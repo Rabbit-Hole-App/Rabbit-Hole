@@ -5,7 +5,6 @@ import { useChatDraft } from './chat-draft.js';
 import { useChatContext } from './chat-context.js';
 import { useChatSources } from './chat-sources.js';
 import { useLearnCoaching } from './use-learn-coaching.jsx';
-import { useLearnSettings } from './use-learn-settings.jsx';
 import { threadWithControls } from './learn-coaching-client.js';
 
 // The right-side Chat workspace on a Learn canvas (owner brief 2026-10-13; contract:
@@ -31,10 +30,7 @@ export function ChatWorkspaceProvider({ canvas, board = 'main', canvasOps: initi
   // The canvas API lives below the provider, so the page sets canvasOps once its canvas mounts (setCanvasOps).
   const [canvasOps, setCanvasOps] = useState(initialOps);
   const panels = useChatPanels(canvas);
-  const ownCoaching = useLearnCoaching({ app: canvas, board });
-  // R2: Depth and Auto-suggest (use-learn-settings.jsx). Auto-suggest rides on coaching so effectiveControls (every proactive decision) reads it.
-  const settings = useLearnSettings({ app: canvas, board });
-  const coaching = useMemo(() => ({ ...ownCoaching, autoSuggest: settings.autoSuggest }), [ownCoaching, settings.autoSuggest]);
+  const coaching = useLearnCoaching({ app: canvas, board });
   const ownThread = useChatThread(canvas);
   const thread = useMemo(() => threadWithControls(ownThread, coaching), [ownThread, coaching]);
   // thread.restore = { key, mode, contextRefs, draft }: a new key (open, New chat, canvas change) resets both hooks below.
@@ -99,7 +95,7 @@ export function ChatWorkspaceProvider({ canvas, board = 'main', canvasOps: initi
   const editing = useMemo(() => ({ target: editTarget, set: target => setEditHeld({ scope: editScope, target }), clear: () => setEditHeld(null) }), [editTarget, editScope]);
   // The "This canvas" chip's line: coverage.summary of the last canvas_context the page built (a sent turn, or the chip's preview).
   const [canvasCoverage, setCanvasCoverage] = useState(null);
-  const value = useMemo(() => ({ canvas, board, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, setCanvasOps, canvasCoverage, setCanvasCoverage, toc, tocThreadId: tocThread.id, coaching, settings, goals, editing }), [canvas, board, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, canvasCoverage, toc, tocThread.id, coaching, settings, goals, editing]);
+  const value = useMemo(() => ({ canvas, board, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, setCanvasOps, canvasCoverage, setCanvasCoverage, toc, tocThreadId: tocThread.id, coaching, goals, editing }), [canvas, board, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, canvasCoverage, toc, tocThread.id, coaching, goals, editing]);
   return <ChatWorkspace.Provider value={value}>{children}</ChatWorkspace.Provider>;
 }
 
