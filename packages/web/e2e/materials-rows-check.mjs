@@ -100,6 +100,11 @@ const router = async route => {
       + frame('answer_meta', { messageId, actions: [], followUps: [], alternatives: [messageId], kind: 'answer', syllabus: null })
       + frame('done', { ok: true, threadId: body.thread_id || `mrows-thread-${reply}`, userMessageId: `u-${reply}`, messageId }) });
   }
+  if (path === '/api/learn/tutor/plan') {
+    const reply = ++replies;
+    captured.push({ route: 'plan', body, reply });
+    return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', constraints_add: [], actions: [{ type: 'respond_text', text: `Canned reply ${reply}.` }] } });
+  }
   if (path === '/api/learn/tutor/evaluate') return route.fulfill({ json: { status: 'settled', evaluator: 'jev', events: [] } });
   if (/^\/api\/learn\/chat\/(threads|messages)\//.test(path)) return route.fulfill({ json: { ok: true } }); // the canned thread ids exist nowhere
   if (MODEL.test(path)) { refused.push(`${request.method()} ${path}`); return route.abort(); }

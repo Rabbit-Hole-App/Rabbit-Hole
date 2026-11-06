@@ -16,7 +16,7 @@ const USAGE = Symbol('usage accounting context');
 const KIND = Symbol('usage attempt kind');
 
 // One string per entry point (the design's list). Keep it here, the only list.
-export const FEATURES = ['ask', 'auto', 'attempt_assessment', 'next_steps', 'shared_next_steps', 'shared_ask', 'home_ask',
+export const FEATURES = ['ask', 'auto', 'tutor', 'tutor_evaluate', 'attempt_assessment', 'next_steps', 'shared_next_steps', 'shared_ask', 'home_ask',
   'explore_find', 'journey', 'artifact', 'board', 'inline_route', 'inline_decide', 'inline_generate', 'assess', 'grade', 'course',
   'image', 'image_generate', 'transcribe', 'tts', 'voice_tts', 'voice_scribe', 'video', 'scene', 'search', 'handoff', 'image_edit', 'legacy', 'render',
   'webpage_capture'];
@@ -26,18 +26,22 @@ export const ATTEMPT_KINDS = ['routing', 'generation', 'repair', 'retry', 'evalu
 // 'render' is a job on our own renderers (scene worker, Manim): the platform pays for its compute (owner 5A decision C,
 // 2026-10-21), so it is recorded apart from the learner's allowance, cost unknown, never 0. Authoring its source is not this.
 // 'webpage_capture' is the webpage card's screening (owner brief 2026-10-22: platform-paid, no credits, no cost shown).
-const FREE_FEATURES = new Set(['assess', 'grade', 'attempt_assessment', 'render', 'webpage_capture']);
+// ponytail: attempt_assessment is the name P3 wrote for the attempts routes; this recovery branch keeps accepting it (rows exist) beside tutor_evaluate.
+const FREE_FEATURES = new Set(['assess', 'grade', 'tutor_evaluate', 'attempt_assessment', 'render', 'webpage_capture']);
 // Entry points a signed-out visitor may reach on a public link (owner D2.4): platform-funded, never the canvas owner.
 // Not shared Next Steps: no AI generation for signed-out viewers (owner R3 decision, 2026-10-16; the route answers 401).
 const PUBLIC_FEATURES = new Set(['shared_ask']);
 // An attempt's kind when the caller names none.
-const DEFAULT_KIND = { inline_route: 'routing', inline_decide: 'evaluation', assess: 'evaluation', grade: 'evaluation', attempt_assessment: 'evaluation', webpage_capture: 'evaluation' };
+const DEFAULT_KIND = { inline_route: 'routing', inline_decide: 'evaluation', assess: 'evaluation', grade: 'evaluation', tutor_evaluate: 'evaluation', attempt_assessment: 'evaluation', webpage_capture: 'evaluation' };
 
 // The /api/learn/* routes that make provider calls, and the feature each one is (dev-worker.js boundary).
 const ROUTES = [
   [/^\/api\/learn\/(ask|selection)$/, 'ask'],
-  [/^\/api\/learn\/tutor\/attempts(\/[A-Za-z0-9_-]+\/reassess)?$/, 'attempt_assessment'],
+  [/^\/api\/learn\/tutor\/plan$/, 'tutor'],
+  [/^\/api\/learn\/tutor\/evaluate$/, 'tutor_evaluate'],
+  [/^\/api\/learn\/tutor\/attempts(\/[A-Za-z0-9_-]+\/reassess)?$/, 'tutor_evaluate'],
   [/^\/api\/learn\/tutor\/next-steps$/, 'next_steps'],
+  [/^\/api\/learn\/tutor\/handoff$/, 'handoff'],
   [/^\/api\/learn\/boards\/shared\/[^/]+\/next-steps$/, 'shared_next_steps'],
   [/^\/api\/learn\/boards\/shared\/[^/]+\/ask$/, 'shared_ask'],
   [/^\/api\/learn\/boards\/published\/find$/, 'explore_find'],

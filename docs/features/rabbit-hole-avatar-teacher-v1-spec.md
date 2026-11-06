@@ -1,7 +1,5 @@
 # Rabbit Hole — Avatar Teacher V1
 
-> **RETIRED (Tutor cleanup P3, 2026-11).** The dormant avatar Tutor modules (`learn-avatar-brief.js`, `learn-avatar-cache.js`, `learn-avatar-provider.js`) and the `avatar_*` model tasks were deleted with the server Tutor. Kept as history; see `explain-on-canvas` v0.14.
-
 ## Status
 
 **AUTHORIZED FOR ARCHITECTURE / DEVELOPMENT SPEC ONLY.**

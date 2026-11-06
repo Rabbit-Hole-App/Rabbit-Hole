@@ -87,6 +87,11 @@ const router = async route => {
       + frame('answer_meta', { messageId, actions: [], followUps: [], alternatives: [messageId], kind: 'answer', syllabus: null })
       + frame('done', { ok: true, threadId: body.thread_id || `p2c-thread-${reply}`, userMessageId: `u-${reply}`, messageId }) });
   }
+  if (path === '/api/learn/tutor/plan') {
+    const reply = ++replies;
+    captured.push({ route: 'plan', body, reply });
+    return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', constraints_add: [], actions: [{ type: 'respond_text', text: `Canned reply ${reply}.` }] } });
+  }
   // CR-1 route decision (dev-cp.mjs chatRouteAnswer): an answer. CI has no JEV key, so the real route would fall back and send nothing.
   if (path === '/api/learn/chat/route') return route.fulfill({ json: chatRouteAnswer(JSON.parse(route.request().postData() || '{}')) });
   if (path === '/api/learn/tutor/evaluate') return route.fulfill({ json: { status: 'settled', evaluator: 'jev', events: [] } });

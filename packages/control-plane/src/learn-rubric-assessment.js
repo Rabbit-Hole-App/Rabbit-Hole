@@ -212,7 +212,7 @@ export function rubricRequest({ attempt, criteria, activity, sources = [], citat
 export async function callEvaluator(env, actor, task, request, reason, deps = {}) {
   const role = LEARN_TASKS[task];
   const call = { role: task, requestedModel: role.model, servedModel: null, reason, latencyMs: null, outcome: null, usage: { inputTokens: null, outputTokens: null }, costUsd: null, promptVersion: await promptVersion(request.system, []) };
-  const paid = spendCallModel(env, { org: actor.org, user_id: actor.userId }, 'attempt_assessment', deps.callModel || loggedModel(task, anthropic));
+  const paid = spendCallModel(env, { org: actor.org, user_id: actor.userId }, 'tutor_evaluate', deps.callModel || loggedModel(task, anthropic));
   const started = Date.now();
   const stop = (outcome, status, why) => ({ status, reason: why, call: { ...call, latencyMs: Date.now() - started, outcome } });
   let timer;

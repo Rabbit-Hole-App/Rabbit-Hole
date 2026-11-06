@@ -5,11 +5,13 @@
 import client from './client.js';
 import stars from './stars.js';
 import support from './support.js';
+import tutor from './tutor.js';
 import weekly from './weekly.js';
 
 export const FEATURE_EVENTS = [
   client,
   stars,
   support,
+  tutor,
   weekly,
 ];

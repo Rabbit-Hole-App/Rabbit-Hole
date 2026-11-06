@@ -1,8 +1,11 @@
 // Whole-canvas context, server side (agent-coordination/tasks/2026-10-14-whole-canvas-context-OWNER.md, contract v1.1): the
-// canvas_context validator, honest coverage (truncated content is never "full"), the prompt block and rules. The Ask, Auto and Tutor chat modes on /api/learn/ask are in chat-modes.test.js.
+// canvas_context validator, honest coverage (truncated content is never "full"), the prompt block and rules, and the Tutor
+// planner route. The Ask, Auto and Tutor chat modes on /api/learn/ask are in chat-modes.test.js.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CANVAS_BUDGET, CANVAS_CONTEXT_RULES, canvasContextText, validateCanvasContext } from '../src/canvas-context.js';
+import { tutorRoute } from '../src/learn-tutor-routes.js';
+import { CANVAS_SYSTEM } from '../src/agents/learn-tutor.js';
 import { canvasPackage } from './canvas-context-fixture.js';
 
 test('a v1.1 package is rebuilt from known keys only; malformed fields name themselves', () => {
@@ -79,4 +82,40 @@ test('the title never decides the topic: the same content under any title render
   const b = canvasContextText(validateCanvasContext(canvasPackage({ title: null })));
   const body = s => s.split('\n').filter(l => !l.startsWith('Title ')).join('\n');
   assert.equal(body(a), body(b));
+});
+
+// The Tutor planner route (Auto with an active Tutor): the same block and rules, beside context, for any wording.
+async function plan(body) {
+  let request = null;
+  const deps = {
+    authorize: async () => ({ org: 'o', email: 'owner@example.test', user_id: 'u1', app: 'canvas-0a1b2c3d' }),
+    documents: async () => [],
+    callModel: async (env, body) => { request = body; return Response.json({ content: [{ type: 'text', text: 'no plan' }], stop_reason: 'end_turn' }); },
+  };
+  const req = new Request('https://app.test/api/learn/tutor/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const response = await tutorRoute('/api/learn/tutor/plan', req, { SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'test-only' }, deps);
+  return { response, request };
+}
+const tutorContext = message => ({ canvas_context: { goal: null, origin: null }, learner_intent: { kind: 'question', text: message }, allowed_actions: ['respond_text'] });
+
+test('Tutor plan: the package rides as a user block after the documents with its rules as an uncached system block, for any paraphrase', async () => {
+  const blocks = [];
+  for (const message of ['What am I missing here?', 'Is this complete?', 'Review my work', 'Does this contradict anything else on the board?', 'ok, and next?']) {
+    const { request } = await plan({ app: 'canvas-0a1b2c3d', context: tutorContext(message), canvas_context: canvasPackage() });
+    assert.ok(request, message);
+    const content = request.messages[0].content;
+    assert.match(content.at(-1).text, /^Compose this turn\./);
+    blocks.push(content.at(-2).text);
+    const system = Array.isArray(request.system) ? request.system.map(b => b.text).join('\n') : request.system;
+    assert.ok(system.startsWith(CANVAS_SYSTEM), 'the canvas prompt still leads');
+    assert.ok(system.endsWith(CANVAS_CONTEXT_RULES), message);
+  }
+  assert.equal(new Set(blocks).size, 1, 'the same block for every wording');
+  assert.equal(blocks[0], canvasContextText(validateCanvasContext(canvasPackage())));
+  const { request } = await plan({ app: 'canvas-0a1b2c3d', context: tutorContext('Review my work') });
+  assert.equal(typeof request.messages[0].content, 'string', 'no package: the request is as before');
+  assert.equal(JSON.stringify(request.system).includes('Canvas context: the turn carries'), false, 'no package: no canvas rules');
+  const refused = await plan({ app: 'canvas-0a1b2c3d', context: tutorContext('x'), canvas_context: canvasPackage({ version: 3 }) });
+  assert.equal(refused.response.status, 400);
+  assert.match((await refused.response.json()).error, /canvas_context: version/);
 });

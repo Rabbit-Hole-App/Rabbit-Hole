@@ -10,6 +10,7 @@ import { learnDb } from './learn-grade-fixture.js';
 import { COMMITS, INJECTED, SECRET_VALUE, ledger, taskboard } from './learn-codebase-fixtures.js';
 import { buildLearningSourceMap, codebaseActivity, codebaseRoute, learningSourceMap, sourceDrift, symbolEnd } from '../src/learn-codebase-source-map.js';
 import { CODEBASE_GOALS, EVIDENCE_LABEL, NOT_RUN_NOTE, QUESTION_LABEL, citationRef, goalOf, repositoryRelevance, showCodebaseMenu, snapshotIndex } from '../../web/src/learn-codebase-goals.js';
+import { HANDOFF_CAPABILITIES } from '../src/learn-tutor-handoff.js';
 import { repositoryTool } from '../src/repository-context.js';
 import { acceptAttempt } from '../src/learn-attempt-store.js';
 import { readCoachingState } from '../src/learn-coaching-store.js';
@@ -120,7 +121,7 @@ test('five_goals_choose_distinct_actions: each goal has its own first activity, 
   assert.ok(paths(activityOf(issue.body.state)).includes('src/progress.js'));
 });
 
-test('unrelated_topic_skips_repository: the water cycle is not about either repository; nothing is mapped, saved or read for it', async t => {
+test('unrelated_topic_skips_repository: the water cycle is not about either repository; nothing is mapped, saved or read for it, and the Tutor handoff reads no source', async t => {
   for (const snapshot of [taskboard('v1'), ledger()]) {
     assert.equal(repositoryRelevance(snapshotIndex(snapshot), 'Explain the water cycle').relevant, false, snapshot.repo);
     assert.equal(repositoryRelevance(snapshotIndex(snapshot), 'How does evaporation become rain?').relevant, false, snapshot.repo);
@@ -140,6 +141,15 @@ test('unrelated_topic_skips_repository: the water cycle is not about either repo
   assert.deepEqual(f.rows(), before, 'nothing saved');
   assert.equal(f.batches.length, writes);
 
+  // The Tutor's repository handoff (the Tutor source adapter): an unrelated request stops before any model call.
+  const calls = [];
+  const callModel = async (env, body) => { calls.push(body); return Response.json({ model: 'claude-opus-5-5', stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 }, content: [{ type: 'text', text: 'From the code: completionPercent rounds first.' }] }); };
+  const run = HANDOFF_CAPABILITIES.repository_context.run;
+  const access = { org: 'ws', owner_email: 'ana@test', email: 'ana@test' };
+  await assert.rejects(run(f.env, access, { app: CANVAS, request: 'Explain the water cycle', selection: null, card: null }, callModel), error => error.category === 'not_about_repository');
+  assert.equal(calls.length, 0, 'no model call, so no repository material in any prompt');
+  assert.equal(await run(f.env, access, { app: CANVAS, request: 'How does completionPercent compute the percentage?', selection: null, card: null }, callModel), 'From the code: completionPercent rounds first.');
+  assert.equal(calls.length, 1, 'a request about the code still reaches the reader');
   assert.deepEqual(f.fetches, []);
 });
 

@@ -5,6 +5,9 @@ import assert from 'node:assert/strict';
 import { anthropic } from '../src/ask.js';
 import { MODEL_NOT_CONFIGURED, notConfiguredMessage } from '../src/learn-models.js';
 import { modelFailure } from '../src/learn-research.js';
+import { tutorRoute } from '../src/learn-tutor-routes.js';
+import { learnDb } from './learn-grade-fixture.js';
+import { liveDb, liveRuns, readOnlyControlPlane } from './live-storage-spy.js';
 
 // Every outbound request this test's code makes, refused: a missing key must never reach here.
 const outbound = t => {
@@ -30,4 +33,15 @@ test('a real upstream failure keeps its code: only the missing key reads as not 
   assert.equal(reply.status, 401, 'with a key the request is made (here refused by the stub)');
   assert.equal(await notConfiguredMessage(reply), null);
   assert.match((await modelFailure(reply, 'Learn answer unavailable')).message, /model HTTP 401/);
+});
+
+test('a Tutor turn with no key: the learner reads the sentence, and nothing left the worker', async t => {
+  const calls = outbound(t);
+  const { sqlite, LEARN_DB } = learnDb(t);
+  sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('team','canvas-0a1b2c3d','owner@test','Board')");
+  const env = { LEARN_DB, DB: liveDb(), RUNS: liveRuns(), CONTROL_PLANE: readOnlyControlPlane({ apps: {} }), SMALL_ENV: 'test', TUTOR_PLANNER_FAST_MODEL: 'off', TUTOR_PLANNER_CACHE: 'off' };
+  const response = await tutorRoute('/api/learn/tutor/plan', new Request('https://dev.test/api/learn/tutor/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ app: 'canvas-0a1b2c3d', context: { turn: { raw_user_message: 'What is a tensor?' } } }) }), env);
+  assert.equal(response.ok, false);
+  assert.match(JSON.stringify(await response.json()), new RegExp(MODEL_NOT_CONFIGURED.replace(/[.?]/g, '\\$&')));
+  assert.deepEqual(calls, [], 'zero outbound requests');
 });

@@ -119,7 +119,7 @@ test('annotation: every reader of board links is known; the Tutor, map and share
     }
   }
   assert.deepEqual(found.sort(), Object.keys(READERS).sort());
-  for (const file of ['web/src/dive.js', 'web/src/Dive.jsx', 'web/src/learn-tutor-actions.js', 'web/src/learn-outline-model.js', 'web/src/MapMemory.jsx', 'web/src/MapInspector.jsx', 'web/src/learn-minimap.js', 'web/src/CanvasMinimap.jsx', 'web/src/learn-next-steps.js', 'control-plane/src/learn-shared-ask.js', 'control-plane/src/learn-next-steps-routes.js']) {
+  for (const file of ['web/src/dive.js', 'web/src/Dive.jsx', 'web/src/learn-tutor-actions.js', 'web/src/learn-outline-model.js', 'web/src/MapMemory.jsx', 'web/src/MapInspector.jsx', 'web/src/learn-minimap.js', 'web/src/CanvasMinimap.jsx', 'web/src/learn-next-steps.js', 'control-plane/src/learn-shared-ask.js', 'control-plane/src/learn-tutor-handoff.js', 'control-plane/src/learn-next-steps-routes.js']) {
     assert.ok(!found.includes(file), `${file} does not read board links`);
   }
 });

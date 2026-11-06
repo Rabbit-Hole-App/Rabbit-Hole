@@ -84,20 +84,6 @@ test('selected code uses stored source, survives chat history and rejects mismat
   for(const range of [{path:'../secret',start:1,end:2},{path:'model.py',start:0,end:3},{path:'model.py',start:1,end:122}])assert.equal((await f.send('ask',{message:'Explain',repository_context:{commit:sha,range}})).status,400);
 });
 
-// Tutor cleanup P3 (Q2): the Tutor handoff reader is gone, so ordinary Chat is what reports a retrieval failure honestly.
-test('a repository tool that fails is sent back as an error result, and the system text tells the model to state the failure',async t=>{
-  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const bodies=[];
-  globalThis.fetch=async(_,options)=>{bodies.push(JSON.parse(options.body));return bodies.length===1
-    ?Response.json({content:[{type:'tool_use',id:'tu_1',name:'read_source',input:{path:'gone.py',start:1,end:5}}],stop_reason:'tool_use'})
-    :Response.json({content:[{type:'text',text:'I could not read gone.py.'}],stop_reason:'end_turn'});};
-  const response=await f.send('ask',{message:'What does gone.py do?',repository_context:{commit:sha}});
-  assert.equal(response.status,200);await response.text();
-  assert.equal(bodies.length,2);
-  const result=bodies[1].messages.at(-1).content[0];
-  assert.deepEqual([result.type,result.is_error],['tool_result',true]);
-  assert.match(JSON.stringify(bodies[0].system),/If retrieval fails, state the failure instead of pretending to have read it/);
-});
-
 // repository-browser.md §6: a large selection keeps its whole range as its identity; only the first 120 lines ride along.
 test('a large selected range keeps its identity: the stored question names every line, the prompt carries a bounded snippet',async t=>{
   const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});let prompt;

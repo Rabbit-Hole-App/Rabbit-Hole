@@ -397,19 +397,26 @@ test('adjustments are integer micros with a reason', async t => {
   await assert.rejects(recordAdjustment(LEARN_DB, { micros: 1, reason: '' }));
 });
 
+test('recovery: usage rows named tutor_evaluate or attempt_assessment (written after Tutor cleanup P3) are both free features', () => {
+  for (const feature of ['tutor_evaluate', 'attempt_assessment']) {
+    assert.ok(FEATURES.includes(feature), feature);
+    assert.deepEqual((({ payer, payerReason, chargeClass }) => [payer, payerReason, chargeClass])(payerOf({ feature, identity: { userId: 'u1' } })), ['user', 'free_action', 'free'], feature);
+  }
+});
+
 test('route boundary features: every paid /api/learn route is one feature from the one list; reads are none', () => {
-  const cases = { '/api/learn/ask': 'ask', '/api/learn/selection': 'ask',
-    '/api/learn/tutor/next-steps': 'next_steps', '/api/learn/boards/shared/abc/next-steps': 'shared_next_steps',
+  const cases = { '/api/learn/ask': 'ask', '/api/learn/selection': 'ask', '/api/learn/tutor/plan': 'tutor', '/api/learn/tutor/evaluate': 'tutor_evaluate',
+    '/api/learn/tutor/next-steps': 'next_steps', '/api/learn/tutor/handoff': 'handoff', '/api/learn/boards/shared/abc/next-steps': 'shared_next_steps',
     '/api/learn/boards/shared/abc/ask': 'shared_ask', '/api/learn/boards/published/find': 'explore_find', '/api/learn/home-ask': 'home_ask',
     '/api/learn/journey': 'journey', '/api/learn/journey/plan': 'journey', '/api/learn/artifact': 'artifact', '/api/learn/board': 'board',
     '/api/learn/inline/route': 'inline_route', '/api/learn/inline/decide': 'inline_decide', '/api/learn/inline/generate': 'inline_generate',
     '/api/learn/assess': 'assess', '/api/learn/grade': 'grade', '/api/learn/grade/bench': 'grade', '/api/apps/repo-1a2b-x/learn-course': 'course',
     '/api/learn/image': 'image', '/api/learn/transcribe': 'transcribe', '/api/learn/tts': 'tts', '/api/learn/voice/tts': 'voice_tts',
     '/api/learn/voice/scribe-token': 'voice_scribe', '/api/learn/video': 'video', '/api/learn/scene': 'scene',
-    '/api/learn/tutor/attempts': 'attempt_assessment', '/api/learn/tutor/attempts/at_1/reassess': 'attempt_assessment' };
+    '/api/learn/tutor/attempts': 'tutor_evaluate', '/api/learn/tutor/attempts/at_1/reassess': 'tutor_evaluate' };
   for (const [path, feature] of Object.entries(cases)) { assert.equal(usageFeature('POST', path), feature, path); assert.ok(FEATURES.includes(feature)); }
   assert.equal(usageFeature('GET', '/api/learn/search'), 'search');
-  for (const [method, path] of [['GET', '/api/learn/usage'], ['GET', '/api/learn/ask'], ['POST', '/api/learn/inline/telemetry'], ['POST', '/api/learn/boards/x/share'], ['GET', '/api/learn/video'], ['GET', '/api/learn/tutor/attempts/at_1'], ['POST', '/api/learn/tutor/plan'], ['POST', '/api/learn/tutor/evaluate'], ['POST', '/api/learn/tutor/handoff']])
+  for (const [method, path] of [['GET', '/api/learn/usage'], ['GET', '/api/learn/ask'], ['POST', '/api/learn/inline/telemetry'], ['POST', '/api/learn/boards/x/share'], ['GET', '/api/learn/video'], ['GET', '/api/learn/tutor/attempts/at_1']])
     assert.equal(usageFeature(method, path), null, `${method} ${path}`);
   assert.equal(usageContext({}), null);
 });
@@ -431,6 +438,7 @@ test('the usage context reaches the provider attempts of the Tutor, board, artif
     headers: { cookie: 'small_session=s', 'content-type': 'application/json' }, body: JSON.stringify(payload) }), env, { waitUntil() {} });
   const app = 'canvas-0a1b2c3d';
   const routes = [
+    ['/api/learn/tutor/plan', { app, context: { input: 'Explain this synthetic note.', allowed_actions: ['respond_text'] } }, 'tutor'],
     ['/api/learn/board', { app, question: 'Why 0.5?', answer: 'exp(0) = 1', snapshot: { lessonId: 'sigmoid-demo', runId: 'test-run', method: 'lesson', target: null, lessonContext: { topic: 'Sigmoid', currentStage: 'sigmoid', recentExplanations: [] },
       relatedObjects: [{ objectId: 'equation', lessonId: 'sigmoid-demo', runId: 'test-run', author: 'script', kind: 'equation', originalText: 'y = 1 / (1 + exp(-x))', relatedObjectIds: [], shapeIds: ['shape:eq'], renderStatus: 'complete', shapes: [{ shapeId: 'shape:eq', pageBounds: { x: 0, y: 0, w: 300, h: 30 } }] }] } }, 'board'],
     ['/api/learn/artifact', { app, command: 'graph', args: 'sigmoid' }, 'artifact'],
