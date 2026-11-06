@@ -1,6 +1,6 @@
 # R4 contract: records, retention and sharing sanitizers
 
-Status: DRAFT CONTRACT. SQL: `roadmap-r4.draft.sql` in this directory (12 tables, 11 indexes, 23 statements). No migration number: the Lead allocates one at R4 (v1.4 4.2: old numbers are not reservations). The file is not in any migrations directory and is not referenced by any test or script.
+Status: DRAFT CONTRACT. SQL: `roadmap-r4.draft.sql.txt` in this directory (12 tables, 11 indexes, 23 statements). No migration number: the Lead allocates one at R4 (v1.4 4.2: old numbers are not reservations). The file is not in any migrations directory and is not referenced by any test or script.
 
 ## 1. Checked against the repository's rules
 
