@@ -14,7 +14,7 @@ const read = args => ({ name: 'read_source', args });
 test('only the R4 source reader and text checker are enabled; the ladder is listed but off', () => {
   assert.deepEqual(T.enabledCapabilities().map(c => c.name), ['read_source', 'check_claims']);
   const planned = T.CAPABILITIES.filter(c => !c.enabled).map(c => [c.name, c.release]);
-  assert.deepEqual(planned, [['index_source', 'R7a'], ['read_pdf_page', 'R7b'], ['research_gap', 'R8a'],
+  assert.deepEqual(planned, [['index_source', 'R7a'], ['read_pdf_page', 'R7b'], ['research_gap', 'R8a'], ['calculate_expression', 'R8b'],
     ['read_learning_evidence', 'R9'], ['inspect_figure', 'R15'], ['execute_code', 'R16']]);
 });
 
