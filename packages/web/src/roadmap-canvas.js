@@ -2,6 +2,8 @@
 // a private placeholder (canvas-slots.js, an anchored slot: never a block, so never saved, shared, forked, undone or read by the Tutor) beside the passage it comes
 // from. This file turns the server's RoadmapView into those placeholders and plans the change from what the canvas holds now. No React, no DOM.
 
+import { pillOf } from './roadmap-client.js';
+
 export const SLOT_PREFIX = 'roadmap:';
 export const slotIdOf = key => `${SLOT_PREFIX}${key}`;
 export const isRoadmapSlot = slot => !!slot?.roadmap;
@@ -14,11 +16,11 @@ const formatOf = value => (FORMATS.has(value) ? value : 'explanation');
 
 // The placeholders the view asks for, one per step (key = the step id, the same from proposal to result so the position never changes).
 //   pending     the offer, not accepted: type, title, description, Accept / Cancel; no timer, no spinner.
-//   checking    the server is checking the offer, or the accepted card's output: private, nothing to accept.
+//   checking    the server is checking the accepted card's output: private, nothing to accept (drawn as generating). An offer being checked is pending.
 //   generating  accepted: the existing skeleton with its honest label.
 //   failed      the terminal failure with its sentence and the recoveries the server allows.
 // busy: the gestures in flight (roadmap-client state.busy); hasBlock(id): whether the canvas already holds that card (delivered: no placeholder).
-export function canvasCardsOf(view, { busy = [], hasBlock = () => false } = {}) {
+export function canvasCardsOf(view, { state: roadmapState = null, busy = roadmapState?.busy || [], hasBlock = () => false } = {}) {
   if (!view?.roadmap || !['active', 'paused', 'completed'].includes(view.roadmap.state)) return [];
   const steps = new Map((view.steps || []).map(step => [step.id, step]));
   const sourceKey = view.roadmap.scope?.source?.key ?? null;
@@ -34,17 +36,29 @@ export function canvasCardsOf(view, { busy = [], hasBlock = () => false } = {}) 
     cards.set(result.stepId, { ...base(step, { stepId: result.stepId, title: step.title, format: step.format }), state, resultId: result.id, cardId: result.slot?.cardId ?? null,
       ...(failed ? { failure: result.failure ?? null, recovery: result.recovery ?? [] } : {}) });
   }
+  // The offer is shown, and can be accepted, exactly when the pill would be (roadmap-client.js pillOf: the flag on, an active roadmap, not Ask mode, the editor closed, no
+  // acceptance in flight). A proposal the server is still checking is the same pending slot with Accept disabled until it is acceptable: it is not accepted, so nothing
+  // spins and nothing says Generating. `state` absent (a caller with only the view): the view's own acceptable flag.
   const proposal = view.proposal;
-  if (proposal && !proposal.link && ['pending', 'checking'].includes(proposal.state) && view.roadmap.state === 'active') {
-    const step = steps.get(proposal.stepId), gesture = `accept:${proposal.id}:${proposal.version}`;
-    cards.set(proposal.stepId, { ...base(step, { stepId: proposal.stepId, title: proposal.title, description: proposal.description, format: proposal.format }), state: proposal.state === 'pending' ? 'pending' : 'checking',
-      proposalId: proposal.id, version: proposal.version, acceptable: proposal.acceptable === true, accepting: busy.includes(gesture), cancelling: busy.includes(`cancel:${proposal.id}:${proposal.version}`) });
+  if (proposal && !proposal.link && ['pending', 'checking'].includes(proposal.state)) {
+    const gate = roadmapState ? pillOf({ ...roadmapState, view: { ...view, proposal: { ...proposal, state: 'pending' } } }) : (view.roadmap.state === 'active' ? {
+      accept: proposal.acceptable === true && !busy.includes(`accept:${proposal.id}:${proposal.version}`), accepting: busy.includes(`accept:${proposal.id}:${proposal.version}`) } : null);
+    // While the learner edits the offer (Ctrl/Cmd+K) the editor lives in the proposal overlay: the slot steps aside for it (same place when it returns), never both.
+    if (gate && !roadmapState?.editing) {
+      const step = steps.get(proposal.stepId);
+      cards.set(proposal.stepId, { ...base(step, { stepId: proposal.stepId, title: proposal.title, description: proposal.description, format: proposal.format }), state: 'pending',
+        proposalId: proposal.id, version: proposal.version, acceptable: proposal.state === 'pending' && gate.accept === true, accepting: gate.accepting === true });
+    }
   }
   return [...cards.values()];
 }
 
+// The cards whose delivered card is not already on the canvas (placed: an id the canvas holds or is placing). The page's list can be a poll behind the canvas: after the
+// card fills its slot and before the acknowledgement reaches the view, the list still names the step as generating, and its slot must not come back as a second skeleton.
+export const liveCards = (cards, placed) => (cards || []).filter(card => !(card.cardId && placed(card.cardId)));
+
 // What a slot shows of a card; two cards with the same visible fields leave the slot alone.
-const SHOWN = ['state', 'title', 'description', 'format', 'acceptable', 'accepting', 'cancelling', 'proposalId', 'version', 'resultId', 'cardId'];
+const SHOWN = ['state', 'title', 'description', 'format', 'acceptable', 'accepting', 'proposalId', 'version', 'resultId', 'cardId'];
 const same = (a, b) => SHOWN.every(field => (a[field] ?? null) === (b[field] ?? null)) && JSON.stringify(a.failure ?? null) === JSON.stringify(b.failure ?? null) && JSON.stringify(a.recovery ?? null) === JSON.stringify(b.recovery ?? null);
 
 // The change that brings the canvas's roadmap slots to `cards`: { add: [card], update: [{ id, card }], remove: [id] }. A slot keeps its position for as long as it stands.

@@ -63,12 +63,16 @@ try {
     await page.waitForTimeout(1500);
     assert.equal(await page.locator('[data-roadmap-invitation]').count(), 0);
   });
-  await step('the square pill reads Accept, Tab, Cancel, with no price, estimate or credits text anywhere', async () => {
+  // Owner spec 2026-11-06: the proposal is the canvas slot; its pill is 28px with 4px corners, outside the frame, 8px below it (supersedes the square pill).
+  await step('the pill reads Accept, Tab, Cancel, has 4px corners, stands below and outside the slot frame, with no price, estimate or credits text anywhere', async () => {
     const { page } = await open({ stage: 'pending' });
     const overlay = page.locator('[data-roadmap-overlay]');
     await overlay.waitFor();
     assert.equal((await overlay.locator('[data-roadmap-pill] button').allInnerTexts()).map(text => text.replace(/\s+/g, '')).join('|'), 'AcceptTab|Cancel'); // whitespace between Accept and its Tab label is layout, not content
-    assert.equal(await overlay.locator('[data-roadmap-pill]').evaluate(el => getComputedStyle(el.firstElementChild).borderRadius), '0px');
+    const pill = overlay.locator('[data-roadmap-pill]');
+    assert.equal(await pill.evaluate(el => getComputedStyle(el).borderTopLeftRadius), '4px');
+    const frame = await overlay.locator(':scope > div').first().boundingBox(), under = await pill.boundingBox();
+    assert.ok(frame && under && under.y >= frame.y + frame.height, `the pill (${under?.y}) is below the frame (${frame && frame.y + frame.height}), outside it`);
     await priceFree(page);
     await page.screenshot({ path: `${SHOTS}/2-pill.png` });
   });

@@ -65,7 +65,7 @@ import { VIEW_ONLY_CONTROLS, openTarget, opensFrom, selectedCardContext } from '
 import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
 import { BAND_ROOM, anchoredSlots, cardBox, chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, openingPan, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
-import { planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
+import { liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot } from './roadmap-placement.js';
 import { SlotCard } from './SlotCard.jsx';
 import { areaTarget, cropBinding } from './area-crop.js';
@@ -4610,7 +4610,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     let preview = null, blob = null;
     try {
       const { toCanvas } = await import('html-to-image');
-      const skip = el => el.nodeType === 1 && (el.tagName === 'IFRAME' || el.getAttribute?.('role') === 'toolbar' || el.hasAttribute?.('data-canvas-minimap') || el.hasAttribute?.('data-dive-gutter') || el.hasAttribute?.('data-area-marquee') || el.hasAttribute?.('data-area-mark'));
+      const skip = el => el.nodeType === 1 && (el.tagName === 'IFRAME' || el.getAttribute?.('role') === 'toolbar' || el.hasAttribute?.('data-canvas-minimap') || el.hasAttribute?.('data-dive-gutter') || el.hasAttribute?.('data-area-marquee') || el.hasAttribute?.('data-area-mark') || el.hasAttribute?.('data-roadmap-slot')); // a Tutor slot is private: never in a crop
       const ratio = Math.min(2, window.devicePixelRatio || 1);
       const full = await toCanvas(node, { pixelRatio: ratio, width: box.width, height: box.height, filter: el => !skip(el), cacheBust: false });
       const out = document.createElement('canvas');
@@ -5229,7 +5229,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   useLayoutEffect(() => {
     if (readOnly) return;
-    const plan = planSlots(slotsRef.current, roadmap?.cards || []);
+    const plan = planSlots(slotsRef.current, liveCards(roadmap?.cards, id => pendingAt.current.has(id) || blocksRef.current.some(entry => entry.id === id)));
     if (!plan.add.length && !plan.update.length && !plan.remove.length) return;
     const added = plan.add.flatMap(card => {
       const size = slotSize(card.format, BLOCK_TYPES), at = roadmapSpot(card, size);
@@ -5240,6 +5240,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setSlots(previous => [...previous.filter(slot => !plan.remove.includes(slot.id)).map(slot => (changed.has(slot.id)
       ? { ...slot, label: changed.get(slot.id).title, state: changed.get(slot.id).state, roadmap: changed.get(slot.id), ...(changed.get(slot.id).state !== slot.state ? { started: performance.now() } : {}) } : slot)), ...added]);
   }, [roadmap, bounds, blocks]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Which offers the canvas really draws (their step ids), told to the page before paint, so the fixed overlay yields only to a slot that exists (never both, never neither).
+  const drawnOffers = slots.filter(slot => slot.roadmap?.state === 'pending').map(slot => slot.roadmap.stepId).join(' ');
+  useLayoutEffect(() => { roadmap?.onDrawn?.(drawnOffers); }, [drawnOffers, roadmap?.onDrawn]); // eslint-disable-line react-hooks/exhaustive-deps
   // A delivered card was inserted without an offset (placeRoadmapCard): once it is measured, its offset is what puts its top-left on the position it was promised.
   useLayoutEffect(() => {
     if (!pendingAt.current.size) return;

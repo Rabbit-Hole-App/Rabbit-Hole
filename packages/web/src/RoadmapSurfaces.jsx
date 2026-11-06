@@ -27,7 +27,8 @@ export function RoadmapToc({ roadmap }) {
     </div>
   );
 }
-// hosted: the page draws the proposal as the canvas slot itself (AdaptiveCanvas SlotCard beside its source), so the fixed overlay is not drawn: never both.
+// hosted: the canvas really draws this proposal as its slot (AdaptiveCanvas SlotCard beside its source; the page learns it from the canvas), so the fixed overlay is
+// not drawn: never both. A proposal the canvas cannot draw (a link, a source not measured yet, the editor open) keeps the overlay: never neither.
 export function RoadmapCanvas({ roadmap, hosted = false }) {
   const c = roadmap.controller, st = roadmap.state, pill = roadmap.pill;
   const store = useRef(null), [, tick] = useState(0), told = useRef(new Set());

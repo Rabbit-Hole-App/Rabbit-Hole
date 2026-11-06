@@ -38,8 +38,11 @@ export function SlotCard({ slot, actions = null }) {
   }
   const pending = card.state === 'pending', failed = card.state === 'failed';
   return (
-    <div data-slot-id={slot.id} data-roadmap-slot={card.state} onPointerDown={event => event.stopPropagation()} style={{ width: slot.w, ...place }} className="flex flex-col gap-2">
-      <div {...(pending ? { 'data-roadmap-overlay': '', tabIndex: -1 } : {})} role={pending ? 'group' : 'status'} aria-label={card.title || slot.label} style={{ height: slot.h }} className={`${frame} outline-none focus-visible:ring-2 focus-visible:ring-[#2383e2]/40`}>
+    // data-thumbnail-hide: a Tutor slot is the learner's private offer, never part of the board's thumbnail (card-thumbnail.js CHROME) or an area crop (AdaptiveCanvas).
+    // The pending wrapper (frame and pill) is the keyboard owner, as the old overlay was: Tab inside it accepts, and its pill is found inside it.
+    <div data-slot-id={slot.id} data-roadmap-slot={card.state} data-thumbnail-hide {...(pending ? { 'data-roadmap-overlay': '', tabIndex: -1 } : {})} onPointerDown={event => event.stopPropagation()}
+      style={{ width: slot.w, ...place }} className="flex flex-col gap-2 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[#2383e2]/40">
+      <div role={pending ? 'group' : 'status'} aria-label={card.title || slot.label} style={{ height: slot.h }} className={frame}>
         {strip}
         <p className="px-4 pb-1 text-sm font-semibold break-words text-ink">{card.title}</p>
         {pending && card.description && <p className="px-4 pb-3 text-[13px] leading-normal break-words text-ink-2">{card.description}</p>}

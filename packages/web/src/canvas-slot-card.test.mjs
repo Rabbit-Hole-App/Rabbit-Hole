@@ -28,7 +28,7 @@ const [pending] = canvasCardsOf(view('status-active-proposal-pending'));
 test('pending: the skeleton with the proposed title and description; the pill outside the frame, 8px below; no spinner or timer; keyboard owner', () => {
   const markup = render(pending);
   assert.match(markup, /width:380px;position:absolute;left:640px;top:96px/, 'its own canvas coordinates');
-  assert.match(markup, /class="flex flex-col gap-2"/, 'gap-2: the pill stands 8px below the frame');
+  assert.match(markup, /class="flex flex-col gap-2 /, 'gap-2: the pill stands 8px below the frame');
   assert.ok(markup.includes(pending.title) && markup.includes(pending.description));
   assert.match(markup, /skeleton-line/);
   const frameEnd = markup.indexOf('height:420px'), pill = markup.indexOf('data-roadmap-pill');
@@ -65,4 +65,20 @@ test('a plain slot (no roadmap) renders exactly as before: spinner, label, timer
   assert.match(markup, /animate-spin/);
   assert.match(markup, /mx-auto/);
   assert.doesNotMatch(markup, /position:absolute|data-roadmap/);
+});
+
+test('privacy: a Tutor slot is hidden from the board thumbnail and from area crops', async () => {
+  const { CHROME } = await import('./card-thumbnail.js');
+  assert.ok(CHROME.includes('[data-thumbnail-hide]'));
+  for (const card of [pending, canvasCardsOf(view('accept-proposal-response-generating'))[0]]) assert.match(render(card), /^<div data-slot-id="roadmap:s" data-roadmap-slot="[a-z]+" data-thumbnail-hide="true"/);
+  const source = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  assert.match(source, /const skip = el => [^\n]*hasAttribute\?\.\('data-roadmap-slot'\)/, 'the area crop filter skips it');
+});
+
+test('the pending wrapper (frame and pill) is the keyboard owner, so the pill is inside [data-roadmap-overlay]; a checking offer shows no Generating', () => {
+  const markup = render(pending);
+  assert.match(markup, /^<div [^>]*data-roadmap-overlay=""[^>]*tabindex="-1"/);
+  const checking = render({ ...pending, acceptable: false });
+  assert.doesNotMatch(checking, /Generating|animate-spin/);
+  assert.match(checking, /data-roadmap-accept="true"[^>]*disabled=""/);
 });

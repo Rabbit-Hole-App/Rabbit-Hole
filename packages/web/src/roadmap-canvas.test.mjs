@@ -97,3 +97,39 @@ test('the anchor is the source card, or a slab at the passage inside it; the car
   // A point anchor (no source box) keeps the old behaviour.
   assert.deepEqual(deliveredSpot({ w: 300, h: 200 }, { x: 500, y: 400 }, []), { x: 350, y: 300 });
 });
+
+// Verifier blockers 3-5 (2026-11-06).
+const { initialState, reduce } = await import('./roadmap-client.js');
+const { liveCards } = await import('./roadmap-canvas.js');
+const client = (name, extra = {}) => ({ ...reduce(initialState(), { type: 'view', view: view(name) }), ...extra });
+
+test('the offer follows the pill gate: Ask mode, the flag off and the open editor show no pending slot; acceptance in flight keeps it, Accept off', () => {
+  const v = view('status-active-proposal-pending');
+  assert.equal(canvasCardsOf(v, { state: client('status-active-proposal-pending') })[0].state, 'pending');
+  assert.equal(canvasCardsOf(v, { state: client('status-active-proposal-pending') })[0].acceptable, true);
+  assert.deepEqual(canvasCardsOf(v, { state: client('status-active-proposal-pending', { mode: 'ask' }) }), [], 'Ask holds the offer back: no dead Accept');
+  assert.deepEqual(canvasCardsOf(v, { state: client('status-active-proposal-pending', { flag: 'off' }) }), []);
+  assert.deepEqual(canvasCardsOf(v, { state: client('status-active-proposal-pending', { editing: true }) }), [], 'the editor (overlay) has the offer while it is open');
+  const gesture = `accept:${v.proposal.id}:${v.proposal.version}`;
+  const [busy] = canvasCardsOf(v, { state: client('status-active-proposal-pending', { busy: [gesture] }) });
+  assert.deepEqual([busy.state, busy.acceptable, busy.accepting], ['pending', false, true]);
+});
+
+test('a proposal the server is still checking is the pending slot with Accept disabled, never generating', () => {
+  const v = JSON.parse(JSON.stringify(view('status-active-proposal-pending')));
+  v.proposal.state = 'checking'; v.proposal.acceptable = false;
+  for (const options of [{ state: client('status-active-proposal-pending', { view: v }) }, {}]) {
+    const [card] = canvasCardsOf(v, options);
+    assert.deepEqual([card.state, card.acceptable], ['pending', false]);
+  }
+  assert.equal('cancelling' in canvasCardsOf(view('status-active-proposal-pending'))[0], false, 'no unused fields');
+});
+
+test('a card already placed is never re-added as a second skeleton while the view is a poll behind (the re-add after delivery)', () => {
+  const [generating] = canvasCardsOf(view('accept-proposal-response-generating'));
+  const placed = new Set([generating.cardId]);
+  // The slot was filled by placeRoadmapCard: the canvas holds no slot for the step, but the stale list still names it generating.
+  assert.equal(planSlots([], [generating]).add.length, 1, 'without the filter the stale card would come back');
+  assert.deepEqual(planSlots([], liveCards([generating], id => placed.has(id))), { add: [], update: [], remove: [] });
+  assert.equal(liveCards([generating], () => false).length, 1, 'not placed yet: kept');
+});

@@ -1,5 +1,5 @@
 diff --git a/packages/web/src/LearnPage.jsx b/packages/web/src/LearnPage.jsx
-index ce04e7f45..6f0b39a2c 100644
+index ce04e7f45..e207c2ede 100644
 --- a/packages/web/src/LearnPage.jsx
 +++ b/packages/web/src/LearnPage.jsx
 @@ -103,6 +103,7 @@ import { TitleHoles } from './TitleHoles.jsx';
@@ -10,7 +10,7 @@ index ce04e7f45..6f0b39a2c 100644
  import { RoadmapCanvas, RoadmapChat, RoadmapToc } from './RoadmapSurfaces.jsx';
  import LearnProgress from './LearnProgress.jsx';
  import { CardFeedbackScope } from './CardFeedback.jsx';
-@@ -1322,12 +1323,18 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
+@@ -1322,12 +1323,21 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
    const sourceBlock = key => canvasApi.current?.blocks?.().find(block => block.fileRef?.source?.id === String(key || '').replace(/^file:/, ''));
    const composerTyping = !!(chat?.composer?.text?.trim() || chat?.toc?.composer?.text?.trim());
    const roadmap = useRoadmap({ api, boardId: commentBoard, enabled: isCanvas && !hole && boardName === 'main' && canEditCanvas && !!commentBoard, mode: chat?.thread?.mode || 'auto', typing: composerTyping, answering: !!chat?.answering,
@@ -24,13 +24,16 @@ index ce04e7f45..6f0b39a2c 100644
        focusBlock: id => id && canvasApi.current?.focusBlock(id), sourceBlockId: key => sourceBlock(key)?.id, sourceElement: key => { const id = sourceBlock(key)?.id; return id ? document.querySelector(`[data-block-id="${CSS.escape(id)}"]`) : null; },
        sourceRev: key => sourceBlock(key)?.fileRef?.source?.rev, instruction: () => '', depth: () => chat?.settings?.depth || 'standard' } });
 +  // The Tutor's proposal as the canvas slot beside its Markdown card (roadmap-canvas.js -> AdaptiveCanvas SlotCard): one slot per step from proposal to delivered card,
-+  // accepted and cancelled through the same controller actions as Tab.
-+  const roadmapCanvas = useMemo(() => ({ cards: canvasCardsOf(roadmap.state.view, { busy: roadmap.state.busy, hasBlock: id => !!id && !!canvasApi.current?.blocks?.().some(block => block.id === id) }),
-+    onAccept: () => roadmap.controller.acceptProposal(), onCancel: () => roadmap.controller.cancelProposal() }), [roadmap.state.view, roadmap.state.busy, roadmap.controller]);
++  // accepted and cancelled through the same controller actions as Tab. The offer is shown exactly when the pill would be (state: pillOf's gate: Ask mode, the flag, the editor);
++  // the canvas tells which offers it really draws (onDrawn), and the fixed overlay yields only to those.
++  const [canvasDrawn, setCanvasDrawn] = useState('');
++  const roadmapCanvas = useMemo(() => ({ cards: canvasCardsOf(roadmap.state.view, { state: roadmap.state, hasBlock: id => !!id && !!canvasApi.current?.blocks?.().some(block => block.id === id) }),
++    onAccept: () => roadmap.controller.acceptProposal(), onCancel: () => roadmap.controller.cancelProposal(), onDrawn: setCanvasDrawn }), [roadmap.state, roadmap.controller]);
++  const canvasHosts = !!roadmap.pill && canvasDrawn.split(' ').includes(roadmap.pill.stepId);
    useEffect(() => { if (!comments.active && panelTab === 'comments') setPanelTab('chat'); }, [comments.active, panelTab]); // eslint-disable-line react-hooks/exhaustive-deps
    // Canvas references (C:/s/spec/references-plan.md): the board's links feed Search's Links results and the cards' chips; the
    // picker opens from a card's menu ({ blockId }), the empty canvas ({ point }) or Insert ({}). Same-tab link
-@@ -2430,7 +2437,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
+@@ -2430,7 +2440,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
              iframe never move to another parent. */}
          {study.open && <StudyPane study={study} canvasApi={canvasApi} canvasFrame={canvasFrame} canvasState={canvasState} ready={restoredBoard === boardPath} />}
          <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className={OWNER_CANVAS} style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={<CanvasChromeLoading feedback top={48} study={study} />}><SearchContentProvider key={searchScope} registry={canvasSearch.registry}><DivePortals.Provider value={dive.portals}><NextStepsHost on={nextStepsHere && !roadmap.active} coaching={hooksCoaching} canvasApi={canvasApi} canvasState={canvasState} record={dive.tree?.dive || null} liveTitle={dive.tree?.path?.at(-1)?.title ?? app.title ?? null} recordPending={/^canvas-[a-f0-9]{8}$/.test(app.name) && !dive.tree} access={askScope} title={app.title || ''} graded={graded} describe={describeBlock} repositoryCommit={repository?.commit || null} shown={canvasState.curious !== false}>{steps => <ExplainBackService.Provider value={explainBack}><AnimationBoard.Provider value={animationBoard}><CardFeedbackScope.Provider value={feedbackScope}><AdaptiveCanvas key={canvasEpoch} {...comments.canvasProps} leftRail={voiceOn ? <TutorCaption caption={voice.caption} state={voice.state} /> : null}
@@ -39,12 +42,12 @@ index ce04e7f45..6f0b39a2c 100644
              linked={refPick.blockId ? ((canvasApi.current?.liveRefs?.() || []).find(entry => entry.blockId === refPick.blockId)?.refs || []).map(ref => ref.target) : []}
              returnFocus={() => (refPick.blockId ? document.querySelector(`[data-block-id="${CSS.escape(refPick.blockId)}"]`) : null)}
              onPick={async canvas => {
-@@ -2439,7 +2446,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
+@@ -2439,7 +2449,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
                const api = canvasApi.current;
                if (refPick.blockId) return (await api?.addRef?.(refPick.blockId, canvas.id)) || { ok: false };
                return (await api?.insertRefCard?.(canvas.id, refPick.point)) ? { ok: true } : { ok: false };
 -            }} />}<RoadmapCanvas roadmap={roadmap} /><ChatHandle to={chatRef} /></div>
-+            }} />}<RoadmapCanvas roadmap={roadmap} hosted /><ChatHandle to={chatRef} /></div>
++            }} />}<RoadmapCanvas roadmap={roadmap} hosted={canvasHosts} /><ChatHandle to={chatRef} /></div>
          {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
          {false && <div aria-label="Lesson playback" className={`${courseView || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
            <div className="flex items-center gap-1">

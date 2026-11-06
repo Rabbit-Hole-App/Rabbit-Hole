@@ -1332,9 +1332,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       focusBlock: id => id && canvasApi.current?.focusBlock(id), sourceBlockId: key => sourceBlock(key)?.id, sourceElement: key => { const id = sourceBlock(key)?.id; return id ? document.querySelector(`[data-block-id="${CSS.escape(id)}"]`) : null; },
       sourceRev: key => sourceBlock(key)?.fileRef?.source?.rev, instruction: () => '', depth: () => chat?.settings?.depth || 'standard' } });
   // The Tutor's proposal as the canvas slot beside its Markdown card (roadmap-canvas.js -> AdaptiveCanvas SlotCard): one slot per step from proposal to delivered card,
-  // accepted and cancelled through the same controller actions as Tab.
-  const roadmapCanvas = useMemo(() => ({ cards: canvasCardsOf(roadmap.state.view, { busy: roadmap.state.busy, hasBlock: id => !!id && !!canvasApi.current?.blocks?.().some(block => block.id === id) }),
-    onAccept: () => roadmap.controller.acceptProposal(), onCancel: () => roadmap.controller.cancelProposal() }), [roadmap.state.view, roadmap.state.busy, roadmap.controller]);
+  // accepted and cancelled through the same controller actions as Tab. The offer is shown exactly when the pill would be (state: pillOf's gate: Ask mode, the flag, the editor);
+  // the canvas tells which offers it really draws (onDrawn), and the fixed overlay yields only to those.
+  const [canvasDrawn, setCanvasDrawn] = useState('');
+  const roadmapCanvas = useMemo(() => ({ cards: canvasCardsOf(roadmap.state.view, { state: roadmap.state, hasBlock: id => !!id && !!canvasApi.current?.blocks?.().some(block => block.id === id) }),
+    onAccept: () => roadmap.controller.acceptProposal(), onCancel: () => roadmap.controller.cancelProposal(), onDrawn: setCanvasDrawn }), [roadmap.state, roadmap.controller]);
+  const canvasHosts = !!roadmap.pill && canvasDrawn.split(' ').includes(roadmap.pill.stepId);
   useEffect(() => { if (!comments.active && panelTab === 'comments') setPanelTab('chat'); }, [comments.active, panelTab]); // eslint-disable-line react-hooks/exhaustive-deps
   // Canvas references (C:/s/spec/references-plan.md): the board's links feed Search's Links results and the cards' chips; the
   // picker opens from a card's menu ({ blockId }), the empty canvas ({ point }) or Insert ({}). Same-tab link
@@ -2446,7 +2449,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               const api = canvasApi.current;
               if (refPick.blockId) return (await api?.addRef?.(refPick.blockId, canvas.id)) || { ok: false };
               return (await api?.insertRefCard?.(canvas.id, refPick.point)) ? { ok: true } : { ok: false };
-            }} />}<RoadmapCanvas roadmap={roadmap} hosted /><ChatHandle to={chatRef} /></div>
+            }} />}<RoadmapCanvas roadmap={roadmap} hosted={canvasHosts} /><ChatHandle to={chatRef} /></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
