@@ -55,6 +55,18 @@ test('with the automatic switch on, a failed card closes its step and the next s
   assert.equal(now.nextStepReady, false, 'nothing was delivered: the indicator stays off');
 });
 
+test('after a learner\'s signs of danger (S27) nothing is offered automatically, even with the automatic switch on', async t => {
+  const danger = async ({ role }) => ({ ...calm, scores: { ...calm.scores, self_harm_personal: role === 'learner' ? 0.9 : 0 } });
+  const h = await loop(t, { script: [GOOD], classifier: danger, envExtra: { ROADMAP_AUTO_ENABLED: 'true' } });
+  const { id, view } = await toProposal(h);
+  const result = await accept(h, id, view);
+  assert.equal(result.failure.code, 'personal_risk');
+  await runDueRoadmapEvents(h.env);
+  const now = await h.status();
+  assert.equal(now.steps[0].state, 'skipped');
+  assert.equal(now.proposal ?? null, null, 'no unsolicited proposal after the support message');
+});
+
 test('owner MVP: the citation checker being down does not hold an ordinary card (it is not called)', async t => {
   const h = await loop(t, { script: [GOOD] });
   let asked = 0;
