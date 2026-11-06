@@ -1,0 +1,42 @@
+diff --git a/packages/web/src/RoadmapSurfaces.jsx b/packages/web/src/RoadmapSurfaces.jsx
+index a8a52f8e3..fafe978fa 100644
+--- a/packages/web/src/RoadmapSurfaces.jsx
++++ b/packages/web/src/RoadmapSurfaces.jsx
+@@ -24,7 +24,9 @@ export function RoadmapToc({ roadmap }) {
+     </div>
+   );
+ }
+-export function RoadmapCanvas({ roadmap }) {
++// hosted: the page draws the proposal and the accepted work as a card on the canvas (ProposalCard.jsx), so the fixed overlay and the corner status yield to it:
++// never two. The Next step ready indicator stays.
++export function RoadmapCanvas({ roadmap, hosted = false }) {
+   const c = roadmap.controller, st = roadmap.state, pill = roadmap.pill;
+   const store = useRef(null), [, tick] = useState(0);
+   store.current ||= createDragStore();
+@@ -41,9 +43,9 @@ export function RoadmapCanvas({ roadmap }) {
+   const edit = pill?.canEdit && { open: st.editing, draft: st.draft, busy: st.busy.length > 0, onOpen: () => c.openEditor(), onPreview: text => c.previewEdit(text), onApply: () => c.applyEdit(), onDiscard: () => c.closeEditor() };
+   return (
+     <>
+-      {pill && roadmap.showOverlay && <ProposalOverlay pill={pill} position={position} onAccept={() => c.acceptProposal()} onCancel={() => c.cancelProposal()} edit={edit} drag={startDrag} />}
++      {pill && roadmap.showOverlay && !hosted && <ProposalOverlay pill={pill} position={position} onAccept={() => c.acceptProposal()} onCancel={() => c.cancelProposal()} edit={edit} drag={startDrag} />}
+       <NextStepIndicator indicator={roadmap.indicator} onGo={() => roadmap.go({ kind: 'proposal' })} />
+-      {!roadmap.indicator && <RoadmapStatus status={roadmap.status} />}
++      {!roadmap.indicator && !hosted && <RoadmapStatus status={roadmap.status} />}
+     </>
+   );
+ }
+diff --git a/packages/web/src/use-roadmap.js b/packages/web/src/use-roadmap.js
+index 8c03a3dc8..66438efe4 100644
+--- a/packages/web/src/use-roadmap.js
++++ b/packages/web/src/use-roadmap.js
+@@ -78,7 +78,9 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto',
+   useEffect(() => {
+     if (!handoff.current || !pill) return;
+     handoff.current = false;
+-    if (showOverlay && claimsFocus(document.activeElement, { typing: busyRef.current })) document.querySelector('[data-roadmap-overlay]')?.focus({ preventScroll: true });
++    // The canvas card (ProposalCard.jsx) is drawn one commit after the proposal appears: look again on the next two frames before giving up.
++    const take = left => { const owner = document.querySelector('[data-roadmap-overlay]'); if (owner) owner.focus({ preventScroll: true }); else if (left) requestAnimationFrame(() => { if (claimsFocus(document.activeElement, { typing: busyRef.current })) take(left - 1); }); };
++    if (showOverlay && claimsFocus(document.activeElement, { typing: busyRef.current })) take(2);
+   }, [pill?.proposalId, pill?.version, showOverlay]); // eslint-disable-line react-hooks/exhaustive-deps
+ 
+   // Edit plan routes into the ToC conversation: the next message the learner sends there is the plan revision (divert).
