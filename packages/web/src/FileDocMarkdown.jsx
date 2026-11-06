@@ -8,10 +8,12 @@ import { deleteHighlight, listHighlights, newId, putHighlight } from './pdf-high
 import { canWrite, fileScope } from './file-source-client.js';
 import { containsOffset, paintHighlights, quoteFromRange, rangeFromOffsets } from './learn-wiki-highlights.js';
 import { currentHighlights, highlightAt, markdownHighlightBody, markdownHighlightSource, placeHighlights } from './file-doc-highlights.js';
-import { EXPLAIN_PASSAGE_EVENT, PASSAGE_TEXT, SOURCE_REF_EVENT, explanationsFor, markdownDraft, passageTarget, resolveQuote } from './source-ref.js';
-import { focusExplanation, mintSourceRef } from './source-refs.js';
+import { EXPLAIN_PASSAGE_EVENT, PASSAGE_TEXT, SOURCE_RANGE_EVENT, SOURCE_REF_EVENT, explanationsFor, markdownDraft, passageTarget, resolveAnchor } from './source-ref.js';
+import { anchorOfRange, resolveFolded } from './markdown-anchor.js';
+import { markersFor } from './roadmap-canvas.js';
+import { focusExplanation, mintSourceRef, registerPassageReader } from './source-refs.js';
 import { api } from './api.js';
-import { useSourceRefBlocks } from './SourceRefChip.jsx';
+import { goToProposal, useRoadmapPassages, useSourceRefBlocks } from './SourceRefChip.jsx';
 
 // A Markdown file card's rendered text with the PDF reader's selection popover (Highlight) and the webpage card's highlight menu
 // (Remove highlight), docs/features/pdf-excerpts.md "Markdown cards". Highlights are text quotes painted over the rendered text
@@ -27,6 +29,8 @@ export function MarkdownText({ block, text, children }) {
   const wrap = useRef(null), scroller = useRef(null), root = useRef(null), barEl = useRef(null), menuEl = useRef(null);
   const key = source?.key;
   const refBlocks = useSourceRefBlocks(); // cards made from a passage of this file (source-ref.js): the passage opens its explanation
+  const passages = useRoadmapPassages(); // the Tutor's steps on this file: a small icon at each passage opens its proposal, then its card
+  const [markers, setMarkers] = useState([]);
 
   useEffect(() => {
     if (!source) { setAnswer(null); return undefined; }
@@ -68,6 +72,59 @@ export function MarkdownText({ block, text, children }) {
     window.addEventListener(SOURCE_REF_EVENT, onPassage);
     return () => window.removeEventListener(SOURCE_REF_EVENT, onPassage);
   }, [block.id, rev]);
+  // A roadmap step's passage from the raw offsets the plan names (source-ref.js SOURCE_RANGE_EVENT, an explicit navigation): found in the rendered text through the folded anchor
+  // (markdown-anchor.js), emphasized, scrolled to. A passage past the part of the file drawn so far is revealed only when the request says so (Show more is pressed for the
+  // learner); one that changed, is missing or repeats without context is said so, never guessed.
+  const rangeOf = (start, end) => {
+    const node = root.current;
+    if (!node) return { status: 'missing' };
+    if (end > text.length) return { status: 'collapsed' };
+    const anchor = anchorOfRange(text, start, end), found = anchor ? resolveFolded(node.textContent, anchor) : { status: 'missing' }, range = found.status === 'resolved' && rangeFromOffsets(node, found.start, found.end);
+    return range ? { status: 'resolved', range } : { status: found.status === 'resolved' ? 'missing' : found.status };
+  };
+  const waiting = useRef(null);
+  const passageApi = useRef(null);
+  const showRange = detail => {
+    if (detail.rev !== rev) { setMessage({ text: PASSAGE_TEXT.changed }); return; }
+    const found = rangeOf(detail.start, detail.end);
+    if (found.status === 'collapsed') {
+      const more = scroller.current?.querySelector('[data-file-doc-more]');
+      if (detail.reveal && more) { waiting.current = detail; more.click(); } else setMessage({ text: PASSAGE_TEXT.missing });
+      return;
+    }
+    if (found.status !== 'resolved') { setMessage({ text: PASSAGE_TEXT[found.status] || PASSAGE_TEXT.missing }); return; }
+    const paintKey = `srcref:${block.id}`;
+    paintHighlights(paintKey, [found.range]);
+    (found.range.startContainer.parentElement || root.current).scrollIntoView?.({ block: 'center' });
+    setTimeout(() => paintHighlights(paintKey, []), 2500);
+  };
+  passageApi.current = { showRange, rangeOf };
+  useEffect(() => {
+    const onRange = event => { if (event.detail?.cardId === block.id) passageApi.current.showRange(event.detail); };
+    window.addEventListener(SOURCE_RANGE_EVENT, onRange);
+    return () => window.removeEventListener(SOURCE_RANGE_EVENT, onRange);
+  }, [block.id]);
+  useEffect(() => { const detail = waiting.current; if (detail && detail.reveal && text.length >= detail.end) { waiting.current = null; requestAnimationFrame(() => passageApi.current.showRange(detail)); } }, [text]);
+  // Where a step's passage is drawn, for placing its proposal beside it: a rect only, nothing scrolls or paints.
+  useEffect(() => registerPassageReader(block.id, { rectOf: (start, end) => { const found = passageApi.current.rangeOf(start, end); return found.status === 'resolved' ? found.range.getBoundingClientRect() : null; } }), [block.id]);
+  // The small icon at each passage a roadmap step stands on, drawn in the card's right margin at the passage's first line (never over the text it is about): hover or focus
+  // makes it plain; a click goes to the proposal, or to the delivered card.
+  const links = markersFor(passages, block.fileRef?.source?.id ? `file:${block.fileRef.source.id}` : null), linksKey = JSON.stringify(links);
+  useEffect(() => {
+    const node = root.current;
+    if (!node || !links.length) { setMarkers(previous => (previous.length ? [] : previous)); return undefined; }
+    const place = () => {
+      const base = node.parentElement.getBoundingClientRect();
+      const next = links.flatMap(link => { const found = passageApi.current.rangeOf(link.start, link.end); const rect = found.status === 'resolved' && found.range.getClientRects()[0]; return rect ? [{ key: link.stepId, target: link.target, top: Math.round(rect.top - base.top) }] : []; });
+      setMarkers(previous => (JSON.stringify(previous) === JSON.stringify(next) ? previous : next));
+    };
+    place();
+    const observer = new MutationObserver(place);
+    observer.observe(node, { childList: true, subtree: true, characterData: true });
+    const sizes = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
+    sizes?.observe(node);
+    return () => { observer.disconnect(); sizes?.disconnect(); };
+  }, [linksKey, text]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!menu?.cardId) return undefined;
     const paintKey = `srcref-open:${block.id}`;
@@ -118,7 +175,7 @@ export function MarkdownText({ block, text, children }) {
     before.setStart(node, 0); before.setEnd(caret.startContainer, caret.startOffset);
     const offset = before.toString().length, placed = saveable ? placeHighlights(node.textContent, highlights) : [], h = highlightAt(placed, offset);
     const passage = explanationsFor(refBlocks, { key: `file:${block.fileRef?.source?.id}`, rev }).current
-      .flatMap(({ cardId, ref }) => { const span = resolveQuote(node.textContent, ref.anchor.quote); return span.status === 'resolved' && containsOffset(span, offset) ? [{ cardId, span }] : []; })[0];
+      .flatMap(({ cardId, ref }) => { const span = resolveAnchor(node.textContent, ref.anchor); return span.status === 'resolved' && containsOffset(span, offset) ? [{ cardId, span }] : []; })[0];
     if (!h && !passage) { setMenu(null); return; }
     const { span } = h ? placed.find(entry => entry.h === h) : passage;
     setMenu({ h: h || null, cardId: passage?.cardId ?? null, range: rangeFromOffsets(node, span.start, span.end) });
@@ -164,7 +221,15 @@ export function MarkdownText({ block, text, children }) {
       <button type="button" aria-label="Dismiss" onClick={() => setMessage(null)} className="rounded p-1 hover:bg-hover"><X size={13} /></button>
     </div>}
     <div ref={scroller} data-scroll data-file-doc-text className="pointer-events-auto min-h-0 flex-1 overflow-auto px-3 py-2" onPointerDown={event => event.stopPropagation()} onScroll={reposition} onClick={click}>
-      <div ref={root} data-file-doc-md className="text-sm text-ink"><Md text={text} doc fences /></div>
+      <div className="relative">
+        <div ref={root} data-file-doc-md className="text-sm text-ink"><Md text={text} doc fences /></div>
+        {markers.map(marker => {
+          const proposal = marker.target.kind === 'proposal', label = proposal ? 'View the proposal for this passage' : 'View the explanation for this passage';
+          return <button key={marker.key} type="button" data-passage-link={marker.target.kind} aria-label={label} title={label} style={{ top: marker.top }}
+            onClick={() => (proposal ? goToProposal(marker.key) : focusExplanation(marker.target.cardId))}
+            className="absolute right-0 flex h-5 w-5 cursor-pointer items-center justify-center rounded text-ink-3 opacity-60 hover:bg-hover hover:text-ink hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-accent"><Lightbulb size={12} aria-hidden="true" /></button>;
+        })}
+      </div>
       {children}
     </div>
     {bar && <div ref={barEl} data-file-doc-selection-toolbar role="toolbar" aria-label="Selected text" className="absolute z-30 flex items-center gap-0.5 rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>

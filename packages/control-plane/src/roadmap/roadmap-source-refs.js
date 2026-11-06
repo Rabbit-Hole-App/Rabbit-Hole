@@ -9,14 +9,16 @@ import { revalidateSourceAsJob } from './roadmap-access.js';
 import { readMarkdownForActor } from './roadmap-source-reader.js';
 import { LIMIT_COPY } from './roadmap-source-read.js';
 import { sha256 } from './roadmap-money.js';
+import { anchorOfRange } from '../../../web/src/markdown-anchor.js';
 
 const TABLE_MISSING = /no such table/i;
 const CONTEXT = 100; // characters of prefix/suffix kept with a quote (R3 allows 500)
 const mintId = () => `sref_${[...crypto.getRandomValues(new Uint8Array(12))].map(b => b.toString(16).padStart(2, '0')).join('')}`;
 
 // -> { ref } | { ref: null, skipped: true }
-export async function d1MintSourceRef(env, access, { key, rev, name, quote, now = Date.now() }) {
-  const anchorJson = JSON.stringify({ quote: { exact: quote.exact, prefix: quote.prefix, suffix: quote.suffix } }), anchorHash = await sha256(anchorJson), db = env.LEARN_DB;
+// quote is the RAW Markdown passage (grounding reads it); `rendered` (markdown-anchor.js) is the same passage folded for the viewer, which draws none of the syntax.
+export async function d1MintSourceRef(env, access, { key, rev, name, quote, rendered = null, now = Date.now() }) {
+  const anchorJson = JSON.stringify({ quote: { exact: quote.exact, prefix: quote.prefix, suffix: quote.suffix }, ...(rendered ? { rendered } : {}) }), anchorHash = await sha256(anchorJson), db = env.LEARN_DB;
   try {
     await db.prepare(`INSERT INTO learn_source_refs (id, org, owner_email, kind, source_key, source_home, source_name, source_rev, anchor_json, anchor_hash, status, checked_at, created_at)
       VALUES (?, ?, ?, 'markdown', ?, NULL, ?, ?, ?, ?, 'current', ?, ?) ON CONFLICT (org, owner_email, source_key, source_rev, anchor_hash) DO NOTHING`)
@@ -41,7 +43,7 @@ export async function mintStepRefs(env, access, roadmapId, { mint = d1MintSource
   for (const step of steps) {
     const exact = text.text.slice(step.passage_start, step.passage_end);
     if (!exact) continue;
-    const made = await mint(env, access, { key: roadmap.source_key, rev: roadmap.source_rev, name: source.name,
+    const made = await mint(env, access, { key: roadmap.source_key, rev: roadmap.source_rev, name: source.name, rendered: anchorOfRange(text.text, step.passage_start, step.passage_end),
       quote: { exact, prefix: text.text.slice(Math.max(0, step.passage_start - CONTEXT), step.passage_start), suffix: text.text.slice(step.passage_end, step.passage_end + CONTEXT) } });
     if (!made.ref) break; // no R3 table: skip the rest
     await db.prepare('UPDATE learn_roadmap_steps SET source_ref_id = ? WHERE id = ? AND roadmap_id = ? AND source_ref_id IS NULL').bind(made.ref.id, step.id, roadmapId).run();
