@@ -3,6 +3,7 @@
 // fixtures (docs/features/explain-on-canvas/contracts/fixtures). State is always the server's: nothing here predicts an outcome.
 import { STRINGS } from './roadmap-strings.js';
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
+import { stalePreview } from './inline-ai-proposal.js';
 
 export const BASE = '/api/learn/roadmap';
 const q = boardId => `?boardId=${encodeURIComponent(boardId)}`;
@@ -25,6 +26,11 @@ export const routes = {
   ack: (view, result, cardId, boardRevision, actionKey) => mutate(view, `results/${result.id}/ack`, { resultVersion: result.resultVersion ?? 1, cardId, boardRevision }, actionKey),
   removed: (view, resultId, cardId, actionKey) => mutate(view, `results/${resultId}/removed`, { cardId }, actionKey),
   recover: (view, stepId, action, actionKey) => mutate(view, `steps/${stepId}/${action}`, {}, actionKey),
+  // R5: preview an edit of the pending proposal, apply or discard the preview, and offer an existing card as the next step.
+  draft: (view, instruction, actionKey) => mutate(view, `proposals/${view.proposal.id}/drafts`, { proposalVersion: view.proposal.version, instruction }, actionKey),
+  applyDraft: (view, draft, actionKey) => mutate(view, `drafts/${draft.draftId}/apply`, { draftRevision: draft.revision, proposalVersion: draft.proposalVersion }, actionKey),
+  discardDraft: (view, draft) => ({ method: 'POST', path: `${BASE}/${view.roadmap.id}/drafts/${draft.draftId}/discard`, body: { boardId: view.roadmap.boardId } }),
+  linkCard: (view, cardId, reason, actionKey) => mutate(view, 'steps/link', { cardId, reason }, actionKey),
   mode: (view, mode) => ({ method: 'POST', path: `${BASE}/${view.roadmap.id}/mode`, body: { boardId: view.roadmap.boardId, mode } }),
   end: (view, actionKey) => mutate(view, 'end', {}, actionKey),
 };
@@ -44,7 +50,7 @@ export function actionKeys(random = () => globalThis.crypto.randomUUID()) {
 }
 
 // --- state ----------------------------------------------------------------------------------------------------------------
-export const initialState = () => ({ flag: 'unknown', view: null, invitation: null, dismissed: [], suppressed: null, notice: null, busy: [], mode: 'auto' });
+export const initialState = () => ({ flag: 'unknown', view: null, invitation: null, dismissed: [], suppressed: null, notice: null, busy: [], mode: 'auto', draft: null, editing: false });
 
 const sameRoadmap = (a, b) => a?.roadmap?.id === b?.roadmap?.id;
 // A view older than the one held (same roadmap) is ignored: a slow poll never rolls the screen back.
@@ -52,9 +58,13 @@ const newer = (held, next) => !held || !sameRoadmap(held, next) || next.roadmap.
 
 export function reduce(state, event) {
   switch (event.type) {
-    case 'view': if (!event.view?.roadmap) return { ...state, flag: 'on', view: null }; return newer(state.view, event.view) ? { ...state, flag: 'on', view: event.view, notice: null } : state;
+    case 'view': if (!event.view?.roadmap) return { ...state, flag: 'on', view: null, draft: null, editing: false }; return newer(state.view, event.view) ? withPreview({ ...state, flag: 'on', view: event.view, notice: null }) : state;
     // 409: the response carries the current state; it replaces ours even when its revision looks lower (the server is the truth).
-    case 'conflict': return { ...state, flag: 'on', view: event.current || state.view, notice: STRINGS.stale };
+    case 'conflict': return withPreview({ ...state, flag: 'on', view: event.current || state.view, notice: STRINGS.stale });
+    // R5: the editor box and its preview. A preview for a version the server no longer shows is dropped by withPreview (never trusted over the view).
+    case 'edit_open': return state.view?.proposal && state.view.edit === true ? { ...state, editing: true } : state;
+    case 'edit_close': return { ...state, editing: false, draft: null };
+    case 'draft': return { ...state, draft: event.draft };
     // Anything else refused (credits, source changed): the sentence comes from the response; the proposal stays as the server has it.
     case 'refused': return { ...state, view: event.current && newer(state.view, event.current) ? event.current : state.view, notice: event.message || null };
     case 'invitation': return { ...state, flag: 'on', invitation: event.invitation && !state.dismissed.includes(event.invitation.id) ? event.invitation : null, suppressed: event.suppressed || null };
@@ -67,6 +77,9 @@ export function reduce(state, event) {
     default: return state;
   }
 }
+
+// A preview whose proposal is no longer the pending one in the view is dropped; the editor closes with it.
+const withPreview = next => (next.draft && stalePreview(next.draft, next.view) ? { ...next, draft: null, editing: false } : next.editing && !(next.view?.proposal && next.view.edit === true) ? { ...next, editing: false } : next);
 
 // --- what each surface shows (all derived from the server view; the UI keeps nothing of its own) ---------------------------
 // Contract shape (R3 sourceRef): scope.source.name, relation.sourceRef.source.name.
@@ -85,8 +98,8 @@ export function pillOf(state) {
   const gesture = `accept:${proposal.id}:${proposal.version}`;
   return {
     proposalId: proposal.id, version: proposal.version, title: proposal.title, description: proposal.description, format: proposal.format,
-    source: relationTitle(proposal), sourceKey: proposal.sourceRelation?.sourceRef?.source?.key || proposal.sourceRelation?.source?.key || null, position: proposal.position, accept: proposal.acceptable === true && !state.busy.includes(gesture), gesture,
-    cancelGesture: `cancel:${proposal.id}:${proposal.version}`,
+    source: relationTitle(proposal), sourceKey: proposal.sourceRelation?.sourceRef?.source?.key || proposal.sourceRelation?.source?.key || null, position: proposal.position, accept: proposal.acceptable === true && !state.editing && !state.busy.includes(gesture), gesture,
+    cancelGesture: `cancel:${proposal.id}:${proposal.version}`, link: proposal.link || null, stepId: proposal.stepId, canEdit: state.view.edit === true && !proposal.link,
   };
 }
 // "Next step ready": only when a pending proposal exists, the server says it is ready and the overlay is offscreen. It navigates.

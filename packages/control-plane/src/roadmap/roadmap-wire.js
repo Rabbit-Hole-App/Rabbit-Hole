@@ -11,6 +11,9 @@ import { planningHandler } from './roadmap-planning.js';
 import { generationHandler } from './roadmap-run.js';
 import { sweepUndelivered } from './roadmap-sweep.js';
 import { readAutoSuggest } from '../learn-user-settings.js';
+import { platformCallModel } from './roadmap-models.js';
+import { makeComposeEdit, makeProposalScreen } from './roadmap-edit.js';
+import { roadmapEditEnabled, sweepProposalDrafts } from './roadmap-proposal-drafts.js';
 import { AUTO_KINDS, autoProposalHandler, settingsFanoutHandler } from './roadmap-auto.js';
 import { roadmapAutoEnabled } from './roadmap-settings-events.js';
 
@@ -40,11 +43,15 @@ export const learnerSettings = env => async (_db, access) => {
 };
 
 // deps for roadmapRoute. `settings` is the reader seam (Auto-suggest, mode); the default reads the learner's saved settings (learnerSettings).
-export function roadmapDeps(env, ctx = null, { settings = learnerSettings(env), readSourceOptions } = {}) {
+export function roadmapDeps(env, ctx = null, { settings = learnerSettings(env), readSourceOptions, callModel, classify } = {}) {
   const kick = roadmapKick(env, ctx);
   return { readSource: makeReadSource(env, readSourceOptions), startPlanning: kick, onAccepted: kick, onFact: roadmapAutoEnabled(env) ? kick : undefined, // R6: no wake on ack/mode change unless the automatic switch is on
     compose: (roadmap, step) => composeProposal(env.LEARN_DB, roadmap, step),
-    mintStepRefs: (e, access, roadmapId) => mintStepRefs(e, access, roadmapId), settings };
+    mintStepRefs: (e, access, roadmapId) => mintStepRefs(e, access, roadmapId), settings,
+    // R5 (ROADMAP_EDIT_ENABLED): `screen` is R4's safety classifier path over the learner's words and the composed words (held when unknown); the composer is platform-funded
+    // (role roadmap_proposal; unregistered, the route answers 503 edit_unavailable). `callModel` and `classify` are the test seams.
+    screen: makeProposalScreen(env, classify ? { classify } : {}),
+    composeEdit: args => makeComposeEdit({ callModel: callModel || platformCallModel(env, args.access, { roadmapId: args.roadmap.id, version: args.proposal.version, anchor: args.proposal.id, quota: 'plan' }) })(args) };
 }
 
 // The durable handlers. `deps` is the test/injection seam of the handlers (callModel, registry, transport, classify, base, ...). Idempotent.
@@ -63,6 +70,7 @@ export async function scheduledRoadmapKick(env, { limit = 50 } = {}) {
   let kicked = 0;
   // A learner-scope event (R6 Auto-suggest fan-out) names no board, so no object: run it here. Everything else wakes its board's object.
   for (const scope of await boardsWithDueEvents(env.LEARN_DB, { limit })) if (scope.boardId === '' ? await runDueRoadmapEvents(env, { scope }).catch(() => 0) : await kickRoadmapJobs(env, scope)) kicked += 1;
+  if (roadmapEditEnabled(env)) await sweepProposalDrafts(env.LEARN_DB).catch(() => null); // R5: expired and no-longer-pending drafts stop being live
   await sweepUndelivered(env).catch(() => null); // the bounded delivery deadline: place-or-refund (roadmap-sweep.js)
   return kicked;
 }

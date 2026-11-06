@@ -167,6 +167,20 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
       meter.manual();
       return mutateView(`propose:${state.view.roadmap.id}:${state.view.roadmap.revision}`, key => routes.proposeNext(state.view, key));
     },
+    // R5: edit the pending proposal. The preview never changes it; Apply (after the server confirms) replaces it with the next version.
+    openEditor() { dispatch({ type: 'edit_open' }); },
+    closeEditor() { const draft = state.draft; dispatch({ type: 'edit_close' }); if (draft && state.view && !stopped) call(routes.discardDraft(state.view, draft)).catch(() => {}); }, // best effort: the Apply guard is the correctness boundary
+    previewEdit(instruction) {
+      const pill = pillOf(state), text = String(instruction || '').trim();
+      if (!pill || !text || !state.editing) return Promise.resolve(null);
+      return act(`draft:${pill.proposalId}:${pill.version}:${text}`, key => routes.draft(state.view, text, key)).then(body => { if (!body) return null; applyView(body); if (body.draft) dispatch({ type: 'draft', draft: body.draft }); return body; });
+    },
+    applyEdit() {
+      const draft = state.draft;
+      if (!draft || !state.view) return Promise.resolve(null);
+      return mutateView(`apply:${draft.draftId}:${draft.revision}`, key => routes.applyDraft(state.view, draft, key)).then(body => { if (body) dispatch({ type: 'edit_close' }); return body; });
+    },
+    linkCard: (cardId, reason) => mutateView(`link:${cardId}`, key => routes.linkCard(state.view, cardId, reason, key)),
     end: () => mutateView(`end:${state.view?.roadmap.id}`, key => routes.end(state.view, key)),
     // Retry, Replace and Omit are the same three calls from Chat and from the ToC (D36).
     recover: (stepId, action) => mutateView(`${action}:${stepId}`, key => routes.recover(state.view, stepId, action, key)),
