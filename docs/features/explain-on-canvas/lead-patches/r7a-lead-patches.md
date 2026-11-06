@@ -1,6 +1,6 @@
 # R7a lead patches (Lead-only files). Nothing here is applied by the lane; no migration is applied to any database.
 
-Order: R4 rows already in `scripts/ci/check-map.json` at the base `fe941068`; the R7a patches apply on top of it, in any order.
+Order: R4 rows already in `scripts/ci/check-map.json` at the base (`rabbit-hole/main` e90b47083 or later); the R7a patches apply on top of it, in any order.
 
 | Lead-only file | Patch | Apply |
 | --- | --- | --- |
@@ -14,7 +14,7 @@ Order: R4 rows already in `scripts/ci/check-map.json` at the base `fe941068`; th
 
 1. **Summary trigger.** Nothing in R7a calls `summarizeIndex` (no schedule, no route). Section choices work without summaries. If the Lead wants summaries, mount one job that calls
    `summarizeIndex(env, access, indexId, { readSourceForActor, callModel: makeIndexCallModel(env) })` (both in `roadmap-source-summary.js`) after the oversize limitation is shown.
-   Bounded by `INDEX_LIMITS.summary` (12 calls, 360,000 characters, 3 attempts per batch, 240 s per index) and cached per source revision, so a repeat costs nothing.
+   Bounded by `INDEX_LIMITS.summary` (12 calls, 480,000 characters, 3 attempts per batch, 240 s per index) and cached per source revision, so a repeat costs nothing.
 2. **Call identity and quota.** `learn_roadmap_calls` (migration 0039) is per roadmap and its `stage` list is closed, so index calls are checkpointed in `learn_source_index_batches` instead
    (reserved before dispatch; a crash leaves `reserved`, which the next run marks `unknown` and never retries blind). `makeIndexCallModel` takes an optional `reserve()` hook for a per-learner quota; R7a
    adds none because `QUOTA_STAGES` is R4 State's. If a per-learner index quota is wanted, add an `index` stage to `roadmap-quota.js` and `ROADMAP_LIMITS.quotas`, and pass `reserve`.
