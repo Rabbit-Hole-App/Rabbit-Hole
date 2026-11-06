@@ -24,6 +24,9 @@ R1 (waits for the P2 merge), R3 (waits for the P2 merge), R2 (waits for P4), R4 
 ### Exact release commands
 Section 3 holds the per-release command blocks. They are valid only once a release's status there says READY.
 
+**One-command queue (written overnight, dry-run tested):** `bash C:/s/spec/release-queue/morning-release.sh <name> [<name> ...]` releases the listed candidates in order, one at a time. For each it prints the candidate, asks you to type `RELEASE <number>`, sets `MVP_ALLOWED_SHA` for that exact SHA, runs `release-mvp.sh --check`, then the release, waits for its final line, and only then deletes the variable. It stops at the first failure and removes the variable on exit. It never touches a database. Use `--dry-run` to preview and `--check-only` to check without pushing. Order of the queue: `54-tutor-cleanup-p2-mvp 55-tutor-r1-mvp` (then 56 R3, 57 P3, 58 P4, 59 R2, 60 P5 as they are marked READY below). Previews: run each candidate's `preview-<n>-*.cmd` first if its section says the preview has not run (R1's preview already ran; P2's was started by Claude at 00:40 PT and its result is recorded below).
+**Production migrations are your step before the release that needs them:** R1 needs 0036 on the prod `LEARN_DB`; R3 needs 0038; R2 needs 0037 (each file is in its lane's `learn-migrations/` directory and is additive).
+
 ---
 
 ## 2. Decisions and blockers needing you
