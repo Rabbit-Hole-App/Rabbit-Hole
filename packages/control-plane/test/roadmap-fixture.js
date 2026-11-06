@@ -15,6 +15,7 @@ export const accessFor = (userId = 'u-alice', boardId = 'lb_board00000000000001'
 export function world(t, { allowanceMicros = 10_000_000 } = {}) {
   const { sqlite, LEARN_DB } = learnDb(t);
   const env = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '100', AI_MONTHLY_ALLOWANCE_USD: usd(allowanceMicros) };
+  for (const user of ["u-alice", "u-bob"]) sqlite.prepare("INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, updated_at) VALUES (?, 'team', ?, 'learn', 'main', '{}', '2026-11-06')").run(user === "u-alice" ? "lb_board00000000000001" : "lb_board00000000000003", `${user}@example.test`);
   return { sqlite, LEARN_DB, env, access: accessFor() };
 }
 

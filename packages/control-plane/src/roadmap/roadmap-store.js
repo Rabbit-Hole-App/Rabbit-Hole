@@ -21,6 +21,13 @@ export function requireKey(actionKey) {
   return actionKey;
 }
 
+// Access is rechecked at accept, generation, delivery and resume (v1.4 4.1): the board must still belong to the actor. A revoked owner stops new work
+// and charges and keeps the audit rows. R14 replaces this owner test with a membership check.
+export async function accessStillValid(db, access) {
+  if (!validateAccess(access).ok) return false;
+  return !!(await db.prepare("SELECT 1 AS ok FROM learn_boards WHERE id = ? AND org = ? AND owner_email = ?").bind(access.boardId, access.org, access.boardOwnerEmail).first());
+}
+
 // --- reads (always scoped: org, owner, board) ----------------------------------------------------------------------------------------
 export const readRoadmap = (db, access, roadmapId) => db.prepare(`SELECT * FROM learn_roadmaps WHERE id = ? AND ${SCOPE_SQL}`).bind(roadmapId, ...scopeOf(access)).first();
 export const readUnfinishedRoadmap = (db, access) => db.prepare(`SELECT * FROM learn_roadmaps WHERE ${SCOPE_SQL} AND state IN ('draft', 'questioning', 'proposed', 'active', 'paused') ORDER BY created_at DESC LIMIT 1`).bind(...scopeOf(access)).first();
@@ -172,6 +179,7 @@ export async function offerProposal(db, access, { roadmapId, expectedRevision, a
 export async function acceptRoadmapStep(env, access, { roadmapId, revision, proposalId, proposalVersion, actionKey, callMicros, now = nowSeconds() }) {
   requireAccess(access); requireKey(actionKey);
   const db = env.LEARN_DB;
+  if (!(await accessStillValid(db, access))) throw new StateError('not_found', 'Not available', 404); // revoked access: no new charge
   const roadmap = await readRoadmap(db, access, roadmapId);
   const proposal = await readProposal(db, access, proposalId);
   if (!roadmap || !proposal || proposal.roadmap_id !== roadmapId) throw new StateError('not_found', 'Not available', 404);
