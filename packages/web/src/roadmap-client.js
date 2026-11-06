@@ -85,7 +85,7 @@ export function pillOf(state) {
   const gesture = `accept:${proposal.id}:${proposal.version}`;
   return {
     proposalId: proposal.id, version: proposal.version, title: proposal.title, description: proposal.description, format: proposal.format,
-    source: relationTitle(proposal), position: proposal.position, accept: proposal.acceptable === true && !state.busy.includes(gesture), gesture,
+    source: relationTitle(proposal), sourceKey: proposal.sourceRelation?.sourceRef?.source?.key || null, position: proposal.position, accept: proposal.acceptable === true && !state.busy.includes(gesture), gesture,
     cancelGesture: `cancel:${proposal.id}:${proposal.version}`,
   };
 }
