@@ -1,4 +1,4 @@
-import { admitSpend, settleSpend, operationId, spendEnforced, platformCaps } from './learn-spend-ledger.js';
+import { admitSpend, settleSpend, operationId, spendEnforced, platformCaps, operationOf } from './learn-spend-ledger.js';
 import { settleAttempt, toMicros } from './learn-usage.js';
 import { priceUsage } from './pricing-registry.js';
 
@@ -147,13 +147,16 @@ export async function askJev(env, request, { transport = 'gateway', timeoutMs = 
   if (enforced && !platformCaps(env).usd) throw Object.assign(new JevError('cap_unset', 'Daily model spend cap is not configured.'), { called: false });
   if (enforced && request?.model !== JEV_TRANSPORTS[transport]?.model) throw Object.assign(new JevError('spend_bound_unavailable', 'Jev request has no verified spend bound.'), { called: false });
   for (let attempt = 0; ; attempt += 1) {
-    const opId = enforced ? operationId('jev') : null;
+    // A trusted caller's stable id (withRoadmapProviderCall) names the first POST, the 429/529 capacity retry is its own '.c1' operation.
+    const stableId = operationOf(env)?.opId;
+    const opId = enforced ? (stableId ? (attempt > 0 ? `${stableId}.c${attempt}` : stableId) : operationId('jev')) : null;
     // One admission per POST (learn-spend-ledger.js): the 429/529 retry is admitted again, its own 'retry' attempt, so a
     // retry can never spend past the platform guard or the payer's allowance.
     let begun = null;
     if (enforced) {
       const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: 'provider:platform', org: 'platform', category: 'jev', reservedUsd,
-        kind: attempt > 0 ? 'retry' : undefined, provider: `jev:${transport}`, model: request.model });
+        kind: attempt > 0 ? 'retry' : undefined, provider: `jev:${transport}`, model: request.model, stable: !!stableId });
+      if (gate.reason === 'operation_exists') throw Object.assign(new JevError('operation_replayed', 'This screen was already admitted.'), { called: false });
       if (gate.refused) throw Object.assign(new JevError(gate.reason, 'Jev refused by the spend guard.'), { called: attempt > 0 });
       begun = gate.attemptId;
     }
