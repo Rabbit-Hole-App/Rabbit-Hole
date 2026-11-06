@@ -45,63 +45,38 @@ async function ask(role, user, { callModel, limits }) {
   return used[0].input.verdicts;
 }
 
-// Each evidence snippet must be one exact stretch of the passage (after the markup folds of norm). Scattered-fragment matching is
-// deliberately not done: dropping words can drop a negation or pick the wrong Yes/No edge. -> null when valid, else the reason.
-const ELLIPSIS = /\.\.\.|…/;
-const snippetError = (passage, s) => typeof s !== 'string' || !s.trim() ? 'empty' : ELLIPSIS.test(s) ? 'ellipsis_joined' : inPassage(passage, s) ? null : 'not_in_passage';
-const evidenceOf = v => Array.isArray(v.evidence) ? v.evidence : typeof v.quote === 'string' && v.quote ? [v.quote] : []; // quote: the pre-roadmap-check-2 single span
-const evidenceErrors = (passage, list) => list.map(s => ({ snippet: String(s).slice(0, 400), error: snippetError(passage, s) })).filter(e => e.error);
-
-// Deterministic enforcement of one model verdict against the passage -> { class, settled, blocked?, errors }; settled=false means
-// the citation, not the judgement, failed (escalation candidate).
+// Deterministic enforcement of one model verdict against the passage -> { class, settled } ; settled=false means ambiguous (escalation candidate).
 function enforce(v, passage) {
-  if (v.verdict === 'contradicts' || v.verdict === 'supports') {
-    const ev = evidenceOf(v);
-    const errors = ev.length ? evidenceErrors(passage, ev) : [{ snippet: '', error: 'no_evidence' }];
-    if (errors.length) return { class: 'unresolved', settled: false, errors };
-    return v.verdict === 'contradicts' ? { class: 'unresolved', blocked: true, settled: true, errors: [] } : { class: 'source_supported', settled: true, errors: [] };
-  }
+  if (v.verdict === 'contradicts') return inPassage(passage, v.quote) ? { class: 'unresolved', blocked: true, settled: true } : { class: 'unresolved', settled: false }; // a contradiction needs a real quote
+  if (v.verdict === 'supports') return inPassage(passage, v.quote) ? { class: 'source_supported', settled: true } : { class: 'unresolved', settled: false }; // support without a genuine quote is not support
   // not_established: valid only as a checked inference (premises that are really in the passage); calling it an inference is not enough.
   const premises = v.premises || [];
-  const errors = evidenceErrors(passage, premises);
-  if (v.class === 'inferred' && premises.length && !errors.length) return { class: 'inferred', settled: true, errors: [] };
-  return { class: 'unresolved', settled: true, errors };
+  if (v.class === 'inferred' && premises.length && premises.every(p => inPassage(passage, p))) return { class: 'inferred', settled: true };
+  return { class: 'unresolved', settled: true };
 }
 
-const detail = d => ({ id: d.id, claim: String(d.v.claim).slice(0, 300), verdict: d.v.verdict, evidence: [...evidenceOf(d.v), ...(d.v.premises || [])].slice(0, 4).map(s => String(s).slice(0, 400)), errors: d.errors.slice(0, 4) });
-
 // checkSupport({ block, passage, rev }, { callModel, limits }) ->
-//   { validation: 'passed'|'held'|'blocked', reason?, verdicts:[{id, claim, class}], unresolved:[claim], failed:[private diagnostics], escalated, calls, cacheKey }
-// held = checking unavailable or an unresolved claim; never passed by default. Claims carry server-assigned ids (c1..c6); the escalation
-// gets each unsettled claim with its rejected evidence and exact error, and its answers are merged by id (then by exact text), so a
-// rephrased claim is still matched. The generated card is reused: only its citations are rechecked, never a new authoring call.
+//   { validation: 'passed'|'held'|'blocked', reason?, verdicts:[{claim, class}], unresolved:[claim], escalated, calls, cacheKey }
+// held = checking unavailable or an unresolved claim (the owner of the flow repairs once or terminates); never passed by default.
 export async function checkSupport({ block, passage, rev }, { callModel, limits = ROADMAP_LIMITS } = {}) {
   const cacheKey = await groundingCacheKey({ block, rev });
-  const base = { verdicts: [], unresolved: [], failed: [], escalated: false, calls: 0, cacheKey };
+  const base = { verdicts: [], unresolved: [], escalated: false, calls: 0, cacheKey };
   const refs = referenceProblems({ block, passage, rev });
   if (refs.length) return { ...base, validation: 'blocked', reason: refs[0] };
   const user = `Passage:\n<source>\n${passage}\n</source>\n\nCard:\n<card>\n${cardText(block)}\n</card>`;
   let verdicts = await ask('roadmap_grounding_check', user, { callModel, limits }), calls = 1;
   if (!verdicts) return { ...base, calls, validation: 'held', reason: 'checking_unavailable' };
   if (!verdicts.length) return { ...base, calls, validation: 'held', reason: 'no_claims_checked' }; // an empty list is not "no claims", it is no check
-  let decided = verdicts.map((v, i) => ({ id: `c${i + 1}`, v, ...enforce(v, passage) }));
-  let escalated = false, escalation = null;
+  let decided = verdicts.map(v => ({ v, ...enforce(v, passage) }));
+  let escalated = false;
   const doubtful = decided.filter(d => !d.settled);
   if (doubtful.length && limits.calls.groundingEscalationsPerCard > 0) {
     escalated = true; calls++;
-    const asked = doubtful.map(d => ({ id: d.id, claim: d.v.claim, firstVerdict: d.v.verdict, rejectedEvidence: evidenceOf(d.v), errors: d.errors.map(e => `${e.error}: ${JSON.stringify(e.snippet)}`) }));
-    const second = await ask('roadmap_grounding_escalation', `${user}\n\nClaims to decide again (copy each id):\n${JSON.stringify(asked)}`, { callModel, limits });
-    escalation = second ? 'answered' : 'unavailable';
-    if (second) decided = decided.map(d => {
-      if (d.settled) return d;
-      const s = second.find(x => x.id === d.id) || second.find(x => x.claim === d.v.claim);
-      return s ? { id: d.id, v: { ...s, claim: d.v.claim }, ...enforce(s, passage), first: detail(d) } : d;
-    });
+    const second = await ask('roadmap_grounding_escalation', `${user}\n\nClaims to decide again:\n${JSON.stringify(doubtful.map(d => d.v.claim))}`, { callModel, limits });
+    if (second) decided = decided.map(d => { if (d.settled) return d; const s = second.find(x => x.claim === d.v.claim); return s ? { v: s, ...enforce(s, passage) } : d; });
   }
-  const out = decided.map(d => ({ id: d.id, claim: d.v.claim, class: d.settled ? d.class : 'unresolved', ...(d.blocked ? { contradicted: true } : {}) }));
-  const bad = decided.filter(d => !d.settled || d.class === 'unresolved');
-  const failed = bad.map(d => ({ ...detail(d), ...(d.first ? { first: d.first } : {}), escalation: d.first ? 'answered' : escalated ? (escalation === 'unavailable' ? 'unavailable' : 'no_answer_for_claim') : 'not_escalated' }));
-  const result = { verdicts: out, escalated, calls, cacheKey, failed, unresolved: out.filter(o => o.class === 'unresolved').map(o => o.claim) };
+  const out = decided.map(d => ({ claim: d.v.claim, class: d.settled ? d.class : 'unresolved', ...(d.blocked ? { contradicted: true } : {}) }));
+  const result = { verdicts: out, escalated, calls, cacheKey, unresolved: out.filter(o => o.class === 'unresolved').map(o => o.claim) };
   if (decided.some(d => d.blocked)) return { ...result, validation: 'blocked', reason: 'contradicts_source' };
   return result.unresolved.length ? { ...result, validation: 'held', reason: 'unsupported_claims' } : { ...result, validation: 'passed' };
 }

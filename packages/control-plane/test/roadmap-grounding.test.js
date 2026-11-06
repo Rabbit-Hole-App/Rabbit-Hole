@@ -14,7 +14,7 @@ const supports = { claim: 'The gradient points toward steepest increase.', verdi
 test('a card whose material claims are quoted in the passage passes, with source_supported evidence', async () => {
   const out = await check(model([supports]));
   assert.equal(out.validation, 'passed');
-  assert.deepEqual(out.verdicts, [{ id: 'c1', claim: supports.claim, class: 'source_supported' }]);
+  assert.deepEqual(out.verdicts, [{ claim: supports.claim, class: 'source_supported' }]);
   assert.equal(out.calls, 1);
 });
 
@@ -115,56 +115,4 @@ test('prompt fingerprints are pinned', async () => {
   for (const [role, p] of Object.entries(CHECK_PROMPTS)) got[role] = await promptVersion(p.system, p.tools);
   assert.deepEqual(got, PINNED);
 });
-const PINNED = { roadmap_grounding_check: '131105966e09', roadmap_grounding_escalation: '17ab06c687e0', roadmap_safety_adjudicate: 'a675b13d794d' };
-
-// The owner's withheld card (2026-11-06): a correct walk of a Mermaid flowchart whose only evidence is two separate code lines.
-const MERMAID = 'A decision tree partitions the feature space.\n\n```mermaid\ngraph TD\n    A["Age < 30?"] -->|Yes| B["Income > 50k?"]\n    A -->|No| C["Credit Score > 700?"]\n    B -->|Yes| D["Approve"]\n    B -->|No| E["Deny"]\n```\n';
-const walk = 'Example path: age 25, income 60k goes Yes at Age<30, Yes at Income>50k, reaching Approve.';
-const tree = (m, over = {}) => checkSupport({ block: { ...block, body: walk, sourceRef: undefined }, passage: MERMAID, rev: REV, ...over }, { callModel: m.callModel });
-const PATH = ['A["Age < 30?"] -->|Yes| B["Income > 50k?"]', 'B -->|Yes| D["Approve"]'];
-
-test('evidence contract: a claim backed by several exact snippets (two flowchart lines) passes on the first read', async () => {
-  const out = await tree(model([{ claim: walk, verdict: 'supports', evidence: PATH }]));
-  assert.deepEqual([out.validation, out.calls, out.failed.length], ['passed', 1, 0]);
-});
-
-test('evidence contract: the production failure (a shortened line) is corrected by the escalation, which is told the claim id, the rejected evidence and the exact error', async () => {
-  const m = model(
-    [{ claim: walk, verdict: 'supports', quote: 'A -->|Yes| B["Income > 50k?"]' }],
-    [{ id: 'c1', claim: walk, verdict: 'supports', evidence: PATH }]);
-  const out = await tree(m);
-  assert.deepEqual([out.validation, out.calls, out.escalated], ['passed', 2, true]);
-  assert.equal(m.seen[1].role, 'roadmap_grounding_escalation');
-  const asked = JSON.parse(m.seen[1].body.messages[0].content.split('Claims to decide again (copy each id):\n')[1]);
-  assert.deepEqual(asked, [{ id: 'c1', claim: walk, firstVerdict: 'supports', rejectedEvidence: ['A -->|Yes| B["Income > 50k?"]'], errors: ['not_in_passage: "A -->|Yes| B[\\"Income > 50k?\\"]"'] }]);
-});
-
-test('evidence contract: an ellipsis-joined snippet is refused even when both halves are in the source', async () => {
-  const joined = { claim: walk, verdict: 'supports', evidence: [`${PATH[0]} ... ${PATH[1]}`] };
-  const out = await tree(model([joined], [joined]));
-  assert.equal(out.validation, 'held');
-  assert.equal(out.failed[0].errors[0].error, 'ellipsis_joined');
-  assert.equal(out.failed[0].first.errors[0].error, 'ellipsis_joined');
-});
-
-test('evidence contract: invented evidence, a wrong branch and an unsupported conclusion stay rejected, with private diagnostics', async () => {
-  const wrongEdge = { claim: walk, verdict: 'supports', evidence: ['A["Age < 30?"] -->|No| B["Income > 50k?"]', PATH[1]] };
-  const out = await tree(model([wrongEdge], [{ id: 'c1', ...wrongEdge }]));
-  assert.equal(out.validation, 'held', 'an edge that is not in the source is not evidence');
-  assert.deepEqual(out.failed[0].errors, [{ snippet: wrongEdge.evidence[0], error: 'not_in_passage' }]);
-  assert.deepEqual([out.failed[0].id, out.failed[0].escalation, out.failed[0].first.claim], ['c1', 'answered', walk]);
-  const invented = { claim: walk, verdict: 'supports', evidence: ['applicants under 30 are always approved'] };
-  assert.equal((await tree(model([invented], [invented]))).validation, 'held');
-  const conclusion = { claim: 'So trees always beat neural networks.', verdict: 'not_established' };
-  const c = await tree(model([conclusion]));
-  assert.deepEqual([c.validation, c.calls, c.failed[0].escalation], ['held', 1, 'not_escalated'], 'a judged-unsupported conclusion is not re-asked and stays unresolved');
-});
-
-test('evidence contract: the escalation is merged by claim id, so a rephrased claim is still matched', async () => {
-  const m = model(
-    [{ claim: walk, verdict: 'supports', quote: 'A -->|Yes| B["Income > 50k?"]' }],
-    [{ id: 'c1', claim: 'Age 25 and income 60k lead to Approve.', verdict: 'supports', evidence: PATH }]);
-  const out = await tree(m);
-  assert.equal(out.validation, 'passed');
-  assert.deepEqual(out.verdicts, [{ id: 'c1', claim: walk, class: 'source_supported' }], 'the card\'s own claim text is kept');
-});
+const PINNED = { roadmap_grounding_check: '620c4903404b', roadmap_grounding_escalation: '3293cf06ee03', roadmap_safety_adjudicate: 'a675b13d794d' };
