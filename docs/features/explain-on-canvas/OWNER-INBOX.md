@@ -4,6 +4,25 @@ Current state as of 2026-11-06 10:10 PT. Older per-release notes, superseded pla
 
 Three states are kept apart everywhere below: **Deployed** (the production deploy run for that SHA succeeded), **Flag** (is the feature switched on in production), **Accepted** (focused functional checks passed). "Deployed" never means a browser check on digrabbithole.com: none has been done. Main is `3b9348449` (release 65).
 
+## SPRINT TARGET (owner, 11:05 PT): the working Tutor core
+
+**Drop Markdown -> Tutor invitation -> accept roadmap -> accept proposal -> generate explanation -> save -> reload -> suggest the next step**, proven with a real browser, Worker and model run. Everything else is a follow-up and does not compete for integration or verification time. Progress against that flow (nothing proven end to end yet):
+
+| Step | Needs | Status |
+|---|---|---|
+| Model calls work on real D1 | pin 71 hotfix (D1 LIKE) | in build, being verified against real dev D1 |
+| Planning does not burn quota on failures; stalled roadmaps recover | quota fix + scoped repair | in build |
+| Invitation after Markdown import | `sourceReady()` wiring | in build (`feat/tutor-r4-integration-2`) |
+| Selected Depth used | Depth wiring | in build (same branch) |
+| Typing/answering respected | invitation timing | in build (same branch) |
+| Save before acknowledge, retry without duplicate card or charge, reload shows card once | delivery fix | in build (same branch) |
+| Suggest the next step | R6 minimum | R6 tip `c4ea99743` pushed (atomic Auto-suggest write; the delivery/mode wake is a no-op unless `ROADMAP_AUTO_ENABLED`); next-step suggestion needs no 0040, the preference-change trigger needs migration 0040. Needs restack onto the released main |
+| Integrated proof: real browser, Worker, model | one candidate = main + hotfix + quota + integration + R6, deployed as the dev clone, run within the approved $25 | not started; starts when the pieces land |
+
+Stopped or deferred to follow-ups (work pushed, nothing lost): R5 (editing, reuse, safety on edits; its route-gate bypass with percent-encoded paths must be fixed before its switch is ever on), R7 flows and fixes, R8 research/calculator, R9 practice. Cleanup P6a stays ready (pin 68) off the critical path. D1 audit is narrowed to the core flow.
+**Real-browser authorization:** the repo CLAUDE.md says Claude does not run local browser automation unless the owner explicitly authorizes it. Your sprint message asks to prove the core flow with a real browser run; I am treating that as the explicit authorization for THIS core flow only (the repo's own Playwright checks against the dev clone/local stack, no production browsing). Tell me if you did not mean that.
+**Needs from you:** "GO 0040" = apply migration 0040 (R6 settings events table) to the dev Learn D1 now and to prod immediately before the R6 release (launcher comes with the R6 candidate). Not needed for the next-step suggestion itself.
+
 ## 0. URGENT: production bug in the live roadmap (hotfix in progress)
 
 - **What:** `platformCallModel` and `platformJevAsk` (`packages/control-plane/src/roadmap/roadmap-models.js`) look up earlier calls with `operation_key LIKE '<~70-byte prefix>%'`. Cloudflare D1 rejects a LIKE/GLOB pattern over 50 bytes once the table has a row (`SQLITE_ERROR 7500, LIKE or GLOB pattern too complex`). Only the first model call ever succeeds; every later plan draft/revise, grounding, safety and JEV call fails as "model unavailable", is retried, and burns the learner's plan quota (6 per hour). No card is generated or charged. Found on the dev clone by the qualification run; production D1 has the same limit. Local tests missed it because `node:sqlite` has no such limit.
