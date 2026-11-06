@@ -10,6 +10,13 @@ Self-contained status for the owner and for a reviewer who has not seen the chat
 
 ---
 
+## LIVE RELEASE STATE 2026-11-06 08:15 PT (supersedes the queue order above)
+
+- Released and deployed: 54 P2 (`409f4e8f3`, deploy run 42247063137 success). Pushed to main but deploy blocked: 55 R1 (`15141c05a`), 56 R3 (`4b754b6c2`); main is `4b754b6c2`.
+- **Blocker found:** the production release preflight requires the prod Learn schema to match the candidate's schema EXACTLY (it reports missing AND unexpected tables). Migrations 0036, 0037 and 0038 were applied to prod together; R3's deploy therefore fails with `unexpected table: learn_canvas_depth, learn_user_settings` (0037 belongs to R2). Earlier advice to apply all three at once was wrong; the per-release order was right.
+- **Resolution:** release 59 R2 (`d2428e357`) next. It descends from P3 and P4, so one fast-forward lands 57, 58 and 59 together, and its schema (0036-0038) equals prod. Pin 59 now accepts main at R3. Skip 57 and 58 (they are ancestors of 59). Command: `bash C:/s/spec/release-queue/morning-release.sh 59-tutor-r2-mvp`.
+- **Next blocker (60 R4, 61 P5):** both candidates carry `0039-roadmap-core.sql`, so their preflight wants the 0039 tables in prod. Applying 0039 is NOT authorised and not done. Decision D-R4-0039: either you approve a prod 0039 apply (inert tables, flag stays off) right before 60, or P5 is re-stacked without R4 (Claude can do this) so 61 ships without 0039. Recommended: re-stack P5 independent of R4; hold 60 until the R4 decisions are made.
+
 ## 1. Morning summary (kept current)
 
 ### Ready for your release commands
