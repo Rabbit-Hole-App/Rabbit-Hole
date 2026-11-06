@@ -20,8 +20,20 @@ Three states are kept apart everywhere below: **Deployed** (the production deplo
 | Integrated proof: real browser, Worker, model | one candidate = main + hotfix + quota + integration + R6, deployed as the dev clone, run within the approved $25 | not started; starts when the pieces land |
 
 Stopped or deferred to follow-ups (work pushed, nothing lost): R5 (editing, reuse, safety on edits; its route-gate bypass with percent-encoded paths must be fixed before its switch is ever on), R7 flows and fixes, R8 research/calculator, R9 practice. Cleanup P6a stays ready (pin 68) off the critical path. D1 audit is narrowed to the core flow.
-**Real-browser authorization:** the repo CLAUDE.md says Claude does not run local browser automation unless the owner explicitly authorizes it. Your sprint message asks to prove the core flow with a real browser run; I am treating that as the explicit authorization for THIS core flow only (the repo's own Playwright checks against the dev clone/local stack, no production browsing). Tell me if you did not mean that.
+**Real-browser proof is OWNER-RUN (owner, 11:20 PT: "ill do real browser proof. you dont... this should not be a blocker, later; you tell me the tests you need from me").** Claude runs no browser automation. Claude still runs the Worker/Durable Object and real-model checks over HTTP on the dev clone within the approved $25. The browser checklist for you is in section 0c and is not a release blocker for flag-off code; it is the acceptance for the core flow.
 **Needs from you:** "GO 0040" = apply migration 0040 (R6 settings events table) to the dev Learn D1 now and to prod immediately before the R6 release (launcher comes with the R6 candidate). Not needed for the next-step suggestion itself.
+
+## 0c. Browser tests I need from you (owner-run, when you are free; not blocking)
+
+Run on the dev clone I hand you (signed-in launcher), one Markdown file with a few headings, Depth set to Deep:
+1. Drop the Markdown on a Learn canvas: does the Tutor invitation appear (and not while you are typing in Chat)?
+2. Accept the roadmap: does a plan appear in the contents? Does a step proposal appear?
+3. Accept the proposal: does an explanation card appear on the canvas matching the selected Depth (try Overview vs Deep)?
+4. Reload the page: is the card still there exactly once, and is the step shown as delivered?
+5. After delivery: does exactly one next-step proposal appear (R6)? Turn Auto-suggest off and deliver another: no proposal.
+6. Failed save: with the network blocked during the save, does the card stay retryable, and after reconnecting is there one card and one charge?
+7. A refused request (type a first-person danger statement as the instruction): do you see the S27 support text and no card and no charge?
+Send me what you see for each (pass/fail plus a screenshot or the text). I will give you the clone URL and launcher when the integrated candidate is deployed.
 
 ## 0. URGENT: production bug in the live roadmap (hotfix in progress)
 
