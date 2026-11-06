@@ -8,14 +8,15 @@ Freezes interfaces so State, UI and Tools can work in parallel. **Docs and one u
 
 | File | What it freezes | Owner who builds from it |
 |---|---|---|
-| `states.md` + `packages/control-plane/src/roadmap/states.js` + `packages/control-plane/test/roadmap-states.test.js` | Section 4.3 enums, transition tables, derived rules, replay invariants | State, UI, Tools, verifier |
+| `states.md` + `src/roadmap/roadmap-contract.js`, `roadmap-policy.js`, `roadmap-tools.js` + their three tests | Section 4.3 enums, transition tables, derived rules, replay invariants | State, UI, Tools, verifier |
 | `api.md` + `fixtures/*.json` (27 files, `fixtures/index.json`) | Routes, JSON, access object, idempotency, errors, entitlement predicate, polling limits | UI (against fixtures), State |
-| `records.md` + `roadmap-r4.draft.sql.txt` | 12 tables / 11 indexes (additive, CREATE-only), retention, sharing/fork sanitizer rules | State, Lead (migration number) |
+| `records.md` + two `*.draft.sql.txt` | 14 tables / 13 indexes (additive, CREATE-only), retention, sharing/fork sanitizer rules | State, Lead (migration number) |
 | `billing.md` | Mapping of v1.4 section 5 to the real transports; the operation-ID hook, step hold, quota, refunds, unknown outcomes (patch descriptions) | State and money, Lead |
 | `adapter.md` | The roadmap-only text/table adapter over `generateArtifact`, the trusted allowlist, escape tests | Tools |
 | `planning.md` + `fixtures/planner-double.json` | Planner/validator/prompt contracts, model roles from the real registry, source coverage, language, rubric, safety contract | Tools |
 | `ui.md` | Components, integration points and the cleanup phases that move them, Tab ownership, overlay, indicator, placement, keyless fixture list | UI |
 | `integration.md` | Dependencies on R1-R3 and cleanup phases, ordered plan, smoke, migrations, flag behavior, writers per file, check-map rows, open decisions | Lead |
+| `checklist-map.md` | BASE.02 and R4.01-R4.13 against these contracts, resolutions, residue | Lead |
 | `decision-records.md` | Paste-ready D2(a) record, D43 policy, bounded paid-testing estimate, learner strings to approve | Owner |
 
 ## Verified and unverified

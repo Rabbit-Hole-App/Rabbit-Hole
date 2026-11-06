@@ -1,6 +1,6 @@
 # R4 contract: states and replay invariants
 
-Source: tutor-roadmap v1.4 section 4.3 (same text as v1.3), 4.4, 5.2. Code draft: `packages/control-plane/src/roadmap/states.js` (pure, no imports, unreferenced by any existing module). Tests: `packages/control-plane/test/roadmap-states.test.js` (15 tests, all pass). The module is the only place that names states; routes, store, client and tests import it.
+Source: tutor-roadmap v1.4 section 4.3 (same text as v1.3), 4.4, 5.2. Code drafts under `packages/control-plane/src/roadmap/`, all pure and unreferenced by any existing module: `roadmap-contract.js` (renamed from `roadmap-contract.js` to the checklist's BASE.02 name; it imports nothing), `roadmap-policy.js` (`ROADMAP_LIMITS`, deadline arithmetic) and `roadmap-tools.js` (capability catalogue and dispatch allowlist). Tests: `test/roadmap-contract.test.js`, `roadmap-policy.test.js`, `roadmap-tools.test.js`. The contract module is the only place that names states, access fields, failure classes and call checkpoints; routes, store, client and tests import it.
 
 Status: DRAFT CONTRACT. Nothing on main imports it. Verified = the module's behavior is proven by its own tests; the rules themselves come from the roadmap, not from existing code (there is no roadmap code on main: `git grep -il roadmap` finds only unrelated comments in `chat-modes.js:135`, `generation-proposal.js:45`, `index.js:818,2403`, `learn-models.js:106`).
 
@@ -65,11 +65,11 @@ Choices the roadmap leaves open, taken as the safer reading (all recorded in REA
 
 ## 4. Replay invariants
 
-Every mutating route carries `actionKey` (client, `^[A-Za-z0-9_-]{8,128}$`, same alphabet as `CLIENT_KEY` at `learn-usage.js:78`) and `expectedRevision` (integer, the roadmap revision the client last saw). The server computes `fingerprint = sha256(actor | action | target ids | proposalVersion | resultFingerprint)` and calls `resolveAction`:
+Every mutating route carries `revision` (the revision the client last saw) and `actionKey` (client, `^[A-Za-z0-9_-]{8,128}$`, same alphabet as `CLIENT_KEY` at `learn-usage.js:78`) and `expectedRevision` (integer, the roadmap revision the client last saw). The server computes `fingerprint = sha256(actor | action | target ids | proposalVersion | resultFingerprint)` and calls `resolveAction`:
 
 1. A recorded row for `(org, owner_user_id, actionKey)` with the same fingerprint: replay, HTTP status and JSON body are the recorded outcome (no second purchase, no second card).
 2. Same key, different fingerprint: 409 `action_key_reused`.
-3. No row, `expectedRevision != roadmap.revision`: 409 `stale_revision`, body carries the current state. A missing `expectedRevision` is refused, never defaulted.
+3. No row, `revision != roadmap.revision`: 409 `stale_revision`, body carries the current state. A missing `revision` (wire name; the contract function parameter is `expectedRevision`) is refused, never defaulted.
 4. Otherwise apply: transition, bump `roadmap.revision`, write the action row, all in one D1 batch (the same guard pattern as `admitSpend`, `learn-spend-ledger.js:87`).
 
 "First valid action wins": two devices accepting the same proposal with different keys both pass step 3 only for the first; the second sees a bumped revision and gets 409 with the current state (accepted), never a second charge.

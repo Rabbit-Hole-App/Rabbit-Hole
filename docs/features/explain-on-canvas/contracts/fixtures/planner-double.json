@@ -1,6 +1,6 @@
 {
   "note": "Keyless planner double cases (planning.md section 14). key = sha256(role|instruction|sourceRevision) in the real stub; here `case` names it. `modelOutput` is the canned tool call; `expect` is what the deterministic validator or enforcement must do. Unknown keys must return an invalid turn.",
-  "source": { "sourceId": "src_md_41c9e0a7", "revision": "sha256:3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b", "chars": 5210, "title": "Gradient descent notes.md" },
+  "source": { "key": "file:fs_41c9e0a7d2b84f63a1c07e92", "rev": "3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b", "chars": 5210, "title": "Gradient descent notes.md" },
   "cases": [
     {
       "case": "plan-instruction-skips-known-topic",
@@ -11,9 +11,9 @@
         "assumptions": ["You know what a derivative is, so it is not retaught."],
         "instructionAck": { "originalHash": "<sha256 of instruction v1>", "honored": ["skip derivatives"], "skips": [{ "topic": "what a derivative is", "reason": "learner_knows" }] },
         "steps": [
-          { "title": "What a gradient tells you", "goal": "Read the slope of the loss at a point.", "format": "explanation", "anchor": { "start": 0, "end": 1840 }, "claimsToCover": ["the gradient points uphill"], "independent": true },
-          { "title": "One update step", "goal": "Apply w - lr * grad by hand.", "format": "table", "anchor": { "start": 1840, "end": 3320 }, "claimsToCover": ["the update rule"], "independent": true },
-          { "title": "Choosing a learning rate", "goal": "Compare too small, good and too large rates.", "format": "table", "anchor": { "start": 3320, "end": 5210 }, "claimsToCover": ["divergence when lr is too large"], "independent": true }
+          { "title": "What a gradient tells you", "goal": "Read the slope of the loss at a point.", "format": "explanation", "passage": { "start": 0, "end": 1840 }, "claimsToCover": ["the gradient points uphill"], "independent": true },
+          { "title": "One update step", "goal": "Apply w - lr * grad by hand.", "format": "table", "passage": { "start": 1840, "end": 3320 }, "claimsToCover": ["the update rule"], "independent": true },
+          { "title": "Choosing a learning rate", "goal": "Compare too small, good and too large rates.", "format": "table", "passage": { "start": 3320, "end": 5210 }, "claimsToCover": ["divergence when lr is too large"], "independent": true }
         ],
         "stoppingPoint": "You can trace one update by hand and say why the learning rate matters.",
         "coverage": { "uncovered": [] }, "question": null } },
@@ -27,7 +27,7 @@
         "outcome": "Understand derivatives and gradient descent.",
         "assumptions": [],
         "instructionAck": { "originalHash": "<sha256 of instruction v1>", "honored": [], "skips": [] },
-        "steps": [{ "title": "What a derivative is", "goal": "Define the derivative.", "format": "explanation", "anchor": { "start": 0, "end": 900 }, "claimsToCover": ["definition"], "independent": true }],
+        "steps": [{ "title": "What a derivative is", "goal": "Define the derivative.", "format": "explanation", "passage": { "start": 0, "end": 900 }, "claimsToCover": ["definition"], "independent": true }],
         "stoppingPoint": "You understand derivatives.", "coverage": { "uncovered": [] }, "question": null } },
       "expect": { "validator": "error:instruction_not_honored", "reason": "original matches /already know/ and skips is empty", "criticalFailure": true }
     },
@@ -42,8 +42,8 @@
       "case": "plan-anchor-outside-scope",
       "role": "roadmap_plan",
       "scope": { "kind": "passage", "start": 1840, "end": 3320 },
-      "modelOutput": { "tool": "submit_roadmap", "firstStepAnchor": { "start": 0, "end": 1840 } },
-      "expect": { "validator": "error:anchor_outside_scope" }
+      "modelOutput": { "tool": "submit_roadmap", "firstStepPassage": { "start": 0, "end": 1840 } },
+      "expect": { "validator": "error:passage_outside_scope" }
     },
     {
       "case": "generic-context-asks-one-question",
