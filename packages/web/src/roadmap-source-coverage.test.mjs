@@ -84,14 +84,3 @@ test('the Chat strip renders the coverage line and one choice button per part, a
   assert.deepEqual([...markup.matchAll(/data-roadmap-choice="([^"]+)"[^>]*>([^<]+)</g)].map(m => `${m[1]}=${m[2]}`), ['s0:1=Chapter 1', 's41:2=Appendix, part 2 of 3']);
   assert.doesNotMatch(markup, /\.\.\.|…/);
 });
-
-test('R7b: PDF coverage names unreadable pages and cut pages in plain sentences, offers page ranges, and never calls a scan readable', () => {
-  const pdf = limitation({ code: 'pdf_partial', coverage: { totalChars: 5000, complete: false, summarizedChars: 0, unread: [{ start: 40, end: 80, reason: 'no_text_layer' }], notes: [],
-    pages: { total: 9, readable: 6, cut: [4], unreadable: [{ from: 5, to: 7, reason: 'no_text_layer' }, { from: 9, to: 9, reason: 'damaged_text' }] } }, choices: [{ locationId: 'pg1', part: 1, parts: 1, label: 'Pages 1 to 4', chars: 100 }] });
-  assert.deepEqual(coverageLines(pdf), [COVERAGE_STRINGS.pagesUnreadable(5, 7), COVERAGE_STRINGS.pagesUnreadable(9, 9), COVERAGE_STRINGS.pagesCut(1)]);
-  assert.equal(COVERAGE_STRINGS.pagesUnreadable(5, 7), 'Pages 5 to 7 have no readable text, so they cannot be explained yet.');
-  assert.deepEqual(coverageLines(limitation({ coverage: { totalChars: 1, complete: true, summarizedChars: 0, unread: [], notes: [], pages: { total: 40, readable: 40, cut: [], unreadable: [] } } })), [COVERAGE_STRINGS.pagesAll(40)]);
-  const state = reduce(initialState(), { type: 'refused', message: 'x', limitation: pdf });
-  assert.equal(chatOf({ ...state, flag: 'on' }).find(l => l.kind === 'coverage').text, COVERAGE_STRINGS.chooseRange);
-  for (const text of [COVERAGE_STRINGS.chooseRange, COVERAGE_STRINGS.pagesUnreadable(1, 2), COVERAGE_STRINGS.pagesCut(2), COVERAGE_STRINGS.pagesAll(3)]) assert.doesNotMatch(text, /\.\.\.|…|\$|credit|cost|price|token|ocr|scan/i);
-});

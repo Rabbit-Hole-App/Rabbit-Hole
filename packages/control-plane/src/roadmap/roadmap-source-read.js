@@ -8,7 +8,6 @@
 import { readRoadmapSource } from './roadmap-source.js';
 import { readMarkdownForActor } from './roadmap-source-reader.js';
 import { longMarkdownEnabled, indexSource, scopeChoices, resolveChoice, INDEX_COPY } from './roadmap-source-index.js';
-import { PDF_KEY, PDF_COPY, pdfPlanningEnabled, indexPdf, pdfScopeChoices, resolvePdfChoice } from './roadmap-source-pdf.js';
 
 export const LIMIT_COPY = Object.freeze({
   tooLarge: 'This source is longer than one roadmap can read completely. Choose a section or a passage and it will be covered fully.', // S15
@@ -65,9 +64,7 @@ const limit = (read, extra = {}) => refuse('source_too_large', LIMIT_COPY.tooLar
 // Wire shape, additive to the R4 limitation: coverage { totalChars, indexedThrough, complete, summarizedChars, unread[], notes[] }, choices [{ locationId, part, parts, label, chars }].
 export function wireCoverage(coverage) {
   return { totalChars: coverage.totalChars, indexedThrough: coverage.indexedThrough, complete: coverage.complete, summarizedChars: coverage.summarized.reduce((n, r) => n + r.end - r.start, 0),
-    unread: coverage.unreadable.map(({ start, end, reason }) => ({ start, end, reason })), notes: coverage.limitations.map(l => l.message),
-    // R7b: the PDF facts the learner needs, in the PDF's own page order (no printed labels are known).
-    ...(coverage.pdf ? { pages: { total: coverage.pdf.totalPages, readable: coverage.pdf.readablePages, cut: coverage.pdf.cutPages, unreadable: coverage.pdf.unreadable } } : {}) };
+    unread: coverage.unreadable.map(({ start, end, reason }) => ({ start, end, reason })), notes: coverage.limitations.map(l => l.message) };
 }
 async function longLimitation(env, access, ref, readSourceForActor) {
   const got = await indexSource(env, access, { sourceKey: ref.key, sourceRevision: ref.rev }, { readSourceForActor });
@@ -79,33 +76,9 @@ async function longLimitation(env, access, ref, readSourceForActor) {
 
 export function makeReadSource(env, { readSourceForActor = readMarkdownForActor, resolveSourceRef = d1ResolveSourceRef, limits } = {}) {
   const deps = { readSourceForActor, ...(limits ? { limits } : {}) };
-  // A PDF: unreadable pages are named and never offered; a range of readable pages is read through R4's unchanged passage path.
-  async function readPdf(access, { sourceId, revision, scope }) {
-    const ref = { key: sourceId, rev: revision };
-    const indexed = await indexPdf(env, access, { sourceKey: sourceId, sourceRevision: revision }, { readPdf: readSourceForActor === readMarkdownForActor ? undefined : readSourceForActor });
-    if (indexed.status !== 'ok') return indexed.reason === 'source_changed' ? refuse('source_changed', LIMIT_COPY.changed, 409) : refuse('source_unavailable', LIMIT_COPY.unavailable, 409);
-    const { index } = indexed, coverage = wireCoverage(index.coverage), choices = pdfScopeChoices(index).map(({ locationId, part, parts, label, chars }) => ({ locationId, part, parts, label, chars }));
-    const stop = (code, message, extra = {}) => refuse('source_unsupported', message, 422, { limitation: { code, message, readChars: 0, sourceChars: index.source.chars, offers: [], coverage, choices, ...extra } });
-    if (index.status !== 'ready') return stop('pdf_unreadable', index.stop === 'pages_unread' ? PDF_COPY.unread : PDF_COPY.failed, { choices: [] });
-    let wanted = { kind: 'declared' };
-    if (scope?.kind === 'section') {
-      if (typeof scope.locationId !== 'string') return refuse('invalid_request', 'scope', 400);
-      const choice = resolvePdfChoice(index, { locationId: scope.locationId, part: scope.part ?? 1 });
-      if (!choice) return refuse('needs_clarification', PDF_COPY.page, 422);
-      wanted = { kind: 'passage', start: choice.start, end: choice.end };
-    } else if (scope && scope.kind !== 'whole') return refuse('invalid_request', 'scope', 400);
-    else if (index.coverage.pdf.unreadable.length) return stop('pdf_partial', PDF_COPY.partial); // a whole-PDF request never silently skips pages
-    const read = await readRoadmapSource(env, access, { ref, scope: wanted }, deps);
-    if (read.status === 'needs_clarification') return limit(read, { coverage, choices });
-    if (read.status !== 'ok') return read.reason === 'source_changed' ? refuse('source_changed', LIMIT_COPY.changed, 409) : refuse('source_unavailable', LIMIT_COPY.unavailable, 409);
-    return { key: sourceId, rev: read.rev, scopeFingerprint: read.sourceFingerprint,
-      scope: { kind: wanted.kind === 'passage' ? 'passage' : 'whole', start: read.coverage.start, end: read.coverage.end, chars: read.coverage.chars, sourceName: read.name ?? '' } };
-  }
   return async function readSource(access, { sourceId, revision, scope } = {}) {
     const ref = { key: sourceId, rev: revision };
     let wanted = { kind: 'declared' };
-    // R7b (only with its own switch): a context-document PDF is read as page text. With the switch off it is unsupported exactly as before.
-    if (pdfPlanningEnabled(env) && PDF_KEY.test(String(sourceId))) return readPdf(access, { sourceId, revision, scope });
     const long = longMarkdownEnabled(env), more = () => (long ? longLimitation(env, access, ref, readSourceForActor) : {});
     if (scope?.kind === 'section' && long) {
       if (typeof scope.locationId !== 'string' || !(scope.part === undefined || (Number.isInteger(scope.part) && scope.part >= 1))) return refuse('invalid_request', 'scope', 400);

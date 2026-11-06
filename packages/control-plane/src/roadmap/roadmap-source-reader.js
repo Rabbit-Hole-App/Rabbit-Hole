@@ -7,11 +7,6 @@ const FILE_KEY = /^file:([A-Za-z0-9_-]{1,64})$/;
 const MAX_BYTES = 2 * 1024 * 1024;
 
 export async function readMarkdownForActor(env, access, { key, rev }) {
-  // R7b: a context-document PDF is read as page text, only behind its own switch (roadmap-source-pdf.js). Otherwise it is unsupported, as before.
-  if (/^doc:ctx:[0-9a-f]{12}$/.test(String(key))) {
-    if (env?.ROADMAP_ENABLED !== 'true' || env?.ROADMAP_PDF_ENABLED !== 'true') return { status: 'unsupported' };
-    return (await import('./roadmap-source-pdf.js')).readPdfTextForActor(env, access, { key, rev });
-  }
   const m = FILE_KEY.exec(String(key));
   if (!m || !env?.LEARN_DB || !env?.LEARN_MEDIA) return { status: 'unsupported' };
   const source = await env.LEARN_DB.prepare("SELECT id, name, family, bytes, sha256, r2_key FROM file_sources WHERE id = ? AND status = 'stored' AND org = ? AND owner_email = ?")
