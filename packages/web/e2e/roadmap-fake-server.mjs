@@ -15,6 +15,7 @@ const VIEWS = { none: () => NONE, draft: () => body('create-response-draft'), pr
   generating: () => body('accept-proposal-response-generating'), generated, delivered: () => body('status-delivered-next-ready'), cancelled: () => body('status-cancelled-paused'),
   quiet, completed: () => body('status-completed'), failed: () => body('status-failed-card'), held: () => body('status-held-for-checking'), questioning: () => body('status-questioning') };
 // `<stage> --action--> <stage>`; the first match wins. generating moves on by itself after one GET (generation finished).
+// 'accept-plan' -> 'pending' mirrors the REAL server, which offers the first proposal itself when the plan is accepted (control-plane roadmap-loop.test.js asserts it: once, no card, no charge). Nothing else here invents a proposal.
 const NEXT = { none: { create: 'draft' }, draft: { poll: 'proposed' }, proposed: { 'accept-plan': 'pending', end: 'completed' }, pending: { accept: 'generating', cancel: 'cancelled', end: 'completed' },
   generating: { poll: 'generated' }, quiet: { propose: 'delivered', end: 'completed' }, generated: { ack: 'delivered' }, delivered: { cancel: 'cancelled', end: 'completed' }, cancelled: { propose: 'pending', end: 'completed' }, failed: { retry: 'generating', replace: 'pending', omit: 'cancelled' }, questioning: { answer: 'proposed' } };
 
