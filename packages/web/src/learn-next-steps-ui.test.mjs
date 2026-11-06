@@ -170,7 +170,7 @@ test('voiceTurn with a next step: the next_step turn in voice, no learner words,
   assert.deepEqual(r.paths(), ['/api/learn/tutor/plan'], 'no evaluate: a click is never evidence');
   assert.equal(JSON.parse(r.storage.get(KEY)).turns.at(-1).next_step, STEP.suggestion_id);
   const voice = read('LearnVoice.jsx');
-  assert.match(voice, /tutor: \{ voiceTurn: args => \{\n\s+\/\/ [^\n]*\n\s+if \(args\.nextStep\) return live\.current\.tutor\.voiceTurn\(args\);\n\s+const used = /, 'a hook click never takes the armed card');
+  assert.match(voice, /tutor: \{ voiceTurn: args => \{\n\s+\/\/ [^\n]*\n\s+if \(args\.nextStep\) return live\.current\.tutor\?\.voiceTurn\?\.\(args\);\n\s+const used = /, 'a hook click never takes the armed card');
 });
 
 // Review fix 2: the web bundle never pulls the journey agent for the hook validator's label list.

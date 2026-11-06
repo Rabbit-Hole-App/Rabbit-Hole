@@ -21,6 +21,7 @@ await esbuild.build({
   stdin: {
     contents: [
       "export { VoiceToggle, VoiceField, TutorCaption } from './VoiceMode.jsx';",
+      "export { useVoiceSession } from './LearnVoice.jsx';",
       "export { default as ChatComposer } from './ChatComposer.jsx';",
       "export { createElement } from 'react';",
       "export { renderToStaticMarkup } from 'react-dom/server';",
@@ -30,7 +31,7 @@ await esbuild.build({
   },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
 });
-const { VoiceToggle, VoiceField, TutorCaption, ChatComposer, createElement, renderToStaticMarkup } = createRequire(import.meta.url)(outfile);
+const { VoiceToggle, VoiceField, TutorCaption, useVoiceSession, ChatComposer, createElement, renderToStaticMarkup } = createRequire(import.meta.url)(outfile);
 rmSync(dir, { recursive: true, force: true });
 
 const noop = () => {};
@@ -183,4 +184,23 @@ test('the fake Voice harness (?voice=fake) runs only in the dev/review build; pr
   assert.equal(voice.match(/createFakeStt\(|createFakeTts\(|window\.__voiceFake =/g).length, 3);
   assert.match(voice, /if \(fake\) \{\n\s+const ttsOptions = \{ onEvent: onTts \};\n\s+stt = createFakeStt/);
   assert.match(read('flags.js'), /export const reviewTools = learnPreview && import\.meta\.env\?\.VITE_COACHING_DEV === 'true';/);
+});
+
+// Tutor cleanup P1: no Tutor to bind (the browser Tutor is deleted in P2). The hook returns the paused mic's state instead of null,
+// so ask.jsx still draws VoiceToggle (which reads voice.paused), and nothing in it can throw.
+test('useVoiceSession without a Tutor: Voice Mode is off, its mic paused and inert, say takes no turn', () => {
+  for (const props of [{ tutor: null }, { tutor: { active: false } }, { tutor: undefined, app: { name: 'canvas-0000abcd' }, access: { app: 'canvas-0000abcd' } }]) {
+    let voice;
+    const Page = () => { voice = useVoiceSession({ app: 'a', access: { app: 'a' }, ...props }); return null; };
+    renderToStaticMarkup(createElement(Page));
+    assert.deepEqual([voice.state, voice.paused, voice.on, voice.say('', { nextStep: {} }), voice.caption], ['off', true, false, false, { current: '', previous: null, error: null }], JSON.stringify(props));
+    assert.doesNotThrow(() => { voice.enter(); voice.exit(); voice.interrupt(); });
+    const [mic] = buttons(render(VoiceToggle, { voice }));
+    assert.match(mic, /aria-label="Voice mode is paused"/);
+    assert.match(mic, /aria-disabled="true"/);
+    assert.doesNotMatch(mic, /aria-pressed/);
+  }
+  const source = read('LearnVoice.jsx');
+  assert.match(source, /live\.current\.tutor\?\.voiceTurn\?\.\(args\)/, 'a hook click cannot throw without a Tutor');
+  assert.match(source, /live\.current\.tutor\?\.voiceTurn\?\.\(\{ \.\.\.args, targetId: used \}\)/, 'nor a spoken turn');
 });
