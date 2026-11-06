@@ -26,7 +26,7 @@ index a8a52f8e3..fafe978fa 100644
    );
  }
 diff --git a/packages/web/src/use-roadmap.js b/packages/web/src/use-roadmap.js
-index 8c03a3dc8..66438efe4 100644
+index 8c03a3dc8..4718f602b 100644
 --- a/packages/web/src/use-roadmap.js
 +++ b/packages/web/src/use-roadmap.js
 @@ -78,7 +78,9 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto',
@@ -40,3 +40,18 @@ index 8c03a3dc8..66438efe4 100644
    }, [pill?.proposalId, pill?.version, showOverlay]); // eslint-disable-line react-hooks/exhaustive-deps
  
    // Edit plan routes into the ToC conversation: the next message the learner sends there is the plan revision (divert).
+@@ -89,7 +91,13 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto',
+     requestAnimationFrame(() => document.querySelector('[data-toc-composer] textarea, [data-toc-composer] input:not([type="file"])')?.focus());
+   }, []);
+   const divert = useCallback(text => { if (!editing.current || !text?.trim()) return false; editing.current = false; controller.revise({ instruction: text.trim() }); return true; }, [controller]);
+-  const go = useCallback(nav => { if (nav.kind === 'card') hostRef.current?.focusBlock?.(nav.cardId); else if (nav.kind === 'proposal') hostRef.current?.focusBlock?.(hostRef.current.sourceBlockId?.(live.current.pill?.sourceKey)); }, []);
++  // Fix C: a proposal is a card on the canvas (goProposal); a passage is shown on its source card (showPassage: emphasized, a collapsed card opened as far as it needs). Both explicit.
++  const go = useCallback(nav => {
++    const host = hostRef.current || {}, now = live.current.pill;
++    if (nav.kind === 'card') host.focusBlock?.(nav.cardId);
++    else if (nav.kind === 'passage') host.showPassage?.({ stepId: nav.stepId ?? now?.stepId });
++    else if (nav.kind === 'proposal') { if (host.goProposal) host.goProposal(now?.stepId); else host.focusBlock?.(host.sourceBlockId?.(now?.sourceKey)); }
++  }, []);
+ 
+   return {
+     state, controller, pill, active: !!state.view && state.flag !== 'off' && isUnfinishedRoadmap(state.view.roadmap.state), toc: tocOf(state), lines: chatOf(state), invitation: invitationOf(state, { typing, answering }),

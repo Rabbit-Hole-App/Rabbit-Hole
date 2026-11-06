@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CircleAlert, FileText, Loader2, Table2 } from 'lucide-react';
+import { BookOpen, CircleAlert, FileText, Loader2, Table2 } from 'lucide-react';
 import { STRINGS } from './roadmap-strings.js';
 import { editKey } from './inline-ai-proposal.js';
 
@@ -81,6 +81,7 @@ export default function ProposalCard({ slot, card, actions = {} }) {
   const typeLabel = TYPE_LABEL[card.format] || TYPE_LABEL.explanation;
   const source = card.sourceName || null;
   const edit = pending ? actions.edit : null;
+  const canView = !!actions.onPassage && !!card.passage && !!card.sourceKey;
   return (
     <div data-slot-id={slot.id} data-roadmap-card={card.state} onPointerDown={stop} style={{ position: 'absolute', left: slot.at.x, top: slot.at.y, width: slot.w }} className="flex flex-col gap-1.5">
       <section {...(pending ? { 'data-roadmap-overlay': '', tabIndex: -1 } : {})} role={pending ? 'group' : 'status'} aria-label={card.title || slot.label} style={{ height: slot.h }}
@@ -89,7 +90,14 @@ export default function ProposalCard({ slot, card, actions = {} }) {
         <div className="flex items-center gap-1.5 px-4 pb-1 text-xs text-ink-3"><Icon size={13} strokeWidth={1.8} aria-hidden="true" /><span data-roadmap-type>{typeLabel}</span></div>
         <h3 data-roadmap-title className="line-clamp-2 px-4 pb-1.5 text-sm font-semibold break-words text-ink">{card.title}</h3>
         <Body card={card} elapsed={((now - slot.started) / 1000).toFixed(1)} />
-        {source && <p data-roadmap-source className="mt-auto truncate px-4 pt-2 pb-3 text-xs text-ink-3">{STRINGS.fromSource(source)}</p>}
+        {(source || canView) && (
+          <div className="mt-auto flex items-center gap-1.5 px-4 pt-2 pb-3 text-xs text-ink-3">
+            <p data-roadmap-source className="min-w-0 flex-1 truncate">{source ? STRINGS.fromSource(source) : ''}</p>
+            {/* The exact passage, on explicit request only: the source card is brought into view with the passage emphasized (a collapsed card opens as far as it needs). */}
+            {canView && <button type="button" data-roadmap-passage aria-label="View passage" title="View passage" onClick={() => actions.onPassage(card)}
+              className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/40"><BookOpen size={13} aria-hidden="true" /></button>}
+          </div>
+        )}
       </section>
       {pending && (
         <div role="group" aria-label="Proposal" data-roadmap-pill className="flex border border-line bg-white self-start">
