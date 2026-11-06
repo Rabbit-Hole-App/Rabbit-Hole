@@ -1,3 +1,4 @@
+import RoadmapRecovery from './RoadmapRecovery.jsx';
 import { STRINGS } from './roadmap-strings.js';
 
 const button = 'h-8 rounded-md border border-line px-3 text-xs font-medium text-ink outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent/60';
@@ -7,6 +8,7 @@ const button = 'h-8 rounded-md border border-line px-3 text-xs font-medium text-
 // something exists to navigate to. The practice setting is read-only text (Explanations only until R9).
 export default function RoadmapPlan({ toc, onAcceptPlan, onEdit, onProposeNext, onEnd, onRecover, onGo }) {
   if (!toc) return null;
+  const recovery = new Map(toc.recovery.map(item => [item.stepId, item]));
   return (
     <section data-roadmap-plan aria-label={STRINGS.roadmap} className="mb-6 flex flex-col gap-3 border-b border-line pb-4">
       <h3 className="text-xs font-medium text-ink-2">{STRINGS.roadmap}</h3>
@@ -24,6 +26,7 @@ export default function RoadmapPlan({ toc, onAcceptPlan, onEdit, onProposeNext, 
                 ? <button type="button" data-roadmap-go={step.nav.kind} onClick={() => onGo(step.nav)} className="text-left break-words text-ink outline-none hover:text-accent focus-visible:ring-2 focus-visible:ring-accent/60"><span className="text-ink-2 tabular-nums">{step.position}.</span> {step.title}</button>
                 : <span className="break-words text-ink"><span className="text-ink-2 tabular-nums">{step.position}.</span> {step.title}</span>}
               <div className="text-xs text-ink-3">{step.status}{step.removed ? ` · ${STRINGS.cardRemoved}` : ''}</div>
+              {recovery.has(step.id) && <div className="mt-1"><RoadmapRecovery item={recovery.get(step.id)} where="toc" onAction={onRecover} /></div>}
             </li>
           ))}</ol></div>
       )}

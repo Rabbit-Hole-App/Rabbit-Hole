@@ -62,16 +62,10 @@ async function generateOne(env, access, roadmap, result, ids, deps) {
     if (!source.ok) { await fail('denied_access', retryNo); return 'failed'; } // stops BEFORE admission: nothing is spent
     const text = await readSource(env, access, { key: current.source_key, rev: current.source_rev });
     if (text.status !== 'ok' || text.complete === false) { await fail('denied_access', retryNo); return 'failed'; }
-    // The passage offsets are the highlight anchor; the writer's context is the whole document at the pinned revision (the source card's
-    // on-screen expansion or scroll never reaches here). The accepted plan supplies the step's claims and the roadmap's outcome.
     const passage = text.text.slice(step.passage_start, step.passage_end);
     const sourceRef = step.source_ref_id ? await (deps.loadSourceRef || d1PublicRef)(env, access, step.source_ref_id) : null;
-    const planRow = current.accepted_plan_version ? await db.prepare('SELECT plan_json FROM learn_roadmap_plan_versions WHERE roadmap_id = ? AND version = ?').bind(roadmap.id, current.accepted_plan_version).first() : null;
-    let plan = null; try { plan = planRow ? JSON.parse(planRow.plan_json) : null; } catch { plan = null; }
-    const planStep = plan?.steps?.[step.position - 1];
     const loadAccepted = async () => ({ cardId: result.card_id, stepId: step.id, proposalId: ids.proposalId, proposalVersion: ids.proposalVersion, format: proposal?.format ?? step.format, stepTitle: step.title, stepGoal: step.goal,
-      passageText: passage, documentText: text.text, claimsToCover: Array.isArray(planStep?.claimsToCover) ? planStep.claimsToCover : [], outcome: typeof plan?.outcome === 'string' ? plan.outcome : '',
-      sourceRef, language: current.language || 'en', depth: current.depth, retry: retryNo });
+      passageText: passage, sourceRef, language: current.language || 'en', depth: current.depth, retry: retryNo });
     // The learner's usage context (payer from the access object, never a body) with the step hold; each call is checkpointed around the transport.
     const withProviderCall = (e, fields) => withRoadmapProviderCall(e, fields, { kind: fields.stage === 'generate' ? 'generation' : 'repair' });
     const callModel = async (e, body, model, org) => {
@@ -90,15 +84,13 @@ async function generateOne(env, access, roadmap, result, ids, deps) {
   }
 }
 
-// The checks, then the recorded outcome. Platform-funded (quota 'check'); the output is withheld unless every check that runs passes.
+// The checks, then the recorded outcome. Platform-funded (quota 'check'); the output is withheld unless every check passes.
 async function finish(env, access, roadmap, result, ids, out, { passage, original, rev }, deps, now, fail, retryNo) {
   const db = env.LEARN_DB;
   const checkIds = { roadmapId: roadmap.id, version: ids.proposalVersion, anchor: result.card_id };
   const callModel = deps.checkCallModel || platformCallModel(env, access, { ...checkIds, quota: 'check', registry: deps.registry, transport: deps.transport, now });
   const classify = deps.classify || makeClassify({ ask: platformJevAsk(env, access, { ...checkIds, ask: deps.askJev || ((e, request) => askJev(e, request, { transport: 'direct' })), now }) });
-  // Owner MVP policy (2026-11-06): an ordinary explanation is not held for a per-card citation check; safety, the source revision and the
-  // output schema still gate it, and check_json records the citation check as not run.
-  const verdict = await checkRoadmapCard({ block: out.block, passage, rev, instruction: original, grounding: false }, { callModel, classify, adjudicate: modelAdjudicator({ callModel }) });
+  const verdict = await checkRoadmapCard({ block: out.block, passage, rev, instruction: original }, { callModel, classify, adjudicate: modelAdjudicator({ callModel }) });
   const checkJson = { validation: verdict.validation, grounding: { validation: verdict.grounding.validation, reason: verdict.grounding.reason ?? null, calls: verdict.grounding.calls, unresolved: verdict.grounding.unresolved?.length ?? 0,
       // private diagnostics (never shown to the learner): which claim failed, the evidence returned, the validation error, what the escalation did
       ...(verdict.grounding.failed?.length ? { failed: verdict.grounding.failed.slice(0, 6) } : {}) },

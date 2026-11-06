@@ -20,32 +20,34 @@ const accept = async (h, id, view) => (await h.json('POST', `/api/learn/roadmap/
 // A card that quotes words the passage never says (a model's own example in double quotes looks the same to the verifier).
 const INVENTED = answer('make_explanation', { title: 'The gradient', body: 'The notes say "an invented sentence from nowhere" about it.' });
 
-test('owner MVP: a card that quotes or paraphrases freely is not held by a citation check; it is delivered and recorded as not run', async t => {
+test('a source-grounding failure is not the safety refusal: honest wording, Retry offered, refunded, never published', async t => {
   const h = await loop(t, { script: [INVENTED] });
   const { id, view } = await toProposal(h);
   const result = await accept(h, id, view);
-  assert.equal(h.p.used.length, 1, 'one authoring call');
-  assert.equal(result.generation, 'generated');
-  assert.equal(result.failure, undefined);
-  assert.ok((await h.totals()).used > 0, 'charged for the delivered card');
-  const check = JSON.parse(rows(h.w.sqlite, 'SELECT check_json FROM learn_step_results')[0].check_json);
-  assert.deepEqual([check.grounding.validation, check.grounding.reason, check.grounding.calls], ['not_run', 'owner_mvp_policy', 0], 'never claimed as passed');
-  assert.equal(check.safety.decision, 'allow', 'safety still runs');
-  // A row stored by an earlier build (policy_block for a grounding block) still reads honestly: no migration, no safety wording.
-  h.w.sqlite.prepare("UPDATE learn_step_results SET failure_class = 'policy_block', validation = 'blocked', delivery = 'not_delivered', billing = 'refunded', check_json = ?").run(JSON.stringify({ grounding: { validation: 'blocked', reason: 'quote_not_in_passage' }, safety: { decision: 'allow', action: 'continue' } }));
+  assert.equal(h.p.used.length, 1, 'one generation, no automatic retry');
+  assert.equal((await h.totals()).used, 0, 'refunded');
+  assert.equal(result.delivery, 'not_delivered');
+  assert.equal(rows(h.w.sqlite, 'SELECT failure_class FROM learn_step_results')[0].failure_class, 'terminal_validation_failure');
+  assert.equal(JSON.parse(rows(h.w.sqlite, 'SELECT check_json FROM learn_step_results')[0].check_json).grounding.reason, 'quote_not_in_passage', 'the reason is kept in the private record');
+  assert.deepEqual(result.failure, { code: 'source_check_failed', message: STRINGS.notInSource });
+  assert.deepEqual(result.recovery, ['retry', 'replace', 'omit']);
+  assert.doesNotMatch(result.failure.message, /outside what I can create/);
+  // A row stored by the earlier build (policy_block for the same grounding block) reads the same way: no new migration, no safety wording.
+  h.w.sqlite.prepare("UPDATE learn_step_results SET failure_class = 'policy_block'").run();
   const old = (await h.status()).results[0];
   assert.deepEqual(old.failure, { code: 'source_check_failed', message: STRINGS.notInSource });
   assert.deepEqual(old.recovery, ['retry', 'replace', 'omit']);
 });
 
-test('owner MVP: the citation checker being down does not hold an ordinary card (it is not called)', async t => {
+test('a check that could not finish says so (not a refusal, not a source verdict), refunded, Retry offered', async t => {
   const h = await loop(t, { script: [GOOD] });
-  let asked = 0;
-  registerRoadmapHandlers({ callModel: h.m.callModel, checkCallModel: async () => { asked++; throw new Error('503'); }, classify: async () => calm, base: h.p.base });
+  registerRoadmapHandlers({ callModel: h.m.callModel, checkCallModel: async () => { throw new Error('503'); }, classify: async () => calm, base: h.p.base });
   const { id, view } = await toProposal(h);
   const result = await accept(h, id, view);
-  assert.equal(result.generation, 'generated');
-  assert.equal(asked, 0, 'no grounding call');
+  assert.equal((await h.totals()).used, 0, 'refunded');
+  assert.equal(rows(h.w.sqlite, 'SELECT failure_class FROM learn_step_results')[0].failure_class, 'checking_unavailable');
+  assert.deepEqual(result.failure, { code: 'checking_unavailable', message: STRINGS.checkUnavailable });
+  assert.deepEqual(result.recovery, ['retry', 'replace', 'omit']);
 });
 
 test('withheldCause: only a genuine safety block or personal risk is a refusal', () => {

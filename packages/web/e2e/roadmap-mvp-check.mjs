@@ -54,6 +54,7 @@ const setMode = async (page, mode) => { await page.locator('[data-chat-pane]').g
 const box = (page, id) => page.locator(`[data-block-id="${id}"]`).first().boundingBox();
 const toc = page => page.getByRole('tab', { name: /^Table of contents/ }).click();
 const cards = page => page.locator(`[data-block-id="${CARD}"]`);
+const recovery = async (page, where) => (await page.locator(`[data-roadmap-recovery="${where}"] button`).allInnerTexts()).join('|');
 
 try {
   const main = await make('Roadmap smoke');
@@ -117,14 +118,16 @@ try {
     await page.getByText('You reached the stopping point of this roadmap.', { exact: false }).first().waitFor();
     assert.ok(await cards(page).count() >= 1, 'delivered cards stay');
   });
-  await step('a failed card is announced once through the existing error toast, and its Retry sends one retry', async () => {
+  await step('a failed card shows the same Retry, Replace, Omit in Chat and in the ToC, and Omit sends one omit', async () => {
     server.stage = 'failed';
     await page.reload();
-    const note = page.locator('[data-toast-error]').filter({ hasText: 'could not be made' });
-    await note.waitFor();
-    assert.equal(await page.locator('[data-roadmap-recovery]').count(), 0, 'no recovery block in Chat or the Contents');
-    await note.locator('[data-toast-action]').click();
-    await until(async () => server.count('/retry') === 1, 'retry sent once');
+    await page.locator('[data-roadmap-recovery="chat"]').waitFor();
+    await toc(page);
+    await page.locator('[data-roadmap-recovery="toc"]').waitFor();
+    assert.equal(await recovery(page, 'chat'), 'Retry|Replace|Omit');
+    assert.equal(await recovery(page, 'toc'), 'Retry|Replace|Omit');
+    await page.locator('[data-roadmap-recovery="chat"] [data-roadmap-recover="omit"]').click();
+    await until(async () => server.count('/omit') === 1, 'omit sent once');
   });
   await step('a stale accept (another device went first) shows the latest state with the plain sentence and buys nothing more', async () => {
     server.stage = 'pending';

@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createRoadmapController } from './roadmap-controller.js';
 import { anchorState, overlayPosition } from './roadmap-placement.js';
-import { chatOf, claimsFocus, indicatorOf, invitationOf, keyboardOwned, pillOf, tabAccepts, tocOf } from './roadmap-client.js';
+import { chatOf, claimsFocus, indicatorOf, invitationOf, keyboardOwned, pillOf, statusOf, tabAccepts, tocOf } from './roadmap-client.js';
 import { pageKeyAllowed } from './shortcut-owner.js';
 import { opensEditor } from './inline-ai-proposal.js';
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
@@ -93,7 +93,7 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto', 
 
   return {
     state, controller, pill, active: !!state.view && state.flag !== 'off' && isUnfinishedRoadmap(state.view.roadmap.state), toc: tocOf(state), lines: chatOf(state), invitation: invitationOf(state, { typing, answering }),
-    indicator: indicatorOf(state, { offscreen: where.offscreen }), position: overlayPosition(geometry.anchor, surface), surface, showOverlay,
+    indicator: indicatorOf(state, { offscreen: where.offscreen }), position: overlayPosition(geometry.anchor, surface), surface, showOverlay, status: statusOf(state),
     acceptPlan, editPlan, divert, go, sourceReady: key => controller.sourceReady(key),
   };
 }
