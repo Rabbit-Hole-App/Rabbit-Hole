@@ -95,6 +95,16 @@ export async function readOwnDocument(env, app, id) {
   return object && { name: doc.name, bytes: new Uint8Array(await object.arrayBuffer()) };
 }
 
+// R7b (roadmap-source-pdf.js): this learner's own PDF with the page text the browser extracted, read exactly as readOwnDocument reads the bytes
+// (same ownership rule, same object key). -> { name, size, meta, pages } or null. pages is null when none were stored (meta then says why).
+export async function readOwnDocumentPages(env, app, id) {
+  if (!ID.test(id) || !app?.email || !env?.LEARN_DB) return null;
+  const who = owner(app), doc = await ownDocument(env, who, id);
+  if (!doc || doc.kind !== 'pdf') return null;
+  const media = learnMedia(env), key = await objectKey(homeOf(who, doc), id);
+  return { name: doc.name, size: doc.size, meta: await readPageMeta(media, key), pages: await readPages(media, key) };
+}
+
 // The browser encodes the id's colon (ctx%3A...), so match the decoded path.
 const decodedPath = url => { try { return decodeURIComponent(url.pathname); } catch { return url.pathname; } };
 export const contextDocsRoute = url => url.pathname === '/api/learn/context' || url.pathname === '/api/learn/context/link' || /^\/api\/learn\/context\/ctx:[0-9a-f]{12}(\/pages)?$/.test(decodedPath(url));

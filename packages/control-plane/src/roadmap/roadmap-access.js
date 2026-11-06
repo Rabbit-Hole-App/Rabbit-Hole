@@ -16,6 +16,14 @@ export async function accessForRoadmap(db, { org, owner_user_id: ownerUserId, bo
 
 // The source file behind a roadmap, as the owner can still read it now: { ok, name } or { ok: false, code }. No Request, no body: only D1.
 export async function revalidateSourceAsJob(db, access, roadmap) {
+  // R7b: a context-document PDF. D1 only, like the file branch: the owner's document row, and the cached sha256 of its stored bytes (R3's revision) at that size.
+  const pdf = /^doc:(ctx:[0-9a-f]{12})$/.exec(String(roadmap?.source_key));
+  if (pdf) {
+    const doc = await db.prepare(`SELECT d.name, h.sha256 FROM canvas_context_documents d LEFT JOIN pdf_source_hashes h ON h.org = d.org AND h.owner_email = d.owner_email AND h.source_key = ? AND h.bytes = d.size
+      WHERE d.org = ? AND d.owner_email = ? AND d.id = ? AND d.kind = 'pdf' LIMIT 1`).bind(roadmap.source_key, access.org, access.actorEmail, pdf[1]).first();
+    if (!doc) return { ok: false, code: 'source_unavailable' };
+    return doc.sha256 === roadmap.source_rev ? { ok: true, name: doc.name } : { ok: false, code: 'source_changed' };
+  }
   const m = /^file:([A-Za-z0-9_-]{1,64})$/.exec(String(roadmap?.source_key));
   if (!m) return { ok: false, code: 'source_unavailable' };
   const source = await db.prepare("SELECT name, family, sha256 FROM file_sources WHERE id = ? AND status = 'stored' AND org = ? AND owner_email = ?").bind(m[1], access.org, access.actorEmail).first();
