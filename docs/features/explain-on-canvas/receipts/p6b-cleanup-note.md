@@ -14,7 +14,7 @@ Branch `feat/tutor-cleanup-p6b` (MVP fast path, owner label 2026-11-05), stacked
 
 ## Recovery
 
-`feat/tutor-cleanup-p6b-recovery`: a strict descendant of the P6b release commit that takes the retire tooling back to its P6a form (it can never drop anything again) and keeps the schema sources and application files exactly as P6b has them. Valid after the drop. A branch that does not descend from P6b fails the preflight (`missing ...`).
+`feat/tutor-cleanup-p6b-recovery`: a strict descendant of the P6b release commit that turns the launcher's `retire` command into a refusal (it can never drop anything again) and keeps the schema sources and application files exactly as P6b has them. Valid after the drop. A branch that does not descend from P6b fails the preflight (`missing ...`).
 
 ## Check-map
 
