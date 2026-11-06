@@ -1,0 +1,9 @@
+{
+  "description": "Tab or the Accept button. proposalVersion guards a stale pill. No price is sent or shown.",
+  "request": {
+    "boardId": "lb_7c1e5a90d2b84f63a1c07e92",
+    "expectedRevision": 7,
+    "proposalVersion": 1,
+    "actionKey": "ak_accept_0001"
+  }
+}

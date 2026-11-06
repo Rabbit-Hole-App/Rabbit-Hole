@@ -1,0 +1,14 @@
+{
+  "description": "The same actionKey again (retry, second tab): the recorded outcome, same status and body, no second purchase.",
+  "request": {
+    "boardId": "lb_7c1e5a90d2b84f63a1c07e92",
+    "expectedRevision": 7,
+    "proposalVersion": 1,
+    "actionKey": "ak_accept_0001"
+  },
+  "response": {
+    "status": 202,
+    "recorded": true,
+    "bodyRef": "accept-proposal-response-generating"
+  }
+}
