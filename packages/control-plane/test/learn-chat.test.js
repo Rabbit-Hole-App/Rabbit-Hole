@@ -1186,7 +1186,7 @@ test('mentioned canvases ride by title and content; a revoked one is refused bef
 
 // Tutor ladder R2: the learner's Depth is a sentence in the system prompt of the Chat turn that goes to the model (chat-modes.js
 // chatSystem, chat-depth.js). Overview and Deep differ; Standard and a client that sends none get today's prompt; the Tutor's
-// syllabus turn gets none; a value that is not a Depth is a 400 and calls no model.
+// table of contents (tutor) turn gets none; a value that is not a Depth is a 400 and calls no model.
 test('R2 Depth reaches the model input of a Chat turn: Overview and Deep differ, Standard and no Depth are today\'s prompt, Tutor gets none', async t => {
   const env = fixture(t);
   const ask = body => handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'How does backpropagation work?', ...body }), env, {}, owner, 'learn');
@@ -1203,10 +1203,10 @@ test('R2 Depth reaches the model input of a Chat turn: Overview and Deep differ,
   // learner instruction survives: the words they typed reach the model unchanged beside the Depth.
   assert.ok(env.answers.every(answer => answer.question === 'How does backpropagation work?' || answer.question === 'Make me a course on backpropagation'), "the question is the learner’s own words");
   const asked = await system({ mode: 'ask', depth: 'deep', message: 'Make me a course on backpropagation' });
-  assert.doesNotMatch(asked, /Tutor mode: syllabus creation/);
-  // The Tutor's syllabus planner is not an answer: no Depth line (R4 owns the roadmap's size).
+  assert.doesNotMatch(asked, /syllabus creation/);
+  // The table of contents conversation (mode tutor) edits an outline, not an answer: no Depth line (R4 owns the roadmap's size).
   const tutor = await system({ mode: 'tutor', depth: 'deep' });
-  assert.match(tutor, /Tutor mode: syllabus creation/); assert.doesNotMatch(tutor, /Depth:/);
+  assert.doesNotMatch(tutor, /Tutor mode: syllabus creation/); assert.doesNotMatch(tutor, /Depth:/);
   // A slash command's turn carries the same sentence (the chat body is what the server reads).
   assert.match(await system({ mode: 'auto', depth: 'overview', command: 'quiz' }), /Depth: Overview/);
   const answers = env.answers.length;
