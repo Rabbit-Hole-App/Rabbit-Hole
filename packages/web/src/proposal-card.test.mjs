@@ -95,3 +95,12 @@ test('the Edit box opens only for the pending card, from the controller state, a
   assert.doesNotMatch(render(canvasCardsOf(view('accept-proposal-response-generating'))[0], { edit }), /data-roadmap-editor/);
   assert.doesNotMatch(markup, /…|\.\.\./, 'no ellipsis in any label');
 });
+
+test('the passage button is there only when the card has a passage and the page can show it, and it asks for exactly this card', () => {
+  const card = pending(), asked = [];
+  const markup = render(card, { onPassage: c => asked.push(c.stepId) });
+  assert.match(markup, /data-roadmap-passage="true"[^>]*aria-label="View passage"/);
+  assert.doesNotMatch(render(card, {}), /data-roadmap-passage/, 'no handler, no button');
+  assert.doesNotMatch(render({ ...card, passage: null }, { onPassage() {} }), /data-roadmap-passage/, 'no passage to show');
+  assert.ok(markup.indexOf('data-roadmap-passage') < markup.indexOf('</section>'), 'a quiet affordance inside the frame; the strip stays below it');
+});

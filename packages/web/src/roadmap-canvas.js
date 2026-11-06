@@ -24,7 +24,7 @@ export function canvasCardsOf(view, { busy = [], hasBlock = () => false } = {}) 
   const sourceKey = view.roadmap.scope?.source?.key ?? null;
   const cards = new Map();
   const base = (step, extra) => ({ key: extra.stepId, stepId: extra.stepId, title: extra.title ?? step?.title ?? '', description: extra.description ?? step?.goal ?? '', format: formatOf(extra.format ?? step?.format),
-    sourceKey: step?.sourceRef?.source?.key ?? sourceKey, sourceName: step?.sourceRef?.source?.name ?? view.roadmap.scope?.source?.name ?? null, sourceRef: step?.sourceRef ?? null, passage: step?.passage ?? null });
+    sourceKey: step?.sourceRef?.source?.key ?? sourceKey, sourceName: step?.sourceRef?.source?.name ?? view.roadmap.scope?.source?.name ?? null, sourceRev: step?.sourceRef?.source?.rev ?? view.roadmap.scope?.source?.rev ?? null, sourceRef: step?.sourceRef ?? null, passage: step?.passage ?? null });
   for (const result of view.results || []) {
     if (result.existingCard || result.delivery === 'delivered' || result.delivery === 'removed' || hasBlock(result.slot?.cardId)) continue;
     const step = steps.get(result.stepId);
@@ -68,8 +68,8 @@ export function passageLinksOf(view, { hasBlock = () => false } = {}) {
   return (view.steps || []).flatMap(step => {
     const start = step.passage?.start, end = step.passage?.end, key = step.sourceRef?.source?.key ?? sourceKey;
     if (!key || !Number.isInteger(start) || !Number.isInteger(end) || end <= start) return [];
-    if (delivered.has(step.id)) return [{ stepId: step.id, sourceKey: key, start, end, target: { kind: 'card', cardId: delivered.get(step.id) } }];
-    return offers.has(step.id) ? [{ stepId: step.id, sourceKey: key, start, end, target: { kind: 'proposal' } }] : [];
+    if (delivered.has(step.id)) return [{ stepId: step.id, sourceKey: key, sourceRev: step.sourceRef?.source?.rev ?? view.roadmap.scope?.source?.rev ?? null, start, end, target: { kind: 'card', cardId: delivered.get(step.id) } }];
+    return offers.has(step.id) ? [{ stepId: step.id, sourceKey: key, sourceRev: step.sourceRef?.source?.rev ?? view.roadmap.scope?.source?.rev ?? null, start, end, target: { kind: 'proposal' } }] : [];
   });
 }
 // The passage icons one source card draws: the links whose source is that file.
