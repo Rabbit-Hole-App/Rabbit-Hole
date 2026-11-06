@@ -54,14 +54,18 @@ test('Auto and Tutor show applicable toggle; Ask hides toggle; no capability hid
   assert.equal(autoSuggestShown('auto', ['roadmap_invitations']), true, 'a release that adds a capability shows it');
 });
 
-test('Auto-suggest off quiets the Tutor and nothing else; the canvas switch is not rewritten', () => {
+test('the learner Auto-suggest setting overrides the canvas record and nothing else; the canvas record is not rewritten', () => {
   const on = { mode: 'tutor', tutorEnabled: true, suggestionsPaused: false, revision: 3 };
-  assert.deepEqual(withAutoSuggest(on, { autoSuggest: false }), { ...on, tutorEnabled: false });
+  const off = { ...on, tutorEnabled: false };
+  assert.deepEqual(withAutoSuggest(on, { autoSuggest: false }), off);
   assert.equal(withAutoSuggest(on, { autoSuggest: true }), on); assert.equal(withAutoSuggest(on, null), on);
+  assert.deepEqual(withAutoSuggest(off, { autoSuggest: true }), on, 'On overrides a canvas record that says off (no control for it remains)');
+  assert.equal(withAutoSuggest(off, { autoSuggest: false }), off);
   const coaching = { status: 'ready', controls: on, autoSuggest: false };
   assert.equal(effectiveControls(coaching, { mode: 'tutor' }).tutorEnabled, false);
   assert.equal(coaching.controls.tutorEnabled, true);
   assert.equal(effectiveControls({ ...coaching, autoSuggest: true }, { mode: 'tutor' }).tutorEnabled, true);
+  assert.equal(effectiveControls({ ...coaching, controls: off, autoSuggest: true }, { mode: 'tutor' }).tutorEnabled, true, 'the canvas record is ignored');
   assert.equal(effectiveControls({ ...coaching, status: 'local', controls: { ...on, mode: 'auto' }, autoSuggest: false }, { mode: 'tutor' }).tutorEnabled, false, 'also where the controls are local');
 });
 
