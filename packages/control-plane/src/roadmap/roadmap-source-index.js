@@ -15,7 +15,7 @@ export const INDEX_VERSIONS = Object.freeze({ extractor: 'md-text-1', chunker: '
 export const INDEX_LIMITS = Object.freeze({
   chunkChars: 6000, partChars: 36000, unitMax: 40, maxChoices: 240, maxSections: 2000,
   evidence: Object.freeze({ minChars: 200, maxChars: 24000, maxTerms: 8, termChars: 80 }),
-  summary: Object.freeze({ batchChunks: 8, batchChars: 36000, maxCalls: 12, maxChars: 480000, maxMs: 240000, summaryChars: 500, maxTokens: 2000 }),
+  summary: Object.freeze({ batchChunks: 8, batchChars: 36000, maxCalls: 12, maxChars: 360000, maxMs: 240000, maxAttempts: 3, summaryChars: 500, maxTokens: 2000 }),
 });
 
 export const INDEX_COPY = Object.freeze({
