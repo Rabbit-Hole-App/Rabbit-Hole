@@ -11,7 +11,7 @@ import { offerInvitation, pendingInvitation, dismissInvitation } from '../src/ro
 import { scheduledRoadmapKick } from '../src/roadmap/roadmap-wire.js';
 import { SAFETY_QUESTIONS } from '../src/agents/roadmap-check.js';
 import { spendTransport } from '../src/learn-spend.js';
-import { world, rows, MODEL } from './roadmap-fixture.js';
+import { world, rows, MODEL, likePatterns } from './roadmap-fixture.js';
 import { ID_A, ID_B, sha } from './roadmap-loop-fixture.js';
 
 const ROADMAP = 'rm_000000000000000000000001';
@@ -184,4 +184,49 @@ test('the JEV safety ask is platform-funded with its own stable operation per PO
   const again = platformJevAsk(w.env, w.access, { roadmapId: ROADMAP, version: 2, anchor: 'cd_000000000000000000000001', ask });
   await assert.rejects(again(safetyRequest('x', 'output')), { code: 'unknown_provider_outcome' });
   assert.equal(seen.length, 1);
+});
+
+// D1 refuses a LIKE pattern over 50 bytes, so the call-identity lookup is a range query. These keys have the exact shape and length of production keys
+// (rm.<proposal>.<version>.<anchor>.<stage>.<call>.<retry>.<authorization>); the neighbours share a long prefix with the one under test.
+const ANCHOR = 'cd_000000000000000000000001';
+const seedCall = (w, key, checkpoint) => w.sqlite.prepare(`INSERT INTO learn_roadmap_calls (op_id, operation_key, roadmap_id, org, owner_user_id, board_id, stage, call_no, payer, task, checkpoint, created_at)
+  VALUES (?, ?, ?, 'team', 'u-alice', 'lb_board00000000000001', 'draft', 0, 'platform', 'x', ?, 1)`).run(`op-${key}`, key, ROADMAP, checkpoint);
+const neighbours = (stage, call) => [`rm.${ROADMAP}.1.${ANCHOR}.${stage}.${call}0.0.${ROADMAP}`, `rm.${ROADMAP}.11.${ANCHOR}.${stage}.${call}.0.${ROADMAP}`, `rm.${ROADMAP}.1.${ANCHOR.slice(0, -1)}2.${stage}.${call}.0.${ROADMAP}`,
+  `rm.${ROADMAP}.1.${ANCHOR}.${stage}.${call + 1}.0.${ROADMAP}`, `rm.${ROADMAP}.1.${ANCHOR}x.${stage}.${call}.0.${ROADMAP}`, `rm.${ROADMAP}.1.${ANCHOR}.${stage}.${call}`];
+
+test('the call-identity lookup finds exactly the same-identity rows: neighbours sharing a long prefix neither block nor are counted', async t => {
+  const w = world(t), seen = [];
+  for (const key of neighbours('draft', 0)) seedCall(w, key, 'dispatched');
+  const callModel = platformCallModel(w.env, w.access, { roadmapId: ROADMAP, version: 1, anchor: ANCHOR, registry: REGISTRY, transport: ledgered(seen) });
+  await callModel('roadmap_draft', BODY);
+  assert.equal(seen.length, 1, 'no neighbour blocked the call');
+  assert.equal(rows(w.sqlite, 'SELECT retry_no FROM learn_roadmap_calls WHERE operation_key = ?', `rm.${ROADMAP}.1.${ANCHOR}.draft.0.0.${ROADMAP}`).length, 1, 'retry 0: no neighbour counted as an earlier attempt');
+  const jevSeen = [];
+  for (const key of neighbours('safety', 0)) seedCall(w, key, 'dispatched');
+  const jev = platformJevAsk(w.env, w.access, { roadmapId: ROADMAP, version: 1, anchor: ANCHOR, ask: async () => { jevSeen.push(1); return { body: { answers: {} } }; } });
+  await jev(safetyRequest('x', 'output'));
+  assert.equal(jevSeen.length, 1);
+  assert.equal(rows(w.sqlite, 'SELECT retry_no FROM learn_roadmap_calls WHERE operation_key = ?', `rm.${ROADMAP}.1.${ANCHOR}.safety.0.0.${ROADMAP}`).length, 1);
+});
+
+test('the call-identity lookup still finds a prior in-flight or unknown call of the same identity: blocked, no second provider call (model and JEV)', async t => {
+  for (const checkpoint of ['admitted', 'dispatched', 'unknown', 'reconciling']) {
+    const w = world(t), seen = [], jevSeen = [];
+    seedCall(w, `rm.${ROADMAP}.1.${ANCHOR}.draft.0.2.${ROADMAP}`, checkpoint); // an earlier attempt with another retry number
+    seedCall(w, `rm.${ROADMAP}.1.${ANCHOR}.safety.0.0.${ROADMAP}`, checkpoint);
+    await assert.rejects(platformCallModel(w.env, w.access, { roadmapId: ROADMAP, version: 1, anchor: ANCHOR, registry: REGISTRY, transport: ledgered(seen) })('roadmap_draft', BODY), { code: 'unknown_provider_outcome' }, checkpoint);
+    await assert.rejects(platformJevAsk(w.env, w.access, { roadmapId: ROADMAP, version: 1, anchor: ANCHOR, ask: async () => { jevSeen.push(1); return { body: {} }; } })(safetyRequest('x', 'output')), { code: 'unknown_provider_outcome' }, checkpoint);
+    assert.deepEqual([seen.length, jevSeen.length], [0, 0], `${checkpoint}: nothing was dispatched`);
+  }
+});
+
+test('the test database refuses only a LIKE or GLOB whose pattern is over 50 bytes, as D1 does', t => {
+  const long = 'x'.repeat(80), w = world(t);
+  assert.deepEqual(likePatterns('SELECT 1 FROM t WHERE k LIKE ?', [long]), [long]);
+  assert.deepEqual(likePatterns('SELECT 1 FROM t WHERE c = ? AND k = ?', [long, long]), [], 'long parameters that are not patterns');
+  assert.deepEqual(likePatterns('SELECT 1 FROM t WHERE c = ? AND k GLOB ?', [long, 'ab']), ['ab'], 'the pattern is the one named, not the long neighbour');
+  assert.deepEqual(likePatterns("SELECT 1 FROM t WHERE c = ?2 AND k LIKE ?1 ESCAPE '\\'", ['ab', long]), ['ab']);
+  assert.deepEqual(likePatterns("SELECT 1 FROM t WHERE c = ? AND j LIKE '%x%'", [long]), ['%x%']);
+  assert.doesNotThrow(() => w.LEARN_DB.prepare('SELECT checkpoint FROM learn_roadmap_calls WHERE roadmap_id = ? AND task LIKE ?').bind(long, 'ab%'));
+  assert.throws(() => w.LEARN_DB.prepare('SELECT checkpoint FROM learn_roadmap_calls WHERE operation_key LIKE ?').bind(`${long}%`), /too complex/);
 });
