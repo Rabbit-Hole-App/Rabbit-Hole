@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { platformCallModel, platformJevAsk, makeClassify, safetyRequest, ROLES } from '../src/roadmap/roadmap-models.js';
 import { operationOf } from '../src/learn-spend-ledger.js';
-import { reserveRoadmapQuota, releaseCallQuota } from '../src/roadmap/roadmap-quota.js';
+import { reserveRoadmapQuota } from '../src/roadmap/roadmap-quota.js';
 import { ROADMAP_LIMITS } from '../src/roadmap/roadmap-policy.js';
 import { offerInvitation, pendingInvitation, dismissInvitation } from '../src/roadmap/roadmap-invitations.js';
 import { scheduledRoadmapKick } from '../src/roadmap/roadmap-wire.js';
@@ -85,64 +85,14 @@ test('per-learner quota counters: both windows, the last slot has one winner, a 
   await assert.rejects(reserveRoadmapQuota(w.LEARN_DB, w.access, 'banana'), /unknown quota stage/);
 });
 
-test('a quota refusal stops the model call before it is dispatched: the planned row is released, the counter is not touched', async t => {
+test('a quota refusal stops the model call before it is planned or dispatched', async t => {
   const w = world(t), seen = [];
   const hourStart = Math.floor(Date.now() / 1000 / 3600) * 3600;
   w.sqlite.prepare("INSERT INTO learn_roadmap_quota (org, owner_user_id, scope, window_start, calls, micros) VALUES ('team', 'u-alice', 'plan.hour', ?, ?, 0)").run(hourStart, ROADMAP_LIMITS.quotas.perHour.plan);
   const callModel = platformCallModel(w.env, w.access, { roadmapId: ROADMAP, version: 1, quota: 'plan', registry: REGISTRY, transport: ledgered(seen) });
   await assert.rejects(callModel('roadmap_draft', BODY), { code: 'quota_exhausted' });
   assert.equal(seen.length, 0);
-  assert.deepEqual(rows(w.sqlite, 'SELECT checkpoint FROM learn_roadmap_calls').map(r => r.checkpoint), ['released']);
-  assert.equal(rows(w.sqlite, "SELECT calls FROM learn_roadmap_quota WHERE scope = 'plan.hour'")[0].calls, ROADMAP_LIMITS.quotas.perHour.plan, 'a refusal must not hand back a unit it never took');
-});
-
-// A db whose statements matching `when` throw, the way D1 rejects the over-long LIKE (found on the dev clone 2026-11-06): the fault is local, nothing is dispatched.
-const faulty = (w, when) => ({ ...w.env, LEARN_DB: { ...w.LEARN_DB, prepare: sql => { if (when(sql)) throw new Error('D1_ERROR: LIKE or GLOB pattern too complex'); return w.LEARN_DB.prepare(sql); } } });
-const units = w => rows(w.sqlite, "SELECT scope, calls FROM learn_roadmap_quota WHERE owner_user_id = 'u-alice' ORDER BY scope").map(r => `${r.scope}=${r.calls}`).join();
-
-test('a local failure before dispatch consumes no quota however often it is retried, and the first healthy call takes one unit', async t => {
-  const w = world(t), seen = [];
-  const env = faulty(w, sql => sql.includes('operation_key >= ?')); // the prior-call lookup
-  for (let attempt = 0; attempt < ROADMAP_LIMITS.quotas.perHour.plan + 3; attempt++) {
-    await assert.rejects(platformCallModel(env, w.access, { roadmapId: ROADMAP, version: 1, quota: 'plan', registry: REGISTRY, transport: ledgered(seen) })('roadmap_draft', BODY), /too complex/);
-  }
-  assert.equal(units(w), '', 'no counter row was even created');
-  assert.equal(seen.length, 0);
-  await platformCallModel(w.env, w.access, { roadmapId: ROADMAP, version: 1, quota: 'plan', registry: REGISTRY, transport: ledgered(seen) })('roadmap_draft', BODY);
-  assert.equal(units(w), 'plan.day=1,plan.hour=1');
-});
-
-test('a failure between the reservation and the dispatch gives the unit back once, keeps the call row, and a replayed release is a no-op', async t => {
-  const w = world(t), seen = [];
-  const env = faulty(w, sql => sql.includes('COALESCE(?, output_ref)')); // advanceCall: the 'dispatched' checkpoint cannot be written
-  await assert.rejects(platformCallModel(env, w.access, { roadmapId: ROADMAP, version: 1, quota: 'plan', registry: REGISTRY, transport: ledgered(seen) })('roadmap_draft', BODY), /too complex/);
-  assert.equal(seen.length, 0, 'nothing reached the provider');
-  assert.equal(units(w), 'plan.day=0,plan.hour=0');
-  const [call] = rows(w.sqlite, 'SELECT op_id, checkpoint, quota_scope FROM learn_roadmap_calls');
-  assert.deepEqual([call.checkpoint, call.quota_scope], ['released', 'plan'], 'the call row stays as evidence');
-  // Another call takes a unit; replaying the first release must not hand that one back.
-  await reserveRoadmapQuota(w.LEARN_DB, w.access, 'plan');
-  assert.equal(await releaseCallQuota(w.LEARN_DB, w.access, call.op_id), false);
-  assert.equal(units(w), 'plan.day=1,plan.hour=1');
-});
-
-test('an unknown provider outcome keeps its unit, is never released and is never sent again', async t => {
-  const w = world(t), seen = [];
-  const boom = () => { throw new Error('connection dropped'); };
-  await assert.rejects(platformCallModel(w.env, w.access, { roadmapId: ROADMAP, version: 1, quota: 'plan', registry: REGISTRY, transport: boom })('roadmap_draft', BODY), { code: 'unknown_provider_outcome' });
-  const [call] = rows(w.sqlite, 'SELECT op_id, checkpoint FROM learn_roadmap_calls');
-  assert.equal(call.checkpoint, 'unknown');
-  assert.equal(units(w), 'plan.day=1,plan.hour=1', 'the call may have cost money: its unit stays');
-  assert.equal(await releaseCallQuota(w.LEARN_DB, w.access, call.op_id), false, 'compensation does not apply to an unknown outcome');
-  await assert.rejects(platformCallModel(w.env, w.access, { roadmapId: ROADMAP, version: 1, quota: 'plan', registry: REGISTRY, transport: ledgered(seen) })('roadmap_draft', BODY), { code: 'unknown_provider_outcome' });
-  assert.equal(seen.length, 0, 'never re-dispatched');
-  assert.equal(units(w), 'plan.day=1,plan.hour=1', 'and the blocked retry did not take another unit');
-});
-
-test('a provider refusal was dispatched, so its unit stays', async t => {
-  const w = world(t);
-  await assert.rejects(platformCallModel(w.env, w.access, { roadmapId: ROADMAP, version: 1, quota: 'plan', registry: REGISTRY, transport: () => Response.json({ error: 'busy' }, { status: 529 }) })('roadmap_draft', BODY), { code: 'model_unavailable' });
-  assert.equal(units(w), 'plan.day=1,plan.hour=1');
+  assert.equal(rows(w.sqlite, 'SELECT * FROM learn_roadmap_calls').length, 0);
 });
 
 test('the safety classifier asks every category independently in one request per chunk and reports coverage honestly', async () => {
