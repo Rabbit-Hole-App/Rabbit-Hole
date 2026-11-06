@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { learnDb } from './learn-grade-fixture.js';
-import { DEFAULT_SETTINGS, readDepth, readSettings, saveSettings, userSettingsRoute } from '../src/learn-user-settings.js';
+import { DEFAULT_SETTINGS, readAutoSuggest, readDepth, readSettings, saveSettings, userSettingsRoute } from '../src/learn-user-settings.js';
 
 const MIGRATION = readFileSync(new URL('../learn-migrations/0037-learn-user-settings.sql', import.meta.url), 'utf8');
 const SCHEMA = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');
@@ -68,6 +68,10 @@ test('readDepth never throws: no identity, no database and a database without 00
   assert.equal(await readDepth({}, A), 'standard');
   assert.equal(await readDepth(env(learnDb(t)), { ...A, userId: null }), 'standard');
   assert.equal(await readDepth(env(learnDb(t, BEFORE_0037)), A), 'standard');
+  for (const e of [{}, env(learnDb(t, BEFORE_0037))]) assert.equal(await readAutoSuggest(e, A), true, 'Auto-suggest defaults on and never throws');
+  const kept = env(learnDb(t));
+  await saveSettings(kept, A, { autoSuggest: false });
+  assert.deepEqual([await readAutoSuggest(kept, A), await readAutoSuggest(kept, B), await readAutoSuggest(kept, A2)], [false, true, false], 'per learner, on every canvas');
 });
 
 // The route as the app Worker serves it, with the board authorization injected (as the coaching route's tests).

@@ -37,6 +37,16 @@ export async function readDepth(env, actor) {
   } catch { return DEFAULT_DEPTH; }
 }
 
+// Whether this learner allows unasked suggestions (R4 invitations, R6 proposals read this). On when there is no row, no identity or
+// the table is not there yet: the default is today's behavior. Never throws.
+export async function readAutoSuggest(env, actor) {
+  if (!env?.LEARN_DB || !actor?.org || !actor?.userId) return DEFAULT_SETTINGS.autoSuggest;
+  try {
+    const row = await env.LEARN_DB.prepare('SELECT auto_suggest FROM learn_user_settings WHERE org = ? AND owner_user_id = ?').bind(actor.org, actor.userId).first();
+    return row ? row.auto_suggest === 1 : DEFAULT_SETTINGS.autoSuggest;
+  } catch { return DEFAULT_SETTINGS.autoSuggest; }
+}
+
 // patch: { depth?, autoSuggest? }, already validated. One statement per field.
 export async function saveSettings(env, actor, patch) {
   const now = new Date().toISOString(), statements = [];
