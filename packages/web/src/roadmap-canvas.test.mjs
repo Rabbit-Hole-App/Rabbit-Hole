@@ -115,13 +115,11 @@ test('the offer follows the pill gate: Ask mode, the flag off and the open edito
   assert.deepEqual([busy.state, busy.acceptable, busy.accepting], ['pending', false, true]);
 });
 
-test('a proposal the server is still checking is the pending slot with Accept disabled, never generating', () => {
+test('a proposal the server is still checking draws no slot at all (its words have not passed; the pill is null for it too)', () => {
   const v = JSON.parse(JSON.stringify(view('status-active-proposal-pending')));
   v.proposal.state = 'checking'; v.proposal.acceptable = false;
-  for (const options of [{ state: client('status-active-proposal-pending', { view: v }) }, {}]) {
-    const [card] = canvasCardsOf(v, options);
-    assert.deepEqual([card.state, card.acceptable], ['pending', false]);
-  }
+  assert.deepEqual(canvasCardsOf(v, { state: client('status-active-proposal-pending', { view: v }) }), []);
+  assert.deepEqual(canvasCardsOf(v), [], 'view only: the same');
   assert.equal('cancelling' in canvasCardsOf(view('status-active-proposal-pending'))[0], false, 'no unused fields');
 });
 

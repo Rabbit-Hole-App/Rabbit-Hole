@@ -16,7 +16,7 @@ const formatOf = value => (FORMATS.has(value) ? value : 'explanation');
 
 // The placeholders the view asks for, one per step (key = the step id, the same from proposal to result so the position never changes).
 //   pending     the offer, not accepted: type, title, description, Accept / Cancel; no timer, no spinner.
-//   checking    the server is checking the accepted card's output: private, nothing to accept (drawn as generating). An offer being checked is pending.
+//   checking    the server is checking the accepted card's output: private, nothing to accept (drawn as generating). An offer being checked is not drawn.
 //   generating  accepted: the existing skeleton with its honest label.
 //   failed      the terminal failure with its sentence and the recoveries the server allows.
 // busy: the gestures in flight (roadmap-client state.busy); hasBlock(id): whether the canvas already holds that card (delivered: no placeholder).
@@ -37,17 +37,17 @@ export function canvasCardsOf(view, { state: roadmapState = null, busy = roadmap
       ...(failed ? { failure: result.failure ?? null, recovery: result.recovery ?? [] } : {}) });
   }
   // The offer is shown, and can be accepted, exactly when the pill would be (roadmap-client.js pillOf: the flag on, an active roadmap, not Ask mode, the editor closed, no
-  // acceptance in flight). A proposal the server is still checking is the same pending slot with Accept disabled until it is acceptable: it is not accepted, so nothing
-  // spins and nothing says Generating. `state` absent (a caller with only the view): the view's own acceptable flag.
+  // acceptance in flight). A proposal the server is still checking draws NOTHING (its words have not passed the check and it may yet be held or blocked; the pill is null
+  // for it too). `state` absent (a caller with only the view): the view's own acceptable flag.
   const proposal = view.proposal;
-  if (proposal && !proposal.link && ['pending', 'checking'].includes(proposal.state)) {
-    const gate = roadmapState ? pillOf({ ...roadmapState, view: { ...view, proposal: { ...proposal, state: 'pending' } } }) : (view.roadmap.state === 'active' ? {
+  if (proposal && !proposal.link && proposal.state === 'pending') {
+    const gate = roadmapState ? pillOf(roadmapState.view === view ? roadmapState : { ...roadmapState, view }) : (view.roadmap.state === 'active' ? {
       accept: proposal.acceptable === true && !busy.includes(`accept:${proposal.id}:${proposal.version}`), accepting: busy.includes(`accept:${proposal.id}:${proposal.version}`) } : null);
     // While the learner edits the offer (Ctrl/Cmd+K) the editor lives in the proposal overlay: the slot steps aside for it (same place when it returns), never both.
     if (gate && !roadmapState?.editing) {
       const step = steps.get(proposal.stepId);
       cards.set(proposal.stepId, { ...base(step, { stepId: proposal.stepId, title: proposal.title, description: proposal.description, format: proposal.format }), state: 'pending',
-        proposalId: proposal.id, version: proposal.version, acceptable: proposal.state === 'pending' && gate.accept === true, accepting: gate.accepting === true });
+        proposalId: proposal.id, version: proposal.version, acceptable: gate.accept === true, accepting: gate.accepting === true });
     }
   }
   return [...cards.values()];

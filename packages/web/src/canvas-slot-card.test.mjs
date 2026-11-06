@@ -75,7 +75,7 @@ test('privacy: a Tutor slot is hidden from the board thumbnail and from area cro
   assert.match(source, /const skip = el => [^\n]*hasAttribute\?\.\('data-roadmap-slot'\)/, 'the area crop filter skips it');
 });
 
-test('the pending wrapper (frame and pill) is the keyboard owner, so the pill is inside [data-roadmap-overlay]; a checking offer shows no Generating', () => {
+test('the pending wrapper (frame and pill) is the keyboard owner, so the pill is inside [data-roadmap-overlay]; a not-yet-acceptable offer shows no Generating', () => {
   const markup = render(pending);
   assert.match(markup, /^<div [^>]*data-roadmap-overlay=""[^>]*tabindex="-1"/);
   const checking = render({ ...pending, acceptable: false });
