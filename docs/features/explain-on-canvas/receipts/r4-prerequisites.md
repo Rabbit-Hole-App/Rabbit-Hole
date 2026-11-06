@@ -8,7 +8,7 @@ Stacked release candidate `feat/tutor-r4-release-2` (MVP fast path, owner label 
 ## What R4 depends on (verified by `git grep` on this base)
 
 - **R1 (card eligibility).** The loop delivers only `explanation` and `table` cards (`roadmap-tools.js` format registry). Both are in R1's generated-card allowlist (`card-feedback.js` `GENERATED`), so delivered cards get the thumbs control with no R4 code. R4 imports nothing from R1.
-- **R2 (Depth, settings).** Depth is a field of the roadmap record (`roadmap-store.js` `createRoadmap`, `ceilingFor(depth)`; `roadmap-generate.js` input `depth`), read from the request, not from R2's module. The mode and Auto-suggest reader is an injected seam (`roadmapDeps(env, ctx, { settings })`); **the dev-worker mount does not pass R2's reader, so the default (Auto-suggest on, Tutor) applies. Wire `learn-user-settings` into the mount before activation.** The UI host passes `depth: () => 'standard'`.
+- **R2 (Depth, settings).** Depth is a field of the roadmap record (`roadmap-store.js` `createRoadmap`, `ceilingFor(depth)`; `roadmap-generate.js` input `depth`), read from the request, not from R2's module. The mode and Auto-suggest reader is an injected seam (`roadmapDeps(env, ctx, { settings })`); **candidate 64 wires R2's saved Auto-suggest and the canvas coaching mode as the `roadmapDeps` default (one mount shared by dev and app workers); see `r4-safety-strings.md`.** The UI host passes `depth: () => 'standard'`.
 - **R3 (source references).** Plan-time minting writes R3's `learn_source_refs` by SQL in R3's shape (`roadmap-source-refs.js`, `roadmap-source-read.js`: `sref_` ids, `{v,id,kind,source{key,rev,name,home},anchor{quote}}`) and reads passage scopes through it; a database without the table skips minting and cards carry no `sourceRef`. `LearnPage.jsx` already imports R3's `source-ref.js`. Shared/forked boards: `shared-privacy.js` `sharedBlock` is `publicRoadmapCard(withSharedSourceRef(publicExplainBack(block)))`; `learn-boards.js` `forkState` strips the roadmap step relationship (`publicRoadmapCard`), and R3's source-ref index hunks in `saveOwn` and `fork` are intact.
 - **P2/P4 (hot files).** `ask.jsx`: the Table of contents' Edit plan diverts to the roadmap revision (`divert`), the hook click stays P4's plain turn (`sendStep` -> `send`); `LearnPage.jsx`: `useRoadmap`, `<RoadmapCanvas>`, `<RoadmapToc>`, `<RoadmapChat>` mounted by `ui-patches/apply-r4-ui-mount.mjs` on this chain (every anchor matched once). `<NextStepsHost on={nextStepsHere && !roadmap.active}>`: hooks stand down only while a roadmap is active; `roadmap.active` is false whenever there is no view or the flag answered `roadmap_disabled`. The two web tests that pinned the old text changed with it.
 
@@ -31,7 +31,7 @@ D2 (routing exception), D43 (safety policy), the $25 paid-test cap (D-R4-3), app
 
 ## Not verified
 
-The `RoadmapJobs` Durable Object and its alarm under workerd (storage fakes only); any browser check (owner rule, none run); any real model, classifier (JEV) or paid call, so planner quality, grounding and safety thresholds are unmeasured; migration 0039 against a real D1; the R2 settings reader wiring.
+The `RoadmapJobs` Durable Object and its alarm under workerd (storage fakes only); any browser check (owner rule, none run); any real model, classifier (JEV) or paid call, so planner quality, grounding and safety thresholds are unmeasured; migration 0039 against a real D1.
 
 ## Recovery
 

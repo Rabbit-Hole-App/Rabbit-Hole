@@ -61,7 +61,7 @@ export const BAD = answer('make_explanation', { title: 'No body' }); // fails th
 export const FAIL = async () => new Response('{"error":"overloaded"}', { status: 500, headers: { 'content-type': 'application/json' } });
 export const provider = script => { const used = []; return { used, base: (e, body, model, org) => spendTransport(e, body, MODEL, org, async () => { used.push(1); return script.shift()(); }, { userId: 'u-alice', category: 'roadmap' }) }; };
 
-export async function loop(t, { plans, script = [GOOD], allowanceMicros, flag = 'true', md = MD, settings } = {}) {
+export async function loop(t, { plans, script = [GOOD], allowanceMicros, flag = 'true', md = MD, settings, classifier = classify } = {}) {
   const w = world(t, allowanceMicros ? { allowanceMicros } : {});
   const objects = {};
   for (const [id, text] of [[ID_A, md], [ID_B, md]]) {
@@ -73,7 +73,7 @@ export async function loop(t, { plans, script = [GOOD], allowanceMicros, flag = 
   w.sqlite.prepare('UPDATE file_sources SET sha256 = ?').run(rev);
   const env = { ...w.env, ROADMAP_ENABLED: flag, LEARN_MEDIA: { get: async key => (key in objects ? { text: async () => objects[key] } : null) } };
   const m = models({ plans }), p = provider(script);
-  registerRoadmapHandlers({ callModel: m.callModel, checkCallModel: m.callModel, classify, base: p.base });
+  registerRoadmapHandlers({ callModel: m.callModel, checkCallModel: m.callModel, classify: classifier, base: p.base });
   const deps = { identity: async () => ({ org: 'team', email: 'u-alice@example.test', userId: 'u-alice' }), ...roadmapDeps(env, null, { settings }) };
   const call = (method, path, payload) => roadmapRoute(path.split('?')[0], new Request(`${ORIGIN}${path}`, { method, headers: { 'content-type': 'application/json' }, body: payload ? JSON.stringify(payload) : undefined }), env, deps);
   const json = async (method, path, payload) => { const r = await call(method, path, payload); return { status: r.status, body: await r.json() }; };

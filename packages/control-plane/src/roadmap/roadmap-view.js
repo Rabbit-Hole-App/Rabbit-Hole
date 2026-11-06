@@ -4,12 +4,20 @@
 // device see the same state.
 import { readRoadmap, readUnfinishedRoadmap } from './roadmap-store.js';
 import { d1PublicRefs } from './roadmap-source-read.js';
+import { STRINGS } from '../../../web/src/roadmap-strings.js';
 
 const iso = seconds => new Date(seconds * 1000).toISOString();
 const json = text => { try { return JSON.parse(text); } catch { return null; } };
 // The learner sentence for a terminal card failure is the contract fixture's wording (status-failed-card). Other failure classes surface only
 // their code until the owner approves more strings; the UI maps codes.
 export const FAILURE_MESSAGE = 'This explanation could not be made. You were not charged.';
+// A held or refused card (failure class policy_block, refunded) tells the learner why in the S26 sentence; the learner's own signs of danger (the safety record's
+// pause_support action) get the S27 supportive message instead. Both are DRAFT strings pending owner approval; neither retries (the same request would be refused again).
+function failureOf(r) {
+  if (r.failure_class !== 'policy_block') return { failure: { code: 'generation_failed', message: FAILURE_MESSAGE }, recovery: ['retry', 'replace', 'omit'] };
+  const personal = json(r.check_json)?.safety?.action === 'pause_support';
+  return { failure: { code: personal ? 'personal_risk' : 'policy_block', message: personal ? STRINGS.personalRisk : STRINGS.safetyLimit }, recovery: ['replace', 'omit'] };
+}
 
 export async function roadmapView(db, access, roadmap) {
   if (!roadmap) return null;
@@ -37,7 +45,7 @@ export async function roadmapView(db, access, roadmap) {
     const failed = r.generation === 'failed' || (r.billing === 'refunded' && r.delivery === 'not_delivered');
     return { id: r.id, stepId: r.step_id, proposalVersion: r.proposal_version, slot: { index: r.slot_index, cardId: r.card_id }, generation: r.generation, delivery: r.delivery, billing: r.billing,
       ...(r.generation === 'generated' && r.validation !== 'passed' && !failed ? { held: true } : {}),
-      ...(failed ? { failure: { code: 'generation_failed', message: FAILURE_MESSAGE }, recovery: ['retry', 'replace', 'omit'] } : {}) };
+      ...(failed ? failureOf(r) : {}) };
   });
   const quiet = !offered && results.every(r => r.delivery !== 'not_delivered' || r.generation === 'failed');
   const next = steps.some(s => s.state === 'planned');

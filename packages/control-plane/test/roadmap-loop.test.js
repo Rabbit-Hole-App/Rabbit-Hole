@@ -9,7 +9,8 @@ import { runDueRoadmapEvents } from '../src/roadmap/roadmap-events.js';
 import { forkState } from '../src/learn-boards.js';
 import { sharedState } from '../src/shared-privacy.js';
 import { rows } from './roadmap-fixture.js';
-import { BAD, BOARD, FAIL, FULL, GOOD, ID_A, ID_B, INSTRUCTION, KEY, ORIGIN, SHORT, TABLE, loop } from './roadmap-loop-fixture.js';
+import { STRINGS } from '../../web/src/roadmap-strings.js';
+import { BAD, BOARD, FAIL, FULL, GOOD, ID_A, ID_B, INSTRUCTION, KEY, ORIGIN, SHORT, TABLE, calm, loop } from './roadmap-loop-fixture.js';
 
 // Brings a roadmap to an accepted plan with one pending proposal.
 async function toProposal(h, { revise = false } = {}) {
@@ -223,4 +224,43 @@ test('a source that changed after the plan stops generation before admission: no
   assert.equal(rows(h.w.sqlite, 'SELECT generation FROM learn_step_results')[0].generation, 'failed');
   assert.equal((await h.totals()).used, 0);
   assert.equal((await h.status()).results[0].failure.code, 'generation_failed');
+});
+
+// Candidate 64: the roadmap mount reads each learner's saved settings (roadmapDeps default). Without the wiring both tests see the defaults (on, no stored mode) and offer.
+test('invitations follow the learner\'s saved Auto-suggest and canvas mode, not the defaults', async t => {
+  const h = await loop(t);
+  const invite = key => h.json('POST', '/api/learn/roadmap/invitations', { boardId: BOARD, sourceKeys: [`file:${ID_A}`], idleKey: key });
+  h.w.sqlite.prepare("INSERT INTO learn_user_settings (org, owner_user_id, auto_suggest, updated_at) VALUES ('team', 'u-alice', 0, 'now')").run();
+  assert.deepEqual((await invite('idle-1-aaaaaaaa')).body.suppressed, { reason: 'auto_suggest_off' });
+  h.w.sqlite.prepare("UPDATE learn_user_settings SET auto_suggest = 1").run();
+  h.w.sqlite.prepare("INSERT INTO learn_coaching_state (org, owner_user_id, app, board, mode, revision, created_at, updated_at) VALUES ('team', 'u-alice', 'learn', 'main', 'ask', 0, 'now', 'now')").run();
+  assert.deepEqual((await invite('idle-2-aaaaaaaa')).body.suppressed, { reason: 'ask_mode' });
+  h.w.sqlite.prepare("UPDATE learn_coaching_state SET mode = 'tutor'").run();
+  assert.equal((await invite('idle-3-aaaaaaaa')).body.invitation.state, 'offered', 'saved Auto-suggest on and Tutor mode offer');
+});
+
+// The safety refusal is shown to the learner (S26 / S27 DRAFT): refunded, no card, no automatic retry, recovery without Retry.
+async function refused(t, classifier) {
+  const h = await loop(t, { classifier });
+  const { id, view } = await toProposal(h);
+  const accept = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${view.proposal.id}/accept`, acceptBody(view, KEY('accept')));
+  const result = accept.body.results[0];
+  assert.equal(h.p.used.length, 1, 'one generation, no automatic retry');
+  assert.equal((await h.totals()).used, 0, 'refunded: the learner is charged nothing');
+  assert.equal(result.delivery, 'not_delivered', 'no card');
+  assert.equal(rows(h.w.sqlite, 'SELECT failure_class, billing FROM learn_step_results')[0].failure_class, 'policy_block');
+  assert.ok(rows(h.w.sqlite, 'SELECT * FROM usage_adjustments').length >= 1, 'the refund is recorded');
+  assert.deepEqual(result.recovery, ['replace', 'omit']);
+  return result;
+}
+test('a card held for safety shows the S26 message, refunded, no card', async t => {
+  const result = await refused(t, async ({ role }) => ({ ...calm, scores: { ...calm.scores, sexual_explicit: role === 'output' ? 0.95 : 0 } }));
+  assert.deepEqual(result.failure, { code: 'policy_block', message: STRINGS.safetyLimit });
+  assert.match(result.failure.message, /can't make this explanation/);
+});
+test('a learner\'s own signs of danger show the S27 support message, refunded, no card, never the generic failure', async t => {
+  const result = await refused(t, async ({ role }) => ({ ...calm, scores: { ...calm.scores, self_harm_personal: role === 'learner' ? 0.9 : 0 } }));
+  assert.deepEqual(result.failure, { code: 'personal_risk', message: STRINGS.personalRisk });
+  assert.match(result.failure.message, /emergency number or a crisis line in your area/);
+  assert.doesNotMatch(result.failure.message, /\.\.\.|…|\$|credit/);
 });
