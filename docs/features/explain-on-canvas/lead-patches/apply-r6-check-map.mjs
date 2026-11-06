@@ -15,8 +15,8 @@ export const ROWS = {
   [`${T}roadmap-auto-fixture.js`]: test('roadmap-auto-proposal', 'roadmap-auto-events'),
   [`${W}roadmap-auto.js`]: [...AUTO, `${W}roadmap-controller.test.mjs`],
 };
-// One new check (fork tier, faked job server). seconds are a first estimate until CI measures them.
-export const CHECKS = { 'roadmap-auto-check.mjs': 60 };
+// One new check (fork tier, faked job server). seconds are a first estimate until CI measures them. NOTE: scripts/ci/check-map.test.mjs 'a broad selection splits into six parts' has no headroom at the R4 tip (any added check, even 30 s, pushes a part past 900 s): the Lead rebalances or records measured seconds.
+export const CHECKS = { 'roadmap-auto-check.mjs': 45 };
 // Existing rows that must also select the R6 coverage because R6 edited the file.
 export const APPEND = {
   [`${W}roadmap-controller.js`]: AUTO,

@@ -32,6 +32,7 @@ async function ineligible(db, access, roadmap, { autoSuggest, revalidate }) {
   return null;
 }
 
+// ponytail: no pre-composition of the successor while the accepted step finishes (R6.02 allows it): composing is instant and deterministic, so it is done at reveal. No model-written proposal either (R5 or later).
 // ensureNextProposal: one guarded coordinator action. -> { status: 'offered'|'completed'|'skipped', reason?, body?, replayed? }.
 // An offered proposal occupies the roadmap's single proposal position (checking, held or pending) in the same batch as the action, so a concurrent
 // manual Next, an event replay and a second device converge on one proposal or a skipped conflict, never two offers. The action key derives from the
