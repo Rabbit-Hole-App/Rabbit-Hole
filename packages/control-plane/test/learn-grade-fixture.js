@@ -3,6 +3,7 @@
 // behind the slice of the D1 API the store uses.
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
+import { checkD1Limits } from './d1-limits.js';
 
 // schema: the SQL to build from (default: repository-schema.sql, the whole dev LEARN_DB).
 // file: a database file instead of memory, so a test can close it and open it again (a reload); schema null opens it as is.
@@ -15,7 +16,7 @@ export function learnDb(t, schema = readFileSync(new URL('../repository-schema.s
       let args = [];
       const statement = sqlite.prepare(sql);
       return {
-        bind(...values) { args = values; return this; },
+        bind(...values) { checkD1Limits(sql, values); args = values; return this; }, // D1 refuses what node:sqlite accepts (d1-limits.js)
         first: async () => statement.get(...args) || null,
         all: async () => ({ results: statement.all(...args) }),
         run: async () => ({ meta: statement.run(...args) }),
