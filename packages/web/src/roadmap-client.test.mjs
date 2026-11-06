@@ -4,9 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { actionKeys, canProposeNext, chatOf, claimsFocus, deliverable, keyboardOwned, idleGrouper, indicatorOf, initialState, invitationOf, pillOf, planDelivery, readyMarkdownSources, recoveryOf, reduce, routes, statusOf, stepLabelFor, tabAccepts, texts, tocOf } from './roadmap-client.js';
+import { actionKeys, canProposeNext, chatOf, deliverable, idleGrouper, indicatorOf, initialState, invitationOf, pillOf, planDelivery, readyMarkdownSources, recoveryOf, reduce, routes, stepLabelFor, tabAccepts, texts, tocOf } from './roadmap-client.js';
 import { STRINGS } from './roadmap-strings.js';
-import { pageKeyAllowed } from './shortcut-owner.js';
 import { ROADMAP_STATES } from './roadmap-contract.js';
 
 const DIR = fileURLToPath(new URL('../../../docs/features/explain-on-canvas/contracts/fixtures/', import.meta.url));
@@ -273,74 +272,4 @@ test('the invitation is held while the learner types or an answer streams and of
   assert.equal(invitationOf(state, { typing: true }), null);
   assert.equal(invitationOf(state, { answering: true }), null);
   assert.equal(invitationOf(state, { typing: false, answering: false })?.id, state.invitation.id, 'resumes, same invitation');
-});
-
-// --- Fix A: Tab through the real acceptance sequence, the indicator once the server field is true, honest acknowledgement ---------
-test('Tab while the accept is in flight still belongs to the proposal (no focus jump), but it never asks for a second accept', () => {
-  let state = withView('status-active-proposal-pending');
-  const { gesture } = pillOf(state);
-  state = reduce(state, { type: 'begin', gesture });
-  const pill = pillOf(state);
-  assert.equal(pill.accept, false);
-  assert.equal(pill.accepting, true);
-  const ctx = over => ({ event: key(), pill, blocked: false, editorOpen: false, presenting: false, readOnly: false, ...over });
-  assert.equal(tabAccepts(ctx()), true, 'Tab is swallowed, not passed to the browser');
-  assert.equal(tabAccepts(ctx({ pill: { ...pill, accepting: false } })), false, 'a version that is not accept-ready and not accepting keeps normal Tab');
-  assert.equal(tabAccepts(ctx({ editorOpen: true })), false, 'the editor still owns Tab');
-  assert.equal(tabAccepts(ctx({ blocked: true })), false, 'a field still owns Tab');
-});
-
-test('the first proposal takes the keyboard only from nothing or from Accept plan, never from a field or another control, or while typing', () => {
-  const el = (tagName, selectors = []) => ({ tagName, ownerDocument: { documentElement: {} }, matches: sel => selectors.includes(sel) });
-  assert.equal(claimsFocus(null), true);
-  assert.equal(claimsFocus(el('BODY')), true);
-  assert.equal(claimsFocus(el('BUTTON', ['[data-roadmap-accept-plan]'])), true, 'the control that started it');
-  assert.equal(claimsFocus(el('BUTTON')), false, 'another control');
-  assert.equal(claimsFocus(el('TEXTAREA')), false, 'a field');
-  assert.equal(claimsFocus(el('BODY'), { typing: true }), false, 'the learner started typing');
-});
-
-test('Accept plan reports busy at once so the button can show Accepting and refuse a second press', () => {
-  let state = withView('status-proposed-plan');
-  const gesture = `plan:${state.view.roadmap.id}:${state.view.plan.version}`;
-  assert.equal(tocOf(state).actions.acceptPlan.busy, false);
-  state = reduce(state, { type: 'begin', gesture });
-  assert.equal(tocOf(state).actions.acceptPlan.busy, true);
-  assert.equal(pillOf(withView('status-active-proposal-pending')).accepting, false);
-});
-
-test('Next step ready: a pending acceptable proposal whose view says nextStepReady shows the compact indicator offscreen, once', () => {
-  const ready = clone(view('status-active-proposal-pending'));
-  ready.nextStepReady = true; // what roadmapView returns for an acceptable pending proposal after a finished delivery
-  const state = reduce(initialState(), { type: 'view', view: ready });
-  assert.deepEqual(indicatorOf(state, { offscreen: true }), { label: 'Next step ready' });
-  assert.equal(indicatorOf(state, { offscreen: false }), null, 'onscreen: the overlay itself is the signal');
-  const checking = clone(ready); checking.proposal.state = 'checking'; checking.proposal.acceptable = false;
-  assert.equal(indicatorOf(reduce(initialState(), { type: 'view', view: checking }), { offscreen: true }), null, 'a proposal still being checked is not ready');
-  const none = clone(ready); none.proposal = null;
-  assert.equal(indicatorOf(reduce(initialState(), { type: 'view', view: none }), { offscreen: true }), null, 'no proposal, no readiness');
-});
-
-test('accepted work says what the server says: making, checking, or the failure sentence; nothing otherwise', () => {
-  assert.equal(statusOf(withView('status-active-proposal-pending')), null);
-  const making = withView('accept-proposal-response-generating');
-  assert.deepEqual(statusOf(making), { kind: 'making', text: STRINGS.making });
-  assert.ok(chatOf(making).some(line => line.text === STRINGS.making));
-  assert.deepEqual(statusOf(withView('status-held-for-checking')), { kind: 'checking', text: STRINGS.checking });
-  const failed = statusOf(withView('status-failed-card'));
-  assert.equal(failed.kind, 'failed');
-  assert.match(failed.text, /could not be made/);
-  assert.equal(statusOf({ ...making, flag: 'off' }), null);
-  for (const text of [STRINGS.accepting, STRINGS.making]) assert.doesNotMatch(text, /\.\.\.|…|\$|credit|%/);
-});
-
-test('the natural flow: focus on Accept plan is not Tab-owned (the defect), the handoff moves it to the overlay, and there Tab is owned and allowed', () => {
-  const el = (tagName, within = []) => ({ nodeType: 1, tagName, ownerDocument: { documentElement: {} }, isContentEditable: false, closest: sel => (within.some(s => sel.includes(s)) ? {} : null), matches: sel => within.includes(sel) });
-  const acceptPlan = el('BUTTON', ['[data-roadmap-accept-plan]', '[role="tabpanel"]']);
-  assert.equal(keyboardOwned(acceptPlan), false, 'Tab from the initiating control moved focus on instead of accepting');
-  assert.equal(claimsFocus(acceptPlan), true);
-  const overlay = el('SECTION', ['[data-roadmap-overlay]']);
-  assert.equal(keyboardOwned(overlay), true);
-  assert.equal(pageKeyAllowed(key(), overlay), true);
-  assert.equal(pageKeyAllowed(key(), el('TEXTAREA', ['[data-chat-composer]'])), false, 'the Chat composer keeps its Tab');
 });

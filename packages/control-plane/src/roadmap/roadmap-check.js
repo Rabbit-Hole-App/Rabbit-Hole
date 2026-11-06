@@ -4,15 +4,6 @@
 import { cardText, checkSupport } from './roadmap-grounding.js';
 import { screenText } from './roadmap-safety.js';
 
-// Why a card was withheld, from a verdict or its stored check_json (same fields). Only 'safety' and 'personal_risk' are refusals; 'source' is a grounding problem
-// (quote not in the passage, contradiction, unsupported claim); 'unavailable' is a check that could not finish.
-export function withheldCause({ grounding, safety }) {
-  if (safety?.action === 'pause_support') return 'personal_risk';
-  if (safety?.decision === 'block') return 'safety';
-  if (grounding?.validation === 'blocked' || (grounding?.validation === 'held' && grounding.reason !== 'checking_unavailable')) return 'source';
-  return 'unavailable';
-}
-
 // { block, passage, rev, instruction? } -> { validation: 'passed'|'held'|'blocked', publishable, terminal, pauseSupport, limitation, grounding, safety }
 // validation uses the result-validation enum of roadmap-contract.js. `held` with terminal=false is repairable (unsupported claims: one
 // regeneration is the caller's); terminal=true means checking could not conclude in time: end the delivery and refund.

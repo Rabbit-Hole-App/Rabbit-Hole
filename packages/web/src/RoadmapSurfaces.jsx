@@ -1,7 +1,7 @@
 import RoadmapInvitation from './RoadmapInvitation.jsx';
 import RoadmapPlan from './RoadmapPlan.jsx';
 import { useRef, useState } from 'react';
-import { NextStepIndicator, ProposalOverlay, RoadmapStatus } from './NextStepPill.jsx';
+import { NextStepIndicator, ProposalOverlay } from './NextStepPill.jsx';
 import { createDragStore, dragged } from './roadmap-proposal-context.js';
 
 // The three places the roadmap shows, each fed by the object useRoadmap returns, so a page mounts each with one line:
@@ -15,14 +15,8 @@ export function RoadmapChat({ roadmap }) {
 }
 export function RoadmapToc({ roadmap }) {
   const c = roadmap.controller;
-  if (!roadmap.toc) return null;
-  // A long plan scrolls inside its own region (the headings below keep theirs): steps, stopping point and every action stay reachable.
-  return (
-    <div data-roadmap-scroll className="mb-3 max-h-[50vh] min-h-0 shrink overflow-y-auto">
-      <RoadmapPlan toc={roadmap.toc} onAcceptPlan={() => roadmap.acceptPlan()} onEdit={roadmap.editPlan} onProposeNext={() => c.proposeNext()} onEnd={() => c.end()}
-        onRecover={(stepId, action) => c.recover(stepId, action)} onGo={roadmap.go} />
-    </div>
-  );
+  return <RoadmapPlan toc={roadmap.toc} onAcceptPlan={() => c.acceptPlan()} onEdit={roadmap.editPlan} onProposeNext={() => c.proposeNext()} onEnd={() => c.end()}
+    onRecover={(stepId, action) => c.recover(stepId, action)} onGo={roadmap.go} />;
 }
 export function RoadmapCanvas({ roadmap }) {
   const c = roadmap.controller, st = roadmap.state, pill = roadmap.pill;
@@ -43,7 +37,6 @@ export function RoadmapCanvas({ roadmap }) {
     <>
       {pill && roadmap.showOverlay && <ProposalOverlay pill={pill} position={position} onAccept={() => c.acceptProposal()} onCancel={() => c.cancelProposal()} edit={edit} drag={startDrag} />}
       <NextStepIndicator indicator={roadmap.indicator} onGo={() => roadmap.go({ kind: 'proposal' })} />
-      {!roadmap.indicator && <RoadmapStatus status={roadmap.status} />}
     </>
   );
 }

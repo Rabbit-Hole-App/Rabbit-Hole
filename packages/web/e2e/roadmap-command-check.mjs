@@ -1,5 +1,5 @@
 // Roadmap UI wiring against the LOCAL stack with a fake roadmap job server and no model call (Tutor ladder R4, fork tier): the
-// two-choice invitation and its dismissal, plain-Tab ownership (accepted from the proposal that takes focus after Accept plan, never from the composer,
+// two-choice invitation and its dismissal, plain-Tab ownership (accepted only from the page or canvas, never from the composer,
 // with Shift, or from another control), the square pill and no price text, the flag-off page, and Ask mode hiding new proposals.
 // Written, never run by its author (browser automation is CI or owner only). Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/roadmap-command-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
@@ -83,19 +83,16 @@ try {
     await page.waitForTimeout(500);
     assert.equal(server.count('/accept'), 0);
   });
-  await step('Accept plan, then plain Tab with no canvas click: the proposal takes the keyboard, one accept, and the second Tab does not move focus', async () => {
-    const { server, page } = await open({ stage: 'proposed' });
-    await page.getByRole('tab', { name: /^Table of contents/ }).click();
-    await page.getByRole('button', { name: 'Accept plan', exact: true }).click(); // the learner's own click: nothing else touches the page afterwards
+  await step('plain Tab with the keyboard on the canvas accepts once, and the second Tab does nothing', async () => {
+    const { server, page } = await open({ stage: 'pending' });
     await page.locator('[data-roadmap-overlay]').waitFor();
-    await until(async () => page.evaluate(() => !!document.activeElement?.closest('[data-roadmap-overlay]')), 'focus handed to the proposal');
+    await clickBlankCanvas(page);
     await page.keyboard.press('Tab');
     await until(async () => server.count('/accept') === 1, 'one accept request');
     await page.keyboard.press('Tab');
     await page.waitForTimeout(500);
     assert.equal(server.count('/accept'), 1);
     assert.equal(server.calls.find(c => c.path.endsWith('/accept')).body.proposalVersion, 1);
-    assert.equal(await page.evaluate(() => !!document.activeElement?.closest('[data-chat-composer],[data-toc-composer],nav,header')), false, 'Tab did not move focus into other UI');
   });
   await step('flag off: no roadmap element anywhere and the page still works', async () => {
     const { page } = await open({ enabled: false, invitation: true, stage: 'pending' });
