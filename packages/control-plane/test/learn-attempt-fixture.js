@@ -6,7 +6,6 @@
 //   * No provider is ever reached. JEV is deps.ask and the larger evaluator deps.callModel; the stubs count their calls.
 import { learnDb } from './learn-grade-fixture.js';
 import { applyCoachingAction, readCoachingState } from '../src/learn-coaching-store.js';
-import { createJourney, goalIdOf } from './learn-journey-rows.js';
 import { attemptRoute } from '../src/learn-attempt-routes.js';
 
 export const ANA = { org: 'team-ws', userId: 'u-ana-5d1e', app: 'canvas-0a1b2c3d', board: 'main' };
@@ -14,8 +13,6 @@ export const BEN = { ...ANA, userId: 'u-ben-7f2a' };
 export const MECH = 'logistic-regression-core/mechanism'; // one idea, misconception mechanism-confusion, one prerequisite
 export const CHECK = { id: 'c1', kind: 'mcq', prompt: 'Which holds?', options: [{ id: 'x', label: 'One' }, { id: 'y', label: 'Two' }], claims: [MECH], purpose: 'check', transfer: false, key: { correct: 'y', misconceptions: { x: 'mechanism-confusion' } } };
 export const CRITERION = { criterionId: 'mech', label: 'Explain the mechanism', requirement: 'Explain how the score becomes a probability', requiresReasoning: true, skillKey: MECH };
-const START = { request: { raw_user_message: 'I want to learn logistic regression', topic: 'logistic regression', intent: { kind: 'learning_journey', topic: 'logistic regression' }, channel: 'text' }, grounding: { kind: 'topic' }, intake: { slots: {} } };
-const scopeOf = a => ({ org: a.org, owner_user_id: a.userId, app: a.app, board: a.board });
 
 export function world(t, envExtra = {}) {
   const { LEARN_DB, sqlite } = learnDb(t);
@@ -27,14 +24,13 @@ let seq = 0;
 export const act = async (env, actor, action, payload) =>
   applyCoachingAction(env, actor, { actionId: `act-${++seq}`, expectedRevision: (await readCoachingState(env, actor)).revision, action, payload });
 
-// A journey-backed goal (a legacy journey row seeded by SQL, learn-journey-rows.js; kept until P6a). The goal gets
-// criteria (skillKey = MECH) and a current activity.
+// A goal with criteria (skillKey = MECH) and a current activity. The name is kept from the retired journey-backed goal this
+// replaced (Tutor cleanup P6a): the goal is made by the real create_goal action, with no journey row.
 export async function journeyActivity(env, actor = ANA, { responseKind = 'text', criteria = [CRITERION], sourceRefs = [], prompt = 'In one or two sentences, what is the core idea?', checkpoint } = {}) {
-  const journey = await createJourney(env, scopeOf(actor), START);
-  const goalId = goalIdOf(journey.id);
+  const goalId = (await act(env, actor, 'create_goal', { label: 'logistic regression' })).state.activeGoalId;
   await act(env, actor, 'change_scope', { goalId, criteria });
   const state = (await act(env, actor, 'activate_activity', { activity: { goalId, objective: 'Explain the mechanism', prompt, responseKind, criterionRefs: criteria.map(c => ({ criterionId: c.criterionId, version: 1 })), sourceRefs, ...(checkpoint ? { checkpoint } : {}) } })).state;
-  return { journey, goalId, activity: state.activities.find(a => a.activityId === state.activeActivityId) };
+  return { goalId, activity: state.activities.find(a => a.activityId === state.activeActivityId) };
 }
 
 // A JEV stub answering every question: values[key], else a confident no. It yields once, so concurrent callers interleave.
