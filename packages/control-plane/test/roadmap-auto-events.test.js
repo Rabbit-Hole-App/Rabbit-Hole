@@ -101,3 +101,16 @@ test('a crash after the claim but before the effect loses nothing: the lapsed le
   assert.equal(await runDueRoadmapEvents(env, { now: T0 + 70 }), 1, 'lapsed: replayed');
   assert.equal(offeredNow(w, o.roadmapId).length, 1);
 });
+
+test('flag off: a pending learner event is consumed without any fan-out, and the scheduled scan does no R6 work', async t => {
+  const { w, access, env, o } = await delivered(t);
+  await saveAutoSuggest(env, actorOf(access), false); // flags on: parent + children exist
+  w.sqlite.prepare("DELETE FROM learn_roadmap_outbox WHERE kind = 'autosuggest_changed'").run();
+  w.sqlite.prepare("UPDATE learn_roadmap_outbox SET processed_at = NULL, lease_token = NULL, lease_until = NULL WHERE kind = 'settings_changed'").run();
+  doubles.kicks.length = 0;
+  const { runDueRoadmapEvents } = await import('../src/roadmap/roadmap-events.js');
+  await runDueRoadmapEvents(flags(w.env, { auto: null }), { now: T0 + 20 });
+  assert.equal(events(w, 'autosuggest_changed').length, 0, 'no children without ROADMAP_AUTO_ENABLED');
+  assert.equal(offeredNow(w, o.roadmapId).length, 0);
+  assert.equal(doubles.kicks.length, 0);
+});
