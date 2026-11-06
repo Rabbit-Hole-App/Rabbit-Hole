@@ -19,6 +19,8 @@ const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', h
 const canvas = await (await fetch(`${BASE}/api/canvases`, { method: 'POST', headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' }, body: JSON.stringify({ title: `Roadmap command ${run}` }) })).json();
 
 const MODEL = /^\/api\/(ask$|learn\/(selection|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|artifact|explain|animation|chat\/material-proposals|cad\/jobs|motion))/;
+// Click empty canvas well below the canvas header (a click at the surface's top-left lands on the header, not the canvas).
+const clickBlankCanvas = async page => { const surface = page.locator('[data-canvas-surface]'); const bounds = await surface.boundingBox(); await surface.click({ position: { x: 20, y: Math.min(bounds.height - 20, 650) } }); };
 const stray = [], errors = [], results = [];
 let current = null;
 const step = async (name, fn) => {
@@ -65,7 +67,7 @@ try {
     const { page } = await open({ stage: 'pending' });
     const overlay = page.locator('[data-roadmap-overlay]');
     await overlay.waitFor();
-    assert.equal((await overlay.locator('[data-roadmap-pill] button').allInnerTexts()).join('|'), 'AcceptTab|Cancel');
+    assert.equal((await overlay.locator('[data-roadmap-pill] button').allInnerTexts()).map(text => text.replace(/\s+/g, '')).join('|'), 'AcceptTab|Cancel'); // whitespace between Accept and its Tab label is layout, not content
     assert.equal(await overlay.locator('[data-roadmap-pill]').evaluate(el => getComputedStyle(el.firstElementChild).borderRadius), '0px');
     await priceFree(page);
     await page.screenshot({ path: `${SHOTS}/2-pill.png` });
@@ -84,7 +86,7 @@ try {
   await step('plain Tab with the keyboard on the canvas accepts once, and the second Tab does nothing', async () => {
     const { server, page } = await open({ stage: 'pending' });
     await page.locator('[data-roadmap-overlay]').waitFor();
-    await page.locator('[data-canvas-surface]').click({ position: { x: 20, y: 20 } });
+    await clickBlankCanvas(page);
     await page.keyboard.press('Tab');
     await until(async () => server.count('/accept') === 1, 'one accept request');
     await page.keyboard.press('Tab');
@@ -102,7 +104,7 @@ try {
     const { server, page } = await open({ stage: 'pending' }, 'Ask');
     await page.waitForTimeout(1500);
     assert.equal(await page.locator('[data-roadmap-overlay]').count(), 0);
-    await page.locator('[data-canvas-surface]').click({ position: { x: 20, y: 20 } });
+    await clickBlankCanvas(page);
     await page.keyboard.press('Tab');
     await page.waitForTimeout(500);
     assert.equal(server.count('/accept'), 0);
