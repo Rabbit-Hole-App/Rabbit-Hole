@@ -117,8 +117,21 @@ test('flag off during generation and after settlement: routes 404, the accepted 
   const again = await (await call(env, 'POST', `/api/learn/roadmap/${o.roadmapId}/results/${resultId}/deliver`, { boardId: BOARD })).json();
   assert.deepEqual(again, delivered, 'deliver is idempotent: the same blocks every time');
   const view = await (await call(env, 'GET', `/api/learn/roadmap?boardId=${BOARD}`)).json();
-  const ack = await call(env, 'POST', `/api/learn/roadmap/${o.roadmapId}/results/${resultId}/ack`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: 'ack-key-00001', cardIds: [cardId], boardVersion: 3 });
+  const sendAck = fields => call(env, 'POST', `/api/learn/roadmap/${o.roadmapId}/results/${resultId}/ack`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: 'ack-key-00001', cardIds: [cardId], ...fields });
+  // A failed board save: the acknowledgement is refused (no revision, or the saved board lacks the card), nothing is delivered or charged again.
+  assert.equal((await sendAck({})).status, 400, 'a null board revision is rejected');
+  assert.equal((await sendAck({ boardRevision: null })).status, 400);
+  const unsaved = await sendAck({ boardRevision: 3 });
+  assert.equal(unsaved.status, 422);
+  assert.equal((await unsaved.json()).code, 'card_not_saved');
+  assert.equal(rows(w.sqlite, 'SELECT delivery FROM learn_step_results')[0].delivery, 'not_delivered');
+  assert.equal((await (await call(env, 'POST', `/api/learn/roadmap/${o.roadmapId}/results/${resultId}/deliver`, { boardId: BOARD })).json()).cards[0].block.id, cardId, 'the retry reuses the already generated result');
+  assert.equal((await totals()).used, charged, 'a refused acknowledgement and its retry charge nothing');
+  // The save succeeds at revision 3 with the card: the same acknowledgement now delivers, once.
+  w.sqlite.prepare('UPDATE learn_boards SET state_json = ?, version = 3 WHERE id = ?').run(JSON.stringify({ blocks: [{ id: cardId, type: 'explanation' }] }), BOARD);
+  const ack = await sendAck({ boardRevision: 3 });
   assert.equal(ack.status, 200);
+  assert.equal((await sendAck({ boardRevision: 3 })).status, 200, 'the replay answers the recorded outcome');
   assert.equal((await totals()).used, charged, 'no duplicate charge');
   assert.equal(rows(w.sqlite, "SELECT * FROM usage_attempts WHERE kind <> 'tool'").length, 1);
   assert.equal(rows(w.sqlite, 'SELECT delivered_count FROM learn_roadmaps')[0].delivered_count, 1);
@@ -183,7 +196,8 @@ test('deletion keeps the delivery record and the charge; a duplicate removal not
   await recordGenerated(w.LEARN_DB, w.access, { resultId, primitive: 'explanation', body: { type: 'explanation' }, validation: 'passed' });
   const base = `/api/learn/roadmap/${o.roadmapId}`;
   let view = await (await call(env, 'GET', `/api/learn/roadmap?boardId=${BOARD}`)).json();
-  await call(env, 'POST', `${base}/results/${resultId}/ack`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: 'ack-key-00001', cardIds: [cardId] });
+  w.sqlite.prepare('UPDATE learn_boards SET state_json = ?, version = 2 WHERE id = ?').run(JSON.stringify({ blocks: [{ id: cardId }] }), BOARD);
+  await call(env, 'POST', `${base}/results/${resultId}/ack`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: 'ack-key-00001', cardIds: [cardId], boardRevision: 2 });
   const used = (await totals()).used;
   view = await (await call(env, 'GET', `/api/learn/roadmap?boardId=${BOARD}`)).json();
   const removed = () => call(env, 'POST', `${base}/results/${resultId}/removed`, { boardId: BOARD, expectedRevision: view.roadmap.revision, actionKey: 'removed-key-001' });

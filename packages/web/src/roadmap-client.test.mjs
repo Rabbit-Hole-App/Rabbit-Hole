@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { actionKeys, canProposeNext, chatOf, deliverable, idleGrouper, indicatorOf, initialState, invitationOf, pillOf, planDelivery, recoveryOf, reduce, routes, stepLabelFor, tabAccepts, texts, tocOf } from './roadmap-client.js';
+import { actionKeys, canProposeNext, chatOf, deliverable, idleGrouper, indicatorOf, initialState, invitationOf, pillOf, planDelivery, readyMarkdownSources, recoveryOf, reduce, routes, stepLabelFor, tabAccepts, texts, tocOf } from './roadmap-client.js';
 import { STRINGS } from './roadmap-strings.js';
 import { ROADMAP_STATES } from './roadmap-contract.js';
 
@@ -252,4 +252,24 @@ test('idle grouping: sources ready in one idle window go out as one report; noth
   assert.deepEqual(sent[0].sourceKeys, ['file:fs_a', 'file:fs_b']);
   assert.match(sent[0].idleKey, /^[A-Za-z0-9_-]+$/);
   assert.equal(g.tick(), false, 'one report per window');
+});
+
+test('a dropped Markdown card is a ready source only once its stored revision is in the saved board', () => {
+  const card = (id, source) => ({ id, type: 'file', kind: 'markdown', fileRef: { source } });
+  const stored = { id: 'fs_aaaaaaaaaaaaaaaaaaaaaaaa', rev: 'a'.repeat(64) };
+  const pending = new Set(['b1']);
+  assert.deepEqual(readyMarkdownSources({ pending, blocks: [card('b1', null)], savedBlocks: [card('b1', null)] }), [], 'still uploading');
+  assert.deepEqual(readyMarkdownSources({ pending, blocks: [card('b1', stored)], savedBlocks: [card('b1', null)] }), [], 'stored, but the saved board does not name it yet');
+  assert.deepEqual(readyMarkdownSources({ pending, blocks: [card('b1', stored)], savedBlocks: [] }), [], 'not saved at all');
+  assert.deepEqual(readyMarkdownSources({ pending, blocks: [card('b1', stored)], savedBlocks: [card('b1', { ...stored, rev: 'b'.repeat(64) })] }), [], 'the saved board names another revision');
+  assert.deepEqual(readyMarkdownSources({ pending, blocks: [card('b1', stored)], savedBlocks: [card('b1', stored)] }), [{ blockId: 'b1', key: 'file:fs_aaaaaaaaaaaaaaaaaaaaaaaa', rev: stored.rev }]);
+  assert.deepEqual(readyMarkdownSources({ pending: new Set(), blocks: [card('b9', stored)], savedBlocks: [card('b9', stored)] }), [], 'a card that was not just dropped (reload, older card) is never reported');
+  assert.deepEqual(readyMarkdownSources({ pending: new Set(['t1']), blocks: [{ ...card('t1', stored), kind: 'text' }], savedBlocks: [{ ...card('t1', stored), kind: 'text' }] }), [], 'only Markdown is a supported source');
+});
+
+test('the invitation is held while the learner types or an answer streams and offered again after they stop', () => {
+  const state = reduce(initialState(), { type: 'invitation', invitation: view('invitation-offered').invitation });
+  assert.equal(invitationOf(state, { typing: true }), null);
+  assert.equal(invitationOf(state, { answering: true }), null);
+  assert.equal(invitationOf(state, { typing: false, answering: false })?.id, state.invitation.id, 'resumes, same invitation');
 });

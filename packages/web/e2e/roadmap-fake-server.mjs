@@ -8,17 +8,21 @@ const fx = name => JSON.parse(readFileSync(new URL(`${name}.json`, DIR), 'utf8')
 const body = name => fx(name).response.body;
 const NONE = { roadmap: null, question: null, limitation: null, plan: null, steps: [], proposal: null, results: [], nextStepReady: false, poll: { afterMs: 500, etag: 'rv-0' } };
 const generated = () => { const v = JSON.parse(JSON.stringify(body('accept-proposal-response-generating'))); v.results[0].generation = 'generated'; v.results[0].billing = 'settled'; return v; };
+// R6: delivered, with the next proposal not offered yet (the server has not composed it).
+const quiet = () => { const v = JSON.parse(JSON.stringify(body('status-delivered-next-ready'))); v.proposal = null; v.nextStepReady = false; for (const s of v.steps) if (s.state === 'proposed') s.state = 'planned'; return v; };
 // stage -> the view GET returns
 const VIEWS = { none: () => NONE, draft: () => body('create-response-draft'), proposed: () => body('status-proposed-plan'), pending: () => body('status-active-proposal-pending'),
   generating: () => body('accept-proposal-response-generating'), generated, delivered: () => body('status-delivered-next-ready'), cancelled: () => body('status-cancelled-paused'),
-  completed: () => body('status-completed'), failed: () => body('status-failed-card'), held: () => body('status-held-for-checking'), questioning: () => body('status-questioning') };
+  quiet, completed: () => body('status-completed'), failed: () => body('status-failed-card'), held: () => body('status-held-for-checking'), questioning: () => body('status-questioning') };
 // `<stage> --action--> <stage>`; the first match wins. generating moves on by itself after one GET (generation finished).
+// 'accept-plan' -> 'pending' mirrors the REAL server, which offers the first proposal itself when the plan is accepted (control-plane roadmap-loop.test.js asserts it: once, no card, no charge). Nothing else here invents a proposal.
 const NEXT = { none: { create: 'draft' }, draft: { poll: 'proposed' }, proposed: { 'accept-plan': 'pending', end: 'completed' }, pending: { accept: 'generating', cancel: 'cancelled', end: 'completed' },
-  generating: { poll: 'generated' }, generated: { ack: 'delivered' }, delivered: { cancel: 'cancelled', end: 'completed' }, cancelled: { propose: 'pending', end: 'completed' }, failed: { retry: 'generating', replace: 'pending', omit: 'cancelled' }, questioning: { answer: 'proposed' } };
+  generating: { poll: 'generated' }, quiet: { propose: 'delivered', end: 'completed' }, generated: { ack: 'delivered' }, delivered: { cancel: 'cancelled', end: 'completed' }, cancelled: { propose: 'pending', end: 'completed' }, failed: { retry: 'generating', replace: 'pending', omit: 'cancelled' }, questioning: { answer: 'proposed' } };
 
-// options: stage (start), invitation (offer one), enabled (false: every route answers 404 roadmap_disabled).
-export function fakeRoadmapServer({ stage = 'none', invitation = false, enabled = true } = {}) {
-  const server = { stage, invitation, enabled, calls: [], dismissed: [] };
+// options: stage (start), invitation (offer one), enabled (false: every route answers 404 roadmap_disabled), auto (R6: an acknowledged delivery
+// is followed by the server offering the next step on its own after `autoAfterReads` status reads, with no propose request).
+export function fakeRoadmapServer({ stage = 'none', invitation = false, enabled = true, auto = false, autoAfterReads = 2 } = {}) {
+  const server = { stage, invitation, enabled, auto, autoAfterReads, quietReads: 0, calls: [], dismissed: [] };
   const view = () => VIEWS[server.stage]();
   const move = action => { const to = NEXT[server.stage]?.[action]; if (to) server.stage = to; return !!to; };
   server.count = suffix => server.calls.filter(c => c.method === 'POST' && c.path.endsWith(suffix)).length;
@@ -28,14 +32,14 @@ export function fakeRoadmapServer({ stage = 'none', invitation = false, enabled 
     server.calls.push({ method, path, body: post });
     if (!server.enabled) return route.fulfill({ status: 404, json: { error: 'Not found', code: 'roadmap_disabled' } });
     if (method === 'GET' && path.startsWith('/invitations')) return route.fulfill({ json: server.invitation && !server.dismissed.length ? body('invitation-offered') : { invitation: null } });
-    if (method === 'GET' && (path === '' || path === '/')) { const out = view(); if (server.stage === 'draft' || server.stage === 'generating') move('poll'); return route.fulfill({ json: out }); }
+    if (method === 'GET' && (path === '' || path === '/')) { const out = view(); if (server.stage === 'draft' || server.stage === 'generating') move('poll'); if (server.stage === 'quiet' && (server.quietReads += 1) >= server.autoAfterReads) server.stage = 'delivered'; return route.fulfill({ json: out }); }
     if (method === 'POST' && /\/invitations\/[^/]+\/dismiss$/.test(path)) { server.dismissed.push(path); return route.fulfill({ json: body('invitation-dismiss') }); }
     if (method === 'POST' && /\/results\/[^/]+\/deliver$/.test(path)) return route.fulfill({ json: body('result-deliver-response') });
     const action = method === 'POST' ? (path === '' || path === '/' ? 'create' : path.match(/\/(accept-plan|accept|cancel|end|answer|ack|removed)$/)?.[1] || (path.endsWith('/steps/propose') ? 'propose' : path.match(/\/steps\/[^/]+\/(retry|replace|omit)$/)?.[1])) : null;
     if (!action) return route.fulfill({ status: 404, json: { error: 'Not available', code: 'not_found' } });
     const current = view();
     if (action !== 'create' && post.revision !== undefined && current.roadmap && post.revision !== current.roadmap.revision) return route.fulfill({ status: 409, json: { error: 'This roadmap changed. Showing the latest.', code: 'stale_revision', current } });
-    move(action);
+    if (action === 'ack' && server.auto) server.stage = 'quiet'; else move(action);
     return route.fulfill({ status: action === 'accept' || action === 'create' ? 202 : 200, json: view() });
   };
   return server;
