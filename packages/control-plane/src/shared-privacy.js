@@ -7,6 +7,7 @@
 // answers, attempts, marks and highlights. The cards themselves, chat cards included, stay: they were placed on the canvas.
 import { roleFor } from '../../web/src/canvas-permissions.js';
 import { publicExplainBack } from '../../web/src/explain-back-private.js';
+import { publicRoadmapCard } from './roadmap/roadmap-privacy.js';
 
 // toc: the Table of contents' own list (owner brief 2026-10-23), shown and forked without the creator's ticks.
 const CONTENT = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas', 'exchanges', 'toc'];
@@ -24,7 +25,7 @@ const EVERY_CARD = ['attemptLog', 'activityAnswer', 'activityOpen'];
 function sharedBlock(block) {
   if (!block || typeof block !== 'object') return block;
   // An Explain-back card also drops its drafts, history, Sketch panel and store binding (explain-back-private.js).
-  block = publicExplainBack(block);
+  block = publicRoadmapCard(publicExplainBack(block)); // the step a card came from is the creator's private roadmap state (roadmap-privacy.js)
   const drop = [...EVERY_CARD, ...(LEARNER[block.type] || [])];
   if (!drop.some(key => key in block)) return block;
   const copy = { ...block };
