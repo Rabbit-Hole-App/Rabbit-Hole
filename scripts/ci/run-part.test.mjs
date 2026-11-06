@@ -1,6 +1,6 @@
 // scripts/ci/run-part.test.mjs - run-part.sh against a scratch repo with stand-ins for the stack, Vite and the checks:
 // which server each check gets, the env fork checks get, what is stopped, and what a failure looks like. Needs bash, curl and
-// timeout; skipped when they are missing or a harness port (5189, 5186, 5391) is already taken on this machine.
+// timeout; skipped when they are missing or a harness port (5189, 5391) is already taken on this machine.
 //   node --test scripts/ci/run-part.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -16,7 +16,7 @@ const tools = spawnSync('bash', ['-c', 'command -v curl timeout']).status === 0;
 const bindBusy = port => new Promise(res => { const s = net.createServer().once('error', () => res(true)).listen(port, () => s.close(() => res(false))); });
 // Windows lets that bind succeed while another process holds [::1]:port, so a server already answering on localhost is busy too.
 const busy = async port => await bindBusy(port) || await fetch(`http://localhost:${port}/`).then(() => true, () => false);
-const skip = !tools || (await Promise.all([5189, 5186, 5391].map(busy))).some(Boolean);
+const skip = !tools || (await Promise.all([5189, 5391].map(busy))).some(Boolean);
 
 // A scratch repo: check-map.json, a stack.sh that only records its calls, a vite.js that records its args and listens, and one stand-in per check.
 function scratch(checks) {
@@ -53,13 +53,13 @@ const listening = port => fetch(`http://localhost:${port}/`).then(() => true, ()
 
 test('fork checks get the gate env and a shots dir; harness checks get their port and nothing else; everything is stopped', { skip }, async () => {
   const s = scratch({ 'a-check.mjs': { runner: 'fork' }, 'b-check.mjs': { runner: 'fork', fail: true }, 'dark-ink-check.mjs': { runner: 'harness', port: 5189 },
-    'wiki-check.mjs': { runner: 'harness', port: 5189 }, 'canvas-editing-check.mjs': { runner: 'harness', port: 5391 }, 'nanogpt-audio-check.mjs': { runner: 'harness', port: 5186 },
+    'wiki-check.mjs': { runner: 'harness', port: 5189 }, 'canvas-editing-check.mjs': { runner: 'harness', port: 5391 },
     'voice-tts-stream-check.mjs': { runner: 'harness' } });
   const r = s.run();
   assert.equal(r.status, 1, r.stdout + r.stderr);
   assert.deepEqual(s.stack(), ['start', 'stop']);
   const by = Object.fromEntries(s.calls().map(c => [c.check, c]));
-  assert.equal(Object.keys(by).length, 7);
+  assert.equal(Object.keys(by).length, 6);
   for (const c of ['a-check.mjs', 'b-check.mjs']) {
     const { PERSIST, D1_CONFIG, ...env } = by[c].env;
     assert.deepEqual(env, { BASE: 'http://127.0.0.1:8878', PRACTICE_BASE: 'http://127.0.0.1:8878', VOICE_BASE: 'http://127.0.0.1:8878', SMALL_CP: 'http://127.0.0.1:8879' });
@@ -68,23 +68,23 @@ test('fork checks get the gate env and a shots dir; harness checks get their por
     assert.equal(by[c].args.length, 1);
     assert.match(by[c].args[0], new RegExp(`/out/${c.replace('.mjs', '')}-shots$`));
   }
-  for (const c of ['dark-ink', 'wiki', 'canvas-editing', 'nanogpt-audio', 'voice-tts-stream']) {
+  for (const c of ['dark-ink', 'wiki', 'canvas-editing', 'voice-tts-stream']) {
     const h = by[`${c}-check.mjs`];
-    assert.deepEqual(h.args, [], `${c} takes no argument (nanogpt-audio reads argv[2] as seconds)`);
+    assert.deepEqual(h.args, [], `${c} takes no argument`);
     assert.ok(Object.values(h.env).every(v => v === null), `${c} gets no fork env`);
   }
-  assert.deepEqual(['dark-ink', 'wiki', 'canvas-editing', 'nanogpt-audio'].map(c => by[`${c}-check.mjs`].up), [200, 200, 200, 200]);
+  assert.deepEqual(['dark-ink', 'wiki', 'canvas-editing'].map(c => by[`${c}-check.mjs`].up), [200, 200, 200]);
   assert.equal(by['voice-tts-stream-check.mjs'].up, null);
-  // One server per port, started once: dev with the review flags, the preview of dist-dev, dev without flags; the proxy is dead.
+  // One server per port, started once: dev with the review flags, dev without flags; the proxy is dead.
   const v = s.vite();
-  assert.deepEqual(v.map(x => x.args), [['--port', '5189', '--strictPort'], ['preview', '--outDir', 'dist-dev', '--port', '5186', '--strictPort'], ['--port', '5391', '--strictPort', '--host', '127.0.0.1']]);
-  assert.deepEqual(v.map(x => [x.coaching, x.byoc]), [['true', 'true'], [null, null], [null, null]]);
+  assert.deepEqual(v.map(x => x.args), [['--port', '5189', '--strictPort'], ['--port', '5391', '--strictPort', '--host', '127.0.0.1']]);
+  assert.deepEqual(v.map(x => [x.coaching, x.byoc]), [['true', 'true'], [null, null]]);
   assert.ok(v.every(x => x.cp === 'http://127.0.0.1:1'));
-  assert.deepEqual(await Promise.all([5189, 5186, 5391].map(listening)), [false, false, false], 'servers are stopped');
+  assert.deepEqual(await Promise.all([5189, 5391].map(listening)), [false, false], 'servers are stopped');
   assert.match(r.stdout, /^b exit 1 /m);
   assert.match(r.stdout, /--- b log tail ---/);
   assert.match(r.stdout, /^a exit 0 {2}1\/1 checks passed/m);
-  assert.equal(readFileSync(`${s.t}/out/fast.log`, 'utf8').trim().split('\n').length, 7);
+  assert.equal(readFileSync(`${s.t}/out/fast.log`, 'utf8').trim().split('\n').length, 6);
 });
 
 test('readiness runs every check three times in a row, each run in its own log and its own line', { skip }, () => {

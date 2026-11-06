@@ -34,9 +34,11 @@ Owner decisions, 2026-10-04.
 The `/teach` command and the answer's **Start a Rabbit Hole** button are the other two ways in. The rule runs after
 the repository-link rule, so "start a rabbit hole with owner/repo" still connects the repository.
 
-An explicit request creates a canvas titled from the question, keeps the whole question as the learning intent, and
-opens Learn. The existing Learn and Tutor pipeline answers there (`AgentBar.jsx` `teach`, `learnAction('teach')`).
-There is no Home Tutor.
+An explicit request creates a canvas titled with the question itself (whitespace collapsed, the first 80 characters;
+no model call) and opens Learn with the whole, unmodified question in Chat's composer. It never sends: the learner
+presses Send, and Chat answers it normally (`AgentBar.jsx` `teach`, `learnAction('teach')`, the `small:learn-request`
+receiver in `LearnPage.jsx`). Nothing calls `/api/learn/journey` or `/api/learn/ask` (Tutor cleanup P4; the journey
+system and the syllabus are retired). There is no Home Tutor.
 
 ## The answerer
 
