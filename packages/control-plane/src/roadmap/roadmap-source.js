@@ -7,7 +7,7 @@
 //     { status: 'changed', rev }                        the source's current revision differs from ref.rev
 //     { status: 'missing' | 'inaccessible' | 'unsupported' }
 // It must apply the same owner-only rule as authorizeFileSource (file-access.js) from access.org / access.actorEmail, never from a
-// request body. Its production implementation is the pdf-excerpts.js refactor in contracts/tools-handback.md; tests inject a double.
+// request body. Its production implementation is roadmap-source-reader.js (readMarkdownForActor); tests inject a double.
 import { ROADMAP_LIMITS } from './roadmap-policy.js';
 import { looksLikeInstructions } from '../explain-evidence.js';
 
