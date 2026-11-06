@@ -7,6 +7,7 @@ import { repositoriesFetch, repositoryIdentity, ownerRepositories } from '../con
 import { profileFetch, profileRoute } from '../control-plane/src/profile.js';
 import { contextDocsFetch, contextDocsRoute } from '../control-plane/src/learn-context-docs.js';
 import { pdfExcerptsFetch, pdfExcerptsRoute } from '../control-plane/src/pdf-excerpts.js';
+import { sourceRefsFetch, sourceRefsRoute } from '../control-plane/src/source-refs.js';
 import { webpagesFetch, webpagesRoute } from '../control-plane/src/webpage-capture.js';
 import { canvasesFetch, canvasRoute, ownerCanvases, refuseCanvasAsk, refuseLiveLearnAsk, canvasAskSeam } from '../control-plane/src/canvases.js';
 import { libraryTrashFetch, libraryTrashRoute } from '../control-plane/src/library-trash.js';
@@ -169,6 +170,7 @@ const routes = {
     if (contextDocsRoute(new URL(req.url))) return contextDocsFetch(req, env);
     // PDF reader highlights and excerpt crops (C:/s/spec/pdf-excerpts/contract.md): owner-only, re-checked per call.
     if (pdfExcerptsRoute(path)) return pdfExcerptsFetch(req, env);
+    if (sourceRefsRoute(path)) return sourceRefsFetch(req, env);   // R3 source passage references (POST create / resolve)
     // Webpage card captures (C:/s/spec/day-1021/webcard-interface.md): owner-only capture, Refresh, Retry and status.
     if (webpagesRoute(path)) return webpagesFetch(req, env);
     if (path === '/api/apps' && req.method === 'GET') {

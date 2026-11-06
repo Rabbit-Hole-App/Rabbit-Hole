@@ -46,6 +46,8 @@ import WebpageCard, { askCapture } from './WebpageCard.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
 import CardPrompt, { PromptSlot } from './CardPrompt.jsx';
 import { CardFeedback } from './CardFeedback.jsx';
+import SourceRefChip, { useSourceRefIndex } from './SourceRefChip.jsx';
+import { draftOfBlock } from './source-ref.js';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 import NotebookBody from './NotebookCard.jsx';
@@ -915,6 +917,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   // A practice section and the INTERACT row grow it the same way, by their
   // measured heights (wrapped rows included).
   const [sourcesHeight, setSourcesHeight] = useState(0);
+  const [sourceRefHeight, setSourceRefHeight] = useState(0);
   // The stored prompt's Prompt control sits in the card's own top-right pill when its body draws one (Kicker claims the slot), else in the card's top strip.
   const [slotted, setSlotted] = useState(false);
   const promptSlot = useMemo(() => block.promptUsed ? { text: block.promptUsed, selected, claim: setSlotted } : null, [block.promptUsed, selected]);
@@ -954,7 +957,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
       autoMax={BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
       width={sized?.width ?? BLOCK_TYPES[block.type]?.width}
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
-      extraHeight={sourcesHeight + practiceHeight + controlsHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }}
+      extraHeight={sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
       tools={selected ? <>
         {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
@@ -965,6 +968,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
         <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} onProgramFrame={setProgramFrame} />
       </PromptSlot.Provider></PerfContext.Provider>
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
+      {block.sourceRef && <SourceRefChip block={block} app={appName} onHeight={setSourceRefHeight} />}
       {block.promptUsed && !slotted && <CardPrompt text={block.promptUsed} selected={selected} />}
       {!cadPermissions.readOnly && !cadPermissions.localCopy && <CardFeedback block={block} />}
     </CanvasNode>
@@ -3093,6 +3097,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Read from the DOM after the commit that placed it, so a card inserted, or a slot dropped, this very
   // tick is seen where it really is.
   const cameraRef = useRef(null);
+  useSourceRefIndex(blocks, id => { setSelection([id]); cameraRef.current = { id, frame: true }; });
   // ponytail: only the world transform glides; the grid backdrop (when on) jumps. Transition its
   // background-position too if that shows.
   const [glide, setGlide] = useState(false);
@@ -3997,7 +4002,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // A getter, not a function value: every reader (canvas_target, / commands)
     // still gets a string, resolved when it is read at send.
     const live = liveAskText(block.id, described);
-    onAskTargetRef.current?.({ id: block.id, ...described, ...card, get text() { return live(); } });
+    onAskTargetRef.current?.({ id: block.id, ...described, ...card, ...(draftOfBlock(block, appName) ? { sourceDraft: draftOfBlock(block, appName) } : {}), get text() { return live(); } });
     return true;
   };
   // Add to chat (owner brief 2026-10-13: Ctrl/Cmd+L and the selection bar; it replaces Ask in chat and its prefilled question).
