@@ -87,9 +87,10 @@ export const windowDiff = liveRows => {
 
 const defaultGit = args => spawnSync('git', args, { cwd: ROOT, encoding: 'utf8' });
 
-export async function main({ argv, readFile = f => readFileSync(f, 'utf8'), writeReceipt, readReceipt, prompt, spawn = spawnSync, git = defaultGit, log = console.log, now = () => new Date().toISOString() }) {
+export async function main({ argv, readFile = f => readFileSync(f, 'utf8'), writeReceipt, readReceipt, prompt, spawn = spawnSync, git = defaultGit, hasWrangler = () => existsSync(WRANGLER_JS), log = console.log, now = () => new Date().toISOString() }) {
   const [env, command] = argv;
   if (!ENVS[env] || !['check', 'backfill', 'gate', 'window-check', 'retire'].includes(command)) throw new Stop('usage: <dev|parallel|prod> <check|backfill|gate|window-check|retire>', 2);
+  if (!hasWrangler()) throw new Stop(`wrangler is not installed at ${WRANGLER_JS}; run npm ci in ${ROOT} first (nothing was run)`, 2);
   const cfg = ENVS[env];
   const database = assertDatabase(env, readFile(join(ROOT, cfg.config)));
   const generator = sha256(readFile(join(ROOT, 'scripts', 'learn-retire-tutor-data.mjs')));

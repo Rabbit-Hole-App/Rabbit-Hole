@@ -51,7 +51,7 @@ function world(t) {
   };
   const deps = answers => {
     const queue = [].concat(answers);
-    return { readFile, spawn, git, prompt: async () => queue.shift() ?? '', writeReceipt: (f, b) => receipts.set(f, b), readReceipt: f => receipts.get(f) ?? null, log: l => lines.push(l), now: () => '2026-11-06T00:00:00Z' };
+    return { readFile, spawn, git, hasWrangler: () => true, prompt: async () => queue.shift() ?? '', writeReceipt: (f, b) => receipts.set(f, b), readReceipt: f => receipts.get(f) ?? null, log: l => lines.push(l), now: () => '2026-11-06T00:00:00Z' };
   };
   const names = () => new Set(sqlite.prepare("SELECT type || ':' || name AS n FROM sqlite_master").all().map(r => r.n));
   const lifecycle = id => sqlite.prepare('SELECT lifecycle FROM learn_goals WHERE id = ?').get(id)?.lifecycle;
@@ -107,6 +107,12 @@ test('a database the config does not bind, a changed generator and an unknown co
   const edited = { ...w.deps(''), readFile: f => (f.endsWith('learn-retire-tutor-data.mjs') ? 'export {}' : w.deps('').readFile(f)) };
   await assert.rejects(main({ argv: ['dev', 'check'], ...edited }), /not the pinned/);
   await assert.rejects(main({ argv: ['dev', 'drop'], ...w.deps('') }), e => e.code === 2);
+  assert.equal(w.statements.length, 0);
+});
+
+test('a checkout without wrangler stops before any SQL, with the fix', async t => {
+  const w = window(t);
+  await assert.rejects(main({ argv: ['prod', 'window-check'], ...w.deps(''), hasWrangler: () => false }), e => e.code === 2 && /run npm ci in .* first/.test(e.message));
   assert.equal(w.statements.length, 0);
 });
 
