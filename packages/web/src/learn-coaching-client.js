@@ -7,7 +7,6 @@
 // and the event is applied again on top of it (an Undo whose revision moved on is dropped instead, owner 3a). A failed
 // save keeps the local choice visible in this tab only, says so, and never claims other tabs or devices changed.
 import { canCoach, defaultControls, reduceTutorControls } from './learn-coaching-contract.js';
-import { withAutoSuggest } from './learn-settings.js';
 
 // Coaching state lives on canvases only (the route refuses other apps: coaching_on_canvases_only).
 export const coachingCanvas = name => /^canvas-[a-f0-9]{8}$/.test(String(name ?? ''));
@@ -153,15 +152,14 @@ export function threadWithControls(thread, coaching) {
 }
 
 // The controls proactive decisions read: on a surface with no saved record the mode is the thread's (threadWithControls).
-// R2: Auto-suggest off (coaching.autoSuggest, chat-workspace.jsx) turns the Tutor's unasked suggestions off for every reader of these controls.
-export const effectiveControls = (coaching, thread) => withAutoSuggest(coaching.status === 'local' ? { ...coaching.controls, mode: thread?.mode ?? coaching.controls.mode } : coaching.controls, coaching);
+export const effectiveControls = (coaching, thread) => (coaching.status === 'local' ? { ...coaching.controls, mode: thread?.mode ?? coaching.controls.mode } : coaching.controls);
 
 // The status line under the controls: what this tab knows, never more (draft "If the preference has not synchronized or
 // saved, show that state and do not claim all devices have stopped").
 export function controlsNote({ status, saveStatus, controls, undo, notice }) {
   if (status === 'error') return { tone: 'error', text: "Couldn't load your Tutor settings for this canvas.", action: 'retry' };
   if (saveStatus === 'error') return { tone: 'error', text: 'Not saved: this change applies in this tab only.', action: 'retry' };
-  if (undo && !controls.tutorEnabled) return { tone: 'info', text: 'Auto-suggest off.', action: 'undo' };
+  if (undo && !controls.tutorEnabled) return { tone: 'info', text: 'Tutor off for this canvas.', action: 'undo' };
   if (notice === 'undo_stale') return { tone: 'info', text: 'Undo is no longer available: your Tutor settings changed since.' };
   if (controls.mode === 'tutor' && controls.tutorEnabled && controls.suggestionsPaused) return { tone: 'info', text: 'Suggestions paused.', action: 'resume' };
   if (controls.mode === 'tutor' && status === 'local') return { tone: 'muted', text: 'Tutor settings here last for this visit.' };
