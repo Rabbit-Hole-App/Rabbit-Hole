@@ -1,8 +1,8 @@
 # Cleanup P5 (duplicate grading off) release note
 
-Stacked release candidate `feat/tutor-p5-release` (MVP fast path, owner label 2026-11-05). Code only: no migration, no database operation.
+Stacked release candidate `feat/tutor-p5-release-2` (MVP fast path, owner label 2026-11-05). Code only: no migration, no database operation.
 
-- Stacked on: R4 release tip `d692444ec2dc017f1d30d05627ca04f055f82b46` (`feat/tutor-r4-release`), on R2 `e44aa04f00147d58e578e4d890dd1738b8e9e6ca`, P4 `cdac8cfc534614d98388695e8a2ff8e9a4138e31`, P3 `0c322bd50eed1bed9bef09cb5826f51ff565ced4`, R3 `4b754b6c2b36a41dc651ed4c2608ca239668d656`, R1 `15141c05a931e082aaa2e59693d288a421d73938`, cleanup P2 `409f4e8f3e4638bcc4b0477a2d2a26041ab40ec3`, main `9b798f7760b7af5aa2446d281a07eebfc4e10b84`. P2, R1, R3, P3, P4, R2 and R4 must be released first; this branch then fast-forwards from the released R4 tip.
+- Stacked on: R4 release tip `369aaca76c9713bba295d86535f009fde5d9fe20` (`feat/tutor-r4-release-2`), on R2 `d2428e357fd40416b2ca83ec0ab6a7bfc3c203f2`, P4 `37f377f3910df2af7fdb77abeb78dc2c5f47d6d9`, P3 `0c322bd50eed1bed9bef09cb5826f51ff565ced4`, R3 `4b754b6c2b36a41dc651ed4c2608ca239668d656`, R1 `15141c05a931e082aaa2e59693d288a421d73938`, cleanup P2 `409f4e8f3e4638bcc4b0477a2d2a26041ab40ec3`, main `9b798f7760b7af5aa2446d281a07eebfc4e10b84`. P2, R1, R3, P3, P4, R2 and R4 must be released first; this branch then fast-forwards from the released R4 tip.
 - P5 came in as three cherry-picks from `feat/tutor-cleanup-p5` (`5efed411c`, `f524afb25`, `50ada944f`, built over the old P2 tip `cdeb77274`). Conflicts were in `learn-models.js`, `learn-models.test.js`, `dev-worker.js`, `LearnPage.jsx`, `check-map.json` and `run-part.sh`; each was resolved by keeping this chain's version and re-applying P5's hunks (the R1-R4 mounts, the six roadmap roles and the P3/P4 deletions are intact; the diff against the R4 tip is the builder's same 50 files, 41 insertions, 17316 deletions).
 
 ## What P5 removed or changed
@@ -25,7 +25,7 @@ None. The `learn_grades` table is untouched and stays until the owner script in 
 
 ## Recovery
 
-`feat/tutor-p5-release-recovery`: one forward commit reverting P5's three commits (restores the grade routes, modules, mounts and tests). Safe because `learn_grades` is untouched.
+`feat/tutor-p5-release-recovery-2`: one forward commit reverting P5's three commits (restores the grade routes, modules, mounts and tests). Safe because `learn_grades` is untouched.
 
 ## check-map Push B (follow-up, not in this release)
 
