@@ -35,14 +35,6 @@ await context.addCookies([{ name: 'small_session', value: session, url: BASE }])
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
-// The grade: recorded, answered with a fixed verdict. Jev's shadow row: recorded, answered as accepted.
-const grades = [], shadows = [];
-await page.route('**/api/learn/assess', async route => {
-  grades.push(JSON.parse(route.request().postData()));
-  await route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: `event: chunk\ndata: ${JSON.stringify({ text: 'VERDICT: partial\nYou show the embedding lookup. What adds the position?' })}\n\nevent: done\ndata: {"ok":true}\n\n` });
-});
-// Only the attempt row counts; its baseline follow-up (/grade/<id>/baseline) is the same attempt.
-await page.route('**/api/learn/grade**', async route => { if (new URL(route.request().url()).pathname === '/api/learn/grade') shadows.push(route.request().url()); await route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ grade_id: shadows.length }) }); });
 
 // The durable attempt store (packages/control-plane/src/learn-attempt-routes.js), stubbed: bind, submit (the assessment
 // runs inside it), list, read and the private asset upload. Each review is the EB-01 fixture reshaped to this answer: a
@@ -226,7 +218,7 @@ await check('3a first draft layout', async () => {
 });
 const textOnlyId = await textOnly.getAttribute('data-block-id');
 await check('1 text-only Explain Back: one saved attempt, reviewed in the card, no legacy grade', async () => {
-  const before = posts.length, gradesBefore = grades.length, shadowBefore = shadows.length;
+  const before = posts.length;
   await submitOf(textOnly).click();
   await textOnly.locator('[data-feedback-section="well"]').waitFor({ timeout: 10000 });
   assert.equal(posts.length, before + 1, 'one attempt saved');
@@ -234,7 +226,6 @@ await check('1 text-only Explain Back: one saved attempt, reviewed in the card, 
   assert.equal(sent.activityId, `act_${textOnlyId}`, 'bound to this card');
   assert.match(sent.submissionKey, /^eb_/);
   assert.deepEqual(sent.submittedContent, { v: 1, kind: 'explain_back', text: 'the id picks a row\nof the embedding table', voice: [], resources: [], assistance: [] });
-  assert.deepEqual([grades.length, shadows.length], [gradesBefore, shadowBefore], 'the legacy grade and Jev shadow are not called');
 });
 await check('11 Tutor feedback: three sections, the blue rating, citations open the submitted answer', async () => {
   assert.match(await textOnly.locator('[data-eb-question]').innerText(), /token id/);

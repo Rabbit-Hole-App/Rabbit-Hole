@@ -86,7 +86,7 @@ const settingsText = async (who, options) => {
   } finally { await context.close(); }
 };
 const seedGrant = (who, period, micros, source) => d1(`INSERT OR REPLACE INTO usage_grants (user_id, period, allowance_micros, source, granted_at) VALUES ('${who.payer}', '${period}', ${micros}, '${source}', 0);`);
-const seedAction = (who, id, chargeClass, period, micros) => d1(`INSERT INTO usage_actions (action_id, user_id, payer, payer_reason, feature, charge_class, period, status, started_at) VALUES ('${id}', '${who.payer}', 'user', '${chargeClass === 'free' ? 'free_action' : 'signed_in'}', '${chargeClass === 'free' ? 'grade' : 'ask'}', '${chargeClass}', '${period}', 'completed', 0);
+const seedAction = (who, id, chargeClass, period, micros) => d1(`INSERT INTO usage_actions (action_id, user_id, payer, payer_reason, feature, charge_class, period, status, started_at) VALUES ('${id}', '${who.payer}', 'user', '${chargeClass === 'free' ? 'free_action' : 'signed_in'}', '${chargeClass === 'free' ? 'render' : 'ask'}', '${chargeClass}', '${period}', 'completed', 0);
   ${micros ? `INSERT INTO usage_attempts (attempt_id, action_id, kind, reserved_micros, cost_micros, cost_state, status, started_at) VALUES ('${id}-a', '${id}', 'generation', ${micros}, ${micros}, 'settled', 'settled', 0);` : ''}`);
 
 const fresh = await account('new');
@@ -163,7 +163,7 @@ await check('the transition rule: before 2026-11 chargeable usage keeps 5,000, f
   seedAction(free, `credits-free-${run}`, 'free', PERIOD, 0);
   const usedApi = await used.usage(), freeApi = await free.usage();
   assert.equal(usedApi.allowanceCredits, before ? 5000 : 2500, `${PERIOD}: an account with chargeable usage`);
-  assert.equal(freeApi.allowanceCredits, 2500, `${PERIOD}: practice grading alone is not usage, so the account is a new account`);
+  assert.equal(freeApi.allowanceCredits, 2500, `${PERIOD}: a free action alone is not usage, so the account is a new account`);
   assert.match(await settingsText(used), before ? /Monthly credits\s*5,000 AI credits every month/ : /Monthly credits\s*2,500 AI credits every month/);
   assert.match(await settingsText(free), /Monthly credits\s*2,500 AI credits every month/);
 });
