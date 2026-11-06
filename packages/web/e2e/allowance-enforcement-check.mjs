@@ -15,6 +15,7 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
+import { mockChatRoute } from './dev-cp.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:9341';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:9343';
@@ -63,6 +64,10 @@ const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1600, height: 900 }, locale: 'en-US', timezoneId: 'America/Los_Angeles' });
 // Only the app's own /api/ calls carry the enforcement header (a header on a cross-origin request would force a preflight).
 await context.route(url => url.origin === new URL(BASE).origin && url.pathname.startsWith('/api/'), route => route.continue({ headers: { ...route.request().headers(), ...ENFORCE } }));
+// Every Chat turn is routed first (POST /api/learn/chat/route), then posts /api/learn/ask (the browser Tutor, whose plan route
+// used to refuse here, is gone). The keyless stack has no router key, so the real route would fall back and send nothing; it
+// answers "answer" here, and the refusal under test is still the real server's, on /api/learn/ask.
+await mockChatRoute(context);
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
 await context.addInitScript(seeds => { for (const [key, value] of Object.entries(seeds)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, SEEDS);
 const page = await context.newPage();
@@ -84,7 +89,7 @@ const send = async prompt => {
   await field().click();
   await field().fill(prompt);
   const asks = [];
-  const listen = request => { if (/\/api\/learn\/(ask|tutor\/plan)$/.test(new URL(request.url()).pathname)) asks.push(request.url()); };
+  const listen = request => { if (/\/api\/learn\/ask$/.test(new URL(request.url()).pathname)) asks.push(request.url()); };
   page.on('request', listen);
   await page.locator('[data-chat-pane] [data-chat-composer] button[aria-label="Send"]').click();
   const toast = page.locator('[data-toast-error]').filter({ hasText: /AI credits|temporarily unavailable/ });
