@@ -79,6 +79,7 @@ test('a real quotation survives the passage being raw Markdown or using curly qu
   assert.deepEqual(quoting('It asks “yes/no questions about feature values”.'), []);
   assert.deepEqual(quoting('It says "it isn\'t a black box" outright.'), []);
   assert.deepEqual(quoting('It says "a forest always beats a single tree" outright.'), ['quote_not_in_passage']);
+  assert.deepEqual(quoting('It says "************" outright.'), ['quote_not_in_passage'], 'a quote that is only markup folds to nothing and supports nothing');
 });
 
 test('table cards are checked on their cells; the cache key changes with the text, the revision and the policy', async () => {

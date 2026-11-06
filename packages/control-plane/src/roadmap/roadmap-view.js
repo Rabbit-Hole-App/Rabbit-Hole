@@ -55,15 +55,16 @@ export async function roadmapView(db, access, roadmap) {
     ...(link ? { link } : {}),
   };
   const { results: resultRows } = await db.prepare(`SELECT r.* FROM learn_step_results r WHERE r.roadmap_id = ? AND r.decision = 'accepted' ORDER BY r.created_at, r.slot_index`).bind(id).all();
+  const isFailed = r => r.generation === 'failed' || (r.billing === 'refunded' && r.delivery === 'not_delivered');
   const results = (resultRows || []).map(r => {
-    const failed = r.generation === 'failed' || (r.billing === 'refunded' && r.delivery === 'not_delivered');
+    const failed = isFailed(r);
     return { id: r.id, stepId: r.step_id, proposalVersion: r.proposal_version, slot: { index: r.slot_index, cardId: r.card_id }, generation: r.generation, delivery: r.delivery, billing: r.billing,
       ...(r.billing === 'zero_priced' && r.body_json == null ? { existingCard: true } : {}), // R5: a linked card, delivered at acceptance
       ...(r.generation === 'generated' && r.validation !== 'passed' && !failed ? { held: true } : {}),
       ...(failed ? failureOf(r) : {}) };
   });
   // Next step ready: an acceptable pending proposal that follows a delivery, with no earlier work still in flight (the offered proposal is not in `results`).
-  const settled = results.some(r => r.delivery === 'delivered') && results.every(r => r.delivery !== 'not_delivered' || r.generation === 'failed');
+  const settled = results.some(r => r.delivery === 'delivered') && (resultRows || []).every(r => r.delivery !== 'not_delivered' || isFailed(r));
   const next = steps.some(s => s.state === 'planned');
   const busy = results.some(r => r.generation === 'pending' || r.generation === 'generating');
   return {
