@@ -1087,7 +1087,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // shortcut: a line save slower than 5 s goes on without its thread (the open one, if any); the job never waits longer.
     const threadId = (await Promise.race([Promise.resolve(thread).catch(() => null), new Promise(done => setTimeout(done, 5000, null))])) || chat?.thread?.id || null;
     const payload = { prompt, requestClass: 'simple', source, ...(context ? { context: { text: context } } : {}), ...(image ? { image_context: { id: image }, image_role: 'layout_reference' } : {}),
-      ...(threadId ? { threadId } : {}), ...(refs?.length ? { context_refs: refs } : {}), ...(sourceRef ? { sourceRefId: sourceRef } : {}) };
+      ...(threadId ? { threadId } : {}), ...(refs?.length ? { context_refs: refs } : {}), ...(sourceRef ? { sourceRefId: sourceRef } : {}),
+      // R2: the Depth selected now (Standard, or none yet, adds nothing); the server validates it and keeps it on the job.
+      ...(chat?.settings?.depth ? { depth: chat.settings.depth } : {}) };
     let result;
     try { result = await submitCadOnce(explainRequests.current, JSON.stringify({ board: commentBoard, ...payload }), explainClient(api, commentBoard).create, payload); }
     catch (error) { if (explainDisabled(error)) { explainOff.current = true; return null; } throw error; }

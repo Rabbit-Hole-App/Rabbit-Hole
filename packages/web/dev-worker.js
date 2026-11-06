@@ -52,6 +52,7 @@ import { coachingRoute } from '../control-plane/src/learn-coaching-routes.js';
 import { codebaseRoute } from '../control-plane/src/learn-codebase-source-map.js';
 import { attemptRoute } from '../control-plane/src/learn-attempt-routes.js';
 import { cardFeedbackRoute } from '../control-plane/src/card-feedback-routes.js';
+import { userSettingsRoute } from '../control-plane/src/learn-user-settings.js';
 import { homeAskFetch } from '../control-plane/src/learn-home-ask.js';
 import { voiceRoute } from '../control-plane/src/learn-voice-routes.js';
 import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
@@ -311,6 +312,8 @@ const routes = {
     if (path.startsWith('/api/learn/tutor/attempts')) { const attempted = await attemptRoute(path, req, env); if (attempted) return attempted; }
     // Card feedback (R1, learn-migrations/0036): the signed-in owner's private rating of a generated card.
     if (path === '/api/learn/card-feedback') { const rated = await cardFeedbackRoute(path, req, env); if (rated) return rated; }
+    // The learner's Depth (per canvas) and Auto-suggest (learn-migrations/0037): their own settings only.
+    if (path === '/api/learn/user-settings') return userSettingsRoute(path, req, env);
     // Personal Tutor controls and goals (learn-migrations/0025): the signed-in learner's own state only.
     if (path === '/api/learn/coaching') return coachingRoute(path, req, env);
     // The Tutor's codebase goals and source drift (learn-codebase-source-map.js): the learner's own canvas, no model, no execution.
