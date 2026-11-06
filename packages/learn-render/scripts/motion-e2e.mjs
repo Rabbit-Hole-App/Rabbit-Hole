@@ -16,8 +16,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-// ponytail: the Tutor slice board went with the Tutor (cleanup P4); step 5 now opens another registered review board (unrun).
-const TUTOR_BOARD = 'interactive-app-review';
+import { TUTOR_BOARD } from '../../web/src/learn-tutor-claims.js';
 
 const PKG = dirname(dirname(fileURLToPath(import.meta.url)));
 const ROOT = resolve(PKG, '..', '..');

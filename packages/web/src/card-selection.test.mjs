@@ -83,7 +83,7 @@ test('selecting one card arms the composer strip; moving off it clears the strip
   assert.match(effect, /if \(was && askTargetId === was && armedId\.current === was\) \{ armedId\.current = null; onAskTargetRef\.current\?\.\(null\); \}/);
   assert.match(canvas, /const card = \{ card: true, asked: askedId\.current === block\.id, context: \{ \.\.\.selectedCardContext\(block, described\.title\), material_type: block\.type \|\| described\.material \}, ref: chatRefOf\(block\), pdf: !!\(pdfRef\(block\) \|\| fileChatRef\(block\)\) \};/, 'Ask in chat arms the same target: one context, one chip, with its chat ref (pdf-materials-refinement.md section 6)');
   // Where the answer lands is unchanged: Ask in chat answers as a linked card; a card only selected answers where any question does.
-  assert.match(read('./ask.jsx'), /let panelAsk = sheetMode && \(!canvasTarget \|\| \(canvasTarget\.card && !canvasTarget\.asked\)\);/);
+  assert.match(read('./ask.jsx'), /let panelAsk = sheetMode && \(!canvasTarget \|\| \(canvasTarget\.card && !canvasTarget\.asked\) \|\| journeySetup\);/);
 });
 
 test('the strip is the card: its icon, its title and Remove selected card context; it stays after a send', () => {

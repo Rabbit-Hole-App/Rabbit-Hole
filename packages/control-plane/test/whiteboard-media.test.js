@@ -7,8 +7,7 @@ import { audioKeyOf, fitTiming } from '../src/whiteboard-timing.js';
 import { FISH_URL, fishBody, narrateBeat } from '../src/whiteboard-tts.js';
 import { renderStep } from '../src/whiteboard-render-client.js';
 
-// Six real Fish-style narration clips (moved here from the retired nanoGPT course's web/public/audio, Tutor cleanup P4).
-const real = name => new Uint8Array(readFileSync(new URL(`./fixtures/whiteboard/audio/${name}`, import.meta.url)));
+const real = name => new Uint8Array(readFileSync(new URL(`../../web/public/audio/${name}`, import.meta.url)));
 const fixture = name => JSON.parse(readFileSync(new URL(`./fixtures/whiteboard/${name}`, import.meta.url), 'utf8'));
 
 // A synthetic stream: n frames of one header (payload zeros), optionally after an ID3v2 tag and with a Xing frame first.
@@ -30,10 +29,10 @@ function frames(header, n, { id3 = 0, xing = false } = {}) {
 }
 
 test('mp3: the duration from real Fish-style files matches their recorded durations within 1 ms (MPEG-1 Layer III, 44.1 kHz)', () => {
-  const recorded = JSON.parse(readFileSync(new URL('./fixtures/whiteboard/audio/durations.json', import.meta.url), 'utf8'));
-  for (const { file, ms } of recorded) {
-    const d = mp3Duration(real(file));
-    assert.ok(Math.abs(d.seconds * 1000 - ms) <= 1, `${file}: ${d.seconds} s against ${ms} ms`);
+  const recorded = JSON.parse(readFileSync(new URL('../../web/src/nanogpt-audio.json', import.meta.url), 'utf8')).flat().slice(0, 6);
+  for (const { src, ms } of recorded) {
+    const d = mp3Duration(real(src.replace('/audio/', '')));
+    assert.ok(Math.abs(d.seconds * 1000 - ms) <= 1, `${src}: ${d.seconds} s against ${ms} ms`);
     assert.deepEqual([d.sampleRate, d.samplesPerFrame], [44100, 1152]);
   }
 });
@@ -66,7 +65,7 @@ test('timing: beats follow one another from their window\'s start; an overrun na
 
 test('narration: the 4.2 body, one retry on 429 or a failure before acceptance, never a second POST after Fish accepted', async () => {
   assert.deepEqual(fishBody('Hi.'), { text: 'Hi.', reference_id: '802e3bc2b27e49c2995d23ef70e6ac89', format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true, temperature: 0.5, top_p: 0.6, prosody: { speed: 0.92 } });
-  const mp3 = real('narration-0.mp3'), env = { FISH_AUDIO_API_KEY: 'k', SMALL_ENV: 'test' };
+  const mp3 = real('nanogpt-l1-p1-0.mp3'), env = { FISH_AUDIO_API_KEY: 'k', SMALL_ENV: 'test' };
   const fish = answers => { const posts = []; return { posts, fetch: async (url, init) => { posts.push({ url, body: JSON.parse(init.body), auth: init.headers.Authorization }); const a = answers[posts.length - 1]; if (a instanceof Error) throw a; return a(); } }; };
   const ok = () => new Response(mp3, { headers: { 'Content-Type': 'audio/mpeg' } });
   let f = fish([() => new Response('busy', { status: 429 }), ok]);

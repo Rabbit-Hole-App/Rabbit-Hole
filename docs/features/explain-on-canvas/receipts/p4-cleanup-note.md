@@ -12,4 +12,4 @@ Stacked release candidate `feat/tutor-p4-release` (MVP fast path, owner label 20
 - HELD (not deleted): the `packages/web/src/nanogpt/` card directory and the two demo-scenes review boards; four checks still drive board `nanogpt-deep-dive`.
 - Stale checks (marked `ponytail: STALE`, windows-only, not run in CI): `packages/web/e2e/progress-chat-check.mjs` (the keyed grader went in P1, later steps need a retained offline assessor) and `packages/web/e2e/toc-cap-check.mjs` (steps 1-3 drove the removed syllabus card).
 - Pending (Push B, later): drop the `none` rows and `noneReasons` for the P4-deleted sources from `check-map.json`; the `nanogpt/` directory and the demo-scenes boards with the four checks; the stale checks above.
-- Recovery branch: `feat/tutor-p4-release-recovery-2` (strict descendant; one commit reverting P4's four commits, keeping P1-P3 interfaces).
+- Recovery branch: `feat/tutor-p4-release-recovery` (strict descendant; one commit reverting P4's four commits, keeping P1-P3 interfaces).

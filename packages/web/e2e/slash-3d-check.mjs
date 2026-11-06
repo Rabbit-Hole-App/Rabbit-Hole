@@ -45,8 +45,8 @@ const DRAWN = JSON.parse(GLB.subarray(20, 20 + GLB.readUInt32LE(12)).toString())
 // Model-capable and job routes: counted for every method; a non-GET one is aborted unless this check answers it.
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|selection|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|video|transcribe|tts|voice\/|dive|explore|course|artifact|cad\/jobs|motion))/;
 // The canvas page's own reads, which run whether or not the window is open: LearnPage restores CAD job status once on load
-// (cadClient().list()). It starts nothing.
-const PAGE_READS = ['GET /api/learn/cad/jobs'];
+// (cadClient().list()) and LearnJourney refreshes the board's journey every 5 s. Neither starts anything.
+const PAGE_READS = ['GET /api/learn/cad/jobs', 'GET /api/learn/journey'];
 // The page's idle warm-up opens the notebook site hidden once the learner pauses (learn-warmup.js warmNotebookSite): aborted
 // here and counted, never the window's.
 const WARMUP_HOST = new URL(readFileSync(new URL('../src/learn-notebook.js', import.meta.url), 'utf8').match(/VITE_NOTEBOOK_ORIGIN \|\| '([^']+)'/)[1]).hostname;

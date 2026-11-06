@@ -8,7 +8,7 @@ import { setup, BOARD, scriptModel } from './shared-canvas-fixture.js';
 import { shareKey } from '../src/learn-shared-ask.js';
 import { sha256Hex } from '../src/learn-grade-jev.js';
 import { sharedInput } from '../src/learn-next-steps-routes.js';
-import { fixtureModel } from '../src/learn-next-steps-fixtures.js';
+import { fixtureModel } from '../src/learn-journey-fixtures.js';
 import { NEXT_STEPS_LIMITS, NEXT_STEPS_SYSTEM } from '../src/agents/learn-next-steps.js';
 
 // Tutor cleanup P1: a shared canvas plans from its visible cards alone (no claims, courses or viewer evidence).

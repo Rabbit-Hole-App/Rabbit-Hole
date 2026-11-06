@@ -1,6 +1,3 @@
-// ponytail: STALE since Tutor cleanup P4. Steps 1-3 drive the syllabus card and its Use as table of contents button, which P4 removed
-// (windows-only; not run). Steps 4-5 (the 121st heading, outlineOmitted) still describe retained behavior. Rewrite steps 1-3 onto a
-// seeded board before running it.
 // The table of contents' 120-heading limit (owner decision, Release A3 item 1; C:/s/spec/rel-a.md B1). Against the LOCAL stack
 // only. No model is ever called: /api/learn/ask is answered here with canned SSE and its request bodies are captured; every
 // other model-capable route is aborted and counted. What the server does with a body is the control plane's unit tests

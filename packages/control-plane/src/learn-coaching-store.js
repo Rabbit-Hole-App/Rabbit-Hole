@@ -9,20 +9,7 @@
 // Changing goals pauses the old one (a derived status) and parks its journey; nothing is archived. No evidence is ever
 // written here: criteria are what the learner accepted, and a legacy journey's goal starts with none.
 import { RESPONSE_KINDS, reduceTutorControls, validateCoachingRecord } from '../../web/src/learn-coaching-contract.js';
-
-// ponytail: the three journey SQL builders moved here from learn-journey-store.js (deleted in Tutor cleanup P4) because the
-// joins below stay until P6a, after the archive backfill is verified; P6a deletes them with the joins.
-// The goal row of every journey matching `where` (its binds follow board, now, now); DO NOTHING keeps an existing one.
-// No criterion or evidence is made: a legacy journey's goal has scope_version 0 until the learner accepts criteria.
-export const goalForJourneySql = where => `INSERT INTO learn_goals (id, org, owner_user_id, app, board, label, outcome, origin, scope_version, lifecycle, journey_id, activity_id, revision, created_at, updated_at)
-  SELECT 'lg_' || j.id, j.org, j.owner_user_id, j.app, ?, j.topic, '', 'journey', 0, 'open', j.id, NULL, 0, ?, ? FROM learning_journeys j WHERE ${where} ON CONFLICT DO NOTHING`;
-// Park every journey live on the board except keepId (null: all), and unpark one, as the goal switch does. guard is an SQL
-// condition with its binds, so the whole switch applies only at the expected coaching revision.
-export const parkJourneySql = guard => `UPDATE learning_journeys SET board = 'parked:' || id, updated_at = ?, revision = revision + 1
-  WHERE org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL AND id IS NOT ? AND ${guard}`;
-export const unparkJourneySql = guard => `UPDATE learning_journeys SET board = ?, updated_at = ?, revision = revision + 1
-  WHERE id = ? AND org = ? AND owner_user_id = ? AND app = ? AND board = 'parked:' || id AND archived_at IS NULL
-  AND NOT EXISTS (SELECT 1 FROM learning_journeys WHERE org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL) AND ${guard}`;
+import { goalForJourneySql, parkJourneySql, unparkJourneySql } from './learn-journey-store.js';
 
 export class CoachingConflict extends Error {
   constructor(code, status = 409) { super(`coaching conflict: ${code}`); this.name = 'CoachingConflict'; this.code = code; this.status = status; }

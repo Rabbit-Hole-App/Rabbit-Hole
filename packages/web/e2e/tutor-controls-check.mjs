@@ -44,7 +44,7 @@ const context = await browser.newContext({ viewport: { width: 1600, height: 900 
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
 await context.addInitScript(seeds => { for (const [key, value] of Object.entries(seeds)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, SEEDS);
 // Every model-capable route is aborted and counted (hooks, Learn ask, artifacts, Home ask, journey actions).
-const modelRoute = (path, method) => path === '/api/learn/ask' || path.startsWith('/api/learn/tutor/') || path === '/api/learn/artifact' || path === '/api/learn/home-ask' || path === '/api/ask';
+const modelRoute = (path, method) => path === '/api/learn/ask' || path.startsWith('/api/learn/tutor/') || path === '/api/learn/artifact' || path === '/api/learn/home-ask' || path === '/api/ask' || (path === '/api/learn/journey' && method === 'POST');
 await context.route('**/api/**', route => {
   const request = route.request(), path = new URL(request.url()).pathname;
   if (path === '/api/learn/coaching') coaching.push(request.method());

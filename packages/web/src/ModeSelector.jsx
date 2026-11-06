@@ -9,11 +9,11 @@ import { TutorSwitch } from './use-learn-coaching.jsx';
 // useChatWorkspace().thread.mode. Interaction modes, never model names, and separate from the / command slot: a command
 // never changes the mode and the mode never rewrites a command. Changing it keeps the draft, attachments and conversation.
 // Owner decision 1a (2026-10-20): Tutor is the teaching Tutor, with its On/Off switch immediately beside it (TutorSwitch,
-// hidden in Auto and Ask). Tutor cleanup P4: syllabus building is gone from Chat; the Table of contents conversation edits the outline.
+// hidden in Auto and Ask); syllabus building moved to the Table of contents conversation and explicit course requests.
 export const MODES = [
-  ['auto', 'Auto', 'Answers your questions, using your materials and canvas'],
+  ['auto', 'Auto', 'Answers, or starts a syllabus when you ask for a course'],
   ['ask', 'Ask', 'Answers only: questions, explanations and your materials'],
-  ['tutor', 'Tutor', 'Answers with next-step suggestions you can switch off'],
+  ['tutor', 'Tutor', 'Teaches step by step, with suggestions you can switch off'],
 ];
 
 export default function ModeSelector({ disabled = false }) {

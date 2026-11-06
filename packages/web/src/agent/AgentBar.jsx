@@ -13,7 +13,7 @@ import {
 import { kindLabel, titleOf } from './catalog.js';
 import { COMMANDS, ctxOf, executeCommand, prepareCommand } from './commands.js';
 import { learnAction } from './learn-hook.js';
-import { teachPlan } from './teach-plan.js';
+import { journeyMessage, journeyStarted, NEEDS_TOPIC, teachPlan } from './teach-plan.js';
 import ResultSheet from './ResultSheet.jsx';
 import { unavailableCommand } from './slash.js';
 import { route } from './router.js';
@@ -264,8 +264,9 @@ export default function AgentBar() {
     } catch (e) { add(scope, { kind: 'note', text: `✗ ${e.message}`, error: true }); }
   }
 
-  // ponytail: /research and [Add to canvas] are not wired - research needs canvas scope and the bar is hidden on canvases
-  // (routes.js); the Learn handoff is teach only (Tutor cleanup P4).
+  // ponytail: /research and [Add to canvas] are not wired - research needs canvas scope, the bar
+  // is hidden on canvases (routes.js) and learnHandoff is off (flags.js). Wire learnAction('research')
+  // when the bar shows on a canvas.
 
   async function homeAsk(text, raw, scope, from = scope) {
     const key = resultsKey(scope);
@@ -282,17 +283,38 @@ export default function AgentBar() {
     }
   }
 
-  // §6.4 /teach through the Learn hook (§9). From the workspace a canvas comes first, titled with the learner's own sentence
-  // (teachPlan, 80 characters, no model call). learnAction opens Learn itself and fills Chat's composer with the full,
-  // unmodified request; it never sends, so the learner presses Send. Nothing here calls /api/learn/journey or /api/learn/ask.
-  // The bar never navigates after it; the bar is hidden on Learn, so its message is a toast.
+  // §6.4 /teach through the Learn hook (§9). From the workspace a canvas comes
+  // first. learnAction opens Learn itself, so the bar never navigates after it;
+  // the bar is hidden on Learn, so its message is a toast.
+  // LP1 D4: from the workspace, a journey request is started on the server with the learner's exact words (learnAction
+  // is a no-op while learnHandoff is off, so those words were dropped) and Learn opens on its tray. No cards are generated.
   async function teach(text, raw, scope) {
     try {
       let app = scope.slug;
-      if (scope.kind === 'workspace') {
-        const made = await runCommand('create_canvas', { title: teachPlan(text).title }, raw, scope, true);
+      const plan = scope.kind === 'workspace' ? teachPlan(text) : null;
+      // "Skip setup and start" names nothing to learn: no canvas, the draft stays, the toast says what to type.
+      if (plan?.needsTopic) {
+        toast(`✗ ${NEEDS_TOPIC}`, { tone: 'error' });
+        return;
+      }
+      if (plan) {
+        // A journey canvas is silent: the Canvas created note's Undo deletes the row and would orphan the server journey.
+        const made = await runCommand('create_canvas', { title: plan.title }, raw, scope, true, plan.journey);
         app = slugOf(made?.href);
         if (!app) return;
+      }
+      if (plan?.journey) {
+        try {
+          await api('/api/learn/journey', { method: 'POST', body: JSON.stringify({ app, board: 'main', action: 'start', text, channel: 'text' }) });
+          clearDraft(scope, raw);
+        } catch (e) {
+          // A planner failure (502) leaves the journey saved, so a resend would make a second canvas: the draft clears.
+          // Any other failure keeps it. Learn opens either way.
+          if (journeyStarted(e)) clearDraft(scope, raw);
+          toast(`✗ ${journeyMessage(e)}`, { tone: 'error' });
+        }
+        navigate(`/apps/${app}?tab=learn`);
+        return;
       }
       const outcome = learnOutcome(await learnAction('teach', { app, prompt: text }, ctxOf(getSurface(), { scope })));
       if (outcome.done) clearDraft(scope, raw); // otherwise the prompt stays in this scope's draft

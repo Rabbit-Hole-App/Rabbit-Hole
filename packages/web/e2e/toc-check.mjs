@@ -392,18 +392,6 @@ await check('14 adding a section and a sub-section changes the contents only; th
   await canvasUntouched('after the reload');
 });
 
-// Moved here from toc-plan-check.mjs step 6 (deleted in Tutor cleanup P4 with the journey plan, owner Q6): the Remove heading
-// control takes an entry out of the contents only. The canvas heading and its cards stay, and the entry is not drawn again.
-await check('15 removing an entry takes it out of the contents only: its canvas heading and cards stay, and it does not come back', async () => {
-  await entry('s12').getByRole('button', { name: 'Remove heading Acids and proteins' }).click();
-  await saved('the entry removed from the contents', entries => !entries.some(e => e.text === 'Acids and proteins'));
-  assert.equal(await entry('s12').count(), 0, 'it is gone from the contents');
-  await canvasUntouched('after removing a contents entry');
-  await open();
-  assert.equal(await entry('s12').count(), 0, 'and does not come back after a reload');
-  await canvasUntouched('after the reload');
-});
-
 await context.close();
 await browser.close();
 assert.deepEqual(stray, [], 'no model route was called');

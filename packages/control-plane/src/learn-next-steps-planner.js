@@ -1,13 +1,13 @@
 // packages/control-plane/src/learn-next-steps-planner.js
 // The hook planner behind Professor Next Steps (docs/features/professor-next-steps.md §2.4), and the one model-call helper it shares
-// with the journey planners (deleted in the Tutor cleanup P4): callRole offers one tool on tool_choice
+// with the journey planners (learn-journey-planners.js, deleted in the Tutor cleanup P4): callRole offers one tool on tool_choice
 // auto (claude-opus-5-5 refuses a forced tool), a reply without that tool call, or one a validator rejects, throws PlannerInvalid.
 // callModel(env, body, model, org) is the same shape the routes pass to anthropic().
 import { anthropic } from './ask.js';
 import { modelFailure } from './learn-research.js';
 import { LEARN_TASKS, costUsd, loggedModel, promptVersion } from './learn-models.js';
 import { NEXT_STEPS_PLANNER_VERSION, NEXT_STEPS_SYSTEM, NEXT_STEPS_TOOL, nextStepsOutput, words } from './agents/learn-next-steps.js';
-import { fixtureModel } from './learn-next-steps-fixtures.js';
+import { fixtureModel } from './learn-journey-fixtures.js';
 import { normalizeToolInput } from './tool-input.js';
 import { withAttemptKind } from './learn-usage.js';
 
@@ -29,7 +29,7 @@ const LOGGED = journeyLogged(anthropic);
 // Fixtures only on a local test worker that asks for them (§11, like OAUTH_MOCK): never a paid call in tests or e2e.
 export const journeyCallModel = env => (env.SMALL_ENV === 'test' && env.JOURNEY_MODEL_STUB === 'fixtures' ? fixtureModel : LOGGED);
 
-// The role's system text is a static prefix (agents/learn-next-steps.js), so it goes as one cacheable block, as the Tutor
+// The role's system text is a static prefix (agents/learn-journey.js), so it goes as one cacheable block, as the Tutor
 // planner's does (learn-tutor-routes.js): render order is tools -> system -> messages, so the cache holds the tool schema
 // and the prompt, never the input. Never under SUBSCRIPTION_ONLY, whose bridge's handling of a cached block is unverified.
 // A role whose tool is not named after it (the hook planner) passes its tool, system and HTTP failure label; onReply sees

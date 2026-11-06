@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import * as flags from '../flags.js';
+import { learnHandoff } from '../flags.js';
 import { learnAction, readLearnResult } from './learn-hook.js';
 
 const memory = () => { const items = new Map(); return { getItem: (key) => (items.has(key) ? items.get(key) : null), setItem: (key, value) => items.set(key, String(value)), removeItem: (key) => items.delete(key) }; };
@@ -19,37 +19,21 @@ globalThis.PopStateEvent = class extends Event {};
 const CTX = { scope: { org: 'gmail-com', kind: 'project', slug: 'repo-1a2b3c4d-nanogpt', title: 'karpathy/nanoGPT', selected: null } };
 const answer = (win, detail) => win.dispatchEvent(new CustomEvent('small:learn-result', { detail }));
 
-// Tutor cleanup P4 (Q5): the handoff is teach only and always sends; the flag and the research branch are gone.
-test('there is no learnHandoff flag, and teach is always sent: written before Learn opens, with no fallback line', async () => {
-  assert.equal('learnHandoff' in flags, false);
+// T02 §9: false until the handoff (feature/parallel-work cc0cbf8) merges to main.
+test('with learnHandoff false nothing is sent: /teach opens Learn, every path shows its fallback line', async () => {
+  assert.equal(learnHandoff, false);
   const win = tab('/apps/repo-1a2b3c4d-nanogpt?tab=overview');
-  const pending = learnAction('teach', { prompt: 'Why sqrt(dk)?' }, CTX);
-  assert.equal(win.opened.length, 1);
-  const sent = JSON.parse(win.opened[0].request);
-  assert.deepEqual(sent, { id: sent.id, kind: 'teach', app: 'repo-1a2b3c4d-nanogpt', prompt: 'Why sqrt(dk)?' });
-  answer(win, { id: sent.id, kind: 'teach', status: 'prefilled' });
-  assert.equal((await pending).status, 'prefilled');
-});
-
-test('contextRefs rides the request when given and is absent when not', async () => {
-  const refs = [{ sourceId: 'card:k1', kind: 'card', name: 'Softmax', version: '1', range: null }];
-  const win = tab('/apps/canvas-0f9e8d7c?tab=learn');
-  const withRefs = learnAction('teach', { app: 'canvas-0f9e8d7c', prompt: 'Teach me this', contextRefs: refs }, CTX);
-  const [first] = win.requests;
-  assert.deepEqual(first, { id: first.id, kind: 'teach', app: 'canvas-0f9e8d7c', prompt: 'Teach me this', contextRefs: refs });
-  answer(win, { id: first.id, kind: 'teach', status: 'prefilled' });
-  await withRefs;
-  const plain = learnAction('teach', { app: 'canvas-0f9e8d7c', prompt: 'Teach me that', contextRefs: [] }, CTX);
-  const second = win.requests[1];
-  assert.equal('contextRefs' in second, false);
-  assert.equal('contextRefs' in JSON.parse(sessionStorage.getItem('small.learn.request')), false);
-  answer(win, { id: second.id, kind: 'teach', status: 'prefilled' });
-  await plain;
+  assert.deepEqual(await learnAction('teach', { prompt: 'Why sqrt(dk)?' }, CTX), { status: 'fallback', message: "Opened Learn. Your prompt wasn't transferred; it's kept here." });
+  assert.deepEqual(await learnAction('teach', { app: 'canvas-0f9e8d7c', prompt: 'Why sqrt(dk)?', from: 'start' }, CTX), { status: 'fallback', message: "Opened your canvas. Your question is on your clipboard: paste it into the Learn composer." });
+  assert.deepEqual(await learnAction('research', { source: { kind: 'arxiv', ref: '1706.03762' } }, CTX), { status: 'fallback', message: 'Add sources from the Sources menu on the canvas.' });
+  assert.deepEqual(win.opened, [{ to: '/apps/repo-1a2b3c4d-nanogpt?tab=learn', request: null }, { to: '/apps/canvas-0f9e8d7c?tab=learn', request: null }]);
+  assert.equal(sessionStorage.getItem('small.learn.request'), null);
+  assert.deepEqual(win.requests, []);
 });
 
 test('with the handoff on, the request is written before Learn opens, and only its own result counts', async () => {
   const win = tab('/apps/repo-1a2b3c4d-nanogpt?tab=overview');
-  const pending = learnAction('teach', { prompt: 'Why sqrt(dk)?' }, CTX);
+  const pending = learnAction('teach', { prompt: 'Why sqrt(dk)?' }, CTX, { handoff: true });
   const [{ to, request }] = win.opened;
   const sent = JSON.parse(request);
   assert.equal(to, '/apps/repo-1a2b3c4d-nanogpt?tab=learn');
@@ -62,29 +46,29 @@ test('with the handoff on, the request is written before Learn opens, and only i
 
 test('already on that Learn view, the request is dispatched too and nothing navigates', async () => {
   const win = tab('/apps/canvas-0f9e8d7c?tab=learn');
-  const pending = learnAction('teach', { app: 'canvas-0f9e8d7c', prompt: 'Why?' }, CTX);
+  const pending = learnAction('research', { app: 'canvas-0f9e8d7c', source: { kind: 'arxiv', ref: '1706.03762' } }, CTX, { handoff: true });
   const [sent] = win.requests;
-  assert.deepEqual(sent, { id: sent.id, kind: 'teach', app: 'canvas-0f9e8d7c', prompt: 'Why?' });
+  assert.deepEqual(sent, { id: sent.id, kind: 'research', app: 'canvas-0f9e8d7c', source: { kind: 'arxiv', ref: '1706.03762' } });
   assert.deepEqual(JSON.parse(sessionStorage.getItem('small.learn.request')), sent);
   assert.deepEqual(win.opened, []);
-  answer(win, { id: sent.id, kind: 'teach', status: 'prefilled' });
-  assert.deepEqual(await pending, { id: sent.id, kind: 'teach', status: 'prefilled', message: null });
+  answer(win, { id: sent.id, kind: 'research', status: 'added', resourceId: 'paper-1706.03762' });
+  assert.deepEqual(await pending, { id: sent.id, kind: 'research', status: 'added', resourceId: 'paper-1706.03762', message: 'Added to canvas.' });
 });
 
 test('rejected and failed show the reason Learn gave, word for word', async () => {
-  for (const [status, reason] of [['rejected', 'The Learn chat already has a draft. Send or clear it, then try again.'], ['failed', 'The Learn chat did not open. Open Learn and try again.']]) {
+  for (const [status, reason] of [['rejected', 'The Learn chat already has a draft. Send or clear it, then try again.'], ['failed', 'Search failed. Try again.']]) {
     const win = tab('/apps/repo-1a2b3c4d-nanogpt?tab=learn');
-    const pending = learnAction('teach', { prompt: 'Why?' }, CTX);
+    const pending = learnAction('teach', { prompt: 'Why?' }, CTX, { handoff: true });
     answer(win, { id: win.requests[0].id, kind: 'teach', status, reason });
     assert.deepEqual([(await pending).status, (await pending).message], [status, reason]);
   }
 });
 
-test('no answer is not a failure: teach waits 12 s, then Still working, check the canvas', async (t) => {
+test('no answer is not a failure: teach waits 12 s, research 30 s, then Still working, check the canvas', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   tab('/apps/repo-1a2b3c4d-nanogpt?tab=overview');
   let settled = false;
-  const teach = learnAction('teach', { prompt: 'Why?' }, CTX).finally(() => { settled = true; });
+  const teach = learnAction('teach', { prompt: 'Why?' }, CTX, { handoff: true }).finally(() => { settled = true; });
   t.mock.timers.tick(11999);
   await new Promise(setImmediate);
   assert.equal(settled, false);
@@ -94,4 +78,11 @@ test('no answer is not a failure: teach waits 12 s, then Still working, check th
   // The card can still land; the bar reconciles from the stored result when the sheet reopens.
   sessionStorage.setItem(`small.learn.result:${late.id}`, JSON.stringify({ id: late.id, kind: 'teach', status: 'prefilled' }));
   assert.deepEqual(readLearnResult(late.id), { id: late.id, kind: 'teach', status: 'prefilled' });
+
+  const research = learnAction('research', { source: { kind: 'wiki', ref: 'Attention' } }, CTX, { handoff: true });
+  const { id } = JSON.parse(sessionStorage.getItem('small.learn.request'));
+  t.mock.timers.tick(29999);
+  sessionStorage.setItem(`small.learn.result:${id}`, JSON.stringify({ id, kind: 'research', status: 'added', resourceId: 'wiki-Attention' }));
+  t.mock.timers.tick(1);
+  assert.deepEqual(await research, { id, kind: 'research', status: 'added', resourceId: 'wiki-Attention', message: 'Added to canvas.' });
 });

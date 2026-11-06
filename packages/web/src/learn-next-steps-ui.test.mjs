@@ -38,12 +38,12 @@ const IDS = Object.keys(TIDES.diagnostic.registry.claims).slice(0, 2);
 const ticks = async (done, n = 50) => { for (let i = 0; i < n && !done(); i++) await new Promise(resolve => setImmediate(resolve)); };
 
 // Review fix 2: the web bundle never pulls the journey agent for the hook validator's label list.
-test('useNextSteps graph: the label list comes from a leaf module, never the planner prompts', async () => {
+test('useNextSteps graph: the label list comes from a leaf module, never agents/learn-journey.js', async () => {
   const built = await esbuild.build({ stdin: { contents: "export { useNextSteps } from './LearnNextSteps.jsx';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
     bundle: true, write: false, format: 'esm', platform: 'browser', jsx: 'automatic', external: ['react', 'react-dom'], metafile: true, logLevel: 'silent' });
   const inputs = Object.keys(built.metafile.inputs);
   assert.ok(inputs.some(i => i.endsWith('agents/learn-labels.js')), 'the leaf label module');
-  assert.equal(inputs.some(i => /learn-journey/.test(i)), false);
+  assert.equal(inputs.some(i => i.endsWith('agents/learn-journey.js')), false);
 });
 
 const renderSteps = props => {
@@ -499,11 +499,12 @@ test('C-R1 shared, signed in: a hung /api/me times out with the hook request; th
 // Task 14 C-M2: the not-a-stopping-point goal check reads the live goal the hook input is built from (goalOf over the Tutor
 // snapshot), never the page's title fallback prop: an empty learning_goal hole asks for hooks whatever that prop holds.
 test('C-M2 ownedSteps: an empty learning_goal hole is not a stopping point whatever the title prop holds; the goal is the live one', async () => {
+  const { canvasDomain } = await import('./learn-journey-domain.js');
   const goal = 'Explain why a starter needs feeding';
   for (const title of ['', 'Sourdough notes']) {
     const t = { lastTurn: null, busy: false, showing: () => {} };
     const record = { dive_id: 'dv_1', learning_goal: goal, title: 'Starter' };
-    t.snapshot = () => ({ context: { domain: { kind: 'canvas', subject: goal, concepts: {}, claims: {}, context: { goal, origin: null }, contextKey: 'canvas_context', sectionId: null, evidence: { mode: 'session' } }, capabilities: { tutor: true, hook_turns: true }, source: 'canvas' }, store: t.store, parent: null, record, liveTitle: 'Starter' });
+    t.snapshot = () => ({ context: { domain: canvasDomain({ goal }), capabilities: { tutor: true, hook_turns: true }, source: 'canvas' }, store: t.store, parent: null, record, liveTitle: 'Starter' });
     const r = stepsRig({ tutor: t, props: { title, record, canvasApi: { current: { blocks: () => [] } }, canvasState: { cards: [] } } });
     assert.equal(r.steps.state().stop, null, `title prop ${JSON.stringify(title)}: the live goal grounds the hooks`);
     r.step(); await r.c.fire();
