@@ -8,7 +8,6 @@
 import { roleFor } from '../../web/src/canvas-permissions.js';
 import { publicExplainBack } from '../../web/src/explain-back-private.js';
 import { withSharedSourceRef } from '../../web/src/source-ref.js';
-import { publicRoadmapCard } from './roadmap/roadmap-privacy.js';
 
 // toc: the Table of contents' own list (owner brief 2026-10-23), shown and forked without the creator's ticks.
 const CONTENT = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas', 'exchanges', 'toc'];
@@ -27,8 +26,7 @@ function sharedBlock(block) {
   if (!block || typeof block !== 'object') return block;
   // An Explain-back card also drops its drafts, history, Sketch panel and store binding (explain-back-private.js).
   // A card's sourceRef (source-refs.js) is the creator's own way into a source: a reader keeps only where it came from.
-  // The step a card came from is the creator's private roadmap state (roadmap-privacy.js).
-  block = publicRoadmapCard(withSharedSourceRef(publicExplainBack(block)));
+  block = withSharedSourceRef(publicExplainBack(block));
   const drop = [...EVERY_CARD, ...(LEARNER[block.type] || [])];
   if (!drop.some(key => key in block)) return block;
   const copy = { ...block };

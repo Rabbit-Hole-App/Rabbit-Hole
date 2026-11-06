@@ -36,10 +36,7 @@
       { "name": "ANIMATION_JOBS", "class_name": "AnimationJobs" },
       // /whiteboard jobs, one object per canvas (control-plane/src/whiteboard-job.js, roadmap W0): a stub that answers 404 until W1. Stays bound
       // when /whiteboard is switched off: saved results and in-flight jobs live in these objects.
-      { "name": "WHITEBOARD_JOBS", "class_name": "WhiteboardJobs" },
-      // Tutor R4 roadmap jobs, one object per learner and board (control-plane/src/roadmap/roadmap-jobs.js). Binding it enables NOTHING: every roadmap route
-      // answers 404 until ROADMAP_ENABLED is "true", which the owner's production GO sets (unset here). Stays bound when switched off: accepted work finishes.
-      { "name": "ROADMAP_JOBS", "class_name": "RoadmapJobs" }
+      { "name": "WHITEBOARD_JOBS", "class_name": "WhiteboardJobs" }
     ]
   },
   "migrations": [
@@ -53,9 +50,7 @@
     // After file-jobs-1, the last tag production has applied (served release 2de55d520c46, run 41560098167). Additive; never removed.
     { "tag": "animation-jobs-1", "new_sqlite_classes": ["AnimationJobs"] },
     // Not yet applied by any release (the W0 binding commit, roadmap W0.4). Additive; never removed.
-    { "tag": "whiteboard-jobs-1", "new_sqlite_classes": ["WhiteboardJobs"] },
-    // Not yet applied by any release (the Tutor R4 roadmap). Additive; never removed.
-    { "tag": "roadmap-jobs-1", "new_sqlite_classes": ["RoadmapJobs"] }
+    { "tag": "whiteboard-jobs-1", "new_sqlite_classes": ["WhiteboardJobs"] }
   ],
   // dev-worker.js bundles its pages from ./dist-dev; build with the production VITE_* env into that directory.
   "assets": { "directory": "./dist-dev", "binding": "ASSETS", "run_worker_first": true },

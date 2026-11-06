@@ -50,11 +50,6 @@
       {
         "name": "IMAGE_JOBS",
         "class_name": "ImageJobs"
-      },
-      // Tutor R4 roadmap jobs, one object per learner and board (control-plane/src/roadmap/roadmap-jobs.js); routes and unsolicited work stay off unless ROADMAP_ENABLED is "true" (unset here).
-      {
-        "name": "ROADMAP_JOBS",
-        "class_name": "RoadmapJobs"
       }
     ]
   },
@@ -105,12 +100,6 @@
       "tag": "whiteboard-jobs-1",
       "new_sqlite_classes": [
         "WhiteboardJobs"
-      ]
-    },
-    {
-      "tag": "roadmap-jobs-1",
-      "new_sqlite_classes": [
-        "RoadmapJobs"
       ]
     }
   ],

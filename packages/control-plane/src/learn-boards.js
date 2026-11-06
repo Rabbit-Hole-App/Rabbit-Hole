@@ -23,7 +23,6 @@ import { boardFileLimit, formatBytes } from '../../web/src/file-capabilities.js'
 import { retainedFileSources } from '../../web/src/file-context-manifest.js';
 import { linkAccess, sharedState } from './shared-privacy.js';
 import { publicExplainBack } from '../../web/src/explain-back-private.js';
-import { publicRoadmapCard } from './roadmap/roadmap-privacy.js';
 import { fileRefSources, fileRefStatements, inheritFileRefs } from './file-refs.js';
 import { sourceRefCards, sourceRefStatements } from './source-refs.js';
 import { clientMismatch, uploadBody } from './upload-body.js';
@@ -488,7 +487,7 @@ export function forkState(state, canvas = null) {
   // An Explain-back card is copied as its exercise: the answer, attempts, Sketch and store binding stay with the source's
   // learner (plan 2026-10-30-explain-back.md section 9), even in the owner's own duplicate.
   if (out.blocks) out.blocks = out.blocks.map(block => {
-    block = publicRoadmapCard(publicExplainBack(block)); // a copy keeps the content, never the roadmap step relationship
+    block = publicExplainBack(block);
     if (block?.type !== 'cad') return block;
     const { jobId, modelId, manifestUrl, proposedRevisionId, ...copy } = block;
     return { ...copy, cadDetached: true, status: copy.manifest ? 'ready' : 'failed' };

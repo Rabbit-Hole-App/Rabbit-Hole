@@ -82,15 +82,6 @@ export const LEARN_TASKS = Object.freeze({
   // 8,000 output tokens (owner try, 2026-11-05): a 60 s scene with a 15-point graph, text, arrows and four beats hit 4,000 before its tool call
   // finished (output_limit). The job's worst case (whiteboard-policy.js whiteboardReservation) follows this value: 320,000 micro-USD a call.
   whiteboard_author: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', effort: 'medium', toolChoice: 'auto (exactly one tool call)', maxTokens: 8000 }),
-  // Tutor R4 roadmap roles (docs/features/explain-on-canvas/contracts/planning.md 2; v1.4 6.1), all platform-funded under withSystemUsage, one tool each on tool_choice auto
-  // (Opus 5.5 400s on a forced tool with thinking off). The limits are ROADMAP_LIMITS.maxTokens (roadmap-policy.js). roadmap_proposal is NOT registered: R4 composes a proposal
-  // from the validated plan step with no model call (roadmap-compose.js); the later R5/R6 change adds it. Cards use the existing `artifact` task.
-  roadmap_subject: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 1000 }),
-  roadmap_draft: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 12000 }),
-  roadmap_revise: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 12000 }),
-  roadmap_grounding_check: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 1500 }),
-  roadmap_grounding_escalation: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 }),
-  roadmap_safety_adjudicate: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 1500 }),
   // Slash-command cards (/api/learn/artifact).
   artifact: Object.freeze({ provider: 'plan', model: ASK_MODELS.auto, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'any', maxTokens: 4000 }),
   // The whiteboard (/api/learn/board): one model for plan, draft and review.

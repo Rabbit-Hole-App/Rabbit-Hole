@@ -63,13 +63,11 @@ const notProvisioned = (env, id) => !!env && !!PROVISIONED[id] && !PROVISIONED[i
 // What a command resolves to before any model runs. `ready` is the command's
 // family (after /practice narrowing) intersected with what can be generated.
 // env is optional: the pre-auth shape check passes none and skips the provisioning test.
-// `only` (R4, trusted server code only, never read from a request): a narrower primitive set than the command's family; it can restrict, never widen,
-// and the narrowing words in args are ignored so a step titled "interactive ..." cannot empty the intersection.
-export function artifactPlan(command, { args = '', selection = null } = {}, env = null, only = null) {
-  const request = learnRequest(command, { args: only ? '' : args, selection });
+export function artifactPlan(command, { args = '', selection = null } = {}, env = null) {
+  const request = learnRequest(command, { args, selection });
   if (request.deterministic) return { result: 'direct', action: request.action };
   if (!request.allowedPrimitives) return { result: 'not_artifact', error: `/${command} is answered in chat, not as an artifact.` };
-  const ready = (only ? request.allowedPrimitives.filter(id => only.includes(id)) : request.allowedPrimitives).filter(id => isReady(id) && !PRIMITIVES[id].direct && !notProvisioned(env, id)); // a direct primitive is never a model-written card
+  const ready = request.allowedPrimitives.filter(id => isReady(id) && !PRIMITIVES[id].direct && !notProvisioned(env, id)); // a direct primitive is never a model-written card
   if (!ready.length) {
     const blocked = request.allowedPrimitives.find(id => isReady(id) && notProvisioned(env, id));
     const reason = blocked ? PROVISIONED[blocked][1] : request.allowedPrimitives.map(id => PRIMITIVES[id]?.unavailable).find(Boolean);
@@ -78,10 +76,8 @@ export function artifactPlan(command, { args = '', selection = null } = {}, env 
   return { request, ready };
 }
 
-export async function generateArtifact(env, input, { callModel: baseCall = loggedModel('artifact', planModel), only = null, systemSuffix = '' } = {}) {
-  // R4 trusted options: `only` restricts the primitives offered, `systemSuffix` is appended to the system prompt of every call (initial and repair).
-  const callModel = systemSuffix ? (e, body, model, org) => baseCall(e, { ...body, system: `${body.system}\n${systemSuffix}` }, model, org) : baseCall;
-  const plan = artifactPlan(input.command, input, env, only);
+export async function generateArtifact(env, input, { callModel = loggedModel('artifact', planModel) } = {}) {
+  const plan = artifactPlan(input.command, input, env);
   if (plan.result) return plan;
   const { request, ready } = plan;
   const tools = [...ready.map(id => ({
