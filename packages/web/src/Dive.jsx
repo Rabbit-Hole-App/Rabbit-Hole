@@ -7,11 +7,10 @@ import { createContext, useCallback, useEffect, useLayoutEffect, useRef, useStat
 import { excerptSeed } from './pdf-excerpt.js';
 import { GripHorizontal, Trash2 } from 'lucide-react';
 import { api, navigate } from './api.js';
-import { Button, ConfirmDialog, Tip, toast } from './ui.jsx';
+import { ConfirmDialog, Tip, toast } from './ui.jsx';
 import { deviceId } from './home/canvas-local.js';
 import { resolveTarget } from './learn-target.js';
 import { claimChord } from './shortcut-owner.js';
-import { markGuidedEntry } from './learn-opening.js';
 import { anchorBlock, clampSpot, diveRecord, discardHole, dropPending, holeHref, holeRows, keepMapSpot, keepPending, levelHref, mapSpot, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
 
 // The Rabbit Hole footer row and stacked layers on an originating card or group, read by the canvas's chrome.
@@ -63,15 +62,13 @@ function setDraft(text) {
 
 // journeyContext(block) (LP1 Task 14): the live journey's context for a hole from that block (LearnJourney.jsx
 // journeyDiveContext), or null; it rides in the dive record beside origin.
-// entryControls(): the Tutor controls the learner made a new hole under (owner 4a guided entry), or null.
-export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onTitle, referent = () => '', journeyContext = () => null, entryControls = () => null }) {
+export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onTitle, referent = () => '', journeyContext = () => null }) {
   const holeRef = useRef(hole);
   const [persisted, setPersisted] = useState(false);
   const pending = !!hole && !persisted;
   const here = hole ? { app: hole.name, board: 'main' } : { app: app.name, board };
   const [tree, setTree] = useState(null);
   const [error, setError] = useState('');
-  const [suggestion, setSuggestion] = useState(null);
   const stateRef = useRef(canvasState); stateRef.current = canvasState;
   const treeRef = useRef(tree); treeRef.current = tree;
 
@@ -98,8 +95,6 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
       ...(excerptSeed(block, here.app) ? { seed: excerptSeed(block, here.app) } : {}),
       dive: diveRecord({ name, title, via, parent: here, target: resolveTarget(block), block, view: canvasApi.current?.getView?.(), question: draft.startsWith('/') ? '' : draft, level: current.path.length, journey: journeyContext(block) }),
     });
-    // The learner made this hole: its one opening may run there (owner 4a); a later reload or reopen finds no mark.
-    markGuidedEntry(sessionStorage, name, entryControls());
     // ponytail: the canvas saves 400ms after a change and an unmount drops the timer, so a new
     // anchor card waits for that save before the page leaves. Flush on unmount if this ever races.
     if (anchored) setTimeout(() => navigate(holeHref(here, name)), 600); else navigate(holeHref(here, name));
@@ -228,22 +223,9 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
   // The kept hole open now (not the root, not a pending one): what the empty canvas's Delete Rabbit Hole deletes.
   const current = !pending && tree?.path.length > 1 ? tree.path.at(-1) : null;
 
-  // The Tutor's suggested dive (later): window.dispatchEvent(new CustomEvent('small:dive-suggest', { detail: { blockId, topic } })).
-  // With a blockId the card is the origin; without one a topic anchor card is made on confirm.
-  useEffect(() => {
-    const suggest = event => setSuggestion(event.detail?.topic ? { blockId: event.detail.blockId || null, topic: String(event.detail.topic) } : null);
-    window.addEventListener('small:dive-suggest', suggest);
-    return () => window.removeEventListener('small:dive-suggest', suggest);
-  }, []);
-  const acceptSuggestion = () => {
-    const { blockId, topic } = suggestion;
-    setSuggestion(null);
-    if (blockId) diveRef.current(topic, 'tutor_confirmed', { id: blockId, title: topic }); else diveFromTopic(topic, 'tutor_confirmed');
-  };
-
   const portals = Object.fromEntries(children.map(child => [child.origin_block_id, { name: child.name, title: child.title, pending: !!child.pending }]));
   return {
-    tree, pending, error, confirm, suggestion, diveFromTopic,
+    tree, pending, error, confirm, diveFromTopic,
     run: args => dive(args, 'learner_slash'),
     // Opening a card (double-click, Enter, its Open pill: card-open.js) or double-clicking a group goes down its hole,
     // making it first when it has none; `via` records which.
@@ -284,7 +266,6 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
       </span>}
       confirmLabel="Yes, delete"
       onCancel={() => { const { back } = confirm; setConfirm(null); if (back?.isConnected) back.focus({ preventScroll: true }); }} onConfirm={doDelete} />,
-    suggestionCard: suggestion && <DiveSuggestion topic={suggestion.topic} onDive={acceptSuggestion} onKeep={() => setSuggestion(null)} />,
   };
 }
 
@@ -448,16 +429,5 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
       )}
       </div>
     </nav>
-  );
-}
-
-// The agent's suggestion, anchored to one card: dive, or keep it here. Structure only in v1.
-export function DiveSuggestion({ topic, onDive, onKeep }) {
-  return (
-    <div data-dive-suggestion role="group" aria-label="Suggested Rabbit Hole" className="flex flex-wrap items-center gap-2 rounded-xl border border-hole/25 bg-white px-3 py-2 text-sm shadow-md">
-      <span className="text-ink-2">This needs <span className="font-medium text-ink">{topic}</span> first.</span>
-      <Button size="sm" variant="secondary" onClick={onDive}>Go down a Rabbit Hole</Button>
-      <Button size="sm" variant="ghost" onClick={onKeep}>Keep it on this canvas</Button>
-    </div>
   );
 }

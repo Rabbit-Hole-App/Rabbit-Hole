@@ -1,5 +1,15 @@
 # Coaching: product, ideas, tasks, and results
 
+### Browser Tutor off (Tutor cleanup P2, 2026-11-05)
+
+The browser-owned Tutor turn pipeline is gone (plan: `cleanup-v0.4`, phase P2). Every Chat turn in Auto, Ask and Tutor mode posts
+to `/api/learn/ask`. What changed in the Coaching UI: the switch beside Tutor mode is labelled **Auto-suggest** (it still reads
+and writes the per-canvas `learn_coaching_state.tutor_enabled`); a Rabbit Hole sends no automatic opening question and shows no
+waiting-opening prompt or dive suggestion card; a Next Steps hook click is an ordinary Chat turn with the hook's sentence; the
+composer mic shows its paused state without a Tutor. Unchanged: the static entry card, the status line, Progress and its next
+activity, the codebase activities, goals and criteria. Verification status: unit tests and the web build pass locally; the browser
+checks named in the phase receipt run in CI or on the owner's Windows launcher, not in this change's author session.
+
 ### CAD isolated dev candidate (2026-10-17)
 
 The existing Chat and Ctrl+K command pickers expose CAD generation and a saved

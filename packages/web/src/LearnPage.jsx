@@ -83,7 +83,7 @@ import { useCanvasLinks } from './LinksPanel.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
 import { ChatWorkspaceProvider, TocWorkspace, useChatWorkspace } from './chat-workspace.jsx';
 import { effectiveControls } from './learn-coaching-client.js';
-import { canCoach, mayRun } from './learn-coaching-contract.js';
+import { canCoach } from './learn-coaching-contract.js';
 import { canvasContextNow } from './chat-canvas-context.js';
 import { MessageCircle, RotateCw } from 'lucide-react';
 import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy, docSaved } from './canvas-doc.js';
@@ -104,7 +104,6 @@ import { architectureLesson, sampleCourse } from './learn-preview.js';
 import { BOARDS, BOARD_SEED_VERSIONS } from './demo-scenes.js';
 import { DiveNavigator, DivePortals, holeApp, useDive, usePendingHole } from './Dive.jsx';
 import { TitleHoles } from './TitleHoles.jsx';
-import { canvasRepository, useTutor } from './LearnTutor.jsx';
 import { useNextSteps } from './LearnNextSteps.jsx';
 import LearnProgress from './LearnProgress.jsx';
 import { explainMaterial } from './learn-coaching-materials.js';
@@ -1300,36 +1299,17 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     openSearch: ({ source, query, origin }) => openSourceFinder({ source, query, origin }),
     sendTelemetry: rows => { apiFetch('/api/learn/inline/telemetry', { method: 'POST', body: JSON.stringify({ app: app.name, ...(askScope.pending ? { pending: askScope.pending } : {}), rows }) }).catch(() => {}); },
   } : null;
-  // The board revision the server last answered (boardVersion below, mirrored for render): Tutor decision telemetry only
-  // (Professor Next Steps contract §1.7, identity.canvas_version).
-  const [canvasVersion, setCanvasVersion] = useState(null);
   // Graded canvas answers so far: a Professor Next Steps basis trigger (contract §2.3), bumped as gradeCanvasAnswer resolves.
   const [graded, setGraded] = useState(0);
   // /dive: nested Rabbit Holes from the selected card (docs/features/dive-v1.md). A hole opened on an active journey
   // carries its journey context (LP1 Task 14); `journey` (below) is read when the dive starts, not during render.
   // ponytail: a hole inside a journey hole carries no journey (the hole board has no live journey of its own); hand the
   // record's journey down when nested journey holes need their cause too.
-  const dive = useDive({ app, board: boardName, hole, canvasApi, canvasState, baseFor: name => `small.adaptive-canvas:${app.org}:${app.email || app.owner_email}:${name}`, onTitle: title => saveTitle(title), referent: () => exchangesRef.current.at(-1)?.question || '', journeyContext: block => journeyDiveContext(journey.journey, journey.path, block), entryControls: () => (chat?.coaching ? effectiveControls(chat.coaching, chat.thread) : null) });
+  const dive = useDive({ app, board: boardName, hole, canvasApi, canvasState, baseFor: name => `small.adaptive-canvas:${app.org}:${app.email || app.owner_email}:${name}`, onTitle: title => saveTitle(title), referent: () => exchangesRef.current.at(-1)?.question || '', journeyContext: block => journeyDiveContext(journey.journey, journey.path, block) });
   // Learning journeys (LearnJourney.jsx) on Learn canvases: its tray sits in the Chat composer, and a broad intent starts
   // one while the board has none. Not on repository apps (the route refuses them; the supplied nanoGPT course is one) nor
   // on a pending hole, which has no canvas row yet.
   const journey = useJourney({ app, board: boardName, access: askScope, canvasApi, enabled: learnPreview && isCanvas && !hole });
-  // Tutor v1 on the NanoGPT Attention slice and its holes (LearnTutor.jsx).
-  // The composer is the Tutor on a registered course with a Tutor (learn-tutor-domains.js; the supplied NanoGPT course,
-  // owner 2026-10-04) when this is the app's own canvas, and in the Rabbit Holes under it. On a
-  // canvas with a live journey it is Tutor v2 with the journey domain, for typed and voice turns and the follow-ups typed
-  // in a canvas block (renderBlockComposer), with that block as the target (LP1 Task 12, D1, D6).
-  // repository: a detached repository source is honoured by the Tutor's handoff too, as by Learn chat (contract §4.7.2).
-  // ponytail: no openResearch until a Home/Library Research entry can take a seeded request; until then the Tutor offers no
-  // Research this (contract §4.5).
-  // Q5 (integrator ruling, owner 3a): the Tutor's proactive actions read the learner's current controls when a turn is planned
-  // and again before anything applies (learn-tutor.js heldActions). A canvas without coaching state coaches nothing on its own.
-  // A turn is the learner's own interaction (typed, spoken in Voice Mode or in a card's composer), so Chat counts as open, as
-  // the hooks' allowed reads it below.
-  const coachNow = useRef(null);
-  coachNow.current = kind => !!chat?.coaching && mayRun(kind, effectiveControls(chat.coaching, chat.thread), { chatOpen: true, ready: ['ready', 'local'].includes(chat.coaching.status) });
-  const coaching = useCallback(kind => coachNow.current(kind), []);
-  const tutor = useTutor({ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository(app), describe: describeBlock, canvasContext, coaching, startExplain: explainLatest });
   // Professor Next Steps (docs/features/professor-next-steps.md §1.7): the hooks mount only with Rabbit Hole on and a Chat
   // composer, never on a review board; a click opens Chat and goes through its AskPanel (nextStepRef, chatAskProps).
   const nextStepsHere = learnPreview && (app.hosting !== 'aws' || !!app.app_chat) && !(reviewTools && board);
@@ -1341,9 +1321,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // The board path whose saved board the canvas holds: the server's copy may replace this browser's (canvasEpoch) when
   // the board GET lands, so until then the canvas may be an empty stand-in.
   const [restoredBoard, setRestoredBoard] = useState(null);
-  // Voice Mode wherever the Tutor is (docs/features/voice-tutor-mvp.md §6b): the Chat composer's mic, the left caption.
+  // Voice Mode (docs/features/voice-tutor-mvp.md §6b): the Chat composer's mic, paused without a Tutor (LearnVoice.jsx).
   // A selected card stays the context after a voice turn too, as after a typed one (ask.jsx); a region or group rides once.
-  const voice = useVoiceSession({ tutor, app, access: askScope, targetId: askTarget?.id, onTargetUsed: () => { if (!askTarget?.card) clearAskTarget(); } });
+  const voice = useVoiceSession({ app, access: askScope, targetId: askTarget?.id, onTargetUsed: () => { if (!askTarget?.card) clearAskTarget(); } });
   const voiceOn = !!voice && voice.state !== 'off';
   const boardStorageKey = board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`;
   const boardPath = `/api/learn/boards/${encodeURIComponent(app.name)}/${encodeURIComponent(boardName)}`;
@@ -1563,11 +1543,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const hasLocal = hasLocalContent(storage, { ink: boardStorageKey, chat: chatKey });
       if (!storage || blockedStorage.includes('localStorage')) toast(UNKEPT, { tone: 'error' });
       if (data.exists === false) {
-        boardVersion.current = null; setCanvasVersion(null);
+        boardVersion.current = null;
         if (hasLocal) pushBoard(null, { now: true });
         return;
       }
-      boardVersion.current = data.version; setCanvasVersion(data.version);
+      boardVersion.current = data.version;
       boardSynced.current = boardText(data.state);
       const mine = readBoardVersion(storage, versionKey);
       if (!unreadable && mine !== null && data.version <= mine) {
@@ -1694,7 +1674,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     setBoardChars(text.length);
     if (text !== boardSynced.current) {
       const saved = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state, version: boardVersion.current ?? 0 }) });
-      boardVersion.current = saved.version; setCanvasVersion(saved.version);
+      boardVersion.current = saved.version;
       if (saved.board_id) { setCommentBoard(saved.board_id); commentBoardRef.current = saved.board_id; }
       boardSynced.current = text;
       // The comments follow the saved board (owner decision 2026-10-23): useCanvasComments knows the server now has it.
@@ -1818,7 +1798,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const data = await api(`${path}/share`, { method: 'POST', body: JSON.stringify({ ...next, state: boardSnapshot() }) });
       if (shareFor.current !== path) return;
       track('rh_share_changed', { access: shareAccess(data.sharing) });
-      boardVersion.current = data.version; setCanvasVersion(data.version);
+      boardVersion.current = data.version;
       setSharing(data.sharing);
       // Sharing on: the server gets this browser's board as it is now, through the board push queue (review round 2), so
       // it never races a queued PUT: it reads the version the one before it wrote and writes its own before the next runs.
@@ -2345,7 +2325,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // carried rides on the Chat's AskPanel (ChatPane, A1 spreads these): the / commands, the Tutor, the journey's starter and tray,
   // Voice Mode, the Next Steps hook sends and the selected card's chip. Its answers never land on the canvas by themselves (no
   // onExchange): Add as card is Lane B's footer, through the provider's canvasOps.
-  const chatAskProps = { slash: learnSlash, tutor: tutor.active ? tutor : null, journey, journeyStarter: journey.journey ? null : journey.start, journeySetup: inJourneySetup(journey.journey), tray: journey.trayProps, voice, nextStepRef: nextStepSend, canvasTarget: askTarget, onClearCanvasTarget: clearAskTarget };
+  // ponytail: journeyStarter null keeps a broad Chat request from starting a journey, as the plain-canvas Tutor did; journeys go in P4.
+  const chatAskProps = { slash: learnSlash, journey, journeyStarter: null, journeySetup: inJourneySetup(journey.journey), tray: journey.trayProps, voice, nextStepRef: nextStepSend, canvasTarget: askTarget, onClearCanvasTarget: clearAskTarget };
   const [titleDraft, setTitleDraft] = useState(null); // non-null only while the title is focused
   // Renaming a canvas from the top bar saves it on the server through the Rabbit Hole map's rename
   // (Dive.jsx), so the map, Home, Library and the placeholder follow; that rename calls saveTitle back.
@@ -2531,8 +2512,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         {/* Study's reference pane: a sibling placed beside the frame (the frame only gets a margin), so the canvas and its notebook
             iframe never move to another parent. */}
         {study.open && <StudyPane study={study} canvasApi={canvasApi} canvasFrame={canvasFrame} canvasState={canvasState} ready={restoredBoard === boardPath} />}
-        <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className={OWNER_CANVAS} style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={<CanvasChromeLoading feedback top={48} study={study} />}><SearchContentProvider key={searchScope} registry={canvasSearch.registry}><DivePortals.Provider value={dive.portals}><NextStepsHost on={nextStepsHere} coaching={hooksCoaching} tutor={tutor} canvasApi={canvasApi} canvasState={canvasState} record={dive.tree?.dive || null} liveTitle={dive.tree?.path?.at(-1)?.title ?? app.title ?? null} recordPending={/^canvas-[a-f0-9]{8}$/.test(app.name) && !dive.tree} access={askScope} title={app.title || ''} graded={graded} describe={describeBlock} repositoryCommit={repository?.commit || null} shown={canvasState.curious !== false}>{steps => <ExplainBackService.Provider value={explainBack}><AnimationBoard.Provider value={animationBoard}><AdaptiveCanvas key={canvasEpoch} {...comments.canvasProps} leftRail={voiceOn ? <TutorCaption caption={voice.caption} state={voice.state} extras={tutor.extras} /> : null}
-          hooks={steps ? <NextStepsCard steps={steps} onPick={(step, hook) => (step.section ? journey?.nextSection?.() : (chatRef.current?.panels.openChat(), nextStepSend.current?.(step, hook.hook)))} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} refLinks={refLinks} onLinkCanvas={setRefPick} onPinForStudy={study.pinCard} study={study} docView={docView} docReady={restoredBoard === boardPath} docError={restoredBoard === boardPath && sharing?.unavailable ? sharing.unavailable : null} onDocRetry={() => setBoardLoad(load => load + 1)} onDocDirty={() => setSaveState(previous => (previous?.state === 'error' ? previous : { state: 'saving' }))} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => openSourceFinder({ source })} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={journey.path ? 52 : (!panelOpen && canvasOutline.length ? 52 : 0)} storageKey={boardStorageKey} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} tutor={tutor.active ? tutor : null} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block" autoFocus /> : null} /></AnimationBoard.Provider></ExplainBackService.Provider>}</NextStepsHost></DivePortals.Provider></SearchContentProvider></Suspense>{/* The journey's Adaptive Contents Rail (§8, D5): inside the canvas frame, so it stays beside the Learn agent chat panel; pinned open while the path is reviewed. A materialized section frames its heading, any other entry opens its purpose. */}{journey.path && <ContentsRail placement="canvas" entries={pathEntries(journey.path, journey.prevPath).map(entry => ({ ...entry, open: entry.id === openEntry }))} pinned={journey.journey?.state === 'path_review'} empty={canvasEmpty(canvasState, exchanges)} onOpen={entry => (entry.heading_block_id ? canvasApi.current?.showSection(entry.heading_block_id) : setOpenEntry(id => (id === entry.id ? null : entry.id)))} />}{dive.emptyHint}{dive.suggestionCard && !tutor.active && <div className="pointer-events-none absolute inset-x-0 bottom-28 z-30 flex justify-center px-4"><div className="pointer-events-auto">{dive.suggestionCard}</div></div>}{dive.confirmDialog}{refPick && <CanvasRefPicker exclude={commentBoard} onClose={() => setRefPick(null)}
+        <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className={OWNER_CANVAS} style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={<CanvasChromeLoading feedback top={48} study={study} />}><SearchContentProvider key={searchScope} registry={canvasSearch.registry}><DivePortals.Provider value={dive.portals}><NextStepsHost on={nextStepsHere} coaching={hooksCoaching} canvasApi={canvasApi} canvasState={canvasState} record={dive.tree?.dive || null} liveTitle={dive.tree?.path?.at(-1)?.title ?? app.title ?? null} recordPending={/^canvas-[a-f0-9]{8}$/.test(app.name) && !dive.tree} access={askScope} title={app.title || ''} graded={graded} describe={describeBlock} repositoryCommit={repository?.commit || null} shown={canvasState.curious !== false}>{steps => <ExplainBackService.Provider value={explainBack}><AnimationBoard.Provider value={animationBoard}><AdaptiveCanvas key={canvasEpoch} {...comments.canvasProps} leftRail={voiceOn ? <TutorCaption caption={voice.caption} state={voice.state} /> : null}
+          hooks={steps ? <NextStepsCard steps={steps} onPick={(step, hook) => (step.section ? journey?.nextSection?.() : (chatRef.current?.panels.openChat(), nextStepSend.current?.(step, hook.hook)))} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} refLinks={refLinks} onLinkCanvas={setRefPick} onPinForStudy={study.pinCard} study={study} docView={docView} docReady={restoredBoard === boardPath} docError={restoredBoard === boardPath && sharing?.unavailable ? sharing.unavailable : null} onDocRetry={() => setBoardLoad(load => load + 1)} onDocDirty={() => setSaveState(previous => (previous?.state === 'error' ? previous : { state: 'saving' }))} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => openSourceFinder({ source })} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={journey.path ? 52 : (!panelOpen && canvasOutline.length ? 52 : 0)} storageKey={boardStorageKey} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} tutor={tutor.active ? tutor : null} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block" autoFocus /> : null} /></AnimationBoard.Provider></ExplainBackService.Provider>}</NextStepsHost></DivePortals.Provider></SearchContentProvider></Suspense>{/* The journey's Adaptive Contents Rail (§8, D5): inside the canvas frame, so it stays beside the Learn agent chat panel; pinned open while the path is reviewed. A materialized section frames its heading, any other entry opens its purpose. */}{journey.path && <ContentsRail placement="canvas" entries={pathEntries(journey.path, journey.prevPath).map(entry => ({ ...entry, open: entry.id === openEntry }))} pinned={journey.journey?.state === 'path_review'} empty={canvasEmpty(canvasState, exchanges)} onOpen={entry => (entry.heading_block_id ? canvasApi.current?.showSection(entry.heading_block_id) : setOpenEntry(id => (id === entry.id ? null : entry.id)))} />}{dive.emptyHint}{dive.confirmDialog}{refPick && <CanvasRefPicker exclude={commentBoard} onClose={() => setRefPick(null)}
             linked={refPick.blockId ? ((canvasApi.current?.liveRefs?.() || []).find(entry => entry.blockId === refPick.blockId)?.refs || []).map(ref => ref.target) : []}
             returnFocus={() => (refPick.blockId ? document.querySelector(`[data-block-id="${CSS.escape(refPick.blockId)}"]`) : null)}
             onPick={async canvas => {

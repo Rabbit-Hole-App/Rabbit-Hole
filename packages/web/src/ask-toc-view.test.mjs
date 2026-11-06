@@ -12,29 +12,25 @@ import { NO_REFS, TOC_VIEW, tocAskProps } from './learn-ask-target.js';
 
 const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const panel = ask.slice(ask.indexOf('export function AskPanel'));
-const CLEARED = ['canvasTarget', 'onClearCanvasTarget', 'slash', 'tray', 'voice', 'nextStepRef', 'tutor', 'boardContext'];
+const CLEARED = ['canvasTarget', 'onClearCanvasTarget', 'slash', 'tray', 'voice', 'nextStepRef', 'boardContext'];
 
-test('a TOC-view ask carries no selection, no Chat attachment and none of Chat extras; the Tutor still answers', () => {
-  const tutorAsk = () => {};
+test('a TOC-view ask carries no selection, no Chat attachment and none of Chat extras; the TOC conversation still answers', () => {
   const outline = () => [{ id: 'h1' }], onOutlineProposal = () => {};
   const props = {
     canvasTarget: { id: 'k-exp', kind: 'Explanation', title: 'Why salt melts ice', card: true, ref: { sourceId: 'card:k-exp' }, image: 'm1' },
     onClearCanvasTarget: () => {}, slash: { run: () => {} }, tray: { tray: {} }, voice: { state: 'off' }, nextStepRef: { current: null },
-    tutor: { ask: tutorAsk, extras: 'dive suggestion', opening: { key: 'o1', question: 'Start?' } }, placeholder: 'Describe your goal',
+    placeholder: 'Describe your goal',
     boardContext: { outline, onOutlineProposal, paper: { id: 'p1', page: 2 }, wiki: { title: 'Tide' }, video: { videoId: 'v1' }, image: { id: 'i1' }, preview: 'data:image/png;base64,' },
   };
   const toc = tocAskProps(props);
   for (const key of ['canvasTarget', 'onClearCanvasTarget', 'slash', 'tray', 'voice', 'nextStepRef']) assert.equal(toc[key], null, key);
-  assert.equal(toc.tutor.ask, tutorAsk, 'the Tutor still answers the TOC conversation');
-  assert.equal(toc.tutor.extras, null, 'no suggestion chips or suggested Rabbit Hole');
-  assert.equal(toc.tutor.opening, null, 'no opening question sent into the TOC thread');
   for (const key of ['paper', 'wiki', 'video', 'image', 'preview']) assert.equal(toc.boardContext[key], null, `no Chat attachment: boardContext.${key}`);
   assert.equal(toc.boardContext.outline, outline, 'the current outline rides');
   assert.equal(toc.boardContext.onOutlineProposal, onOutlineProposal, 'and its proposal is applied');
   assert.equal(toc.placeholder, 'Describe your goal', 'everything else passes through');
   assert.equal(props.canvasTarget.id, 'k-exp', 'the Chat props are not changed');
   assert.equal(props.boardContext.paper.id, 'p1');
-  assert.equal(tocAskProps({ tutor: null, boardContext: null }).boardContext, null);
+  assert.equal(tocAskProps({ boardContext: null }).boardContext, null);
   // The request: canvas_target and the image come only from the target, the paper, article, video and image contexts only from
   // boardContext, all null in the TOC view; the code refs are NO_REFS.
   assert.match(panel, /const target = keepDraft \? null : canvasTarget; \/\/ selected lesson block riding as context/); // keepDraft: Ctrl+K's turn (ctrlk-handoff.test.mjs)
@@ -74,7 +70,6 @@ test('every data- attribute AskPanel renders is listed as shown or hidden in the
   assert.match(panel, /\{!tocView && boardContext\?\.preview && <div className="relative mb-2 w-28" data-canvas-attachment>/);
   assert.match(panel, /\{!tocView && repository && !codebase && repositoryContext\?\.label && /);
   assert.match(panel, /\{!tocView && atHits\.length > 0 && \(/);
-  assert.match(panel, /\{tutor\?\.extras && !voiceOn && <div data-tutor-extras/);
   assert.match(panel, /\{tray\?\.tray && <TutorPromptTray/);
   assert.match(panel, /if \(nextStepRef\) nextStepRef\.current = sendStep;/);
   assert.match(panel, /stacked=\{!!chat\} tocView=\{tocView\}/);

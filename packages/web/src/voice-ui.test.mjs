@@ -142,8 +142,6 @@ test('VOICE-08: a small lower-left window shows only the reply being spoken now,
   assert.match(canvas, /\{leftRail && presenting === null && <div data-voice-rail className="relative z-20 w-0 shrink-0"\n\s+onDragOver=\{event => event\.preventDefault\(\)\} onDrop=\{event => event\.preventDefault\(\)\}>\n\s+<div data-left-stack className=\{`absolute bottom-\[calc\(var\(--chrome-left,0px\)\+0\.75rem\)\] \$\{toolSide === 'left' \? 'left-24' : 'left-3'\} flex w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] flex-col items-start gap-2 \[&>\[data-tutor-caption\]\]:relative \[&>\[data-tutor-caption\]\]:inset-auto`\}>\{leftRail\}<\/div>\n\s+<\/div>\}\n\s+<div ref=\{surface\} data-canvas-surface/);
   // Owner, 2026-10-22: the tools column floats over the surface at the left (no gutter), so the stack starts right of it.
   assert.match(canvas, /data-tool-gutter[\s\S]*?toolSide === 'left' \? 'left-0 /);
-  // While voice is on, tutor.extras live in the caption, not the chat sheet.
-  assert.ok(ask.includes('{tutor?.extras && !voiceOn && <div data-tutor-extras'));
   assert.ok(ask.includes("{(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role=\"alert\" data-voice-error "));
 });
 
@@ -165,15 +163,6 @@ test('the breathing ring stops under reduced motion and leaves a static ring', (
   assert.match(css, /@keyframes voice-breathe \{\n\s+from \{ transform: scale\(1\); opacity: 0\.55; \}\n\s+to \{ transform: scale\(1\.35\); opacity: 0; \}/);
   assert.match(css, /animation: voice-breathe 2s ease-in-out infinite;/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\n\s+\.voice-breathe::after, \.voice-breathe > svg \{ animation: none; \}\n\s+\.voice-breathe::after \{ transform: scale\(1\.2\); opacity: 0\.35; \}/);
-});
-
-test('a Rabbit Hole opening in Voice Mode is a voice turn, never a chat bubble (ask.jsx)', () => {
-  // The opening goes to voice.say when Voice Mode is on (or turning on after the move); send() - the chat path that
-  // draws the bubble and the typed reply - runs only when Voice Mode is off.
-  // Tutor Task 04 (owner 4a): the same steps live in sendOpening(opening), which the guided opening and its waiting prompt share.
-  const say = ask.indexOf('if ((dock || chat) && voice?.on && voice.say(opening.question, { opening: true })) return;');
-  const typed = ask.indexOf('send(opening.question, undefined, { opening: true });');
-  assert.ok(say > 0 && typed > say && ask.slice(say, typed).split('\n').length === 2, 'voice.say first; send only when it does not take the turn');
 });
 
 test('the fake Voice harness (?voice=fake) runs only in the dev/review build; production always takes the real providers', () => {

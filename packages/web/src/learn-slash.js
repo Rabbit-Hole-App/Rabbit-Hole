@@ -349,26 +349,3 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
 // What failed, shown under the notice (owner, 2026-10-21): the validator's words, or the verifier's first finding without its
 // numbering (learn-artifact.js sceneVerdict lists "1) ... 2) ...").
 const failedCheck = error => (error ? String(error).replace(/^A check of the card found statements that are false: 1\) /, '').split(/ 2\) /)[0].slice(0, 400) : null);
-
-// A Tutor hook turn's create_material actions (contract §2.5), in the plan's order, each run by runLearnCommand exactly as
-// if typed: no second generator. A paid card answers with its Generate / Not now proposal; offer(proposal) shows it and
-// resolves once the learner has answered, and the next proposal waits for that, so proposals come one at a time while
-// free cards keep arriving. deps: runLearnCommand's { app, canvas, post, openSearch, target } (target: the turn's selected card, as
-// a typed command's; null on a hook click). onNotice(notice) gets each command's
-// notice as soon as it answers, never held behind a proposal. Resolves to each command's answer once every proposal is
-// answered; a command that throws answers an error notice and the next one still runs. deps.promptUsed: the learner's words for
-// the turn (null on a hook click), kept on each card instead of the model-written line.
-// ponytail: one command at a time (each waits for its card); post them together with ordered inserts if latency matters.
-export async function runMaterials(actions, { offer, onNotice = () => {}, promptUsed = null, ...deps }) {
-  const results = [];
-  let asked = Promise.resolve();
-  for (const action of actions.filter(entry => entry.type === 'create_material')) {
-    const result = await runLearnCommand(`/${typedOf(action.command)} ${action.request}`, { target: null, ...deps, promptUsed, internal: true })
-      .catch(error => ({ notice: { tone: 'error', text: `/${action.command} could not be made${error?.message ? `: ${error.message}` : '.'} Try again.` } }));
-    results.push(result);
-    if (result.notice) onNotice(result.notice);
-    if (result.proposal) asked = asked.then(() => offer(result.proposal));
-  }
-  await asked;
-  return results;
-}
