@@ -80,8 +80,6 @@ try {
     assert.deepEqual(order.slice(order.indexOf('accept')).filter(x => ['accept', 'deliver', 'ack'].includes(x)).slice(0, 3), ['accept', 'deliver', 'ack']);
     assert.equal(await cards(page).count(), 1);
     assert.equal(server.count('/accept'), 1);
-    const ack = server.calls.find(c => c.method === 'POST' && c.path.endsWith('/ack'));
-    assert.ok(Number.isInteger(ack.body.boardRevision) && ack.body.boardRevision >= 1, `the acknowledgement names the saved board revision, got ${ack.body.boardRevision}`);
     await page.screenshot({ path: `${SHOTS}/3-delivered.png` });
   });
   await step('reload and a second device show the same single card and no second purchase', async () => {

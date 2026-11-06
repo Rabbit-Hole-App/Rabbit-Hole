@@ -102,7 +102,6 @@ import { DiveNavigator, DivePortals, holeApp, useDive, usePendingHole } from './
 import { TitleHoles } from './TitleHoles.jsx';
 import { useNextSteps } from './LearnNextSteps.jsx';
 import { useRoadmap } from './use-roadmap.js';
-import { readyMarkdownSources } from './roadmap-client.js';
 import { RoadmapCanvas, RoadmapChat, RoadmapToc } from './RoadmapSurfaces.jsx';
 import LearnProgress from './LearnProgress.jsx';
 import { CardFeedbackScope } from './CardFeedback.jsx';
@@ -801,7 +800,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // in this browser for the board's server copy - no code runs, nothing is installed, no model is asked.
   const [imports, setImports] = useState([]); // [{ id, file, kind, at }] or [{ id, kind: 'batch', files: [{ file, kind }], at }]
   const [importState, setImportState] = useState({ error: null, busy: false });
-  const droppedMarkdown = useRef(new Set()); // R4: Markdown cards dropped this session, reported to the roadmap once stored and saved
   // Tables, workbooks, Word documents and presentations (DocImport.jsx, canvas-file-imports.md lane 2): their own checks and choices.
   const docImport = useDocImport({ canvas: () => canvasApi.current, toast });
   const nextImport = () => { setImportState({ error: null, busy: false }); setImports(queue => queue.slice(1)); };
@@ -822,7 +820,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       for (const { file, assetKey, block } of made) {
         await cacheAsset(assetKey, file);
         if (block.type === 'repo-code') insertCodeCard(chat?.canvasOps, block, at); else canvas()?.insertImported(block, at);
-        if (block.type === 'file' && block.kind === 'markdown') droppedMarkdown.current.add(block.id);
       }
       nextImport();
     } catch (problem) { setImportState({ error: problem.message, busy: false }); }
@@ -1315,19 +1312,15 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const openComments = useCallback(() => { setPanelOpen(true); setPanelTab('comments'); }, []);
   const commentsShown = panelOpen && panelTab === 'comments';
   const comments = useCanvasComments({ base: commentBoard && memberBase(commentBoard), enabled: (isCanvas || isRepository) && !hole && boardName === 'main', openPanel: openComments, canvasApi, link: commentBoard && `/c/${commentBoard}`, editor: true, shown: panelOpen && panelTab === 'comments' });
-  // Explain-on-canvas roadmap (R4): server-owned state, rendered in Chat, the ToC and over the canvas. The roadmap's source key is the
-  // server's 'file:<id>' (no revision) and the card is found by its stored fileRef.source, whose rev is the sha256 the server checks.
-  // Typing = a non-empty Chat or ToC draft; answering = a streaming answer (AskPanel reports it): an invitation waits for both.
-  // ponytail: insertCard uses the canvas's own insert (outward placement is a later follow-up).
-  const sourceBlock = key => canvasApi.current?.blocks?.().find(block => block.fileRef?.source?.id === String(key || '').replace(/^file:/, ''));
-  const composerTyping = !!(chat?.composer?.text?.trim() || chat?.toc?.composer?.text?.trim());
-  const roadmap = useRoadmap({ api, boardId: commentBoard, enabled: isCanvas && !hole && boardName === 'main' && canEditCanvas && !!commentBoard, mode: chat?.thread?.mode || 'auto', typing: composerTyping, answering: !!chat?.answering,
+  // Explain-on-canvas roadmap (R4): server-owned state, rendered in Chat, the ToC and over the canvas. ponytail: sourceBlockId maps R3's
+  // 'file:<id>' source key to the file card by fileChatRef().sourceId, and insertCard uses the canvas's own insert (outward placement and
+  // boardRevision are integration follow-ups).
+  const sourceBlock = key => canvasApi.current?.blocks?.().find(block => fileChatRef(block)?.sourceId === String(key || '').replace(/^file:/, ''));
+  const roadmap = useRoadmap({ api, boardId: commentBoard, enabled: isCanvas && !hole && boardName === 'main' && canEditCanvas && !!commentBoard, mode: chat?.thread?.mode || 'auto',
     host: { hasBlock: id => !!canvasApi.current?.blocks?.().some(block => block.id === id), insertCard: block => canvasApi.current?.insertImported({ ...block, dx: 0, dy: 0 }),
-      // The acknowledged revision is the server's board version after a save that succeeded; savedHas says that saved board holds the card.
-      persist: () => canvasApi.current?.persist?.(), boardRevision: () => boardVersion.current, savedHas: id => { try { return !!boardSynced.current && (boardFromText(boardSynced.current).blocks || []).some(block => block?.id === id); } catch { return false; } },
-      readOnly: () => !canEditCanvas, presenting: () => !!canvasStateRef.current.presenting,
+      persist: () => canvasApi.current?.persist?.(), boardRevision: () => null, readOnly: () => !canEditCanvas, presenting: () => !!canvasStateRef.current.presenting,
       focusBlock: id => id && canvasApi.current?.focusBlock(id), sourceBlockId: key => sourceBlock(key)?.id, sourceElement: key => { const id = sourceBlock(key)?.id; return id ? document.querySelector(`[data-block-id="${CSS.escape(id)}"]`) : null; },
-      sourceRev: key => sourceBlock(key)?.fileRef?.source?.rev, instruction: () => '', depth: () => chat?.settings?.depth || 'standard' } });
+      sourceRev: key => sourceBlock(key)?.fileRef?.revision, instruction: () => '', depth: () => 'standard' } });
   useEffect(() => { if (!comments.active && panelTab === 'comments') setPanelTab('chat'); }, [comments.active, panelTab]); // eslint-disable-line react-hooks/exhaustive-deps
   // Canvas references (C:/s/spec/references-plan.md): the board's links feed Search's Links results and the cards' chips; the
   // picker opens from a card's menu ({ blockId }), the empty canvas ({ point }) or Insert ({}). Same-tab link
@@ -1709,13 +1702,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     pushTimer.current = setTimeout(put, 1500);
   }, [boardPath]);
   useEffect(() => { pushBoard(); }, [exchanges, sources, pushBoard]);
-  // R4: a dropped Markdown source is ready once its stored revision is named by a board save that succeeded (roadmap-client.js readyMarkdownSources).
-  useEffect(() => {
-    if (saveState?.state !== 'saved' || !droppedMarkdown.current.size || !boardSynced.current) return;
-    let savedBlocks;
-    try { savedBlocks = boardFromText(boardSynced.current).blocks || []; } catch { return; }
-    for (const { blockId, key } of readyMarkdownSources({ pending: droppedMarkdown.current, blocks: canvasApi.current?.blocks?.() || [], savedBlocks })) { droppedMarkdown.current.delete(blockId); roadmap.sourceReady(key); }
-  }, [saveState]); // eslint-disable-line react-hooks/exhaustive-deps
   // Reload and keep my document (a 409, blocknote-canvas.md): this browser's document - its unsaved words written first -
   // is put aside, the server's newer board loads (the board GET), and the kept document goes over it as the newer edit.
   const keepMyDoc = () => {

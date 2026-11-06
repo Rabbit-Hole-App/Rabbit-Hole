@@ -7,8 +7,7 @@ import { actionKeys, canProposeNext, deliverable, idleGrouper, initialState, pil
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
 
 // host: the canvas as the page sees it.
-//   hasBlock(id) -> bool, insertCard(block) -> id, persist() -> Promise<{ ok }> (ok:false when the save failed), boardRevision() -> the saved
-//   board's revision|null, savedHas(id) -> bool (the saved board holds that card),
+//   hasBlock(id) -> bool, insertCard(block) -> id, persist() -> Promise (rejects when the save failed), boardRevision() -> number|null,
 //   readOnly() -> bool (shared view: the controller stays silent), sourceRev(key) -> sha, instruction() -> the learner's own words.
 export function createRoadmapController({ api, boardId, host, schedule = setTimeout, cancel = clearTimeout, random }) {
   let state = initialState(), timer = null, stopped = true;
@@ -66,16 +65,9 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     for (const block of plan.insert) host.insertCard(block);
     plan.cardIds.forEach(id => seen.add(id));
     if (!plan.ackRequired) return;
-    // The board save comes first. persist() resolves { ok:false } (it does not reject) when the save failed, and the revision is only
-    // real once the saved board holds the card: otherwise nothing is acknowledged, the result stays undelivered, and the next poll
-    // runs this again (the card is already on the canvas and the server hands back the same result: one card, one charge).
-    const saved = await host.persist();
-    if (saved?.ok !== true) throw Object.assign(Error('board_not_saved'), { retry: true });
+    await host.persist(); // the board save comes first; a rejected save means no acknowledgement
     for (const cardId of plan.cardIds) {
-      if (host.savedHas && !host.savedHas(cardId)) throw Object.assign(Error('board_not_saved'), { retry: true });
-      const revision = host.boardRevision?.();
-      if (!Number.isInteger(revision) || revision < 1) throw Object.assign(Error('board_not_saved'), { retry: true });
-      const send = () => call(routes.ack(state.view, result, cardId, revision, keys.for(`ack:${result.id}:${cardId}`)));
+      const send = () => call(routes.ack(state.view, result, cardId, host.boardRevision?.() ?? null, keys.for(`ack:${result.id}:${cardId}`)));
       try { applyView(await send()); } catch (error) {
         if (error?.status !== 409 || !error.data?.current) throw error;
         dispatch({ type: 'conflict', current: error.data.current }); // fresh revision, same card id, same key: one retry
