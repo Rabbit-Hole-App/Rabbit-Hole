@@ -7,6 +7,7 @@ import { createRoadmapController } from './roadmap-controller.js';
 import { anchorState, overlayPosition } from './roadmap-placement.js';
 import { chatOf, indicatorOf, invitationOf, keyboardOwned, pillOf, tabAccepts, tocOf } from './roadmap-client.js';
 import { pageKeyAllowed } from './shortcut-owner.js';
+import { isUnfinishedRoadmap } from './roadmap-contract.js';
 
 const METHODS = ['hasBlock', 'insertCard', 'persist', 'boardRevision', 'readOnly', 'sourceRev', 'instruction', 'depth'];
 const rectOf = element => { const r = element?.getBoundingClientRect?.(); return r ? { left: r.left, top: r.top, width: r.width, height: r.height } : null; };
@@ -70,7 +71,7 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto', 
   const go = useCallback(nav => { if (nav.kind === 'card') hostRef.current?.focusBlock?.(nav.cardId); else if (nav.kind === 'proposal') hostRef.current?.focusBlock?.(hostRef.current.sourceBlockId?.(live.current.pill?.sourceKey)); }, []);
 
   return {
-    state, controller, pill, toc: tocOf(state), lines: chatOf(state), invitation: invitationOf(state, { typing, answering }),
+    state, controller, pill, active: !!state.view && state.flag !== 'off' && isUnfinishedRoadmap(state.view.roadmap.state), toc: tocOf(state), lines: chatOf(state), invitation: invitationOf(state, { typing, answering }),
     indicator: indicatorOf(state, { offscreen: where.offscreen }), position: overlayPosition(geometry.anchor, surface), showOverlay: !!pill && where.visible,
     editPlan, divert, go, sourceReady: key => controller.sourceReady(key),
   };
