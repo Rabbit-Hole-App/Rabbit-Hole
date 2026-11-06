@@ -80,7 +80,7 @@ The dev window is the same with `dev` (and `parallel` is the same database). It 
 ## Recovery rules (v0.5 6.5 step 5)
 
 * Rollback below the P6a pair after the drop is not permitted: older code joins `learning_journeys`. The automatic matched rollback of the release job returns to the P6a pair and is the only supported one. The launcher text and step 3's second confirmation say so.
-* The P6b recovery branch `feat/tutor-cleanup-p6b-recovery` descends from the P6b commit, keeps the schema sources and every application file exactly as P6b has them, and only takes the `retire` tooling back to its P6a form, so a recovery release can never drop anything again and never mentions the retired tables in Worker source. A branch that does not descend from P6b fails the schema preflight (`missing ...`).
+* The P6b recovery branch `feat/tutor-cleanup-p6b-recovery` descends from the P6b commit, keeps the schema sources and every application file exactly as P6b has them, and only turns the launcher's `retire` command into a refusal (and drops the tests that ran it), so a recovery release can never drop anything again and never mentions the retired tables in Worker source. A branch that does not descend from P6b fails the schema preflight (`missing ...`).
 * A D1 Time Travel restore across the drop (`wrangler d1 time-travel restore <db> --bookmark <the release receipt's bookmark>`) is destructive and a last resort: the six tables return and the P6b build's preflight then reports them `unexpected`. It needs its own plan and an owner GO.
 * Whether Cloudflare keeps Worker versions older than the P6a pair available to `wrangler rollback` is unverified; the rule does not depend on it.
 
