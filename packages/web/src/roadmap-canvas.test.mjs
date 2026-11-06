@@ -97,3 +97,20 @@ test('the anchor is the source card, or a slab at the passage inside it; the car
   // A point anchor (no source box) keeps the old behaviour.
   assert.deepEqual(deliveredSpot({ w: 300, h: 200 }, { x: 500, y: 400 }, []), { x: 350, y: 300 });
 });
+
+test('passage links: a step with an offer points at its placeholder, a delivered one at its card, others at nothing; a source file draws only its own', async () => {
+  const { passageLinksOf, markersFor } = await import('./roadmap-canvas.js');
+  const pending = view('status-active-proposal-pending');
+  const links = passageLinksOf(pending);
+  assert.deepEqual(links.map(l => [l.stepId, l.target.kind]), [[STEP, 'proposal']], 'only the offered step has somewhere to go');
+  assert.ok(Number.isInteger(links[0].start) && links[0].end > links[0].start && links[0].sourceKey === 'file:fs_41c9e0a7d2b84f63a1c07e92');
+  const delivered = JSON.parse(JSON.stringify(view('accept-proposal-response-generating')));
+  delivered.results[0].delivery = 'delivered';
+  const cardId = delivered.results[0].slot.cardId;
+  assert.deepEqual(passageLinksOf(delivered, { hasBlock: id => id === cardId }).map(l => [l.stepId, l.target]), [[STEP, { kind: 'card', cardId }]]);
+  assert.deepEqual(passageLinksOf(delivered, { hasBlock: () => false }), [], 'a card that is not on this canvas is not linked');
+  assert.deepEqual(passageLinksOf(null), []);
+  assert.equal(markersFor(links, 'file:fs_41c9e0a7d2b84f63a1c07e92').length, 1);
+  assert.equal(markersFor(links, 'file:fs_other').length, 0);
+  assert.equal(markersFor(links, null).length, 0);
+});

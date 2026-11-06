@@ -57,3 +57,20 @@ export function planSlots(slots, cards) {
     remove: [...have.keys()].filter(id => !want.has(id)),
   };
 }
+
+// Where each step stands on its source and where its work is, for the passage icons a Markdown file card draws (source-refs.js publishRoadmapPassages). A step whose card
+// is delivered points at that card; one with an offer or work in progress points at its placeholder (a click goes there). A step with neither has no icon.
+// hasBlock(id): the card is on this canvas.
+export function passageLinksOf(view, { hasBlock = () => false } = {}) {
+  if (!view?.roadmap) return [];
+  const sourceKey = view.roadmap.scope?.source?.key ?? null, offers = new Set(canvasCardsOf(view, { hasBlock }).map(card => card.stepId));
+  const delivered = new Map((view.results || []).filter(r => r.delivery === 'delivered' && r.slot?.cardId && hasBlock(r.slot.cardId)).map(r => [r.stepId, r.slot.cardId]));
+  return (view.steps || []).flatMap(step => {
+    const start = step.passage?.start, end = step.passage?.end, key = step.sourceRef?.source?.key ?? sourceKey;
+    if (!key || !Number.isInteger(start) || !Number.isInteger(end) || end <= start) return [];
+    if (delivered.has(step.id)) return [{ stepId: step.id, sourceKey: key, start, end, target: { kind: 'card', cardId: delivered.get(step.id) } }];
+    return offers.has(step.id) ? [{ stepId: step.id, sourceKey: key, start, end, target: { kind: 'proposal' } }] : [];
+  });
+}
+// The passage icons one source card draws: the links whose source is that file.
+export const markersFor = (passages, sourceKey) => (sourceKey ? (passages || []).filter(link => link.sourceKey === sourceKey) : []);

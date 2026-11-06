@@ -80,7 +80,7 @@ test('card to passage: a PDF opens the reader at its page with the anchor; Markd
   assert.deepEqual(focused, ['file-1']);
   assert.equal(events.length, 1, 'the emphasis waits for the camera');
   waits[0]();
-  assert.deepEqual(events[1], [SOURCE_REF_EVENT, { cardId: 'file-1', key: `file:${MD}`, rev: REV, quote: QUOTE }]);
+  assert.deepEqual(events[1], [SOURCE_REF_EVENT, { cardId: 'file-1', key: `file:${MD}`, rev: REV, quote: QUOTE, anchor: { quote: QUOTE } }]); // the whole anchor rides along: a minted roadmap quote also carries its rendered form (markdown-anchor.js)
   assert.equal(viewPassage(sourceRefOf({ sourceRef: md() }), { blocks: [], focus: () => {}, emit, wait: () => {} }), 'no-card', 'the file is not on this canvas');
   assert.equal(viewPassage(sourceRefOf({ sourceRef: sharedSourceRef(md()) }), { emit }), 'unavailable');
   assert.equal(events.length, 2);
