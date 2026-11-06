@@ -11,6 +11,7 @@
 export const SOURCE_REF_ID = /^sref_[0-9a-f]{24}$/;
 export const SOURCE_KEY = /^((doc:ctx|pdf:upload):[0-9a-f]{12}|file:fs_[0-9a-f]{24})$/;
 export const SHA256 = /^[0-9a-f]{64}$/;
+import { foldedQuote, resolveFolded } from './markdown-anchor.js';
 export const STATUSES = Object.freeze(['current', 'changed', 'missing', 'unavailable']);
 export const QUOTE_LIMITS = Object.freeze({ exact: 8000, context: 500 });
 // SOURCE_REF_EVENT: View passage asks a Markdown file card to emphasize a quote. EXPLAIN_PASSAGE_EVENT: a card's Explain on a selected passage
@@ -120,7 +121,14 @@ export function resolveQuote(text, quote) {
 // revision it holds: a different revision never relocates (changed), a repeated quote without matching context never guesses.
 export function passageTarget({ text, rev, detail }) {
   if (!detail || detail.rev !== rev) return { status: 'changed' };
-  return resolveQuote(text, detail.quote);
+  return resolvePassage(text, detail.quote);
+}
+// A card's quote in the text the Markdown card shows. A passage the learner selected IS rendered text and resolves as it stands; a quote the roadmap minted from the
+// plan's passage is RAW Markdown (`## `, `**`, `[a](url)`, table pipes) that the rendered text does not contain, so when the exact quote is missing it is matched folded
+// (markdown-anchor.js: letters and digits only, syntax the renderer does not draw taken out), with its context. Repeated without matching context: ambiguous. Never guessed.
+export function resolvePassage(text, quote) {
+  const direct = resolveQuote(text, quote);
+  return direct.status === 'missing' && quote?.exact ? resolveFolded(text, foldedQuote(quote)) : direct;
 }
 
 // ---- Navigation, from the blocks on the canvas ----

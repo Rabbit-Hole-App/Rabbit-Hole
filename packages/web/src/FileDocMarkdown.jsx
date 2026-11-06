@@ -8,7 +8,7 @@ import { deleteHighlight, listHighlights, newId, putHighlight } from './pdf-high
 import { canWrite, fileScope } from './file-source-client.js';
 import { containsOffset, paintHighlights, quoteFromRange, rangeFromOffsets } from './learn-wiki-highlights.js';
 import { currentHighlights, highlightAt, markdownHighlightBody, markdownHighlightSource, placeHighlights } from './file-doc-highlights.js';
-import { EXPLAIN_PASSAGE_EVENT, PASSAGE_TEXT, SOURCE_REF_EVENT, explanationsFor, markdownDraft, passageTarget, resolveQuote } from './source-ref.js';
+import { EXPLAIN_PASSAGE_EVENT, PASSAGE_TEXT, SOURCE_REF_EVENT, explanationsFor, markdownDraft, passageTarget, resolvePassage } from './source-ref.js';
 import { focusExplanation, mintSourceRef } from './source-refs.js';
 import { api } from './api.js';
 import { useSourceRefBlocks } from './SourceRefChip.jsx';
@@ -54,20 +54,28 @@ export function MarkdownText({ block, text, children }) {
 
   // Card to passage (SourceRefChip View passage): the quote is emphasized for a moment, only on the revision the card was made from.
   // A changed file shows that instead; the passage is never searched for in other text.
+  // A passage past the part of the file drawn so far (Show more) is reached by pressing the card's own Show more for the learner, only on this explicit request and only as
+  // far as needed; a passage not in the whole drawn text is then reported missing.
+  const pendingPassage = useRef(null), passageView = useRef(null);
+  passageView.current = detail => {
+    const node = root.current;
+    if (!node) return;
+    const found = passageTarget({ text: node.textContent, rev, detail }), range = found.status === 'resolved' && rangeFromOffsets(node, found.start, found.end);
+    const more = found.status === 'missing' && scroller.current?.querySelector('[data-file-doc-more]');
+    if (more) { pendingPassage.current = detail; more.click(); return; }
+    pendingPassage.current = null;
+    if (!range) { setMessage({ text: PASSAGE_TEXT[found.status] || PASSAGE_TEXT.missing }); return; }
+    const paintKey = `srcref:${block.id}`;
+    paintHighlights(paintKey, [range]);
+    (range.startContainer.parentElement || node).scrollIntoView?.({ block: 'center' });
+    setTimeout(() => paintHighlights(paintKey, []), 2500);
+  };
   useEffect(() => {
-    const onPassage = event => {
-      const node = root.current;
-      if (event.detail?.cardId !== block.id || !node) return;
-      const found = passageTarget({ text: node.textContent, rev, detail: event.detail }), range = found.status === 'resolved' && rangeFromOffsets(node, found.start, found.end);
-      if (!range) { setMessage({ text: PASSAGE_TEXT[found.status] || PASSAGE_TEXT.missing }); return; }
-      const paintKey = `srcref:${block.id}`;
-      paintHighlights(paintKey, [range]);
-      (range.startContainer.parentElement || node).scrollIntoView?.({ block: 'center' });
-      setTimeout(() => paintHighlights(paintKey, []), 2500);
-    };
+    const onPassage = event => { if (event.detail?.cardId === block.id) passageView.current(event.detail); };
     window.addEventListener(SOURCE_REF_EVENT, onPassage);
     return () => window.removeEventListener(SOURCE_REF_EVENT, onPassage);
-  }, [block.id, rev]);
+  }, [block.id]);
+  useEffect(() => { const detail = pendingPassage.current; if (detail) requestAnimationFrame(() => passageView.current(detail)); }, [text]);
   useEffect(() => {
     if (!menu?.cardId) return undefined;
     const paintKey = `srcref-open:${block.id}`;
@@ -118,7 +126,7 @@ export function MarkdownText({ block, text, children }) {
     before.setStart(node, 0); before.setEnd(caret.startContainer, caret.startOffset);
     const offset = before.toString().length, placed = saveable ? placeHighlights(node.textContent, highlights) : [], h = highlightAt(placed, offset);
     const passage = explanationsFor(refBlocks, { key: `file:${block.fileRef?.source?.id}`, rev }).current
-      .flatMap(({ cardId, ref }) => { const span = resolveQuote(node.textContent, ref.anchor.quote); return span.status === 'resolved' && containsOffset(span, offset) ? [{ cardId, span }] : []; })[0];
+      .flatMap(({ cardId, ref }) => { const span = resolvePassage(node.textContent, ref.anchor.quote); return span.status === 'resolved' && containsOffset(span, offset) ? [{ cardId, span }] : []; })[0];
     if (!h && !passage) { setMenu(null); return; }
     const { span } = h ? placed.find(entry => entry.h === h) : passage;
     setMenu({ h: h || null, cardId: passage?.cardId ?? null, range: rangeFromOffsets(node, span.start, span.end) });
