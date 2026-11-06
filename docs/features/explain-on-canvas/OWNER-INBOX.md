@@ -3,7 +3,7 @@
 What I (Claude) need from you, what is waiting on whom, and what is already decided. Tick a box when it is resolved. Tell me in chat and I will tick it and push the update; you can also edit the file on its branch.
 
 - **Branch:** `feat/tutor-owner-inbox` on `rabbit-hole`. Path: `docs/features/explain-on-canvas/OWNER-INBOX.md`. A Desktop mirror is at `C:\Users\cyudhist\Desktop\TUTOR-OWNER-INBOX.md`.
-- **Last updated:** 2026-11-05 23:43 PST.
+- **Last updated:** 2026-11-05 23:46 PST.
 - **Rule:** I keep this file current each time a blocker appears or clears. Times are Pacific.
 
 Plans: `cleanup-v0.5.md` (cleanup), `tutor-roadmap-v1.4.md` (Tutor ladder R1-R16), `tutor-ladder-manifest.md` (who writes which file).
@@ -23,7 +23,7 @@ Paste-ready texts are in `docs/features/explain-on-canvas/contracts/decision-rec
 - [ ] **R4 learner strings S1-S30.** Approve S1-S10 and S28 now (already specified or existing). Approve S11-S25 and S29 as one bundle. You write S26-S27 (safety wording, including the personal-risk support text).
 
 ### R1 and R2 learner strings (go with their release handoffs)
-- [ ] **R1 strings:** "Rate this card"; "Good card" / "Bad card"; "Your rating was not saved. Try again."; "Your ratings of cards"; "Private to you. What you said about a card, not an assessment of what you know."; "Good cards (n)" / "Bad cards (n)".
+- [ ] **R1 strings (updated 2026-11-06 to the checklist's wording; the R1 lane is applying it):** "Understood" / "Still unclear" (thumb labels and Progress states); "Your feedback" (Progress heading); "Rate this card" (pair label); "Your rating was not saved. Try again."; "Private to you. What you said about a card, not an assessment of what you know."
 - [ ] **R2 strings:** "Depth"; "Overview" (hint: The short version: the central idea and what matters most); "Standard" (A balanced explanation); "Deep" (Thorough: reasoning, a worked example and edge cases); "Auto-suggest" (Offer suggestions without being asked, on every canvas; tooltip: Offer suggestions without being asked. Your questions are always answered.); "Could not load your Depth setting."; "Not saved: this change applies in this tab only."; "Retry".
 
 ### Cleanup P2 question
@@ -61,6 +61,7 @@ I prepare the preview, the focused-check results, the recovery branch and the ex
 - [x] `learnHandoff` enables `teach` only; the unused `research` branch is removed.
 - [x] Syllabus checks are deleted (`toc-plan-check.mjs` only after confirming nothing the ToC needs is lost).
 - [x] Covering checks are rewritten with the affected phase and executed (Windows launcher or corrected Linux tier). Your browser **try** is waived; verification is not.
+- [x] 2026-11-06: `tutor-implementation-checklist.md` is adopted as the executable companion to the roadmap (later owner decisions win). Where it still says cleanup P1-P7 are not MVP-labelled or that the narrower per-release prerequisites are not adopted, the recorded decisions below supersede it. The three finished lanes were mapped to its task IDs in the manifest and sent corrections.
 - [x] Cleanup P1-P7 (including P6a) and the whole Tutor ladder are MVP-labelled; broad CI and the broad gate are nonblocking. Focused checks, database authority and the backfill/drop order are unchanged.
 - [x] Dependencies are per release, not a blanket M0/P7 gate: R1 and R3 after P2, R2 after P4. Each release writes a short prerequisites receipt. P7 is only cleanup's closeout.
 - [x] Standing yes: push lane branches (`feat/tutor-*`, `feat/tutor-cleanup-*`) to `rabbit-hole`.
