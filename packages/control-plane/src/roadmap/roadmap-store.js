@@ -122,7 +122,7 @@ export async function recordPlan(db, access, { roadmapId, actionKey, expectedRev
   const stepIds = plan.steps.map(() => newId('st_'));
   const instruction = await db.prepare('SELECT MAX(version) AS v FROM learn_roadmap_instructions WHERE roadmap_id = ?').bind(roadmapId).first();
   return applyRoadmapAction(db, access, {
-    operation: 'record_plan', actionKey, roadmapId, expectedRevision, parts: [version, planHash], now,
+    operation: 'record_plan', actionKey, roadmapId, expectedRevision, parts: [planHash], now, // minted values (the next version) stay out of the fingerprint so a replay still matches
     guard: { sql: "(SELECT state FROM learn_roadmaps WHERE id = ?) IN ('draft', 'questioning', 'proposed', 'active', 'paused', 'completed')", binds: [roadmapId] },
     outcome: { status: 200, body: { roadmapId, planVersion: version } },
     statements: r => [
@@ -159,7 +159,7 @@ export async function offerProposal(db, access, { roadmapId, expectedRevision, a
   const last = await db.prepare('SELECT MAX(version) AS v FROM learn_step_proposals WHERE step_id = ?').bind(stepId).first();
   const version = (last?.v || 0) + 1, proposalId = newId('pr_');
   return applyRoadmapAction(db, access, {
-    operation: 'offer_proposal', actionKey, roadmapId, expectedRevision, parts: [stepId, version, contentHash], uniqueCode: 'proposal_not_pending', now,
+    operation: 'offer_proposal', actionKey, roadmapId, expectedRevision, parts: [stepId, contentHash], uniqueCode: 'proposal_not_pending', now,
     guard: { sql: "(SELECT state FROM learn_roadmaps WHERE id = ?) IN ('active', 'paused') AND (SELECT state FROM learn_roadmap_steps WHERE id = ?) IN ('planned', 'cancelled', 'incomplete')", binds: [roadmapId, stepId] },
     outcome: { status: 200, body: { proposalId, version } },
     statements: r => [
@@ -286,16 +286,17 @@ export async function acknowledgeDelivery(db, access, { roadmapId, resultId, exp
 // nothing). An eligible transient failure with its one automatic retry unused refunds the card's learner charges and puts the result back to
 // pending (the caller then dispatches the retry with retry_no + 1 and a fresh operation identity). Anything else is terminal: refund the card's
 // learner charges, mark generation failed and the step incomplete, release the card's allocation. Provider expense rows are never touched.
-export async function failCard(db, access, { roadmapId, resultId, failureClass, now = nowSeconds() }) {
+export async function failCard(db, access, { roadmapId, resultId, failureClass, retryNo = null, now = nowSeconds() }) {
   const row = await readResult(db, access, resultId);
   if (!row || row.roadmap_id !== roadmapId) throw new StateError('not_found', 'Not available', 404);
   const used = await db.prepare('SELECT COALESCE(MAX(retry_no), 0) AS n FROM learn_roadmap_calls WHERE result_id = ?').bind(resultId).first();
-  const retry = failureWillRetry(failureClass, used.n);
+  const failedAt = retryNo ?? used.n; // the attempt that failed: the job names it so a late duplicate report is the same failure
+  const retry = failureWillRetry(failureClass, failedAt);
   const refunds = r => refundCardStatements(db, resultId, `roadmap_card_${retry ? 'retry' : 'failed'}`, now, r);
-  const key = `sys_fail_${resultId}_${used.n}`;
-  const outcome = { status: 200, body: { resultId, failureClass, retry, retryNo: retry ? used.n + 1 : null } };
+  const key = `sys_fail_${resultId}_${failedAt}`;
+  const outcome = { status: 200, body: { resultId, failureClass, retry, retryNo: retry ? failedAt + 1 : null } };
   const out = await applyRoadmapAction(db, access, {
-    operation: 'card_failed', actionKey: key, parts: [resultId, used.n, failureClass], bump: false, now, // a system receipt: no revision guard, the result's own state is the guard
+    operation: 'card_failed', actionKey: key, parts: [resultId, failedAt, failureClass], bump: false, now, // a system receipt: no revision guard, the result's own state is the guard
     guard: { sql: "EXISTS (SELECT 1 FROM learn_step_results WHERE id = ? AND delivery = 'not_delivered' AND (generation IN ('pending', 'generating') OR (generation = 'generated' AND validation IN ('held', 'blocked'))))", binds: [resultId] },
     outcome,
     statements: r => [
@@ -305,7 +306,7 @@ export async function failCard(db, access, { roadmapId, resultId, failureClass, 
         failure_class = ?, updated_at = ? WHERE id = ? AND ${r.and}`).bind(retry ? 'pending' : 'failed', retry ? 1 : 0, retry ? null : failureClass, now, resultId, ...r.binds),
       ...(retry ? [] : [
         db.prepare(`UPDATE learn_roadmap_steps SET state = 'incomplete', updated_at = ? WHERE id = ? AND ${r.and}`).bind(now, row.step_id, ...r.binds),
-        eventStatement(db, access, { roadmapId, kind: 'card_failed', factId: resultId, factRevision: used.n + 1, payload: { resultId, failureClass }, now }, r),
+        eventStatement(db, access, { roadmapId, kind: 'card_failed', factId: resultId, factRevision: failedAt + 1, payload: { resultId, failureClass }, now }, r),
       ]),
     ],
   });

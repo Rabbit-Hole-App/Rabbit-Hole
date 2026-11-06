@@ -103,3 +103,27 @@ export async function setMode(db, access, { roadmapId, mode, actionKey, now = no
     ],
   });
 }
+
+// R4.11 recovery of a failed card. Both are a new proposal VERSION for the incomplete step, so each gets its own checked offer, its own authorization
+// and fresh operation identities (the version is part of every operation key). Nothing here reuses the former charge or loops behind the original Tab.
+// Retry: same content, offered and accepted in one learner action (derived keys, so a replay of either half is recorded). Replace: a newly composed
+// proposal for only the failed card, pending until the learner accepts it. An agent's reading of Chat may propose these, it cannot authorize them.
+async function latestProposalOf(db, stepId) {
+  return db.prepare('SELECT * FROM learn_step_proposals WHERE step_id = ? ORDER BY version DESC LIMIT 1').bind(stepId).first();
+}
+export async function retryStep(env, access, { roadmapId, stepId, expectedRevision, actionKey, callMicros, now = nowSeconds() }) {
+  const db = env.LEARN_DB;
+  const prior = await latestProposalOf(db, stepId);
+  if (!prior || prior.roadmap_id !== roadmapId) throw new StateError('not_found', 'Not available', 404);
+  const offer = await offerProposal(db, access, { roadmapId, expectedRevision, actionKey: `${actionKey}_o`, stepId, format: prior.format, title: prior.title, description: prior.description, contentHash: prior.content_hash, now });
+  const roadmap = await readRoadmap(db, access, roadmapId);
+  const { acceptRoadmapStep } = await import('./roadmap-store.js');
+  return acceptRoadmapStep(env, access, { roadmapId, revision: roadmap.revision, proposalId: offer.body.proposalId, proposalVersion: offer.body.version, actionKey: `${actionKey}_a`, callMicros, now });
+}
+export async function replaceStep(db, access, { roadmapId, stepId, expectedRevision, actionKey, compose, now = nowSeconds() }) {
+  const roadmap = await readRoadmap(db, access, roadmapId);
+  const step = roadmap && await db.prepare('SELECT * FROM learn_roadmap_steps WHERE id = ? AND roadmap_id = ?').bind(stepId, roadmapId).first();
+  if (!step) throw new StateError('not_found', 'Not available', 404);
+  const proposal = await compose(roadmap, step);
+  return offerProposal(db, access, { roadmapId, expectedRevision, actionKey, stepId, ...proposal, now });
+}
