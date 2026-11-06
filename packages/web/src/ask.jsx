@@ -59,6 +59,7 @@ import { createPortal } from 'react-dom';
 import CanvasRefPicker from './CanvasRefPicker.jsx';
 import { CANVAS_MENTIONS, canvasBoardId, canvasMentionRef } from './canvas-mention-ref.js';
 import { recheckMentions, rememberCanvas } from './CanvasMention.jsx';
+import { depthField } from './learn-settings.js';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
 // Mentioned apps a chat reads at most (MENTION_LIMIT in control-plane learn-models.js).
@@ -763,6 +764,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         // The Chat pane's turn (contract A4): its mode, the command whose prompt this is (other commands keep their own
         // path), exactly the chips attached at Send with card, group, image and media text resolved now.
         ...(chat ? { mode: askMode(chat.thread.mode, tocView), command: commandName, context_refs: refsForSend(withPage(withPage(codeTurnRefs.refs, target?.docPage), target?.excerptCrop), { target: target?.ref }) } : {}),
+        // R2: the learner's Depth for this canvas (Standard sends nothing).
+        ...depthField(chat?.settings),
         // UI-15 / MOT-20: what a generation proposal would be about, and the live proposal this turn may refine (LearnPage).
         // An Edit target names its exact revision (edit: the server revises that one or refuses); otherwise the implicit latest live one.
         ...(chat && canvasOps?.generation ? ((generation) => (generation ? { generation } : {}))(canvasOps.generation(about?.selection ?? (target ? { ...target, text: targetText } : null), edit?.command === 'motion' ? edit.proposal : currentProposal(msgs, canvasOps.proposalMade), about?.concept, edit?.command === 'motion')) : {}),

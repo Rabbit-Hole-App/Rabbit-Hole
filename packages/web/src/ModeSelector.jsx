@@ -4,6 +4,7 @@ import { useChatWorkspace } from './chat-workspace.jsx';
 import { COMPOSER_TOOL } from './ChatComposer.jsx';
 import { cn } from './ui.jsx';
 import { TutorSwitch } from './use-learn-coaching.jsx';
+import DepthMenu from './DepthMenu.jsx';
 
 // The Auto / Ask / Tutor selector in the Chat composer toolbar (owner brief section 5), bound to
 // useChatWorkspace().thread.mode. Interaction modes, never model names, and separate from the / command slot: a command
@@ -68,5 +69,6 @@ export default function ModeSelector({ disabled = false }) {
       )}
     </div>
     {mode === 'tutor' && chat.coaching && <TutorSwitch coaching={chat.coaching} />}
+    {chat.settings && <DepthMenu settings={chat.settings} mode={mode} disabled={disabled} />}
   </>);
 }
