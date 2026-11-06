@@ -1,6 +1,6 @@
 # R7a lead patches (Lead-only files). Nothing here is applied by the lane; no migration is applied to any database.
 
-Order: R4 rows already in `scripts/ci/check-map.json` at the base (`rabbit-hole/main` e90b47083 or later); the R7a patches apply on top of it, in any order.
+Order: R4 rows already in `scripts/ci/check-map.json` at the base (`feat/tutor-r5-release` 57bcc6b59 with 0041, or later); the learn-models patch is written against it and the schema mirror lands after 0041; the R7a patches apply on top of it, in any order.
 
 | Lead-only file | Patch | Apply |
 | --- | --- | --- |
