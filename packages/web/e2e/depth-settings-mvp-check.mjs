@@ -69,6 +69,7 @@ const open = async (canvas, page = null) => {
 const depthButton = page => page.locator('[data-chat-pane]').getByRole('button', { name: 'Depth', exact: true });
 const reads = async page => (await depthButton(page).innerText()).trim();
 const menuOf = page => page.getByRole('menu', { name: 'Depth' });
+const switchOf = page => page.locator('[data-chat-pane]').getByRole('switch', { name: 'Auto-suggest' });
 const openMenu = async page => { if (!await menuOf(page).count()) await depthButton(page).click(); await menuOf(page).waitFor(); };
 const pickMode = async (page, label) => { await page.locator('[data-chat-pane]').getByRole('button', { name: 'Mode', exact: true }).click(); await page.getByRole('menuitemradio', { name: new RegExp(`^${label}`) }).click(); await page.waitForTimeout(300); };
 const composer = page => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
@@ -86,14 +87,11 @@ try {
     await until(async () => await reads(page) === 'Deep', 'Deep after reload');
   });
   await step('a second canvas shows Standard; Auto-suggest set off here is off there too', async () => {
-    await openMenu(page);
-    await menuOf(page).locator('[data-auto-suggest]').click();
+    await switchOf(page).click();
     await until(async () => learner.autoSuggest === false, 'Auto-suggest saved');
-    await page.keyboard.press('Escape');
     const other = await open(second);
     await until(async () => await reads(other) === 'Standard', 'Standard on the second canvas');
-    await openMenu(other);
-    assert.equal(await menuOf(other).locator('[data-auto-suggest="off"]').count(), 1);
+    assert.equal(await other.locator('[data-chat-pane] [data-tutor-switch="off"]').count(), 1);
     await other.screenshot({ path: `${SHOTS}/A-second-canvas.png` });
     await other.close();
   });
@@ -115,13 +113,11 @@ try {
     assert.equal(turn.mode, 'auto');
     await page.screenshot({ path: `${SHOTS}/B-auto-turn.png` });
   });
-  await step('in Ask the turn sends depth deep and mode ask, and the menu has no Auto-suggest', async () => {
+  await step('in Ask the turn sends depth deep and mode ask, and the Auto-suggest switch is hidden', async () => {
     await pickMode(page, 'Ask');
     const turn = await send(page, 'How does backpropagation work?');
     assert.deepEqual([turn.depth, turn.mode], ['deep', 'ask']);
-    await openMenu(page);
-    assert.equal(await menuOf(page).locator('[data-auto-suggest]').count(), 0);
-    await page.keyboard.press('Escape');
+    assert.equal(await switchOf(page).count(), 0);
   });
   await step('Standard sends no depth, and no other model request or page error happened', async () => {
     await openMenu(page);

@@ -17,6 +17,8 @@ const secret = readFileSync(vars, 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1]
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `tutorctl-${Date.now().toString(36)}@example.com`, secret }) })).json();
 const api = async (path, init = {}) => (await fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' } })).json();
 const coachingOf = async name => (await api(`/api/learn/coaching?app=${name}&board=main`)).state;
+// Tutor ladder R2: the Auto-suggest switch is the learner's own setting on every canvas (GET/POST /api/learn/user-settings), not the canvas record.
+const suggestOf = async name => (await api(`/api/learn/user-settings?app=${name}&board=main`)).settings.autoSuggest;
 
 const CARD = { id: 'c-knn', type: 'explanation', dx: 0, dy: 0, title: 'KNN notes', body: 'KNN uses nearby examples.' };
 const board = blocks => ({ strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks });
@@ -86,17 +88,17 @@ const startHole = async (page, id = null) => {
 const open = async (name, p = page) => { await p.goto(`${BASE}/apps/${name}`); await pane(p).waitFor({ state: 'visible', timeout: 60000 }); await p.locator('[data-chat-composer] textarea').first().waitFor({ timeout: 30000 }); await p.waitForTimeout(1500); };
 const box = async locator => (await locator.boundingBox()) || { x: -1, y: -1, width: 0, height: 0 };
 
-await check('opening a canvas makes no model request; Auto is the default and the switch is hidden', async () => {
+await check('opening a canvas makes no model request; Auto is the default and the Auto-suggest switch is shown', async () => {
   const before = model.length;
   await open(work.name);
   assert.match(await modeButton().innerText(), /Auto/);
-  assert.equal(await tutorSwitch().count(), 0, 'no switch in Auto');
+  assert.equal(await tutorSwitch().count(), 1, 'the Auto-suggest switch is shown in Auto (R2)');
   assert.equal(await page.locator('[data-tutor-entry]').count(), 0, 'no Tutor entry outside Tutor');
   assert.equal(await page.locator('[data-next-steps]').count(), 0, 'no hooks card in Auto');
   await quiet('open', before);
 });
 
-await check('selecting Tutor shows the On switch immediately beside it, keeps the draft and asks no model', async () => {
+await check('selecting Tutor keeps the On switch immediately beside the mode, keeps the draft and asks no model', async () => {
   const before = model.length;
   await field().fill('my own words, unsent');
   await pickMode('Tutor');
@@ -141,13 +143,13 @@ await check('Not now stays On, shows Suggestions paused, survives a reload and a
   await shot('controls-03-paused-light');
 });
 
-await check('Ask and Auto hide the switch and keep the saved preference; back in Tutor it returns as saved', async () => {
+await check('Ask hides the switch and keeps the saved preference; Auto shows it; back in Tutor it returns as saved', async () => {
   const before = model.length;
   await pickMode('Ask');
   assert.equal(await tutorSwitch().count(), 0);
   assert.equal(await page.locator('[data-tutor-status="resume"]').count(), 0, 'the pause line belongs to Tutor');
   await pickMode('Auto');
-  assert.equal(await tutorSwitch().count(), 0);
+  assert.equal(await tutorSwitch().count(), 1);
   await page.waitForTimeout(1200);
   await page.reload();
   await open(work.name);
@@ -158,22 +160,18 @@ await check('Ask and Auto hide the switch and keep the saved preference; back in
   await quiet('mode changes', before);
 });
 
-await check('Resume clears the pause once; Continue my own work switches Off with Undo; Undo restores On', async () => {
+await check('Resume clears the pause once; Continue my own work leaves the learner\'s Auto-suggest On and shows no Undo (R2)', async () => {
   const before = model.length;
   await page.locator('[data-tutor-resume]').click();
   await page.locator('[data-tutor-entry="existing_work"]').waitFor({ timeout: 5000 });
   await page.locator('[data-tutor-own-work]').click();
   await settle(900);
-  assert.equal(await tutorSwitch().getAttribute('aria-checked'), 'false');
+  assert.equal(await tutorSwitch().getAttribute('aria-checked'), 'true', 'the switch is the learner\'s Auto-suggest, not the canvas record');
   assert.match(await modeButton().innerText(), /Tutor/, 'the mode is unchanged');
-  await page.locator('[data-tutor-undo]').waitFor({ timeout: 5000 });
-  assert.match(await page.locator('[data-tutor-status="undo"]').innerText(), /Tutor off for this canvas/);
-  await shot('controls-04-off-undo-light');
-  await page.locator('[data-tutor-undo]').click();
-  await settle(900);
-  assert.equal(await tutorSwitch().getAttribute('aria-checked'), 'true');
-  assert.equal((await coachingOf(work.name)).controls.tutorEnabled, true);
-  await quiet('Resume, Off, Undo', before);
+  assert.equal(await page.locator('[data-tutor-undo]').count(), 0, 'no Undo for a per-canvas value that no longer drives suggestions');
+  assert.equal(await suggestOf(work.name), true);
+  await shot('controls-04-own-work-light');
+  await quiet('Resume, own work', before);
 });
 
 await check('keyboard and rapid toggles: Space flips the switch; five quick presses save the last state once each, no model', async () => {
@@ -182,10 +180,10 @@ await check('keyboard and rapid toggles: Space flips the switch; five quick pres
   for (let i = 0; i < 5; i += 1) await page.keyboard.press('Space');
   await settle(2000);
   assert.equal(await tutorSwitch().getAttribute('aria-checked'), 'false');
-  assert.equal((await coachingOf(work.name)).controls.tutorEnabled, false, 'the server holds the last choice');
+  assert.equal(await suggestOf(work.name), false, 'the server holds the last choice');
   await page.keyboard.press('Space');
   await settle(1200);
-  assert.equal((await coachingOf(work.name)).controls.tutorEnabled, true);
+  assert.equal(await suggestOf(work.name), true);
   await quiet('toggles', before);
 });
 
@@ -198,19 +196,21 @@ await check('another tab of this canvas follows a change; a failed save says thi
   await other.waitForFunction(() => document.querySelector('[data-tutor-switch]')?.dataset.tutorSwitch === 'off', null, { timeout: 10000 });
   await other.close();
   let failOnce = true;
-  await page.route('**/api/learn/coaching', route => { if (route.request().method() === 'POST' && failOnce) { failOnce = false; return route.abort(); } return route.continue(); });
+  await page.route('**/api/learn/user-settings', route => { if (route.request().method() === 'POST' && failOnce) { failOnce = false; return route.abort(); } return route.continue(); });
   await tutorSwitch().click();
-  const note = page.locator('[data-tutor-status="retry"]');
+  // A failed settings save is reported in the Depth menu (DepthMenu.jsx), which carries the shared settings status.
+  await pane().getByRole('button', { name: 'Depth', exact: true }).click();
+  const note = page.locator('[data-depth-status="error"]');
   await note.waitFor({ timeout: 10000 });
   assert.match(await note.innerText(), /Not saved: this change applies in this tab only/);
   assert.doesNotMatch(await note.innerText(), /devices|everywhere/i);
   assert.equal(await tutorSwitch().getAttribute('aria-checked'), 'true', 'this tab keeps the learner\'s choice');
+  assert.equal(await suggestOf(work.name), false, 'the server still holds the earlier tab\'s Off');
   await shot('controls-05-save-failed-light');
   await note.getByRole('button', { name: 'Retry' }).click();
   await settle(1500);
-  assert.equal(await page.locator('[data-tutor-status="retry"]').count(), 0);
-  assert.equal((await coachingOf(work.name)).controls.tutorEnabled, true);
-  await page.unroute('**/api/learn/coaching');
+  assert.equal(await suggestOf(work.name), true);
+  await page.unroute('**/api/learn/user-settings');
   await quiet('tab sync and retry', before, 500);
 });
 

@@ -269,8 +269,9 @@ test('wiring: the Chat mode is the canvas control, the switch sits beside select
   const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const workspace = read('./chat-workspace.jsx'), selector = read('./ModeSelector.jsx'), ask = read('./ask.jsx'), page = read('./LearnPage.jsx'), steps = read('./LearnNextSteps.jsx');
   assert.match(workspace, /const thread = useMemo\(\(\) => threadWithControls\(ownThread, coaching\)/);
-  assert.match(selector, /\{mode === 'tutor' && chat\.coaching && <TutorSwitch coaching=\{chat\.coaching\} \/>\}/, 'only beside selected Tutor');
+  assert.match(selector, /\{autoSuggestShown\(mode\) && chat\.settings && <AutoSuggestSwitch settings=\{chat\.settings\} \/>\}/, 'beside the mode in Auto and Tutor, hidden in Ask (R2)');
   assert.match(read('./use-learn-coaching.jsx'), /aria-label="Auto-suggest"/);
+  assert.doesNotMatch(read('./DepthMenu.jsx'), /data-auto-suggest|settings.autoSuggest/, 'one control carries the Auto-suggest name');
   assert.match(ask, /mode: askMode\(chat\.thread\.mode, tocView\)/);
   assert.match(page, /<NextStepsHost on=\{nextStepsHere\} coaching=\{hooksCoaching\}/);
   assert.match(steps, /gateHooks\(gate, steps\.state\(\), \{ allowed: !!coaching\?\.allowed/);

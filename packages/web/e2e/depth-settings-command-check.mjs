@@ -1,9 +1,9 @@
 // Depth and Auto-suggest controls (Tutor ladder R2, decisions D11, D12, D22) in the real app, against the LOCAL stack only, with no model
 // call: the settings API is a fake server in this browser (GET/POST /api/learn/user-settings, kept per canvas and learner), and every
 // model-capable request is aborted and counted (none may come from these steps).
-// Covers: the Chat composer shows a Depth control reading Standard; its menu offers Overview, Standard and Deep; Auto-suggest is in the
-// menu in Auto and in Tutor and absent in Ask; choosing Deep posts { app, board, depth: "deep", expectedRevision: 0 } once and the control reads Deep;
-// switching Auto-suggest off posts { autoSuggest: false } and the menu shows it off; a save the server refuses says "Not saved: this
+// Covers: the Chat composer shows a Depth control reading Standard; its menu offers Overview, Standard and Deep; the Auto-suggest switch (one control, beside the mode selector, not in the
+// Depth menu) is shown in Auto and in Tutor and absent in Ask; choosing Deep posts { app, board, depth: "deep", expectedRevision: 0 } once and the control reads Deep;
+// switching Auto-suggest off posts { autoSuggest: false } and the switch shows it off; a save the server refuses says "Not saved: this
 // change applies in this tab only." with Retry, and the choice stays in the tab; no page error and no model request.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/depth-settings-command-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
@@ -63,6 +63,7 @@ const pane = page.locator('[data-chat-pane]');
 const depthButton = pane.getByRole('button', { name: 'Depth', exact: true });
 const modeButton = pane.getByRole('button', { name: 'Mode', exact: true });
 const menu = page.getByRole('menu', { name: 'Depth' });
+const suggestSwitch = pane.getByRole('switch', { name: 'Auto-suggest' }); // the one Auto-suggest control, beside the mode selector (not in the Depth menu)
 const pickMode = async label => { await modeButton.click(); await page.getByRole('menuitemradio', { name: new RegExp(`^${label}`) }).click(); await page.waitForTimeout(300); };
 const openMenu = async () => { if (!await menu.count()) await depthButton.click(); await menu.waitFor(); };
 
@@ -78,19 +79,18 @@ try {
     assert.equal(await menu.locator('[data-depth-option="standard"]').getAttribute('aria-checked'), 'true');
     await page.screenshot({ path: `${SHOTS}/A-menu-auto.png` });
   });
-  await step('Auto-suggest is in the menu in Auto, and in Tutor', async () => {
+  await step('the Auto-suggest switch is beside the mode selector in Auto and in Tutor, and the Depth menu holds Depth only', async () => {
     assert.match(await modeButton.innerText(), /Auto/);
-    assert.equal(await menu.locator('[data-auto-suggest]').count(), 1);
+    assert.equal(await suggestSwitch.count(), 1);
+    assert.equal(await menu.locator('[data-auto-suggest]').count(), 0, 'no second Auto-suggest control in the menu');
     await page.keyboard.press('Escape');
     await pickMode('Tutor');
-    await openMenu();
-    assert.equal(await menu.locator('[data-auto-suggest]').count(), 1);
-    await page.keyboard.press('Escape');
+    assert.equal(await suggestSwitch.count(), 1);
   });
-  await step('Auto-suggest is not in the menu in Ask', async () => {
+  await step('the Auto-suggest switch is not shown in Ask', async () => {
     await pickMode('Ask');
+    assert.equal(await suggestSwitch.count(), 0);
     await openMenu();
-    assert.equal(await menu.locator('[data-auto-suggest]').count(), 0);
     assert.equal(await menu.getByRole('menuitemradio').count(), 3, 'Depth is still offered in Ask');
     await page.screenshot({ path: `${SHOTS}/B-menu-ask.png` });
     await page.keyboard.press('Escape');
@@ -105,13 +105,13 @@ try {
     await until(async () => (await depthButton.innerText()).trim() === 'Deep', 'the control reads Deep');
     assert.equal(await menu.count(), 0);
   });
-  await step('switching Auto-suggest off posts only that change and the menu shows it off', async () => {
+  await step('switching Auto-suggest off posts only that change and the switch shows it off', async () => {
     const before = posts.length;
-    await openMenu();
-    await menu.locator('[data-auto-suggest]').click();
+    await suggestSwitch.click();
     await until(async () => posts.length === before + 1, 'one POST');
     assert.deepEqual(posts.at(-1), { app: canvas.name, board: 'main', autoSuggest: false });
-    await until(async () => await menu.locator('[data-auto-suggest="off"]').count() === 1, 'shown off');
+    await until(async () => await pane.locator('[data-tutor-switch="off"]').count() === 1, 'shown off');
+    await openMenu();
     assert.equal(await menu.locator('[data-depth-option="deep"]').getAttribute('aria-checked'), 'true', 'Depth kept');
     await page.screenshot({ path: `${SHOTS}/C-auto-suggest-off.png` });
     await page.keyboard.press('Escape');
