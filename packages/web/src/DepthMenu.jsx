@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { COMPOSER_TOOL } from './ChatComposer.jsx';
 import { cn } from './ui.jsx';
-import { DEPTHS, autoSuggestShown } from './learn-settings.js';
+import { DEPTHS } from './learn-settings.js';
 
-// Depth (Overview, Standard, Deep) and Auto-suggest in the Chat composer toolbar, beside the mode selector (Tutor ladder R2,
-// decisions D11, D12, D22). One menu: Depth is this canvas's, Auto-suggest is the learner's on every canvas and is shown only in
-// the modes that can suggest (Auto and Tutor), hidden in Ask. settings: useLearnSettings(); mode: the selected mode.
-export default function DepthMenu({ settings, mode, disabled = false }) {
+// Depth (Overview, Standard, Deep) in the Chat composer toolbar, beside the mode selector (Tutor ladder R2, decisions D11, D12).
+// Depth is this canvas's. The Auto-suggest switch is its own control (AutoSuggestSwitch, use-learn-coaching.jsx), so only one
+// control carries that name. settings: useLearnSettings().
+export default function DepthMenu({ settings, disabled = false }) {
   const [open, setOpen] = useState(false);
   const box = useRef(null), button = useRef(null), items = useRef([]);
   useEffect(() => {
@@ -18,9 +18,8 @@ export default function DepthMenu({ settings, mode, disabled = false }) {
   }, [open]);
   const at = Math.max(0, DEPTHS.findIndex(([id]) => id === settings.depth));
   const current = DEPTHS[at];
-  const suggests = autoSuggestShown(mode);
   const failed = settings.status === 'error' || settings.saveStatus === 'error';
-  const count = DEPTHS.length + (suggests ? 1 : 0);
+  const count = DEPTHS.length;
   const show = () => { setOpen(true); requestAnimationFrame(() => items.current[at]?.focus()); };
   const close = () => { setOpen(false); button.current?.focus(); };
   const move = (event, to) => { event.preventDefault(); items.current[(to + count) % count]?.focus(); };
@@ -51,16 +50,6 @@ export default function DepthMenu({ settings, mode, disabled = false }) {
               <span className="min-w-0"><span className="block text-sm text-ink">{label}</span><span className="block text-xs text-ink-3">{hint}</span></span>
             </button>
           ))}
-          {suggests && (
-            <div className="mt-1 border-t border-line pt-1">
-              <button ref={node => { items.current[DEPTHS.length] = node; }} type="button" role="menuitemcheckbox" aria-checked={settings.autoSuggest} tabIndex={-1} data-auto-suggest={settings.autoSuggest ? 'on' : 'off'}
-                title="Offer suggestions without being asked. Your questions are always answered." onClick={() => settings.set({ autoSuggest: !settings.autoSuggest })}
-                className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left outline-none hover:bg-hover focus-visible:bg-hover">
-                <span className="flex h-5 w-4 shrink-0 items-center justify-center">{settings.autoSuggest && <Check size={14} className="text-accent" />}</span>
-                <span className="min-w-0"><span className="block text-sm text-ink">Auto-suggest</span><span className="block text-xs text-ink-3">Offer suggestions without being asked, on every canvas</span></span>
-              </button>
-            </div>
-          )}
           {failed && (
             <p role="alert" data-depth-status="error" className="px-2 pb-1 pt-1.5 text-xs text-fail">
               {settings.status === 'error' ? 'Could not load your Depth setting.' : 'Not saved: this change applies in this tab only.'}{' '}

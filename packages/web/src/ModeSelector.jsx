@@ -3,14 +3,15 @@ import { Check, ChevronDown } from 'lucide-react';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { COMPOSER_TOOL } from './ChatComposer.jsx';
 import { cn } from './ui.jsx';
-import { TutorSwitch } from './use-learn-coaching.jsx';
+import { AutoSuggestSwitch } from './use-learn-coaching.jsx';
 import DepthMenu from './DepthMenu.jsx';
+import { autoSuggestShown } from './learn-settings.js';
 
 // The Auto / Ask / Tutor selector in the Chat composer toolbar (owner brief section 5), bound to
 // useChatWorkspace().thread.mode. Interaction modes, never model names, and separate from the / command slot: a command
 // never changes the mode and the mode never rewrites a command. Changing it keeps the draft, attachments and conversation.
-// Owner decision 1a (2026-10-20): Tutor is the teaching Tutor, with its On/Off switch immediately beside it (TutorSwitch,
-// hidden in Auto and Ask). Tutor cleanup P4: syllabus building is gone from Chat; the Table of contents conversation edits the outline.
+// Owner decision 1a (2026-10-20): Tutor is the teaching Tutor, with the Auto-suggest On/Off switch immediately beside it
+// (AutoSuggestSwitch, shown in Auto and Tutor, hidden in Ask; Tutor ladder R2). Tutor cleanup P4: syllabus building is gone from Chat; the Table of contents conversation edits the outline.
 export const MODES = [
   ['auto', 'Auto', 'Answers your questions, using your materials and canvas'],
   ['ask', 'Ask', 'Answers only: questions, explanations and your materials'],
@@ -68,7 +69,7 @@ export default function ModeSelector({ disabled = false }) {
         </div>
       )}
     </div>
-    {mode === 'tutor' && chat.coaching && <TutorSwitch coaching={chat.coaching} />}
-    {chat.settings && <DepthMenu settings={chat.settings} mode={mode} disabled={disabled} />}
+    {autoSuggestShown(mode) && chat.settings && <AutoSuggestSwitch settings={chat.settings} />}
+    {chat.settings && <DepthMenu settings={chat.settings} disabled={disabled} />}
   </>);
 }

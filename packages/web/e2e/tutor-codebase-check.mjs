@@ -432,11 +432,10 @@ await check('returning: Continue where I left off is primary beside Short recap,
   assert.equal((await controlsOf(CANVAS)).suggestionsPaused, false);
   await back();
   await entry().getByRole('button', { name: 'Continue my own work', exact: true }).click();
-  await page.waitForFunction(() => document.querySelector('[data-tutor-switch]')?.dataset.tutorSwitch === 'off', null, { timeout: 10000 });
+  await page.waitForFunction(() => !document.querySelector('[data-tutor-entry]'), null, { timeout: 10000 });
   assert.equal(await entry().count(), 0);
-  assert.equal((await controlsOf(CANVAS)).tutorEnabled, false, 'Continue my own work turns proactive Tutor Off');
-  await pane().getByRole('switch', { name: 'Auto-suggest' }).click();
-  await page.waitForFunction(() => document.querySelector('[data-tutor-switch]')?.dataset.tutorSwitch === 'on', null, { timeout: 10000 });
+  assert.equal((await controlsOf(CANVAS)).tutorEnabled, false, 'Continue my own work still saves the canvas record');
+  assert.equal(await page.locator('[data-tutor-switch]').getAttribute('data-tutor-switch'), 'on', 'but the Auto-suggest switch is the learner\'s own setting (R2)');
   assert.deepEqual(model, []);
 });
 

@@ -44,17 +44,17 @@ export function useLearnCoaching({ app, board = 'main' }) {
   return useMemo(() => ({ ...view, dispatch: sync.dispatch, act: sync.act, retry: sync.retry, canCoach: sync.canCoach, reload: sync.load }), [view, sync]);
 }
 
-// The switch immediately beside the selected Tutor mode (draft "Tutor controls and dismissal"); ModeSelector hides it in
-// Auto and Ask. Auto-suggest (Tutor cleanup P2): it still reads and writes the per-canvas learn_coaching_state.tutor_enabled; the
-// description says questions are still answered when it is Off.
-export function TutorSwitch({ coaching }) {
-  const on = coaching.controls.tutorEnabled;
+// The one Auto-suggest switch, in the composer toolbar beside the mode selector (ModeSelector shows it in Auto and Tutor, hides
+// it in Ask; draft "Tutor controls and dismissal"). Tutor ladder R2: it is the learner's own setting on every canvas
+// (use-learn-settings.jsx), not the per-canvas learn_coaching_state.tutor_enabled; questions are still answered when it is Off.
+export function AutoSuggestSwitch({ settings }) {
+  const on = settings.autoSuggest;
   return (
     <span data-tutor-switch={on ? 'on' : 'off'} className="inline-flex shrink-0 items-center gap-1.5 px-1">
-      <Toggle on={on} onChange={next => coaching.dispatch({ type: 'set_tutor_enabled', enabled: next })} aria-label="Auto-suggest" aria-describedby="tutor-switch-help"
-        title="Auto-suggest on this canvas. Your questions are always answered." disabled={coaching.status === 'loading' || coaching.status === 'error'} />
+      <Toggle on={on} onChange={next => settings.set({ autoSuggest: next })} aria-label="Auto-suggest" aria-describedby="tutor-switch-help"
+        title="Auto-suggest for you, on every canvas. Your questions are always answered." disabled={settings.status === 'loading' || settings.status === 'error'} />
       <span aria-hidden="true" className="text-xs text-ink-2">{on ? 'On' : 'Off'}</span>
-      <span id="tutor-switch-help" className="sr-only">Auto-suggest controls suggestions made on their own on this canvas. Explicit questions are answered when it is Off.</span>
+      <span id="tutor-switch-help" className="sr-only">Auto-suggest controls suggestions made on their own, on every canvas. Explicit questions are answered when it is Off.</span>
     </span>
   );
 }
