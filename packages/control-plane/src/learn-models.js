@@ -42,9 +42,6 @@ export const LEARN_TASKS = Object.freeze({
   // on every canvas kind. The picker key resolves through askModel. maxTokens 6000 (owner, 2026-10-14): adaptive thinking counts
   // against it, and whole-board answers ran out at 2400; spend admission reserves max_tokens at the output price (learn-spend.js).
   chat: Object.freeze({ provider: 'anthropic', model: null, picker: true, fallback: 'server-side default on Auto only, where spend is not enforced', thinking: 'model default', toolChoice: 'auto; none on the last research step', maxTokens: 6000 }),
-  // The visible grade (/api/learn/assess, learn-grade-routes.js): Auto, one
-  // call with no tools, a thinking-only turn replayed once.
-  grading: Object.freeze({ provider: 'anthropic', model: null, picker: false, fallback: 'server-side default where spend is not enforced', thinking: 'model default', toolChoice: 'none (no tools)', maxTokens: 2400 }),
   // Rich-rubric and visual assessment of a saved attempt (tutor workflow Tasks 13 and 14; learn-rubric-assessment.js,
   // learn-visual-assessment.js): Opus 5.5 as the draft's model table names it, no fallback, one JSON reply. Opus 5.5 thinks
   // inside maxTokens, so the budget leaves room for the reply after its thinking.

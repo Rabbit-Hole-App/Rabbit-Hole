@@ -85,10 +85,10 @@ test('a thrown transport is logged and rethrown; a non-2xx reply is failed and r
   const boom = Object.assign(new Error('fetch failed'), { cause: 'ECONNRESET' });
   await assert.rejects(loggedModel('chat', async () => { throw boom; })(env(), body, null, null), error => error === boom);
   const refused = Response.json({ type: 'error', error: { type: 'overloaded_error' } }, { status: 529 });
-  const response = await loggedModel('grading', async () => refused)(env(), { ...body, stream: false }, null, null);
+  const response = await loggedModel('tutor_rubric', async () => refused)(env(), { ...body, stream: false }, null, null);
   assert.equal(response, refused);
   assert.deepEqual((await response.json()).error.type, 'overloaded_error', 'the body is still readable by the caller');
-  assert.deepEqual(logged().map(l => [l.task, l.outcome, l.error, l.status]), [['chat', 'unknown', 'transport_thrown', null], ['grading', 'failed', 'http_error', 529]]);
+  assert.deepEqual(logged().map(l => [l.task, l.outcome, l.error, l.status]), [['chat', 'unknown', 'transport_thrown', null], ['tutor_rubric', 'failed', 'http_error', 529]]);
 });
 
 test('a broken telemetry database or logger never breaks the answer', async t => {
