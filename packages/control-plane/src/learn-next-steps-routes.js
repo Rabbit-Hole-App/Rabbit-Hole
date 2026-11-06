@@ -4,7 +4,7 @@
 // Shared: POST /api/learn/boards/shared/<token>/next-steps (learn-boards.js), the input built here from the shared board.
 import { sha256Hex } from './learn-grade-jev.js';
 import { NO_CAP, admitUsage, limitsFrom, sharedAskLimits } from './learn-shared-ask.js';
-import { planNextSteps } from './learn-journey-planners.js';
+import { planNextSteps } from './learn-next-steps-planner.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { NEXT_STEPS_LIMITS as L, NEXT_STEPS_PLANNER_VERSION, capText, mintSet, nextStepsInputProblem, nextStepsScope, topicOf, trimToFit, withRepository } from './agents/learn-next-steps.js';
 import { NOT_TRASHED } from './library-trash.js';

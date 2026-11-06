@@ -10,7 +10,7 @@ import { emptyStore } from './learn-tutor-evidence.js';
 import { NANOGPT, cardModule } from './learn-tutor-claims.js';
 import { cardBlock } from './nanogpt/board.js';
 import { AQUEDUCTS, TIDES, reordered } from './__fixtures__/journey-synthetic-domains.mjs';
-import { planNextSteps } from '../../control-plane/src/learn-journey-planners.js';
+import { planNextSteps } from '../../control-plane/src/learn-next-steps-planner.js';
 import { fixtureModel } from '../../control-plane/src/learn-journey-fixtures.js';
 import { NEXT_STEPS_LIMITS as L, mintSet, nextStepsInputProblem, nextStepsOutput, selectedStepProblem } from '../../control-plane/src/agents/learn-next-steps.js';
 import { sharedInput, sharedStepIds, titleFingerprint } from '../../control-plane/src/learn-next-steps-routes.js';

@@ -5,7 +5,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validatePath, validateRegistry } from '../../web/src/learn-journey.js';
 import { LEARN_TASKS } from '../src/learn-models.js';
-import { PlannerInvalid, adaptPath, journeyCallModel, journeyLogged, planDiagnostic, planPath, planSection, resolveWithModel } from '../src/learn-journey-planners.js';
+import { adaptPath, planDiagnostic, planPath, planSection, resolveWithModel } from '../src/learn-journey-planners.js';
+import { PlannerInvalid } from '../src/learn-next-steps-planner.js';
 import { fixtureFor, fixtureModel } from '../src/learn-journey-fixtures.js';
 
 const env = {};
@@ -274,26 +275,6 @@ test('fixtures: the resolver reads a free-text answer as tray_answer and a quest
   assert.deepEqual(await resolveWithModel(env, { text: 'It squashes a weighted sum', tray: TRAY }, { callModel }), { kind: 'unrelated_question' }, 'no free text: nothing to answer');
   // The fixture MCQ's third option is a plausible distractor, not "Something else".
   assert.ok(DIAG.probes.filter(p => p.options).every(p => p.options.some(o => o.label === 'It depends on the threshold') && !p.options.some(o => o.label === 'Something else')));
-});
-
-test('journeyCallModel: the fixture model only when SMALL_ENV is test and JOURNEY_MODEL_STUB is fixtures', () => {
-  assert.notEqual(journeyCallModel({}), fixtureModel);
-  assert.equal(journeyCallModel({ SMALL_ENV: 'test', JOURNEY_MODEL_STUB: 'fixtures' }), fixtureModel);
-  assert.notEqual(journeyCallModel({ JOURNEY_MODEL_STUB: 'fixtures' }), fixtureModel);
-  assert.notEqual(journeyCallModel({ SMALL_ENV: 'dev', JOURNEY_MODEL_STUB: 'fixtures' }), fixtureModel);
-});
-
-test('journeyLogged writes one sanitized line per call: task, requested and served model, never the message', async () => {
-  const lines = [], log = console.log;
-  const stub = async () => new Response(JSON.stringify({ model: 'claude-sonnet-5-5-20261001', stop_reason: 'tool_use', content: [] }), { status: 200 });
-  console.log = line => lines.push(line);
-  try {
-    await journeyLogged(stub)(env, { system: 'S', tools: [{ name: 'journey_section' }], messages: [{ role: 'user', content: 'input = {"text":"my private answer"}' }] }, 'claude-sonnet-5-5', null);
-  } finally { console.log = log; }
-  assert.equal(lines.length, 1);
-  const line = JSON.parse(lines[0]);
-  assert.deepEqual([line.event, line.task, line.requested, line.source, line.served], ['learn_model', 'journey_section', 'claude-sonnet-5-5', 'task', 'claude-sonnet-5-5-20261001']);
-  assert.equal(lines[0].includes('private'), false);
 });
 
 // Task 7 moved the five roles into LEARN_TASKS (their entries are pinned in learn-models.test.js): each call carries its

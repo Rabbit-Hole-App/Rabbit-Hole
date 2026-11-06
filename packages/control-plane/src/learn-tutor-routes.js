@@ -29,7 +29,7 @@ import { JOURNEY_LIMITS } from '../../web/src/learn-journey.js';
 import { NEXT_STEPS_BODY_CHARS, ownedNextSteps } from './learn-next-steps-routes.js';
 import { HANDOFF_BODY_CHARS, HANDOFF_PATH, handoff } from './learn-tutor-handoff.js';
 import { spendCallModel } from './learn-spend.js';
-import { journeyCallModel } from './learn-journey-planners.js';
+import { journeyCallModel } from './learn-next-steps-planner.js';
 import { withAttemptKind, usageRefusal } from './learn-usage.js';
 import { refusalBody } from './learn-spend-ledger.js';
 

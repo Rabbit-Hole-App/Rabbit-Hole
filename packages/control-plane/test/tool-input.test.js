@@ -9,7 +9,8 @@ import { readFileSync } from 'node:fs';
 import { normalizeToolInput } from '../src/tool-input.js';
 import { JOURNEY_TOOLS, pathOutput, sectionOutput } from '../src/agents/learn-journey.js';
 import { TUTOR_TOOL } from '../src/agents/learn-tutor.js';
-import { PlannerInvalid, adaptPath, planSection } from '../src/learn-journey-planners.js';
+import { adaptPath, planSection } from '../src/learn-journey-planners.js';
+import { PlannerInvalid } from '../src/learn-next-steps-planner.js';
 import { planTurn } from '../src/learn-tutor-routes.js';
 import { fixtureFor } from '../src/learn-journey-fixtures.js';
 
