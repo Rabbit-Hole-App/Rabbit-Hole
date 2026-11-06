@@ -3,6 +3,7 @@
 // fixtures (docs/features/explain-on-canvas/contracts/fixtures). State is always the server's: nothing here predicts an outcome.
 import { STRINGS } from './roadmap-strings.js';
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
+import { COVERAGE_STRINGS, coverageLines, choicesOf } from './roadmap-source-coverage.js';
 
 export const BASE = '/api/learn/roadmap';
 const q = boardId => `?boardId=${encodeURIComponent(boardId)}`;
@@ -44,7 +45,7 @@ export function actionKeys(random = () => globalThis.crypto.randomUUID()) {
 }
 
 // --- state ----------------------------------------------------------------------------------------------------------------
-export const initialState = () => ({ flag: 'unknown', view: null, invitation: null, dismissed: [], suppressed: null, notice: null, busy: [], mode: 'auto' });
+export const initialState = () => ({ flag: 'unknown', view: null, invitation: null, dismissed: [], suppressed: null, notice: null, limitation: null, busy: [], mode: 'auto' });
 
 const sameRoadmap = (a, b) => a?.roadmap?.id === b?.roadmap?.id;
 // A view older than the one held (same roadmap) is ignored: a slow poll never rolls the screen back.
@@ -52,11 +53,11 @@ const newer = (held, next) => !held || !sameRoadmap(held, next) || next.roadmap.
 
 export function reduce(state, event) {
   switch (event.type) {
-    case 'view': if (!event.view?.roadmap) return { ...state, flag: 'on', view: null }; return newer(state.view, event.view) ? { ...state, flag: 'on', view: event.view, notice: null } : state;
+    case 'view': if (!event.view?.roadmap) return { ...state, flag: 'on', view: null }; return newer(state.view, event.view) ? { ...state, flag: 'on', view: event.view, notice: null, limitation: null } : state;
     // 409: the response carries the current state; it replaces ours even when its revision looks lower (the server is the truth).
     case 'conflict': return { ...state, flag: 'on', view: event.current || state.view, notice: STRINGS.stale };
     // Anything else refused (credits, source changed): the sentence comes from the response; the proposal stays as the server has it.
-    case 'refused': return { ...state, view: event.current && newer(state.view, event.current) ? event.current : state.view, notice: event.message || null };
+    case 'refused': return { ...state, view: event.current && newer(state.view, event.current) ? event.current : state.view, notice: event.message || null, limitation: event.limitation || null };
     case 'invitation': return { ...state, flag: 'on', invitation: event.invitation && !state.dismissed.includes(event.invitation.id) ? event.invitation : null, suppressed: event.suppressed || null };
     // Dismissal scopes to this invitation id only: the id is remembered, nothing global changes.
     case 'dismissed': return { ...state, invitation: state.invitation?.id === event.id ? null : state.invitation, dismissed: [...state.dismissed, event.id] };
@@ -138,6 +139,7 @@ export function chatOf(state) {
   const view = state.view, lines = [];
   if (!enabled(state)) return lines;
   if (state.notice) lines.push({ id: 'notice', kind: 'notice', text: state.notice });
+  if (!view && choicesOf(state.limitation).length) lines.push({ id: 'source-coverage', kind: 'coverage', text: COVERAGE_STRINGS.choose, notes: coverageLines(state.limitation), choices: choicesOf(state.limitation) }); // R7a
   if (view) {
     const rm = view.roadmap;
     if (rm.state === 'draft') lines.push({ id: 'planning', kind: 'status', text: STRINGS.planning });
@@ -166,7 +168,7 @@ export function stepLabelFor(view, cardId) {
   return step ? STRINGS.stepLabel(step.position, view.steps.length) : null;
 }
 // Every learner string a state can put on screen, for the no-price assertion.
-export const texts = state => [...chatOf(state).flatMap(l => [l.text, l.label, ...(l.options || []).map(o => o.label), ...(l.offers || []).map(o => o.label)]),
+export const texts = state => [...chatOf(state).flatMap(l => [l.text, l.label, ...(l.options || []).map(o => o.label), ...(l.offers || []).map(o => o.label), ...(l.notes || []), ...(l.choices || []).map(o => o.label)]),
   pillOf(state)?.title, pillOf(state)?.description].filter(Boolean);
 
 // --- Tab ownership (D18) -------------------------------------------------------------------------------------------------
