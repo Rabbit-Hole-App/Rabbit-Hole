@@ -78,7 +78,9 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto', 
   useEffect(() => {
     if (!handoff.current || !pill) return;
     handoff.current = false;
-    if (showOverlay && claimsFocus(document.activeElement, { typing: busyRef.current })) document.querySelector('[data-roadmap-overlay]')?.focus({ preventScroll: true });
+    // The canvas card (ProposalCard.jsx) is drawn one commit after the proposal appears: look again on the next two frames before giving up.
+    const take = left => { const owner = document.querySelector('[data-roadmap-overlay]'); if (owner) owner.focus({ preventScroll: true }); else if (left) requestAnimationFrame(() => { if (claimsFocus(document.activeElement, { typing: busyRef.current })) take(left - 1); }); };
+    if (showOverlay && claimsFocus(document.activeElement, { typing: busyRef.current })) take(2);
   }, [pill?.proposalId, pill?.version, showOverlay]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Edit plan routes into the ToC conversation: the next message the learner sends there is the plan revision (divert).
@@ -89,7 +91,13 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto', 
     requestAnimationFrame(() => document.querySelector('[data-toc-composer] textarea, [data-toc-composer] input:not([type="file"])')?.focus());
   }, []);
   const divert = useCallback(text => { if (!editing.current || !text?.trim()) return false; editing.current = false; controller.revise({ instruction: text.trim() }); return true; }, [controller]);
-  const go = useCallback(nav => { if (nav.kind === 'card') hostRef.current?.focusBlock?.(nav.cardId); else if (nav.kind === 'proposal') hostRef.current?.focusBlock?.(hostRef.current.sourceBlockId?.(live.current.pill?.sourceKey)); }, []);
+  // Fix C: a proposal is a card on the canvas (goProposal); a passage is shown on its source card (showPassage: emphasized, a collapsed card opened as far as it needs). Both explicit.
+  const go = useCallback(nav => {
+    const host = hostRef.current || {}, now = live.current.pill;
+    if (nav.kind === 'card') host.focusBlock?.(nav.cardId);
+    else if (nav.kind === 'passage') host.showPassage?.({ stepId: nav.stepId ?? now?.stepId });
+    else if (nav.kind === 'proposal') { if (host.goProposal) host.goProposal(now?.stepId); else host.focusBlock?.(host.sourceBlockId?.(now?.sourceKey)); }
+  }, []);
 
   return {
     state, controller, pill, active: !!state.view && state.flag !== 'off' && isUnfinishedRoadmap(state.view.roadmap.state), toc: tocOf(state), lines: chatOf(state), invitation: invitationOf(state, { typing, answering }),

@@ -24,7 +24,9 @@ export function RoadmapToc({ roadmap }) {
     </div>
   );
 }
-export function RoadmapCanvas({ roadmap }) {
+// hosted: the page draws the proposal and the accepted work as a card on the canvas (ProposalCard.jsx), so the fixed overlay and the corner status yield to it:
+// never two. The Next step ready indicator stays.
+export function RoadmapCanvas({ roadmap, hosted = false }) {
   const c = roadmap.controller, st = roadmap.state, pill = roadmap.pill;
   const store = useRef(null), [, tick] = useState(0);
   store.current ||= createDragStore();
@@ -41,9 +43,9 @@ export function RoadmapCanvas({ roadmap }) {
   const edit = pill?.canEdit && { open: st.editing, draft: st.draft, busy: st.busy.length > 0, onOpen: () => c.openEditor(), onPreview: text => c.previewEdit(text), onApply: () => c.applyEdit(), onDiscard: () => c.closeEditor() };
   return (
     <>
-      {pill && roadmap.showOverlay && <ProposalOverlay pill={pill} position={position} onAccept={() => c.acceptProposal()} onCancel={() => c.cancelProposal()} edit={edit} drag={startDrag} />}
+      {pill && roadmap.showOverlay && !hosted && <ProposalOverlay pill={pill} position={position} onAccept={() => c.acceptProposal()} onCancel={() => c.cancelProposal()} edit={edit} drag={startDrag} />}
       <NextStepIndicator indicator={roadmap.indicator} onGo={() => roadmap.go({ kind: 'proposal' })} />
-      {!roadmap.indicator && <RoadmapStatus status={roadmap.status} />}
+      {!roadmap.indicator && !hosted && <RoadmapStatus status={roadmap.status} />}
     </>
   );
 }
