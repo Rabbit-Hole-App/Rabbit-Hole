@@ -2,7 +2,7 @@
 // the pending proposal opens a small editor, Enter shows a preview beside the unchanged original, Esc discards it with the version unchanged, Ctrl/Cmd+Enter
 // applies it (the overlay then shows the new version), Tab inside the editor accepts nothing, plain Tab accepts once after the editor closed, and dragging the
 // strip moves it without a request.
-// Written, never run by its author (browser automation is CI or owner only). Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/roadmap-edit-check.mjs [shotsDir]
+// Written, never run by its author (browser automation is CI or owner only). Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/roadmap-edit-manual.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';

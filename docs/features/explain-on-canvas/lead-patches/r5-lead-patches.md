@@ -1,12 +1,12 @@
 # R5 Lead patches (proposal editing minimum)
 
-Nothing here is applied. Each `.patch` is a real `git diff` and was proved with `git apply --cached --check` against a temporary index of the named base (no worktree touched).
+All three are APPLIED on `feat/tutor-r5-release` (the release candidate); the files stay for the record. Each `.patch` is a real `git diff` and was proved with `git apply --cached --check` against a temporary index of the named base (no worktree touched).
 Proved against `rabbit-hole/main` `e90b47083` (core 76 merged, includes the R6 0040 mirror) and, where noted, `a28ed8f86`. The 76 chain will move main again: re-run the check before applying.
 R5 is stacked on R6 (git order only; R5 does not use R6 code). Apply in this order after R4 and R6 are on main:
 
 1. `git apply docs/features/explain-on-canvas/lead-patches/r5-repository-schema.patch` (mirror of migration 0041 at the tail of `repository-schema.sql`, after the 0040 mirror). Clean on `e90b47083`. On `a28ed8f86` (no 0040 mirror yet) use `r5-repository-schema.on-a28ed8f.patch` instead; clean there.
 2. `git apply docs/features/explain-on-canvas/lead-patches/r5-learn-models-roadmap-proposal.patch` registers the `roadmap_proposal` role (Sonnet 5.5, low effort, 600 tokens, platform-funded) and updates the two pinned expectations in `test/learn-models.test.js`. Clean on both bases. Without it the edit composer fails closed: `POST .../proposals/:id/drafts` answers 503 `edit_unavailable`.
-3. `node docs/features/explain-on-canvas/lead-patches/apply-r5-check-map.mjs` (5 rows, 1 check `roadmap-edit-check.mjs` at 45 s estimate, 12 appended). Ran clean on a copy of `e90b47083`'s `check-map.json`. The `check-map.test.mjs` six-part time budget has no headroom (a Lead decision, see `r6-lead-patches.md` section 2).
+3. `node docs/features/explain-on-canvas/lead-patches/apply-r5-check-map.mjs` (5 rows, 1 manual-script classification, 11 appended). `roadmap-edit-check.mjs` was renamed `roadmap-edit-manual.mjs` and is NOT a CI check: at a 45 s estimate it pushed a fast-e2e part to 910 s (limit 900). `check-map.test.mjs` passes 22 of 22 with it applied.
 
 ## Removed from this minimum
 

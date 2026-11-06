@@ -1718,3 +1718,46 @@ CREATE TABLE IF NOT EXISTS learn_roadmap_settings_facts (
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (org, owner_user_id)
 );
+
+-- Tutor ladder R5 (proposal editing and reuse of existing cards): edit drafts and card links, as new tables so no retained CHECK constraint changes.
+-- learn_proposal_drafts: a learner's edit preview of a PENDING proposal. A draft never changes the proposal, authorizes anything or places a card;
+--   only Apply creates the next immutable proposal version. One live draft per proposal version; a stale one fails its Apply guard.
+-- learn_proposal_links: marks a proposal as "use this existing board card" (zero-priced acceptance, no generation). The proposal row itself stays an
+--   ordinary pending/accepted proposal so the one-offered-step index and every state rule still apply; the link row is what routes it away from purchase.
+-- Additive and re-runnable, LEARN_DB only. Not applied by a lane: dev needs the owner's GO (announced first), production is an owner command.
+CREATE TABLE IF NOT EXISTS learn_proposal_drafts (
+  id TEXT PRIMARY KEY,
+  roadmap_id TEXT NOT NULL,
+  step_id TEXT NOT NULL,
+  proposal_id TEXT NOT NULL,
+  proposal_version INTEGER NOT NULL,
+  org TEXT NOT NULL,
+  owner_user_id TEXT NOT NULL,
+  board_id TEXT NOT NULL,
+  input_fingerprint TEXT NOT NULL,
+  instruction TEXT NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 1,
+  format TEXT NOT NULL CHECK (format IN ('explanation', 'table')),
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  check_status TEXT NOT NULL CHECK (check_status IN ('passed', 'held')),
+  state TEXT NOT NULL DEFAULT 'draft' CHECK (state IN ('draft', 'applied', 'discarded', 'expired')),
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  applied_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS learn_proposal_drafts_proposal ON learn_proposal_drafts (proposal_id, proposal_version, state);
+
+CREATE TABLE IF NOT EXISTS learn_proposal_links (
+  proposal_id TEXT NOT NULL,
+  proposal_version INTEGER NOT NULL,
+  org TEXT NOT NULL,
+  owner_user_id TEXT NOT NULL,
+  board_id TEXT NOT NULL,
+  card_id TEXT NOT NULL,
+  card_fingerprint TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  origin TEXT NOT NULL CHECK (origin IN ('learner', 'tutor')),
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (proposal_id, proposal_version)
+);
