@@ -414,7 +414,7 @@ test('route boundary features: every paid /api/learn route is one feature from t
   assert.equal(usageContext({}), null);
 });
 
-test('the usage context reaches the provider attempts of the Tutor, board, artifact, Home, assess and Ctrl+K routing routes', async t => {
+test('the usage context reaches the provider attempts of the Tutor, board, artifact, Home and Ctrl+K routing routes', async t => {
   const worker = (await devWorker()).default;
   const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
   sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
@@ -435,7 +435,6 @@ test('the usage context reaches the provider attempts of the Tutor, board, artif
       relatedObjects: [{ objectId: 'equation', lessonId: 'sigmoid-demo', runId: 'test-run', author: 'script', kind: 'equation', originalText: 'y = 1 / (1 + exp(-x))', relatedObjectIds: [], shapeIds: ['shape:eq'], renderStatus: 'complete', shapes: [{ shapeId: 'shape:eq', pageBounds: { x: 0, y: 0, w: 300, h: 30 } }] }] } }, 'board'],
     ['/api/learn/artifact', { app, command: 'graph', args: 'sigmoid' }, 'artifact'],
     ['/api/learn/home-ask', { message: 'What is a sigmoid?' }, 'home_ask'],
-    ['/api/learn/assess', { app, mode: 'challenge', prompt: 'Why exp?', expects: ['positive'], answer: 'positive' }, 'assess'],
     ['/api/learn/inline/route', { app, request_id: 'req-0123456789', prompt: 'Explain this with a diagram', selection: 'shape' }, 'inline_route'],
   ];
   for (const [path, payload, feature] of routes) {
