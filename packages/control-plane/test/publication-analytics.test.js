@@ -613,11 +613,11 @@ test('revisions: a change of the card set starts a new segment; a text edit does
   assert.deepEqual(rev.after.visitors, { value: null, reason: 'insufficient_cohort' });
 });
 
-test('learn 0035 is CREATE-only, re-runnable and mirrored verbatim at the end of repository-schema.sql', () => {
+test('learn 0035 is CREATE-only, re-runnable and mirrored verbatim in repository-schema.sql', () => {
   const migration = readFileSync(new URL('../learn-migrations/0035-publication-analytics.sql', import.meta.url), 'utf8').replace(/\r/g, '');
   const schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8').replace(/\r/g, '');
   for (const s of migration.replace(/--.*$/gm, '').split(';').map(x => x.trim()).filter(Boolean)) assert.match(s, /^CREATE (TABLE|(UNIQUE )?INDEX) IF NOT EXISTS /);
-  assert.ok(schema.trimEnd().endsWith(migration.trim()));
+  assert.ok(schema.includes(migration.trim())); // later migrations are mirrored after it (0036 onward), so it is no longer the last
   const db = new DatabaseSync(':memory:');
   db.exec(migration); db.exec(migration);
   assert.deepEqual(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all().map(r => r.name), ['analytics_meta', 'publication_board_days', 'publication_events', 'publication_learner_days', 'publication_learner_items', 'publication_learners', 'publication_revisions', 'publication_sessions']);
