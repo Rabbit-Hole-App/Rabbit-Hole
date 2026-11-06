@@ -16,7 +16,7 @@ Three states are kept apart everywhere below: **Deployed** (the production deplo
 | Cleanup P4 Journeys/syllabus off | yes (with R2) | no flag | tests/preview only |
 | R2 Depth, Auto-suggest | yes (run 42250400898, SHA d2428e357) | no flag | tests/preview only |
 | Cleanup P5 Duplicate grading off | yes (run 42253670464, SHA d870aef1f) | no flag | tests/preview only |
-| R4 Roadmap loop | **no**: release 63 (SHA fe9410689) waits for prod 0039 | `ROADMAP_ENABLED` **false** (unset everywhere) | fakes only; real-model and Durable Object run in progress (section 3) |
+| R4 Roadmap loop | yes (run 42257418795, SHA fe9410689; Durable Object class created in prod) | `ROADMAP_ENABLED` **false** (unset everywhere) | fakes only; real-model and Durable Object run in progress (section 3) |
 | R6 Automatic next proposals | no, in build (lane A) | false | not started |
 | R5 Proposal editing | no, queued behind R6 in lane A | false | not started |
 | R7a Long Markdown | no, in build (lane B) | false | not started |
@@ -24,19 +24,18 @@ Three states are kept apart everywhere below: **Deployed** (the production deplo
 | Cleanup P6a join removal, P6b drop scripts, P7 docs | no, in build (lane C); DB steps need your GO | n/a | not started |
 | R8-R16 | no | false | not started; each follows its own dependencies, not a blanket R7 |
 
-Production Learn D1 has migrations 0036, 0037, 0038 (you applied them). The release preflight requires the prod schema to equal the candidate's schema exactly, so 0039 goes in only immediately before release 63. Dev Learn D1 has 0036-0039.
+Production Learn D1 has migrations 0036-0039 (you applied them; 0039 went in right before release 63, because the release preflight requires the prod schema to equal the candidate's schema exactly). Dev Learn D1 has 0036-0039.
 
 ## 2. Commands for you now
 
-1. `C:\s\spec\release-queue\apply-prod-migration-0039.cmd --check` (read-only; expect 0/14), then `C:\s\spec\release-queue\apply-prod-migration-0039.cmd` (type `APPLY PROD`; expect 14/14).
-2. `"C:\Users\cyudhist\AppData\Local\Programs\Git\usr\bin\bash.exe" C:/s/spec/release-queue/morning-release.sh 63-tutor-r4-mvp` (type `RELEASE 63`; main must be d870aef1f). R4 deploys with the flag off; it creates the Durable Object class in production for the first time.
-3. Obsolete pins, do not run: 57, 58, 60, 61.
+1. None right now. Release 63 (R4, flag off) is live.
+2. Obsolete pins, do not run: 57, 58, 60, 61.
 
 Pins 64 (settings wiring and safety responses, flag off) and 65 (turns the roadmap ON in production) are being built; commands come only after the qualification run is reviewed.
 
 ## 3. R4 activation path (priority lane)
 
-Order: 63 deployed, then 64 wiring plus safety responses, then qualification reviewed, then 65 flag-on.
+Order: 63 deployed (done), then 64 wiring plus safety responses, then qualification reviewed, then 65 flag-on.
 Decided: D2 routing exception adopted, D43 safety policy adopted, $25 real-model cap approved (hard stop $25; inbox worst case $24.72), dev 0039 applied, strings S1-S10, S28, S11-S25, S29 approved. Defaults applied for D-R4-5..10 (active-to-proposed edits, deterministic proposals, empty click allowed, held card refunded, Durable Object alarm for the 24 h deadline).
 In progress: one agent builds 64/65 (settings reader wiring, S26/S27 safety responses as DRAFT text, one-line prod flag); another runs the real-model and Worker/Durable Object qualification in a dev clone (not production) with a spend ledger at `C:\s\spec\logs\r4-qual-ledger.md`.
 Still unmeasured: planner quality, grounding and safety thresholds, roadmap check seconds (placeholders 10/15 s because the CI split is saturated).
