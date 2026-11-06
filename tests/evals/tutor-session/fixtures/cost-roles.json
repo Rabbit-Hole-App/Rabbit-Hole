@@ -1,0 +1,31 @@
+{
+  "source": "model_role = the product's LEARN_TASKS key (control-plane/src/learn-models.js), read from each request (product.mjs roleOf: the one tool it sends, and its model for a routine vs escalation role), or a provider role. Roles in provisional_roles are placeholders: the material generator (/api/learn/artifact) and the Motion and Avatar stages are not exercised yet. An unlisted role is counted as unclassified, never dropped.",
+  "roles": {
+    "tutor": "planning",
+    "tutor_next_steps": "hooks",
+    "tutor_next_steps_escalation": "hooks",
+    "jev": "evidence_evaluation",
+    "tutor_evaluator": "evidence_evaluation",
+    "journey_resolver": "journey",
+    "journey_diagnostic": "journey",
+    "journey_path": "journey",
+    "journey_adapt": "journey",
+    "journey_section": "journey",
+    "material_generation": "material_generation",
+    "material_repair": "material_generation",
+    "material_review": "material_review",
+    "avatar_director": "material_generation",
+    "avatar_script_reviewer": "material_review",
+    "provider_asset": "downstream_provider",
+    "render_compute": "compute",
+    "learner_simulator": "eval_only",
+    "session_reviewer": "eval_only"
+  },
+  "provisional_roles": [
+    "material_generation",
+    "material_repair",
+    "material_review",
+    "provider_asset",
+    "render_compute"
+  ]
+}

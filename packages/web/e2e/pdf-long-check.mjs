@@ -1,6 +1,6 @@
 // Long PDFs (PDF-02, owner brief 2026-10-22 section 5; addendum 1: 101- and 312-page PDFs, reading and excerpts after page 100,
 // highlight/region -> canvas card -> precise source), against the LOCAL stack only: local D1 and R2, a fresh browser profile.
-// No model is ever called: /api/learn/ask is answered here with canned text and its request bodies
+// No model is ever called: /api/learn/ask and the Tutor planner are answered here with canned text and their request bodies
 // CAPTURED; every other model-capable route is aborted and counted, and none may happen. The PDFs are generated in code
 // (long-pdf-fixture.mjs): every page reads "Page <n> of <total>", "Marker p<n>"; page 250 of the 312-page one alone carries
 // DEEP_WORDS. Both go through the real UI: the Context panel's own file input (POST /api/learn/context) and the canvas drop road
@@ -68,7 +68,13 @@ const router = async route => {
       + frame('answer_meta', { messageId, actions: [], followUps: [], alternatives: [messageId], kind: 'answer', syllabus: null })
       + frame('done', { ok: true, threadId: body.thread_id || `pdflong-thread-${reply}`, userMessageId: `u-${reply}`, messageId }) });
   }
+  if (path === '/api/learn/tutor/plan') {
+    const reply = ++replies;
+    captured.push({ route: 'plan', body, reply });
+    return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', constraints_add: [], actions: [{ type: 'respond_text', text: `Canned reply ${reply}.` }] } });
+  }
   if (path === '/api/learn/chat/route') return route.fulfill({ json: chatRouteAnswer(body) });
+  if (path === '/api/learn/tutor/evaluate') return route.fulfill({ json: { status: 'settled', evaluator: 'jev', events: [] } });
   if (/^\/api\/learn\/chat\/(threads|messages)\//.test(path)) return route.fulfill({ json: { ok: true } });
   if (method === 'PUT' && /^\/api\/learn\/pdf-excerpts\/[^/]+\/crop$/.test(path)) crops.push({ key: url.searchParams.get('key'), page: url.searchParams.get('page') });
   if (MODEL.test(path)) { refused.push(`${method} ${path}`); return route.abort(); }

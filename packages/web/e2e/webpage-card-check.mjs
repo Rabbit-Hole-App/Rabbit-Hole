@@ -146,8 +146,9 @@ const router = async route => {
   if (path.startsWith('/api/learn/files/') && method === 'GET') fileGets.push({ phase, id: path.split('/').pop(), query: url.search });
   if (path === '/api/learn/media' && method === 'POST') uploads.push({ phase, type: request.headers()['content-type'], body: request.postDataBuffer()?.toString('base64') || '' });
   if (path === '/api/learn/chat/route') { ai.push({ phase, path }); return route.fulfill({ json: chatRouteAnswer(body) }); }
-  if (path === '/api/learn/ask') {
+  if (path === '/api/learn/ask' || path === '/api/learn/tutor/plan') {
     ai.push({ phase, path }); turns.push({ phase, path, body });
+    if (path === '/api/learn/tutor/plan') return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', constraints_add: [], actions: [{ type: 'respond_text', text: 'Canned reply.' }] } });
     return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: frame('chunk', { text: 'Canned reply.' }) + frame('done', { ok: true, threadId: `wc-thread-${turns.length}`, messageId: `m-${turns.length}` }) });
   }
   if (/^\/api\/learn\/chat\/(threads|messages)\//.test(path) && method !== 'GET') return route.fulfill({ json: { ok: true } });

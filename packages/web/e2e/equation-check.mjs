@@ -3,8 +3,8 @@
 // delete, undo/redo, duplicate, save and reload (this browser and a fresh profile from the server copy), typing that never
 // reaches the canvas's keys, the S M L XL size ladder (r35), the selection pill with the LaTeX, Add to chat (no prefill), and
 // Send carrying the LaTeX.
-// Against the LOCAL stack only: local D1 and fresh browser profiles. No model is called: the Learn ask is
-// answered here, every other write except the board's own save is refused, and the stack's provider tripwire
+// Against the LOCAL stack only: local D1 and fresh browser profiles. No model is called: the Learn ask and the Tutor
+// planner are answered here, every other write except the board's own save is refused, and the stack's provider tripwire
 // must count 0. Prints no secrets.
 // Usage: BASE=http://127.0.0.1:8848 SMALL_CP=http://127.0.0.1:8849 node e2e/equation-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
@@ -35,7 +35,7 @@ const INK = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${canvas.name
 const PASTED = '\\sqrt{x^2+y^2}';
 
 const browser = await chromium.launch();
-const errors = [], asks = [], refused = [];
+const errors = [], asks = [], plans = [], refused = [];
 const OUTSIDE = /youtube|ytimg|googlevideo|arxiv|wikipedia|tryrabbithole|workers\.dev|notebook/;
 const open = async () => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -46,9 +46,10 @@ const open = async () => {
     if (url.origin !== BASE) return OUTSIDE.test(url.hostname) || url.protocol !== 'http:' ? route.abort() : route.continue();
     if (['GET', 'HEAD'].includes(request.method())) return route.continue();
     const path = url.pathname;
-    // The question, answered here: the Learn ask. No model.
+    // The question, answered here: the Learn ask and the Tutor planner. No model.
     const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     if (path === '/api/learn/ask') { asks.push(JSON.parse(request.postData() || '{}')); return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: frame('chunk', { text: 'Answered here.' }) + frame('done', {}) }); }
+    if (path === '/api/learn/tutor/plan') { plans.push(JSON.parse(request.postData() || '{}')); return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'Answered here.' }] } }); }
     // The board's own save (the equation's round trip) and the reads the canvas makes on open.
     if (/\/next-steps$/.test(path) || /^\/api\/learn\/(board|boards|evaluate|tutor\/state|moments|perf|events)\b/.test(path)) return route.continue();
     refused.push(`${request.method()} ${path}`);
@@ -351,12 +352,12 @@ await check('selecting the equation shows the composer pill with its LaTeX', asy
 });
 
 await check('Add to chat arms the equation, writes no question and sends nothing; Send carries the LaTeX as the context', async () => {
-  const a0 = asks.length;
+  const a0 = asks.length, p0 = plans.length;
   await shown().first().click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Add to chat', exact: true }).click(); // owner 2026-10-13: it replaced Ask in chat and its prefilled question
   await settle();
   assert.equal(await composer().inputValue(), '', 'no question is written');
-  assert.equal(asks.length, a0, 'nothing sent');
+  assert.equal(asks.length + plans.length, a0 + p0, 'nothing sent');
   // The chat workspace (chat-workspace-CONTRACT.md A5): the equation is one context chip in the Chat pane, and the card's
   // selection pill steps aside (one object, never two chips).
   const chip = page.locator('[data-chat-pane] [data-context-chip="ready"]');
@@ -367,11 +368,11 @@ await check('Add to chat arms the equation, writes no question and sends nothing
   await page.screenshot({ path: `${SHOTS}/7-pill-and-no-prefilled-question.png` });
   await composer().fill('Can you explain this equation?');
   await composer().press('Enter');
-  await until('the question', async () => asks.length > a0, 8000);
-  const body = JSON.stringify(asks.at(-1));
+  await until('the question', async () => asks.length + plans.length > a0 + p0, 8000);
+  const body = JSON.stringify(asks.length > a0 ? asks.at(-1) : plans.at(-1));
   assert.ok(body.includes(JSON.stringify(latex).slice(1, -1)), `the request carries the LaTeX: ${body.slice(0, 300)}`);
   // The chip rides as the turn's one card context ref (chat-workspace-CONTRACT.md A4), not a canvas_target: the pill stepped aside.
-  assert.deepEqual(asks.at(-1).context_refs?.filter(ref => ref.kind === 'card').map(ref => ref.name), [latex], JSON.stringify(asks.at(-1).context_refs)?.slice(0, 300));
+  if (asks.length > a0) assert.deepEqual(asks.at(-1).context_refs?.filter(ref => ref.kind === 'card').map(ref => ref.name), [latex], JSON.stringify(asks.at(-1).context_refs)?.slice(0, 300));
   await settle(400);
   const collapse = page.getByRole('button', { name: 'Collapse chat' });
   if (await collapse.count()) await collapse.first().click();

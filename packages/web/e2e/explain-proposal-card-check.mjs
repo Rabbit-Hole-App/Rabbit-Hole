@@ -150,6 +150,8 @@ const router = async route => {
     return route.fulfill({ json: { proposal: next, references: states(next) } });
   }
   if (path === '/api/learn/chat/route' && method === 'POST') return route.fulfill({ status: 404, json: { error: 'Not found' } });
+  // The app plans a Tutor reply after a chat turn: answered here as chat-outputs-check does, so no model route is touched.
+  if (path === '/api/learn/tutor/plan') return route.fulfill({ json: { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Canned Tutor reply.' }] } });
   if (['/api/learn/tutor/next-steps', '/api/learn/next-steps'].includes(path)) return route.fulfill({ json: { options: [], suggestions: [], fingerprint: null } });
   if (MODEL.test(path) && method !== 'GET') { refused.push(path); return route.abort(); }
   return route.fallback();

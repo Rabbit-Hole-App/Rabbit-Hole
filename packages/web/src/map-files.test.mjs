@@ -104,6 +104,7 @@ test('the chat chip names the path, the lines and a preview, removable; a questi
   // whose request carries the range (repositoryAsk reads it); a symbol context stays with the Tutor.
   // With a codebase (a repository canvas, repo-canvas-graph.md) the selection rides as code refs instead.
   assert.match(ask, /const codeTurn = codebase \? codeTurnRefs\.refs\.some\(ref => ref\.kind === 'code'\) : repository && !!\(repositoryContext\?\.range \|\| repositoryContext\?\.path\);/);
+  assert.match(ask, /if \(viaTutor\) \{/);
   assert.match(ask, /\.\.\.\(repository && repositoryContext \? \{ repository_context: \{ \.\.\.\(codebase \? \{\} : repositoryContext\), commit: /);
 });
 

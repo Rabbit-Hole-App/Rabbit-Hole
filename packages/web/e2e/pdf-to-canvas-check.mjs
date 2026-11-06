@@ -9,8 +9,8 @@
 // the context document unchanged; the upload/drop road (the same dialog, the upload posted only after the choice).
 // Follow-ups 2-4: Add to chat on an uploaded-PDF page 12 (the paper at page 12, read after the selection is cleared); a set added
 // between a page label and its page lands before the label; the owner's Duplicate reads both PDFs and asks page 12 from its home;
-// another person's fork of the shared canvas gets the page pictures and is refused the bytes. Follow-up 5: in Auto a one-page
-// question posts to /api/learn/ask (Tutor cleanup P2: there is no Tutor plan request) and carries the page as a context ref.
+// another person's fork of the shared canvas gets the page pictures and is refused the bytes. Follow-up 5: in Auto the canvas's
+// journey Tutor answers a one-page question and its plan carries the page (page_context); two pages stay on /api/learn/ask.
 // Prints `ok <label>` per check, counts and ids only (no cookies, no secrets); exits 1 on any failure.
 // Evidence goes to OUT: results.json (the captured context_refs and canvas_target, never cookies) and *.png.
 // Usage: BASE=http://127.0.0.1:8881 SMALL_CP=http://127.0.0.1:8883 VARS=<cp .dev.vars> OUT=<dir> node e2e/pdf-to-canvas-check.mjs
@@ -514,18 +514,15 @@ await check('a question about the selected page 12 sends the doc ref at page 12,
   assert.ok(!cap.body.paper_context, 'a context document page sends no paper_context');
 });
 
-// Follow-up 5: in Auto a one-page question is an ordinary /api/learn/ask turn whose request carries the one page as a context ref.
-await check('in the default Auto mode, a question about the selected page 12 posts to /api/learn/ask and carries page 12 of the document', async () => {
+// Follow-up 5: in Auto this canvas's journey Tutor answers, and its plan request carries the one page (page_context).
+await check('in the default Auto mode, a question about the selected page 12 keeps the journey Tutor and its plan carries page 12 of the document', async () => {
   await newChat();
   await setMode('auto');
   await selectBlock(page12());
   const cap = await send('What does this page say?');
-  const refs = cap.body.context_refs || [];
-  facts.page12_auto = { route: cap.route, mode: cap.body.mode ?? null, context_refs: cap.body.context_refs ?? null, canvas_target: cap.body.canvas_target ?? null };
-  assert.equal(cap.route, 'ask', 'Auto posts to /api/learn/ask');
-  assert.equal(cap.body.mode, 'auto', 'the ask carries mode auto');
-  assert.ok(refs.some(r => isPage(r, 12)), `context_refs holds the document at page 12 (got ${JSON.stringify(refs.map(r => [r.sourceId, r.kind, r.range]))})`);
-  assert.ok(!refs.some(r => r.sourceId === DOC_KEY && r.range?.page && r.range.page !== 12), 'the context document rides at page 12, never page 1 or another page');
+  facts.page12_auto = { route: cap.route, page_context: cap.body.page_context ?? null, context_refs: cap.body.context_refs ?? null };
+  assert.equal(cap.route, 'plan', `Auto posted to ${cap.route === 'ask' ? '/api/learn/ask' : cap.route}, not the Tutor plan`);
+  assert.deepEqual(cap.body.page_context, { doc: { id: DOC.id, page: 12 } }, 'the plan carries page 12 of the context document, never page 1');
 });
 
 await check('Add to chat (Ctrl+L) on page 12 attaches the same doc page-12 ref', async () => {

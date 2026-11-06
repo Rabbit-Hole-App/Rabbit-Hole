@@ -5,7 +5,6 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
-import { mockChatRoute } from './dev-cp.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
@@ -47,8 +46,13 @@ const contextFor = async (who, options = {}) => {
     await route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: `event: chunk\ndata: ${JSON.stringify({ text: 'Salt lowers the freezing point.' })}\n\nevent: done\ndata: {}\n\n` });
   });
   await context.route('**/api/learn/wiki?**', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ title: 'Freezing-point depression', url: 'https://en.wikipedia.org/wiki/Freezing-point_depression', licence: { title: 'CC BY-SA 4.0', url: 'https://creativecommons.org/licenses/by-sa/4.0/' }, html: '<p>Freezing-point depression is the drop in the temperature at which a substance freezes, caused when a smaller amount of another substance is added.</p>' }) }));
-  // A plain Chat turn asks the route decision first, then /api/learn/ask (recorded and answered above, no model).
-  await mockChatRoute(context);
+  // A canvas turn goes through the Tutor planner first (#46, Tutor v2): /ask is a Tutor turn with slash 'ask', its
+  // words in learner_intent and the selected card as target. It is recorded like an ask and answered here, no model.
+  await context.route('**/api/learn/tutor/plan', async route => {
+    const ctx = JSON.parse(route.request().postData() || '{}').context || {};
+    asks.push({ message: ctx.learner_intent?.raw_user_message, slash: ctx.learner_intent?.slash, canvas_target: ctx.target || undefined, via: 'tutor' });
+    await route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'Salt lowers the freezing point.' }] } });
+  });
   // Next Steps' hook on canvas open is an expected request (professor-next-steps.md), answered by the stack's fixtures.
   await context.route(/\/api\/learn\/(tutor|artifact|home-ask|journeys?)\b/, route => { const path = new URL(route.request().url()).pathname; if (route.request().method() === 'GET' || path === '/api/learn/tutor/next-steps' || path === '/api/learn/tutor/plan') return route.fallback(); stray.push(route.request().url()); return route.abort(); });
   const page = await context.newPage();
@@ -153,8 +157,8 @@ await check('10 a question with nothing selected asks about the canvas: no card 
   assert.equal(ask.canvas_target, undefined);
 });
 
-// The selected card rides as the ask's canvas_target: its title and text (canvasTargetField).
-const aboutCard = target => { const about = `${target?.title || ''} ${target?.text || ''}`; return /^Why salt melts ice/.test(about) && /lowers its freezing point/.test(about); };
+// Through the Tutor (#46) the selected card rides as the turn's target: its title and text (learn-tutor.js target).
+const aboutCard = target => /^Why salt melts ice/.test(target?.description || '') && /lowers its freezing point/.test(target.description);
 await check('9 a question with a card selected carries that card: its title, and its text as material', async () => {
   await press('k-exp');
   await composer().click();
@@ -164,7 +168,7 @@ await check('9 a question with a card selected carries that card: its title, and
   await page.waitForTimeout(900);
   const ask = asks.at(-1);
   assert.equal(ask?.message, 'why does this happen?');
-  assert.ok(!ask.command, 'no command: /ask is removed');
+  assert.equal(ask.slash, undefined, 'no slash override: /ask is removed');
   assert.ok(aboutCard(ask.canvas_target), JSON.stringify(ask.canvas_target));
 });
 

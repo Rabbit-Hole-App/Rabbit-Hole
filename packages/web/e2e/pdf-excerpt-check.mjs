@@ -1,6 +1,6 @@
 // PDF highlights and excerpts (C:/s/spec/pdf-excerpts/brief.md section 15, contract.md), against the LOCAL stack only: local D1 and
-// fresh browser profiles. No model is ever called: /api/learn/ask (an SSE stream) is answered here with
-// canned text and its request bodies CAPTURED; every other model-capable route is aborted and counted, and none may happen.
+// fresh browser profiles. No model is ever called: /api/learn/ask (an SSE stream) and the Tutor planner are answered here with
+// canned text and their request bodies CAPTURED; every other model-capable route is aborted and counted, and none may happen.
 // Setup: a canvas; a 7-page PDF built here with known text on known pages (page labels i, ii, then 1-5; a two-paragraph passage on
 // page 3; a green figure on page 4; /Rotate 90 on page 5; no text on page 6; > 8,000 characters on page 7), stored once as the
 // canvas's context document (POST /api/learn/context) and once as an uploaded paper (the canvas drop road, POST /api/learn/paper).
@@ -131,8 +131,14 @@ const router = async route => {
       + frame('answer_meta', { messageId, actions: [], followUps: [], alternatives: [messageId], kind: 'answer', syllabus: null })
       + frame('done', { ok: true, threadId: body.thread_id || `pdfx-thread-${reply}`, userMessageId: `u-${reply}`, messageId }) });
   }
+  if (path === '/api/learn/tutor/plan') {
+    const reply = ++replies;
+    captured.push({ route: 'plan', body, reply });
+    return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', constraints_add: [], actions: [{ type: 'respond_text', text: `Canned reply ${reply}.` }] } });
+  }
   // CR-1 route decision (dev-cp.mjs chatRouteAnswer): an answer. CI has no JEV key, so the real route would fall back and send nothing.
   if (path === '/api/learn/chat/route') return route.fulfill({ json: chatRouteAnswer(JSON.parse(route.request().postData() || '{}')) });
+  if (path === '/api/learn/tutor/evaluate') return route.fulfill({ json: { status: 'settled', evaluator: 'jev', events: [] } });
   if (/^\/api\/learn\/chat\/(threads|messages)\//.test(path)) return route.fulfill({ json: { ok: true } }); // the canned thread ids exist nowhere
   if (method === 'POST' && ['/api/learn/paper', '/api/learn/context'].includes(path)) uploads.push(path);
   if (path === '/api/learn/inline/decide') { inline.push(body); return route.fulfill({ json: { decision: 'blocked', message: 'Fixture inspection only', paid: false } }); }
@@ -276,7 +282,7 @@ const send = async text => {
   sends += 1;
   await waitFor(() => captured.length > n, 20000, 'no model request was sent for the turn');
   const cap = captured[n];
-  // The captured body is the evidence; the canned reply is only waited for, never required.
+  // Tutor mode may draw its own answer; the captured body is the evidence either way.
   await pane().getByText(`Canned reply ${cap.reply}.`, { exact: true }).first().waitFor({ timeout: 15000 }).catch(() => {});
   return cap;
 };
@@ -1411,7 +1417,7 @@ await check('Remove from context keeps an existing excerpt card usable (R4 audit
 await check('no model call beyond the turns this check sent, no other model-capable request, no page error', ['no AI calls'], async () => {
   facts.turns = captured.map(c => c.route);
   assert.ok(captured.length >= sends, `${captured.length} captured for ${sends} sends`);
-  assert.ok(captured.length <= sends, `no turn beyond the sends: a Rabbit Hole sends no opening question (${captured.length} for ${sends})`);
+  assert.ok(captured.length <= sends + 2, `at most the Rabbit Hole's opening turn beyond the sends (${captured.length} for ${sends})`);
   assert.equal(inline.length, inlineSends, `${inline.length} Ctrl+K decide requests for ${inlineSends} submits (all answered here)`);
   assert.deepEqual(refused, [], `refused routes: ${refused.join(', ')}`);
   assert.deepEqual(errors, [], `page errors: ${errors.join(' | ')}`);
