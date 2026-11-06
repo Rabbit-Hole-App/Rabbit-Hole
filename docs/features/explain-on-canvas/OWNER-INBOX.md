@@ -20,12 +20,12 @@ Self-contained status for the owner and for a reviewer who has not seen the chat
 | 55 R1 card feedback | READY, previewed. Needs prod migration 0036 | 15141c05a |
 | 56 R3 source references | READY, previewed. Needs prod migration 0038 | 4b754b6c2 |
 | 57 Cleanup P3 (Server Tutor off) | READY, previewed (after a transient Cloudflare 503). No migration | 0c322bd50 |
-| 58 Cleanup P4 (Journeys and syllabus off) | READY, previewed. No migration | cdac8cfc5 |
-| 59 R2 Depth and Auto-suggest | READY, previewed. Needs prod migration 0037 | e44aa04f0 |
-| 60 R4 explanation loop (flag OFF) | READY, previewed. Optional: inert code + a new Durable Object class | d692444ec |
-| 61 Cleanup P5 (Duplicate grading off) | READY, previewed. No migration | da0625923 |
+| 58 Cleanup P4 (Journeys and syllabus off) | READY, previewed. No migration | 37f377f39 |
+| 59 R2 Depth and Auto-suggest | READY, previewed. Needs prod migration 0037 | d2428e357 |
+| 60 R4 explanation loop (flag OFF) | READY, previewed. Optional: inert code + a new Durable Object class | 369aaca76 |
+| 61 Cleanup P5 (Duplicate grading off) | READY, previewed. No migration | 8ed4cb20e |
 
-> **BLOCKER FOUND AND BEING FIXED (04:10 PT): do not release 58-61 until this note says FIXED.** An independent scope scan of the stacked tip found render-time `ReferenceError`s introduced by P4 (release 58) that no unit test or build catches: `LearnPage.jsx` (~line 2419) still uses `journey`, `pathEntries`, `openEntry`, `setOpenEntry` (the canvas would crash on first render) and `ask.jsx` (~line 1198) still uses `tray` (every Chat composer render would throw). A third, P2-introduced reference, `tutor={tutor.active ? tutor : null}` in the block follow-up composer, is latent in releases 54-57 (it only throws when "Follow up in this block" opens); the same fix commit removes it, so **run the queue contiguously through 58 in one sitting** (or accept that the block follow-up composer throws until 58 is released). A fix commit plus a failing-on-old guard test is being added on top of P4, and R2, R4 and P5 are being re-stacked on it as new branches (`...-2`); pins, previews and recovery branches are regenerated. Releases 54-57 are unaffected and stay valid. Status below until the fixer reports.
+> **FIXED (04:40 PT): a pre-release scope scan found render-time `ReferenceError`s in the P4 candidate; they are fixed and releases 58-61 were re-stacked on the fix.** Cause: P4's web commit removed declarations but left uses behind in `LearnPage.jsx` (`journey`, `pathEntries`, `openEntry`, `setOpenEntry`; the Learn canvas would have crashed on first render) and `ask.jsx` (`tray`; every Chat composer render would have thrown). Fix commit `b5b3a88bf` on top of P4 plus a guard test `no-unbound-identifiers.test.mjs` (proven to fail on the old P4 tip; it scans LearnPage.jsx and ask.jsx and is now in each launcher smoke). Unit tests and the build were green with the bug, because nothing renders those components; only static scope analysis caught it. **Still true:** a P2-introduced `tutor={tutor.active ? tutor : null}` in the block follow-up composer is latent in releases 54-57 (throws only when "Follow up in this block" opens) and is removed by the P4 fix, so **run the queue through 58 in one sitting**. P4's recovery branch reverts to the P3 state, which carries the same latent `tutor` reference. NEW SHAs for 58-61 are in the table below; the old SHAs/branches (`cdac8cfc`, `e44aa04f`, `d692444e`, `da062592`) are SUPERSEDED. The queue script reads the updated pins, so its commands are correct.
 
 All eight form ONE linear chain on main `9b798f77`: each candidate's pinned `MAIN_PREV` is the previous candidate's SHA (verified by a dry run of the queue script), so they must be released in the order above.
 
@@ -82,6 +82,9 @@ The sequence for every release is the P1 one (verified working):
 5. `gh variable delete MVP_ALLOWED_SHA -R Rabbit-Hole-App/Rabbit-Hole` **only after the launcher prints its final line.** Deleting earlier made P1's launcher print a false STOP message, although that release was valid.
 
 Releases fast-forward `main` one at a time, so queue them in the order below.
+
+**SHA CORRECTION (supersedes the SHAs in the blocks 58, 59, 60 and 61 below):** 58 P4 `37f377f3910df2af7fdb77abeb78dc2c5f47d6d9` (branch `feat/tutor-p4-release`, recovery `feat/tutor-p4-release-recovery-2` `c15f2c94792cd2c27d09fcdb48a0d4460131d346`); 59 R2 `d2428e357fd40416b2ca83ec0ab6a7bfc3c203f2` (`feat/tutor-r2-release-2`, recovery `-recovery-2` `0be0a72256a8963b23c2307a9d8a2c59bc562601`); 60 R4 `369aaca76c9713bba295d86535f009fde5d9fe20` (`feat/tutor-r4-release-2`, a merge of the new R2 tip into the old R4 tip, so it carries the old R2 commits as duplicates but is a fast-forward descendant; recovery `b34e8766786a9d3e24c6e6c029947255faa162b8`); 61 P5 `8ed4cb20efe4a048b29f32e50a04d616be89234a` (`feat/tutor-p5-release-2`, recovery `cd810605dd000a7bd0b99649133251b53b3d1400`). All four previews were re-run on the new SHAs and passed (exit 0, first attempt): clones `rabbit-hole-web-dev-tutor-p4-release`, `-r2-release`, `-r4-release`, `-p5-release`. Everything else in those blocks (migrations, strings, behaviour notes) is unchanged. Full suites at the final tip: control-plane 3483/3484, web 4735/4762, build exit 0.
+
 
 ### P2 cleanup (Browser Tutor off): BUILT, release package in preparation
 - Branch `feat/tutor-cleanup-p2`, tip `cdeb7727494e6f4f79abc084a3661b4fe504cc40`, on top of main 9b798f77 (pushed).
