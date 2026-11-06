@@ -152,7 +152,7 @@ test('Accept plan mints one R3 reference per step; the delivered card carries it
   assert.equal(JSON.parse(refs[1].anchor_json).quote.exact, MD.slice(AT.update, AT.rate));
   assert.match(refs[0].source_ref_id, /^sref_[0-9a-f]{24}$/);
   const proposed = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: plan.body.roadmap.revision, actionKey: KEY('propose') });
-  assert.equal(proposed.body.steps[0].sourceRef.id, refs[0].source_ref_id, 'the view carries each step's reference');
+  assert.equal(proposed.body.steps[0].sourceRef.id, refs[0].source_ref_id, 'the view carries the reference of each step');
   assert.equal(proposed.body.proposal.sourceRelation.sourceRef.source.key, `file:${ID_B}`);
   const accept = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${proposed.body.proposal.id}/accept`, { boardId: BOARD, revision: proposed.body.roadmap.revision, actionKey: KEY('accept'), proposalVersion: 1 });
   const result = accept.body.results[0];
