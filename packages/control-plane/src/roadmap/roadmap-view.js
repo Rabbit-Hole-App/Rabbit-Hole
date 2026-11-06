@@ -22,6 +22,8 @@ export async function roadmapView(db, access, roadmap) {
   const sourceName = scopeJson.sourceName || '';
   // R3's reference for each step, minted at Accept plan (roadmap-source-refs.js); null where none was minted.
   const refs = await d1PublicRefs({ LEARN_DB: db }, access, (stepRows || []).map(s => s.source_ref_id));
+  // Polling never carries source text (api.md): where R3's table exists the reference's anchor holds the passage quote, so the view keeps only identity and source; the delivered card carries the full reference.
+  for (const [key, ref] of refs) if (ref) refs.set(key, { v: ref.v, id: ref.id, kind: ref.kind, source: ref.source });
   const steps = (stepRows || []).map(s => ({ id: s.id, position: s.position, title: s.title, goal: s.goal, format: s.format, passage: { start: s.passage_start, end: s.passage_end }, sourceRef: refs.get(s.source_ref_id) ?? null, state: s.state,
     ...(s.card_removed ? { cardRemoved: true } : {}), ...(s.answered ? { answered: true } : {}) }));
   const offered = await db.prepare("SELECT * FROM learn_step_proposals WHERE roadmap_id = ? AND state IN ('checking', 'held', 'pending') ORDER BY created_at DESC LIMIT 1").bind(id).first();
