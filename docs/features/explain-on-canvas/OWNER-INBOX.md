@@ -10,6 +10,11 @@ Self-contained status for the owner and for a reviewer who has not seen the chat
 
 ---
 
+## DEV 0039 APPLIED AND STRINGS APPROVED 2026-11-06 ~09:15 PT
+
+- **D-DEVDB-0039 APPLIED** (owner: "yes dev 0039"): `0039-roadmap-core.sql` applied to the dev Learn D1 `rabbit-hole-learn-dev` only (file sha256 `4c8555fe...`, identical to the R4 tips); script `C:\s\specelease-queuepply-dev-migration-0039.sh`, log `C:\s\spec\logspply-dev-migration-0039-*.log`; the verify query lists the roadmap and step tables. Production 0039 is still owner-run (`apply-prod-migration-0039.cmd`) and comes after P5 (live) and right before release 63.
+- **D-R4-4 DECIDED: "approve strings as recommended"** = S1-S10 and S28 approved now; S11-S25 and S29 approved as one bundle; S26/S27 (safety wording) NOT written: a personal-risk request is refused and refunded as `policy_block` with no supportive text until the owner writes it. D-R1-S/D-R2-S/D-R3-S and the P4 mode-line strings are not covered by this reply and stay open.
+
 ## OWNER DECISIONS 2026-11-06 ~09:00 PT (message: "adopt D2, adopt D43, approve $25"; "I always mean production")
 
 - **D-R4-1 DECIDED: adopt the D2 routing exception.** **D-R4-2 DECIDED: adopt D43 (contextual safety policy).** **D-R4-3 DECIDED: $25 cap approved** for real-model qualification of the R4 planner/safety checks (worst-case estimate $24.72; hard stop at $25; spend ledger kept in the lane receipts).
