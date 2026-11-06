@@ -17,13 +17,15 @@ export async function roadmapView(db, access, roadmap) {
   const planRow = await db.prepare('SELECT * FROM learn_roadmap_plan_versions WHERE roadmap_id = ? AND version = ?').bind(id, roadmap.plan_version).first();
   const plan = planRow ? json(planRow.plan_json) : null;
   const { results: stepRows } = await db.prepare('SELECT * FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? ORDER BY position').bind(id, roadmap.plan_version).all();
+  const scopeJson = json(roadmap.scope_json) || {};
+  const sourceName = scopeJson.sourceName || '';
   const steps = (stepRows || []).map(s => ({ id: s.id, position: s.position, title: s.title, goal: s.goal, format: s.format, passage: { start: s.passage_start, end: s.passage_end }, sourceRef: null, state: s.state,
     ...(s.card_removed ? { cardRemoved: true } : {}), ...(s.answered ? { answered: true } : {}) }));
   const offered = await db.prepare("SELECT * FROM learn_step_proposals WHERE roadmap_id = ? AND state IN ('checking', 'held', 'pending') ORDER BY created_at DESC LIMIT 1").bind(id).first();
   const position = offered ? steps.find(s => s.id === offered.step_id)?.position : null;
   const proposal = offered && {
     id: offered.id, stepId: offered.step_id, version: offered.version, state: offered.state, title: offered.title, description: offered.description, format: offered.format,
-    sourceRelation: null, position: { index: position ?? null, total: steps.length }, acceptable: offered.state === 'pending' && !offered.stale && roadmap.state === 'active',
+    sourceRelation: { kind: 'from', source: { key: roadmap.source_key, rev: roadmap.source_rev, name: sourceName }, sourceRef: null }, position: { index: position ?? null, total: steps.length }, acceptable: offered.state === 'pending' && !offered.stale && roadmap.state === 'active',
   };
   const { results: resultRows } = await db.prepare(`SELECT r.* FROM learn_step_results r WHERE r.roadmap_id = ? AND r.decision = 'accepted' ORDER BY r.created_at, r.slot_index`).bind(id).all();
   const results = (resultRows || []).map(r => {
@@ -37,7 +39,7 @@ export async function roadmapView(db, access, roadmap) {
   const busy = results.some(r => r.generation === 'pending' || r.generation === 'generating');
   return {
     roadmap: { id, boardId: roadmap.board_id, state: roadmap.state, revision: roadmap.revision, planVersion: roadmap.plan_version, acceptedPlanVersion: roadmap.accepted_plan_version ?? null, depth: roadmap.depth,
-      practiceMode: roadmap.practice_mode, instruction: first?.text ?? '', language: roadmap.language, scope: { ...(json(roadmap.scope_json) || {}), source: { key: roadmap.source_key, rev: roadmap.source_rev }, fingerprint: roadmap.scope_fingerprint },
+      practiceMode: roadmap.practice_mode, instruction: first?.text ?? '', language: roadmap.language, scope: { kind: scopeJson.kind || 'whole', chars: scopeJson.chars ?? null, source: { key: roadmap.source_key, rev: roadmap.source_rev, name: sourceName }, fingerprint: roadmap.scope_fingerprint },
       ceiling: roadmap.ceiling, deliveredCount: roadmap.delivered_count, mode: roadmap.mode, modeRevision: roadmap.mode_revision, createdAt: iso(roadmap.created_at), updatedAt: iso(roadmap.updated_at) },
     question: plan?.question ?? null, limitation: plan?.limitation ?? null,
     plan: plan && { version: roadmap.plan_version, outcome: plan.outcome, assumptions: plan.assumptions ?? [], formats: plan.formats ?? [], steps, stoppingPoint: plan.stoppingPoint },
@@ -50,4 +52,15 @@ export async function roadmapView(db, access, roadmap) {
 export async function currentView(db, access, roadmapId = null) {
   const row = roadmapId ? await readRoadmap(db, access, roadmapId) : await readUnfinishedRoadmap(db, access);
   return roadmapView(db, access, row);
+}
+
+// Route 19: the board's ended and completed roadmaps for the ToC history. Metadata only: no source text, no card bodies.
+export async function roadmapHistory(db, access) {
+  const { results } = await db.prepare("SELECT * FROM learn_roadmaps WHERE org = ? AND owner_user_id = ? AND board_id = ? AND state IN ('ended', 'completed') ORDER BY updated_at DESC LIMIT 20").bind(access.org, access.actorUserId, access.boardId).all();
+  const out = [];
+  for (const r of results || []) {
+    const first = await db.prepare('SELECT text FROM learn_roadmap_instructions WHERE roadmap_id = ? ORDER BY version ASC LIMIT 1').bind(r.id).first();
+    out.push({ id: r.id, state: r.state, instruction: first?.text ?? '', deliveredCount: r.delivered_count, depth: r.depth, source: { name: json(r.scope_json)?.sourceName || '' }, endedAt: r.ended_at ? iso(r.ended_at) : null, updatedAt: iso(r.updated_at) });
+  }
+  return { roadmaps: out };
 }

@@ -26,6 +26,7 @@ export async function offered({ LEARN_DB }, access, { n = 1 } = {}) {
   const plan = { outcome: 'Teach Y', assumptions: [], formats: ['explanation', 'table'], stoppingPoint: 'Y understood', steps: [
     { title: 'Step one', goal: 'g1', format: 'explanation', passage: { start: 0, end: 100 } }, { title: 'Step two', goal: 'g2', format: 'table', passage: { start: 100, end: 200 } }] };
   await recordPlan(LEARN_DB, access, { roadmapId, actionKey: `plan-${n}-00001`, expectedRevision: 1, plan, promptVersion: 'p1' });
+  await LEARN_DB.prepare("DELETE FROM learn_roadmap_outbox WHERE kind = 'plan_requested'").run(); // this fixture plans by hand; the glue's planning event is tested in roadmap-planning.test.js
   await acceptPlan(LEARN_DB, access, { roadmapId, expectedRevision: 2, planVersion: 1, actionKey: `accept-plan-${n}-1` });
   const step = await LEARN_DB.prepare('SELECT id FROM learn_roadmap_steps WHERE roadmap_id = ? AND position = 1').bind(roadmapId).first();
   const offer = await offerProposal(LEARN_DB, access, { roadmapId, expectedRevision: 3, actionKey: `offer-${n}-000001`, stepId: step.id, format: 'explanation', title: 'Step one', description: 'About Y', contentHash: 'hash1' });

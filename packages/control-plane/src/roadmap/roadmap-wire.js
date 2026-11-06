@@ -1,0 +1,44 @@
+// R4 integration glue: assembles the injected interfaces the lanes expect from each other into the production dependencies of roadmapRoute and
+// the outbox handlers. NOTHING here is mounted: the Lead mounts `roadmapRoute(path, req, env, roadmapDeps(env, ctx))`, calls registerRoadmapHandlers()
+// once where RoadmapJobs is exported, and calls scheduledRoadmapKick(env) from the scheduled handler (docs/features/explain-on-canvas/lead-patches/).
+// ROADMAP_ENABLED stays unset by default, so every route answers 404 until the owner's activation.
+import { registerRoadmapHandler, boardsWithDueEvents, runDueRoadmapEvents } from './roadmap-events.js';
+import { kickRoadmapJobs } from './roadmap-jobs.js';
+import { makeReadSource } from './roadmap-source-read.js';
+import { composeProposal } from './roadmap-compose.js';
+import { mintStepRefs } from './roadmap-source-refs.js';
+import { planningHandler } from './roadmap-planning.js';
+import { generationHandler } from './roadmap-run.js';
+
+const scopeOf = access => ({ org: access.org, ownerUserId: access.actorUserId, boardId: access.boardId });
+
+// Wake the learner's RoadmapJobs object for this board. Without the binding (a dev worker before the Lead adds it) the due events run inline in the
+// request's waitUntil, so the same handlers work; the event rows are already durable either way.
+export function roadmapKick(env, ctx) {
+  return async (_env, access) => {
+    if (env.ROADMAP_JOBS) return kickRoadmapJobs(env, scopeOf(access));
+    const run = runDueRoadmapEvents(env, { scope: scopeOf(access) }).catch(() => 0);
+    if (ctx?.waitUntil) ctx.waitUntil(run); else await run;
+    return true;
+  };
+}
+
+// deps for roadmapRoute. `settings` is R2's reader seam (Auto-suggest, mode): with R2 merged the Lead passes its readers; the default is on and Tutor.
+export function roadmapDeps(env, ctx = null, { settings, readSourceOptions } = {}) {
+  const kick = roadmapKick(env, ctx);
+  return { readSource: makeReadSource(env, readSourceOptions), startPlanning: kick, onAccepted: kick, compose: (roadmap, step) => composeProposal(env.LEARN_DB, roadmap, step),
+    mintStepRefs: (e, access, roadmapId) => mintStepRefs(e, access, roadmapId), ...(settings ? { settings } : {}) };
+}
+
+// The two durable handlers. `deps` is the test/injection seam of the handlers (callModel, registry, transport, classify, base, ...). Idempotent.
+export function registerRoadmapHandlers(deps = {}) {
+  registerRoadmapHandler('plan_requested', (env, event, ctx) => planningHandler(env, event, ctx, deps));
+  registerRoadmapHandler('step_accepted', (env, event, ctx) => generationHandler(env, event, ctx, deps));
+}
+
+// The bounded recurring scan that closes the commit-before-notify gap (R4.05): boards with due events get their object kicked.
+export async function scheduledRoadmapKick(env, { limit = 50 } = {}) {
+  let kicked = 0;
+  for (const scope of await boardsWithDueEvents(env.LEARN_DB, { limit })) if (await kickRoadmapJobs(env, scope)) kicked += 1;
+  return kicked;
+}

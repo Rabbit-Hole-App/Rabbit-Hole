@@ -60,3 +60,21 @@ export async function boardsWithDueEvents(db, { now = nowSeconds(), limit = 50 }
   const { results } = await db.prepare(`SELECT DISTINCT org, owner_user_id, board_id FROM learn_roadmap_outbox WHERE processed_at IS NULL AND next_at <= ? AND (lease_until IS NULL OR lease_until <= ?) LIMIT ?`).bind(now, now, limit).all();
   return (results || []).map(r => ({ org: r.org, ownerUserId: r.owner_user_id, boardId: r.board_id }));
 }
+
+// Claim and run what is due for a scope (or everything). Shared by the object's alarm and by tests/schedulers that have no object. A handler returns
+// { effects } (state change committed with the processed marker), { done: true } (it marked its own durable outcome), or { retry: true }; a throw retries.
+export async function runDueRoadmapEvents(env, { scope = null, now = nowSeconds(), limit = 25 } = {}) {
+  const db = env.LEARN_DB;
+  let ran = 0;
+  for (const event of await dueRoadmapEvents(db, { now, scope, limit })) {
+    const leaseToken = crypto.randomUUID();
+    if (!await claimRoadmapEvent(db, { eventId: event.event_id, leaseToken, leaseUntil: now + LEASE_SECONDS, now })) continue;
+    const handler = roadmapHandler(event.kind);
+    let outcome = { done: true };
+    try { outcome = handler ? await handler(env, event, { leaseToken, now }) || { done: true } : { done: true }; } catch { outcome = { retry: true }; }
+    if (outcome.retry) await retryRoadmapEvent(db, { eventId: event.event_id, leaseToken, now });
+    else await commitRoadmapEventEffect(db, { eventId: event.event_id, leaseToken, effects: outcome.effects || (() => []), now });
+    ran += 1;
+  }
+  return ran;
+}

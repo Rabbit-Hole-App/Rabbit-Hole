@@ -106,6 +106,8 @@ export async function createRoadmap(db, access, { actionKey, app, instruction, s
         .bind(roadmapId, ...scopeOf(access).slice(0, 2), access.actorEmail, access.boardId, app, depth, source.key, source.rev, JSON.stringify(scope ?? { kind: 'whole' }), scopeFingerprint, language, ceiling, mode, ROADMAP_POLICY_VERSION, now, now, ...r.binds),
       db.prepare(`INSERT INTO learn_roadmap_instructions (roadmap_id, version, org, owner_user_id, board_id, text, origin, created_at) SELECT ?, 1, ?, ?, ?, ?, 'create', ? WHERE ${r.and}`)
         .bind(roadmapId, ...scopeOf(access), instruction, now, ...r.binds),
+      // The planner runs from this event (roadmap-planning.js), so a crash between create and planning loses nothing.
+      eventStatement(db, access, { roadmapId, kind: 'plan_requested', factId: roadmapId, factRevision: 1, payload: { kind: 'draft', instructionVersion: 1 }, now }, r),
     ],
   });
 }
@@ -115,7 +117,9 @@ export async function createRoadmap(db, access, { actionKey, app, instruction, s
 export async function recordPlan(db, access, { roadmapId, actionKey, expectedRevision, plan, promptVersion, model = null, kind = 'draft', now = nowSeconds() }) {
   const roadmap = await readRoadmap(db, access, roadmapId);
   if (!roadmap) throw new StateError('not_found', 'Not available', 404);
-  if (!plan?.steps?.length || plan.steps.length > roadmap.ceiling) throw new StateError('invalid_request', 'plan steps must be within the ceiling', 400);
+  // A focused question or a limitation is a plan version with no steps (the roadmap waits in `questioning`); anything else needs 1..ceiling steps.
+  const waiting = !!(plan?.question || plan?.limitation);
+  if (!plan || !Array.isArray(plan.steps) || (waiting ? plan.steps.length : !plan.steps.length) || plan.steps.length > roadmap.ceiling) throw new StateError('invalid_request', 'plan steps must be within the ceiling', 400);
   const version = roadmap.plan_version + 1;
   const planJson = JSON.stringify(plan);
   const planHash = await sha256(planJson);
@@ -131,8 +135,8 @@ export async function recordPlan(db, access, { roadmapId, actionKey, expectedRev
       ...plan.steps.map((s, i) => db.prepare(`INSERT INTO learn_roadmap_steps (id, roadmap_id, org, owner_user_id, board_id, position, plan_version, state, title, goal, format, passage_start, passage_end, created_at, updated_at)
         SELECT ?, ?, ?, ?, ?, ?, ?, 'planned', ?, ?, ?, ?, ?, ?, ? WHERE ${r.and}`)
         .bind(stepIds[i], roadmapId, ...scopeOf(access), i + 1, version, s.title, s.goal, s.format, s.passage?.start ?? 0, s.passage?.end ?? 0, now, now, ...r.binds)),
-      db.prepare(`UPDATE learn_roadmaps SET plan_version = ?, state = CASE WHEN state IN ('draft', 'questioning') THEN ? ELSE state END WHERE id = ? AND ${r.and}`)
-        .bind(version, plan.question ? 'questioning' : 'proposed', roadmapId, ...r.binds),
+      db.prepare(`UPDATE learn_roadmaps SET plan_version = ?, state = CASE WHEN state IN ('draft', 'questioning', 'proposed') THEN ? ELSE state END, language = COALESCE(language, ?) WHERE id = ? AND ${r.and}`)
+        .bind(version, waiting ? 'questioning' : 'proposed', plan.language ?? null, roadmapId, ...r.binds),
     ],
   });
 }
@@ -141,7 +145,7 @@ export async function recordPlan(db, access, { roadmapId, actionKey, expectedRev
 export async function acceptPlan(db, access, { roadmapId, expectedRevision, planVersion, actionKey, now = nowSeconds() }) {
   return applyRoadmapAction(db, access, {
     operation: 'accept_plan', actionKey, roadmapId, expectedRevision, parts: [planVersion], now,
-    guard: { sql: "(SELECT state FROM learn_roadmaps WHERE id = ?) = 'proposed' AND (SELECT plan_version FROM learn_roadmaps WHERE id = ?) = ?", binds: [roadmapId, roadmapId, planVersion] },
+    guard: { sql: "(SELECT state FROM learn_roadmaps WHERE id = ?) = 'proposed' AND (SELECT plan_version FROM learn_roadmaps WHERE id = ?) = ? AND EXISTS (SELECT 1 FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ?)", binds: [roadmapId, roadmapId, planVersion, roadmapId, planVersion] },
     outcome: { status: 200, body: { roadmapId, acceptedPlanVersion: planVersion } },
     statements: r => [
       db.prepare(`UPDATE learn_roadmap_plan_versions SET accepted_at = ? WHERE roadmap_id = ? AND version = ? AND ${r.and}`).bind(now, roadmapId, planVersion, ...r.binds),

@@ -31,17 +31,24 @@ export async function generateRoadmapCard(env, access, ref, deps = {}) {
   if (!passage.trim()) return fail('terminal_validation_failure', 'passage_empty');
   if (passage.length > limits.source.passageChars) return fail('terminal_validation_failure', 'passage_too_long'); // never truncated silently
   let call = 0;
-  const metered = (e, body, model, org) => {
+  const metered = async (e, body, model, org) => {
     // generateArtifact makes the first call and at most one repair (ARTIFACT_REPAIRS); a third fails closed before any admission.
     if (call >= limits.calls.generationPerCard) throw new Error('operation_budget');
     const n = call++;
-    return callModel(withProviderCall(e, { proposalId: rec.proposalId, proposalVersion: rec.proposalVersion, cardId: rec.cardId, stage: n === 0 ? 'generate' : 'repair', call: n, retry: rec.retry ?? 0, authorizationId: ref.authorizationId }), body, model, org);
+    // withProviderCall is State's withRoadmapProviderCall (async, answers { env, opId, key }); a plain env-returning double is also accepted.
+    const scoped = await withProviderCall(e, { proposalId: rec.proposalId, proposalVersion: rec.proposalVersion, cardId: rec.cardId, stage: n === 0 ? 'generate' : 'repair', call: n, retry: rec.retry ?? 0, authorizationId: ref.authorizationId });
+    return callModel(scoped?.opId ? scoped.env : scoped, body, model, org);
   };
   // A fresh object: no field of any request, job record or model output is copied in.
   const input = { command: 'explain', args: `${rec.stepTitle}: ${rec.stepGoal}`.slice(0, ARGS_CAP), selection: null, context: passage };
   let out;
   try { out = await generate(env, input, { callModel: metered, only: [rec.format], systemSuffix: roadmapCardSuffix(rec) }); }
-  catch (error) { return fail(error?.message === 'operation_budget' ? 'terminal_validation_failure' : 'transient_provider_failure', error?.message === 'operation_budget' ? 'operation_budget' : 'provider_error', { calls: call }); }
+  catch (error) {
+    if (error?.message === 'operation_budget') return fail('terminal_validation_failure', 'operation_budget', { calls: call });
+    // A call that may have reached the provider (roadmap-run.js marks it) is never retried blind: its outcome is reconciled first.
+    if (error?.code === 'unknown_provider_outcome') return fail('unknown_provider_outcome', 'outcome_unknown', { calls: call });
+    return fail('transient_provider_failure', 'provider_error', { calls: call });
+  }
   const calls = call;
   switch (out?.result) {
     case 'artifact':
