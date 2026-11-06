@@ -1,9 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { parseVerdict, stripVerdict } from '../../control-plane/src/agents/learn-grade.js';
 import { hasMarks, sketchText } from './explain-sketch.js';
-import { HISTORY_KEPT, legacyView, pastAttempt } from './explain-back-view.js';
+import { HISTORY_KEPT, legacyView, pastAttempt, stripVerdict } from './explain-back-view.js';
 
 // LearningBlocks.jsx cannot load under node, so these run ChallengeBody's real
 // commit and retry from its source (grading-8, grading-9,
@@ -25,7 +24,7 @@ const { sketchCapture } = new Function(`${adapter}\nreturn { sketchCapture };`)(
 
 // host stands in for the canvas's SketchHost (packages/web/src/sketch-host.js); null is a card with no sketch.
 function card(block, onGrade, host = null) {
-  const make = new Function('React', 'parseVerdict', 'stripVerdict', 'hasMarks', 'sketchText', 'sketchHost', 'sketchCapture', 'pastAttempt', 'HISTORY_KEPT', `${moduleSets}
+  const make = new Function('React', 'stripVerdict', 'hasMarks', 'sketchText', 'sketchHost', 'sketchCapture', 'pastAttempt', 'HISTORY_KEPT', `${moduleSets}
     return function mount(initial, onGrade) {
       const state = { block: initial, draft: '', notice: '' };
       const setNotice = value => { state.notice = value; };
@@ -43,7 +42,7 @@ function card(block, onGrade, host = null) {
       };
       return { state, render, type: text => { state.draft = text; }, inPage: id => gradingAttempts.has(id) };
     };`);
-  return make(null, parseVerdict, stripVerdict, hasMarks, sketchText, host, sketchCapture, pastAttempt, HISTORY_KEPT)(block, onGrade);
+  return make(null, stripVerdict, hasMarks, sketchText, host, sketchCapture, pastAttempt, HISTORY_KEPT)(block, onGrade);
 }
 const challenge = { id: 'c1', type: 'challenge', prompt: 'Why exp?', expects: ['positive'], answer: null };
 const held = () => { let release; const promise = new Promise(resolve => { release = resolve; }); return { promise, release }; };
@@ -63,7 +62,6 @@ test('Answer again during a grade: the old attempt\'s verdict never lands in the
   await running;
   assert.equal(c.state.block.answer, 'second');
   assert.equal(c.state.block.verdict, 'VERDICT: partial\nNew.');
-  assert.equal(parseVerdict(c.state.block.verdict), 'partial');
   assert.equal(c.state.block.grading, false);
 });
 

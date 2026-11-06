@@ -54,6 +54,9 @@ export function submitState({ text: typed = '', sketched = false, voice = null, 
   return { ready, code: reason, reason: ready ? null : (capturing ? STOP_TO_SUBMIT : voice?.blocked || recording?.blocked) || READINESS_WORDS[reason] || null };
 }
 
+// The legacy Challenge card stores the tutor's reply as "VERDICT: good|partial" plus words; only that token is stripped from what the learner reads.
+export const stripVerdict = value => String(value || '').replace(/VERDICT:\s*(good|partial)\s*/i, '').trim();
+
 // The Explain-back card's own block (the legacy single-attempt path, before the durable store is wired): earlier
 // attempts kept by Revise answer in block.history, then the one on the block. `strip` turns a stored verdict into the words
 // the learner reads; `inPage(attemptId)` says whether its grade request still runs in this page (otherwise a saved
