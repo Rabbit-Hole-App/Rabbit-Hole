@@ -36,6 +36,8 @@ import * as explainRender from './explain-render.js';
 import { learnMedia } from './learn-storage.js';
 import { recordRound, programHashOf, resolveVersion } from './explain-history.js';
 import { allowedRepairs, defectKeys, programRepairable, presentationFix, programRepairStage, repairStage } from './explain-repair.js';
+import { DEFAULT_DEPTH, validDepth } from './chat-depth.js';
+import { readDepth } from './learn-user-settings.js';
 import { EXPLAIN_LIMITS, EXPLAIN_POLICY_VERSION, REQUEST_CLASSES, ExplainPolicyError, callExplainRole, checkExplainRequest, explainReservation,
   explainRequest, newTiming, markTiming, beginStage, countStage, endStage, timingSummary } from './explain-policy.js';
 
@@ -186,6 +188,7 @@ function validateCreate(p) {
   if (p.baseRevision != null && !KEY.test(p.baseRevision)) throw fail('Invalid base revision.');
   if (p.threadId != null && (typeof p.threadId !== 'string' || !p.threadId || p.threadId.length > 64)) throw fail('Invalid chat thread.');
   if (p.source != null && !SOURCES.includes(p.source)) throw fail('Unknown request source.');
+  if (p.depth != null && !validDepth(p.depth)) throw fail('Unknown depth.');
   if (p.requestClass === 'edit' && !p.baseRevision) throw fail('Choose the explanation to edit.');
   try { selectExamples(p.examples ?? []); } catch (error) { throw fail(error.message); }
 }
@@ -229,6 +232,9 @@ export async function explainRoute(path, req, env, deps = {}) {
   }
   const stub = env.EXPLAIN_JOBS.get(env.EXPLAIN_JOBS.idFromName(board.id));
   const who = { org: user.org, email: user.email, userId: user.userId || user.user_id || null };
+  // R2: Depth is the server's read of this learner's saved setting for this canvas, never a browser field.
+  delete body.depth;
+  if (action === 'create') body.depth = await readDepth(env, { org: who.org, userId: who.userId, app: board.app, board: board.board });
   // Task 9.2: an Edit re-reads the sources its accepted base was made from (its private provenance), under this learner's access now.
   const lineage = action === 'create' && body.requestClass === 'edit' && typeof body.cardId === 'string' && typeof body.baseRevision === 'string'
     ? await stub.fetch('https://explain/action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'lineage', payload: { cardId: body.cardId, baseRevision: body.baseRevision }, board, user: who }) })
@@ -341,6 +347,8 @@ export class ExplainJobs {
     const job = {
       id: `ej_${hex()}`, version: 1, policyVersion: EXPLAIN_POLICY_VERSION, boardId: board.id, app: board.app, board: board.board,
       owner: { org: user.org, email: user.email, userId: user.userId || null }, origin, cardId: payload.cardId, requestId: payload.requestId,
+      // R2: the learner's Depth when the request was made (the route reads it); the brief and author stages read it from here.
+      depth: validDepth(payload.depth) || DEFAULT_DEPTH,
       prompt: payload.prompt.trim(), sourceRef: payload.sourceRef ?? null, context: payload.context ?? null, examples: payload.examples ?? [], evidence: payload.evidence ?? [], source: payload.source ?? 'explicit', base, reference: payload.reference ?? null, requestClass: payload.requestClass, baseRevision: payload.baseRevision ?? null,
       // Preparation (a brief) is the server's decision (explain-brief.js needsPreparation): every new explanation prepares one and
       // waits for Generate, whatever requestClass the client sent; a job stored before that rule keeps its own prepare flag.
