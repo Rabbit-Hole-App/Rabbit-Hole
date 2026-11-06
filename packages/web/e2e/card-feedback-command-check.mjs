@@ -1,6 +1,6 @@
 // Card feedback controls (Explain-on-Canvas roadmap R1) in the real app, against the LOCAL stack only, with no model call: the card
 // feedback route is a fake server in this browser (one Map, the real route's answers: 404 unknown_card, 400 not_rateable, 200).
-// Covers: a generated card draws a Good card / Bad card pair under it that is hidden at rest and stays hidden when the card is only
+// Covers: a generated card draws a Understood / Still unclear pair under it that is hidden at rest and stays hidden when the card is only
 // selected; hovering the card reveals it; pressing either thumb turns it blue (aria-pressed) and the other off; pressing the chosen
 // one again clears; keyboard: Tab from the card reaches the pair, focus reveals it with a visible focus ring, Space and Enter rate
 // and neither opens or moves the card; an imported source card has no pair; a failed save puts the earlier value back and says so;
@@ -59,8 +59,8 @@ await context.route('**/api/**', router);
 page = await context.newPage();
 page.on('pageerror', error => errors.push(error.message));
 const card = id => page.locator(`[data-block-id="${id}"]`);
-const pair = id => card(id).locator('[data-card-feedback-pair]');
-const thumb = (id, which) => card(id).locator(`[data-card-feedback="${which}"]`);
+const pair = id => card(id).locator('[data-card-thumbs]');
+const thumb = (id, which) => card(id).locator(`[data-card-thumb="${which}"]`);
 const opacity = async id => Number(await pair(id).evaluate(node => getComputedStyle(node).opacity));
 const color = async (id, which) => thumb(id, which).evaluate(node => getComputedStyle(node).color);
 const BLUE = 'rgb(35, 131, 226)';
@@ -69,10 +69,10 @@ try {
   await page.goto(`${BASE}/apps/${canvas.name}`);
   await card('gen').waitFor({ state: 'visible', timeout: 60000 });
 
-  await step('a generated card has a Good card / Bad card pair under it, hidden at rest and when only the card is selected', async () => {
+  await step('a generated card has a Understood / Still unclear pair under it, hidden at rest and when only the card is selected', async () => {
     assert.deepEqual(await pair('gen').getAttribute('aria-label'), 'Rate this card');
-    assert.equal(await thumb('gen', 'up').getAttribute('aria-label'), 'Good card');
-    assert.equal(await thumb('gen', 'down').getAttribute('aria-label'), 'Bad card');
+    assert.equal(await thumb('gen', 'up').getAttribute('aria-label'), 'Understood');
+    assert.equal(await thumb('gen', 'down').getAttribute('aria-label'), 'Still unclear');
     await page.mouse.move(5, 5);
     assert.equal(await opacity('gen'), 0, 'hidden at rest');
     await card('gen').click({ position: { x: 20, y: 30 } });
@@ -123,9 +123,9 @@ try {
   await step('keyboard: Tab from the card reaches the pair, focus reveals it with a visible ring, Space and Enter rate', async () => {
     await page.mouse.move(5, 5);
     await card('gen').focus();
-    const focused = () => page.evaluate(() => document.activeElement?.getAttribute('data-card-feedback'));
+    const focused = () => page.evaluate(() => document.activeElement?.getAttribute('data-card-thumb'));
     for (let tabs = 0; tabs < 8 && (await focused()) !== 'up'; tabs += 1) await page.keyboard.press('Tab'); // the card's own controls come first
-    assert.equal(await focused(), 'up', 'Tab reaches Good card');
+    assert.equal(await focused(), 'up', 'Tab reaches Understood');
     assert.equal(await opacity('gen'), 1, 'own focus reveals the pair');
     assert.notEqual(await thumb('gen', 'up').evaluate(node => getComputedStyle(node).outlineStyle), 'none', 'a visible focus ring');
     await page.keyboard.press('Space');
@@ -146,7 +146,7 @@ try {
     await card('gen').hover({ position: { x: 20, y: 30 } });
     fake.failNext = true;
     await thumb('gen', 'up').click();
-    await page.getByText('Your rating was not saved. Try again.').waitFor({ timeout: 10000 });
+    await page.getByText('Your feedback was not saved. Try again.').waitFor({ timeout: 10000 });
     assert.equal(await thumb('gen', 'up').getAttribute('aria-pressed'), 'false');
   });
 

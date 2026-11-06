@@ -1,7 +1,7 @@
 // Card feedback, the R1 acceptance path (Explain-on-Canvas roadmap 3.2) in the real app, against the LOCAL stack only, with no model
 // call: the card feedback route is a fake server in this browser that answers as the real one does (its list holds only cards on the
 // canvas's saved board, read from the real board route, so a deleted card drops out).
-// Covers: rate a generated card; reload and it is still rated; Progress with NO goal lists it under "Your ratings of cards" beside
+// Covers: rate a generated card; reload and it is still rated; Progress with NO goal lists it under "Your feedback" beside
 // "No learning goal set yet", and the row takes the learner to the card; with a goal Progress shows the same list apart from the skills;
 // clear the rating, reload: nothing in Progress; rate, delete the card: Progress names no card and has no target; a shared view shows
 // no control and makes no feedback request; no model request and no page error.
@@ -29,7 +29,7 @@ await api(`/api/learn/boards/${canvas.name}/main`, { method: 'PUT', body: JSON.s
 
 const MODEL = /^\/api\/(ask$|learn\/(ask|selection|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|artifact|explain|animation|chat\/material-proposals|cad\/jobs|motion))/;
 const stray = [], errors = [], results = [];
-const fake = { values: new Map(), puts: [], gets: 0 };
+const fake = { values: new Map(), revisions: new Map(), puts: [], gets: 0 };
 let page, context;
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -44,12 +44,13 @@ const router = async route => {
     if (request.method() === 'GET') {
       fake.gets += 1;
       const live = await savedIds();
-      return route.fulfill({ json: { items: [...fake.values].filter(([cardId]) => live.has(cardId)).map(([cardId, value]) => ({ cardId, value, title: 'Balance sheets' })) } });
+      return route.fulfill({ json: { items: [...fake.values].filter(([cardId]) => live.has(cardId)).map(([cardId, value]) => ({ cardId, value, revision: fake.revisions.get(cardId), title: 'Balance sheets' })) } });
     }
     const body = request.postDataJSON();
     fake.puts.push({ cardId: body.cardId, value: body.value });
-    if (body.value === null) fake.values.delete(body.cardId); else fake.values.set(body.cardId, body.value);
-    return route.fulfill({ json: { cardId: body.cardId, value: body.value } });
+    fake.values.set(body.cardId, body.value); // a cleared rating stays as a row with no value, as the real route keeps it
+    fake.revisions.set(body.cardId, (fake.revisions.get(body.cardId) ?? 0) + 1);
+    return route.fulfill({ json: { cardId: body.cardId, value: body.value, revision: fake.revisions.get(body.cardId), updatedAt: new Date().toISOString() } });
   }
   if (MODEL.test(path)) { stray.push(`${request.method()} ${path}`); return route.abort(); }
   return route.continue();
@@ -66,7 +67,7 @@ const open = async () => {
   await card('gen').waitFor({ state: 'visible', timeout: 60000 });
 };
 const card = id => page.locator(`[data-block-id="${id}"]`);
-const thumb = (id, which) => card(id).locator(`[data-card-feedback="${which}"]`);
+const thumb = (id, which) => card(id).locator(`[data-card-thumb="${which}"]`);
 const summary = () => page.locator('[data-card-feedback-summary]');
 const progress = async () => { await page.locator('[data-panel-tab="progress"]').click(); await page.locator('[data-progress-pane]').waitFor({ timeout: 20000 }); };
 const rate = async which => { const before = fake.puts.length; await card('gen').hover({ position: { x: 20, y: 30 } }); await thumb('gen', which).click(); await until(async () => fake.puts.length === before + 1, `a save for ${which}`); };
@@ -92,11 +93,11 @@ try {
     await page.locator('[data-progress-empty]').waitFor({ timeout: 20000 });
     await summary().waitFor({ timeout: 20000 });
     const text = await summary().innerText();
-    assert.match(text, /Your ratings of cards/);
+    assert.match(text, /Your feedback/);
     assert.match(text, /Private to you\. What you said about a card, not an assessment of what you know\./);
-    assert.match(text, /Good cards \(1\)/);
+    assert.match(text, /Understood \(1\)/);
     assert.match(text, /Balance sheets/);
-    assert.doesNotMatch(text, /Bad cards/);
+    assert.doesNotMatch(text, /Still unclear/);
     await page.screenshot({ path: `${SHOTS}/progress-no-goal.png` });
     await summary().locator('[data-card-feedback-card="gen"]').click();
     await until(async () => (await card('gen').getAttribute('aria-current')) === 'true', 'the card is selected and in view');
@@ -111,7 +112,7 @@ try {
     await progress();
     await page.locator('[data-progress-goal]').waitFor({ timeout: 20000 });
     await summary().waitFor({ timeout: 20000 });
-    assert.match(await summary().innerText(), /Good cards \(1\)/);
+    assert.match(await summary().innerText(), /Understood \(1\)/);
     await page.screenshot({ path: `${SHOTS}/progress-goal.png` });
   });
 
@@ -122,8 +123,9 @@ try {
     await reload();
     await progress();
     await page.locator('[data-progress-goal],[data-progress-empty]').first().waitFor({ timeout: 20000 });
-    await page.waitForTimeout(800);
-    assert.equal(await summary().count(), 0);
+    await summary().waitFor({ timeout: 20000 });
+    assert.equal(await page.locator('[data-card-feedback-card]').count(), 0, 'no row once the rating is cleared');
+    assert.match(await summary().innerText(), /Nothing rated yet\./);
   });
 
   await step('a deleted card leaves Progress with no row and no target', async () => {
@@ -136,8 +138,8 @@ try {
     await page.locator('[data-panel-tab="chat"]').click();
     await progress();
     await page.waitForTimeout(500);
-    assert.equal(await page.locator('[data-card-feedback-card="gen"]').count(), 0);
-    assert.equal(await summary().count(), 0);
+    assert.equal(await page.locator('[data-card-feedback-card]').count(), 0, 'no row and no target for the deleted card');
+    assert.match(await summary().innerText(), /Nothing rated yet\./);
     await until(async () => !(await savedIds()).has('gen'), 'the deletion is saved');
   });
 
@@ -154,7 +156,7 @@ try {
     await link.locator('[data-block-id="gen"]').waitFor({ state: 'visible', timeout: 60000 });
     await link.locator('[data-block-id="gen"]').hover({ position: { x: 20, y: 30 } });
     await link.waitForTimeout(800);
-    assert.equal(await link.locator('[data-card-feedback-pair], [data-card-feedback]').count(), 0);
+    assert.equal(await link.locator('[data-card-thumbs], [data-card-thumb]').count(), 0);
     assert.deepEqual([fake.gets, fake.puts.length], before, 'no feedback request from a shared view');
     await link.screenshot({ path: `${SHOTS}/shared-view.png` });
     await viewer.close();
