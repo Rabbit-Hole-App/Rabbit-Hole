@@ -152,14 +152,10 @@ const courseDefault = count => [/(?<=[({,]\s*)domain = NANOGPT(?=\s*[,})])/g, 't
 // (command placeholder copy) and learn-journey-fixtures.js (test-only fixture topics).
 const SCANNED = [
   ['../../control-plane/src/agents/learn-next-steps.js'], ['../../control-plane/src/learn-next-steps-routes.js'], ['./learn-next-steps.js'], ['./LearnNextSteps.jsx'], ['../../control-plane/src/learn-next-steps-planner.js'],
-  ['../../control-plane/src/learn-tutor-handoff.js'], ['./learn-tutor-actions.js'], ['../../control-plane/src/agents/learn-labels.js'],
-  ['../../control-plane/src/learn-journey-planners.js'], ['../../control-plane/src/learn-tutor-routes.js'], ['./learn-journey-domain.js'],
+  ['./learn-tutor-actions.js'], ['../../control-plane/src/agents/learn-labels.js'],
+  ['../../control-plane/src/learn-journey-planners.js'], ['./learn-journey-domain.js'],
   ['../../control-plane/src/learn-boards.js'], ['../../control-plane/src/learn-shared-ask.js'], ['./voice-session.js'], ['./LearnVoice.jsx'], ['../../control-plane/src/learn-models.js'],
   ['./learn-tutor-evidence.js', courseImports("import { CLAIMS, NANOGPT, claimsOfConceptIn } from './learn-tutor-claims.js';"), courseDefault(1)],
-  ['../../control-plane/src/agents/learn-tutor.js',
-    [/^\s*'You are the Tutor on a Rabbit Hole learning canvas about nanoGPT attention\. You compose ONE turn\.',$/gm, 'LINES[0], the registered course subject line; the journey and canvas prompts leave it out', 1],
-    [/(?<=[(,]\s*)kind = 'nanogpt'(?=\s*[,)])/g, 'the default prompt kind parameter is the registered course', 1],
-    [/: 'nanogpt'\)/g, 'the prompt kind a registered course turn is selected with', 1]],
 ];
 // A comparison of a hook, claim, concept, block or id list length with 2 to 4 (a word length filter is not one of them).
 const COUNT = /\b(?:options|hooks|claims|concepts|blocks|goals|ids)\.length\s*(?:[!=]=?=|[<>]=?)\s*[2-4]\b|\blength\s*===\s*3\b/;

@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { admitSpend, settleSpend, requestSpendBound, spendTransport } from '../src/learn-spend.js';
-import { tutorRoute } from '../src/learn-tutor-routes.js';
 import { anthropic, planModel, aiCacheDrop } from '../src/ask.js';
 import { loggedModel } from '../src/learn-models.js';
 import { withSystemUsage } from '../src/learn-usage.js';
@@ -23,28 +22,6 @@ function ledger(t) {
   }) }) };
   return { sqlite, LEARN_DB };
 }
-
-test('an admitted dev Tutor request reaches transport and a second affordable request remains usable', async t => {
-  const { LEARN_DB } = ledger(t);
-  const original = globalThis.fetch;
-  let calls = 0;
-  t.after(() => { globalThis.fetch = original; });
-  globalThis.fetch = async (url) => {
-    assert.equal(String(url), 'https://api.anthropic.com/v1/messages');
-    calls++;
-    return Response.json({ model: 'claude-opus-5-5', usage: { input_tokens: 100, output_tokens: 20 }, stop_reason: 'tool_use',
-      content: [{ type: 'tool_use', name: 'tutor_response', input: { constraints_add: [], strategy: 'none', actions: [{ type: 'respond_text', text: 'Synthetic answer.' }] } }] });
-  };
-  const env = platform({ SMALL_ENV: 'dev', LEARN_DB, ANTHROPIC_API_KEY: 'synthetic-not-a-credential', USAGE_PLATFORM_DAY_USD: '1', TUTOR_PLANNER_FAST_MODEL: 'off' });
-  const path = '/api/learn/tutor/plan';
-  for (let i = 0; i < 2; i++) {
-    const request = new Request(`https://synthetic.test${path}`, { method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ app: 'synthetic', context: { input: 'Explain this synthetic note.', allowed_actions: ['respond_text'] } }) });
-    const response = await tutorRoute(path, request, env, { authorize: async () => ({ user_id: 'synthetic', email: 'synthetic@example.test', org: 'synthetic' }) });
-    assert.equal(response.status, 200, await response.clone().text());
-    assert.equal(calls, i + 1, 'the default provider path reached only mocked transport');
-  }
-});
 
 test('a positive settlement does not consume the entire daily cap', async t => {
   const { LEARN_DB } = ledger(t);

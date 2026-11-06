@@ -5,7 +5,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { clientTelemetryRoute, CLIENT_PATH } from '../src/telemetry-client-route.js';
-import { tutorTelemetryRoute, TUTOR_PATH } from '../src/telemetry-tutor-route.js';
 import { ownerTelemetryRoute, OWNER_ROUTES } from '../src/owner-telemetry-routes.js';
 import { emitTelemetry } from '../src/telemetry-delivery.js';
 import { loggedModel } from '../src/learn-models.js';
@@ -21,12 +20,9 @@ const dark = { CONTROL_PLANE, SUBSCRIPTION_OWNER_EMAIL: OWNER };
 const as = who => ({ identity: async () => who ?? new Response('no', { status: 401 }) });
 const learner = { userId: 'user-9', email: 'learner@example.com', org: 'o' };
 
-test('browser and Tutor ingestion answer 204 to a signed-in caller and keep nothing', async () => {
+test('browser ingestion answers 204 to a signed-in caller and keeps nothing', async () => {
   const client = new Request(`https://rabbit.test${CLIENT_PATH}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"events":[]}' });
   assert.equal((await clientTelemetryRoute(CLIENT_PATH, client, dark, as(learner))).status, 204);
-  const tutor = () => new Request(`https://rabbit.test${TUTOR_PATH}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"events":[]}' });
-  assert.equal((await tutorTelemetryRoute(TUTOR_PATH, tutor(), dark, as(learner))).status, 204);
-  assert.equal((await tutorTelemetryRoute(TUTOR_PATH, tutor(), dark, as(null))).status, 401, 'the sign-in rule does not depend on storage');
 });
 
 test('server events are a no-op and the model call is returned unchanged', async t => {

@@ -59,7 +59,7 @@ export function readUsage(status, body) {
 // added together (the three Ctrl+K steps are one edit); a name not listed here is Other, never a raw id.
 const FEATURE_LABELS = {
   ask: 'Chat', auto: 'Chat', shared_ask: 'Chat on shared canvases', home_ask: 'Home questions',
-  tutor: 'Tutor', tutor_evaluate: 'Tutor', handoff: 'Tutor', next_steps: 'Next steps', shared_next_steps: 'Next steps',
+  tutor: 'Tutor', tutor_evaluate: 'Tutor', attempt_assessment: 'Tutor', handoff: 'Tutor', next_steps: 'Next steps', shared_next_steps: 'Next steps',
   inline_route: 'Ctrl+K edits', inline_decide: 'Ctrl+K edits', inline_generate: 'Ctrl+K edits',
   journey: 'Learning paths', course: 'Courses', artifact: 'Generated cards', board: 'Generated cards', scene: '3D scenes',
   image: 'Images', video: 'Videos', transcribe: 'Transcription', tts: 'Narration', voice_tts: 'Voice mode', voice_scribe: 'Voice mode',

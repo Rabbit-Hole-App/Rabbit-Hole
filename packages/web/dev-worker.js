@@ -48,9 +48,7 @@ import grantsCode from '../byoc/grants.py';
 import { apiAsk } from '../control-plane/src/index.js';
 import { boardFetch, authorizedBoardApp, paperFetch, mediaFetch, momentFeedback, videoGone, canvasSearch, wikiArticle } from '../control-plane/src/learn-board.js';
 import { learnGradeRoute, assessAnswer } from '../control-plane/src/learn-grade-routes.js';
-import { tutorRoute } from '../control-plane/src/learn-tutor-routes.js';
 import { ownedNextStepsRoute } from '../control-plane/src/learn-next-steps-routes.js';
-import { tutorEvalRoute } from '../control-plane/src/tutor-eval-routes.js';
 import { journeyRoute } from '../control-plane/src/learn-journey.js';
 import { coachingRoute } from '../control-plane/src/learn-coaching-routes.js';
 import { codebaseRoute } from '../control-plane/src/learn-codebase-source-map.js';
@@ -81,7 +79,6 @@ import { imageEstimate, ESTIMATE_PRICE } from '../control-plane/src/learn-usage-
 import { usageFetch } from '../control-plane/src/learn-usage-route.js';
 import { ownerTelemetryRoute } from '../control-plane/src/owner-telemetry-routes.js';
 import { clientTelemetryRoute } from '../control-plane/src/telemetry-client-route.js';
-import { tutorTelemetryRoute } from '../control-plane/src/telemetry-tutor-route.js';
 import { withTrace } from '../control-plane/src/telemetry-delivery.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from '../control-plane/src/subscription-transport.js';
@@ -192,8 +189,6 @@ const routes = {
     }
     // Browser error batches (docs/features/telemetry.md "Browser errors"): same-origin, bounded, 204 where telemetry is not provisioned.
     if (path === '/api/telemetry/client') { const accepted = await clientTelemetryRoute(path, req, env); if (accepted) return accepted; }
-    // The signed-in learner's Tutor evidence events (docs/features/telemetry.md "Tutor evidence"): ids, enums and counts, never their words.
-    if (path === '/api/telemetry/tutor') { const accepted = await tutorTelemetryRoute(path, req, env); if (accepted) return accepted; }
     // The owner's telemetry API (docs/features/telemetry.md): 404 to anyone but SUBSCRIPTION_OWNER_EMAIL's session, whatever the mode.
     if (path.startsWith('/api/owner/telemetry')) { const owned = await ownerTelemetryRoute(path, req, env); if (owned) return owned; }
     // Creator analytics reads (docs/features/creator-analytics-contract.md): the signed-in creator's own boards only.
@@ -313,11 +308,8 @@ const routes = {
     if (path === '/api/learn/wiki') return wikiArticle(req, env);
     // The visible grade (owner decision 3, docs/features/learn-cleanup.md): one model call, nothing stored.
     if (path === '/api/learn/assess') return assessAnswer(req, env);
-    // The owner's private Tutor evaluation archive (learn-migrations/0017): 404 to anyone but TUTOR_EVAL_OWNER_USER_ID.
-    if (path.startsWith('/api/learn/tutor-eval/')) return tutorEvalRoute(path, req, env);
-    // Professor Next Steps on the learner's own canvas (learn-next-steps-routes.js): its own mount, ahead of tutorRoute; null for any other path.
+    // Professor Next Steps on the learner's own canvas (learn-next-steps-routes.js): its own mount; null for any other path.
     { const steps = await ownedNextStepsRoute(path, req, env); if (steps) return steps; }
-    if (path.startsWith('/api/learn/tutor/')) { const tutored = await tutorRoute(path, req, env); if (tutored) return tutored; }
     // Submitted attempts and their assessments (learn-migrations/0026): the signed-in learner's own records only.
     if (path.startsWith('/api/learn/tutor/attempts')) { const attempted = await attemptRoute(path, req, env); if (attempted) return attempted; }
     // Card feedback (R1, learn-migrations/0036): the signed-in owner's private rating of a generated card.

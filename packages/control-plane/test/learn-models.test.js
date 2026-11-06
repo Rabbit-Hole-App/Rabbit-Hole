@@ -151,15 +151,12 @@ test('the task configuration states what the requests above carry, and the limit
   assert.deepEqual(pick(LEARN_TASKS.chat), { provider: 'anthropic', model: null, maxTokens: 6000 });
   assert.deepEqual(pick(LEARN_TASKS.grading), { provider: 'anthropic', model: null, maxTokens: 2400 });
   assert.deepEqual(pick(LEARN_TASKS.artifact), { provider: 'plan', model: 'claude-opus-5', maxTokens: 4000 });
-  assert.deepEqual(pick(LEARN_TASKS.tutor), { provider: 'anthropic', model: 'claude-opus-5-5', maxTokens: 2000 });
-  assert.deepEqual(pick(LEARN_TASKS.tutor_evaluator), { provider: 'anthropic', model: 'claude-opus-5-5', maxTokens: 2400 });
   // Tutor Tasks 13 and 14: the rubric and visual assessment roles.
   for (const task of ['tutor_rubric', 'tutor_visual']) assert.deepEqual(LEARN_TASKS[task], { provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools; one JSON reply)', maxTokens: 4000 }, task);
-  for (const task of ['avatar_director', 'avatar_script_reviewer']) assert.deepEqual(pick(LEARN_TASKS[task]), { provider: 'anthropic', model: 'claude-opus-5-5', maxTokens: 4000 }, task);
-  for (const task of ['tutor', 'tutor_evaluator', 'avatar_director', 'avatar_script_reviewer']) assert.equal(LEARN_TASKS[task].fallback, 'none', task);
+  for (const task of ['tutor', 'tutor_evaluator', 'avatar_director', 'avatar_script_reviewer']) assert.equal(LEARN_TASKS[task], undefined, `${task} was removed with the Tutor (cleanup P3)`);
   assert.deepEqual(pick(LEARN_TASKS.board), { provider: 'plan', model: 'claude-opus-5', maxTokens: { plan: 1200, draft: 3000, review: 1800 } });
   assert.equal(LEARN_TASKS.chat.picker, true);
-  for (const task of ['grading', 'tutor', 'tutor_evaluator', 'artifact', 'board']) assert.equal(LEARN_TASKS[task].picker, false, task);
+  for (const task of ['grading', 'artifact', 'board']) assert.equal(LEARN_TASKS[task].picker, false, task);
   assert.deepEqual([MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS, PAPERS_PER_ANSWER], [4000, 3, 10, 2]);
   assert.deepEqual([RESEARCH_STEPS, ARTIFACT_REPAIRS, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES], [8, 1, 7, 2]);
 });
@@ -181,7 +178,7 @@ test('the journey roles: exactly five LEARN_TASKS entries, one tool each, no fal
   assert.ok(Object.values(journey).every(Object.isFrozen));
   // Appended after the Avatar roles, which stay; the hook planner roles follow the journey block, then the /explain roles
   // (EXP-T12; their values: explain-policy.test.js).
-  assert.deepEqual(Object.keys(LEARN_TASKS).slice(Object.keys(LEARN_TASKS).indexOf('home_ask'), -2), ['home_ask', 'avatar_director', 'avatar_script_reviewer', ...Object.keys(journey), 'tutor_next_steps', 'tutor_next_steps_escalation', 'explore_find', 'explain_brief', 'explain_author', 'explain_review', 'explain_repair', 'animation_brief', 'animation_author', 'animation_review', 'animation_repair', 'whiteboard_plan', 'whiteboard_author']);
+  assert.deepEqual(Object.keys(LEARN_TASKS).slice(Object.keys(LEARN_TASKS).indexOf('home_ask'), -2), ['home_ask', ...Object.keys(journey), 'tutor_next_steps', 'tutor_next_steps_escalation', 'explore_find', 'explain_brief', 'explain_author', 'explain_review', 'explain_repair', 'animation_brief', 'animation_author', 'animation_review', 'animation_repair', 'whiteboard_plan', 'whiteboard_author']);
 });
 
 // Professor Next Steps (docs/features/professor-next-steps.md §2.4): Sonnet low first, Opus once as the escalation; the

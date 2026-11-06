@@ -20,7 +20,7 @@ export async function modelFailure(response, label, suffix = '') {
 // search+read+read+show on one source family and still consult another.
 // onProgress(stage, card): card ('paper' | 'wiki' | 'video') once a show tool has validated, so the page
 // can hold that card's place on the canvas (docs/features/canvas-skeleton-cards.md).
-// arxiv: false (the Tutor repository_context handoff, learn-tutor-handoff.js) offers only the caller's tools and leaves out
+// arxiv: false (the ToC conversation's outline tool, index.js) offers only the caller's tools and leaves out
 // LEARN_RESEARCH_SYSTEM, so no paper tool is sent, named or run; every other caller keeps the default.
 const SHOWN_CARD = { show_wikipedia: 'wiki', show_video: 'video' }; // learn-wiki.js, learn-youtube.js
 // graceful (Learn chat, askStream): what a learner sees when the model declines (stop_reason refusal) or stops at max_tokens

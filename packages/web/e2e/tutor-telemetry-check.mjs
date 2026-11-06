@@ -1,9 +1,7 @@
-// Tutor evidence telemetry and its learner notice (telemetry brief Task 12; docs/features/telemetry.md "Tutor evidence") against
-// the LOCAL stack only. It checks what a browser can show without a model: the learner notice in Settings, Privacy & security, and
-// the route's sign-in rule. It does NOT post a real tutor.decision (a Tutor turn needs a model, which the keyless stack refuses),
-// so the mapping from real Tutor events, the exclusions and the server's enrichment are covered by unit tests on fixtures only
-// (tutor-telemetry.test.mjs, telemetry-tutor-route.test.js). The local stack has no telemetry database, so a signed-in post is
-// answered 204. No model request is made.
+// The learner notice in Settings, Privacy & security (telemetry brief Task 12, owner decision N2 of the Tutor cleanup, P3) against
+// the LOCAL stack only. The Tutor evidence route (/api/telemetry/tutor) and its events are gone; this checks what a browser can
+// show without a model: the notice names only what analytics still record, and sits in the pane that explains sign-in.
+// No model request is made.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 [VARS=<cp .dev.vars>] node e2e/tutor-telemetry-check.mjs
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -17,18 +15,9 @@ const vars = process.env.VARS || new URL('../../control-plane/.dev.vars', import
 const secret = readFileSync(vars, 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret }) })).json();
 
-const total = 3;
+const total = 2;
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
-const post = (cookie, body = '{"events":[]}') => fetch(`${BASE}/api/telemetry/tutor`, { method: 'POST', headers: { 'content-type': 'application/json', ...(cookie ? { cookie: `small_session=${cookie}` } : {}) }, body });
-
-await check('the Tutor evidence route refuses a caller with no session and answers a signed-in learner where telemetry is not provisioned', async () => {
-  assert.equal((await post(null)).status, 401, 'anonymous');
-  assert.equal((await post('not-a-session')).status, 401, 'an unknown session');
-  const signedIn = await post(session);
-  assert.ok([202, 204].includes(signedIn.status), `signed in: ${signedIn.status}`);
-  assert.equal((await fetch(`${BASE}/api/telemetry/tutor`, { headers: { cookie: `small_session=${session}` } })).status, 405, 'GET');
-});
 
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -43,12 +32,13 @@ await page.waitForFunction(() => window.fetch.clientTelemetryHook === true, null
 // mounts, and an earlier event is dropped, not queued. Wait for the signed-in sidebar first, as rabbit-hole-check.mjs does.
 await page.locator('aside').getByText(email, { exact: true }).first().waitFor({ state: 'attached', timeout: 20000 });
 
-await check('Settings, Privacy & security tells the learner what analytics record, scoped to analytics, with no ellipsis', async () => {
+await check('Settings, Privacy & security tells the learner what analytics record, scoped to analytics, naming no Tutor event, with no ellipsis', async () => {
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('small:settings', { detail: { tab: 'privacy' } })));
   const notice = dialog.locator('[data-learning-analytics-notice]');
   await notice.waitFor({ timeout: 15000 });
   const text = await notice.innerText();
   assert.match(text, /internal account and canvas identifiers/);
+  assert.equal(/Tutor action|reason code|which suggestions were shown|claims were in each state/.test(text), false, 'no Tutor event is described: none is recorded');
   assert.match(text, /whether an assessed answer was met, partly met or not met/);
   assert.match(text, /do not include the text of your messages, questions or answers/);
   assert.match(text, /about analytics only: your canvases, chats and submitted answers are still stored in your account/);

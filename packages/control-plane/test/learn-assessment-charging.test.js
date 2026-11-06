@@ -78,12 +78,11 @@ const ROUTES = {
 };
 const rows = (w, table, where = "action_id <> 'seed'") => w.sqlite.prepare(`SELECT * FROM ${table} WHERE ${where} ORDER BY rowid`).all().map(row => ({ ...row }));
 
-test('item 4: every assessment entry point is a free feature; a Tutor plan turn is not', () => {
+test('item 4: every assessment entry point is a free feature', () => {
   const free = path => payerOf({ feature: usageFeature('POST', path), identity: { userId: ANA.userId } });
-  for (const path of [ATTEMPTS, `${ATTEMPTS}/at_1/reassess`, '/api/learn/tutor/evaluate', '/api/learn/grade', '/api/learn/assess']) {
+  for (const path of [ATTEMPTS, `${ATTEMPTS}/at_1/reassess`, '/api/learn/grade', '/api/learn/assess']) {
     assert.deepEqual((({ payer, payerReason, chargeClass }) => [payer, payerReason, chargeClass])(free(path)), ['user', 'free_action', 'free'], path);
   }
-  assert.equal(free('/api/learn/tutor/plan').chargeClass, 'would_charge', 'a Tutor turn is chargeable: assessment must not run inside it');
 });
 
 test('item 4: with the learner\'s allowance used up, every assessment route still completes, platform-funded, its provider cost recorded; the balance does not move', async t => {
@@ -99,7 +98,7 @@ test('item 4: with the learner\'s allowance used up, every assessment route stil
     {
       assert.ok(providerCalls() > 0, route);
       assert.equal(attempts.length, providerCalls(), `${route}: every provider call is recorded`);
-      assert.deepEqual(actions.map(a => [a.feature, a.payer, a.payer_reason, a.charge_class, a.user_id]), [['tutor_evaluate', 'user', 'free_action', 'free', ANA.userId]], `${route}: one free action`);
+      assert.deepEqual(actions.map(a => [a.feature, a.payer, a.payer_reason, a.charge_class, a.user_id]), [['attempt_assessment', 'user', 'free_action', 'free', ANA.userId]], `${route}: one free action`);
       for (const a of attempts) {
         assert.deepEqual([a.status, a.cost_state], ['settled', 'settled'], route);
         assert.ok(Number.isSafeInteger(a.cost_micros) && a.cost_micros > 0, `${route}: provider cost recorded (${a.cost_micros} micros)`);

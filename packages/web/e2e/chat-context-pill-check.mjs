@@ -103,11 +103,6 @@ const router = async route => {
       + frame('answer_meta', { messageId, actions: [], followUps: [], alternatives: [messageId], kind: 'answer', syllabus: null })
       + frame('done', { ok: true, threadId: body.thread_id || `ccp-thread-${reply}`, userMessageId: `u-${reply}`, messageId }) });
   }
-  if (path === '/api/learn/tutor/plan') {
-    const reply = ++replies;
-    captured.push({ route: 'plan', body, reply });
-    return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', constraints_add: [], actions: [{ type: 'respond_text', text: `Canned reply ${reply}.` }] } });
-  }
   if (path === '/api/learn/tutor/evaluate') return route.fulfill({ json: { status: 'settled', evaluator: 'jev', events: [] } });
   // The canned chats exist nowhere; the two saved chats (canvaschat-<uuid>) save their state for real.
   if (/^\/api\/learn\/chat\/(threads|messages)\/ccp-/.test(path)) return route.fulfill({ json: { ok: true } });

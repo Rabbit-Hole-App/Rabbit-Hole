@@ -14,7 +14,8 @@ import { deriveCriterionSummary } from '../../web/src/learn-coaching-contract.js
 
 const DAY = 86400;
 const REPAIR = ['repair_misconception', 'fill_prerequisite_gap', 'deepen_mechanism', 'increase_interactivity', 'reduce_cognitive_load'];
-const TUTOR_FEATURES = ['tutor', 'tutor_evaluate', 'next_steps', 'shared_next_steps', 'handoff'];
+// ponytail: tutor, tutor_evaluate and handoff are history names; usage rows written before Tutor cleanup P3 carry them.
+const TUTOR_FEATURES = ['tutor', 'tutor_evaluate', 'attempt_assessment', 'next_steps', 'shared_next_steps', 'handoff'];
 const EVENT_LIMIT = 20000;
 const all = async statement => (await statement.all()).results || [];
 const metric = (id, label, definition, numerator, denominator, extra = {}) => ({ id, label, definition, numerator, denominator, rate: denominator ? numerator / denominator : null, ...extra });
@@ -82,7 +83,7 @@ async function milestones(db, sinceS) {
   const sum = state => inWindow.reduce((total, m) => total + (m.cost?.[state]?.micros || 0), 0);
   return { milestones: inWindow.length, medianElapsedSeconds: median(inWindow.map(m => m.milestoneS - m.firstS)), medianObservations: median(inWindow.map(m => m.observations)),
     cost: { measuredMicros: sum('settled'), estimatedMicros: sum('estimated'), unknownAttempts: inWindow.reduce((total, m) => total + (m.cost?.unknown?.attempts || 0), 0),
-      definition: 'Tutor-feature AI cost charged to the account between its first observation of the criterion and the milestone (accounting attempts of the tutor, tutor_evaluate, next_steps, shared_next_steps and handoff features). Measured and estimated are separate; a span can include unrelated Tutor use by the account.' },
+      definition: 'Tutor-feature AI cost charged to the account between its first observation of the criterion and the milestone (accounting attempts of the tutor, tutor_evaluate, attempt_assessment, next_steps, shared_next_steps and handoff features). Measured and estimated are separate; a span can include unrelated Tutor use by the account.' },
     sample: inWindow.slice(0, 20).map(({ user, ...m }) => ({ ...m, accountRef: user.slice(0, 8) })) };
 }
 

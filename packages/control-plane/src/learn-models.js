@@ -45,11 +45,6 @@ export const LEARN_TASKS = Object.freeze({
   // The visible grade (/api/learn/assess, learn-grade-routes.js): Auto, one
   // call with no tools, a thinking-only turn replayed once.
   grading: Object.freeze({ provider: 'anthropic', model: null, picker: false, fallback: 'server-side default where spend is not enforced', thinking: 'model default', toolChoice: 'none (no tools)', maxTokens: 2400 }),
-  // The Tutor v1 planner (/api/learn/tutor/plan, learn-tutor-routes.js): pinned to Opus 5.5,
-  // no fallback, one forced tool call returning the turn's TutorResponse.
-  tutor: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (the tutor_response tool; no tool call is an invalid turn)', maxTokens: 2000 }),
-  // The Tutor's larger evaluator (/api/learn/tutor/evaluate after an uncertain JEV): pinned to Opus 5.5, no fallback.
-  tutor_evaluator: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools)', maxTokens: 2400 }),
   // Rich-rubric and visual assessment of a saved attempt (tutor workflow Tasks 13 and 14; learn-rubric-assessment.js,
   // learn-visual-assessment.js): Opus 5.5 as the draft's model table names it, no fallback, one JSON reply. Opus 5.5 thinks
   // inside maxTokens, so the budget leaves room for the reply after its thinking.
@@ -57,12 +52,6 @@ export const LEARN_TASKS = Object.freeze({
   tutor_visual: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools; one JSON reply)', maxTokens: 4000 }),
   // Home answers (/api/learn/home-ask, learn-home-ask.js): pinned to Sonnet 5.5 at effort low, grounded in the user's library.
   home_ask: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools; one JSON reply)', maxTokens: 900 }),
-  // The Avatar Director (role AVATAR_DIRECTOR_MODEL) and its fresh blind script reviewer
-  // (docs/features/rabbit-hole-avatar-teacher-v1-spec.md §5.1, learn-avatar-brief.js). claude-opus-5-5 is the
-  // initial development mapping (owner, 2026-10-04), not a product decision; a faster model is benchmarked once
-  // the pipeline works. Opus 5.5 always thinks, inside maxTokens, so the budget leaves room for the tool call.
-  avatar_director: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (the avatar_script tool; no tool call is a format failure)', maxTokens: 4000 }),
-  avatar_script_reviewer: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (the script_review tool; no tool call is a format failure)', maxTokens: 4000 }),
   // The journey planners (learn-journey-planners.js, adaptive-learning-path-v1-architecture.md §11): one tool each on
   // tool_choice auto; effort is output_config.effort, null the model default.
   // Resolver rule 5: a tray message the deterministic rules missed -> one of the five kinds.
