@@ -1,6 +1,6 @@
 # R4 (complete bounded Markdown explanation loop) prerequisites receipt
 
-Stacked release candidate `feat/tutor-r4-release-2` (MVP fast path, owner label 2026-11-05). **Candidate 65 (`feat/tutor-r4-flagon`) sets `ROADMAP_ENABLED` to "true" in the production config only (dev and parallel stay unset); the sentence that follows describes candidate 63.** **`ROADMAP_ENABLED` was unset in every config: a learner sees nothing after this release.**
+Stacked release candidate `feat/tutor-r4-release-2` (MVP fast path, owner label 2026-11-05). **`ROADMAP_ENABLED` is unset in every config: a learner sees nothing after this release.**
 
 - Stacked on: R2 release tip `d2428e357fd40416b2ca83ec0ab6a7bfc3c203f2` (`feat/tutor-r2-release-2`), on cleanup P4 `37f377f3910df2af7fdb77abeb78dc2c5f47d6d9`, P3 `0c322bd50eed1bed9bef09cb5826f51ff565ced4`, R3 `4b754b6c2b36a41dc651ed4c2608ca239668d656`, R1 `15141c05a931e082aaa2e59693d288a421d73938`, cleanup P2 `409f4e8f3e4638bcc4b0477a2d2a26041ab40ec3`, main `9b798f7760b7af5aa2446d281a07eebfc4e10b84`. **P2, R1, R3, P3, P4, then R2, must be released to main first**; this branch then fast-forwards from the released R2 tip.
 - R4 came in as one merge of `feat/tutor-r4-integration` (tip `f8a0f8c11`: State, Tools and UI lanes plus the glue). A merge was chosen over 44 cherry-picks because only six files conflicted; main stays an ancestor of the release SHA.

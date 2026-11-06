@@ -38,7 +38,7 @@
       // when /whiteboard is switched off: saved results and in-flight jobs live in these objects.
       { "name": "WHITEBOARD_JOBS", "class_name": "WhiteboardJobs" },
       // Tutor R4 roadmap jobs, one object per learner and board (control-plane/src/roadmap/roadmap-jobs.js). Binding it enables NOTHING: every roadmap route
-      // answers 404 unless ROADMAP_ENABLED is "true", which the owner's production GO sets in vars below (ON). Stays bound when switched off: accepted work finishes.
+      // answers 404 until ROADMAP_ENABLED is "true", which the owner's production GO sets (unset here). Stays bound when switched off: accepted work finishes.
       { "name": "ROADMAP_JOBS", "class_name": "RoadmapJobs" }
     ]
   },
@@ -97,9 +97,6 @@
     // Fly app (W-D4 as amended 4 Nov 2026), never Motion's; its bearer WHITEBOARD_RENDERER_TOKEN is a secret.
     "WHITEBOARD_ENABLED": "true",
     "WHITEBOARD_RENDERER_URL": "https://rabbit-hole-whiteboard-renderer.fly.dev",
-    // Tutor R4 roadmap (docs/features/explain-on-canvas, owner production GO): ON. Only the string "true" enables the routes; set to "false" (or delete) to answer every /api/learn/roadmap route 404
-    // and stop new unsolicited work. Accepted work still finishes and is settled. Needs learn-migrations/0039 on LEARN_DB and the worker with settings wiring (candidate 64) first. Dev and parallel stay unset.
-    "ROADMAP_ENABLED": "true",
     // IMG-01 image generation (docs/features/image-jobs.md): PUBLIC generation is ON (owner GO). Only "true" accepts new jobs from everyone.
     // The controlled owner-only acceptance path below (owner 2026-10-25) stays for the operator surfaces: a caller whose verified sign-in identity
     // is listed in IMAGE_ACCEPTANCE_EMAILS may use it under the ordinary admission, hold, settlement and readiness rules, so the

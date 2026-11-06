@@ -290,15 +290,14 @@ test('production /whiteboard: bound, on (W1), its own renderer, no secret in the
 });
 
 // Tutor R4 roadmap (docs/features/explain-on-canvas): ROADMAP_JOBS and roadmap-jobs-1 are bound last on the app Worker, dev and the parallel clone configs, and the feature is
-// ON in production only (owner's production GO, candidate 65): ROADMAP_ENABLED is exactly 'true' on the app Worker; dev, the parallel clone config and the control plane leave it unset (a dev clone qualifies separately).
-test('production roadmap: ROADMAP_JOBS bound last with roadmap-jobs-1, ROADMAP_ENABLED exactly true in production and unset in dev, parallel and the control plane', () => {
+// OFF everywhere: ROADMAP_ENABLED is unset until the owner's production GO, so every roadmap route answers 404 as if absent.
+test('production roadmap: ROADMAP_JOBS bound last with roadmap-jobs-1, ROADMAP_ENABLED unset in every config', () => {
   const app = config(APP), dev = config('../../web/wrangler.dev.jsonc'), parallel = config('../../web/wrangler.parallel.jsonc'), cp = config(CP);
   for (const [name, c] of [['app', app], ['dev', dev], ['parallel', parallel]]) {
     assert.deepEqual(c.durable_objects.bindings.filter(b => b.class_name === 'RoadmapJobs'), [{ name: 'ROADMAP_JOBS', class_name: 'RoadmapJobs' }], name);
     assert.deepEqual(c.migrations.at(-1), { tag: 'roadmap-jobs-1', new_sqlite_classes: ['RoadmapJobs'] }, `${name}: a new tag goes after every applied one`);
+    assert.equal(c.vars?.ROADMAP_ENABLED, undefined, `${name}: the feature stays off until the production GO`);
   }
-  assert.equal(app.vars?.ROADMAP_ENABLED, 'true', 'production: the owner GO turns the roadmap on, as the exact string true');
-  for (const [name, c] of [['dev', dev], ['parallel', parallel]]) assert.equal(c.vars?.ROADMAP_ENABLED, undefined, `${name}: stays unset, a dev clone qualifies separately`);
   assert.equal(cp.vars?.ROADMAP_ENABLED, undefined);
   assert.equal(new Set(app.migrations.map(m => m.tag)).size, app.migrations.length, 'every tag is unique');
 });
