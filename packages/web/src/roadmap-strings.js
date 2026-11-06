@@ -7,6 +7,7 @@ export const STRINGS = Object.freeze({
   accept: 'Accept', cancel: 'Cancel', tab: 'Tab', // S4 approved (Accept [Tab] | Cancel)
   nextReady: 'Next step ready', // S5 approved
   accepting: 'Accepting', // Fix A: the click was received (button label while the request is in flight)
+  generating: 'Generating', // NEW (owner spec 2026-11-06): the non-interactive status that takes the Accept | Cancel pill's place on the canvas slot after acceptance
   making: 'Making this explanation.', // Fix A: result generation pending/generating, from the server view
   proposeNext: 'Propose next step', // S6 approved
   end: 'End roadmap', // S7 approved
