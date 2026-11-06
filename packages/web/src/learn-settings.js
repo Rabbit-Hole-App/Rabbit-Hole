@@ -22,10 +22,10 @@ export const autoSuggestShown = (mode, capabilities = SUGGESTION_CAPABILITIES) =
 // The request field Depth rides in on a Chat turn: nothing for Standard, so a request is exactly today's until the learner chooses.
 export const depthField = settings => (settings && settings.depth !== 'standard' ? { depth: settings.depth } : {});
 
-// The controls proactive Tutor decisions read: Auto-suggest off turns the Tutor's unasked suggestions off, whatever this
-// canvas's own switch says. The canvas switch itself (learn_coaching_state.tutor_enabled) and the explicit pause are not touched,
-// so switching Auto-suggest back on restores exactly what was there, a cancellation pause included.
-export const withAutoSuggest = (controls, settings) => (settings && settings.autoSuggest === false && controls.tutorEnabled ? { ...controls, tutorEnabled: false } : controls);
+// The controls proactive Tutor decisions read: the learner's Auto-suggest decides tutorEnabled, whatever the canvas record says
+// (no control for the per-canvas value remains, and it is never rewritten). The explicit pause is not touched, so switching
+// Auto-suggest back on keeps a cancellation pause.
+export const withAutoSuggest = (controls, settings) => (typeof settings?.autoSuggest === 'boolean' && settings.autoSuggest !== controls.tutorEnabled ? { ...controls, tutorEnabled: settings.autoSuggest } : controls);
 
 // What each open canvas's sync holds, so a command's request can take the learner's choice at the moment they submit it
 // (learn-slash.js generateCommand) with the board it was chosen for. Plain values, copied into the request: a later change in the

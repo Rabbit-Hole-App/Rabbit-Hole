@@ -161,7 +161,7 @@ export const effectiveControls = (coaching, thread) => withAutoSuggest(coaching.
 export function controlsNote({ status, saveStatus, controls, undo, notice }) {
   if (status === 'error') return { tone: 'error', text: "Couldn't load your Tutor settings for this canvas.", action: 'retry' };
   if (saveStatus === 'error') return { tone: 'error', text: 'Not saved: this change applies in this tab only.', action: 'retry' };
-  if (undo && !controls.tutorEnabled) return { tone: 'info', text: 'Tutor off for this canvas.', action: 'undo' };
+  if (undo && !controls.tutorEnabled) return { tone: 'info', text: 'Auto-suggest off.', action: 'undo' };
   if (notice === 'undo_stale') return { tone: 'info', text: 'Undo is no longer available: your Tutor settings changed since.' };
   if (controls.mode === 'tutor' && controls.tutorEnabled && controls.suggestionsPaused) return { tone: 'info', text: 'Suggestions paused.', action: 'resume' };
   if (controls.mode === 'tutor' && status === 'local') return { tone: 'muted', text: 'Tutor settings here last for this visit.' };
