@@ -67,14 +67,13 @@ const CONTENT = {
   choice: c => typeof c.optionId === 'string' && c.optionId.length > 0 && c.optionId.length <= 200,
 };
 
-// An activity of learn 0025 (Task 02), read only by its owner on this canvas, with its goal's lifecycle and journey.
+// An activity of learn 0025 (Task 02), read only by its owner on this canvas, with its goal's lifecycle.
 // Another learner's activity, another canvas's activity or a made-up id all come back as null.
 export async function ownActivity(env, actor, activityId) {
   if (typeof activityId !== 'string' || activityId.length > 200) return null;
   return env.LEARN_DB.prepare(`SELECT a.id, a.goal_id, a.revision, a.status, a.response_kind, a.prompt, a.criterion_refs_json, a.source_refs_json,
-      a.checkpoint_json, g.lifecycle, g.journey_id, j.archived_at AS journey_archived_at
+      a.checkpoint_json, g.lifecycle, g.journey_id
     FROM learn_activities a JOIN learn_goals g ON g.id = a.goal_id AND g.org = a.org AND g.owner_user_id = a.owner_user_id
-    LEFT JOIN learning_journeys j ON j.id = g.journey_id
     WHERE a.id = ? AND a.org = ? AND a.owner_user_id = ? AND g.app = ? AND g.board = ?`)
     .bind(activityId, actor.org, actor.userId, actor.app, actor.board).first();
 }
@@ -115,7 +114,7 @@ export async function acceptAttempt(env, actor, submission, { now = () => new Da
 
   const activity = await ownActivity(env, actor, activityId);
   if (!activity) throw new AttemptError('unknown_activity', 404);
-  if (activity.lifecycle !== 'open' || activity.journey_archived_at) throw new AttemptError('goal_closed', 409);
+  if (activity.lifecycle !== 'open') throw new AttemptError('goal_closed', 409);
   if (activity.revision !== activityRevision) throw new AttemptError('stale_activity', 409, { activityRevision: activity.revision });
   const kind = activity.response_kind;
   if (!isObj(content) || (CONTENT[kind] && !CONTENT[kind](content))) throw invalid('invalid_content', `a ${kind} answer needs ${kind === 'text' ? 'text' : kind === 'choice' ? 'optionId' : 'a JSON object'}`);

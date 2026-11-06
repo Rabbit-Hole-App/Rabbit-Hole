@@ -1,14 +1,13 @@
 // packages/control-plane/test/learn-coaching-store.test.js
 // Tutor Task 02 (C:/s/spec/tutor-workflow/draft.md; owner decision 5a): learn-migrations/0025 and the personal coaching
-// store and route on node:sqlite, behind the D1 slice the stores use. Old saved journeys are written as the code before
-// 0025 wrote them, on a database built without 0025, and the migration is then applied on top.
+// store and route on node:sqlite, behind the D1 slice the stores use. The journey tables are not read (Tutor cleanup P6a); a
+// goal an old journey made is a plain goal row.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { learnDb } from './learn-grade-fixture.js';
 import { CoachingConflict, applyCoachingAction, readCoachingState } from '../src/learn-coaching-store.js';
 import { coachingRoute } from '../src/learn-coaching-routes.js';
-import { archiveJourney, createJourney, loadJourney, loadJourneyById } from './learn-journey-rows.js';
 
 const MIGRATION = readFileSync(new URL('../learn-migrations/0025-tutor-coaching-state.sql', import.meta.url), 'utf8');
 const SCHEMA = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');
@@ -18,8 +17,6 @@ const NEW_TABLES = ['learn_coaching_state', 'learn_goals', 'learn_goal_criteria'
 
 const A = { org: 'ws', userId: 'u-ana', app: 'canvas-0000aaaa', board: 'main' };
 const B = { ...A, userId: 'u-ben' };
-const scopeOf = a => ({ org: a.org, owner_user_id: a.userId, app: a.app, board: a.board });
-const START = topic => ({ request: { raw_user_message: `Teach me ${topic}`, topic, intent: { kind: 'learn', topic }, channel: 'text' }, grounding: { kind: 'topic' }, intake: { slots: {} } });
 const CRITERIA = [
   { criterionId: 'prob', label: 'Interpret probability', requirement: 'Explain a prediction in context', requiresReasoning: true },
   { criterionId: 'thr', label: 'Use a decision threshold', requirement: 'Explain how a threshold changes the class', requiresReasoning: true },
@@ -31,15 +28,14 @@ const act = async (env, actor, action, payload = {}, expectedRevision) => {
 };
 const rejects = (code, status) => e => e instanceof CoachingConflict && e.code === code && (status == null || e.status === status);
 
-// A journey row exactly as the code before 0025 wrote it: no goal row, no coaching row.
-function oldJourney(sqlite, { id, actor = A, board = actor.board, topic = 'logistic regression', archived = null, evidence = { seq: 0, events: [] } }) {
-  sqlite.prepare(`INSERT INTO learning_journeys (id, org, owner_user_id, app, board, state, topic, raw_request, request_json, intake_json, registry_json, diagnostic_json, evidence_json, revision, created_at, updated_at, archived_at)
-    VALUES (?, ?, ?, ?, ?, 'active', ?, ?, '{}', '{}', '{"concepts":{},"claims":{}}', '{"probes":[],"asked":[],"skipped":false}', ?, 3, '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', ?)`)
-    .run(id, actor.org, actor.userId, actor.app, board, topic, `Teach me ${topic}`, JSON.stringify(evidence), archived);
+// A goal row exactly as the retired journey code made it (origin 'journey', no criteria); the journey tables are not read.
+function legacyGoal(sqlite, { id, actor = A, lifecycle = 'open' }) {
+  sqlite.prepare(`INSERT INTO learn_goals (id, org, owner_user_id, app, board, label, outcome, origin, scope_version, lifecycle, journey_id, activity_id, revision, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, 'logistic regression', '', 'journey', 0, ?, ?, NULL, 0, '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z')`)
+    .run(id, actor.org, actor.userId, actor.app, actor.board, lifecycle, id.replace(/^lg_/, ''));
 }
-const journeys = sqlite => sqlite.prepare('SELECT id, board, archived_at, revision FROM learning_journeys ORDER BY id').all().map(r => ({ ...r }));
 const tableNames = sqlite => sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(r => r.name);
-// An old database (before 0025) with old journeys, then 0025 applied, as the integrator applies it to learn-dev.
+// An old database (before 0025), then 0025 applied, as the integrator applies it to learn-dev.
 function migrated(t, seed = () => {}) {
   const db = learnDb(t, BEFORE_0025);
   seed(db.sqlite);
@@ -47,56 +43,28 @@ function migrated(t, seed = () => {}) {
   return { ...db, env: { LEARN_DB: db.LEARN_DB } };
 }
 
-test('0025 is CREATE-only, re-runnable, exactly what repository-schema.sql applies, and leaves old journeys untouched', t => {
+test('0025 is CREATE-only, re-runnable and exactly what repository-schema.sql applies', t => {
   const statements = MIGRATION.replace(/--.*$/gm, '').split(';').map(s => s.trim()).filter(Boolean);
   for (const s of statements) assert.match(s, /^CREATE (TABLE|(UNIQUE )?INDEX) IF NOT EXISTS /i);
   assert.ok(SCHEMA.replace(/\r/g, '').includes(MIGRATION.replace(/\r/g, '').trim()), 'repository-schema.sql holds 0025 verbatim');
   const { sqlite } = learnDb(t, BEFORE_0025);
   for (const table of NEW_TABLES) assert.ok(!tableNames(sqlite).includes(table));
-  oldJourney(sqlite, { id: 'lj_live' });
-  oldJourney(sqlite, { id: 'lj_old', archived: '2026-09-01T00:00:00Z' });
-  const before = sqlite.prepare('SELECT * FROM learning_journeys ORDER BY id').all();
   sqlite.exec(MIGRATION); sqlite.exec(MIGRATION);
   for (const table of NEW_TABLES) assert.equal(sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n, 0, `${table} starts empty: no SQL backfill`);
-  assert.deepEqual(sqlite.prepare('SELECT * FROM learning_journeys ORDER BY id').all(), before);
-  // The one-live-journey index is unchanged.
-  assert.match(sqlite.prepare("SELECT sql FROM sqlite_master WHERE name = 'learning_journeys_live'").get().sql, /WHERE archived_at IS NULL/);
 });
 
-test('legacy_current_journey_follows_active_pointer', async t => {
-  const { sqlite, env } = migrated(t, db => { oldJourney(db, { id: 'lj_live' }); oldJourney(db, { id: 'lj_old', archived: '2026-09-01T00:00:00Z' }); });
-  assert.equal((await loadJourney(env, scopeOf(A))).id, 'lj_live', 'no coaching row yet: the board\'s live journey');
-  // First use backfills the pointer: the live journey is the active goal; the archived one is history, not a goal.
+test('first use makes a coaching row with no active goal; a new goal becomes active and the one it replaces waits, paused', async t => {
+  const { env } = migrated(t);
   const s0 = await readCoachingState(env, A);
-  assert.deepEqual(s0.goals.map(g => [g.goalId, g.status, g.journeyId, g.scopeVersion, g.criteria.length]), [['lg_lj_live', 'active', 'lj_live', 0, 0]]);
-  assert.equal(s0.activeGoalId, 'lg_lj_live');
+  assert.deepEqual([s0.goals, s0.activeGoalId], [[], null]);
   assert.deepEqual(s0.controls, { mode: 'auto', tutorEnabled: true, suggestionsPaused: false, revision: 0 });
-  // A new goal pauses the journey's goal: its journey is parked, never archived, and the board no longer returns it.
+  const first = (await act(env, A, 'create_goal', { label: 'Logistic regression' })).state.activeGoalId;
   const knn = (await act(env, A, 'create_goal', { label: 'Predict a class using KNN' })).state;
-  assert.equal(knn.goals.find(g => g.goalId === 'lg_lj_live').status, 'paused');
-  assert.deepEqual(journeys(sqlite).find(j => j.id === 'lj_live'), { id: 'lj_live', board: 'parked:lj_live', archived_at: null, revision: 4 });
-  assert.equal(await loadJourney(env, scopeOf(A)), null, 'the active goal has no journey: none, not an arbitrary open one');
-  assert.equal((await loadJourneyById(env, 'lj_live', scopeOf(A))).id, 'lj_live', 'a late result still reaches its own journey');
-  // Explicit return: the journey is back on the board as the current one.
-  await act(env, A, 'activate_goal', { goalId: 'lg_lj_live' });
-  const back = await loadJourney(env, scopeOf(A));
-  assert.deepEqual([back.id, back.scope.board, back.archived_at], ['lj_live', 'main', null]);
-});
-
-test('older code\'s stray live journey is never hidden; the pointer\'s own journey wins when both exist', async t => {
-  const { sqlite, env } = migrated(t);
-  await act(env, A, 'create_goal', { label: 'KNN' });
-  oldJourney(sqlite, { id: 'lj_stray' }); // started by code without 0025 during a rollout: no goal, pointer unchanged
-  assert.equal((await loadJourney(env, scopeOf(A))).id, 'lj_stray', 'the active goal has no journey: the board\'s one live journey');
-  // The next goal switch gives the stray journey a goal before parking it, so it is never orphaned.
-  const s = (await act(env, A, 'create_goal', { label: 'Trees' })).state;
-  assert.equal(s.goals.find(g => g.goalId === 'lg_lj_stray').status, 'paused');
-  assert.equal(journeys(sqlite).find(j => j.id === 'lj_stray').board, 'parked:lj_stray');
-  // Pointer at a parked journey while another is live on the board (an interrupted swap): the pointer wins.
-  await act(env, A, 'activate_goal', { goalId: 'lg_lj_stray' });
-  sqlite.prepare("UPDATE learning_journeys SET board = 'parked:lj_stray' WHERE id = 'lj_stray'").run();
-  oldJourney(sqlite, { id: 'lj_other' });
-  assert.equal((await loadJourney(env, scopeOf(A))).id, 'lj_stray');
+  assert.equal(knn.goals.find(g => g.goalId === first).status, 'paused');
+  assert.equal(knn.goals.find(g => g.goalId === knn.activeGoalId).status, 'active');
+  // Explicit return: the first goal is the active one again.
+  const back = (await act(env, A, 'activate_goal', { goalId: first })).state;
+  assert.deepEqual([back.activeGoalId, back.goals.find(g => g.goalId === first).status], [first, 'active']);
 });
 
 test('two_goals_resume_without_archive_loss', async t => {
@@ -105,36 +73,22 @@ test('two_goals_resume_without_archive_loss', async t => {
   const reg = s.activeGoalId;
   s = (await act(env, A, 'activate_activity', { activity: { goalId: reg, objective: 'Threshold', prompt: 'Move the threshold to 0.7. What changes?', responseKind: 'text', criterionRefs: [{ criterionId: 'thr', version: 1 }], sourceRefs: [{ kind: 'card', id: 'b1', version: 2 }], checkpoint: { step: 1 } } })).state;
   const threshold = s.activeActivityId;
-  // A journey started while that goal is active becomes the active goal; the regression goal waits, paused.
-  const j1 = await createJourney(env, scopeOf(A), START('KNN'));
-  s = await readCoachingState(env, A);
-  assert.equal(s.activeGoalId, `lg_${j1.id}`);
+  // A goal made while that goal is active becomes the active goal; the regression goal waits, paused.
+  s = (await act(env, A, 'create_goal', { label: 'KNN' })).state;
+  const knn = s.activeGoalId;
   assert.equal(s.goals.find(g => g.goalId === reg).status, 'paused');
   assert.equal(s.activeActivityId, null);
-  // Back to the threshold exercise: same activity, criteria and checkpoint; the KNN journey parks.
+  // Back to the threshold exercise: same activity, criteria and checkpoint.
   s = (await act(env, A, 'activate_goal', { goalId: reg })).state;
   assert.deepEqual([s.activeGoalId, s.activeActivityId], [reg, threshold]);
   const activity = s.activities.find(a => a.activityId === threshold);
   assert.deepEqual([activity.status, activity.prompt, activity.checkpoint], ['in_progress', 'Move the threshold to 0.7. What changes?', { step: 1 }]);
   assert.deepEqual(s.goals.find(g => g.goalId === reg).criteria.map(c => c.criterionId), ['prob', 'thr']);
-  // A second journey on the same board while the first is parked: several open journeys, one current.
-  const j2 = await createJourney(env, scopeOf(A), START('decision trees'));
-  s = (await act(env, A, 'activate_goal', { goalId: `lg_${j1.id}` })).state;
-  assert.equal((await loadJourney(env, scopeOf(A))).id, j1.id);
+  // A third goal while the second waits: several open goals, one current.
+  await act(env, A, 'create_goal', { label: 'decision trees' });
+  s = (await act(env, A, 'activate_goal', { goalId: knn })).state;
   assert.deepEqual(s.goals.map(g => g.status).sort(), ['active', 'paused', 'paused']);
-  assert.deepEqual(journeys(sqlite).map(j => [j.id === j1.id ? 'j1' : 'j2', j.board, j.archived_at]).sort(), [['j1', 'main', null], ['j2', `parked:${j2.id}`, null]]);
   assert.ok(sqlite.prepare("SELECT count(*) AS n FROM learn_goals WHERE lifecycle != 'open'").get().n === 0, 'nothing archived');
-});
-
-test('a replace start (continue-or-start) parks the old journey as a paused, resumable goal, even one with no goal row yet', async t => {
-  const { sqlite, env } = migrated(t, db => oldJourney(db, { id: 'lj_before' })); // no coaching row, no goal row
-  const next = await createJourney(env, scopeOf(A), START('SQL'), 'lj_before');
-  assert.deepEqual(journeys(sqlite).find(j => j.id === 'lj_before'), { id: 'lj_before', board: 'parked:lj_before', archived_at: null, revision: 4 });
-  let s = await readCoachingState(env, A);
-  assert.deepEqual(s.goals.map(g => [g.goalId, g.status]).sort(), [['lg_lj_before', 'paused'], [`lg_${next.id}`, 'active']].sort());
-  s = (await act(env, A, 'activate_goal', { goalId: 'lg_lj_before' })).state;
-  assert.equal((await loadJourney(env, scopeOf(A))).id, 'lj_before');
-  assert.equal(journeys(sqlite).find(j => j.id === next.id).board, `parked:${next.id}`);
 });
 
 test('stale_revision_preserves_newer_state', async t => {
@@ -175,34 +129,33 @@ test('foreign_goal_reference_rejected: another learner, another canvas, another 
   await assert.rejects(act(env, A, 'activate_activity', { activity: { goalId: other, objective: 'o', prompt: 'p', responseKind: 'text', criterionRefs: [{ criterionId: 'prob', version: 1 }] } }), rejects('criterionRefs must name criteria of the goal\'s current scope', 400));
 });
 
-test('two users on one canvas keep separate controls, goals and journeys', async t => {
-  const { env } = migrated(t, db => oldJourney(db, { id: 'lj_ana' }));
+test('two users on one canvas keep separate controls and goals', async t => {
+  const { env } = migrated(t);
+  await act(env, A, 'create_goal', { label: 'Ana\'s goal' });
   await act(env, A, 'save_controls', { event: { type: 'select_mode', mode: 'tutor' } });
   await act(env, A, 'save_controls', { event: { type: 'not_now' } });
   const ben = await readCoachingState(env, B);
   assert.deepEqual([ben.controls.mode, ben.controls.suggestionsPaused, ben.goals.length, ben.activeGoalId], ['auto', false, 0, null]);
   await act(env, B, 'create_goal', { label: 'Ben\'s goal' });
-  assert.equal(await loadJourney(env, scopeOf(B)), null, 'Ana\'s journey is not Ben\'s');
   const ana = await readCoachingState(env, A);
-  assert.deepEqual([ana.controls.mode, ana.controls.suggestionsPaused, ana.goals.map(g => g.goalId)], ['tutor', true, ['lg_lj_ana']]);
-  assert.equal((await loadJourney(env, scopeOf(A))).id, 'lj_ana');
+  assert.deepEqual([ana.controls.mode, ana.controls.suggestionsPaused, ana.goals.map(g => g.label)], ['tutor', true, ['Ana\'s goal']]);
 });
 
-test('legacy_session_record_is_not_mastery: old evidence makes no criterion or activity, and the client cannot send progress', async t => {
-  const passes = { seq: 2, events: [{ seq: 1, concept: 'lr', claim: 'lr/sigmoid', result: 'pass', kind: 'demonstrated_in_transfer', settled: true, evaluator: 'jev' }, { seq: 2, concept: 'lr', claim: 'lr/threshold', result: 'pass', kind: 'demonstrated_here', settled: true, evaluator: 'deterministic' }] };
-  const { sqlite, env } = migrated(t, db => oldJourney(db, { id: 'lj_rich', evidence: passes }));
+test('legacy_session_record_is_not_mastery: a goal row an old journey made has no criterion or activity, and the client cannot send progress', async t => {
+  const passes = { seq: 2, events: [{ seq: 1, concept: 'lr', claim: 'lr/sigmoid', result: 'pass', kind: 'demonstrated_in_transfer', settled: true, evaluator: 'jev' }] };
+  const { sqlite, env } = migrated(t);
+  legacyGoal(sqlite, { id: 'lg_lj_rich' });
   const s = await readCoachingState(env, A);
-  assert.deepEqual(s.goals.map(g => [g.goalId, g.scopeVersion, g.criteria]), [['lg_lj_rich', 0, []]]);
+  assert.deepEqual(s.goals.map(g => [g.goalId, g.scopeVersion, g.criteria, g.journeyId]), [['lg_lj_rich', 0, [], 'lj_rich']]);
   for (const table of ['learn_goal_criteria', 'learn_activities']) assert.equal(sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n, 0, table);
   // The client cannot hand the server progress either.
   for (const payload of [{ label: 'x', evidence: passes }, { label: 'x', status: 'demonstrated_independently' }, { label: 'x', criteria: [{ ...CRITERIA[0], status: 'demonstrated_independently' }] }]) {
     await assert.rejects(act(env, A, 'create_goal', payload), e => e instanceof CoachingConflict && e.status === 400);
   }
-  assert.deepEqual(JSON.parse(sqlite.prepare("SELECT evidence_json FROM learning_journeys WHERE id = 'lj_rich'").get().evidence_json), passes, 'journey history kept as it was');
 });
 
 test('a failed write changes nothing, and a retry with the same actionId replays once', async t => {
-  const { sqlite, LEARN_DB } = migrated(t, db => oldJourney(db, { id: 'lj_live' }));
+  const { LEARN_DB } = migrated(t);
   let fail = false;
   // D1 fails after the batch's statements ran: the transaction rolls back whole.
   const env = { LEARN_DB: { ...LEARN_DB, batch: statements => LEARN_DB.batch(fail ? [...statements, { runNow() { throw new Error('D1_ERROR: network lost'); } }] : statements) } };
@@ -211,7 +164,6 @@ test('a failed write changes nothing, and a retry with the same actionId replays
   await assert.rejects(act(env, A, 'create_goal', { label: 'KNN', criteria: CRITERIA }), /network lost/);
   fail = false;
   assert.deepEqual(await readCoachingState(env, A), before);
-  assert.deepEqual(journeys(sqlite), [{ id: 'lj_live', board: 'main', archived_at: null, revision: 3 }], 'the journey was not parked');
   const request = { actionId: 'tab1-create-knn', expectedRevision: before.revision, action: 'create_goal', payload: { label: 'KNN' } };
   const first = await applyCoachingAction(env, A, request), again = await applyCoachingAction(env, A, request);
   assert.equal(again.replayed, true);
@@ -250,14 +202,13 @@ test('controls go through the shared reducer and read the same on another device
   await act(env, A, 'pause_activity', { activityId: 'none' }).then(() => assert.fail('no active activity'), e => assert.equal(e.code, 'not_active_activity'));
 });
 
-test('a journey archived by its explicit Archive leaves its goal archived and no active goal', async t => {
-  const { env } = migrated(t);
-  const j = await createJourney(env, scopeOf(A), START('graphs'));
-  await archiveJourney(env, j, j.revision);
+test('a legacy journey goal whose lifecycle is archived (the backfill) is archived, not active, and cannot be reopened', async t => {
+  const { sqlite, env } = migrated(t);
+  legacyGoal(sqlite, { id: 'lg_lj_gone', lifecycle: 'archived' });
   const s = await readCoachingState(env, A);
   assert.deepEqual(s.goals.map(g => [g.lifecycle, g.status]), [['archived', 'archived']]);
   assert.equal(s.activeGoalId, null);
-  await assert.rejects(act(env, A, 'activate_goal', { goalId: `lg_${j.id}` }), rejects('goal_closed', 409));
+  await assert.rejects(act(env, A, 'activate_goal', { goalId: 'lg_lj_gone' }), rejects('goal_closed', 409));
 });
 
 // --- route ---
