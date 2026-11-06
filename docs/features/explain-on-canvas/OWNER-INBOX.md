@@ -16,7 +16,7 @@ Self-contained status for the owner and for a reviewer who has not seen the chat
 | Release | State | SHA |
 | --- | --- | --- |
 | Cleanup P1 | RELEASED 2026-11-05 23:13 PT (main 9b798f77; production smoke passed) | 9b798f776 |
-| 54 Cleanup P2 (Browser Tutor off) | READY, previewed (record 9ce5cfe6d1648796). fast-e2e on this tip: `stars-surfaces` 32/33 (unrelated, rerun requested) | 409f4e8f3 |
+| 54 Cleanup P2 (Browser Tutor off) | READY, previewed (record 9ce5cfe6d1648796). CI on this tip is fully green: `verify` success and `fast-e2e` success after rerunning the one flaky shard (`stars-surfaces`, which P2 does not touch) | 409f4e8f3 |
 | 55 R1 card feedback | READY, previewed. Needs prod migration 0036 | 15141c05a |
 | 56 R3 source references | READY, previewed. Needs prod migration 0038 | 4b754b6c2 |
 | 57 Cleanup P3 (Server Tutor off) | READY, previewed (after a transient Cloudflare 503). No migration | 0c322bd50 |
