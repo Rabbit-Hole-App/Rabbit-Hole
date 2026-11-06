@@ -171,8 +171,9 @@ export function publicIndex(row) {
   return { ...index, coverage: parse(row.coverage_json, null) ?? coverageOf(index) };
 }
 
-export const indexIdOf = async (access, { kind = 'markdown', key, rev, extractor = INDEX_VERSIONS.extractor, chunker = INDEX_VERSIONS.chunker }) =>
-  `idx_${(await sha256(JSON.stringify([access.org, access.actorEmail, kind, key, rev, extractor, chunker]))).slice(0, 24)}`;
+// version: anything else the derivative depends on (R7b: the extracted page-text hash), so a re-extraction is a different index.
+export const indexIdOf = async (access, { kind = 'markdown', key, rev, extractor = INDEX_VERSIONS.extractor, chunker = INDEX_VERSIONS.chunker, version = '' }) =>
+  `idx_${(await sha256(JSON.stringify([access.org, access.actorEmail, kind, key, rev, extractor, chunker, ...(version ? [version] : [])]))).slice(0, 24)}`;
 
 // An index row only for its owner. A foreign or unknown id is the same null (no existence oracle).
 export const loadIndexRow = (db, access, indexId) =>
@@ -184,13 +185,14 @@ export const markStale = (db, access, key, currentRev, now) =>
   db.prepare("UPDATE learn_source_indices SET status = 'stale', updated_at = ? WHERE org = ? AND owner_email = ? AND source_key = ? AND source_rev != ? AND status != 'stale'")
     .bind(now, access.org, access.actorEmail, key, currentRev).run();
 
-export async function saveIndex(db, access, { kind, key, rev, name, id, status, stop, totalChars, built, extractor, now }) {
-  const row = { v: 1, sections: built.sections, chunks: built.chunks, limitations: built.limitations };
+// built: { sections, chunks, limitations, extra?, coverage? }. extra is kept in the stored index (R7b: pdf facts); coverage replaces the Markdown manifest.
+export async function saveIndex(db, access, { kind, key, rev, name, id, status, stop, totalChars, built, extractor, indexVersion = INDEX_VERSIONS.chunker, now }) {
+  const row = { v: 1, sections: built.sections, chunks: built.chunks, limitations: built.limitations, ...(built.extra || {}) };
   const draft = { source: { chars: totalChars }, status, stop, chunks: built.chunks, limitations: built.limitations };
   await db.prepare(`INSERT OR IGNORE INTO learn_source_indices (id, org, owner_email, kind, source_key, source_rev, source_name, extractor_version, index_version, status, stop_reason, total_chars, chunk_count, index_json, coverage_json, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .bind(id, access.org, access.actorEmail, kind, key, rev, String(name ?? '').slice(0, 160), extractor, INDEX_VERSIONS.chunker, status, stop ?? null, totalChars, built.chunks.length,
-      JSON.stringify(row), JSON.stringify(coverageOf(draft)), now, now).run();
+    .bind(id, access.org, access.actorEmail, kind, key, rev, String(name ?? '').slice(0, 160), extractor, indexVersion, status, stop ?? null, totalChars, built.chunks.length,
+      JSON.stringify(row), JSON.stringify(built.coverage ?? coverageOf(draft)), now, now).run();
   return loadIndexRow(db, access, id);
 }
 

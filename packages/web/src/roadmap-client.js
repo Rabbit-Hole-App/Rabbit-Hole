@@ -139,7 +139,7 @@ export function chatOf(state) {
   const view = state.view, lines = [];
   if (!enabled(state)) return lines;
   if (state.notice) lines.push({ id: 'notice', kind: 'notice', text: state.notice });
-  if (!view && choicesOf(state.limitation).length) lines.push({ id: 'source-coverage', kind: 'coverage', text: COVERAGE_STRINGS.choose, notes: coverageLines(state.limitation), choices: choicesOf(state.limitation) }); // R7a
+  if (!view && choicesOf(state.limitation).length) lines.push({ id: 'source-coverage', kind: 'coverage', text: state.limitation.code === 'source_too_large' ? COVERAGE_STRINGS.choose : COVERAGE_STRINGS.chooseRange, notes: coverageLines(state.limitation), choices: choicesOf(state.limitation) }); // R7a
   if (view) {
     const rm = view.roadmap;
     if (rm.state === 'draft') lines.push({ id: 'planning', kind: 'status', text: STRINGS.planning });
