@@ -94,6 +94,10 @@ Non-obvious traps that have caused mistakes. Remove an entry when its condition 
 - UI labels never contain "..." or "…". A disabled item keeps its name, greyed.
 - Build testable features into the existing app UI (canvas, panels, Settings). Never ship a separate demo page as the
   deliverable.
+- Check the existing code before any UI change and reuse its components; never recreate UI (owner, 2026-11-06). Name
+  the component you reuse in the plan or lane brief. Notices and errors use `toast()` from `packages/web/src/ui.jsx`;
+  never add a new banner, status chip, fixed overlay, button strip or toast look-alike. If nothing existing fits, ask
+  the owner first.
 - Mark anything deliberately skipped with a `ponytail:` comment.
 - Before changing Coaching or its dev deployment, read and keep current `docs/features/coaching.md`.
 - MVP-labelled work follows the [MVP fast path](#mvp-fast-path) (owner, 2026-11-03).

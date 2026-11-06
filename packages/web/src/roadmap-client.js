@@ -149,16 +149,6 @@ export function tocOf(state) {
 }
 // A result the server is still making (not failed, not yet generated). Nothing is predicted: the words follow the view.
 const making = r => (r.generation === 'pending' || r.generation === 'generating') && !r.failure;
-// The one honest sentence for accepted work, shown where the learner is looking (over the canvas): failed, checking or making, in that order.
-export function statusOf(state) {
-  const view = state.view;
-  if (!enabled(state) || !view) return null;
-  const failed = recoveryOf(view)[0];
-  if (failed) return { kind: 'failed', text: failed.message };
-  if (resultsOf(view).some(r => r.held)) return { kind: 'checking', text: STRINGS.checking };
-  if (resultsOf(view).some(making)) return { kind: 'making', text: STRINGS.making };
-  return null;
-}
 // Chat lines for the current state. Ask mode hides new initiative lines but never an accepted card's progress.
 export function chatOf(state) {
   const view = state.view, lines = [];
@@ -176,7 +166,6 @@ export function chatOf(state) {
     if (view.question) lines.push({ id: view.question.id, kind: 'question', label: STRINGS.questionLabel, text: view.question.text, options: view.question.options || [] });
     for (const r of resultsOf(view)) if (making(r)) lines.push({ id: `making:${r.id}`, kind: 'status', text: STRINGS.making });
     for (const r of resultsOf(view)) if (r.held) lines.push({ id: `held:${r.id}`, kind: 'status', text: STRINGS.checking });
-    for (const item of recoveryOf(view)) lines.push({ id: `recover:${item.resultId}`, kind: 'recovery', text: item.message, item });
   }
   return lines;
 }

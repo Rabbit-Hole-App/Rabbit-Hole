@@ -1,4 +1,3 @@
-import RoadmapRecovery from './RoadmapRecovery.jsx';
 
 const ghost = 'h-7 rounded-md border border-line px-2.5 text-xs outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent/60';
 
@@ -21,7 +20,7 @@ export default function RoadmapInvitation({ invitation, lines, onExplain, onKeep
       )}
       {lines.map(line => (
         <div key={line.id} data-roadmap-line={line.kind} className="rounded-md bg-hover/60 px-3 py-2 text-sm text-ink">
-          {line.kind === 'recovery' ? <RoadmapRecovery item={line.item} where="chat" onAction={onRecover} /> : (
+          {(
             <>
               {line.label && <p className="mb-0.5 text-xs font-medium text-ink-2">{line.label}</p>}
               <p className="break-words">{line.text}</p>

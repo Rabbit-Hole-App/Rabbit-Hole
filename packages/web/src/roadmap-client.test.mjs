@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { actionKeys, canProposeNext, chatOf, claimsFocus, deliverable, keyboardOwned, idleGrouper, indicatorOf, initialState, invitationOf, pillOf, planDelivery, readyMarkdownSources, recoveryOf, reduce, routes, statusOf, stepLabelFor, tabAccepts, texts, tocOf } from './roadmap-client.js';
+import { actionKeys, canProposeNext, chatOf, claimsFocus, deliverable, keyboardOwned, idleGrouper, indicatorOf, initialState, invitationOf, pillOf, planDelivery, readyMarkdownSources, recoveryOf, reduce, routes, stepLabelFor, tabAccepts, texts, tocOf } from './roadmap-client.js';
 import { STRINGS } from './roadmap-strings.js';
 import { pageKeyAllowed } from './shortcut-owner.js';
 import { ROADMAP_STATES } from './roadmap-contract.js';
@@ -168,11 +168,12 @@ test('deliverable results: generated, not held, not yet delivered', () => {
   assert.equal(deliverable(generated).length, 1);
 });
 
-test('failed card: one Retry/Replace/Omit set, the same from Chat and ToC (D36)', () => {
+test('failed card: the recovery set comes from the server once (shown through the existing error toast, not a Chat block)', () => {
   const state = withView('status-failed-card');
-  const chat = chatOf(state).find(l => l.kind === 'recovery');
-  assert.equal(chat.text, 'This explanation could not be made. You were not charged.');
-  assert.deepEqual(chat.item.actions, ['retry', 'replace', 'omit']);
+  assert.equal(chatOf(state).some(l => l.kind === 'recovery'), false, 'no recovery block in Chat');
+  const [item] = recoveryOf(state.view);
+  assert.equal(item.message, 'This explanation could not be made. You were not charged.');
+  assert.deepEqual(item.actions, ['retry', 'replace', 'omit']);
   assert.deepEqual(tocOf(state).recovery, recoveryOf(state.view));
   assert.equal(canProposeNext(state), false, 'failure must be resolved first');
   const omitted = { ...state, view: { ...state.view, steps: state.view.steps.map(s => (s.state === 'incomplete' ? { ...s, state: 'skipped' } : s)), results: [] } };
@@ -321,16 +322,9 @@ test('Next step ready: a pending acceptable proposal whose view says nextStepRea
   assert.equal(indicatorOf(reduce(initialState(), { type: 'view', view: none }), { offscreen: true }), null, 'no proposal, no readiness');
 });
 
-test('accepted work says what the server says: making, checking, or the failure sentence; nothing otherwise', () => {
-  assert.equal(statusOf(withView('status-active-proposal-pending')), null);
+test('accepted work says what the server says in Chat: making; nothing invented', () => {
   const making = withView('accept-proposal-response-generating');
-  assert.deepEqual(statusOf(making), { kind: 'making', text: STRINGS.making });
   assert.ok(chatOf(making).some(line => line.text === STRINGS.making));
-  assert.deepEqual(statusOf(withView('status-held-for-checking')), { kind: 'checking', text: STRINGS.checking });
-  const failed = statusOf(withView('status-failed-card'));
-  assert.equal(failed.kind, 'failed');
-  assert.match(failed.text, /could not be made/);
-  assert.equal(statusOf({ ...making, flag: 'off' }), null);
   for (const text of [STRINGS.accepting, STRINGS.making]) assert.doesNotMatch(text, /\.\.\.|…|\$|credit|%/);
 });
 
