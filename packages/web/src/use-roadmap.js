@@ -78,9 +78,7 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto', 
   useEffect(() => {
     if (!handoff.current || !pill) return;
     handoff.current = false;
-    // The canvas slot is drawn one commit after the proposal appears: look again on the next two frames before giving up.
-    const take = left => { const owner = document.querySelector('[data-roadmap-overlay]'); if (owner) owner.focus({ preventScroll: true }); else if (left) requestAnimationFrame(() => { if (claimsFocus(document.activeElement, { typing: busyRef.current })) take(left - 1); }); };
-    if (showOverlay && claimsFocus(document.activeElement, { typing: busyRef.current })) take(2);
+    if (showOverlay && claimsFocus(document.activeElement, { typing: busyRef.current })) document.querySelector('[data-roadmap-overlay]')?.focus({ preventScroll: true });
   }, [pill?.proposalId, pill?.version, showOverlay]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Edit plan routes into the ToC conversation: the next message the learner sends there is the plan revision (divert).

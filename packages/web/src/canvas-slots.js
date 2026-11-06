@@ -10,17 +10,12 @@ export function columnEntries(blocks, slots) {
   const ids = new Set(blocks.map(block => block.id));
   const out = [];
   for (const block of blocks) {
-    for (const slot of slots) if (!slot.at && slot.before === block.id) out.push({ slot });
+    for (const slot of slots) if (slot.before === block.id) out.push({ slot });
     out.push({ block });
   }
-  for (const slot of slots) if (!slot.at && !ids.has(slot.before)) out.push({ slot });
+  for (const slot of slots) if (!ids.has(slot.before)) out.push({ slot });
   return out;
 }
-
-// A slot with an explicit position `at` { x, y } (world units, its top-left) stands there and takes no place in the column: the Tutor's proposal beside its source
-// passage (roadmap-canvas.js), the same place it keeps while it generates and where the delivered card lands. Without `at` a slot is the column's, as always.
-// state: 'generating' (default: the spinner, the timer), or a roadmap card's 'pending' | 'checking' | 'failed' (no spinner or timer before acceptance).
-export const anchoredSlots = slots => slots.filter(slot => slot.at);
 
 // Where the card that fills `slot` goes in `blocks`: exactly where the slot stands, never a new place.
 export function slotIndex(blocks, slot) {
@@ -47,7 +42,6 @@ export function pairStart(blocks, at) {
 export function fillSlot(slots, id, cardId) {
   const filled = slots.find(slot => slot.id === id);
   if (!filled) return slots;
-  if (filled.at) return slots.filter(slot => slot !== filled); // an anchored slot held no column place, so nothing waiting behind it moves
   const order = slots.indexOf(filled);
   return slots.filter(slot => slot !== filled).map(slot => (slots.indexOf(slot) < order && slot.before === filled.before ? { ...slot, before: cardId } : slot));
 }
