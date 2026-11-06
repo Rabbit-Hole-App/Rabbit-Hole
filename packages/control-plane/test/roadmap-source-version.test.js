@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { makeReadSource, d1PublicRef } from '../src/roadmap/roadmap-source-read.js';
 import { readRoadmapSource } from '../src/roadmap/roadmap-source.js';
-import { buildIndex, scopeChoices, indexSource, INDEX_LIMITS } from '../src/roadmap/roadmap-source-index.js';
+import { buildIndex, scopeChoices, indexSource, withSourceEvidence, INDEX_LIMITS } from '../src/roadmap/roadmap-source-index.js';
 import { summarizeIndex } from '../src/roadmap/roadmap-source-summary.js';
 import { ROADMAP_LIMITS } from '../src/roadmap/roadmap-policy.js';
 import { learnDb } from './learn-grade-fixture.js';
@@ -34,6 +34,20 @@ test('flag off, ROADMAP_ENABLED unset: not a single D1 statement from the R7a pa
   const out = await read(me, { sourceId: 'file:a', revision: rev('a'), scope: { kind: 'whole' } });
   assert.equal(out.code, 'source_too_large');
   assert.deepEqual(seen, []);
+});
+
+test('production today, ROADMAP_ENABLED true with the R7a switch unset: no D1 statement, no model call, no new field', async () => {
+  const seen = [], calls = [];
+  const env = { ROADMAP_ENABLED: 'true', LEARN_DB: { prepare: sql => { seen.push(sql); throw new Error('db used'); } } };
+  const read = makeReadSource(env, { readSourceForActor: readerFor({ 'file:a': file('x'.repeat(50000), rev('a')) }), resolveSourceRef: async () => null });
+  const out = await read(me, { sourceId: 'file:a', revision: rev('a'), scope: { kind: 'whole' } });
+  assert.equal(out.code, 'source_too_large');
+  assert.deepEqual(Object.keys(out.limitation), ['code', 'message', 'readChars', 'sourceChars', 'offers']);
+  assert.equal((await read(me, { sourceId: 'file:a', revision: rev('a'), scope: { kind: 'section', locationId: 's1' } })).code, 'invalid_request');
+  assert.equal((await summarizeIndex(env, me, 'idx_x', { callModel: async () => { calls.push(1); return {}; }, readSourceForActor: async () => ({}) })).reason, 'not_enabled');
+  const caps = [{ name: 'x' }];
+  assert.equal(withSourceEvidence(caps, env), caps);
+  assert.deepEqual([seen.length, calls.length], [0, 0]);
 });
 
 test('on: an over-bound whole request reports coverage and choices instead of a prefix; a late chapter is explainable', async t => {
