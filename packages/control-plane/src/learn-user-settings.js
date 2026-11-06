@@ -19,7 +19,6 @@ import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { DEFAULT_DEPTH, validDepth } from './chat-depth.js';
-import { autoSuggestFactStatements, roadmapAutoEnabled, runLearnerEvents } from './roadmap/roadmap-settings-events.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/; // learn-boards.js board names, as the coaching route
@@ -60,13 +59,8 @@ export async function readAutoSuggest(env, actor) {
 
 // Auto-suggest: a boolean, already validated.
 export async function saveAutoSuggest(env, actor, autoSuggest) {
-  const save = env.LEARN_DB.prepare('INSERT INTO learn_user_settings (org, owner_user_id, auto_suggest, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT (org, owner_user_id) DO UPDATE SET auto_suggest = excluded.auto_suggest, updated_at = excluded.updated_at')
-    .bind(actor.org, actor.userId, autoSuggest ? 1 : 0, new Date().toISOString());
-  // R6: with both roadmap flags on, a CHANGE also commits its revisioned fact and learner-scoped event in this same batch (0040). Flag off, or a database
-  // without 0040: exactly the plain write above, so the setting is never lost to the roadmap tables.
-  if (!roadmapAutoEnabled(env)) { await save.run(); return; }
-  try { await env.LEARN_DB.batch([save, ...autoSuggestFactStatements(env.LEARN_DB, actor, autoSuggest)]); } catch { await save.run(); return; }
-  await runLearnerEvents(env, actor); // fan the event out to the learner's unfinished roadmaps now; the scheduled scan recovers a failure
+  await env.LEARN_DB.prepare('INSERT INTO learn_user_settings (org, owner_user_id, auto_suggest, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT (org, owner_user_id) DO UPDATE SET auto_suggest = excluded.auto_suggest, updated_at = excluded.updated_at')
+    .bind(actor.org, actor.userId, autoSuggest ? 1 : 0, new Date().toISOString()).run();
 }
 
 // set_depth: { depth, expectedRevision, actionId? }, already validated. One conditional statement, so a stale write changes nothing.
