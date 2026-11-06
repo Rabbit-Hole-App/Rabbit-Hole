@@ -91,9 +91,7 @@ async function finish(env, access, roadmap, result, ids, out, { passage, origina
   const callModel = deps.checkCallModel || platformCallModel(env, access, { ...checkIds, quota: 'check', registry: deps.registry, transport: deps.transport, now });
   const classify = deps.classify || makeClassify({ ask: platformJevAsk(env, access, { ...checkIds, ask: deps.askJev || ((e, request) => askJev(e, request, { transport: 'direct' })), now }) });
   const verdict = await checkRoadmapCard({ block: out.block, passage, rev, instruction: original }, { callModel, classify, adjudicate: modelAdjudicator({ callModel }) });
-  const checkJson = { validation: verdict.validation, grounding: { validation: verdict.grounding.validation, reason: verdict.grounding.reason ?? null, calls: verdict.grounding.calls, unresolved: verdict.grounding.unresolved?.length ?? 0,
-      // private diagnostics (never shown to the learner): which claim failed, the evidence returned, the validation error, what the escalation did
-      ...(verdict.grounding.failed?.length ? { failed: verdict.grounding.failed.slice(0, 6) } : {}) },
+  const checkJson = { validation: verdict.validation, grounding: { validation: verdict.grounding.validation, reason: verdict.grounding.reason ?? null, calls: verdict.grounding.calls, unresolved: verdict.grounding.unresolved?.length ?? 0 },
     safety: { decision: verdict.safety.decision, action: verdict.safety.action, why: verdict.safety.why, policy_version: verdict.safety.policy_version, input_hash: verdict.safety.input_hash, retried: verdict.safety.retried, adjudicated: verdict.safety.adjudicated } };
   await recordGenerated(db, access, { resultId: result.id, primitive: out.primitive, body: out.block, validation: verdict.validation, checkJson, now: now() });
   if (verdict.validation === 'passed' && verdict.publishable) return 'generated';
