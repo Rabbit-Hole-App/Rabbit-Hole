@@ -4,8 +4,10 @@
 // Shared: POST /api/learn/boards/shared/<token>/next-steps (learn-boards.js), the input built here from the shared board.
 import { sha256Hex } from './learn-grade-jev.js';
 import { NO_CAP, admitUsage, limitsFrom, sharedAskLimits } from './learn-shared-ask.js';
-import { planNextSteps } from './learn-next-steps-planner.js';
+import { journeyCallModel, planNextSteps } from './learn-next-steps-planner.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
+import { authorizedBoardApp } from './learn-board.js';
+import { spendCallModel } from './learn-spend.js';
 import { NEXT_STEPS_LIMITS as L, NEXT_STEPS_PLANNER_VERSION, capText, mintSet, nextStepsInputProblem, nextStepsScope, topicOf, trimToFit, withRepository } from './agents/learn-next-steps.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { repositorySnapshot } from './repositories.js';
@@ -18,7 +20,8 @@ import { inputSummary } from '../../web/src/learn-tutor-trace.js';
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 // Per signed-in user, an hour and a day; a worker var of the same name overrides one (limitsFrom, as the shared ask).
 export const NEXT_STEPS_CAPS = { TUTOR_NEXT_STEPS_HOUR: 60, TUTOR_NEXT_STEPS_DAY: 300 };
-export const NEXT_STEPS_BODY_CHARS = 16000; // the raw request body, checked before parsing (learn-tutor-routes.js)
+export const NEXT_STEPS_PATH = '/api/learn/tutor/next-steps';
+export const NEXT_STEPS_BODY_CHARS = 16000; // the raw request body, checked before parsing (ownedNextStepsRoute)
 const ORIGIN = 'https://next-steps.small.internal';
 const NO_USAGE = { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };
 
@@ -111,6 +114,24 @@ export async function ownedNextSteps(env, access, body, { callModel, cache = glo
   return json(set);
 }
 
+// POST /api/learn/tutor/next-steps, mounted in dev-worker.js: the gates every paid Tutor-family route runs (it was served inside
+// learn-tutor-routes.js tutorRoute until the Tutor cleanup P1): POST only, the raw body bounded before parsing, the board
+// authorized, same-origin, the subscription owner's refusal, then the model call under spend admission (category
+// tutor_next_steps). null for any other path. deps: authorize, callModel (tests).
+export async function ownedNextStepsRoute(path, req, env, deps = {}) {
+  if (path !== NEXT_STEPS_PATH) return null;
+  if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
+  const raw = await req.text();
+  if (raw.length > NEXT_STEPS_BODY_CHARS) return json({ error: `the request body must be at most ${NEXT_STEPS_BODY_CHARS} characters` }, 400);
+  let body;
+  try { body = JSON.parse(raw); } catch { return json({ error: 'Invalid JSON' }, 400); }
+  const access = await (deps.authorize || authorizedBoardApp)(req, env, body?.app, body?.pending || null);
+  if (access instanceof Response) return access;
+  if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
+  const ownerRefused = subscriptionOwnerRefusal(env, access);
+  if (ownerRefused) return ownerRefused;
+  return ownedNextSteps(env, access, body, { ...deps, callModel: spendCallModel(env, access, 'tutor_next_steps', deps.callModel || journeyCallModel(env)) });
+}
 
 // The shared input (contract §2.1, owner correction 1 and the twelfth message, rulings F14, F15): the shared board's lesson
 // blocks only (chat cards live in state.exchanges and are never read; a journey stamp on a block is never read), the board
