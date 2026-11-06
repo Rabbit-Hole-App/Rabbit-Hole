@@ -1,8 +1,8 @@
 # R4 (complete bounded Markdown explanation loop) prerequisites receipt
 
-Stacked release candidate `feat/tutor-r4-release` (MVP fast path, owner label 2026-11-05). **`ROADMAP_ENABLED` is unset in every config: a learner sees nothing after this release.**
+Stacked release candidate `feat/tutor-r4-release-2` (MVP fast path, owner label 2026-11-05). **`ROADMAP_ENABLED` is unset in every config: a learner sees nothing after this release.**
 
-- Stacked on: R2 release tip `e44aa04f00147d58e578e4d890dd1738b8e9e6ca` (`feat/tutor-r2-release`), on cleanup P4 `cdac8cfc534614d98388695e8a2ff8e9a4138e31`, P3 `0c322bd50eed1bed9bef09cb5826f51ff565ced4`, R3 `4b754b6c2b36a41dc651ed4c2608ca239668d656`, R1 `15141c05a931e082aaa2e59693d288a421d73938`, cleanup P2 `409f4e8f3e4638bcc4b0477a2d2a26041ab40ec3`, main `9b798f7760b7af5aa2446d281a07eebfc4e10b84`. **P2, R1, R3, P3, P4, then R2, must be released to main first**; this branch then fast-forwards from the released R2 tip.
+- Stacked on: R2 release tip `d2428e357fd40416b2ca83ec0ab6a7bfc3c203f2` (`feat/tutor-r2-release-2`), on cleanup P4 `37f377f3910df2af7fdb77abeb78dc2c5f47d6d9`, P3 `0c322bd50eed1bed9bef09cb5826f51ff565ced4`, R3 `4b754b6c2b36a41dc651ed4c2608ca239668d656`, R1 `15141c05a931e082aaa2e59693d288a421d73938`, cleanup P2 `409f4e8f3e4638bcc4b0477a2d2a26041ab40ec3`, main `9b798f7760b7af5aa2446d281a07eebfc4e10b84`. **P2, R1, R3, P3, P4, then R2, must be released to main first**; this branch then fast-forwards from the released R2 tip.
 - R4 came in as one merge of `feat/tutor-r4-integration` (tip `f8a0f8c11`: State, Tools and UI lanes plus the glue). A merge was chosen over 44 cherry-picks because only six files conflicted; main stays an ancestor of the release SHA.
 
 ## What R4 depends on (verified by `git grep` on this base)
@@ -35,4 +35,4 @@ The `RoadmapJobs` Durable Object and its alarm under workerd (storage fakes only
 
 ## Recovery
 
-`feat/tutor-r4-release-recovery`: one forward commit removes the mounts only (dev-worker route, `LearnPage.jsx`/`ask.jsx` UI mount, scheduled kick). The inert tables, the `RoadmapJobs` class export and the binding stay (a deployed Durable Object class cannot be un-migrated cheaply).
+`feat/tutor-r4-release-recovery-2`: one forward commit removes the mounts only (dev-worker route, `LearnPage.jsx`/`ask.jsx` UI mount, scheduled kick). The inert tables, the `RoadmapJobs` class export and the binding stay (a deployed Durable Object class cannot be un-migrated cheaply).
