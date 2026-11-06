@@ -1,8 +1,15 @@
 # Tutor ladder and cleanup: owner inbox
 
-Current state as of 2026-11-06 09:05 PT. Older per-release notes, superseded plans and the full decision history are in `OWNER-INBOX-archive-2026-11-06.md` (same folder). Claude never sets `MVP_ALLOWED_SHA`, pushes `main`, deploys production, applies a migration (dev needs your GO announced first; prod is always yours), or spends beyond an approved cap.
+Current state as of 2026-11-06 10:10 PT. Older per-release notes, superseded plans and the full decision history are in `OWNER-INBOX-archive-2026-11-06.md` (same folder). Claude never sets `MVP_ALLOWED_SHA`, pushes `main`, deploys production, applies a migration (dev needs your GO announced first; prod is always yours), or spends beyond an approved cap.
 
-Three states are kept apart everywhere below: **Deployed** (the production deploy run for that SHA succeeded), **Flag** (is the feature switched on in production), **Accepted** (focused functional checks passed). "Deployed" never means a browser check on digrabbithole.com: none has been done.
+Three states are kept apart everywhere below: **Deployed** (the production deploy run for that SHA succeeded), **Flag** (is the feature switched on in production), **Accepted** (focused functional checks passed). "Deployed" never means a browser check on digrabbithole.com: none has been done. Main is `3b9348449` (release 65).
+
+## 0. URGENT: production bug in the live roadmap (hotfix in progress)
+
+- **What:** `platformCallModel` and `platformJevAsk` (`packages/control-plane/src/roadmap/roadmap-models.js`) look up earlier calls with `operation_key LIKE '<~70-byte prefix>%'`. Cloudflare D1 rejects a LIKE/GLOB pattern over 50 bytes once the table has a row (`SQLITE_ERROR 7500, LIKE or GLOB pattern too complex`). Only the first model call ever succeeds; every later plan draft/revise, grounding, safety and JEV call fails as "model unavailable", is retried, and burns the learner's plan quota (6 per hour). No card is generated or charged. Found on the dev clone by the qualification run; production D1 has the same limit. Local tests missed it because `node:sqlite` has no such limit.
+- **Now live:** the roadmap is ON in production (release 65), so users who click Explain on canvas can hit this.
+- **Fix:** range query `operation_key >= prefix AND operation_key < prefix || '~'`, plus a stricter D1 stand-in in the test fixture (4 roadmap tests fail on the old code). Commit `46367522d` on `feat/tutor-r4-qual`; the hotfix candidate is being built on main as pin 71 (`feat/tutor-r4-hotfix`), with a review of other D1-only limits (LIKE over 50 bytes, more than 100 bound parameters). Its release command is sent the moment it is previewed.
+- **Your option:** if you want the roadmap off until the hotfix lands, say so and a one-line revert (`ROADMAP_ENABLED` removed from the prod config) is prepared. Recommended: keep it on and ship the hotfix; the failure mode is "model unavailable", not a charge.
 
 ## 1. Where everything is
 
@@ -14,66 +21,73 @@ Three states are kept apart everywhere below: **Deployed** (the production deplo
 | R3 Source refs | yes (with R2) | no flag | tests/preview only |
 | Cleanup P3 Server Tutor off | yes (with R2) | no flag | tests/preview only |
 | Cleanup P4 Journeys/syllabus off | yes (with R2) | no flag | tests/preview only |
-| R2 Depth, Auto-suggest | yes (run 42250400898, SHA d2428e357) | no flag | tests/preview only |
-| Cleanup P5 Duplicate grading off | yes (run 42253670464, SHA d870aef1f) | no flag | tests/preview only |
-| R4 Roadmap loop (63 loop, 64 wiring + S26/S27 drafts, 65 flag-on) | yes: 63 run 42257418795, 64 run 42262160608, 65 run 42265221173 (SHA 3b9348449, 09:57 PT, after one retry of a Cloudflare D1 time-travel 500) | `ROADMAP_ENABLED` **true** in prod | NOT done: real-model and Durable Object qualification pending (section 3); S26/S27 are unapproved drafts |
-| R6 Automatic next proposals | no, in build (lane A) | false | not started |
-| R5 Proposal editing | no, queued behind R6 in lane A | false | not started |
-| R7a Long Markdown | no, in build (lane B) | false | not started |
-| R7b PDF text | no, queued behind R7a in lane B | false | not started |
-| Cleanup P6a join removal, P6b drop scripts, P7 docs | no, in build (lane C); DB steps need your GO | n/a | not started |
-| R8-R16 | no | false | not started; each follows its own dependencies, not a blanket R7 |
+| R2 Depth, Auto-suggest | yes (run 42250400898, d2428e357) | no flag | tests/preview only |
+| Cleanup P5 Duplicate grading off | yes (run 42253670464, d870aef1f) | no flag | tests/preview only |
+| R4 Roadmap loop (63 loop, 64 wiring + S26/S27 drafts, 65 flag-on) | yes: runs 42257418795, 42262160608, 42265221173 (3b9348449, 09:57 PT) | `ROADMAP_ENABLED` **true** in prod | NOT done. Durable Object alarm, retry, one-object-per-board verified on a dev clone (phase 1, no spend); the D1 LIKE bug above found; real-model phase not run |
+| Hotfix for the D1 LIKE bug (pin 71) | no, in build | n/a | n/a |
+| Cleanup P6a join removal (pin 68, SHA `84d94faab`) | no: ready, previewed (exit 0), held behind the hotfix | n/a | backfill gates PASSED on dev and prod (0 goals to archive; receipts under `C:\s\spec\release-queue\tutor-cleanup\receipts`) |
+| Cleanup P6b drop, P7 docs | no: built, wait for P6a live; DB window needs your GO | n/a | not started |
+| R7a Long Markdown, R7b PDF text (pins 69, 70) | no, re-stacking onto main | false (own switches `ROADMAP_LONG_MARKDOWN_ENABLED`, `ROADMAP_PDF_ENABLED` unset) | independent verifier: releasable inert; defects below |
+| R6 Automatic next proposals | no: built, verifier reviewing | false (`ROADMAP_AUTO_ENABLED` unset) | not started |
+| R5 Proposal editing | no: built, verifier reviewing | false (`ROADMAP_EDIT_ENABLED` unset) | not started |
+| R8b Calculator, R8a Research | no, in build (lane D) | false | not started |
+| R9 Practice and assessed Progress | no, in build (lane E) | false (`ROADMAP_PRACTICE_ENABLED`) | not started |
+| R10-R16 | no | false | not started |
 
-Production Learn D1 has migrations 0036-0039 (you applied them; 0039 went in right before release 63, because the release preflight requires the prod schema to equal the candidate's schema exactly). Dev Learn D1 has 0036-0039.
+Production Learn D1 has migrations 0036-0039 (applied by you). Dev Learn D1 has 0036-0039. The release preflight requires the prod schema to equal the candidate's schema exactly, so each migration is applied immediately before the release that includes it, never earlier.
 
-## 2. Commands for you now
+## 2. Commands for you now and next
 
-1. Release 64 (R4 settings wiring + S26/S27 DRAFT safety responses, flag stays off, no migration, SHA `b01631bf5e6b04a115f8cbcabe0c527cbde8d016`, recovery `feat/tutor-r4-wire-recovery` `d11d71d8b`, preview exit 0): `"C:\Users\cyudhist\AppData\Local\Programs\Git\usr\bin\bash.exe" C:/s/spec/release-queue/morning-release.sh 64-tutor-r4-wire-mvp` (type `RELEASE 64`).
-2. Qualification clone (dev only, zero spend first): `C:\s\spec\r4-qual\r4-qual-clone.cmd deploy`, then `... secrets` only after the free Durable Object check, then `... delete`. The agent's own `wrangler deploy` was denied by the permission classifier and was not worked around.
-3. Obsolete pins, do not run: 57, 58, 60, 61.
+Nothing is runnable on prod this minute. In order, as each becomes ready (each message will carry the exact command):
+1. **Hotfix, pin 71** (no migration), first. Command follows as soon as its preview exits 0.
+2. **P6a, pin 68** (`84d94faab`, no migration): needs re-stacking onto the hotfix tip, then its command. The backfill gates already passed.
+3. **R7a, pin 69**: needs prod migration `0042` first (`C:\s\spec\release-queue\apply-prod-migration-0042.cmd`, expects 2/2 tables), then the release. **R7b, pin 70** after it, no migration.
+4. **R6** (prod migration 0040) and **R5** (prod migration 0041), each migration immediately before its release, after their independent verification.
+5. **Qualification, paid phase** ($25 cap, planned $4-6): after the hotfix is deployed, the clone is redeployed from the hotfix tip with `C:\s\spec\r4-qual\r4-qual-clone.cmd deploy`, then `... secrets` (puts the model keys on the dev clone only), then the agent runs the cases, then `... delete`.
+6. Obsolete pins, do not run: 57, 58, 60, 61, 66, 67.
 
-Pin 65 (turns the roadmap ON in production; SHA `3b9348449e36fcfde1be02256d742abcc5f298a1`, recovery `feat/tutor-r4-flagon-recovery` `92ba70062`, preview exit 0) is BUILT but NOT to be run until the qualification report is reviewed and S26/S27 are approved or accepted as drafted. Its command will be sent only then.
+## 3. R4 activation and qualification
 
-## 3. R4 activation path (priority lane)
-
-Order: 63, 64 and 65 are all deployed (the owner chose to release 65 before the qualification finished); the roadmap is ON in production without functional acceptance. Qualification continues.
-Decided: D2 routing exception adopted, D43 safety policy adopted, $25 real-model cap approved (hard stop $25; inbox worst case $24.72), dev 0039 applied, strings S1-S10, S28, S11-S25, S29 approved. Defaults applied for D-R4-5..10 (active-to-proposed edits, deterministic proposals, empty click allowed, held card refunded, Durable Object alarm for the 24 h deadline).
-Built: 64 (settings reader wiring, S26/S27 safety responses as DRAFT text) and 65 (one-line prod flag), both previewed. Blocked: the real-model and Worker/Durable Object qualification needs the dev clone deployed by you (launcher above); nothing has been spent (ledger `C:\s\spec\logs\r4-qual-ledger.md` at $0.00 of $25). S26 DRAFT: "I can't make this explanation. It is outside what I can create here. You were not charged." S27 DRAFT: "I did not make this explanation, and you were not charged. If you are in danger or thinking about hurting yourself, please call your local emergency number or a crisis line in your area. You do not have to deal with this alone."
-Still unmeasured: planner quality, grounding and safety thresholds, roadmap check seconds (placeholders 10/15 s because the CI split is saturated).
+Decided: D2 routing exception adopted, D43 safety policy adopted, $25 real-model cap approved (hard stop $25; ledger `C:\s\spec\logs\r4-qual-ledger.md`, $0.00 spent), dev 0039 applied, strings S1-S10, S28, S11-S25, S29 approved; defaults applied for D-R4-5..10. You chose to release the flag-on (65) before qualification finished.
+Phase 1 (no spend) results on the dev clone at `fe941068`: flag on, roadmap create 202 and `draft`; `plan_requested` outbox event committed with the create; the `RoadmapJobs` Durable Object alarm fires (`outcome: ok`, 0 exceptions) with the 5, 10, 20, 40 s backoff; one object per learner and board (three boards, three ids); second unfinished roadmap on the same board returns 409; a 38,799-character source accepted, a 58,280-character source returns 422 `source_too_large`. Findings: the D1 LIKE bug (section 0); once `deadline_at` (300 s) passes, `next_at` jumps to now + 3600 (a pending plan waits an hour; phase 2 must create fresh roadmaps); the redeploy-restart and the 24 h delivery deadline are untested.
+Test rows left in the dev D1 by phase 1: five draft roadmaps with outbox rows, quota rows for four throwaway learners, canvases/boards/files for them. They spend nothing. Cleanup is optional.
+S26 DRAFT (refusal): "I can't make this explanation. It is outside what I can create here. You were not charged." S27 DRAFT (personal risk): "I did not make this explanation, and you were not charged. If you are in danger or thinking about hurting yourself, please call your local emergency number or a crisis line in your area. You do not have to deal with this alone." Both are live in production as drafts (release 64); approve or replace.
+Still unmeasured: planner quality, grounding and safety thresholds (`MAX_UNCERTAINTY` 0.4 etc.), roadmap check seconds (placeholders 10/15 s because the CI split is saturated), browser behavior.
 
 ## 4. Lanes, bases and migration numbers
 
-| Lane | Work | Base (frozen) | Branch |
+| Lane | Work | Base | Branch |
 |---|---|---|---|
-| A | R6, then R5 (R6 does not wait for R5; R11 speculative generation is not in scope) | R4 release tip `fe941068917184a183faa533344cde18524a0598` | feat/tutor-r6, feat/tutor-r5 |
-| B | R7a, then R7b (incremental; no silent truncation) | same R4 tip | feat/tutor-r7a, feat/tutor-r7b |
-| C | P6a, P6b scripts, P7 docs (journey writers retired, backfill verified per environment, join removal verified, controlled drop) | main `d870aef1f9511c54f8cab2ba13b92dfbe79542d1` | feat/tutor-cleanup-p6a, -p6b, -p7 |
-| R4 | 63 release, 64 wiring, 65 flag-on, qualification | 63: `fe941068`; 64 from 63 | feat/tutor-r4-release-3, -wire, -flagon, -qual |
-| Verifier | independent review of committed candidates as they become ready | n/a | starts when the first lane candidate is committed |
+| Hotfix | D1 LIKE fix + D1-limit review (pin 71) | main `3b9348449` | feat/tutor-r4-hotfix |
+| A (finished) | R6, then R5 (R6 independent of R5; R11 speculative generation not in scope) | R4 tip `fe941068` | feat/tutor-r6 `2119107c0`, feat/tutor-r5 `46bcd9401` |
+| A verifier | independent review of R6 and R5 incl. flag-off with `ROADMAP_ENABLED` true, D1 limits, and a secret scan (lane A committed with hooks disabled) | n/a | running |
+| B (finished) + re-stack | R7a (pin 69), R7b (pin 70) | main `3b9348449` | feat/tutor-r7a-release-2, feat/tutor-r7b-release-2 |
+| B fix lane | the R7 verifier's defects, one commit each | R7b lane tip | feat/tutor-r7-fixes |
+| C (finished) | P6a (pin 68), P6b scripts, P7 skeleton | main `3b9348449` (P6a) | feat/tutor-cleanup-p6a-release `84d94faab`, -p6b, -p7 |
+| D | R8b calculator, then R8a research | main `3b9348449` | feat/tutor-r8b, feat/tutor-r8a |
+| E | R9 practice and assessed Progress | main `3b9348449` | feat/tutor-r9 |
+| Qualification | dev clone, real model and Durable Object | `fe941068` + fix | feat/tutor-r4-qual `46367522d` |
 
-Migration numbers (allocated centrally; none beyond 0039 is authorised on any database): 0040 R6 (only if needed), 0041 R5 drafts, 0042 R7a source index, 0043 R7b (only if needed).
-R9 assessment: `learn-assessment.js` (rubric and Explain-back assessment) is retained after P5, so deferring R9 is a prioritisation choice, not a missing grader. R7 is not a blanket prerequisite for R8-R16.
-Lead-only files (single writer): learn-models.js, route mounts, wrangler*.jsonc, check-map.json, LearnPage.jsx, learn-usage.js, repository-schema.sql. Lanes A and B hand these over as lead patches; lane C edits them only on its own cleanup branches.
+Migration numbers (central; none beyond 0039 authorised on any database): 0040 R6, 0041 R5, 0042 R7a, 0043 R7b (only if needed), 0044 R9, 0045 R8a (only if needed).
+Release order: hotfix, then P6a, R7a, R7b, then R6, R5 as verified; every later candidate is re-stacked by merging the new main (new SHA, new preview, ~10-15 min). R9 assessment: `learn-assessment.js` is retained after P5, so R9 does not wait on a missing grader; R7 is not a blanket prerequisite for R8-R16.
+Lead-only files (single writer): learn-models.js, route mounts, wrangler*.jsonc, check-map.json, LearnPage.jsx, learn-usage.js, repository-schema.sql, roadmap-models.js. Lanes hand these over as lead patches.
 
-## R7 verifier findings (2026-11-06 ~10:00 PT): both releasable as inert flag-off candidates; fix BEFORE their switches are turned on
+## 5. Findings still open
 
-- Verdict: R7a and R7b are releasable with `ROADMAP_ENABLED`, `ROADMAP_LONG_MARKDOWN_ENABLED` and `ROADMAP_PDF_ENABLED` unset (no D1 statement, no model call, no new field; probes and 273 regression tests pass). All defects below are on flag-on paths.
-- R7a, medium: concurrent summary runs pay twice and can overwrite a done batch (no compare-and-set); the summary budget is per run, not per index (a 2,000,000-character source took 5 runs and 58 calls; `budget_chars` can never fire); the summary trigger is unmounted, so nothing is live.
-- R7a, low/medium: fenced code is not recognised in CRLF files (code comments become headings); an over-2-MiB source never shows its message to the learner (empty choices hide S41/S47); `maxChars` can cut a surrogate pair; a DOMException unknown outcome is recorded as failed and retried; guard gaps on PDF-kind rows.
-- R7b, medium: PDF page text can change under an unchanged revision (the page PUT route rewrites text without changing the byte hash, so `source_changed` never fires and saved offsets point at different text). Low: a tiny text layer counts as readable; a whole read with a cut page discloses nothing on success; a no-match search returns ok with no limitation; page-count check skipped when meta is missing; surrogate cut; two unflagged shared-file branches (`revalidateSourceAsJob`, `d1MintSourceRef`) unreachable with the flags off; page-range choices are not capped.
-- Next: a fix lane after releases 66/67 (or before the switches are enabled), starting with the two medium items. Not blocking release because the switches stay off.
+- **R7 verifier (both inert-releasable):** R7a medium: concurrent summary runs pay twice and can overwrite a done batch; the summary budget is per run, not per index; the trigger is unmounted. R7a low: CRLF fences, empty-choices message for over-2-MiB sources, surrogate cut, DOMException misclassified, guard gaps. R7b medium: PDF page text can change under an unchanged revision. R7b low: tiny text layer counts as readable, cut-page disclosure, no-match limitation, page-count check, page-range cap, two unflagged shared-file branches. Fixes are in progress on `feat/tutor-r7-fixes`; fix before turning any R7 switch on.
+- **R6/R5 lane notes:** the CI time budget test (`a broad selection splits into six parts`) has no headroom (915 s per part with their rows); default fix is folding their new steps into the existing roadmap check unless you prefer a seventh part. R5 adds eight learner strings needing your approval: Edit, What should change?, Apply, Discard, Add to chat, Existing card, Editing is not available right now., That change could not be made. R6 adds none. Not built: R6 first proposal after Accept plan stays manual; no `roadmap_proposal` model role in R6; R5 link-card menu row, Ctrl/Cmd+L chord, drag handoff, safety screen on proposal text.
+- **Process:** lane A committed R6/R5 with `-c core.hooksPath=/dev/null`, bypassing the machine's GitDefender hooks; no later agent did. Default: the verifier scans the diff and the commits are re-created with hooks active before release; tell me if you want otherwise. The permission classifier denied an agent's `wrangler deploy` of a dev clone (not worked around; you ran the launcher). Cloudflare's D1 time-travel API returned a 500 once during release 65 (retried green).
 
-## 5. Open decisions (none stops other work)
+## 6. Open decisions (none stops other work)
 
-- **S26/S27 final wording (R4 safety refusal and personal-risk support).** Drafts arrive with candidate 64 and are replaceable. Needed: approve or replace.
-- **Strings of live releases, never signed off:** R1 (D-R1-S), R2 (D-R2-S), R3 (D-R3-S) and the P4 mode-line strings. Texts are in the archive file, section 2. Recommended: approve.
-- **D-P2-1:** keep the static Tutor entry card until R4 is on (recommended) or remove it.
-- **D-R2-1:** the per-canvas "Proactive Tutor suggestions" and the per-learner Auto-suggest coexist; recommended one control bound to the per-learner setting.
-- **D-N3:** the `fast-e2e.yml` `only` input needs your `!` command; prepared when that phase is ready.
-- **D-DB (P6a/P6b):** backfill per environment, join-removal release verification, the schema-source commit and the table drop each need your GO at the moment of the step. Not pre-approvable.
-- **D-FLAG-ON (pin 65):** I will recommend running 65 only after the qualification report shows the Durable Object and the end-to-end flow working, S26/S27 are approved or accepted as drafted, and releases 63 and 64 are live.
-- Not verified anywhere: browser behavior of any release, workerd for R4 (in progress), real classifier and safety thresholds (in progress).
+- **S26/S27 final wording** (live as drafts) and the **R5 strings** above. Needed: approve or replace.
+- **Strings of live releases, never signed off:** R1 (D-R1-S), R2 (D-R2-S), R3 (D-R3-S) and the P4 mode-line strings (texts in the archive file, section 2). Recommended: approve.
+- **D-P2-1:** keep the static Tutor entry card until R4 is on (recommended) or remove it. **D-R2-1:** one control bound to the per-learner Auto-suggest instead of two. **D-N3:** `fast-e2e.yml` `only` input needs your `!` command, prepared when that phase is ready.
+- **N6 (decided by default, shout if wrong):** the P6b drop deletes a placeholder goal only if it is still `open` with `revision = 0`.
+- **D-DB:** the P6b window (backfill done) needs your GO at the moment of the step: `learn-retire-tutor.cmd prod window-check`, then `retire` with typed `RETIRE PROD` and `P6A SERVED`, then the P6b release immediately.
+- **D-CI-BUDGET:** fold R6/R5 e2e steps into the existing roadmap check (default) or add a seventh part.
+- Not verified anywhere: browser behavior of any release, real-model behavior, real classifier and safety thresholds.
 
-## 6. Decided (2026-11-06)
+## 7. Decided (2026-11-06)
 
-R4: D2 and D43 adopted, $25 cap, dev 0039, strings as recommended. Landing order of releases: P2, then R1 and R3 (their deploys were blocked by the exact-schema preflight and went out with R2), P3 and P4 (inside the R2 fast-forward), R2, P5 (re-stacked without R4). Dev migrations 0036-0039 applied. P6 DB steps, prod migrations and every push to main remain owner actions.
+R4: D2 and D43 adopted, $25 cap, dev 0039, strings as recommended; flag-on released before qualification (owner choice). GO always means production. Landing order so far: P2, then R1 and R3 (blocked by the exact-schema preflight, went out with R2), P3 and P4 (inside the R2 fast-forward), R2, P5 (re-stacked without R4), R4 63, 64, 65. Dev migrations 0036-0039 applied; prod 0036-0039 applied by the owner. Cleanup archive backfill gate passed on dev and prod. P6 drop, prod migrations and every push to main remain owner actions.
