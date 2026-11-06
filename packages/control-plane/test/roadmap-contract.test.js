@@ -1,9 +1,9 @@
-// Contract tests for the draft roadmap state module (src/roadmap/states.js; docs/features/explain-on-canvas/contracts/states.md).
+// Contract tests for the draft roadmap state module (src/roadmap/roadmap-contract.js; docs/features/explain-on-canvas/contracts/states.md).
 // Pure and offline. The enum lists below are copied from tutor-roadmap v1.3/v1.4 section 4.3 on purpose: a rename in the module must
 // fail here, not pass by being compared with itself.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as S from '../src/roadmap/states.js';
+import * as S from '../src/roadmap/roadmap-contract.js';
 
 const SPEC = {
   roadmap: ['draft', 'questioning', 'proposed', 'active', 'paused', 'completed', 'ended', 'failed'],
@@ -131,7 +131,73 @@ test('every action target state is a roadmap state, and every error code carries
 
 test('the module is dependency free: no imports and no global access', async () => {
   const { readFileSync } = await import('node:fs');
-  const text = readFileSync(new URL('../src/roadmap/states.js', import.meta.url), 'utf8').replace(/\/\/.*$/gm, '');
+  const text = readFileSync(new URL('../src/roadmap/roadmap-contract.js', import.meta.url), 'utf8').replace(/\/\/.*$/gm, '');
   assert.ok(!/^\s*import\s/m.test(text), 'no import statements');
   assert.ok(!/\b(process|env|Date\.now|crypto|fetch|globalThis)\b/.test(text), 'no clock, env or network');
+});
+
+// ---- implementation checklist additions (BASE.02, R4.01, R4.06, R4.11) ----
+const ACCESS = { org: 'o1', actorUserId: 'u1', actorEmail: 'a@x.test', boardId: 'lb_1', boardOwnerEmail: 'a@x.test', role: 'owner', payerUserId: 'u1' };
+
+test('RoadmapAccess needs every field; before R14 only an owner paying for their own board', () => {
+  assert.deepEqual(S.validateAccess(ACCESS), { ok: true });
+  for (const k of S.ACCESS_FIELDS) assert.equal(S.validateAccess({ ...ACCESS, [k]: '' }).code, 'forbidden', k);
+  assert.equal(S.validateAccess({ ...ACCESS, role: 'editor' }).code, 'forbidden');
+  assert.equal(S.validateAccess({ ...ACCESS, actorEmail: 'b@x.test' }).code, 'forbidden', 'a visible board is not an owned board');
+  assert.equal(S.validateAccess({ ...ACCESS, payerUserId: 'u2' }).code, 'forbidden', 'the payer is never another learner before R14');
+  assert.equal(S.validateAccess(null).code, 'forbidden');
+  assert.equal(S.validateAccess({ ...ACCESS, role: 'editor', actorEmail: 'b@x.test' }, { beforeR14: false }).ok, true, 'R14 widens roles without changing the shape');
+});
+
+const RESULT = { org: 'o1', ownerUserId: 'u1', boardId: 'lb_1', generation: 'generated', validation: 'passed', decision: 'accepted', billing: 'settled' };
+test('entitledRoadmapResult: a result id is never access; scope and the 4.4 predicate both hold', () => {
+  assert.equal(S.entitledRoadmapResult(ACCESS, RESULT), true);
+  for (const change of [{ org: 'o2' }, { ownerUserId: 'u2' }, { boardId: 'lb_2' }, { decision: 'none' }, { billing: 'pending' }, { validation: 'held' }, { stale: true }]) {
+    assert.equal(S.entitledRoadmapResult(ACCESS, { ...RESULT, ...change }), false, JSON.stringify(change));
+  }
+  assert.equal(S.entitledRoadmapResult({ ...ACCESS, actorUserId: 'u2', payerUserId: 'u2' }, RESULT), false, 'another learner on the same board');
+  assert.equal(S.entitledRoadmapResult(null, RESULT), false);
+});
+
+test('provider operation identity is deterministic, server-shaped and refuses forged fields', () => {
+  const f = { proposalId: 'pr_aaaaaaaa', proposalVersion: 2, cardId: 'cd_bbbbbbbb', stage: 'generate', call: 1, retry: 0, authorizationId: 'au_cccccccc' };
+  assert.equal(S.operationKey(f), 'rm.pr_aaaaaaaa.2.cd_bbbbbbbb.generate.1.0.au_cccccccc');
+  assert.equal(S.operationKey(f), S.operationKey({ ...f }));
+  assert.notEqual(S.operationKey(f), S.operationKey({ ...f, call: 2 }), 'the repair call has its own identity');
+  assert.notEqual(S.operationKey(f), S.operationKey({ ...f, retry: 1 }));
+  for (const bad of [{ stage: 'free' }, { call: -1 }, { retry: 1.5 }, { proposalId: 'x' }, { cardId: 'a b c d e f g h' }, { authorizationId: undefined }, { proposalVersion: '2' }]) {
+    assert.throws(() => S.operationKey({ ...f, ...bad }), e => e.code === 'invalid_request', JSON.stringify(bad));
+  }
+  assert.deepEqual([...S.OPERATION_FIELDS], ['proposalId', 'proposalVersion', 'cardId', 'stage', 'call', 'retry', 'authorizationId']);
+});
+
+test('call checkpoints: unknown outcomes reconcile before any retry; settled work is never re-dispatched', () => {
+  assert.ok(S.canTransition('call', 'planned', 'admitted') && S.canTransition('call', 'admitted', 'dispatched') && S.canTransition('call', 'dispatched', 'response_recorded') && S.canTransition('call', 'response_recorded', 'settled'));
+  assert.ok(!S.canTransition('call', 'dispatched', 'settled'), 'a response must be recorded first');
+  assert.ok(!S.canTransition('call', 'unknown', 'dispatched') && S.canTransition('call', 'unknown', 'reconciling'));
+  for (const c of ['admitted', 'dispatched', 'unknown', 'reconciling']) assert.equal(S.mayRetryCall(c), false, c);
+  assert.equal(S.mayRetryCall('failed'), true);
+  assert.ok(S.isTerminal('call', 'settled'));
+});
+
+test('only a transient provider failure earns the one automatic retry', () => {
+  assert.deepEqual([...S.AUTOMATIC_RETRY_CLASSES], ['transient_provider_failure']);
+  for (const c of S.FAILURE_CLASSES.filter(c => c !== 'transient_provider_failure')) assert.ok(!S.AUTOMATIC_RETRY_CLASSES.includes(c), c);
+});
+
+test('R3 source references: statuses map to the checklist words; the locator is a view of the implemented camelCase shape', () => {
+  assert.deepEqual(S.SOURCE_STATUS_MAP, { current: 'resolved', changed: 'changed', missing: 'missing', unavailable: 'inaccessible' });
+  const ref = { v: 1, id: 'sref_0123456789abcdef01234567', kind: 'markdown', source: { key: 'file:fs_0123456789abcdef01234567', rev: 'a'.repeat(64), name: 'n.md', home: null }, anchor: { quote: { exact: 'x', prefix: '', suffix: '' } } };
+  assert.deepEqual(S.sourceLocator(ref), { source_key: ref.source.key, source_rev: ref.source.rev, kind: 'markdown', anchor: ref.anchor });
+  assert.equal(S.sourceLocator({ ...ref, v: 2 }), null);
+  assert.equal(S.sourceLocator({ v: 1, kind: 'markdown', source: { name: 'shared copy' } }), null, 'a shared reader label has no locator');
+});
+
+test('conflict replies carry the current revision and proposal version; Depth is the R2 triple', () => {
+  assert.deepEqual(S.conflictReply({ currentRevision: 8, currentProposalVersion: 1 }), { code: 'stale_revision', currentRevision: 8, currentProposalVersion: 1 });
+  assert.deepEqual([...S.DEPTHS], ['overview', 'standard', 'deep']);
+  assert.equal(S.DEFAULT_DEPTH, 'standard');
+  assert.deepEqual([...S.TOOL_STATUS], ['ok', 'partial', 'needs_clarification', 'unsupported', 'unavailable']);
+  assert.deepEqual([...S.SAFETY_DECISIONS], ['allow', 'restrain', 'block', 'unknown']);
+  assert.deepEqual([...S.EVIDENCE_CLASSES], ['source_supported', 'externally_supported', 'computed', 'inferred', 'unresolved']);
 });

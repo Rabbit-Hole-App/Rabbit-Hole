@@ -1,4 +1,6 @@
 // DRAFT CONTRACT, unmounted and unreferenced (Tutor ladder R4 contracts lane; docs/features/explain-on-canvas/contracts/states.md).
+// Named roadmap-contract.js as the implementation checklist asks (BASE.02, R4.01); it replaces the lane's earlier states.js. Its siblings
+// roadmap-policy.js (ROADMAP_LIMITS) and roadmap-tools.js (capability catalogue and dispatch allowlist) import it; it imports nothing.
 // The one shared enum/schema module the roadmap spec asks for (tutor-roadmap v1.3 section 4.3): server validation, client
 // rendering and tests import this file and nothing else for state names and transition rules. Pure: no imports, no env, no clock.
 // Nothing on main imports it yet; R4's State engineer moves or keeps it where the Lead's file manifest says.
@@ -18,6 +20,9 @@ export const RESULT_DELIVERY = set(['not_delivered', 'delivered', 'removed']);
 export const BILLING_OUTCOME = set(['pending', 'settled', 'refunded', 'failed', 'zero_priced']);
 // Extension (not in 4.3, see README Gaps): an unknown provider outcome must be reconciled before any retry (5.1, 5.2). It is its own
 // dimension, never a sixth billing outcome, so the 4.3 list stays exactly as written.
+// Depth (R2 owns the setting; checklist 2.1): the same three values reach Chat, slash paths and roadmap inputs. Default standard.
+export const DEPTHS = set(['overview', 'standard', 'deep']);
+export const DEFAULT_DEPTH = 'standard';
 export const RECONCILIATION = set(['none', 'required', 'complete']);
 
 // --- transition tables: state -> the states it may move to. A state absent from a table does not exist. --------------
@@ -86,7 +91,23 @@ export const BILLING_TRANSITIONS = freeze({
 });
 export const RECOVERY_ONLY = freeze({ billing: ['failed>pending', 'refunded>pending'] });
 
+// Call checkpoints (R4.06): planned -> admitted -> dispatched -> response_recorded -> settled, with explicit unknown/reconciling.
+export const CALL_CHECKPOINTS = set(['planned', 'admitted', 'dispatched', 'response_recorded', 'settled', 'unknown', 'reconciling', 'failed', 'released']);
+export const CALL_TRANSITIONS = freeze({
+  planned: ['admitted', 'released'],
+  admitted: ['dispatched', 'released', 'failed'],
+  dispatched: ['response_recorded', 'unknown', 'failed'],
+  response_recorded: ['settled', 'failed'],
+  // An admitted or dispatched call whose outcome is not known is never retried blindly: reconcile first (a timeout is not zero cost).
+  unknown: ['reconciling'],
+  reconciling: ['settled', 'failed', 'released'],
+  settled: [],
+  failed: [],
+  released: [],
+});
+
 export const TABLES = freeze({
+  call: CALL_TRANSITIONS,
   roadmap: ROADMAP_TRANSITIONS, step: STEP_TRANSITIONS, proposal: PROPOSAL_TRANSITIONS, generation: GENERATION_TRANSITIONS,
   validation: VALIDATION_TRANSITIONS, decision: DECISION_TRANSITIONS, delivery: DELIVERY_TRANSITIONS, billing: BILLING_TRANSITIONS,
 });
@@ -173,8 +194,61 @@ export const actionStartsFrom = (action, roadmapState) => (action === 'create_ro
 
 // Error codes shared by routes, the client and tests. status mirrors api.md.
 export const ERROR_CODES = freeze({
-  roadmap_disabled: 404, not_found: 404, forbidden: 403, invalid_request: 400, stale_revision: 409, action_key_reused: 409,
+  roadmap_disabled: 404, not_found: 404, forbidden: 403, invalid_request: 400, stale_revision: 409, action_key_reused: 409, source_unavailable: 409,
   invalid_transition: 409, roadmap_unfinished_exists: 409, proposal_not_pending: 409, proposal_not_checked: 409, roadmap_not_active: 409,
   allowance_limited: 429, spend_limited: 429, source_changed: 409, source_unsupported: 422,
   source_too_large: 422, needs_clarification: 422, held_for_checking: 409, reconciliation_required: 409,
 });
+
+// --- implementation checklist 2.1 / R4.01 / R4.06 / R4.09 / R4.11 additions ------------------------------------------------
+// Tool results (checklist 2.1): every tool answers with exactly one of these.
+export const TOOL_STATUS = set(['ok', 'partial', 'needs_clarification', 'unsupported', 'unavailable']);
+// Evidence classes (v1.3 6.2) and the deterministic safety decisions (D43).
+export const EVIDENCE_CLASSES = set(['source_supported', 'externally_supported', 'computed', 'inferred', 'unresolved']);
+export const SAFETY_DECISIONS = set(['allow', 'restrain', 'block', 'unknown']);
+// Failure classes the money/recovery code branches on (R4.11). Only transient_provider_failure earns one automatic retry.
+export const FAILURE_CLASSES = set(['clarification', 'unsupported_capability', 'denied_access', 'policy_block', 'unknown_provider_outcome',
+  'transient_provider_failure', 'checking_unavailable', 'terminal_validation_failure']);
+export const AUTOMATIC_RETRY_CLASSES = set(['transient_provider_failure']);
+// Provider-call stages (R4.06): the stage names inside a deterministic operation identity.
+export const PROVIDER_STAGES = set(['subject', 'draft', 'revise', 'proposal', 'generate', 'repair', 'grounding_check', 'grounding_escalation', 'safety', 'safety_adjudicate']);
+export const BLIND_RETRY_FORBIDDEN = set(['admitted', 'dispatched', 'unknown', 'reconciling']);
+export const mayRetryCall = checkpoint => !BLIND_RETRY_FORBIDDEN.includes(checkpoint) && CALL_CHECKPOINTS.includes(checkpoint);
+
+// withRoadmapProviderCall's identity fields (checklist 2.1, R4.06). The canonical key is hashed by the server into the ledger op_id;
+// this function only fixes the field set, order and validation. Public clients never supply any of it.
+export const OPERATION_FIELDS = set(['proposalId', 'proposalVersion', 'cardId', 'stage', 'call', 'retry', 'authorizationId']);
+export function operationKey(fields) {
+  const f = fields || {};
+  const id = /^[A-Za-z0-9_-]{8,64}$/;
+  if (![f.proposalId, f.cardId, f.authorizationId].every(v => typeof v === 'string' && id.test(v))) throw new StateError('invalid_request', 'operation ids must be server ids', 400);
+  if (!PROVIDER_STAGES.includes(f.stage)) throw new StateError('invalid_request', 'unknown provider stage', 400);
+  if (![f.proposalVersion, f.call, f.retry].every(v => Number.isInteger(v) && v >= 0 && v < 1000)) throw new StateError('invalid_request', 'versions and counters are small integers', 400);
+  return ['rm', ...OPERATION_FIELDS.map(k => f[k])].join('.');
+}
+
+// RoadmapAccess (checklist 2.1/R4.01): from the authenticated session and policy, never from request JSON. Before R14 the actor owns the
+// board and pays. R14 widens role/payer; the shape stays.
+export const ACCESS_FIELDS = set(['org', 'actorUserId', 'actorEmail', 'boardId', 'boardOwnerEmail', 'role', 'payerUserId']);
+export function validateAccess(access, { beforeR14 = true } = {}) {
+  if (!access || typeof access !== 'object') return { ok: false, code: 'forbidden' };
+  for (const k of ACCESS_FIELDS) if (typeof access[k] !== 'string' || !access[k]) return { ok: false, code: 'forbidden' };
+  if (beforeR14 && (access.role !== 'owner' || access.actorEmail !== access.boardOwnerEmail || access.payerUserId !== access.actorUserId)) return { ok: false, code: 'forbidden' };
+  return { ok: true };
+}
+// entitledRoadmapResult(access, result) (checklist 2.1): scope match (a result id is never access) plus the 4.4 predicate.
+export function entitledRoadmapResult(access, result, options) {
+  const scoped = validateAccess(access, options).ok && !!result && result.org === access.org && result.ownerUserId === access.actorUserId && result.boardId === access.boardId;
+  return resultReadable({ ...result, access: scoped });
+}
+// Common conflict reply (R4.01): a 409 carries the current revision and proposal version.
+export const conflictReply = ({ code = 'stale_revision', currentRevision, currentProposalVersion = null }) => ({ code, currentRevision, currentProposalVersion });
+
+// R3's source reference (web/src/source-ref.js, lane tutor-r3) against the checklist's locator {source_key, source_rev, kind, anchor}.
+// R3's camelCase shape is the implemented one and wins; the checklist locator is a derived view. current/changed/missing/unavailable are
+// R3's statuses; resolved/changed/missing/inaccessible are the checklist's words; 'unsupported' has no R3 status (rejected before minting).
+export const SOURCE_STATUS_MAP = freeze({ current: 'resolved', changed: 'changed', missing: 'missing', unavailable: 'inaccessible' });
+export function sourceLocator(ref) {
+  if (!ref || ref.v !== 1 || !ref.source || !ref.source.key || !ref.source.rev) return null;
+  return { source_key: ref.source.key, source_rev: ref.source.rev, kind: ref.kind, anchor: ref.anchor };
+}
