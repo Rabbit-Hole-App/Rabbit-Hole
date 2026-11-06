@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
-import { chatOf, initialState, invitationOf, pillOf, recoveryOf, reduce, tocOf } from './roadmap-client.js';
+import { chatOf, initialState, invitationOf, pillOf, recoveryOf, reduce, statusOf, tocOf } from './roadmap-client.js';
 import { anchorState, deliveredSpot, overlayPosition } from './roadmap-placement.js';
 
 const DIR = fileURLToPath(new URL('../../../docs/features/explain-on-canvas/contracts/fixtures/', import.meta.url));
@@ -21,7 +21,7 @@ after(() => rmSync(tmp, { recursive: true, force: true }));
 const outfile = join(tmp, 'bundle.cjs');
 await esbuild.build({
   stdin: {
-    contents: "export { default as RoadmapInvitation } from './RoadmapInvitation.jsx'; export { default as RoadmapPlan } from './RoadmapPlan.jsx'; export { ProposalOverlay, NextStepIndicator, StepPill } from './NextStepPill.jsx'; export { useRoadmap } from './use-roadmap.js'; export { RoadmapChat, RoadmapToc, RoadmapCanvas } from './RoadmapSurfaces.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';",
+    contents: "export { default as RoadmapInvitation } from './RoadmapInvitation.jsx'; export { default as RoadmapPlan } from './RoadmapPlan.jsx'; export { ProposalOverlay, NextStepIndicator, StepPill } from './NextStepPill.jsx'; export { useRoadmap } from './use-roadmap.js'; export { RoadmapChat, RoadmapToc, RoadmapCanvas } from './RoadmapSurfaces.jsx'; export { RoadmapStatus } from './NextStepPill.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';",
     resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx',
   },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
@@ -135,4 +135,38 @@ test('the hook and the three surfaces mount with nothing to show before the serv
     return lib.createElement('div', null, lib.createElement(lib.RoadmapChat, { roadmap }), lib.createElement(lib.RoadmapToc, { roadmap }), lib.createElement(lib.RoadmapCanvas, { roadmap }));
   };
   assert.equal(lib.renderToStaticMarkup(lib.createElement(Probe)), '<div></div>');
+});
+
+test('Fix A: the Contents plan scrolls inside a sized region, and Accept plan shows Accepting and is disabled once pressed', () => {
+  const noop = () => {};
+  const roadmap = state => ({ controller: {}, toc: tocOf(state), editPlan: noop, go: noop, acceptPlan: noop });
+  const markup = html(lib.RoadmapToc, { roadmap: roadmap(at('status-proposed-plan')) });
+  const region = markup.match(/<div[^>]*data-roadmap-scroll[^>]*>/)[0];
+  for (const cls of ['overflow-y-auto', 'min-h-0', 'max-h-[50vh]']) assert.ok(region.includes(cls), cls);
+  assert.ok(markup.indexOf('data-roadmap-scroll') < markup.indexOf('data-roadmap-plan') && markup.indexOf('data-roadmap-accept-plan') > markup.indexOf('data-roadmap-plan'), 'the whole plan, actions included, is inside the region');
+  assert.match(markup, />Accept plan</);
+  assert.doesNotMatch(markup, /data-roadmap-accept-plan="true"[^>]* disabled=""/);
+  const planned = at('status-proposed-plan');
+  const busy = reduce(planned, { type: 'begin', gesture: `plan:${planned.view.roadmap.id}:${planned.view.plan.version}` });
+  const pressed = html(lib.RoadmapToc, { roadmap: roadmap(busy) });
+  assert.match(pressed, /data-roadmap-accept-plan="true"[^>]* disabled=""/);
+  assert.match(pressed, />Accepting</);
+  assert.equal(html(lib.RoadmapToc, { roadmap: { controller: {}, toc: null } }), '');
+});
+
+test('Fix A: the proposal button reads Accepting while in flight; the status text follows the view, with no percentage or ellipsis', () => {
+  const noop = () => {};
+  const state = at('status-active-proposal-pending');
+  const pressed = reduce(state, { type: 'begin', gesture: pillOf(state).gesture });
+  const markup = html(lib.StepPill, { pill: pillOf(pressed), onAccept: noop, onCancel: noop });
+  assert.match(markup, /data-roadmap-accept="true"[^>]* disabled=""[^>]*>Accepting</);
+  assert.match(markup, /aria-busy="true"/);
+  assert.doesNotMatch(markup, /<kbd/);
+  assert.match(html(lib.StepPill, { pill: pillOf(state), onAccept: noop, onCancel: noop }), /<kbd[^>]*>Tab<\/kbd>/);
+  assert.equal(html(lib.RoadmapStatus, { status: null }), '');
+  for (const name of ['accept-proposal-response-generating', 'status-held-for-checking', 'status-failed-card']) {
+    const text = html(lib.RoadmapStatus, { status: statusOf(at(name)) });
+    assert.match(text, /role="status"[^>]*data-roadmap-status/, name);
+    assert.doesNotMatch(text.replace(/<[^>]+>/g, ' '), /\.\.\.|…|%|\$/, name);
+  }
 });

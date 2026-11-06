@@ -6,6 +6,8 @@ export const STRINGS = Object.freeze({
   invite: title => `I can explain "${title}" on the canvas, step by step.`, // S3 NEW
   accept: 'Accept', cancel: 'Cancel', tab: 'Tab', // S4 approved (Accept [Tab] | Cancel)
   nextReady: 'Next step ready', // S5 approved
+  accepting: 'Accepting', // Fix A: the click was received (button label while the request is in flight)
+  making: 'Making this explanation.', // Fix A: result generation pending/generating, from the server view
   proposeNext: 'Propose next step', // S6 approved
   end: 'End roadmap', // S7 approved
   acceptPlan: 'Accept plan', // S8 approved

@@ -45,6 +45,19 @@ test('Tab and a click together send exactly one accept; the answer is applied', 
   assert.equal(pillOf(controller.getState()), null);
 });
 
+test('while the accept is in flight the pill reads accepting, and a second press sends nothing more', async () => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const { controller, calls } = harness({ routes: { 'GET ': () => view('status-active-proposal-pending'), 'POST /rm_[^/]+/proposals/pr_[^/]+/accept': async () => { await gate; return view('accept-proposal-response-generating'); } } });
+  controller.start(); await settle();
+  const first = controller.acceptProposal(); await settle();
+  assert.equal(pillOf(controller.getState()).accepting, true);
+  assert.equal(await controller.acceptProposal(), null, 'a duplicate press while in flight is a no-op');
+  release(); await first; await settle();
+  assert.equal(post(calls, '/accept').length, 1);
+  assert.equal(pillOf(controller.getState()), null);
+});
+
 test('a refused accept because another device won: current state replaces ours with the plain sentence', async () => {
   const { controller } = harness({ routes: { 'GET ': () => view('status-active-proposal-pending'), 'POST /rm_[^/]+/proposals/pr_[^/]+/accept': () => { throw fail(409, view('error-stale-409')); } } });
   controller.start(); await settle();
