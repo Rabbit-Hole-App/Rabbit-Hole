@@ -6,9 +6,23 @@
 // actor is the server-resolved ActorScope {org, userId, app, board}; userId is users.id and never leaves the server.
 // Every write is one D1 batch whose statements all hold only at the expected coaching revision, the last one bumping it,
 // so a stale tab writes nothing (CoachingConflict 'revision'); the same actionId again replays the current state.
-// Changing goals pauses the old one (a derived status); nothing is archived. No evidence is ever written here: criteria
-// are what the learner accepted. A goal's lifecycle is its own column; the journey tables are no longer read (Tutor cleanup P6a).
+// Changing goals pauses the old one (a derived status) and parks its journey; nothing is archived. No evidence is ever
+// written here: criteria are what the learner accepted, and a legacy journey's goal starts with none.
 import { RESPONSE_KINDS, reduceTutorControls, validateCoachingRecord } from '../../web/src/learn-coaching-contract.js';
+
+// ponytail: the three journey SQL builders moved here from learn-journey-store.js (deleted in Tutor cleanup P4) because the
+// joins below stay until P6a, after the archive backfill is verified; P6a deletes them with the joins.
+// The goal row of every journey matching `where` (its binds follow board, now, now); DO NOTHING keeps an existing one.
+// No criterion or evidence is made: a legacy journey's goal has scope_version 0 until the learner accepts criteria.
+export const goalForJourneySql = where => `INSERT INTO learn_goals (id, org, owner_user_id, app, board, label, outcome, origin, scope_version, lifecycle, journey_id, activity_id, revision, created_at, updated_at)
+  SELECT 'lg_' || j.id, j.org, j.owner_user_id, j.app, ?, j.topic, '', 'journey', 0, 'open', j.id, NULL, 0, ?, ? FROM learning_journeys j WHERE ${where} ON CONFLICT DO NOTHING`;
+// Park every journey live on the board except keepId (null: all), and unpark one, as the goal switch does. guard is an SQL
+// condition with its binds, so the whole switch applies only at the expected coaching revision.
+export const parkJourneySql = guard => `UPDATE learning_journeys SET board = 'parked:' || id, updated_at = ?, revision = revision + 1
+  WHERE org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL AND id IS NOT ? AND ${guard}`;
+export const unparkJourneySql = guard => `UPDATE learning_journeys SET board = ?, updated_at = ?, revision = revision + 1
+  WHERE id = ? AND org = ? AND owner_user_id = ? AND app = ? AND board = 'parked:' || id AND archived_at IS NULL
+  AND NOT EXISTS (SELECT 1 FROM learning_journeys WHERE org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL) AND ${guard}`;
 
 export class CoachingConflict extends Error {
   constructor(code, status = 409) { super(`coaching conflict: ${code}`); this.name = 'CoachingConflict'; this.code = code; this.status = status; }
@@ -23,14 +37,19 @@ const GUARD = `EXISTS (SELECT 1 FROM learn_coaching_state WHERE ${KEY} AND revis
 const parse = text => (text == null ? null : JSON.parse(text));
 const NOT_CARD_GOAL = "substr(g.id, 1, 6) != 'lg_eb_'";
 
-// The learner's row, made on first use, pointing at no goal. DO NOTHING makes two first requests agree.
+// The learner's row, made on first use (owner decision 5a backfill): pointing at the board's live journey, whose goal row
+// is made in the same batch. Deterministic goal ids and DO NOTHING make two first requests agree.
 export async function ensureState(env, actor) {
   const read = () => env.LEARN_DB.prepare(`SELECT * FROM learn_coaching_state WHERE ${KEY}`).bind(...key(actor)).first();
   const row = await read();
   if (row) return row;
   const now = new Date().toISOString();
-  await env.LEARN_DB.prepare(`INSERT INTO learn_coaching_state (org, owner_user_id, app, board, active_goal_id, revision, created_at, updated_at)
-    VALUES (?, ?, ?, ?, NULL, 0, ?, ?) ON CONFLICT DO NOTHING`).bind(...key(actor), now, now).run();
+  await env.LEARN_DB.batch([
+    env.LEARN_DB.prepare(goalForJourneySql(`j.org = ? AND j.owner_user_id = ? AND j.app = ? AND j.board = ? AND j.archived_at IS NULL`)).bind(actor.board, now, now, ...key(actor)),
+    env.LEARN_DB.prepare(`INSERT INTO learn_coaching_state (org, owner_user_id, app, board, active_goal_id, revision, created_at, updated_at)
+      VALUES (?, ?, ?, ?, (SELECT 'lg_' || id FROM learning_journeys WHERE ${KEY} AND archived_at IS NULL), 0, ?, ?) ON CONFLICT DO NOTHING`)
+      .bind(...key(actor), ...key(actor), now, now),
+  ]);
   return read();
 }
 
@@ -43,7 +62,7 @@ const activityOf = r => ({
   responseKind: r.response_kind, criterionRefs: JSON.parse(r.criterion_refs_json), sourceRefs: JSON.parse(r.source_refs_json),
   checkpoint: parse(r.checkpoint_json), updatedAt: r.updated_at,
 });
-const goalStatus = (g, activeId) => (g.lifecycle === 'archived' ? 'archived' : g.lifecycle === 'completed' ? 'completed' : g.id === activeId ? 'active' : 'paused');
+const goalStatus = (g, activeId) => (g.lifecycle === 'archived' || g.journey_archived_at ? 'archived' : g.lifecycle === 'completed' ? 'completed' : g.id === activeId ? 'active' : 'paused');
 
 // One snapshot: the controls, every goal of this learner on this canvas with its current scope's criteria, and each goal's
 // current activity. A missing table or a failed read throws: it never becomes an empty history.
@@ -52,7 +71,7 @@ export async function readCoachingState(env, actor) {
   // Explain-back card bindings (learn-attempt-store.js bindExplainBackCard) are not the learner's goals: never listed here.
   const scoped = `g.org = ? AND g.owner_user_id = ? AND g.app = ? AND g.board = ? AND ${NOT_CARD_GOAL}`;
   const [goals, criteria, activities] = await Promise.all([
-    env.LEARN_DB.prepare(`SELECT g.* FROM learn_goals g WHERE ${scoped} ORDER BY g.created_at, g.id`).bind(...key(actor)).all(),
+    env.LEARN_DB.prepare(`SELECT g.*, j.archived_at AS journey_archived_at FROM learn_goals g LEFT JOIN learning_journeys j ON j.id = g.journey_id WHERE ${scoped} ORDER BY g.created_at, g.id`).bind(...key(actor)).all(),
     env.LEARN_DB.prepare(`SELECT c.* FROM learn_goal_criteria c JOIN learn_goals g ON g.id = c.goal_id AND c.scope_version = g.scope_version WHERE ${scoped} ORDER BY c.goal_id, c.position`).bind(...key(actor)).all(),
     env.LEARN_DB.prepare(`SELECT a.* FROM learn_activities a JOIN learn_goals g ON g.id = a.goal_id AND a.id = g.activity_id WHERE ${scoped}`).bind(...key(actor)).all(),
   ]);
@@ -60,7 +79,7 @@ export async function readCoachingState(env, actor) {
   for (const c of criteria.results) byGoal.set(c.goal_id, [...(byGoal.get(c.goal_id) || []), criterionOf(c)]);
   const list = goals.results.map(g => ({
     goalId: g.id, label: g.label, outcome: g.outcome, scopeVersion: g.scope_version,
-    lifecycle: g.lifecycle, status: goalStatus(g, row.active_goal_id),
+    lifecycle: g.journey_archived_at ? 'archived' : g.lifecycle, status: goalStatus(g, row.active_goal_id),
     criteria: byGoal.get(g.id) || [], activityId: g.activity_id, journeyId: g.journey_id, revision: g.revision, createdAt: g.created_at, updatedAt: g.updated_at,
   }));
   const activeGoalId = list.some(g => g.goalId === row.active_goal_id && g.status === 'active') ? row.active_goal_id : null;
@@ -103,10 +122,10 @@ const refsOk = (kind, list, max) => Array.isArray(list) && list.length <= max &&
 async function ownGoal(env, actor, goalId, { closed = false } = {}) {
   if (typeof goalId !== 'string' || goalId.length > 200) throw invalid('goalId required');
   // Another learner's goal, another canvas's or a made-up id all read as missing: nothing about them is told.
-  const g = await env.LEARN_DB.prepare('SELECT * FROM learn_goals WHERE id = ? AND org = ? AND owner_user_id = ? AND app = ? AND board = ?')
+  const g = await env.LEARN_DB.prepare(`SELECT g.*, j.archived_at AS journey_archived_at FROM learn_goals g LEFT JOIN learning_journeys j ON j.id = g.journey_id WHERE g.id = ? AND g.org = ? AND g.owner_user_id = ? AND g.app = ? AND g.board = ?`)
     .bind(goalId, ...key(actor)).first();
   if (!g) throw missing('unknown_goal');
-  if (!closed && g.lifecycle !== 'open') throw new CoachingConflict('goal_closed');
+  if (!closed && (g.lifecycle !== 'open' || g.journey_archived_at)) throw new CoachingConflict('goal_closed');
   return g;
 }
 // Goal management (/goal, owner 2026-10-21): an edit or delete names the goal revision the learner saw. Another tab's or the
@@ -123,6 +142,18 @@ const goalText = payload => {
 };
 
 // --- statements -------------------------------------------------------------------------------------------------------
+// Moving the pointer to another goal: the board's live journey gets a goal row if older code made it without one, then
+// every journey live on the board except the target's is parked, then the target's journey (if parked) returns.
+function switchGoal(env, actor, rev, target, now) {
+  const g = [...key(actor), rev], board = actor.board;
+  const out = [
+    env.LEARN_DB.prepare(goalForJourneySql(`j.org = ? AND j.owner_user_id = ? AND j.app = ? AND j.board = ? AND j.archived_at IS NULL AND ${GUARD}`)).bind(board, now, now, ...key(actor), ...g),
+    env.LEARN_DB.prepare(parkJourneySql(GUARD)).bind(now, ...key(actor), target.journey_id ?? null, ...g),
+  ];
+  if (target.journey_id) out.push(env.LEARN_DB.prepare(unparkJourneySql(GUARD)).bind(board, now, target.journey_id, actor.org, actor.userId, actor.app, ...key(actor), ...g));
+  return out;
+}
+
 const PLANS = {
   async save_controls(env, actor, row, payload) {
     only(payload, ['event']);
@@ -147,6 +178,7 @@ const PLANS = {
         env.LEARN_DB.prepare(`INSERT INTO learn_goals (id, org, owner_user_id, app, board, label, outcome, origin, scope_version, lifecycle, revision, created_at, updated_at)
           SELECT ?, ?, ?, ?, ?, ?, ?, 'coaching', ?, 'open', 0, ?, ? WHERE ${GUARD}`).bind(id, ...key(actor), payload.label, payload.outcome ?? '', scope, now, now, ...g),
         ...criteria.map((c, i) => insertCriterion(env, id, scope, { ...c, version: 1 }, i, now, g)),
+        ...switchGoal(env, actor, rev, { journey_id: null }, now),
       ],
       next: { activeGoalId: id, activeActivityId: null },
     };
@@ -168,15 +200,17 @@ const PLANS = {
   },
 
   // Delete is the archived lifecycle: the goal leaves every list and pointer, and its attempts, assessments and criteria stay
-  // as recorded (evidence is never orphaned or rewritten). The active pointer (and its activity) clears when it named this goal.
-  // Deleting a goal already gone changes nothing.
+  // as recorded (evidence is never orphaned or rewritten). The active pointer (and its activity) clears when it named this goal;
+  // a journey-backed goal's journey is parked off the board, never archived. Deleting a goal already gone changes nothing.
   async delete_goal(env, actor, row, payload, rev, now) {
     only(payload, ['goalId', 'revision']);
     const goal = await ownGoal(env, actor, payload.goalId, { closed: true });
-    if (goal.lifecycle === 'archived') return null;
+    if (goal.lifecycle === 'archived' || goal.journey_archived_at) return null;
     sameGoalRevision(goal, payload.revision);
     const g = [...key(actor), rev], active = goal.id === row.active_goal_id;
     const statements = [env.LEARN_DB.prepare(`UPDATE learn_goals SET lifecycle = 'archived', revision = revision + 1, updated_at = ? WHERE id = ? AND ${GUARD}`).bind(now, goal.id, ...g)];
+    if (goal.journey_id) statements.push(env.LEARN_DB.prepare(`UPDATE learning_journeys SET board = 'parked:' || id, updated_at = ?, revision = revision + 1 WHERE id = ? AND org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL AND ${GUARD}`)
+      .bind(now, goal.journey_id, ...key(actor), ...g));
     if (goal.activity_id) statements.push(env.LEARN_DB.prepare(`UPDATE learn_activities SET status = 'paused', updated_at = ? WHERE id = ? AND status = 'in_progress' AND ${GUARD}`).bind(now, goal.activity_id, ...g));
     return { statements, next: active ? { activeGoalId: null, activeActivityId: null } : {} };
   },
@@ -209,7 +243,7 @@ const PLANS = {
     only(payload, ['goalId']);
     const goal = await ownGoal(env, actor, payload.goalId);
     if (goal.id === row.active_goal_id) return null;
-    return { statements: [], next: { activeGoalId: goal.id, activeActivityId: goal.activity_id ?? null } };
+    return { statements: switchGoal(env, actor, rev, goal, now), next: { activeGoalId: goal.id, activeActivityId: goal.activity_id ?? null } };
   },
 
   async activate_activity(env, actor, row, payload, rev, now) {
@@ -246,6 +280,7 @@ const PLANS = {
     // The activity this one replaces within the goal waits, paused, for an explicit return.
     if (row.active_activity_id) statements.push(env.LEARN_DB.prepare(`UPDATE learn_activities SET status = 'paused', updated_at = ? WHERE id = ? AND status = 'in_progress' AND ${GUARD}`).bind(now, row.active_activity_id, ...g));
     statements.push(env.LEARN_DB.prepare(`UPDATE learn_goals SET activity_id = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND ${GUARD}`).bind(activity.id, now, goal.id, ...g));
+    if (goal.id !== row.active_goal_id) statements.push(...switchGoal(env, actor, rev, goal, now));
     return { statements, next: { activeGoalId: goal.id, activeActivityId: activity.id } };
   },
 

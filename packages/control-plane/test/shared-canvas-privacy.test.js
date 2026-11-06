@@ -32,7 +32,7 @@ const PLACED = ['Keeps the logits small.', 'Positive weights that sum to one.', 
 // every text column carrying the secret. A table this schema cannot take a generic row into is reported, not skipped silently.
 function seedPrivateRows(sqlite) {
   const tables = ['threads', 'messages', 'chat_thread_state', 'chat_message_meta', 'learn_goals', 'learn_goal_criteria', 'learn_coaching_state', 'learn_assessments', 'learn_attempts', 'learn_activities',
-    'learn_observations', 'learn_grades', 'learn_courses', 'pdf_highlights', 'file_sources', 'file_documents', 'usage_actions', 'usage_operations', 'usage_attempts', 'usage_adjustments'];
+    'learn_observations', 'learn_grades', 'learning_journeys', 'learning_path_versions', 'learn_courses', 'pdf_highlights', 'file_sources', 'file_documents', 'usage_actions', 'usage_operations', 'usage_attempts', 'usage_adjustments'];
   const seeded = [];
   sqlite.exec('PRAGMA foreign_keys = OFF');
   for (const table of tables) {
