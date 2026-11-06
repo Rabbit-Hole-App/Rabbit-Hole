@@ -15,6 +15,7 @@ Branch `feat/tutor-r4-integration`, built on `feat/tutor-r4-state` (3bbbadf73) w
 | `roadmap-quota.js` | per-learner hour and day counters in `learn_roadmap_quota` | D14 / R4.06 |
 | `roadmap-access.js` | the access object rebuilt from the stored identity, and `revalidateSourceAsJob` (the owner branch of `authorizeFileSource` from D1 only) | api.md 12.3 |
 | `roadmap-source-refs.js` | plan-time minting of R3 references at Accept plan; default mint writes R3's `learn_source_refs` and is skipped where that table does not exist | api.md 12.2 |
+| `roadmap-sweep.js` | the bounded delivery deadline of the flag-off recovery contract: an accepted, checked, unplaced card is acknowledged when the saved board holds it, else refunded after 24 hours | v1.4 4.1, 4.4; integration.md 7 |
 | `roadmap-wire.js` | `roadmapDeps(env, ctx)`, `registerRoadmapHandlers()`, `scheduledRoadmapKick(env)`, the kick (the object, or inline in `waitUntil` where `ROADMAP_JOBS` is not bound) | Lead mounts |
 
 Hunks in lane files (kept small): `roadmap-store.js` (create commits a `plan_requested` event; `recordPlan` accepts a question or a limitation with no steps and fixes the language once; `acceptPlan` refuses a plan with no steps), `roadmap-routes.js` (invitations, answer, revise, history; the new routes' wiring; `source.key/rev` accepted as the contract says; `ack` accepts `cardId` and `boardRevision`; the mode fact needs no client key), `roadmap-view.js` (source name, `sourceRelation`, history), `roadmap-events.js` and `roadmap-jobs.js` (`runDueRoadmapEvents` shared by the object and tests), `roadmap-generate.js` (awaits State's async `withRoadmapProviderCall`; a call that may have reached the provider is `unknown_provider_outcome`, never a blind retry), the UI mount in `LearnPage.jsx` and `ask.jsx` (the UI lane's script, every anchor matched on this base).
@@ -36,7 +37,7 @@ Apply in this order after the chain below is in place. Each file was produced by
 2. `wrangler-roadmap-jobs.patch` (dev, parallel, prod bindings, tag `roadmap-jobs-1`, and `rabbit-hole-prod-config.test.js`)
 3. `dev-worker-app-worker.patch` (export, handler registration, route mount, scheduler hook; `app-worker.js` export)
 4. `analytics-rh-roadmap-step.patch` (`EVENTS` entry and test)
-5. `node docs/features/explain-on-canvas/lead-patches/apply-r4-check-map.mjs` (41 rows, 2 checks, 3 appended rows; textual because the file has duplicate keys)
+5. `node docs/features/explain-on-canvas/lead-patches/apply-r4-check-map.mjs` (42 rows, 2 checks, 4 appended rows; textual because the file has duplicate keys)
 
 `previewWriteAllowed` needs no patch: `/api/learn/roadmap...` already matches `^/api/(repositories|learn|byoc)(/|$)` (checked for create, accept, dismiss and history paths).
 

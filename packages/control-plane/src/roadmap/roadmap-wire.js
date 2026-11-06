@@ -9,6 +9,7 @@ import { composeProposal } from './roadmap-compose.js';
 import { mintStepRefs } from './roadmap-source-refs.js';
 import { planningHandler } from './roadmap-planning.js';
 import { generationHandler } from './roadmap-run.js';
+import { sweepUndelivered } from './roadmap-sweep.js';
 
 const scopeOf = access => ({ org: access.org, ownerUserId: access.actorUserId, boardId: access.boardId });
 
@@ -40,5 +41,6 @@ export function registerRoadmapHandlers(deps = {}) {
 export async function scheduledRoadmapKick(env, { limit = 50 } = {}) {
   let kicked = 0;
   for (const scope of await boardsWithDueEvents(env.LEARN_DB, { limit })) if (await kickRoadmapJobs(env, scope)) kicked += 1;
+  await sweepUndelivered(env).catch(() => null); // the bounded delivery deadline: place-or-refund (roadmap-sweep.js)
   return kicked;
 }

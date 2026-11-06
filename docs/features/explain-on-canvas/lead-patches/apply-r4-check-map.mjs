@@ -37,6 +37,7 @@ export const ROWS = {
   [`${CP}src/roadmap/roadmap-source-reader.js`]: test('roadmap-source-reader'),
   [`${CP}src/roadmap/roadmap-source-refs.js`]: test('roadmap-planning'),
   [`${CP}src/roadmap/roadmap-source.js`]: test('roadmap-source'),
+  [`${CP}src/roadmap/roadmap-sweep.js`]: test('roadmap-sweep'),
   [`${CP}src/roadmap/roadmap-store.js`]: test('roadmap-store', 'roadmap-routes', 'roadmap-loop'),
   [`${CP}src/roadmap/roadmap-validate.js`]: test('roadmap-plan'),
   [`${CP}src/roadmap/roadmap-view.js`]: test('roadmap-routes', 'roadmap-loop'),
