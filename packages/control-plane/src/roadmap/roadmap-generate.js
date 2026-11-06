@@ -15,7 +15,8 @@ const ARGS_CAP = 1000; // learn-artifact.js route cap on args
 
 // ref = { authorizationId, resultId, resultVersion } (checklist R4.08). Everything else comes from the accepted, immutable records:
 //   deps.loadAccepted(env, access, ref) -> null | { cardId, stepId, proposalId, proposalVersion, format, stepTitle, stepGoal,
-//       passageText, sourceRef (R3 publicRef or null), language, depth, retry }
+//       passageText, documentText (the whole document when it fits the whole-source limit, else null), claimsToCover, outcome,
+//       passageStart, passageEnd, sourceRef (R3 publicRef or null), language, depth, retry }
 //   deps.withProviderCall(env, { proposalId, proposalVersion, cardId, stage, call, retry, authorizationId }) -> env carrying the
 //       deterministic operation identity (State/Money's withRoadmapProviderCall). Required: without it nothing is spent.
 //   deps.callModel / deps.generate: the provider transport and generateArtifact; defaults are the production ones.
@@ -29,7 +30,10 @@ export async function generateRoadmapCard(env, access, ref, deps = {}) {
   if (!ROADMAP_FORMATS.includes(rec.format)) return fail('unsupported_capability', 'format_not_enabled');
   const passage = String(rec.passageText ?? '');
   if (!passage.trim()) return fail('terminal_validation_failure', 'passage_empty');
-  if (passage.length > limits.source.passageChars) return fail('terminal_validation_failure', 'passage_too_long'); // never truncated silently
+  // The whole document is the writer's context when it fits the whole-source limit; otherwise the anchored passage alone (the existing
+  // long-source path), never a silent cut. The passage offsets stay the highlight anchor only.
+  const document = typeof rec.documentText === 'string' && rec.documentText.length <= limits.source.chars ? rec.documentText : null;
+  if (!document && passage.length > limits.source.passageChars) return fail('terminal_validation_failure', 'passage_too_long');
   let call = 0;
   const metered = async (e, body, model, org) => {
     // generateArtifact makes the first call and at most one repair (ARTIFACT_REPAIRS); a third fails closed before any admission.
@@ -40,9 +44,13 @@ export async function generateRoadmapCard(env, access, ref, deps = {}) {
     return callModel(scoped?.opId ? scoped.env : scoped, body, model, org);
   };
   // A fresh object: no field of any request, job record or model output is copied in.
-  const input = { command: 'explain', args: `${rec.stepTitle}: ${rec.stepGoal}`.slice(0, ARGS_CAP), selection: null, context: passage };
+  const brief = [`Step: ${rec.stepTitle}`, `Goal: ${rec.stepGoal}`, ...(rec.claimsToCover?.length ? [`Claims to cover:\n${rec.claimsToCover.map(c => `- ${c}`).join('\n')}`] : []), ...(rec.outcome ? [`Learning outcome of the roadmap: ${rec.outcome}`] : [])].join('\n');
+  const context = document
+    ? `${brief}\n\nHighlighted passage (the step's anchor):\n<passage>\n${passage}\n</passage>\n\nWhole document:\n<document>\n${document}\n</document>`
+    : `${brief}\n\nPassage:\n<passage>\n${passage}\n</passage>`;
+  const input = { command: 'explain', args: `${rec.stepTitle}: ${rec.stepGoal}`.slice(0, ARGS_CAP), selection: null, context };
   let out;
-  try { out = await generate(env, input, { callModel: metered, only: [rec.format], systemSuffix: roadmapCardSuffix(rec) }); }
+  try { out = await generate(env, input, { callModel: metered, only: [rec.format], systemSuffix: roadmapCardSuffix(rec), repairs: 0 }); }
   catch (error) {
     if (error?.message === 'operation_budget') return fail('terminal_validation_failure', 'operation_budget', { calls: call });
     // A call that may have reached the provider (roadmap-run.js marks it) is never retried blind: its outcome is reconciled first.
