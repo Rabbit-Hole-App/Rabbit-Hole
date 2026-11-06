@@ -64,7 +64,7 @@ export const GOOD = answer('make_explanation', { title: 'The gradient', body: 'T
 export const TABLE = answer('make_table', { title: 'Rates', caption: '', columns: ['rate', 'effect'], rows: [['small', 'slow'], ['large', 'overshoots']] });
 export const BAD = answer('make_explanation', { title: 'No body' }); // fails the schema: the one repair
 export const FAIL = async () => new Response('{"error":"overloaded"}', { status: 500, headers: { 'content-type': 'application/json' } });
-export const provider = script => { const used = [], bodies = []; return { used, bodies, base: (e, body, model, org) => spendTransport(e, body, MODEL, org, async () => { used.push(1); bodies.push(body); return script.shift()(); }, { userId: 'u-alice', category: 'roadmap' }) }; };
+export const provider = script => { const used = []; return { used, base: (e, body, model, org) => spendTransport(e, body, MODEL, org, async () => { used.push(1); return script.shift()(); }, { userId: 'u-alice', category: 'roadmap' }) }; };
 
 export async function loop(t, { plans, script = [GOOD], allowanceMicros, flag = 'true', md = MD, settings, classifier = classify, envExtra } = {}) {
   const w = world(t, allowanceMicros ? { allowanceMicros } : {});

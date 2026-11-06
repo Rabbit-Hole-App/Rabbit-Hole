@@ -1,10 +1,7 @@
 import RoadmapInvitation from './RoadmapInvitation.jsx';
 import RoadmapPlan from './RoadmapPlan.jsx';
-import { useEffect, useRef, useState } from 'react';
-import { NextStepIndicator, ProposalOverlay } from './NextStepPill.jsx';
-import { toast } from './ui.jsx';
-import { recoveryOf } from './roadmap-client.js';
-import { STRINGS } from './roadmap-strings.js';
+import { useRef, useState } from 'react';
+import { NextStepIndicator, ProposalOverlay, RoadmapStatus } from './NextStepPill.jsx';
 import { createDragStore, dragged } from './roadmap-proposal-context.js';
 
 // The three places the roadmap shows, each fed by the object useRoadmap returns, so a page mounts each with one line:
@@ -29,16 +26,7 @@ export function RoadmapToc({ roadmap }) {
 }
 export function RoadmapCanvas({ roadmap }) {
   const c = roadmap.controller, st = roadmap.state, pill = roadmap.pill;
-  const store = useRef(null), [, tick] = useState(0), told = useRef(new Set());
-  // A withheld card is announced once per result through the app's existing error toast (ui.jsx), with Retry when the server allows it.
-  const failures = recoveryOf(st?.view);
-  useEffect(() => {
-    for (const item of failures) {
-      if (told.current.has(item.resultId)) continue;
-      told.current.add(item.resultId);
-      toast(item.message, { tone: 'error', ...(item.actions.includes('retry') ? { action: { label: STRINGS.retry, run: () => c.recover(item.stepId, 'retry') } } : {}) });
-    }
-  }, [failures.map(f => f.resultId).join(' ')]);
+  const store = useRef(null), [, tick] = useState(0);
   store.current ||= createDragStore();
   const identity = pill && { proposalId: pill.proposalId, version: pill.version };
   if (identity) store.current.prune(identity);
@@ -55,6 +43,7 @@ export function RoadmapCanvas({ roadmap }) {
     <>
       {pill && roadmap.showOverlay && <ProposalOverlay pill={pill} position={position} onAccept={() => c.acceptProposal()} onCancel={() => c.cancelProposal()} edit={edit} drag={startDrag} />}
       <NextStepIndicator indicator={roadmap.indicator} onGo={() => roadmap.go({ kind: 'proposal' })} />
+      {!roadmap.indicator && <RoadmapStatus status={roadmap.status} />}
     </>
   );
 }

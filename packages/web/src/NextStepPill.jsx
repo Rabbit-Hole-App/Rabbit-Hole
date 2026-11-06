@@ -67,3 +67,9 @@ export function NextStepIndicator({ indicator, onGo }) {
   );
 }
 
+// What the accepted work is doing now (making, checking, or the failure sentence), from the server view only: no percentage, no estimate.
+// Text, not a control: Retry, Replace and Omit stay in Chat and the Contents.
+export function RoadmapStatus({ status }) {
+  if (!status) return null;
+  return <p role="status" data-roadmap-status={status.kind} className="fixed right-4 bottom-4 z-30 max-w-xs rounded-none border border-line bg-white px-2.5 py-1.5 text-xs text-ink shadow-md">{status.text}</p>;
+}

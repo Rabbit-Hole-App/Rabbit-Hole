@@ -103,8 +103,7 @@ test('the whole flow: a late section of a long document is planned from the outl
   const bought = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${proposed.body.proposal.id}/accept`, { boardId: BOARD, revision: proposed.body.roadmap.revision, actionKey: KEY('accept'), proposalVersion: proposed.body.proposal.version });
   assert.equal(bought.status, 202);
   assert.equal(bought.body.results[0].generation, 'generated');
-  assert.ok(!h.m.calls.includes('roadmap_grounding_check'), 'owner MVP: no per-card citation check');
-  assert.equal(JSON.parse(rows(h.w.sqlite, 'SELECT check_json FROM learn_step_results')[0].check_json).grounding.validation, 'not_run', 'recorded as not run, never as passed');
+  assert.ok(h.m.calls.includes('roadmap_grounding_check'), 'the support check ran against the passage');
   const deliver = await h.json('POST', `/api/learn/roadmap/${id}/results/${bought.body.results[0].id}/deliver`, { boardId: BOARD, revision: bought.body.roadmap.revision, actionKey: KEY('deliver') });
   assert.equal(deliver.status, 200);
   assert.ok(deliver.body.cards[0].block.sourceRef, 'the delivered card carries its R3 reference');

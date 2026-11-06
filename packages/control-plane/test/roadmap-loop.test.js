@@ -30,8 +30,8 @@ async function toProposal(h, { revise = false } = {}) {
 }
 const acceptBody = (view, key) => ({ boardId: BOARD, revision: view.roadmap.revision, actionKey: key, proposalVersion: view.proposal.version });
 
-test('the complete loop: invitation, dismiss, accept, plan, revise, accept plan, proposal, Tab, one purchase, one authoring call, safety, delivery, board ack, next step, stopping point, End', async t => {
-  const h = await loop(t, { plans: [FULL, SHORT], script: [GOOD, TABLE] });
+test('the complete loop: invitation, dismiss, accept, plan, revise, accept plan, proposal, Tab, one purchase, repair, checks, delivery, board ack, next step, stopping point, End', async t => {
+  const h = await loop(t, { plans: [FULL, SHORT], script: [BAD, GOOD, TABLE] });
   // 1 Two sources become ready: the first is offered and dismissed; dismissal is that invitation only.
   const first = (await h.json('POST', '/api/learn/roadmap/invitations', { boardId: BOARD, sourceKeys: [`file:${ID_A}`], idleKey: 'idle-1-aaaaaaaa' })).body.invitation;
   assert.equal(first.state, 'offered');
@@ -93,12 +93,12 @@ test('the complete loop: invitation, dismiss, accept, plan, revise, accept plan,
   const result = view.results[0];
   assert.equal(result.generation, 'generated', 'generation ran from the step_accepted event');
   assert.equal(result.billing, 'settled');
-  assert.equal(h.p.used.length, 1, 'one authoring call for the accepted card');
-  assert.deepEqual(rows(h.w.sqlite, "SELECT stage, retry_no, payer, checkpoint FROM learn_roadmap_calls ORDER BY stage").map(r => [r.stage, r.retry_no, r.payer, r.checkpoint]), [['generate', 0, 'learner', 'settled']]);
+  assert.equal(h.p.used.length, 2, 'initial call plus the one repair');
+  assert.deepEqual(rows(h.w.sqlite, "SELECT stage, retry_no, payer, checkpoint FROM learn_roadmap_calls ORDER BY stage").map(r => [r.stage, r.retry_no, r.payer, r.checkpoint]), [['generate', 0, 'learner', 'settled'], ['repair', 0, 'learner', 'settled']]);
   assert.equal(rows(h.w.sqlite, "SELECT * FROM usage_actions WHERE client_key LIKE 'rmact_%'").length, 1, 'one learner action for the accepted version');
   const spent = await h.totals();
   assert.ok(spent.used > 0 && spent.reserved === 0, `charged once and the unused hold released: ${JSON.stringify(spent)}`);
-  assert.ok(!h.m.calls.includes('roadmap_grounding_check'), 'owner MVP: no per-card citation check (recorded as not run)');
+  assert.ok(h.m.calls.includes('roadmap_grounding_check'), 'the support check ran');
   // Polling never carries the text; the entitled route does, only now that the checks passed.
   assert.doesNotMatch(JSON.stringify(view), /points uphill/);
   // 6 Delivery: the server-minted card id, the adapter's metadata; the board save acknowledges it.
@@ -129,7 +129,7 @@ test('the complete loop: invitation, dismiss, accept, plan, revise, accept plan,
   assert.equal(view.proposal.title, 'Choosing a rate');
   const cancelled = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${view.proposal.id}/cancel`, acceptBody(view, KEY('cancel')));
   assert.equal(cancelled.body.roadmap.state, 'paused');
-  assert.equal(h.p.used.length, 1, 'cancel buys nothing');
+  assert.equal(h.p.used.length, 2, 'cancel buys nothing');
   // 8 Nothing planned is left: asking for the next step reaches the stopping point. Then End; delivered cards and history stay.
   const done = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: cancelled.body.roadmap.revision, actionKey: KEY('propose3') });
   assert.equal(done.body.roadmap.state, 'completed');

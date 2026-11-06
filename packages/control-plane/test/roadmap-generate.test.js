@@ -90,12 +90,13 @@ test('8. typed /explain keeps its full family; the legacy path is the same witho
   assert.deepEqual(offered(narrow.seen[0].body), ['make_animation', 'ask_clarifying_question']);
 });
 
-test('9. one authoring call per accepted card (owner MVP): an invalid first answer fails closed with no repair call; a third call fails closed', async () => {
+test('9. operation ids: the first call and the repair are distinct and deterministic; a third fails closed', async () => {
   const bad = { title: 'x', body: 'y'.repeat(3000) };
-  const once = await run(record(), [['make_explanation', bad], ['make_explanation', explanation]]);
-  assert.deepEqual([once.out.outcome, once.out.failure_class, once.out.code], ['failed', 'terminal_validation_failure', 'validation_error']);
-  assert.deepEqual(once.marks.map(f => [f.stage, f.call, f.retry]), [['generate', 0, 0]], 'no repair call');
-  assert.ok(once.marks.every(f => f.cardId === 'card_0000001' && f.proposalVersion === 1 && f.authorizationId === 'auth_00000001'));
+  const twice = await run(record(), [['make_explanation', bad], ['make_explanation', explanation]]);
+  assert.equal(twice.out.outcome, 'ok');
+  assert.equal(twice.out.repaired, true);
+  assert.deepEqual(twice.marks.map(f => [f.stage, f.call, f.retry]), [['generate', 0, 0], ['repair', 1, 0]]);
+  assert.ok(twice.marks.every(f => f.cardId === 'card_0000001' && f.proposalVersion === 1 && f.authorizationId === 'auth_00000001'));
   let admitted = 0;
   const out = await generateRoadmapCard({}, access, ref, { loadAccepted: async () => record(), withProviderCall: e => e, callModel: async () => { admitted++; return Response.json({}); },
     generate: async (env, input, { callModel }) => { for (let i = 0; i < 3; i++) await callModel(env, { system: 's' }, 'm', null); return { result: 'artifact', primitive: 'explanation', block: {} }; } });

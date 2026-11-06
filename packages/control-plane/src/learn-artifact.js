@@ -78,8 +78,7 @@ export function artifactPlan(command, { args = '', selection = null } = {}, env 
   return { request, ready };
 }
 
-export async function generateArtifact(env, input, { callModel: baseCall = loggedModel('artifact', planModel), only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS } = {}) {
-  // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls.
+export async function generateArtifact(env, input, { callModel: baseCall = loggedModel('artifact', planModel), only = null, systemSuffix = '' } = {}) {
   // R4 trusted options: `only` restricts the primitives offered, `systemSuffix` is appended to the system prompt of every call (initial and repair).
   const callModel = systemSuffix ? (e, body, model, org) => baseCall(e, { ...body, system: `${body.system}\n${systemSuffix}` }, model, org) : baseCall;
   const plan = artifactPlan(input.command, input, env, only);
@@ -137,7 +136,7 @@ export async function generateArtifact(env, input, { callModel: baseCall = logge
       // Which check refused which attempt: the validator's words only, never the spec (a repair's cause is otherwise invisible).
       console.log(JSON.stringify({ event: 'learn_artifact_invalid', primitive: id || null, attempt, error: String(error.message).slice(0, 300) }));
       if (error.cause === VERIFIER) throw error; // the check could not run: nothing for the model to repair
-      if (input.imageSource || attempt >= repairs) return { result: 'validation_error', primitive: id || null, error: error.message };
+      if (input.imageSource || attempt >= ARTIFACT_REPAIRS) return { result: 'validation_error', primitive: id || null, error: error.message };
       ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }], 'repair'));
     }
   }

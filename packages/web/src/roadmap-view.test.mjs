@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
-import { chatOf, initialState, invitationOf, pillOf, recoveryOf, reduce, tocOf } from './roadmap-client.js';
+import { chatOf, initialState, invitationOf, pillOf, recoveryOf, reduce, statusOf, tocOf } from './roadmap-client.js';
 import { anchorState, deliveredSpot, overlayPosition } from './roadmap-placement.js';
 
 const DIR = fileURLToPath(new URL('../../../docs/features/explain-on-canvas/contracts/fixtures/', import.meta.url));
@@ -21,7 +21,7 @@ after(() => rmSync(tmp, { recursive: true, force: true }));
 const outfile = join(tmp, 'bundle.cjs');
 await esbuild.build({
   stdin: {
-    contents: "export { default as RoadmapInvitation } from './RoadmapInvitation.jsx'; export { default as RoadmapPlan } from './RoadmapPlan.jsx'; export { ProposalOverlay, NextStepIndicator, StepPill } from './NextStepPill.jsx'; export { useRoadmap } from './use-roadmap.js'; export { RoadmapChat, RoadmapToc, RoadmapCanvas } from './RoadmapSurfaces.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';",
+    contents: "export { default as RoadmapInvitation } from './RoadmapInvitation.jsx'; export { default as RoadmapPlan } from './RoadmapPlan.jsx'; export { ProposalOverlay, NextStepIndicator, StepPill } from './NextStepPill.jsx'; export { useRoadmap } from './use-roadmap.js'; export { RoadmapChat, RoadmapToc, RoadmapCanvas } from './RoadmapSurfaces.jsx'; export { RoadmapStatus } from './NextStepPill.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';",
     resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx',
   },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
@@ -88,12 +88,15 @@ test('ToC steps navigate only where there is something to navigate to; paused of
   assert.doesNotMatch(paused, /data-roadmap-accept-plan/);
 });
 
-test('a failed card adds no recovery block to Chat or the Contents (the existing error toast carries it)', () => {
+test('a failed card shows the same Retry, Replace, Omit in Chat and in the ToC', () => {
   const state = at('status-failed-card');
   const chat = html(lib.RoadmapInvitation, { invitation: null, lines: chatOf(state), onExplain: noop, onKeep: noop, onAnswer: noop, onRecover: noop, onOffer: noop });
   const toc = html(lib.RoadmapPlan, { toc: tocOf(state), onAcceptPlan: noop, onEdit: noop, onProposeNext: noop, onEnd: noop, onRecover: noop, onGo: noop });
-  assert.doesNotMatch(chat + toc, /data-roadmap-recover/);
+  const actions = markup => [...markup.matchAll(/data-roadmap-recover="(\w+)"[^>]*>(\w+)</g)].map(m => `${m[1]}:${m[2]}`);
+  assert.deepEqual(actions(chat), ['retry:Retry', 'replace:Replace', 'omit:Omit']);
+  assert.deepEqual(actions(toc), actions(chat));
   assert.equal(recoveryOf(state.view).length, 1);
+  assert.match(chat, /This explanation could not be made\. You were not charged\./);
 });
 
 test('no learner string anywhere has an ellipsis', () => {
@@ -160,4 +163,10 @@ test('Fix A: the proposal button reads Accepting while in flight; the status tex
   assert.match(markup, /aria-busy="true"/);
   assert.doesNotMatch(markup, /<kbd/);
   assert.match(html(lib.StepPill, { pill: pillOf(state), onAccept: noop, onCancel: noop }), /<kbd[^>]*>Tab<\/kbd>/);
+  assert.equal(html(lib.RoadmapStatus, { status: null }), '');
+  for (const name of ['accept-proposal-response-generating', 'status-held-for-checking', 'status-failed-card']) {
+    const text = html(lib.RoadmapStatus, { status: statusOf(at(name)) });
+    assert.match(text, /role="status"[^>]*data-roadmap-status/, name);
+    assert.doesNotMatch(text.replace(/<[^>]+>/g, ' '), /\.\.\.|…|%|\$/, name);
+  }
 });
