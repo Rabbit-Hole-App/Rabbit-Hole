@@ -60,7 +60,8 @@ test('on: an over-bound whole request reports coverage and choices instead of a 
 test('on: headingless text and an enormous single section are addressable by part, and every part is readable', async t => {
   const w = world(t, 'sentence one two three. '.repeat(40000));
   const out = await create(w, { kind: 'whole' });
-  const { choices } = out.limitation;
+  const [whole, ...choices] = out.limitation.choices;
+  assert.equal(whole.locationId, 'long', 'the whole document is the first offered part (R7a planning through the outline); it is not a readable part');
   assert.ok(choices.length > 20 && choices.every(c => c.chars <= INDEX_LIMITS.partChars));
   assert.match(choices[0].label, /^The text, part 1 of /);
   const last = choices.at(-1), read = await create(w, { kind: 'section', locationId: last.locationId, part: last.part });

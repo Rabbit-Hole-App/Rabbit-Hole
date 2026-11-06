@@ -14,6 +14,8 @@ import { readMarkdownForActor } from './roadmap-source-reader.js';
 import { draftRoadmap, reviseRoadmap } from './roadmap-plan.js';
 import { platformCallModel } from './roadmap-models.js';
 import { LIMIT_COPY } from './roadmap-source-read.js';
+import { longMarkdownEnabled } from './roadmap-source-index.js';
+import { readLongSource, prepareLongPlan, withLongCoverage } from './roadmap-source-long.js';
 
 export const PLANNING_COPY = Object.freeze({
   failed: 'The plan could not be made. Edit your request or end the roadmap.', // NEW (S34)
@@ -49,8 +51,12 @@ export async function planningHandler(env, event, { now = nowSeconds() } = {}, d
   const settle = async plan => { try { await record(plan); } catch (error) { if (!(error instanceof StateError)) throw error; } return { done: true }; }; // a stale revision: the learner moved on
 
   const scope = parse(roadmap.scope_json) || { kind: 'whole' };
-  const read = await readRoadmapSource(env, access, { ref: { key: roadmap.source_key, rev: roadmap.source_rev }, scope: scope.kind === 'passage' ? { kind: 'passage', start: scope.start, end: scope.end } : { kind: 'declared' } },
-    { readSourceForActor: deps.readSourceForActor || readMarkdownForActor });
+  const readSourceForActor = deps.readSourceForActor || readMarkdownForActor, ref = { key: roadmap.source_key, rev: roadmap.source_rev };
+  // R7a: a roadmap made over a long Markdown source plans through the outline and evidence loop. The switch off, or anything the loop needs missing, is the R4 answer: choose a section.
+  const isLong = scope.kind === 'long', tooLong = (extra = {}) => settle(limitation('source_too_large', LIMIT_COPY.tooLarge, { offers: LIMIT_COPY.offers, ...extra }));
+  if (isLong && !longMarkdownEnabled(env)) return tooLong();
+  const read = isLong ? await readLongSource(env, access, { ref }, { readSourceForActor })
+    : await readRoadmapSource(env, access, { ref, scope: scope.kind === 'passage' ? { kind: 'passage', start: scope.start, end: scope.end } : { kind: 'declared' } }, { readSourceForActor });
   if (read.status !== 'ok' || read.sourceFingerprint !== roadmap.scope_fingerprint) {
     if (read.status === 'needs_clarification') return settle(limitation('source_too_large', LIMIT_COPY.tooLarge, { offers: LIMIT_COPY.offers }));
     return settle(limitation(read.status === 'ok' || read.reason === 'source_changed' ? 'source_changed' : 'source_unavailable', read.status === 'ok' || read.reason === 'source_changed' ? LIMIT_COPY.changed : LIMIT_COPY.unavailable));
@@ -61,17 +67,24 @@ export async function planningHandler(env, event, { now = nowSeconds() } = {}, d
   const revising = !!previous?.steps?.length;
   const callModel = deps.callModel || platformCallModel(env, access, { roadmapId: roadmap.id, version: instructionVersion, quota: 'plan', registry: deps.registry, transport: deps.transport, now: () => now });
   const input = { instruction: { original, ...(instructionVersion > 1 ? { latest } : {}) }, depth: roadmap.depth, source: read, language: roadmap.language ?? undefined };
+  let prepared = null;
+  if (isLong) {
+    prepared = await prepareLongPlan(env, access, roadmap, { readSourceForActor });
+    if (!prepared.ok) return tooLong();
+    input.long = prepared.long;
+  }
   const out = revising
     ? await reviseRoadmap({ ...input, change: latest, current: previous, delivered: [] }, { callModel })
     : await draftRoadmap(input, { callModel });
-  if (out.outcome === 'unavailable') return { retry: true }; // typed model/quota/registry limitation: transient, nothing is substituted
+  // A model limitation before any call was made is transient (nothing spent, nothing substituted). Once the long loop has spent calls, a retry would pay for them again: answer with the R4 limitation instead.
+  if (out.outcome === 'unavailable') return isLong && out.calls > 0 ? tooLong({ choices: prepared.choices.map(({ locationId, part, parts, label, chars }) => ({ locationId, part, parts, label, chars })) }) : { retry: true };
   if (out.outcome === 'failed') return settle(limitation('plan_failed', PLANNING_COPY.failed));
   const n = instructionVersion;
   if (out.outcome === 'question') {
     const question = out.plan?.question ? withIds(out.plan.question, n) : withIds(out.question, n); // a language question has no plan
     return settle({ outcome: '', assumptions: [], formats: [], stoppingPoint: '', steps: [], question, language: out.plan?.language, promptVersion: out.promptVersion });
   }
-  return settle({ ...out.plan, promptVersion: out.promptVersion });
+  return settle({ ...(isLong ? withLongCoverage(out.plan, { units: prepared.units, loop: prepared.loop, totalChars: read.coverage.chars }) : out.plan), promptVersion: out.promptVersion });
 }
 
 // --- learner actions that request a plan: answer the focused question, revise the plan --------------------------------------------------

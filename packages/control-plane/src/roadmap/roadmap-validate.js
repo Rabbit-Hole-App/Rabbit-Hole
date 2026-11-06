@@ -52,7 +52,8 @@ export function validatePlan(plan, ctx = {}) {
   const known = ctx.sourceText || '';
   for (const url of visible.match(URL) || []) if (!known.includes(url)) errors.push(err('invented_url', `${url} is not in the source`));
   // Coverage: every character of the scope is in a step passage or a declared uncovered range with a reason (planning.md 4).
-  if (scope) errors.push(...coverageErrors(plan, scope));
+  // A long Markdown plan (ctx.longScope) chooses what to teach from a document it cannot cover whole: the server reports what it left out, the plan does not declare it.
+  if (scope && !ctx.longScope) errors.push(...coverageErrors(plan, scope));
   errors.push(...instructionErrors(plan, ctx.instruction));
   errors.push(...languageErrors(visible, ctx.language));
   if (ctx.revision) errors.push(...revisionErrors(plan, delivered));

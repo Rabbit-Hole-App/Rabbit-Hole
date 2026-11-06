@@ -15,7 +15,7 @@ export const INDEX_VERSIONS = Object.freeze({ extractor: 'md-text-1', chunker: '
 export const INDEX_LIMITS = Object.freeze({
   chunkChars: 6000, partChars: 36000, unitMax: 40, maxChoices: 240, maxSections: 2000,
   evidence: Object.freeze({ minChars: 200, maxChars: 24000, maxTerms: 8, termChars: 80 }),
-  summary: Object.freeze({ batchChunks: 8, batchChars: 36000, maxCalls: 12, maxChars: 360000, maxMs: 240000, maxAttempts: 3, summaryChars: 500, maxTokens: 2000 }),
+  summary: Object.freeze({ batchChunks: 8, batchChars: 36000, maxCalls: 12, maxChars: 480000, maxMs: 240000, maxAttempts: 3, summaryChars: 500, maxTokens: 2000 }),
 });
 
 export const INDEX_COPY = Object.freeze({
@@ -50,7 +50,7 @@ export function buildIndex(text, { chunkChars = INDEX_LIMITS.chunkChars, maxSect
   for (const line of text.split('\n')) {
     const at = pos;
     pos += line.length + 1;
-    const f = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+    const f = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line.endsWith('\r') ? line.slice(0, -1) : line); // CRLF: `.` does not match the trailing CR; offsets still count the raw line
     if (fence) { if (f && f[1][0] === fence.ch && f[1].length >= fence.len && !f[2].trim()) fence = null; continue; }
     if (f) { fence = { ch: f[1][0], len: f[1].length }; continue; }
     const h = /^ {0,3}(#{1,6})[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*\r?$/.exec(line);
