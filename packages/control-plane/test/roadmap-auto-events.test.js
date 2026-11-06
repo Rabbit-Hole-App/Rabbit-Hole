@@ -39,6 +39,19 @@ test('flags off, or a database without 0040: the preference still saves exactly 
   assert.equal(events(w, 'settings_changed').length, 0);
 });
 
+test('an enabled-mode batch failure other than a missing 0040 table never saves the preference without its event', async t => {
+  const { w, access, env } = await delivered(t);
+  w.sqlite.exec("INSERT INTO learn_user_settings (org, owner_user_id, auto_suggest, updated_at) VALUES ('team', 'u-alice', 1, '2026-11-06')");
+  const failing = { ...env, LEARN_DB: { prepare: sql => w.LEARN_DB.prepare(sql), batch: async () => { throw new Error('D1_ERROR: database is locked'); } } };
+  await assert.rejects(() => saveAutoSuggest(failing, actorOf(access), false), /database is locked/);
+  assert.equal(pref(w), 1, 'preference unchanged: no plain-write fallback');
+  assert.equal(events(w, 'settings_changed').length, 0);
+  // the real atomic batch rolling back on a broken event statement keeps the old value too
+  w.sqlite.exec('DROP TABLE learn_roadmap_outbox');
+  await assert.rejects(() => saveAutoSuggest(env, actorOf(access), false));
+  assert.equal(pref(w), 1, 'a failed batch leaves the preference as it was');
+});
+
 test('the event expands to every unfinished roadmap of the learner (two canvases), resumable after a crash, and the parent completes last', async t => {
   const { w, access, env, o } = await delivered(t);
   const second = { ...access, boardId: 'lb_board00000000000012' };

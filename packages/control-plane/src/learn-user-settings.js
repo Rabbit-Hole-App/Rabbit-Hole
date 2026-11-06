@@ -63,9 +63,13 @@ export async function saveAutoSuggest(env, actor, autoSuggest) {
   const save = env.LEARN_DB.prepare('INSERT INTO learn_user_settings (org, owner_user_id, auto_suggest, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT (org, owner_user_id) DO UPDATE SET auto_suggest = excluded.auto_suggest, updated_at = excluded.updated_at')
     .bind(actor.org, actor.userId, autoSuggest ? 1 : 0, new Date().toISOString());
   // R6: with both roadmap flags on, a CHANGE also commits its revisioned fact and learner-scoped event in this same batch (0040). Flag off, or a database
-  // without 0040: exactly the plain write above, so the setting is never lost to the roadmap tables.
+  // that genuinely lacks 0040's table (the batch is atomic, so nothing was kept): the plain write above. Any other batch failure is NOT retried as a plain
+  // write (that would save the preference without its event): it propagates and the route answers 503 settings_unavailable.
   if (!roadmapAutoEnabled(env)) { await save.run(); return; }
-  try { await env.LEARN_DB.batch([save, ...autoSuggestFactStatements(env.LEARN_DB, actor, autoSuggest)]); } catch { await save.run(); return; }
+  try { await env.LEARN_DB.batch([save, ...autoSuggestFactStatements(env.LEARN_DB, actor, autoSuggest)]); } catch (error) {
+    if (!/no such table:?\s*learn_roadmap_settings_facts/i.test(String(error?.message))) throw error;
+    await save.run(); return;
+  }
   await runLearnerEvents(env, actor); // fan the event out to the learner's unfinished roadmaps now; the scheduled scan recovers a failure
 }
 
