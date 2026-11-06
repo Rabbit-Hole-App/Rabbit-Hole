@@ -5,7 +5,7 @@
 // after its role (LEARN_TASKS key), so the log line and the fixture model can tell the calls apart.
 import { JOURNEY_LIMITS as LIMIT, validatePath, validateRegistry } from '../../../web/src/learn-journey.js';
 import { STATES } from '../../../web/src/learn-tutor-evidence.js';
-import { STATE_RULES, tagged } from './learn-tutor.js';
+import { STATE_RULES, tagged } from './learn-next-steps.js';
 import { LEVEL_WORDS } from './learn-labels.js';
 
 // ---------- Prompts ----------

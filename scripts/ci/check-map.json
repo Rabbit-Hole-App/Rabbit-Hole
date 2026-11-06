@@ -46,6 +46,7 @@
     "docs/courses/nanogpt/quickstart-curriculum.md": "Markdown the bundles import at run time (check-map.test.mjs: markdown that the bundles import is broad)"
   },
   "mapped": {
+    "packages/control-plane/src/agents/learn-handoff.js": ["explain-program-card-check.mjs","explain-program-check.mjs","explain-program-render-check.mjs","explain-program-state-check.mjs","explain-proposal-card-check.mjs","packages/control-plane/test/learn-codebase-source-map.test.js","packages/control-plane/test/learn-tutor-handoff.test.js","packages/web/src/learn-tutor-handoff.test.mjs"],
     "packages/web/src/client-telemetry.js": ["client-telemetry-check.mjs"],
     "packages/web/src/usage-analytics.js": ["client-telemetry-check.mjs","usage-analytics-check.mjs"],
     "packages/web/src/analytics-config.js": ["client-telemetry-check.mjs","usage-analytics-check.mjs"],

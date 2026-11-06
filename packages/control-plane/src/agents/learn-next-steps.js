@@ -1,9 +1,54 @@
 // packages/control-plane/src/agents/learn-next-steps.js
 // Professor Next Steps hook contract (docs/features/professor-next-steps.md §1.1, §2.2): the planner's tool, its limits,
 // the server validator, minted HookSets and the check of an incoming selected_next_step. Pure: no model call, no storage.
-import { LEARNING_GOAL_MAX, STATE_RULES, learningGoalProblem, tagged } from './learn-tutor.js';
 import { LEARNER_LABELS } from './learn-labels.js';
 import { STATES, claimCoverage } from '../../../web/src/learn-tutor-evidence.js';
+
+// The journey prompts (LP1 Task 16, owner 2026-10-05): six separate prompts, the five journey planners
+// (agents/learn-journey.js) and the journey Tutor turn below, each in these seven tagged sections in this order. Each is a
+// static prefix, byte-identical for every topic, journey and learner; all dynamic state travels in the user message.
+// test/learn-journey-prompts.test.js is their regression suite (no model call).
+export const PROMPT_SECTIONS = ['role', 'objective', 'current_state', 'allowed_evidence', 'non_negotiable_rules', 'examples', 'output_contract'];
+export const tagged = sections => PROMPT_SECTIONS.map(tag => `<${tag}>\n${sections[tag].join('\n')}\n</${tag}>`).join('\n');
+// The locked evidence semantics (web/src/learn-tutor-evidence.js deriveClaimStates), one line per state; every journey
+// prompt states them in its rules.
+export const STATE_RULES = [
+  '- Exactly five evidence states; no other word says what a learner knows:',
+  '  - understood: a settled transfer pass (right on a new case, not the one taught) covering its ideas, with no later settled fail.',
+  '  - uncertain: thin or mixed evidence (one fail, a pass only on the taught case, conflicting or unsettled answers).',
+  '  - misconception: one named wrong idea in two or more settled answers. One wrong answer is never a misconception.',
+  '  - prerequisite_gap: a settled answer named a missing prerequisite concept, one not itself understood.',
+  '  - not_yet_observed: no evidence yet; it says nothing about the learner.',
+  '- Self-report ("I know this", familiarity, "got it") is never evidence. Never infer or mention a mastery percentage, score, grade or learner level.',
+];
+
+export const LEARNING_GOAL_MAX = 120;
+
+// learning_goal is a Director-only hint (§4.1): dropped, not repaired, when it carries code, an identifier
+// (email, @-handle, URL, long digit run) or five consecutive words of the learner's message. Returns the
+// reason (never the text) or null.
+const GOAL_CODE = /[`{}<>]|=>/;
+const GOAL_IDENTIFIER = /@|https?:\/\/|www\.|\d{5,}/i;
+// Lowercased words, punctuation and spacing dropped (the decision event's rationale check reuses it).
+export const goalWords = text => String(text || '').toLowerCase().match(/[\p{L}\p{N}']+/gu) || [];
+// Five consecutive words of the learner's message in `text` (the decision event's rationale reuses the rule).
+export function repeatsLearnerWords(text, learnerMessage = '') {
+  const learner = goalWords(learnerMessage), mine = goalWords(text), runs = new Set();
+  for (let i = 0; i + 5 <= learner.length; i++) runs.add(learner.slice(i, i + 5).join(' '));
+  for (let i = 0; i + 5 <= mine.length; i++) if (runs.has(mine.slice(i, i + 5).join(' '))) return true;
+  return false;
+}
+export function learningGoalProblem(goal, learnerMessage = '') {
+  if (typeof goal !== 'string' || !goal.trim()) return 'empty';
+  if (goal.length > LEARNING_GOAL_MAX) return 'too long';
+  if (GOAL_CODE.test(goal)) return 'code';
+  if (GOAL_IDENTIFIER.test(goal)) return 'identifier';
+  return repeatsLearnerWords(goal, learnerMessage) ? 'learner words' : null;
+}
+
+// Generic reason codes (Professor Next Steps contract §3.2, owner 2026-10-06): no topic codes. vary_modality is never the
+// only code (the decision event adds the route row's code and flags it).
+export const REASON_CODES = ['advance_goal', 'deepen_mechanism', 'repair_misconception', 'fill_prerequisite_gap', 'check_understanding', 'test_transfer', 'consolidate', 'respond_to_question', 'follow_learner_interest', 'increase_interactivity', 'vary_modality', 'reduce_cognitive_load', 'resume_context'];
 
 export const NEXT_STEPS_PLANNER_VERSION = 'next-steps-planner-3';
 export const NEXT_STEPS_LIMITS = Object.freeze({

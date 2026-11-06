@@ -5,7 +5,8 @@
 // breaks a rule fails here instead of being repaired.
 import { validateToolInput } from './learn-validation.js';
 import { LEARN_TASKS } from './learn-models.js';
-import { AVATAR_MOMENTS, LEARNING_GOAL_MAX, avatarSlotId, learningGoalProblem } from './agents/learn-tutor.js';
+import { AVATAR_MOMENTS, avatarSlotId } from './agents/learn-tutor.js';
+import { LEARNING_GOAL_MAX, learningGoalProblem } from './agents/learn-next-steps.js';
 
 export const BRIEF_VERSION = 'avatar-brief/1';
 // One vocabulary: a brief's purpose is one of the Tutor's nine moments (§3).

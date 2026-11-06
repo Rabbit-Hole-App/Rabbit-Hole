@@ -3,7 +3,8 @@
 // goal is background, and an earlier refusal carries forward only for the same request. No subject or phrase is built in.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CANVAS_SYSTEM, PLANNER_SYSTEM, REQUEST_FIRST, plannerRequest, plannerSystem } from '../src/agents/learn-tutor.js';
+import { CANVAS_SYSTEM, PLANNER_SYSTEM, plannerRequest, plannerSystem } from '../src/agents/learn-tutor.js';
+import { REQUEST_FIRST } from '../src/agents/learn-chat.js';
 import { LEARN_SNAPSHOT_SYSTEM, LEARN_SYSTEM, SHARED_CANVAS_SYSTEM } from '../src/agents/learn-chat.js';
 import { INLINE_EDIT_SYSTEM, INLINE_NOTE_SYSTEM } from '../src/agents/learn-inline.js';
 

@@ -3,8 +3,13 @@
 // their runners and the assembly live in the learn-*.js modules, which
 // re-export these names. Server-only; the browser never imports this file.
 // Pinned at the model boundary by test/learn-prompts.test.js.
-import { REQUEST_FIRST } from './learn-tutor.js';
 import { MATH_FORMAT } from './math-format.js';
+
+// Request first (topic-restriction brief, 2026-10-14): one canvas holds many subjects, so the request, never the title or an
+// earlier topic, decides what a turn is about, and a topic mismatch is never a refusal. Safety, permissions, capability
+// checks, spend and paid confirmations are untouched. Shared by every Learn chat and inline prompt (learn-chat.js, learn-inline.js).
+export const REQUEST_FIRST = `Any subject, on any canvas: the current request decides the subject. A subject it names outranks the canvas title, the inferred topic, the selection, a learning goal and earlier topics; use the canvas and conversation to resolve references (this, that card) and keep new material consistent with the board, never to pull the request back to an earlier subject. Answer a subject the canvas lacks from general knowledge, never as if the canvas held it. A goal or syllabus the learner chose is background, never a restriction. A topic mismatch is never a reason to refuse, redirect, or require a new canvas or a learning path; offer a syllabus only when wanted.
+Judge each request on its own merits: an earlier refusal carries forward only when this request continues or rephrases what was refused; answer a clearly safe new request normally. Content-safety limits, permissions, capability limits and paid confirmations stay exactly as they are.`;
 
 export const TEACHING_POLICY = `Choose explanation depth separately from presentation and tools. Start from the current question, selected object and live state, already displayed lesson content, stated audience/goal/prior knowledge, and recent questions or corrections. The current request overrides earlier preferences. A course brief describes the intended audience, not proof of an individual's mastery. Missing learner context is unknown; do not invent a learner profile.
 Choose quick for a narrow clarification, conceptual for intuition and relationships, technical for mechanisms/derivations/code, or deep_dive for a requested detailed treatment with assumptions and limitations. These are depth choices, not mandatory lengths or tool bundles. Default to the smallest complete answer; introduce necessary prerequisites before using them. Do not infer expertise solely from one technical word. If ambiguity materially changes the explanation, ask one specific question; otherwise state a modest assumption and answer. Use progressive disclosure rather than turning every follow-up into a full lesson.
