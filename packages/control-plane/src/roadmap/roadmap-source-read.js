@@ -8,6 +8,7 @@
 import { readRoadmapSource } from './roadmap-source.js';
 import { readMarkdownForActor } from './roadmap-source-reader.js';
 import { longMarkdownEnabled, indexSource, scopeChoices, resolveChoice, INDEX_COPY } from './roadmap-source-index.js';
+import { readLongSource, LONG_CHOICE, longChoice } from './roadmap-source-long.js';
 
 export const LIMIT_COPY = Object.freeze({
   tooLarge: 'This source is longer than one roadmap can read completely. Choose a section or a passage and it will be covered fully.', // S15
@@ -58,7 +59,7 @@ export function locateUnique(text, { exact, prefix = '', suffix = '' }) {
 }
 
 const refuse = (code, error, status, extra = {}) => ({ error, code, status, ...extra });
-const limit = (read, extra = {}) => refuse('source_too_large', LIMIT_COPY.tooLarge, 422, { limitation: { code: 'source_too_large', message: LIMIT_COPY.tooLarge, readChars: 0, sourceChars: read.sourceChars ?? read.passageChars ?? 0, offers: LIMIT_COPY.offers, ...extra } });
+const limit = (read, extra = {}) => refuse('source_too_large', extra.message ?? LIMIT_COPY.tooLarge, 422, { limitation: { code: 'source_too_large', message: LIMIT_COPY.tooLarge, readChars: 0, sourceChars: read.sourceChars ?? read.passageChars ?? 0, offers: LIMIT_COPY.offers, ...extra } });
 
 // R7a (only with the long-Markdown switch): what the learner may narrow an over-bound source to, and exactly what is and is not covered.
 // Wire shape, additive to the R4 limitation: coverage { totalChars, indexedThrough, complete, summarizedChars, unread[], notes[] }, choices [{ locationId, part, parts, label, chars }].
@@ -70,8 +71,8 @@ async function longLimitation(env, access, ref, readSourceForActor) {
   const got = await indexSource(env, access, { sourceKey: ref.key, sourceRevision: ref.rev }, { readSourceForActor });
   if (got.status !== 'ok') return {};
   const { index } = got, choices = scopeChoices(index);
-  return { coverage: wireCoverage(index.coverage), choices: choices.map(({ locationId, part, parts, label, chars }) => ({ locationId, part, parts, label, chars })),
-    ...(index.status === 'unreadable' ? { message: INDEX_COPY.overReadLimit } : {}) };
+  return { coverage: wireCoverage(index.coverage), choices: [...(index.status === 'ready' ? [longChoice(index.source.chars)] : []), ...choices].map(({ locationId, part, parts, label, chars }) => ({ locationId, part, parts, label, chars })),
+    ...(index.status === 'unreadable' ? { message: INDEX_COPY.overReadLimit, offers: [] } : {}) };
 }
 
 export function makeReadSource(env, { readSourceForActor = readMarkdownForActor, resolveSourceRef = d1ResolveSourceRef, limits } = {}) {
@@ -82,6 +83,13 @@ export function makeReadSource(env, { readSourceForActor = readMarkdownForActor,
     const long = longMarkdownEnabled(env), more = () => (long ? longLimitation(env, access, ref, readSourceForActor) : {});
     if (scope?.kind === 'section' && long) {
       if (typeof scope.locationId !== 'string' || !(scope.part === undefined || (Number.isInteger(scope.part) && scope.part >= 1))) return refuse('invalid_request', 'scope', 400);
+      // R7a: the first offered part is the whole document, planned through its outline (roadmap-source-long.js). Same request shape as any part, so no new client call.
+      if (scope.locationId === LONG_CHOICE) {
+        const whole = await readLongSource(env, access, { ref }, { readSourceForActor });
+        if (whole.status === 'ok') return { key: sourceId, rev: whole.rev, scopeFingerprint: whole.sourceFingerprint, scope: { kind: 'long', start: 0, end: whole.coverage.end, chars: whole.coverage.chars, sourceName: whole.name ?? '' } };
+        if (whole.status === 'needs_clarification') return limit({}, await more());
+        return whole.reason === 'source_changed' ? refuse('source_changed', LIMIT_COPY.changed, 409) : whole.reason === 'not_long' ? refuse('needs_clarification', LIMIT_COPY.section, 422) : refuse('source_unavailable', LIMIT_COPY.unavailable, 409);
+      }
       const indexed = await indexSource(env, access, { sourceKey: sourceId, sourceRevision: revision }, { readSourceForActor });
       if (indexed.status !== 'ok') return indexed.reason === 'source_changed' ? refuse('source_changed', LIMIT_COPY.changed, 409) : refuse('source_unavailable', LIMIT_COPY.unavailable, 409);
       if (indexed.index.status !== 'ready') return limit({}, await more());

@@ -11,6 +11,7 @@ const test = (...names) => names.map(n => `${T}${n}.test.js`);
 export const ROWS = {
   [`${CP}src/roadmap/roadmap-source-index.js`]: test('roadmap-source-index', 'roadmap-source-retrieval', 'roadmap-source-version'),
   [`${CP}src/roadmap/roadmap-source-summary.js`]: test('roadmap-source-retrieval'),
+  [`${CP}src/roadmap/roadmap-source-long.js`]: test('roadmap-long'),
   [`${CP}src/agents/roadmap-index.js`]: test('roadmap-source-retrieval'),
   [`${W}roadmap-source-coverage.js`]: [`${W}roadmap-source-coverage.test.mjs`, `${W}roadmap-view.test.mjs`],
 };
@@ -18,6 +19,10 @@ export const ROWS = {
 export const APPEND = {
   [`${CP}src/roadmap/roadmap-source-read.js`]: test('roadmap-source-version'),
   [`${CP}src/roadmap/roadmap-tools.js`]: test('roadmap-source-retrieval'),
+  [`${CP}src/roadmap/roadmap-plan.js`]: test('roadmap-long'),
+  [`${CP}src/roadmap/roadmap-planning.js`]: test('roadmap-long'),
+  [`${CP}src/roadmap/roadmap-validate.js`]: test('roadmap-long'),
+  [`${CP}src/roadmap/roadmap-view.js`]: test('roadmap-long'),
   [`${W}RoadmapInvitation.jsx`]: [`${W}roadmap-source-coverage.test.mjs`],
   [`${W}RoadmapSurfaces.jsx`]: [`${W}roadmap-source-coverage.test.mjs`],
   [`${W}roadmap-client.js`]: [`${W}roadmap-source-coverage.test.mjs`],

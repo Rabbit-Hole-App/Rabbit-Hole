@@ -5,6 +5,7 @@ import { roadmapRoute } from '../src/roadmap/roadmap-routes.js';
 import { roadmapDeps, registerRoadmapHandlers } from '../src/roadmap/roadmap-wire.js';
 import { spendTransport } from '../src/learn-spend.js';
 import { usageTotals, periodOf } from '../src/learn-usage.js';
+import { readFileSync } from 'node:fs';
 import { world, MODEL } from './roadmap-fixture.js';
 
 export const PERIOD = periodOf(Math.floor(Date.now() / 1000));
@@ -61,8 +62,9 @@ export const BAD = answer('make_explanation', { title: 'No body' }); // fails th
 export const FAIL = async () => new Response('{"error":"overloaded"}', { status: 500, headers: { 'content-type': 'application/json' } });
 export const provider = script => { const used = []; return { used, base: (e, body, model, org) => spendTransport(e, body, MODEL, org, async () => { used.push(1); return script.shift()(); }, { userId: 'u-alice', category: 'roadmap' }) }; };
 
-export async function loop(t, { plans, script = [GOOD], allowanceMicros, flag = 'true', md = MD, settings, classifier = classify } = {}) {
+export async function loop(t, { plans, script = [GOOD], allowanceMicros, flag = 'true', md = MD, settings, classifier = classify, envExtra } = {}) {
   const w = world(t, allowanceMicros ? { allowanceMicros } : {});
+  if (envExtra) w.sqlite.exec(readFileSync(new URL('../learn-migrations/0042-roadmap-source-index.sql', import.meta.url), 'utf8')); // R7a tables (a Lead patch adds them to the consolidated schema)
   const objects = {};
   for (const [id, text] of [[ID_A, md], [ID_B, md]]) {
     objects[`r2/${id}`] = text;
@@ -71,7 +73,7 @@ export async function loop(t, { plans, script = [GOOD], allowanceMicros, flag = 
   }
   const rev = await sha(md);
   w.sqlite.prepare('UPDATE file_sources SET sha256 = ?').run(rev);
-  const env = { ...w.env, ROADMAP_ENABLED: flag, LEARN_MEDIA: { get: async key => (key in objects ? { text: async () => objects[key] } : null) } };
+  const env = { ...w.env, ROADMAP_ENABLED: flag, ...envExtra, LEARN_MEDIA: { get: async key => (key in objects ? { text: async () => objects[key] } : null) } };
   const m = models({ plans }), p = provider(script);
   registerRoadmapHandlers({ callModel: m.callModel, checkCallModel: m.callModel, classify: classifier, base: p.base });
   const deps = { identity: async () => ({ org: 'team', email: 'u-alice@example.test', userId: 'u-alice' }), ...roadmapDeps(env, null, { settings }) };
