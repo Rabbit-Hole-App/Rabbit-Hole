@@ -71,4 +71,4 @@ Place in `packages/control-plane/test/roadmap-generate.test.js` (State/Tools). E
 
 ## 6. Verified v2 / artifact path facts for the receipt
 
-Dispatch order (browser): explicit `/explain` -> v2 job if on, else artifact route. Roadmap: server-side only -> adapter -> `generateArtifact` (no HTTP hop). Quick Edit generate: `learn-inline.js:245` -> `generateArtifact` unchanged. Whether `EXPLAIN_V2_ENABLED` is on in the dev worker is unverified (config not read by this lane; the R4 tests must run with it both on and off, v1.4 3.3 "Test with v2 enabled").
+Dispatch order (browser): explicit `/explain` -> v2 job if on, else artifact route. Roadmap: server-side only -> adapter -> `generateArtifact` (no HTTP hop). Quick Edit generate: `learn-inline.js:245` -> `generateArtifact` unchanged. `EXPLAIN_V2_ENABLED` is `"true"` in the checked-in configs (`web/wrangler.dev.jsonc:175`, `web/wrangler.rabbit-hole-prod.jsonc:78`); that is configuration, not proof of the live value. So on both environments typed `/explain` takes the v2 job today, and the R4 tests must run with v2 on and off (v1.4 3.3 "Test with v2 enabled").
