@@ -222,8 +222,15 @@ test('delivery: the acknowledgement must name exactly the minted card and is rep
   const { w, o, resultId, cardId, call } = await accepted(t);
   await call(0, 0, provider().reply());
   await recordGenerated(w.LEARN_DB, w.access, { resultId, primitive: 'table', body: { type: 'table' }, validation: 'passed' });
-  const ack = (cardIds, key = 'ack-key-00001') => acknowledgeDelivery(w.LEARN_DB, w.access, { roadmapId: o.roadmapId, resultId, expectedRevision: o.revision + 1, actionKey: key, cardIds, boardVersion: 7 });
+  const ack = (cardIds, key = 'ack-key-00001', boardVersion = 7) => acknowledgeDelivery(w.LEARN_DB, w.access, { roadmapId: o.roadmapId, resultId, expectedRevision: o.revision + 1, actionKey: key, cardIds, boardVersion });
   await assert.rejects(ack(['cd_forged00000000000000000']), e => e.code === 'invalid_request');
+  // Delivered needs the card in a SAVED board at the named revision: no revision, an unsaved card and a revision newer than the save are all refused.
+  await assert.rejects(ack([cardId], 'ack-key-00002', null), e => e.code === 'invalid_request' && e.status === 400);
+  await assert.rejects(ack([cardId]), e => e.code === 'card_not_saved', 'the board does not hold the card yet');
+  w.sqlite.prepare('UPDATE learn_boards SET state_json = ?, version = 6 WHERE id = ?').run(JSON.stringify({ blocks: [{ id: cardId }] }), w.access.boardId);
+  await assert.rejects(ack([cardId]), e => e.code === 'card_not_saved', 'revision 7 is not saved yet (the board is at 6)');
+  assert.equal(rows(w.sqlite, 'SELECT delivery FROM learn_step_results')[0].delivery, 'not_delivered', 'a refused acknowledgement delivers nothing');
+  w.sqlite.prepare('UPDATE learn_boards SET version = 7 WHERE id = ?').run(w.access.boardId);
   const done = await ack([cardId]);
   assert.equal(done.body.delivery, 'delivered');
   assert.equal((await ack([cardId])).replayed, true);
