@@ -11,7 +11,7 @@ import { createDragStore, dragged } from './roadmap-proposal-context.js';
 export function RoadmapChat({ roadmap }) {
   const c = roadmap.controller;
   return <RoadmapInvitation invitation={roadmap.invitation} lines={roadmap.lines} onExplain={() => c.explain()} onKeep={() => c.dismiss()}
-    onAnswer={fields => c.answer(fields)} onRecover={(stepId, action) => c.recover(stepId, action)} onOffer={() => roadmap.editPlan()} onChoose={choice => c.explainPart(choice)} />;
+    onAnswer={fields => c.answer(fields)} onRecover={(stepId, action) => c.recover(stepId, action)} onOffer={() => roadmap.editPlan()} />;
 }
 export function RoadmapToc({ roadmap }) {
   const c = roadmap.controller;

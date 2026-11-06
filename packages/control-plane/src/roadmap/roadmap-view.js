@@ -61,7 +61,7 @@ export async function roadmapView(db, access, roadmap) {
       practiceMode: roadmap.practice_mode, instruction: first?.text ?? '', language: roadmap.language, scope: { kind: scopeJson.kind || 'whole', chars: scopeJson.chars ?? null, source: { key: roadmap.source_key, rev: roadmap.source_rev, name: sourceName }, fingerprint: roadmap.scope_fingerprint },
       ceiling: roadmap.ceiling, deliveredCount: roadmap.delivered_count, mode: roadmap.mode, modeRevision: roadmap.mode_revision, createdAt: iso(roadmap.created_at), updatedAt: iso(roadmap.updated_at) },
     question: plan?.question ?? null, limitation: plan?.limitation ?? null,
-    plan: plan && { version: roadmap.plan_version, outcome: plan.outcome, assumptions: plan.assumptions ?? [], formats: plan.formats ?? [], steps, stoppingPoint: plan.stoppingPoint, ...(plan.sourceCoverage ? { sourceCoverage: plan.sourceCoverage } : {}) },
+    plan: plan && { version: roadmap.plan_version, outcome: plan.outcome, assumptions: plan.assumptions ?? [], formats: plan.formats ?? [], steps, stoppingPoint: plan.stoppingPoint },
     steps, proposal: proposal ?? null, results,
     nextStepReady: !!proposal?.acceptable && quiet,
     poll: { afterMs: busy || roadmap.state === 'draft' ? 1500 : proposal ? 2000 : next ? 5000 : 10000, etag: `rv-${roadmap.revision}`, ...(roadmap.state === 'completed' || roadmap.state === 'ended' ? { afterMs: 30000 } : {}) },
