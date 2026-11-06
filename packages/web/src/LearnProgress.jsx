@@ -9,6 +9,7 @@ import { STATUS_LABEL, fetchProgress, progressModel } from './learn-progress-cli
 import { NextActivity } from './TutorActivity.jsx';
 import { askTutorAbout, progressRef } from './learn-progress-question.js';
 import GoalManager from './GoalManager.jsx';
+import { CardFeedbackSummary } from './CardFeedback.jsx';
 
 const ICON = { demonstrated_independently: CircleCheck, demonstrated_with_help: CircleHelp, practising: CircleDashed, needs_review: CircleAlert, not_checked: Circle };
 const TONE = { demonstrated_independently: 'text-pass', demonstrated_with_help: 'text-[#b45309] dark:text-[#f5b14c]', needs_review: 'text-fail', practising: 'text-ink-2', not_checked: 'text-ink-3' };
@@ -159,6 +160,7 @@ export default function LearnProgress({ scope, coaching, composer, onClose, chat
           </div>}
           <p data-progress-saved className="mt-4 text-xs text-ink-3">{model.offline ? 'Offline: this is your last saved progress' : `Based on saved answers${model.savedAt && day(model.savedAt) ? ` · updated ${day(model.savedAt)}` : ''}`}</p>
         </>}
+        {!managing && <CardFeedbackSummary scope={scope} ops={chat?.canvasOps ?? null} />}
       </div>
     </section>
   );

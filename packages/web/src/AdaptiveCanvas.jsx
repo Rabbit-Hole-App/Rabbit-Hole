@@ -45,6 +45,7 @@ import LearnWiki from './LearnWiki.jsx';
 import WebpageCard, { askCapture } from './WebpageCard.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
 import CardPrompt, { PromptSlot } from './CardPrompt.jsx';
+import { CardFeedback } from './CardFeedback.jsx';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 import NotebookBody from './NotebookCard.jsx';
@@ -965,6 +966,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
       </PromptSlot.Provider></PerfContext.Provider>
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
       {block.promptUsed && !slotted && <CardPrompt text={block.promptUsed} selected={selected} />}
+      {!cadPermissions.readOnly && !cadPermissions.localCopy && <CardFeedback block={block} />}
     </CanvasNode>
   );
 }
