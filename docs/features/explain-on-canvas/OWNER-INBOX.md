@@ -10,6 +10,12 @@ Self-contained status for the owner and for a reviewer who has not seen the chat
 
 ---
 
+## OWNER DECISIONS 2026-11-06 ~09:00 PT (message: "adopt D2, adopt D43, approve $25"; "I always mean production")
+
+- **D-R4-1 DECIDED: adopt the D2 routing exception.** **D-R4-2 DECIDED: adopt D43 (contextual safety policy).** **D-R4-3 DECIDED: $25 cap approved** for real-model qualification of the R4 planner/safety checks (worst-case estimate $24.72; hard stop at $25; spend ledger kept in the lane receipts).
+- **Owner intent:** turn `ROADMAP_ENABLED` to true in PRODUCTION (always means production). Plan: release 63 (R4, flag off, needs prod 0039 first) -> settings-reader wiring -> pin 64 (flag-on, separate revertable release).
+- **Still open before pin 64 is recommended:** D-R4-4 strings (recommended: approve S1-S10 and S28 now, S11-S25 and S29 as a bundle; S26/S27 stay unimplemented so a personal-risk request is refused and refunded as `policy_block` with no supportive text until the owner writes it); dev 0039 apply for the qualification run (not yet authorised).
+
 ## LIVE RELEASE STATE 2026-11-06 08:15 PT (supersedes the queue order above)
 
 - Released and deployed: 54 P2 (`409f4e8f3`, deploy run 42247063137 success). Pushed to main but deploy blocked: 55 R1 (`15141c05a`), 56 R3 (`4b754b6c2`); main is `4b754b6c2`.
