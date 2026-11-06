@@ -12,12 +12,14 @@ import { join } from 'node:path';
 import { learnDb } from './learn-grade-fixture.js';
 import { CoachingConflict, applyCoachingAction, readCoachingState } from '../src/learn-coaching-store.js';
 import { coachingRoute } from '../src/learn-coaching-routes.js';
+import { createJourney, loadJourney } from './learn-journey-rows.js';
 import { acceptAttempt, claimAssessment, commitAssessment } from '../src/learn-attempt-store.js';
 import { readProgress } from '../src/learn-progress.js';
 import { resolveProgressQuestion } from '../src/learn-progress-context.js';
 
 const A = { org: 'ws', userId: 'u-ana', app: 'canvas-0000aaaa', board: 'main' };
 const B = { ...A, userId: 'u-ben' };
+const scopeOf = a => ({ org: a.org, owner_user_id: a.userId, app: a.app, board: a.board });
 const C = (criterionId, label) => ({ criterionId, label, requirement: `Show: ${label}`, requiresReasoning: true });
 const TABLES = ['learn_goal_criteria', 'learn_activities', 'learn_attempts', 'learn_assessments', 'learn_observations'];
 let seq = 0;
@@ -89,16 +91,16 @@ test('delete the active goal: the pointer and its activity clear, the others sta
   assert.equal(again.state.revision, state.revision);
 });
 
-test('deleting a goal a retired journey made archives the goal row and nothing else', async t => {
+test('deleting a journey-backed goal parks its journey (never archives it) and leaves no live journey on the board', async t => {
   const { sqlite, env } = setup(t);
-  sqlite.prepare(`INSERT INTO learn_goals (id, org, owner_user_id, app, board, label, outcome, origin, scope_version, lifecycle, journey_id, activity_id, revision, created_at, updated_at)
-    VALUES ('lg_lj_graphs', ?, ?, ?, ?, 'graphs', '', 'journey', 0, 'open', 'lj_graphs', NULL, 0, '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z')`).run(A.org, A.userId, A.app, A.board);
+  const j = await createJourney(env, scopeOf(A), { request: { raw_user_message: 'Teach me graphs', topic: 'graphs', intent: { kind: 'learn', topic: 'graphs' }, channel: 'text' }, grounding: { kind: 'topic' }, intake: { slots: {} } });
   const state = await readCoachingState(env, A);
-  assert.deepEqual(shown(state), ['graphs']);
-  const after = (await act(env, A, 'delete_goal', { goalId: 'lg_lj_graphs', revision: goalOf(state, 'lg_lj_graphs').revision })).state;
+  assert.equal(state.activeGoalId, `lg_${j.id}`);
+  const after = (await act(env, A, 'delete_goal', { goalId: `lg_${j.id}`, revision: goalOf(state, `lg_${j.id}`).revision })).state;
   assert.deepEqual([after.activeGoalId, shown(after)], [null, []]);
-  assert.equal(sqlite.prepare("SELECT lifecycle FROM learn_goals WHERE id = 'lg_lj_graphs'").get().lifecycle, 'archived');
-  assert.deepEqual(shown(await readCoachingState(env, A)), [], 'a reload does not bring the goal back');
+  assert.deepEqual({ ...sqlite.prepare('SELECT board, archived_at FROM learning_journeys WHERE id = ?').get(j.id) }, { board: `parked:${j.id}`, archived_at: null });
+  assert.equal(await loadJourney(env, scopeOf(A)), null);
+  assert.deepEqual(shown(await readCoachingState(env, A)), [], 'a reload does not bring the journey goal back');
 });
 
 test('only the goal\'s owner can edit or delete it; another learner\'s goal reads as missing', async t => {
