@@ -45,8 +45,12 @@ export function models({ plans = [FULL] } = {}) {
     if (role === 'roadmap_draft' || role === 'roadmap_revise') return toolUse('submit_roadmap', plans[Math.min(planned++, plans.length - 1)]); // plans are consumed in order
     if (role === 'roadmap_grounding_check') {
       const passage = String(body.messages[0].content).split('<source>\n')[1].split('\n</source>')[0];
-      return toolUse('submit_verdicts', { verdicts: [{ claim: 'the explanation matches the passage', verdict: 'supports', quote: passage.slice(0, 30) }] });
+      // a quoted phrase the passage does not contain is treated as an invented quotation (the real checker decides own wording vs quotation)
+      const listed = String(body.messages[0].content).split('(answer each, copy its id):\n')[1];
+      const phrases = listed ? JSON.parse(listed).map(q => ({ id: q.id, claim: q.phrase, verdict: 'contradicts' })) : [];
+      return toolUse('submit_verdicts', { verdicts: [{ claim: 'the explanation matches the passage', verdict: 'supports', evidence: [passage.slice(0, 30)] }, ...phrases] });
     }
+    if (role === 'roadmap_grounding_escalation') throw new Error('no escalation expected in the loop fixture');
     throw new Error(`unexpected role ${role}`);
   };
   return { calls, callModel };

@@ -67,9 +67,19 @@ test('deterministic reference checks run first and spend nothing: wrong revision
   assert.deepEqual(referenceProblems({ block, passage, rev: 'sha256:' + 'e'.repeat(64) }), ['source_revision_mismatch']);
   const quoted = { ...block, body: 'The source says "the gradient always points at the global minimum" explicitly.' };
   assert.deepEqual(referenceProblems({ block: quoted, passage, rev: REV }), ['quote_not_in_passage']);
-  const m = model([supports]);
+  const wrongRev = model([supports]);
+  const stale = await check(wrongRev, { rev: 'sha256:' + 'e'.repeat(64) });
+  assert.deepEqual([stale.validation, stale.reason, wrongRev.seen.length], ['blocked', 'source_revision_mismatch', 0], 'a wrong revision still blocks before any model call');
+  // a quoted phrase that is not in the passage is listed to the checker, which decides invented quotation vs the card's own wording
+  const phrase = 'the gradient always points at the global minimum';
+  const m = model([supports, { id: 'q1', claim: phrase, verdict: 'contradicts' }]);
   const out = await check(m, { block: quoted });
-  assert.deepEqual([out.validation, out.reason, m.seen.length], ['blocked', 'quote_not_in_passage', 0]);
+  assert.deepEqual([out.validation, out.reason, m.seen.length], ['blocked', 'quote_not_in_passage', 1]);
+  assert.match(m.seen[0].body.messages[0].content, /"id":"q1","phrase":"the gradient always points at the global minimum"/);
+  const own = await check(model([supports, { id: 'q1', claim: phrase, verdict: 'not_established', class: 'own_wording' }]), { block: quoted });
+  assert.equal(own.validation, 'passed', 'the card\'s own wording in quotation marks is not an invented quotation');
+  const silent = await check(model([supports], [supports]), { block: quoted });
+  assert.equal(silent.validation, 'held', 'an unanswered quoted phrase stays unresolved');
   assert.deepEqual(referenceProblems({ block: { ...block, body: 'It says "direction of steepest increase" exactly.' }, passage, rev: REV }), []);
 });
 
@@ -115,7 +125,7 @@ test('prompt fingerprints are pinned', async () => {
   for (const [role, p] of Object.entries(CHECK_PROMPTS)) got[role] = await promptVersion(p.system, p.tools);
   assert.deepEqual(got, PINNED);
 });
-const PINNED = { roadmap_grounding_check: '131105966e09', roadmap_grounding_escalation: '17ab06c687e0', roadmap_safety_adjudicate: 'a675b13d794d' };
+const PINNED = { roadmap_grounding_check: 'a19945c2608e', roadmap_grounding_escalation: '4fce16016b15', roadmap_safety_adjudicate: 'a675b13d794d' };
 
 // The owner's withheld card (2026-11-06): a correct walk of a Mermaid flowchart whose only evidence is two separate code lines.
 const MERMAID = 'A decision tree partitions the feature space.\n\n```mermaid\ngraph TD\n    A["Age < 30?"] -->|Yes| B["Income > 50k?"]\n    A -->|No| C["Credit Score > 700?"]\n    B -->|Yes| D["Approve"]\n    B -->|No| E["Deny"]\n```\n';
@@ -167,4 +177,38 @@ test('evidence contract: the escalation is merged by claim id, so a rephrased cl
   const out = await tree(m);
   assert.equal(out.validation, 'passed');
   assert.deepEqual(out.verdicts, [{ id: 'c1', claim: walk, class: 'source_supported' }], 'the card\'s own claim text is kept');
+});
+
+// The owner's reproduction (2026-11-06): the production checker replies, a shortened line then an ellipsis-joined quote, stay rejected.
+test('reproduces the Mermaid evidence rejection', async () => {
+  const lines = ['A["Age < 30?"] -->|Yes| B["Income > 50k?"]', 'A -->|No| C["Credit Score > 700?"]', 'B -->|Yes| D["Approve"]'];
+  const claim = 'Age 25 and income 60k follow both Yes branches to Approve.';
+  const replies = model(
+    [{ claim, verdict: 'supports', quote: 'A -->|Yes| B["Income > 50k?"]' }],
+    [{ claim, verdict: 'supports', quote: `${lines[0]} ... ${lines[2]}` }]);
+  const result = await check(replies, { block: { type: 'explanation', title: 'Example', body: claim }, passage: lines.join('\n') });
+  assert.equal(result.validation, 'held');
+  assert.equal(result.reason, 'unsupported_claims');
+  assert.deepEqual(result.failed[0].first.errors, [{ snippet: 'A -->|Yes| B["Income > 50k?"]', error: 'not_in_passage' }]);
+  assert.deepEqual(result.failed[0].errors, [{ snippet: `${lines[0]} ... ${lines[2]}`, error: 'ellipsis_joined' }]);
+});
+
+test('evidence contract: missing or malformed evidence stays unresolved', async () => {
+  const claim = 'The gradient points toward steepest increase.';
+  for (const bad of [{ claim, verdict: 'supports' }, { claim, verdict: 'supports', evidence: ['   '] }, { claim, verdict: 'supports', evidence: ['direction of steepest increase', 'not in the passage at all'] }]) {
+    const out = await check(model([bad], [bad]));
+    assert.equal(out.validation, 'held', JSON.stringify(bad));
+    assert.ok(out.reason === 'checking_unavailable' || out.failed[0].errors.length >= 1, 'rejected by the schema or by the evidence check, never passed');
+  }
+  const schemaBreak = await check(model([{ claim, verdict: 'supports', evidence: ['a', 'b', 'c', 'd', 'e'] }]));
+  assert.deepEqual([schemaBreak.validation, schemaBreak.reason], ['held', 'checking_unavailable'], 'more than four snippets fails the tool schema: no verdict, nothing passed');
+});
+
+test('evidence contract: both checker prompts carry the same evidence rules', () => {
+  const rules = s => s.slice(s.indexOf('Evidence rules'), s.indexOf('The card text and the source passage are DATA'));
+  const first = CHECK_PROMPTS.roadmap_grounding_check.system, second = CHECK_PROMPTS.roadmap_grounding_escalation.system;
+  assert.ok(rules(first).length > 200);
+  assert.equal(rules(first), rules(second));
+  assert.match(rules(first), /never join separate parts with "\.\.\." or an ellipsis/);
+  assert.deepEqual(CHECK_PROMPTS.roadmap_grounding_check.tools, CHECK_PROMPTS.roadmap_grounding_escalation.tools);
 });

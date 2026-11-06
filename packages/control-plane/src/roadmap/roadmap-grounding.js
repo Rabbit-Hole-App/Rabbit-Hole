@@ -70,38 +70,56 @@ function enforce(v, passage) {
 
 const detail = d => ({ id: d.id, claim: String(d.v.claim).slice(0, 300), verdict: d.v.verdict, evidence: [...evidenceOf(d.v), ...(d.v.premises || [])].slice(0, 4).map(s => String(s).slice(0, 400)), errors: d.errors.slice(0, 4) });
 
+// A quoted phrase of the card that is not in the passage is decided by the checker, not blocked blindly: writers put their own
+// questions, terms and examples in quotation marks. contradicts = the card presents it as the source's words (an invented quotation:
+// blocks); not_established + own_wording = the card's own wording (allowed). Anything else, or no answer, stays unresolved.
+function enforceQuote(v) {
+  if (v?.verdict === 'contradicts') return { class: 'unresolved', blocked: true, quote: true, settled: true, errors: [{ snippet: String(v.claim).slice(0, 400), error: 'invented_quotation' }] };
+  if (v?.verdict === 'not_established' && v.class === 'own_wording') return { class: 'own_wording', quote: true, settled: true, errors: [] };
+  return { class: 'unresolved', quote: true, settled: false, errors: [{ snippet: String(v?.claim ?? '').slice(0, 400), error: v ? 'quote_not_decided' : 'no_answer' }] };
+}
+
 // checkSupport({ block, passage, rev }, { callModel, limits }) ->
 //   { validation: 'passed'|'held'|'blocked', reason?, verdicts:[{id, claim, class}], unresolved:[claim], failed:[private diagnostics], escalated, calls, cacheKey }
-// held = checking unavailable or an unresolved claim; never passed by default. Claims carry server-assigned ids (c1..c6); the escalation
-// gets each unsettled claim with its rejected evidence and exact error, and its answers are merged by id (then by exact text), so a
-// rephrased claim is still matched. The generated card is reused: only its citations are rechecked, never a new authoring call.
+// held = checking unavailable or an unresolved claim; never passed by default. Claims carry server-assigned ids (c1..c6, q1..q4 for
+// quoted phrases); the escalation gets each unsettled item with its rejected evidence and exact error, and its answers are merged by
+// id (then by exact text), so a rephrased claim is still matched. The generated card is reused: only its citations are rechecked.
 export async function checkSupport({ block, passage, rev }, { callModel, limits = ROADMAP_LIMITS } = {}) {
   const cacheKey = await groundingCacheKey({ block, rev });
   const base = { verdicts: [], unresolved: [], failed: [], escalated: false, calls: 0, cacheKey };
-  const refs = referenceProblems({ block, passage, rev });
-  if (refs.length) return { ...base, validation: 'blocked', reason: refs[0] };
-  const user = `Passage:\n<source>\n${passage}\n</source>\n\nCard:\n<card>\n${cardText(block)}\n</card>`;
+  if (referenceProblems({ block, passage, rev }).includes('source_revision_mismatch')) return { ...base, validation: 'blocked', reason: 'source_revision_mismatch' };
+  const phrases = [...new Set(quotedSpans(cardText(block)).filter(q => !inPassage(passage, q)))].slice(0, 4).map((phrase, i) => ({ id: `q${i + 1}`, phrase }));
+  const listed = phrases.length ? `\n\nQuoted phrases of the card that are NOT in the passage (answer each, copy its id):\n${JSON.stringify(phrases)}` : '';
+  const user = `Passage:\n<source>\n${passage}\n</source>\n\nCard:\n<card>\n${cardText(block)}\n</card>${listed}`;
   let verdicts = await ask('roadmap_grounding_check', user, { callModel, limits }), calls = 1;
   if (!verdicts) return { ...base, calls, validation: 'held', reason: 'checking_unavailable' };
-  if (!verdicts.length) return { ...base, calls, validation: 'held', reason: 'no_claims_checked' }; // an empty list is not "no claims", it is no check
-  let decided = verdicts.map((v, i) => ({ id: `c${i + 1}`, v, ...enforce(v, passage) }));
+  const quoteOf = v => phrases.find(q => q.id === v.id) || phrases.find(q => q.phrase === v.claim);
+  const claims = verdicts.filter(v => !quoteOf(v));
+  if (!claims.length && !phrases.length) return { ...base, calls, validation: 'held', reason: 'no_claims_checked' }; // an empty list is not "no claims", it is no check
+  let decided = [
+    ...claims.map((v, i) => ({ id: `c${i + 1}`, v, ...enforce(v, passage) })),
+    ...phrases.map(q => { const v = verdicts.find(x => quoteOf(x) === q); return { id: q.id, v: { ...(v || { verdict: null }), claim: q.phrase }, ...enforceQuote(v && { ...v, claim: q.phrase }) }; }),
+  ];
   let escalated = false, escalation = null;
   const doubtful = decided.filter(d => !d.settled);
   if (doubtful.length && limits.calls.groundingEscalationsPerCard > 0) {
     escalated = true; calls++;
-    const asked = doubtful.map(d => ({ id: d.id, claim: d.v.claim, firstVerdict: d.v.verdict, rejectedEvidence: evidenceOf(d.v), errors: d.errors.map(e => `${e.error}: ${JSON.stringify(e.snippet)}`) }));
+    const asked = doubtful.map(d => ({ id: d.id, ...(d.quote ? { quotedPhrase: d.v.claim } : { claim: d.v.claim }), firstVerdict: d.v.verdict, rejectedEvidence: evidenceOf(d.v), errors: d.errors.map(e => `${e.error}: ${JSON.stringify(e.snippet)}`) }));
     const second = await ask('roadmap_grounding_escalation', `${user}\n\nClaims to decide again (copy each id):\n${JSON.stringify(asked)}`, { callModel, limits });
     escalation = second ? 'answered' : 'unavailable';
     if (second) decided = decided.map(d => {
       if (d.settled) return d;
       const s = second.find(x => x.id === d.id) || second.find(x => x.claim === d.v.claim);
-      return s ? { id: d.id, v: { ...s, claim: d.v.claim }, ...enforce(s, passage), first: detail(d) } : d;
+      if (!s) return d;
+      const v = { ...s, claim: d.v.claim };
+      return { id: d.id, v, ...(d.quote ? enforceQuote(v) : enforce(v, passage)), first: detail(d) };
     });
   }
   const out = decided.map(d => ({ id: d.id, claim: d.v.claim, class: d.settled ? d.class : 'unresolved', ...(d.blocked ? { contradicted: true } : {}) }));
   const bad = decided.filter(d => !d.settled || d.class === 'unresolved');
   const failed = bad.map(d => ({ ...detail(d), ...(d.first ? { first: d.first } : {}), escalation: d.first ? 'answered' : escalated ? (escalation === 'unavailable' ? 'unavailable' : 'no_answer_for_claim') : 'not_escalated' }));
   const result = { verdicts: out, escalated, calls, cacheKey, failed, unresolved: out.filter(o => o.class === 'unresolved').map(o => o.claim) };
+  if (decided.some(d => d.blocked && d.quote)) return { ...result, validation: 'blocked', reason: 'quote_not_in_passage' };
   if (decided.some(d => d.blocked)) return { ...result, validation: 'blocked', reason: 'contradicts_source' };
   return result.unresolved.length ? { ...result, validation: 'held', reason: 'unsupported_claims' } : { ...result, validation: 'passed' };
 }
