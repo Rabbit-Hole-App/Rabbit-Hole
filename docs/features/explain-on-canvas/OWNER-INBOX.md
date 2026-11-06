@@ -33,6 +33,8 @@ Three states are kept apart: **Deployed** (the production deploy run for that SH
 
 Production Learn D1 has migrations 0036-0039. Dev Learn D1 has 0036-0040 (0040 applied 11:15 PT on the owner's "GO 0040", dev only). The production release preflight requires the prod schema to equal the candidate's schema exactly, so each migration is applied immediately before the release that includes it, never earlier.
 
+**SCOPE FROZEN (owner, 11:25 PT):** first-proposal-on-accept automation is non-blocking while manual Propose next step works (kept only if already integrated); harness-only fixes do not trigger release rebuilds; one preview per frozen candidate; the clone is deployed from the frozen candidate in parallel with release preparation; anything else is a follow-up below.
+
 ## 2. Commands for you, in this order (each asks you to type RELEASE <n>)
 
 Bash path used below, call it `RUN`: `"C:\Users\cyudhist\AppData\Local\Programs\Git\usr\bin\bash.exe" C:/s/spec/release-queue/morning-release.sh`
