@@ -9,15 +9,23 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const path = process.argv[2] || 'scripts/ci/check-map.json';
 const W = 'packages/web/src/';
 const UNIT = [`${W}roadmap-canvas.test.mjs`, `${W}proposal-card.test.mjs`];
+const ANCHOR = [`${W}markdown-anchor.test.mjs`, `${W}source-refs.test.mjs`, `${W}roadmap-canvas.test.mjs`];
+const CP = 'packages/control-plane/', MINT = [`${CP}test/roadmap-source-refs-rendered.test.js`];
 
 export const ROWS = {
   [`${W}roadmap-canvas.js`]: UNIT,
   [`${W}ProposalCard.jsx`]: UNIT,
+  [`${W}markdown-anchor.js`]: [...ANCHOR, ...MINT],
 };
 export const APPEND = {
   [`${W}AdaptiveCanvas.jsx`]: UNIT,
   [`${W}canvas-slots.js`]: UNIT,
   [`${W}roadmap-placement.js`]: UNIT,
+  [`${W}FileDocMarkdown.jsx`]: ANCHOR,
+  [`${W}source-ref.js`]: ANCHOR,
+  [`${W}source-refs.js`]: ANCHOR,
+  [`${W}SourceRefChip.jsx`]: ANCHOR,
+  [`${CP}src/roadmap/roadmap-source-refs.js`]: [...MINT, `${W}markdown-anchor.test.mjs`],
 };
 
 const raw = readFileSync(path, 'utf8');
