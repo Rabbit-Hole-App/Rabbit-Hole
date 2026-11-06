@@ -11,6 +11,7 @@ import { planningHandler } from './roadmap-planning.js';
 import { generationHandler } from './roadmap-run.js';
 import { sweepUndelivered } from './roadmap-sweep.js';
 import { readAutoSuggest } from '../learn-user-settings.js';
+import { AUTO_KINDS, autoProposalHandler, settingsFanoutHandler } from './roadmap-auto.js';
 
 const scopeOf = access => ({ org: access.org, ownerUserId: access.actorUserId, boardId: access.boardId });
 
@@ -40,20 +41,26 @@ export const learnerSettings = env => async (_db, access) => {
 // deps for roadmapRoute. `settings` is the reader seam (Auto-suggest, mode); the default reads the learner's saved settings (learnerSettings).
 export function roadmapDeps(env, ctx = null, { settings = learnerSettings(env), readSourceOptions } = {}) {
   const kick = roadmapKick(env, ctx);
-  return { readSource: makeReadSource(env, readSourceOptions), startPlanning: kick, onAccepted: kick, compose: (roadmap, step) => composeProposal(env.LEARN_DB, roadmap, step),
+  return { readSource: makeReadSource(env, readSourceOptions), startPlanning: kick, onAccepted: kick, onFact: kick, compose: (roadmap, step) => composeProposal(env.LEARN_DB, roadmap, step),
     mintStepRefs: (e, access, roadmapId) => mintStepRefs(e, access, roadmapId), settings };
 }
 
-// The two durable handlers. `deps` is the test/injection seam of the handlers (callModel, registry, transport, classify, base, ...). Idempotent.
+// The durable handlers. `deps` is the test/injection seam of the handlers (callModel, registry, transport, classify, base, ...). Idempotent.
+// R6: the automatic-proposal handlers (roadmap-auto.js) are registered too; they do nothing unless ROADMAP_AUTO_ENABLED is 'true'.
 export function registerRoadmapHandlers(deps = {}) {
   registerRoadmapHandler('plan_requested', (env, event, ctx) => planningHandler(env, event, ctx, deps));
   registerRoadmapHandler('step_accepted', (env, event, ctx) => generationHandler(env, event, ctx, deps));
+  for (const kind of AUTO_KINDS) registerRoadmapHandler(kind, (env, event, ctx) => autoProposalHandler(env, event, ctx, deps));
+  registerRoadmapHandler('settings_changed', (env, event, ctx) => settingsFanoutHandler(env, event, ctx, { kick: wakeBoard, ...deps }));
 }
+// Wake one board's RoadmapJobs after a fan-out wrote its event; without the binding (dev before the Lead adds it) run that board's due events inline.
+const wakeBoard = (env, scope) => (env.ROADMAP_JOBS ? kickRoadmapJobs(env, scope) : runDueRoadmapEvents(env, { scope }).catch(() => 0));
 
 // The bounded recurring scan that closes the commit-before-notify gap (R4.05): boards with due events get their object kicked.
 export async function scheduledRoadmapKick(env, { limit = 50 } = {}) {
   let kicked = 0;
-  for (const scope of await boardsWithDueEvents(env.LEARN_DB, { limit })) if (await kickRoadmapJobs(env, scope)) kicked += 1;
+  // A learner-scope event (R6 Auto-suggest fan-out) names no board, so no object: run it here. Everything else wakes its board's object.
+  for (const scope of await boardsWithDueEvents(env.LEARN_DB, { limit })) if (scope.boardId === '' ? await runDueRoadmapEvents(env, { scope }).catch(() => 0) : await kickRoadmapJobs(env, scope)) kicked += 1;
   await sweepUndelivered(env).catch(() => null); // the bounded delivery deadline: place-or-refund (roadmap-sweep.js)
   return kicked;
 }
