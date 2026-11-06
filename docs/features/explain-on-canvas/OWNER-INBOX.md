@@ -16,15 +16,24 @@ Self-contained status for the owner and for a reviewer who has not seen the chat
 | Release | State | SHA |
 | --- | --- | --- |
 | Cleanup P1 | RELEASED 2026-11-05 23:13 PT (main 9b798f77; production smoke passed) | 9b798f776 |
-| Cleanup P2 | Built, pushed, CI running (verify passed; fast-e2e informational). Release package (smoke, recovery branch, preview launcher, commands) is being finalised; see section 3 | cdeb77274 |
+| 54 Cleanup P2 (Browser Tutor off) | READY, previewed (record 9ce5cfe6d1648796). fast-e2e on this tip: `stars-surfaces` 32/33 (unrelated, rerun requested) | 409f4e8f3 |
+| 55 R1 card feedback | READY, previewed. Needs prod migration 0036 | 15141c05a |
+| 56 R3 source references | READY, previewed. Needs prod migration 0038 | 4b754b6c2 |
+| 57 Cleanup P3 (Server Tutor off) | READY, previewed (after a transient Cloudflare 503). No migration | 0c322bd50 |
+| 58 Cleanup P4 (Journeys and syllabus off) | READY, previewed. No migration | cdac8cfc5 |
+| 59 R2 Depth and Auto-suggest | READY, previewed. Needs prod migration 0037 | e44aa04f0 |
+| 60 R4 explanation loop (flag OFF) | READY, previewed. Optional: inert code + a new Durable Object class | d692444ec |
+| 61 Cleanup P5 (Duplicate grading off) | READY, previewed. No migration | da0625923 |
+
+All eight form ONE linear chain on main `9b798f77`: each candidate's pinned `MAIN_PREV` is the previous candidate's SHA (verified by a dry run of the queue script), so they must be released in the order above.
 
 ### Blocked or waiting (details in sections 2 and 3)
-R1 (waits for the P2 merge), R3 (waits for the P2 merge), R2 (waits for P4), R4 (owner records D2, D43 and the paid cap), cleanup P3-P7 (not started).
+Nothing blocks the eight candidates above. Waiting on you (non-blocking for them): learner-string approvals, the R4 records (D2, D43, the $25 cap) before the R4 flag is ever set, cleanup P6a/P6b (not started: needs the backfill GO), and cleanup P7 (docs/receipt, not started).
 
 ### Exact release commands
 Section 3 holds the per-release command blocks. They are valid only once a release's status there says READY.
 
-**One-command queue (written overnight, dry-run tested):** `bash C:/s/spec/release-queue/morning-release.sh <name> [<name> ...]` releases the listed candidates in order, one at a time. For each it prints the candidate, asks you to type `RELEASE <number>`, sets `MVP_ALLOWED_SHA` for that exact SHA, runs `release-mvp.sh --check`, then the release, waits for its final line, and only then deletes the variable. It stops at the first failure and removes the variable on exit. It never touches a database. Use `--dry-run` to preview and `--check-only` to check without pushing. Order of the queue: `54-tutor-cleanup-p2-mvp 55-tutor-r1-mvp` (then 56 R3, 57 P3, 58 P4, 59 R2, 60 P5 as they are marked READY below). Previews: run each candidate's `preview-<n>-*.cmd` first if its section says the preview has not run (R1's preview already ran; P2's was started by Claude at 00:40 PT and its result is recorded below).
+**One-command queue (written overnight, dry-run tested):** `bash C:/s/spec/release-queue/morning-release.sh <name> [<name> ...]` releases the listed candidates in order, one at a time. For each it prints the candidate, asks you to type `RELEASE <number>`, sets `MVP_ALLOWED_SHA` for that exact SHA, runs `release-mvp.sh --check`, then the release, waits for its final line, and only then deletes the variable. It stops at the first failure and removes the variable on exit. It never touches a database. Use `--dry-run` to preview and `--check-only` to check without pushing. **Full queue (dry-run verified, all eight pins consistent):** `bash C:/s/spec/release-queue/morning-release.sh 54-tutor-cleanup-p2-mvp 55-tutor-r1-mvp 56-tutor-r3-mvp 57-tutor-p3-mvp 58-tutor-p4-mvp 59-tutor-r2-mvp 60-tutor-r4-mvp 61-tutor-p5-mvp`. You can stop after any item (answer anything but `RELEASE <number>` at the prompt); the chain stays valid because each item only needs its predecessor on main. Every preview has already run (records are in `C:\s\spec\logs\preview-*.log` and in the dev-deploys notes the launcher publishes), so there is no preview step in the morning. Sensible stopping points: after 56 (the first Tutor features: R1 + R3), after 59 (R2), and R4 (60) is optional.
 **Production migrations are your step before the release that needs them:** R1 needs 0036 on the prod `LEARN_DB`; R3 needs 0038; R2 needs 0037 (each file is in its lane's `learn-migrations/` directory and is additive).
 
 ---
