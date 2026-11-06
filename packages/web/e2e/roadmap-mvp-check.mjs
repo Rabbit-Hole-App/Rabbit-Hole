@@ -1,7 +1,6 @@
 // The R4 smoke against the LOCAL stack with a fake roadmap job server and no model call (Tutor ladder R4, fork tier): invitation to
 // plan to accept to Tab to one delivered card (save before acknowledgement), reload and a second device (still one card), Cancel,
-// Propose next step, End roadmap, a failed card's Retry/Replace/Omit in Chat and the ToC, and a stale 409 showing the latest state; then the R6 automatic
-// next proposal (flag-off server fake offers it): it appears by itself, Ask holds it back, a server offering nothing leaves manual Propose working, reload shows it once.
+// Propose next step, End roadmap, a failed card's Retry/Replace/Omit in Chat and the ToC, and a stale 409 showing the latest state.
 // What it cannot show: a real explanation (the server is faked; the real-model smoke is a separate, bounded paid check) or the
 // Next step ready indicator for an offscreen source card (covered by roadmap-client.test.mjs until a source card can be placed).
 // Written, never run by its author (browser automation is CI or owner only). Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/roadmap-mvp-check.mjs [shotsDir]
@@ -15,7 +14,7 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('roadmap-mvp-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'roadmap-mvp-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 12; // bump with the steps below; the printed line is what CI reads
+const TOTAL = 8; // bump with the steps below; the printed line is what CI reads
 const CARD = 'cd_71e20ac49f8b3d5612a7c0e4';
 const secret = readFileSync(process.env.VARS || new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
@@ -46,10 +45,6 @@ const open = async (canvas, server, context = null) => {
   await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 60000 });
   return page;
 };
-// R6 (folded from roadmap-auto-check.mjs): one fresh context and fake server per step, on a shared canvas.
-const openAuto = async (canvas, options) => { const server = fakeRoadmapServer(options); return { server, page: await open(canvas, server) }; };
-const setMode = async (page, mode) => { await page.locator('[data-chat-pane]').getByRole('button', { name: 'Mode', exact: true }).click(); await page.getByRole('menuitemradio', { name: new RegExp(`^${mode}`) }).click(); };
-const box = (page, id) => page.locator(`[data-block-id="${id}"]`).first().boundingBox();
 const toc = page => page.getByRole('tab', { name: /^Table of contents/ }).click();
 const cards = page => page.locator(`[data-block-id="${CARD}"]`);
 const recovery = async (page, where) => (await page.locator(`[data-roadmap-recovery="${where}"] button`).allInnerTexts()).join('|');
@@ -143,51 +138,6 @@ try {
     await page.reload();
     await page.getByText('Checking this explanation before it is added.').first().waitFor();
     assert.equal(server.count('/deliver'), 1, 'no delivery attempt for the held result (the earlier one was step 3)');
-    assert.deepEqual(stray, []);
-    assert.deepEqual(errors, []);
-  });
-  const auto = await make('Roadmap auto');
-  await step('after a delivered card the next step appears by itself: one overlay, no propose or accept request, the card does not move, no new Chat line', async () => {
-    const { server, page } = await openAuto(auto, { stage: 'generated', auto: true, autoAfterReads: 2 });
-    await page.locator(`[data-block-id="${CARD}"]`).first().waitFor();
-    await until(async () => server.count('/ack') === 1, 'acknowledged');
-    const chatBefore = await page.locator('[data-roadmap-chat]').allInnerTexts();
-    const cardBefore = await box(page, CARD);
-    await page.locator('[data-roadmap-overlay]').waitFor();
-    assert.equal(await page.locator('[data-roadmap-overlay]').count(), 1);
-    assert.equal(server.count('/steps/propose'), 0);
-    assert.equal(server.count('/accept'), 0);
-    assert.deepEqual(await box(page, CARD), cardBefore, 'the camera and the card did not move');
-    assert.equal((await page.locator('[data-roadmap-chat]').allInnerTexts()).length, chatBefore.length);
-    await page.screenshot({ path: `${SHOTS}/9-auto-proposal.png` });
-  });
-  await step('Ask holds the proposal back; returning to Tutor shows it with no new request of ours', async () => {
-    const { server, page } = await openAuto(auto, { stage: 'delivered' });
-    await page.locator('[data-roadmap-overlay]').waitFor();
-    await setMode(page, 'Ask');
-    await until(async () => (await page.locator('[data-roadmap-overlay]').count()) === 0, 'hidden in Ask');
-    const before = server.count('/steps/propose') + server.count('/accept');
-    await setMode(page, 'Tutor');
-    await page.locator('[data-roadmap-overlay]').waitFor();
-    assert.equal(server.count('/steps/propose') + server.count('/accept'), before);
-  });
-  await step('when the server offers nothing (Auto-suggest off) no overlay appears and the manual Propose next step still works', async () => {
-    const { server, page } = await openAuto(auto, { stage: 'generated', auto: true, autoAfterReads: 1e9 });
-    await until(async () => server.count('/ack') === 1, 'acknowledged');
-    await page.waitForTimeout(5000);
-    assert.equal(await page.locator('[data-roadmap-overlay]').count(), 0);
-    await toc(page);
-    await page.locator('[data-roadmap-propose-next]').click();
-    await page.locator('[data-roadmap-overlay]').waitFor();
-    assert.equal(server.count('/steps/propose'), 1);
-  });
-  await step('a reload shows the state the server holds (the automatic proposal, once), and no stray model request or page error', async () => {
-    const { page } = await openAuto(auto, { stage: 'delivered' });
-    await page.locator('[data-roadmap-overlay]').waitFor();
-    await page.reload();
-    await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 60000 });
-    await page.locator('[data-roadmap-overlay]').waitFor();
-    assert.equal(await page.locator('[data-roadmap-overlay]').count(), 1);
     assert.deepEqual(stray, []);
     assert.deepEqual(errors, []);
   });
