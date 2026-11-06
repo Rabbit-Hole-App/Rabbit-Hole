@@ -21,11 +21,10 @@ export { FileJobs } from '../control-plane/src/file-jobs.js';
 export { CadJobs } from '../control-plane/src/cad-jobs.js';
 import { cadRoute } from '../control-plane/src/cad-jobs.js';
 export { ExplainJobs } from '../control-plane/src/explain-job.js';
-// Tutor R4 roadmap (docs/features/explain-on-canvas): RoadmapJobs is bound as ROADMAP_JOBS; every route answers 404 until ROADMAP_ENABLED is 'true'.
+// Tutor R4 roadmap: recovery state. Only the Durable Object class stays exported (the deployed binding needs it); the route, the UI mount and the scheduled kick are removed; the durable handlers stay registered.
 export { RoadmapJobs } from '../control-plane/src/roadmap/roadmap-jobs.js';
-import { roadmapRoute } from '../control-plane/src/roadmap/roadmap-routes.js';
-import { roadmapDeps, registerRoadmapHandlers, scheduledRoadmapKick } from '../control-plane/src/roadmap/roadmap-wire.js';
-registerRoadmapHandlers(); // the durable handlers (plan_requested, step_accepted) must exist wherever the object or the scheduler runs events
+import { registerRoadmapHandlers } from '../control-plane/src/roadmap/roadmap-wire.js';
+registerRoadmapHandlers(); // kept so a deployed object finishes any accepted work; nothing mounts a route or kicks it
 export { AnimationJobs } from '../control-plane/src/animation-job.js';
 export { WhiteboardJobs } from '../control-plane/src/whiteboard-job.js';
 import { animationRoute } from '../control-plane/src/animation-job.js';
@@ -102,7 +101,7 @@ export default {
     await consumeIndexQueue(batch, env);
   },
   // The daily expiry of creator analytics records (publication-analytics-purge.js). Its cron is in wrangler.rabbit-hole-prod.jsonc.
-  scheduled: async (event, env) => { await runCleanup(env.LEARN_DB); await scheduledRoadmapKick(env).catch(() => 0); }, // the bounded outbox scan closes the commit-before-notify gap (ponytail: Cloudflare cron has missed ticks)
+  scheduled: (event, env) => runCleanup(env.LEARN_DB),
   // Every response passes the framing wrapper (framing-headers.js), whatever route or early return made it.
   fetch: async (req, env, ctx) => withFraming(req, await respond(req, env, ctx)),
 };
@@ -339,8 +338,6 @@ const routes = {
     if (path.startsWith('/api/learn/cad/')) return cadRoute(path, req, env);
     // /explain v2 jobs (explain-job.js): 404 unless EXPLAIN_V2_ENABLED is 'true'.
     if (path.startsWith('/api/learn/explain/')) { const explained = await explainRoute(path, req, env); if (explained) return explained; }
-    // Tutor R4 roadmap (roadmap-routes.js): 404 unless ROADMAP_ENABLED is 'true'. The deps wire the injected interfaces (source read, planning kick, compose, source refs).
-    if (path.startsWith('/api/learn/roadmap')) { const roadmap = await roadmapRoute(path, req, env, roadmapDeps(env, ctx)); if (roadmap) return roadmap; }
     // /animation jobs (animation-job.js, AN-05): 404 unless ANIMATION_ENABLED is 'true'.
     if (path.startsWith('/api/learn/animation/')) { const animated = await animationRoute(path, req, env); if (animated) return animated; }
     if (path.startsWith('/api/learn/whiteboard/')) { const drawn = await whiteboardRoute(path, req, env); if (drawn) return drawn; }
