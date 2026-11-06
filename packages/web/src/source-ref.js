@@ -121,15 +121,12 @@ export function resolveQuote(text, quote) {
 // revision it holds: a different revision never relocates (changed), a repeated quote without matching context never guesses.
 export function passageTarget({ text, rev, detail }) {
   if (!detail || detail.rev !== rev) return { status: 'changed' };
-  return resolvePassage(text, detail.quote);
+  return resolveQuote(text, detail.quote);
 }
-// A card's quote in the text the Markdown card shows. A passage the learner selected IS rendered text and resolves as it stands; a quote the roadmap minted from the
-// plan's passage is RAW Markdown (`## `, `**`, `[a](url)`, table pipes) that the rendered text does not contain, so when the exact quote is missing it is matched folded
-// (markdown-anchor.js: letters and digits only, syntax the renderer does not draw taken out), with its context. Repeated without matching context: ambiguous. Never guessed.
-export function resolvePassage(text, quote) {
-  const direct = resolveQuote(text, quote);
-  return direct.status === 'missing' && quote?.exact ? resolveFolded(text, foldedQuote(quote)) : direct;
-}
+// A quote the roadmap minted from the plan's passage (its card carries a stepId) is RAW Markdown that the rendered text never contains as it stands. Only for such a quote,
+// and only against the WHOLE drawn text (the caller draws all of it first), it is matched folded (markdown-anchor.js: exact on the folded form, word boundaries, near
+// context required). A passage the learner selected is rendered text and keeps resolveQuote's exact-or-missing answer. segments: markdown-anchor.js textSegments.
+export const resolveRawPassage = (segments, quote) => resolveFolded(segments, foldedQuote(quote));
 
 // ---- Navigation, from the blocks on the canvas ----
 
@@ -142,7 +139,7 @@ export function explanationsFor(blocks, { key, rev, page = null }) {
     if (!navigable(ref) || ref.source.key !== key) continue;
     if (ref.source.rev !== rev) { changed.push(block.id); continue; }
     if (page != null && ref.anchor.page?.index !== page) continue;
-    current.push({ cardId: block.id, ref });
+    current.push({ cardId: block.id, ref, raw: !!block.stepId }); // raw: a roadmap card, its quote minted from raw Markdown (resolveRawPassage)
   }
   return { current, changed };
 }

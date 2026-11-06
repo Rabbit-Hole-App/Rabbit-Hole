@@ -44,7 +44,7 @@ export default function SourceRefChip({ block, app, onHeight = null }) {
     return () => { observer.disconnect(); onHeight(0); };
   }, [onHeight]);
   if (!ref) return null;
-  const open = () => { if (viewPassage(ref) === 'no-card') setNote(NO_FILE_CARD); else setNote(''); };
+  const open = () => { if (viewPassage(ref, { raw: !!block.stepId }) === 'no-card') setNote(NO_FILE_CARD); else setNote(''); };
   return <div ref={root} onPointerDown={event => event.stopPropagation()}><SourceRefLine ref_={ref} status={status} note={note} onOpen={open} /></div>;
 }
 

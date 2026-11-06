@@ -89,7 +89,7 @@ test('card to passage: a PDF opens the reader at its page with the anchor; Markd
 test('passage to explanation: the cards for this source at this revision, a PDF page at a time; a newer revision lists them as changed, never as a match', () => {
   const cards = [{ id: 'c1', sourceRef: md() }, { id: 'c2', sourceRef: pdf() }, { id: 'c3', sourceRef: pdf({ anchor: { ...pdf().anchor, page: { index: 4, label: null } } }) },
     { id: 'c4', sourceRef: md({ id: `sref_${'4'.repeat(24)}`, source: { key: `file:${MD}`, rev: NEWER, name: 'notes.md', home: null } }) }, { id: 'c5', sourceRef: sharedSourceRef(md()) }, { id: 'c6' }];
-  assert.deepEqual(explanationsFor(cards, { key: `file:${MD}`, rev: REV }), { current: [{ cardId: 'c1', ref: sourceRefOf(cards[0]) }], changed: ['c4'] });
+  assert.deepEqual(explanationsFor(cards, { key: `file:${MD}`, rev: REV }), { current: [{ cardId: 'c1', ref: sourceRefOf(cards[0]), raw: false }], changed: ['c4'] }); // raw: a roadmap card (stepId) only
   assert.deepEqual(explanationsFor(cards, { key: `file:${MD}`, rev: NEWER }).current.map(c => c.cardId), ['c4'], 'the card of the older revision is changed in turn');
   assert.deepEqual(explanationsFor(cards, { key: DOC, rev: REV, page: 3 }).current.map(c => c.cardId), ['c2']);
   assert.deepEqual(explanationsFor(cards, { key: DOC, rev: REV, page: 4 }).current.map(c => c.cardId), ['c3']);
