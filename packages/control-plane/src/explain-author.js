@@ -14,6 +14,7 @@ import { programFitProblems } from './explain-program-stage.js';
 import { ExplainPolicyError, callExplainRole } from './explain-policy.js';
 import { learnMedia } from './learn-storage.js';
 import { modelEvidence } from './explain-evidence.js';
+import { depthInstruction } from './chat-depth.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 // The spec and scene limits the author is told and the compiler enforces (explain-contract.js visualSpecSchema;
@@ -114,6 +115,8 @@ async function authorCall(input, ctx, { cat = catalogue(), limits = SPEC_LIMITS 
   if (program) cat = cat.filter(entry => !Object.keys(entry.controls || {}).length);
   const content = JSON.stringify({
     request: input.prompt, brief: input.brief ?? null, context: input.context ?? null, ...(input.edit ? { edit: input.edit } : {}),
+    // R2: the learner's Depth, beside the sentence in the system prompt below (Standard sends neither).
+    ...(depthInstruction(input.depth, 'card') ? { depth: input.depth } : {}),
     evidence: modelEvidence(input.evidence),
     catalogue: cat, composition: authorComposition(), supported: compilerSupport(), limits,
     ...(program ? { program: programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES, { stateful }) } : {}),
@@ -121,7 +124,8 @@ async function authorCall(input, ctx, { cat = catalogue(), limits = SPEC_LIMITS 
   });
   // A layout reference image goes beside the text with its role said first; it is never an evidence record.
   const blocks = input.reference ? [{ type: 'text', text: content }, { type: 'text', text: IMAGE_ROLES.layout_reference }, { type: 'image', source: { type: 'base64', media_type: input.reference.mediaType, data: input.reference.data } }] : content;
-  const out = await ctx.call('author', { system: program ? EXPLAIN_AUTHOR_SYSTEM + EXPLAIN_PROGRAM_RULES + (stateful ? EXPLAIN_STATEFUL_RULES : '') : EXPLAIN_AUTHOR_SYSTEM, tool: authorTool(cat, { program, stateful }), content: blocks });
+  const depthNote = depthInstruction(input.depth, 'card');
+  const out = await ctx.call('author', { system: (program ? EXPLAIN_AUTHOR_SYSTEM + EXPLAIN_PROGRAM_RULES + (stateful ? EXPLAIN_STATEFUL_RULES : '') : EXPLAIN_AUTHOR_SYSTEM) + (depthNote ? `\n${depthNote}` : ''), tool: authorTool(cat, { program, stateful }), content: blocks });
   const { input: reply } = out;
   if (reply.kind === 'capability_gap') {
     if (!Array.isArray(reply.gap?.needs) || !reply.gap.needs.length) throw new ExplainPolicyError('invalid_turn', 'The author reported a gap without saying what is needed.');
@@ -140,7 +144,7 @@ export async function authorStage(job, ctx) {
   const brief = job.brief && job.settings?.presentation ? { ...job.brief, presentation: job.settings.presentation } : job.brief;
   const reference = job.reference ? await referenceImage(ctx.env, job.reference) : null;
   const edit = job.base ? (job.base.program ? { program: job.base.program } : { spec: job.base.spec }) : null;
-  const { spec, program, gap } = await authorCall({ prompt: job.prompt, brief, context: job.context, evidence: job.evidence, examples: job.examples, edit, reference }, ctx);
+  const { spec, program, gap } = await authorCall({ prompt: job.prompt, brief, context: job.context, evidence: job.evidence, examples: job.examples, edit, reference, depth: job.depth }, ctx);
   return gap ? { gap } : program ? { program } : { spec };
 }
 

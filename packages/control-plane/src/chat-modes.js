@@ -6,6 +6,7 @@ import { HISTORY_TURNS } from './learn-models.js';
 import { FILE_SOURCE, fileRange } from '../../web/src/file-chat-ref.js';
 import { progressScope } from '../../web/src/learn-progress-question.js';
 import { CANVAS_MENTIONS, CANVAS_REF_NAME, CANVAS_SOURCE } from '../../web/src/canvas-mention-ref.js';
+import { depthInstruction, validDepth } from './chat-depth.js';
 
 const isObj = v => v != null && typeof v === 'object' && !Array.isArray(v);
 const str = (v, max) => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
@@ -114,7 +115,9 @@ export function chatFields(body) {
     if (!/^\d{1,15}$/.test(id)) throw Error('regenerate.messageId must be a message id');
     regenerate = { messageId: Number(id) };
   }
-  return { mode, command, contextRefs: refs, regenerate };
+  // R2: the learner's Depth for this turn; absent (an old client, or Standard) adds nothing.
+  if (body.depth !== undefined && !validDepth(body.depth)) throw Error('depth must be overview, standard or deep');
+  return { mode, command, contextRefs: refs, regenerate, ...(body.depth !== undefined ? { depth: body.depth } : {}) };
 }
 
 // The context documents a turn may send: the ids its doc refs name, or null (no refs sent: every switched-on one).
@@ -127,11 +130,13 @@ export const pageDocIds = refs => new Map((refs || []).filter(r => r.kind === 'd
 // and a Progress question (a progress ref attached) are questions in every mode. Auto answers: a course request is no
 // longer turned into a syllabus (Tutor cleanup P4). 'tutor' reaches here only from the table of contents conversation
 // (web chat-route.js askMode sends Chat's Tutor as auto), where it keeps editing the outline.
-export function resolveMode({ mode, command, contextRefs = null }) {
+function resolveModeOf({ mode, command, contextRefs = null }) {
   if (command || mode === 'ask' || contextRefs?.some(ref => ref.kind === 'progress')) return { mode: 'ask', maybe: false };
   if (mode === 'tutor') return { mode: 'tutor', maybe: false };
   return { mode: 'ask', maybe: false };
 }
+// R2: what this turn runs as, and the Depth it was sent with (chatSystem adds its wording).
+export const resolveMode = chat => ({ ...resolveModeOf(chat), ...(chat.depth ? { depth: chat.depth } : {}) });
 
 // ---------- Prompts that ride with a mode ----------
 // Tutor with a table of contents (R4 owner decisions 4A, 5B): the contents are the working outline, so Tutor refines them
@@ -142,7 +147,7 @@ const SUMMARY_SYSTEM = 'This conversation is longer than the turns you see. Add 
 const TRAILER_NOTE = 'Put these fields in the single <answer_meta>{...}</answer_meta> trailer at the very end of your reply: one JSON object, beside any other fields it carries.';
 
 export function chatSystem(base, metaSystem, resolved, long) {
-  return [base, metaSystem, long ? SUMMARY_SYSTEM : null, long ? TRAILER_NOTE : null].filter(Boolean).join('\n');
+  return [base, metaSystem, resolved.mode === 'tutor' ? null : depthInstruction(resolved.depth), long ? SUMMARY_SYSTEM : null, long ? TRAILER_NOTE : null].filter(Boolean).join('\n');
 }
 
 // The context a chat turn adds, bounded within the caller's budget: the conversation summary (history, not evidence) and

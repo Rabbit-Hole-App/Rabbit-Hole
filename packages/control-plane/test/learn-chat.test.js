@@ -1183,3 +1183,31 @@ test('mentioned canvases ride by title and content; a revoked one is refused bef
   assert.equal((await ask([tides])).status, 200);
   assert.doesNotMatch(env.answers.at(-1).context, new RegExp(`Colleague secret|canvas:${theirs}`));
 });
+
+// Tutor ladder R2: the learner's Depth is a sentence in the system prompt of the Chat turn that goes to the model (chat-modes.js
+// chatSystem, chat-depth.js). Overview and Deep differ; Standard and a client that sends none get today's prompt; the Tutor's
+// syllabus turn gets none; a value that is not a Depth is a 400 and calls no model.
+test('R2 Depth reaches the model input of a Chat turn: Overview and Deep differ, Standard and no Depth are today\'s prompt, Tutor gets none', async t => {
+  const env = fixture(t);
+  const ask = body => handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'How does backpropagation work?', ...body }), env, {}, owner, 'learn');
+  const system = async body => { const before = env.answers.length; assert.equal((await ask(body)).status, 200); assert.equal(env.answers.length, before + 1); return env.answers.at(-1).system; };
+  const plain = await system({ mode: 'auto' });
+  const overview = await system({ mode: 'auto', depth: 'overview' }), deep = await system({ mode: 'auto', depth: 'deep' });
+  assert.equal(await system({ mode: 'auto', depth: 'standard' }), plain, 'Standard adds nothing');
+  assert.match(overview, /Depth: Overview/); assert.match(deep, /Depth: Deep/);
+  assert.doesNotMatch(plain, /Depth:/); assert.doesNotMatch(overview, /Depth: Deep/); assert.doesNotMatch(deep, /Depth: Overview/);
+  assert.notEqual(overview, deep);
+  assert.ok(overview.startsWith(plain.split('\n')[0]), 'the rest of the prompt is unchanged');
+  // Ask stays an answer: Depth shapes it and never starts a plan, even beside a course request.
+  assert.match(await system({ mode: 'ask', depth: 'deep' }), /Depth: Deep/);
+  const asked = await system({ mode: 'ask', depth: 'deep', message: 'Make me a course on backpropagation' });
+  assert.doesNotMatch(asked, /Tutor mode: syllabus creation/);
+  // The Tutor's syllabus planner is not an answer: no Depth line (R4 owns the roadmap's size).
+  const tutor = await system({ mode: 'tutor', depth: 'deep' });
+  assert.match(tutor, /Tutor mode: syllabus creation/); assert.doesNotMatch(tutor, /Depth:/);
+  // A slash command's turn carries the same sentence (the chat body is what the server reads).
+  assert.match(await system({ mode: 'auto', depth: 'overview', command: 'quiz' }), /Depth: Overview/);
+  const answers = env.answers.length;
+  assert.equal((await ask({ mode: 'auto', depth: 'shallow' })).status, 400);
+  assert.equal(env.answers.length, answers, 'no model call');
+});
