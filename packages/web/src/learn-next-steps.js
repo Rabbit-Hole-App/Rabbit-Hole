@@ -134,7 +134,7 @@ export function stoppingPoint({ busy = false, blocks = [], objects = 0, goal = '
 // beside it, never inside it; { problem } is failed and posts nothing. Hooks are kept as opaque strings for previous, never
 // read. Callbacks get copies of the stored set. A throwing onSet, onShown or subscriber is swallowed and counted like a trace
 // sink error.
-// cap here is the tab ceiling: it shadows the capText import (also cap), which this function must not call.
+// cap here is the tab ceiling: it shadows the imported capText (also cap), which this function must not call.
 export function nextStepsController({ post, onSet = () => {}, onShown = () => {}, setTimer = setTimeout, clearTimer = clearTimeout, now = Date.now, debounce = L.debounce_ms, cap = L.tab_cap }) {
   let basis = null, stop = 'off', build = null, shown = null, timer = null, flying = null, requests = 0, changedAt = 0, disposed = false;
   // Owner task 2: the canvas's words are changing and not yet read (settling): the set on screen is stale at once, and
