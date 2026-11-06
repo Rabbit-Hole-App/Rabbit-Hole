@@ -1194,7 +1194,6 @@ CREATE TABLE IF NOT EXISTS learn_explain_drafts (
   updated_at TEXT NOT NULL,
   PRIMARY KEY (org, owner_user_id, app, board, card_id)
 );
-
 -- Creator analytics storage (docs/features/creator-analytics-contract.md "Storage"): what consenting visitors do on public /e
 -- publications, keyed by the publication's canvas (org, canvas), never by its replaceable token. Written only by the ingest route and the
 -- Rabbit Hole start and fork success paths (publication-analytics.js), and only with the visitor's analytics consent. Learner keys are
@@ -1392,3 +1391,315 @@ CREATE TABLE IF NOT EXISTS learn_source_ref_cards (
 );
 CREATE INDEX IF NOT EXISTS learn_source_ref_cards_source ON learn_source_ref_cards (source_key, source_rev);
 CREATE INDEX IF NOT EXISTS learn_source_ref_cards_ref ON learn_source_ref_cards (ref_id);
+-- learn-migrations/0039-roadmap-core.sql
+-- Roadmap core (Tutor ladder R4, docs/features/explain-on-canvas/contracts/records.md): roadmaps, versioned instructions and plans, invitations,
+-- steps, proposals, results (the card slot and its minted id exist before generation writes), action replay records, provider-call identity,
+-- platform quotas and the durable event outbox, then the whole-step learner authorization with its per-card allocations and per-call transfers.
+-- Scope on every row: org, owner_user_id, board_id (learn_boards.id). Times are INTEGER unix seconds, amounts integer micro-USD.
+-- The step hold is one usage_attempts row (kind tool) so the existing balance counts it. A transfer moves an equal part of it into the call's own reservation.
+-- Additive and re-runnable, LEARN_DB only. Production and dev application: an owner command, never applied by a lane.
+
+CREATE TABLE IF NOT EXISTS learn_roadmaps (
+  id TEXT PRIMARY KEY,
+  org TEXT NOT NULL,
+  owner_user_id TEXT NOT NULL,
+  owner_email TEXT NOT NULL,
+  board_id TEXT NOT NULL,
+  app TEXT NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('draft', 'questioning', 'proposed', 'active', 'paused', 'completed', 'ended', 'failed')),
+  revision INTEGER NOT NULL DEFAULT 1,
+  plan_version INTEGER NOT NULL DEFAULT 0,
+  accepted_plan_version INTEGER,
+  depth TEXT NOT NULL CHECK (depth IN ('overview', 'standard', 'deep')),
+  practice_mode TEXT NOT NULL DEFAULT 'explanations' CHECK (practice_mode IN ('explanations')),
+  source_key TEXT NOT NULL,
+  source_rev TEXT NOT NULL,
+  scope_json TEXT NOT NULL,
+  scope_fingerprint TEXT NOT NULL,
+  scope_snapshot_key TEXT,
+  language TEXT,
+  ceiling INTEGER NOT NULL,
+  delivered_count INTEGER NOT NULL DEFAULT 0,
+  mode TEXT NOT NULL DEFAULT 'tutor' CHECK (mode IN ('auto', 'ask', 'tutor')),
+  mode_revision INTEGER NOT NULL DEFAULT 0,
+  paused_reason TEXT,
+  policy_version TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  ended_at INTEGER
+);
+CREATE UNIQUE INDEX IF NOT EXISTS learn_roadmaps_one_unfinished ON learn_roadmaps (org, owner_user_id, board_id) WHERE state IN ('draft', 'questioning', 'proposed', 'active', 'paused');
+CREATE INDEX IF NOT EXISTS learn_roadmaps_board ON learn_roadmaps (org, owner_user_id, board_id, updated_at);
+
+-- The learner instruction, versioned. Version 1 is the original words and is never rewritten.
+CREATE TABLE IF NOT EXISTS learn_roadmap_instructions (
+  roadmap_id TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  org TEXT NOT NULL,
+  owner_user_id TEXT NOT NULL,
+  board_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  origin TEXT NOT NULL CHECK (origin IN ('create', 'revise', 'answer')),
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (roadmap_id, version)
+);
+
+-- Plan drafts and revisions. A revision is a plan version with its own acceptance, not a roadmap state.
+CREATE TABLE IF NOT EXISTS learn_roadmap_plan_versions (
+  roadmap_id TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  org TEXT NOT NULL,
+  owner_user_id TEXT NOT NULL,
+  board_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('draft', 'revision')),
+  instruction_version INTEGER NOT NULL,
+  plan_json TEXT NOT NULL,
+  plan_hash TEXT NOT NULL,
+  prompt_version TEXT NOT NULL,
+  model TEXT,
+  accepted_at INTEGER,
+  superseded_at INTEGER,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (roadmap_id, version)
+);
+
+-- Invitations. Dismissal affects that row only.
+CREATE TABLE IF NOT EXISTS learn_roadmap_invitations (
+  id TEXT PRIMARY KEY,
+  org TEXT NOT NULL,
+  owner_user_id TEXT NOT NULL,
+  board_id TEXT NOT NULL,
+  app TEXT NOT NULL,
+  source_set_key TEXT NOT NULL,
+  source_keys_json TEXT NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('offered', 'accepted', 'dismissed', 'suppressed', 'expired')),
+  suppress_reason TEXT,
+  roadmap_id TEXT,
+  offered_at INTEGER NOT NULL,
+  resolved_at INTEGER
+);
+CREATE UNIQUE INDEX IF NOT EXISTS learn_roadmap_invitations_sources ON learn_roadmap_invitations (org, owner_user_id, board_id, source_set_key);
+
+-- Steps. position is the private roadmap index (D37). passage_* are character offsets into the scope snapshot (server-only, bound to
+-- scope_fingerprint). source_ref_id is R3's sref_ id, minted at plan acceptance while a signed-in request exists.
+CREATE TABLE IF NOT EXISTS learn_roadmap_steps (
+  id TEXT PRIMARY KEY,
+  roadmap_id TEXT NOT NULL,
+  org TEXT NOT NULL,
+  owner_user_id TEXT NOT NULL,
+  board_id TEXT NOT NULL,
+  position INTEGER NOT NULL,
+  plan_version INTEGER NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('planned', 'proposed', 'generating', 'delivered', 'incomplete', 'cancelled', 'skipped', 'already_understood')),
+  title TEXT NOT NULL,
+  goal TEXT NOT NULL,
+  format TEXT NOT NULL CHECK (format IN ('explanation', 'table')),
+  passage_start INTEGER NOT NULL,
+  passage_end INTEGER NOT NULL,
+  source_ref_id TEXT,
+  answered INTEGER NOT NULL DEFAULT 0,
+  card_removed INTEGER NOT NULL DEFAULT 0,
+  omitted_at INTEGER,
+  removed_at INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE (roadmap_id, plan_version, position)
+);
+CREATE INDEX IF NOT EXISTS learn_roadmap_steps_roadmap ON learn_roadmap_steps (roadmap_id, position);
+
+-- Proposals: versioned offers. One offered step (checking, held or pending) per roadmap.
+CREATE TABLE IF NOT EXISTS learn_step_proposals (
+  id TEXT PRIMARY KEY,
+  roadmap_id TEXT NOT NULL,
+  step_id TEXT NOT NULL,
+  org TEXT NOT NULL,
+  owner_user_id TEXT NOT NULL,
+  board_id TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('checking', 'held', 'pending', 'accepted', 'cancelled', 'superseded', 'blocked')),
+  format TEXT NOT NULL CHECK (format IN ('explanation', 'table')),
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  source_ref_id TEXT,
+  content_hash TEXT NOT NULL,
+  stale INTEGER NOT NULL DEFAULT 0,
+  check_json TEXT,
+  accepted_at INTEGER,
+  decided_at INTEGER,
+  created_at INTEGER NOT NULL,
+  UNIQUE (step_id, version)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS learn_step_proposals_one_offered ON learn_step_proposals (roadmap_id) WHERE state IN ('checking', 'held', 'pending');
+
+-- Generated results. The row exists, with its minted card id, before generation first writes to it. body_json is NULL until generated
+-- and is never returned by a poll route (4.4). result_version increases for a retry or replacement of the same slot.
+CREATE TABLE IF NOT EXISTS learn_step_results (
+  id TEXT PRIMARY KEY,
+  roadmap_id TEXT NOT NULL,
+  step_id TEXT NOT NULL,
+  proposal_id TEXT NOT NULL,
+  proposal_version INTEGER NOT NULL,
+  org TEXT NOT NULL,
+  owner_user_id TEXT NOT NULL,
+  board_id TEXT NOT NULL,
+  slot_index INTEGER NOT NULL,
+  card_id TEXT NOT NULL,
+  result_version INTEGER NOT NULL DEFAULT 1,
+  generation TEXT NOT NULL DEFAULT 'pending' CHECK (generation IN ('pending', 'generating', 'generated', 'failed', 'expired')),
+  validation TEXT NOT NULL DEFAULT 'pending' CHECK (validation IN ('pending', 'checking', 'passed', 'held', 'blocked')),
+  stale INTEGER NOT NULL DEFAULT 0,
+  decision TEXT NOT NULL DEFAULT 'none' CHECK (decision IN ('none', 'accepted', 'cancelled', 'superseded')),
+  delivery TEXT NOT NULL DEFAULT 'not_delivered' CHECK (delivery IN ('not_delivered', 'delivered', 'removed')),
+  billing TEXT NOT NULL DEFAULT 'pending' CHECK (billing IN ('pending', 'settled', 'refunded', 'failed', 'zero_priced')),
+  reconciliation TEXT NOT NULL DEFAULT 'none' CHECK (reconciliation IN ('none', 'required', 'complete')),
+  failure_class TEXT CHECK (failure_class IN ('clarification', 'unsupported_capability', 'denied_access', 'policy_block', 'unknown_provider_outcome', 'transient_provider_failure', 'checking_unavailable', 'terminal_validation_failure')),
+  primitive TEXT CHECK (primitive IN ('explanation', 'table')),
+  body_json TEXT,
+  body_hash TEXT,
+  check_json TEXT,
+  ack_board_revision INTEGER,
+  delivered_at INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE (proposal_id, proposal_version, slot_index, result_version),
+  UNIQUE (org, owner_user_id, board_id, card_id, result_version)
+);
+CREATE INDEX IF NOT EXISTS learn_step_results_step ON learn_step_results (roadmap_id, step_id);
+CREATE INDEX IF NOT EXISTS learn_step_results_work ON learn_step_results (generation, validation, updated_at);
+
+-- Action replay records (applyRoadmapAction). The winning action's receipt binds actor, operation, expected versions and payload
+-- fingerprint, subordinate writes are guarded by it. An identical replay returns outcome_json.
+CREATE TABLE IF NOT EXISTS learn_roadmap_actions (
+  org TEXT NOT NULL,
+  owner_user_id TEXT NOT NULL,
+  action_key TEXT NOT NULL,
+  roadmap_id TEXT,
+  operation TEXT NOT NULL,
+  fingerprint TEXT NOT NULL,
+  token TEXT NOT NULL,
+  expected_versions_json TEXT NOT NULL,
+  outcome_status INTEGER NOT NULL,
+  outcome_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (org, owner_user_id, action_key)
+);
+CREATE INDEX IF NOT EXISTS learn_roadmap_actions_roadmap ON learn_roadmap_actions (roadmap_id, created_at);
+
+-- Provider-call checkpoints and platform reservations. op_id is the ledger operation id (usage_operations.op_id = usage_attempts.attempt_id),
+-- operation_key is the canonical withRoadmapProviderCall identity before hashing.
+CREATE TABLE IF NOT EXISTS learn_roadmap_calls (
+  op_id TEXT PRIMARY KEY,
+  operation_key TEXT NOT NULL,
+  roadmap_id TEXT NOT NULL,
+  result_id TEXT,
+  authorization_id TEXT,
+  org TEXT NOT NULL,
+  owner_user_id TEXT NOT NULL,
+  board_id TEXT NOT NULL,
+  stage TEXT NOT NULL CHECK (stage IN ('subject', 'draft', 'revise', 'proposal', 'generate', 'repair', 'grounding_check', 'grounding_escalation', 'safety', 'safety_adjudicate')),
+  call_no INTEGER NOT NULL,
+  retry_no INTEGER NOT NULL DEFAULT 0,
+  payer TEXT NOT NULL CHECK (payer IN ('platform', 'learner')),
+  task TEXT NOT NULL,
+  provider TEXT,
+  model TEXT,
+  request_fingerprint TEXT,
+  checkpoint TEXT NOT NULL CHECK (checkpoint IN ('planned', 'admitted', 'dispatched', 'response_recorded', 'settled', 'unknown', 'reconciling', 'failed', 'released')),
+  reserved_micros INTEGER,
+  cost_micros INTEGER,
+  quota_scope TEXT,
+  quota_window INTEGER,
+  output_ref TEXT,
+  created_at INTEGER NOT NULL,
+  settled_at INTEGER,
+  UNIQUE (operation_key)
+);
+CREATE INDEX IF NOT EXISTS learn_roadmap_calls_open ON learn_roadmap_calls (checkpoint, created_at);
+CREATE INDEX IF NOT EXISTS learn_roadmap_calls_result ON learn_roadmap_calls (result_id);
+
+-- Per-learner platform-work quota counters (D14), by stage scope and time window.
+CREATE TABLE IF NOT EXISTS learn_roadmap_quota (
+  org TEXT NOT NULL,
+  owner_user_id TEXT NOT NULL,
+  scope TEXT NOT NULL,
+  window_start INTEGER NOT NULL,
+  calls INTEGER NOT NULL DEFAULT 0,
+  micros INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (org, owner_user_id, scope, window_start)
+);
+
+-- Durable event outbox (R4.05). An event commits with the fact it reports. scope 'learner' events (R6 settings fan-out) carry empty
+-- board_id and roadmap_id, kept as '' rather than NULL so the unique key still dedupes. Payload: ids and enums only. A claim is a lease
+-- (lease_token, lease_until), replayable after expiry, processed_at is set with or after the durable effect.
+CREATE TABLE IF NOT EXISTS learn_roadmap_outbox (
+  event_id TEXT PRIMARY KEY,
+  org TEXT NOT NULL,
+  owner_user_id TEXT NOT NULL,
+  scope TEXT NOT NULL CHECK (scope IN ('learner', 'board', 'roadmap')),
+  board_id TEXT NOT NULL DEFAULT '',
+  roadmap_id TEXT NOT NULL DEFAULT '',
+  kind TEXT NOT NULL,
+  fact_id TEXT NOT NULL,
+  fact_revision INTEGER NOT NULL,
+  payload_json TEXT NOT NULL,
+  next_at INTEGER NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  deadline_at INTEGER NOT NULL,
+  lease_token TEXT,
+  lease_until INTEGER,
+  processed_at INTEGER,
+  created_at INTEGER NOT NULL,
+  UNIQUE (org, owner_user_id, scope, board_id, roadmap_id, kind, fact_id, fact_revision)
+);
+CREATE INDEX IF NOT EXISTS learn_roadmap_outbox_due ON learn_roadmap_outbox (processed_at, next_at);
+
+CREATE TABLE IF NOT EXISTS learn_step_authorizations (
+  id TEXT PRIMARY KEY,
+  org TEXT NOT NULL,
+  owner_user_id TEXT NOT NULL,
+  board_id TEXT NOT NULL,
+  roadmap_id TEXT NOT NULL,
+  proposal_id TEXT NOT NULL,
+  proposal_version INTEGER NOT NULL,
+  payer_user_id TEXT NOT NULL,
+  period TEXT NOT NULL,
+  usage_client_key TEXT NOT NULL,
+  action_id TEXT NOT NULL,
+  hold_attempt_id TEXT NOT NULL,
+  aggregate_micros INTEGER NOT NULL,
+  per_card_bound_micros INTEGER NOT NULL,
+  remaining_micros INTEGER NOT NULL,
+  content_fingerprint TEXT NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('admitted', 'released')),
+  deadline_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  released_at INTEGER,
+  UNIQUE (proposal_id, proposal_version)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS learn_step_authorizations_client_key ON learn_step_authorizations (payer_user_id, usage_client_key);
+
+CREATE TABLE IF NOT EXISTS learn_step_allocations (
+  id TEXT PRIMARY KEY,
+  authorization_id TEXT NOT NULL,
+  result_id TEXT NOT NULL,
+  card_id TEXT NOT NULL,
+  bound_micros INTEGER NOT NULL,
+  remaining_micros INTEGER NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  state TEXT NOT NULL CHECK (state IN ('held', 'in_use', 'released')),
+  created_at INTEGER NOT NULL,
+  released_at INTEGER,
+  UNIQUE (authorization_id, result_id)
+);
+
+-- One row per per-call transfer. op_id is unique: a replayed call can never transfer twice.
+CREATE TABLE IF NOT EXISTS learn_step_allocation_transfers (
+  transfer_id TEXT PRIMARY KEY,
+  allocation_id TEXT NOT NULL,
+  op_id TEXT NOT NULL,
+  micros INTEGER NOT NULL,
+  token TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  UNIQUE (op_id)
+);
+CREATE INDEX IF NOT EXISTS learn_step_allocation_transfers_allocation ON learn_step_allocation_transfers (allocation_id);

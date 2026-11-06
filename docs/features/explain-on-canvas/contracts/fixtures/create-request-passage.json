@@ -1,0 +1,17 @@
+{
+  "description": "Create from a selected passage: R3 minted the sref_ id when the learner selected it. The server re-reads it under the session and finds the quote in the source once.",
+  "request": {
+    "boardId": "lb_7c1e5a90d2b84f63a1c07e92",
+    "source": {
+      "key": "file:fs_41c9e0a7d2b84f63a1c07e92",
+      "rev": "3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+      "scope": {
+        "kind": "passage",
+        "sourceRefId": "sref_000000000000000000000002"
+      }
+    },
+    "instruction": "Explain just this part, with a worked number.",
+    "depth": "overview",
+    "actionKey": "ak_create_0002"
+  }
+}

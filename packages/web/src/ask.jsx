@@ -264,7 +264,7 @@ export function NextStepsCard({ steps, onPick }) {
   );
 }
 
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, nextStepRef = null, codebase = null, hideConversation = false }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, nextStepRef = null, codebase = null, hideConversation = false, divert = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -550,6 +550,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // prompted: raw is a command's prompt coming back from LearnSlash (onPrompt), the chat turn itself. Answers false when it
   // refuses that turn, so LearnSlash gives the line back with an error instead of losing it.
   const send = async (raw, scopeOverride, { command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false, routeAs = null } = {}) => {
+    // The Table of contents' Edit plan: the next message there is the roadmap's plan revision, not an outline turn (use-roadmap.js divert).
+    if (divert && tocView && !regenerate && !commandName && divert(raw)) { setInput(''); return; }
     // R2: the Depth selected at the moment of Send; a later change in the menu never alters this turn.
     const depthSnapshot = depthField(chat?.settings);
     // A chosen command pill sends exactly "/command text" and a typed /command replaces the pill (learn-slash.js commandLine);

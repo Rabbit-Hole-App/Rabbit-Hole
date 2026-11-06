@@ -1,0 +1,30 @@
+diff --git a/packages/web/src/roadmap-analytics.test.mjs b/packages/web/src/roadmap-analytics.test.mjs
+new file mode 100644
+index 000000000..875524112
+--- /dev/null
++++ b/packages/web/src/roadmap-analytics.test.mjs
+@@ -0,0 +1,11 @@
++// D21: the roadmap analytics event carries an action and a step state as tokens and nothing else. Part of the Lead patch usage-analytics.js (EVENTS entry rh_roadmap_step).
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { sanitize } from './usage-analytics.js';
++
++test('rh_roadmap_step keeps an action and a step state as tokens and drops source text, titles, ids and anything free', () => {
++  assert.deepEqual(sanitize('rh_roadmap_step', { action: 'proposal_accepted', step_state: 'generating' }), { action: 'proposal_accepted', step_state: 'generating' });
++  assert.deepEqual(sanitize('rh_roadmap_step', { action: 'card_delivered', step_state: 'delivered', title: 'Gradient descent notes', source: 'file:fs_abc', instruction: 'I already know X', roadmap_id: 'rm_1' }),
++    { action: 'card_delivered', step_state: 'delivered' });
++  assert.deepEqual(sanitize('rh_roadmap_step', { action: 'Plan accepted by me', step_state: 'x'.repeat(41) }), {}, 'a value that is not a token is dropped');
++});
+diff --git a/packages/web/src/usage-analytics.js b/packages/web/src/usage-analytics.js
+index bc5034602..e26a98df8 100644
+--- a/packages/web/src/usage-analytics.js
++++ b/packages/web/src/usage-analytics.js
+@@ -43,6 +43,8 @@ export const EVENTS = {
+   rh_generation_failed: ['feature', 'action_id', 'reason'],
+   rh_share_changed: ['access'],
+   rh_canvas_forked: [],
++  // Tutor R4 roadmap (D21): the action and the step state as tokens, never a title, a source or a learner's words. ui.md section 7 lists the actions.
++  rh_roadmap_step: ['action', 'step_state'],
+ };
+ // Static pages kept as they are; every other path goes through routeTemplate (ids, tokens and handles become placeholders).
+ const PAGES = new Set(['/', '/blog', '/features', '/pricing', '/manifesto', '/sign-in', '/sign-up', '/check-email', '/privacy', '/terms', '/404', '/home']);

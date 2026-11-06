@@ -1,0 +1,12 @@
+{
+  "description": "Auto-suggest is off: nothing is offered; an explicit request still creates a roadmap.",
+  "response": {
+    "status": 200,
+    "body": {
+      "invitation": null,
+      "suppressed": {
+        "reason": "auto_suggest_off"
+      }
+    }
+  }
+}

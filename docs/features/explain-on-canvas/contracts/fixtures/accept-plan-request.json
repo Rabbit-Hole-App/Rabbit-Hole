@@ -1,0 +1,9 @@
+{
+  "description": "Accept plan v2. Authorizes nothing to be generated and charges nothing.",
+  "request": {
+    "boardId": "lb_7c1e5a90d2b84f63a1c07e92",
+    "revision": 5,
+    "planVersion": 2,
+    "actionKey": "ak_acceptplan_0001"
+  }
+}

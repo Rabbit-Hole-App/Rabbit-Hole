@@ -1,0 +1,54 @@
+-- DRAFT, NOT A MIGRATION. No number (Lead allocates; the checklist's R4.07 file is <NNNN>-roadmap-authorizations.sql and follows the core one).
+-- Stored as .sql.txt so it is not "broad" in scripts/ci/check-map.json. LEARN_DB only. Additive and re-runnable: CREATE-only.
+-- The whole accepted step's learner hold and its per-card allocations (checklist R4.07; v1.3 5.2, D6). Available balance =
+-- allowance - settled net charges - outstanding ordinary call holds - the remaining untransferred step holds, in ONE shared SQL
+-- definition (learn-usage.js BALANCE_SCOPE / USED_SUM / heldSum, Lead-owned). A transfer replaces an equal part of the hold with the call's
+-- own usage_attempts reservation, in admitSpend's batch; it never adds the same amount twice. Integer micro-USD throughout.
+
+CREATE TABLE IF NOT EXISTS learn_step_authorizations (
+  id TEXT PRIMARY KEY,
+  org TEXT NOT NULL,
+  owner_user_id TEXT NOT NULL,
+  board_id TEXT NOT NULL,
+  roadmap_id TEXT NOT NULL,
+  proposal_id TEXT NOT NULL,
+  proposal_version INTEGER NOT NULL,
+  payer_user_id TEXT NOT NULL,
+  period TEXT NOT NULL,
+  usage_client_key TEXT NOT NULL,
+  aggregate_micros INTEGER NOT NULL,
+  per_card_bound_micros INTEGER NOT NULL,
+  remaining_micros INTEGER NOT NULL,
+  content_fingerprint TEXT NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('admitted', 'released')),
+  deadline_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  released_at INTEGER,
+  UNIQUE (proposal_id, proposal_version)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS learn_step_authorizations_client_key ON learn_step_authorizations (payer_user_id, usage_client_key);
+
+CREATE TABLE IF NOT EXISTS learn_step_allocations (
+  id TEXT PRIMARY KEY,
+  authorization_id TEXT NOT NULL,
+  result_id TEXT NOT NULL,
+  card_id TEXT NOT NULL,
+  bound_micros INTEGER NOT NULL,
+  remaining_micros INTEGER NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  state TEXT NOT NULL CHECK (state IN ('held', 'in_use', 'released')),
+  created_at INTEGER NOT NULL,
+  released_at INTEGER,
+  UNIQUE (authorization_id, result_id)
+);
+
+-- One row per per-call transfer. op_id is unique: a replayed call can never transfer twice.
+CREATE TABLE IF NOT EXISTS learn_step_allocation_transfers (
+  transfer_id TEXT PRIMARY KEY,
+  allocation_id TEXT NOT NULL,
+  op_id TEXT NOT NULL,
+  micros INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  UNIQUE (op_id)
+);
+CREATE INDEX IF NOT EXISTS learn_step_allocation_transfers_allocation ON learn_step_allocation_transfers (allocation_id);
