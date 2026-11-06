@@ -25,8 +25,9 @@ async function toProposal(h, { revise = false } = {}) {
   }
   const accepted = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('plan'), planVersion: view.roadmap.planVersion });
   assert.equal(accepted.status, 200);
-  assert.equal(accepted.body.proposal.state, 'pending', 'accepting the plan offers the first proposal');
-  return { id, view: accepted.body };
+  const proposed = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: accepted.body.roadmap.revision, actionKey: KEY('propose') });
+  assert.equal(proposed.status, 200);
+  return { id, view: proposed.body };
 }
 const acceptBody = (view, key) => ({ boardId: BOARD, revision: view.roadmap.revision, actionKey: key, proposalVersion: view.proposal.version });
 
@@ -67,21 +68,8 @@ test('the complete loop: invitation, dismiss, accept, plan, revise, accept plan,
   assert.equal(plan.body.roadmap.state, 'active');
   assert.equal((await h.totals()).used, 0);
   assert.equal(h.p.used.length, 0, 'plan acceptance buys nothing');
-  // 5 Accepting the plan offered the FIRST proposal itself (once, no card, no charge); then Tab: one purchase, the card is made from the accepted records (one schema repair on the way).
-  assert.equal(plan.body.proposal.state, 'pending', 'accept-plan offers the first proposal');
-  const count = sql => rows(h.w.sqlite, sql)[0].n;
-  assert.equal(count('SELECT COUNT(*) AS n FROM learn_step_proposals'), 1);
-  for (const table of ['learn_step_authorizations', 'learn_step_results', 'learn_roadmap_calls', 'learn_step_allocations']) assert.equal(count(`SELECT COUNT(*) AS n FROM ${table}`), 0, `offering the first proposal writes no ${table}`);
-  assert.equal(count("SELECT COUNT(*) AS n FROM usage_attempts WHERE kind <> 'tool'"), 0, 'no model usage row');
-  const replayedPlan = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('plan'), planVersion: 2 });
-  assert.equal(replayedPlan.status, 200);
-  assert.equal(count('SELECT COUNT(*) AS n FROM learn_step_proposals'), 1, 'a replayed accept offers nothing more');
-  const otherDevice = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('plan-device2'), planVersion: 2 });
-  assert.equal(otherDevice.status, 409, 'a second device accepting with another key loses');
-  assert.equal(count('SELECT COUNT(*) AS n FROM learn_step_proposals'), 1, 'still one proposal');
-  const manual = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: plan.body.roadmap.revision, actionKey: KEY('propose') });
-  assert.equal(manual.status, 409, 'a manual Propose next step while one is offered is refused');
-  const proposed = plan;
+  // 5 One proposal, then Tab: one purchase, the card is made from the accepted records (one schema repair on the way).
+  const proposed = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: plan.body.roadmap.revision, actionKey: KEY('propose') });
   view = proposed.body;
   assert.equal(view.proposal.state, 'pending');
   assert.equal(view.proposal.acceptable, true);
@@ -112,7 +100,6 @@ test('the complete loop: invitation, dismiss, accept, plan, revise, accept plan,
   assert.equal(deliver.body.ackRequired, true);
   const again = await h.json('POST', `/api/learn/roadmap/${id}/results/${result.id}/deliver`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('deliver2') });
   assert.deepEqual(again.body.cards, deliver.body.cards, 'idempotent: reload and a second device get the same block');
-  h.w.sqlite.prepare('UPDATE learn_boards SET state_json = ?, version = 7 WHERE id = ?').run(JSON.stringify({ blocks: [card] }), BOARD);
   const ack = await h.json('POST', `/api/learn/roadmap/${id}/results/${result.id}/ack`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('ack'), resultVersion: 1, cardId: card.id, boardRevision: 7 });
   assert.equal(ack.status, 200);
   assert.equal(ack.body.roadmap.deliveredCount, 1);

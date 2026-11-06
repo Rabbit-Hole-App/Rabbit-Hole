@@ -5,15 +5,12 @@
 import { STRINGS } from './roadmap-strings.js';
 import { actionKeys, canProposeNext, deliverable, idleGrouper, initialState, pillOf, planDelivery, reduce, routes } from './roadmap-client.js';
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
-import { FOLLOW_UP_MS, createAutoMeter } from './roadmap-auto.js';
 
 // host: the canvas as the page sees it.
-//   hasBlock(id) -> bool, insertCard(block) -> id, persist() -> Promise<{ ok }> (ok:false when the save failed), boardRevision() -> the saved
-//   board's revision|null, savedHas(id) -> bool (the saved board holds that card),
+//   hasBlock(id) -> bool, insertCard(block) -> id, persist() -> Promise (rejects when the save failed), boardRevision() -> number|null,
 //   readOnly() -> bool (shared view: the controller stays silent), sourceRev(key) -> sha, instruction() -> the learner's own words.
-export function createRoadmapController({ api, boardId, host, schedule = setTimeout, cancel = clearTimeout, random, now }) {
+export function createRoadmapController({ api, boardId, host, schedule = setTimeout, cancel = clearTimeout, random }) {
   let state = initialState(), timer = null, stopped = true;
-  const meter = createAutoMeter({ now }), followUps = new Set();
   const listeners = new Set(), keys = actionKeys(random), delivering = new Set(), seen = new Set(), flight = new Map();
   const dispatch = event => { const next = reduce(state, event); if (next !== state) { state = next; listeners.forEach(fn => fn()); } };
   const call = ({ method, path, body }) => api(path, method === 'GET' ? {} : { method, body: JSON.stringify(body) });
@@ -42,7 +39,7 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     flight.set(gesture, run);
     return run;
   }
-  const applyView = body => { if (body?.roadmap !== undefined) { dispatch({ type: 'view', view: body }); meter.observe(state.view); reconcile(); } return body; };
+  const applyView = body => { if (body?.roadmap !== undefined) { dispatch({ type: 'view', view: body }); reconcile(); } return body; };
   const mutateView = (gesture, route) => (state.view ? act(gesture, route).then(applyView) : Promise.resolve(null)); // every roadmap action needs a view to take its revision from
 
   async function refresh() {
@@ -68,30 +65,16 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     for (const block of plan.insert) host.insertCard(block);
     plan.cardIds.forEach(id => seen.add(id));
     if (!plan.ackRequired) return;
-    // The board save comes first. persist() resolves { ok:false } (it does not reject) when the save failed, and the revision is only
-    // real once the saved board holds the card: otherwise nothing is acknowledged, the result stays undelivered, and the next poll
-    // runs this again (the card is already on the canvas and the server hands back the same result: one card, one charge).
-    const saved = await host.persist();
-    if (saved?.ok !== true) throw Object.assign(Error('board_not_saved'), { retry: true });
+    await host.persist(); // the board save comes first; a rejected save means no acknowledgement
     for (const cardId of plan.cardIds) {
-      if (host.savedHas && !host.savedHas(cardId)) throw Object.assign(Error('board_not_saved'), { retry: true });
-      const revision = host.boardRevision?.();
-      if (!Number.isInteger(revision) || revision < 1) throw Object.assign(Error('board_not_saved'), { retry: true });
-      const send = () => call(routes.ack(state.view, result, cardId, revision, keys.for(`ack:${result.id}:${cardId}`)));
+      const send = () => call(routes.ack(state.view, result, cardId, host.boardRevision?.() ?? null, keys.for(`ack:${result.id}:${cardId}`)));
       try { applyView(await send()); } catch (error) {
         if (error?.status !== 409 || !error.data?.current) throw error;
         dispatch({ type: 'conflict', current: error.data.current }); // fresh revision, same card id, same key: one retry
         applyView(await send());
       }
       keys.done(`ack:${result.id}:${cardId}`);
-      afterDelivery();
     }
-  }
-  // R6: the server may offer the next step by itself right after a delivery. Read twice more soon (the poll cadence is slower) and time it; the
-  // proposal, if any, simply appears in the view: this never moves the camera, focuses anything or adds a Chat line.
-  function afterDelivery() {
-    meter.ack();
-    for (const ms of FOLLOW_UP_MS) { const id = schedule(() => { followUps.delete(id); refresh(); }, ms); followUps.add(id); }
   }
   async function reconcile() {
     if (stopped || host.readOnly?.() || !state.view) return;
@@ -124,9 +107,7 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     getState: () => state,
     subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn); },
     start() { if (!stopped) return; stopped = false; refresh().then(() => (state.view ? null : refreshInvitation())).then(loop); },
-    stop() { stopped = true; if (timer) cancel(timer); timer = null; for (const id of followUps) cancel(id); followUps.clear(); },
-    // Delivery-to-visible samples of automatic proposals (roadmap-auto.js): { n, p50, p95 } in milliseconds.
-    timings: () => meter.summary(), timingSamples: () => meter.samples(),
+    stop() { stopped = true; if (timer) cancel(timer); timer = null; },
     refresh,
     // A supported source finished importing: reported, grouped, once the learner is idle.
     sourceReady: key => grouper.ready(key), idleTick: () => grouper.tick(),
@@ -164,7 +145,6 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     },
     proposeNext() {
       if (!canProposeNext(state)) return Promise.resolve(null);
-      meter.manual();
       return mutateView(`propose:${state.view.roadmap.id}:${state.view.roadmap.revision}`, key => routes.proposeNext(state.view, key));
     },
     end: () => mutateView(`end:${state.view?.roadmap.id}`, key => routes.end(state.view, key)),

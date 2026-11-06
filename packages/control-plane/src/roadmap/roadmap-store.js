@@ -2,7 +2,7 @@
 // Every mutation is one guarded D1 batch: the winning action writes a receipt row (learn_roadmap_actions) and every other statement in the batch
 // is guarded by that receipt, so a stale or losing action writes nothing. A repeat of a recorded action returns its recorded outcome; the same
 // key with a different payload, or a stale revision, is a 409 carrying the current state. Server ids only: a client id is never proof of access.
-import { DEPTHS, StateError, canAcceptProposal, canDeliver, canTransition, conflictReply, entitledRoadmapResult, resolveAction, validateAccess, isUnfinishedRoadmap } from './roadmap-contract.js';
+import { StateError, canAcceptProposal, canDeliver, canTransition, conflictReply, entitledRoadmapResult, resolveAction, validateAccess, isUnfinishedRoadmap } from './roadmap-contract.js';
 import { ROADMAP_LIMITS, ROADMAP_POLICY_VERSION, ceilingFor } from './roadmap-policy.js';
 import { admitStepAuthorization, newId, refundCardStatements, releaseStepAllocation, sha256, failureWillRetry } from './roadmap-money.js';
 
@@ -92,11 +92,10 @@ export async function applyRoadmapAction(db, access, { operation, actionKey, roa
 // --- create ---------------------------------------------------------------------------------------------------------------------------
 // instruction is the learner's original words, stored verbatim as version 1 and never replaced by an inferred topic (v1.4 3.5).
 // allowEmpty: the Explain-on-canvas choice of an invitation carries no typed words; the planner then asks one focused question when the source covers several topics (v1.4 3.5).
-export async function createRoadmap(db, access, { actionKey, app, instruction, source, scope, scopeFingerprint, depth = 'standard', language = null, mode = 'tutor', allowEmpty = false, now = nowSeconds(), roadmapId = newId('rm_') }) {
+export async function createRoadmap(db, access, { actionKey, app, instruction, source, scope, scopeFingerprint, depth, language = null, mode = 'tutor', allowEmpty = false, now = nowSeconds(), roadmapId = newId('rm_') }) {
   requireAccess(access);
   if (typeof instruction !== 'string' || (!instruction.trim() && !allowEmpty) || instruction.length > ROADMAP_LIMITS.source.instructionChars) throw new StateError('invalid_request', 'instruction is required', 400);
   if (!source?.key || !source?.rev || !scopeFingerprint) throw new StateError('invalid_request', 'source is required', 400);
-  if (!DEPTHS.includes(depth)) throw new StateError('invalid_request', 'depth', 400); // the learner's R2 Depth; the column CHECK would otherwise 500
   const ceiling = ceilingFor(depth);
   const view = { roadmapId };
   return applyRoadmapAction(db, access, {
@@ -274,16 +273,6 @@ export async function acknowledgeDelivery(db, access, { roadmapId, resultId, exp
   const ok = canDeliver({ generation: row.generation, validation: row.validation, stale: !!row.stale, decision: row.decision, billing: row.billing, delivery: 'not_delivered', access: true, reconciliation: row.reconciliation });
   if (!ok.ok && row.delivery === 'not_delivered') throw Object.assign(new StateError(ok.code === 'not_checked' ? 'held_for_checking' : ok.code, 'Not available yet', 409), { reply: conflictReply({ code: ok.code, currentRevision: roadmap.revision }) });
   if (!Array.isArray(cardIds) || cardIds.length !== 1 || cardIds[0] !== row.card_id) throw new StateError('invalid_request', 'cardIds must equal the minted slots', 400);
-  // Delivered means the card is in a SAVED board: the client names the saved revision, the server reads the board itself. An already
-  // delivered result skips this so a replayed acknowledgement still answers the recorded outcome.
-  if (row.delivery === 'not_delivered') {
-    if (!Number.isInteger(boardVersion) || boardVersion < 1) throw new StateError('invalid_request', 'boardRevision', 400);
-    const board = await db.prepare('SELECT state_json, version FROM learn_boards WHERE id = ? AND org = ? AND owner_email = ?').bind(access.boardId, access.org, access.actorEmail).first();
-    let saved = false;
-    try { saved = (JSON.parse(board?.state_json || '{}').blocks || []).some(block => block?.id === row.card_id); } catch { /* an unreadable board is not proof */ }
-    // 422, not 409: the roadmap is not stale; the client keeps the card, saves again and retries the same acknowledgement.
-    if (!saved || board.version < boardVersion) throw new StateError('card_not_saved', 'The board with this card is not saved yet', 422);
-  }
   return applyRoadmapAction(db, access, {
     operation: 'ack_delivery', actionKey, roadmapId, expectedRevision, parts: [resultId, row.card_id], now,
     guard: { sql: "(SELECT delivery FROM learn_step_results WHERE id = ?) = 'not_delivered' AND (SELECT billing FROM learn_step_results WHERE id = ?) IN ('settled', 'zero_priced') AND (SELECT validation FROM learn_step_results WHERE id = ?) = 'passed'", binds: [resultId, resultId, resultId] },

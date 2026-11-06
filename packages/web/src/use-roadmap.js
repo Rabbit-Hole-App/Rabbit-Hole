@@ -1,6 +1,6 @@
 // The one React seam for the roadmap: owns a controller per board, mirrors its state, tracks the overlay anchor, and listens for
 // plain Tab. Everything it returns is derived from the server view (roadmap-client.js); the page passes a `host` describing the canvas:
-//   hasBlock(id), insertCard(block), persist(), boardRevision(), savedHas(id), readOnly(), presenting(), editorOpen(), focusBlock(id),
+//   hasBlock(id), insertCard(block), persist(), boardRevision(), readOnly(), presenting(), editorOpen(), focusBlock(id),
 //   sourceElement(sourceKey) -> the source card's DOM element or null, sourceRev(key), instruction(), depth().
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createRoadmapController } from './roadmap-controller.js';
@@ -9,7 +9,7 @@ import { chatOf, indicatorOf, invitationOf, keyboardOwned, pillOf, tabAccepts, t
 import { pageKeyAllowed } from './shortcut-owner.js';
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
 
-const METHODS = ['hasBlock', 'insertCard', 'persist', 'boardRevision', 'savedHas', 'readOnly', 'sourceRev', 'instruction', 'depth'];
+const METHODS = ['hasBlock', 'insertCard', 'persist', 'boardRevision', 'readOnly', 'sourceRev', 'instruction', 'depth'];
 const rectOf = element => { const r = element?.getBoundingClientRect?.(); return r ? { left: r.left, top: r.top, width: r.width, height: r.height } : null; };
 const same = (a, b) => (!a && !b) || (a && b && a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height);
 

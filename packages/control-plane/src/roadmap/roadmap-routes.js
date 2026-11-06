@@ -17,7 +17,7 @@ const NOT_AVAILABLE = { error: 'Not available', code: 'not_found' };
 
 // deps (all optional in tests): identity(req, env), readSource(access, {sourceId, revision, scope}) -> { key, rev, scopeFingerprint, scope, language? } (Tools,
 // request-bound: the session reads the Markdown once; roadmap-source-read.js), startPlanning(env, access, roadmapId) (kicks the planning event),
-// compose(roadmap, step) (roadmap-compose.js), onAccepted(env, access, body) (kicks the RoadmapJobs object), onFact(env, access, body) (the same kick after a delivery acknowledgment or a mode change: R6), mintStepRefs(env, access, roadmapId)
+// compose(roadmap, step) (roadmap-compose.js), onAccepted(env, access, body) (kicks the RoadmapJobs object), mintStepRefs(env, access, roadmapId)
 // (R3 references at Accept plan, roadmap-source-refs.js), settings(db, access) (R2's Auto-suggest and mode readers), now. roadmap-wire.js builds them.
 export async function roadmapRoute(path, req, env, deps = {}) {
   if (path !== PREFIX && !path.startsWith(`${PREFIX}/`)) return null;
@@ -86,26 +86,13 @@ export async function roadmapRoute(path, req, env, deps = {}) {
       // The session is present only here: mint each step's R3 reference now (api.md 12.2). A source that changed refuses the acceptance.
       const minted = await deps.mintStepRefs?.(env, access, roadmapId);
       if (minted && !minted.ok) return json({ error: minted.error, code: minted.code, current: await currentView(db, access, roadmapId) }, 409);
-      const planned = await acceptPlan(db, access, { roadmapId, planVersion: body.planVersion, ...arg });
-      // Accepting the plan offers the FIRST proposal, once: the same deterministic compose and offer as Propose next step, under a key derived from the accept's key
-      // (a replay of the accept, or a second device's accept, offers nothing more; a busy roadmap refuses and is left as is). It generates, authorizes and charges nothing.
-      // The proposal belongs to the learner's own Accept plan click, so Auto-suggest does not gate it (the client still hides it in Ask). A failure here leaves the
-      // accepted plan and the manual Propose next step working.
-      if (!planned.replayed && !planned.refusal && planned.status < 300 && deps.compose) {
-        try {
-          const fresh = await readRoadmap(db, access, roadmapId);
-          await proposeNextStep(db, access, { roadmapId, compose: deps.compose, expectedRevision: fresh.revision, actionKey: `${body.actionKey}_first`, ...(now ? { now } : {}) });
-        } catch (error) { if (!(error instanceof StateError)) throw error; }
-      }
-      return reply(planned);
+      return reply(await acceptPlan(db, access, { roadmapId, planVersion: body.planVersion, ...arg }));
     }
     if (kind === 'end' && rest.length === 2) return reply(await endRoadmap(db, access, { roadmapId, ...arg }));
     if (kind === 'mode' && rest.length === 2) {
       // api.md 17: the mode fact carries no client key; its identity is the roadmap and the next mode revision, so a repeat of the same change replays.
       const current = await readRoadmap(db, access, roadmapId);
-      const done = await setMode(db, access, { roadmapId, mode: body.mode, actionKey: body.actionKey ?? `rmmode_${roadmapId}_${body.mode}_${(current?.mode_revision ?? 0) + 1}`, ...(now ? { now } : {}) });
-      if (!done.replayed) await deps.onFact?.(env, access, done.body); // R6: wake the outbox for the mode_changed event just committed
-      return reply(done);
+      return reply(await setMode(db, access, { roadmapId, mode: body.mode, actionKey: body.actionKey ?? `rmmode_${roadmapId}_${body.mode}_${(current?.mode_revision ?? 0) + 1}`, ...(now ? { now } : {}) }));
     }
     if (kind === 'steps' && id === 'propose' && rest.length === 3) {
       if (!deps.compose) return json({ error: 'Not available', code: 'not_found' }, 503);
@@ -127,11 +114,7 @@ export async function roadmapRoute(path, req, env, deps = {}) {
       const row = await readResult(db, access, id);
       return json({ resultId: id, stepId: row.step_id, cards: [{ slot: { index: row.slot_index, cardId: got.cardId }, block: { ...got.block, id: got.cardId, stepId: row.step_id } }], ackRequired: got.delivery === 'not_delivered' });
     }
-    if (kind === 'results' && verb === 'ack' && rest.length === 4) {
-      const done = await acknowledgeDelivery(db, access, { roadmapId, resultId: id, cardIds: body.cardIds ?? (body.cardId ? [body.cardId] : undefined), boardVersion: body.boardVersion ?? body.boardRevision ?? null, ...arg }); // api.md 14 names cardId and boardRevision
-      if (!done.replayed) await deps.onFact?.(env, access, done.body); // R6: wake the outbox for the card_delivered event just committed
-      return reply(done);
-    }
+    if (kind === 'results' && verb === 'ack' && rest.length === 4) return reply(await acknowledgeDelivery(db, access, { roadmapId, resultId: id, cardIds: body.cardIds ?? (body.cardId ? [body.cardId] : undefined), boardVersion: body.boardVersion ?? body.boardRevision ?? null, ...arg })); // api.md 14 names cardId and boardRevision
     if (kind === 'results' && verb === 'removed' && rest.length === 4) return reply(await markResultRemoved(db, access, { roadmapId, resultId: id, ...arg }));
     return json({ error: 'Not found', code: 'not_found' }, 404);
   } catch (error) {
