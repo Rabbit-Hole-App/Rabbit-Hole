@@ -102,7 +102,16 @@ Releases fast-forward `main` one at a time, so queue them in the order below.
 - Needs: migration `learn-migrations/0036-card-feedback.sql` on the dev D1 (announced first) and on production; Lead-only edits (`dev-worker.js` mount, `LearnPage.jsx` provider) after rebase; check-map rows.
 - Focused smoke (no browser): control-plane `card-feedback.test.js`, web `card-feedback.test.mjs`, `scripts/schema-check.test.mjs`.
 
-### R3 source references: WAITING on the P2 merge and R1's AdaptiveCanvas
+### R3 source references: CANDIDATE READY (release third, after P2 then R1)
+- Release tip `4b754b6c2b36a41dc651ed4c2608ca239668d656`, branch `feat/tutor-r3-release` (pushed), stacked on the R1 release tip `15141c05` (on P2 `409f4e8f3`). Receipt `docs/features/explain-on-canvas/receipts/r3-prerequisites.md`. Recovery `feat/tutor-r3-release-recovery` at `639719c195ff2b8800b1f401eaee60b003756100` (reverts the Lead-patch commit: no chip, no listener, no route; the Markdown "Explain" button is still drawn in that state and shows an error if clicked: acceptable, stays inert).
+- Verified: all R3 and R1 focused tests pass singly (source-refs 19 cp, 17+2 web; learn-boards 18; canvas-forking 28; explain-job 20; learn-artifact 20; etc.); schema + CI-script tests 77/77; plan() no unmapped; web build and worker bundle exit 0. Browser checks `source-ref-command-check.mjs` and `source-ref-mvp-check.mjs` never executed (CI first).
+- Preview ALREADY RUN (exit 0, second run; the first run hit the `genuine-card` timing flake outside R3's diff): record `c1defc9aff43b0bc`, build `6658547c6b23`, clone `https://rabbit-hole-web-dev-tutor-r3-release.tryrabbithole.workers.dev`.
+- **Before release:** P2 and R1 on main (release rule: main must equal `MAIN_PREV` = `15141c05...`). **Production migration:** apply `packages/control-plane/learn-migrations/0038-source-refs.sql` (two tables) to the prod `LEARN_DB` before this release goes live; 0036 for R1 first. Dev D1 is done.
+- Commands (after R1 is released): (1) `gh variable set MVP_ALLOWED_SHA --body 4b754b6c2b36a41dc651ed4c2608ca239668d656 -R Rabbit-Hole-App/Rabbit-Hole` (2) `C:\s\spec\release-queue\release-mvp.cmd 56-tutor-r3-mvp --check` (3) `C:\s\spec\release-queue\release-mvp.cmd 56-tutor-r3-mvp` (4) `gh variable delete MVP_ALLOWED_SHA -R Rabbit-Hole-App/Rabbit-Hole` only after the launcher's final line. Or use the queue script with `54-tutor-cleanup-p2-mvp 55-tutor-r1-mvp 56-tutor-r3-mvp`.
+- Learner-visible: card line "From <source>" with "View passage"; "Source changed" / "Source not available" with the tooltips in D-R3-S; Markdown selection toolbar button "Explain" and highlight item "View explanation"; messages "This passage appears more than once in the file, so it cannot be shown." and "This passage was not found in the file." (two new strings beyond D-R3-S).
+- Superseded notes follow.
+
+### R3 source references (earlier notes)
 - Local branch `feat/tutor-r3-source-refs`; being corrected (unique-quote wrapper, index in the board-save batch).
 - Needs: migration 0038; Lead patches in `dev-worker.js`, `LearnPage.jsx`, `AdaptiveCanvas.jsx`.
 
