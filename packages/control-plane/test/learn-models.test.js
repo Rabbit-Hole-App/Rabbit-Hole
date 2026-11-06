@@ -6,9 +6,11 @@
 // apiAsk key resolution in learn-chat.test.js, beside their fixtures.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { askStream, planModel } from '../src/ask.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { generateBoardPlan } from '../src/learn-board.js';
+import { assessAnswer } from '../src/learn-grade-routes.js';
 import { LEARN_TASKS, MODEL_PRICES, costUsd, askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS, PAPERS_PER_ANSWER, RESEARCH_STEPS, ARTIFACT_REPAIRS, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES } from '../src/learn-models.js';
 
 const object = { objectId: 'equation', lessonId: 'sigmoid-demo', runId: 'test-run', author: 'script', kind: 'equation', originalText: 'σ(x) = 1 / (1 + exp(-x))', relatedObjectIds: [], shapeIds: ['shape:eq'], renderStatus: 'complete', shapes: [{ shapeId: 'shape:eq', pageBounds: { x: 0, y: 0, w: 300, h: 30 } }] };
@@ -55,12 +57,25 @@ const auto = { host: 'api.anthropic.com', model: 'claude-opus-5', fallbacks: 'de
 const pinned = model => ({ host: 'api.anthropic.com', model, fallbacks: undefined, beta: null });
 const openai = model => ({ host: 'api.openai.com', model, fallbacks: undefined, beta: null });
 
-test('chat on Auto runs claude-opus-5 with the server-side fallback, with or without an OpenAI key', async t => {
+test('chat and grading on Auto run claude-opus-5 with the server-side fallback, with or without an OpenAI key', async t => {
   for (const env of [{ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a' }, { SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o', LEARN_PLAN_MODEL: 'gpt-4.1-mini' }]) {
     const calls = recordFetch(t), DB = recordingDb();
     await chat({ ...env, DB }, null);
     assert.deepEqual(shape(calls), [auto]);
     assert.equal(calls[0].maxTokens, 6000);
+    assert.deepEqual(DB.sql, []);
+  }
+  // The grader posts only the block's fields (and an Explain Back sketch, docs/features/explain-back-sketch.md) to
+  // /api/learn/assess, which has no model key.
+  const grade = readFileSync(new URL('../../web/src/learn-grade.js', import.meta.url), 'utf8');
+  assert.match(grade, /fetch\('\/api\/learn\/assess'[^]*body: JSON\.stringify\(\{ app, \.\.\.assessBody\(block, answer, sketch\) \}\)/);
+  for (const env of [{ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a' }, { SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o', LEARN_PLAN_MODEL: 'gpt-4.1-mini' }]) {
+    const calls = recordFetch(t), DB = recordingDb();
+    const graded = await assessAnswer(new Request('https://dev.test/api/learn/assess', { method: 'POST', body: JSON.stringify({ app: 'demo-app', mode: 'challenge', prompt: 'Why?', expects: [], answer: 'Because.' }) }),
+      { ...env, DB, CONTROL_PLANE: { fetch: async () => Response.json({ name: 'demo-app' }) } });
+    assert.match(await graded.text(), /event: chunk/);
+    assert.deepEqual(shape(calls), [auto]);
+    assert.equal(calls[0].maxTokens, 2400);
     assert.deepEqual(DB.sql, []);
   }
 });
@@ -134,13 +149,14 @@ test('no Learn task sets thinking, effort or temperature: the model defaults app
 test('the task configuration states what the requests above carry, and the limits keep their values', () => {
   const pick = ({ provider, model, maxTokens }) => ({ provider, model, maxTokens });
   assert.deepEqual(pick(LEARN_TASKS.chat), { provider: 'anthropic', model: null, maxTokens: 6000 });
+  assert.deepEqual(pick(LEARN_TASKS.grading), { provider: 'anthropic', model: null, maxTokens: 2400 });
   assert.deepEqual(pick(LEARN_TASKS.artifact), { provider: 'plan', model: 'claude-opus-5', maxTokens: 4000 });
   // Tutor Tasks 13 and 14: the rubric and visual assessment roles.
   for (const task of ['tutor_rubric', 'tutor_visual']) assert.deepEqual(LEARN_TASKS[task], { provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools; one JSON reply)', maxTokens: 4000 }, task);
   for (const task of ['tutor', 'tutor_evaluator', 'avatar_director', 'avatar_script_reviewer']) assert.equal(LEARN_TASKS[task], undefined, `${task} was removed with the Tutor (cleanup P3)`);
   assert.deepEqual(pick(LEARN_TASKS.board), { provider: 'plan', model: 'claude-opus-5', maxTokens: { plan: 1200, draft: 3000, review: 1800 } });
   assert.equal(LEARN_TASKS.chat.picker, true);
-  for (const task of ['artifact', 'board']) assert.equal(LEARN_TASKS[task].picker, false, task);
+  for (const task of ['grading', 'artifact', 'board']) assert.equal(LEARN_TASKS[task].picker, false, task);
   assert.deepEqual([MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS, PAPERS_PER_ANSWER], [4000, 3, 10, 2]);
   assert.deepEqual([RESEARCH_STEPS, ARTIFACT_REPAIRS, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES], [8, 1, 7, 2]);
 });

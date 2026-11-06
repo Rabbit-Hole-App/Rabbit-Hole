@@ -96,9 +96,9 @@ test('LearnPage: useNextSteps mounts only with Rabbit Hole on and a Chat compose
   assert.match(canvas, /<div data-left-stack className=\{`absolute bottom-\[calc\(var\(--chrome-left,0px\)\+0\.75rem\)\] \$\{toolSide === 'left' \? 'left-24' : 'left-3'\} flex w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] flex-col items-start gap-2 /);
 });
 
-test('LearnPage: no grade call, no Tutor, the attempts and semantic reports (contract §1.7)', () => {
+test('LearnPage: graded, no Tutor, the attempts and semantic reports (contract §1.7)', () => {
   assert.doesNotMatch(page, /useTutor\(|from '\.\/LearnTutor/, 'the browser Tutor is gone (Tutor cleanup P2)');
-  assert.doesNotMatch(page, /gradeAnswer|shadowGrade|gradeCanvasAnswer|\/api\/learn\/assess/, 'the visible grade and the shadow grade are gone (Tutor cleanup P5)');
+  assert.match(page, /verdict = parseVerdict\(text\);\n\s+setGraded\(count => count \+ 1\);/);
   assert.match(page, /previous\.attempts === next\.attempts/, 'an attempt reaches the page state, so the basis sees it');
   assert.match(page, /previous\.semanticFingerprint === next\.semanticFingerprint/, 'a change of meaning reaches the page state, so the basis sees it');
   assert.match(canvas, /const attempts = blocks\.reduce\(\(sum, block\) => sum \+ \(block\.attemptLog\?\.length \|\| 0\), 0\);/);

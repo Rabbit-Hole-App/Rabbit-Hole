@@ -51,6 +51,7 @@ import permissionsCode from '../byoc/permissions.py';
 import grantsCode from '../byoc/grants.py';
 import { apiAsk } from '../control-plane/src/index.js';
 import { boardFetch, authorizedBoardApp, paperFetch, mediaFetch, momentFeedback, videoGone, canvasSearch, wikiArticle } from '../control-plane/src/learn-board.js';
+import { learnGradeRoute, assessAnswer } from '../control-plane/src/learn-grade-routes.js';
 import { ownedNextStepsRoute } from '../control-plane/src/learn-next-steps-routes.js';
 import { coachingRoute } from '../control-plane/src/learn-coaching-routes.js';
 import { codebaseRoute } from '../control-plane/src/learn-codebase-source-map.js';
@@ -308,6 +309,8 @@ const routes = {
     if (path === '/api/learn/moment-feedback') return momentFeedback(req, env);
     if (path === '/api/learn/video-gone') return videoGone(req, env);
     if (path === '/api/learn/wiki') return wikiArticle(req, env);
+    // The visible grade (owner decision 3, docs/features/learn-cleanup.md): one model call, nothing stored.
+    if (path === '/api/learn/assess') return assessAnswer(req, env);
     // Professor Next Steps on the learner's own canvas (learn-next-steps-routes.js): its own mount; null for any other path.
     { const steps = await ownedNextStepsRoute(path, req, env); if (steps) return steps; }
     // Submitted attempts and their assessments (learn-migrations/0026): the signed-in learner's own records only.
@@ -324,6 +327,8 @@ const routes = {
     if (path === '/api/learn/home-ask') return homeAskFetch(req, env);
     // A learner's derived Progress for one goal (learn-progress.js): their own records only, no model call.
     if (path === '/api/learn/progress') return progressRoute(path, req, env);
+    // Jev side-by-side grading (docs/features/jev-grading.md).
+    if (path.startsWith('/api/learn/grade')) { const graded = await learnGradeRoute(path, req, env); if (graded) return graded; }
     // Canvas comments (docs/features/canvas-comments.md): the member family and a publication's public family.
     if (path.startsWith('/api/learn/c/') || path.startsWith('/api/learn/comments/') || /^\/api\/learn\/boards\/shared\/[^/]+\/comments(\/|$)/.test(path)) { const comments = await canvasCommentsRoute(path, req, env); if (comments) return comments; }
     // Saved and shared canvas boards (docs/features/canvas-sharing.md). Before
