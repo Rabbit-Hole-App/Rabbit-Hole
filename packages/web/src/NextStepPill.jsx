@@ -2,18 +2,17 @@ import { useState } from 'react';
 import { STRINGS } from './roadmap-strings.js';
 import { editKey } from './inline-ai-proposal.js';
 
-// The Accept [Tab] | Cancel pill: 28px high, 4px corners, the canvas selection bar's small actions (SelectionActions.jsx Action, class string reused) inside one
-// bordered box; no saturated green/red (owner plan 4.2 supersedes the old colours), no price or estimate (D24). A version the server has not marked accept-ready
-// keeps its name, greyed. PILL_BOX is the box, also worn by the non-interactive Generating status that takes the pill's place after acceptance.
-export const PILL_BOX = 'inline-flex h-7 items-center overflow-hidden rounded border border-line bg-white text-xs';
-const ACTION = 'flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-xs font-medium whitespace-nowrap text-ink hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none';
+// The compact square pill: green Accept with its Tab key label, red Cancel after a left border, zero corner radius, no price or
+// estimate (D24). A version the server has not marked accept-ready keeps its name, greyed.
 export function StepPill({ pill, onAccept, onCancel }) {
   return (
-    <div role="group" aria-label="Proposal" data-roadmap-pill className={PILL_BOX}>
-      <button type="button" data-roadmap-accept disabled={!pill.accept} aria-busy={pill.accepting || undefined} onClick={onAccept} className={`${ACTION} disabled:cursor-default disabled:opacity-40`}>
-        {pill.accepting ? STRINGS.accepting : <>{STRINGS.accept}<kbd aria-hidden="true" className="rounded border border-line bg-hover px-1 font-sans text-[10px] font-normal text-ink-3">{STRINGS.tab}</kbd></>}
+    <div role="group" aria-label="Proposal" data-roadmap-pill className="inline-flex h-8 overflow-hidden rounded-none text-xs font-medium text-white">
+      <button type="button" data-roadmap-accept disabled={!pill.accept} aria-busy={pill.accepting || undefined} onClick={onAccept}
+        className="inline-flex items-center gap-1.5 rounded-none bg-green-600 px-2.5 outline-none hover:bg-green-700 focus-visible:ring-2 focus-visible:ring-green-300 disabled:bg-green-600/40">
+        {pill.accepting ? STRINGS.accepting : <>{STRINGS.accept}<kbd className="rounded-none border border-white/60 px-1 text-[10px] leading-4">{STRINGS.tab}</kbd></>}
       </button>
-      <button type="button" data-roadmap-cancel onClick={onCancel} className={`${ACTION} border-l border-line`}>{STRINGS.cancel}</button>
+      <button type="button" data-roadmap-cancel onClick={onCancel}
+        className="rounded-none border-l border-white/70 bg-red-600 px-2.5 outline-none hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-300">{STRINGS.cancel}</button>
     </div>
   );
 }
