@@ -23,9 +23,6 @@ export function useSourceRefIndex(blocks, focus) {
 }
 // The published blocks, for a reader that lists explanations for its own source.
 export const useSourceRefBlocks = () => useSyncExternalStore(subscribeBlocks, () => published().blocks, () => NONE); // NONE: the server render (and its test) sees no blocks
-// The Tutor's passages on this canvas (source-refs.js publishRoadmapPassages) and the way to a pending proposal.
-export const useRoadmapPassages = () => useSyncExternalStore(subscribeBlocks, () => published().passages, () => NONE);
-export const goToProposal = stepId => published().goProposal?.(stepId);
 
 export default function SourceRefChip({ block, app, onHeight = null }) {
   const ref = sourceRefOf(block);

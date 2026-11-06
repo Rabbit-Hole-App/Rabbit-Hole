@@ -38,32 +38,17 @@ export function resolveSourceRef(post, app, id, { delay = 0, schedule = setTimeo
 // The canvas's blocks that matter here - a card with a navigable ref, a Markdown file card - and its camera, as a store the readers
 // (the Markdown file card, the PDF reader) read from: they sit outside the canvas's React tree. The canvas publishes
 // (SourceRefChip.jsx useSourceRefIndex); a reader subscribes.
-let state = { blocks: [], focus: null, passages: [], goProposal: null };
+let state = { blocks: [], focus: null };
 const listeners = new Set();
 export const published = () => state;
 const relevant = block => navigable(sourceRefOf(block)) || (block?.kind === 'markdown' && !!block.fileRef?.source?.id);
 export function publishBlocks(blocks, focus = null) {
   const next = (Array.isArray(blocks) ? blocks : []).filter(relevant);
   if (focus === state.focus && next.length === state.blocks.length && next.every((block, i) => block === state.blocks[i])) return;
-  state = { ...state, blocks: next, focus };
+  state = { blocks: next, focus };
   for (const listener of listeners) listener();
 }
 export function subscribeBlocks(listener) { listeners.add(listener); return () => listeners.delete(listener); }
-
-// ---- The Tutor's passages (Fix C): where on a source each roadmap step stands, and how to get to what it made ----
-// The canvas publishes one link per step that has a place to go (roadmap-canvas.js passageLinksOf: { stepId, sourceKey, start, end, target }) and how to reach a pending proposal
-// (goProposal(stepId): the camera to its card, an explicit click only). A Markdown file card reads them to draw its small passage-to-explanation icons.
-export function publishRoadmapPassages(passages, goProposal = null) {
-  const same = JSON.stringify(passages) === JSON.stringify(state.passages) && goProposal === state.goProposal;
-  if (same) return;
-  state = { ...state, passages, goProposal };
-  for (const listener of listeners) listener();
-}
-// A Markdown file card tells where a step's passage is drawn (raw offsets in, a screen rect out; null when it is not drawn or cannot be told apart), so a proposal can be
-// placed beside the right paragraph. Nothing scrolls or paints here.
-const readers = new Map();
-export function registerPassageReader(blockId, reader) { readers.set(blockId, reader); return () => { if (readers.get(blockId) === reader) readers.delete(blockId); }; }
-export const passageRect = (blockId, start, end) => { try { return readers.get(blockId)?.rectOf(start, end) ?? null; } catch { return null; } };
 
 // Card to passage. A PDF opens the companion reader at the page with the passage emphasized (the existing
 // 'small:excerpt-source' event, ExcerptCard.jsx); a Markdown passage focuses its file card, which then emphasizes the quote.
@@ -76,7 +61,7 @@ export function viewPassage(ref, { blocks = state.blocks, focus = state.focus, e
   if (!cardId) return 'no-card';
   focus?.(cardId);
   // The camera moves first; the card paints its emphasis once it is on screen.
-  wait(() => emit(new CustomEvent(SOURCE_REF_EVENT, { detail: { cardId, key: ref.source.key, rev: ref.source.rev, quote: ref.anchor.quote, anchor: ref.anchor } })), 250);
+  wait(() => emit(new CustomEvent(SOURCE_REF_EVENT, { detail: { cardId, key: ref.source.key, rev: ref.source.rev, quote: ref.anchor.quote } })), 250);
   return 'opened';
 }
 

@@ -4,23 +4,18 @@
 // shape. The server mints the ref (control-plane source-refs.js); nothing here grants access.
 //
 //   { v: 1, id: 'sref_<24 hex>', kind: 'markdown' | 'pdf', source: { key, rev, name, home }, anchor }
-//   markdown anchor: { quote: { exact, prefix, suffix }, rendered?: { exact, prefix, suffix } }   (the text quote, as file-doc-highlights.js keeps it; `rendered` is the
-//     same passage folded for the viewer, markdown-anchor.js: a minted roadmap quote is RAW Markdown, which the rendered text does not contain)
+//   markdown anchor: { quote: { exact, prefix, suffix } }   (the text quote, as file-doc-highlights.js keeps it)
 //   pdf anchor: { kind: 'text' | 'region', page: { index, label }, rects, rotate, view, quote }   (pdf-anchor.js, PDF points)
 // A shared reader's copy has no id, key, revision or quote (sharedSourceRef): the name tells where the card came from and
 // nothing opens.
 export const SOURCE_REF_ID = /^sref_[0-9a-f]{24}$/;
 export const SOURCE_KEY = /^((doc:ctx|pdf:upload):[0-9a-f]{12}|file:fs_[0-9a-f]{24})$/;
 export const SHA256 = /^[0-9a-f]{64}$/;
-import { resolveFolded } from './markdown-anchor.js';
 export const STATUSES = Object.freeze(['current', 'changed', 'missing', 'unavailable']);
 export const QUOTE_LIMITS = Object.freeze({ exact: 8000, context: 500 });
 // SOURCE_REF_EVENT: View passage asks a Markdown file card to emphasize a quote. EXPLAIN_PASSAGE_EVENT: a card's Explain on a selected passage
 // hands LearnPage the minted ref id and the passage text to start the explanation with.
 export const SOURCE_REF_EVENT = 'rh:source-passage', EXPLAIN_PASSAGE_EVENT = 'rh:explain-passage';
-// SOURCE_RANGE_EVENT: show a roadmap step's passage in its Markdown file card from raw offsets ({ cardId, rev, start, end, reveal }); `reveal` (an explicit navigation only) expands
-// a collapsed card to reach it.
-export const SOURCE_RANGE_EVENT = 'rh:source-range';
 
 export const kindOfKey = key => (typeof key !== 'string' ? null : key.startsWith('file:') ? 'markdown' : /^(doc:ctx|pdf:upload):/.test(key) ? 'pdf' : null);
 
@@ -39,7 +34,7 @@ export function sourceRefOf(block) {
     const label = ref.kind === 'pdf' ? text(ref.anchor?.page?.label, 40) : '';
     return { v: 1, id: null, kind: ref.kind, source: { key: null, rev: null, name, home: null }, anchor: label ? { page: { index: null, label } } : null };
   }
-  const anchor = ref.kind === 'markdown' ? (quoteOf(ref.anchor?.quote) ? { quote: quoteOf(ref.anchor.quote), ...(quoteOf(ref.anchor?.rendered) ? { rendered: quoteOf(ref.anchor.rendered) } : {}) } : null)
+  const anchor = ref.kind === 'markdown' ? (quoteOf(ref.anchor?.quote) ? { quote: quoteOf(ref.anchor.quote) } : null)
     : Number.isInteger(ref.anchor?.page?.index) && Array.isArray(ref.anchor.rects) ? ref.anchor : null;
   if (!anchor) return null;
   return { v: 1, id: ref.id, kind: ref.kind, source: { key: ref.source.key, rev: ref.source.rev, name, home: typeof ref.source.home === 'string' ? ref.source.home : null }, anchor };
@@ -125,14 +120,7 @@ export function resolveQuote(text, quote) {
 // revision it holds: a different revision never relocates (changed), a repeated quote without matching context never guesses.
 export function passageTarget({ text, rev, detail }) {
   if (!detail || detail.rev !== rev) return { status: 'changed' };
-  return resolveAnchor(text, detail.anchor || { quote: detail.quote });
-}
-
-// A ref's passage in the text the card shows: its quote as it stands (a passage the learner selected IS rendered text), else - when the quote is raw Markdown that the
-// rendered text does not contain - its rendered anchor. A repeated passage without matching context is ambiguous in both; nothing is found by position.
-export function resolveAnchor(text, anchor) {
-  const direct = resolveQuote(text, anchor?.quote);
-  return direct.status === 'missing' && anchor?.rendered ? resolveFolded(text, anchor.rendered) : direct;
+  return resolveQuote(text, detail.quote);
 }
 
 // ---- Navigation, from the blocks on the canvas ----
