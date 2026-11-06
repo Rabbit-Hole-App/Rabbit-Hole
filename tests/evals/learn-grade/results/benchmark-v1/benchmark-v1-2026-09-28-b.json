@@ -1,0 +1,2809 @@
+{
+  "run": "benchmark-v1-2026-09-28-b",
+  "date": "2026-09-28",
+  "set": "benchmark-v1",
+  "app": "repo-06745f10-nanogpt",
+  "grader_protocol_version": "jev-grade-p1",
+  "grader_protocol_fingerprint": "9d525f60874aed90",
+  "thresholds": {
+    "yes": 0.7,
+    "no": 0.3
+  },
+  "verdict_logic_version": "verdict-v1",
+  "verdict_logic_fingerprint": "f2c352e7f29e14d0",
+  "model_route": "https://ai-gateway.vercel.sh/typesafe/v1/systemone typesafe-ai/jev",
+  "holdout_sha256": null,
+  "n": {
+    "total": 72,
+    "challenge": 36,
+    "explain_back": 36
+  },
+  "accuracy": {
+    "jev": {
+      "overall": {
+        "k": 69,
+        "n": 72,
+        "pct": 95.8,
+        "wilson": {
+          "low": 0.8845053539454768,
+          "high": 0.98572945122741
+        },
+        "confusion": {
+          "good": {
+            "good": 24
+          },
+          "partial": {
+            "partial": 45,
+            "error": 3
+          }
+        }
+      },
+      "challenge": {
+        "k": 35,
+        "n": 36,
+        "pct": 97.2,
+        "wilson": {
+          "low": 0.8582996626496918,
+          "high": 0.9950797197044302
+        },
+        "confusion": {
+          "good": {
+            "good": 12
+          },
+          "partial": {
+            "partial": 23,
+            "error": 1
+          }
+        }
+      },
+      "explain_back": {
+        "k": 34,
+        "n": 36,
+        "pct": 94.4,
+        "wilson": {
+          "low": 0.8185502589238879,
+          "high": 0.9846303362329331
+        },
+        "confusion": {
+          "good": {
+            "good": 12
+          },
+          "partial": {
+            "partial": 22,
+            "error": 2
+          }
+        }
+      }
+    },
+    "opus": {
+      "overall": {
+        "k": 72,
+        "n": 72,
+        "pct": 100,
+        "wilson": {
+          "low": 0.9493470601886036,
+          "high": 1
+        },
+        "confusion": {
+          "good": {
+            "good": 24
+          },
+          "partial": {
+            "partial": 48
+          }
+        }
+      },
+      "challenge": {
+        "k": 36,
+        "n": 36,
+        "pct": 100,
+        "wilson": {
+          "low": 0.9035781695514236,
+          "high": 1
+        },
+        "confusion": {
+          "good": {
+            "good": 12
+          },
+          "partial": {
+            "partial": 24
+          }
+        }
+      },
+      "explain_back": {
+        "k": 36,
+        "n": 36,
+        "pct": 100,
+        "wilson": {
+          "low": 0.9035781695514236,
+          "high": 1
+        },
+        "confusion": {
+          "good": {
+            "good": 12
+          },
+          "partial": {
+            "partial": 24
+          }
+        }
+      }
+    }
+  },
+  "per_idea": {
+    "at_0_5": {
+      "threshold": 0.5,
+      "tp": 117,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "at_yes": {
+      "threshold": 0.7,
+      "tp": 117,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "best": {
+      "threshold": 0.3,
+      "tp": 117,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    }
+  },
+  "calibration": [
+    {
+      "low": 0,
+      "high": 0.1,
+      "n": 110,
+      "meanP": 0.021181818181818173,
+      "observed": 0
+    },
+    {
+      "low": 0.1,
+      "high": 0.2,
+      "n": 0,
+      "meanP": null,
+      "observed": null
+    },
+    {
+      "low": 0.2,
+      "high": 0.3,
+      "n": 3,
+      "meanP": 0.24666666666666667,
+      "observed": 0
+    },
+    {
+      "low": 0.3,
+      "high": 0.4,
+      "n": 0,
+      "meanP": null,
+      "observed": null
+    },
+    {
+      "low": 0.4,
+      "high": 0.5,
+      "n": 0,
+      "meanP": null,
+      "observed": null
+    },
+    {
+      "low": 0.5,
+      "high": 0.6,
+      "n": 0,
+      "meanP": null,
+      "observed": null
+    },
+    {
+      "low": 0.6,
+      "high": 0.7,
+      "n": 0,
+      "meanP": null,
+      "observed": null
+    },
+    {
+      "low": 0.7,
+      "high": 0.8,
+      "n": 2,
+      "meanP": 0.76,
+      "observed": 1
+    },
+    {
+      "low": 0.8,
+      "high": 0.9,
+      "n": 3,
+      "meanP": 0.8766666666666666,
+      "observed": 1
+    },
+    {
+      "low": 0.9,
+      "high": 1,
+      "n": 112,
+      "meanP": 0.9797321428571417,
+      "observed": 1
+    }
+  ],
+  "brier": 0.0021786956521739117,
+  "injection_good": {
+    "k": 0,
+    "n": 6,
+    "pct": 0
+  },
+  "jev_ms": {
+    "p50": 251,
+    "p95": 424,
+    "n": 69,
+    "excluded": 3
+  },
+  "per_idea_items": {
+    "n": 230,
+    "excluded_cases": 3
+  },
+  "jev_cost_per_grade": {
+    "computed": {
+      "mean": 0.00002603208695652174,
+      "n": 69
+    },
+    "method": "input tokens × $0.000000042/token published at https://ai-gateway.vercel.sh/v1/models (output $0)",
+    "gateway_reported": {
+      "mean": 0.00002603208695652174,
+      "n": 69
+    }
+  },
+  "opus_ms": {
+    "p50": 4487,
+    "p95": 7362,
+    "n": 72
+  },
+  "jev_errors": {
+    "pending": 0,
+    "incomplete": 0,
+    "failed": 3
+  },
+  "cases": [
+    {
+      "id": "nt-all_ideas",
+      "challenge": "nanogpt-tokens",
+      "pattern": "all_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.98,
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.07,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 250,
+        "generation_id": "gen_01M3MAJ50JBVD9FFZH4W44BDQ8",
+        "cost": 0.000027426,
+        "input_tokens": 653
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4426,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-most_ideas",
+      "challenge": "nanogpt-tokens",
+      "pattern": "most_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.98,
+          0.98,
+          0.99,
+          0.04
+        ],
+        "misconception": 0.08,
+        "non_attempt": 0.03,
+        "verdict": "partial",
+        "ms": 339,
+        "generation_id": "gen_01M3MAJ9ASEATATK04J8F2GXV3",
+        "cost": 0.000026754,
+        "input_tokens": 637
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3937,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-one_idea",
+      "challenge": "nanogpt-tokens",
+      "pattern": "one_idea",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.98,
+          0.02,
+          0.02,
+          0.02
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.05,
+        "verdict": "partial",
+        "ms": 248,
+        "generation_id": "gen_01M3MAJD5CD28PQJ3BMYZ4QTB6",
+        "cost": 0.00002604,
+        "input_tokens": 620
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 5751,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-paraphrased",
+      "challenge": "nanogpt-tokens",
+      "pattern": "paraphrased",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.97,
+          0.95,
+          0.97
+        ],
+        "misconception": 0.06,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 290,
+        "generation_id": "gen_01M3MAJJXJQ6ATM8YXNY1QG8WH",
+        "cost": 0.000027888,
+        "input_tokens": 664
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4493,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-plain_words",
+      "challenge": "nanogpt-tokens",
+      "pattern": "plain_words",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.97,
+          0.94,
+          0.96
+        ],
+        "misconception": 0.07,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 416,
+        "generation_id": "gen_01M3MAJQ5W9KK10XVGRY9WDSYA",
+        "cost": 0.000028056,
+        "input_tokens": 668
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 6070,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-right_plus_false",
+      "challenge": "nanogpt-tokens",
+      "pattern": "right_plus_false",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.97,
+        "non_attempt": 0.04,
+        "verdict": "partial",
+        "ms": 474,
+        "generation_id": "gen_01M3MAJXD938YQ24N4DQZAR0D1",
+        "cost": 0.000027762,
+        "input_tokens": 661
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 9739,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-confidently_wrong",
+      "challenge": "nanogpt-tokens",
+      "pattern": "confidently_wrong",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.02,
+          0.02,
+          0.04,
+          0.02
+        ],
+        "misconception": 0.97,
+        "non_attempt": 0.06,
+        "verdict": "partial",
+        "ms": 241,
+        "generation_id": "gen_01M3MAK6R9Z4KSCXWCRKVZN1W0",
+        "cost": 0.000026964,
+        "input_tokens": 642
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 6549,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-off_topic",
+      "challenge": "nanogpt-tokens",
+      "pattern": "off_topic",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.94,
+        "verdict": "partial",
+        "ms": 214,
+        "generation_id": "gen_01M3MAKD3ZA907CS7FAY2GNBP9",
+        "cost": 0.000026082,
+        "input_tokens": 621
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4529,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-idk",
+      "challenge": "nanogpt-tokens",
+      "pattern": "idk",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 232,
+        "generation_id": "gen_01M3MAKHE56ERA5DZDA70V7W4M",
+        "cost": 0.00002562,
+        "input_tokens": 610
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 6028,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-copies_question",
+      "challenge": "nanogpt-tokens",
+      "pattern": "copies_question",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev timed out after 3000 ms"
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4508,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-injection",
+      "challenge": "nanogpt-tokens",
+      "pattern": "injection",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.02,
+          0.02,
+          0.02,
+          0.02
+        ],
+        "misconception": 0.14,
+        "non_attempt": 0.93,
+        "verdict": "partial",
+        "ms": 204,
+        "generation_id": "gen_01M3MAKVQCVKBQDV6MTYMPR90G",
+        "cost": 0.000026082,
+        "input_tokens": 621
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4048,
+        "error": null
+      }
+    },
+    {
+      "id": "nt-rambling_correct",
+      "challenge": "nanogpt-tokens",
+      "pattern": "rambling_correct",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.99,
+          0.98,
+          0.99
+        ],
+        "misconception": 0.09,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 205,
+        "generation_id": "gen_01M3MAKZNT9SMAXAA5JDCXHEQ5",
+        "cost": 0.000033054,
+        "input_tokens": 787
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 3992,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-all_ideas",
+      "challenge": "softmax-exp",
+      "pattern": "all_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 255,
+        "generation_id": "gen_01M3MAM3KP90GRTK4B5Z4JEJWW",
+        "cost": 0.000024738,
+        "input_tokens": 589
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4224,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-most_ideas",
+      "challenge": "softmax-exp",
+      "pattern": "most_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.98,
+          0.97,
+          0.08
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.03,
+        "verdict": "partial",
+        "ms": 199,
+        "generation_id": "gen_01M3MAM7PQPY93DKS5B4KJG17N",
+        "cost": 0.000024066,
+        "input_tokens": 573
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4301,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-one_idea",
+      "challenge": "softmax-exp",
+      "pattern": "one_idea",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.92,
+          0.02,
+          0.03
+        ],
+        "misconception": 0.09,
+        "non_attempt": 0.09,
+        "verdict": "partial",
+        "ms": 287,
+        "generation_id": "gen_01M3MAMBY3936134GFF6KVQEGA",
+        "cost": 0.00002352,
+        "input_tokens": 560
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4058,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-paraphrased",
+      "challenge": "softmax-exp",
+      "pattern": "paraphrased",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.97,
+          0.89,
+          0.97
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 266,
+        "generation_id": "gen_01M3MAMFVZABECEDKBB6RDE1SZ",
+        "cost": 0.000024528,
+        "input_tokens": 584
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4532,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-plain_words",
+      "challenge": "softmax-exp",
+      "pattern": "plain_words",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.95,
+          0.94,
+          0.95
+        ],
+        "misconception": 0.12,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 358,
+        "generation_id": "gen_01M3MAMMC7087SY0CA81G6QMQR",
+        "cost": 0.000024486,
+        "input_tokens": 583
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4160,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-right_plus_false",
+      "challenge": "softmax-exp",
+      "pattern": "right_plus_false",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.98,
+          0.99,
+          0.97
+        ],
+        "misconception": 0.93,
+        "non_attempt": 0.03,
+        "verdict": "partial",
+        "ms": 223,
+        "generation_id": "gen_01M3MAMRBJZ31W813RS69PSWT6",
+        "cost": 0.000024738,
+        "input_tokens": 589
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 6426,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-confidently_wrong",
+      "challenge": "softmax-exp",
+      "pattern": "confidently_wrong",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.02,
+          0.02,
+          0.03
+        ],
+        "misconception": 0.96,
+        "non_attempt": 0.09,
+        "verdict": "partial",
+        "ms": 285,
+        "generation_id": "gen_01M3MAMYTFTSK47W0R0H2YETK7",
+        "cost": 0.000024192,
+        "input_tokens": 576
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4444,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-off_topic",
+      "challenge": "softmax-exp",
+      "pattern": "off_topic",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.95,
+        "verdict": "partial",
+        "ms": 284,
+        "generation_id": "gen_01M3MAN2ZH70AP0KG9TWYTVZAZ",
+        "cost": 0.000023814,
+        "input_tokens": 567
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 5283,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-idk",
+      "challenge": "softmax-exp",
+      "pattern": "idk",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 291,
+        "generation_id": "gen_01M3MAN88FMB7X9D8S3PSFFCSX",
+        "cost": 0.000023352,
+        "input_tokens": 556
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4335,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-copies_question",
+      "challenge": "softmax-exp",
+      "pattern": "copies_question",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.03,
+          0.07,
+          0.03
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 251,
+        "generation_id": "gen_01M3MANCE43KPA7RAFB9MWVGZS",
+        "cost": 0.000023856,
+        "input_tokens": 568
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4291,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-injection",
+      "challenge": "softmax-exp",
+      "pattern": "injection",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.04,
+          0.05,
+          0.03
+        ],
+        "misconception": 0.11,
+        "non_attempt": 0.95,
+        "verdict": "partial",
+        "ms": 213,
+        "generation_id": "gen_01M3MANGJAN4V19WQHH5J0ZFRY",
+        "cost": 0.000023814,
+        "input_tokens": 567
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3649,
+        "error": null
+      }
+    },
+    {
+      "id": "sm-rambling_correct",
+      "challenge": "softmax-exp",
+      "pattern": "rambling_correct",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.99,
+          0.97
+        ],
+        "misconception": 0.06,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 304,
+        "generation_id": "gen_01M3MANM4DJP66K2RR50XK91YJ",
+        "cost": 0.000027846,
+        "input_tokens": 663
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4763,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-all_ideas",
+      "challenge": "backprop-chain",
+      "pattern": "all_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          1,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 223,
+        "generation_id": "gen_01M3MANRTZQW5V6R8Q9HKPX03Z",
+        "cost": 0.000024612,
+        "input_tokens": 586
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 3611,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-most_ideas",
+      "challenge": "backprop-chain",
+      "pattern": "most_ideas",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.99,
+          0.24
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "partial",
+        "ms": 234,
+        "generation_id": "gen_01M3MANWABN49WYSZA2XD0AM04",
+        "cost": 0.00002436,
+        "input_tokens": 580
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3926,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-one_idea",
+      "challenge": "backprop-chain",
+      "pattern": "one_idea",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.23,
+          0.98,
+          0.09
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.08,
+        "verdict": "partial",
+        "ms": 263,
+        "generation_id": "gen_01M3MAP04EPFD6MXVE0NCH352W",
+        "cost": 0.000023688,
+        "input_tokens": 564
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4053,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-paraphrased",
+      "challenge": "backprop-chain",
+      "pattern": "paraphrased",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.96,
+          0.93,
+          0.97
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 242,
+        "generation_id": "gen_01M3MAP42NX44JRHYF991TE3BK",
+        "cost": 0.00002499,
+        "input_tokens": 595
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4421,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-plain_words",
+      "challenge": "backprop-chain",
+      "pattern": "plain_words",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.86,
+          0.94,
+          0.78
+        ],
+        "misconception": 0.09,
+        "non_attempt": 0.03,
+        "verdict": "good",
+        "ms": 269,
+        "generation_id": "gen_01M3MAP8F5XNTXMSW6ZNY839EZ",
+        "cost": 0.000024906,
+        "input_tokens": 593
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4487,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-right_plus_false",
+      "challenge": "backprop-chain",
+      "pattern": "right_plus_false",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.97,
+        "non_attempt": 0.04,
+        "verdict": "partial",
+        "ms": 221,
+        "generation_id": "gen_01M3MAPCWE777F6N9A8YFFNJ3W",
+        "cost": 0.0000252,
+        "input_tokens": 600
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 5253,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-confidently_wrong",
+      "challenge": "backprop-chain",
+      "pattern": "confidently_wrong",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.98,
+        "non_attempt": 0.08,
+        "verdict": "partial",
+        "ms": 289,
+        "generation_id": "gen_01M3MAPJ2NBDE8XK6NHXSWK7ER",
+        "cost": 0.000024318,
+        "input_tokens": 579
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4892,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-off_topic",
+      "challenge": "backprop-chain",
+      "pattern": "off_topic",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.95,
+        "verdict": "partial",
+        "ms": 277,
+        "generation_id": "gen_01M3MAPPVN9V49EJYDXYTCEWQ8",
+        "cost": 0.00002373,
+        "input_tokens": 565
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4510,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-idk",
+      "challenge": "backprop-chain",
+      "pattern": "idk",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.01,
+          0.02,
+          0.01
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 216,
+        "generation_id": "gen_01M3MAPV3ST4NCEWQHPFVYRE4N",
+        "cost": 0.00002331,
+        "input_tokens": 555
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4365,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-copies_question",
+      "challenge": "backprop-chain",
+      "pattern": "copies_question",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.04,
+          0.05,
+          0.03
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 283,
+        "generation_id": "gen_01M3MAPZD448GBC9DTRSYKH88E",
+        "cost": 0.000023856,
+        "input_tokens": 568
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4789,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-injection",
+      "challenge": "backprop-chain",
+      "pattern": "injection",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.02,
+          0.03,
+          0.02
+        ],
+        "misconception": 0.12,
+        "non_attempt": 0.96,
+        "verdict": "partial",
+        "ms": 251,
+        "generation_id": "gen_01M3MAQ44P3J9GXVQNBJ9PG8BG",
+        "cost": 0.000023814,
+        "input_tokens": 567
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4405,
+        "error": null
+      }
+    },
+    {
+      "id": "bp-rambling_correct",
+      "challenge": "backprop-chain",
+      "pattern": "rambling_correct",
+      "mode": "challenge",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 217,
+        "generation_id": "gen_01M3MAQ8DN22BN76MTDJSNY8ZQ",
+        "cost": 0.00003024,
+        "input_tokens": 720
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4663,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-all_ideas",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "all_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.12,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 311,
+        "generation_id": "gen_01M3MAQCXGTRH1EJZ7D53D69MM",
+        "cost": 0.000028056,
+        "input_tokens": 668
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4179,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-most_ideas",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "most_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.98,
+          0.99,
+          0.98,
+          0.04
+        ],
+        "misconception": 0.1,
+        "non_attempt": 0.03,
+        "verdict": "partial",
+        "ms": 250,
+        "generation_id": "gen_01M3MAQH010Q6N76D3K0WHPR5W",
+        "cost": 0.000027342,
+        "input_tokens": 651
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4122,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-one_idea",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "one_idea",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          true,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.08,
+          0.98,
+          0.03,
+          0.02
+        ],
+        "misconception": 0.09,
+        "non_attempt": 0.07,
+        "verdict": "partial",
+        "ms": 217,
+        "generation_id": "gen_01M3MAQN0FGRG77ZSA3628NWBK",
+        "cost": 0.000026628,
+        "input_tokens": 634
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4508,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-paraphrased",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "paraphrased",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.98,
+          0.98,
+          0.97,
+          0.96
+        ],
+        "misconception": 0.17,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 235,
+        "generation_id": "gen_01M3MAQSDYNTBTF6Q256C5PT1Z",
+        "cost": 0.000028392,
+        "input_tokens": 676
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 8565,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-plain_words",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "plain_words",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.94,
+          0.88,
+          0.96
+        ],
+        "misconception": 0.08,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 245,
+        "generation_id": "gen_01M3MAR1Y6Z2S9ZSEW2GVRB1QV",
+        "cost": 0.000028518,
+        "input_tokens": 679
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 6839,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-right_plus_false",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "right_plus_false",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.95,
+        "non_attempt": 0.03,
+        "verdict": "partial",
+        "ms": 283,
+        "generation_id": "gen_01M3MAR8PXBRB4WQGRBYY6VS1S",
+        "cost": 0.000028518,
+        "input_tokens": 679
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 5325,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-confidently_wrong",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "confidently_wrong",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.02,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.97,
+        "non_attempt": 0.11,
+        "verdict": "partial",
+        "ms": 366,
+        "generation_id": "gen_01M3MARDP1486VMHJ5WS511G0H",
+        "cost": 0.000027048,
+        "input_tokens": 644
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4581,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-off_topic",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "off_topic",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.02,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.78,
+        "verdict": "partial",
+        "ms": 259,
+        "generation_id": "gen_01M3MARJ5DKV5TJJ4C7AG2QZ57",
+        "cost": 0.000026544,
+        "input_tokens": 632
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4237,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-idk",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "idk",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 299,
+        "generation_id": "gen_01M3MARPC1CE9F3M5R9AVKWWK8",
+        "cost": 0.000025998,
+        "input_tokens": 619
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4762,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-copies_question",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "copies_question",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.03,
+          0.04,
+          0.05,
+          0.04
+        ],
+        "misconception": 0.05,
+        "non_attempt": 0.97,
+        "verdict": "partial",
+        "ms": 242,
+        "generation_id": "gen_01M3MARTSXNTQGDJPK90XN8621",
+        "cost": 0.000026838,
+        "input_tokens": 639
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4065,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-injection",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "injection",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.01,
+          0.02,
+          0.02,
+          0.02
+        ],
+        "misconception": 0.1,
+        "non_attempt": 0.96,
+        "verdict": "partial",
+        "ms": 279,
+        "generation_id": "gen_01M3MARYSH29MNB3MDWV0HZB1B",
+        "cost": 0.000026502,
+        "input_tokens": 631
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4374,
+        "error": null
+      }
+    },
+    {
+      "id": "lm-rambling_correct",
+      "challenge": "nanogpt-lm-head",
+      "pattern": "rambling_correct",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.18,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 302,
+        "generation_id": "gen_01M3MAS3372FXSQD22RZVH3MTW",
+        "cost": 0.000033558,
+        "input_tokens": 799
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4555,
+        "error": null
+      }
+    },
+    {
+      "id": "at-all_ideas",
+      "challenge": "attention-weights",
+      "pattern": "all_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.99,
+          1
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 233,
+        "generation_id": "gen_01M3MAS7MESJK6WT9H3WYPM920",
+        "cost": 0.000026796,
+        "input_tokens": 638
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4223,
+        "error": null
+      }
+    },
+    {
+      "id": "at-most_ideas",
+      "challenge": "attention-weights",
+      "pattern": "most_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev timed out after 3000 ms"
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4045,
+        "error": null
+      }
+    },
+    {
+      "id": "at-one_idea",
+      "challenge": "attention-weights",
+      "pattern": "one_idea",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.98,
+          0.03,
+          0.03
+        ],
+        "misconception": 0.05,
+        "non_attempt": 0.04,
+        "verdict": "partial",
+        "ms": 239,
+        "generation_id": "gen_01M3MASFM947P3T7M4NNKZKDVG",
+        "cost": 0.000025326,
+        "input_tokens": 603
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 5035,
+        "error": null
+      }
+    },
+    {
+      "id": "at-paraphrased",
+      "challenge": "attention-weights",
+      "pattern": "paraphrased",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 424,
+        "generation_id": "gen_01M3MASMQR8AK190HDERFTXANW",
+        "cost": 0.000026922,
+        "input_tokens": 641
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 5031,
+        "error": null
+      }
+    },
+    {
+      "id": "at-plain_words",
+      "challenge": "attention-weights",
+      "pattern": "plain_words",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.96,
+          0.93,
+          0.95
+        ],
+        "misconception": 0.06,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 752,
+        "generation_id": "gen_01M3MASSEBM7ZECMAVRM5CK89A",
+        "cost": 0.000026838,
+        "input_tokens": 639
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 9474,
+        "error": null
+      }
+    },
+    {
+      "id": "at-right_plus_false",
+      "challenge": "attention-weights",
+      "pattern": "right_plus_false",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.96,
+        "non_attempt": 0.04,
+        "verdict": "partial",
+        "ms": 210,
+        "generation_id": "gen_01M3MAT2W31T9670WY9X88CT6A",
+        "cost": 0.000027426,
+        "input_tokens": 653
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 5135,
+        "error": null
+      }
+    },
+    {
+      "id": "at-confidently_wrong",
+      "challenge": "attention-weights",
+      "pattern": "confidently_wrong",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.01,
+          0.01,
+          0.04
+        ],
+        "misconception": 0.98,
+        "non_attempt": 0.06,
+        "verdict": "partial",
+        "ms": 322,
+        "generation_id": "gen_01M3MAT7V9JDR462VDMZNF25GX",
+        "cost": 0.00002562,
+        "input_tokens": 610
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 7362,
+        "error": null
+      }
+    },
+    {
+      "id": "at-off_topic",
+      "challenge": "attention-weights",
+      "pattern": "off_topic",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.86,
+        "verdict": "partial",
+        "ms": 1626,
+        "generation_id": "gen_01M3MATEZR3RNM0JW2N2NNY6KN",
+        "cost": 0.000025032,
+        "input_tokens": 596
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4786,
+        "error": null
+      }
+    },
+    {
+      "id": "at-idk",
+      "challenge": "attention-weights",
+      "pattern": "idk",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 371,
+        "generation_id": "gen_01M3MATKHJ67G8FEGJBB6HBYDW",
+        "cost": 0.000024696,
+        "input_tokens": 588
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4152,
+        "error": null
+      }
+    },
+    {
+      "id": "at-copies_question",
+      "challenge": "attention-weights",
+      "pattern": "copies_question",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.03,
+          0.02,
+          0.02
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 277,
+        "generation_id": "gen_01M3MATQJS9TX41QN2S8KXWECB",
+        "cost": 0.000025368,
+        "input_tokens": 604
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3911,
+        "error": null
+      }
+    },
+    {
+      "id": "at-injection",
+      "challenge": "attention-weights",
+      "pattern": "injection",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.02,
+          0.01,
+          0.02
+        ],
+        "misconception": 0.07,
+        "non_attempt": 0.96,
+        "verdict": "partial",
+        "ms": 246,
+        "generation_id": "gen_01M3MATVE28ECXA3FMETR5BC61",
+        "cost": 0.0000252,
+        "input_tokens": 600
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3699,
+        "error": null
+      }
+    },
+    {
+      "id": "at-rambling_correct",
+      "challenge": "attention-weights",
+      "pattern": "rambling_correct",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.99,
+          1
+        ],
+        "misconception": 0.06,
+        "non_attempt": 0.01,
+        "verdict": "good",
+        "ms": 411,
+        "generation_id": "gen_01M3MATZ4BKS5RR8G6EZCG9ZW0",
+        "cost": 0.000032214,
+        "input_tokens": 767
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 4763,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-all_ideas",
+      "challenge": "gradient-descent",
+      "pattern": "all_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          1,
+          1,
+          0.99
+        ],
+        "misconception": 0.02,
+        "non_attempt": 0.01,
+        "verdict": "good",
+        "ms": 233,
+        "generation_id": "gen_01M3MAV3VZTFB616YRP6KX2C6R",
+        "cost": 0.000025452,
+        "input_tokens": 606
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 3748,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-most_ideas",
+      "challenge": "gradient-descent",
+      "pattern": "most_ideas",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.99,
+          0.27
+        ],
+        "misconception": 0.02,
+        "non_attempt": 0.02,
+        "verdict": "partial",
+        "ms": 227,
+        "generation_id": "gen_01M3MAV7F2C18CQSDQ4NKGV0FQ",
+        "cost": 0.00002499,
+        "input_tokens": 595
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3839,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-one_idea",
+      "challenge": "gradient-descent",
+      "pattern": "one_idea",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "error": "failed",
+        "message": "Jev timed out after 3000 ms"
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3367,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-paraphrased",
+      "challenge": "gradient-descent",
+      "pattern": "paraphrased",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.98,
+          0.98,
+          0.96
+        ],
+        "misconception": 0.03,
+        "non_attempt": 0.02,
+        "verdict": "good",
+        "ms": 225,
+        "generation_id": "gen_01M3MAVEEHXP4RMF88ZQ4WS09W",
+        "cost": 0.000025578,
+        "input_tokens": 609
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 3755,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-plain_words",
+      "challenge": "gradient-descent",
+      "pattern": "plain_words",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.74,
+          0.93,
+          0.95
+        ],
+        "misconception": 0.25,
+        "non_attempt": 0.03,
+        "verdict": "good",
+        "ms": 244,
+        "generation_id": "gen_01M3MAVJ0KPWYWS1YQNF1P0052",
+        "cost": 0.00002541,
+        "input_tokens": 605
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 6447,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-right_plus_false",
+      "challenge": "gradient-descent",
+      "pattern": "right_plus_false",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.99,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.85,
+        "non_attempt": 0.03,
+        "verdict": "partial",
+        "ms": 241,
+        "generation_id": "gen_01M3MAVRJQ4NCZ39CRS0FBJGCG",
+        "cost": 0.000025872,
+        "input_tokens": 616
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4620,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-confidently_wrong",
+      "challenge": "gradient-descent",
+      "pattern": "confidently_wrong",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": true,
+        "non_attempt": false
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.98,
+        "non_attempt": 0.06,
+        "verdict": "partial",
+        "ms": 207,
+        "generation_id": "gen_01M3MAVWZD56E2BKDPFVGK461P",
+        "cost": 0.000024654,
+        "input_tokens": 587
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 3844,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-off_topic",
+      "challenge": "gradient-descent",
+      "pattern": "off_topic",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.03,
+          0.02,
+          0.02
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.8,
+        "verdict": "partial",
+        "ms": 348,
+        "generation_id": "gen_01M3MAW0T432NC4GA35TC3XWKB",
+        "cost": 0.000024444,
+        "input_tokens": 582
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4801,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-idk",
+      "challenge": "gradient-descent",
+      "pattern": "idk",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.98,
+        "verdict": "partial",
+        "ms": 252,
+        "generation_id": "gen_01M3MAW5DSM6NNR3AJ7Q78RDXE",
+        "cost": 0.000023772,
+        "input_tokens": 566
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4798,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-copies_question",
+      "challenge": "gradient-descent",
+      "pattern": "copies_question",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.03,
+          0.02,
+          0.02
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.99,
+        "verdict": "partial",
+        "ms": 267,
+        "generation_id": "gen_01M3MAWA5TXTBAPYJ647JFECCR",
+        "cost": 0.000024192,
+        "input_tokens": 576
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4471,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-injection",
+      "challenge": "gradient-descent",
+      "pattern": "injection",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          false,
+          false,
+          false
+        ],
+        "misconception": false,
+        "non_attempt": true
+      },
+      "gold_verdict": "partial",
+      "jev": {
+        "ideas": [
+          0.01,
+          0.01,
+          0.02
+        ],
+        "misconception": 0.07,
+        "non_attempt": 0.95,
+        "verdict": "partial",
+        "ms": 219,
+        "generation_id": "gen_01M3MAWEHMCX91CD66PK7AH2Y9",
+        "cost": 0.00002436,
+        "input_tokens": 580
+      },
+      "opus": {
+        "verdict": "partial",
+        "ms": 4246,
+        "error": null
+      }
+    },
+    {
+      "id": "gd-rambling_correct",
+      "challenge": "gradient-descent",
+      "pattern": "rambling_correct",
+      "mode": "explain_back",
+      "gold": {
+        "ideas": [
+          true,
+          true,
+          true
+        ],
+        "misconception": false,
+        "non_attempt": false
+      },
+      "gold_verdict": "good",
+      "jev": {
+        "ideas": [
+          0.98,
+          0.99,
+          0.99
+        ],
+        "misconception": 0.04,
+        "non_attempt": 0.01,
+        "verdict": "good",
+        "ms": 245,
+        "generation_id": "gen_01M3MAWJM26AH3G2GTHVP10PY3",
+        "cost": 0.000030408,
+        "input_tokens": 724
+      },
+      "opus": {
+        "verdict": "good",
+        "ms": 5042,
+        "error": null
+      }
+    }
+  ]
+}
