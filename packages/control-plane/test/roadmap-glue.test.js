@@ -3,7 +3,8 @@
 // the scheduler hook and the preview write allowance. Doubles only: no model, no JEV, no network.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { platformCallModel, makeClassify, safetyRequest, ROLES } from '../src/roadmap/roadmap-models.js';
+import { platformCallModel, platformJevAsk, makeClassify, safetyRequest, ROLES } from '../src/roadmap/roadmap-models.js';
+import { operationOf } from '../src/learn-spend-ledger.js';
 import { reserveRoadmapQuota } from '../src/roadmap/roadmap-quota.js';
 import { ROADMAP_LIMITS } from '../src/roadmap/roadmap-policy.js';
 import { offerInvitation, pendingInvitation, dismissInvitation } from '../src/roadmap/roadmap-invitations.js';
@@ -164,4 +165,23 @@ test('the scheduler hook kicks each board that has a due event, once', async t =
   assert.equal(await scheduledRoadmapKick({ ...w.env, ROADMAP_JOBS: binding }), 1);
   assert.deepEqual(kicked, [['team:u-alice:lb_board00000000000001', { org: 'team', ownerUserId: 'u-alice', boardId: 'lb_board00000000000001' }]]);
   assert.equal(await scheduledRoadmapKick(w.env), 0, 'without the binding nothing is kicked and nothing throws');
+});
+
+test('the JEV safety ask is platform-funded with its own stable operation per POST, checkpointed, and an outage is an unknown outcome that blocks a blind repeat', async t => {
+  const w = world(t), seen = [];
+  const answers = Object.fromEntries(Object.keys(SAFETY_QUESTIONS).map(k => [k, { type: 'noul', noul: 0.02 }]));
+  const ask = async (env, request) => { seen.push({ op: operationOf(env), request }); return { body: { answers } }; };
+  const classify = makeClassify({ ask: platformJevAsk(w.env, w.access, { roadmapId: ROADMAP, version: 1, anchor: 'cd_000000000000000000000001', ask }) });
+  const got = await classify({ role: 'output', text: 'a short card' });
+  assert.equal(got.coverage.complete, true);
+  const [call] = rows(w.sqlite, 'SELECT op_id, stage, payer, task, checkpoint FROM learn_roadmap_calls');
+  assert.deepEqual([call.stage, call.payer, call.task, call.checkpoint], ['safety', 'platform', 'jev_safety', 'settled']);
+  assert.equal(seen[0].op.opId, call.op_id, 'askJev receives the stable id');
+  assert.match(call.op_id, /^rm-safety-[0-9a-f]{32}$/);
+  // The transport dying after dispatch: unknown, and the same call number is not repeated blind.
+  const dead = platformJevAsk(w.env, w.access, { roadmapId: ROADMAP, version: 2, anchor: 'cd_000000000000000000000001', ask: async () => { throw new Error('socket closed'); } });
+  await assert.rejects(dead(safetyRequest('x', 'output')), { code: 'unknown_provider_outcome' });
+  const again = platformJevAsk(w.env, w.access, { roadmapId: ROADMAP, version: 2, anchor: 'cd_000000000000000000000001', ask });
+  await assert.rejects(again(safetyRequest('x', 'output')), { code: 'unknown_provider_outcome' });
+  assert.equal(seen.length, 1);
 });
