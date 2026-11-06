@@ -97,7 +97,9 @@ Releases fast-forward `main` one at a time, so queue them in the order below.
 - Local branch `feat/tutor-r2-depth`; being corrected (client-captured Depth, fingerprint, revision guard).
 - Needs: migration 0037; dependency on `chat-modes.js`, `ModeSelector.jsx`, `ask.jsx`, `effectiveControls`.
 
-### R4: contracts only (branch `feat/tutor-r4-contracts`, pushed). Activation needs D-R4-1 to D-R4-4 and R1-R3 integrated.
+### R4: contracts pushed (`feat/tutor-r4-contracts-2`); Tools lane built (`feat/tutor-r4-tools`, pushed): bounded Markdown read with an honest coverage limit (whole source within 40,000 characters, otherwise a clarification, never a prefix), invitation, subject, plan draft and revise with validators (original instruction preserved), the trusted text/table adapter with 12 escape tests, source-support and safety checks (unknown is held, never published). 154 focused tests pass with injected doubles; no model was called. State and UI lanes are still building. Activation needs D-R4-1 to D-R4-4 and R1-R3 integrated.
+  - New R4 string for approval (Tools lane): "Your note is in a different language than your request. Which should the explanations use?"
+  - Proposed, unmeasured engineering settings (not approvals): safety thresholds and `MAX_UNCERTAINTY` 0.4; source bound 40,000 characters; 2 MiB Markdown read cap. Real-model qualification stays blocked on D-R4-3.
 
 ---
 
