@@ -91,6 +91,8 @@ export async function main({ argv, readFile = f => readFileSync(f, 'utf8'), writ
   const [env, command] = argv;
   if (!ENVS[env] || !['check', 'backfill', 'gate', 'window-check', 'retire'].includes(command)) throw new Stop('usage: <dev|parallel|prod> <check|backfill|gate|window-check|retire>', 2);
   if (!hasWrangler()) throw new Stop(`wrangler is not installed at ${WRANGLER_JS}; run npm ci in ${ROOT} first (nothing was run)`, 2);
+  // Recovery branch of P6b: the six tables are already dropped, so there is nothing left to retire. Backfill, gate, check and window-check stay read-compatible.
+  if (command === 'retire') throw new Stop('retire is disabled on the P6b recovery branch: the tables are already dropped', 2);
   const cfg = ENVS[env];
   const database = assertDatabase(env, readFile(join(ROOT, cfg.config)));
   const generator = sha256(readFile(join(ROOT, 'scripts', 'learn-retire-tutor-data.mjs')));
