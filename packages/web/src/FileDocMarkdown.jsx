@@ -6,9 +6,9 @@ import { ToolButton, placeNear } from './selection-toolbar.jsx';
 import { EXCERPT_LIMIT } from './pdf-anchor.js';
 import { deleteHighlight, listHighlights, newId, putHighlight } from './pdf-highlights.js';
 import { canWrite, fileScope } from './file-source-client.js';
-import { containsOffset, locateQuote, paintHighlights, quoteFromRange, rangeFromOffsets } from './learn-wiki-highlights.js';
+import { containsOffset, paintHighlights, quoteFromRange, rangeFromOffsets } from './learn-wiki-highlights.js';
 import { currentHighlights, highlightAt, markdownHighlightBody, markdownHighlightSource, placeHighlights } from './file-doc-highlights.js';
-import { EXPLAIN_PASSAGE_EVENT, SOURCE_REF_EVENT, STATUS_TEXT, explanationsFor, markdownDraft } from './source-ref.js';
+import { EXPLAIN_PASSAGE_EVENT, PASSAGE_TEXT, SOURCE_REF_EVENT, explanationsFor, markdownDraft, passageTarget, resolveQuote } from './source-ref.js';
 import { focusExplanation, mintSourceRef } from './source-refs.js';
 import { api } from './api.js';
 import { useSourceRefBlocks } from './SourceRefChip.jsx';
@@ -56,12 +56,10 @@ export function MarkdownText({ block, text, children }) {
   // A changed file shows that instead; the passage is never searched for in other text.
   useEffect(() => {
     const onPassage = event => {
-      const { cardId, rev: from, quote } = event.detail || {};
       const node = root.current;
-      if (cardId !== block.id || !node) return;
-      if (from !== rev) { setMessage({ text: STATUS_TEXT.changed }); return; }
-      const span = locateQuote(node.textContent, quote), range = span && rangeFromOffsets(node, span.start, span.end);
-      if (!range) { setMessage({ text: STATUS_TEXT.changed }); return; }
+      if (event.detail?.cardId !== block.id || !node) return;
+      const found = passageTarget({ text: node.textContent, rev, detail: event.detail }), range = found.status === 'resolved' && rangeFromOffsets(node, found.start, found.end);
+      if (!range) { setMessage({ text: PASSAGE_TEXT[found.status] || PASSAGE_TEXT.missing }); return; }
       const paintKey = `srcref:${block.id}`;
       paintHighlights(paintKey, [range]);
       (range.startContainer.parentElement || node).scrollIntoView?.({ block: 'center' });
@@ -120,7 +118,7 @@ export function MarkdownText({ block, text, children }) {
     before.setStart(node, 0); before.setEnd(caret.startContainer, caret.startOffset);
     const offset = before.toString().length, placed = saveable ? placeHighlights(node.textContent, highlights) : [], h = highlightAt(placed, offset);
     const passage = explanationsFor(refBlocks, { key: `file:${block.fileRef?.source?.id}`, rev }).current
-      .flatMap(({ cardId, ref }) => { const span = locateQuote(node.textContent, ref.anchor.quote); return span && containsOffset(span, offset) ? [{ cardId, span }] : []; })[0];
+      .flatMap(({ cardId, ref }) => { const span = resolveQuote(node.textContent, ref.anchor.quote); return span.status === 'resolved' && containsOffset(span, offset) ? [{ cardId, span }] : []; })[0];
     if (!h && !passage) { setMenu(null); return; }
     const { span } = h ? placed.find(entry => entry.h === h) : passage;
     setMenu({ h: h || null, cardId: passage?.cardId ?? null, range: rangeFromOffsets(node, span.start, span.end) });

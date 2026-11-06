@@ -71,6 +71,8 @@ export const STATUS_TEXT = Object.freeze({
 // The same, as the one short line a card shows; the long form is its title and what a screen reader says.
 export const STATUS_SHORT = Object.freeze({ changed: 'Source changed', missing: 'Source not available', unavailable: 'Source not available' });
 export const NO_FILE_CARD = 'The file this passage is in is not on this canvas.';
+// What a Markdown file card says when the passage cannot be shown: never a guessed jump.
+export const PASSAGE_TEXT = Object.freeze({ changed: STATUS_TEXT.changed, ambiguous: 'This passage appears more than once in the file, so it cannot be shown.', missing: 'This passage was not found in the file.' });
 export const CREATE_REFUSED = Object.freeze({
   source_changed: 'This source changed since you selected this passage. Select the passage again.',
   source_unavailable: 'This source is not available to you now. Select the passage again from a source you can open.',
@@ -96,6 +98,30 @@ export function excerptDraft({ excerpt, app }) {
 // The ref a selected card offers: a PDF excerpt card's own excerpt. A Markdown passage is offered by the file card's text
 // selection (FileDocMarkdown), not by a card.
 export const draftOfBlock = (block, app) => (block?.excerpt ? excerptDraft({ excerpt: block.excerpt, app }) : null);
+
+// ---- Placing a Markdown quote in the rendered text ----
+
+// Where a saved quote sits in `text`, only when it can be told apart: the one occurrence, or the one whose stored prefix and suffix
+// both match exactly. learn-wiki-highlights.js locateQuote (kept as it is for the learner's own highlights) takes the first best
+// score even when the surroundings do not match; a card's "go to the passage" promises more than that, so a repeated sentence with
+// no matching context is 'ambiguous' and nothing is shown. -> { status: 'resolved', start, end } | { status: 'ambiguous' | 'missing' }
+export function resolveQuote(text, quote) {
+  const exact = quote?.exact;
+  if (typeof text !== 'string' || typeof exact !== 'string' || !exact) return { status: 'missing' };
+  const at = [];
+  for (let i = text.indexOf(exact); i !== -1; i = text.indexOf(exact, i + 1)) at.push(i);
+  if (!at.length) return { status: 'missing' };
+  const prefix = typeof quote.prefix === 'string' ? quote.prefix : '', suffix = typeof quote.suffix === 'string' ? quote.suffix : '';
+  const fits = i => text.slice(Math.max(0, i - prefix.length), i) === prefix && text.slice(i + exact.length, i + exact.length + suffix.length) === suffix;
+  const found = at.length === 1 ? at : at.filter(fits);
+  return found.length === 1 ? { status: 'resolved', start: found[0], end: found[0] + exact.length } : { status: 'ambiguous' };
+}
+// The View passage request a Markdown file card received ({ rev, quote } from the card's ref) against the text it shows now and the
+// revision it holds: a different revision never relocates (changed), a repeated quote without matching context never guesses.
+export function passageTarget({ text, rev, detail }) {
+  if (!detail || detail.rev !== rev) return { status: 'changed' };
+  return resolveQuote(text, detail.quote);
+}
 
 // ---- Navigation, from the blocks on the canvas ----
 

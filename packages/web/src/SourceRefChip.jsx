@@ -44,18 +44,24 @@ export default function SourceRefChip({ block, app, onHeight = null }) {
     return () => { observer.disconnect(); onHeight(0); };
   }, [onHeight]);
   if (!ref) return null;
-  const bad = status && status !== 'current';
   const open = () => { if (viewPassage(ref) === 'no-card') setNote(NO_FILE_CARD); else setNote(''); };
+  return <div ref={root} onPointerDown={event => event.stopPropagation()}><SourceRefLine ref_={ref} status={status} note={note} onOpen={open} /></div>;
+}
+
+// The row itself, apart from the status read and the camera so it can be rendered and tested as markup. Plain buttons, always shown: the
+// keyboard reaches View passage by Tab and presses it with Enter or Space, and nothing here depends on hover.
+export function SourceRefLine({ ref_: ref, status, note = '', onOpen }) {
+  const bad = status && status !== 'current';
   return (
-    <div ref={root} data-source-ref data-source-ref-status={status || 'unknown'} className="shrink-0 px-4 pb-3" onPointerDown={event => event.stopPropagation()}>
+    <div data-source-ref data-source-ref-status={status || 'unknown'} className="shrink-0 px-4 pb-3">
       <div className="flex items-center gap-1.5 border-t border-line pt-1.5 text-[11px] text-ink-3">
         <FileText size={12} className="shrink-0" aria-hidden="true" />
         <span className="min-w-0 flex-1 truncate" title={refLabel(ref)}>From {refLabel(ref)}</span>
         {bad && <span data-source-ref-note role="status" title={STATUS_TEXT[status]} aria-label={STATUS_TEXT[status]} className="shrink-0 text-ink-2">{STATUS_SHORT[status]}</span>}
         {!bad && note && <span data-source-ref-note role="status" className="shrink-0 text-ink-2">{note}</span>}
         {navigable(ref) && status === 'current' && (
-          <button type="button" data-source-ref-open aria-label="View passage" title="View passage" onClick={open}
-            className="flex shrink-0 items-center rounded p-1 text-ink-2 hover:bg-hover hover:text-ink"><BookOpen size={12} aria-hidden="true" /></button>
+          <button type="button" data-source-ref-open aria-label="View passage" title="View passage" onClick={onOpen}
+            className="flex shrink-0 items-center rounded p-1 text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"><BookOpen size={12} aria-hidden="true" /></button>
         )}
       </div>
     </div>

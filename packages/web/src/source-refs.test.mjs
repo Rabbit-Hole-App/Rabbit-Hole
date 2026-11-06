@@ -158,3 +158,95 @@ test('a command that makes a card directly sends the ref id with the request', a
   await runLearnCommand('/explain the loss', { app: 'demo', target: { id: 'x', text: 'x', sourceDraft }, canvas, post: h.post });
   assert.equal(h.posts.find(([path]) => path === '/api/learn/artifact')[1].sourceRefId, pdf().id);
 });
+
+// ---- R3.01 / R3.04: placing a quote, the PDF anchor across zoom, and no jump the data does not support ----
+
+import { PASSAGE_TEXT, resolveQuote, passageTarget } from './source-ref.js';
+import { locateQuote } from './learn-wiki-highlights.js';
+import { toViewport } from './pdf-anchor.js';
+
+const FILE_TEXT = 'Notes\nThe loss is the mean squared error. Summary one.\nSecond heading\nThe loss is the mean squared error. Summary two.\nEnd';
+const SENT = 'The loss is the mean squared error.';
+const sentence = (prefix, suffix) => ({ exact: SENT, prefix, suffix });
+
+test('repeated quote requires context: a repeated sentence resolves only through its own surroundings, never the first best score', () => {
+  const second = FILE_TEXT.lastIndexOf(SENT), first = FILE_TEXT.indexOf(SENT);
+  assert.deepEqual(resolveQuote(FILE_TEXT, sentence('Second heading\n', ' Summary two.')), { status: 'resolved', start: second, end: second + SENT.length });
+  assert.deepEqual(resolveQuote(FILE_TEXT, sentence('Notes\n', ' Summary one.')), { status: 'resolved', start: first, end: first + SENT.length }, 'the text start is a context too');
+  assert.equal(resolveQuote(FILE_TEXT, sentence('', '')).status, 'ambiguous', 'no context to tell the two apart');
+  assert.equal(resolveQuote(FILE_TEXT, sentence('Elsewhere\n', ' Other.')).status, 'ambiguous', 'context that matches neither is not a best guess');
+  assert.equal(resolveQuote(FILE_TEXT, sentence('Second heading\n', ' Summary one.')).status, 'ambiguous', 'half a match is not a match');
+  assert.notEqual(locateQuote(FILE_TEXT, sentence('Elsewhere\n', ' Other.')), null, 'locateQuote still guesses; it is untouched for the learner highlights');
+  // A quote that occurs once needs no context, wherever the surroundings changed.
+  assert.equal(resolveQuote(FILE_TEXT, { exact: 'Second heading', prefix: 'unrelated', suffix: 'unrelated' }).status, 'resolved');
+  assert.equal(resolveQuote(FILE_TEXT, { exact: 'Absent words', prefix: '', suffix: '' }).status, 'missing');
+  assert.equal(resolveQuote(FILE_TEXT, null).status, 'missing');
+  assert.equal(resolveQuote(null, { exact: SENT }).status, 'missing');
+});
+
+test('ambiguous duplicate unresolved: identical sentences with identical surroundings are two answers, so none is shown', () => {
+  const twin = `Intro\n${SENT} Same tail.\nMiddle\nIntro\n${SENT} Same tail.\n`;
+  assert.equal(resolveQuote(twin, sentence('Intro\n', ' Same tail.')).status, 'ambiguous');
+  assert.equal(resolveQuote('aaa', { exact: 'aa', prefix: '', suffix: '' }).status, 'ambiguous', 'overlapping occurrences count');
+  assert.equal(passageTarget({ text: twin, rev: REV, detail: { rev: REV, quote: sentence('Intro\n', ' Same tail.') } }).status, 'ambiguous');
+  assert.match(PASSAGE_TEXT.ambiguous, /more than once/);
+  for (const words of Object.values(PASSAGE_TEXT)) assert.doesNotMatch(words, /\.\.\.|…/);
+});
+
+test('Markdown survives rerender: the same rendered text places the quote at the same offsets after Show more or a re-render', () => {
+  const quote = sentence('Second heading\n', ' Summary two.');
+  const first = resolveQuote(FILE_TEXT, quote);
+  assert.deepEqual(resolveQuote(FILE_TEXT + '\nFiller line.'.repeat(500), quote), first, 'more text after it does not move the passage');
+  assert.equal(resolveQuote(`${'Filler\n'.repeat(3)}${FILE_TEXT}`, quote).start - first.start, 'Filler\n'.length * 3, 'text before it shifts it by exactly that much, found by its surroundings');
+  assert.equal(passageTarget({ text: FILE_TEXT, rev: REV, detail: { rev: REV, quote } }).status, 'resolved');
+});
+
+test('changed hash never relocates: a card made from another revision finds nothing in the file as it is now, even where the words still exist', () => {
+  const quote = sentence('Second heading\n', ' Summary two.');
+  assert.deepEqual(passageTarget({ text: FILE_TEXT, rev: NEWER, detail: { rev: REV, quote } }), { status: 'changed' });
+  assert.deepEqual(passageTarget({ text: FILE_TEXT, rev: REV, detail: null }), { status: 'changed' });
+  assert.equal(PASSAGE_TEXT.changed, STATUS_TEXT.changed);
+  // Passage to explanation: a newer revision lists the older card as changed and never returns it as a match.
+  const cards = [{ id: 'old', sourceRef: md() }];
+  assert.deepEqual(explanationsFor(cards, { key: `file:${MD}`, rev: NEWER }), { current: [], changed: ['old'] });
+});
+
+test('PDF page and rectangle survive zoom: the stored anchor is in PDF points and draws at the same fractions of the page at every zoom', () => {
+  const viewport = scale => ({ width: 612 * scale, height: 792 * scale, convertToViewportPoint: (x, y) => [x * scale, (792 - y) * scale], convertToPdfPoint: (x, y) => [x / scale, 792 - y / scale] });
+  const ref = sourceRefOf({ sourceRef: pdf() });
+  const one = toViewport(ref.anchor, viewport(1)), two = toViewport(ref.anchor, viewport(2.5));
+  assert.equal(one.length, 1);
+  for (const key of ['left', 'top', 'width', 'height']) assert.ok(Math.abs(one[0][key] - two[0][key]) < 1e-9, key);
+  assert.ok(one[0].left > 0 && one[0].width > 0 && one[0].top > 0 && one[0].top < 1);
+  const open = readerRef(ref);
+  assert.deepEqual([open.range.page, open.range.excerpt.page, open.range.excerpt.rects], [3, { index: 3, label: 'iii' }, [[72, 600, 540, 614]]], 'zoom belongs to the reader, never to the anchor');
+  assert.equal(JSON.stringify(open).includes('zoom'), false);
+});
+
+test('unsupported crop has no invented text: a region excerpt keeps its rectangle and never a quote, and its reference opens by page alone', () => {
+  const region = { kind: 'region', source: { key: DOC, sha256: REV, name: 'p', home: null }, page: { index: 4, label: null }, rects: [[10, 10, 200, 100]], rotate: 0, view: [0, 0, 612, 792], quote: { exact: 'text someone typed in', prefix: '', suffix: '' } };
+  const draft = excerptDraft({ excerpt: region, app: 'demo' });
+  assert.equal(draft.anchor.quote, null, 'a region carries no words, whatever the draft held');
+  const ref = sourceRefOf({ sourceRef: { v: 1, id: `sref_${'5'.repeat(24)}`, kind: 'pdf', source: { key: DOC, rev: REV, name: 'p', home: null }, anchor: draft.anchor } });
+  assert.deepEqual([ref.anchor.kind, ref.anchor.quote, ref.anchor.rects], ['region', null, [[10, 10, 200, 100]]]);
+  const open = readerRef(ref);
+  assert.equal('quote' in open.range.excerpt, false);
+  assert.equal(JSON.stringify(open).includes('text someone typed in'), false);
+});
+
+test('no arrival-driven navigation: a card or reference arriving, a changed ref and a published canvas never move the camera; only an explicit action does', () => {
+  const focused = [];
+  const focus = id => focused.push(id);
+  const stale = md({ source: { key: `file:${MD}`, rev: NEWER, name: 'notes.md', home: null } });
+  publishBlocks([file()], focus);
+  publishBlocks([file(), { id: 'new-card', sourceRef: md() }], focus);   // an explanation arrives
+  publishBlocks([file(), { id: 'new-card', sourceRef: stale }], focus);  // and its ref goes stale
+  assert.deepEqual(focused, [], 'publishing is not navigating');
+  assert.equal(viewExplanation({ key: `file:${MD}`, rev: REV }), 0, 'a changed ref has no current explanation to move to');
+  assert.deepEqual(focused, [], 'changed ref does not move camera');
+  assert.equal(viewExplanation({ key: `file:${MD}`, rev: NEWER }), 1);
+  assert.deepEqual(focused, ['new-card'], 'the explicit action does');
+  viewPassage(sourceRefOf({ sourceRef: md() }), { blocks: [file()], focus, emit: () => {}, wait: () => {} });
+  assert.deepEqual(focused, ['new-card', 'file-1']);
+  publishBlocks([], null);
+});

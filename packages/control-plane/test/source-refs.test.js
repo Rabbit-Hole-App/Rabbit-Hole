@@ -8,7 +8,8 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { learnDb } from './learn-grade-fixture.js';
 import { contextDocsFetch } from '../src/learn-context-docs.js';
-import { sourceRefsFetch, sourceRefsRoute, trustedSourceRef, refAnchor, SOURCE_CHANGED, SOURCE_UNAVAILABLE } from '../src/source-refs.js';
+import { sourceRefsFetch, sourceRefsRoute, trustedSourceRef, refAnchor, sourceRefCards, SOURCE_CHANGED, SOURCE_UNAVAILABLE } from '../src/source-refs.js';
+import { learnBoardsRoute } from '../src/learn-boards.js';
 import { artifactFetch } from '../src/learn-artifact.js';
 import { explainRoute } from '../src/explain-job.js';
 import { sharedState } from '../src/shared-privacy.js';
@@ -57,7 +58,14 @@ async function setup(t) {
   const mint = async (draft, opts) => { const out = await call('POST', '/api/learn/source-refs', { body: draft, ...opts }); return out; };
   const resolve = (ids, opts = {}, app = MINE) => call('POST', '/api/learn/source-refs/resolve', { body: { app, ids }, ...opts });
   const row = id => sqlite.prepare('SELECT * FROM learn_source_refs WHERE id = ?').get(id);
-  return { env, sqlite, objects, call, request, headers, docKey, mdKey, markdown, pdf, mint, resolve, row };
+  // The owner's main board through the real save route (the index is written in its batch). version 0 on a canvas's first save.
+  const save = async (blocks, version, as = 'owner') => {
+    const res = await learnBoardsRoute(`/api/learn/boards/${MINE}/main`, request('PUT', `/api/learn/boards/${MINE}/main`, { as, body: { state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], sources: [], blocks }, ...(version === undefined ? {} : { version }) } }), env);
+    return { status: res.status, body: await res.json() };
+  };
+  const index = () => sqlite.prepare('SELECT card_id, ref_id, source_key, source_rev, status FROM learn_source_ref_cards ORDER BY position').all().map(r => ({ ...r }));
+  const board = () => sqlite.prepare("SELECT state_json, version FROM learn_boards WHERE app = ? AND board = 'main'").get(MINE);
+  return { env, sqlite, objects, call, request, headers, docKey, mdKey, markdown, pdf, mint, resolve, row, save, index, board };
 }
 
 test('0038 is additive, re-runnable and exactly what repository-schema.sql applies; learn_canvas_refs is untouched and cannot hold a source', async t => {
@@ -68,7 +76,8 @@ test('0038 is additive, re-runnable and exactly what repository-schema.sql appli
   sqlite.exec(migration); sqlite.exec(migration);
   assert.ok(schema.replace(/\r/g, '').includes(migration.replace(/\r/g, '').trim()), 'repository-schema.sql carries the migration verbatim');
   assert.doesNotMatch(migration, /^\s*(DROP|ALTER|DELETE|UPDATE|INSERT)\b/im);
-  assert.deepEqual(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(r => r.name), ['learn_source_refs']);
+  assert.deepEqual(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all().map(r => r.name), ['learn_source_ref_cards', 'learn_source_refs']);
+  assert.throws(() => sqlite.prepare("INSERT INTO learn_source_ref_cards VALUES ('b', 'c', 'r', 'k', 'v', 'lost', 0)").run(), /CHECK/);
   assert.throws(() => sqlite.prepare("INSERT INTO learn_source_refs VALUES ('sref_x', 'o', 'e', 'html', 'k', null, 'n', 'r', '{}', 'h', 'current', null, 1)").run(), /CHECK/);
   assert.throws(() => sqlite.prepare("INSERT INTO learn_source_refs VALUES ('sref_x', 'o', 'e', 'pdf', 'k', null, 'n', 'r', '{}', 'h', 'lost', null, 1)").run(), /CHECK/);
 });
@@ -114,7 +123,7 @@ test('create refuses a changed revision, an unreadable source, a malformed ancho
   assert.equal((await f.call('POST', '/api/learn/source-refs', { body: undefined })).status, 400);
   assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM learn_source_refs').get().n, 0, 'a refusal stores nothing');
   assert.equal((await f.call('GET', '/api/learn/source-refs')).status, 405);
-  assert.deepEqual(refAnchor('markdown', { quote: { ...QUOTE, extra: 1 }, extra: 1 }), { quote: QUOTE }, 'only known keys are kept');
+  assert.deepEqual(await refAnchor('markdown', { quote: { ...QUOTE, extra: 1 }, extra: 1 }), { quote: QUOTE }, 'only known keys are kept');
 });
 
 test('resolve: current, changed (never a guessed match), missing, and the one unavailable answer for any other learner or unknown id', async t => {
@@ -299,4 +308,114 @@ test('a block saved with a malformed sourceRef is read as none, never thrown on'
   }
   assert.equal(sourceRefOf({}), null);
   assert.equal(sourceRefOf(null), null);
+});
+
+// ---- The derived source-to-card index, committed in the board save's own guarded batch ----
+
+const card = (id, sourceRef) => ({ id, type: 'explanation', title: id, body: 'text', dx: 0, dy: 0, ...(sourceRef ? { sourceRef } : {}) });
+
+test('source and index commit together: the saved card and its index row are one write, and a board with no passage writes none', async t => {
+  const f = await setup(t);
+  const ref = (await f.mint(f.markdown())).body.ref;
+  assert.deepEqual(f.index(), [], 'minting a ref is not indexing it');
+  const plain = await f.save([card('plain')], 0);
+  assert.equal(plain.status, 200);
+  assert.deepEqual(f.index(), []);
+  const saved = await f.save([card('plain'), card('c1', ref)], plain.body.version);
+  assert.equal(saved.status, 200);
+  assert.deepEqual(f.index(), [{ card_id: 'c1', ref_id: ref.id, source_key: f.mdKey, source_rev: sha(MD), status: 'current' }]);
+  assert.equal(JSON.parse(f.board().state_json).blocks[1].sourceRef.id, ref.id, 'the card on the board and its entry are the same save');
+  assert.equal(f.board().version, saved.body.version);
+});
+
+test('stale board save changes neither: the card reference, the board and the index stay as the winning save left them', async t => {
+  const f = await setup(t);
+  const a = (await f.mint(f.markdown())).body.ref, b = (await f.mint(f.pdf())).body.ref;
+  const first = await f.save([card('c1', a)], 0);
+  assert.equal(first.status, 200);
+  const before = { board: f.board(), index: f.index() };
+  const stale = await f.save([card('c1', a), card('c2', b)], 0);
+  assert.equal(stale.status, 409);
+  assert.deepEqual({ board: f.board(), index: f.index() }, before, 'a rejected save wrote neither');
+  const next = await f.save([card('c2', b)], first.body.version);
+  assert.equal(next.status, 200);
+  assert.deepEqual(f.index().map(r => [r.card_id, r.ref_id]), [['c2', b.id]], 'the accepted save replaced the index with its own cards');
+});
+
+test('foreign source refused: a ref another learner minted, a forged key and an unknown id are never indexed (and never authorize)', async t => {
+  const f = await setup(t);
+  const mine = (await f.mint(f.markdown())).body.ref;
+  f.sqlite.prepare("INSERT INTO learn_source_refs (id, org, owner_email, kind, source_key, source_home, source_name, source_rev, anchor_json, anchor_hash, status, checked_at, created_at) VALUES (?, 'team', 'friend@test', 'markdown', ?, null, 'theirs', ?, '{}', 'h', 'current', 1, 1)")
+    .run('sref_' + 'f'.repeat(24), 'file:' + THEIR_MD, sha(THEIR_MD));
+  const foreign = { ...mine, id: 'sref_' + 'f'.repeat(24), source: { ...mine.source, key: 'file:' + THEIR_MD } };
+  const forgedKey = { ...mine, source: { ...mine.source, key: 'file:' + THEIR_MD } };
+  const unknown = { ...mine, id: 'sref_' + '9'.repeat(24) };
+  const saved = await f.save([card('own', mine), card('foreign', foreign), card('forged', forgedKey), card('unknown', unknown), card('malformed', { v: 1, id: 'x' })], 0);
+  assert.equal(saved.status, 200, 'the board itself saves: a card is content');
+  assert.deepEqual(f.index().map(r => r.card_id), ['own'], 'only the learner\'s own ref for the key the card names is indexed');
+  assert.deepEqual(sourceRefCards({ blocks: [card('a', mine), card('a', mine), card('b', { id: 'bad' })] }).map(c => c.card), ['a'], 'one entry per card id, structurally valid ids only');
+});
+
+test('hash mismatch marked changed: a card naming another revision, an edited file and a removed file are never current', async t => {
+  const f = await setup(t);
+  const ref = (await f.mint(f.markdown())).body.ref;
+  const other = { ...ref, source: { ...ref.source, rev: sha('another revision') } };
+  const first = await f.save([card('ok', ref), card('claims-other', other)], 0);
+  assert.deepEqual(f.index().map(r => [r.card_id, r.status]), [['ok', 'current'], ['claims-other', 'changed']], 'the claimed revision must be the minted one');
+  f.sqlite.prepare('UPDATE file_sources SET sha256 = ? WHERE id = ?').run(sha('edited'), MD);
+  const second = await f.save([card('ok', ref)], first.body.version);
+  assert.deepEqual(f.index().map(r => [r.card_id, r.status, r.source_rev]), [['ok', 'changed', sha(MD)]], 'the entry keeps the revision the card was made from; it is not moved to the new text');
+  f.sqlite.prepare('DELETE FROM file_sources WHERE id = ?').run(MD);
+  await f.save([card('ok', ref)], second.body.version);
+  assert.equal(f.index()[0].status, 'missing');
+  // The status route keeps the index in step with what it finds.
+  f.sqlite.prepare('INSERT INTO file_sources (id, org, owner_email, app, family, name, media_type, bytes, sha256, r2_key, status, created_at) VALUES (?, \'team\', \'owner@test\', ?, \'markdown\', ?, \'text/markdown\', 10, ?, \'k\', \'stored\', 1)').run(MD, MINE, 'back.md', sha(MD));
+  assert.equal((await f.resolve([ref.id])).body.refs[0].status, 'current');
+  assert.equal(f.index()[0].status, 'current');
+});
+
+test('card deletion removes return target: the entry goes with the card in the same save, and the passage lists no explanation', async t => {
+  const f = await setup(t);
+  const ref = (await f.mint(f.markdown())).body.ref;
+  const first = await f.save([card('c1', ref), card('c2', ref)], 0);
+  const listed = await f.call('GET', `/api/learn/source-refs/cards?app=${MINE}&key=${encodeURIComponent(f.mdKey)}`);
+  assert.deepEqual(listed.body.cards.map(c => c.cardId), ['c1', 'c2']);
+  const second = await f.save([card('c2', ref)], first.body.version);
+  assert.equal(second.status, 200);
+  assert.deepEqual((await f.call('GET', `/api/learn/source-refs/cards?app=${MINE}&key=${encodeURIComponent(f.mdKey)}`)).body.cards.map(c => c.cardId), ['c2']);
+  await f.save([], second.body.version);
+  assert.deepEqual(f.index(), []);
+  assert.deepEqual((await f.call('GET', `/api/learn/source-refs/cards?app=${MINE}&key=${encodeURIComponent(f.mdKey)}`)).body.cards, []);
+  assert.equal(f.row(ref.id).status, 'current', 'the minted ref is not the card: it stays');
+  assert.equal(f.board().state_json.includes('sourceRef'), false);
+});
+
+test('multiple cards retain separate identities: two explanations of one passage and one of another keep their own card ids, in board order, for their owner only', async t => {
+  const f = await setup(t);
+  const a = (await f.mint(f.markdown())).body.ref, b = (await f.mint(f.markdown({ anchor: { quote: { exact: 'A second passage.', prefix: '', suffix: '' } } }))).body.ref;
+  assert.notEqual(a.id, b.id);
+  await f.save([card('first', a), card('other', b), card('second', a)], 0);
+  assert.deepEqual(f.index().map(r => [r.card_id, r.ref_id]), [['first', a.id], ['other', b.id], ['second', a.id]]);
+  const listed = (await f.call('GET', `/api/learn/source-refs/cards?app=${MINE}&key=${encodeURIComponent(f.mdKey)}`)).body.cards;
+  assert.deepEqual(listed.map(c => [c.cardId, c.refId, c.status]), [['first', a.id, 'current'], ['other', b.id, 'current'], ['second', a.id, 'current']]);
+  assert.equal((await f.call('GET', `/api/learn/source-refs/cards?app=${THEIRS}&key=${encodeURIComponent(f.mdKey)}`, { as: 'friend' })).body.cards.length, 0, "another learner's canvas lists nothing");
+  assert.equal((await f.call('GET', `/api/learn/source-refs/cards?app=${MINE}&key=${encodeURIComponent(f.mdKey)}`, { as: 'friend' })).status, 404);
+  assert.equal((await f.call('GET', '/api/learn/source-refs/cards?app=x&key=bad')).status, 400);
+  assert.equal((await f.call('POST', '/api/learn/source-refs/cards', {})).status, 405);
+});
+
+test('different-anchor request replay conflicts: the same request id with another passage is refused, the same passage is the same job', async t => {
+  const w = await world(t);
+  const md = (await w.f.mint(w.f.markdown())).body.ref, pdf = (await w.f.mint(w.f.pdf())).body.ref;
+  const first = await w.post({ sourceRefId: md.id });
+  const again = await w.post({ sourceRefId: md.id });
+  assert.deepEqual([first.status, again.status, (await again.json()).job.id === (await first.json()).job.id], [202, 200, true]);
+  const other = await w.post({ sourceRefId: pdf.id });
+  assert.equal(other.status, 409);
+});
+
+test('unsupported crop has no invented text: the server refuses a quote on a region and keeps a region as its rectangle alone', async () => {
+  const region = quote => ({ kind: 'region', page: { index: 4, label: null }, rects: [[10, 10, 200, 100]], rotate: 0, view: [0, 0, 612, 792], ...(quote ? { quote } : {}) });
+  assert.equal(await refAnchor('pdf', region({ exact: 'typed in' })), 'a region has no quote');
+  assert.deepEqual(await refAnchor('pdf', region()), { kind: 'region', page: { index: 4, label: null }, rects: [[10, 10, 200, 100]], rotate: 0, view: [0, 0, 612, 792], quote: null });
 });

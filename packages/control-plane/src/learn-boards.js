@@ -24,6 +24,7 @@ import { retainedFileSources } from '../../web/src/file-context-manifest.js';
 import { linkAccess, sharedState } from './shared-privacy.js';
 import { publicExplainBack } from '../../web/src/explain-back-private.js';
 import { fileRefSources, fileRefStatements, inheritFileRefs } from './file-refs.js';
+import { sourceRefCards, sourceRefStatements } from './source-refs.js';
 import { clientMismatch, uploadBody } from './upload-body.js';
 import { redactRepositoryCards, restoreRedactedCards, sharedCardSource } from './repository-cards.js';
 import { NO_ACCESS } from './canvas-comments.js';
@@ -243,6 +244,8 @@ async function saveOwn(env, owner, app, board, body) {
   const indexed = CANVAS.test(app) && board === 'main';
   // Imported files' references (file-access.js), on every board: rewritten whenever this board names or named a source.
   const files = fileRefSources(body.state).length > 0 || !!row?.state_json.includes('"fileRef"');
+  // Source passage references (source-refs.js): the source-to-card index, rewritten in the same batch whenever this board names or named one.
+  const passages = sourceRefCards(body.state).length > 0 || !!row?.state_json.includes('"sourceRef"');
   const db = env.LEARN_DB;
   const write = async (statement, index) => (index.length ? (await db.batch([statement, ...index]))[0] : await statement.run());
   const now = new Date().toISOString();
@@ -250,7 +253,7 @@ async function saveOwn(env, owner, app, board, body) {
   if (!row) {
     const id = crypto.randomUUID();
     const { meta } = await write(db.prepare('INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?) ON CONFLICT DO NOTHING')
-      .bind(id, owner.org, owner.email, app, board, state.text, owner.email, now), [...(indexed && refs.length ? indexStatements(db, id, state.text, 1, refs, owner) : []), ...(files ? fileRefStatements(db, id, state.text, 1, body.state, owner) : [])]);
+      .bind(id, owner.org, owner.email, app, board, state.text, owner.email, now), [...(indexed && refs.length ? indexStatements(db, id, state.text, 1, refs, owner) : []), ...(files ? fileRefStatements(db, id, state.text, 1, body.state, owner) : []), ...(passages ? sourceRefStatements(db, id, state.text, 1, body.state, owner) : [])]);
     return meta.changes ? json({ version: 1, board_id: id, sharing: sharingOf(null) }) : stale();
   }
   const checked = Number.isInteger(body.version);
@@ -259,7 +262,7 @@ async function saveOwn(env, owner, app, board, body) {
   // The index is rewritten whenever this board has or had references (an unversioned save cannot know what it replaces).
   const reindex = indexed && (refs.length || !checked || row.state_json.includes('"refs"'));
   const { meta } = await write(db.prepare(`UPDATE learn_boards SET state_json = ?, version = version + 1, updated_by = ?, updated_at = ? WHERE id = ?${checked ? ' AND version = ?' : ''}`)
-    .bind(state.text, owner.email, now, row.id, ...(checked ? [body.version] : [])), [...(reindex ? indexStatements(db, row.id, state.text, checked ? body.version + 1 : null, refs, owner) : []), ...(files ? fileRefStatements(db, row.id, state.text, checked ? body.version + 1 : null, body.state, owner) : [])]);
+    .bind(state.text, owner.email, now, row.id, ...(checked ? [body.version] : [])), [...(reindex ? indexStatements(db, row.id, state.text, checked ? body.version + 1 : null, refs, owner) : []), ...(files ? fileRefStatements(db, row.id, state.text, checked ? body.version + 1 : null, body.state, owner) : []), ...(passages ? sourceRefStatements(db, row.id, state.text, checked ? body.version + 1 : null, body.state, owner) : [])]);
   if (!meta.changes) return stale();
   // A change to a canvas's saved content is a meaningful change (canvas-metadata.md); a save of the same content, or a
   // board's first server copy (a sync of what the browser already had: sharing, publishing; over a canvas's empty
@@ -649,6 +652,8 @@ async function fork(req, env, body, { duplicate = false } = {}) {
       ...(refs.length ? indexStatements(db, id, text, 1, refs, user) : []),
       // The copy reads its files through its own references: those of the board it was read from, and the forker's own.
       ...(fileRefSources(state).length ? [...(source.row?.id ? [inheritFileRefs(db, id, source.row.id, state)] : []), ...fileRefStatements(db, id, text, 1, state, user)] : []),
+      // A copy of your own canvas keeps its cards' passages (a link fork's cards carry none: the shared copy has no ref id).
+      ...(sourceRefCards(state).length ? sourceRefStatements(db, id, text, 1, state, user) : []),
       ...(duplicate ? [] : [db.prepare('INSERT INTO canvas_forks (org, canvas, owner_email, fork_key, forked_from_org, forked_from_canvas_id, root_org, root_canvas_id, forked_from_owner_id, forked_from_title, forked_from_share, forked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
         .bind(user.org, name, user.email, key, source.canvas ? source.org : null, source.canvas, root[0], root[1], source.owner, sourceTitle, source.share, now)]),
       ...converted,

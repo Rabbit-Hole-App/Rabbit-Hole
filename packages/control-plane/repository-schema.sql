@@ -1328,7 +1328,12 @@ CREATE TABLE IF NOT EXISTS learn_card_feedback (
 -- source, revision or location. A row grants only its owner: a job or a card may carry a sourceRef only when this table says
 -- the same learner selected it, and every read re-checks the source itself (source-refs.js). The card holds the anchor too, so a
 -- saved board renders without this table; status is the last resolution (current, changed, missing, unavailable), never a guess.
--- anchor_hash makes a repeated selection of the same passage the same row. Additive and re-runnable; LEARN_DB only.
+-- anchor_hash makes a repeated selection of the same passage the same row.
+-- learn_source_ref_cards is the derived source-to-card index, one row per card of a board that carries a sourceRef, rewritten in the same
+-- guarded batch as the board write (source-refs.js sourceRefStatements, as canvas-refs.js indexStatements does for canvas links) from the
+-- saved cards: a row exists only for a ref this learner minted for that very source, and a stale or rejected save changes none. status is
+-- the source's state when the board was saved (the status route re-reads it). It reads file_sources (0023) and pdf_source_hashes (0024).
+-- Additive and re-runnable; LEARN_DB only.
 -- Production: an owner command, applied immediately before the release that reads it.
 CREATE TABLE IF NOT EXISTS learn_source_refs (
   id TEXT PRIMARY KEY,
@@ -1347,3 +1352,15 @@ CREATE TABLE IF NOT EXISTS learn_source_refs (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS learn_source_refs_passage ON learn_source_refs (org, owner_email, source_key, source_rev, anchor_hash);
 CREATE INDEX IF NOT EXISTS learn_source_refs_source ON learn_source_refs (org, owner_email, source_key);
+CREATE TABLE IF NOT EXISTS learn_source_ref_cards (
+  board_id TEXT NOT NULL,
+  card_id TEXT NOT NULL,
+  ref_id TEXT NOT NULL,
+  source_key TEXT NOT NULL,
+  source_rev TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('current', 'changed', 'missing', 'unavailable')),
+  position INTEGER NOT NULL,
+  PRIMARY KEY (board_id, card_id)
+);
+CREATE INDEX IF NOT EXISTS learn_source_ref_cards_source ON learn_source_ref_cards (source_key, source_rev);
+CREATE INDEX IF NOT EXISTS learn_source_ref_cards_ref ON learn_source_ref_cards (ref_id);
