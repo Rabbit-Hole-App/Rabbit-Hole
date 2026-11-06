@@ -54,6 +54,8 @@ export const explainDisabled = error => error?.status === 404 && (error.data?.co
 export const explainPendingBlock = ({ job, title, prompt, threadId = null }) => ({
   id: job.cardId, type: 'animation', title: String(title || prompt || 'Explanation').slice(0, 200), scene: null,
   explainJob: { id: job.id, boardId: job.boardId, stage: job.stage, ...(threadId ? { threadId } : {}) },
+  // R3: the passage this explanation is about, as the server read it when the job was made (source-ref.js); the chip shows from the first moment.
+  ...(job.sourceRef ? { source_ref: job.sourceRef } : {}),
 });
 // A job changed from outside its card (Generate approved its brief, a refinement started its next version): its card polls
 // again. A brief became ready for review: the chat showing its thread reloads it, so the brief and its Generate appear.

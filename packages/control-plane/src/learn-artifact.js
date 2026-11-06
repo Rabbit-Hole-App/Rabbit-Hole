@@ -165,7 +165,7 @@ export const IMAGE_ROLES = Object.freeze({
 // proposal_used) BEFORE any model call, and the generator takes the brief's own words, selection and context, never the body's. A press
 // that makes no card (a question back, a refusal, an error) gives the consumption back. Without a proposal the route is unchanged (the
 // Tutor's create_material, Ctrl+K's automatic routing and the internal material tools never draw a brief).
-export async function artifactFetch(req, env, generate = generateArtifact, { images = tutorImageContext, identity = null } = {}) {
+export async function artifactFetch(req, env, generate = generateArtifact, { images = tutorImageContext, identity = null, sourceRef = null } = {}) {
   const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
   if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
   if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
@@ -183,6 +183,17 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
   if (access instanceof Response) return access;
   const ownerRefused = subscriptionOwnerRefusal(env, access);
   if (ownerRefused) return ownerRefused;
+  // R3: the card's source_ref is the id the server minted for this learner's selected passage, read again now (source-refs.js). It is
+  // metadata on the card the command makes, never model input; a changed or unavailable source refuses before any model call.
+  let passage = null;
+  if (body.source_ref != null) {
+    if (!env.LEARN_DB) return json({ error: 'Source references are not available here yet.', code: 'not_configured' }, 503);
+    const user = await (identity || repositoryIdentity)(req, env);
+    if (user instanceof Response) return user;
+    const got = await (sourceRef || (await import('./source-refs.js')).trustedSourceRef)(req, env, user, body.app, body.source_ref);
+    if (got.error) return json({ error: got.error, code: got.code }, got.status);
+    passage = got.ref;
+  }
   let brief = null;
   if (body.proposal !== undefined) {
     const p = body.proposal;
@@ -213,7 +224,7 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
     const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}) });
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
     if (out?.result !== 'artifact' && out?.result !== 'paid_proposal') await giveBack();
-    return json(out);
+    return json(passage && out?.block ? { ...out, block: { ...out.block, source_ref: passage } } : out);
   }
   catch (error) { await giveBack(); return json({ error: error.message }, 502); }
 }

@@ -11,6 +11,7 @@ import { withPrompt } from './card-prompt.js';
 import { isWebUrl } from './canvas-paste.js';
 import { briefSubject, isBriefCommand } from './material-brief.js';
 import { existingGeneration } from './generation-state.js';
+import { mintSourceRef } from './source-refs.js';
 
 // Offered only when something can satisfy it now: no family (chat or a direct
 // action), or a family with a ready or direct primitive. A command typed by
@@ -187,9 +188,9 @@ export const imageSearchBlock = args => ({ type: 'image', mode: 'search', title:
 // image (EXP-T15, /explain only): an uploaded image's media id; the server reads its bytes under this canvas's own
 // authorization (learn-image-context.js), never from a browser URL. Its role is a layout reference by default.
 // proposal: the signed brief this Generate makes (material-brief.js): the server consumes it once and generates from its own words.
-export function generateCommand(name, args, { app, selection = null, context = null, image = null, proposal = null, post, signal = null }) {
+export function generateCommand(name, args, { app, selection = null, context = null, image = null, proposal = null, sourceRef = null, post, signal = null }) {
   const timeout = AbortSignal.timeout(ARTIFACT_TIMEOUT_MS);
-  return post('/api/learn/artifact', { app, command: name, args, selection, context, ...(proposal ? { proposal } : {}), ...(image ? { image_context: { id: image }, image_role: 'layout_reference' } : {}) }, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+  return post('/api/learn/artifact', { app, command: name, args, selection, context, ...(proposal ? { proposal } : {}), ...(sourceRef ? { source_ref: sourceRef } : {}), ...(image ? { image_context: { id: image }, image_role: 'layout_reference' } : {}) }, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
 }
 
 // What a typed /motion says in a build that does not offer it (production): it runs nothing.
@@ -306,16 +307,23 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   // bytes on the server under this canvas's authorization, as a layout reference only (explain-job.js explainRoute).
   // A bare /explain about a selected card is the same explicit job (owner spec 2026-10-29 5.2): its subject is that card, never the
   // legacy route because the words are empty; with neither words nor a selection it asks.
+  // R3 (source-ref.js): a selected passage (target.sourceDraft: a PDF excerpt card's anchor, a Markdown quote) is minted into a server-held
+  // source_ref first. The job or the card carries its id; a source that changed since the selection stops here, before anything is made.
+  let sourceRef = null;
+  if (target?.sourceDraft) {
+    try { sourceRef = (await mintSourceRef(post, target.sourceDraft)).id; }
+    catch (error) { return { notice: { tone: 'error', text: error.message }, keep: text }; }
+  }
   const explainWords = name === 'explain' ? args.trim() || (target?.id && !image ? briefSubject('', selection) : '') : '';
   if (name === 'explain' && !internal && !explainWords) return { notice: { tone: 'question', text: `${toolOf('explain').placeholder} Add it after /explain, or select a card first.` }, keep: '/explain ' };
   if (name === 'explain' && canvas.startExplain && explainWords) {
     // EXP-T21: the Tutor's chosen tool (internal) is the same job, recorded as its source; no intent call is made for it.
-    const started = await canvas.startExplain(explainWords, { context: target?.text ? String(target.text).slice(0, 8000) : null, image, promptUsed, ...(internal ? { source: 'tutor' } : {}) });
+    const started = await canvas.startExplain(explainWords, { context: target?.text ? String(target.text).slice(0, 8000) : null, image, promptUsed, ...(sourceRef ? { sourceRef } : {}), ...(internal ? { source: 'tutor' } : {}) });
     if (started) return { notice: { tone: 'done', text: 'Making the explanation on the canvas.', ...(started.blockId ? { blockId: started.blockId } : {}) } };
   }
   const slot = mayConfirmPaid(name) ? null : hold();
   let result;
-  try { result = await generateCommand(name, args, { app, selection, context: target?.text ? String(target.text).slice(0, 8000) : null, image, post }); }
+  try { result = await generateCommand(name, args, { app, selection, context: target?.text ? String(target.text).slice(0, 8000) : null, image, sourceRef, post }); }
   catch (error) { if (error.name === 'TimeoutError') return { notice: { tone: 'error', text: `/${name} took too long. Try again.` } }; throw error; }
   finally { if (slot && result?.result !== 'artifact') canvas.release?.(slot); }
   // The notice names the new card and can take the learner to it.

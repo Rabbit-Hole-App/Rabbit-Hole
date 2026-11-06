@@ -153,7 +153,7 @@ export function publicExplainJob(job) {
     terminal: TERMINAL.has(job.stage), round: job.round, stopReason: job.stopReason, failure: job.failure,
     recovery: recoveryOf(job), usage: { credits: credits(settled), unknown: job.calls.some(c => c.status === 'unknown') },
     // The brief without its verbatim request: the prompt stays private to the job (the Chat card shows it from the signed proposal).
-    result: job.result, ...(job.brief ? { brief: { ...job.brief, request: undefined }, briefHash: job.briefHash } : {}),
+    result: job.result, ...(job.sourceRef ? { sourceRef: job.sourceRef } : {}), ...(job.brief ? { brief: { ...job.brief, request: undefined }, briefHash: job.briefHash } : {}),
     // Stage timing (plan 3.6): durations and counts only, the measurements T22 and the targets use.
     timing: timingSummary(job.timing), createdAt: job.createdAt, updatedAt: job.updatedAt,
   };
@@ -247,6 +247,15 @@ export async function explainRoute(path, req, env, deps = {}) {
   delete body.context_refs;
   // UI-15.1: Generate on a reviewed brief. The proposal's references are read here, under this learner's access, and the job gets only what
   // this read says (never a client field): a deleted, changed, refused or unsupported one answers 409 with every state, before anything is consumed.
+  // R3: a selected passage's source_ref is an id the server minted for this learner (source-refs.js). It is read again here, under
+  // this canvas's access, and the job gets only that read (sourceRef); a changed or unavailable source refuses before anything is spent.
+  delete body.sourceRef;
+  if (action === 'create' && body.source_ref != null) {
+    const got = await (deps.sourceRef || (await import('./source-refs.js')).trustedSourceRef)(req, env, user, board.app, body.source_ref, deps.sourceRead);
+    if (got.error) return json({ error: got.error, code: got.code }, got.status);
+    body.sourceRef = got.ref;
+  }
+  delete body.source_ref;
   delete body.approved_refs;
   if (action === 'approve' && body.proposal?.references?.length && isReviewProposal(body.proposal)) {
     const found = await (deps.resolveReferences || resolveReferences)(env, { ...body.proposal, command: 'explain' }, { req, user, app: board.app }, { read: deps.read });
@@ -318,7 +327,7 @@ export class ExplainJobs {
 
   async create(payload, board, user, origin) {
     validateCreate(payload);
-    const fingerprint = await sha256Hex(JSON.stringify([payload.cardId, payload.prompt, payload.context ?? null, payload.requestClass, payload.baseRevision ?? null, payload.examples ?? [], payload.image_context ?? null]));
+    const fingerprint = await sha256Hex(JSON.stringify([payload.cardId, payload.prompt, payload.context ?? null, payload.requestClass, payload.baseRevision ?? null, payload.examples ?? [], payload.image_context ?? null, payload.sourceRef?.id ?? null]));
     const fence = await this.state.storage.get(`request:${payload.requestId}`);
     if (fence) {
       if (fence.fingerprint !== fingerprint) throw fail('This request id belongs to a different explanation.', 409);
@@ -332,7 +341,7 @@ export class ExplainJobs {
     const job = {
       id: `ej_${hex()}`, version: 1, policyVersion: EXPLAIN_POLICY_VERSION, boardId: board.id, app: board.app, board: board.board,
       owner: { org: user.org, email: user.email, userId: user.userId || null }, origin, cardId: payload.cardId, requestId: payload.requestId,
-      prompt: payload.prompt.trim(), context: payload.context ?? null, examples: payload.examples ?? [], evidence: payload.evidence ?? [], source: payload.source ?? 'explicit', base, reference: payload.reference ?? null, requestClass: payload.requestClass, baseRevision: payload.baseRevision ?? null,
+      prompt: payload.prompt.trim(), sourceRef: payload.sourceRef ?? null, context: payload.context ?? null, examples: payload.examples ?? [], evidence: payload.evidence ?? [], source: payload.source ?? 'explicit', base, reference: payload.reference ?? null, requestClass: payload.requestClass, baseRevision: payload.baseRevision ?? null,
       // Preparation (a brief) is the server's decision (explain-brief.js needsPreparation): every new explanation prepares one and
       // waits for Generate, whatever requestClass the client sent; a job stored before that rule keeps its own prepare flag.
       prepare: needsPreparation(this.env, payload.requestClass), threadId: payload.threadId ?? null, settings: null, decision: null, refinement: null, pendingProposal: null,
@@ -536,8 +545,8 @@ export class ExplainJobs {
   async block(job) {
     const saved = await this.state.storage.get(`result:${job.resultId}`);
     // A program card keeps a reference on the canvas, never its source: the player reads the artifact through the result route.
-    if (saved?.kind === 'program') return { type: 'animation', id: job.cardId, title: saved.artifact.manifest.title, program: programReference(saved.artifact, job.resultId), explain: job.result };
-    return saved && { type: 'animation', id: job.cardId, scene: saved.compiled?.scene ?? saved.compiled, explain: job.result };
+    if (saved?.kind === 'program') return { type: 'animation', id: job.cardId, title: saved.artifact.manifest.title, program: programReference(saved.artifact, job.resultId), explain: job.result, ...(job.sourceRef ? { source_ref: job.sourceRef } : {}) };
+    return saved && { type: 'animation', id: job.cardId, scene: saved.compiled?.scene ?? saved.compiled, explain: job.result, ...(job.sourceRef ? { source_ref: job.sourceRef } : {}) };
   }
 
   usageEnv(job, key) {

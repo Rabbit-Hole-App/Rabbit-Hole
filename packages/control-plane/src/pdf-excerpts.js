@@ -36,7 +36,7 @@ export const pdfExcerptsRoute = path => path === '/api/learn/pdf-source' || path
   || /^\/api\/learn\/pdf-highlights\/[^/]+$/.test(path) || /^\/api\/learn\/pdf-excerpts\/[^/]+\/crop$/.test(path);
 
 // { app, name, bytes } of the session's own stored PDF, or null for any refusal (no canvas access, not theirs, gone).
-async function readSource(req, env, { app: appName, key, home, manifest }, deps) {
+export async function readSource(req, env, { app: appName, key, home, manifest }, deps) {
   if (typeof appName !== 'string' || typeof key !== 'string' || !KEY.test(key)) return null;
   // learn-board.js imports index.js, which imports modules that import this one: load it here (as learn-context-docs.js does).
   const authorize = deps.authorize || (await import('./learn-board.js')).authorizedBoardApp;
@@ -70,7 +70,7 @@ async function readSource(req, env, { app: appName, key, home, manifest }, deps)
 }
 
 // The stored bytes' sha256, hashed once per (owner, key) and cached; bytes are never replaced in place (contract facts).
-async function sourceHash(db, app, key, bytes) {
+export async function sourceHash(db, app, key, bytes) {
   const cached = await db.prepare('SELECT sha256 FROM pdf_source_hashes WHERE org = ? AND owner_email = ? AND source_key = ? AND bytes = ?').bind(app.org, app.email, key, bytes.length).first();
   if (cached) return cached.sha256;
   const sha = await digest(bytes);
