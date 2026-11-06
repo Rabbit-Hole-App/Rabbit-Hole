@@ -7,7 +7,6 @@ import { createRoadmapController } from './roadmap-controller.js';
 import { anchorState, overlayPosition } from './roadmap-placement.js';
 import { chatOf, indicatorOf, invitationOf, keyboardOwned, pillOf, tabAccepts, tocOf } from './roadmap-client.js';
 import { pageKeyAllowed } from './shortcut-owner.js';
-import { opensEditor } from './inline-ai-proposal.js';
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
 
 const METHODS = ['hasBlock', 'insertCard', 'persist', 'boardRevision', 'savedHas', 'readOnly', 'sourceRev', 'instruction', 'depth'];
@@ -51,11 +50,8 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto', 
   useEffect(() => {
     const onKey = event => {
       const { controller: current, pill: now } = live.current, h = hostRef.current || {};
-      // R5: Ctrl/Cmd+K claims the editor only with the keyboard on the proposal overlay itself, so Quick Edit on a selected card is untouched.
-      const editing = current.getState().editing;
-      if (opensEditor(event, { onProposal: !!now?.canEdit && !!document.activeElement?.closest?.('[data-roadmap-overlay]'), editorOpen: editing || !!h.editorOpen?.(), readOnly: !!h.readOnly?.() })) { event.preventDefault(); event.stopPropagation(); current.openEditor(); return; }
       const blocked = !pageKeyAllowed(event) || !keyboardOwned(document.activeElement);
-      if (!tabAccepts({ event, pill: now, blocked, editorOpen: editing || !!h.editorOpen?.(), presenting: !!h.presenting?.(), readOnly: !!h.readOnly?.() })) return;
+      if (!tabAccepts({ event, pill: now, blocked, editorOpen: !!h.editorOpen?.(), presenting: !!h.presenting?.(), readOnly: !!h.readOnly?.() })) return;
       event.preventDefault();
       event.stopPropagation();
       current.acceptProposal();
@@ -76,7 +72,7 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto', 
 
   return {
     state, controller, pill, active: !!state.view && state.flag !== 'off' && isUnfinishedRoadmap(state.view.roadmap.state), toc: tocOf(state), lines: chatOf(state), invitation: invitationOf(state, { typing, answering }),
-    indicator: indicatorOf(state, { offscreen: where.offscreen }), position: overlayPosition(geometry.anchor, surface), surface, showOverlay: !!pill && where.visible,
+    indicator: indicatorOf(state, { offscreen: where.offscreen }), position: overlayPosition(geometry.anchor, surface), showOverlay: !!pill && where.visible,
     editPlan, divert, go, sourceReady: key => controller.sourceReady(key),
   };
 }
