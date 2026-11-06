@@ -195,6 +195,7 @@ test('the routes wake the outbox once after a delivery acknowledgment and after 
   const deps = { identity: async () => ({ org: access.org, email: access.actorEmail, userId: access.actorUserId }), onFact: async (_e, _a, body) => woken.push(body) };
   const post = (path, payload) => roadmapRoute(`/api/learn/roadmap/${o.roadmapId}/${path}`, new Request(`https://rabbit.test/api/learn/roadmap/${o.roadmapId}/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ boardId: access.boardId, ...payload }) }), env, deps);
   const revision = () => rows(w.sqlite, 'SELECT revision FROM learn_roadmaps')[0].revision;
+  w.sqlite.prepare('UPDATE learn_boards SET state_json = ?, version = 3 WHERE id = ?').run(JSON.stringify({ blocks: [{ id: slot.cardId }] }), access.boardId); // delivered needs the card in a saved board
   const ack = { revision: revision(), actionKey: 'ack-route-0001', cardId: slot.cardId, boardRevision: 3 };
   assert.equal((await post(`results/${slot.resultId}/ack`, ack)).status, 200);
   assert.equal((await post(`results/${slot.resultId}/ack`, ack)).status, 200, 'replay');

@@ -31,7 +31,7 @@ function harness({ get }) {
     throw Object.assign(new Error('no route'), { status: 404, data: { code: 'not_found' } });
   };
   const board = new Set();
-  const host = { hasBlock: id => board.has(id), insertCard: block => { board.add(block.id); return block.id; }, persist: async () => {}, boardRevision: () => 41, readOnly: () => false, focusBlock: id => focus.push(id) };
+  const host = { hasBlock: id => board.has(id), insertCard: block => { board.add(block.id); return block.id; }, persist: async () => ({ ok: true }), boardRevision: () => 41, savedHas: () => true, readOnly: () => false, focusBlock: id => focus.push(id) };
   const controller = createRoadmapController({ api, boardId: 'lb_7c1e5a90d2b84f63a1c07e92', host, schedule: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, cancel: id => cancelled.push(id), now: () => clock.t, random: (() => { let n = 0; return () => `key${++n}aaaaaaaa`; })() });
   return { controller, calls, timers, cancelled, clock, focus };
 }

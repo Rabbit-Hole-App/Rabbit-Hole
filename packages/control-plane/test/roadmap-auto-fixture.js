@@ -33,6 +33,8 @@ export async function delivered(t, { n = 1, boardId, userId = 'u-alice', withSet
   const slot = accepted.body.slots[0];
   w.sqlite.prepare("UPDATE learn_step_results SET generation = 'generated', validation = 'passed', billing = 'settled', primitive = 'explanation', body_json = '{}' WHERE id = ?").run(slot.resultId);
   const revision = rows(w.sqlite, 'SELECT revision FROM learn_roadmaps WHERE id = ?', o.roadmapId)[0].revision;
+  // Delivered needs the card in a SAVED board at the named revision (R4 integration): the fixture saves it first.
+  if (ack) w.sqlite.prepare('UPDATE learn_boards SET state_json = ?, version = 1 WHERE id = ?').run(JSON.stringify({ blocks: [{ id: slot.cardId }] }), access.boardId);
   if (ack) await acknowledgeDelivery(w.LEARN_DB, access, { roadmapId: o.roadmapId, resultId: slot.resultId, expectedRevision: revision, actionKey: `ack-key-0000${n}`, cardIds: [slot.cardId], boardVersion: 1, now: T0 });
   // The step_accepted event is not under test here: only the delivery's own event stays pending.
   w.sqlite.prepare("DELETE FROM learn_roadmap_outbox WHERE kind = 'step_accepted'").run();
