@@ -26,7 +26,10 @@ export const MODES = ['auto', 'ask', 'tutor'];
 // server reads the learner's own records for it (learn-progress-context.js), so it never carries evidence from the browser.
 // canvas: a mentioned canvas (canvas:<main board id>, canvas-mention-ref.js); the server reads its title and saved content under the
 // asker's access (canvas-refs.js canvasMentions), so a ref never carries a title: its name is always "Canvas".
-const KINDS = ['doc', 'card', 'group', 'code', 'image', 'media', 'web', 'graph', 'file', 'excerpt', 'progress', 'canvas'];
+// proposal: a Tutor roadmap proposal (proposal:<id>, range null, version = its proposal version); the server reads its title, description and position from the
+// actor's own proposal row (roadmap-proposal-context.js), so a ref carries no text and a forged body is refused.
+const KINDS = ['doc', 'card', 'group', 'code', 'image', 'media', 'web', 'graph', 'file', 'excerpt', 'progress', 'canvas', 'proposal'];
+const PROPOSAL_REF = /^proposal:pr_[0-9a-f]{24}$/;
 // Content the client resolved at Send for kinds the server cannot read itself (Home, 12:30 AM PT).
 const TEXT_KINDS = new Set(['card', 'group', 'image', 'media', 'excerpt']);
 const REFS = 20, REF_BYTES = 2048, REF_TEXT = 8000, REFS_TEXT = 32000;
@@ -66,6 +69,7 @@ export function contextRefs(value) {
     const prefix = ref.kind === 'web' ? /^(paper|wiki):./ : new RegExp(`^${ref.kind}:.`);
     if (ref.kind === 'file' && !FILE_SOURCE.test(String(ref.sourceId))) throw Error(`${at}: sourceId must be file:<source id>@<sha256>`);
     if (ref.kind === 'excerpt' && !EXCERPT_ID.test(String(ref.sourceId))) throw Error(`${at}: sourceId must be excerpt:pdfx_<24 hex>`);
+    if (ref.kind === 'proposal' && (!PROPOSAL_REF.test(String(ref.sourceId)) || !/^[1-9][0-9]{0,5}$/.test(String(ref.version)))) throw Error(`${at}: sourceId must be proposal:<proposal id> and version its number`);
     if (ref.kind === 'canvas' && !CANVAS_SOURCE.test(String(ref.sourceId))) throw Error(`${at}: sourceId must be canvas:<board id>`);
     if (ref.kind === 'canvas' && ++canvases > CANVAS_MENTIONS) throw Error(`context_refs: a question reads at most ${CANVAS_MENTIONS} mentioned canvases`);
     if (!str(ref.sourceId, 600) || !prefix.test(ref.sourceId)) throw Error(`${at}: sourceId must start with ${ref.kind === 'web' ? 'paper: or wiki:' : `${ref.kind}:`}`);

@@ -9,6 +9,8 @@ import { cancelProposal, endRoadmap, markResultRemoved, omitStep, proposeNextSte
 import { currentView, roadmapHistory } from './roadmap-view.js';
 import { acceptInvitation, dismissInvitation, offerInvitation, pendingInvitation } from './roadmap-invitations.js';
 import { answerQuestion, revisePlan } from './roadmap-planning.js';
+import { applyProposalDraft, discardProposalDraft, roadmapEditEnabled, saveProposalDraft } from './roadmap-proposal-drafts.js';
+import { acceptLinkProposal, offerLinkProposal, readLink } from './roadmap-links.js';
 
 const PREFIX = '/api/learn/roadmap';
 export const roadmapEnabled = env => env?.ROADMAP_ENABLED === 'true';
@@ -17,11 +19,13 @@ const NOT_AVAILABLE = { error: 'Not available', code: 'not_found' };
 
 // deps (all optional in tests): identity(req, env), readSource(access, {sourceId, revision, scope}) -> { key, rev, scopeFingerprint, scope, language? } (Tools,
 // request-bound: the session reads the Markdown once; roadmap-source-read.js), startPlanning(env, access, roadmapId) (kicks the planning event),
-// compose(roadmap, step) (roadmap-compose.js), onAccepted(env, access, body) (kicks the RoadmapJobs object), onFact(env, access, body) (the same kick after a delivery acknowledgment or a mode change: R6), mintStepRefs(env, access, roadmapId)
+// compose(roadmap, step) (roadmap-compose.js), onAccepted(env, access, body) (kicks the RoadmapJobs object), composeEdit({ roadmap, step, proposal, instruction }) and screen(text) (R5 edit drafts), onFact(env, access, body) (the same kick after a delivery acknowledgment or a mode change: R6), mintStepRefs(env, access, roadmapId)
 // (R3 references at Accept plan, roadmap-source-refs.js), settings(db, access) (R2's Auto-suggest and mode readers), now. roadmap-wire.js builds them.
 export async function roadmapRoute(path, req, env, deps = {}) {
   if (path !== PREFIX && !path.startsWith(`${PREFIX}/`)) return null;
   if (!roadmapEnabled(env)) return json({ error: 'Not found', code: 'roadmap_disabled' }, 404);
+  // R5: draft and link routes answer 404 as if absent, before identity or any read, unless ROADMAP_EDIT_ENABLED is also 'true'.
+  if (/\/(drafts|link)(\/|$)|\/steps\/link$/.test(path) && !roadmapEditEnabled(env)) return json({ error: 'Not found', code: 'roadmap_disabled' }, 404);
   if (!env.LEARN_DB) return json({ error: 'Not available', code: 'not_found' }, 503);
   const url = new URL(req.url);
   if (req.method !== 'GET' && req.headers.has('origin') && req.headers.get('origin') !== url.origin) return json({ error: 'Invalid origin', code: 'forbidden' }, 403);
@@ -100,10 +104,20 @@ export async function roadmapRoute(path, req, env, deps = {}) {
       if (!deps.compose) return json({ error: 'Not available', code: 'not_found' }, 503);
       return reply(await proposeNextStep(db, access, { roadmapId, compose: deps.compose, ...arg }));
     }
+    // R5: preview an edit of the pending proposal, apply or discard it, and offer an existing card as the next step. Gated above by ROADMAP_EDIT_ENABLED.
+    if (kind === 'proposals' && verb === 'drafts' && rest.length === 4) {
+      if (!deps.composeEdit) return json({ error: 'Not available', code: 'edit_unavailable' }, 503);
+      const draft = await saveProposalDraft(db, access, { roadmapId, proposalId: id, proposalVersion: body.proposalVersion, instruction: body.instruction, actionKey: body.actionKey, composeEdit: deps.composeEdit, screen: deps.screen, ...(now ? { now } : {}) });
+      return json({ draft: draft.body, ...(await currentView(db, access, roadmapId)) }, draft.status);
+    }
+    if (kind === 'drafts' && verb === 'apply' && rest.length === 4) return reply(await applyProposalDraft(db, access, { roadmapId, draftId: id, draftRevision: body.draftRevision, proposalVersion: body.proposalVersion, actionKey: body.actionKey, ...(now ? { now } : {}) }));
+    if (kind === 'drafts' && verb === 'discard' && rest.length === 4) { const done = await discardProposalDraft(db, access, { roadmapId, draftId: id }); return json(done.body, done.status); }
+    if (kind === 'steps' && id === 'link' && rest.length === 3) return reply(await offerLinkProposal(db, access, { roadmapId, cardId: body.cardId, reason: body.reason, origin: body.origin === 'tutor' ? 'tutor' : 'learner', ...arg }));
     if (kind === 'steps' && verb === 'retry' && rest.length === 4) return reply(await retryStep(env, access, { roadmapId, stepId: id, ...arg }));
     if (kind === 'steps' && verb === 'replace' && rest.length === 4) return deps.compose ? reply(await replaceStep(db, access, { roadmapId, stepId: id, compose: deps.compose, ...arg })) : json({ error: 'Not available', code: 'not_found' }, 503);
     if (kind === 'steps' && verb === 'omit' && rest.length === 4) return reply(await omitStep(db, access, { roadmapId, stepId: id, ...arg }));
     if (kind === 'proposals' && verb === 'accept' && rest.length === 4) {
+      if (roadmapEditEnabled(env) && await readLink(db, id, body.proposalVersion).catch(() => null)) return reply(await acceptLinkProposal(db, access, { roadmapId, revision: arg.expectedRevision, proposalId: id, proposalVersion: body.proposalVersion, actionKey: body.actionKey, ...(now ? { now } : {}) }));
       const done = await acceptRoadmapStep(env, access, { roadmapId, revision: arg.expectedRevision, proposalId: id, proposalVersion: body.proposalVersion, actionKey: body.actionKey, ...(now ? { now } : {}) });
       if (!done.refusal && !done.replayed) await deps.onAccepted?.(env, access, done.body);
       return reply(done);

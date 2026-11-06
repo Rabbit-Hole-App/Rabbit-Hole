@@ -89,6 +89,17 @@ export async function applyRoadmapAction(db, access, { operation, actionKey, roa
   throw await currentConflict(db, access, roadmapId);
 }
 
+// R5: the recorded outcome of an identical earlier action, or null. For a caller that must not do platform work (a model call) before a replay.
+// The same key with a different payload is the usual 409. Same fingerprint as applyRoadmapAction.
+export async function recordedReplay(db, access, { operation, actionKey, roadmapId = null, parts = [] }) {
+  requireAccess(access); requireKey(actionKey);
+  const fingerprint = await sha256([access.actorUserId, operation, roadmapId, ...parts].join('|'));
+  const row = await db.prepare('SELECT fingerprint, outcome_status, outcome_json FROM learn_roadmap_actions WHERE org = ? AND owner_user_id = ? AND action_key = ?').bind(access.org, access.actorUserId, actionKey).first();
+  if (!row) return null;
+  if (row.fingerprint !== fingerprint) throw await currentConflict(db, access, roadmapId, 'action_key_reused');
+  return { status: row.outcome_status, body: JSON.parse(row.outcome_json), replayed: true };
+}
+
 // --- create ---------------------------------------------------------------------------------------------------------------------------
 // instruction is the learner's original words, stored verbatim as version 1 and never replaced by an inferred topic (v1.4 3.5).
 // allowEmpty: the Explain-on-canvas choice of an invitation carries no typed words; the planner then asks one focused question when the source covers several topics (v1.4 3.5).

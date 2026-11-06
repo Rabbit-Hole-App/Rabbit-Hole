@@ -1,0 +1,13 @@
+diff --git a/packages/web/src/LearnPage.jsx b/packages/web/src/LearnPage.jsx
+index 314d80139..da155b988 100644
+--- a/packages/web/src/LearnPage.jsx
++++ b/packages/web/src/LearnPage.jsx
+@@ -2425,7 +2425,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
+               const api = canvasApi.current;
+               if (refPick.blockId) return (await api?.addRef?.(refPick.blockId, canvas.id)) || { ok: false };
+               return (await api?.insertRefCard?.(canvas.id, refPick.point)) ? { ok: true } : { ok: false };
+-            }} />}<RoadmapCanvas roadmap={roadmap} /><ChatHandle to={chatRef} /></div>
++            }} />}<RoadmapCanvas roadmap={roadmap} addToChat={ref => ref && chatWorkspace.current?.addToChat(ref)} /><ChatHandle to={chatRef} /></div>
+         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
+         {false && <div aria-label="Lesson playback" className={`${courseView || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
+           <div className="flex items-center gap-1">

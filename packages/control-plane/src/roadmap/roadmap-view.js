@@ -5,6 +5,9 @@
 import { readRoadmap, readUnfinishedRoadmap } from './roadmap-store.js';
 import { d1PublicRefs } from './roadmap-source-read.js';
 
+// R5: an existing-card link on the offered proposal. A database without migration 0041 simply has none.
+const linkOf = async (db, offered) => { try { const l = await db.prepare('SELECT card_id, reason, origin FROM learn_proposal_links WHERE proposal_id = ? AND proposal_version = ?').bind(offered.id, offered.version).first(); return l ? { cardId: l.card_id, reason: l.reason, origin: l.origin } : null; } catch { return null; } };
+
 const iso = seconds => new Date(seconds * 1000).toISOString();
 const json = text => { try { return JSON.parse(text); } catch { return null; } };
 // The learner sentence for a terminal card failure is the contract fixture's wording (status-failed-card). Other failure classes surface only
@@ -28,14 +31,17 @@ export async function roadmapView(db, access, roadmap) {
     ...(s.card_removed ? { cardRemoved: true } : {}), ...(s.answered ? { answered: true } : {}) }));
   const offered = await db.prepare("SELECT * FROM learn_step_proposals WHERE roadmap_id = ? AND state IN ('checking', 'held', 'pending') ORDER BY created_at DESC LIMIT 1").bind(id).first();
   const position = offered ? steps.find(s => s.id === offered.step_id)?.position : null;
+  const link = offered ? await linkOf(db, offered) : null;
   const proposal = offered && {
     id: offered.id, stepId: offered.step_id, version: offered.version, state: offered.state, title: offered.title, description: offered.description, format: offered.format,
     sourceRelation: { kind: 'from', source: { key: roadmap.source_key, rev: roadmap.source_rev, name: sourceName }, sourceRef: steps.find(s => s.id === offered.step_id)?.sourceRef ?? null }, position: { index: position ?? null, total: steps.length }, acceptable: offered.state === 'pending' && !offered.stale && roadmap.state === 'active',
+    ...(link ? { link } : {}),
   };
   const { results: resultRows } = await db.prepare(`SELECT r.* FROM learn_step_results r WHERE r.roadmap_id = ? AND r.decision = 'accepted' ORDER BY r.created_at, r.slot_index`).bind(id).all();
   const results = (resultRows || []).map(r => {
     const failed = r.generation === 'failed' || (r.billing === 'refunded' && r.delivery === 'not_delivered');
     return { id: r.id, stepId: r.step_id, proposalVersion: r.proposal_version, slot: { index: r.slot_index, cardId: r.card_id }, generation: r.generation, delivery: r.delivery, billing: r.billing,
+      ...(r.billing === 'zero_priced' && r.body_json == null ? { existingCard: true } : {}), // R5: a linked card, delivered at acceptance
       ...(r.generation === 'generated' && r.validation !== 'passed' && !failed ? { held: true } : {}),
       ...(failed ? { failure: { code: 'generation_failed', message: FAILURE_MESSAGE }, recovery: ['retry', 'replace', 'omit'] } : {}) };
   });
