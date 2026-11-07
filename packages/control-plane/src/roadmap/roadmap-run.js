@@ -122,7 +122,9 @@ async function generateOne(env, access, roadmap, result, ids, deps) {
   };
   const out = await generateRoadmapCard(learnerUsageEnv(env, access, ids.proposalId, ids.proposalVersion), access, { authorizationId: ids.authorizationId, resultId: result.id, resultVersion: result.result_version },
     { loadAccepted: async () => rec, withProviderCall, callModel, ...(deps.generate ? { generate: deps.generate } : {}) });
-  if (out.outcome === 'ok') return finish(env, access, roadmap, result, ids, out, { passage: rec.passageText, original: rec.learnerInstruction.original, rev: current.source_rev }, deps, now, fail);
+  // CORE.06: the learner-intent screen reads the learner's own accepted words (original plus accepted revisions), never quoted document text.
+  const learnerWords = [rec.learnerInstruction.original, ...rec.learnerInstruction.revisions.map(r => r.text)].filter(text => text.trim()).join('\n');
+  if (out.outcome === 'ok') return finish(env, access, roadmap, result, ids, out, { passage: rec.passageText, original: learnerWords, rev: current.source_rev }, deps, now, fail);
   if (out.outcome === 'unavailable') return 'defer'; // not wired yet: the event retries, nothing was spent
   await fail(out.outcome === 'forbidden' ? 'denied_access' : out.failure_class);
   return 'failed';
