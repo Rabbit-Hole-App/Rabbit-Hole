@@ -6,6 +6,9 @@ export const PALETTE = Object.freeze({
   outcome: '#67B9A0',
   olive: '#95A448',
   coral: '#F58371',
+  lavender: '#B9A4E8',
+  rose: '#E8A3B7',
+  slate: '#A8BBD0',
 });
 export const SURFACE = 'var(--viz-surface, #fbfbfa)';
 export const INK = 'var(--color-ink, #32211c)';

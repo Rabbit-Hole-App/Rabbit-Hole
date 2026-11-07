@@ -87,5 +87,135 @@
       "title": "An experiment cycle",
       "steps": ["Form a hypothesis", "Run a test", "Compare the results", "Revise the hypothesis"]
     }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "figure", "title": "Parts of an animal cell", "figure": "cell",
+      "callouts": [
+        {"anchor": "membrane", "label": "Cell membrane", "detail": "Boundary of the cell"},
+        {"anchor": "nucleus", "label": "Nucleus"},
+        {"anchor": "cytoplasm", "label": "Cytoplasm"},
+        {"anchor": "mitochondrion", "label": "Mitochondrion"}
+      ],
+      "caption": "Simplified schematic"
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "figure", "title": "Forces on a balanced block", "figure": "free-body", "unit": "N",
+      "vectors": [
+        {"direction": "up", "magnitude": 10, "label": "Normal force"},
+        {"direction": "down", "magnitude": 10, "label": "Weight"}
+      ],
+      "callouts": [{"anchor": "body", "label": "Block"}, {"anchor": "up", "label": "Upward force"}, {"anchor": "down", "label": "Downward force"}]
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "figure", "title": "A layered panel in cross-section", "figure": "cross-section",
+      "callouts": [
+        {"anchor": "top-layer", "label": "Outer skin"},
+        {"anchor": "core", "label": "Core"},
+        {"anchor": "bottom-layer", "label": "Inner skin"},
+        {"anchor": "interface", "label": "Bond between layers"}
+      ],
+      "caption": "Simplified schematic"
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "tree", "title": "Sentence structure",
+      "nodes": [
+        {"id": "sentence", "label": "The fox jumps"},
+        {"id": "subject", "label": "Subject", "parent": "sentence"},
+        {"id": "predicate", "label": "Predicate", "parent": "sentence"},
+        {"id": "fox", "label": "The fox", "parent": "subject"},
+        {"id": "jumps", "label": "jumps", "parent": "predicate"}
+      ]
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "relationship", "title": "Thermostat feedback",
+      "nodes": [{"id": "controller", "label": "Thermostat"}, {"id": "heater", "label": "Heater"}, {"id": "room", "label": "Room temperature"}],
+      "edges": [
+        {"from": "controller", "to": "heater", "label": "Controls"},
+        {"from": "heater", "to": "room", "label": "Raises when on"},
+        {"from": "room", "to": "controller", "label": "Feeds back as a measurement"}
+      ]
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "transformation", "title": "Reshape a tensor",
+      "before": {"label": "2 × 3", "items": ["a, b, c", "d, e, f"]},
+      "after": {"label": "3 × 2", "items": ["a, b", "c, d", "e, f"]},
+      "operation": "Regroup the same values in row order",
+      "links": [
+        {"from": 0, "to": 0, "label": "a, b"},
+        {"from": 0, "to": 1, "label": "c"},
+        {"from": 1, "to": 1, "label": "d"},
+        {"from": 1, "to": 2, "label": "e, f"}
+      ]
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "argument", "title": "Build a reading of a passage",
+      "claim": "The setting reinforces the narrator’s isolation.",
+      "support": [{"label": "The street is empty when the narrator arrives.", "source": "Example passage, paragraph 1"}],
+      "objections": [{"label": "The quiet could be explained by the late hour.", "source": "Example passage, paragraph 2"}],
+      "conclusion": "The setting supports the reading. The late hour offers another explanation."
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "number-line", "title": "Open and closed endpoints", "min": -5, "max": 5,
+      "markers": [{"value": 0, "label": "Origin"}, {"value": 4, "label": "Outside the interval"}],
+      "intervals": [{"from": -2, "to": 3, "startClosed": false, "endClosed": true, "label": "Included values"}]
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "coordinate-plot", "title": "Illustrative supply and demand",
+      "x": {"label": "Quantity", "min": 0, "max": 8, "unit": "units"},
+      "y": {"label": "Price", "min": 0, "max": 12, "unit": "USD"},
+      "series": [
+        {"label": "Supply", "kind": "line", "points": [{"x": 0, "y": 2}, {"x": 4, "y": 6}, {"x": 8, "y": 10}]},
+        {"label": "Demand", "kind": "line", "points": [{"x": 0, "y": 10}, {"x": 4, "y": 6}, {"x": 8, "y": 2}]}
+      ],
+      "caption": "Example values for teaching"
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "bar-chart", "title": "Change by category", "unit": "units",
+      "bars": [{"label": "Added stock", "value": 18}, {"label": "Returned stock", "value": -6}, {"label": "Unchanged stock", "value": 0}]
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "t-account", "title": "Post entries to cash", "account": "Cash", "unit": "USD",
+      "debits": [{"label": "Opening cash", "amount": 1000}, {"label": "Receipts", "amount": 350.25}],
+      "credits": [{"label": "Supplies", "amount": 80.05}]
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "waterfall", "title": "From opening cash to closing cash", "opening": 1000, "unit": "USD",
+      "changes": [{"label": "Receipts", "amount": 350.25}, {"label": "Supplies", "amount": -80.05}]
+    }
   }
 ]
