@@ -92,7 +92,7 @@ export const renderStage = ({ render = explainRender, ...deps } = {}) => async (
   const transitions = manifest.coverage?.transitions;
   if (transitions?.declared && !transitions.sampled) return { problems: [`the playback captures leave no room in one review to check the ${transitions.declared} buttons or selections: use a shorter playback or none`], category: 'spec', repairable: true };
   let out;
-  try { out = await renderStates(ctx.env, program ? { program } : job.compiled, manifest, { jobId: job.id, ...deps, interact: true }); }
+  try { out = await renderStates(ctx.env, program ? { program } : job.compiled, manifest, { jobId: job.id, ...deps }); }
   catch (error) {
     // The program ran and failed: a repairable problem for the program (stable code, bounded diagnostic), not a render outage.
     // A capture that never finished: the program held the page (its own run is interrupted inside the engine, so a blocked page is the

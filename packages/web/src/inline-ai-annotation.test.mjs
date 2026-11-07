@@ -107,8 +107,6 @@ const READERS = {
   'web/src/explain-back-view.js': 'the recorded connection of a submitted input (EvidenceRef.connection), not board links',
   'web/src/explain-back-service.js': 'focuses the source named by the recorded connection of a cited input (EvidenceRef.connection), not board links',
   'web/src/comments/MemberBoardPage.jsx': 'canvas references, not board links',
-  'web/src/tutor-diagrams/spec.js': 'TutorDiagram transformation links (before-item to after-item), not board links',
-  'web/src/tutor-diagrams/teaching-layouts.js': 'TutorDiagram transformation links (before-item to after-item), not board links',
 };
 test('annotation: every reader of board links is known; the Tutor, map and shared Ask readers are not among them', () => {
   const root = new URL('../../', import.meta.url);

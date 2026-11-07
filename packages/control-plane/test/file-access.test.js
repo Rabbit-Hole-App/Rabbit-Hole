@@ -42,12 +42,6 @@ const card = id => ({ id: `c-${id}`, type: 'file', kind: 'clip', fileRef: { v: 1
 const STATE = { blocks: [], shapes: [], items: [], links: [], strokes: [], exchanges: [] };
 const withCards = (...ids) => ({ ...STATE, blocks: ids.map(card) });
 
-test('a written Explanation illustration names its file source, so the board keeps and shares it', () => {
-  const block = { id: 'e1', type: 'explanation', title: 'T', body: 'b', illustration: { fileRef: { v: 1, source: { id: 'fs_img', rev: 'r1' } }, alt: 'a', caption: 'c' } };
-  assert.deepEqual(fileRefSources({ blocks: [block, card('fs_a')] }), ['fs_img', 'fs_a']);
-  assert.deepEqual(fileRefSources({ blocks: [{ ...block, illustration: { pending: { proposalId: 'p' } } }] }), [], 'a pending illustration names nothing yet');
-});
-
 test('fileRefSources lists each referenced source once', () => {
   assert.deepEqual(fileRefSources({ blocks: [card('fs_a'), card('fs_a'), card('fs_b'), { id: 'x', type: 'file', assetKey: 'drop:1' }, { fileRef: { source: { id: 7 } } }] }), ['fs_a', 'fs_b']);
   assert.deepEqual(fileRefSources(null), []);

@@ -104,9 +104,9 @@ export async function generateRoadmapCard(env, access, ref, deps = {}) {
       // Defense in depth: the card must be the requested format, whatever the model named.
       if (out.primitive !== rec.format) return fail('unsupported_capability', 'wrong_primitive', { calls });
       // id, stepId and sourceRef are metadata the adapter sets, never the model.
-      return { outcome: 'ok', primitive: out.primitive, repaired: !!out.repaired, calls, ...(out.diagramsDropped ? { diagramsDropped: out.diagramsDropped } : {}), block: { ...out.block, id: rec.cardId, stepId: rec.stepId, ...(rec.sourceRef ? { sourceRef: rec.sourceRef } : {}) } };
+      return { outcome: 'ok', primitive: out.primitive, repaired: !!out.repaired, calls, block: { ...out.block, id: rec.cardId, stepId: rec.stepId, ...(rec.sourceRef ? { sourceRef: rec.sourceRef } : {}) } };
     case 'clarification': return { outcome: 'clarification', failure_class: 'clarification', question: out.question, calls };
-    // A stable internal reason: explanation_over_budget / explanation_bad_diagram (CORE.09), else validation_error.
+    // A stable internal reason: explanation_over_budget / explanation_bad_mermaid (CORE.09), else validation_error.
     case 'validation_error': return fail('terminal_validation_failure', String(out.error || '').match(/^(explanation_[a-z_]+):/)?.[1] || 'validation_error', { calls, error: out.error });
     default: return fail('unsupported_capability', String(out?.result || 'unknown'), { calls });
   }

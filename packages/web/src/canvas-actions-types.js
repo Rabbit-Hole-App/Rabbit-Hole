@@ -102,14 +102,6 @@ export const TYPE_ACTIONS = [
     applies: (t, ctx) => !!ctx.canvas.pinForStudy && !!eligible(t.object),
     run: (t, ctx) => ctx.canvas.pinForStudy(t.id),
   },
-  // Add illustration (a written Explanation): opens Chat with /image and a prompt for this card, never sends. The picture the plan makes attaches to this card (illustration-target.js,
-  // LearnPage attachIllustration). Offered only where image generation is on for this person and the card has no picture yet; the page supplies addIllustration.
-  {
-    id: 'explanation.add-illustration', label: 'Add illustration', icon: 'Image', group: 'type', order: 13,
-    targets: ['card'], types: ['explanation'], requires: 'open',
-    applies: (t, ctx) => !!ctx.canvas.canAddIllustration?.() && !t.object.illustration?.fileRef,
-    run: (t, ctx) => ctx.canvas.addIllustration(t.id),
-  },
   {
     id: 'wiki.open-source', label: 'Open on Wikipedia', icon: 'ExternalLink', group: 'type', order: 12,
     targets: ['card'], types: ['wiki'], requires: 'open', applies: t => !!t.object.title,

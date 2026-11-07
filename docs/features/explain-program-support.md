@@ -36,18 +36,6 @@ is ignored. An artifact sealed for anything else gets the fixed "could not run" 
   the fixed message. It never runs it as schema 1. So a rollback past 8.3 strands schema 2 cards (unavailable, kept)
   until the newer build returns.
 
-## Interactive visual SDK
-
-The interactive kit branch seals new programs with `sdk-2` for both schemas. It adds
-`sdk.plot`, `sdk.graph`, `sdk.grid`, `sdk.geometry`, `sdk.timeline`, and `sdk.readout`.
-Each helper returns ordinary frame objects. Author and repair calls keep the same
-request limits, and all helpers share the existing frame limits.
-
-Saved `sdk-1` programs keep their original guest source and supported tuples.
-The server, learner player, and review renderer need the compatible build when
-new cards use `sdk-2`. Rolling back to an earlier player makes those cards
-unavailable until a compatible build returns.
-
 ## Limits (main: `contract.js CONTRACT_LIMITS`, `limits.js LIMITS`)
 
 | Limit | Value |
