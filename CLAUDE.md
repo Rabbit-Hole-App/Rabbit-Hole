@@ -94,8 +94,8 @@ Non-obvious traps that have caused mistakes. Remove an entry when its condition 
 - UI labels never contain "..." or "…". A disabled item keeps its name, greyed.
 - Build testable features into the existing app UI (canvas, panels, Settings). Never ship a separate demo page as the
   deliverable.
-- UI changes: always check the existing UI first and reuse it; never recreate UI. Hard rule, see
-  [UI changes](#ui-changes).
+- **UI: read [UI.md](UI.md) before writing, briefing or reviewing any UI change.** Hard rule: always check the
+  existing UI, templates and components and reuse them; never recreate UI (owner, 2026-11-06).
 - Mark anything deliberately skipped with a `ponytail:` comment.
 - Before changing Coaching or its dev deployment, read and keep current `docs/features/coaching.md`.
 - MVP-labelled work follows the [MVP fast path](#mvp-fast-path) (owner, 2026-11-03).
@@ -129,36 +129,6 @@ consequence. Continue independent work while a genuinely blocking decision is pe
 5. **Scale the plan.** Small, obvious edits proceed directly. Cross-component changes get a short plan and one
    end-to-end slice before variants. No large design document for every change.
 
-### UI changes
-
-Hard rule (owner, 2026-11-06): **always check the existing UI, templates and components before writing or briefing
-any UI, and reuse them. Never recreate UI.** Inventing UI that already exists, or that nobody asked for, means the owner
-has to redo it. Lanes, subagents and reviewers follow this exactly like the lead does.
-
-Before any UI code:
-
-1. **Read what exists.** Open the screen you are changing in the code and find the component, layout, template or
-   pattern that already does the job. Search `packages/web/src` (start with `ui.jsx`, the panel, card, menu and chat
-   components next to your change) and read `packages/web/DESIGN.md` and `packages/web/design/` (`components.html`,
-   `flow.md`, `notion.md`, `mockups/`). If the owner supplied a mockup or HTML template for this feature, it is the
-   target: match it, do not reinterpret it.
-2. **Name the reuse.** The plan, the lane brief and the hand-back each name the existing component or template the change
-   uses (for example "failure notice: `toast()` from `ui.jsx`"; "Contents: the existing ToC panel, owner template
-   `tutor-unified-toc.html`").
-3. **Nothing fits: ask first.** If no existing component or template covers it, ask the owner before building anything
-   new. Do not decide a new look yourself.
-
-Never, unless the owner explicitly asked for it:
-
-- a new banner, status chip, notice block, fixed or floating overlay, button strip, or toast look-alike; notices and
-  errors use `toast()` from `packages/web/src/ui.jsx`;
-- a new component that duplicates an existing one, or a second variant of an existing panel, card or menu;
-- splitting, restructuring or restyling an existing screen beyond what the request names;
-- new buttons or actions (Retry, Replace, Undo and the like) that the request does not name.
-
-Review: a UI diff that adds any visual element not in the owner's request or an existing component is rejected, even
-when its logic and tests pass.
-
 ### Debugging
 
 Capture the exact symptom before proposing a fix. Build a small, fast reproduction for a nontrivial bug, trace the
@@ -176,7 +146,7 @@ not leave executable work unassigned while suitable agent and execution capacity
 - **Assignments.** Divide substantial work into bounded assignments. Each states its objective and scope, base branch
   and commit, the files or interfaces it owns, dependencies, required deliverables, acceptance checks and a required
   hand-back. Independent implementation uses isolated worktrees and avoids overlapping edits. An assignment that
-  touches UI names the existing components and templates to reuse and links [UI changes](#ui-changes).
+  touches UI names the existing components and templates to reuse and links [UI.md](UI.md).
 - **Ownership.** Shared contracts, migrations, accounting semantics and integration each have one owner. Dependent
   lanes consume the committed interface; they do not invent variants.
 - **Priority and capacity.** Prioritize work that unlocks other tasks or shortens the path to a usable release. If
