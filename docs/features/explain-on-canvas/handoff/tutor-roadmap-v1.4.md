@@ -409,18 +409,23 @@ This recovery happens before an offer is accepted. Use the normal approval and r
 
 ```mermaid
 flowchart TD
-    Send["Send in Ask, Auto or Tutor"] --> Kind{"Explicit command or Tutor action?"}
-    Kind -->|"Yes"| Existing["Existing handler"]
-    Kind -->|"Natural-language message"| Reply["Answer model reads request and eligible tools"]
-    Reply -->|"Reply or clarification"| Chat["Existing Chat turn"]
-    Reply -->|"Artifact requested"| Fit["Choose a tool for the desired output"]
-    Fit --> Check{"Tool fits and is ready?"}
-    Check -->|"Yes"| Review["Existing action or Generate / Edit"]
-    Check -->|"Tool cannot be offered"| Recover{"What can still advance the goal?"}
-    Existing -->|"Tool offer blocked"| Recover
-    Recover -->|"Qualified alternative"| Review
-    Recover -->|"Learner can resolve a detail"| Clarify["Ask one focused question"]
-    Recover -->|"Tool path unavailable"| Help["Give useful help and a next step in Chat"]
+    Send["Send in Ask, Auto, or Tutor"] --> Entry{"Explicit command or Tutor action?"}
+    Entry -->|"Yes"| Handler["Use the existing handler"]
+    Entry -->|"Natural language"| Intent["Read intent and eligible tools"]
+    Intent -->|"Reply"| Evidence["Resolve evidence if needed"]
+    Intent -->|"Clarify"| Clarify["Ask one focused question"]
+    Intent -->|"Output requested"| Fit{"Can the selected tool deliver it?"}
+    Handler -->|"Eligible card brief"| Evidence
+    Handler -->|"Explain on canvas"| Lesson["Follow Explain on Canvas workflow"]
+    Handler -->|"Tool offer blocked"| Recover{"What can still advance the goal?"}
+    Fit -->|"Ready"| Evidence
+    Fit -->|"Blocked"| Recover
+    Evidence -->|"Reply supported"| Chat["Reply in Chat"]
+    Evidence -->|"Card brief supported"| Review["Existing action or Generate / Edit review"]
+    Evidence -->|"Essential gap unresolved"| Recover
+    Recover -->|"Qualified alternative"| Evidence
+    Recover -->|"Missing detail"| Clarify
+    Recover -->|"Tool path unavailable"| Chat
 ```
 
 Start with the existing in-answer Motion proposal. Verify parity for the affected set of enabled tools and modes before switching that scope from JEV preflight. Use the current classifier for scopes awaiting parity, as well as its qualified inline and safety roles. Reuse the answer model and existing dispatchers for one semantic decision on ordinary turns. Keep example phrases in test cases. The two deliverables and focused local tests are in [checklist section 4.5](tutor-implementation-checklist.md#45-chat-routing-and-reply-reliability).
@@ -699,7 +704,9 @@ flowchart TD
     fit -->|"Missing requirement"| revise["Clarify or revise the offer"]
     revise --> brief
     fit -->|"Eligible"| slot["Show or keep one canvas skeleton"]
-    slot --> review["Review current offer in the same Chat step"]
+    slot --> evidence["Resolve evidence if this offer needs it"]
+    evidence -->|"Ready"| review["Review current offer in the same Chat step"]
+    evidence -->|"Essential gap unresolved"| revise
     review --> accept["Accept the current revision"]
     accept --> route{"Adapter path"}
     route -->|"Command plan"| plan["Use approved plan or prepare and review in Chat"]

@@ -6,15 +6,20 @@ This workflow starts when the learner chooses **Explain on canvas** or clearly a
 
 ```mermaid
 flowchart TD
-    Start["Explain on canvas"] --> Draft["Read authorized sources and draft the roadmap in Chat"]
-    Draft -->|"Edit"| Draft
+    Start["Explain on canvas"] --> Read["Resolve scope and read authorized sources"]
+    Read --> PlanEvidence["Resolve planning evidence if needed"]
+    Read -->|"Need source or scope"| Recover["Offer an alternative, ask one question, or help in Chat"]
+    PlanEvidence -->|"Ready to plan"| Draft["Draft the roadmap in Chat"]
+    PlanEvidence -->|"Essential gap unresolved"| Recover
+    Draft -->|"Edit"| Read
     Draft -->|"Accept roadmap and publish ToC"| Fit{"Can a ready format teach the next goal?"}
-    Draft -->|"Need source or scope"| Recover["Offer an alternative, ask one question, or help in Chat"]
-    Fit -->|"Ready"| Offer["Show one card offer in Chat and on Canvas"]
+    Fit -->|"Ready"| StepEvidence["Reuse evidence or resolve a step gap"]
     Fit -->|"Blocked"| Recover
-    Recover -->|"Planning input resolved"| Draft
+    StepEvidence -->|"Ready"| Offer["Show one card offer in Chat and on Canvas"]
+    StepEvidence -->|"Essential gap unresolved"| Recover
+    Recover -->|"Planning input resolved"| Read
     Recover -->|"Card choice resolved"| Fit
-    Offer -.-> Prep["R11 prepares the following card privately if eligible"]
+    Offer -.-> Prep["R11 privately prepares the next eligible card with resolved evidence"]
     Offer -->|"Approve this card"| Check{"Matching prepared result usable?"}
     Check -->|"Ready and valid"| Reuse["Use prepared result"]
     Check -->|"Miss with a valid offer"| Build["Generate and check"]
@@ -27,6 +32,7 @@ flowchart TD
 ## Decision rules
 
 - **Start the lesson once.** The button and a clear typed lesson request use the same Tutor action and the authorized source, thread, instruction and Depth. A drop into an occupied Chat uses the existing **Start new chat / Stay here** choice. Resolve a missing source or scope in that Chat.
+- **Resolve evidence at two checkpoints.** Read the authorized material and use R8a before drafting only if a gap affects the plan. Before each offer, reuse evidence that still applies and look up only a new material gap or needed refresh. Bind the evidence to the draft or offer version. Use the same Chat to narrow the result or clarify an essential gap. Source presentation and research bounds are in [roadmap §10.2](tutor-roadmap-v1.4.md#102-research-and-calculation).
 - **Approve what to teach.** The reviewed roadmap sets the goal, scope, Depth, order and explicit requirements. Suggested formats guide review. **Accept roadmap** publishes the accepted version to the existing ToC.
 - **Confirm how to teach the current step.** Before showing an actionable offer, confirm one format or tool can deliver the accepted goal with the current source, inputs and settings. A qualified alternative uses the same step and Chat. Ask the learner before changing a requirement such as narration or interactivity. Changes to the goal, scope or Depth use **Edit roadmap** and reacceptance.
 - **Approve and deliver one card.** Chat and Canvas share the same offer and slot. **Accept** approves the first card and **Next card** approves the current later offer directly. Command-specific **Generate / Edit** uses the same Chat entry and required review. Approval binds the actual tool, settings and source revision. Use a valid prepared result or generate and check the approved card, then save and acknowledge it in that slot before offering the next eligible step.
@@ -34,7 +40,7 @@ flowchart TD
 
 ## R11 prepares one card ahead
 
-On a new lesson, the first card is generated on approval. While Card N is on offer, enabled R11 can privately prepare Card N+1. Start with qualified lightweight explanations and tables in **Explanations only** when Auto-suggest is on and the selected mode permits unsolicited work. Tutor shows the next offer only after the current card is saved and acknowledged and the next step qualifies. The next card body stays private until its own approval.
+On a new lesson, the first card is generated on approval. While Card N is on offer, enabled R11 can privately prepare Card N+1. Start with qualified lightweight explanations and tables in **Explanations only** when Auto-suggest is on and the selected mode permits unsolicited work. Tutor shows the next offer only after the current card is saved and acknowledged and the next step qualifies. The next card body stays private until its own approval. R11 can use evidence already resolved for the next card. Resolve a remaining required gap through the ordinary next-card flow.
 
 | At the next approval | Same Chat entry and Canvas slot |
 | --- | --- |
