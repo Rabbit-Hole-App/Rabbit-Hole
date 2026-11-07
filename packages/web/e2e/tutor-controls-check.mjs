@@ -114,32 +114,27 @@ await check('selecting Tutor keeps the On switch immediately beside the mode, ke
   await shot('controls-01-tutor-on-light');
 });
 
-await check('Tutor On with existing work: the static entry offers help with it and calls nothing', async () => {
+await check('Tutor On with existing work: no entry card (retired) and nothing is called', async () => {
   const before = model.length;
   await field().fill('');
-  await page.locator('[data-tutor-entry="existing_work"]').waitFor({ timeout: 10000 });
-  for (const label of ['Explain this', 'Review my work', 'Build a lesson from this', 'Continue my own work', 'Not now']) assert.equal(await page.locator('[data-tutor-entry]').getByRole('button', { name: label, exact: true }).count(), 1, label);
+  await page.waitForTimeout(1500);
+  assert.equal(await page.locator('[data-tutor-entry]').count(), 0, 'the old welcome and "no active lesson" entry is retired (owner 2026-11-06: always hide)');
+  for (const label of ['Explain this', 'Review my work', 'Build a lesson from this']) assert.equal(await pane().getByRole('button', { name: label, exact: true }).count(), 0, label);
   await quiet('entry', before);
   await shot('controls-02-entry-existing-work-light');
 });
 
-await check('Not now stays On, shows Suggestions paused, survives a reload and asks no model', async () => {
+await check('after a reload Tutor and the switch are the saved preference, still with no entry card, and no model is asked', async () => {
   const before = model.length;
-  await page.locator('[data-tutor-not-now]').click();
-  await settle();
-  assert.equal(await tutorSwitch().getAttribute('aria-checked'), 'true');
-  await page.locator('[data-tutor-status="resume"]').waitFor({ timeout: 5000 });
-  assert.equal(await page.locator('[data-tutor-entry]').count(), 0, 'no replacement offer');
   await page.waitForTimeout(1200); // the save
   await page.reload();
   await open(work.name);
   assert.match(await modeButton().innerText(), /Tutor/, 'the mode is the saved canvas preference');
   assert.equal(await tutorSwitch().getAttribute('aria-checked'), 'true');
-  assert.match(await page.locator('[data-tutor-status="resume"]').innerText(), /Suggestions paused/);
-  assert.equal(await page.locator('[data-tutor-entry]').count(), 0);
+  assert.equal(await page.locator('[data-tutor-entry]').count(), 0, 'the retired entry stays hidden after a reload');
   const saved = await coachingOf(work.name);
-  assert.deepEqual([saved.controls.mode, saved.controls.tutorEnabled, saved.controls.suggestionsPaused], ['tutor', true, true]);
-  await quiet('Not now and reload', before);
+  assert.deepEqual([saved.controls.mode, saved.controls.tutorEnabled], ['tutor', true]);
+  await quiet('reload', before);
   await shot('controls-03-paused-light');
 });
 
@@ -156,22 +151,19 @@ await check('Ask hides the switch and keeps the saved preference; Auto shows it;
   assert.match(await modeButton().innerText(), /Auto/, 'Auto restored after a reload');
   await pickMode('Tutor');
   assert.equal(await tutorSwitch().getAttribute('aria-checked'), 'true');
-  await page.locator('[data-tutor-status="resume"]').waitFor({ timeout: 5000 });
   await quiet('mode changes', before);
 });
 
-await check('Resume clears the pause once; Continue my own work leaves the learner\'s Auto-suggest On and shows no Undo (R2)', async () => {
+await check('with no entry card the learner\'s Auto-suggest stays On, the mode is unchanged and there is no Undo (R2)', async () => {
   const before = model.length;
-  await page.locator('[data-tutor-resume]').click();
-  await page.locator('[data-tutor-entry="existing_work"]').waitFor({ timeout: 5000 });
-  await page.locator('[data-tutor-own-work]').click();
+  assert.equal(await page.locator('[data-tutor-entry]').count(), 0);
   await settle(900);
   assert.equal(await tutorSwitch().getAttribute('aria-checked'), 'true', 'the switch is the learner\'s Auto-suggest, not the canvas record');
   assert.match(await modeButton().innerText(), /Tutor/, 'the mode is unchanged');
   assert.equal(await page.locator('[data-tutor-undo]').count(), 0, 'no Undo for a per-canvas value that no longer drives suggestions');
   assert.equal(await suggestOf(work.name), true);
   await shot('controls-04-own-work-light');
-  await quiet('Resume, own work', before);
+  await quiet('no entry', before);
 });
 
 await check('keyboard and rapid toggles: Space flips the switch; five quick presses save the last state once each, no model', async () => {
@@ -214,12 +206,12 @@ await check('another tab of this canvas follows a change; a failed save says thi
   await quiet('tab sync and retry', before, 500);
 });
 
-await check('entry states: a blank canvas welcomes; a saved activity offers the three return choices; a failed read is recovery', async () => {
+await check('entry states: a blank canvas shows no welcome (retired); a saved activity offers the three return choices; a failed read is recovery', async () => {
   let before = model.length;
   await open(blank.name);
   await pickMode('Tutor');
-  await page.locator('[data-tutor-entry="welcome"]').waitFor({ timeout: 10000 });
-  assert.match(await page.locator('[data-tutor-entry]').innerText(), /What would you like to learn or work on here\?/);
+  await page.waitForTimeout(1500);
+  assert.equal(await page.locator('[data-tutor-entry]').count(), 0, 'the old welcome and "no active lesson" entry is retired (owner 2026-11-06: always hide)');
   await quiet('welcome', before);
   await shot('controls-06-welcome-light');
   await open(resume.name);
@@ -251,17 +243,12 @@ await check('entry states: a blank canvas welcomes; a saved activity offers the 
   assert.equal(model.length - before, 1, `one request for the chosen recap: ${model.slice(before).join()}`);
 });
 
-await check('dark theme: the switch, the paused line and the entry keep their contrast', async () => {
+await check('dark theme: the switch keeps its contrast', async () => {
   await page.evaluate(() => localStorage.setItem('small.theme', 'dark'));
   await open(work.name);
   await page.locator('[data-tutor-switch]').waitFor({ timeout: 10000 });
   assert.ok(await page.evaluate(() => document.documentElement.classList.contains('dark')));
   await shot('controls-08-tutor-on-dark');
-  await page.locator('[data-tutor-not-now]').click();
-  await page.locator('[data-tutor-status="resume"]').waitFor({ timeout: 5000 });
-  await shot('controls-09-paused-dark');
-  await page.locator('[data-tutor-resume]').click();
-  await settle(900);
   await page.evaluate(() => localStorage.setItem('small.theme', 'light'));
 });
 

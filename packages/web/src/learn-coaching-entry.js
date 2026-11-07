@@ -41,10 +41,6 @@ export function resolveTutorEntry({ loadState, controls, checkpoint = {}, worksp
   return decision('welcome', ['set_goal'], { messageKey: workspace.history ? 'welcome_back' : 'welcome_new' });
 }
 
-// Fix B (TBF-04): once the explain-on-canvas roadmap is engaged on this canvas (an invitation offered, or a roadmap), its lines in
-// Chat are the entry, so the generic welcome and "no active lesson" choices are not offered beside them. A saved activity's return (resume, completed) still is.
-export const retiredForRoadmap = (entry, roadmapOn) => !!roadmapOn && (entry?.kind === 'welcome' || entry?.kind === 'existing_work');
-
 // resolveLearningFocus({ request, explicitRefs, activeActivity, candidateSources, title }) -> FocusDecision
 //   request          { text, intent? }: intent is the existing resolver's or an explicit control's - 'resume' (back to a
 //                    paused goal, Continue), 'new_goal' ("Teach me KNN instead", Start this activity) - never a new

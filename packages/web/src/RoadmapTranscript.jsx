@@ -1,4 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { BookOpen } from 'lucide-react';
+import DepthMenu from './DepthMenu.jsx';
+import { EvidencePill } from './Md.jsx';
+import { StepPill } from './NextStepPill.jsx';
+import { STRINGS } from './roadmap-strings.js';
 import { ChatMessage } from './ChatMessages.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
 import { PRIMARY, SECONDARY, ghost } from './RoadmapInvitation.jsx';
@@ -15,6 +20,10 @@ const ATTR = { explain_on_canvas: 'data-roadmap-explain', keep_here: 'data-roadm
 
 export default function RoadmapTranscript({ roadmap, chat, msgs }) {
   const c = roadmap.controller, iv = roadmap.invitation, thread = chat.thread;
+  // T5: Explain on canvas asks for this source's Depth first, seeded from the composer's; the choice is this roadmap's only (DepthMenu
+  // gets a local settings object, so the canvas setting is never written). Planning starts on Start planning.
+  const [choosing, setChoosing] = useState(null), [depth, setDepth] = useState(null);
+  const seed = chat.settings?.depth || 'standard';
   // One new Tutor thread per invitation (owner plan 5.1): the invitation is saved as its first message through the existing
   // chat-persist path, so the thread exists on the server, survives a reload and becomes this canvas's open one. The previous
   // thread keeps its messages and draft (open() saves the draft first). Chat opens once, here: invitationOf already waited for
@@ -32,11 +41,13 @@ export default function RoadmapTranscript({ roadmap, chat, msgs }) {
   // shortcut: the Tutor thread is remembered per browser; another device shows the roadmap in its open thread. Upgrade: store the thread id on the roadmap.
   const bound = read(BOUND(chat.canvas));
   if (bound && thread.id && thread.id !== bound) return null;
-  const items = transcriptOf(roadmap.state, { invitation: iv, saved: !!iv && msgs.some(m => m.clientId === invitationClientId(iv.id)) });
+  const items = transcriptOf(roadmap.state, { invitation: iv, saved: !!iv && msgs.some(m => m.clientId === invitationClientId(iv.id)), choosing: !!iv && choosing === iv.id });
+  const local = { depth: depth || seed, set: next => setDepth(next.depth), status: 'ready', saveStatus: 'ready', retry() {} };
+  const planning = !!iv && roadmap.state.busy.includes(`create:${iv.id}`);
   if (!items.length) return null;
   const run = action => {
     const r = action.run;
-    if (r.kind === 'explain_on_canvas') c.explain();
+    if (r.kind === 'explain_on_canvas') { setChoosing(iv.id); setDepth(null); }
     else if (r.kind === 'keep_here') c.dismiss();
     else if (r.kind === 'answer') c.answer({ optionId: r.optionId });
     else if (r.kind === 'part') c.explainPart(r.choice);
@@ -56,6 +67,14 @@ export default function RoadmapTranscript({ roadmap, chat, msgs }) {
               })}
             </div>
           )}
+          {item.review && <div className="py-1.5"><EvidencePill icon={BookOpen} type="button" data-roadmap-review onClick={() => { chat.panels.setTab('toc'); chat.panels.setOpen(true); }}>{item.review}</EvidencePill></div>}
+          {item.depth && (
+            <div data-roadmap-depth className="flex flex-wrap items-center gap-1.5 pb-1.5">
+              <DepthMenu settings={local} disabled={planning} />
+              <button type="button" data-roadmap-start disabled={planning} onClick={() => c.explain({ depth: local.depth, instruction: '' })} className={PRIMARY}>{STRINGS.startPlanning}</button>
+            </div>
+          )}
+          {item.pill && <div className="pb-1.5"><StepPill pill={item.pill} onAccept={() => c.acceptProposal()} onCancel={() => c.cancelProposal()} /></div>}
           {item.outputs && <ChatOutputs outputs={item.outputs} ops={chat.canvasOps ?? null} />}
         </div>
       ))}
