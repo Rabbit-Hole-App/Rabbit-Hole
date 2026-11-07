@@ -263,7 +263,7 @@ test('BE.05 first proposal and one guarded acceptance (CORE.03-05, UI.04-05)', a
     // be contract: polling never carries source text; the verified excerpt is the step's R3 reference (steps[].sourceRef.id -> anchor.quote.exact).
     assert.doesNotMatch(JSON.stringify(view), new RegExp(MARKER), 'polling carries no source text');
     const ref = view.steps.find(x => x.id === p.stepId).sourceRef;
-    assert.ok(ref?.id, 'the proposal's step carries its source reference');
+    assert.ok(ref?.id, 'the step of the proposal carries its source reference');
     assert.equal(p.sourceRelation.sourceRef?.id, ref.id, 'the proposal and the step name the same reference');
     const h2 = h.rows('SELECT anchor_json FROM learn_source_refs WHERE id = ?', ref.id)[0];
     const exact = JSON.parse(h2.anchor_json).quote?.exact || '';
