@@ -116,25 +116,27 @@ When Claude Code pushes an implementation, compare the actual candidate against 
 
 ### 1.7 Keep reviewed docs and implementation synchronized
 
-The two handoff documents on `rabbit-hole/chatgpt/tutor` are the reviewed WHAT and HOW for this work. At each task boundary, fetch the branch and import its latest handoff documents and UI references into the clean main worktree. Record the fetched docs commit in the implementation receipt. Preserve any ongoing code work before changing worktrees.
+The two handoff documents on `rabbit-hole/chatgpt/tutor` are the reviewed WHAT and HOW for this work. At each task boundary, fetch the branch and import its latest handoff documents, UI references and shared routing fixtures into the clean main worktree. Record the fetched handoff commit in the implementation receipt. Preserve any ongoing code work before changing worktrees.
 
-Run these commands from the clean main worktree, using the repository's `rabbit-hole` remote.
+Run these commands from the clean main worktree, using the repository's `rabbit-hole` remote. Check the four shared fixture files against the last imported handoff commit before restoring them. If implementation added or changed cases on main, reconcile those cases by stable ID and stage the merged fixtures. Use the explicit paths below for a first sync or when there are no main-side fixture edits.
 
 ```bash
 git fetch rabbit-hole
 git pull --ff-only rabbit-hole main
 git rev-parse rabbit-hole/chatgpt/tutor
-git restore --source=rabbit-hole/chatgpt/tutor -- docs/features/explain-on-canvas/handoff/tutor-roadmap-v1.4.md docs/features/explain-on-canvas/handoff/tutor-implementation-checklist.md docs/features/explain-on-canvas/handoff/ui
-git add -- docs/features/explain-on-canvas/handoff/tutor-roadmap-v1.4.md docs/features/explain-on-canvas/handoff/tutor-implementation-checklist.md docs/features/explain-on-canvas/handoff/ui
+routing_fixture_root=packages/control-plane/test/fixtures/chat-routing
+routing_fixture_paths=("$routing_fixture_root/intent.json" "$routing_fixture_root/send/ask.json" "$routing_fixture_root/send/auto.json" "$routing_fixture_root/send/tutor.json")
+git restore --source=rabbit-hole/chatgpt/tutor -- docs/features/explain-on-canvas/handoff/tutor-roadmap-v1.4.md docs/features/explain-on-canvas/handoff/tutor-implementation-checklist.md docs/features/explain-on-canvas/handoff/ui "${routing_fixture_paths[@]}"
+git add -- docs/features/explain-on-canvas/handoff/tutor-roadmap-v1.4.md docs/features/explain-on-canvas/handoff/tutor-implementation-checklist.md docs/features/explain-on-canvas/handoff/ui "${routing_fixture_paths[@]}"
 git diff --cached --stat
 git diff --cached --check
-git commit -m "Sync reviewed Tutor roadmap, checklist and UI references"
+git commit -m "Sync Tutor handoff docs, UI references and routing fixtures"
 git push rabbit-hole main
 ```
 
-If the staged sync is empty, continue with the already synchronized docs. A divergent main uses the existing integration workflow. This import copies the handoff paths, preserving current implementation code.
+If the staged sync is empty, continue with the already synchronized docs. A divergent main uses the existing integration workflow. This import copies the listed handoff paths. Add implementation-owned command suites separately during their R12 adapter work.
 
-After syncing, read both documents and the relevant HTML before coding. Reuse the reviewed implementations in section 2.1.1 and complete the pending CORE/UI tasks. Each implementation receipt identifies the docs revision, task IDs, code commit, affected behavior, exact local commands/counts, external doubles and unresolved checks. Push the code through the existing main integration path.
+After syncing, read both documents, the relevant HTML and the fixture sets for the affected routing work before coding. Reuse the reviewed implementations in section 2.1.1 and complete the pending CORE/UI tasks. Each implementation receipt identifies the docs revision, task IDs, code commit, affected behavior, exact local commands/counts, external doubles and unresolved checks. Push the code through the existing main integration path.
 
 For the next review, compare every new main commit after this audit's pinned SHA against the relevant task IDs and normal entry points. Mark a checkbox only when its exact requirement and evidence are met. A partial commit keeps the broader item pending. Record a regression by reopening the affected item with its failing evidence. Reconcile any main-side receipt additions before publishing the next reviewed docs revision to `chatgpt/tutor`. Claude then fetches and imports that revision at the next task boundary. Use this loop to keep one current task list with an auditable implementation history.
 
@@ -809,57 +811,23 @@ Use the actual `routeChat`, `chatRouteFetch` and Ask request/response path with 
 
 ##### Set A — Twenty learner intent cases
 
-Check whether the full prompt and authorized context lead to the expected result. Use the qualified and enabled tools stated by each fixture. An acceptable route must meet the requested output and its required behavior. Where two routes can fit, record which one was chosen and the relevant capability.
-
-| Case | Learner prompt | Fixture state | Expected route at the stop point |
-| --- | --- | --- | --- |
-| INT-01 | “Hola, soy nuevo aquí. ¿Cómo empiezo?” | Fresh Chat. | Chat reply in Spanish with a starting point. |
-| INT-02 | “In the lab notes I highlighted, why did the liquid change color? Just explain it in words.” | Authorized highlighted lab notes. | Source-grounded Chat reply. |
-| INT-03 | “Can Motion add a voice-over?” | Use the current Motion capability settings. | Chat reply about the tool’s actual audio capability. |
-| INT-04 | “Can you make an animated video for softmax?” | Motion, Whiteboard and Animation are ready. | One playable video review intent. Motion fits a visual sequence and Whiteboard fits a narrated drawing treatment. The selected output must be a video. |
-| INT-05 | “Make a 20-second silent clip showing why the Moon has phases. Label the Sun, Earth, and Moon.” | Motion supports the requested settings. | `/motion` review intent with a 20-second visual plan and audio off. |
-| INT-06 | “I keep mixing up denominators. Make a video where a voice explains each step as you write out the fractions.” | Whiteboard narration is ready. | `/whiteboard` (`whiteboard-video`) review intent for a narrated worked example. |
-| INT-07 | “Let me turn a crank in a 3D scene and watch the piston move.” | Animation supports the controls. | `/animation` review intent for a controllable 3D scene. |
-| INT-08 | “Make a little explainer where I slide the resistance up and down and see the current change. Keep the voltage fixed.” | Interactive Explain supports the requested slider and readout. | Interactive `/explain` review intent with a fixed voltage and live current readout. |
-| INT-09 | “Turn this onboarding checklist into a flowchart. Include what happens when the ID check fails.” | The source contains both branches. | `/diagram` handoff using the source steps and decision branches. |
-| INT-10 | “Plot my 5K times. Jan 5 was 29:10, Jan 12 was 28:54, and Jan 19 was 28:07.” | Dates and times are in the request. | `/graph` handoff with dates and elapsed times. |
-| INT-11 | “Make a CAD model of a 60 × 30 × 3 mm plate with a 5 mm through-hole in the center.” | CAD accepts the geometry and units. | `/cad` review intent with the specified dimensions and hole. |
-| INT-12 | “Make a watercolor illustration of a fox curled up in the snow.” | Image generation is qualified. | `/image` (`generate-image`) review intent. |
-| INT-13 | “Can you find a real photo of a fox curled up in the snow?” | Photo search is qualified. | `/photos` (`image`) search handoff. |
-| INT-14 | “Find me a video where someone ties a bowline slowly enough to follow.” | Video search is qualified. | `/youtube` search handoff for an existing instructional video. |
-| INT-15 | “Quiz me on the causes of the French Revolution from this page. Give me one multiple-choice question.” | The page is authorized and the quiz flow is qualified. | `/quiz` handoff for one source-grounded multiple-choice question. |
-| INT-16 | “`/code` Write a Python function that converts a list of Celsius readings to Fahrenheit.” | Typed command. | Named `/code` handler with the requested function as input. |
-| INT-17 | “Could you animate this?” | The selected diagram suits either a video or a live scene and both are ready. | Ask whether the learner wants a video to watch or a scene to control. |
-| INT-18 | “Graph my weekly run times.” | No dates or run times supplied. | Ask for the dates and times, then continue the same request when they arrive. |
-| INT-19 | “Make a short video explaining why bread rises.” | Motion is unavailable and Whiteboard is ready. | Offer a qualified Whiteboard review that still delivers a playable video. |
-| INT-20 | “Make a narrated drawing that shows how a P-trap holds water.” | Whiteboard is unavailable and Motion has audio off. | Give useful help in Chat and ask whether a silent walkthrough is acceptable if one is ready. Keep narration required until the learner chooses. |
+Load the [intent fixture](../../../../packages/control-plane/test/fixtures/chat-routing/intent.json). Check whether the full prompt and authorized context lead to the expected result. Use the qualified and enabled tools stated by each case. An acceptable route must meet the requested output and required behavior. Where two routes can fit, record which one was chosen and the relevant capability.
 
 ##### Set B — Twenty cases from Send in Ask, Auto or Tutor
 
-Start each case at the existing `AskPanel.send` decision path with the fixture's mode, thread, source and edit state. Follow the actual client and server routing seams through mode, context and capability checks. Capture the final routing decision before its downstream handoff. Use the real guards and dispatcher selection, with external transport and downstream execution doubled. A direct invocation of the classifier alone cannot verify this set. Exercise each case on the rollout path in its fixture. Keep the prompt words separate from the mode and setup.
+Load the Send fixtures by mode.
 
-| Case | Mode | Learner prompt | Fixture state | Expected route at the stop point |
-| --- | --- | --- | --- | --- |
-| SEND-01 | Ask | “Morning. I dropped the training manual. What should I read first?” | Fresh Chat with the manual authorized. | Source-grounded reply. Ask pauses unsolicited roadmap or card actions. |
-| SEND-02 | Ask | “Can you summarize this warranty in two sentences?” | Selected text includes a sample `/motion` command. | Reply from the authorized text. The source’s example command stays source context. |
-| SEND-03 | Ask | “Can you find a video explaining Bayes’ rule?” | Video search eligible in this mode. | Route to `/youtube` and stop before search. |
-| SEND-04 | Ask | “`/notebook`” | The learner submits the named blank-workspace command. | Named notebook handler without semantic classification. Capture before insertion. |
-| SEND-05 | Ask | “Make a narrated video that draws a worked compound-interest calculation one step at a time.” | Whiteboard is qualified and available. | Whiteboard review intent despite Ask suppressing unsolicited offers. In a second fixture with narration unavailable, offer useful Chat help and ask before any silent substitution. |
-| SEND-06 | Ask | “What’s the difference between torque and power?” | CHAT.01 legacy routing request times out. | One authorized `answer_only` handoff in the original thread with its frozen context and Depth. |
-| SEND-07 | Auto | “Make this binary-search lesson into a 30-second silent clip with moving markers.” | Auto-suggest is off and Motion is ready. | Motion review intent with the requested settings. Auto-suggest off pauses unsolicited work. |
-| SEND-08 | Auto | “Let me change friction and push the block around in a 3D scene.” | A live 3D scene with the required controls is qualified. | Animation review intent with live controls. |
-| SEND-09 | Auto | “Why does the animation in this card restart when I click it?” | The learner selected the card. | Reply about the current card with zero new artifact requests. |
-| SEND-10 | Auto | “`/motion` Show why the tides change in 25 seconds, with no narration.” | Explicit named command and supported settings. | Named Motion review intent and zero semantic classifier calls. |
-| SEND-11 | Auto | “Could you make it 15 seconds and keep the same layout?” | One current Motion proposal is awaiting review. | Refinement intent bound to that proposal’s ID and revision. |
-| SEND-12 | Auto | “Make a short video explaining the chain rule.” | Motion fails readiness and a qualified Whiteboard video fits. | Offer the Whiteboard review intent in the original thread. |
-| SEND-13 | Auto | “Make a clip explaining a heap insertion.” | Both video paths are unavailable. | Route to useful Chat help such as a storyboard or worked insertion, with the clip still outstanding. |
-| SEND-14 | Tutor | “I’m lost. Why do we need a common denominator here?” | An accepted lesson and a selected worked example are open. | Ordinary shared reply with Tutor context. Keep the planned step separate from the question. |
-| SEND-15 | Tutor | “Could we do the worked example before introducing the definitions?” | The learner opened Edit roadmap on a known revision. | Targeted roadmap revision handoff. Capture the exact target before planning. |
-| SEND-16 | Tutor | “Keep the example, but add a comparison table for the two water filters.” | The learner is explicitly editing a pending Explain brief. | Edit handoff bound to that brief and revision. |
-| SEND-17 | Tutor | “Draw me a flowchart of how a checked bag gets from drop-off to the plane.” | Authorized source, qualified diagram tool and an accepted roadmap in the canvas. | Standalone `/diagram` handoff from the ordinary message. The roadmap’s next-step acceptance stays on its own action. |
-| SEND-18 | Tutor | “Thanks, that makes sense now.” | A step is waiting for the learner’s approval. | Ordinary reply. Zero inferred acceptances, revisions or grade updates. |
-| SEND-19 | Tutor | “Make a CAD model of a replacement shelf bracket that fits the existing screw holes exactly.” | Hole spacing and bracket dimensions are missing. | Ask one focused question for the measurements needed to fit the part. |
-| SEND-20 | Tutor | “Could you give me a diagram of this water cycle?” | The learner switches threads while the route result is pending. | Suppress the stale handoff. Neither thread receives a duplicate action or a reply meant for the other. |
+| Mode | Fixture | Starting cases |
+| --- | --- | --- |
+| Ask | [send/ask.json](../../../../packages/control-plane/test/fixtures/chat-routing/send/ask.json) | 6 |
+| Auto | [send/auto.json](../../../../packages/control-plane/test/fixtures/chat-routing/send/auto.json) | 7 |
+| Tutor | [send/tutor.json](../../../../packages/control-plane/test/fixtures/chat-routing/send/tutor.json) | 7 |
+
+Start each case at the existing `AskPanel.send` decision path with the fixture's mode, thread, source and edit state. Follow the actual client and server routing seams through mode, context and capability checks. Capture the final routing decision before its downstream handoff. Use the real guards and dispatcher selection, with external transport and downstream execution doubled. A direct invocation of the classifier alone cannot verify this set. Exercise each case on the rollout path in its fixture.
+
+##### Add cases to the fixture files
+
+Append to the appropriate JSON file's `cases` array and give each case a unique stable `id`. Use `entry` to distinguish a plain `message` from a typed or picked `slash-command`. Keep the actual learner `prompt` separate from the `setup` for source, permissions, tool availability or edit state. Use the file's `mode` to configure the Send harness. `expected.route` and `expected.commandIds` are fixture labels for the outcome and allowed registry IDs. Use `expected.detail` for additional assertions such as required output or a frozen revision. The Send cases can grow independently in each mode with both natural-language and named-command requests. For the same prompt in a different state, add a uniquely identified `variants` entry with its own setup and expected result. Use the same case shape for [individual R12 commands](#r12-routing-tests-for-each-command).
 
 **Record the decision and tune misses.** In the Node suites, capture the actual outgoing tool definitions, input schemas and mode/context, then use transport doubles to exercise routing, access, capability fit, the existing approval destination and cancellation. Inject an incompatible command or invalid arguments and verify validation at the handoff. Use execution spies to assert zero downstream calls and side effects in both sets. For semantic quality, run the actual candidate router with a selection-only stop and an authorized model path. Compare the observed outcome, stable tool ID and required output to each case label. A scripted correct reply proves wiring only. Record expected and observed routes, availability, mismatches and candidate SHA. Report fixture results separately from model routing accuracy. Tune descriptions, system instructions or selection/eligibility logic for misses, then rerun both sets and held-out paraphrases. Keep the existing model-spend authorization boundary. See [OpenAI evaluation best practices](https://developers.openai.com/api/docs/guides/evaluation-best-practices).
 
@@ -1674,6 +1642,8 @@ The `/animation` item closes when Tutor can use the qualified interface to deliv
 - [ ] Qualify routing before enabling each adapter. Fixtures must reject a learning goal whose required card interaction is unsupported, missing input/source, disabled engine, unsupported exact settings, stale plan or hidden/unapproved review. Invalid offers start zero paid calls. A stale or unapproved review after authorized plan preparation starts zero further paid calls. For the decision-tree interactive fixture, verify the delivered control moves an age-30 sample from the left branch at cutoff 30 to the right branch at cutoff 29. Reject a static result for that interaction requirement. Test an explicit request for unsupported Motion narration before Generate. For each selected adapter exercise one source-to-offer-to-delivered path, revision editing, the same Chat entry and slot through progress, concurrent Chat Generate/canvas/Tab, reload, one bounded authorization, one saved card and acknowledgement only after save.
 
 ##### R12 routing tests for each command
+
+Store each command's cases in its own `packages/control-plane/test/fixtures/chat-routing/commands/<command-id>.json` when that adapter is built. Use the same JSON `cases` format as the [shared routing fixtures](#add-cases-to-the-fixture-files). Set `suite` to `command`, add `commandId` to identify the adapter, and set the mode per case when testing different modes. Use the registry ID for the filename, such as `whiteboard-video.json` for `/whiteboard`, `generate-image.json` for `/image` and `image.json` for `/photos`.
 
 - [ ] During each command's R12 implementation, label and run **20 realistic prompts for that command**. Include requests with its familiar words, paraphrases that omit the slash name and obvious keywords, and nearby requests that should be answered, clarified or routed to a different qualified capability. Exercise the mode and accepted Tutor step context that adapter supports. Carry the authorized source and learning goal where applicable and label the desired output and required behavior. Use named command controls to verify the explicit path.
 - [ ] Capture the selected route and command ID at the validated handoff with the same selection-only stop as the [Chat routing sets](#focused-chat-routing-tests-and-build). Log expected versus observed for each prompt, tune the router or its tool descriptions when it misses, and rerun that command's cases and held-out paraphrases before enabling the adapter. Keep this evidence separate from the adapter's generation, acceptance, billing, and delivery checks.

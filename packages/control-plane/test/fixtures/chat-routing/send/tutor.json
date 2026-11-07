@@ -1,0 +1,87 @@
+{
+  "suite": "send",
+  "mode": "tutor",
+  "cases": [
+    {
+      "id": "SEND-14",
+      "entry": "message",
+      "prompt": "I’m lost. Why do we need a common denominator here?",
+      "setup": "An accepted lesson and a selected worked example are open.",
+      "expected": {
+        "route": "reply",
+        "commandIds": [],
+        "detail": "Ordinary shared reply with Tutor context. Keep the planned step separate from the question."
+      }
+    },
+    {
+      "id": "SEND-15",
+      "entry": "message",
+      "prompt": "Could we do the worked example before introducing the definitions?",
+      "setup": "The learner opened Edit roadmap on a known revision.",
+      "expected": {
+        "route": "revise-roadmap",
+        "commandIds": [],
+        "detail": "Targeted roadmap revision handoff. Capture the exact target before planning."
+      }
+    },
+    {
+      "id": "SEND-16",
+      "entry": "message",
+      "prompt": "Keep the example, but add a comparison table for the two water filters.",
+      "setup": "The learner is explicitly editing a pending Explain brief.",
+      "expected": {
+        "route": "revise-brief",
+        "commandIds": [
+          "explain"
+        ],
+        "detail": "Edit handoff bound to that brief and revision."
+      }
+    },
+    {
+      "id": "SEND-17",
+      "entry": "message",
+      "prompt": "Draw me a flowchart of how a checked bag gets from drop-off to the plane.",
+      "setup": "Authorized source, qualified diagram tool and an accepted roadmap in the canvas.",
+      "expected": {
+        "route": "tool-handoff",
+        "commandIds": [
+          "diagram"
+        ],
+        "detail": "Standalone `/diagram` handoff from the ordinary message. The roadmap’s next-step acceptance stays on its own action."
+      }
+    },
+    {
+      "id": "SEND-18",
+      "entry": "message",
+      "prompt": "Thanks, that makes sense now.",
+      "setup": "A step is waiting for the learner’s approval.",
+      "expected": {
+        "route": "reply",
+        "commandIds": [],
+        "detail": "Ordinary reply. Zero inferred acceptances, revisions or grade updates."
+      }
+    },
+    {
+      "id": "SEND-19",
+      "entry": "message",
+      "prompt": "Make a CAD model of a replacement shelf bracket that fits the existing screw holes exactly.",
+      "setup": "Hole spacing and bracket dimensions are missing.",
+      "expected": {
+        "route": "clarify",
+        "commandIds": [],
+        "detail": "Ask one focused question for the measurements needed to fit the part."
+      }
+    },
+    {
+      "id": "SEND-20",
+      "entry": "message",
+      "prompt": "Could you give me a diagram of this water cycle?",
+      "setup": "The learner switches threads while the route result is pending.",
+      "expected": {
+        "route": "discard-stale",
+        "commandIds": [],
+        "detail": "Suppress the stale handoff. Neither thread receives a duplicate action or a reply meant for the other."
+      }
+    }
+  ]
+}
