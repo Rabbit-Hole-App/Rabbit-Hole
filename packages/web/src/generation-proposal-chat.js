@@ -6,6 +6,7 @@ import { commandDefinition, fieldsFor } from './generation-confirmation-schema.j
 import { imageGenerationOn } from './generate-image.js';
 import { isBriefCommand } from './material-brief.js';
 import { isSmallTalk } from './inline-ai-route.js';
+import { startTiming } from './client-timing.js';
 
 const proposalOf = m => (m?.role === 'assistant' && m.meta?.proposal?.proposal_id ? m.meta.proposal : null);
 // Each proposal's newest version in the conversation: a refinement in chat is a later message with the same id.
@@ -141,7 +142,7 @@ export const madeFrom = proposalId => block => (block?.operation?.proposal?.prop
 // ---- CR-1's route decision (C:/s/spec/day-1021/chat-route-interface.md): the call a plain chat turn makes before it is sent ----
 // The bound fields are read from the ask's own payload, so the ask sends them unchanged. -> the decision, or null where the
 // route endpoint is not deployed (the turn is sent as today).
-export async function routeChat(fetcher, payload, { capability = null, requestId = crypto.randomUUID() } = {}) {
+async function routeDecision(fetcher, payload, { capability = null, requestId = crypto.randomUUID() } = {}) {
   const body = { request_id: requestId, app: payload.scope?.app, pending: payload.scope?.pending ?? null, text: payload.message, capability,
     mode: payload.mode ?? 'auto', selection: payload.canvas_target ?? null, source_refs: payload.context_refs ?? null, motion: payload.generation?.motion ?? null };
   // A bare greeting is never a tool request: decided here with no route request at all (the server's decideChat does the same for a direct caller).
@@ -157,6 +158,13 @@ export async function routeChat(fetcher, payload, { capability = null, requestId
   return decision.via === 'fallback' ? { ...decision, recoverable: true, requestId, status: response.status } : decision;
 }
 // What a failed route request says when the server gave no words of its own. Shown only for an authorization failure or a command that could not start.
+// The route round trip, timed for benchmarking (client-timing.js): a greeting is decided locally, so its interval is the cost of the check itself.
+export async function routeChat(fetcher, payload, options) {
+  const timing = startTiming('chat_route_ms', { mode: payload.mode ?? 'auto', depth: payload.depth });
+  const decision = await routeDecision(fetcher, payload, options);
+  timing.end('ok', { path: decision?.local ? 'greeting' : decision?.via === 'fallback' ? 'fallback' : 'routed' });
+  return decision;
+}
 export const ROUTE_FAILED = 'Could not reach Rabbit Hole, so nothing was started. Send it again.';
 const REFUSALS = { 401: 'Your session ended. Sign in again, then send this again.', 403: 'You no longer have access to this canvas. Nothing was sent.' };
 // What the Chat does with a decision. send: the turn goes on (with the token a proposal needs); direct: the command's own

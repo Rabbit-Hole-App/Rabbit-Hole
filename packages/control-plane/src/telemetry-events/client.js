@@ -21,5 +21,18 @@ export default {
       dropped: { type: 'int' },         // events this page dropped (rate limit, queue full, lost in transit) before this one
       online: { type: 'bool' },
     },
+    // A user-visible interval for benchmarking (web client-timing.js; docs/features/telemetry.md 'Timing events'). Whole milliseconds, an outcome
+    // and small enums or counts only: no text, id, title or URL. Granularity of the card stage intervals is the poll interval.
+    'client.timing': {
+      interval: { enum: ['chat_route_ms', 'chat_first_chunk_ms', 'chat_total_ms', 'roadmap_plan_ms', 'roadmap_revise_ms', 'roadmap_accept_plan_ms', 'roadmap_first_proposal_ms', 'card_accept_ms', 'card_ready_ms', 'card_stage_generating_ms', 'card_stage_checking_ms', 'card_stage_saving_ms', 'drop_to_invite_ms', 'drop_to_ready_ms', 'source_resolve_ms', 'canvas_ready_ms'], required: true },
+      ms: { type: 'ms', required: true },
+      outcome: { enum: ['ok', 'failed', 'cancelled'] },
+      route: { type: 'route', required: true },
+      mode: { enum: ['auto', 'ask', 'tutor'] },
+      depth: { enum: ['overview', 'standard', 'deep'] },
+      path: { enum: ['greeting', 'routed', 'answer_only', 'fallback'] },
+      size: { enum: ['xs', 's', 'm', 'l', 'xl'] },   // a bucket of the input: source characters or card count
+      count: { type: 'int' },                          // steps in a draft
+    },
   },
 };

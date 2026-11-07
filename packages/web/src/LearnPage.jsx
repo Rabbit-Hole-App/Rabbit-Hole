@@ -105,6 +105,7 @@ import { readyMarkdownSources } from './roadmap-client.js';
 import { canvasCardsOf, createSlotStore } from './roadmap-canvas.js';
 import { RoadmapCanvas } from './RoadmapSurfaces.jsx';
 import SurfaceBoundary from './SurfaceBoundary.jsx';
+import { markEnd, markMove, markStart } from './client-timing.js';
 import LearnProgress from './LearnProgress.jsx';
 import { CardFeedbackScope } from './CardFeedback.jsx';
 import { explainMaterial } from './learn-coaching-materials.js';
@@ -823,7 +824,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       for (const { file, assetKey, block } of made) {
         await cacheAsset(assetKey, file);
         if (block.type === 'repo-code') insertCodeCard(chat?.canvasOps, block, at); else canvas()?.insertImported(block, at);
-        if (block.type === 'file' && block.kind === 'markdown') droppedMarkdown.current.add(block.id);
+        if (block.type === 'file' && block.kind === 'markdown') { droppedMarkdown.current.add(block.id); markStart('dropready:' + block.id, 'drop_to_ready_ms'); markStart('drop:' + block.id, 'drop_to_invite_ms'); }
       }
       if (made.length) chatWorkspace.current?.panels?.openChat?.(); // UI.01: the drop reveals Chat once; focus, draft and camera stay
       nextImport();
@@ -1511,6 +1512,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   useEffect(() => {
     let live = true;
     boardLoaded.current = false; boardSynced.current = null; boardStopped.current = false;
+    markStart('canvas', 'canvas_ready_ms'); // the board fetch to its data (client-timing.js)
     // Read now, before the canvas writes its first copy over a value it could not read (AdaptiveCanvas, 400 ms after mount):
     // an unreadable copy or version is never proof this browser's copy is current, so the server's copy decides.
     const storage = browserStorage();
@@ -1522,6 +1524,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       setSharing(data.sharing);
       setCommentBoard(data.board_id || null); commentBoardRef.current = data.board_id || null;
       boardLoaded.current = true;
+      markEnd('canvas');
       track('rh_canvas_opened'); // usage analytics: once per canvas load
       // Empty keys are not a copy: the canvas writes them on mount, before a slow reply lands.
       const hasLocal = hasLocalContent(storage, { ink: boardStorageKey, chat: chatKey });
@@ -1731,7 +1734,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     if (saveState?.state !== 'saved' || !droppedMarkdown.current.size || !boardSynced.current) return;
     let savedBlocks;
     try { savedBlocks = boardFromText(boardSynced.current).blocks || []; } catch { return; }
-    for (const { blockId, key } of readyMarkdownSources({ pending: droppedMarkdown.current, blocks: canvasApi.current?.blocks?.() || [], savedBlocks })) { droppedMarkdown.current.delete(blockId); roadmap.sourceReady(key); }
+    for (const { blockId, key } of readyMarkdownSources({ pending: droppedMarkdown.current, blocks: canvasApi.current?.blocks?.() || [], savedBlocks })) { droppedMarkdown.current.delete(blockId); markEnd('dropready:' + blockId); markMove('drop:' + blockId, 'drop:' + key); roadmap.sourceReady(key); }
   }, [saveState]); // eslint-disable-line react-hooks/exhaustive-deps
   // Reload and keep my document (a 409, blocknote-canvas.md): this browser's document - its unsaved words written first -
   // is put aside, the server's newer board loads (the board GET), and the kept document goes over it as the newer edit.

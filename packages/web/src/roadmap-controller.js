@@ -3,7 +3,8 @@
 // server for the authorized cards, insert each by its server-minted id once, save the board, then acknowledge. Nothing here
 // mints an id, predicts a result or touches a price.
 import { STRINGS } from './roadmap-strings.js';
-import { actionKeys, canProposeNext, deliverable, initialState, offerOf, planDelivery, reduce, routes } from './roadmap-client.js';
+import { actionKeys, canProposeNext, deliverable, draftOf, initialState, offerOf, planDelivery, reduce, routes } from './roadmap-client.js';
+import { markEnd, markStart } from './client-timing.js';
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
 import { FOLLOW_UP_MS, createAutoMeter } from './roadmap-auto.js';
 
@@ -31,18 +32,53 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     return dispatch({ type: 'refused', message: data.error || null, current: data.current, limitation: data.limitation });
   }
 
+  // Benchmark timings (client-timing.js; docs/features/telemetry.md "Timing events"). A gesture starts its intervals; each view that arrives (the
+  // response or a poll) ends the ones it shows, so the stage hops are as fine as the poll interval. Nothing here changes what the controller does.
+  const STAGES = ['generating', 'checking', 'saving'];
+  const timeStart = gesture => {
+    if (gesture.startsWith('create:')) markStart('plan', 'roadmap_plan_ms');
+    else if (gesture.startsWith('revise:')) markStart('revise', 'roadmap_revise_ms');
+    else if (gesture.startsWith('plan:')) { markStart('req:' + gesture, 'roadmap_accept_plan_ms'); markStart('first_proposal', 'roadmap_first_proposal_ms'); }
+    else if (gesture.startsWith('accept:')) { markStart('req:' + gesture, 'card_accept_ms'); markStart('ready:' + state.view?.proposal?.stepId, 'card_ready_ms'); }
+  };
+  const timeEnd = (gesture, outcome) => {
+    markEnd('req:' + gesture, outcome);
+    if (outcome === 'ok') return;
+    if (gesture.startsWith('create:')) markEnd('plan', outcome);
+    else if (gesture.startsWith('revise:')) markEnd('revise', outcome);
+    else if (gesture.startsWith('plan:')) markEnd('first_proposal', outcome);
+    else if (gesture.startsWith('accept:')) markEnd('ready:' + state.view?.proposal?.stepId, outcome);
+  };
+  const timeViews = (prev, next) => {
+    try {
+      const draft = draftOf(next);
+      if (draft) { const count = draft.steps?.length; markEnd('plan', 'ok', { count }); if (draftOf(prev)?.version !== draft.version) markEnd('revise', 'ok', { count }); }
+      if (next.proposal?.state === 'pending') markEnd('first_proposal');
+      const before = new Map((prev?.steps || []).map(step => [step.id, step.stage]));
+      for (const step of next.steps || []) {
+        const was = before.get(step.id), now = step.stage;
+        if (was !== now) {
+          if (STAGES.includes(was)) markEnd('stage:' + step.id + ':' + was, now === 'failed' ? 'failed' : 'ok');
+          if (STAGES.includes(now)) markStart('stage:' + step.id + ':' + now, 'card_stage_' + now + '_ms');
+        }
+        if (now === 'ready') markEnd('ready:' + step.id); else if (now === 'failed') markEnd('ready:' + step.id, 'failed');
+      }
+    } catch { /* a timing is never worth a failure */ }
+  };
+
   // One gesture, one request at a time: a second press of the same gesture (a Tab and a click together) joins the first.
   function act(gesture, route) {
     if (stopped || host.readOnly?.()) return Promise.resolve(null);
     if (flight.has(gesture)) return flight.get(gesture);
     dispatch({ type: 'begin', gesture });
+    timeStart(gesture);
     const run = call(route(keys.for(gesture)))
-      .then(body => { keys.done(gesture); return body; }, error => { keys.done(gesture); refuse(error); return null; })
+      .then(body => { keys.done(gesture); timeEnd(gesture, 'ok'); return body; }, error => { keys.done(gesture); timeEnd(gesture, 'failed'); refuse(error); return null; })
       .finally(() => { flight.delete(gesture); dispatch({ type: 'end', gesture }); });
     flight.set(gesture, run);
     return run;
   }
-  const applyView = body => { if (body?.roadmap !== undefined && (body.roadmap === null || (typeof body.roadmap === 'object' && Array.isArray(body.steps)))) { dispatch({ type: 'view', view: body }); meter.observe(state.view); reconcile(); } return body; };
+  const applyView = body => { if (body?.roadmap !== undefined && (body.roadmap === null || (typeof body.roadmap === 'object' && Array.isArray(body.steps)))) { timeViews(state.view, body); dispatch({ type: 'view', view: body }); meter.observe(state.view); reconcile(); } return body; };
   const mutateView = (gesture, route) => (state.view ? act(gesture, route).then(applyView) : Promise.resolve(null)); // every roadmap action needs a view to take its revision from
 
   async function refresh() {
@@ -129,9 +165,10 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     const idleKey = `drop-${key}`.replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 120);
     return call(routes.invite(boardId, [key], idleKey)).then(body => {
       dispatch({ type: 'invitation', invitation: body.invitation, suppressed: body.suppressed });
+      markEnd('drop:' + key); // drop_to_invite_ms (LearnPage.jsx starts it at the drop)
       if (body.suppressed?.reason === 'unfinished_roadmap') dispatch({ type: 'boundary', boundary: { key, name: host.sourceName?.(key) || '' } });
       return body;
-    }, error => { reported.delete(key); refuse(error); return null; });
+    }, error => { reported.delete(key); markEnd('drop:' + key, 'failed'); refuse(error); return null; });
   };
 
   // Fix B (T5): the Depth and instruction the learner confirmed for THIS source in Chat (explain); a part chosen later (R7a) keeps them.

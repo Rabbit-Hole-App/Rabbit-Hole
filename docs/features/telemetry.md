@@ -204,6 +204,73 @@ npx wrangler secret put SENTRY_DSN --name rabbit-hole-app
 
 Verify without reading the value: `npx wrangler secret list --name rabbit-hole-app` lists `SENTRY_DSN`.
 
+## Timing events (owner decision 2026-11-07: benchmark now, optimize later)
+
+One event, `client.timing`, through the same browser sink and route as `client.error` (`web/src/client-timing.js` -> `reportClientEvent` ->
+`POST /api/telemetry/client`). It is measured in the learner's browser, so it is the time they wait, network included.
+
+**Fields** (tokens, enums and whole numbers only; no text, id, title, URL or account data. The account is the envelope's `user_ref`, stamped by the server):
+`interval` (below), `ms` (whole milliseconds, clamped at one hour), `outcome` (`ok`, `failed`, `cancelled`), `route` (a route template), and when it applies
+`mode` (`auto`, `ask`, `tutor`), `depth` (`overview`, `standard`, `deep`), `path` (`greeting`, `routed`, `answer_only`, `fallback`), `size` (a bucket) and `count` (steps in a draft).
+Registered in `telemetry-events/client.js`; a start with no end inside ten minutes is dropped, never reported. Events share the page's cap of 50 with errors.
+
+**Instrumented now**
+
+| `interval` | Starts | Ends |
+|---|---|---|
+| `chat_route_ms` | the chat route request is sent (a bare greeting is decided locally, so its value is the cost of the check) | its decision is back; `path` greeting, routed or fallback |
+| `chat_first_chunk_ms` | the Chat sends the turn to `/api/learn/ask` | the first streamed answer text arrives |
+| `chat_total_ms` | same start | the stream ends (`ok`), the request fails (`failed`) or the learner stops it or leaves the thread (`cancelled`) |
+| `roadmap_plan_ms` | Explain on canvas (the create request) | a draft is in the view; `count` = steps |
+| `roadmap_revise_ms` | the revise request (Depth change or Edit roadmap) | the new draft version is in the view |
+| `roadmap_accept_plan_ms` | the accept-plan request | its response |
+| `roadmap_first_proposal_ms` | the accept-plan request | the first pending card proposal is in the view |
+| `card_accept_ms` | the accept request for a card | its response |
+| `card_ready_ms` | the accept request | that step shows `ready` (`failed` if it shows `failed`) |
+| `card_stage_generating_ms`, `card_stage_checking_ms`, `card_stage_saving_ms` | the stage is first seen in a view | the next stage is first seen |
+| `drop_to_ready_ms` | a Markdown file is dropped on the canvas | it is stored and saved, ready to be reported to the roadmap |
+| `drop_to_invite_ms` | the same drop | the Tutor invitation is in Chat |
+| `source_resolve_ms` | a source reference is resolved (status, or the excerpt for View section and View card) | the response |
+| `canvas_ready_ms` | the board fetch starts | the board data has arrived (not first paint) |
+
+The card stage intervals are read from the view, so their resolution is the roadmap poll interval (about 5 seconds, `view.poll.afterMs`); treat them as rough
+sizes of each stage, and use `card_ready_ms` for the total. `size` is set by no hook yet (the controller does not know the source length).
+
+**Next candidates** (each is one start and one end): `/explain`, `/motion`, `/image`, `/cad` and `/animation` Generate to card ready; search request to results;
+sign-in to canvas ready; PDF import to ready; first paint of the canvas; and server-side stage durations from the roadmap tables (the roadmap result rows' times
+per stage), which would remove the poll granularity.
+
+**Reading them** (read-only; the owner runs these against `rabbit-hole-telemetry`, for example
+`npx wrangler d1 execute rabbit-hole-telemetry --remote --command "..."` from `packages/control-plane`; they have not been run). SQLite has no percentile function, so use row numbers.
+
+```sql
+-- p50 and p90 per interval, last 7 days, successful runs only
+WITH t AS (
+  SELECT json_extract(body, '$.payload.interval') AS interval, json_extract(body, '$.payload.ms') AS ms,
+         ROW_NUMBER() OVER (PARTITION BY json_extract(body, '$.payload.interval') ORDER BY json_extract(body, '$.payload.ms')) AS rn,
+         COUNT(*) OVER (PARTITION BY json_extract(body, '$.payload.interval')) AS n
+  FROM telemetry_events
+  WHERE event_name = 'client.timing' AND environment = 'production' AND json_extract(body, '$.payload.outcome') = 'ok'
+    AND occurred_at > (strftime('%s', 'now', '-7 day') * 1000))
+SELECT interval, MAX(n) AS runs,
+       MAX(CASE WHEN rn = (n + 1) / 2 THEN ms END) AS p50_ms, MAX(CASE WHEN rn = (n * 9 + 9) / 10 THEN ms END) AS p90_ms
+FROM t GROUP BY interval ORDER BY interval;
+
+-- Chat answers: median time to the first chunk by path and depth
+WITH t AS (
+  SELECT json_extract(body, '$.payload.path') AS path, json_extract(body, '$.payload.depth') AS depth, json_extract(body, '$.payload.ms') AS ms,
+         ROW_NUMBER() OVER (PARTITION BY json_extract(body, '$.payload.path'), json_extract(body, '$.payload.depth') ORDER BY json_extract(body, '$.payload.ms')) AS rn,
+         COUNT(*) OVER (PARTITION BY json_extract(body, '$.payload.path'), json_extract(body, '$.payload.depth')) AS n
+  FROM telemetry_events WHERE event_name = 'client.timing' AND json_extract(body, '$.payload.interval') = 'chat_first_chunk_ms' AND environment = 'production')
+SELECT path, depth, MAX(n) AS runs, MAX(CASE WHEN rn = (n + 1) / 2 THEN ms END) AS p50_ms FROM t GROUP BY path, depth;
+
+-- Roadmap planning time against the number of steps in the draft
+SELECT json_extract(body, '$.payload.count') AS steps, COUNT(*) AS runs, CAST(AVG(json_extract(body, '$.payload.ms')) AS INTEGER) AS avg_ms
+FROM telemetry_events
+WHERE event_name = 'client.timing' AND json_extract(body, '$.payload.interval') = 'roadmap_plan_ms' AND json_extract(body, '$.payload.outcome') = 'ok' AND environment = 'production'
+GROUP BY steps ORDER BY steps;
+```
+
 ## Tutor evidence (Task 12)
 
 Plan and decisions: `C:/s/spec/telemetry/task12-tutor-evidence-plan.md`; owner decisions A to F, 2026-10-23. Evidence class for everything

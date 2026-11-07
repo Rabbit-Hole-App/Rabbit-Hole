@@ -2,6 +2,7 @@
 // server mints a ref from a selection (mintSourceRef), a job and a card carry it, and a card's status is read again
 // (resolveSourceRef) whenever it is shown: an immutable revision means "current" is a fact the server checked, not a guess.
 // `post` is the page's api POST (learn-slash.js's, LearnPage's): { data, status } errors as api() throws them. Pure: no React.
+import { startTiming } from './client-timing.js';
 import { CREATE_REFUSED, SOURCE_REF_EVENT, explanationsFor, markdownCardOf, navigable, readerRef, sourceRefOf } from './source-ref.js';
 
 export const SOURCE_REFS = '/api/learn/source-refs';
@@ -26,8 +27,9 @@ export function resolveSourceRef(post, app, id, { delay = 0, schedule = setTimeo
     batch = { ids: new Set(), done: null };
     batch.done = new Promise(resolve => schedule(async () => {
       waiting.delete(key);
-      try { resolve(new Map((await post(`${SOURCE_REFS}/resolve`, { app, ids: [...batch.ids] })).refs.map(ref => [ref.id, ref]))); }
-      catch { resolve(new Map()); }
+      const timing = startTiming('source_resolve_ms');
+      try { resolve(new Map((await post(`${SOURCE_REFS}/resolve`, { app, ids: [...batch.ids] })).refs.map(ref => [ref.id, ref]))); timing.end('ok'); }
+      catch { timing.end('failed'); resolve(new Map()); }
     }, delay));
     waiting.set(key, batch);
   }
@@ -113,8 +115,9 @@ export function stepExcerpt(post, app, id) {
   if (!app || !id) return Promise.resolve(UNAVAILABLE);
   const key = `${app}|${id}`;
   if (excerpts.has(key)) return Promise.resolve(excerpts.get(key));
+  const timing = startTiming('source_resolve_ms');
   return post(`${SOURCE_REFS}/resolve`, { app, ids: [id], excerpt: true }).then(
-    ({ refs }) => { const found = (refs || []).find(ref => ref.id === id), out = found?.status === 'current' && typeof found.excerpt === 'string' && found.excerpt ? { state: 'ready', text: found.excerpt } : UNAVAILABLE; excerpts.set(key, out); return out; },
-    () => UNAVAILABLE);
+    ({ refs }) => { timing.end('ok'); const found = (refs || []).find(ref => ref.id === id), out = found?.status === 'current' && typeof found.excerpt === 'string' && found.excerpt ? { state: 'ready', text: found.excerpt } : UNAVAILABLE; excerpts.set(key, out); return out; },
+    () => { timing.end('failed'); return UNAVAILABLE; });
 }
 export const forgetExcerpts = () => excerpts.clear();

@@ -41,6 +41,7 @@ import { CadReview } from './CadReview.jsx';
 import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
 import { approvesJob, currentProposal, editRefusal, editSpent, routeChat, routeOutcome } from './generation-proposal-chat.js';
 import { isSmallTalk } from './inline-ai-route.js';
+import { markEnd, markStart } from './client-timing.js';
 import SurfaceBoundary from './SurfaceBoundary.jsx';
 import { imageGenerationOn, requestImagePlan } from './generate-image.js';
 import { isBriefCommand, requestMaterialBrief } from './material-brief.js';
@@ -649,6 +650,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     const sentRefs = [...new Set([...selection, ...attachments])];
     const imageObject = target?.image ? target.id : questionImage?.blockId || null;
     const replyId = crypto.randomUUID();
+    let timed = 'pending'; // the outcome of this turn's chat_first_chunk_ms / chat_total_ms (client-timing.js)
     // The late-response guard (contract A5): the Chat's open thread when this turn was sent, against the one open now, read
     // from the thread hook itself, so a turn whose pane went away with its canvas is late too.
     const sentKey = chatThread?.liveKey(), late = () => !!chatThread && lateEvent(sentKey, chatThread.liveKey());
@@ -827,6 +829,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         if (outcome.token) payload.route_token = outcome.token;
         if (outcome.answerOnly) Object.assign(payload, { answer_only: true, ...(outcome.failure ? { route_failure: outcome.failure } : {}) });
       }
+      const timingContext = { mode: payload.mode, depth: payload.depth, path: payload.answer_only ? 'answer_only' : 'routed' };
+      markStart(`${replyId}:first`, 'chat_first_chunk_ms', timingContext); markStart(`${replyId}:total`, 'chat_total_ms', timingContext);
       let r;
       if (attached) {
         const fd = new FormData();
@@ -871,7 +875,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           const data = (ev.match(/^data: (.+)$/m) || [])[1];
           if (!type || !data || late()) continue; // read on to the end, so the server finishes and saves the turn
           const d = JSON.parse(data);
-          if (type === 'chunk') mirror(d.text);
+          if (type === 'chunk') { markEnd(`${replyId}:first`); mirror(d.text); }
           else if (type === 'progress') { if (d.card && !slots[d.card]) slots[d.card] = boardContext?.reserveCard?.(d.card); exchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? (chatThread ? { ...item, stage: d.stage } : { ...item, status: d.stage }) : item)); }
           else if (type === 'graph') { responseGraph=d; setMsgs(messages=>messages.map(item=>item.id===replyId?{...item,graph:d}:item)); }
           else if (type === 'outline') { boardContext?.onOutlineProposal?.({ ops: d.ops, base: d.base ?? null, source: 'tutor', ...(questionPlan !== undefined ? { planBase: questionPlan } : {}) }); }
@@ -890,11 +894,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
             if (responseGraph && onGraph) onGraph(responseGraph);
             if (learnChat) setThreads(ts => ts.some(t => t.id === d.threadId) ? ts : [{ id: d.threadId, title: message.slice(0, 120) }, ...ts]);
           }
-          else if (type === 'error') { mirror(`✗ ${d.error}`); keepRefused(d); if (chatThread) setMsgs(messages => settle(messages, replyId, 'error')); }
+          else if (type === 'error') { timed = 'failed'; mirror(`✗ ${d.error}`); keepRefused(d); if (chatThread) setMsgs(messages => settle(messages, replyId, 'error')); }
         }
       }
+      if (timed === 'pending') timed = late() ? 'cancelled' : 'ok';
     } catch (e) {
       // A stopped answer keeps what arrived; it is not an error. In the Chat pane it is marked Stopped.
+      timed = e.name === 'AbortError' || late() ? 'cancelled' : 'failed';
       if (late()) return;
       if (e.name !== 'AbortError') {
         begin(); mirror(`✗ ${e.message}`);
@@ -902,6 +908,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       }
       if (chatThread) setMsgs(messages => settle(messages, replyId, e.name === 'AbortError' ? 'stopped' : 'error'));
     } finally {
+      for (const part of ['first', 'total']) markEnd(`${replyId}:${part}`, timed === 'pending' ? 'failed' : timed);
       const mine = answerFlight.current === flight;
       if (mine) answerFlight.current = null;
       askedId(null); // a turn that ended without its done event keeps its cards on the canvas only

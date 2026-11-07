@@ -59,6 +59,7 @@ function mount(s, { local = { blocks: [{ id: 'kept-card' }] } } = {}) {
     unsavedKey: () => 'ink:unsaved', localStorage: { getItem: key => store.get(key) ?? null, setItem: (key, value) => store.set(key, value), removeItem: key => store.delete(key) },
     window: { dispatchEvent: () => {} }, syncAssets: async () => true, requestWorkspaceExports: () => {},
     setSharing: () => {}, setCommentBoard: id => { env.commentBoard = id; }, setCanvasVersion: () => {}, setBoardChars: () => {}, setSaveState: () => {},
+    markStart: () => {}, markEnd: () => {}, // client-timing.js, which the extracted load code now calls
     setRestoredBoard: () => {}, setBoardLoad: () => {}, setDocConflict: () => {}, toast: () => {}, UNKEPT: 'not kept',
     animationClient: (_api, board) => ({ create: async body => { creates.push({ board, body }); await settle(); return { job: { id: `job-${creates.length}`, cardId: body.cardId } }; } }),
     withPrompt: card => card, withJob: (card, job) => ({ ...card, animation3dJob: job }), requestRef: async () => 'ref',

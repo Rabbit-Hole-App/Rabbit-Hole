@@ -8,7 +8,7 @@ const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8')
 const page = read('LearnPage.jsx'), ask = read('ask.jsx'), workspace = read('chat-workspace.jsx'), hook = read('use-roadmap.js');
 
 test('gap 1: a dropped Markdown card is registered, and sourceReady runs from a successful board save with the server key', () => {
-  assert.match(page, /block\.type === 'file' && block\.kind === 'markdown'\) droppedMarkdown\.current\.add\(block\.id\)/);
+  assert.match(page, /block\.type === 'file' && block\.kind === 'markdown'\) \{ droppedMarkdown\.current\.add\(block\.id\);/);
   const effect = page.slice(page.indexOf("saveState?.state !== 'saved' || !droppedMarkdown.current.size"));
   assert.match(effect.slice(0, 700), /readyMarkdownSources\(\{ pending: droppedMarkdown\.current, blocks: .*savedBlocks \}\)/);
   assert.match(effect.slice(0, 700), /roadmap\.sourceReady\(key\)/);
