@@ -179,10 +179,9 @@ for (const theme of ['light', 'dark']) {
     await card.locator('[data-proposal-generate]:not([disabled])').waitFor({ timeout: 30000 });
     return card;
   };
-  const primary = card => card.locator('[data-proposal-generate], [data-proposal-stop]'); // Generate becomes the red Stop in place while a stoppable job runs (GenerationProposalCard.jsx:444)
-  const phase = card => primary(card).getAttribute('data-proposal-phase');
+  const phase = card => card.locator('[data-proposal-generate]').getAttribute('data-proposal-phase');
   const untilPhase = (card, want, what) => until(async () => (await phase(card)) === want, `${what || 'the proposal'} reads ${want}`, 40000);
-  const label = card => primary(card).innerText().then(text => text.trim());
+  const label = card => card.locator('[data-proposal-generate]').innerText().then(text => text.trim());
   // The phases the proposal's button went through, in order, from the attribute's old values (React may commit two of them in one task).
   const observe = card => card.evaluate(node => {
     const button = node.querySelector('[data-proposal-generate]');
@@ -258,18 +257,17 @@ for (const theme of ['light', 'dark']) {
     await untilPhase(card, 'queued');
     clearInterval(queue);
     assert.equal((await phases())[0], 'submitting', `the first thing the press showed: ${(await phases()).join(', ')}`);
-    assert.equal(await label(card), 'Stop', 'a queued /motion job shows the red Stop in place of Generate');
+    assert.equal(await label(card), 'Queued');
     await page.waitForTimeout(2500);
     assert.equal(startsMade(), 1, 'a double-click is one job');
     assert.equal(await page.locator('[data-block-id]').count(), blocks + 1, 'one card');
     jobs.get(jobOf(1)).status = 'generating';
     await untilPhase(card, 'running');
-    assert.equal(await label(card), 'Stop');
-    const button = card.locator('[data-proposal-stop]');
+    assert.equal(await label(card), 'Generating');
+    const button = card.locator('[data-proposal-generate]');
     assert.equal(await button.getAttribute('aria-busy'), 'true');
-    assert.equal(await button.isDisabled(), false, 'Stop can be pressed');
-    assert.equal(await card.locator('[data-proposal-generate]').count(), 0, 'Generate is replaced, not kept beside Stop');
-    assert.equal(await button.locator('svg').count(), 1, 'the Stop square');
+    assert.equal(await button.isDisabled(), true);
+    assert.equal(await button.locator('svg').count(), 1, 'a spinner');
     // The same job on the canvas: the card's own words, and the Chat's stage line says them too.
     const onCanvas = page.locator('[data-block-id]', { hasText: STAGE });
     await onCanvas.waitFor({ timeout: 15000 });
@@ -281,7 +279,7 @@ for (const theme of ['light', 'dark']) {
     assert.match(announced, /^Generating\. Planning, reviewing and rendering$/);
     assert.doesNotMatch(announced, /\d|elapsed/);
     assert.equal(await card.locator('[data-proposal-announcement]').getAttribute('aria-live'), 'polite');
-    assert.equal(await card.locator('[data-proposal-go-to-card]').count(), 0, 'Go to card is not drawn while the job runs (owner 2026-11-07)');
+    assert.equal(await card.locator('[data-proposal-go-to-card]').count(), 1);
     assert.equal(await card.locator('[data-proposal-stop]').count(), 1);
     assert.doesNotMatch(await card.innerText(), /Added to the canvas/);
     assert.equal(await page.locator('[data-gen-indicator]').count(), 0, 'no second banner for the same job');
@@ -306,8 +304,8 @@ for (const theme of ['light', 'dark']) {
       const card = cardFor(FIRST);
       await card.waitFor({ timeout: 30000 });
       await untilPhase(card, 'running', 'the restored proposal');
-      assert.equal(await label(card), 'Stop');
-      assert.equal(await card.locator('[data-proposal-generate]').count(), 0, 'Generate cannot be pressed again: Stop stands in its place');
+      assert.equal(await label(card), 'Generating');
+      assert.equal(await card.locator('[data-proposal-generate]').isDisabled(), true, 'it cannot be pressed again');
       await page.waitForTimeout(1500);
       assert.deepEqual([startsMade() - posts, asks.length - asked], [0, 0], 'a reload sends no start and no turn');
       // older answers: the ordinary one keeps a collapsed Suggestions toggle; the command and proposal answers have no extras at all
@@ -449,14 +447,15 @@ for (const theme of ['light', 'dark']) {
     await page.keyboard.press('Escape');
     assert.equal(await card.locator('[data-proposal-stop-confirm]').count(), 0);
     assert.equal(await stop.evaluate(node => node === document.activeElement), true, 'focus returns to Stop');
-    // Go to card is not drawn while the job runs (owner 2026-11-07), so there is nothing else to focus here.
+    await card.locator('[data-proposal-go-to-card]').focus();
+    assert.equal(await card.locator('[data-proposal-go-to-card]').evaluate(node => node === document.activeElement), true, 'Go to card takes focus by keyboard');
     // Reduced motion: the spinner and the shimmer do not animate; the words say what is happening.
-    const animated = await card.locator('[data-proposal-stop] svg, [data-proposal-job-detail]').evaluateAll(nodes => nodes.map(node => getComputedStyle(node).animationName));
+    const animated = await card.locator('[data-proposal-generate] svg, [data-proposal-job-detail]').evaluateAll(nodes => nodes.map(node => getComputedStyle(node).animationName));
     assert.deepEqual([...new Set(animated)], ['none'], `animations under prefers-reduced-motion: ${animated.join(', ')}`);
-    assert.equal(await label(card), 'Stop');
-    // The Stop stays readable and is the same height as Edit and Cancel (owner 2026-11-07: size sm, 28 px; 44 px on a coarse pointer).
-    assert.equal(await card.locator('[data-proposal-stop]').evaluate(node => getComputedStyle(node).opacity), '1');
-    assert.ok((await card.locator('[data-proposal-stop]').boundingBox()).height >= 28, 'the action is 28 px or taller');
+    assert.equal(await label(card), 'Generating');
+    // The busy label stays readable (not dimmed like a plain disabled button) and the action is at least 36 px tall.
+    assert.equal(await card.locator('[data-proposal-generate]').evaluate(node => getComputedStyle(node).opacity), '1');
+    assert.ok((await card.locator('[data-proposal-generate]').boundingBox()).height >= 36, 'the action is 36 px or taller');
     // The status region is polite and carries no time.
     assert.equal(await card.locator('[data-proposal-announcement]').getAttribute('role'), 'status');
     assert.doesNotMatch(await card.locator('[data-proposal-announcement]').innerText(), /\d/);
@@ -464,7 +463,9 @@ for (const theme of ['light', 'dark']) {
     await card.evaluate(node => { node.parentElement.style.width = '300px'; node.parentElement.style.maxWidth = '300px'; });
     const fit = await card.evaluate(node => ({ overflow: node.scrollWidth - node.clientWidth, width: node.getBoundingClientRect().width }));
     assert.ok(fit.overflow <= 1 && fit.width <= 301, `a 300 px card fits: ${JSON.stringify(fit)}`);
-    assert.ok((await card.locator('[data-proposal-stop]').boundingBox()).height >= 28, 'Stop is 28 px or taller');
+    for (const selector of ['[data-proposal-generate]', '[data-proposal-go-to-card]', '[data-proposal-stop]']) {
+      assert.ok((await card.locator(selector).boundingBox()).height >= 36, `${selector} is 36 px or taller`);
+    }
     await card.screenshot({ path: `${OUT}/${theme}-10-narrow-reduced-motion.png` });
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     jobs.get(jobOf(startsMade())).status = 'ready';

@@ -38,7 +38,7 @@ export const ROADMAP_ROW = 'roadmap:';
 export function withRoadmap(outline, toc, doneIds = new Set()) {
   if (!toc?.steps?.length) return outline || [];
   const rows = toc.steps.map(step => ({ id: `${ROADMAP_ROW}${step.id}`, level: 1, label: String(step.title || '').trim() || UNTITLED[1], done: doneIds.has(step.id),
-    description: String(step.description || '').trim().slice(0, DESCRIPTION_MAX), roadmap: { stepId: step.id, status: [step.status, step.format].filter(Boolean).join(' · '), nav: step.nav, source: step.source || null, removed: !!step.removed } }));
+    description: String(step.description || '').trim().slice(0, DESCRIPTION_MAX), roadmap: { stepId: step.id, status: [step.status, step.format].filter(Boolean).join(' · '), nav: step.nav, removed: !!step.removed } }));
   return [...rows, ...(outline || []).filter(entry => !String(entry.id).startsWith(ROADMAP_ROW))];
 }
 

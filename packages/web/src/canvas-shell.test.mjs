@@ -15,7 +15,7 @@ const canvas = read('AdaptiveCanvas.jsx'), page = read('LearnPage.jsx'), shell =
 test('the tool palette docks left by default, in a column that floats over the canvas (owner, 2026-10-22)', () => {
   assert.match(canvas, /const \[toolSide, setToolSide\] = useState\('left'\);/);
   assert.match(canvas, /<div ref=\{gutter\} data-tool-gutter/);
-  assert.match(canvas, /className=\{`pointer-events-none absolute top-\[var\(--canvas-top,0px\)\] bottom-0 z-20 flex flex-col justify-center-safe gap-2 \[&>\*\]:pointer-events-auto \$\{toolSide === 'left' \? 'left-0 /, 'absolute over the surface, below the header, the pointer through');
+  assert.match(canvas, /className=\{`pointer-events-none absolute top-\[var\(--canvas-top,0px\)\] bottom-0 z-20 flex flex-col justify-center gap-2 \[&>\*\]:pointer-events-auto \$\{toolSide === 'left' \? 'left-0 /, 'absolute over the surface, below the header, the pointer through');
   assert.doesNotMatch(canvas, /data-tool-gutter[^\n]*\n[^\n]*\n[^\n]*shrink-0/, 'no row width of its own');
   assert.match(canvas, /role="toolbar" aria-label="Canvas tools"/);
 });

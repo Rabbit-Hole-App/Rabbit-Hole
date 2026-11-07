@@ -1,6 +1,5 @@
 import { Component, useContext, useEffect, useMemo, useState } from 'react';
-import CardHeader from './CardHeader.jsx';
-import { FileCode, Loader2, Maximize2, MessageSquarePlus, Search, X } from 'lucide-react';
+import { FileCode, Loader2, Maximize2, MessageSquarePlus, Network, Search, X } from 'lucide-react';
 import RepositoryGraph from './RepositoryGraph.jsx';
 import { Button, IconBtn, Input } from './ui.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
@@ -23,7 +22,7 @@ const short = commit => (commit || '').slice(0, 7);
 class GraphCardBoundary extends Component {
   state = { failed: false, attempt: 0 };
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(error, info) { console.error('[graph card]', error); reportClientError('render_failed', error, { artifact: 'graph_card', componentStack: info?.componentStack }); }
+  componentDidCatch(error) { console.error('[graph card]', error); reportClientError('render_failed', error, { artifact: 'graph_card' }); }
   render() {
     if (!this.state.failed) return <GraphCardBody key={this.state.attempt} block={this.props.block} />;
     return <div role="status" data-graph-card data-graph-card-state="failed" className="flex flex-1 flex-col items-start gap-2 px-3 pb-3 text-sm text-ink-2">
@@ -60,14 +59,14 @@ function GraphCardBody({ block }) {
   const scope = block.scope !== 'subgraph' ? 'Whole graph' : block.view === 'view' ? `Graph view · ${count}` : block.view === 'search' ? `Search matches · ${count}` : `Subgraph · ${count}`;
 
   return <div data-graph-card className="flex min-h-0 flex-1 flex-col gap-1.5 px-3 pb-3">
-    {/* The shared pinned header (CardHeader.jsx, owner 2026-11-07): the title (the learner's name, or a placeholder to rename); the repository, commit and scope under it. */}
-    <CardHeader block={block} className="px-0 pt-0 pb-0" meta={<span className="inline-flex min-w-0 items-center gap-1.5">
-        <span className="min-w-0 truncate" title={block.repository?.repo}>{block.repository?.repo || 'Repository'}</span>
-        <span className="shrink-0 font-mono" title={`Commit ${block.repository?.commit}`}>{short(block.repository?.commit)}</span>
-        <span data-graph-card-scope={block.scope} className="shrink-0 text-ink-3">· {scope}</span>
-        {graph?.nodes.length > CARD_NODE_CAP && <span data-graph-card-limit role="note" className="shrink-0 text-ink-3">· Showing {CARD_NODE_CAP} of {graph.nodes.length} nodes</span>}
-        {source.status === 'ready' && source.skipped?.length > 0 && <span className="shrink-0 text-ink-3" title="Files the indexer excluded are not in this graph">· {source.skipped.length} excluded</span>}
-      </span>} />
+    <div className="flex shrink-0 items-center gap-1.5 text-xs text-ink-2">
+      <Network size={14} aria-hidden className="shrink-0" />
+      <span className="min-w-0 truncate font-medium text-ink" title={block.repository?.repo}>{block.repository?.repo || 'Repository'}</span>
+      <span className="shrink-0 font-mono" title={`Commit ${block.repository?.commit}`}>{short(block.repository?.commit)}</span>
+      <span data-graph-card-scope={block.scope} className="shrink-0 text-ink-3">· {scope}</span>
+      {graph?.nodes.length > CARD_NODE_CAP && <span data-graph-card-limit role="note" className="shrink-0 text-ink-3">· Showing {CARD_NODE_CAP} of {graph.nodes.length} nodes</span>}
+      {source.status === 'ready' && source.skipped?.length > 0 && <span className="shrink-0 text-ink-3" title="Files the indexer excluded are not in this graph">· {source.skipped.length} excluded</span>}
+    </div>
     {source.status !== 'ready' ? <div role="status" data-graph-card-state={source.stale ? 'stale' : source.status} className="flex flex-1 flex-col items-start gap-2 text-sm text-ink-2">
       {source.status === 'loading' ? <span className="flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" aria-hidden />Loading the graph</span>
         : source.stale ? <p>This card shows commit {short(block.repository?.commit)}; the repository is now at {short(source.stale)}, so its graph is not loaded.</p>

@@ -6,10 +6,7 @@ import { createPortal, flushSync } from 'react-dom';
 import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock, fitFrame, naturalHeight } from './card-layout.js';
-import { customTitleOf, renamable, renameBlock, startTitleOf, groupEditText, groupLabelFrom, namedTitleOf, TITLE_MAX } from './card-rename.js';
-import { nameKey, positionHint, titleTaken, uniquifyBlocks } from './unique-title.js';
-import CardCustomTitle from './CardCustomTitle.jsx';
-import CardHeader, { CardRename } from './CardHeader.jsx';
+import { renamable, renameBlock, groupEditText, groupLabelFrom } from './card-rename.js';
 import './card-layout.css';
 import { IconBtn, toast } from './ui.jsx';
 import { saveUiPref, uiPrefs } from './ui-prefs.js';
@@ -19,9 +16,8 @@ import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
 import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
-import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
+import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
-import { skeletonJobOf } from './explain-client.js';
 import { CAPTURE_MAX_BYTES, SketchCaptureError, captureProblem, captureResult, captureSize, fitZoom, pixelRatios, releasedTool, sketchDraftOf } from './sketch-host.js';
 import { gapsFrom, nearestGap, nudgeBy } from './learn-gap-rail.js';
 import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, reorderStep, headsOf, copyStyle, pasteStyle, strokePatch, strokeOf, TEXT_LEVELS, ARROW_KINDS } from './learn-style-panel.js';
@@ -74,7 +70,6 @@ import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './road
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
 import { SlotCard } from './SlotCard.jsx';
 import { NextCardPill } from './NextStepPill.jsx';
-import SurfaceBoundary from './SurfaceBoundary.jsx';
 import { areaTarget, cropBinding } from './area-crop.js';
 import { flushBoard, lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
 import { withFlushedAnimations } from './animation3d/storage.js';
@@ -89,7 +84,6 @@ import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
 import { buildContext, buildCreationContext, createContextCache, freezeTarget } from './inline-ai-context.js';
 import { applyTx, obstaclesOf, placeAnswers, placeNote } from './inline-ai-apply.js';
 import { REF_CARD, refCardSpot, reIdRefs, withRef, withoutRef } from './canvas-refs-model.js';
-import { holdsTocLink, resolvedLinks, sectionChoices, withLiveLinks, withTocLink, withoutTocLink } from './toc-links.js';
 import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.js';
 import { semanticReader } from './curious-context.js';
 import CanvasRefChips, { CanvasRefs } from './CanvasRefChips.jsx';
@@ -602,7 +596,6 @@ function SlideCard({ block, zoom, selected, connected, onSelect, onMove, onLayou
       connected={connected} width={SLIDE_W} autoMax={null} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && <div data-thumbnail-hide className="absolute -top-10 right-0 z-30"><SelectionActionsHost id={block.id} /></div>}
-      <CardHeader block={block} className="px-1 pb-1" meta={`${block.label || 'PDF'} · page ${block.number}`} />
       <div data-slide={block.number} className="px-1 pb-1">
         {url ? <img src={url} alt={`${block.label || 'PDF'}, page ${block.number}`} className="w-full rounded border border-line" draggable={false} />
           : <p className="p-4 text-sm text-ink-2">This page is not in this browser.</p>}
@@ -617,7 +610,7 @@ function DividerCard({ block, zoom, selected, connected, onSelect, onMove, onLay
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost wide space={block.space}
       connected={connected} width={SLIDE_W} autoMax={null} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
-      <div data-slide-divider className="flex items-center gap-2 px-1 pb-2 text-[11px] text-ink-3"><span className="h-px flex-1 bg-line-strong" />{customTitleOf(block) || block.label}<span className="h-px flex-1 bg-line-strong" /></div>
+      <div data-slide-divider className="flex items-center gap-2 px-1 pb-2 text-[11px] text-ink-3"><span className="h-px flex-1 bg-line-strong" />{block.label}<span className="h-px flex-1 bg-line-strong" /></div>
     </CanvasNode>
   );
 }
@@ -641,7 +634,9 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={COLUMN} height={block.h || 640} autoMax={undefined} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
-      <CardHeader block={block} meta={[block.label, 'PDF'].filter(Boolean).join(' · ')} className="px-4 pb-2" />
+      <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
+        <span className="h-1.5 w-1.5 rounded-full bg-ink" />PDF<span className="truncate normal-case tracking-normal text-ink-3">{block.label}</span>
+      </div>
       {/* Until the card is selected the page ignores the pointer, so the first
           press selects the card and keeps focus in this document. A focused
           iframe receives keydown in its own document, where the canvas never
@@ -686,8 +681,11 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
       onSize={(id, w) => editing.patchBlock?.(id, { w })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       <div data-file-attachment className="flex items-center gap-3 px-4 pb-3">
-        <div className="min-w-0 flex-1"><CardHeader block={block} icon={Paperclip} className="p-0"
-          meta={missing ? 'This file is not in this browser or saved with the board yet.' : [block.label, 'File attachment', block.size ? `${Math.max(1, Math.round(block.size / 1024))} KB` : ''].filter(Boolean).join(' · ')} /></div>
+        <Paperclip size={16} className="shrink-0 text-ink-2" />
+        <div data-drag-zone className="min-w-0 flex-1 cursor-grab active:cursor-grabbing">
+          <p className="truncate font-mono text-sm text-ink" title={block.label}>{block.label}</p>
+          <p className="text-xs text-ink-3">{missing ? 'This file is not in this browser or saved with the board yet.' : `File attachment${block.size ? ` · ${Math.max(1, Math.round(block.size / 1024))} KB` : ''}`}</p>
+        </div>
         {url && <a href={url} download={block.label} onPointerDown={event => event.stopPropagation()}
           className="flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink"><Download size={12} />Download</a>}
       </div>
@@ -699,9 +697,11 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
       onSize={(id, w) => editing.patchBlock?.(id, { w })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && block.kind === 'image' && <div data-thumbnail-hide className="absolute -top-10 right-0 z-30"><SelectionActionsHost id={block.id} /></div>}
-      <CardHeader block={block} className="px-4 pb-2" meta={[block.label, block.excerpt ? 'Excerpt' : media || 'Image'].filter(Boolean).join(' · ')}
-        trailing={!media && url ? <a href={url} download={block.label || 'image'} data-download-original aria-label="Download original" title="Download original" onPointerDown={event => event.stopPropagation()}
-          className="flex shrink-0 items-center rounded-md p-1 text-ink-2 hover:bg-hover hover:text-ink"><Download size={12} /></a> : null} />
+      <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
+        <span className="h-1.5 w-1.5 rounded-full bg-ink" />{block.excerpt ? 'Excerpt' : media || 'Image'}<span className="min-w-0 flex-1 truncate normal-case tracking-normal text-ink-3">{block.label}</span>
+        {!media && url && <a href={url} download={block.label || 'image'} data-download-original aria-label="Download original" title="Download original" onPointerDown={event => event.stopPropagation()}
+          className="flex shrink-0 items-center rounded-md p-1 text-ink-2 normal-case hover:bg-hover hover:text-ink"><Download size={12} /></a>}
+      </div>
       <div data-pointer-body className="min-h-0 px-3 pb-3" onPointerDown={event => { if ((clip || block.kind === 'audio') && selected) event.stopPropagation(); }}>
         {/* A region excerpt (pdf-excerpt.js): the stored crop of the PDF page, the learner's note, the source footer. */}
         {block.excerpt
@@ -761,7 +761,13 @@ export function YouTubeMoment({ block, selected, appName, onChange, onWatch }) {
   };
   return (
     <>
-      <CardHeader block={block} className="px-4 pb-2" meta="Video" trailing={block.unverified ? <span className="shrink-0 rounded bg-hover px-1.5 py-0.5 text-ink-3" title="The tutor could not read this video's captions, so its contents are unverified.">contents unverified</span> : null} />
+      <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
+        <span className="h-1.5 w-1.5 rounded-full bg-ink" />Video<span className="truncate normal-case tracking-normal text-ink-3">{block.title}</span>
+        {/* The tutor could not read this video's captions, so the moment is a
+            recommendation on title alone - the spec's failure table says the
+            learner hears that, not just the model. */}
+        {block.unverified && <span className="shrink-0 rounded bg-hover px-1.5 py-0.5 normal-case tracking-normal text-ink-3" title="The tutor could not read this video's captions, so its contents are unverified.">contents unverified</span>}
+      </div>
       {/* Same bargain as PdfCard: the player ignores the pointer until the
           card is selected, so canvas keys and drags stay alive. */}
       <div data-pointer-body className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl border-t border-line"
@@ -843,7 +849,9 @@ function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove,
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={COLUMN} height={block.h || 640} autoMax={undefined} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
-      <CardHeader block={block} className="px-4 pb-2" meta={block.title ? 'Wikipedia · ' + block.title : 'Wikipedia'} />
+      <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
+        <span className="h-1.5 w-1.5 rounded-full bg-ink" />Wikipedia
+      </div>
       {/* Once selected - or while highlighting - the card keeps the pointer,
           so a drag inside it selects text instead of moving the card. */}
       <div data-pointer-body className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl border-t border-line"
@@ -923,7 +931,7 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
   if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   // A code card (repo-graph Release 2, code-card.js): resizable; Full content (the menu's row) shows all its code.
   if (block.type === 'repo-code') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={CODE_CARD.w} height={CODE_CARD.h} autoMax={undefined} cardLayout={block.cardLayout} saved={{ w: block.w, h: block.h }} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CodeCard block={block} /></CanvasNode>;
-  if (block.type === 'canvas-ref') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={REF_CARD.w} height={REF_CARD.h} autoMax={undefined} resizable={false} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CardCustomTitle block={block} /><CanvasRefCard block={block} /></CanvasNode>;
+  if (block.type === 'canvas-ref') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={REF_CARD.w} height={REF_CARD.h} autoMax={undefined} resizable={false} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CanvasRefCard block={block} /></CanvasNode>;
   if (block.type === 'heading') return <HeadingCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   // A repository graph card (GraphCard.jsx): its header strip moves it, its frame resizes it, the graph inside keeps its own pointer.
   if (block.type === 'repo-graph') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || GRAPH_CARD.w} height={block.h || GRAPH_CARD.h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
@@ -1574,7 +1582,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, roadmap = null, onSkeletonsDropped = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, roadmap = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -1597,8 +1605,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [marquee, setMarquee] = useState(null);
   const [menuAt, setMenuAt] = useState(null); // right-click canvas actions
   const [renaming, setRenaming] = useState(null); // { id, title, rect }: a card's title being renamed in place (card-rename.js)
-  // The right-click Rename and a card header's double-click open the same in-place editor (CardRename context, CardHeader.jsx).
-  const startRename = id => { const block = blocksRef.current.find(entry => entry.id === id); if (block) setRenaming({ id, title: startTitleOf(block, describeBlock(block)?.title), rect: document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.getBoundingClientRect() }); };
   const [composerHidden, setComposerHidden] = useState(false);
   const hideComposer = useCallback(() => setComposerHidden(true), []);
   // Ask in chat (askDraft) writes a ready question into the composer: a hidden composer comes back to show it.
@@ -1709,19 +1715,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // saved CONTENT always wins - but a saved EMPTY board re-seeds, because [] is
   // truthy and an empty array in storage is how a visit during a deploy
   // rollout, or to a then-unregistered name, permanently froze a board blank.
-  // A board saved with two cards of one name shows the later one stepped to "(2)" (unique-title.js), the same on every load; in memory until the next ordinary save.
-  const [blocks, setBlocks] = useState(() => uniquifyBlocks(stored.current.blocks?.length ? stored.current.blocks.map(expandedToFull) : (seedBlocks || []))); // course-authored lesson blocks
+  const [blocks, setBlocks] = useState(stored.current.blocks?.length ? stored.current.blocks.map(expandedToFull) : (seedBlocks || [])); // course-authored lesson blocks
   const blocksRef = useRef(blocks);
   blocksRef.current = blocks;
-  // One name to a card (owner 2026-11-07): whatever put a card on the board (paste, duplicate, Alt-drag, a generated result, an import, a command), a name
-  // already in use steps to "(2)", "(3)" here, in the one place every insert passes through. The card that was there first keeps its name; a view-only board writes nothing.
-  const knownBlockIds = useRef(null);
-  if (knownBlockIds.current === null) knownBlockIds.current = new Set(blocks.map(block => block.id));
-  useEffect(() => {
-    const next = readOnlyRef.current ? blocks : uniquifyBlocks(blocks, knownBlockIds.current);
-    for (const block of blocks) knownBlockIds.current.add(block.id);
-    if (next !== blocks) setBlocks(next);
-  }, [blocks]);
   // Reserved slots for cards on their way (canvas-slots.js): this viewer's UI only, never in `blocks`, so
   // never saved, pushed, undone, forked or counted as content.
   const [slots, setSlots] = useState([]);
@@ -2186,7 +2182,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // With a link (the Start dialog's sources) the card is added at once and its id returned; without one, the address prompt opens.
       insertWebpage: url => { if (typeof url === 'string' && url) return addWebpage(url); if (!readOnlyRef.current && !localCopyRef.current) setWebpageAsk(''); return null; },
       // The inline AI editor from the page's Edit menu, and whether Ctrl/Cmd+K is the inline editor's right now (Dive asks).
-      inlineAi: (mode = null, preset = null) => openInline(performance.now(), false, mode, preset), inlineClaims: () => !!inlineRef.current || !!inlineTarget(true),
+      inlineAi: (mode = null) => openInline(performance.now(), false, mode), inlineClaims: () => !!inlineRef.current || !!inlineTarget(true),
       copy: copySelection,
       paste: () => !!(clipboard.current?.length && pasteIds(clipboard.current, 28, true)),
       duplicate: () => !!pasteIds(selectedRef.current),
@@ -2291,8 +2287,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         setBlocks(previous => { const at = indexAfter(previous, after); return [...previous.slice(0, at), added, ...previous.slice(at)]; });
         return revealAfter(added.id);
       },
-      // A screen rect (a selection's) in world units, for a card to be placed beside it.
-      worldRect: rect => (rect && surface.current ? toWorld(rect, surface.current.getBoundingClientRect(), viewRef.current) : null),
       // An /explain v2 job's card (EXP-T20): placed once under the job's own card id, so a resent press or a reload finds it
       // instead of adding a second card; the result attaches to it later (ExplainPending).
       // /animation (AN-05): its pending card (storage.js withJob) placed where the learner looks, once per card id.
@@ -2304,21 +2298,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         blocksRef.current = [...blocksRef.current, added];
         return insertAtView(added, into);
       },
-      // near { cardId, world }: the card the passage is in and the passage's box. The skeleton stands beside that passage, in free space, never over the source card
-      // or anything else (roadmap-placement.js deliveredSpot, the Tutor slots' rule), and the camera stays where it is.
-      placeExplain: (card, { into = null, near = null } = {}) => {
+      placeExplain: (card, { into = null } = {}) => {
         if (!alive.current || readOnlyRef.current || !card?.id || card.type !== 'animation') return null;
         if (blocksRef.current.some(block => block.id === card.id)) return card.id;
         snapshot();
-        const added = { ...card, dx: 0, dy: 0 }, source = near && blocksRef.current.find(block => block.id === near.cardId), box = source && boundsRef.current[source.id];
-        if (box) {
-          const spot = deliveredSpot({ w: EXPLAIN_PENDING_SIZE.width, h: 360 }, proposalAnchor(box, near.world), [...boardObstacles([source.id]), ...anchoredBoxes(slotsRef.current), box], null);
-          perfMark(added.id, 'insert');
-          pendingAt.current.set(added.id, spot);
-          blocksRef.current = [...blocksRef.current, added];
-          setBlocks(previous => [...previous, added]);
-          return added.id;
-        }
+        const added = { ...card, dx: 0, dy: 0 };
         blocksRef.current = [...blocksRef.current, added];
         revealing.current.add(card.id);
         return insertAtView(added, into);
@@ -2481,37 +2465,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         setBlocks(previous => previous.map(block => block.id === blockId ? { ...block, refs } : block));
         return true;
       },
-      // Links from a card to a Table of contents section (toc-links.js): block.tocLinks, one undo step each, never block.refs (the server indexes those).
-      // addTocLink answers { ok } or { ok: false, reason }, as addRef does.
-      addTocLink: (blockId, entryId) => {
-        const entries = outlineFrom(blocksRef.current, tocRef.current);
-        const next = readOnlyRef.current || !entries.some(entry => entry.id === entryId) ? { reason: 'unsupported' } : withTocLink(withLiveLinks(blocksRef.current.find(block => block.id === blockId), entries), entryId);
-        if (!next.tocLinks) return { ok: false, reason: next.reason };
-        snapshot();
-        setBlocks(previous => previous.map(block => (block.id === blockId ? { ...block, tocLinks: next.tocLinks } : block)));
-        return { ok: true };
-      },
-      removeTocLink: (blockId, entryId) => {
-        const tocLinks = readOnlyRef.current ? null : withoutTocLink(blocksRef.current.find(block => block.id === blockId), entryId);
-        if (!tocLinks) return false;
-        snapshot();
-        setBlocks(previous => previous.map(block => {
-          if (block.id !== blockId) return block;
-          const { tocLinks: _gone, ...rest } = block;
-          return tocLinks.length ? { ...rest, tocLinks } : rest;
-        }));
-        return true;
-      },
-      // What the two pickers list: this canvas's manual contents sections (with their number path), and the cards that can hold a link, by title.
-      tocSections: () => sectionChoices(outlineFrom(blocksRef.current, tocRef.current)),
-      // Cards by title for Add a link. Names are unique on a canvas (unique-title.js), but a board saved before that, or a card with no title yet, can still
-      // share one: those rows carry their place in board order ("#3") so the picker always tells them apart.
-      linkableCards: () => {
-        const rows = blocksRef.current.filter(holdsTocLink).map(block => ({ id: block.id, title: objectName(block, describeBlock(block)), tocLinks: block.tocLinks || [] }));
-        const uses = new Map();
-        for (const row of rows) uses.set(nameKey(row.title), (uses.get(nameKey(row.title)) || 0) + 1);
-        return rows.map(row => (uses.get(nameKey(row.title)) > 1 ? { ...row, path: positionHint(blocksRef.current, row.id) } : row));
-      },
       // A standalone reference card near `point` (world units: (menuAt.x - view.x) / view.z) or the view's centre, in free
       // space, placed as openInNotebook places (the end of the column, offset to the spot), then selected. Returns its id.
       insertRefCard: (target, point = null, at = null) => {
@@ -2634,18 +2587,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       moveSection: (id, beforeId) => { if (readOnlyRef.current) return; snapshot(); setToc(moveTocSection(blocksRef.current, tocRef.current, id, beforeId)); },
       toggleSectionDone: id => { if (readOnlyRef.current) return; snapshot(); setToc(toggleTocDone(blocksRef.current, tocRef.current, id)); },
       removeSection: id => { if (readOnlyRef.current) return; snapshot(); setToc(removeTocEntry(blocksRef.current, tocRef.current, id)); },
-      // The block a contents entry stands for (its heading, or a roadmap row's card id), or null when the canvas has none: what Copy link points at.
-      sectionBlockId: id => { const blockId = tocHeading(tocRef.current, id) ?? id; return blocksRef.current.some(block => block.id === blockId) ? blockId : null; },
-      // The contents' Add to chat (owner approved 2026-11-07): the context ref for one contents entry's block (a heading, or a roadmap row's card), built as the
-      // selection bar builds it, for the contents composer's pill; null when there is no such block. Nothing is selected, sent or added to Chat here.
-      refForSection: id => {
-        const object = objectById(tocHeading(tocRef.current, id) ?? id);
-        if (!object) return null;
-        const sourceRef = excerptChatRef(object) || pdfRef(object) || fileChatRef(object) || codeChatRef(object);
-        if (sourceRef) return sourceRef;
-        const described = describeObject(object), read = () => (described ? liveAskText(object.id, described)() : '');
-        return selectionRef({ ids: [object.id], kind: objectKind(object), name: objectName(object, described), content: read(), quote: '', text: read });
-      },
       // A journey heading just drawn joins a stored contents list (learn-journey-materialize.js).
       linkTocHeading: heading => setToc(previous => linkTocHeading(previous, heading)),
       // Frame the section rather than scroll to it: a section is a heading plus
@@ -2690,8 +2631,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // heading is added, retitled, reordered or ticked, and only then.
   const outlineKey = JSON.stringify(outline);
   const cardsKey = JSON.stringify(blocks.map(block => [block.id, block.pdf || block.assetKey || null, block.paper?.id || null]));
-  // [[cardId, title, entryIds]] for the cards that link to contents sections (toc-links.js linkedCards): the Table of contents' side of each link.
-  const linksKey = JSON.stringify(blocks.filter(block => block.tocLinks?.length).map(block => [block.id, objectName(block, describeBlock(block)), block.tocLinks]));
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
   const clipboard = useRef(null);
@@ -3275,7 +3214,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const members = [...blocks, ...items, ...shapes, ...exchanges].filter(entry => entry.groupId === group.id).map(entry => entry.id);
     return members.length === selection.length && members.every(id => selection.includes(id));
   });
-  const card = soleCard ? { id: soleCard.id, title: customTitleOf(soleCard) || soleCard.title || describeBlock(soleCard)?.title || '' }
+  const card = soleCard ? { id: soleCard.id, title: soleCard.title || describeBlock(soleCard)?.title || '' }
     : selectedGroup ? { id: selectedGroup.id, title: selectedGroup.label || `${selection.length} items` } : null;
   const cardKey = JSON.stringify(card), content = canvasObjects({ blocks, exchanges, strokes, shapes, items, areas });
   // Practice attempts committed on this canvas (every card's attemptLog): a Professor Next Steps basis trigger (contract §1.7).
@@ -3285,7 +3224,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The section being viewed (learn-present.js activeSection), for the Table of contents' marker.
   // ponytail: follows the camera and the layout, not a window resize on its own; the next pan catches up.
   const viewing = surface.current ? activeSection(blocks, bounds, { x: -view.x / view.z, y: -view.y / view.z, w: surface.current.clientWidth / view.z, h: surface.current.clientHeight / view.z }) : null;
-  useEffect(() => { onState?.({ grid, lock, minimap, holeMap, curious, toolbar, pages, presenting: presenting !== null, focus: focusSnapshot(focus), outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), tocLinks: JSON.parse(linksKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, activeSection: tocEntryFor(toc, viewing), card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, holeMap, curious, toolbar, pages, presenting, focus?.id, focus?.kind, outlineKey, cardsKey, linksKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, viewing, toc, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { onState?.({ grid, lock, minimap, holeMap, curious, toolbar, pages, presenting: presenting !== null, focus: focusSnapshot(focus), outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, activeSection: tocEntryFor(toc, viewing), card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, holeMap, curious, toolbar, pages, presenting, focus?.id, focus?.kind, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, viewing, toc, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => connectionCleanup.current?.(), []);
   // Deleting is a command as well as a key, so it lives outside the key handler.
   const deleteSelection = async () => {
@@ -3298,9 +3237,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     try { if(cad.length)await Promise.all(cad.map(block=>cadClient(api,appName).action(block.jobId,'placement',{hidden:true}))); } catch(problem) { toast(`CAD card was kept: ${problem.message}`); return; }
     const chats = ids.filter(id => exchangesRef.current.some(exchange => exchange.id === id));
     snapshot(chats.length > 0);
-    // A skeleton whose plan still waits for Generate is dropped with its card: the page cancels the job (one undo step restores the card).
-    const skeletons = blocksRef.current.filter(block => ids.includes(block.id) && skeletonJobOf(block)).map(block => ({ cardId: block.id, ...skeletonJobOf(block) }));
-    if (skeletons.length) onSkeletonsDropped?.(skeletons);
     // Selected nodes delete with their attached connections.
     for (const id of chats) onDeleteRef.current?.(id);
     const nodes = new Set([...chats, ...ids.filter(id => blocksRef.current.some(block => block.id === id) || shapesRef.current.some(shape => shape.id === id))]);
@@ -3640,13 +3576,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   // mode: the editor's first mode, 'edit' | 'explain' (the selection action bar's Quick Edit passes 'edit'); null keeps
   // the editor's own default.
-  const openInline = (opened = performance.now(), fromKey = false, mode = null, preset = null) => {
+  const openInline = (opened = performance.now(), fromKey = false, mode = null) => {
     if (inlineRef.current) { shell.current?.querySelector('[data-inline-ai] textarea')?.focus(); return true; }
-    // A preset command and words (Explain on a highlighted passage) are about that passage, never the cards now selected: a creation target.
-    const found = preset ? (readOnlyRef.current ? null : { target: { ids: [], range: null, groupId: null, creation: true, anchor: insertionAnchor() } }) : inlineTarget(fromKey);
+    const found = inlineTarget(fromKey);
     if (!found) return false;
     setMenuAt(null);
-    setInline({ ...found, opened, mode, preset, cold: inlineOpens.current === 0, opener: document.activeElement, n: (inlineOpens.current += 1) });
+    setInline({ ...found, opened, mode, cold: inlineOpens.current === 0, opener: document.activeElement, n: (inlineOpens.current += 1) });
     return true;
   };
   const closeInline = () => {
@@ -3974,10 +3909,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // Shift+G turns Snap to grid on or off, the Arrange menu's row (owner brief 2026-11-02, new): only where the canvas owns the
       // keyboard, and once per press, never again from a held key's repeats.
       if (!mod && !event.altKey && event.shiftKey && event.key.toLowerCase() === 'g') { if (busy || event.repeat) return; event.preventDefault(); commands.toggleGrid(); return; }
-      // F2 renames the one selected card and Shift+F turns Full content on or off for the selected cards: each runs the menu's own row (owner 2026-11-07), so a card
-      // that cannot be renamed or has no Full content, a locked object and a view-only board do nothing, exactly as the menu row would.
-      if (!mod && !event.altKey && !event.shiftKey && event.key === 'F2') { if (typing || busy || selectedRef.current.length !== 1) return; event.preventDefault(); keyActionRef.current('rename'); return; }
-      if (!mod && !event.altKey && event.shiftKey && event.key.toLowerCase() === 'f') { if (typing || busy || event.repeat || !selectedRef.current.length) return; event.preventDefault(); keyActionRef.current('full-content'); return; }
       // Lock (Ctrl+Shift+L), layers (Ctrl+[ / ], with Shift all the way) and copy / paste style (Ctrl+Alt+C / V).
       if (mod && event.shiftKey && event.code === 'KeyL') { if (typing) return; event.preventDefault(); keyActionRef.current('lock'); return; }
       if (mod && (event.code === 'BracketLeft' || event.code === 'BracketRight')) {
@@ -5060,7 +4991,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     open: openSketch, captureFor, portal: portalSketch, target: drawTarget,
     // Resource inputs (EB-05): pills derived from the links; one connect and one disconnect operation; the frozen
     // EvidenceRefs (explain-back-contract.js resources) a submission carries.
-    inputs: cardId => inputPills(inputWorld(), links, cardId, entry => (entry.type ? describeBlock(entry)?.title : null) || customTitleOf(entry) || entry.label || entry.question || entry.text || 'Item'),
+    inputs: cardId => inputPills(inputWorld(), links, cardId, entry => (entry.type ? describeBlock(entry)?.title : null) || entry.label || entry.question || entry.text || 'Item'),
     inputCandidates, connectInput, disconnectInput, openInput, reveal: revealOnCanvas,
     inputEvidence: (cardId, { board = null } = {}) => inputEvidence(inputWorld(board), present.current.links, cardId),
     // Submit's inputs: { resources, snapshots } (the server keeps each snapshot privately as the submitted copy).
@@ -5908,7 +5839,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       linkCanvas: onLinkCanvas ? arg => onLinkCanvas(arg) : null,
       // A visitor's local copy renames no card (SHARE-02: titles are the source's).
       renamable: object => !localCopy && renamable(object),
-      rename: id => startRename(id),
+      rename: id => { const block = blocksRef.current.find(entry => entry.id === id); if (block) setRenaming({ id, title: block.title, rect: document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.getBoundingClientRect() }); },
       renameGroup: gid => setChipEdit(gid),
       describable: target => target.ids.length > 0 && (!!chatWorkspace || target.objects.some(object => object && describeObject(object))),
       addToChat: options => addToChat(options),
@@ -6119,7 +6050,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             <button type="submit" disabled={!isWebUrl(webpageAsk.trim())} className="h-7 rounded-md bg-accent px-2 text-xs text-white disabled:opacity-40">Add webpage</button>
           </div>
         </form>}
-        {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode} preset={inline.preset}
+        {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode}
           canvas={inlineCanvas} config={inlineAi} view={view} readOnly={readOnly} onClose={closeInline} /></Suspense>}
         {inlineHint > 0 && <div role="status" data-inline-hint className="pointer-events-none absolute top-[calc(var(--canvas-top,0px)+0.75rem)] left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">Select something to edit or explain</div>}
         {docView === 'editor' && !doc && (docError || (!docReady && !readOnly)) && (
@@ -6218,9 +6149,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {exchanges.map(exchange => (String(exchange.linkFrom).startsWith('area:') || (exchange.linkFrom && exchange.float)
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
-          <SketchHost.Provider value={sketchHost}><CardRename.Provider value={readOnly || localCopy ? null : startRename}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; }, tocLinksOf: id => (refLinks.goToc ? resolvedLinks(blocks.find(block => block.id === id), outline) : []) }}>
-            {anchoredSlots(slots).map(slot => <SurfaceBoundary key={slot.id} artifact="slot_card"><SlotCard slot={slot} actions={roadmap && { ...roadmap, app: appName, onPassage: card => viewPassage(card.sourceRef, { range: card.passage, raw: true }) }} /></SurfaceBoundary>)}{columnEntries(blocks, slots).flatMap(({ block, slot }) => slot ? <SurfaceBoundary key={slot.id} artifact="slot_card"><SlotCard slot={slot} /></SurfaceBoundary> : [<LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} placing={pendingAt.current.has(block.id)} />, roomAfter[block.id] ? <div key={`room:${block.id}`} data-group-room aria-hidden="true" style={{ height: roomAfter[block.id] }} /> : null])}
-          </CanvasRefs.Provider></CardOpen.Provider></CardRename.Provider></SketchHost.Provider>
+          <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; } }}>
+            {anchoredSlots(slots).map(slot => <SlotCard key={slot.id} slot={slot} actions={roadmap && { ...roadmap, app: appName, onPassage: card => viewPassage(card.sourceRef, { range: card.passage, raw: true }) }} />)}{columnEntries(blocks, slots).flatMap(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : [<LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} placing={pendingAt.current.has(block.id)} />, roomAfter[block.id] ? <div key={`room:${block.id}`} data-group-room aria-hidden="true" style={{ height: roomAfter[block.id] }} /> : null])}
+          </CanvasRefs.Provider></CardOpen.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its
             gap), laid out like a column card - so no card moves, now or at Accept. Pale, untouchable (the editor's overlay
@@ -6380,33 +6311,24 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {menuAt && presenting === null && <CanvasMenu rows={actionsFor(menuAt.target, actionCtx)} at={menuAt} surface={surface.current} onPick={pickMenu} onClose={closeMenu} />}
         {/* Rename (card-rename.js): the card's title edited in place over its top edge; Enter or blur saves, Escape cancels, focus goes back to the card. */}
         {renaming && !readOnly && renaming.rect && (() => {
-          const target = blocks.find(block => block.id === renaming.id), heading = target?.type === 'heading';
           const done = (save, refocus = true) => {
             if (renaming.closed) return; // a blur after Enter or Escape must not save again
-            const { id, title } = renaming;
-            const next = save ? renameBlock(blocks, id, title) : blocks;
-            // A name another card already has is refused here, in the editor, with the old name kept; nothing is stepped to "(2)" behind the learner's back.
-            if (next !== blocks) {
-              const renamed = next.find(block => block.id === id), name = heading ? String(renamed?.text ?? '').trim() : namedTitleOf(renamed);
-              if (titleTaken(blocks, name, id, heading ? 'heading' : 'card')) { setRenaming(previous => ({ ...previous, error: heading ? 'Another section already has this name' : 'Another card already has this name' })); return; }
-            }
             renaming.closed = true;
+            const { id, title } = renaming;
             setRenaming(null);
+            const next = save ? renameBlock(blocks, id, title) : blocks;
             if (next !== blocks) { snapshot(); setBlocks(next); }
             // Enter or Escape hands focus back to the card; a click elsewhere keeps the focus it moved to.
             if (refocus) requestAnimationFrame(() => document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.focus?.());
           };
-          return <><input autoFocus data-card-rename aria-label="Card title" value={renaming.title} maxLength={heading ? 200 : TITLE_MAX}
+          return <input autoFocus data-card-rename aria-label="Card title" value={renaming.title}
             style={{ position: 'fixed', left: renaming.rect.left, top: renaming.rect.top, width: Math.max(160, renaming.rect.width) }}
-            className={`z-50 rounded-md border bg-white px-2 py-1.5 text-sm text-ink shadow-pop outline-none ${renaming.error ? 'border-danger' : 'border-accent'}`}
-            aria-invalid={renaming.error ? true : undefined}
+            className="z-50 rounded-md border border-accent bg-white px-2 py-1.5 text-sm text-ink shadow-pop outline-none"
             onFocus={event => event.currentTarget.select()}
             onPointerDown={event => event.stopPropagation()}
-            onChange={event => setRenaming(previous => ({ ...previous, title: event.target.value, error: null }))}
+            onChange={event => setRenaming(previous => ({ ...previous, title: event.target.value }))}
             onKeyDown={event => { event.stopPropagation(); if (event.key === 'Enter') { event.preventDefault(); done(true); } else if (event.key === 'Escape') { event.preventDefault(); done(false); } }}
-            onBlur={() => done(true, false)} />
-          {renaming.error && <p role="alert" data-card-rename-error style={{ position: 'fixed', left: renaming.rect.left, top: renaming.rect.top + 42, width: Math.max(160, renaming.rect.width) }}
-            className="z-50 rounded-md bg-white px-2 py-1 text-xs text-danger shadow-pop">{renaming.error}</p>}</>;
+            onBlur={() => done(true, false)} />;
         })()}
       </div>
       {/* The Explain-back Sketch panel's dock (sketchHost.portal): over the surface, outside its zoom, clear of the tools'
@@ -6428,8 +6350,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <div ref={gutter} data-tool-gutter
           // Docked right it mirrors the left side (84px, 8px in from the edge) and clears the contents rail (edgeInset).
           style={{ '--edge': `${edgeInset || 0}px` }}
-          className={`pointer-events-none absolute top-[var(--canvas-top,0px)] bottom-0 z-20 flex flex-col justify-center-safe gap-2 [&>*]:pointer-events-auto ${toolSide === 'left' ? 'left-0 items-start pl-2 pb-(--chrome-left) w-[84px]' : 'right-(--edge) items-end pr-2 pb-(--chrome-right) w-[84px]'}`}>
-        {/* justify-center-safe: centred while there is room, start-aligned when the window is short, so the Rabbit Hole Map at the top can never overflow upward under the page header (--canvas-top). */}
+          className={`pointer-events-none absolute top-[var(--canvas-top,0px)] bottom-0 z-20 flex flex-col justify-center gap-2 [&>*]:pointer-events-auto ${toolSide === 'left' ? 'left-0 items-start pl-2 pb-(--chrome-left) w-[84px]' : 'right-(--edge) items-end pr-2 pb-(--chrome-right) w-[84px]'}`}>
         {/* The Rabbit Hole navigator (Dive.jsx): top of the gutter, the tools centred in the rest. */}
         {/* Top of the tools gutter: the Rabbit Hole navigator. Canvas home is the page's top-left corner (LearnPage). */}
         <div data-gutter-top className={`pointer-events-none! mb-auto flex flex-col gap-3 [&>*]:pointer-events-auto ${import.meta.env.VITE_COACHING_DEV === 'true' ? 'pt-12' : 'pt-3'} @max-[640px]:hidden ${toolSide === 'left' ? 'items-start self-start' : 'items-end self-end'}`}>
@@ -6576,7 +6497,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {hooks && <div data-hooks-slot ref={hooksSlot} className={`w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)] ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
         </div>
         {/* UI.08: a ready later offer's Next card | Cancel, centred over this strip (the canvas area beside the panel), above the chrome; it stays put while the world pans. */}
-        {!readOnly && roadmap && <div data-next-card-slot className="absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 justify-center empty:hidden"><SurfaceBoundary artifact="next_card_pill"><NextCardPill card={(roadmap.cards || []).find(card => card.next && card.state === 'pending')} onAccept={() => roadmap.onAccept?.()} onCancel={() => roadmap.onCancel?.()} /></SurfaceBoundary></div>}
+        {!readOnly && roadmap && <div data-next-card-slot className="absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 justify-center empty:hidden"><NextCardPill card={(roadmap.cards || []).find(card => card.next && card.state === 'pending')} onAccept={() => roadmap.onAccept?.()} onCancel={() => roadmap.onCancel?.()} /></div>}
       </div>}
     </div>
     </SelectionActionsProvider>

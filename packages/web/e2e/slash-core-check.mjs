@@ -86,13 +86,13 @@ await dock.locator('[data-slash-search]').pressSequentially('explan');
 await dock.locator('[data-slash-search]').press('Enter');
 await pill.waitFor();
 // Owner spec 2026-10-29: the pill reads the typed name without the slash (explain); its x is named by the title.
-ok('picking /explain shows the explain pill and keeps the text', await pill.getAttribute('data-command-pill') === 'explanation' && (await pill.innerText()).trim() === 'explain' && await composer().inputValue() === 'why softmax', `${await pill.getAttribute('data-command-pill')} ${JSON.stringify(await pill.innerText())} / ${await composer().inputValue()}`);
+ok('picking /explain shows the explain pill and keeps the text', await pill.getAttribute('data-command-pill') === 'explain' && (await pill.innerText()).trim() === 'explain' && await composer().inputValue() === 'why softmax', `${await pill.getAttribute('data-command-pill')} ${JSON.stringify(await pill.innerText())} / ${await composer().inputValue()}`);
 await page.screenshot({ path: `${OUT}/02-explain-pill.png` });
 await dock.getByRole('button', { name: 'Remove Explanation', exact: true }).click();
 ok('Remove Explanation drops the pill and keeps the text', await pill.count() === 0 && await composer().inputValue() === 'why softmax');
 await composer().fill('/explain ');
 await pill.waitFor();
-ok('typing /explain makes the same pill', await pill.getAttribute('data-command-pill') === 'explanation' && (await pill.innerText()).trim() === 'explain' && await dock.getByRole('button', { name: 'Remove Explanation', exact: true }).count() === 1);
+ok('typing /explain makes the same pill', await pill.getAttribute('data-command-pill') === 'explain' && (await pill.innerText()).trim() === 'explain' && await dock.getByRole('button', { name: 'Remove Explanation', exact: true }).count() === 1);
 await dock.getByRole('button', { name: 'Remove Explanation', exact: true }).click();
 await composer().fill('');
 

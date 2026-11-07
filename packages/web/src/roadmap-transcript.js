@@ -64,13 +64,6 @@ export function stepStage(state, step) {
 const formatName = format => STRINGS.formatName[format] || format || '';
 const act = (id, label, run, extra = {}) => ({ id, label, run: { kind: id, ...run }, ...extra });
 
-// The invitation the current roadmap was made from: { invitationId, first } (first: its FIRST draft is still being written), else null. The invitation message
-// shows the one Generating roadmap shimmer in place of its buttons while first, no buttons once its roadmap exists, and the draft entry draws nothing of
-// its own until the draft arrives.
-export function roadmapInvitationOf(state) {
-  const view = state.view, rm = view?.roadmap;
-  return rm?.invitationId ? { invitationId: rm.invitationId, first: rm.state === 'draft' && view.planDraft == null && view.acceptedPlan == null } : null;
-}
 // -> [{ clientId, kind, seq, content, tutor, actions, draft?, activity? }] for the current state. ctx: invitation (invitationOf); route
 // ({ invitationId, choice? }: the occupied-Chat choice, shown before the invitation until a destination wins); boundary ({ key, name }: a
 // source dropped during an unfinished roadmap). Every action here is explicit, so none is gated by Ask or Auto-suggest off.
@@ -85,7 +78,7 @@ export function entriesOf(state, { invitation = null, route = null, boundary = n
   if (invitation && (!routed || route.choice)) {
     const busy = state.busy.some(g => g.startsWith(`create:${invitation.id}`) || g === `dismiss:${invitation.id}`);
     push(invitationClientId(invitation.id), 'invitation', 1, STRINGS.inviteDrop(mdName(invitation.title)), { invitationId: invitation.id },
-      [act('explain_on_canvas', STRINGS.explain, {}, { disabled: busy, primary: true }), act('keep_here', STRINGS.keepHere, {}, { disabled: busy })], { creating: busy });
+      [act('explain_on_canvas', STRINGS.explain, {}, { disabled: busy, primary: true }), act('keep_here', STRINGS.keepHere, {}, { disabled: busy })]);
   }
   if (boundary) push(boundaryClientId(boundary.key), 'boundary', 1, STRINGS.boundary(mdName(boundary.name)), { sourceKey: boundary.key });
   if (!view) return out;
@@ -143,28 +136,11 @@ export function entriesOf(state, { invitation = null, route = null, boundary = n
       { activity: ['accepting', 'generating', 'checking', 'saving'].includes(stage) ? status : null, sourceRef: (isOffer && view.proposal.sourceRelation?.sourceRef) || step.sourceRef || null }); // live only: the excerpt is read through the entitled reference at render, never stored in the message
     earlier = true;
   }
-  // BE.05a: a card offer that could not be prepared (view.offerRecovery): ONE entry for the step, in the same Chat. A required format that cannot be kept asks one
-  // focused question (the alternative, or Edit roadmap); otherwise it is useful help. Nothing was authored, held or charged, and the step stays undelivered.
-  const held = view.offerRecovery;
-  if (held && !view.proposal) {
-    const options = held.question?.options ?? [];
-    push(cid(`roadmap-recovery-${rid}-${held.stepId}`), 'recovery', 1, held.question?.text || held.help || '', { roadmapId: rid, stepId: held.stepId, reason: held.reason },
-      options.length ? options.map(o => (o.id === 'edit' ? act('edit_roadmap', o.label, {}, { key: 'edit' }) : act('recover', o.label, { stepId: held.stepId, choice: o.id }, { key: o.id, primary: true }))) : [act('edit_roadmap', STRINGS.editRoadmap, {})]);
-  }
   if (rm.state === 'completed') push(doneClientId(rid), 'done', 1, STRINGS.completed, { roadmapId: rid, state: 'completed' });
   if (rm.state === 'ended') push(doneClientId(rid), 'done', 1, STRINGS.ended, { roadmapId: rid, state: 'ended' });
   return out;
 }
 
-// A decided entry keeps no button: its outcome is one quiet line (null: none needed, the entry's own words and stage already say it). A live entry keeps its
-// buttons; a stored one (history) never has any. choice: the routing entry's stored choice; acceptedPlanVersion: the roadmap's accepted draft version.
-export function outcomeOf(entry, { live = true, acceptedPlanVersion = null } = {}) {
-  const tutor = entry.tutor || {};
-  if (entry.kind === 'recovery' && !live) return STRINGS.recoveryDone;
-  if (entry.kind === 'route' && tutor.choice) return tutor.choice === 'new' ? STRINGS.routedNew : STRINGS.routedStay;
-  if (entry.kind === 'draft' && !live && tutor.planVersion != null && tutor.stage !== 'generating') return acceptedPlanVersion != null && Number(tutor.planVersion) === Number(acceptedPlanVersion) ? STRINGS.draftAccepted : STRINGS.draftReplaced;
-  return null;
-}
 // A stored entry's action ids as their labels, for history (always disabled: a stored entry with no live counterpart never acts).
 const LABELS = { route_new: STRINGS.startNewChat, route_stay: STRINGS.stayHere, explain_on_canvas: STRINGS.explain, keep_here: STRINGS.keepHere, accept_roadmap: STRINGS.acceptRoadmap,
   edit_roadmap: STRINGS.editRoadmap, open_toc: STRINGS.openToc, propose_next: STRINGS.proposeNext, end: STRINGS.end, accept: STRINGS.accept, edit_card: STRINGS.editCard, cancel: STRINGS.cancel,

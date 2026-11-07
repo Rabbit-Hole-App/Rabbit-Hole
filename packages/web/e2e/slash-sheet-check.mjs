@@ -65,9 +65,8 @@ for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
     : await sheet.locator('button[data-slash-help]').evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp));
   const offered = SLASH.map(command => command.name);
   // Owner, 2026-10-30 (docs/superpowers/plans/2026-10-30-animation.md sections 3 and 17): /animation is added, so 17 always offered of 19.
-  // Owner 2026-11-07: /explain is split, so the written Explanation (id explanation) is one more registry command: 21 of 21 at most.
   // Owner roadmap 2026-11-04: /whiteboard (id whiteboard-video) is added where the server offers it, so of 20.
-  ok(`${tag}: lists only registry commands, at least the 17 always offered, none removed`, listed.length >= 17 && listed.length <= 21 && listed.every(name => offered.includes(name)) && !listed.some(name => REMOVED_COMMANDS.includes(name)), listed.join(' '));
+  ok(`${tag}: lists only registry commands, at least the 17 always offered, none removed`, listed.length >= 17 && listed.length <= 20 && listed.every(name => offered.includes(name)) && !listed.some(name => REMOVED_COMMANDS.includes(name)), listed.join(' '));
   const choose = async name => {
     if (narrow) await sheet.locator('[data-slash-select]').selectOption(name);
     else await sheet.locator(`button[data-slash-help="${name}"]`).click();
@@ -112,7 +111,7 @@ for (const scheme of ['light', 'dark']) for (const viewport of VIEWPORTS) {
     ok(`${tag}: /${name} preview starts right under its example`, result.gap <= 2, String(result.gap));
     if (hasComposer) ok(`${tag}: /${name} Use example is visible`, await pane.locator(`[data-slash-use-example="${name}"]`).isVisible());
     // The owner's examples (C:/s/spec/slash-window/BRIEF-EXAMPLES.md): real results in the real cards.
-    if (name === 'explain') ok(`${tag}: /interactive (id explain) draws the saved cooling program whole, with Play, the scrubber and the room temperature, Notes closed`,
+    if (name === 'explain') ok(`${tag}: /explain draws the saved cooling program whole, with Play, the scrubber and the room temperature, Notes closed`,
       await pane.locator('[data-program-frame] svg').count() > 0 && await pane.locator('[data-animation-play]').isVisible() && await pane.locator('input[aria-label="Explanation time"]').isVisible()
       && await pane.locator('[data-input-control="room"]').isVisible() && await pane.locator('[data-program-notes] > ul:not([hidden])').count() === 0
       && await pane.locator('[data-program-card]').getAttribute('data-program-focus') === 'fit');

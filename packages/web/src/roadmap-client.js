@@ -21,7 +21,6 @@ export const routes = {
   revise: (view, fields, actionKey) => mutate(view, 'revise', fields, actionKey),
   acceptPlan: (view, actionKey) => mutate(view, 'accept-plan', { planVersion: view.planDraft?.version ?? view.roadmap.planVersion }, actionKey), // the displayed draft (contracts.md: 409 stale_draft otherwise)
   proposeNext: (view, actionKey) => mutate(view, 'steps/propose', {}, actionKey),
-  recover: (view, stepId, choice, actionKey) => mutate(view, 'steps/recover', { stepId, choice }, actionKey), // the Chat recovery entry's chosen alternative (BE.05a)
   acceptProposal: (view, actionKey) => mutate(view, `proposals/${view.proposal.id}/accept`, { proposalVersion: view.proposal.version }, actionKey),
   cancelProposal: (view, actionKey) => mutate(view, `proposals/${view.proposal.id}/cancel`, { proposalVersion: view.proposal.version }, actionKey),
   deliver: (view, resultId, actionKey) => mutate(view, `results/${resultId}/deliver`, {}, actionKey),
@@ -113,7 +112,7 @@ const isNext = (view, proposal) => resultsOf(view).some(r => r.stepId !== propos
 
 const stepNav = (step, view) => {
   const result = resultsOf(view).find(r => r.stepId === step.id);
-  if (result?.delivery === 'delivered' && step.state === 'delivered') return { kind: 'card', cardId: result.slot?.cardId ?? null };
+  if (result?.delivery === 'delivered' && step.state === 'delivered') return { kind: 'card', cardId: result.slot.cardId };
   if (view.proposal?.stepId === step.id && view.proposal.state === 'pending') return { kind: 'proposal' };
   return null; // an entry with neither does not pretend there is anything to navigate to
 };
@@ -143,7 +142,7 @@ export function tocOf(state) {
     steps: view.steps.map(s => {
       const result = resultsOf(view).find(r => r.stepId === s.id), removed = result?.delivery === 'removed';
       const nav = stepNav(s, view), stage = s.stage && s.stage !== 'planned' ? s.stage : nav?.kind === 'proposal' ? 'proposed' : null;
-      return { id: s.id, position: s.position, title: s.title, source: s.sourceRef ? { kind: 'source' } : null, description: s.goal || '', format: STRINGS.formatName[s.format] || s.format || '', state: s.state,
+      return { id: s.id, position: s.position, title: s.title, description: s.goal || '', format: STRINGS.formatName[s.format] || s.format || '', state: s.state,
         status: (stage ? STRINGS.stage[stage] : null) || STRINGS.stepState[s.state] || s.state, removed, nav };
     }),
   };
@@ -245,17 +244,6 @@ export function readyMarkdownSources({ pending, blocks = [], savedBlocks = [] })
     ready.push({ blockId: block.id, key: `file:${block.fileRef.source.id}`, rev: block.fileRef.source.rev });
   }
   return ready;
-}
-
-// The sources a typed lesson request may start from (checklist 4.1.1): none while a roadmap is unfinished; the invitation's own source when one is
-// offered (the button and the typed request then share its gesture); else the ready Markdown sources on the canvas (at most 5; more than one means the
-// model must ask which). sources: the host's [{ key, rev, name }]. -> [{ key, rev, name }] | null
-export function lessonSourcesOf(state, sources = []) {
-  if (!enabled(state) || unfinished(state.view)) return null;
-  const iv = state.invitation;
-  const known = (sources || []).filter(s => s?.key && s.rev);
-  if (iv?.sourceKeys?.length) { const own = known.find(s => s.key === iv.sourceKeys[0]); return own ? [own] : null; }
-  return known.length && known.length <= 5 ? known : null;
 }
 
 // --- invitation idle rule ------------------------------------------------------------------------------------------------

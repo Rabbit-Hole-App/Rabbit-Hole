@@ -16,8 +16,8 @@ export default function PaidConfirm({ onGenerate, onCancel, message = 'This uses
         {cad ? <><CommandPill name="cad" text="cad" ariaLabel="cad command" className="mr-1.5 h-5 rounded-md px-1.5 align-[-3px] text-xs" /><span data-paid-prompt-text>{cad[1]}</span></> : prompt}
       </p>}
       <span>{message}</span>
+      <Button type="button" variant="secondary" size="sm" data-paid-cancel onClick={onCancel}>Cancel</Button>
       <Button type="button" variant="inverse" size="sm" data-paid-generate onClick={onGenerate}>Generate</Button>
-      <Button type="button" variant="ghost" size="sm" data-paid-cancel onClick={onCancel}>Cancel</Button>
     </div>
   );
 }

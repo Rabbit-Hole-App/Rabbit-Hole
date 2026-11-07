@@ -369,8 +369,8 @@ await check('9 right-click targets the thing clicked: another card replaces the 
   await rightClick('m-c');
   assert.deepEqual(await selectedIds(), ['m-c'], 'the right-clicked card, never the earlier m-a');
   const card = await rowNames();
-  for (const label of ['Duplicate', 'Copy', 'Lock', 'Bring to front', 'Delete']) assert.ok(card.includes(label), `${label} in ${card.join(', ')}`);
-  assert.ok(card.indexOf('Duplicate') < card.indexOf('Copy') && card.indexOf('Copy') < card.indexOf('Lock') && card.indexOf('Lock') < card.indexOf('Bring to front') && card.indexOf('Bring to front') < card.indexOf('Delete'), card.join(', '));
+  for (const label of ['Duplicate', 'Copy card', 'Lock', 'Bring to front', 'Delete']) assert.ok(card.includes(label), `${label} in ${card.join(', ')}`);
+  assert.ok(card.indexOf('Duplicate') < card.indexOf('Copy card') && card.indexOf('Copy card') < card.indexOf('Lock') && card.indexOf('Lock') < card.indexOf('Bring to front') && card.indexOf('Bring to front') < card.indexOf('Delete'), card.join(', '));
   await menu().getByRole('menuitem', { name: 'Delete', exact: true }).click();
   await page.locator('[data-block-id="m-c"]').waitFor({ state: 'detached', timeout: 5000 });
   assert.equal(await page.locator('[data-block-id="m-a"]').count(), 1, 'the earlier selection is untouched');
@@ -382,7 +382,7 @@ await check('9 right-click targets the thing clicked: another card replaces the 
   assert.deepEqual(await selectedIds(), [], 'the bare canvas clears the selection');
   const empty = await rowNames();
   for (const label of ['Paste', 'Select all']) assert.ok(empty.includes(label), `${label} on the canvas: ${empty.join(', ')}`);
-  for (const label of ['Delete', 'Duplicate', 'Lock', 'Copy']) assert.ok(!empty.includes(label), `no ${label} on the bare canvas`);
+  for (const label of ['Delete', 'Duplicate', 'Lock', 'Copy card']) assert.ok(!empty.includes(label), `no ${label} on the bare canvas`);
   await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached' });
   await page.locator('[data-group-chip="g-1"]').click({ button: 'right' }); await menu().waitFor();
   const group = await rowNames();

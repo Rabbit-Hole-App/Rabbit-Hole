@@ -11,7 +11,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { MOTION_PAUSED, motionOffered, motionPaused, reviewRequired } from './generation-proposal.js';
 import { sha256, sign, verify } from './token.js';
-import { CHAT_ROUTE_PROTOCOL_VERSION, ROUTE_THRESHOLDS, ROUTE_TIMEOUT_MS, chatCapability, chatRouteRequest, chatRoutesWith, explicitCommand, isPlainExplain, isSmallTalk, readChatRoute } from '../../web/src/inline-ai-route.js';
+import { CHAT_ROUTE_PROTOCOL_VERSION, ROUTE_THRESHOLDS, ROUTE_TIMEOUT_MS, chatCapability, chatRouteRequest, chatRoutesWith, explicitCommand, isPlainExplain, readChatRoute } from '../../web/src/inline-ai-route.js';
 import { SLASH, commandLabel, typedOf, unavailableCommand } from '../../web/src/agent/slash.js';
 import { imageAllowed } from './image-settings.js';
 import { paidOf } from '../../web/src/inline-ai-decide.js';
@@ -19,7 +19,7 @@ import { paidOf } from '../../web/src/inline-ai-decide.js';
 const TOKEN_TTL_S = 300, TEXT_MAX = 20000;
 const REQUEST_ID = /^[A-Za-z0-9-]{8,80}$/;
 const MODES = ['auto', 'ask', 'tutor'];
-export const FALLBACK = 'The request check did not finish. The turn is answered in text only.'; // in the body for logs and tools; the Chat shows nothing for it
+export const FALLBACK = 'Couldn\'t check whether this asks for a video or another tool. Answer normally, or try again.';
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const log = fields => { try { console.log(JSON.stringify({ event: 'chat_route', ...fields })); } catch { /* never worth a failed route */ } };
 
@@ -30,7 +30,7 @@ const bindingOf = (email, f) => sha256(canon([String(email).toLowerCase(), f.app
 
 // Whether this capability can run here now. Never enables anything: a build flag only the browser knows must be in its
 // enabled list, Motion also needs the server's own gate (orchestrator configured, not paused), image generation is off.
-export function availability(env, cap, enabled, email = null) {
+function availability(env, cap, enabled, email = null) {
   if (Array.isArray(enabled) && !enabled.includes(cap.name)) return false;
   if (cap.name === 'motion') return motionOffered(env, email);
   if (cap.needs === 'image_generation') return imageAllowed(env, email); // the server decides per caller (public flag, else the listed operator)
@@ -38,13 +38,6 @@ export function availability(env, cap, enabled, email = null) {
   if (cap.needs) return Array.isArray(enabled);
   return true;
 }
-// CHAT.02 (docs/features/explain-on-canvas/chat-answer-tools.md): the modes whose ordinary messages skip this classifier and go to the answer model
-// with the eligible tools (chat-tools.js). CHAT_ANSWER_TOOLS is a comma list of wire modes (ask, auto) or all; unset = today's JEV preflight for every mode.
-// Ordinary Tutor messages travel as the auto wire mode (web chat-route.js askMode); the wire tutor mode (the Contents conversation) is never listed here.
-export const answerToolsOn = (env, mode) => {
-  const listed = String(env?.CHAT_ANSWER_TOOLS ?? '').toLowerCase().split(/[\s,]+/).filter(Boolean);
-  return mode !== 'tutor' && (listed.includes('all') || listed.includes(mode));
-};
 // The guarded capabilities plain words may reach here (EXP-T15): /explain v2 only where EXPLAIN_V2_ENABLED (explain-job.js
 // explainEnabled). Off, the router's question is exactly what it was; a typed /explain still dispatches either way.
 const offeredRoutes = env => chatRoutesWith(env.EXPLAIN_V2_ENABLED === 'true' ? ['explain'] : []);
@@ -74,14 +67,11 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
   const command = explicitCommand(text);
   if (command) return pick(command.name, 'command', command.args);
   if (fields.mode === 'tutor') return answer('mode');
-  if (isPlainExplain(text) || isSmallTalk(text)) return answer('default');
-  if (answerToolsOn(env, fields.mode)) return answer('model'); // the answer model decides with the eligible tools: no classifier call
+  if (isPlainExplain(text)) return answer('default');
   const transport = jevTransport(env);
   const started = Date.now();
   const failed = code => answer('fallback', { retryable: true, code, message: FALLBACK, meta: { ...base.meta, ms: Date.now() - started } });
-  // Which piece of router configuration is missing is logged (names only), so a production fallback is explained by its Worker log line.
-  const keyed = !!transport && !!(await signingKey(env));
-  if (!keyed) { log({ request_id: requestId, outcome: 'unavailable', reason: transport ? 'no_signing_key' : 'no_transport', ms: Date.now() - started }); return failed('unavailable'); }
+  if (!transport || !(await signingKey(env))) return failed('unavailable');
   const routes = offeredRoutes(env);
   let out, read;
   try {
@@ -89,7 +79,7 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
     read = readChatRoute(out.body, routes);
   } catch (error) {
     const code = error instanceof JevError ? (error.code === 'timeout' ? 'timeout' : 'unavailable') : 'malformed';
-    log({ request_id: requestId, outcome: code, reason: error instanceof JevError ? error.code : 'unreadable', status: error?.status ?? null, ms: Date.now() - started, transport, called: error?.called !== false });
+    log({ request_id: requestId, outcome: code, ms: Date.now() - started, transport, called: error?.called !== false });
     return failed(code);
   }
   const meta = { ...base.meta, model: out.model ?? null, ms: out.ms ?? Date.now() - started, input_tokens: out.inputTokens ?? null, cost: out.cost ?? null, transport };

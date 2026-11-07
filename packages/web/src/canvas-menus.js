@@ -5,15 +5,15 @@
 // There is no Files menu (the right panel's Context and Search do that work) and no Share, Publish or Embed here (the Share button).
 // Row kinds, drawn by CanvasMenubar: an action (label, icon, hint, disabled, onSelect), a submenu (items), a radio or check row
 // (radio / check, a check row stays open), a choice (the Page guides selector) and a divider. Disabled rows stay, greyed, never explained.
-import { AlignHorizontalDistributeCenter, AlignHorizontalJustifyCenter, ArrowUpToLine, Clipboard, Copy, CopyPlus, Eye, Focus, Globe, Grid2X2, Group, Heading1, Keyboard, Layers, Link, LockKeyhole, LockKeyholeOpen, Maximize2, Minus, NotebookPen, Paintbrush, PanelsTopLeft, Pipette, Redo2, Scan, Scissors, Search, Sigma, SquareSlash, StickyNote, Trash2, Type, Undo2, Ungroup, Upload, Wand, ZoomIn, ZoomOut, Frame, GraduationCap, Ruler, Heading2, Heading3 } from 'lucide-react';
+import { AlignHorizontalDistributeCenter, AlignHorizontalJustifyCenter, ArrowUpToLine, Clipboard, Copy, CopyPlus, Eye, Focus, Globe, Grid2X2, Group, Heading1, Keyboard, Layers, Link, LockKeyhole, LockKeyholeOpen, Maximize2, Minus, NotebookPen, Paintbrush, PanelsTopLeft, Pipette, Redo2, Scan, Scissors, Search, Sigma, SquareSlash, StickyNote, Trash2, Type, Undo2, Ungroup, Upload, Wand, ZoomIn, ZoomOut } from 'lucide-react';
 import { ariaFor, hintFor, isMac } from './shortcuts.js';
 
 // Section, sub-sections, text box, sticky note, divider and equation: inserted on this canvas only, no request, no model call.
 export const localInsertItems = canvas => [
   { label: 'Section', icon: Heading1, items: [
-    { label: 'Section', icon: Heading1, onSelect: () => canvas()?.insertHeading(1) },
-    { label: 'Sub-section', icon: Heading2, onSelect: () => canvas()?.insertHeading(2) },
-    { label: 'Sub-sub-section', icon: Heading3, onSelect: () => canvas()?.insertHeading(3) },
+    { label: 'Section', onSelect: () => canvas()?.insertHeading(1) },
+    { label: 'Sub-section', onSelect: () => canvas()?.insertHeading(2) },
+    { label: 'Sub-sub-section', onSelect: () => canvas()?.insertHeading(3) },
   ] },
   { label: 'Text box', icon: Type, onSelect: () => canvas()?.insertText() },
   { label: 'Sticky note', icon: StickyNote, onSelect: () => canvas()?.insertSticky() },
@@ -31,7 +31,7 @@ export const ownerInsertItems = ({ canvas, onUpload, onSearchSources, onLinkToCa
   { label: 'Webpage', icon: Globe, onSelect: () => canvas()?.insertWebpage() },
   { label: 'Search sources', icon: Search, onSelect: onSearchSources },
   { divider: true },
-  { label: 'Add a link', icon: Link, onSelect: onLinkToCanvas },
+  { label: 'Link to canvas', icon: Link, onSelect: onLinkToCanvas },
 ];
 
 // Align needs two pieces, Distribute three (a group counts as one piece).
@@ -101,8 +101,8 @@ export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdi
         // The workspace layout (Pinned Study): Canvas shows the full canvas, Study the pinned reference beside the work. Neither
         // moves a card, saves the board or asks a model; this browser remembers the choice for this canvas.
         ...(study ? [
-          { label: 'Canvas', icon: Frame, radio: study.mode !== 'study', onSelect: () => study.setMode('canvas') },
-          { label: 'Study', icon: GraduationCap, radio: study.mode === 'study', onSelect: () => study.setMode('study') },
+          { label: 'Canvas', radio: study.mode !== 'study', onSelect: () => study.setMode('canvas') },
+          { label: 'Study', radio: study.mode === 'study', onSelect: () => study.setMode('study') },
           { divider: true },
         ] : []),
         // The canvas's document (docs/features/blocknote-canvas.md): Editor shows it on the canvas, Canvas hides it (never clears
@@ -122,7 +122,7 @@ export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdi
           ...(comments.active ? [checkRow('Comment pins', comments.showPins, comments.setPins)] : []),
           checkRow('Learning suggestions', canvasState.curious, widget('curious')),
         ] },
-        { label: 'Page guides', icon: Ruler, choice: { value: canvasState.pages || 'off', options: [['off', 'Off'], ['portrait', 'A4 portrait'], ['landscape', 'A4 landscape']], onChange: value => canvas()?.setPages(value === 'off' ? false : value) } },
+        { label: 'Page guides', choice: { value: canvasState.pages || 'off', options: [['off', 'Off'], ['portrait', 'A4 portrait'], ['landscape', 'A4 landscape']], onChange: value => canvas()?.setPages(value === 'off' ? false : value) } },
         { divider: true },
         // Shows the document and frames its top.
         { label: 'Go to document start', icon: ArrowUpToLine, onSelect: () => { setDocView('editor'); requestAnimationFrame(() => requestAnimationFrame(() => canvas()?.goToDoc())); } },

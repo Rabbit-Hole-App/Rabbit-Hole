@@ -719,7 +719,7 @@ test('the kill switch (execution not allowed): the saved card never runs and say
 test('the canvas places an /animation job\'s card once under its own id, never on a read-only canvas, and only an animation3d card', async () => {
   const { readFileSync } = await import('node:fs');
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
-  const body = canvas.match(/placeAnimation: ([\s\S]*?),\r?\n(?:\s*\/\/.*\r?\n)*      placeExplain:/)[1];
+  const body = canvas.match(/placeAnimation: ([\s\S]*?),\r?\n      placeExplain:/)[1];
   const factory = new Function('alive', 'readOnlyRef', 'blocksRef', 'snapshot', 'insertAtView', `return (${body})`);
   const blocks = { current: [] }, inserted = [];
   const place = (readOnly = false) => factory({ current: true }, { current: readOnly }, blocks, () => {}, block => { inserted.push(block); return block.id; });

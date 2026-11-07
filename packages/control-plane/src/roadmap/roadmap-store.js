@@ -214,7 +214,6 @@ export async function offerProposal(db, access, { roadmapId, expectedRevision, a
         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${r.and}`).bind(proposalId, roadmapId, stepId, ...scopeOf(access), version, state, format, title, description, contentHash, now, ...r.binds),
       db.prepare(`UPDATE learn_roadmap_steps SET state = 'proposed', updated_at = ? WHERE id = ? AND ${r.and}`).bind(now, stepId, ...r.binds),
       db.prepare(`UPDATE learn_roadmaps SET state = 'active' WHERE id = ? AND state = 'paused' AND ${r.and}`).bind(roadmapId, ...r.binds), // a manual next step resumes a Cancel pause
-      db.prepare(`UPDATE learn_roadmaps SET scope_json = json_remove(scope_json, '$.offerRecovery') WHERE id = ? AND ${r.and}`).bind(roadmapId, ...r.binds), // a real offer ends any recovery for the step
     ],
   });
 }

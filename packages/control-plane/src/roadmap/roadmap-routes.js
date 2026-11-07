@@ -5,7 +5,7 @@ import { repositoryIdentity } from '../repositories.js';
 import { refusalBody } from '../learn-spend-ledger.js';
 import { StateError, ERROR_CODES, conflictReply } from './roadmap-contract.js';
 import { acceptPlan, acceptRoadmapStep, acknowledgeDelivery, createRoadmap, readEntitledResult, readRoadmap, readResult } from './roadmap-store.js';
-import { bindTutorThread, cancelProposal, endRoadmap, markResultRemoved, proposeNextStep, retakeUnreadyOffer, setMode } from './roadmap-lifecycle.js';
+import { bindTutorThread, cancelProposal, endRoadmap, markResultRemoved, proposeNextStep, setMode } from './roadmap-lifecycle.js';
 import { currentView, roadmapHistory } from './roadmap-view.js';
 import { acceptInvitation, dismissInvitation, offerInvitation, pendingInvitation } from './roadmap-invitations.js';
 import { answerQuestion, revisePlan } from './roadmap-planning.js';
@@ -113,7 +113,7 @@ export async function roadmapRoute(path, req, env, deps = {}) {
       if (!planned.replayed && !planned.refusal && planned.status < 300 && deps.compose) {
         try {
           const fresh = await readRoadmap(db, access, roadmapId);
-          await proposeNextStep(db, access, { roadmapId, compose: deps.compose, env, revalidate: deps.revalidate, expectedRevision: fresh.revision, actionKey: `${body.actionKey}_first`, ...(now ? { now } : {}) });
+          await proposeNextStep(db, access, { roadmapId, compose: deps.compose, expectedRevision: fresh.revision, actionKey: `${body.actionKey}_first`, ...(now ? { now } : {}) });
         } catch (error) { if (!(error instanceof StateError)) throw error; }
       }
       return reply(planned);
@@ -128,16 +128,7 @@ export async function roadmapRoute(path, req, env, deps = {}) {
     }
     if (kind === 'steps' && id === 'propose' && rest.length === 3) {
       if (!deps.compose) return json({ error: 'Not available', code: 'not_found' }, 503);
-      return reply(await proposeNextStep(db, access, { roadmapId, compose: deps.compose, env, revalidate: deps.revalidate, ...arg }));
-    }
-    // The learner chose the alternative for a required format (the Chat recovery entry's question): offered for the SAME step with its own review.
-    // The choice must still be the recorded recovery of that step, else it is stale. Edit roadmap is the Chat's own edit target and needs no request.
-    if (kind === 'steps' && id === 'recover' && rest.length === 3) {
-      if (!deps.compose) return json({ error: 'Not available', code: 'not_found' }, 503);
-      const current = await readRoadmap(db, access, roadmapId), held = current && (() => { try { return JSON.parse(current.scope_json || '{}').offerRecovery ?? null; } catch { return null; } })();
-      if (body.choice !== 'alternative') return json({ error: 'choice', code: 'invalid_request' }, 400);
-      if (!held || held.stepId !== body.stepId || !held.alternative) throw new StateError('recovery_stale', 'This choice is no longer available.', 409);
-      return reply(await proposeNextStep(db, access, { roadmapId, compose: deps.compose, env, revalidate: deps.revalidate, useAlternative: true, ...arg }));
+      return reply(await proposeNextStep(db, access, { roadmapId, compose: deps.compose, ...arg }));
     }
     // R5: preview an edit of the pending proposal, apply or discard it, and offer an existing card as the next step. Gated above by ROADMAP_EDIT_ENABLED.
     if (kind === 'proposals' && verb === 'drafts' && rest.length === 4) {
@@ -150,14 +141,7 @@ export async function roadmapRoute(path, req, env, deps = {}) {
     if (kind === 'steps' && id === 'link' && rest.length === 3) return reply(await offerLinkProposal(db, access, { roadmapId, cardId: body.cardId, reason: body.reason, origin: body.origin === 'tutor' ? 'tutor' : 'learner', ...arg }));
     if (kind === 'proposals' && verb === 'accept' && rest.length === 4) {
       if (roadmapEditEnabled(env) && await readLink(db, id, body.proposalVersion).catch(() => null)) return reply(await acceptLinkProposal(db, access, { roadmapId, revision: arg.expectedRevision, proposalId: id, proposalVersion: body.proposalVersion, actionKey: body.actionKey, ...(now ? { now } : {}) }));
-      let done;
-      try { done = await acceptRoadmapStep(env, access, { roadmapId, revision: arg.expectedRevision, proposalId: id, proposalVersion: body.proposalVersion, actionKey: body.actionKey, ...(deps.quote ? { quote: args => deps.quote(env, access, args) } : {}), ...(now ? { now } : {}) }); }
-      catch (error) {
-        // The offered format is no longer ready (nothing was written: no hold, no author call): take the offer back and offer again through the same check, so the
-        // 409 below already shows the alternative's own review or the Chat recovery entry.
-        if (error instanceof StateError && error.code === 'offer_unready' && deps.compose) await retakeUnreadyOffer(db, access, { roadmapId, proposalId: id, proposalVersion: body.proposalVersion, actionKey: body.actionKey, compose: deps.compose, env, revalidate: deps.revalidate, ...(now ? { now } : {}) }).catch(() => null);
-        throw error;
-      }
+      const done = await acceptRoadmapStep(env, access, { roadmapId, revision: arg.expectedRevision, proposalId: id, proposalVersion: body.proposalVersion, actionKey: body.actionKey, ...(deps.quote ? { quote: args => deps.quote(env, access, args) } : {}), ...(now ? { now } : {}) });
       if (!done.refusal && !done.replayed) await deps.onAccepted?.(env, access, done.body);
       return reply(done);
     }

@@ -57,7 +57,7 @@ function MenuPanel({ items, label, nested = false, focusFirst = false, onDone, o
           // One row, one dropdown: a setting with several values rather than a row per value.
           return (
             <label key={item.label} onPointerEnter={hover(item)} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-ink hover:bg-hover max-md:py-2">
-              <Lead icon={item.icon} />
+              <Lead />
               <span className="flex-1 whitespace-nowrap">{item.label}</span>
               <select data-menu-item value={item.choice.value} onChange={event => { onDone(); item.choice.onChange(event.target.value); }}
                 className="h-7 cursor-pointer rounded-md border border-line bg-white px-1 text-xs text-ink outline-none focus:border-ink-3">

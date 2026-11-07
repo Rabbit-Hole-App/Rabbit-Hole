@@ -9,7 +9,7 @@
 // Response: { decision, message?, route?: { capability, outcome }, missing?: [...], paid, token? }
 import { SLASH, primitive, toolOf, typedOf, unavailableCommand } from './agent/slash.js';
 import { INLINE_TOOLS } from './inline-tool-capabilities.js';
-import { EXPLICIT_ROUTES, INLINE_COMMAND_ROUTE, NOT_INLINE, PROMPT_MAX, ROUTES, commandInput, explicitCommand, isPlainExplain, promptTooLong, selectionSummary, unavailableText } from './inline-ai-route.js';
+import { EXPLICIT_ROUTES, NOT_INLINE, PROMPT_MAX, ROUTES, commandInput, explicitCommand, isPlainExplain, promptTooLong, selectionSummary, unavailableText } from './inline-ai-route.js';
 
 export const DECISIONS = Object.freeze(['proceed', 'clarify', 'invalid', 'unsupported', 'blocked']);
 export const MISSING = Object.freeze(['subject', 'target', 'format', 'data']);
@@ -26,7 +26,7 @@ export const CAPABILITIES = Object.freeze({
   note: { tool: 'create_learning_artifact', label: 'Text explanation', criterion: 'An editable written explanation on the canvas, with no special format: why and how questions, "explain this", definitions, and any request that declines a format (for example "but don\'t make a video").' },
   shapes: { tool: 'create_learning_artifact', label: 'Diagram', criterion: 'An editable diagram drawn on the canvas from shapes, text and arrows: a tree, flowchart, cycle, hierarchy, timeline, or a map of how parts connect.' },
 });
-export const INLINE_SLASH = Object.freeze({ diagram: 'shapes', ...INLINE_COMMAND_ROUTE });
+export const INLINE_SLASH = Object.freeze({ diagram: 'shapes' });
 // A capability the editor can run: one the validator may choose (CAPABILITIES), or one only its explicit command reaches
 // (EXPLICIT_ROUTES: never offered to the validator's route question, so automatic routing is unchanged).
 export const knownCapability = capability => !!(CAPABILITIES[capability] || EXPLICIT_ROUTES[capability]);
@@ -108,13 +108,13 @@ export function fixedRoute(request, enabled = DEFAULT_ENABLED) {
     const removed = unavailableCommand(typedOf(command.name));
     if (removed) return stop('unsupported', removed);
     const capability = INLINE_SLASH[command.name] || command.name;
-    if (NOT_INLINE[command.name] || !knownCapability(capability) || capability === 'note') {
+    if (!knownCapability(capability) || capability === 'note') {
       const known = SLASH.some(entry => entry.name === command.name && entry.places.includes('learn'));
       return stop('unsupported', known ? `/${typedOf(command.name)} isn't part of inline Explain (${NOT_INLINE[command.name] || 'not an explanation'}). Use it from the chat composer.` : `/${command.name} is not a Learn command.`);
     }
     if (!enabled.includes(capability)) return stop('unsupported', unavailableText(capability).text);
     // A bare command needs a subject: the selection's words, or the command's own.
-    const input = commandInput({ route: INLINE_COMMAND_ROUTE[command.name] || command.name, via: 'command', args: command.args }, { prompt: request.prompt, context: request.context });
+    const input = commandInput({ route: command.name, via: 'command', args: command.args }, { prompt: request.prompt, context: request.context });
     if (input.clarify) return stop('clarify', input.clarify.question, { missing: ['subject'] });
     return { capability };
   }

@@ -128,12 +128,9 @@ test('Explain declares presentation only: no duration or audio, its assumptions 
   assert.deepEqual([...out.matchAll(/<option value="([a-z]+)"( selected="")?>([^<]+)</g)].map(m => [m[1], m[3]]), [['static', 'Static'], ['steps', 'Steps'], ['time', 'Over time'], ['experiment', 'Experiment']]);
   assert.match(out, /<option value="steps" selected="">/);
   assert.doesNotMatch(out, /data-proposal-duration|data-proposal-audio|Duration|Audio/);
-  assert.match(text(out), /Assumptions 1/);
-  assert.doesNotMatch(text(out), /No friction/, 'Assumptions is a closed dropdown');
-  assert.match(text(html({ proposal: explain, defaultOpen: ['assumptions'] })), /Assumptions 1 No friction\./);
+  assert.match(text(out), /Assumptions No friction\./);
   assert.doesNotMatch(out, /data-proposal-cancel/, 'no handler, no Cancel');
-  assert.doesNotMatch(html({ proposal: explain, onCancel: () => {} }), /data-proposal-cancel/, 'a proposal with no canvas skeleton has no Cancel');
-  assert.match(html({ proposal: explain, onCancel: () => {}, skeleton: true }), /data-proposal-cancel/, 'a skeleton on the canvas: Cancel removes it');
+  assert.match(html({ proposal: explain, onCancel: () => {} }), /data-proposal-cancel/);
   assert.doesNotMatch(html({ onCancel: () => {} }), /data-proposal-cancel/, 'Motion has no Cancel: an unanswered proposal starts nothing');
   assert.match(html({ proposal: explain }), /data-proposal-request/);
   assert.match(text(html({ proposal: explain })), /Explain a pendulum\./);
@@ -146,29 +143,17 @@ test('Explain review card: Review explanation heading, the request unchanged, as
   const explain = { proposal_id: 'gp-cccccccccccccccc', version: 1, schema_version: 1, command: 'explain', title: 'Falling on Earth and the Moon', description: 'Compare an object falling on Earth and on the Moon, side by side.', prompt: 'Compare an object falling on Earth and on the Moon, side by side.',
     settings: { presentation: 'experiment' }, input: { request: 'why things fall slower on the Moon', org: 'w', app: 'a', job: 'ej_1' }, original_request: 'why things fall slower on the Moon', references: [],
     assumptions: ['Air resistance is ignored.'], limitations: ['One object at a time on each world.'], sig: `v3.${'0'.repeat(64)}` };
-  const props = { proposal: explain, eyebrow: 'Review explanation', onCancel: () => {}, skeleton: true };
+  const props = { proposal: explain, eyebrow: 'Review explanation', note: 'Preparing this plan used one model call.', onCancel: () => {} };
   const out = html(props), words = text(out);
   assert.match(out, /aria-label="Review explanation"/);
   assert.match(words, /Review explanation Falling on Earth and the Moon/);
   assert.match(out, /data-proposal-request[^>]*>[^]*why things fall slower on the Moon/);
-  assert.match(words, /Assumptions 1 Limitations 1/, 'both closed');
-  assert.doesNotMatch(words, /Air resistance|One object at a time/);
-  assert.match(out, /data-proposal-disclosure="assumptions"[^>]*aria-expanded="false"/);
-  assert.doesNotMatch(out, /text-warn|text-fail[^>]*data-proposal-list="assumptions"/, 'Assumptions is neutral, never orange or red');
-  const opened = text(html({ ...props, defaultOpen: ['assumptions', 'limitations'] }));
-  assert.match(opened, /Assumptions 1 Air resistance is ignored\./);
-  assert.match(opened, /Limitations 1 One object at a time on each world\./);
+  assert.match(words, /Assumptions Air resistance is ignored\./);
+  assert.match(words, /Limitations One object at a time on each world\./);
   assert.doesNotMatch(words, /Not supported or not verified/, 'Explain titles its limitations plainly');
-  assert.doesNotMatch(out, /data-proposal-note|used one model call/, 'no cost note on an Explain review');
+  assert.match(out, /data-proposal-note[^>]*>Preparing this plan used one model call\./);
   assert.match(out, /<button[^>]*data-proposal-edit[^>]*>Edit details</);
   assert.match(out, /<button[^>]*data-proposal-cancel/);
-  // One order, real buttons: Generate, Edit, then Cancel as the plain text control (ghost: no border, no shadow).
-  const order = [...out.matchAll(/data-proposal-(generate|edit|cancel)="true"/g)].map(m => m[1]);
-  assert.deepEqual(order, ['generate', 'edit', 'cancel']);
-  assert.match(out, /<button[^>]*data-proposal-edit[^>]*class="[^"]*border-line-strong[^"]*"|<button[^>]*class="[^"]*border-line-strong[^"]*"[^>]*data-proposal-edit/, 'Edit is a real bordered button');
-  assert.match(out, /<button[^>]*class="[^"]*text-ink-2 hover:bg-hover[^"]*"[^>]*data-proposal-cancel|<button[^>]*data-proposal-cancel[^>]*class="[^"]*hover:bg-hover[^"]*"/, 'Cancel is the text control');
-  assert.doesNotMatch(out, /<button[^>]*data-proposal-cancel[^>]*border-line-strong/);
-  assert.doesNotMatch(html({ ...props, skeleton: false }), /data-proposal-cancel/, 'no canvas skeleton: Generate and Edit only');
   assert.doesNotMatch(out, /<button[^>]*data-proposal-generate="true" disabled/, 'a saved valid revision can be generated');
   // Editing: title and description fields, the assumptions as a list, the limitations still read only; Save and Discard, Generate waits.
   const editing = html({ ...props, defaultEditing: true });
@@ -176,7 +161,7 @@ test('Explain review card: Review explanation heading, the request unchanged, as
   assert.match(editing, /<textarea data-proposal-editor="true" aria-label="Description"/);
   assert.match(editing, /data-proposal-list="assumptions"/);
   assert.doesNotMatch(editing, /data-proposal-list="limitations"/);
-  assert.match(text(editing), /Limitations 1/); assert.doesNotMatch(text(editing), /One object at a time/);
+  assert.match(text(editing), /Limitations One object at a time on each world\./);
   assert.match(editing, /<button[^>]*data-proposal-discard[^>]*>Discard</);
   assert.match(editing, /<button[^>]*data-proposal-save="true" disabled=""[^>]*>Save</, 'nothing changed yet');
   assert.match(editing, /<button[^>]*data-proposal-generate="true" disabled=""/);
@@ -238,8 +223,8 @@ test('a CAD brief view: units fixed, parameter values editable by the capability
   assert.match(out, /<select disabled="" data-proposal-select="units"/, 'units need a new brief');
   assert.match(out, /data-proposal-param="width"/); assert.match(out, /data-proposal-param-value="width"[^>]*value="40"/);
   assert.match(out, /<option value="gloss">Gloss</);
-  assert.match(text(out), /Requirements Wall 3 mm/); assert.match(text(out), /Assumptions 1/); assert.doesNotMatch(text(out), /Mild steel/);
-  assert.match(text(out), /Missing information Hole diameter\?/); assert.match(text(out), /Not supported or not verified 1/);
+  assert.match(text(out), /Requirements Wall 3 mm/); assert.match(text(out), /Assumptions Mild steel/);
+  assert.match(text(out), /Missing information Hole diameter\?/); assert.match(text(out), /Not supported or not verified No threads/);
   assert.match(out, /data-proposal-blocked/);
   assert.match(out, /<button[^>]*data-proposal-generate="true" disabled=""/);
   assert.match(out, /data-proposal-request/, 'the original request, unchanged');

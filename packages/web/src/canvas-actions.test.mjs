@@ -104,7 +104,7 @@ test('targeting: selected text, code lines and marked parts (a cell, a PDF page)
   const card = el('div', { 'data-block-id': 'c2' }), pre = el('pre', {}, card), line = el('span', {}, pre);
   const t = resolveTarget(line, model([], { selectedText: () => ({ text: 'x = 1', node: line }) }));
   assert.deepEqual(t.part, { kind: 'code-lines', text: 'x = 1' });
-  assert.equal(labels(actionsFor(t, fakeCtx().ctx))[0] !== 'Copy', true);
+  assert.equal(labels(actionsFor(t, fakeCtx().ctx))[0] !== 'Copy card', true);
   assert.ok(labels(actionsFor(t, fakeCtx().ctx)).includes('Copy selected lines'));
   const elsewhere = resolveTarget(line, model([], { selectedText: () => ({ text: 'other card', node: el('p', {}, el('div', { 'data-block-id': 'c1' })) }) }));
   assert.equal(elsewhere.part, null, 'text selected in another card is not this card');
@@ -114,13 +114,13 @@ test('targeting: selected text, code lines and marked parts (a cell, a PDF page)
   assert.deepEqual(resolveTarget(page, model([])).part, { kind: 'pdf-page', page: 7 });
 });
 
-test('common actions: Duplicate, Copy, Lock, Arrange, Group and Delete in one order on every target', () => {
+test('common actions: Duplicate, Copy card, Lock, Arrange, Group and Delete in one order on every target', () => {
   const { ctx } = fakeCtx();
-  const order = ['Duplicate', 'Copy', 'Lock', 'Bring to front', 'Ungroup', 'Delete'];
+  const order = ['Duplicate', 'Copy card', 'Lock', 'Bring to front', 'Ungroup', 'Delete'];
   const card = labels(actionsFor(selectionTarget(model(['c1'])), ctx));
-  const at = name => card.indexOf(name);
-  for (const name of ['Duplicate', 'Copy', 'Lock', 'Bring to front', 'Delete']) assert.ok(at(name) >= 0, `${name} in ${card}`);
-  assert.deepEqual(['Duplicate', 'Copy', 'Lock', 'Bring to front', 'Delete'].map(at), ['Duplicate', 'Copy', 'Lock', 'Bring to front', 'Delete'].map(at).slice().sort((a, b) => a - b));
+  const at = name => card.indexOf(name.replace('Copy card', 'Copy card'));
+  for (const name of ['Duplicate', 'Copy card', 'Lock', 'Bring to front', 'Delete']) assert.ok(at(name) >= 0, `${name} in ${card}`);
+  assert.deepEqual(['Duplicate', 'Copy card', 'Lock', 'Bring to front', 'Delete'].map(at), ['Duplicate', 'Copy card', 'Lock', 'Bring to front', 'Delete'].map(at).slice().sort((a, b) => a - b));
   const group = labels(actionsFor(resolveTarget(el('div', { 'data-group-chip': 'g1' }), model([])), ctx));
   const g = name => group.indexOf(name);
   assert.ok(g('Duplicate') < g('Copy') && g('Copy') < g('Lock') && g('Lock') < g('Bring to front') && g('Bring to front') < g('Ungroup') && g('Ungroup') < g('Delete group and contents'), group.join(', '));
@@ -131,7 +131,7 @@ test('common actions: Duplicate, Copy, Lock, Arrange, Group and Delete in one or
   rows.forEach((row, n) => assert.ok(!(row.separator && rows[n + 1]?.separator)));
 });
 
-test('clarity: Copy vs Copy LaTeX, Ungroup keeps contents, the group delete says it deletes the contents', () => {
+test('clarity: Copy card vs Copy LaTeX, Ungroup keeps contents, the group delete says it deletes the contents', () => {
   const { ctx } = fakeCtx();
   const eq = labels(actionsFor(selectionTarget(model(['eq'])), ctx));
   assert.ok(eq.includes('Copy LaTeX') && eq.includes('Copy') && !eq.includes('Copy card'), eq.join(', '));
@@ -342,7 +342,7 @@ test("S1's can() for every role: opening any menu calls no handler, guests and v
     for (const target of targets()) actionsFor(target, ctx);
     assert.deepEqual(calls, [], `${role}: opening menus ran nothing`);
     const names = labels(actionsFor(selectionTarget(model(['c1'])), ctx));
-    assert.ok(names.includes('Duplicate') && names.includes('Copy'), `${role}: ${names.join(', ')}`);
+    assert.ok(names.includes('Duplicate') && names.includes('Copy card'), `${role}: ${names.join(', ')}`);
     const link = actionsFor(selectionTarget(model([])), ctx).find(row => row.id === 'link-canvas');
     assert.equal(link?.disabled ?? null, shared && role !== 'editor' ? true : false, `${role}: Link to canvas writes the source`);
     const start = actionsFor(selectionTarget(model(['c1'])), ctx).find(row => row.id === 'start-rabbit-hole');
@@ -355,16 +355,16 @@ test("S1's can() for every role: opening any menu calls no handler, guests and v
 test('hints: platform spelling, aria keys from the same row, and only where the key does that exact action', () => {
   const rowsOf = (target, mac = false) => Object.fromEntries(actionsFor(target, { ...fakeCtx().ctx, mac }).filter(row => !row.separator).map(row => [row.label, row]));
   const card = rowsOf(selectionTarget(model(['c1'])));
-  assert.deepEqual(['Add to chat', 'Quick Edit', 'Duplicate', 'Copy', 'Fit selection', 'Delete', 'Add comment'].map(label => [label, card[label]?.hint]),
-    [['Add to chat', 'Ctrl+L'], ['Quick Edit', 'Ctrl+K'], ['Duplicate', 'Ctrl+D'], ['Copy', 'Ctrl+C'], ['Fit selection', 'Shift+2'], ['Delete', 'Delete'], ['Add comment', 'C']]);
+  assert.deepEqual(['Add to chat', 'Quick Edit', 'Duplicate', 'Copy card', 'Fit selection', 'Delete', 'Add comment'].map(label => [label, card[label]?.hint]),
+    [['Add to chat', 'Ctrl+L'], ['Quick Edit', 'Ctrl+K'], ['Duplicate', 'Ctrl+D'], ['Copy card', 'Ctrl+C'], ['Fit selection', 'Shift+2'], ['Delete', 'Delete'], ['Add comment', 'C']]);
   assert.deepEqual([card['Quick Edit'].keyshortcuts, card.Delete.keyshortcuts, card['Fit selection'].keyshortcuts], ['Control+K', 'Delete Backspace', 'Shift+2']);
   assert.equal(card['Zoom to selection'], undefined, 'the View menu\'s name, Fit selection');
   const mac = rowsOf(selectionTarget(model(['c1'])), true);
-  assert.deepEqual(['Add to chat', 'Quick Edit', 'Copy', 'Delete'].map(label => mac[label].hint), ['⌘L', '⌘K', '⌘C', 'Delete ⌫']);
+  assert.deepEqual(['Add to chat', 'Quick Edit', 'Copy card', 'Delete'].map(label => mac[label].hint), ['⌘L', '⌘K', '⌘C', 'Delete ⌫']);
   assert.equal(mac['Quick Edit'].keyshortcuts, 'Meta+K');
   // Text selected in the card: Ctrl/Cmd+C copies that text, so the key moves to Copy selected text and Copy card has none.
   const quoted = rowsOf({ ...selectionTarget(model(['c1'])), part: { kind: 'text', text: 'softmax' } });
-  assert.deepEqual([quoted['Copy selected text'].hint, quoted.Copy.hint, quoted.Cut.hint], ['Ctrl+C', null, null]);
+  assert.deepEqual([quoted['Copy selected text'].hint, quoted['Copy card'].hint, quoted.Cut.hint], ['Ctrl+C', null, null]);
   // Enter edits the one selected note, shape or line label (the same editSelected); Edit LaTeX has no key.
   assert.equal(rowsOf(selectionTarget(model(['n1'])))['Edit text'].hint, 'Enter');
   assert.equal(rowsOf(selectionTarget(model(['l1'])))['Edit label'].hint, 'Enter');
@@ -372,19 +372,7 @@ test('hints: platform spelling, aria keys from the same row, and only where the 
   assert.equal(rowsOf(selectionTarget(model(['eq'])), true)['Edit LaTeX'].keyshortcuts, null);
   // Similar names never borrow a key: Focus, Delete Rabbit Hole, Rename, the canvas's Add text and Add sticky note.
   const keyed = Object.fromEntries(allActions().map(entry => [entry.id, entry.keys]));
-  for (const id of ['card.focus', 'delete-rabbit-hole', 'canvas.add-text', 'canvas.add-sticky', 'selection.add-to-chat', 'study.pin', 'notebook.run-all', 'notebook.restart', 'equation.edit', 'cad.reset-view'])
+  for (const id of ['card.focus', 'delete-rabbit-hole', 'rename', 'canvas.add-text', 'canvas.add-sticky', 'selection.add-to-chat', 'study.pin', 'notebook.run-all', 'notebook.restart', 'equation.edit', 'cad.reset-view'])
     assert.equal(keyed[id], undefined, `${id} has no key`);
   assert.equal(keyed['card.open'], 'open-card');
-  assert.deepEqual([keyed.rename, keyed['full-content']], ['rename', 'full-content'], 'Rename (F2) and Full content (Shift+F) are keyed since the owner asked, 2026-11-07');
-});
-
-test('the menu greys a disabled row and says nothing: no reason line or tooltip, only the short sign-in reason (owner 2026-11-07)', async () => {
-  const { readFileSync } = await import('node:fs');
-  const menu = readFileSync(new URL('./CanvasMenu.jsx', import.meta.url), 'utf8');
-  assert.ok(menu.includes('const reason = row.signIn ? row.reason : null;'));
-  assert.ok(menu.includes('title={reason || undefined}'));
-  assert.ok(menu.includes('{reason && <span data-menu-reason'));
-  assert.ok(!menu.includes('row.reason && <span'));
-  assert.ok(menu.includes('<Check size={14} strokeWidth={2.5} className="text-accent" />'), 'a checked row (Full content) shows its check in the app blue (--color-accent)');
-  assert.equal(labels(actionsFor(selectionTarget(model(['c1'])), fakeCtx().ctx)).includes('Copy card'), false, 'the card row is named Copy');
 });

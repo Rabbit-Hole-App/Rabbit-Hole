@@ -65,8 +65,8 @@ test('Focus shows one title (the card hides its own kicker and title) and the ca
   const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
   assert.match(css, /\[data-focus-host\] \[data-focus-hide\] \{ display: none; \}/);
   assert.match(css, /\[data-focus-host\]:has\(\[data-program-viewport\]\) \{ overflow: auto !important; overscroll-behavior: contain; \}/, 'one surface scrolls, and its end never scrolls the page under it');
-  assert.match(readFileSync(new URL('../LearningBlocks.jsx', import.meta.url), 'utf8'), /<div data-focus-hide><Kicker block=\{block\}>/);
-  assert.match(readFileSync(new URL('../LearningBlocks.jsx', import.meta.url), 'utf8'), /<div data-explanation-head data-focus-hide className="shrink-0">\s*\{block\.anchor\s*\? <CardHeader [^\n]*\/>\s*: <Kicker block=\{block\} size="lg"[^\n]*>Explanation<\/Kicker>\}/, 'a text Explanation too (its CORE.09 pinned header, now with the type icon: owner 2026-11-07)');
+  assert.match(readFileSync(new URL('../LearningBlocks.jsx', import.meta.url), 'utf8'), /<div data-focus-hide><Kicker>/);
+  assert.match(readFileSync(new URL('../LearningBlocks.jsx', import.meta.url), 'utf8'), /<div data-explanation-head data-focus-hide [^>]*>\s*\{!block\.anchor && <Kicker [^\n]*?>Explanation<\/Kicker>\}/, 'a text Explanation too (its CORE.09 header)');
   const canvas = readFileSync(new URL('../AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   assert.match(canvas, /const drawnWidgets = focusWidgets\(\{ minimap, holeMap, curious \}, !!focus\);/);
   assert.match(canvas, /\{drawnWidgets\.minimap && <div data-canvas-minimap>/);

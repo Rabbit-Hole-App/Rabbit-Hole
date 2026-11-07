@@ -20,8 +20,8 @@ const harness = reply => {
 // Owner spec 2026-10-29: the 18 commands in three shared sections (the same in Ctrl+K and the Slash Commands window); no More section.
 test('/ opens the grouped picker: LEARN, CREATE and SEARCH hold every offered command', () => {
   const sections = pickerSections('/');
-  assert.deepEqual(sections.map(section => section.title), ['Tutor', 'Create', 'Search']); // owner 2026-11-07: the first section reads Tutor (its key stays learn)
-  assert.deepEqual(sections[0].items.map(item => item.name), ['explanation', 'explain', 'practice', 'quiz', 'flashcards', 'goal']);
+  assert.deepEqual(sections.map(section => section.title), ['Learn', 'Create', 'Search']);
+  assert.deepEqual(sections[0].items.map(item => item.name), ['explain', 'practice', 'quiz', 'flashcards', 'goal']);
   assert.deepEqual(sections[1].items.map(item => item.name), ['code', 'graph', 'diagram', 'notebook', 'cad', 'animation', '3d', 'browser']);
   // A Motion build and an account offered image generation add /motion and /image (id generate-image) in their places.
   assert.deepEqual(pickerSections('/', { motionDev: true, imageGeneration: true })[1].items.map(item => item.name), ['code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', 'animation', '3d', 'browser']);
@@ -114,17 +114,17 @@ test('brief commands on a Chat canvas: the words go to the brief, nothing is gen
   assert.equal((await direct.run('/quiz forces')).notice.text, 'Added a quiz.');
 });
 
-// Owner spec 2026-10-29 5.2: a bare /interactive (was /explain; id explain) with a selected card is the same explicit job as a typed one, about that card.
-test('/interactive with no words: about the selected card through the same job, else it asks; never the legacy route', async () => {
+// Owner spec 2026-10-29 5.2: a bare /explain with a selected card is the same explicit job as a typed one, about that card.
+test('/explain with no words: about the selected card through the same job, else it asks; never the legacy route', async () => {
   const started = [];
   const canvas = { startExplain: async (words, options) => { started.push([words, options.context]); return { blockId: 'ex-1' }; }, reserve: () => 'slot', release: () => {}, insertBlock: () => 'b' };
   const post = async () => { throw Error('no legacy request'); };
-  const out = await runLearnCommand('/interactive', { app: 'demo', target: { id: 'card-1', title: 'Heaps', text: 'A heap is a tree.' }, canvas, post });
+  const out = await runLearnCommand('/explain', { app: 'demo', target: { id: 'card-1', title: 'Heaps', text: 'A heap is a tree.' }, canvas, post });
   assert.equal(out.notice.blockId, 'ex-1');
   assert.deepEqual(started, [['the selected card "Heaps"', 'A heap is a tree.']]);
-  const asked = await runLearnCommand('/interactive', { app: 'demo', canvas, post });
+  const asked = await runLearnCommand('/explain', { app: 'demo', canvas, post });
   assert.equal(asked.notice.tone, 'question');
-  assert.equal(asked.keep, '/interactive ');
+  assert.equal(asked.keep, '/explain ');
 });
 
 // Owner spec 2026-10-29 5.3: Enter on a command typed in full runs it; a partial word only accepts the suggestion.
@@ -205,24 +205,24 @@ test('a paid result waits for Generate; a question, an unsupported primitive or 
 
 // L10 (owner, 2026-10-21): a failed interactive explanation inserts nothing and never turns into text by itself; it gives the
 // line back to retry and offers a plain explanation, whose line narrows /explain to text. A made one names itself.
-test('/interactive: a made interactive explanation is inserted; a failed one keeps the line and offers a plain explanation', async () => {
+test('/explain: a made interactive explanation is inserted; a failed one keeps the line and offers a plain explanation', async () => {
   const made = harness({ result: 'artifact', primitive: 'animation', block: { type: 'animation', title: 'T', scene: { id: 's', duration: 1, objects: [], timeline: [] } } });
-  const out = await made.run('/interactive interactive binary search');
+  const out = await made.run('/explain interactive binary search');
   assert.equal(out.notice.text, 'Added an interactive explanation.');
   assert.equal(made.did.find(entry => entry[0] === 'block')[1].type, 'animation');
   const failed = harness({ result: 'validation_error', primitive: 'animation', error: 'grid "g" carries values and must declare matrixKind' });
-  const notice = await failed.run('/interactive interactive binary search');
+  const notice = await failed.run('/explain interactive binary search');
   assert.ok(!failed.did.some(entry => entry[0] === 'block'));
   assert.equal(notice.notice.tone, 'error');
-  assert.equal(notice.keep, '/interactive interactive binary search');
+  assert.equal(notice.keep, '/explain interactive binary search');
   assert.match(notice.notice.detail, /matrixKind/);
   // A verifier refusal shows its first finding, without the numbering.
   const checked = harness({ result: 'validation_error', primitive: 'animation', error: 'A check of the card found statements that are false: 1) "readout" says "leaving 1.248", against "[1.25]": 80 x (1/2)^6 = 1.25 exactly. 2) "other" says "x": y' });
-  assert.equal((await checked.run('/interactive interactive half-life')).notice.detail, '"readout" says "leaving 1.248", against "[1.25]": 80 x (1/2)^6 = 1.25 exactly.');
-  assert.deepEqual(notice.notice.actions, [{ label: 'Make a plain explanation instead', line: '/explain interactive binary search' }]); // the written command is /explain now (owner 2026-11-07)
+  assert.equal((await checked.run('/explain interactive half-life')).notice.detail, '"readout" says "leaving 1.248", against "[1.25]": 80 x (1/2)^6 = 1.25 exactly.');
+  assert.deepEqual(notice.notice.actions, [{ label: 'Make a plain explanation instead', line: '/explain in plain text: interactive binary search' }]);
   const plain = harness({ result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'B', body: 'b' } });
   await plain.run(notice.notice.actions[0].line);
-  assert.deepEqual([plain.did.find(entry => entry[0] === 'post')[2].command, plain.did.find(entry => entry[0] === 'post')[2].args], ['explanation', 'interactive binary search'], 'the plain line is the written command, id explanation');
+  assert.equal(plain.did.find(entry => entry[0] === 'post')[2].args, 'in plain text: interactive binary search');
 });
 
 // A card the model could not make valid after its one repair: plain words for the learner, the validator's words kept as the detail.
@@ -326,7 +326,7 @@ const slotHarness = reply => {
 
 test('a card command reserves before the request and its card takes that slot', async () => {
   const { did, run } = slotHarness({ result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'T', body: 'B' } });
-  const out = await run('/explain why a token id is only an index'); // the written command (id explanation)
+  const out = await run('/explain why a token id is only an index');
   assert.deepEqual(did, [['reserve', { label: 'Creating /explain', card: 'explanation' }], ['post', true], ['block', 'explanation', { into: 'slot:1' }]], 'the card keeps its typed line; the prompt is hidden until asked for, so the slot reserves no row (owner brief 2026-10-23)');
   assert.equal(out.notice.blockId, 'card-1');
   // Sized as the command's own card: /graph as a graph, /quiz as a quiz.
@@ -555,19 +555,19 @@ test('/motion with a selected card: the chat turn sends it as context.selection,
 test('/explain carries the attached image as a layout reference; an image alone asks first and sends nothing', async () => {
   const card = { result: 'artifact', primitive: 'animation', block: { type: 'animation', title: 'Heap' } };
   const { did, run } = harness(card);
-  await run('/interactive how this heap keeps its order', { id: 'card-1', title: 'Heap photo', image: 'media:0123456789ab' });
+  await run('/explain how this heap keeps its order', { id: 'card-1', title: 'Heap photo', image: 'media:0123456789ab' });
   const [, path, body] = did.find(entry => entry[0] === 'post');
   assert.equal(path, '/api/learn/artifact');
   assert.deepEqual([body.command, body.args, body.image_context, body.image_role], ['explain', 'how this heap keeps its order', { id: 'media:0123456789ab' }, 'layout_reference']);
   assert.ok(!JSON.stringify(body).includes('http'), 'no browser URL');
   const alone = harness(card);
-  const asked = await alone.run('/interactive', { id: 'card-1', title: 'Heap photo', image: 'media:0123456789ab' });
+  const asked = await alone.run('/explain', { id: 'card-1', title: 'Heap photo', image: 'media:0123456789ab' });
   assert.equal(asked.notice.tone, 'question');
-  assert.equal(asked.keep, '/interactive ');
+  assert.equal(asked.keep, '/explain ');
   assert.deepEqual(alone.did, [], 'no call and no card');
   // Other commands and an image-less /explain send no image.
   const plain = harness(card);
-  await plain.run('/interactive how heaps work', { id: 'card-2', title: 'Notes' });
+  await plain.run('/explain how heaps work', { id: 'card-2', title: 'Notes' });
   await plain.run('/quiz heaps', { id: 'card-1', title: 'Heap photo', image: 'media:0123456789ab' });
   for (const [, , sent] of plain.did.filter(entry => entry[0] === 'post')) assert.equal(sent.image_context, undefined);
 });
@@ -578,17 +578,17 @@ test('/explain takes the composer image when the target has none, and waits for 
   const did = [];
   const run = (text, target, attachedImage) => runLearnCommand(text, { app: 'demo', target, attachedImage, canvas: { insertBlock: () => did.push('block') },
     post: async (path, body) => { did.push(['post', body]); return card; }, openSearch: () => {} });
-  await run('/interactive how this sorts', null, 'media:aaaaaaaaaaaa');
+  await run('/explain how this sorts', null, 'media:aaaaaaaaaaaa');
   assert.deepEqual(did.find(entry => entry[0] === 'post')[1].image_context, { id: 'media:aaaaaaaaaaaa' });
   did.length = 0;
   // A crop's own uploaded pixels win over the composer image; its text (the cards inside) rides as context.
-  await run('/interactive this part', { id: 'area:1', title: 'Selected area', text: 'Cards inside: Heap', preview: 'data:image/png;base64,AA', image: 'media:bbbbbbbbbbbb' }, 'media:aaaaaaaaaaaa');
+  await run('/explain this part', { id: 'area:1', title: 'Selected area', text: 'Cards inside: Heap', preview: 'data:image/png;base64,AA', image: 'media:bbbbbbbbbbbb' }, 'media:aaaaaaaaaaaa');
   const sent = did.find(entry => entry[0] === 'post')[1];
   assert.deepEqual([sent.image_context, sent.image_role, sent.context], [{ id: 'media:bbbbbbbbbbbb' }, 'layout_reference', 'Cards inside: Heap']);
   assert.ok(!JSON.stringify(sent).includes('data:image'), 'the browser preview never rides');
   did.length = 0;
-  const waiting = await run('/interactive this part', { id: 'area:2', title: 'Selected area', preview: 'data:image/png;base64,AA' }, null);
+  const waiting = await run('/explain this part', { id: 'area:2', title: 'Selected area', preview: 'data:image/png;base64,AA' }, null);
   assert.equal(waiting.notice.tone, 'info');
-  assert.equal(waiting.keep, '/interactive this part ');
+  assert.equal(waiting.keep, '/explain this part ');
   assert.deepEqual(did, [], 'nothing sent until the crop is attached');
 });

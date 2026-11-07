@@ -24,7 +24,7 @@ Release B wherever they disagree; those sections are history.
 
 | Section | Commands (display name; typed with a leading /) |
 |---|---|
-| Tutor (key `learn`) | explain, interactive, practice, quiz, flashcards, goal (owner 2026-11-07: see "/explain and /interactive" below) |
+| Learn | explain, practice, quiz, flashcards, goal |
 | Create | code, graph, diagram, notebook, image, motion, cad, 3d, browser |
 | Search | photos, youtube, arxiv, wikipedia |
 
@@ -400,33 +400,6 @@ workspace from the sidebar to the window edge and passes `flat`, a hairline shad
 radius, border, `+`, Auto and Send stay shared; the Learn composer keeps its float and width. `wp6-composer-parity`'s
 shadow comparison predates this and needs the same exception.
 
-## /explain and /interactive (owner 2026-11-07)
-
-Binding. `/explain` is split in two; each command selects its format directly.
-
-| Typed | Internal id | Makes | Path |
-|---|---|---|---|
-| `/explain` | `explanation` (new) | one written Explanation card: Tutor's Explanation writer and renderer, Depth, the selected source, Markdown tables, Mermaid | direct: `/api/learn/artifact` with command `explanation` (family `['explanation']`, `DEPTH_COMMANDS`, `explanationProblem` caps 600/1000/1500), no brief, no job, free |
-| `/interactive` | `explain` (unchanged) | a playable visual with controls | the existing explain job, brief and approval (`explain-job.js`, `explain-brief.js`, `startExplain`); where the job is off, today's direct path |
-
-- **Saved bindings are never remapped.** Every saved message, draft, proposal, job and Tutor material that carries `explain` still
-  means the interactive flow, and keeps its narrowing words (`PLAIN_WORDS`, `INTERACTIVE_WORDS`) so a replayed request resolves
-  identically. A saved message `/explain …` made before 2026-11-07 stores
-  command `explain` (or none, and `command-token.js sentCommand` reads a leading `/explain` as the id `explain` first), so it
-  restores as the interactive pill, and `/explain` re-typed now is the written command. New messages store the id (`lineCommand`).
-- The Tutor's roadmap writer still uses id `explain` with a trusted `only` set and no words; its family is unchanged. Inline
-  (Ctrl+K typed route): `explanation` runs the existing inline `explain` Explanation-card route (`INLINE_COMMAND_ROUTE`); `explain`
-  (/interactive) is not inline (`NOT_INLINE`).
-- Both are first in the first section, in the `/` picker, Ctrl+K and View > Slash Commands, from the one registry. That section
-  reads **Tutor** (`MENU_TITLES.learn`, `agent/slash.js`); the group key `learn`, every `places` value and permission are unchanged.
-- Slash Commands window: `/explain` previews the saved cooling answer in the real Explanation card with a rendered Markdown table
-  (`slash-examples/explanation-cooling.json`); `/interactive` keeps the playable coffee-cooling scene. Use example fills the composer
-  (pill and words) and never sends: `/explain Why does coffee cool faster at first? Include a small table comparing early and late
-  cooling.` and `/interactive how a hot coffee cools in a cold room, and let me change the room temperature`.
-- Tones: `--cmd-explanation-*` (green) and the existing `--cmd-explain-*`; no command carries an icon.
-- Checks: `explain-split.test.mjs`, `slash.test.mjs`, `learn-slash.test.mjs`, `chat-capability-route.test.js`, `learn-artifact.test.js`.
-  Not seen in a browser.
-
 ## Slash Commands window (owner spec 2026-10-29 sections 7 to 9)
 
 Opened from **View > Slash Commands** (the canvas menubar, `canvas-menus.js` `onSlashCommands`; a canvas with no Chat composer has no
@@ -434,7 +407,7 @@ row) and from the / palette's help button; both open LearnPage's `slashHelpOpen`
 
 - Copy: title **Slash Commands**; subtitle **Choose a command to see what it does and try an example.**; search **Find a command**;
   **Use example**; **View brief** / **View result**; note **Example preview. Nothing is generated or saved here.**
-- It lists `pickerSections('/')` (Tutor, Create, Search), so it shows what the picker offers in this build. Each command shows its
+- It lists `pickerSections('/')` (Learn, Create, Search), so it shows what the picker offers in this build. Each command shows its
   registry title (`desc`), description (`about`) and example (`learn-slash.js` `EXAMPLES`), then one preview on the example's
   subject (`slash-sheet.js` `PREVIEWS`, help/demo data only). Generators show the finished result; View brief shows the same
   stage's brief in the shared `GenerationProposalCard` with no action allowed (`slash-sheet.js` `BRIEFS`, `briefView`).

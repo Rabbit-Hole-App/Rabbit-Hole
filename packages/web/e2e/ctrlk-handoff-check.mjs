@@ -243,8 +243,8 @@ try {
   const editor2 = p2.locator('[data-inline-ai]'), field2 = p2.locator('[data-inline-prompt]');
   await editor2.waitFor({ timeout: 10000 });
   await field2.fill('/');
-  await p2.locator('[data-inline-command-option="explanation"]').click();
-  ok('Ctrl+K: picked /explain shows the explain pill (id explanation, typed explain; /interactive is id explain)', (await editor2.locator('[data-command-pill="explanation"]').count()) === 1 && (await editor2.locator('[data-command-pill]').innerText()).trim() === 'explain');
+  await p2.locator('[data-inline-command-option="explain"]').click();
+  ok('Ctrl+K: picked /explain shows the explain pill', (await editor2.locator('[data-command-pill="explain"]').count()) === 1 && (await editor2.locator('[data-command-pill]').innerText()).trim() === 'explain');
   await editor2.getByRole('button', { name: 'Remove Explanation', exact: true }).click();
   await field2.fill('/');
   await p2.locator('[data-inline-command-option="quiz"]').click();

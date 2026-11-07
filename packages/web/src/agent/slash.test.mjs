@@ -11,15 +11,14 @@ const names = (list) => list.map((c) => c.name);
 // Owner, 2026-10-30 (docs/superpowers/plans/2026-10-30-animation.md sections 3 and 17): /animation is added, so 19.
 // Owner roadmap 2026-11-04 (rabbit-hole-whiteboard-roadmap-v1.md 5.1): /whiteboard returns as the whiteboard video (id
 // whiteboard-video), so 20; it needs the server's whiteboard offer.
-// Owner, 2026-11-07: /explain is split into the written /explain (id `explanation`) and the playable /interactive (id `explain`, every saved binding kept), so 21.
-const PUBLIC = ['explanation', 'explain', 'practice', 'quiz', 'flashcards', 'goal', 'code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', 'animation', 'whiteboard-video', '3d', 'browser', 'image', 'youtube', 'arxiv', 'wikipedia'];
+const PUBLIC = ['explain', 'practice', 'quiz', 'flashcards', 'goal', 'code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', 'animation', 'whiteboard-video', '3d', 'browser', 'image', 'youtube', 'arxiv', 'wikipedia'];
 const LEARN = PUBLIC.filter((n) => n !== 'motion' && n !== 'generate-image' && n !== 'whiteboard-video');
 
-test('exactly 21 public commands in the shared sections; the removed two are gone and /browser is one entry', () => {
-  assert.equal(SLASH.length, 21);
+test('exactly 20 public commands in the shared sections; the removed two are gone and /browser is one entry', () => {
+  assert.equal(SLASH.length, 20);
   assert.deepEqual(names(SLASH), PUBLIC);
   assert.deepEqual([...LEARN_MENU.learn, ...LEARN_MENU.create, ...LEARN_MENU.search], PUBLIC, 'every command in exactly one section, in order');
-  assert.deepEqual(LEARN_MENU.learn, ['explanation', 'explain', 'practice', 'quiz', 'flashcards', 'goal']);
+  assert.deepEqual(LEARN_MENU.learn, ['explain', 'practice', 'quiz', 'flashcards', 'goal']);
   assert.deepEqual(LEARN_MENU.create, ['code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', 'animation', 'whiteboard-video', '3d', 'browser']);
   assert.deepEqual(LEARN_MENU.search, ['image', 'youtube', 'arxiv', 'wikipedia']);
   for (const name of ['dive', 'video']) assert.ok(!names(SLASH).includes(name) && REMOVED_COMMANDS.includes(name), name);
@@ -58,8 +57,7 @@ test('a Learn command becomes one semantic request with the selection as context
     { kind: 'learn', command: 'quiz', family: 'quiz', allowedPrimitives: ['quiz'], deterministic: false, paid: [], prompt: 'Ask me one short question on the selected card "Attention · Guided", then wait for my answer. Focus: the softmax.', context: card, selection: card });
   assert.deepEqual(learnRequest('notebook', { args: 'for experimenting with softmax' }),
     { kind: 'learn', command: 'notebook', family: 'notebook', allowedPrimitives: ['notebook'], deterministic: true, paid: [], action: 'insert_notebook', prompt: 'for experimenting with softmax', context: null, selection: null });
-  assert.equal(learnRequest('explanation').prompt, 'Explanation for the current concept.');
-  assert.equal(learnRequest('explain').prompt, 'Interactive for the current concept.');
+  assert.equal(learnRequest('explain').prompt, 'Explanation for the current concept.');
   for (const name of ['find', 'source', 'paper', 'deeper', 'ask', 'more']) assert.throws(() => learnRequest(name), /not a Learn command/, name);
 });
 
@@ -93,18 +91,12 @@ const FAMILIES = {
 // Owner, 2026-10-21 (L10): interactive scenes are /explain's and the Tutor's explanation material only - no other command or
 // material tool (compare, /animate) may make one. Words pick the form: plain text never gets a scene, an interactive request
 // never gets text instead; neither is a topic rule.
-test('only /interactive (id explain) makes an interactive scene; the written /explain (id explanation) never does, whatever the words (owner 2026-11-07)', () => {
+test('only /explain makes an interactive scene, and the learner words can pick scene or text', () => {
   assert.deepEqual(commandsFor('learn', { internal: true }).filter((c) => c.family?.includes('animation')).map((c) => c.name), ['explain']);
-  // REPLAY: the saved id explain resolves exactly as it did before the split (the same words, the same sets), so a replayed request is unchanged.
   assert.deepEqual(learnRequest('explain', { args: 'an interactive look at how binary search narrows the range' }).allowedPrimitives, ['animation']);
   assert.deepEqual(learnRequest('explain', { args: 'a simulation of supply and demand' }).allowedPrimitives, ['animation']);
   assert.deepEqual(learnRequest('explain', { args: 'in plain text: an interactive projectile' }).allowedPrimitives, ['explanation']);
   assert.deepEqual(learnRequest('explain', { args: 'how compound interest grows' }).allowedPrimitives, FAMILIES.explain);
-  // The written command has one primitive: the Explanation card. Words never narrow it, widen it or reach the scene.
-  for (const args of ['how compound interest grows', 'an interactive simulation of supply and demand', 'in plain text: a projectile', ''])
-    assert.deepEqual(learnRequest('explanation', { args }).allowedPrimitives, ['explanation'], args);
-  // The server writes the Tutor's roadmap cards through id explain with a trusted only set and NO words: the whole family stays available.
-  assert.deepEqual(learnRequest('explain', { args: '' }).allowedPrimitives, FAMILIES.explain);
 });
 
 test('each tool or narrowed intent names exactly its allowed primitives', () => {
@@ -123,8 +115,8 @@ test('media: /photos (id image) only searches, /image (id generate-image) only g
   assert.deepEqual(learnRequest('generate-image').allowedPrimitives, ['image_generate']);
   assert.deepEqual(learnRequest('video').allowedPrimitives, ['video_generate'], 'the Tutor\'s internal material tool');
   assert.deepEqual([learnRequest('youtube').action, learnRequest('youtube').allowedPrimitives], ['open_source', null]);
-  assert.deepEqual(['image', 'generate-image', 'youtube', '3d', 'explanation', 'explain', 'browser'].map((n) => descFor(toolOf(n), 'learn')),
-    ['Photo search', 'Image generation', 'YouTube search', '3D scene', 'Explanation', 'Interactive', 'Browser']);
+  assert.deepEqual(['image', 'generate-image', 'youtube', '3d', 'explain', 'browser'].map((n) => descFor(toolOf(n), 'learn')),
+    ['Photo search', 'Image generation', 'YouTube search', '3D scene', 'Explanation', 'Browser']);
 });
 
 // Owner, 2026-10-26: the typed names. /image is the paid generation, /photos the photo search, /generate-image still works as
@@ -143,8 +135,8 @@ test('typed names: /image resolves to generate-image, /photos to the photo searc
   assert.equal(resolveCommand('/photos Mount Fuji', 'learn').arg, 'Mount Fuji');
   assert.ok(!SLASH.some((c) => c.name === 'imagine' || c.typed === 'imagine' || c.aliases?.includes('imagine')));
   // ids <-> typed names, and a name nothing types is its own.
-  assert.deepEqual(['image', 'generate-image', 'explanation', 'explain', 'simplify'].map(typedOf), ['photos', 'image', 'explain', 'interactive', 'simplify']);
-  assert.deepEqual(['photos', 'image', 'generate-image', 'explain', 'interactive', 'simplify', 'imagine'].map(idOfTyped), ['image', 'generate-image', 'generate-image', 'explanation', 'explain', 'simplify', 'imagine']);
+  assert.deepEqual(['image', 'generate-image', 'explain', 'simplify'].map(typedOf), ['photos', 'image', 'explain', 'simplify']);
+  assert.deepEqual(['photos', 'image', 'generate-image', 'explain', 'simplify', 'imagine'].map(idOfTyped), ['image', 'generate-image', 'generate-image', 'explain', 'simplify', 'imagine']);
   // Every typed name and alias of an entry resolves to it and to no other entry.
   for (const entry of SLASH) for (const word of [typedOf(entry.name), ...(entry.aliases || [])]) assert.equal(idOfTyped(word), entry.name, `${entry.name}: ${word}`);
   // The menu reads the titles (the pill shows the typed name, CommandPill.jsx).
@@ -239,7 +231,7 @@ test('every command has a kind; the source ones open the finder', () => {
 
 test('labels: the command\'s title, never a /name', () => {
   assert.deepEqual(['youtube', 'arxiv', 'wikipedia', 'image'].map((n) => labelOf(toolOf(n))), ['YouTube search', 'arXiv search', 'Wikipedia search', 'Photo search']);
-  assert.deepEqual(['explanation', 'explain', '3d', 'cad', 'practice', 'quiz', 'graph', 'goal'].map((n) => labelOf(toolOf(n))), ['Explanation', 'Interactive', '3D scene', 'CAD model', 'Practice', 'Quiz', 'Graph', 'Learning goal']);
+  assert.deepEqual(['explain', '3d', 'cad', 'practice', 'quiz', 'graph', 'goal'].map((n) => labelOf(toolOf(n))), ['Explanation', '3D scene', 'CAD model', 'Practice', 'Quiz', 'Graph', 'Learning goal']);
   // A saved message's removed command still reads as words.
   assert.equal(labelOf({ name: 'simplify' }), 'Simplify');
 });
@@ -264,8 +256,7 @@ test('resolveCommand: a typed command is the very entry the picker lists; an uno
       assert.equal(typed.arg, 'some words');
     }
   }
-  assert.deepEqual(resolveCommand('  /Explain   why softmax  ', 'ctrlk'), { command: toolOf('explanation'), arg: 'why softmax' }, 'typed /explain is the written command');
-  assert.deepEqual(resolveCommand(' /Interactive  why softmax ', 'ctrlk'), { command: toolOf('explain'), arg: 'why softmax' }, 'typed /interactive keeps the original id');
+  assert.deepEqual(resolveCommand('  /Explain   why softmax  ', 'ctrlk'), { command: toolOf('explain'), arg: 'why softmax' });
   assert.deepEqual(resolveCommand('/youtube', 'chat'), { command: toolOf('youtube'), arg: '' });
   // Every Learn command resolves alike in Ctrl+K and Chat (one dispatcher).
   for (const name of ['quiz', 'notebook', 'practice', 'goal', 'browser']) {

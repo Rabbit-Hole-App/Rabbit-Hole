@@ -191,7 +191,7 @@ test('RoadmapTranscript renders entries through ChatMessage with the controls th
   assert.match(render(at('create-response-draft')), /Generating roadmap/);
 });
 
-test('a saved entry renders in place: live when its ids are current, else as history with no button and a one-line outcome', () => {
+test('a saved entry renders in place: live when its ids are current, else as history with its actions disabled', () => {
   const state = at('status-proposed-plan');
   const live = entriesOf(state).find(e => e.kind === 'draft');
   const m = { role: 'assistant', content: live.content, clientId: live.clientId, meta: { tutor: live.tutor } };
@@ -200,8 +200,7 @@ test('a saved entry renders in place: live when its ids are current, else as his
   assert.match(shown, /data-roadmap-accept-plan="true" class="[^"]*">Accept roadmap/, 'live: enabled');
   const stale = lib.renderToStaticMarkup(lib.createElement(lib.TutorMessage, { m, roadmap: roadmapOf(at('status-active-proposal-pending')), chat }));
   assert.match(stale, /data-roadmap-stale/);
-  assert.doesNotMatch(stale, /<button[^>]*data-roadmap-accept-plan/, 'a superseded draft has no button at all, greyed or not');
-  assert.match(stale, /data-roadmap-outcome[^>]*>Replaced by a newer draft/);
+  assert.match(stale, /<button[^>]*data-roadmap-accept-plan[^>]*disabled=""|<button[^>]*disabled=""[^>]*data-roadmap-accept-plan/, 'a superseded draft cannot be accepted');
   // The live tail does not draw an entry the thread already holds.
   assert.doesNotMatch(render(state, [m]), /data-roadmap-accept-plan/);
 });

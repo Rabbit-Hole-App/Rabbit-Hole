@@ -52,14 +52,6 @@ export function cardParam(search) {
   const id = new URLSearchParams(search).get('card')?.trim();
   return id && id.length <= 200 ? id : null;
 }
-// The address of this page that focuses one card (card=<objectId>, read by cardParam on the owner and member pages): the current address with
-// card= set and the one-shot params (share, thread, comment) and the hash left out.
-export function cardLink(location, id) {
-  const url = new URL(location.href);
-  for (const key of ['card', 'share', 'thread', 'comment']) url.searchParams.delete(key);
-  url.searchParams.set('card', id);
-  return url.origin + url.pathname + url.search;
-}
 // The same address without card=, for history.replaceState.
 export function withoutCardParam(href) {
   const url = new URL(href);

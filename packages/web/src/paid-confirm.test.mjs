@@ -54,12 +54,10 @@ test('a /cad line shows as a display-only cad pill plus the prompt; the line is 
   assert.equal(render({ prompt: '/cad' }).includes('data-command-pill'), false); // only a /cad line with a prompt
 });
 
-test('Generate is first (inverse Button); Cancel follows as the plain text control: token classes, never white-on-something', () => {
+test('Cancel and Generate are the secondary and inverse Buttons: token classes, never white-on-something', () => {
   const html = render({});
   const cancel = classOf(html, 'data-paid-cancel'), generate = classOf(html, 'data-paid-generate');
-  assert.ok(html.indexOf('data-paid-generate') < html.indexOf('data-paid-cancel'), 'Generate, then Cancel');
-  for (const name of ['text-ink-2', 'hover:bg-hover']) assert.ok(cancel.includes(name), `Cancel has ${name}`);
-  assert.ok(!cancel.includes('border-line-strong'), 'Cancel is text, not a bordered button');
+  for (const name of ['bg-surface', 'text-ink', 'border-line-strong', 'hover:bg-hover', 'active:bg-active']) assert.ok(cancel.includes(name), `Cancel has ${name}`);
   for (const name of ['bg-ink', 'text-surface', 'hover:bg-ink/85', 'active:bg-ink/75']) assert.ok(generate.includes(name), `Generate has ${name}`);
   for (const button of [cancel, generate]) {
     assert.ok(button.some(name => name.startsWith('focus-visible:outline')), 'a visible keyboard focus');

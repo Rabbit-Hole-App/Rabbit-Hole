@@ -7,7 +7,6 @@
 // ponytail: a held card (unsupported claims) is refunded rather than regenerated once; a checked regeneration is a later change.
 import { authorRoute, generateRoadmapCard, quoteRoadmapCard, requestFingerprint } from './roadmap-generate.js';
 import { StateError } from './roadmap-contract.js';
-import { checkOffer, offFormats } from './roadmap-offer-readiness.js';
 import { sha256 } from './roadmap-source.js';
 import { checkRoadmapCard, withheldCause } from './roadmap-check.js';
 import { modelAdjudicator } from './roadmap-safety.js';
@@ -81,19 +80,14 @@ export async function quoteStepAcceptance(env, access, { roadmap, proposal }, de
   const step = await db.prepare('SELECT * FROM learn_roadmap_steps WHERE id = ? AND roadmap_id = ?').bind(proposal.step_id, roadmap.id).first();
   const got = await stepInput(env, access, roadmap, { step, proposal }, deps);
   if (got.error) throw new StateError(got.error === 'source' ? 'source_unavailable' : 'step_unavailable', 'This card cannot be prepared.', 409);
-  // BE.05a: the offer is confirmed again against what is true NOW (format switches, the pinned source just read above) before anything is priced or held. A stale
-  // or no-longer-ready offer is refused here with nothing written: zero author calls, no hold, no debit.
-  const planStep = (() => { try { return JSON.parse(got.planRow.plan_json)?.steps?.[step.position - 1] ?? null; } catch { return null; } })();
-  const verdict = checkOffer({ step: { ...step, format: proposal.format }, planStep, off: offFormats(env), source: { ok: true }, depth: got.rec.depth, sourceRevision: roadmap.source_rev });
-  if (!verdict.ready) throw Object.assign(new StateError('offer_unready', 'This card cannot be prepared right now.', 409), { verdict });
   const q = await quoteRoadmapCard(env, got.rec);
   if (q.outcome !== 'quoted') throw new StateError('request_unpriced', 'This card cannot be prepared.', 409);
   const { rec, planRow } = got;
   const snapshot = { v: 1, stepId: step.id, planVersion: got.planVersion, planHash: planRow.plan_hash, position: step.position, proposalId: proposal.id, proposalVersion: proposal.version,
     contentHash: proposal.content_hash, instructionVersion: rec.instructionVersion, learnerInstruction: rec.learnerInstruction, teachingScope: rec.teachingScope,
-    depth: rec.depth, language: rec.language, format: rec.format, title: rec.stepTitle, source: { key: roadmap.source_key, rev: roadmap.source_rev }, sourceRevision: roadmap.source_rev, settings: { depth: rec.depth },
+    depth: rec.depth, language: rec.language, format: rec.format, title: rec.stepTitle, source: { key: roadmap.source_key, rev: roadmap.source_rev },
     provider: q.provider, model: q.model, requestFingerprint: q.requestFingerprint, boundMicros: q.boundMicros };
-  const contentFingerprint = await sha256(JSON.stringify([proposal.content_hash, snapshot.planHash, snapshot.position, snapshot.requestFingerprint, roadmap.source_rev, snapshot.format, snapshot.depth]));
+  const contentFingerprint = await sha256(JSON.stringify([proposal.content_hash, snapshot.planHash, snapshot.position, snapshot.requestFingerprint, roadmap.source_rev]));
   return { snapshot, boundMicros: q.boundMicros, contentFingerprint };
 }
 

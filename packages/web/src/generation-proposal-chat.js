@@ -5,8 +5,6 @@ import { motionContext } from './learn-slash.js';
 import { commandDefinition, fieldsFor } from './generation-confirmation-schema.js';
 import { imageGenerationOn } from './generate-image.js';
 import { isBriefCommand } from './material-brief.js';
-import { isSmallTalk } from './inline-ai-route.js';
-import { startTiming } from './client-timing.js';
 
 const proposalOf = m => (m?.role === 'assistant' && m.meta?.proposal?.proposal_id ? m.meta.proposal : null);
 // Each proposal's newest version in the conversation: a refinement in chat is a later message with the same id.
@@ -44,8 +42,10 @@ export const proposalBlock = p => ADAPTERS[p?.command]?.(p) ?? null;
 // waits on its canvas; Generate approves that job (ops.approveExplain sends it to the command's own job route).
 // /whiteboard (roadmap W1.5, control-plane whiteboard-job.js) likewise: its pending card waits for the plan's Generate.
 export const approvesJob = p => ['explain', 'animation', 'whiteboard-video'].includes(p?.command) && typeof p.input?.job === 'string' && !proposalBlock(p);
-// The Explain review card's heading. It carries no cost note (owner 2026-11-07).
+// The Explain review card (owner, 2026-10-29): its heading, and what it says about cost. The brief it shows was a model call, as a
+// change asked for in Chat is; Save is not (generation-review-client.js); Generate starts the paid work. Said as CAD's brief says it.
 export const EXPLAIN_REVIEW_HEADING = 'Review explanation';
+export const EXPLAIN_COST_NOTE = 'Preparing this plan used one model call, and each change asked for in Chat uses another. Saving edits here makes no call. Generate starts the paid work: writing the explanation, checking it and reviewing its render.';
 export const EXPLAIN_STOPPED = 'Stopped before anything was generated.';
 // The /animation plan's review card heading (owner, 2026-10-31: no long cost note; owner decision 35, 2026-11-04: one line on what Generate costs).
 export const ANIMATION_REVIEW_HEADING = 'Review your scene';
@@ -66,10 +66,9 @@ export const durationRefinement = (before, after) => (after?.command === 'whiteb
   && after.settings.duration_seconds !== before?.settings?.duration_seconds ? `duration: ${after.settings.duration_seconds}` : null);
 // A /whiteboard plan message shows only its review card (owner try, 2026-11-05): the server writes the plan as the message text for the
 // history, and the card already shows it. Every other answer, proposals included, shows its text.
-// A plan message with no text of its own (the model gave no lead-in; owner 2026-11-07: no canned sentence) is the card alone, never an empty bubble.
-export const proposalOnly = m => m?.meta?.proposal?.command === 'whiteboard-video' || (!!m?.meta?.proposal && !String(m.content ?? '').trim());
+export const proposalOnly = m => m?.meta?.proposal?.command === 'whiteboard-video';
 // A job-approving proposal's heading and cost note, by its command.
-export const jobReviewCopy = p => (p?.command === 'whiteboard-video' ? { eyebrow: WHITEBOARD_REVIEW_HEADING, ...(whiteboardCostNote(p) ? { note: whiteboardCostNote(p) } : {}) } : p?.command === 'animation' ? { eyebrow: ANIMATION_REVIEW_HEADING, ...(animationCostNote(p) ? { note: animationCostNote(p) } : {}) } : { eyebrow: EXPLAIN_REVIEW_HEADING });
+export const jobReviewCopy = p => (p?.command === 'whiteboard-video' ? { eyebrow: WHITEBOARD_REVIEW_HEADING, ...(whiteboardCostNote(p) ? { note: whiteboardCostNote(p) } : {}) } : p?.command === 'animation' ? { eyebrow: ANIMATION_REVIEW_HEADING, ...(animationCostNote(p) ? { note: animationCostNote(p) } : {}) } : { eyebrow: EXPLAIN_REVIEW_HEADING, note: EXPLAIN_COST_NOTE });
 // How a proposal starts, by its command's adapter: 'output' (add the output card, needs ops.insertCard), 'job' (approve the existing job, needs
 // ops.approveExplain) or null (this build cannot start it). Generate is enabled by THIS, never by one command's adapter.
 // 'image' (IMG-01, generate-image.js): the image job is started and followed from the card, behind the web flag.
@@ -141,50 +140,28 @@ export const madeFrom = proposalId => block => (block?.operation?.proposal?.prop
 // ---- CR-1's route decision (C:/s/spec/day-1021/chat-route-interface.md): the call a plain chat turn makes before it is sent ----
 // The bound fields are read from the ask's own payload, so the ask sends them unchanged. -> the decision, or null where the
 // route endpoint is not deployed (the turn is sent as today).
-async function routeDecision(fetcher, payload, { capability = null, requestId = crypto.randomUUID() } = {}) {
+export async function routeChat(fetcher, payload, { capability = null, requestId = crypto.randomUUID() } = {}) {
   const body = { request_id: requestId, app: payload.scope?.app, pending: payload.scope?.pending ?? null, text: payload.message, capability,
     mode: payload.mode ?? 'auto', selection: payload.canvas_target ?? null, source_refs: payload.context_refs ?? null, motion: payload.generation?.motion ?? null };
-  // A bare greeting is never a tool request: decided here with no route request at all (the server's decideChat does the same for a direct caller).
-  if (!capability && isSmallTalk(payload.message)) return { route: 'answer', via: 'default', local: true, capability: null, flow: null, token: null, retryable: false, code: null, message: null };
   let response;
-  // requestId and status ride on every failure so the Worker's chat_route log line for this request can be found.
   try { response = await fetcher('/api/learn/chat/route', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
-  catch (error) {
-    if (error?.name === 'AbortError') throw error; // the learner stopped or left: not a router failure, the send does not go on
-    return { route: 'answer', via: 'fallback', recoverable: true, code: 'unavailable', message: ROUTE_FAILED, requestId, status: null };
-  }
+  catch { return { route: 'answer', via: 'fallback', retryable: true, code: 'unavailable', message: ROUTE_FAILED }; }
+  if (response.status === 404) return null;
   const decision = await response.json().catch(() => null);
-  // A 404 with no error body is the route not being deployed (the turn is sent as today); a 404 that names its error is a scoped answer (a missing canvas) and is shown.
-  if (response.status === 404 && typeof decision?.error !== 'string') return null;
-  // A router that is down, slow or unreadable is recoverable (the words can still be answered); a refusal (400, 401, 403, 413) is not.
-  if (!response.ok || !decision?.route) return { route: 'answer', via: 'fallback', recoverable: response.ok || response.status >= 500 || response.status === 408 || response.status === 429, code: 'malformed', message: decision?.error || REFUSALS[response.status] || ROUTE_FAILED, requestId, status: response.status };
-  return decision.via === 'fallback' ? { ...decision, recoverable: true, requestId, status: response.status } : decision;
-}
-// What a failed route request says when the server gave no words of its own. Shown only for an authorization failure or a command that could not start.
-// The route round trip, timed for benchmarking (client-timing.js): a greeting is decided locally, so its interval is the cost of the check itself.
-export async function routeChat(fetcher, payload, options) {
-  const timing = startTiming('chat_route_ms', { mode: payload.mode ?? 'auto', depth: payload.depth });
-  let decision;
-  try { decision = await routeDecision(fetcher, payload, options); } catch (error) { timing.end('cancelled'); throw error; }
-  timing.end('ok', { path: decision?.local ? 'greeting' : decision?.via === 'fallback' ? 'fallback' : 'routed' });
+  if (!response.ok || !decision?.route) return { route: 'answer', via: 'fallback', retryable: true, code: 'malformed', message: decision?.error || ROUTE_FAILED };
   return decision;
 }
-export const ROUTE_FAILED = 'Could not reach Rabbit Hole, so nothing was started. Send it again.';
-const REFUSALS = { 401: 'Your session ended. Sign in again, then send this again.', 403: 'You no longer have access to this canvas. Nothing was sent.' };
+export const ROUTE_FAILED = 'Couldn\'t check whether this asks for a video or another tool. Answer normally, or try again.';
 // What the Chat does with a decision. send: the turn goes on (with the token a proposal needs); direct: the command's own
 // handler, as if picked; show: clarification, unsupported or a router failure above the composer, the draft kept, no turn.
-// Never a paid capability on a failure. A recoverable router failure on an ordinary turn (plain: no command, no picked capability) goes on once
-// as an answer-only turn (answerOnly: the server runs it with no proposal or tool, failure: the correlation fields it logs); with a command or a
-// refused request the specific error is shown instead (kind 'error'; a router failure itself shows no banner and no buttons).
-export function routeOutcome(decision, { plain = false } = {}) {
+// Never a paid capability on a failure: a fallback is shown, not answered silently.
+export function routeOutcome(decision) {
   if (!decision) return { send: true, token: null };
-  if (decision.local) return { send: true, token: null, answerOnly: true, failure: null }; // a greeting: text only, enforced by the server
-  if (decision.route === 'answer' && decision.via === 'fallback' && plain && decision.recoverable !== false) return { send: true, token: null, answerOnly: true, failure: { request_id: decision.requestId ?? null, status: decision.status ?? null, code: decision.code ?? null } };
-  if (decision.route === 'answer' && decision.via === 'fallback') return { show: { kind: 'error', message: decision.message || ROUTE_FAILED } };
+  if (decision.route === 'answer' && decision.via === 'fallback') return { show: { kind: 'fallback', message: decision.message || ROUTE_FAILED, retryable: decision.retryable !== false } };
   if (decision.route === 'answer') return { send: true, token: null };
   if (decision.route === 'clarify') return { show: { kind: 'clarify', message: decision.clarification?.question || 'Which did you mean?', options: decision.clarification?.options || ['answer'] } };
   if (decision.route === 'unsupported') return { show: { kind: 'unsupported', message: decision.message || 'That isn\'t available here.' } };
   const capability = decision.capability || String(decision.route).replace(/^capability:/, '');
-  if (decision.flow === 'proposal') return decision.token ? { send: true, token: decision.token } : { show: { kind: 'error', message: ROUTE_FAILED } };
+  if (decision.flow === 'proposal') return decision.token ? { send: true, token: decision.token } : { show: { kind: 'fallback', message: ROUTE_FAILED, retryable: true } };
   return { direct: { command: capability, args: String(decision.args ?? '') } };
 }

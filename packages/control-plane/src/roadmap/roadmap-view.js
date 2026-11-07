@@ -99,15 +99,11 @@ export async function roadmapView(db, access, roadmap) {
     && (roadmap.state === 'proposed' || (['active', 'paused'].includes(roadmap.state) && (draftPlan.keptSteps ?? 0) === keptNow)) });
   const acceptedPlan = roadmap.accepted_plan_version && plan ? planShape(active, plan, steps, { depth: plan.settings?.depth ?? roadmap.depth }) : null;
   const shown = draftPlan ?? plan;
-  // A blocked card offer (roadmap-lifecycle.js recordOfferBlocked), shown only while its step still waits with no offer: the Chat recovery entry's one question or help.
-  const held = scopeJson.offerRecovery, blockedStep = held && stepOf(held.stepId);
-  const offerRecovery = held && !proposal && blockedStep && ['planned', 'cancelled', 'incomplete'].includes(blockedStep.state) && ['active', 'paused'].includes(roadmap.state)
-    ? { stepId: held.stepId, reason: held.reason, ...(held.question ? { question: held.question } : {}), ...(held.help ? { help: held.help } : {}), ...(held.alternative ? { alternative: held.alternative } : {}) } : null;
   return {
     roadmap: { id, boardId: roadmap.board_id, state: roadmap.state, revision: roadmap.revision, planVersion: roadmap.plan_version, acceptedPlanVersion: roadmap.accepted_plan_version ?? null, depth: roadmap.depth,
       practiceMode: roadmap.practice_mode, instruction: first?.text ?? '', language: roadmap.language, scope: { kind: scopeJson.kind || 'whole', chars: scopeJson.chars ?? null, source: { key: roadmap.source_key, rev: roadmap.source_rev, name: sourceName }, fingerprint: roadmap.scope_fingerprint },
       ceiling: roadmap.ceiling, deliveredCount: roadmap.delivered_count, mode: roadmap.mode, modeRevision: roadmap.mode_revision, threadId, invitationId, createdAt: iso(roadmap.created_at), updatedAt: iso(roadmap.updated_at) },
-    question: shown?.question ?? null, limitation: shown?.limitation ?? null, offerRecovery,
+    question: shown?.question ?? null, limitation: shown?.limitation ?? null,
     plan: plan && planShape(active, plan, steps, { depth: plan.settings?.depth ?? roadmap.depth }),
     acceptedPlan, planDraft: draft ?? null, revisionPending, // planDraft, not `draft`: the R5 proposal-draft route already answers `draft`
     steps, proposal: proposal ?? null, results,

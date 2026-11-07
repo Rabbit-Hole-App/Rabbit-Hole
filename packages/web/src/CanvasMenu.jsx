@@ -24,19 +24,17 @@ const MenuRow = props => <MenuItem type="button" role="menuitem" {...props} />;
 
 // One row, as the right-click menu and a card's own menu draw it.
 function ActionRow({ row, onPick }) {
-  // A disabled row is only greyed (owner 2026-11-07): no reason line and no tooltip in the menu. Only a sign-in row says its short reason, because pressing it starts sign-in.
-  const reason = row.signIn ? row.reason : null;
   const Icon = typeof row.icon === 'string' ? ICONS[row.icon] : row.icon;
   const check = row.checked !== null;
   return (
-    <MenuRow icon={Icon} data-action={row.id} {...row.attrs} disabled={row.disabled} title={reason || undefined} data-sign-in={row.signIn || undefined}
+    <MenuRow icon={Icon} data-action={row.id} {...row.attrs} disabled={row.disabled} title={row.reason || undefined} data-sign-in={row.signIn || undefined}
       role={check ? 'menuitemcheckbox' : 'menuitem'} aria-checked={check ? row.checked : undefined}
       aria-keyshortcuts={row.keyshortcuts || undefined} aria-description={row.reason || undefined} hint={row.hint || undefined}
-      className={`${reason ? 'h-auto py-1' : ''} ${row.danger ? 'text-danger' : ''}`}
+      className={`${row.reason ? 'h-auto py-1' : ''} ${row.danger ? 'text-danger' : ''}`}
       onClick={() => onPick(row.id)}>
-      {check ? <span className="flex items-center"><span className="min-w-0 flex-1">{row.label}</span><span aria-hidden="true" className="inline-block w-4">{row.checked ? <Check size={14} strokeWidth={2.5} className="text-accent" /> : null}</span></span> : row.label}
+      {check ? <span className="flex items-center"><span className="min-w-0 flex-1">{row.label}</span><span aria-hidden="true" className="inline-block w-4">{row.checked ? <Check size={14} strokeWidth={2.5} /> : null}</span></span> : row.label}
       {/* The reason is the row's description, never part of its name: the label stays what the row is called. */}
-      {reason && <span data-menu-reason aria-hidden="true" className="block text-xs text-ink-3">{reason}</span>}
+      {row.reason && <span data-menu-reason aria-hidden="true" className="block text-xs text-ink-3">{row.reason}</span>}
     </MenuRow>
   );
 }

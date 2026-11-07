@@ -52,10 +52,9 @@ export const searchSections = query => filterSections(pickerSections('/'), query
 // One example per command for View > Slash Commands (owner spec 2026-10-29 section 8): its preview shows the same subject
 // (slash-sheet.js PREVIEWS). Use example puts the line in the composer to edit; it never sends.
 export const EXAMPLES = {
-  // The window's saved /interactive answer (id `explain`; slash-sheet.js COOLING_EXAMPLE, run sandbox-ex1-b, asked as "I put a cup of hot coffee in a
-  // cold room. Show me how it cools down over time, and let me change the temperature of the room ..."), in one line; /explain (id `explanation`) is the written one.
-  explanation: '/explain Why does coffee cool faster at first? Include a small table comparing early and late cooling.',
-  explain: '/interactive how a hot coffee cools in a cold room, and let me change the room temperature', practice: '/practice explain it back: why the sky is blue', quiz: "/quiz Newton's second law",
+  // The window's saved /explain answer (slash-sheet.js COOLING_EXAMPLE, run sandbox-ex1-b, asked as "I put a cup of hot coffee in a
+  // cold room. Show me how it cools down over time, and let me change the temperature of the room ..."), in one line.
+  explain: '/explain how a hot coffee cools in a cold room, and let me change the room temperature', practice: '/practice explain it back: why the sky is blue', quiz: "/quiz Newton's second law",
   flashcards: '/flashcards Spanish verbs for travel', goal: '/goal read a balance sheet with confidence',
   code: '/code a function that reverses a linked list', graph: '/graph y = sin(x) and y = cos(x)', diagram: '/diagram an HTTP request from browser to server',
   notebook: '/notebook', 'generate-image': '/image a small red lighthouse on a rock at dusk, flat illustration',
@@ -217,7 +216,6 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   const resolved = resolveCommand(text, 'learn', { motionDev, internal });
   if (!resolved?.command) return { notice: { tone: 'error', text: (resolved && (unavailableCommand(resolved.unsupported) || (resolved.unsupported === 'motion' ? MOTION_OFF : null))) || `${resolved ? `/${resolved.unsupported}` : 'That'} is not a Learn command. Type / to see them.` } };
   const { command: { name, source }, arg: args } = resolved;
-  const typed = typedOf(name); // what the learner types for it: id `explain` is typed /interactive, and /explain is the written id `explanation`
   const selection = target?.id ? { kind: 'card', id: target.id, title: String(target.title || '').slice(0, 200) } : null;
   const request = learnRequest(name, { args, selection });
   if (request.action === 'cad') {
@@ -277,7 +275,7 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   }
   if (reviewRequired(name)) {
     // Missing information is asked for inside the command's own flow, and the line is kept (owner, 2026-10-24: the Tutor never answers it).
-    if (!args) return { notice: { tone: 'question', text: 'What should the video explain? Add a topic after /motion.' }, keep: `/${typed} ` };
+    if (!args) return { notice: { tone: 'question', text: 'What should the video explain? Add a topic after /motion.' }, keep: `/${name} ` };
     return { prompt: args };
   }
   // The simple material briefs (owner spec 2026-10-29 section 6; material-brief.js): an explicit command on a Chat canvas (canvas.briefs)
@@ -293,20 +291,20 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
     canvas.insertBlock(imageSearchBlock(args));
     return { notice: { tone: 'done', text: args ? `Searching photos for "${args}".` : 'Added an image card; search for a picture.' } };
   }
-  if (!request.allowedPrimitives) return request.prompt ? { prompt: request.prompt } : { notice: { tone: 'info', text: `Add what you want after /${typed}.` } };
+  if (!request.allowedPrimitives) return request.prompt ? { prompt: request.prompt } : { notice: { tone: 'info', text: `Add what you want after /${name}.` } };
   // The card's place is held from the moment the command is sent (docs/features/canvas-skeleton-cards.md),
   // sized as the command's first card; anything but a card (a question, a proposal, an error, a request
   // that never answers) gives it up. A skeleton means a card is committed: a command that can end in a paid
   // proposal holds no place until the learner confirms it (generate, below).
-  const hold = () => canvas.reserve?.({ label: `Creating /${typed}`, card: cardsFor(name)[0]?.card ?? null });
+  const hold = () => canvas.reserve?.({ label: `Creating /${name}`, card: cardsFor(name)[0]?.card ?? null });
   // /explain with an image: the target's own (a region crop or an image card, uploaded) first, else the composer's attached
   // image, as ask.jsx picks one for a question. The words say what to show; an image alone asks. A crop whose upload has not
   // landed is waited for, never dropped.
   const image = name === 'explain' ? (typeof target?.image === 'string' ? target.image : typeof attachedImage === 'string' ? attachedImage : null) : null;
   if (name === 'explain' && !image && target?.preview && String(target.id || '').startsWith('area:')) {
-    return { notice: { tone: 'info', text: `The selected area is still being attached. Send /${typed} again in a moment.` }, keep: `/${typed} ${args}`.trimEnd() + ' ' };
+    return { notice: { tone: 'info', text: 'The selected area is still being attached. Send /explain again in a moment.' }, keep: `/explain ${args}`.trimEnd() + ' ' };
   }
-  if (image && !args.trim()) return { notice: { tone: 'question', text: 'What should the explanation show? The image is used as a layout reference.' }, keep: `/${typed} ` };
+  if (image && !args.trim()) return { notice: { tone: 'question', text: 'What should the explanation show? The image is used as a layout reference.' }, keep: '/explain ' };
   // /explain v2 (EXP-T20 slice 1): a durable job whose card is placed at once and fills in when the job is ready. Where the
   // server has it off (startExplain answers null) the command runs as it always has. EXP-T15: the selected target's text and
   // the image (a region crop, an image card or the composer's attachment) go with the job; the job API reads the image's
@@ -315,13 +313,13 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   // legacy route because the words are empty; with neither words nor a selection it asks.
   // R3 (source-ref.js): a selected passage (target.sourceDraft: a PDF excerpt card's anchor, a Markdown quote) is minted into a server-held
   // sourceRef first. The job or the card carries its id; a source that changed since the selection stops here, before anything is made.
-  let sourceRef = target?.sourceRef || null; // the bulb's passage arrives already minted (source-refs.js heldPassageTarget)
-  if (!sourceRef && target?.sourceDraft) {
+  let sourceRef = null;
+  if (target?.sourceDraft) {
     try { sourceRef = (await mintSourceRef(post, target.sourceDraft)).id; }
     catch (error) { return { notice: { tone: 'error', text: error.message }, keep: text }; }
   }
   const explainWords = name === 'explain' ? args.trim() || (target?.id && !image ? briefSubject('', selection) : '') : '';
-  if (name === 'explain' && !internal && !explainWords) return { notice: { tone: 'question', text: `${toolOf('explain').placeholder} Add it after /${typed}, or select a card first.` }, keep: `/${typed} ` };
+  if (name === 'explain' && !internal && !explainWords) return { notice: { tone: 'question', text: `${toolOf('explain').placeholder} Add it after /explain, or select a card first.` }, keep: '/explain ' };
   if (name === 'explain' && canvas.startExplain && explainWords) {
     // EXP-T21: the Tutor's chosen tool (internal) is the same job, recorded as its source; no intent call is made for it.
     const started = await canvas.startExplain(explainWords, { context: target?.text ? String(target.text).slice(0, 8000) : null, image, promptUsed, ...(sourceRef ? { sourceRef } : {}), ...(internal ? { source: 'tutor' } : {}) });
@@ -329,8 +327,8 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   }
   const slot = mayConfirmPaid(name) ? null : hold();
   let result;
-  try { result = await generateCommand(name, name === 'explain' ? args || explainWords : args, { app, selection, context: target?.text ? String(target.text).slice(0, 8000) : null, image, sourceRef, post }); }
-  catch (error) { if (error.name === 'TimeoutError') return { notice: { tone: 'error', text: `/${typed} took too long. Try again.` } }; throw error; }
+  try { result = await generateCommand(name, args, { app, selection, context: target?.text ? String(target.text).slice(0, 8000) : null, image, sourceRef, post }); }
+  catch (error) { if (error.name === 'TimeoutError') return { notice: { tone: 'error', text: `/${name} took too long. Try again.` } }; throw error; }
   finally { if (slot && result?.result !== 'artifact') canvas.release?.(slot); }
   // The notice names the new card and can take the learner to it.
   if (result.result === 'artifact') { const blockId = canvas.insertBlock(withPrompt(result.block, promptUsed), { into: slot }); return { notice: { tone: 'done', text: `Added ${NAMES[result.primitive] || 'the artifact'}.`, ...(blockId ? { blockId } : {}) } }; }
@@ -347,16 +345,16 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
     afterPaint(() => canvas.insertBlock(withPrompt({ ...result.block, confirmedStart: true }, promptUsed), { into: held }));
     return (started = { started: true });
   } } }; }
-  if (result.result === 'clarification') return { notice: { tone: 'question', text: result.question }, keep: `/${typed} ` };
+  if (result.result === 'clarification') return { notice: { tone: 'question', text: result.question }, keep: `/${name} ` };
   if (result.result === 'unsupported') return { notice: { tone: 'info', text: result.message } };
   // An interactive scene that failed its checks (and its one repair) is no card and never silently text: the line comes back
   // to try again, and a plain explanation is one click away (owner, 2026-10-21). PLAIN_WORDS narrows that line to text.
-  if (result.result === 'validation_error' && result.primitive === 'animation') return { keep: `/${typed} ${args}`, notice: { tone: 'error',
+  if (result.result === 'validation_error' && result.primitive === 'animation') return { keep: `/${name} ${args}`, notice: { tone: 'error',
     text: 'The interactive explanation could not be made: it failed its checks, so nothing was added. Send the line again to retry.',
-    detail: failedCheck(result.error), actions: [{ label: 'Make a plain explanation instead', line: `/${typedOf('explanation')} ${args}` }] } };
+    detail: failedCheck(result.error), actions: [{ label: 'Make a plain explanation instead', line: `/${name} in plain text: ${args}` }] } };
   // Any other card the model could not make valid, even after its one repair: say so in plain words and keep the validator's
   // words as the detail (a contract violation, with no primitive, keeps its message).
-  if (result.result === 'validation_error' && result.primitive) return { keep: `/${typed} ${args}`, notice: { tone: 'error', text: `${NAMES[result.primitive] ? NAMES[result.primitive][0].toUpperCase() + NAMES[result.primitive].slice(1) : 'The card'} could not be made: it failed its checks, so nothing was added. Send the line again to retry.`, detail: failedCheck(result.error) } };
+  if (result.result === 'validation_error' && result.primitive) return { keep: `/${name} ${args}`, notice: { tone: 'error', text: `${NAMES[result.primitive] ? NAMES[result.primitive][0].toUpperCase() + NAMES[result.primitive].slice(1) : 'The card'} could not be made: it failed its checks, so nothing was added. Send the line again to retry.`, detail: failedCheck(result.error) } };
   return { notice: { tone: 'error', text: result.error || 'That could not be made. Try again.' } };
 }
 

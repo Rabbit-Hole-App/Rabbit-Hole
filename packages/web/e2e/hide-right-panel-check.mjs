@@ -155,9 +155,9 @@ let openWidth = await stableWidth();
 // Owner UI brief 2026-10-20 section 7: Links moved into Search's Links filter. Owner 2026-10-22: Progress is the last tab.
 await check('one navigation row: Chat, Find, Contents, Comments, Progress, each named and titled; no Links tab; no Chat | Sources switch', async () => {
   const tabs = await page.locator('[data-panel-header] [data-panel-tab]').evaluateAll(list => list.map(b => ({ id: b.dataset.panelTab, label: b.getAttribute('aria-label'), title: b.getAttribute('title') })));
-  assert.deepEqual(tabs.map(t => t.id), ['chat', 'toc', 'progress', 'comments', 'find'], 'the tab order');
+  assert.deepEqual(tabs.map(t => t.id), ['chat', 'find', 'toc', 'comments', 'progress'], 'the tab order');
   assert.ok(tabs.every(t => t.label && t.title), 'every tab has a tooltip and an accessible name');
-  assert.equal(tabs.at(-1).label, 'Find text on canvas'); // Search last (owner 2026-11-07, PanelHeader.jsx PANEL_TABS)
+  assert.equal(tabs.at(-1).label, 'Progress');
   assert.equal(await page.locator('[data-panel-header]').count(), 1, 'one navigation row');
   assert.equal(await page.locator('[data-pane-switch]').count(), 0, 'no Chat | Sources switch');
 });

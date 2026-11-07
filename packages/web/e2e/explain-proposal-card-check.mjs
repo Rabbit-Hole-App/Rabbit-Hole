@@ -67,10 +67,10 @@ const briefFor = (job, n, { references = [] } = {}) => ({
   description: references.length ? 'Show how {{ref:r1}} keeps the parent above its children.' : 'A heap keeps each parent above its children. Inserting sifts up. Removing the root sifts down.',
   prompt: references.length ? 'Show how {{ref:r1}} keeps the parent above its children.' : 'A heap keeps each parent above its children. Inserting sifts up. Removing the root sifts down.',
   settings: { presentation: 'steps' }, source_refs: [], references, assumptions: ASSUMPTIONS, limitations: LIMITATIONS,
-  input: { org: 'w', app: canvas.name, job: job.id, brief_hash: `bh-${job.id}`, request: job.prompt }, original_request: `/interactive ${job.prompt}`,
+  input: { org: 'w', app: canvas.name, job: job.id, brief_hash: `bh-${job.id}`, request: job.prompt }, original_request: `/explain ${job.prompt}`,
   expires_at: Math.floor(Date.now() / 1000) + 3600, sig: `v3.${'a'.repeat(64)}`, usage: { estimate_credits: 40, reserve_credits: 120 },
 });
-const briefMessage = id => ({ role: 'assistant', content: '', messageId: id, kind: 'answer', status: 'done',
+const briefMessage = id => ({ role: 'assistant', content: 'Here is the plan for your explanation. Generate makes it.', messageId: id, kind: 'answer', status: 'done',
   meta: { version: 1, mode: 'ask', kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, proposal: proposals.get(id), alternatives: [id] } });
 const refused = [], outside = [], errors = [];
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|selection|board$|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|video|transcribe|tts|voice\/|dive|explore|course|artifact))/;
@@ -202,7 +202,7 @@ const brief = async (line, shape = null) => {
 
 let first = null;
 await step('a brief that waits for approval: Review explanation, title, request, Presentation, assumptions and limitations, credits and cost note, Edit, Cancel and Generate; no Duration or Audio', async () => {
-  first = await brief('/interactive how a heap keeps its order when items are added and removed');
+  first = await brief('/explain how a heap keeps its order when items are added and removed');
   const { card, job } = first;
   assert.equal(await card.getAttribute('data-proposal-active'), 'true');
   assert.equal(await card.getAttribute('data-proposal-version'), '1');
@@ -212,9 +212,9 @@ await step('a brief that waits for approval: Review explanation, title, request,
   assert.match(await card.innerText(), /^Review explanation\s/);
   assert.deepEqual(await card.locator('[data-proposal-section="assumptions"] li').allInnerTexts(), ASSUMPTIONS);
   assert.deepEqual(await card.locator('[data-proposal-section="limitations"] li').allInnerTexts(), LIMITATIONS);
-  assert.match(await card.locator('[data-proposal-section="limitations"]').innerText(), /^Limitations/i); // a closed disclosure header with a count (owner 2026-11-07)
+  assert.match(await card.locator('[data-proposal-section="limitations"]').innerText(), /^Limitations/i);
   assert.match(await card.locator('[data-proposal-usage]').innerText(), /Estimated cost: 40 AI credits/);
-  assert.equal(await card.locator('[data-proposal-note]').count(), 0, 'no cost note on the Explain review card (owner 2026-11-07)');
+  assert.match(await card.locator('[data-proposal-note]').innerText(), /^Preparing this plan used one model call/);
   assert.doesNotMatch(await card.innerText(), /\$\d/);
   assert.equal(await card.locator('[data-proposal-duration], [data-proposal-audio="on"], [data-proposal-audio="off"]').count(), 0, 'no Duration or Audio');
   assert.equal(await card.locator('[data-proposal-cancel]').count(), 1, 'Cancel stops the waiting job');
@@ -304,7 +304,7 @@ await step('Generate (a double-click) sends exactly one approve with the saved v
 
 await step('a refused Generate (409 brief_stale) says why under the card: one approve, nothing made, the job\'s card still waits', async () => {
   const STALE = 'This brief changed. Review it again before generating.';
-  const { card, job } = await brief('/interactive why a heap is stored in an array', { answers: [{ status: 409, json: { error: STALE, code: 'brief_stale' } }] });
+  const { card, job } = await brief('/explain why a heap is stored in an array', { answers: [{ status: 409, json: { error: STALE, code: 'brief_stale' } }] });
   await card.locator('[data-proposal-generate]:not([disabled])').waitFor({ timeout: 10000 });
   await card.locator('[data-proposal-generate]').click();
   await slotAlert(card).filter({ hasText: STALE }).waitFor({ timeout: 10000 });
@@ -315,8 +315,8 @@ await step('a refused Generate (409 brief_stale) says why under the card: one ap
   await card.screenshot({ path: `${OUT}/5-refused.png` });
 });
 
-await step('Cancel on a waiting brief sends one cancel for its job: the card says it stopped with Generate disabled, nothing approved, the canvas skeleton is removed', async () => {
-  const { card, job } = await brief('/interactive how a heap finds its smallest item');
+await step('Cancel on a waiting brief sends one cancel for its job: the card says it stopped with Generate disabled, nothing approved, the job card says Stopped', async () => {
+  const { card, job } = await brief('/explain how a heap finds its smallest item');
   await card.locator('[data-proposal-cancel]').click();
   await until(async () => cancels.includes(job.id), 'a cancel request');
   await card.locator('[data-proposal-job-status="stopped"]').waitFor({ timeout: 10000 });
@@ -324,14 +324,13 @@ await step('Cancel on a waiting brief sends one cancel for its job: the card say
   assert.equal(await card.locator('[data-proposal-generate]').isDisabled(), true);
   assert.equal(await card.locator('[data-proposal-cancel]').count(), 0);
   assert.deepEqual([cancels.filter(id => id === job.id).length, approvesOf(job).length], [1, 0]);
-  // Cancel removes the canvas skeleton (ChatMessages.jsx onCancel -> LearnPage.jsx cancelExplain removeBlock; owner 2026-11-07), so there is no job card left to say Stopped.
-  await until(async () => (await page.locator(`[data-block-id="${job.cardId}"]`).count()) === 0, 'Cancel removed the canvas skeleton');
+  await until(async () => /Stopped/.test(await page.locator(`[data-block-id="${job.cardId}"] [data-explain-stage]`).innerText()), 'the job card says Stopped');
   await card.screenshot({ path: `${OUT}/6-cancelled.png` });
 });
 
 await step('a refused reference (409 reference_blocked): the reason is on the card once; removing it saves version 2 and its Generate sends one approve with no reference', async () => {
   const BLOCKED = 'Heap notes was deleted. Remove it or attach it again.';
-  const { card, job, id } = await brief('/interactive how the heap notes card orders its items', { references: [REF],
+  const { card, job, id } = await brief('/explain how the heap notes card orders its items', { references: [REF],
     answers: [{ status: 409, json: { error: BLOCKED, code: 'reference_blocked', references: [{ id: 'r1', state: 'deleted', message: 'This card was deleted.' }] } }] });
   await card.locator('[data-proposal-pill="r1"]').first().waitFor();
   await card.locator('[data-proposal-generate]:not([disabled])').waitFor({ timeout: 10000 });

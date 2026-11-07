@@ -1,6 +1,5 @@
 import { readArxivPaper } from './arxiv.js';
 import { feedbackNotify } from './feedback-mail.js';
-import { NOTIFY_PATH, crashNotify } from './crash-report.js';
 import { cadBudgetAlert } from './cad-budget-alert.js';
 import { canvasSeed, threadTurns } from './canvas-conversation.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
@@ -15,8 +14,7 @@ import { CANVAS_CONTEXT_RULES, canvasContextText, validateCanvasContext } from '
 import { uploadedPaperAsDocument } from './learn-paper.js';
 import { uploadedMediaAsImage } from './learn-media.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
-import { answerToolsOn, verifyChatRoute } from './chat-capability-route.js';
-import { CHAT_TOOLS_POLICY, LESSON_POLICY, LESSON_TOOL_NAME, alternativesFor, chatToolDefs, checkLessonCall, checkToolCall, fitProblem, lessonToolDef, parseLesson } from './chat-tools.js';
+import { verifyChatRoute } from './chat-capability-route.js';
 import { MOTION_PAUSED, PROPOSAL_EDIT_STALE, PROPOSAL_SYSTEM, PROPOSAL_TOOL, currentRevision, proposalRecord, proposalState, publishRevision, motionAbout, motionOffered, motionPaused, motionRequestLine, signProposal, validateProposalInput, verifyProposal, envelopeFor } from './generation-proposal.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, searchWikipedia, readWikipedia, validateShowWikipedia, wikiTitle } from './learn-wiki.js';
 import { findVideoMoments, videoMomentTools } from './learn-youtube.js';
@@ -1019,20 +1017,6 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   if (canvas && conversation !== 'learn') return json({ error: 'canvas_context is a Learn chat field' }, 400);
   if (chat && conversation !== 'learn') return json({ error: 'mode, command, context_refs and regenerate are Learn chat fields' }, 400);
   if (chat?.regenerate && !thread_id) return json({ error: 'regenerate needs its thread_id' }, 400);
-  // Answer-only (the chat route's recovery, chat-capability-route.js): a plain Learn chat turn the client sends when the router could not
-  // decide (down, slow, unreadable), for a greeting, or from the clarification's "Answer in chat". The server enforces it: no generation input is
-  // read and no tool of any kind is offered (research.tools [] and arxiv false below), so the turn has no proposal, outline change, Motion or other
-  // job and no credit hold, whatever the client also sent. A command, a route decision, a regeneration or a Tutor turn is not an ordinary turn
-  // and is refused here, so this flag can never widen what a turn may do.
-  const answerOnly = body.answer_only === true;
-  if (body.answer_only != null && (!answerOnly || conversation !== 'learn' || !chat || chat.command || chat.regenerate || chat.mode === 'tutor' || body.route_token != null)) {
-    return json({ error: 'answer_only is for a plain Learn chat turn: no command, route decision or regeneration.', code: 'answer_only_invalid' }, 400);
-  }
-  if (answerOnly) {
-    // The failed route request, for the Worker log (ids and codes only, never the message): found again by request_id.
-    const failure = body.route_failure, text = v => (typeof v === 'string' && /^[A-Za-z0-9._-]{1,80}$/.test(v) ? v : null);
-    try { console.log(JSON.stringify({ event: 'chat_route_recovered', request_id: text(failure?.request_id), route_status: Number.isInteger(failure?.status) ? failure.status : null, route_code: text(failure?.code), reason: failure ? 'router_failed' : 'requested' })); } catch { /* never worth a failed turn */ }
-  }
   // CR-1 (chat-capability-route.js): a route decision the server signed for this learner and these exact turn fields. A
   // proposal route makes this turn that command's proposal turn, as if it were typed; nothing else is decided here.
   if (body.route_token != null) {
@@ -1045,7 +1029,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   // revises (verified for this learner, else ignored). The proposal tool rides only where a video can start; a /motion turn
   // that cannot is answered here, before any model call.
   let generation = null;
-  if (conversation === 'learn' && chat && body.generation != null && !answerOnly) {
+  if (conversation === 'learn' && chat && body.generation != null) {
     const motionInput = body.generation?.motion === undefined ? null : motionAbout(body.generation.motion);
     if (body.generation?.motion !== undefined && !motionInput) return json({ error: 'generation.motion must be {concept?, context?}' }, 400);
     const current = body.generation?.current && !(await verifyProposal(env, body.generation.current, user.email)) ? body.generation.current : null;
@@ -1059,11 +1043,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   if (chat?.command === 'motion' && !generation) {
     return json(motionPaused(env, user.email) ? { error: MOTION_PAUSED, code: 'motion_paused' } : { error: 'Motion is not available in this environment yet. Nothing was started.', code: 'motion_unavailable' }, 503);
   }
-  let proposed = null, proposalMeta = null, toolRequest = null;
-  // CHAT.02: an ordinary uncommanded Learn turn in a mode that CHAT_ANSWER_TOOLS lists is answered with the eligible tools (chat-tools.js). Off by default.
-  // Explain on canvas from typed words: only under the same flag, and only when the browser found authorized sources and no unfinished roadmap (parseLesson).
-  const lesson = conversation === 'learn' && chat && body.lesson != null ? parseLesson(body.lesson) : null;
-  const toolsOn = conversation === 'learn' && !!chat && !chat.command && !chat.regenerate && !answerOnly && !generation?.edit && body.route_token == null && answerToolsOn(env, chat.mode);
+  let proposed = null, proposalMeta = null;
   let lessonSnapshot = null;
   // The tutor may propose outline changes when the learner's canvas has sections.
   // runTool only records: canvas blocks are browser state, so nothing here can
@@ -1087,8 +1067,8 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     // learner's screen counts as read, so the tutor can point at another of
     // its sections without fetching it twice.
     articles,
-    tools: [SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, ...videos.tools, ...(body.outline?.length ? [OUTLINE_TOOL] : []), ...(repository?.tools || []), ...(generation ? [PROPOSAL_TOOL] : []), ...(toolsOn ? chatToolDefs(env, user.email) : []), ...(toolsOn && lesson ? [lessonToolDef(lesson)] : [])],
-    system: [WIKI_SYSTEM, videos.system, body.outline?.length ? OUTLINE_SYSTEM : null, repository?.system, generation ? PROPOSAL_SYSTEM : null, toolsOn ? CHAT_TOOLS_POLICY : null, toolsOn && lesson ? LESSON_POLICY : null].filter(Boolean).join('\n'),
+    tools: [SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, ...videos.tools, ...(body.outline?.length ? [OUTLINE_TOOL] : []), ...(repository?.tools || []), ...(generation ? [PROPOSAL_TOOL] : [])],
+    system: [WIKI_SYSTEM, videos.system, body.outline?.length ? OUTLINE_SYSTEM : null, repository?.system, generation ? PROPOSAL_SYSTEM : null].filter(Boolean).join('\n'),
     runTool: async (name, input) => {
       if (repository?.tools.some(tool => tool.name === name)) return repository.runTool(name, input);
       if (name === SEARCH_WIKIPEDIA_TOOL.name) return searchWikipedia(input?.query);
@@ -1100,19 +1080,6 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
       }
       const video = await videos.run(name, input);
       if (video !== undefined) return video;
-      // CHAT.02: a direct tool is only a request. It is validated here and handed to the browser (answer_meta.toolRequest), which runs the command's own handler.
-      if (toolsOn && lesson && name === LESSON_TOOL_NAME) {
-        const checked = checkLessonCall(lesson, { name, input }, { taken: !!toolRequest });
-        if (checked.error) return { requested: 0, error: `Not requested: ${checked.error}`, note: 'No lesson was started. Do not say you started one.' };
-        toolRequest = checked.request;
-        return { requested: 1, note: 'The roadmap draft starts in Chat now; the learner reviews it before anything is made. Reply in one or two sentences saying you are starting it. Do not describe results.' };
-      }
-      if (toolsOn && name.startsWith('run_')) {
-        const checked = checkToolCall(env, user.email, { name, input }, { taken: !!toolRequest });
-        if (checked.error) return { requested: 0, error: `Not requested: ${checked.error}`, note: 'Nothing was opened for the learner. Do not say you made anything.' };
-        toolRequest = checked.request;
-        return { requested: 1, note: 'The app opens this command for the learner now; nothing exists until they use it. Reply in one or two sentences on what you set up and what they do next. Do not describe results.' };
-      }
       if (name === SHOW_WIKIPEDIA_TOOL.name) {
         if (shownWiki) throw new Error('One article per answer; point at the rest in your reply');
         shownWiki = validateShowWikipedia(input, [...articles.values()]);
@@ -1127,9 +1094,6 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
         if (proposed) return refused('one generation proposal per answer');
         const checked = validateProposalInput(input, chat?.contextRefs || []);
         if (checked.error) return refused(checked.error);
-        // CHAT.02: the stated requirements must fit Motion (no narration, not interactive) before a review is shown; the model is told what does fit.
-        const unfit = toolsOn ? fitProblem('motion', input.requirements) : null;
-        if (unfit) { const options = alternativesFor(env, user.email, input.requirements, 'motion'); return refused(`${unfit}. ${options.length ? `Tools that fit: ${options.join(', ')}.` : 'No available tool fits; give useful help in Chat and a next step.'}`); }
         const current = generation.current?.command === checked.command ? generation.current : null;
         // An Edit turn revises the chosen proposal only: never a new proposal, never another command.
         if (generation.edit && !current) return refused('this turn changes the proposal the learner chose to edit; call it with command motion and the whole revised proposal');
@@ -1312,8 +1276,6 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     if (generation && chat.command === 'motion') Object.assign(research, { tools: [PROPOSAL_TOOL], system: `${PROPOSAL_SYSTEM}\nThis turn is a /motion request for a video of what the learner wrote: call ${PROPOSAL_TOOL.name} once now with command motion, then reply in one short sentence.`, arxiv: false });
     // An Edit turn: the learner pressed Edit on the proposal below, and this message says how to change it. Its one tool is the proposal.
     if (generation?.edit) Object.assign(research, { tools: [PROPOSAL_TOOL], system: `${PROPOSAL_SYSTEM}\nThe learner pressed Edit on the proposal you made (below) and this message says how to change it: call ${PROPOSAL_TOOL.name} once now with command motion and the whole proposal, changed as they asked, then reply in one short sentence.`, arxiv: false });
-    // text only: no Wikipedia, video, outline, repository, paper or proposal tool; a tool call the model makes anyway is refused (researchAnswer offers none) and runs nothing
-    if (answerOnly) Object.assign(research, { tools: [], system: '', arxiv: false, runTool: async () => { throw new Error('No tools in this turn'); } });
     memory = await threadMemory(db, threadId, history.userMessageId);
     // On a project canvas its code refs are read from the repository snapshot (canvases.js projectRepository), once each:
     // they are not listed again as named attachments.
@@ -1334,7 +1296,7 @@ ${await progressQuestionContext(req, env, chat.contextRefs, seam?.app)}`;
     context = chatContext(context, code.length ? chat.contextRefs.filter(ref => ref.kind !== 'code') : chat.contextRefs, memory.long ? memory.summary : null, CAP_CHARS, source?.paper ? body.paper_context.id : null, files);
     // An image file ref (a dropped image, a PDF region crop) rides as the picture itself, beside the documents (file-context.js).
     if (files?.images?.length) extraBlocks.push(...files.images);
-    system = chatSystem(system, answerMetaSystem({ repository: !!repository && !answerOnly, motion: !!generation }), resolved, memory.long);
+    system = chatSystem(system, answerMetaSystem({ repository: !!repository, motion: !!generation }), resolved, memory.long);
     // The trailer is split off before any chunk is sent or anything stored.
     research.onAnswer = text => { const split = splitAnswerMeta(text); trailer = split.raw; return split.content; };
     // A refinement revises the learner's unanswered proposal: the model sees what the card says now. MOT-22: the server's current
@@ -1361,7 +1323,7 @@ ${await progressQuestionContext(req, env, chat.contextRefs, seam?.app)}`;
   // it goes through learnMomentsDb (learn-storage.js), LEARN_DB on dev for every app kind.
   return askStream(seam ? { ...env, DB: db } : env, context, history, q, async (full, stopped = false) => {
     // motionDev: motion is suggested only on a turn where a Motion video can start (generation, MOT-20b); its Send proposes it first.
-    if (chat) return recordAnswer(db, { threadId, userMessageId: history.userMessageId, content: full, raw: trailer, stopped, chat, resolved, turn, prior: memory.summary, long: memory.long, proposal: proposed, proposalMeta: toolRequest ? { ...proposalMeta, toolRequest } : proposalMeta, validate: (raw, opts) => { const meta = validateAnswerMeta(raw, { ...opts, motionDev: !!generation }); return answerOnly ? { ...meta, actions: [] } : meta; } }); // an answer-only turn suggests no artifact to make next
+    if (chat) return recordAnswer(db, { threadId, userMessageId: history.userMessageId, content: full, raw: trailer, stopped, chat, resolved, turn, prior: memory.summary, long: memory.long, proposal: proposed, proposalMeta, validate: (raw, opts) => validateAnswerMeta(raw, { ...opts, motionDev: !!generation }) });
     if (stopped) return;
     await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
   }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId, conversation === 'learn' ? null : user.org, system, research);
@@ -2565,8 +2527,6 @@ export default {
         if (path === '/api/me' && req.method === 'GET') return json({ email: user.email, org: user.org, orgName: user.orgName || null, user_id: user.uid ?? null, ...(internalAccount(env, user.uid) ? { analytics_internal: true } : {}) });
         // The owner's email for a feedback report the app Worker just stored (feedback-mail.js): session only, the report's own sender.
         if (path === '/api/feedback/notify' && req.method === 'POST') return await feedbackNotify(req, env, user, { sendEmail });
-        // The owner's email for a page crash (crash-report.js): session only; deduped by fingerprint, capped per hour.
-        if (path === NOTIFY_PATH && req.method === 'POST') return await crashNotify(req, env, user, { sendEmail });
         const learnCourse = path.match(/^\/api\/apps\/([a-z0-9-]+)\/learn-course$/);
         if (learnCourse) return await handleLearnCourse(req, env, user, learnCourse[1], { appForUser, sourceSection });
         if (path === '/api/workspaces' && req.method === 'GET') return await apiWorkspaces(env, user);

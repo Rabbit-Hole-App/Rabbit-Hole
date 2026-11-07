@@ -40,15 +40,13 @@ import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
 import { CadReview } from './CadReview.jsx';
 import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
 import { approvesJob, currentProposal, editRefusal, editSpent, routeChat, routeOutcome } from './generation-proposal-chat.js';
-import { isSmallTalk } from './inline-ai-route.js';
-import { markEnd, markStart } from './client-timing.js';
-import SurfaceBoundary from './SurfaceBoundary.jsx';
 import { imageGenerationOn, requestImagePlan } from './generate-image.js';
 import { isBriefCommand, requestMaterialBrief } from './material-brief.js';
 import { problemOf } from './generation-review-client.js';
 import { loadImageCapability } from './image-capability.js';
 import { loadWhiteboardCapability } from './whiteboard-capability.js';
 import { EXPLAIN_BRIEF_EVENT } from './explain-client.js';
+import RouteDecision from './RouteDecision.jsx';
 import { reviewRequired } from './proposal-capabilities.js';
 import { newThreadId, turnSaver } from './chat-persist.js';
 import { askMode } from './chat-route.js';
@@ -291,9 +289,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const tocView = !!workspace?.tocView;
   if (tocView) ({ canvasTarget, onClearCanvasTarget, slash, voice, nextStepRef, boardContext } = tocAskProps({ canvasTarget, onClearCanvasTarget, slash, voice, nextStepRef, boardContext }));
   const chat = workspace && learnChat && !composerOnly && !canvasSeed ? workspace : null, chatThread = chat ? chat.thread : null;
-  // The contents' composer (owner approved 2026-11-07) carries only the pills the learner added from a contents row, never the canvas documents
-  // auto-offered to a new chat.
-  const attachedRefs = tocView ? (chat?.context.attached.filter(ref => ref.kind !== 'doc') || NO_REFS) : (chat?.context.attached || NO_REFS);
+  // TOC has no attachments, including the canvas documents auto-offered to a new chat.
+  const attachedRefs = tocView ? NO_REFS : (chat?.context.attached || NO_REFS);
   // A canvas with a repository (codebase: use-repository.js's object, the Main canvas or a project canvas; repo-canvas-graph.md
   // section 6): what the graph and Files viewers hold now is temporary context beside this chat's pinned refs - one chip and
   // one sent ref each, pinned first, up to the server's 20 (repo-context.js turnRefs). The Files selection is one of these
@@ -363,9 +360,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const [, setWhiteboardOffered] = useState(false);
   useEffect(() => { if (conversation === 'learn') loadWhiteboardCapability((url, init) => fetch(url, init), wsHeaders()).then(setWhiteboardOffered); }, [conversation]);
   const [choices, setChoices] = useState(null); // { message, candidates }
-  // A refusal or a clarification from the chat route is a line in the Chat itself, never a banner above or below it (owner 2026-11-07).
-  const say = text => setMsgs(m => [...m, { role: 'assistant', content: text }]);
-  const clarified = useRef(null); // the words just clarified: sending them again is the answer-in-chat choice, so a clarification never loops
+  // CR-1's route decision shown above the composer (RouteDecision.jsx): { kind, message, options?, retryable?, raw }.
+  const [routeShown, setRouteShown] = useState(null);
   const [file, setFile] = useState(null); // one attachment per question
   const [mentions, setMentions] = useState([]); // @app chips
   const [plusOpen, setPlusOpen] = useState(false);
@@ -560,7 +556,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const send = async (raw, scopeOverride, { command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false, routeAs = null } = {}) => {
     // R2: the Depth selected at the moment of Send; a later change in the menu never alters this turn.
     const depthSnapshot = depthField(chat?.settings);
-    const lessonSources = roadmap?.lessonSources?.() || null;
     // A chosen command pill sends exactly "/command text" and a typed /command replaces the pill (learn-slash.js commandLine);
     // LearnSlash runs it and the slot goes back to "/". The composer shows the line until it runs, so a line LearnSlash holds
     // while another command runs is still there to release (releaseLine).
@@ -573,30 +568,31 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     const chips = keepDraft ? [] : mentions;
     const message = [...chips.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     if (!message || busy) return false;
+    setRouteShown(null);
     // EXP-T20 slice 3: while an /explain brief waits for Generate (its card says so), a plain Chat turn refines it (the job's refine route), as a
     // chat turn revises a live Motion proposal. The words are saved as the learner's message; the next version of the brief
     // appears in this thread when it is ready. A refusal keeps the words in the composer and says why.
     // An Edit target goes first: its own command's path for exactly that revision (Explain here, Motion through the turn below), the
     // words kept when it is refused; never another command, never a file, never Generate.
     const editRefused = edit ? editRefusal(edit, { command: commandName, file }) : null;
-    if (editRefused) { say(editRefused); return false; }
+    if (editRefused) { setRouteShown({ kind: 'unsupported', message: editRefused, raw }); return false; }
     // Edit roadmap (UI.03): the typed words are this roadmap's revision instruction, never an ordinary answer or a new roadmap. Clearing the
     // target gives the stashed unsent draft back (chat-workspace.jsx editing); attachments stay as they are.
     if (edit?.command === 'roadmap') {
-      if (!roadmap?.controller || roadmap.state.view?.roadmap?.id !== edit.proposalId) { say('This roadmap is no longer open here. Remove the Editing pill to send this as a message.'); return false; }
+      if (!roadmap?.controller || roadmap.state.view?.roadmap?.id !== edit.proposalId) { setRouteShown({ kind: 'unsupported', message: 'This roadmap is no longer open here. Remove the Editing pill to send this as a message.', raw }); return false; }
       setInput('');
       const done = await roadmap.controller.revise({ instruction: raw.trim() });
       if (done) chat.editing.clear(); else setInput(current => current || raw);
       return;
     }
     const brief = edit ? ((edit.command === 'explain' || edit.command === 'animation') && workspace?.canvasOps?.refineExplain ? edit.proposal : null)
-      : chat && !tocView && !regenerate && !prompted && !commandName && !file && !isSmallTalk(raw) && workspace?.canvasOps?.refineExplain ? currentProposal(msgs, outputOps?.proposalMade) : null;
-    if (edit && approvesJob(brief) && !workspace.canvasOps.explainWaiting?.(brief.input.job)) { say('This plan is not waiting for review now. Edit its latest version when it appears.'); return false; }
+      : chat && !tocView && !regenerate && !prompted && !commandName && !file && workspace?.canvasOps?.refineExplain ? currentProposal(msgs, outputOps?.proposalMade) : null;
+    if (edit && approvesJob(brief) && !workspace.canvasOps.explainWaiting?.(brief.input.job)) { setRouteShown({ kind: 'unsupported', message: 'This plan is not waiting for review now. Edit its latest version when it appears.', raw }); return false; }
     if (approvesJob(brief) && workspace.canvasOps.explainWaiting?.(brief.input.job)) {
       setInput(''); setMentions([]);
       recordCommand(message);
       try { await workspace.canvasOps.refineExplain(brief, message, edit ? { proposal_id: edit.proposalId, version: edit.version } : undefined); if (edit) chat.editing.clear(); }
-      catch (error) { setInput(current => current || raw); say(error.message); }
+      catch (error) { setInput(current => current || raw); setRouteShown({ kind: 'unsupported', message: error.message, raw }); }
       return;
     }
     // The main composer starts a new block; the sheet keeps its own thread.
@@ -652,7 +648,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     const sentRefs = [...new Set([...selection, ...attachments])];
     const imageObject = target?.image ? target.id : questionImage?.blockId || null;
     const replyId = crypto.randomUUID();
-    let timed = 'pending'; // the outcome of this turn's chat_first_chunk_ms / chat_total_ms (client-timing.js)
     // The late-response guard (contract A5): the Chat's open thread when this turn was sent, against the one open now, read
     // from the thread hook itself, so a turn whose pane went away with its canvas is late too.
     const sentKey = chatThread?.liveKey(), late = () => !!chatThread && lateEvent(sentKey, chatThread.liveKey());
@@ -704,6 +699,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       if (attached) throw new Error('Add reference images on the plan card after it appears, not as an attachment.');
       const made = await requestImagePlan(api, { app: chat.canvas, threadId: threadId.current || chatThread.id || newThreadId(), text: words });
       if (late()) return;
+      mirror('Here is the plan for your image. Generate makes it.');
       setMsgs(messages => withDone(withAnswerMeta(messages, replyId, { kind: 'answer', proposal: made.proposal }), replyId, { messageId: made.message_id }));
       threadId.current = made.thread_id;
       chatThread.adopt(made.thread_id, message.slice(0, 120));
@@ -711,13 +707,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     };
     // Owner spec 2026-10-29 section 6: an explicit simple material command (material-brief.js) or an Edit of its brief. The server
     // builds the compact brief from these words and the selected card (no model call), signs it and saves it in this chat (a revision:
-    // the next version of exactly the targeted brief, or a 409 when it changed); the answer is the brief's card alone, with no canned sentence above it.
+    // the next version of exactly the targeted brief, or a 409 when it changed); the answer is the brief's card, and Generate makes it.
     const materialPlan = async words => {
       if (attached) throw new Error('This command does not take an attachment. Select a card on the canvas to use it.');
       const chosen = about?.selection ?? (target ? { id: target.id, title: target.title, text: targetText } : null);
       const made = await requestMaterialBrief(api, { app: chat.canvas, threadId: threadId.current || chatThread.id || newThreadId(), command: commandName, text: words, selection: chosen, edit });
       if (late()) return;
       if (edit) chat.editing.clear();
+      mirror(edit ? 'Here is the updated brief. Generate makes it.' : 'Here is the brief. Generate makes it.');
       setMsgs(messages => withDone(withAnswerMeta(messages, replyId, { kind: 'answer', proposal: made.proposal }), replyId, { messageId: made.message_id }));
       threadId.current = made.thread_id;
       chatThread.adopt(made.thread_id, message.slice(0, 120));
@@ -787,8 +784,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         // UI-15 / MOT-20: what a generation proposal would be about, and the live proposal this turn may refine (LearnPage).
         // An Edit target names its exact revision (edit: the server revises that one or refuses); otherwise the implicit latest live one.
         ...(chat && canvasOps?.generation ? ((generation) => (generation ? { generation } : {}))(canvasOps.generation(about?.selection ?? (target ? { ...target, text: targetText } : null), edit?.command === 'motion' ? edit.proposal : currentProposal(msgs, canvasOps.proposalMade), about?.concept, edit?.command === 'motion')) : {}),
-        // Explain on canvas from typed words (CHAT.02, flag-gated on the server): the authorized sources a lesson could start from, only when no roadmap is unfinished.
-        ...(chat && learnChat && !tocView && !commandName && !regenerate && !edit && lessonSources?.length ? { lesson: { sources: lessonSources } } : {}),
         // The live canvas (whole-canvas context): its inventory, relevant excerpts, relations and coverage.
         ...(canvasContext ? { canvas_context: canvasContext } : {}),
       };
@@ -805,14 +800,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       // with zero router calls and signs its route. Other commands' prompts, Tutor turns, regenerations and attachments are not
       // routed. Only a decided answer or proposal is sent (a proposal with its route_token); a direct capability runs its own
       // command; anything else gives the words back with the decision.
-      // A whole-message greeting ("hi", "thanks") is decided in routeChat with no request, and the clarification's "Answer in chat" skips the classifier: both go
-      // to the server as answer-only turns (answer_only), which it runs with no tool, proposal or credit hold. A router that fails on an ordinary turn does the same, once.
-      const routable = chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && !edit && payload.mode !== 'tutor';
-      const answerChosen = routeAs === 'answer' || (clarified.current !== null && clarified.current === raw.trim() && !commandName);
-      clarified.current = null;
-      if (routable && !commandName && answerChosen) payload.answer_only = true;
-      if (routable && !answerChosen && ((!prompted && !commandName) || reviewRequired(commandName))) {
-        const outcome = routeOutcome(await routeChat((url, init) => fetch(url, { ...init, headers: { ...init.headers, ...wsHeaders() }, signal: flight.signal }), payload, { capability: routeAs ?? commandName ?? null }), { plain: !commandName && !routeAs && !prompted });
+      if (chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && !edit && payload.mode !== 'tutor' && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {
+        const outcome = routeOutcome(await routeChat((url, init) => fetch(url, { ...init, headers: { ...init.headers, ...wsHeaders() }, signal: flight.signal }), payload, { capability: routeAs ?? commandName ?? null }));
         if (late()) return;
         // Plain words the router read as an image request take the same plan route as the typed command.
         if (!outcome.send && outcome.direct?.command === 'generate-image' && chatThread && imageGenerationOn()) { await imagePlan(outcome.direct.args || message); return; }
@@ -820,19 +809,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           setMsgs(m => m.slice(0, -2)); // no turn happened: the decision replaces it
           if (outcome.direct && slashRef.current?.intercept(`/${typedOf(outcome.direct.command)} ${outcome.direct.args}`.trim())) return;
           if (!keepDraft) setInput(current => current || (commandName ? `/${typedOf(commandName)} ${raw}` : raw));
-          const shown = outcome.show || { kind: 'unsupported', message: 'Not available here.' };
-          if (shown.kind === 'clarify') {
-            clarified.current = raw.trim();
-            const others = (shown.options || []).filter(id => id !== 'answer').map(id => '/' + typedOf(id));
-            say(others.length ? shown.message + ' Use ' + others.join(' or ') + ' for that, or send it again to get an answer in chat.' : shown.message);
-          } else say(shown.message);
+          setRouteShown({ ...(outcome.show || { kind: 'unsupported', message: 'That isn\'t available here.' }), raw, command: commandName });
           return;
         }
         if (outcome.token) payload.route_token = outcome.token;
-        if (outcome.answerOnly) Object.assign(payload, { answer_only: true, ...(outcome.failure ? { route_failure: outcome.failure } : {}) });
       }
-      const timingContext = { mode: payload.mode, depth: payload.depth, path: payload.answer_only ? 'answer_only' : 'routed' };
-      markStart(`${replyId}:first`, 'chat_first_chunk_ms', timingContext); markStart(`${replyId}:total`, 'chat_total_ms', timingContext);
       let r;
       if (attached) {
         const fd = new FormData();
@@ -877,7 +858,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           const data = (ev.match(/^data: (.+)$/m) || [])[1];
           if (!type || !data || late()) continue; // read on to the end, so the server finishes and saves the turn
           const d = JSON.parse(data);
-          if (type === 'chunk') { markEnd(`${replyId}:first`); mirror(d.text); }
+          if (type === 'chunk') mirror(d.text);
           else if (type === 'progress') { if (d.card && !slots[d.card]) slots[d.card] = boardContext?.reserveCard?.(d.card); exchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? (chatThread ? { ...item, stage: d.stage } : { ...item, status: d.stage }) : item)); }
           else if (type === 'graph') { responseGraph=d; setMsgs(messages=>messages.map(item=>item.id===replyId?{...item,graph:d}:item)); }
           else if (type === 'outline') { boardContext?.onOutlineProposal?.({ ops: d.ops, base: d.base ?? null, source: 'tutor', ...(questionPlan !== undefined ? { planBase: questionPlan } : {}) }); }
@@ -886,12 +867,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           else if (type === 'video') { cardSink?.(boardContext?.onShowVideo?.(d, slots.video)); }
           else if (type === 'papers') setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, papers: d.papers } : item));
           else if (type === 'proposal') setMsgs((m) => [...m, { role: 'proposal', proposal: d }]);
-          else if (type === 'answer_meta') {
-            setMsgs(messages => withAnswerMeta(messages, replyId, d));
-            // CHAT.02: the answer asked for a tool. The server already checked it; the command's own handler runs it, as a router decision would.
-            if (d.toolRequest?.command === 'explain-on-canvas') { const { instruction, source } = d.toolRequest.args || {}; roadmap?.controller?.lesson({ depth: chat?.settings?.depth || 'standard', instruction, source: (lessonSources || []).find(s => s.key === source) || null, threadId: chat?.thread?.id || null }); }
-            else if (d.toolRequest?.command) { const { command, args } = d.toolRequest; if (command === 'generate-image' && chatThread && imageGenerationOn()) imagePlan(args).catch(() => {}); else slashRef.current?.intercept(('/' + typedOf(command) + ' ' + args).trim()); }
-          }
+          else if (type === 'answer_meta') setMsgs(messages => withAnswerMeta(messages, replyId, d));
           else if (type === 'done' && d.threadId) {
             askedId(d.userMessageId != null ? String(d.userMessageId) : null);
             if (chatThread) { setMsgs(messages => withDone(messages, replyId, d)); chatThread.adopt(d.threadId, message.slice(0, 120)); }
@@ -901,13 +877,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
             if (responseGraph && onGraph) onGraph(responseGraph);
             if (learnChat) setThreads(ts => ts.some(t => t.id === d.threadId) ? ts : [{ id: d.threadId, title: message.slice(0, 120) }, ...ts]);
           }
-          else if (type === 'error') { timed = 'failed'; mirror(`✗ ${d.error}`); keepRefused(d); if (chatThread) setMsgs(messages => settle(messages, replyId, 'error')); }
+          else if (type === 'error') { mirror(`✗ ${d.error}`); keepRefused(d); if (chatThread) setMsgs(messages => settle(messages, replyId, 'error')); }
         }
       }
-      if (timed === 'pending') timed = late() ? 'cancelled' : 'ok';
     } catch (e) {
       // A stopped answer keeps what arrived; it is not an error. In the Chat pane it is marked Stopped.
-      timed = e.name === 'AbortError' || late() ? 'cancelled' : 'failed';
       if (late()) return;
       if (e.name !== 'AbortError') {
         begin(); mirror(`✗ ${e.message}`);
@@ -915,7 +889,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       }
       if (chatThread) setMsgs(messages => settle(messages, replyId, e.name === 'AbortError' ? 'stopped' : 'error'));
     } finally {
-      for (const part of ['first', 'total']) markEnd(`${replyId}:${part}`, timed === 'pending' ? 'failed' : timed);
       const mine = answerFlight.current === flight;
       if (mine) answerFlight.current = null;
       askedId(null); // a turn that ended without its done event keeps its cards on the canvas only
@@ -1142,7 +1115,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
             ))}
           </div>
         )}
-        {!(sheetMode && sheetHistory) && <ChatMessages renderTutor={chat && !tocView && roadmap?.on ? m => <SurfaceBoundary artifact="tutor_entry" fallback={<div className="min-w-0 whitespace-pre-wrap text-sm">{String(m.content ?? '')}</div>}><TutorMessage m={m} roadmap={roadmap} chat={chat} /></SurfaceBoundary> : null} msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} follow={follow} />}
+        {!(sheetMode && sheetHistory) && <ChatMessages renderTutor={chat && !tocView && roadmap?.on ? m => <TutorMessage m={m} roadmap={roadmap} chat={chat} /> : null} msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} follow={follow} />}
         {/* Fix B: the explain-on-canvas roadmap's lines, in this transcript after the thread's messages (RoadmapTranscript.jsx). */}
         {chat && !tocView && roadmap?.on && <RoadmapTranscript roadmap={roadmap} chat={chat} msgs={msgs} />}
         {choices && (
@@ -1229,13 +1202,15 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         {!tocView && <GenerationIndicator entries={generation.entries} ops={outputOps} onDismiss={generation.dismiss} />}
         {/* A /cad request's design brief to approve before anything is generated (CAD_BRIEF_FIRST; CadReview.jsx). */}
         {!tocView && <CadReview ops={workspace?.canvasOps} />}
+        {routeShown && <RouteDecision decision={routeShown} onDismiss={() => setRouteShown(null)} onChoose={id => send(routeShown.raw, undefined, { routeAs: id })}
+          onAnswer={() => send(routeShown.raw, undefined, { routeAs: 'answer' })} onRetry={() => send(routeShown.raw, undefined, routeShown.command ? { command: routeShown.command, prompted: true } : {})} />}
         {slash && <div className="relative"><slash.Picker apiRef={slashRef} scope={chatThread?.restore.key ?? null} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={(prompt, handoff) => send(prompt, undefined, { skipJourney: true, command: promptCommand.current, prompted: true, ...(handoff ? { about: handoff.about, keepDraft: true } : {}) })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
         {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command} token={commandToken}
           onKeyDown={slash ? event => { if (removesToken(event, { command, selectionStart: event.target.selectionStart, selectionEnd: event.target.selectionEnd })) { event.preventDefault(); removeCommand(); return; } if (commandHistory(event)) return; slashRef.current?.onKeyDown(event);
             if (busy && !event.defaultPrevented && composerKey(event.nativeEvent, chatSendKey()) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? (toolOf(command)?.placeholder || `Add details, or press ${sendKeyLabel()}`) : placeholder} busy={busy}
           dock={dock} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
-          stacked={!!chat} tocView={tocView} chips={chat ? <ContextChips hideDocs={tocView} readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, attachedRefs))?.id ?? null}
+          stacked={!!chat} tocView={tocView} chips={chat && !tocView ? <ContextChips readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, attachedRefs))?.id ?? null}
             selection={canvasTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, card: canvasTarget.card, preview: canvasTarget.preview, paper: canvasTarget.paper, docPage: canvasTarget.docPage, image: canvasTarget.image, pinned: pinnedTarget, onClear: onClearCanvasTarget } : null} extra={boardPending}
             code={codebase || cardRefs.length ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: temporaryCode, onRemove: ref => releaseCodeRef(codebase, ref) } : null} /> : null}
           leading={<>

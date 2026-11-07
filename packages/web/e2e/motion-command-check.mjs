@@ -131,7 +131,7 @@ for (const theme of ['light', 'dark']) {
   const scripted = new Map([
     ['Create a 15-second animated explanation of photosynthesis', { route: 'capability:motion', flow: 'proposal', via: 'jev', capability: 'motion', confidence: 0.93, probability: 0.9 }],
     ['make something about this', { route: 'clarify', via: 'jev', capability: null, clarification: { question: 'Did you want a Motion video or an answer in chat?', options: ['motion', 'answer'] } }],
-    ['the router times out on this', { route: 'answer', via: 'fallback', recoverable: true, code: 'timeout', capability: null, token: null, message: 'The request check did not finish. The turn is answered in text only.' }],
+    ['the router times out on this', { route: 'answer', via: 'fallback', retryable: true, code: 'timeout', capability: null, token: null, message: 'Couldn\'t check whether this asks for a video or another tool. Answer normally, or try again.' }],
   ]);
   await context.route(/\/api\/learn\/chat\/route$/, route => {
     const body = JSON.parse(route.request().postData() || '{}');
@@ -485,7 +485,7 @@ for (const theme of ['light', 'dark']) {
     assert.deepEqual([body.operation.proposal?.command, body.operation.proposal?.version, body.operation.proposal?.settings], ['motion', 1, { duration_seconds: 15, audio: false }], 'the exact approved proposal');
     assert.equal(await proposal.getAttribute('data-proposal-active'), 'false', 'a generated proposal is inactive');
     // Chat generation UX (owner brief, bug 2): the proposal reports its job, Ready once the video is ready; a placeholder card is never "Added to the canvas".
-    await until(async () => (await proposal.locator('[data-proposal-generate]').filter({ hasText: /Ready/ }).count()) === 1, 'the proposal reports its job Ready'); // Generate is the red Stop while the job runs, so it is absent until the job is ready
+    await until(async () => /Ready/.test(await proposal.locator('[data-proposal-generate]').innerText()), 'the proposal reports its job Ready');
     assert.doesNotMatch(await proposal.innerText(), /Added to the canvas/);
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-05-ready-card.png` });
@@ -796,26 +796,38 @@ for (const theme of ['light', 'dark']) {
     await dismiss();
   }));
 
-  await step(`${theme}: clarification: one question as a line in the Chat, the draft kept and no turn; sending it again answers in chat (Ask mode)`, inAsk(async () => {
+  await step(`${theme}: clarification: one question with its options, the draft kept and no turn; choosing Motion proposes it (Ask mode)`, inAsk(async () => {
     const r0 = routes.length, a0 = asks.length, before = await proposalCards.count();
     await composer().fill('make something about this'); await composer().press('Enter');
-    await dock.getByText('Did you want a Motion video or an answer in chat?').last().waitFor();
-    assert.equal(await dock.locator('[data-route-decision], [data-route-option]').count(), 0, 'no banner or buttons: the question is a line in the Chat');
+    const shown = dock.locator('[data-route-decision="clarify"]');
+    await shown.waitFor();
+    assert.equal((await shown.locator('[data-route-message]').innerText()).trim(), 'Did you want a Motion video or an answer in chat?');
+    assert.deepEqual(await shown.locator('[data-route-option]').evaluateAll(nodes => nodes.map(node => node.dataset.routeOption)), ['motion', 'answer']);
     assert.equal(asks.length, a0, 'no chat turn');
     assert.equal(await composer().inputValue(), 'make something about this', 'the draft is kept');
-    await composer().press('Enter');
-    await until(() => asks.length > a0, 'sending the same words again is the answer in chat');
-    assert.deepEqual([asks[a0].answer_only, asks[a0].route_token ?? null, asks[a0].command ?? null, routes.length - r0], [true, null, null, 1], 'answer-only, no token, no second route call');
-    assert.equal(await proposalCards.count(), before, 'no proposal card');
+    await shown.screenshot({ path: `${OUT}/${theme}-11-route-clarify.png` });
+    await shown.locator('[data-route-option="motion"]').click();
+    await until(async () => (await proposalCards.count()) > before, 'the chosen proposal card');
+    assert.deepEqual([routes.at(-1).capability, routes.at(-1).text, routes.length - r0], ['motion', 'make something about this', 2], 'the option asks again with the capability named');
+    assert.equal(asks.at(-1).route_token, `route-token-${routes.length}`);
+    assert.equal(await dock.locator('[data-route-decision]').count(), 0, 'the question goes once answered');
     await dismiss();
   }));
 
-  await step(`${theme}: router failure: an ordinary message is sent once as an answer-only turn; no banner, no buttons; never a paid capability (Ask mode)`, inAsk(async () => {
+  await step(`${theme}: router failure: the draft is kept with Answer normally and Retry; never a paid capability (Ask mode)`, inAsk(async () => {
     const r0 = routes.length, a0 = asks.length, before = await proposalCards.count();
     await composer().fill('the router times out on this'); await composer().press('Enter');
-    await until(() => asks.length > a0, 'the turn is sent without a banner');
-    assert.deepEqual([asks[a0].message, asks[a0].answer_only, asks[a0].route_token ?? null, asks[a0].command ?? null, routes.length - r0], ['the router times out on this', true, null, null, 1], 'one route call, then an answer-only chat turn: no token, no command');
-    assert.equal(await dock.locator('[data-route-decision], [data-route-answer], [data-route-retry]').count(), 0, 'no banner, no Answer normally, no Retry');
+    const shown = dock.locator('[data-route-decision="fallback"]');
+    await shown.waitFor();
+    assert.match(await shown.innerText(), /Answer normally, or try again\./);
+    assert.deepEqual([await shown.locator('[data-route-answer]').count(), await shown.locator('[data-route-retry]').count()], [1, 1]);
+    assert.deepEqual([asks.length, await composer().inputValue()], [a0, 'the router times out on this'], 'no turn, the draft kept');
+    await shown.locator('[data-route-retry]').click();
+    await until(() => routes.length - r0 === 2, 'Retry routes again');
+    await shown.waitFor();
+    await shown.locator('[data-route-answer]').click();
+    await until(() => asks.length > a0, 'Answer normally sends the turn');
+    assert.deepEqual([asks[a0].message, asks[a0].route_token ?? null, asks[a0].command ?? null, routes.length - r0], ['the router times out on this', null, null, 2], 'answered as a chat turn: no token, no command, no third route call');
     await dock.getByText('Photosynthesis turns light into sugar.').last().waitFor();
     assert.equal(await proposalCards.count(), before, 'no proposal card');
     await dismiss();
