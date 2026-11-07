@@ -37,6 +37,17 @@ export function exclusiveOneOfToAnyOf(schema) {
   return { ...rest, anyOf: oneOf };
 }
 
+// Retest arm (EXPLAIN_DEV_FLOW_RULES=true): the guidance every model gets already says how a flow must be wired, in one clause. This swaps ONLY that clause, in the copy sent to
+// the provider, for the same rules written as a numbered list that also names the two the clause left out (every edge joins listed ids; a retry is its own outcome, never a loop).
+// Production guidance is untouched. If the clause is not found (the guidance changed) it throws, so the arm can never silently run as the control.
+const FLOW_CLAUSE = /one connected acyclic graph with exactly one start node; a decision has two or three outgoing edges with distinct short labels such as Yes and No, each to its own node, and a failed check ends in its own outcome; a process has one outgoing edge, an outcome has none; use cycle or relationship for a loop/;
+export const FLOW_RULES = 'the app rejects the diagram if any of these is broken: (1) exactly one start node, and every other node reachable from it; (2) no edge points back to an earlier node, so a retry or a revision is its own outcome node, never a loop; (3) a decision node has two or three outgoing edges, each with a different non-empty label such as Yes and No, each to its own node; (4) a process node has exactly one outgoing edge; (5) an outcome node has none; (6) every edge from and to is the id of a listed node, and no pair of nodes is joined twice. Use cycle or relationship for a real loop';
+export const withFlowRules = guidance => { if (!FLOW_CLAUSE.test(guidance)) throw new Error('flow-rules arm: the flow clause is not in the guidance'); return guidance.replace(FLOW_CLAUSE, FLOW_RULES); };
+
+// Diagnostics (EXPLAIN_DEV_CAPTURE=true): per attempt the raw provider answer, the parser's exact errors, the validator's words sent back for the repair and, on a refused request, the
+// provider's own error body. Nothing else is changed. The key is scrubbed from anything kept; request headers are never kept.
+const scrub = (text, env) => String(text ?? '').split(env.CELERIS_API_KEY || '\u0000').join('[key]').replace(/Bearer\s+\S+/g, 'Bearer [redacted]');
+
 const cardSchema = required => ({
   type: 'object', additionalProperties: false, required: ['title', 'body', 'diagram'],
   properties: {
@@ -58,7 +69,8 @@ Answer format for this request (it replaces the tool call and the fence instruct
 // and what became of each attempt's diagram (omitted, present and valid, present and invalid).
 export function celerisExplainRoute(env, command) {
   if (!celerisExplainOn(env, command)) return null;
-  const seen = { models: [], calls: 0, inTokens: 0, outTokens: 0, attempts: [] };
+  const capture = env.EXPLAIN_DEV_CAPTURE === 'true';
+  const seen = { models: [], calls: 0, inTokens: 0, outTokens: 0, attempts: [], capture: [] };
   let last = null; // the previous raw answer text, sent back with the validator's words on the one repair
   if (env.EXPLAIN_DEV_MODEL === 'anthropic') {
     const recording = async (callEnv, body, model, org) => {
@@ -85,11 +97,14 @@ export function celerisExplainRoute(env, command) {
     const firstText = typeof first === 'string' ? first : (first || []).map(part => part.text || '').join('');
     let learnerText = ''; try { learnerText = JSON.parse(firstText).learnerText || ''; } catch { /* not the author's JSON */ }
     const required = ASKS_FOR_DIAGRAM.test(learnerText);
-    const guidance = body.tools?.find(tool => tool.name === 'make_explanation')?.description || '';
+    const toolGuidance = body.tools?.find(tool => tool.name === 'make_explanation')?.description || '';
+    const guidance = env.EXPLAIN_DEV_FLOW_RULES === 'true' ? withFlowRules(toolGuidance) : toolGuidance;
     const messages = [{ role: 'system', content: `${body.system}\n${guidance}\n${ADDENDUM(required)}` }, { role: 'user', content: firstText }];
+    let feedback = null;
     if (body.messages.length > 1 && last != null) {
       const result = body.messages.at(-1).content?.find?.(part => part.type === 'tool_result');
-      messages.push({ role: 'assistant', content: last }, { role: 'user', content: `${typeof result?.content === 'string' ? result.content : 'Validation failed.'} Return the complete corrected JSON object.` });
+      feedback = typeof result?.content === 'string' ? result.content : 'Validation failed.';
+      messages.push({ role: 'assistant', content: last }, { role: 'user', content: `${feedback} Return the complete corrected JSON object.` });
     }
     const response = await fetch(`${(env.CELERIS_BASE_URL || BASE).replace(/\/+$/, '')}/chat/completions`, {
       method: 'POST',
@@ -97,18 +112,22 @@ export function celerisExplainRoute(env, command) {
       body: JSON.stringify({ model: env.EXPLAIN_DEV_MODEL || CELERIS_MODEL, stream: false, max_tokens: body.max_tokens || 4000, temperature: 0.4, ...(env.EXPLAIN_DEV_PARAMS ? JSON.parse(env.EXPLAIN_DEV_PARAMS) : {}), messages,
         response_format: { type: 'json_schema', json_schema: { name: 'explanation_card', strict: true, schema: env.EXPLAIN_DEV_ANYOF === 'true' ? exclusiveOneOfToAnyOf(cardSchema(required)) : cardSchema(required) } } }),
     });
-    if (!response.ok) return response; // the caller turns a non-ok status into its one-line error
+    if (!response.ok) {
+      if (capture) seen.capture.push({ attempt: seen.calls, providerStatus: response.status, providerBody: scrub(await response.clone().text().catch(() => ''), env).slice(0, 2000), feedback });
+      return response; // the caller turns a non-ok status into its one-line error
+    }
     const json = await response.json();
     seen.models.push(json.model || null);
     seen.inTokens += json.usage?.prompt_tokens || 0; seen.outTokens += json.usage?.completion_tokens || 0;
     let card = null; try { card = JSON.parse(json.choices?.[0]?.message?.content ?? ''); } catch { /* an unreadable answer becomes an empty input: the validator names what is missing */ }
     const diagram = card?.diagram ?? null;
-    let valid = false; if (diagram) { try { valid = !!parseTutorDiagram(diagram); } catch { valid = false; } }
+    let valid = false, issues = null; if (diagram) { try { valid = !!parseTutorDiagram(diagram); } catch (error) { valid = false; issues = Array.isArray(error?.issues) ? error.issues.slice(0, 8).map(i => ({ path: i.path.join('.'), message: i.message })) : [{ path: '', message: String(error?.message || 'invalid').slice(0, 200) }]; } }
     seen.attempts.push({ required, diagram: diagram ? (valid ? 'valid' : 'invalid') : 'omitted', chars: card ? String(card.title || '').length + String(card.body || '').length : null });
+    if (capture) seen.capture.push({ attempt: seen.calls, finish: json.choices?.[0]?.finish_reason ?? null, usage: json.usage || null, raw: scrub(json.choices?.[0]?.message?.content, env).slice(0, 12000), diagramParseErrors: issues, feedback });
     last = json.choices?.[0]?.message?.content ?? "";
     const input = card ? { title: card.title, body: diagram ? `${String(card.body ?? '').trimEnd()}\n\n\`\`\`rh-diagram\n${JSON.stringify(diagram)}\n\`\`\`` : card.body } : {};
     return Response.json({ model: json.model, stop_reason: json.choices?.[0]?.finish_reason === 'length' ? 'max_tokens' : 'tool_use', usage: json.usage || {},
       content: [{ type: 'tool_use', id: `t_${seen.calls}`, name: 'make_explanation', input }] });
   };
-  return { options: { callModel }, served: () => ({ requested: env.EXPLAIN_DEV_MODEL || CELERIS_MODEL, models: [...new Set(seen.models)], calls: seen.calls, inTokens: seen.inTokens, outTokens: seen.outTokens, attempts: seen.attempts }) };
+  return { options: { callModel }, served: () => ({ requested: env.EXPLAIN_DEV_MODEL || CELERIS_MODEL, models: [...new Set(seen.models)], calls: seen.calls, inTokens: seen.inTokens, outTokens: seen.outTokens, attempts: seen.attempts, ...(capture ? { capture: seen.capture, flowRulesArm: env.EXPLAIN_DEV_FLOW_RULES === 'true' } : {}) }) };
 }
