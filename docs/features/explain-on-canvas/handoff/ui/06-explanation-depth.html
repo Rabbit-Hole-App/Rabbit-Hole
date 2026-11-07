@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rabbit Hole — Explanation depth</title>
+<!--
+Tutor MVP delivered Explanation reference. File 04 isolates the same card frame.
+The tabs and counts are review controls for three accepted Depth settings.
+One accepted roadmap title stays in the fixed header. Only the main Markdown
+reading area scrolls. Each optional Markdown section opens below the controls
+and grows the same card downward, preserving the main reading area.
+
+Character caps include the title, visible Markdown text, table cells, diagram
+labels and all optional section labels and text, even while collapsed.
+These fixtures demonstrate rendering and layout. Lesson copy is provisional.
+The offline diagram is a static preview of the matching Mermaid source fixture.
+Use the app's existing Md and MermaidDiagram components for real card content.
+-->
+<style>
+:root {
+  color-scheme: dark;
+  --surface: #191919;
+  --ink: #d4d4d4;
+  --ink-2: #a1a1a1;
+  --line: #2f2f2f;
+  --line-strong: #4a4a4a;
+  --hover: #2c2c2c;
+  --select: #2383e2;
+  --code: #252525;
+  --card-width: 550px;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--surface) radial-gradient(var(--line) 1px, transparent 1px) 6px 6px / 22px 22px;
+  color: var(--ink);
+  font: 15px/1.55 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+button { color: inherit; font: inherit; cursor: pointer; }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--select); outline-offset: 2px; }
+.review { padding: 24px 16px 40px; }
+.review-toolbar { width: min(var(--card-width), 100%); margin: 0 auto 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.tabs { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
+.tab { border: 0; background: none; border-radius: 4px; color: var(--ink-2); padding: 5px 11px; font-size: 13px; font-weight: 550; }
+.tab:hover, .tab[aria-selected="true"] { background: var(--hover); color: var(--ink); }
+.budget { color: var(--ink-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.demo-canvas { display: flex; align-items: flex-start; justify-content: center; flex-wrap: wrap; gap: 24px; }
+.depth-panel { width: min(var(--card-width), 100%); min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 2px 6px #0003; }
+.explanation { overflow: hidden; }
+.card-core { display: flex; flex-direction: column; max-height: max(300px, min(565px, calc(100dvh - 116px))); }
+.card-head { flex: 0 0 auto; border-bottom: 1px solid var(--line); }
+.drag { display: grid; height: 25px; place-items: center; }
+.drag span { width: 48px; height: 4px; background: var(--line); border-radius: 9px; }
+.meta-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 20px; }
+.kind { display: inline-flex; align-items: center; flex-shrink: 0; gap: 7px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink); }
+.source { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.icon { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 4px; background: none; padding: 0; color: var(--ink-2); }
+.icon:hover { color: var(--ink); background: var(--hover); }
+.icon svg, .source svg, .disclosure svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.card-title { margin: 8px 20px 15px; font-size: 26px; line-height: 1.23; font-weight: 650; letter-spacing: -.025em; text-wrap: balance; }
+.reading { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; padding: 16px 20px 18px; overflow-wrap: anywhere; }
+.reading:focus-visible { outline-offset: -2px; }
+.reading h2 { margin: 0 0 7px; font-size: 16px; font-weight: 650; line-height: 1.35; }
+.reading p { margin: 0; }
+.reading .lead { font-size: 16px; }
+.reading .overview-takeaway { margin-top: 9px; color: var(--ink-2); }
+.card-expansion { flex: none; overflow: visible; border-top: 1px solid var(--line); }
+.sample { color: var(--ink-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+.card-expansion .rules { margin-top: 9px; }
+.answer { margin-top: 12px; padding-top: 9px; border-top: 1px solid var(--line); }
+.divided { border-top: 1px solid var(--line); margin-top: 15px; padding-top: 14px; }
+.rules { margin: 0; padding-left: 19px; }
+.rules li + li { margin-top: 6px; }
+.diagram { margin: 10px 0 0; padding: 4px; border: 1px solid var(--line); background: var(--code); border-radius: 6px; }
+.diagram svg { display: block; width: 100%; max-width: 410px; margin-inline: auto; }
+.diagram text { fill: var(--ink); font: 13px system-ui, sans-serif; text-anchor: middle; }
+.diagram .edge-label { fill: var(--ink-2); font-size: 12px; }
+.diagram-node { fill: #2a2a28; stroke: #4f8ff7; }
+.diagram-edge { fill: none; stroke: #8b93a6; stroke-width: 1.3; }
+.table-wrap { overflow-x: auto; }
+.split-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; text-align: left; font-variant-numeric: tabular-nums; }
+.split-table th, .split-table td { padding: 6px; border: 1px solid var(--line); }
+.split-table thead th { color: var(--ink-2); font-weight: 550; }
+.card-foot { flex: 0 0 auto; padding: 0 20px 4px; border-top: 1px solid var(--line); }
+.disclosure { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; min-height: 40px; width: 100%; border: 0; background: none; color: var(--ink-2); font-size: 14px; font-weight: 550; text-align: left; }
+.disclosure:hover, .disclosure[aria-expanded="true"] { color: var(--ink); }
+.disclosure[aria-expanded="true"] svg { transform: rotate(90deg); }
+.source-example { width: min(360px, 100%); padding: 14px 16px; }
+.source-example header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.source-example h2 { font-size: 16px; margin: 12px 0 6px; }
+.source-example p { margin: 0; }
+.source-example mark { color: inherit; background: #80691666; border-radius: 3px; }
+@media (max-width: 420px) {
+  .review { padding: 14px 12px 24px; }
+  .review-toolbar { margin-bottom: 10px; }
+  .card-title { font-size: 23px; margin: 8px 14px 13px; }
+  .meta-row, .reading, .card-foot { padding-left: 14px; padding-right: 14px; }
+  .split-table th, .split-table td { padding: 5px 3px; }
+}
+</style>
+</head>
+<body>
+<main class="review" aria-label="Explanation depth review">
+  <div class="review-toolbar">
+    <div class="tabs" role="tablist" aria-label="Explanation depth"><button class="tab" id="tab-overview" type="button" role="tab" aria-selected="false" aria-controls="panel-overview" tabindex="-1" data-depth="overview">Overview</button>
+<button class="tab" id="tab-standard" type="button" role="tab" aria-selected="true" aria-controls="panel-standard" tabindex="0" data-depth="standard">Standard</button>
+<button class="tab" id="tab-deep" type="button" role="tab" aria-selected="false" aria-controls="panel-deep" tabindex="-1" data-depth="deep">Deep</button></div>
+    <span class="budget" id="budget" aria-live="polite">785 / 1000 characters</span>
+  </div>
+  <div class="demo-canvas">
+    <section class="depth-panel" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" data-count="440" data-cap="600" hidden>
+  <article class="card explanation" aria-labelledby="title-overview">
+    <div class="card-core">
+      <header class="card-head">
+      <div class="drag" aria-hidden="true"><span></span></div>
+      <div class="meta-row">
+        <span class="kind"><span class="dot" aria-hidden="true"></span>Explanation</span>
+        <div class="source"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 12h8m-8 4h8"/></svg><span>Source: en.md</span><button class="icon" type="button" data-source title="View section" aria-label="View section" aria-controls="source-example"><svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2m10 0h2a1 1 0 0 1 1 1v2m0 10v2a1 1 0 0 1-1 1h-2m-10 0H5a1 1 0 0 1-1-1v-2M8 10h8m-8 4h5"/></svg></button></div>
+      </div>
+      <h1 class="card-title" id="title-overview">Why trees, and what a tree actually does</h1>
+    </header>
+      <div class="reading" data-scroll tabindex="0" role="region" aria-label="Explanation text">
+        <p class="lead">A decision tree works like a flowchart for predictions. Each question checks one feature, like age. The answer picks a branch. The final stop, called a leaf, gives the prediction.</p>
+<p class="overview-takeaway">Different answers can send two people down different paths.</p>
+      </div>
+      <footer class="card-foot">
+        <button class="disclosure" type="button" data-reveal aria-expanded="false" aria-controls="details-overview">See a worked example<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+      </footer>
+    </div>
+    <section class="reading card-expansion" id="details-overview" aria-label="See a worked example" hidden>
+      <h2>One applicant</h2>
+      <p class="sample">Age 25 · income $60k</p>
+      <ol class="rules">
+        <li><strong>Age under 30?</strong> Yes, check income.</li>
+        <li><strong>Income over $50k?</strong> Yes, follow the approval branch.</li>
+        <li><strong>Prediction</strong> Approve.</li>
+      </ol>
+    </section>
+  </article>
+</section>
+<section class="depth-panel" id="panel-standard" role="tabpanel" aria-labelledby="tab-standard" data-count="785" data-cap="1000">
+  <article class="card explanation" aria-labelledby="title-standard">
+    <div class="card-core">
+      <header class="card-head">
+      <div class="drag" aria-hidden="true"><span></span></div>
+      <div class="meta-row">
+        <span class="kind"><span class="dot" aria-hidden="true"></span>Explanation</span>
+        <div class="source"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 12h8m-8 4h8"/></svg><span>Source: en.md</span><button class="icon" type="button" data-source title="View section" aria-label="View section" aria-controls="source-example"><svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2m10 0h2a1 1 0 0 1 1 1v2m0 10v2a1 1 0 0 1-1 1h-2m-10 0H5a1 1 0 0 1-1-1v-2M8 10h8m-8 4h5"/></svg></button></div>
+      </div>
+      <h1 class="card-title" id="title-standard">Why trees, and what a tree actually does</h1>
+    </header>
+      <div class="reading" data-scroll tabindex="0" role="region" aria-label="Explanation text">
+        <section class="topic" aria-labelledby="standard-path">
+  <h2 id="standard-path">From root to leaf</h2>
+  <p>Start at the root, the tree’s first question. Each question tests one feature and sends the case down a branch. Stop at a leaf to get the prediction. You can explain that prediction by tracing the tests along its path.</p>
+</section>
+<section class="topic divided" aria-labelledby="standard-training">
+  <h2 id="standard-training">How the tree learns</h2>
+  <p>During training, the tree tries questions such as “Age under 25?” and “Age under 30?” It chooses a split that groups examples with more similar outcomes, then repeats the process within those groups.</p>
+</section>
+      </div>
+      <footer class="card-foot">
+        <button class="disclosure" type="button" data-reveal aria-expanded="false" aria-controls="details-standard">Try a prediction<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+      </footer>
+    </div>
+    <section class="reading card-expansion" id="details-standard" aria-label="Try a prediction" hidden>
+      <h2>Approve or deny?</h2>
+      <p class="sample">Age 25 · income $60k · credit score 640</p>
+      <ul class="rules">
+        <li><strong>Age under 30?</strong> Yes → check income. No → check credit score.</li>
+        <li><strong>Income over $50k?</strong> Yes → Approve. No → Deny.</li>
+      </ul>
+      <div class="answer">
+        <p><strong>Prediction</strong> Approve. Both answers are yes, so this path reaches the Approve leaf without checking credit score.</p>
+      </div>
+    </section>
+  </article>
+</section>
+<section class="depth-panel" id="panel-deep" role="tabpanel" aria-labelledby="tab-deep" data-count="916" data-cap="1500" hidden>
+  <article class="card explanation" aria-labelledby="title-deep">
+    <div class="card-core">
+      <header class="card-head">
+      <div class="drag" aria-hidden="true"><span></span></div>
+      <div class="meta-row">
+        <span class="kind"><span class="dot" aria-hidden="true"></span>Explanation</span>
+        <div class="source"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 12h8m-8 4h8"/></svg><span>Source: en.md</span><button class="icon" type="button" data-source title="View section" aria-label="View section" aria-controls="source-example"><svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2m10 0h2a1 1 0 0 1 1 1v2m0 10v2a1 1 0 0 1-1 1h-2m-10 0H5a1 1 0 0 1-1-1v-2M8 10h8m-8 4h5"/></svg></button></div>
+      </div>
+      <h1 class="card-title" id="title-deep">Why trees, and what a tree actually does</h1>
+    </header>
+      <div class="reading" data-scroll tabindex="0" role="region" aria-label="Explanation text">
+        <section class="topic" aria-labelledby="deep-region">
+  <h2 id="deep-region">One leaf, one region</h2>
+  <p>The Approve path requires both age under 30 and income over $50k. Plot those two thresholds on separate axes and the intersection forms a rectangle.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 410 208" role="img" aria-label="A decision tree tests age, then income or credit score. The income test leads to Approve or Deny.">
+      <defs>
+        <marker id="tree-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 0 8 4 0 8Z" fill="#8b93a6"/>
+        </marker>
+      </defs>
+      <g class="diagram-edge" marker-end="url(#tree-arrow)">
+        <path d="M205 51v18h-70v22"/>
+        <path d="M205 51v18h118v22"/>
+        <path d="M135 129v17H74v22"/>
+        <path d="M135 129v17h75v22"/>
+      </g>
+      <g class="diagram-node">
+        <rect x="134" y="13" width="142" height="38" rx="5"/>
+        <rect x="59" y="91" width="152" height="38" rx="5"/>
+        <rect x="247" y="91" width="152" height="38" rx="5"/>
+        <rect x="22" y="168" width="104" height="34" rx="5"/>
+        <rect x="158" y="168" width="104" height="34" rx="5"/>
+      </g>
+      <text x="205" y="37">Age under 30?</text>
+      <text class="edge-label" x="164" y="65">Yes</text>
+      <text class="edge-label" x="282" y="65">No</text>
+      <text x="135" y="115">Income over $50k?</text>
+      <text x="323" y="115">Check credit score</text>
+      <text class="edge-label" x="102" y="142">Yes</text>
+      <text class="edge-label" x="180" y="142">No</text>
+      <text x="74" y="190">Approve</text>
+      <text x="210" y="190">Deny</text>
+    </svg>
+  </figure>
+</section>
+<section class="topic divided" aria-labelledby="deep-boundary">
+  <h2 id="deep-boundary">Why a diagonal is harder</h2>
+  <p>Each split is horizontal or vertical. A slanted boundary takes several cuts, forming a staircase.</p>
+</section>
+<section class="topic divided" aria-labelledby="deep-training">
+  <h2 id="deep-training">How training picks a split</h2>
+  <p>The tree chooses the question that most reduces impurity at this node. That local choice can lead to a different tree than optimizing every split together.</p>
+</section>
+      </div>
+      <footer class="card-foot">
+        <button class="disclosure" type="button" data-reveal aria-expanded="false" aria-controls="details-deep">Compare two splits<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+      </footer>
+    </div>
+    <section class="reading card-expansion" id="details-deep" aria-label="Compare two splits" hidden>
+      <h2>Which split wins?</h2>
+<p>Start with 4 approvals and 4 denials. Parent Gini is 0.5. Both splits make two groups of four.</p>
+<p>Group counts are approvals / denials.</p>
+<div class="table-wrap">
+  <table class="split-table">
+    <thead><tr><th scope="col">Split</th><th scope="col">Group 1</th><th scope="col">Group 2</th><th scope="col">Gini after</th></tr></thead>
+    <tbody><tr><td>A</td><td>3 / 1</td><td>1 / 3</td><td>0.375</td></tr><tr><td>B</td><td>2 / 2</td><td>2 / 2</td><td>0.5</td></tr></tbody>
+  </table>
+</div>
+<p>For A, each group has Gini 1 − (¾)² − (¼)² = 0.375. A wins with a drop of 0.125.</p>
+    </section>
+  </article>
+</section>
+    <aside class="card source-example" id="source-example" tabindex="-1" aria-label="en.md source example" hidden>
+      <header><strong>en.md</strong><button class="icon" type="button" id="close-source" title="Close" aria-label="Close source example"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
+      <h2>What one tree does</h2>
+      <p><mark>Each internal node tests one feature against a threshold. Each leaf makes a prediction.</mark></p>
+    </aside>
+  </div>
+</main>
+<script type="text/markdown" id="fixture-deep-body">
+## One leaf, one region
+
+The Approve path requires both age under 30 and income over $50k. Plot those two thresholds on separate axes and the intersection forms a rectangle.
+
+```mermaid
+flowchart TD
+  A["Age under 30?"]
+  B["Income over $50k?"]
+  C["Check credit score"]
+  D["Approve"]
+  E["Deny"]
+  A -->|Yes| B
+  A -->|No| C
+  B -->|Yes| D
+  B -->|No| E
+```
+
+## Why a diagonal is harder
+
+Each split is horizontal or vertical. A slanted boundary takes several cuts, forming a staircase.
+
+## How training picks a split
+
+The tree chooses the question that most reduces impurity at this node. That local choice can lead to a different tree than optimizing every split together.
+</script>
+<script type="text/markdown" id="fixture-deep-more">
+## Which split wins?
+
+Start with 4 approvals and 4 denials. Parent Gini is 0.5. Both splits make two groups of four.
+
+Group counts are approvals / denials.
+
+| Split | Group 1 | Group 2 | Gini after |
+| --- | --- | --- | --- |
+| A | 3 / 1 | 1 / 3 | 0.375 |
+| B | 2 / 2 | 2 / 2 | 0.5 |
+
+For A, each group has Gini 1 − (¾)² − (¼)² = 0.375. A wins with a drop of 0.125.
+</script>
+<script>
+const tabs = [...document.querySelectorAll('[role="tab"]')];
+const panels = [...document.querySelectorAll('.depth-panel')];
+const budget = document.getElementById('budget');
+const source = document.getElementById('source-example');
+let sourceTrigger;
+
+function showDepth(key) {
+  const active = document.getElementById(`panel-${key}`);
+  if (!active) return;
+  for (const tab of tabs) {
+    const selected = tab.dataset.depth === key;
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  }
+  for (const panel of panels) panel.hidden = panel !== active;
+  budget.textContent = `${active.dataset.count} / ${active.dataset.cap} characters`;
+}
+
+for (const [index, tab] of tabs.entries()) {
+  tab.addEventListener('click', () => showDepth(tab.dataset.depth));
+  tab.addEventListener('keydown', event => {
+    const target = {
+      ArrowLeft: (index + tabs.length - 1) % tabs.length,
+      ArrowRight: (index + 1) % tabs.length,
+      Home: 0,
+      End: tabs.length - 1
+    }[event.key];
+    if (target === undefined) return;
+    event.preventDefault();
+    showDepth(tabs[target].dataset.depth);
+    tabs[target].focus();
+  });
+}
+
+for (const button of document.querySelectorAll('[data-reveal]')) {
+  const detail = document.getElementById(button.getAttribute('aria-controls'));
+  button.addEventListener('click', () => {
+    const opening = detail.hidden;
+    detail.hidden = !opening;
+    button.setAttribute('aria-expanded', String(opening));
+  });
+}
+
+for (const button of document.querySelectorAll('[data-source]')) {
+  button.addEventListener('click', () => {
+    sourceTrigger = button;
+    source.hidden = false;
+    source.focus({ preventScroll: true });
+    source.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
+}
+function closeSource() {
+  source.hidden = true;
+  sourceTrigger?.focus();
+}
+document.getElementById('close-source').addEventListener('click', closeSource);
+source.addEventListener('keydown', event => { if (event.key === 'Escape') closeSource(); });
+showDepth(location.hash.slice(1) || 'standard');
+</script>
+</body>
+</html>

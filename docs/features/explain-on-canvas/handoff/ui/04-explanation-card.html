@@ -5,24 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rabbit Hole — Explanation card</title>
 <!--
-UI review only. Based on the owner's deployed-app screenshots and main
-72d6536657af269bb894511220975fd2254246ed: AdaptiveCanvas/CanvasNode,
-LearningBlocks/ExplanationBody and Kicker, SourceRefChip/SourceRefLine,
-card-layout.css, and index.css theme tokens. Preview dimensions approximate
-that canvas zoom; the app retains its own saved card frame and layouts.
-
-Keep the existing card, text renderer, more[] data, navigation and status
-checks. Put the existing Explanation kicker and source reference above the
-body scroller; replace only the View section BookOpen glyph with ScanText.
-Keep the existing section disclosure buttons below the scroller. Expanded
-section content lives in the same reading area; activating a section scrolls
-only that area. Nothing in the header/footer depends on body scroll position.
-
-The separate en.md card is fixture data to demonstrate the existing source
-jump. In the app use SourceRefChip's real viewPassage and permission/revision
-resolution. Do not add a new source viewer, change card ownership/navigation,
-or render an unavailable passage button. Keep non-Explanation card layouts,
-excerpt/anchor/Focus variants, normal card actions and full layout behavior.
+Tutor MVP delivered Explanation frame in its scrolled layout.
+File 06 shows the same frame at all three Depth settings and has the Markdown
+table and Mermaid source fixtures. This card uses the Standard sample copy.
+The main reading region has a compact height here to demonstrate scrolling.
 -->
 <style>
 :root {
@@ -30,11 +16,11 @@ excerpt/anchor/Focus variants, normal card actions and full layout behavior.
   --surface: #191919;
   --ink: #d4d4d4;
   --ink-2: #a1a1a1;
-  --ink-3: #6f6f6f;
   --line: #2f2f2f;
   --line-strong: #4a4a4a;
   --hover: #2c2c2c;
-  --accent: #2383e2;
+  --select: #2383e2;
+  --card-width: 550px;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -43,154 +29,127 @@ body {
   min-height: 100dvh;
   background: var(--surface) radial-gradient(var(--line) 1px, transparent 1px) 6px 6px / 22px 22px;
   color: var(--ink);
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font: 15px/1.55 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
-button { font: inherit; color: inherit; }
-button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-svg { display: block; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.canvas { display: flex; align-items: flex-start; justify-content: center; flex-wrap: wrap; gap: 38px; padding: 20px 16px; min-height: 100dvh; }
-.card { width: min(550px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 15px; box-shadow: 0 2px 5px #0002; }
-.explanation { display: flex; flex-direction: column; height: min(650px, calc(100dvh - 40px)); min-height: 340px; overflow: hidden; }
+button { color: inherit; font: inherit; cursor: pointer; }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--select); outline-offset: 2px; }
+.review { padding: 24px 16px 40px; }
+.demo-canvas { display: flex; align-items: flex-start; justify-content: center; flex-wrap: wrap; gap: 24px; }
+.depth-panel { width: min(var(--card-width), 100%); min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 2px 6px #0003; }
+.explanation { overflow: hidden; }
+.card-core { display: flex; flex-direction: column; max-height: max(240px, min(355px, calc(100dvh - 42px))); }
 .card-head { flex: 0 0 auto; border-bottom: 1px solid var(--line); }
-.drag { height: 28px; display: grid; place-items: center; }
-.drag span { width: 60px; height: 5px; border-radius: 99px; background: var(--line); }
-.meta-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 36px; padding: 0 20px 9px; }
-.kind { display: inline-flex; flex-shrink: 0; align-items: center; gap: 8px; color: var(--ink-2); font-size: 13px; font-weight: 600; letter-spacing: .055em; text-transform: uppercase; }
-.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink); }
-.source { min-width: 0; display: flex; align-items: center; gap: 7px; color: var(--ink-2); font-size: 13px; }
-.source-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.icon { width: 27px; height: 27px; flex: 0 0 27px; display: grid; place-items: center; border: 0; border-radius: 5px; padding: 0; background: transparent; color: var(--ink-2); cursor: pointer; }
-.icon:hover { background: var(--hover); color: var(--ink); }
-.reading {
-  flex: 1 1 0;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  scrollbar-width: thin;
-  scrollbar-color: var(--line-strong) transparent;
-  scrollbar-gutter: stable;
-  padding: 13px 20px 17px;
-  font-size: 18px;
-  line-height: 1.46;
-  overflow-wrap: anywhere;
-}
-.reading h1 { margin: 0 0 4px; font: inherit; font-weight: 500; }
-.reading p, .source-card p { margin: 0 0 6px; }
-.reading strong { font-weight: 650; }
-.reading ul { margin: 3px 0 7px; padding-left: 25px; }
-.reading var { font: 1.04em Georgia, serif; font-style: italic; }
-.detail { padding-top: 12px; border-top: 1px solid var(--line); margin-top: 15px; color: var(--ink-2); }
-.detail h2 { margin: 0 0 6px; font: inherit; font-weight: 600; color: var(--ink); }
-.card-foot { flex: 0 0 auto; background: var(--surface); border-top: 1px solid var(--line); padding: 0 20px 6px; }
-.disclosure { width: 100%; min-height: 40px; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 1px 7px 0; border: 0; background: transparent; color: var(--ink-2); text-align: left; font-size: 15px; font-weight: 500; cursor: pointer; }
-.disclosure + .disclosure { border-top: 1px solid var(--line); }
+.drag { display: grid; height: 25px; place-items: center; }
+.drag span { width: 48px; height: 4px; background: var(--line); border-radius: 9px; }
+.meta-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 20px; }
+.kind { display: inline-flex; align-items: center; flex-shrink: 0; gap: 7px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink); }
+.source { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.icon { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 4px; background: none; padding: 0; color: var(--ink-2); }
+.icon:hover { color: var(--ink); background: var(--hover); }
+.icon svg, .source svg, .disclosure svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.card-title { margin: 8px 20px 15px; font-size: 26px; line-height: 1.23; font-weight: 650; letter-spacing: -.025em; text-wrap: balance; }
+.reading { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; padding: 16px 20px 18px; overflow-wrap: anywhere; }
+.reading:focus-visible { outline-offset: -2px; }
+.reading h2 { margin: 0 0 7px; font-size: 16px; font-weight: 650; line-height: 1.35; }
+.reading p { margin: 0; }
+.card-expansion { flex: none; overflow: visible; border-top: 1px solid var(--line); }
+.sample { color: var(--ink-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+.card-expansion .rules { margin-top: 9px; }
+.answer { margin-top: 12px; padding-top: 9px; border-top: 1px solid var(--line); }
+.divided { border-top: 1px solid var(--line); margin-top: 15px; padding-top: 14px; }
+.rules { margin: 0; padding-left: 19px; }
+.rules li + li { margin-top: 6px; }
+.card-foot { flex: 0 0 auto; padding: 0 20px 4px; border-top: 1px solid var(--line); }
+.disclosure { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; min-height: 40px; width: 100%; border: 0; background: none; color: var(--ink-2); font-size: 14px; font-weight: 550; text-align: left; }
 .disclosure:hover, .disclosure[aria-expanded="true"] { color: var(--ink); }
-.disclosure svg { transition: transform 130ms ease; }
 .disclosure[aria-expanded="true"] svg { transform: rotate(90deg); }
-.source-card { width: min(420px, 100%); }
-.source-card .meta-row { font-size: 14px; font-weight: 600; }
-.markdown { padding: 16px 20px 20px; color: var(--ink); font-size: 15px; line-height: 1.65; }
-.markdown h2 { margin: 0 0 9px; font-size: 18px; font-weight: 600; }
-.markdown mark { color: inherit; background: #80691666; border-radius: 3px; }
-@media (max-width: 430px) {
-  .canvas { padding: 12px; }
-  .explanation { height: min(650px, calc(100dvh - 24px)); }
+.source-example { width: min(360px, 100%); padding: 14px 16px; }
+.source-example header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.source-example h2 { font-size: 16px; margin: 12px 0 6px; }
+.source-example p { margin: 0; }
+.source-example mark { color: inherit; background: #80691666; border-radius: 3px; }
+@media (max-width: 420px) {
+  .review { padding: 14px 12px 24px; }
+  .card-title { font-size: 23px; margin: 8px 14px 13px; }
   .meta-row, .reading, .card-foot { padding-left: 14px; padding-right: 14px; }
-  .meta-row { gap: 8px; }
-  .reading { font-size: 16px; }
-  .disclosure { font-size: 14px; }
-  .source { gap: 5px; }
-  .kind { font-size: 11px; }
 }
-@media (prefers-reduced-motion: reduce) { .disclosure svg { transition: none; } }
 </style>
 </head>
 <body>
-<main class="canvas" aria-label="Rabbit Hole canvas">
-  <article class="card explanation" aria-labelledby="explanation-title">
-    <header class="card-head">
+<main class="review" aria-label="Delivered Explanation card">
+  <div class="demo-canvas">
+    <div class="depth-panel">
+  <article class="card explanation" aria-labelledby="title-standard">
+    <div class="card-core">
+      <header class="card-head">
       <div class="drag" aria-hidden="true"><span></span></div>
       <div class="meta-row">
         <span class="kind"><span class="dot" aria-hidden="true"></span>Explanation</span>
-        <div class="source" data-source-ref>
-          <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 12h8m-8 4h8"/></svg>
-          <span class="source-name" title="en.md">Source: en.md</span>
-          <button class="icon" id="view-section" type="button" title="View section" aria-label="View section" aria-controls="source-document">
-            <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2m10 0h2a1 1 0 0 1 1 1v2m0 10v2a1 1 0 0 1-1 1h-2m-10 0H5a1 1 0 0 1-1-1v-2M8 10h8m-8 4h5"/></svg>
-          </button>
-        </div>
+        <div class="source"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 12h8m-8 4h8"/></svg><span>Source: en.md</span><button class="icon" type="button" data-source title="View section" aria-label="View section" aria-controls="source-example"><svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2m10 0h2a1 1 0 0 1 1 1v2m0 10v2a1 1 0 0 1-1 1h-2m-10 0H5a1 1 0 0 1-1-1v-2M8 10h8m-8 4h5"/></svg></button></div>
       </div>
+      <h1 class="card-title" id="title-standard">Why trees, and what a tree actually does</h1>
     </header>
-    <div class="reading" id="reading" data-scroll tabindex="0" role="region" aria-label="Explanation text">
-      <h1 id="explanation-title">Why trees, and what a tree actually does</h1>
-      <p><strong>The setting.</strong> Your data is tabular: rows are samples, columns are features, and one column is the target you want to predict. The passage discusses why tree-based models are often a good fit for this kind of data.</p>
-      <p><strong>Why trees do well here.</strong> The passage gives four reasons:</p>
-      <ul>
-        <li>They handle mixed numeric and categorical features.</li>
-        <li>They capture nonlinear relationships through a sequence of decisions.</li>
-        <li>You can follow the path through a tree to see which decisions produced a prediction.</li>
-        <li>A random forest averages many trees to make predictions less sensitive to any one tree.</li>
-      </ul>
-      <p><strong>What one tree does.</strong> A decision tree partitions the feature space by asking one question at a time. Each node compares a feature against a threshold, for example <var>Age &lt; 30</var>. Each leaf makes a prediction.</p>
-      <p><strong>Classifying a sample.</strong> Start at the root and follow the branch matching the answer until you reach a leaf. In the loan example, a sample with <var>Age &lt; 30</var> goes left, then is asked whether <var>Income &gt; 50k</var>. Yes leads to the leaf “Approve”; no to “Deny”. A sample with <var>Age ≥ 30</var> follows a different branch.</p>
-      <p>Each path is a chain of conditions joined by “and”. For example, age under 30 and income over 50k describe a rectangular region when you plot age and income on separate axes.</p>
-      <p><strong>How the tree gets built.</strong> At each node, choose the feature and threshold that best split the data under the chosen criterion. The passage's later sections discuss Gini impurity, entropy, and information gain.</p>
-      <section class="detail" id="tracing" aria-labelledby="tracing-heading" hidden>
-        <h2 id="tracing-heading">Tracing one sample</h2>
-        <p>Take a 28-year-old applicant earning 62k. Age is under 30, so follow the left branch. Income is above 50k, so follow the “yes” branch to “Approve”.</p>
-        <p>Only the questions on this path are used for that prediction.</p>
-      </section>
-      <section class="detail" id="regions" aria-labelledby="regions-heading" hidden>
-        <h2 id="regions-heading">Rectangular regions</h2>
-        <p>Imagine age on the horizontal axis and income on the vertical axis. The age threshold draws a vertical line; the income threshold draws a horizontal one. The leaf covers the region that satisfies both conditions.</p>
-      </section>
-      <section class="detail" id="interpretability" aria-labelledby="interpretability-heading" hidden>
-        <h2 id="interpretability-heading">Why interpretability follows</h2>
-        <p>For one prediction, you can list the decisions in the order they were applied. That sequence explains how the tree reached its leaf. It does not establish that changing a feature would cause a different real-world outcome.</p>
-      </section>
+      <div class="reading" data-scroll tabindex="0" role="region" aria-label="Explanation text">
+        <section class="topic" aria-labelledby="standard-path">
+  <h2 id="standard-path">From root to leaf</h2>
+  <p>Start at the root, the tree’s first question. Each question tests one feature and sends the case down a branch. Stop at a leaf to get the prediction. You can explain that prediction by tracing the tests along its path.</p>
+</section>
+<section class="topic divided" aria-labelledby="standard-training">
+  <h2 id="standard-training">How the tree learns</h2>
+  <p>During training, the tree tries questions such as “Age under 25?” and “Age under 30?” It chooses a split that groups examples with more similar outcomes, then repeats the process within those groups.</p>
+</section>
+      </div>
+      <footer class="card-foot">
+        <button class="disclosure" type="button" data-reveal aria-expanded="false" aria-controls="details-standard">Try a prediction<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+      </footer>
     </div>
-    <footer class="card-foot" role="group" aria-label="Additional explanation sections">
-      <button type="button" class="disclosure" data-explain-more aria-expanded="false" aria-controls="tracing">Tracing one sample<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
-      <button type="button" class="disclosure" data-explain-more aria-expanded="false" aria-controls="regions">Rectangular regions<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
-      <button type="button" class="disclosure" data-explain-more aria-expanded="false" aria-controls="interpretability">Why interpretability follows<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
-    </footer>
+    <section class="reading card-expansion" id="details-standard" aria-label="Try a prediction" hidden>
+      <h2>Approve or deny?</h2>
+      <p class="sample">Age 25 · income $60k · credit score 640</p>
+      <ul class="rules">
+        <li><strong>Age under 30?</strong> Yes → check income. No → check credit score.</li>
+        <li><strong>Income over $50k?</strong> Yes → Approve. No → Deny.</li>
+      </ul>
+      <div class="answer">
+        <p><strong>Prediction</strong> Approve. Both answers are yes, so this path reaches the Approve leaf without checking credit score.</p>
+      </div>
+    </section>
   </article>
-  <aside class="card source-card" id="source-document" aria-label="en.md source card" tabindex="-1" hidden>
-    <header class="card-head">
-      <div class="drag" aria-hidden="true"><span></span></div>
-      <div class="meta-row"><span>en.md</span><button class="icon" id="close-source" type="button" aria-label="Close source example" title="Close"><svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
-    </header>
-    <div class="markdown"><h2>What a tree does</h2><p><mark>A decision tree partitions the feature space by asking one question at a time. Each leaf makes a prediction.</mark></p></div>
-  </aside>
+    </div>
+    <aside class="card source-example" id="source-example" tabindex="-1" aria-label="en.md source example" hidden>
+      <header><strong>en.md</strong><button class="icon" type="button" id="close-source" title="Close" aria-label="Close source example"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
+      <h2>What one tree does</h2>
+      <p><mark>Each internal node tests one feature against a threshold. Each leaf makes a prediction.</mark></p>
+    </aside>
+  </div>
 </main>
 <script>
-const reading = document.getElementById('reading');
-const controls = [...document.querySelectorAll('[data-explain-more]')];
-const source = document.getElementById('source-document');
-const view = document.getElementById('view-section');
-let savedScroll = 0;
-const expanded = () => controls.some(button => button.getAttribute('aria-expanded') === 'true');
-for (const button of controls) {
+const source = document.getElementById('source-example');
+let sourceTrigger;
+
+for (const button of document.querySelectorAll('[data-reveal]')) {
+  const detail = document.getElementById(button.getAttribute('aria-controls'));
   button.addEventListener('click', () => {
-    const panel = document.getElementById(button.getAttribute('aria-controls'));
-    const opening = panel.hidden;
-    if (opening && !expanded()) savedScroll = reading.scrollTop;
-    panel.hidden = !opening;
+    const opening = detail.hidden;
+    detail.hidden = !opening;
     button.setAttribute('aria-expanded', String(opening));
-    if (opening) {
-      const top = panel.getBoundingClientRect().top - reading.getBoundingClientRect().top + reading.scrollTop - 12;
-      reading.scrollTop = Math.max(0, top);
-    } else if (!expanded()) {
-      reading.scrollTop = savedScroll;
-    }
   });
 }
-view.addEventListener('click', () => {
-  source.hidden = false;
-  source.focus({ preventScroll: true });
-  source.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-});
-function closeSource() { source.hidden = true; view.focus(); }
+
+for (const button of document.querySelectorAll('[data-source]')) {
+  button.addEventListener('click', () => {
+    sourceTrigger = button;
+    source.hidden = false;
+    source.focus({ preventScroll: true });
+    source.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
+}
+function closeSource() {
+  source.hidden = true;
+  sourceTrigger?.focus();
+}
 document.getElementById('close-source').addEventListener('click', closeSource);
 source.addEventListener('keydown', event => { if (event.key === 'Escape') closeSource(); });
 </script>
