@@ -11,7 +11,7 @@ import { evaluateRequestFor, resolveProgram, setProgramInput } from '../../web/s
 import { loadEngine, runProgram } from '../../web/src/explain-program/runtime.js';
 import { programSdkSource } from '../../web/src/explain-program/sdk.js';
 import { VISUAL_PROGRAM_STAMPS } from '../../web/src/explain-program/stamps.js';
-import { spectrogramFixture } from '../../web/src/explain-program/testdata/spectrogram-fixture.mjs';
+import spectrogramFixture from '../../web/src/explain-program/testdata/spectrogram.json' with { type: 'json' };
 
 const engine = loadEngine();
 const createWorker = () => {

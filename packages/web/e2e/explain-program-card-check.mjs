@@ -15,7 +15,7 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { axisScene } from '../src/demo-scenes.js';
 import { buildProgramArtifact } from '../../control-plane/src/explain-program.js';
-import { spectrogramFixture } from '../src/explain-program/testdata/spectrogram-fixture.mjs';
+import spectrogramFixture from '../src/explain-program/testdata/spectrogram.json' with { type: 'json' };
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';

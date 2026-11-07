@@ -76,6 +76,8 @@ test('a typical 16 KiB program with the fullest manifest fits the real review an
   assert.ok(bytes(JSON.stringify(artifact.manifest)) <= PROGRAM_LIMITS.manifestBytes, 'the fullest legal manifest is within its limit');
   const job = { prompt: 'q'.repeat(MESSAGE_LIMIT), evidence: [], round: 0, artifact };
   assert.deepEqual(programFitProblems(ENV, artifact, job), []);
+  const heat = await buildProgramArtifact({ source, manifest: { ...artifact.manifest, capabilities: [...artifact.manifest.capabilities, 'heat_grid'] } });
+  assert.deepEqual(programFitProblems(ENV, heat, { ...job, artifact: heat }), []);
   // The review request at six images (the most it ever carries), traces at their cap.
   const captures = Array.from({ length: 6 }, (_, i) => ({ id: `s${i}`, compiledHash: 'x', theme: 'light', time: 0, inputs: {}, data: 'AAAA', mediaType: 'image/png' }));
   const { content } = buildReviewContent({ request: job.prompt, compiledHash: 'x', facts: programFacts(artifact.manifest), evidence: [], captures, program: { source, manifest: artifact.manifest, traces: [{ pad: 'x'.repeat(REVIEW_LIMITS.traceBytes - 32) }] } });
