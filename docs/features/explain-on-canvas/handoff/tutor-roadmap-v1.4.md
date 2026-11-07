@@ -1,12 +1,12 @@
 # Explain on Canvas — Tutor product roadmap
 
-**Rabbit Hole · Version 1.4 · 6 November 2026 · WHAT we are building**
+**Rabbit Hole · Version 1.4 · MVP flow update · 6 November 2026 · WHAT we are building**
 
-**Companion:** [Tutor implementation checklist v1.1](tutor-implementation-checklist.md) describes HOW: current files and functions, changes, interfaces, owners, local commands, test assertions and delivery evidence. Read both before implementing. This roadmap defines the learner experience and release boundaries; the checklist must implement that experience without inventing another UI or approval flow.
+**Companion:** [Tutor implementation checklist v1.2](tutor-implementation-checklist.md) describes HOW: current files and functions, changes, interfaces, owners, local commands, test assertions and delivery evidence. Read both before implementing. This roadmap defines the learner experience and release boundaries; the checklist must implement that experience without inventing another UI or approval flow.
 
 **Code baseline:** `Rabbit-Hole-App/Rabbit-Hole` main at `72d6536657af269bb894511220975fd2254246ed`, including the ordinary-author changes through `fe2bf0f` and the new canvas-slot commits. Code presence, configured activation, deployment and functional acceptance are different facts. This document records them separately. It does not claim the new requirements below are already implemented.
 
-**This revision supersedes v1.3 for active work.** Its key corrections are full-document context for ordinary Markdown explanations, one content-authoring call, removal of the per-card citation-review publication gate for that path, one unified ToC, and a persistent canvas slot from proposal through delivery. Preserve the remaining R1–R16 scope. The historical cleanup v0.1 file is not the current cleanup execution plan.
+**This MVP flow update supersedes conflicting earlier v1.4/v1.3 instructions for active work.** The complete Tutor conversation, parameters, draft review, editing and progress now live in existing Chat messages. Only accepted roadmap entries are published to the existing ToC. Every proposed/accepted step has a synchronized Chat entry and a persistent canvas slot, placed near its highlighted source passage with two-way navigation. Full-document context, one ordinary author call and no citation-review publication gate remain required. Sections 3–8 specify the complete interaction; section 14 records replaced rules. Preserve the remaining R1–R16 scope. The historical cleanup v0.1 file is not the current cleanup execution plan.
 
 **Delivery scope:** Markdown specifications only. HTML mockups will be produced later in a separate UI folder. No new mockup, demo route, UI framework, application implementation or production deployment is commissioned by this document update.
 
@@ -32,15 +32,15 @@
 
 ### 1.1 What the learner receives
 
-The learner drops a document onto a canvas. Rabbit Hole understands the supported source, offers to explain it, agrees a finite learning outcome and roadmap, and adds useful explanations progressively to that canvas. The learner accepts one proposed teaching step at a time. Main explanations live on the canvas; clarifications and changes happen in the existing right-side conversations.
+The learner drops a document onto a canvas. Rabbit Hole opens the right-side Chat and immediately acknowledges the upload. The learner chooses a conversation when needed, asks for an explanation, reviews and edits a finite roadmap in Chat, then accepts it for publication in the Table of Contents. Main explanations live on the canvas; the Tutor explains every proposed step and its progress in the chosen Chat. The learner accepts one teaching step at a time from either surface.
 
-The experience must feel continuous: a visible proposal becomes a generating skeleton and then the explanation in the same location. The learner must not watch a placeholder vanish, search for its result elsewhere, or repeatedly tell the Tutor to continue when Auto-suggest is on.
+The experience must feel continuous: a visible proposal beside the relevant source passage becomes a generating skeleton and then the explanation in the same location, while its Chat entry shows the same state. The learner can navigate from the highlighted Markdown to its generated card and back. The learner must not watch a placeholder vanish, search for its result elsewhere, or repeatedly tell the Tutor to continue when Auto-suggest is on.
 
 The initial reliable slice is an owned desktop canvas, one readable Markdown source, a chosen scope, and ordinary explanation/table cards. The complete slice includes the first **and second** accepted cards, persistence, navigation, one next proposal, stopping, cancellation and correct charging. A working first card alone is not complete acceptance.
 
 ### 1.2 What a roadmap is
 
-A roadmap is the agreed learning outcome, scope, ordered steps and stopping point for the current canvas. It is server-owned state presented through the existing Table of Contents. It is not a new course, journey, syllabus, separate lesson screen or second contents panel.
+A roadmap is the agreed learning outcome, scope, Depth, explanation/practice mode, ordered steps and finite endpoint for the current canvas. Its draft and acceptance conversation live in Chat; its accepted steps, delivery states and navigation appear in the existing Table of Contents. The server owns the accepted state. It is not a new course, journey, syllabus, separate lesson screen or second contents panel. A finite endpoint remains part of planning even though the old visible Stopping point block is removed from the ToC.
 
 A step is one coherent teaching addition. A skill is a concept or ability tracked by evidence; it is not a compulsory additional UI or a personal goal the learner must create. The outcome names something the learner should be able to do. Delivered steps show coverage; understanding requires a separate self-report or assessment.
 
@@ -71,133 +71,212 @@ A step is one coherent teaching addition. A skill is a concept or ability tracke
 | Cleanup | P1–P5 changes/receipts are present. Archive-sensitive joins remain; P6 backfill/join removal/drop and P7 closeout are not established complete. | Do not reuse cleanup v0.1's old migration number or wait for table deletion before fixing the Tutor core. |
 | R8–R16 | The ladder retains these capabilities; some branch work was reported earlier. | Treat branch work as material to reconcile, not proof of integration, activation or acceptance. |
 
-### 2.2 The next production outcome
+### 2.2 Owner-reported release snapshot
 
-The next core correction must deliver the following as one usable flow:
+The following is the owner's supplied handoff, **not a newly verified deployment receipt or acceptance result**. Numbered deployment releases are different from capability rungs R1–R16. Reconcile later code and served identity before checking implementation items complete.
 
-1. Plan and author against the same supported, authorized source revision; a small highlight anchor does not cut down the author's knowledge.
-2. Generate an ordinary explanation/table with one authoring call. No per-card LLM citation review, escalation or automatic content-repair loop blocks this flow.
-3. Retain schema/renderability, source-access/revision, safety, acceptance, billing and delivery checks. An omitted grounding review is recorded as not run under this policy, never falsely as a passed review.
-4. Display roadmap steps in the existing ToC heading hierarchy, with descriptions and navigation; remove the competing half-height roadmap list.
-5. Complete the newly landed private canvas slot so it stays visible through proposed, accepting, generating, saving, delivered and failed states, including reload and exact saved placement.
-6. Generate and save two consecutive accepted cards, reload them, and show exactly one next proposal after delivery when Auto-suggest permits it.
+| Release | Owner-reported state | Scope and remaining qualification |
+| --- | --- | --- |
+| 76 | Deployed; not accepted | Core Tutor; `ROADMAP_ENABLED` and `ROADMAP_AUTO_ENABLED` on. |
+| 79 | Deployed; not accepted | R5 proposal editing; `ROADMAP_EDIT_ENABLED` off. |
+| 80 | Deployed; not accepted | R7a long Markdown; `ROADMAP_LONG_MARKDOWN_ENABLED` off. |
+| 81, 82 | Deployed; not accepted | Fix A: honest errors, Tab, Contents scrolling, Accepting state and quotation handling. The live split Contents panel still needs replacement. |
+| 84 | Deployed; not accepted | Checker evidence contract. |
+| 85 | Last deployed release, reported at 15:13 PT; waiting for owner testing | Whole document to the writer, one call, no citation gate, removal of from-scratch chip/recovery block and reuse rule. |
+| 86 | Ready, waiting for owner | Canvas slot beside Markdown, generating in place and card filling the slot. |
+| 87 | Ready after 86, waiting for owner | Remove Retry/Replace/Omit; failed step skipped; no auto-offer after safety refusal. |
+| 88 | Being verified | Remaining Fix C passage matching plus A1, B1 and C1. Those labels retain their existing implementation meaning; this table does not invent a verification result. |
+| 89 | Being built | Fix B: Tutor in Chat, Depth step, roadmap acceptance in Chat and old panel hidden. |
 
-These are corrections to R3/R4/R6 and their integration, not a new ladder rung that postpones them. The checklist's `CORE.*` and `UI.*` tasks make these changes concrete. Later optional tools must not block this acceptance.
+The owner also reports that the final Contents redesign, enabling R5/R7a, P6/P7 cleanup, R8 and R9 are not started. The previous HTML is a visual reference for the accepted roadmap tree only; it must later be revised to remove its old parameter/decision blocks. This Markdown update does not build that HTML. New requirements below can extend the work described by 86–89; their existence or release numbers do not prove that every new requirement has been implemented.
+
+### 2.3 The next production outcome
+
+The corrected core must deliver the whole flow in section 3:
+
+1. Open Chat on source drop; acknowledge promptly without waiting for full-document reading; route an occupied conversation using **Start new chat / Stay here** before offering **Explain on canvas**.
+2. Read the full supported source for planning, then show the draft, learning parameters, **Accept roadmap** and **Edit roadmap** inside Tutor Chat messages. Publish only the accepted roadmap to the ToC and provide **Open table of contents**.
+3. Present matching title, description, source excerpt and format in one canvas proposal and one Chat step entry. Use the same acceptance, cancellation, editing and navigation identities from both.
+4. Plan and author against the same authorized source revision. Each ordinary card gets the full document and accepted brief, with one authoring call and no per-card citation judge or automatic author retry.
+5. Keep the same canvas frame and Chat entry through accepting, generating, applicable checks, saving, delivered and genuine failure. Retain safety, renderability, access, billing and persistence checks and report checks actually run.
+6. Place successive slots near their highlighted passages, preferring free space on either side of the Markdown and top-to-bottom visual progression. Avoid existing material and controls, persist their world geometry and provide persistent source-to-card icons.
+7. Save and reload two consecutive accepted cards, with exactly one synchronized next proposal after canonical delivery when Auto-suggest permits it. Never add a Retry/Replace/Omit recovery UI or automatically offer a next card after safety refusal.
+8. Keep ToC limited to the accepted heading/step tree, status and navigation. Remove the obsolete split list, parameter box, Stopping point block and roadmap action/composer regions.
+
+These are corrections to R2/R3/R4/R5/R6 and their integration, not a new ladder rung that postpones them. The checklist's `CORE.*` and `UI.*` work maps the missing contracts to code. The ordinary **Explanations only** core can ship independently; acceptance of **Explanations + practice** additionally requires the minimal real R9 practice/assessment integration in section 8.2. Other later tools do not block ordinary Markdown acceptance.
 
 ## 3 The complete learner flow
 
-### 3.1 Flow overview
+This section is the ordered product contract. Implement each transition in the existing Chat, canvas and ToC; do not infer a second panel, separate chat or extra action vocabulary. Section 4 defines the shared labels and surface responsibilities; sections 5–8 define context, lifecycle and placement details.
 
-```mermaid
-flowchart TD
-  A["Source ready or explicit teaching request"] --> B["Tutor invitation in Chat"]
-  B -->|"Just keep it here"| C["Keep material; dismiss this invitation"]
-  B -->|"Explain on canvas"| D["Propose outcome, scope, Depth and steps in ToC"]
-  D -->|"Edit plan"| E["Existing ToC conversation revises the plan"]
-  E --> D
-  D -->|"Accept plan"| F["One proposal beside the source"]
-  F -->|"Cancel"| G["Remove proposal; pause automatic progression"]
-  F -->|"Tab or Accept"| H["Same slot shows generation"]
-  H -->|"Success"| I["Save explanation in the same slot"]
-  H -->|"Failure"| J["Keep slot and show the actual error"]
-  I --> K{"More accepted scope remains?"}
-  K -->|"Yes; Auto-suggest on"| F
-  K -->|"Yes; Auto-suggest off"| L["Wait for a learner request"]
-  L --> F
-  K -->|"No"| M["Stop; deeper exploration is optional"]
-```
+### 3.1 Step 1 — Drop material, open Chat and acknowledge immediately
 
-The diagram describes learner-visible transitions. It does not authorize all cards when the plan is accepted, imply that a generated card is already saved, or treat reaching the end as proof of understanding.
+1. Import the dropped Markdown as the ordinary source card. Preserve its contents, canvas position and existing collapsed/Full Content presentation. Dropping any material opens the right panel and selects **Chat** so the learner can see the Tutor's response; only sources supported by the enabled adapter receive a claim that they can be explained.
+2. Acknowledge the upload as soon as the card/source identity and filename are available. This acknowledgment can be based on metadata: it must not wait for full-document reading, indexing, summarization or roadmap generation. If import is still processing, say that accurately and keep the message visible; do not pretend its contents have been read.
+3. Show the acknowledgment inside the Tutor's conversation transcript. Opening/selecting Chat does not pan the canvas, accept a proposal, authorize a purchase, erase typed text or move keyboard focus out of an active editor. Source-ready events for the same import are coalesced, with one acknowledgment/routing decision rather than repeated messages.
+4. An explicit new drop may reveal Chat once. If the learner subsequently closes the panel or selects another tab, background import/progress events do not repeatedly reopen it. A modal or ongoing answer must not lose focus or content; the upload entry can be queued in the correct conversation without interrupting that work.
 
-### 3.2 Source import and the invitation
+### 3.2 Step 2 — Choose the conversation when the current chat contains work
 
-- Import the Markdown as the ordinary source card. Do not automatically expand Full Content, reposition the source, or replace it with generated content.
-- Once a supported source is readable and Chat is idle, the Tutor initiates a message in the existing right-side Chat. Summarize the source's subject using what was actually read.
-- Offer exactly **Explain on canvas** and **Just keep it here**. Free typing remains available. Do not reintroduce Guide me step by step or Help with a specific part as extra invitation choices.
-- The invitation belongs to a Tutor-initiated conversation entry. Do not overlay a conversation box in the middle of the canvas or create an unrelated floating chat surface.
-- Do not interrupt typing, an active answer, a modal or a current proposal. Coalesce sources that become ready together; never fire an invitation for every import-processing update.
-- Just keep it here dismisses that invitation only. It does not delete the source or globally disable future suggestions.
-- Ask mode does not initiate an invitation. Auto and Tutor can, subject to Auto-suggest and current interaction state. Explicit learner requests remain available when Auto-suggest is off.
+1. Inspect the current conversation before adding the explanation invitation. It is occupied if it already has conversation messages **or** the composer contains a nonempty unsent draft. The upload acknowledgment just created does not make an originally empty conversation count as occupied.
+2. In an occupied conversation, acknowledge the file and present **Start new chat** and **Stay here** in that Tutor entry. For example: “You've added **Decision Trees.md**. Start a new chat for this document or stay here?” This is the routing choice, not the explanation invitation or a roadmap acceptance.
+3. **Start new chat** creates/selects a new conversation through the existing chat system. Retain the former conversation and its unsent draft exactly as ordinary conversation switching requires. Bind the upload's source reference, pending explanation invitation and subsequent roadmap messages to the new conversation. Do not delete/reimport the canvas source or copy the previous conversation's private text into the new one.
+4. **Stay here** keeps the current conversation and unsent draft. Bind this source's invitation and subsequent flow to that conversation; do not replace the draft with Tutor instructions.
+5. Render the explanation invitation only after one of these choices. A fresh empty conversation skips the chooser and receives the invitation directly. Merely opening Chat, toggling a panel or making it visible is not a choice or acceptance.
+6. Route the same source event once, including double clicks, tab changes and reload. A pending chooser is not a competing roadmap. If this learner already has an unfinished roadmap on the canvas, preserve it and explain that boundary in Chat; choosing a new chat does not bypass the single-roadmap rule. This MVP does not silently include or replace its source through Edit roadmap. The learner can explicitly use the existing **End roadmap** action before starting a separate roadmap for the new source, retaining prior cards/history. Expanded multi-source incorporation remains R10.
 
-### 3.3 Scope and the proposed outcome
+### 3.3 Step 3 — Offer Explain on canvas before full reading finishes
 
-Before ordinary card authoring, propose what the learner should be able to do, the chosen scope, Depth, a finite step sequence and a stopping point. The learner may accept or revise it through the existing ToC conversation.
+In the selected conversation, the Tutor says: “You've added **Decision Trees.md**. Would you like me to explain it on the canvas?” Use the actual filename, with exactly **Explain on canvas** and **Just keep it here**. This message acknowledges the upload; it does not claim that the whole document has already been read. Free typing stays available.
 
-For a long visible source card, distinguish **whole document** from **the selected/visible section**. This chooses what to explain. It does not choose which pixels the server can read, and it does not make the source card's collapsed preview the entire document. Capture a selected/visible section as a stable source range/version at selection time; later scrolling does not silently change it.
+**Just keep it here** dismisses this invitation only. The source stays on the canvas; no generation, learner charge or global mute follows. If the learner leaves the invitation alone, do not generate a roadmap automatically.
 
-The learner may choose Full Content for viewing. That is a presentation choice, independent of the Tutor's authorized document context. Full Content is not a prerequisite for authoring or for placing a proposal.
+An explicit source drop is the trigger for this acknowledgment, conversation routing and **Explain on canvas / Just keep it here** invitation in every mode, including **Ask** and **Auto-suggest off**. Do not suppress the invitation because of either setting. Showing it does not start reading for a roadmap, generate a card, purchase anything or silently change the learner's mode/Auto-suggest preference. The learner's explicit **Explain on canvas** choice starts the following flow even in Ask; it is different from unsolicited Tutor initiative. Ask/off still gate subsequent unsolicited offers and speculative work. Explicit roadmap/card decisions and manual **Propose next step** remain available in the chosen conversation without changing those settings.
 
-Use the learner's explicit instruction over a guessed topic. “I know decision trees; explain random forests” must produce a forest-focused plan and skip redundant introductory material. Use the same principle for every subject, not a decision-tree-specific prompt or hard-coded lesson.
+### 3.4 Step 4 — Read the whole supported source and prepare the draft
 
-### 3.4 Plan acceptance and the first proposal
+After **Explain on canvas**, the Tutor reads the complete authorized, supported Markdown revision and generates the draft roadmap using the learner's existing instruction and chosen scope. The immediate acknowledgment is already visible; full reading now happens for planning, not as a prerequisite to acknowledging the drop.
 
-- Show the proposed plan in the ToC, including each step's title, short description, type and state.
-- Accept plan commits this plan version and presents the first pending proposal. It does not charge for or generate every future step.
-- When acceptance is initiated from a button and keyboard ownership is available, activate the first proposal so the next plain Tab can accept it. Do not steal focus from a learner who starts typing while the plan response is arriving.
-- Edit plan focuses the existing ToC composer; the learner describes the change, a revised draft appears, and acceptance is required again for the revised plan.
-- End roadmap preserves source material, delivered cards and evidence. It stops new unsolicited work.
+Show a Tutor Chat entry such as **Generating roadmap** with the existing spinner/shimmer treatment. No Tutor status, parameter bar, floating conversation or roadmap controls are added above/below the chat transcript. A progress bar/percentage is permitted only when backed by actual measured progress; otherwise use an indeterminate indicator.
 
-### 3.5 Step acceptance, generation and saving
+Read the entire bounded document even when the learner wants a particular topic. “I know decision trees; explain random forests” produces a forest-focused draft while retaining the surrounding document as context. Do not invent a subject summary before reading, silently truncate an over-limit source or claim that every upload fits one prompt. Section 5 defines long-source and unavailable-source behavior. When a material ambiguity prevents a useful draft, ask one focused question in this same Chat.
 
-The learner sees one pending proposal next to the source, with title, description and format. Its Accept [Tab] | Cancel pill sits outside and below the frame. Click and Tab use one acceptance action with the same version and idempotency rules.
+### 3.5 Step 5 — Show the roadmap draft and parameter box in Chat
 
-After acceptance, that visual slot becomes the committed skeleton. Keep its frame, position, width and useful title while the content generates. Show a spinner; show a percentage only if the backend supplies real progress. Do not remove the skeleton while waiting for a response, checking applicable safety, saving the board or acknowledging delivery.
+When the draft is available, the Tutor says it has prepared the roadmap and displays it **first in that Chat conversation**. The draft entry includes the following parameter box, following the supplied screenshot's information hierarchy:
 
-When the result is ready, replace the placeholder content in the same slot with the real explanation. Preserve the top-left canvas anchor and width. Grow downward when final content needs more height. Do not place a second result at the current camera center or pan to it automatically.
+| Parameter | Required presentation and behavior |
+| --- | --- |
+| Learning outcome | A short concrete capability the learner should gain, with a **Draft roadmap** state label. |
+| Scope | **Full content · filename.md** by default for an uploaded supported Markdown. A supported **Selected passage** choice binds a stable source revision/range. A scope is not the source viewer's display mode or current scroll position. |
+| Depth | A direct three-position slider labelled **Overview**, **Standard**, **Deep**, showing the selected value. No extra button that opens another slider. |
+| Roadmap | Dropdown labels **Explanations only** and **Explanations + practice**. Capability readiness is governed by section 8.2; no selectable inert mode. |
+| Step preview | Ordered step titles, useful short descriptions and proposed formats beneath the parameter box, enough to review the actual plan before acceptance. |
+| Decision actions | **Accept roadmap** and **Edit roadmap** in the same Tutor Chat entry. |
 
-Persist the actual board content before acknowledging delivery. A reload or lost acknowledgement restores the same result and slot without another author call or charge. A generation/transport/safety failure remains visible in the same slot with the actual failure class and the applicable billing outcome; it is not an invisible disappearance.
+The finite endpoint remains represented by the outcome and planned steps and can be explained in Chat prose. Do not recreate the former separate **Stopping point** block or **Accept plan / Edit plan / End roadmap** footer in the ToC.
 
-### 3.6 The next step and the stopping point
+Changing Depth, scope or explanation/practice mode revises the draft as needed. While regeneration is pending, disable acceptance of the superseded draft, show the current Chat progress and preserve the requested parameters. The learner accepts the actual displayed revision, never a stale plan that arrived later. Parameters and planning changes are platform-funded and do not authorize card generation.
 
-After the current accepted step is delivered and saved, reveal at most one next proposal when Auto-suggest is on and the roadmap has remaining scope. Prepare proposal metadata early where useful, but do not expose it while the current card is unfinished.
+### 3.6 Step 6 — Edit and regenerate the draft in the existing Chat
 
-While a roadmap is active, suppress independent Next Steps hooks; restore ordinary hooks when no roadmap is active. This prevents two suggestion systems from competing for the next addition.
+**Edit roadmap** adds a small roadmap-targeting pill to the existing Chat composer and focuses it when that will not overwrite existing input. The learner types the requested change in ordinary Chat, then the Tutor produces the revised draft in this conversation, again with **Accept roadmap / Edit roadmap**. The pill identifies which roadmap/revision is being edited; it is not a second composer or a new editing panel.
 
-Keep the next proposal quiet: no repeated Chat prompt, automatic camera movement or stack of multiple offers. If it is outside the viewport, show the compact Next step ready control; clicking it navigates to the existing proposal and does not accept it.
+Preserve an existing unsent draft; do not silently replace it with an instruction. A cleared/cancelled targeting pill exits the edit intent without ending the roadmap or deleting the source. Keep earlier draft messages as history, mark them superseded and disable their stale acceptance actions. Use the newest relevant learner instruction without losing the original requested outcome.
 
-When Auto-suggest is off, the learner can request the next step in Chat or use the existing ToC Propose next step action. Cancelling a proposal pauses automatic progression and marks that step cancelled; a later manual next request moves to the next independent step, not an automatic recreation of the cancelled offer. Resolve a real prerequisite dependency explicitly.
+The same explicit **Edit roadmap** entry is available from the active roadmap's Chat summary after acceptance. It prepares a new unaccepted draft for **future** work. The old accepted plan remains authoritative until reacceptance, delivered cards/history remain intact, and an already accepted in-flight card completes against its frozen inputs. This minimal explicit revision loop belongs to the MVP; later R10 adds broader evidence-driven adaptation.
 
-At the accepted stopping point or ceiling, stop. Deeper exploration requires an explicit request and, when scope changes materially, an accepted revision. Do not turn the finite explanation into an automatic hour-long course.
+### 3.7 Step 7 — Accept in Chat and publish the accepted ToC
+
+**Accept roadmap** commits the reviewed plan version once. The Tutor confirms acceptance in Chat and includes **Open table of contents**, which opens/selects that panel and the accepted roadmap. Do not automatically switch away from Chat on acceptance.
+
+Publish the accepted steps into the existing H1/H2/H3 contents tree, preserving manual headings. ToC now provides only accepted roadmap structure, short descriptions, status, expand/collapse and navigation. Draft parameters, draft review, editing, stopping controls and conversation stay in Chat. There is no second roadmap list, half-height split or ToC composer.
+
+Roadmap acceptance does not generate/purchase all the cards. It makes the first eligible pending card proposal available in the canvas and the corresponding Tutor Chat step entry. If keyboard ownership permits, make that proposal the active Tab target; do not steal focus if the learner starts typing before it arrives.
+
+### 3.8 Step 8 — Present the same proposed card on the canvas and in Chat
+
+The pending canvas slot and its Tutor Chat entry contain the same proposed **title, description, exact highlighted source excerpt when resolvable, and format**. The Tutor explains that this is the proposed next card, not an already generated result. Missing/ambiguous source anchors are labelled honestly and do not generate an invented quotation.
+
+Place the slot near the relevant Markdown passage using section 7. For the first proposal, the attached canvas pill is **Accept [Tab] / Cancel** and the Chat purchase action is **Accept**. For a ready subsequent proposal, the purchase label is **Next card** on both surfaces, with the same **[Tab]** shortcut hint on canvas. It accepts and generates that already-visible proposal directly; no second Accept follows. The existing inline Quick Edit shortcut remains. In the Chat step entry also expose **Edit card**, **Cancel**, **Go to card** and **Go to highlighted text** when their targets/actions are valid. **Go to card** navigates to this existing pending slot; it does not generate it. **Go to highlighted text** resolves/navigates to the actual source passage; disable or explain an unavailable target rather than jumping to unrelated text.
+
+**Edit card** targets this proposal/card in the existing Chat with a small pill, using the established edit/version behavior. Editing a pending proposal changes its proposal version and requires the learner to accept that updated offer; it is not implicit acceptance. Delivered-card editing preserves the existing card/history and uses the existing explicit edit path; a new paid generation needs its own authorized action. Do not silently regenerate a delivered card just because **Edit card** was clicked.
+
+One step/proposal identity connects both surfaces. Clicking **Accept** (first card), **Next card** (ready subsequent card), **Cancel** or **Edit card** in Chat changes the same underlying offer as the canvas actions. Disable stale/conflicting controls together. A simultaneous Chat click, canvas click and Tab cannot create extra author calls or charges.
+
+### 3.9 Step 9 — Accept, generate, save and fill the same slot
+
+The learner presses eligible **Tab**, **Accept** for the first proposal or **Next card** for an already-ready subsequent proposal in either surface. These are the same acceptance transition; **Next card** must not first create another offer and ask for Accept again. Immediately retain the proposal frame, title, description, source excerpt, world position and width, and show **Accepting**. Once accepted, transition the same slot to **Generating** and applicable checking/saving states with a spinner/shimmer. It never disappears while a response, safety decision, board save or acknowledgment is pending.
+
+The associated Chat step entry updates to the same lifecycle state, retaining the title, description and source excerpt. This is one entry per step updated as work advances, not a new message for every poll/token/heartbeat. Use factual status: a proposed card is proposed; generated content is not announced as saved/ready before its durable delivery completes.
+
+For each fresh ordinary explanation, send the full supported pinned document plus the accepted plan/step brief to one authoring call. The writer does not inherit the planner's memory. There is no per-card citation reviewer, content repair loop or automatic author retry on this path. Full context removes the artificial narrow-context failure mechanism; it does not make network, provider, safety, source-access or persistence failures impossible.
+
+Fill the same frame with the real explanation at the stored top-left/width, growing downward when necessary. Save its real card ID and geometry before acknowledging delivery. Only then confirm that the card is ready in Chat and the ToC. The delivered Chat entry keeps **Go to card**, **Go to highlighted text** and **Edit card**; its pending **Accept / Next card / Cancel** controls are removed. Source highlights and their card-link icons now point to this saved card.
+
+A lost save/acknowledgment reconciles this same result and card ID. It never generates a replacement or charges again. A genuine generation failure keeps a truthful failed/skipped state in the same slot and Chat entry, without **Retry**, **Replace** or **Omit** buttons. Section 6.3 defines failure continuation and the safety-refusal stop.
+
+### 3.10 Step 10 — Keep passage navigation and visual order understandable
+
+Each saved roadmap card has a resolvable relationship to the relevant source passage where one exists. That Markdown passage has a subtle persistent Tutor highlight and a small accessible card-link icon. Clicking the icon navigates to the generated card; **Go to highlighted text** navigates back. Existing user-created highlights remain separate. Duplicate/overlapping relationships use a local chooser for the actual linked cards, not a stack of icons covering the text.
+
+New slots progress visually from top to bottom around the Markdown, choosing left or right according to the passage and available canvas space, with above/below as fallbacks. They avoid the Markdown, existing cards/materials, pending slots and attached controls. Accepted step order remains the pedagogical order: source geometry never silently reorders the plan. Once a slot is shown, internal Markdown scrolling does not drag it around the canvas. Section 7 defines collisions, collapsed sources and honest unresolved-anchor fallbacks.
+
+### 3.11 Step 11 — Offer the next card in both places
+
+After the current accepted card is generated, saved and acknowledged, reveal exactly one next eligible proposal when **Auto-suggest** is on, the current mode permits unsolicited offers and scope remains. Its canvas slot and Chat step entry arrive together with the same fields as the first; the acceptance button is now **Next card** on both surfaces. Clicking either **Next card**, or pressing eligible Tab for that active proposal, accepts and generates that same ready card once. It does not request another proposal or require another Accept click. The Tutor is aware of every roadmap-created card and keeps its corresponding Chat entry current. Metadata can be prepared early, but unfinished work must not expose a second active offer.
+
+The next offer is quiet: do not pan the canvas, change the active panel or take composer focus. When it is offscreen, its Chat entry still provides **Go to card**. Keep readiness/progress inside Chat rather than a new above-chat/below-chat strip or floating global Next control. Existing source/card navigation and the attached canvas proposal actions remain allowed.
+
+With **Auto-suggest** off or Ask suppressing automatic follow-ups, **Propose next step** in Chat explicitly requests one pending proposal and its metadata only. Once that next proposal is ready on both surfaces, **Next card** accepts and generates it in one action. Keep the distinction exact: **Propose next step** proposes; **Next card** purchases the already-ready next proposal. Never use **Next card** to propose metadata and then require an additional Accept. While a roadmap is active, suppress independent Next Steps hooks so two systems do not compete. Restore ordinary hooks when no roadmap is active.
+
+Cancelling an unaccepted proposal intentionally removes that offer, records cancellation in its Chat/ToC history and pauses automatic progression. A later manual **Propose next step** can request the next independent eligible step; it does not silently recreate the cancelled offer. A failed ordinary step is marked failed/skipped; progression requires canonical failure settlement and a successor eligibility/prerequisite decision. A safety refusal stops automatic offering, even if a later step appears independent.
+
+### 3.12 Step 12 — Pause, end or revise without losing delivered work
+
+Switching to Ask, turning Auto-suggest off or pausing stops new unsolicited work and eligible speculative work. It does not erase the accepted plan or cancel already accepted entitlement. **End roadmap** is a Chat action available from the active roadmap's Chat summary; it stops new proposals while retaining sources, delivered cards, history and evidence. It does not live at the bottom of the ToC.
+
+At the accepted finite endpoint/step ceiling, stop adding cards. Chat explains completion of the accepted roadmap; the ToC shows delivery/coverage honestly without claiming understanding. Deeper exploration or a materially changed outcome requires an explicit **Edit roadmap** revision and reacceptance. Unanswered practice is not failure; follow section 8 when evidence arrives later. A source change, deleted card or revoked access has an honest historical/missing state and never triggers silent regeneration.
 
 ## 4 Chat, Table of Contents and Progress
 
 ### 4.1 Responsibilities of each surface
 
 | Surface | Its job | It must not become |
-|---|---|---|
-| Canvas | Source material, pending proposals, generating skeletons, explanations, practice and their spatial/source relationships. | A second chat window or a collection of invisible generating jobs. |
-| Main Chat | Tutor invitation, learner questions, clarification, explicit next requests, explanations of genuine failures and ordinary Chat/slash use. | A replacement for the canvas explanation or a stream of repeated step prompts. |
-| Table of Contents | One navigable heading/step hierarchy, learning settings, delivery/coverage states and the existing ToC conversation. | A roadmap list plus a second empty contents region, or a mastery scoreboard. |
-| Progress | Private self-reported and assessed learning evidence, including canvas-scoped evidence without a personal goal. | A second roadmap editor or a count that equates acceptance/delivery with understanding. |
+| --- | --- | --- |
+| Canvas | Source material, one pending proposal, stable generating skeletons, delivered explanations/practice and their spatial/source relationships; attached proposal and existing card controls. | A second conversation, vanished generation jobs or a floating Tutor control bar. |
+| Existing Chat transcript | Upload acknowledgment/routing, invitation, parameters, draft preview, acceptance/editing, one lifecycle entry per step, next requests, failures and navigation links. | Separate controls above/below the messages, a second composer or repeated progress-message spam. |
+| Existing Chat composer | Ordinary typing plus small contextual roadmap/card edit pills; existing mode, Depth, Auto-suggest and command controls. | A second Tutor-specific input region or a place where the Tutor overwrites an unsent draft. |
+| Table of Contents | One accepted heading/step hierarchy with descriptions, delivery/coverage status, expand/collapse and navigation. | Draft review, parameters, a Stopping point block, roadmap actions, a conversation/composer, a second list or mastery scoreboard. |
+| Progress | Private self-reported and assessed evidence, including canvas evidence without a personal goal. | A roadmap editor or a count that treats delivery/acceptance as understanding. |
 
-### 4.2 One unified ToC
+“Everything happens in Chat” governs Tutor conversation, planning, decisions and progress. It does not remove the requested canvas skeleton, its first-card **Accept [Tab] / Cancel** or subsequent-card **Next card [Tab] / Cancel** controls, source-link icon, ordinary card controls or ToC navigation. All newly introduced Tutor message/button/parameter UI belongs inside actual Chat message entries; do not mount it in a header/footer outside the transcript.
 
-Use the existing H1/H2/H3 heading presentation, hierarchy, numbering, indentation, expand/collapse behavior and navigation. Roadmap steps appear as entries in this same tree, each with a description. Preserve ordinary manually authored headings. Typed roadmap identity and status are metadata on the corresponding entries, not an excuse to create another list.
+### 4.2 One accepted-only ToC
 
-There is one scrolling content area for learning parameters, steps and stopping-point actions, beneath the current panel header. The existing ToC conversation/composer remains at its established bottom location. Do not split the panel in half, impose a second 50vh roadmap scroller, or leave an empty second ToC below it.
+Use the existing H1/H2/H3 presentation, hierarchy, numbering, indentation, expand/collapse behavior and navigation. Accepted roadmap steps appear in this same tree with descriptions and typed identity/status metadata. Preserve manually authored headings, existing manual done states and their semantics. Delivered content, coverage, manual completion and assessed understanding are distinct states; one must not automatically set the others.
 
-Group outcome/scope, Depth and explanation/practice mode into the learning-parameters area with a separator before entries. Depth in the ToC is a direct three-position slider; it is not a button opening another slider. Edit plan opens/focuses the existing ToC composer rather than editing a second outcome textbox.
+The accepted tree occupies the single available content scroller beneath the existing panel header. Remove the half-height roadmap region, second empty contents area and separate roadmap list. Remove the former learning outcome/scope/Depth/mode parameter box, separate **Stopping point** block, acceptance/edit/end footer and ToC composer. The HTML reference needs these later UI changes; do not implement it during this docs update. Preserve existing conversation history through the ordinary Chat system when moving its entry point; removing a surface does not authorize deleting messages.
 
-Selecting a step navigates to its pending slot or delivered content. A planned step with no content remains selected in the ToC without pretending an artifact exists. A removed card keeps a delivered-history entry with a removed marker. A delivered step does not set an understanding checkmark.
+Selecting an accepted entry navigates to its pending slot or delivered content if present. A future planned step with no artifact can be selected without pretending a card exists. A removed card retains a historical entry with a removed-content indicator. **Open table of contents** from Chat selects this panel/roadmap; acceptance by itself leaves Chat visible.
 
 ### 4.3 Existing panel and composer controls
 
-- Preserve the right-panel tabs, including Chat, Find, Table of Contents, Comments and Progress and any applicable Project companion tabs. Progress remains a tab in the same right panel for now; do not add a companion column.
+- Preserve the right-panel tabs: Chat, Find, Table of Contents, Comments, Progress and applicable Project companion tabs. Progress remains a tab; do not add a companion column.
 - Preserve the existing upload/context `+`, mode selector, slash slot, microphone and Send controls.
-- Keep **Auto**, **Ask** and **Tutor**. Rebuild Tutor behavior; do not remove the three modes as part of cleanup.
-- Add/use the existing Depth control and the small **Auto-suggest** toggle in the composer. Do not rename the toggle Suggest next. Reuse the current control/component and icon system rather than selecting unrelated new icon designs.
-- Depth is per learner/canvas and governs supported ordinary answers and generated formats. Auto-suggest is remembered per learner. Composer and ToC read the same values; do not create separate settings that drift.
-- Hide unsolicited-Tutor controls in Ask; explicit ordinary answers keep working. Switching to Ask pauses unsolicited proposals and speculative work. Already accepted generation may complete and persist.
-
-Ask answers in Chat and does not start a roadmap, even for a teaching request. Switching to Ask pauses new Tutor initiative; it does not erase the plan or cancel an already accepted entitlement.
+- Keep **Auto**, **Ask** and **Tutor**. Rebuild Tutor behavior without deleting the three modes.
+- Reuse the current Depth component and small **Auto-suggest** toggle in the composer, with the current icon system. Do not rename the toggle or invent a new settings toolbar.
+- Depth is per learner/canvas and governs supported ordinary answers and generated formats. The Chat roadmap parameter box and shared preference read the same settings model, with explicit draft-versus-accepted version binding. An accepted card's settings remain frozen; changing a preference does not silently rewrite an accepted plan. Auto-suggest is remembered per learner.
+- Ask keeps ordinary answers in Chat and suppresses unsolicited Tutor follow-ups/speculation. It does not suppress the acknowledgment, routing or invitation triggered by an explicit drop, nor the learner's explicit **Explain on canvas**, roadmap acceptance or manual next-card actions. Keep the selected mode/Auto-suggest preference unchanged. Switching to Ask pauses unsolicited new initiative while already accepted work may complete and persist.
 
 ### 4.4 Depth, size and learning assumptions
 
-Overview, Standard and Deep change explanatory detail and suitable step count. Current default ceilings are 5, 10 and 15 steps respectively. These are maximums, not target counts or an assertion that every source needs that many steps. Use fewer when the learner's outcome needs fewer; avoid repeated introductions to known material.
+**Overview**, **Standard** and **Deep** change explanatory detail and suitable step count. Current default ceilings are 5, 10 and 15 steps respectively. These are maximums, not target counts or an assertion that every source needs that many steps. Use fewer when the outcome needs fewer; avoid repeated introductions to known material.
 
-A teaching step must remain a coherent addition, not a whole textbook hidden inside one accepted item. The current ordinary path produces one explanation/table. The future maximum of three independent elements per step remains a ceiling when combined formats ship. Adapt amount to context and learner evidence; never make a fixed two-explanations/one-practice pattern the lesson structure.
+A teaching step is one coherent addition, not a textbook hidden inside one accepted item. The current ordinary path produces one explanation/table. The future maximum of three independent elements per step is a ceiling when combined formats ship. Adapt to context and learner evidence; no fixed two-explanations/one-practice lesson pattern.
 
-Initial learner assumptions belong in the proposed plan. If the source, title or learner instruction does not establish a necessary starting point, ask one focused question. Do not infer mastery from a job title, a cancelled card or a Tab press.
+Initial learner assumptions belong in the proposed roadmap in Chat. If source, title and instruction do not establish a necessary starting point, ask one focused question. Do not infer mastery from a job title, cancellation or Tab press.
+
+### 4.5 Shared action and copy templates
+
+Use one shared action template/registry across Tutor Chat, proposal slots and source navigation. Labels describe the object consistently; do not introduce synonyms such as **Ask for a change**, **Accept plan**, **Edit plan**, **View explanation** or an ambiguous purchasing **Next** button. Internal API/action names may remain unchanged.
+
+| Intent/state | Required label | Location and effect |
+| --- | --- | --- |
+| Occupied-chat upload routing | **Start new chat** / **Stay here** | Upload Chat entry; choose destination while preserving existing conversation/draft. |
+| Invitation | **Explain on canvas** / **Just keep it here** | Tutor Chat message; request draft or dismiss this invitation. |
+| Draft decision | **Accept roadmap** / **Edit roadmap** | Draft Chat entry; commit displayed revision or target existing Chat input. |
+| Accepted roadmap navigation | **Open table of contents** | Chat confirmation; open/select the accepted tree. |
+| First pending card purchase | **Accept**; canvas shortcut hint **[Tab]** | Accept and generate the first visible proposal once from Chat/canvas/eligible keyboard. |
+| Ready next-card purchase | **Next card**; canvas shortcut hint **[Tab]** | Accept and generate the already-visible next proposal once from either surface; no second Accept or metadata-only meaning. |
+| Pending card cancellation | **Cancel** | Same action from Chat/canvas; remove offer and pause automatic progression. No delivered-card Cancel. |
+| Card edit | **Edit card** | Chat step entry targeting current card/proposal; existing inline shortcut remains available. |
+| Card navigation | **Go to card** | Chat entry or source icon accessible name; navigate to the real slot/card. |
+| Passage navigation | **Go to highlighted text** | Chat/card reference navigation; resolve true passage or report unavailable. |
+| Manual next proposal | **Propose next step** | Chat when no offer is active; creates proposal metadata only. The resulting ready next offer uses **Next card** for its separate purchase. |
+| Stop initiative | **End roadmap** | Active roadmap's Chat summary; retain delivered history. |
+
+Use matching disabled/busy/stale states, keyboard/accessibility labels and action semantics from the same state model. Preserve the established active-slot geometry and renderer styles specified in the checklist. Spinner/status copy may say **Generating roadmap**, **Accepting**, **Generating** or **Saving** according to actual state; no separate control region is introduced to display it.
 
 ## 5 Context, scope and source references
 
@@ -209,7 +288,7 @@ Initial learner assumptions belong in the proposed plan. If the source, title or
 | Authoring context | Authorized source material and accepted brief available to the content-authoring call. | Pinned source revision, supported context budget and task context. |
 | Source anchor | The paragraph, code range, figure or page to highlight and navigate to. | Source reference metadata. |
 
-An anchor is not the entire knowledge available to the writer. A visible/selected-section teaching scope may still use definitions elsewhere in the same authorized document. A viewport crop is not a backend extraction boundary. Position on the canvas is independent of all three.
+An anchor is not the entire knowledge available to the writer. A selected-passage teaching scope may still use definitions elsewhere in the same authorized document. A viewport crop is not a backend extraction boundary. The resolved source anchor guides the slot's initial nearby canvas placement; the resulting world coordinates are then stored independently so internal source scrolling cannot move the slot or change teaching scope.
 
 ### 5.2 Ordinary bounded Markdown contract
 
@@ -241,67 +320,103 @@ The first bounded-source correction does not require rebuilding R7 or a vector d
 
 Bind a plan and its accepted card to an immutable source revision. A changed source does not silently alter an in-flight purchase or reuse a stale prepared result. Preserve previously delivered cards with their historical references; mark changed/missing anchors honestly.
 
-The arrival of another source does not automatically start a competing roadmap. Keep one unfinished roadmap per learner/canvas. Invite or clarify when appropriate, and include additional material through a revised plan accepted by the learner. When sources compete, disagree materially or are incomplete, ask a focused clarification rather than inventing a synthesis.
+The arrival of another source does not automatically start a competing roadmap. Keep one unfinished roadmap per learner/canvas. A new-chat routing choice changes the conversation destination, not this limit. Bind the source-ready event, chosen conversation, draft/revision, accepted plan and subsequent Chat step entries explicitly. For this single-source MVP, acknowledge and retain the new material but explain the existing-roadmap boundary in Chat. The learner may explicitly choose **End roadmap** before starting a separate roadmap for that source; preserve prior delivered/in-flight work. Incorporating multiple sources into one accepted revision remains R10. When material competes or is incomplete, clarify the intended supported source rather than silently synthesizing it. Messages and unsent drafts in the former conversation remain intact.
 
 ## 6 Proposal, generation and delivery lifecycle
 
-### 6.1 Logical state and visual continuity
+### 6.1 One logical step, two synchronized views
 
-A pending **proposal** is an offer. Acceptance creates a committed generation **skeleton**. The records may have different IDs, but the learner sees one continuous private canvas slot with a stable mapping to the proposal version and eventual server-minted card ID. Reuse existing skeleton visuals and card renderers.
+A pending **proposal** is an offer. Acceptance creates a committed generation **skeleton**. The private canvas slot, Chat step entry, proposal version, accepted operation and eventual server-minted card ID have stable mappings. Reuse existing skeleton visuals and card renderers. A proposal is not an already generated card, and a model response is not saved delivery.
 
-| State | What stays visible | Controls and transition |
-|---|---|---|
-| Proposed | Frame, title, description, format and source relationship at a stored canvas position. | Attached Accept [Tab] / Cancel; existing Quick Edit/Add to Chat affordances where supported. |
-| Accepting | Same slot and useful text; immediate acknowledgement. | Disable duplicate purchase actions while the server decides. |
-| Generating | Same frame/anchor/width with a spinner in the content area. | Decision controls become a noninteractive Generating status; no disappearance. |
-| Saving/acknowledging | The actual rendered content replaces the placeholder when ready; retain the same slot while persistence finishes. | Do not show the next offer until saved delivery is acknowledged. |
-| Delivered | The real card at the same top-left/width, with ordinary card controls, source navigation and feedback. | Pending action pill is gone; generation is not restarted on reload. |
-| Failed/held for an applicable check | Same frame with an actionable, accurate error and known billing outcome. | Existing application toast and authorized recovery; never an endless spinner or silent deletion. |
-| Cancelled before acceptance | Remove that unaccepted visual offer; keep its private cancellation/history. | No author call or learner debit; automatic progression pauses. |
+| State | Canvas presentation | Chat presentation and controls |
+| --- | --- | --- |
+| Proposed | Stored frame/position with title, description, exact source excerpt when available and format; attached first-card **Accept [Tab] / Cancel** or subsequent-card **Next card [Tab] / Cancel**. | One proposed-step entry with matching fields; **Accept** for first or **Next card** for ready subsequent proposal, plus **Edit card**, **Cancel**, **Go to card**, **Go to highlighted text** where valid. |
+| Accepting | Same slot and useful text; immediate busy state; disable duplicate decision actions. | Same entry says **Accepting**; pending actions cannot race the accepted operation. Navigation remains available where valid. |
+| Generating / applicable checks | Same frame, world anchor, width, title, description and excerpt with spinner/shimmer. | Same entry shows the actual generation/check state, with navigation. No premature generated/saved claim or repeated poll messages. |
+| Saving/acknowledging | Actual content fills the same frame when ready; retain slot/result identity while persistence finishes. | Same entry says **Saving** when appropriate. No next offer before durable save and canonical acknowledgment. |
+| Delivered | Real saved card at the stored top-left/width; ordinary card controls, source navigation and private feedback. | Same entry confirms readiness; **Go to card**, **Go to highlighted text**, **Edit card**. Remove pending **Accept / Next card / Cancel**. |
+| Failed / skipped | Same accepted frame/title/position with actual failure class and accurate settlement state, rather than an endless spinner or deletion. | Same entry explains failure and failed/skipped status. No **Retry**, **Replace** or **Omit** actions; navigation only where valid. |
+| Provider outcome or settlement unresolved | Retain same slot with a truthful pending/unknown operational state while bounded reconciliation runs. | Explain uncertainty without inventing a refund, successful card or successor eligibility. |
+| Cancelled before acceptance | Intentionally remove this unaccepted offer; preserve cancellation history. | Mark its existing entry cancelled and disable stale actions. No generation/debit; automatic progression pauses. |
 
-The promise that the skeleton does not disappear applies through acceptance, generation and delivery. Explicit pre-acceptance Cancel removes an offer. Deliberate learner deletion follows ordinary canvas behavior. Neither exception authorizes a network transition to remove the slot.
+The continuity guarantee covers proposal acceptance through generated content and durable delivery, including transient network failures. Explicit pre-acceptance **Cancel** and deliberate learner deletion are intentional exceptions; a state transition, panel switch or failed request must not delete the slot. A failure remains visible as failed/skipped rather than disappearing in order to advance.
 
-### 6.2 Keyboard and concurrent actions
+Chat renders canonical lifecycle events by step/proposal identity, so reconnect, polling, another tab or replay updates the existing entry. Preserve ordinary conversation history, but do not append another “Generating” message for every update. A completed earlier draft/step cannot mutate the current one through a stale response.
 
-Plain Tab accepts exactly the active pending proposal when the canvas/proposal owns keyboard input. Shift+Tab, text fields, contenteditable areas, code editors, inline Quick Edit, open modals and IME composition keep their normal handling. A hover over a card alone must not authorize spending.
+### 6.2 Keyboard, editing and concurrent actions
 
-Click and Tab share the same server action key/version. Double click, key repeat, two tabs and stale responses cannot create a second purchase or card. The first valid Accept/Cancel/Apply action on a proposal version wins. A conflicting action receives current state; it does not overwrite a delivered result.
+Plain Tab accepts exactly the active pending proposal when the canvas/proposal owns keyboard input. Shift+Tab, text fields, Chat composer, contenteditable areas, code editors, inline Quick Edit, open modals and IME composition keep their normal handling. A hover alone cannot authorize spending. A new message or next proposal does not steal keyboard ownership.
 
-Ctrl/Cmd+K edits a proposal through the existing inline editor. Apply changes the proposal version; it is not acceptance or generation. Esc discards only the edit draft. Do not introduce a separate always-visible Edit button beside the proposal's attached pill.
+Chat/canvas **Accept** for the first proposal, Chat/canvas **Next card** for a ready subsequent proposal and eligible Tab share the same acceptance action key/version for that proposal. **Next card** is direct acceptance, not an extra proposal/confirmation transition. Double click, key repeat, two browser tabs and stale responses cannot create a second purchase or card. Acceptance/Cancel/Apply conflicts on one version resolve once against canonical state; the losing action receives current state rather than overwriting it. Immediately mirror disabled/busy/stale states across both views.
 
-### 6.3 Progress and errors
+**Edit card** in Chat targets the existing proposal/card in the existing composer. Ctrl/Cmd+K retains the inline proposal editor; Apply updates the proposal version and Esc discards only that edit draft. Neither opens a new Tutor conversation nor purchases generation. Keep the attached canvas pill focused on first-card **Accept [Tab] / Cancel** or subsequent-card **Next card [Tab] / Cancel**; the required Chat edit action does not add an extra always-visible canvas pill button. A source excerpt and format changed by editing must update both views together. A delivered edit uses the current authorized editing path and preserves historical identity; no new author call is implied merely by targeting it.
 
-Use a spinner for unknown-duration generation. A progress bar or percentage requires real backend progress; no simulated countdown. Show current operational state with short copy, keeping the title and frame stable.
+### 6.3 Progress, failure and successor eligibility
 
-A source-loading/access failure, insufficient credits, invalid output, provider failure, safety uncertainty and a save failure are distinct conditions. Surface the actual condition. Do not call a citation mismatch a safety refusal, and do not show the old source-matching message for ordinary cards whose citation gate is no longer run.
+Use the existing spinner/shimmer for unknown-duration work. A progress bar/percentage must represent backend progress, not a simulated countdown. Keep the title, description and excerpt available during generation and state clearly whether the system is authoring, applying an applicable check or saving. Tutor progress belongs in the slot and its Chat entry; no new global banner, above-chat strip or recovery panel.
 
-Generation succeeded but save acknowledgement was lost is a delivery-reconciliation case. Load or insert the same authorized card ID and complete saving. It is not a new authoring attempt. A refunded failure cannot later be silently charged or delivered as if its old authorization remained settled.
+Distinguish source-loading/access failure, insufficient credits, malformed/unrenderable output, provider failure, safety refusal/uncertainty and board-save failure. Do not call an old citation mismatch a safety refusal or restore the removed quotation gate. Full-document context makes a supported step authorable without the former narrow-context gate; it cannot guarantee all infrastructure and checks succeed.
+
+The accepted failure contract is:
+
+1. Keep the accepted slot and matching Chat entry visible, with the actual failure reason and known billing state. The ToC records failed/skipped coverage separately from delivered content; failure is not mastery or completed teaching.
+2. Do not expose **Retry / Replace / Omit** recovery buttons in Chat, the slot, toast or ToC, and do not automatically dispatch another author call. Report this Tutor failure in its existing Chat entry and slot; do not add a separate Tutor toast. Ordinary unrelated application toasts keep their own scope.
+3. A safety refusal stops automatic next offering. Safety uncertainty remains unresolved/held within the bounded policy until its outcome is known; neither refusal nor unknown is permission to advance mechanically into related content.
+4. For other failures, continuation requires canonical settlement and an explicit successor eligibility/prerequisite decision. Auto-suggest may offer a genuinely independent successor only after that decision permits it. A dependent step stays paused with an explanation in Chat. Do not translate every failure into an unconditional `next` call.
+5. A provider dispatch whose outcome is unknown stays unknown while reconciliation determines what happened. Do not assert zero provider expense, free failure or a final refund without evidence; do not spend again to conceal uncertainty.
+6. Generation succeeded but save/acknowledgment failed is delivery reconciliation, not a skipped authoring step. Recover/insert the same authorized result/card ID and finish persistence; never regenerate it. A refunded failure cannot later be silently charged/delivered as if its old authorization remained settled.
+
+A later independent learner request or accepted roadmap revision uses its own clear authorization; it does not silently revive a cancelled/failed offer or introduce a hidden retry path. Future work and prior delivered history remain distinct.
 
 ## 7 Canvas placement and source navigation
 
-### 7.1 Adjacent, stable and collision-aware placement
+### 7.1 Place by passage, then retain the chosen world anchor
 
-Place the proposal beside the dropped source using the source card's canvas bounds and existing free-space logic. The first ordinary proposal prefers adjacent free space; later additions may extend outward on any side when that avoids overlap. Do not force every explanation to one side or lay the whole roadmap across the canvas before acceptance.
+The relevant source passage is the primary initial placement guide. Place the pending skeleton near the **highlighted text**, so the eventual explanation has an understandable spatial relationship to the part it explains. Do not always align every card with the top/center of the Markdown box when a usable passage position exists.
 
-For a collapsed/truncated Markdown card, use the visible card's canvas bounds. Do not require a precise on-screen paragraph location or Full Content expansion. For a full-content source, a resolved passage can help choose the initial vertical alignment, but initial placement must not fail when the passage is offscreen.
+For a measurable visible passage, map its rendered location through the source card's transform to canvas world coordinates once. Prefer the nearest suitable free space to its **left or right**, choosing the side according to available room and existing material. Use **above or below** when neither side has a suitable nearby area. The same rule applies to the first card and each subsequent proposed card.
 
-Once shown, retain the slot's world coordinates. The immediate implementation must preserve pending/accepted geometry across same-browser reload using private state; cross-device pending geometry synchronization may follow separately. Server work/entitlement and saved delivered-card geometry remain canonical across devices, and a second client must never create a duplicate card or purchase. Scrolling inside the Markdown does not move it. Canvas pan/zoom moves source and proposal together normally; the proposal is not pinned to screen coordinates. Preserve a learner's deliberate drag and use that position for delivery. Do not recompute at the camera center when a response arrives.
+As steps are generated, explanations should progress visually **top to bottom along the Markdown on either side**, following the positions of their highlighted passages and the available space. Do not pre-lay out the whole roadmap or create a rigid left/right alternation. This is a placement rule, not a rule to change accepted teaching order: if pedagogical step 3 refers to a passage above step 2, keep the accepted sequence and place step 3 near its actual passage without silently reordering the roadmap or moving step 2.
 
-The checklist specifies the exact spacing, widths, pill position, colors, states and renderer reuse. Those values must be implemented consistently; agents do not choose a new style while wiring the feature.
+### 7.2 Avoid existing material without rearranging the canvas
 
-### 7.2 Highlights and two-way navigation
+Measure the candidate slot's complete occupied bounds, including its frame and attached control pill, not just text width. Treat the source Markdown, other source materials, generated/manual cards, pending/generating/failed slots, applicable group bounds and attached controls as obstacles. Exclude only the slot's own prior reservation when updating it.
 
-Keep the stable source anchor even when its text is not currently visible. Card-to-source navigation scrolls the source's own viewer to the correct passage and highlights it. As the learner manually scrolls the source, the anchored passage and its subtle View explanation affordance can become visible.
+Use deterministic free-space candidates: nearby left/right at the passage alignment, then practical above/below and outward/top-to-bottom alternatives with the checklist's spacing. Reserve the selected area before exposing the proposal so simultaneous views/jobs cannot choose the same space. Prefer an unobstructed nearby position; if a bounded search cannot find one, use the nearest practical fallback with honest limitations rather than looping forever, overlaying the Markdown by default or moving the learner's existing content.
 
-Use the existing neutral source-reference presentation and hover affordances. Highlighting is temporary/interaction-driven, not a permanent rainbow over every section. A selected explanation may show its associated passage. A changed or ambiguous source reference reports that state; it never jumps to a guessed match.
+Do not pan/zoom automatically, shove other cards aside or reflow the canvas when proposing or delivering a card. Anticipate the normal final card footprint when reserving space. Final content fills the same top-left/width and grows downward; do not relocate an accepted card to hide an unexpected size change. Avoid preventable overlap through initial reservation and available space, while preserving continuity when content growth or later learner edits exhaust that space. The requirement is active collision avoidance/best effort, not an impossible promise that arbitrary user layouts can never overlap.
 
-Connectors/arrows are optional and selective: use them when the relationship is otherwise unclear, not on every source/explanation pair. Placement, highlight visibility and connector visibility cannot block backend generation.
+### 7.3 Collapsed, offscreen or unresolved passages
 
-### 7.3 Multiple elements and navigation controls
+A collapsed/truncated source, internally offscreen passage or unmeasurable range must not block a useful proposal. Resolve stable source identity/range independently of DOM visibility. If no trustworthy visible passage rectangle is available, use the source card's actual canvas bounds and the same free-space search as an honest fallback. Never force Full Content expansion, automatically scroll the viewer merely to place a proposal, invent a quote or pretend a guessed paragraph was matched.
 
-A future combined step may deliver a few independent cards linked by a private step identity. Do not automatically turn them into a new canvas group or insert a large labelled step frame. Each element has its own stable slot/card ID and per-card feedback. Keep the shared relationship available to ToC navigation.
+Keep the real stored excerpt/range when available even if offscreen. If text matching is ambiguous or the revision changed, label the reference unavailable/changed instead of highlighting the first similar sentence. Source-box fallback is for unavailable geometry, not permission to ignore valid passage positions on the ordinary path. Highlight visibility and placement cannot clip the full authoring context or become another publication gate.
 
-The Next step ready indicator appears only when a current pending proposal is outside the viewport. It reveals that proposal; it never purchases it. Keep the existing manual Propose next step action for when no offer exists, without adding another set of repeated suggestion buttons.
+### 7.4 The slot does not follow source scrolling
+
+Store the chosen world coordinates, width and source/step mapping when the proposal is shown. Preserve pending/accepted geometry across same-browser reload in private state; later cross-device pending-geometry synchronization can ship separately. Canonical server work/entitlement and saved delivered geometry still prevent another client from creating a duplicate card or purchase.
+
+Internal Markdown scrolling, expanding/collapsing its viewer, changing tabs or receiving progress does **not** recompute existing slot positions. Canvas pan/zoom transforms source and card normally; the card is not pinned to screen coordinates. Preserve a deliberate learner drag and use that stored location for final delivery. Do not insert the result at the current viewport center or at a freshly measured paragraph location. Future proposals can independently measure their own passages; existing cards remain where they were placed.
+
+The checklist gives spacing, width, colors, pill geometry and renderer reuse. Follow those measurements and the established component system rather than choosing another style during wiring.
+
+### 7.5 Persistent source highlights and card-link icons
+
+For each delivered card with a valid source range, show a **subtle persistent Tutor highlight** on that passage in the Markdown viewer and a **small adjacent card-link icon**. The icon's accessible name is **Go to card**; it is keyboard reachable and usable without hover or color alone. Activating it navigates to the actual generated card, even if that card is offscreen. Persist the relationship through reload and derive the annotation from its authorized source/card identity, not from a transient hover record.
+
+Keep three concepts separate: the persistent Tutor passage relationship, the temporary stronger emphasis used for navigation/selection, and learner-created saved highlights. Do not overwrite learner highlights or turn the source into many opaque colored blocks. Scrolling naturally reveals the annotation when that passage enters view; it does not move the linked canvas card.
+
+A pending proposal may show its referenced passage emphasis, but must not show a dead icon claiming a generated card exists. Until delivery, **Go to card** in Chat navigates to the actual pending slot. Enable the generated-card source icon only when a real accessible saved target is available. If several cards refer to the same/overlapping passage, use one small local chooser with the actual card titles rather than overlapping icons; choosing one navigates only to that card.
+
+If the card is deleted, access is lost, the source changes or the match is ambiguous, show/disable the missing relationship honestly. Do not jump to an unrelated card or a guessed duplicate quote. Preserve delivered history without a live link to nonexistent content. Source annotations must obey private/shared reference visibility; they cannot expose another learner's private proposal, roadmap relationship or unavailable card.
+
+### 7.6 Two-way explicit navigation
+
+**Go to highlighted text** from Chat or a card resolves the stored source revision/range, frames the source if necessary on explicit user request, and scrolls its own viewer to the correct passage with temporary navigation emphasis. **Go to card** from the source or Chat frames the stored pending slot/saved card. Both directions preserve editing, plan, billing and the card's geometry; navigation never accepts an offer.
+
+Do not automatically pan, expand or scroll as a side effect of generation, next-offer readiness or highlighting. An explicit navigation action may perform the necessary framing/inner scroll; a missing target gets an honest message. Connectors/arrows remain optional when useful, not mandatory for every pair or a prerequisite to authoring.
+
+A future combined step may deliver a few independent cards linked by private step identity. Give each its own stable slot/card ID and feedback; do not invent an automatic canvas group or large labelled step frame. Keep that relationship available to Chat and ToC navigation. Offscreen pending readiness is represented by its normal Chat step entry and **Go to card**, with manual **Propose next step** in Chat when no offer exists; there is no extra Tutor control above/below Chat.
 
 ## 8 Pacing, feedback and practice
 
@@ -309,7 +424,7 @@ The Next step ready indicator appears only when a current pending proposal is ou
 
 | Learner action or evidence | Meaning | It does not establish |
 |---|---|---|
-| Accept / Tab | Wants this addition and authorizes its applicable charge. | Understanding or successful practice. |
+| Accept / Next card / Tab | Wants this addition and authorizes its applicable charge. | Understanding or successful practice. |
 | Cancel | Declines this proposal at this time. | A prerequisite gap, dislike of a format, mastery or failure. |
 | Thumbs up/down | Private per-card self-report of understanding/helpfulness in the agreed learning sense. | An objective assessment score. |
 | Answered practice | Evidence about the shown, version-bound task under its assessor. | General mastery of every related topic. |
@@ -318,9 +433,11 @@ The Next step ready indicator appears only when a current pending proposal is ou
 
 Show one thumbs pair under each generated card. Both selected states are blue. Keep the agreed hover-only visual treatment and existing keyboard access; selection alone must not pin the controls onscreen. Imported source cards and pending offers do not receive understanding feedback. Feedback is private and must survive reload without entering shared board JSON.
 
-### 8.2 Explanations only or explanations with practice
+### 8.2 Explanations only or Explanations + practice
 
-The plan settings offer Explanations only now, and Explanations plus practice when R9 is implemented and enabled. Do not show a selectable mode that cannot produce and assess its supported practice.
+The Chat parameter box's required mode names are **Explanations only** and **Explanations + practice**. The ordinary explanations MVP can be delivered and accepted on its own. The full requested dropdown flow is not accepted until selecting **Explanations + practice** produces supported real practice through a minimal R9 integration, with the actual assessment path and private Progress evidence. Do not ship a selectable inert option or imply that displaying a dropdown completes R9.
+
+Until that minimal integration is enabled, clearly expose only the available mode or show the unavailable practice option disabled with an honest explanation in Chat. Do not promise practice in an accepted roadmap that cannot deliver it. This qualification does not remove the requested mode or postpone its integration indefinitely; the checklist must track both the ordinary core and the additional practice-mode acceptance evidence separately. R9's remaining formats, richer assessment and progression scope stay in the release ladder.
 
 Use practice where it helps the current learning outcome: a short retrieval check, application, explain-back or optional flashcard can reinforce a difficult idea. Timing considers the source, complexity, recent formats, learner instruction, thumbs and actual assessment evidence. There is no hard-coded two-to-one cadence, compulsory homework sequence or repeated quiz after every card.
 
@@ -336,7 +453,9 @@ If evidence suggests a prerequisite gap, adapt an unaccepted step on the same ca
 
 ### 8.4 Revision and nonredundancy
 
-The full revision capability in R10 makes scope, Depth, outcome or explanation/practice-mode changes after plan acceptance produce a revised plan for acceptance. Until that capability is implemented, keep accepted-roadmap parameters read-only, preserve frozen accepted inputs and offer only supported draft-plan edits; do not silently mutate the active roadmap or show a control that cannot complete its action. Ordinary Chat preferences may change for Chat/future plans without rewriting that accepted roadmap. Switching the Chat selector between Auto, Ask and Tutor changes initiative eligibility, not the accepted learning outcome by itself. Keep delivered content and history. Preserve the original learner instruction and later explicit revisions; the latest relevant instruction wins without erasing what was already taught.
+The MVP includes explicit **Edit roadmap** in Chat both before and after acceptance. Changes to scope, Depth, outcome or explanation/practice mode produce a new draft for **Accept roadmap**; they do not mutate the accepted version in place. Until reacceptance, the existing accepted roadmap remains authoritative. Reacceptance governs only future/unaccepted work; preserve delivered content/history and let an already accepted in-flight card complete against its frozen source, settings and charge identity. Invalidate/reconcile stale pending proposals and speculative work without duplicate purchases or silently changing an accepted result.
+
+R10 retains broader evidence-driven adaptation, changed-context reasoning and richer automatic revision proposals. It is not a reason to omit this explicit MVP edit/reaccept loop. Ordinary Chat preferences can change without rewriting the accepted roadmap. Switching Auto/Ask/Tutor changes initiative eligibility, not the accepted learning outcome. Preserve the original instruction and later explicit revisions; the newest relevant instruction wins for future accepted work without erasing what was taught.
 
 Learner-created slash-command or Quick Edit cards remain outside the roadmap unless explicitly linked. They can still contribute private feedback/evidence. Linking a suitable existing card as the next step is a zero-generation-charge action, not a claim that new content was authored.
 
@@ -445,13 +564,13 @@ Bounds on source size, tool work, steps, output and paid calls must be explicit 
 
 ### 11.1 What the learner authorizes and pays for
 
-- Invitations, source identification/indexing, roadmap drafts/revisions, proposal metadata and Quick Edit, scoped research, applicable checks and assessment are platform-funded. The ToC planning conversation belongs to this planning work, not an extra hidden ordinary Chat bill.
-- An explicit Accept click or eligible Tab authorizes the specific accepted step once. The desktop Tutor UI does not show prices, including Tutor-mode paid command flow. Standalone Auto/Ask behavior retains its existing price policy.
+- Upload acknowledgment/routing, invitations, source identification/indexing, roadmap drafts/revisions, proposal metadata and Quick Edit, scoped research, applicable checks and assessment are platform-funded. Roadmap planning/edit messages in the existing Chat belong to this planning work, not an extra hidden ordinary Chat bill. Selecting **Start new chat** does not create a purchase.
+- An explicit **Accept** click for the first proposal, **Next card** click for a ready subsequent proposal or eligible Tab authorizes that specific accepted step once. **Propose next step** creates metadata only and never purchases generation. The desktop Tutor UI does not show prices, including Tutor-mode paid command flow. Standalone Auto/Ask behavior retains its existing price policy.
 - A plan acceptance, scroll, source highlight, preview, thumbs feedback, navigation or Auto-suggest toggle never purchases a card.
 - Check allowance for the whole accepted step atomically. If insufficient, leave the whole proposal pending and use existing credits recovery; do not partially purchase a multi-element step.
 - Settle delivered elements and release unused holds. A failed element's learner charge is refunded/released under the existing contract while actual provider expense remains recorded. A refund does not imply the provider call was free.
 - Repeat clicks, Tab, reload, concurrent devices, lost responses and job replay cannot create another charge or accepted operation.
-- A newly requested different version or explicit retry after a completed failed attempt is a new bounded action under existing recovery semantics. It is not an automatic author retry.
+- A newly requested different version or genuinely independent later learner request requires its own bounded authorization where applicable. Do not present Retry/Replace/Omit actions, silently revive a failed/skipped offer or automatically author again. Reconciliation of the existing result is the same operation and must not spend again.
 
 Server identity, not a client amount or model output, determines payer, authorized request, capability and allowance. The actual full-context author request must fit its reserved bound. A price-free UI does not permit an unbounded or mismatched internal purchase.
 
@@ -471,9 +590,9 @@ The server remembers the roadmap and work lifecycle. Client reloads render canon
 
 Generation, validation, board saving and delivery acknowledgement are distinct states. Save the actual card at the existing slot before acknowledging delivery. If the save or acknowledgement fails, retain/recover the same result/card identity without another model call. Do not mark a ToC entry delivered because a provider replied.
 
-Errors use the existing application toast, with its supported Retry action when applicable. Do not add a new global banner, recovery panel or status chip. The existing slot retains its title/position and a short truthful failure state; it does not disappear. Replacement/omission can be requested through the existing Chat/ToC conversation and authorized server actions rather than a new row of suggestions. Do not automatically regenerate to hide a failure.
+Errors use the same visible slot and Chat step entry, with the actual failure class and known billing state. Report it in those two existing places, without a separate Tutor toast or Retry/Replace/Omit action. Do not add a global banner, recovery panel or status chip, and do not automatically regenerate. Keep failed/skipped history visible. A safety refusal stops automatic next offering; any other failure advances only after canonical settlement and successor/prerequisite eligibility as defined in section 6.3. Unknown provider outcomes stay unknown until reconciled; a missing save acknowledgment recovers the same output.
 
-Pause/Ask/Auto-suggest off stops new initiative and eligible speculative work, not already accepted entitlement. End roadmap stops new proposals and retains delivered cards/history. Deleting a delivered card leaves the ToC delivery record with a removed-content indication; it does not claim the learner forgot or automatically refund a valid generation.
+Pause/Ask/Auto-suggest off stops unsolicited new initiative and eligible speculative work, not already accepted entitlement or the explicit-drop acknowledgment/routing/invitation. Explicit requests remain separate from background initiative; no mode/preference is changed to fulfill them. End roadmap stops new proposals and retains delivered cards/history. Deleting a delivered card leaves the ToC delivery record with a removed-content indication; it does not claim the learner forgot or automatically refund a valid generation.
 
 ## 12. Release ladder and cleanup dependencies
 
@@ -481,22 +600,22 @@ Pause/Ask/Auto-suggest off stops new initiative and eligible speculative work, n
 
 Keep the existing R1–R16 identifiers. They describe capability releases, not sixteen equally sized tasks or a requirement to wait for all of them. Split a large rung into useful smaller releases. Keep local preparation of independent later work moving while the lead integrates the next ready candidate.
 
-The immediate sprint deliverable is: **drop Markdown → invitation → accepted plan in the unified ToC → visible proposal beside the source → click/Tab → same-slot real first card → saved reload → exactly one next proposal → same-slot real second card**. Correct that loop before expanding tools. Do not spend the sprint polishing a citation reviewer that this ordinary path no longer uses.
+The immediate ordinary sprint deliverable is: **drop Markdown → Chat opens and acknowledges → occupied-chat routing when needed → Explain on canvas → full-source draft with parameters and Edit/Accept in Chat → accepted tree published in ToC with Chat link → matching Chat/canvas proposal near the source passage → one shared click/Tab acceptance → same-slot real first card and synchronized Chat update → persistent source-link icon → saved reload → exactly one matching next proposal → same-slot real second card**. Include explicit roadmap revision, cancellation and honest failure states. Correct this loop before expanding unrelated tools; do not polish the removed citation reviewer. Separately qualify **Explanations + practice** only after the actual minimal R9 generation/assessment path works.
 
 | Release | Learner outcome | Dependency and next boundary |
 | --- | --- | --- |
 | R1 Feedback | Per-card thumbs feed private self-reported Progress. | Existing. Preserve behavior while fixing slot/card integration. |
-| R2 Depth/Auto-suggest | Shared composer/ToC Depth and remembered Auto-suggest. | Existing. Actual author request must consume accepted settings. |
-| R3 Source references | Cards and source passages can navigate to each other. | Existing. Separate reference identity from author context and world placement. |
-| R4 Core roadmap | Source → invitation → bounded accepted plan → accepted generated card, durable state and billing. | Existing and enabled, with correction/acceptance work. Ordinary full-context authoring is in main; reconcile the exact latest commit before editing. Retain a separately enabled empty/meaningful-title entry follow-up with clarification for generic titles; it does not block Markdown. |
-| R6 Automatic proposals | One next offer after saved delivery, without camera movement or repeated Chat prompts. | Existing and enabled; prove first and second delivery before claiming completion. R6 does not require R5 editing or R11 speculation. |
-| R5 Edit/reuse | Ctrl/Cmd+K edits a proposal; explicit linking reuses a suitable existing card free of generation charge. | Implemented portions disabled; finish the selected edit/reuse path after the core. Keep its draft/apply/version semantics. |
+| R2 Depth/Auto-suggest | Shared preference/Chat roadmap parameters and remembered Auto-suggest. | Existing settings; relocate the direct roadmap slider to Chat and freeze/version accepted settings for real author requests. |
+| R3 Source references | Bidirectional card/passage navigation, persistent subtle source highlights/icons and passage-adjacent placement. | Existing reference foundations; finish exact matching, accessible links/chooser, collision avoidance and stable world geometry. Reference identity does not restrict author context. |
+| R4 Core roadmap | Drop → immediate Chat acknowledgment/routing → draft/parameters/Edit/Accept in Chat → accepted ToC → synchronized step lifecycle, durable cards and billing. | Existing foundation enabled, with this MVP correction/acceptance work outstanding. Full-context authoring is in main; reconcile latest code before editing. Include explicit accepted-roadmap revision/reacceptance for future work. Retain a separately enabled empty/meaningful-title entry follow-up with clarification for generic titles; it does not block Markdown. |
+| R6 Automatic proposals | One next canvas proposal and matching Chat entry after saved/acknowledged delivery; no camera/focus theft or poll spam. | Existing foundation enabled; prove first/second delivery and failure/safety successor rules. Manual **Propose next step** stays in Chat. R11 speculation is separate. |
+| R5 Edit/reuse | **Edit card** in Chat and Ctrl/Cmd+K target the same proposal edit; explicit linking reuses suitable content free of generation charge. | Implemented portions disabled. The requested MVP **Edit card** path needs real supported edit/version behavior before its control is accepted; broader link/drag/Add-to-Chat work can ship separately. Do not conflate proposal editing with **Edit roadmap**. |
 | R7a Long Markdown | Whole-document coverage beyond the bounded full-context source path. | Existing index/plan portions disabled; qualify coverage/context/limits and enable separately. Important for the original long-document use case. |
 | R7b PDF text | Page/section context and accurate references; unreadable scans identified. | Reuse PDF extraction; add the roadmap adapter. Does not require OCR. |
 | R8b Calculator | Verified bounded computations within the explanation. | Small independent tool; can precede web research. No sandbox dependency. |
 | R8a Research | Scoped Exa search and guarded fetched evidence for genuine gaps. | Independent tool slice with privacy/quota/provenance checks. Does not block source-supported explanations. |
-| R9 Practice/Progress | Optional adaptive practice and private assessed evidence without a personal goal. | Existing assessment stores retained; integrate immutable quiz snapshots and assessment outbox. |
-| R10 Adaptation | Future steps respond to evidence, settings and changed context without losing delivered work. | Uses R9 evidence when available; no rigid explanation/practice ratio. |
+| R9 Practice/Progress | **Explanations + practice** produces supported practice and private assessed evidence without a personal goal. | Minimal real generation/assessment integration is required to accept that selectable MVP mode; ordinary explanations can ship first. Retain immutable quiz snapshots, outbox and remaining practice/evidence scope as separate R9 work. |
+| R10 Adaptation | Future steps respond to evidence and changed context without losing delivered work. | Builds on MVP explicit Chat edit/reaccept; uses R9 evidence when available. Richer adaptive revisions remain here; no rigid explanation/practice ratio. |
 | R11 One-ahead preparation | Fast eligible additions with platform-funded unused work and exactly-once accepted billing. | Requires stable lifecycle and money binding. No expensive speculative media or cross-user reuse. |
 | R12 Command adapters | Tutor can choose the remaining registered formats. | Ship per adapter/small useful batch; common lifecycle first. No all-media megarelease. |
 | R13 Projects | Explain on canvas from authorized codebase context/files. | Same flow and source honesty; no revival of old journeys or fixed codebase goals. |
@@ -516,7 +635,7 @@ Tutor integration depends on the cleanup phase that changes the same interfaces/
 
 ### 12.3 Small parallel lanes, one integration owner
 
-For the current correction, use three implementation lanes when independent work is ready: (1) source/author/check policy and money, (2) canvas slot/keyboard/delivery, (3) ToC/settings/source navigation. A lead owns shared wiring and release integration. A verifier starts on a committed candidate. Combine lanes when changes overlap; more agents are not automatically faster.
+For the current correction, use three implementation lanes when independent work is ready: (1) source/author/check policy and money, (2) canvas slot/keyboard/delivery, (3) Chat routing/parameters/ToC/source navigation. A lead owns shared wiring and release integration. A verifier starts on a committed candidate. Combine lanes when changes overlap; more agents are not automatically faster.
 
 Keep the next useful source/practice/tool work prepared behind its own capability boundary without repeatedly rebasing the current release. Name exact file writers, route/model/migration ownership and dependency patches. No two lanes independently change the same integration file or push competing production candidates. Report tested behavior and blockers, not only files edited.
 
@@ -526,7 +645,18 @@ Keep the next useful source/practice/tool work prepared behind its own capabilit
 
 The checklist specifies runnable test commands, prerequisites, current versus new tests and expected assertions for every rung. Use local deterministic provider doubles to exercise the **real** pipeline and inspect the actual outgoing model request. A double that returns a finished card before source loading or generation does not prove full-context authoring.
 
-For the immediate release, cover full source beyond the former 8k passage, narrow teaching scope, first and second accepted cards, one author call per card, zero ordinary citation calls, applicable safety, allowance/idempotency/refunds, same-slot rendering, Tab focus exclusions, save-before-acknowledge and reload. Include real D1/workerd behavior where the changed database/query/runtime behavior requires it; a permissive fake cannot prove D1-specific limits.
+For the immediate release, prove the complete updated flow with distinct scenarios:
+
+- Drop into a fresh empty Chat; drop with existing messages; drop with only an unsent draft; Chat initially closed. The panel opens, metadata acknowledgment precedes full-source reading, the chooser appears only when needed, old history/draft survive either choice and the invitation follows the chosen conversation exactly once. Repeat in Ask and with Auto-suggest off: the explicit-drop invitation still appears, preferences remain unchanged and no roadmap/card starts without explicit choice.
+- Draft generation and parameters render inside actual Chat entries. Depth/scope/mode edits regenerate the correct version; **Edit roadmap** uses the existing composer pill; stale drafts cannot be accepted. Accept publishes the accepted tree and the Chat navigation link without forcing a panel switch. ToC contains no draft parameters, stopping block, decision footer or composer.
+- A pending card's title, description, excerpt, format, identity and action state match across Chat and canvas. First-card **Accept**, ready-next **Next card** and eligible Tab race to one accepted operation for the same proposal; **Next card** never adds a second confirmation step. Cover Tab focus exclusions, targeting/edit versions and cancel/pause semantics. One Chat entry per step updates without polling spam; delivered entries have no Cancel.
+- Full source beyond the former 8k passage and narrow teaching scope reach the actual first and second author requests. Assert one ordinary author dispatch per card, zero ordinary citation calls, applicable safety, real allowance binding and correct refunds/unknown expense/idempotency.
+- Measure passage-adjacent left/right and above/below fallback placement with real obstacles and attached controls; verify top-to-bottom progression without semantic plan reordering. Scroll/collapse/expand/reload without moving stored geometry, preserve user drags and the final top-left/width, and confirm generated content fills the same slot.
+- Persistent source highlights/icons and Chat/card navigation reach actual targets. Test overlapping links/local chooser, source revision ambiguity, absent/offscreen/collapsed passages, deleted cards and keyboard access. A pending or missing target never yields a dead generated-card link.
+- Save-before-acknowledge, lost response, reload and reconciliation preserve one actual card and charge. Genuine failure stays visible without Retry/Replace/Omit; safety refusal suppresses automatic next; other failure requires canonical successor eligibility. A save failure does not author again.
+- Exactly one next proposal appears on both surfaces after acknowledged delivery; with Auto-suggest off/Ask, **Propose next step** creates only metadata and the ready **Next card** action buys once without a second Accept. Explicit accepted-roadmap revision preserves delivered/in-flight history and controls future work only. Finite completion/end/pause stop unsolicited work.
+
+Test minimal R9 generation, immutable assessment and private evidence separately before claiming **Explanations + practice** works; a disabled dropdown is not that acceptance. Include real D1/workerd behavior where database/query/runtime changes require it; a permissive fake cannot prove D1-specific limits.
 
 Use keyless local browser fixtures for geometry, focus, intermediate loading states, scrolling and navigation. This is not a deployed clone. Unit tests establish semantics; browser evidence establishes actual DOM/canvas behavior; a build establishes compilation. None substitutes for the others or for live model quality.
 
@@ -556,17 +686,32 @@ Use separate labels: **implemented**, **locally verified**, **deployed**, **enab
 
 | Earlier instruction/assumption | Current requirement |
 | --- | --- |
-| A step's 8k passage is all the author may know. | Full authorized bounded document plus accepted roadmap/step intent; passage is navigation metadata. |
-| Every ordinary text/table card needs a quotation/support verdict and escalation before publication. | No per-card LLM citation gate for this ordinary path; record not run. Safety/schema/source access/billing remain. |
-| Repair or retry ordinary generated content automatically. | One author call; explicit recovery for failure. Provider-unknown outcomes are reconciled, not blindly redispatched. |
-| Floating proposal disappears after acceptance; final card is inserted at current view. | Persistent private world slot beside source, same frame through work and saved content replacement. |
-| Separate Roadmap above a second ToC, or split the panel in half. | One existing H1/H2/H3 tree with descriptions, status and navigation; one content scroller. |
+| Read/summarize the whole source before acknowledgment; wait for idle Chat before any visible response. | Open Chat on drop and acknowledge metadata promptly without stealing focus; full reading happens for the requested roadmap. |
+| Suppress the upload invitation in Ask or with Auto-suggest off. | An explicit drop always triggers acknowledgment/routing and the invitation; settings remain unchanged and continue to gate later unsolicited offers. |
+| Always put the invitation into the current chat. | With prior messages or a nonempty draft, **Start new chat / Stay here** first; preserve old history/draft and bind the entire source flow to the chosen conversation. |
+| Draft plan, parameter box, direct Depth slider or edit conversation live in ToC. | All are in existing Tutor Chat entries/composer. Only the accepted tree/status/navigation is in ToC. |
+| Separate Stopping point block and Accept/Edit/End footer in Contents. | Remove these from ToC; retain finite planning semantics and Chat actions. |
+| A new synonym for every edit, or a Next action that sometimes only proposes. | Shared vocabulary in section 4.5: **Edit roadmap**, **Edit card**, **Accept** for the first proposal, **Next card** to accept a ready next proposal, metadata-only **Propose next step** and exact navigation labels. |
+| A step's 8k passage is all the author may know. | Full authorized bounded document plus accepted roadmap/step instruction for each author call; passage is reference/initial-placement metadata. |
+| Every ordinary card needs a citation/support verdict and escalation. | No per-card LLM citation gate for this ordinary path; record not run. Safety/schema/source access/billing remain. |
+| Full context means generation cannot fail; repair/retry is the recovery UI. | Genuine failures remain possible and truthful. One author dispatch, no automatic author retry and no Retry/Replace/Omit UI. Reconcile unknown outcomes and the same saved result. |
+| Every failed step immediately auto-advances. | Safety refusal stops automatic offers; other failure requires canonical settlement and successor/prerequisite eligibility. |
+| Tutor Chat only announces the roadmap, or says a proposed card has already been generated. | One synchronized Chat lifecycle entry per step with matching title/description/excerpt/format and truthful state, including every next proposal. |
+| Canvas proposal vanishes after acceptance; content appears at current viewport center. | Same private world slot through acceptance/generation/saving/delivery/failure, plus same Chat step entry. |
+| Place beside the generic source box even when its passage is measurable. | Passage-adjacent left/right first, above/below fallback, top-to-bottom visual progression; avoid all material/control bounds and preserve accepted step order. |
+| Follow the passage as the Markdown viewer scrolls. | Measure once for initial placement, persist world geometry, preserve intentional drag and never move the slot on internal source scrolling. |
+| Source highlights are only transient hover/navigation effects. | Subtle persistent Tutor passage highlight plus small accessible **Go to card** icon after saved delivery; temporary focus emphasis and user highlights stay separate. |
+| Pending/missing targets can expose generic View explanation links. | Chat can navigate to an actual pending slot; source generated-card icons require an actual accessible saved card. Missing/ambiguous links are honest. |
+| Next step ready or generating controls appear outside the chat messages. | Readiness/progress/actions are inside the matching Chat entry and existing canvas slot; no added above/below-chat Tutor control region. |
+| All accepted-roadmap edits wait for R10. | Explicit Chat draft/reaccept loop for future work is MVP; R10 retains richer evidence-driven adaptation. |
+| Rendering a practice dropdown completes practice mode. | Selectable **Explanations + practice** requires actual minimal R9 generation/assessment; ordinary explanations may ship independently. |
+| Separate Roadmap above a second contents list or split panel. | One existing accepted H1/H2/H3 tree with descriptions/status/navigation and one content scroller. |
 | Progress companion column. | Existing right-panel Progress tab. |
-| Green/red tall or capsule-shaped accept/cancel. | Latest approved neutral/pale-blue attached pill geometry in checklist; 28px high, 4px radius, 8px below slot. |
-| New global progress chip or repeated recovery panels. | Existing slot state and application toast; no new global UI. |
+| Green/red tall or capsule-shaped accept/cancel. | Retain neutral/pale-blue attached pill geometry in checklist: 28px high, 4px radius, 8px below slot. |
+| New global recovery/progress panels. | Existing slot plus its Chat entry; no separate Tutor toast or removed recovery buttons. |
 | All later rungs wait for cleanup P7/schema drop. | Only actual shared-interface dependencies block integration. |
 | Deploy a dev clone/stable preview before every sprint candidate. | Owner-authorized direct-production path with honest focused evidence and recovery. |
-| Every R1–R16 task is still new work. | Reconcile current main; preserve existing implementation and repair only missing contracts. |
+| Every R1–R16 task is still new work, or a release label proves completion. | Reconcile current code; preserve implemented foundations, distinguish owner-reported releases and verify each new behavior before checking completion. |
 
 ### 14.2 Decision identifiers remain stable
 
@@ -583,36 +728,64 @@ Use separate labels: **implemented**, **locally verified**, **deployed**, **enab
 | D21 | Minimal allowlisted telemetry, no raw private source or hidden reasoning: §10.5. |
 | D27, D44 | Eventual editors with actor/owner/payer matrix on the MVP path: §§10.4, 12. |
 | D34 | Keep cleanup Home/Next Steps as ordinary Chat entry, not retired Tutor routes: §12.2 and checklist cleanup tasks. |
-| D36 | Authorized recovery actions preserved; present errors through existing toast and conversation, not the removed recovery block: §11.3. |
+| D36 | Truthful failure/settlement and same-result reconciliation preserved; Retry/Replace/Omit UI and automatic author retry removed; safety and successor boundaries explicit: §§6.3, 11.3. |
 | D43 | Contextual safety, deterministic enforcement and honest unknown handling: §10.3, expanded/tested per capability. |
 | D45 | As few elements as sufficient, provisional maximum three, one ordinary card first: §9.1. |
 
-Legacy M0–M15 identifiers are historical traceability, not a second release dependency graph. The companion checklist preserves R task identifiers and maps the immediate corrections to concrete current files. Where later choices remain provisional, they do not become blockers for the ordinary Markdown sprint.
+The latest user flow adds the following traceability, without renumbering the R ladder or claiming implementation:
+
+| Flow requirement | Product contract | Implementation/acceptance boundary |
+| --- | --- | --- |
+| Drop, immediate acknowledgment, conversation destination | §§3.1–3.3 | R4/core Chat routing, preserving drafts and one source event. |
+| Full reading, Chat parameter/draft/edit/accept loop | §§3.4–3.7, 4.5, 5, 8.4 | R2/R4 explicit draft/revision integration; no draft ToC UI. |
+| Accepted-only contents tree and link | §§3.7, 4.2 | R4/R6 UI integration; replace the old split/parameter/composer layout. |
+| Matching card proposal, persistent slot and Chat lifecycle | §§3.8–3.9, 6 | R4/R5/R6 actions, identities, saving and billing. |
+| Passage-adjacent placement, stable geometry and source icons | §§3.10, 7 | R3/core canvas matching, obstacle placement and accessible navigation. |
+| Exactly one next offer, manual next, cancel/failure/pause/end | §§3.11–3.12, 6.3, 11.3 | R4/R6 canonical continuation and truthful settlement. |
+| Actual practice dropdown support | §8.2–8.3 | Minimal R9 integration separately accepted; remaining R9 retained. |
+
+Legacy M0–M15 identifiers are historical traceability, not a second release dependency graph. The companion checklist preserves R task identifiers and maps corrections to concrete current files. Later provisional choices do not become blockers for ordinary Markdown. New checklist items remain unchecked until the corresponding code and evidence are reviewed; this document edit or an owner's release-status report is not completion evidence.
 
 ## 15. Actions and expected results
 
 | Learner/system action | Expected visible result | Expected state / money behavior |
 | --- | --- | --- |
-| Drop readable supported Markdown in Auto/Tutor with Auto-suggest on | Saved source, then one invitation in existing Chat after typing/import settles. | No card purchase; full authorized source available independently of its rendered height. |
-| Drop it in Ask or with Auto-suggest off | Source remains; no unsolicited invitation. | Explicit Chat request can still request supported work under mode rules. |
-| Choose Just keep it here | That invitation is dismissed; source stays. | No global mute, generation or learner charge. |
-| Choose Explain on canvas | Outcome/scope/Depth/roadmap in the single existing ToC. | Platform-funded plan; no accepted card yet. |
-| Choose Visible section | Plan focuses on the captured section. | Full bounded document remains context; scope does not follow subsequent scrolling. |
-| Edit a draft plan or change draft Depth | Existing ToC composer/slider updates a supported draft for acceptance. | Delivered content preserved; no automatic purchase. Full active-plan revision is staged in R10; accepted parameters are not silently mutated. |
-| Accept plan | One proposed slot with title/description/format beside source and Accept [Tab] / Cancel below. | No generated card charge from plan acceptance. |
-| Scroll inside collapsed or Full Content source | Source text scrolls; proposal/accepted slot stays at its world coordinates. | No generation, plan change, re-placement or camera movement. |
-| Click Accept or eligible Tab | Same slot enters Accepting, then generation with spinner. | One server acceptance, one bounded ordinary author dispatch, one charge identity. |
-| Press Tab in a text editor/menu/ToC composer | Normal focus/editor behavior. | No proposal acceptance. |
-| Accept with insufficient allowance | Proposal remains pending; existing credits flow explains limitation. | No consumed acceptance or partial step purchase. |
-| Generate ordinary first or second explanation | Full pinned document and accepted step brief produce the real card in the same slot. | Citation gate recorded not run; applicable safety/schema/access checks pass before delivery. |
-| Generation fails | Same slot retains title/position and truthful failure; existing toast offers allowed recovery. | No automatic content retry; refund/reconciliation is accurate. |
-| Board save fails or acknowledgement is lost | Existing slot/result can resume; no duplicate card appears. | Do not acknowledge before save or call the author again for a saved result. |
-| Reload after successful delivery | Exactly one saved card in the same position, with ToC navigation intact. | No new generation or debit. |
-| Current step finishes with Auto-suggest on | Exactly one next offer, quietly; offscreen readiness uses existing indicator. | Next metadata is platform work; no implicit acceptance. |
-| Cancel a pending proposal | That proposal intentionally disappears; ToC records cancellation. | No learner charge; no assumption about understanding. Manual next can request the next independent step; it does not silently recreate the cancelled proposal. Resolve prerequisite dependencies explicitly. |
-| Click thumbs up/down on a delivered card | Selected thumb is blue; pair hides when hover/focus leaves. | Private self-report only, not assessed mastery. |
-| Accept practice and answer now/later | Feedback can shape the next unaccepted step; unrelated explanation need not wait. | Immutable question binding; assessment separate from self-report. |
-| Reach stopping point | ToC shows the accepted scope complete and no further automatic additions. | Deeper continuation needs explicit learner intent/accepted revision. |
-| End roadmap or delete a delivered card | Delivered work/history remains as applicable; removed-content state is honest. | No erasure of evidence or automatic refund of valid past work. |
+| Drop material while right panel is closed | Panel opens on Chat; Tutor promptly acknowledges filename/import state in a message. | No full-reading wait, camera movement, focus theft, card purchase or assumed content understanding. |
+| Drop readable Markdown into a fresh empty Chat | One acknowledgment/invitation with **Explain on canvas / Just keep it here**. | No occupied-chat chooser or generation before explicit request. Duplicate source-ready events do not duplicate invitation. |
+| Drop into Chat with messages or only an unsent draft | Acknowledgment and **Start new chat / Stay here**, followed by invitation after the choice. | Preserve old history and draft; bind source/flow to chosen conversation once. |
+| Choose **Start new chat** | Existing chat system selects a new conversation for the source invitation. | Source stays on canvas; old conversation/draft remain; no extra active roadmap or purchase. |
+| Choose **Stay here** | Invitation and subsequent flow remain in the current conversation. | Existing draft text is not overwritten. |
+| Drop while Ask or Auto-suggest off | Chat opens, acknowledges/routes and displays **Explain on canvas / Just keep it here** after any destination choice. | The drop is the explicit trigger; no mode/preference change or automatic roadmap/card generation. Later unsolicited offers still obey Ask/off. |
+| Choose **Just keep it here** | This invitation is dismissed; source remains. | No global mute or learner charge. |
+| Choose **Explain on canvas** | **Generating roadmap**, then full draft/parameter box/step preview in a Tutor Chat entry. | Authorized full-source planning; no accepted card yet. |
+| Change Depth/scope/mode on a draft | Revised draft in Chat, old acceptance disabled while pending. | Source viewport is independent; latest displayed version is the acceptance target. Practice eligibility must be real. |
+| Choose **Edit roadmap** | Small target pill in existing Chat; learner instruction produces revised **Accept roadmap / Edit roadmap** draft. | Preserve unsent text, delivered/in-flight work and prior history; no automatic card purchase. |
+| Choose **Accept roadmap** | Accepted tree published to ToC; Chat confirmation includes **Open table of contents**; first matching Chat/canvas offer appears. | One accepted plan version; remain in Chat; no automatic purchase of all steps. |
+| Choose **Open table of contents** | Existing panel shows one accepted hierarchy, descriptions, status and navigation. | No draft parameters/stopping block/decision footer/composer; no generation. |
+| Show a pending card | Matching title, description, exact available excerpt and format in Chat and a nearby canvas slot. | One proposal identity; no invented quotation or duplicate offer. |
+| Click first-card **Accept**, ready-next **Next card** or eligible Tab on either surface | Same slot and Chat entry show Accepting, then generation/check/save progress. | One server acceptance, one bounded ordinary author dispatch, one charge identity; no additional Accept after **Next card**. |
+| Press Tab in composer, editor, modal or IME flow | Normal focus/editor behavior. | No proposal acceptance. |
+| Choose **Edit card** on a pending offer | Existing Chat targeting pill/inline edit path revises the same offer; both views update. | New proposal version requires acceptance; no automatic authoring. |
+| Accept with insufficient allowance | Proposal remains pending; existing credits flow explains the limitation. | No consumed acceptance or partial step purchase. |
+| Scroll/collapse/expand the source or pan/zoom canvas | Source viewer changes normally; existing slot stays at stored world coordinates. | No re-placement, plan change, generation or acceptance. |
+| Generate ordinary first/second card | Full pinned document and accepted brief fill the same canvas slot; one Chat entry reports state and saved readiness. | Citation gate not run; applicable checks, allowance and save-before-acknowledge remain. |
+| Complete saved delivery | Source passage shows subtle persistent highlight and accessible card-link icon; Chat keeps navigation and **Edit card**. | No pending Accept/Next card/Cancel on delivered entry; no claim of mastery. |
+| Click a source icon or **Go to card** | Navigate to the actual saved card, or actual pending slot when invoked from Chat. | Navigation never buys; pending/missing source target cannot expose a dead generated-card link. |
+| Choose **Go to highlighted text** | Resolve/frame source and scroll its own viewer to the correct passage with temporary emphasis. | Do not move explanation geometry or overwrite saved user highlights; ambiguous/missing range is honest. |
+| Several cards reference the same passage | One small source affordance opens a local chooser of actual linked cards. | Correct per-target access/identity; no overlap of duplicate icons or disclosure of private proposals. |
+| Ordinary generation fails | Same slot and Chat entry retain actual failed/skipped reason and settlement state; no Retry/Replace/Omit buttons. | No auto author retry. Successor requires canonical settlement and independent/prerequisite eligibility. |
+| Safety refusal occurs | Truthful failure/held state remains in the slot and Chat. | Stop automatic next offering; no mechanical skip into related content. |
+| Provider outcome/expense is unknown | Visible state accurately says pending/unknown while reconciliation runs. | No invented zero expense/refund, redispatch or premature successor. |
+| Save fails or acknowledgment is lost | Same result/card/slot can finish saving; no second card. | Never acknowledge before save or author again to recover existing output. |
+| Reload after delivery | Exactly one saved card in the same position, linked source annotation, matching Chat state and ToC navigation. | No new author dispatch or debit. |
+| Saved current step completes with Auto-suggest on and an initiative-permitting mode | Exactly one next eligible canvas proposal and matching Chat entry with **Next card**; no focus/panel/camera jump. | Metadata is platform work; no implicit acceptance. **Next card** directly accepts the ready offer once. |
+| With Auto-suggest off or Ask, choose **Propose next step** | One next proposal appears in Chat and canvas, ready for **Next card**. | Propose creates metadata only; **Next card** purchases once with no second Accept. |
+| Cancel a pending proposal | Offer intentionally removed; existing Chat/ToC history says cancelled. | No learner charge; automatic progression pauses. Manual next does not silently recreate it. |
+| Edit and reaccept an active roadmap | New accepted version governs future offers; earlier delivered/in-flight work remains. | Frozen accepted identities/settings preserved; stale future work invalidated/reconciled without duplicate charging. |
+| Select **Explanations + practice**, accept practice and answer now/later | Real enabled practice and feedback in the existing flow; evidence can influence future unaccepted work. | Minimal R9 integration/immutable binding required; assessment free; unanswered practice is not failure. |
+| Click thumbs up/down on delivered card | Selected thumb blue; pair follows agreed hover/focus behavior. | Private self-report, not assessed mastery; no feedback on imported source/pending offer. |
+| Reach accepted endpoint | Chat announces completion of accepted scope; ToC reflects actual delivery/coverage; no new offer. | Deeper continuation needs explicit accepted revision; completed coverage is not understanding. |
+| Choose **End roadmap**, pause or switch Ask | Chat reflects stopped/paused initiative; delivered work and accepted entitlement remain. | No new unsolicited offers; do not erase history or refund valid past work automatically. |
+| Delete delivered card or change source | Honest removed/changed history and unavailable link state. | No silent regeneration, guessed source match or erasure of evidence. |
 
-**Document completion:** this roadmap specifies the intended product and current reconciliation. The checklist specifies implementation and proof. Neither document edit is a claim that the requested fixes are deployed or that the user's two-card flow has passed.
+**Document completion:** this roadmap specifies the complete intended product flow and its reconciliation with current source and owner-reported releases. The companion checklist specifies implementation and proof. This Markdown-only update does not build the HTML, change application code, deploy a release, enable flags, complete R9 or establish acceptance of the two-card learner flow.
