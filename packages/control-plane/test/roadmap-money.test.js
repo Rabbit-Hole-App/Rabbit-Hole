@@ -10,7 +10,7 @@ import { usageTotals, periodOf } from '../src/learn-usage.js';
 import { world, offered, accessFor, rows, provider, body, MODEL, NEED } from './roadmap-fixture.js';
 
 const PERIOD = periodOf(Math.floor(Date.now() / 1000));
-const AGG = 4 * NEED; // callMicros = NEED: two generation calls and one automatic retry
+const AGG = 2 * NEED; // legacy callMicros = NEED: one generation call (CORE.04) times the legacy automatic-retry factor
 
 // A roadmap accepted with a step hold; the helpers a job would use for its calls.
 async function accepted(t, { allowance = 10_000_000 } = {}) {
@@ -79,16 +79,16 @@ test('per-call transfer: the hold moves into the call reservation, held plus res
   assert.equal((await totals()).reserved, AGG - NEED);
 });
 
-test('the allocation is the bound: four calls fit, the fifth is refused and never falls back to the allowance', async t => {
+test('the allocation is the bound: two calls fit, the third is refused and never falls back to the allowance', async t => {
   const { w, totals, call } = await accepted(t);
   const { calls, reply } = provider();
-  for (let n = 0; n < 4; n++) assert.equal((await call(n % 2, Math.floor(n / 2), reply())).response.status, 200);
-  assert.equal(calls.length, 4);
-  const fifth = await call(2, 1, reply());
-  assert.equal(fifth.response.status, 429);
-  assert.equal(calls.length, 4, 'refused before the provider');
+  for (let n = 0; n < 2; n++) assert.equal((await call(n, 0, reply())).response.status, 200);
+  assert.equal(calls.length, 2);
+  const third = await call(0, 1, reply());
+  assert.equal(third.response.status, 429);
+  assert.equal(calls.length, 2, 'refused before the provider');
   assert.equal((await totals()).reserved, 0);
-  assert.equal(rows(w.sqlite, 'SELECT * FROM learn_step_allocation_transfers').length, 4);
+  assert.equal(rows(w.sqlite, 'SELECT * FROM learn_step_allocation_transfers').length, 2);
 });
 
 test('a transfer that fails part way writes nothing: no platform row, no reservation, the hold is intact', async t => {
@@ -155,6 +155,24 @@ test('a terminal failure refunds the card once, keeps the provider expense, rele
   assert.equal((await totals()).used, 0);
 });
 
+test('CORE.04: the ordinary author caller (allowAutomaticRetry false) settles a transient failure terminally: one refund, provider expense kept, a replay changes nothing', async t => {
+  const { w, o, resultId, totals, call } = await accepted(t);
+  const { reply } = provider();
+  await call(0, 0, reply());
+  const cost = rows(w.sqlite, "SELECT SUM(cost_micros) AS c FROM usage_attempts WHERE kind <> 'tool'")[0].c;
+  assert.ok(cost > 0);
+  const failed = await failCard(w.LEARN_DB, w.access, { roadmapId: o.roadmapId, resultId, failureClass: 'transient_provider_failure', retryNo: 0, allowAutomaticRetry: false });
+  assert.deepEqual([failed.body.retry, failed.body.retryNo], [false, null]);
+  assert.deepEqual(rows(w.sqlite, 'SELECT generation, billing FROM learn_step_results')[0], { generation: 'failed', billing: 'refunded' });
+  assert.equal(rows(w.sqlite, 'SELECT state FROM learn_roadmap_steps WHERE id = ?', o.stepId)[0].state, 'skipped');
+  assert.equal((await totals()).used, 0, 'the learner nets zero');
+  assert.equal(rows(w.sqlite, "SELECT SUM(cost_micros) AS c FROM usage_attempts WHERE kind <> 'tool'")[0].c, cost, 'the provider expense is preserved');
+  const again = await failCard(w.LEARN_DB, w.access, { roadmapId: o.roadmapId, resultId, failureClass: 'transient_provider_failure', retryNo: 0, allowAutomaticRetry: false });
+  assert.equal(again.replayed, true);
+  assert.equal(rows(w.sqlite, 'SELECT * FROM usage_adjustments').length, 1, 'refunded once');
+});
+
+// Legacy default (other callers): one automatic retry still available where a caller allows it.
 test('a transient failure refunds before its one automatic retry; the second failure is terminal', async t => {
   const { w, o, resultId, totals, call } = await accepted(t);
   const { reply } = provider();

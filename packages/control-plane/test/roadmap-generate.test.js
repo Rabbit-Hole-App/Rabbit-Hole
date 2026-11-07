@@ -90,7 +90,7 @@ test('8. typed /explain keeps its full family; the legacy path is the same witho
   assert.deepEqual(offered(narrow.seen[0].body), ['make_animation', 'ask_clarifying_question']);
 });
 
-test('9. one authoring call per accepted card (owner MVP): an invalid first answer fails closed with no repair call; a third call fails closed', async () => {
+test('9. one authoring call per accepted card (owner MVP, CORE.04): an invalid first answer fails closed with no repair call; a second call fails closed', async () => {
   const bad = { title: 'x', body: 'y'.repeat(3000) };
   const once = await run(record(), [['make_explanation', bad], ['make_explanation', explanation]]);
   assert.deepEqual([once.out.outcome, once.out.failure_class, once.out.code], ['failed', 'terminal_validation_failure', 'validation_error']);
@@ -99,7 +99,7 @@ test('9. one authoring call per accepted card (owner MVP): an invalid first answ
   let admitted = 0;
   const out = await generateRoadmapCard({}, access, ref, { loadAccepted: async () => record(), withProviderCall: e => e, callModel: async () => { admitted++; return Response.json({}); },
     generate: async (env, input, { callModel }) => { for (let i = 0; i < 3; i++) await callModel(env, { system: 's' }, 'm', null); return { result: 'artifact', primitive: 'explanation', block: {} }; } });
-  assert.equal(admitted, 2);
+  assert.equal(admitted, 1, 'the adapter guard admits one call only');
   assert.equal(out.code, 'operation_budget');
 });
 

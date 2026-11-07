@@ -317,12 +317,13 @@ export async function acknowledgeDelivery(db, access, { roadmapId, resultId, exp
 // pending (the caller then dispatches the retry with retry_no + 1 and a fresh operation identity). Anything else is terminal: refund the card's
 // learner charges, mark generation failed and close the step (skipped: there is no Retry, Replace or Omit, owner 2026-11-06), release the card's allocation.
 // Provider expense rows are never touched.
-export async function failCard(db, access, { roadmapId, resultId, failureClass, retryNo = null, now = nowSeconds() }) {
+// allowAutomaticRetry (trusted, CORE.04): the ordinary roadmap author passes false, so a failed slot is terminal here too and a reload cannot turn it into a new purchase.
+export async function failCard(db, access, { roadmapId, resultId, failureClass, retryNo = null, now = nowSeconds(), allowAutomaticRetry = true }) {
   const row = await readResult(db, access, resultId);
   if (!row || row.roadmap_id !== roadmapId) throw new StateError('not_found', 'Not available', 404);
   const used = await db.prepare('SELECT COALESCE(MAX(retry_no), 0) AS n FROM learn_roadmap_calls WHERE result_id = ?').bind(resultId).first();
   const failedAt = retryNo ?? used.n; // the attempt that failed: the job names it so a late duplicate report is the same failure
-  const retry = failureWillRetry(failureClass, failedAt);
+  const retry = allowAutomaticRetry && failureWillRetry(failureClass, failedAt);
   const refunds = r => refundCardStatements(db, resultId, `roadmap_card_${retry ? 'retry' : 'failed'}`, now, r);
   const key = `sys_fail_${resultId}_${failedAt}`;
   const outcome = { status: 200, body: { resultId, failureClass, retry, retryNo: retry ? failedAt + 1 : null } };
