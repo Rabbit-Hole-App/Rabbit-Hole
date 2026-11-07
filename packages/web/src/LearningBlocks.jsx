@@ -60,6 +60,7 @@ import { CitableLines } from './TutorCitations.jsx';
 import WhiteboardVideoCard from './WhiteboardVideoCard.jsx';
 import SurfaceBoundary from './SurfaceBoundary.jsx';
 import { customTitleOf } from './card-rename.js';
+import CardHeader from './CardHeader.jsx';
 import { describeWhiteboard } from './whiteboard/card.js';
 
 // The canvas's drawing surface for an Explain Back sketch (AdaptiveCanvas renderSketch): { render, hold, release,
@@ -932,19 +933,19 @@ function Progress({ seconds, expected, label }) {
 // hidden at rest, drawn on hover, focus or touch selection in a slot reserved beside the actions so nothing jumps) and, only for
 // a card with a real source badge (tutor, learner, PDF), that badge on hover as before. The generic "course" pill is gone
 // (owner correction 2026-10-23): a card by default has no top-right label at all.
-function Kicker({ author = null, action = null, children }) {
+function Kicker({ block = null, author = null, action = null, size = 'sm', sticky = true, className = '-mx-4 -mt-3 mb-2 px-4 pt-3 pb-1', children }) {
   const slot = useContext(PromptSlot);
   useLayoutEffect(() => { slot?.claim(true); return () => slot?.claim(false); }, [slot?.claim]);
-  return (
-    <div data-drag-zone className="-mx-4 -mt-3 mb-2 flex cursor-grab items-center justify-between px-4 pt-3 pb-1 active:cursor-grabbing">
-      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-ink-2 uppercase"><span className="h-1.5 w-1.5 rounded-full bg-ink" />{children}</span>
-      <span className="flex min-w-0 items-center gap-1">
-        {action}
-        {slot?.text && <span className="relative inline-block h-[17px] w-[3.25rem]"><CardPromptControl text={slot.text} selected={slot.selected} className="absolute top-1/2 right-0 -translate-y-1/2" /></span>}
-        {author && <span className="rounded-full bg-ink px-2 py-px text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">{author}</span>}
-      </span>
-    </div>
+  const trailing = (
+    <>
+      {action}
+      {slot?.text && <span className="relative inline-block h-[17px] w-[3.25rem]"><CardPromptControl text={slot.text} selected={slot.selected} className="absolute top-1/2 right-0 -translate-y-1/2" /></span>}
+      {author && <span className="rounded-full bg-ink px-2 py-px text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">{author}</span>}
+    </>
   );
+  // The shared header (CardHeader.jsx, owner 2026-11-07): the type's icon, the card's title (or a placeholder), and the type label as its meta line;
+  // sticky, so a card whose body scrolls keeps it at the top. The flush offsets are the ones this header always had inside the card's padding.
+  return <CardHeader block={block} meta={children} trailing={trailing} size={size} sticky={sticky} className={className} />;
 }
 
 // Attempts whose grade request is running in this page. A block saved while
@@ -1170,7 +1171,7 @@ function ExplainBackCard({ memoryKey, block, onChange, onFile, draft, setDraft, 
   const ownerTitle = String(block.prompt || '').replace(/[`*_$#>]/g, '').replace(/\s+/g, ' ').trim();
   return (
     <div ref={cardRef} data-scroll data-explain-back data-sketch-owner={open ? '' : undefined} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker>Practice</Kicker>
+      <Kicker block={block}>Practice</Kicker>
       <div data-eb-question className="text-[20px] leading-[1.35] font-medium"><Md text={block.prompt} onFile={onFile} /></div>
       {block.hint && (
         <div data-eb-hint className="mt-2">
@@ -1340,7 +1341,7 @@ function QuizBody({ block, onChange, onFile }) {
   const solved = !!chosen?.correct;
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker author="tutor" action={block.choice && (
+      <Kicker block={block} author="tutor" action={block.choice && (
         <button type="button" aria-label="Reset quiz" title="Try again from scratch"
           onPointerDown={e => e.stopPropagation()} onClick={() => onChange({ ...block, choice: null })}
           className="rounded p-1 text-ink-3 hover:bg-hover hover:text-ink"><RotateCcw size={13} /></button>
@@ -1406,8 +1407,7 @@ function AudioBody({ block, appName, onChange }) {
   const stale = src && spoken !== block.text;
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker>Narration</Kicker>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <Kicker block={block}>Narration</Kicker>
       <textarea value={block.text} rows={4} spellCheck={false}
         onPointerDown={event => event.stopPropagation()}
         onChange={event => onChange({ ...block, text: event.target.value })}
@@ -1433,8 +1433,7 @@ function AudioBody({ block, appName, onChange }) {
 function SceneActivityBody({ block, onChange, onAskScene }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
-      <Kicker>Activity</Kicker>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <Kicker block={block}>Activity</Kicker>
       {block.spec.buildGoal && <p data-drag-zone className="mt-0.5 mb-2 cursor-grab text-xs text-ink-2 active:cursor-grabbing">{block.spec.buildGoal}</p>}
       <InteractiveScene block={block} onChange={onChange} />
       <SceneActivity block={block} onChange={onChange} />
@@ -1447,8 +1446,7 @@ function SceneActivityBody({ block, onChange, onAskScene }) {
 function WhiteboardBody({ block, appName, onChange }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
-      <Kicker author="learner">Whiteboard</Kicker>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <Kicker block={block} author="learner">Whiteboard</Kicker>
       <div className="mt-2 flex min-h-0 flex-1 flex-col">
         <Suspense fallback={<p className="p-4 text-xs text-ink-2">Loading the board</p>}>
           <WhiteboardBlock block={block} appName={appName} onChange={onChange} />
@@ -1470,8 +1468,8 @@ function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPract
       {/* A card that is one step of a sequence says so, quietly, where the
           block kind would be: "Self-attention · 2 of 3". A label, not navigation. */}
       {/* Focus's own header names the card: its kicker and title hide there (index.css [data-focus-hide]). */}
-      <div data-focus-hide><Kicker>{block.sequence ? <span data-card-sequence>{block.sequence.name} · {block.sequence.position} of {block.sequence.of}</span> : 'Explanation'}</Kicker>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p></div>
+      <div data-focus-hide><Kicker block={block}>{block.sequence ? <span data-card-sequence>{block.sequence.name} · {block.sequence.position} of {block.sequence.of}</span> : 'Explanation'}</Kicker>
+      </div>
       <div className="mt-2 flex min-h-0 flex-1 flex-col">
         {/* An /explain v2 job still making this card (EXP-T20): its stage until the result attaches here. */}
         {block.explainEdit && <ExplainEditBar block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onPreview={setCandidate} />}
@@ -1495,8 +1493,7 @@ function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPract
 function FlowBody({ block }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
-      <Kicker>Diagram</Kicker>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <Kicker block={block}>Diagram</Kicker>
       <div data-flow className="mt-2 min-h-0 flex-1 overflow-hidden rounded-lg border border-line"
         onPointerDown={event => event.stopPropagation()} onWheel={event => event.stopPropagation()}>
         <FlowDiagram spec={block.spec} />
@@ -1509,12 +1506,11 @@ function FlowBody({ block }) {
 function MermaidBody({ block, onChange }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
-      <Kicker action={
+      <Kicker block={block} action={
         <button type="button" data-toggle-source title="Show the mermaid source"
           onPointerDown={event => event.stopPropagation()} onClick={() => onChange({ ...block, showSource: !block.showSource })}
           className="rounded p-1 text-ink-3 hover:bg-hover hover:text-ink"><Code size={13} /></button>
       }>Diagram</Kicker>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       <div className="mt-2 min-h-0 flex-1 overflow-auto rounded-lg border border-line p-2"
         onPointerDown={event => event.stopPropagation()} onWheel={event => event.stopPropagation()}>
         <MermaidDiagram code={block.code} />
@@ -1529,8 +1525,7 @@ function MermaidBody({ block, onChange }) {
 function KnowledgeBody({ block, onChange, onFile }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
-      <Kicker>Graph</Kicker>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <Kicker block={block}>Graph</Kicker>
       <div className="mt-2 flex min-h-0 flex-1 flex-col" onPointerDown={event => event.stopPropagation()} onWheel={event => event.stopPropagation()}>
         <RepositoryGraph graph={block.graph} query="" external={false} selected={block.selected}
           onSelect={node => onChange({ ...block, selected: node })} />
@@ -1584,8 +1579,7 @@ function SceneBody({ block, appName, onChange, viewKey = null }) {
   if (block.status === 'ready' && block.modelUrl) return <ThreeDBody block={block} onChange={onChange} viewKey={viewKey} />;
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
-      <Kicker>Blender scene</Kicker>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <Kicker block={block}>Blender scene</Kicker>
       <div data-drag-zone className="mt-1 cursor-grab text-sm text-ink-2 active:cursor-grabbing"><Md text={block.brief} /></div>
       <div className="mt-2 flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-line bg-hover p-4 text-center" onPointerDown={event => event.stopPropagation()}>
         <p className="text-xs text-ink-2">{block.operation.scene.objects.length} objects · {block.operation.scene.animations?.length || 0} animations · {block.operation.duration || 3}s</p>
@@ -1666,8 +1660,7 @@ function ThreeDBody({ block, onChange, viewKey = null }) {
   const playing = block.animation?.autoplay;
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
-      <Kicker>3D model</Kicker>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <Kicker block={block}>3D model</Kicker>
       {block.brief && <div data-drag-zone className="mt-1 cursor-grab text-sm text-ink-2 active:cursor-grabbing"><Md text={block.brief} /></div>}
       <div ref={frame} data-three-d-viewer data-viewer-live={live || undefined} data-viewer-active={interacting || undefined} onPointerDown={event => event.stopPropagation()} onWheel={event => event.stopPropagation()}
         className={`relative mt-2 min-h-0 flex-1 overflow-hidden rounded-lg border bg-[#f4f5f7] ${interacting ? 'border-ink' : 'border-line'}`}>
@@ -1768,8 +1761,7 @@ function ImageBody({ block, appName, onChange, onFile }) {
   };
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker>Image</Kicker>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <Kicker block={block}>Image</Kicker>
       {resolved
         ? <img src={resolved} alt={current?.alt || block.alt || block.title} className="mt-2 w-full rounded-lg border border-line bg-white object-contain" />
         : <div className="mt-2 grid min-h-28 place-content-center rounded-lg border border-dashed border-line bg-hover p-4 text-center text-xs text-ink-2">{busy ? 'Working' : current ? (canGenerate === false ? 'This picture is no longer cached.' : 'This picture is no longer cached - generate it again.') : (canGenerate === false ? 'Search for a photo.' : 'Search for a photo or describe one to generate.')}</div>}
@@ -1931,8 +1923,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
   const refused = refusedReason(block); // MOT-22: a start the server refused for its proposal: not a video, never was
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker>Video</Kicker>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <Kicker block={block}>Video</Kicker>
       {/* Where the clip comes from (owner, 2026-10-20): a generated clip says AI-generated; a linked one names its host. */}
       {refused ? null : block.mode === 'generate'
         ? <p data-media-provenance="ai" className="mt-0.5 text-[11px] text-ink-2">AI-generated video, not real footage.</p>
@@ -1997,8 +1988,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
 function TableBody({ block, onFile }) {
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker>Table</Kicker>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <Kicker block={block}>Table</Kicker>
       {block.caption && <div data-drag-zone className="mt-1 cursor-grab text-xs text-ink-2 active:cursor-grabbing"><Md text={block.caption} onFile={onFile} /></div>}
       <div className="mt-2 overflow-x-auto">
         <table data-lesson-table className="w-full border-collapse text-left text-xs">
@@ -2039,9 +2029,11 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight }) {
     <div data-explanation className="flex min-h-0 flex-1 flex-col">
       {/* A /dive topic anchor (dive.js anchorBlock) is the learner's topic, not an explanation yet: no kicker, and a body only when it adds to the title. */}
       {/* Focus's own header names the card: its kicker and title hide there (index.css [data-focus-hide]). */}
-      <div data-explanation-head data-focus-hide className="shrink-0 px-4 pt-3 pb-2">
-        {!block.anchor && <Kicker action={headerSource(block) ? <SourceRefHeader block={block} app={appName} /> : null}>Explanation</Kicker>}
-        <h3 data-drag-zone className={`cursor-grab break-words text-ink active:cursor-grabbing ${block.anchor ? 'text-sm font-medium' : 'text-xl leading-tight font-semibold'}`}>{block.title}</h3>
+      {/* The pinned head: the type icon, the title (the learner's name, else the card's, else a placeholder) and the type label under it; the body scrolls below. */}
+      <div data-explanation-head data-focus-hide className="shrink-0">
+        {block.anchor
+          ? <CardHeader block={block} size="xs" className="px-4 pt-3 pb-2" />
+          : <Kicker block={block} size="lg" sticky={false} className="px-4 pt-3 pb-2" action={headerSource(block) ? <SourceRefHeader block={block} app={appName} /> : null}>Explanation</Kicker>}
       </div>
       <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 text-sm">{block.body && <Md text={block.body} onFile={onFile} fences />}</div>
       {more.length > 0 && (
@@ -2073,8 +2065,7 @@ function ExcerptBody({ block, onChange, appName, readOnly }) {
   const paragraphs = String(block.excerpt.quote?.exact || '').split(/\n{2,}/);
   return (
     <div data-scroll data-excerpt-card data-excerpt-kind="text" className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker author="PDF">Excerpt</Kicker>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <Kicker block={block} author="PDF">Excerpt</Kicker>
       <blockquote data-excerpt-quote className="mt-1.5 border-l-2 border-line-strong pl-3 text-sm text-ink">
         {paragraphs.map((text, index) => <p key={index} className={`whitespace-pre-line ${index ? 'mt-2' : ''}`}>{text}</p>)}
       </blockquote>
@@ -2128,8 +2119,7 @@ function GraphBody({ block, appName, onChange }) {
   const describedError = error ? describeGraphError(error) : null;
   return (
     <div data-scroll className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-3">
-      <Kicker>Interactive graph</Kicker>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <Kicker block={block}>Interactive graph</Kicker>
       {block.brief && <div data-drag-zone className="mt-1 mb-2 cursor-grab text-sm text-ink-2 active:cursor-grabbing"><Md text={block.brief} /></div>}
       <div data-graph className="relative min-h-[260px] flex-1 overflow-hidden rounded-lg border border-line"
         onPointerDown={stop} onPointerMove={stop} onPointerUp={stop} onWheel={stop} onKeyDown={stop}>
@@ -2149,8 +2139,7 @@ function SnippetBody({ block, onFile }) {
   const first = code?.lines[0];
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker>Code</Kicker>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <Kicker block={block}>Code</Kicker>
       {block.brief && <div data-drag-zone className="mt-1 cursor-grab text-sm text-ink-2 active:cursor-grabbing"><Md text={block.brief} onFile={onFile} /></div>}
       <CitableLines source={code ? { repo: code.repo, commit: code.revision, path: code.path } : null}>
         <CodeBlock className="mt-2 text-xs">{block.code.split('\n').map((line, index) => <div key={index} data-cite-line={first ? first + index : undefined}>{colorLine(line)}</div>)}</CodeBlock>
@@ -2177,12 +2166,11 @@ function CodeBody({ block, onChange, onFile }) {
   const reset = () => { setDraft(block.starter); setRun(null); onChange({ ...block, draft: null }); };
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker action={draft !== block.starter && (
+      <Kicker block={block} action={draft !== block.starter && (
         <button type="button" aria-label="Reset code" title="Restore the starter code"
           onPointerDown={e => e.stopPropagation()} onClick={reset}
           className="rounded p-1 text-ink-3 hover:bg-hover hover:text-ink"><RotateCcw size={13} /></button>
       )}>Code</Kicker>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       <div data-drag-zone className="mt-1 cursor-grab text-sm text-ink-2 active:cursor-grabbing"><Md text={block.brief} onFile={onFile} /></div>
       <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-2 uppercase">Given</p>
       <CodeBlock className="mt-1 text-xs">{block.setup.split('\n').map((line, index) => <div key={index}>{colorLine(line)}</div>)}</CodeBlock>
@@ -2246,7 +2234,7 @@ function FlashcardsFull({ block, onChange }) {
   const marks = block.marks || {};
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker author="tutor">Flashcards</Kicker>
+      <Kicker block={block} author="tutor">Flashcards</Kicker>
       <div className="flex flex-col gap-3">
         {block.cards.map((card, i) => (
           <div key={i} data-flashcard-item={i}>
@@ -2273,7 +2261,7 @@ function FlashcardsBody({ block, onChange }) {
   if (full) return <FlashcardsFull block={block} onChange={onChange} />;
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker author="tutor">Flashcards</Kicker>
+      <Kicker block={block} author="tutor">Flashcards</Kicker>
       <FlashFace card={card} flipped={flipped} onFlip={() => setFlipped(previous => !previous)} />
       {flipped && <RateButtons onRate={mark} />}
       <div className="mt-2 flex items-center justify-between" onPointerDown={e => e.stopPropagation()}>

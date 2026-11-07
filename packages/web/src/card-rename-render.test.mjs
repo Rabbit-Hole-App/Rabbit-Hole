@@ -41,21 +41,21 @@ test('describeBlock carries the learner name as the title for chat context, pill
   assert.equal(lib.describeBlock({ id: 'w', type: 'wiki', title: 'Gradient', customTitle: 'My notes' }), null, 'a card describeBlock never described stays so');
 });
 
-test('every card header shows the custom name where it drew its own label (source pins)', () => {
+test('every card header shows the card title through the shared CardHeader (owner 2026-11-07), and the cards with no header still show the custom name (source pins)', () => {
   const canvas = read('AdaptiveCanvas.jsx');
-  assert.match(canvas, /Wikipedia\{customTitleOf\(block\) && <span data-card-custom-title/, 'Wikipedia header');
-  assert.match(canvas, /PDF<span[^\n]*>\{customTitleOf\(block\) \|\| block\.label\}<\/span>/, 'PDF header');
+  // The cards whose header was their own strip now use the shared pinned header: icon, title (the learner's name or a placeholder), meta line.
+  assert.match(canvas, /<CardHeader block=\{block\} className="px-4 pb-2" meta=\{block\.title \? 'Wikipedia · ' \+ block\.title : 'Wikipedia'\} \/>/, 'Wikipedia header');
+  assert.match(canvas, /<CardHeader block=\{block\} meta=\{\[block\.label, 'PDF'\]\.filter\(Boolean\)\.join\(' · '\)\} className="px-4 pb-2" \/>/, 'PDF header');
   assert.match(canvas, /\{customTitleOf\(block\) \|\| block\.label\}<span className="h-px flex-1 bg-line-strong" \/><\/div>/, 'divider');
-  assert.match(canvas, /<CardCustomTitle block=\{block\} \/>\n\s+<div data-slide=/, 'slide caption');
-  assert.match(canvas, /<CardCustomTitle block=\{block\} \/><CanvasRefCard block=\{block\} \/>/, 'canvas reference');
-  assert.match(canvas, /<CardCustomTitle block=\{block\} \/><Suspense fallback=\{<p role="status" className="px-3 text-sm text-ink-2">Loading the graph/, 'repository graph');
-  assert.match(canvas, /\{typeof block\.title !== 'string' && <CardCustomTitle block=\{block\} \/>\}/, 'every generic card without its own string title (quiz, practice, flashcards, ...)');
+  assert.match(canvas, /<CardHeader block=\{block\} className="px-1 pb-1" meta=\{[^\n]*page [^\n]*\} \/>\n\s+<div data-slide=/, 'slide caption');
+  assert.match(canvas, /<CardCustomTitle block=\{block\} \/><CanvasRefCard block=\{block\} \/>/, 'canvas reference (a fixed 320 x 86 card: not given a header)');
+  assert.doesNotMatch(canvas, /\{typeof block\.title !== 'string' && <CardCustomTitle block=\{block\} \/>\}/, 'the generic cards draw their title in their own header now');
   assert.match(canvas, /startTitleOf\(block, describeBlock\(block\)\?\.title\)/, 'the editor opens on the shown name');
   assert.match(canvas, /title: customTitleOf\(soleCard\) \|\| soleCard\.title/, 'the contents chip');
   assert.match(read('WebpageCard.jsx'), /const title = customTitleOf\(block\) \|\| block\.title \|\| host;/);
-  assert.match(read('FileDocCard.jsx'), /\{customTitleOf\(block\) \|\| block\.label\}<\/span>/);
-  assert.match(read('ModelCard.jsx'), /\{customTitleOf\(block\) \|\| block\.label\}<\/span>/);
-  assert.match(read('NotebookCard.jsx'), /data-card-custom-title/);
+  for (const name of ['FileDocCard.jsx', 'ModelCard.jsx', 'NotebookCard.jsx', 'WebpageCard.jsx', 'CodeCard.jsx', 'GraphCard.jsx', 'CadCard.jsx', 'WhiteboardVideoCard.jsx', 'Animation3DCard.jsx']) {
+    assert.match(read(name), /<CardHeader\b/, name + ' draws the shared header');
+  }
 });
 
 test('the right-click Rename is gated only by renamable (every block) and read-only/local copy; a chat card is not a block', () => {

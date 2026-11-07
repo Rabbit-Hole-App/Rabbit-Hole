@@ -7,6 +7,7 @@
 // searches, captures, grades or saves (the notebook's own in-browser Python runs only what the visitor runs).
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BLOCK_TYPES, LearningBlockBody } from './LearningBlocks.jsx';
+import CardHeader from './CardHeader.jsx';
 import NotebookBody from './NotebookCard.jsx';
 import GoalManager from './GoalManager.jsx';
 import GenerationProposalCard from './GenerationProposalCard.jsx';
@@ -211,9 +212,8 @@ function YouTubePreview({ block: saved, stage, appName }) {
 function WikiPreview({ preview, stage, appName }) {
   return (
     <Shell kind="wiki" width={Math.min(560, stage.w - 2)} height={Math.min(520, stage.h - 2)}>
-      <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
-        <span className="h-1.5 w-1.5 rounded-full bg-ink" />Wikipedia
-      </div>
+      {/* The same pinned header the Wikipedia card draws on the canvas (CardHeader.jsx, owner 2026-11-07): icon, the article's title, and the source under it. */}
+      <CardHeader block={{ ...preview.block, customTitle: preview.saved?.displayTitle || preview.block.title }} className="px-4 pb-2" meta={'Wikipedia · ' + (preview.saved?.displayTitle || preview.block.title)} />
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl border-t border-line px-4 pt-2">
         <LearnWiki app={appName} compact article={{ title: preview.block.title, section: 0 }} saved={preview.saved} onSelect={() => {}} />
       </div>
