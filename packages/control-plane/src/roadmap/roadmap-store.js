@@ -2,7 +2,7 @@
 // Every mutation is one guarded D1 batch: the winning action writes a receipt row (learn_roadmap_actions) and every other statement in the batch
 // is guarded by that receipt, so a stale or losing action writes nothing. A repeat of a recorded action returns its recorded outcome; the same
 // key with a different payload, or a stale revision, is a 409 carrying the current state. Server ids only: a client id is never proof of access.
-import { DEPTHS, StateError, canAcceptProposal, canDeliver, canTransition, conflictReply, entitledRoadmapResult, resolveAction, validateAccess, isUnfinishedRoadmap } from './roadmap-contract.js';
+import { BLIND_RETRY_FORBIDDEN, DEPTHS, StateError, canAcceptProposal, canDeliver, canTransition, conflictReply, entitledRoadmapResult, resolveAction, validateAccess, isUnfinishedRoadmap } from './roadmap-contract.js';
 import { ROADMAP_LIMITS, ROADMAP_POLICY_VERSION, ceilingFor } from './roadmap-policy.js';
 import { admitStepAuthorization, newId, refundCardStatements, releaseStepAllocation, sha256, failureWillRetry } from './roadmap-money.js';
 
@@ -225,6 +225,13 @@ export async function offerProposal(db, access, { roadmapId, expectedRevision, a
 // allocations, the result slots with minted card ids, the accepted decision and the step's move to generating. Insufficient allowance writes
 // nothing: the proposal stays pending and the action key stays unconsumed. First valid action wins; a second device's different key is a 409.
 // quote(roadmap, proposal) (CORE.05, roadmap-run.js quoteStepAcceptance): the snapshot and the exact one-call bound; legacy callers pass callMicros instead.
+// BE.12: a learner call that may have reached the provider (admitted, dispatched, unknown, reconciling) has no settled outcome yet. While one exists on the
+// roadmap, no successor is offered and no new step is dispatched: the outcome is reconciled first (the call is never resent blindly either).
+export async function outcomeUnresolved(db, roadmapId) {
+  const marks = BLIND_RETRY_FORBIDDEN.map(() => '?').join(',');
+  return !!(await db.prepare(`SELECT 1 AS n FROM learn_roadmap_calls WHERE roadmap_id = ? AND payer = 'learner' AND checkpoint IN (${marks}) LIMIT 1`).bind(roadmapId, ...BLIND_RETRY_FORBIDDEN).first());
+}
+
 export async function acceptRoadmapStep(env, access, { roadmapId, revision, proposalId, proposalVersion, actionKey, callMicros, quote = null, now = nowSeconds() }) {
   requireAccess(access); requireKey(actionKey);
   const db = env.LEARN_DB;
@@ -238,6 +245,7 @@ export async function acceptRoadmapStep(env, access, { roadmapId, revision, prop
   if (!earlier) {
     if (proposal.version !== proposalVersion) throw await currentConflict(db, access, roadmapId);
     if (!verdict.ok) throw Object.assign(await currentConflict(db, access, roadmapId, verdict.code));
+    if (await outcomeUnresolved(db, roadmapId)) throw new StateError('outcome_unresolved', 'The previous card is still being settled.', 409); // BE.12: reconcile before any new dispatch
   }
   const slots = Array.from({ length: ROADMAP_LIMITS.cardsPerStep.r4Default }, (_, i) => ({ index: i, resultId: newId('rs_'), cardId: newId('cd_') }));
   // A replay never re-quotes: its recorded receipt is the answer.
@@ -311,6 +319,17 @@ export async function readEntitledResult(db, access, { roadmapId, resultId }) {
   return { id: row.id, cardId: row.card_id, primitive: row.primitive, block: JSON.parse(row.body_json), proposalVersion: row.proposal_version, delivery: row.delivery };
 }
 
+// The authorized result's own fields (never layout: position, size, rename, canvas bookkeeping) must all be present and equal in the saved block. A saved
+// block may carry extra keys; it may not differ in, drop or empty anything the result authorized. A result with no stored body has nothing to compare.
+const COVERS = (saved, wanted) => Array.isArray(wanted) ? Array.isArray(saved) && saved.length === wanted.length && wanted.every((item, i) => COVERS(saved[i], item))
+  : wanted && typeof wanted === 'object' ? !!saved && typeof saved === 'object' && Object.keys(wanted).every(key => COVERS(saved[key], wanted[key])) : saved === wanted;
+const CONTENT_KEYS = ['type', 'title', 'body', 'more', 'caption', 'columns', 'rows', 'sourceRef'];
+function savedMatchesResult(saved, row) {
+  let authorized; try { authorized = JSON.parse(row.body_json || '{}'); } catch { return false; }
+  if (row.primitive && authorized.type && saved.type !== row.primitive) return false;
+  return CONTENT_KEYS.every(key => !(key in authorized) || COVERS(saved[key], authorized[key]));
+}
+
 // Delivery acknowledgement: the client inserted the minted card and the board save succeeded. cardIds must equal the minted slot (never accepts others).
 export async function acknowledgeDelivery(db, access, { roadmapId, resultId, expectedRevision, actionKey, cardIds, boardVersion = null, now = nowSeconds() }) {
   const row = await readResult(db, access, resultId);
@@ -324,10 +343,12 @@ export async function acknowledgeDelivery(db, access, { roadmapId, resultId, exp
   if (row.delivery === 'not_delivered') {
     if (!Number.isInteger(boardVersion) || boardVersion < 1) throw new StateError('invalid_request', 'boardRevision', 400);
     const board = await db.prepare('SELECT state_json, version FROM learn_boards WHERE id = ? AND org = ? AND owner_email = ?').bind(access.boardId, access.org, access.actorEmail).first();
-    let saved = false;
-    try { saved = (JSON.parse(board?.state_json || '{}').blocks || []).some(block => block?.id === row.card_id); } catch { /* an unreadable board is not proof */ }
+    let saved = null;
+    try { saved = (JSON.parse(board?.state_json || '{}').blocks || []).find(block => block?.id === row.card_id) || null; } catch { /* an unreadable board is not proof */ }
     // 422, not 409: the roadmap is not stale; the client keeps the card, saves again and retries the same acknowledgement.
     if (!saved || board.version < boardVersion) throw new StateError('card_not_saved', 'The board with this card is not saved yet', 422);
+    // Card presence alone is not delivery: the saved block must carry the authorized result's type, content and source reference.
+    if (!savedMatchesResult(saved, row)) throw new StateError('card_content_mismatch', 'The saved card does not match the authorized result', 422);
   }
   return applyRoadmapAction(db, access, {
     operation: 'ack_delivery', actionKey, roadmapId, expectedRevision, parts: [resultId, row.card_id], now,
