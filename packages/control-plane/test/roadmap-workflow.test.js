@@ -13,7 +13,7 @@ import { routes, tabAccepts, pillOf, planDelivery } from '../../web/src/roadmap-
 import { draftKey } from '../../web/src/chat-draft.js';
 import {
   AT, FILE_NAME, INSTRUCTION, KEY, MARKER, MD, PLAN, STEPS, USERS, acceptCard, acceptPlan, boardBlocks, calm, deliver, explain, explanation, httpError,
-  SHORT_PLAN, planOf, readThread, reply, saveMessage, sha, started, status, table, threadId, timeout, unsafe, workflow,
+  SHORT_PLAN, planOf, readThread, receipt, reply, saveMessage, sha, started, status, table, threadId, timeout, unsafe, workflow,
 } from './roadmap-workflow-fixture.js';
 
 const T_FRESH = threadId(1), T_BUSY = threadId(2), T_DRAFT = threadId(3), T_NEW = threadId(4), T_BOB = threadId(9);
@@ -56,6 +56,7 @@ test('BE.00 one reproducible local fixture: Node 24, candidate SHA, bounded synt
   assert.equal(h.authorCalls[0].body.max_tokens, LEARN_TASKS.artifact.maxTokens, 'with the configured output cap');
   assert.deepEqual(h.network, [], 'no network call escaped');
   assert.deepEqual(h.handlerErrors, [], 'no outbox handler threw');
+  await receipt('fixture', h, { node: process.version, candidate: sha1 });
 });
 
 test('BE.01 drop acknowledgment and conversation choice (UI.01)', async t => {
@@ -575,6 +576,7 @@ test('BE.10 automatic next offer and an actual second card (CORE.07, UI.08, R6)'
   const refs = h.rows('SELECT card_id, ref_id FROM learn_source_ref_cards WHERE board_id = ?', h.boards.alice);
   assert.equal(new Set(refs.map(r => r.ref_id)).size, 2, 'each card keeps its own source anchor');
   assert.deepEqual(h.handlerErrors, []);
+  await receipt('twoCardFlow', h, { cards: [cardId, second.cardId] });
 });
 
 test('BE.11 manual pacing, cancellation, end and finite completion (UI.08, R6)', async t => {
