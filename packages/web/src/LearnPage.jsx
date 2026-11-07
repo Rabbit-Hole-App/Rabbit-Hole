@@ -68,6 +68,7 @@ import { CanvasChromeLoading, CHAT_PANEL, OWNER_CANVAS, OWNER_HEADER, OWNER_HEAD
 import { RepositoryBadge } from './repository-canvas.jsx';
 import { clearSelection } from './repo-context.js';
 import { releaseCodeRef } from './graph-card.js';
+import { withoutPicture } from './area-crop.js';
 import { sameRef } from './chat-context.js';
 import PanelHeader, { CanvasSearchPanel, COMPANION_VIEWS, CompanionHeader } from './PanelHeader.jsx';
 import ChatPane from './ChatPane.jsx';
@@ -975,7 +976,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const stored = await response.json();
       if (!response.ok) throw new Error(stored?.error || 'Upload failed');
       setAskTarget(previous => previous?.id === target.id ? { ...previous, image: stored.id } : previous);
-    } catch { /* the text of the cards inside still asks */ }
+    } catch {
+      // The thumbnail is still on the chip, so say the tutor will not see the picture, and stop the target claiming an image is attached.
+      setAskTarget(previous => previous?.id === target.id ? withoutPicture(previous) : previous);
+      toast('The picture of the selection could not be sent. The question still asks about the cards inside it.', { tone: 'error' });
+    }
   };
   const repoSourceId = app.repo ? `repo:${app.repo}` : null;
   // The repository is the one source that exists on day one, and detaching it

@@ -5,6 +5,23 @@
 
 const NEWLINE = String.fromCharCode(10);
 
+const PICTURE = 'The learner drew a rectangle on the canvas and asks about what is inside it; the attached image shows that area.';
+const NO_PICTURE = 'The learner drew a rectangle on the canvas and asks about what is inside it; no picture of it could be attached, so work from the card details below.';
+
+// A drag under 8 screen pixels in either direction is a click (or an Escape), not a selection.
+export const areaTooSmall = (rect, zoom) => Math.abs(rect.x2 - rect.x1) * zoom < 8 || Math.abs(rect.y2 - rect.y1) * zoom < 8;
+
+// The part of a crop (surface pixels) that is on screen; null when under 8 pixels of it is. The picture is only of the visible surface, so
+// the cards the crop is bound to must be measured against the same part, not against pixels that were never drawn.
+export function visibleCrop(crop, box) {
+  const x = Math.max(0, crop.x), y = Math.max(0, crop.y);
+  const w = Math.min(box.width, crop.x + crop.w) - x, h = Math.min(box.height, crop.y + crop.h) - y;
+  return w < 8 || h < 8 ? null : { x, y, w, h };
+}
+
+// A target whose picture could not be taken or uploaded must not tell the model an image is attached.
+export const withoutPicture = target => ({ ...target, text: target.text.replace(PICTURE, NO_PICTURE) });
+
 // Place, size and view state are not content: moving a card or picking an object never makes a new revision.
 const NOT_CONTENT = new Set(['dx', 'dy', 'w', 'h', 'space', 'time', 'inputs', 'inputRevision', 'programState', 'marked', 'selectedObject', 'selectRequest', 'cardLayout']);
 
@@ -73,7 +90,7 @@ export function areaTarget({ id, bindings, preview = null, at = Date.now() }) {
   return {
     id, kind: 'Canvas selection', title, crops: bindings, at,
     text: [
-      'The learner drew a rectangle on the canvas and asks about what is inside it; the attached image shows that area.',
+      preview ? PICTURE : NO_PICTURE,
       bindings.length ? `Cards inside or touching it:${NEWLINE}${bindings.map(describe).join(NEWLINE)}` : 'No card is inside it, only the canvas itself.',
     ].join(NEWLINE),
     ...(paper && preview ? { paper: { id: paper.paperId, page: paper.page, selection: { region: paper.region, preview } } } : {}),

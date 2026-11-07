@@ -62,7 +62,7 @@ test('the Chat pill is a shimmering Capturing chip with no remove button; it fol
 
 test('the canvas begins before the picture is made and always ends (finally), and the composer mounts the pill', () => {
   const canvas = readFileSync(join(here, 'AdaptiveCanvas.jsx'), 'utf8');
-  assert.match(canvas, /beginAreaCapture\(\); requestAnimationFrame\(\(\) => askArea\(rect\)\.finally\(\(\) => \{ endAreaCapture\(\); setAreaMarquee\(null\); \}\)\);/);
+  assert.match(canvas, /beginAreaCapture\(\);\s+requestAnimationFrame\(\(\) => askArea\(rect\)\.finally\(\(\) => \{ endAreaCapture\(\); setAreaMarquee\(current => \(current === mine \? null : current\)\); \}\)\);/);
   assert.ok(canvas.includes('<CapturingLabel'));
   assert.ok(!/fill="#dc2626"[^>]*>Capturing/.test(canvas), 'no hand-drawn red Capturing text left');
   assert.ok(readFileSync(join(here, 'ContextChips.jsx'), 'utf8').includes('<AreaCapturingPill />'));

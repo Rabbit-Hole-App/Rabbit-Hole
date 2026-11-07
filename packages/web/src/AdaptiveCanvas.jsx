@@ -76,7 +76,7 @@ import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
 import { SlotCard } from './SlotCard.jsx';
 import { NextCardPill } from './NextStepPill.jsx';
 import SurfaceBoundary from './SurfaceBoundary.jsx';
-import { areaTarget, cropBinding } from './area-crop.js';
+import { areaTarget, areaTooSmall, cropBinding, visibleCrop } from './area-crop.js';
 import { flushBoard, lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
 import { withFlushedAnimations } from './animation3d/storage.js';
 import { waitingText } from './waiting-text.js';
@@ -4704,9 +4704,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const areaShot = useRef(0);
   const askArea = async rect => {
     const x = Math.min(rect.x1, rect.x2), y = Math.min(rect.y1, rect.y2), w = Math.abs(rect.x2 - rect.x1), h = Math.abs(rect.y2 - rect.y1);
-    if (w * view.z < 8 || h * view.z < 8) return;
+    if (areaTooSmall(rect, view.z)) return;
     const node = surface.current, box = node.getBoundingClientRect();
-    const crop = { x: view.x + x * view.z, y: view.y + y * view.z, w: w * view.z, h: h * view.z };
+    // Only the visible surface is drawn: a rectangle dragged past the edge is cut to it, and the cards are bound to that same part.
+    const crop = visibleCrop({ x: view.x + x * view.z, y: view.y + y * view.z, w: w * view.z, h: h * view.z }, box);
+    if (!crop) return;
     const inside = Object.entries(boundsRef.current).filter(([, b]) => b.x + b.w > x && b.x < x + w && b.y + b.h > y && b.y < y + h).map(([id]) => blocks.find(block => block.id === id)).filter(Boolean);
     // EXP-T28: bind the crop to each card as it is now (id, revision, bounds, moment), measured before the slow capture.
     const screen = { left: box.left + crop.x, top: box.top + crop.y, width: crop.w, height: crop.h };
@@ -4724,14 +4726,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const { toCanvas } = await import('html-to-image');
       const skip = el => el.nodeType === 1 && (el.tagName === 'IFRAME' || el.getAttribute?.('role') === 'toolbar' || el.hasAttribute?.('data-canvas-minimap') || el.hasAttribute?.('data-dive-gutter') || el.hasAttribute?.('data-area-marquee') || el.hasAttribute?.('data-area-mark') || el.hasAttribute?.('data-roadmap-slot')); // a Tutor slot is private: never in a crop
       const ratio = Math.min(2, window.devicePixelRatio || 1);
-      const full = await toCanvas(node, { pixelRatio: ratio, width: box.width, height: box.height, filter: el => !skip(el), cacheBust: false });
+      // The page colour is painted in, so a board without a grid is not a transparent picture the model sees as black (dark theme).
+      const full = await toCanvas(node, { pixelRatio: ratio, width: box.width, height: box.height, filter: el => !skip(el), cacheBust: false, backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--color-white').trim() || '#ffffff' });
       const out = document.createElement('canvas');
       const scale = Math.min(1, 1400 / Math.max(crop.w * ratio, crop.h * ratio));
       out.width = Math.max(1, Math.round(crop.w * ratio * scale)); out.height = Math.max(1, Math.round(crop.h * ratio * scale));
       out.getContext('2d').drawImage(full, crop.x * ratio, crop.y * ratio, crop.w * ratio, crop.h * ratio, 0, 0, out.width, out.height);
       preview = out.toDataURL('image/png');
       blob = await new Promise(resolve => out.toBlob(resolve, 'image/png'));
-    } catch { /* the text of the cards inside still asks */ }
+    } catch {
+      // The text of the cards inside still asks; the picture is not attached, and the target says so (areaTarget without a preview).
+      preview = null; blob = null;
+      toast('The picture of the selection could not be taken. The question still asks about the cards inside it.', { tone: 'error' });
+    }
     if (shot !== areaShot.current || key !== storageKeyRef.current || !node.isConnected) return;
     const id = `area:${Date.now().toString(36)}`;
     // The area rides on the card or slide under its centre, so it stays put when the column above it grows.
@@ -4750,7 +4757,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const apply = (px, py) => { rect = { ...rect, x2: px, y2: py }; setAreaMarquee(rect); };
     // The rectangle stays, labelled Capturing..., until the picture is ready (a big board takes seconds).
     // ponytail: the whole surface is rendered, then cropped; render only the cards under the area if it is too slow.
-    apply.done = () => { setTool('select'); setAreaMarquee({ ...rect, busy: true }); beginAreaCapture(); requestAnimationFrame(() => askArea(rect).finally(() => { endAreaCapture(); setAreaMarquee(null); })); };
+    // A click, or Esc (which pulls the rectangle back to its start), is no selection: nothing is captured, nothing flashes Capturing.
+    // The rectangle is cleared only by the capture that drew it, so a second rectangle drawn while this one works is not wiped by it.
+    apply.done = () => {
+      setTool('select');
+      if (areaTooSmall(rect, view.z)) { setAreaMarquee(null); return; }
+      const mine = { ...rect, busy: true };
+      setAreaMarquee(mine); beginAreaCapture();
+      requestAnimationFrame(() => askArea(rect).finally(() => { endAreaCapture(); setAreaMarquee(current => (current === mine ? null : current)); }));
+    };
     startDrag(event, start, apply, view.z);
   };
   // The drawing tools' gestures, run against a store: the canvas's own lists, or an Explain Back sketch's
@@ -6493,7 +6508,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {/* The same tools, drawing into an Explain Back sketch: one toolbar, and it says where it draws. */}
           {drawTarget && <div data-sketch-badge title="These tools draw in the Practice sketch. Press the canvas or Esc to draw on the canvas again."
             className="col-span-2 rounded-md bg-[#2383e2]/10 py-0.5 text-center text-[10px] font-semibold tracking-wide text-[#2383e2] uppercase">Sketch</div>}
-          {NAV_TOOLS.map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => setTool(value)} />)}
+          {NAV_TOOLS.filter(([value]) => value !== 'askArea' || onAreaShot).map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => setTool(value)} />)}
           <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
           {DRAW_TOOLS.map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => pickTool(value)} />)}
           <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
