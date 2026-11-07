@@ -209,3 +209,25 @@ test('deletion keeps the delivery record and the charge; a duplicate removal not
   assert.equal((await totals()).used, used, 'no refund for a deleted card');
   assert.equal(rows(w.sqlite, 'SELECT card_removed FROM learn_roadmap_steps WHERE id = ?', o.stepId)[0].card_removed, 1);
 });
+test('Restore: a removed card comes back from the stored result, delivery returns to delivered, and nothing is charged again', async t => {
+  const { w, env, o, resultId, cardId, totals } = await generating(t);
+  await recordGenerated(w.LEARN_DB, w.access, { resultId, primitive: 'explanation', body: { type: 'explanation' }, validation: 'passed' });
+  const base = `/api/learn/roadmap/${o.roadmapId}`;
+  let view = await (await call(env, 'GET', `/api/learn/roadmap?boardId=${BOARD}`)).json();
+  w.sqlite.prepare('UPDATE learn_boards SET state_json = ?, version = 2 WHERE id = ?').run(JSON.stringify({ blocks: [{ id: cardId }] }), BOARD);
+  await call(env, 'POST', `${base}/results/${resultId}/ack`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: 'ack-key-00001', cardIds: [cardId], boardRevision: 2 });
+  view = await (await call(env, 'GET', `/api/learn/roadmap?boardId=${BOARD}`)).json();
+  const used = (await totals()).used;
+  const restore = key => call(env, 'POST', `${base}/results/${resultId}/restored`, { boardId: BOARD, expectedRevision: view.roadmap.revision, actionKey: key });
+  assert.notEqual((await restore('restored-key-01')).status, 200, 'a card that was never removed cannot be restored');
+  assert.equal((await call(env, 'POST', `${base}/results/${resultId}/removed`, { boardId: BOARD, expectedRevision: view.roadmap.revision, actionKey: 'removed-key-001' })).status, 200);
+  view = await (await call(env, 'GET', `/api/learn/roadmap?boardId=${BOARD}`)).json();
+  const again = await (await call(env, 'POST', `${base}/results/${resultId}/deliver`, { boardId: BOARD, actionKey: 'deliver-again-01' })).json();
+  assert.equal(again.cards[0].slot.cardId, cardId, 'the stored result is handed back for a removed card');
+  assert.equal(again.ackRequired, false, 'no second acknowledgement');
+  assert.equal((await restore('restored-key-02')).status, 200);
+  assert.equal((await restore('restored-key-02')).status, 200, 'the same request replays');
+  assert.deepEqual(rows(w.sqlite, 'SELECT delivery, billing FROM learn_step_results')[0], { delivery: 'delivered', billing: 'settled' });
+  assert.deepEqual(rows(w.sqlite, 'SELECT card_removed, removed_at FROM learn_roadmap_steps WHERE id = ?', o.stepId)[0], { card_removed: 0, removed_at: null });
+  assert.equal((await totals()).used, used, 'restoring charges nothing and refunds nothing');
+});

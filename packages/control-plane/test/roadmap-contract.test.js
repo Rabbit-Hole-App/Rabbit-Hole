@@ -35,7 +35,7 @@ test('every table has a row per state, every target is a state, and no state mov
 
 test('terminal states have no way out; the delivered card and the decision are final', () => {
   for (const [table, state] of [['roadmap', 'ended'], ['step', 'delivered'], ['step', 'skipped'], ['step', 'already_understood'], ['proposal', 'accepted'],
-    ['proposal', 'cancelled'], ['proposal', 'superseded'], ['generation', 'expired'], ['validation', 'blocked'], ['decision', 'accepted'], ['delivery', 'removed']]) {
+    ['proposal', 'cancelled'], ['proposal', 'superseded'], ['generation', 'expired'], ['validation', 'blocked'], ['decision', 'accepted']]) {
     assert.ok(S.isTerminal(table, state), `${table}:${state}`);
   }
   assert.ok(!S.isTerminal('roadmap', 'paused'));

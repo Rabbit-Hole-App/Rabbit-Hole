@@ -218,6 +218,22 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
       if (!iv) return Promise.resolve(null);
       return act(`dismiss:${iv.id}`, actionKey => routes.dismiss(boardId, iv.id, actionKey)).then(body => { if (body) dispatch({ type: 'dismissed', id: iv.id }); return body; });
     },
+    // Restore a removed roadmap card (owner 2026-11-07): the server hands back the stored result body (deliver is idempotent: no model call, no charge), it is
+    // inserted and saved, then the server returns the result to delivered. Idempotent: pressed again after a failed save, it finds the card and only retries the last step.
+    async restoreCard(resultId) {
+      const view = state.view, result = (view?.results || []).find(r => r.id === resultId);
+      if (stopped || host.readOnly?.() || !result || result.delivery !== 'removed') return null;
+      const body = await act(`restore-get:${resultId}`, key => routes.deliver(view, resultId, key));
+      if (!body) return null;
+      const plan = planDelivery(body, id => host.hasBlock(id));
+      for (const block of plan.insert) host.insertCard(block);
+      for (const cardId of plan.cardIds) if (await host.settled?.(cardId) === false) return null;
+      const saved = await host.persist();
+      if (saved?.ok !== true) return null; // not saved: the row stays Card removed with its Restore, and pressing it again retries
+      const done = await mutateView(`restore:${resultId}`, key => routes.restored(state.view, resultId, key));
+      await refresh(); // the answer is the small outcome, not the view: read the new delivery now instead of waiting for the next poll
+      return done;
+    },
     // Plan
     acceptPlan: () => mutateView(`plan:${state.view?.roadmap.id}:${state.view?.plan?.version}`, key => routes.acceptPlan(state.view, key)),
     // UI.03: a Depth change or the typed Edit roadmap request is a new draft revision (contracts.md revise; 422 practice_unavailable).

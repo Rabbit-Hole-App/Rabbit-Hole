@@ -5,7 +5,7 @@ import { repositoryIdentity } from '../repositories.js';
 import { refusalBody } from '../learn-spend-ledger.js';
 import { StateError, ERROR_CODES, conflictReply } from './roadmap-contract.js';
 import { acceptPlan, acceptRoadmapStep, acknowledgeDelivery, createRoadmap, readEntitledResult, readRoadmap, readResult } from './roadmap-store.js';
-import { bindTutorThread, cancelProposal, endRoadmap, markResultRemoved, proposeNextStep, retakeUnreadyOffer, setMode } from './roadmap-lifecycle.js';
+import { bindTutorThread, cancelProposal, endRoadmap, markResultRemoved, markResultRestored, proposeNextStep, retakeUnreadyOffer, setMode } from './roadmap-lifecycle.js';
 import { currentView, roadmapHistory } from './roadmap-view.js';
 import { acceptInvitation, dismissInvitation, offerInvitation, pendingInvitation } from './roadmap-invitations.js';
 import { answerQuestion, revisePlan } from './roadmap-planning.js';
@@ -175,6 +175,7 @@ export async function roadmapRoute(path, req, env, deps = {}) {
       return reply(done);
     }
     if (kind === 'results' && verb === 'removed' && rest.length === 4) return reply(await markResultRemoved(db, access, { roadmapId, resultId: id, ...arg }));
+    if (kind === 'results' && verb === 'restored' && rest.length === 4) return reply(await markResultRestored(db, access, { roadmapId, resultId: id, ...arg }));
     return json({ error: 'Not found', code: 'not_found' }, 404);
   } catch (error) {
     if (!(error instanceof StateError)) throw error;

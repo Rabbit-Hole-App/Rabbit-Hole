@@ -288,8 +288,8 @@ export function landHydration(live, result, { boardId }) {
 
 // The binding a card keeps while its job runs: the result lands only on this card, on this canvas, from this request, for this
 // source set and against the revision the card had when it started (null for a first generation).
-export const withJob = (block, { job, boardId, requestId, sourceKey, baseRevision = null }) => ({
-  ...block, animation3dJob: { id: job.id, boardId, cardId: block.id, requestId, sourceKey, baseRevision, stage: job.stage },
+export const withJob = (block, { job, boardId, requestId, sourceKey, baseRevision = null, threadId = null }) => ({
+  ...block, animation3dJob: { id: job.id, boardId, cardId: block.id, requestId, sourceKey, baseRevision, stage: job.stage, ...(threadId ? { threadId } : {}) },
 });
 // Stop: the card stops waiting at once; a result that arrives later is refused (the server is asked to cancel separately, and
 // releases unused holds by its own billing rules). The good version stays.

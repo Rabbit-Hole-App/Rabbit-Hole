@@ -4,7 +4,7 @@ import {readRegionalOriginal,regionalMaskBlob} from './inline-regional-mask.js';
 import { createBackgroundRemovalController, createRegionalImageEditController } from './inline-background-removal.js';
 import { createImageJobClient } from './inline-image-job-client.js';
 import { cadClient, submitCadOnce } from './cad-client.js';
-import { SKELETON_DROPPED_EVENT, EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainDisabled, skeletonJobOf, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock } from './explain-client.js';
+import { SKELETON_DROPPED_EVENT, EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainDisabled, skeletonJobOf, CHAT_DELETED_EVENT, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock } from './explain-client.js';
 import { HIGHLIGHT_EXPLAIN_COMMAND, heldPassageTarget } from './source-refs.js';
 import { withCardSink } from './chat-output-refs.js';
 import { withPrompt } from './card-prompt.js';
@@ -1054,6 +1054,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       client.action(id, 'cancel').then(() => { window.dispatchEvent(new CustomEvent(event, { detail: { jobId: id } })); window.dispatchEvent(new CustomEvent(SKELETON_DROPPED_EVENT, { detail: { jobId: id } })); }, error => toast(error.message));
     }
   };
+  // A deleted chat takes the skeletons whose plan waited in it (AdaptiveCanvas dropThreadSkeletons, announced by ask.jsx and chat-threads.js). Only this open canvas is reached; a skeleton on a canvas that is not open stays until that canvas is opened and its card deleted.
+  useEffect(() => {
+    const dropFor = event => canvasApi.current?.dropThreadSkeletons?.(event.detail?.threadId);
+    window.addEventListener(CHAT_DELETED_EVENT, dropFor);
+    return () => window.removeEventListener(CHAT_DELETED_EVENT, dropFor);
+  }, []);
   const passageSites = useRef(new Map()), passageRef = useRef(null), startExplainRef = useRef(null), explainLatest = useRef((prompt, options) => startExplainRef.current?.(prompt, options) ?? null).current;
   // Whole-canvas context (chat-canvas-context.js): the canvas_context every chat turn on this canvas carries, built from the live
   // canvas when it is sent - Ask and Tutor modes (canvasOps, ask.jsx) and Auto's Tutor (useTutor) alike. The title is a weak hint
@@ -1167,7 +1173,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     catch (error) { return { failed: `${error?.data?.error || error?.message || 'the request was refused'}${error?.status ? ` (${error.status})` : ''}` }; }
     const { job, body } = result;
     // Titled by its kind until the scene's own title arrives: the request is already the Chat line above it (owner, 2026-10-31).
-    const card = withJob(withPrompt({ id: job.cardId, type: 'animation3d', title: '3D animation' }, promptUsed), { job, boardId: board, requestId: body.requestId, sourceKey: await requestRef(body.requestId, words) });
+    const card = withJob(withPrompt({ id: job.cardId, type: 'animation3d', title: '3D animation' }, promptUsed), { job, boardId: board, requestId: body.requestId, sourceKey: await requestRef(body.requestId, words), threadId });
     const blockId = canvasApi.current?.placeAnimation(threadId ? { ...card, animation3dJob: { ...card.animation3dJob, threadId } } : card);
     return { blockId: blockId || job.cardId };
   };
@@ -1367,7 +1373,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       settled: id => canvasApi.current?.settled?.(id),
       persist: () => canvasApi.current?.persist?.(), boardRevision: () => boardVersion.current, savedHas: id => { try { const live = canvasApi.current?.blocks?.().find(block => block.id === id), saved = !!boardSynced.current && (boardFromText(boardSynced.current).blocks || []).find(block => block?.id === id); return !!saved && (!live || ((saved.dx || 0) === (live.dx || 0) && (saved.dy || 0) === (live.dy || 0))); } catch { return false; } },
       readOnly: () => !canEditCanvas, presenting: () => !!canvasStateRef.current.presenting,
-      focusBlock: id => id && canvasApi.current?.focusBlock(id), sourceBlockId: key => sourceBlock(key)?.id, sourceElement: key => { const id = sourceBlock(key)?.id; return id ? document.querySelector(`[data-block-id="${CSS.escape(id)}"]`) : null; },
+      notice: message => toast(message), focusBlock: id => id && canvasApi.current?.focusBlock(id), sourceBlockId: key => sourceBlock(key)?.id, sourceElement: key => { const id = sourceBlock(key)?.id; return id ? document.querySelector(`[data-block-id="${CSS.escape(id)}"]`) : null; },
       sources: () => (canvasApi.current?.blocks?.() || []).filter(block => block.type === 'file' && block.kind === 'markdown' && block.fileRef?.source?.id && block.fileRef.source.rev).map(block => ({ key: `file:${block.fileRef.source.id}`, rev: block.fileRef.source.rev, name: block.label || '' })),
       sourceRev: key => sourceBlock(key)?.fileRef?.source?.rev, sourceName: key => sourceBlock(key)?.label || '', depth: () => chat?.settings?.depth || 'standard' } });
   // The Tutor's proposal as the canvas slot beside its Markdown card (roadmap-canvas.js -> AdaptiveCanvas SlotCard): one slot per step from proposal to delivered card,

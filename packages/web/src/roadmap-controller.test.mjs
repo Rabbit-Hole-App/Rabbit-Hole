@@ -280,3 +280,44 @@ test('delivery waits for the settled geometry, then saves, verifies and acknowle
   assert.deepEqual(order.slice(2), ['deliver', 'settled:cd_71e20ac49f8b3d5612a7c0e4', 'persist', 'ack']);
   assert.equal(board.size, 1, 'the same card, inserted once');
 });
+
+test('Restore: a removed card is re-inserted from the stored result, saved, and only then returned to delivered; nothing is generated or acknowledged', async () => {
+  const id = 'cd_71e20ac49f8b3d5612a7c0e4', resultId = 'rs_90ab12cd34ef56789a0b1c2d';
+  const removed = clone(view('status-delivered-next-ready')); removed.results[0].delivery = 'removed';
+  const delivered = view('status-delivered-next-ready');
+  let current = removed;
+  const board = new Set();
+  const { controller, calls } = harness({ board, routes: {
+    'GET ': () => current,
+    'POST /rm_[^/]+/results/rs_[^/]+/deliver': () => ({ ...view('result-deliver-response'), ackRequired: false }),
+    'POST /rm_[^/]+/results/rs_[^/]+/restored': () => { current = delivered; return { resultId, delivery: 'delivered' }; },
+  } });
+  controller.start(); await settle();
+  const done = await controller.restoreCard(resultId); await settle();
+  assert.ok(done, 'restored');
+  assert.ok(board.has(id), 'the stored card is back on the canvas');
+  assert.equal(post(calls, '/deliver').length, 1);
+  assert.equal(post(calls, '/restored').length, 1);
+  assert.equal(post(calls, '/ack').length, 0, 'no second acknowledgement');
+  assert.deepEqual(calls.filter(c => c.method === 'POST').map(c => c.path.split('/').slice(-1)[0]), ['deliver', 'restored'], 'only these two requests: nothing is generated, proposed or charged');
+  assert.equal(controller.getState().view.results[0].delivery, 'delivered', 'the row is read again at once');
+  assert.equal(await controller.restoreCard(resultId), null, 'a delivered result has nothing to restore');
+});
+
+test('Restore: a failed save leaves the result removed and sends no restored; pressing again retries without a second card', async () => {
+  const id = 'cd_71e20ac49f8b3d5612a7c0e4', resultId = 'rs_90ab12cd34ef56789a0b1c2d';
+  const removed = clone(view('status-delivered-next-ready')); removed.results[0].delivery = 'removed';
+  let ok = false, inserts = 0;
+  const board = new Set();
+  const { controller, calls, host } = harness({ board, persist: async () => ({ ok }), routes: { 'GET ': () => removed,
+    'POST /rm_[^/]+/results/rs_[^/]+/deliver': () => ({ ...view('result-deliver-response'), ackRequired: false }),
+    'POST /rm_[^/]+/results/rs_[^/]+/restored': () => ({ resultId, delivery: 'delivered' }) } });
+  const insert = host.insertCard; host.insertCard = block => { inserts += 1; return insert(block); };
+  controller.start(); await settle();
+  assert.equal(await controller.restoreCard(resultId), null);
+  assert.equal(post(calls, '/restored').length, 0);
+  ok = true;
+  assert.ok(await controller.restoreCard(resultId));
+  assert.equal(inserts, 1, 'the card already on the canvas is not inserted twice');
+  assert.equal(post(calls, '/restored').length, 1);
+});

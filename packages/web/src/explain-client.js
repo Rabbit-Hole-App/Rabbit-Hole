@@ -59,8 +59,13 @@ export const explainPendingBlock = ({ job, title, prompt, threadId = null }) => 
 });
 // The reviewed job a canvas card is the skeleton of: its plan waits for Generate (/explain, /animation or /whiteboard), nothing is made yet.
 // Deleting that card drops the plan (LearnPage cancels the job); a running job is stopped from its own Stop, never by deleting.
-export const skeletonJobOf = block => [['explain', block?.explainJob], ['animation', block?.animation3dJob], ['whiteboard-video', block?.whiteboardJob]]
-  .map(([command, job]) => (job?.stage === 'awaiting_approval' ? { command, id: job.id } : null)).find(Boolean) ?? null;
+const skeletonJobs = block => [['explain', block?.explainJob], ['animation', block?.animation3dJob], ['whiteboard-video', block?.whiteboardJob]].filter(([, job]) => job?.stage === 'awaiting_approval');
+export const skeletonJobOf = block => { const [hit] = skeletonJobs(block); return hit ? { command: hit[0], id: hit[1].id } : null; };
+// The chat thread that skeleton's plan card lives in (null when the block does not record one, or when it is not waiting for Generate).
+export const skeletonThreadOf = block => skeletonJobs(block)[0]?.[1].threadId ?? null;
+// A chat was deleted (ask.jsx, chat-threads.js): the canvas drops the skeletons whose plan lived in it (AdaptiveCanvas dropThreadSkeletons), because a plan with no chat can never be generated.
+export const CHAT_DELETED_EVENT = 'rh-chat-deleted';
+export const announceChatDeleted = threadId => window.dispatchEvent(new CustomEvent(CHAT_DELETED_EVENT, { detail: { threadId } }));
 // A job changed from outside its card (Generate approved its brief, a refinement started its next version): its card polls
 // again. A brief became ready for review: the chat showing its thread reloads it, so the brief and its Generate appear.
 export const SKELETON_DROPPED_EVENT = 'rh-skeleton-dropped';

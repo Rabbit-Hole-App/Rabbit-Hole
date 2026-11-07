@@ -48,7 +48,7 @@ import { isBriefCommand, requestMaterialBrief } from './material-brief.js';
 import { problemOf } from './generation-review-client.js';
 import { loadImageCapability } from './image-capability.js';
 import { loadWhiteboardCapability } from './whiteboard-capability.js';
-import { EXPLAIN_BRIEF_EVENT } from './explain-client.js';
+import { EXPLAIN_BRIEF_EVENT, announceChatDeleted } from './explain-client.js';
 import { reviewRequired } from './proposal-capabilities.js';
 import { newThreadId, turnSaver } from './chat-persist.js';
 import { askMode } from './chat-route.js';
@@ -1040,6 +1040,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
             setConfirmDel(null);
             try {
               await chatApi(`/api/ask/threads/${t.id}/delete`, { method: 'POST' });
+              announceChatDeleted(t.id);
               setThreads((ts) => ts.filter((x) => x.id !== t.id));
               if (threadId.current === t.id) newChat();
             } catch { /* row stays if the delete failed */ }
