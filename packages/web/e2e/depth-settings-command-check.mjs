@@ -60,7 +60,7 @@ const page = await context.newPage();
 page.setDefaultTimeout(15000);
 page.on('pageerror', error => errors.push(error.message));
 const pane = page.locator('[data-chat-pane]');
-const depthButton = pane.getByRole('button', { name: /^Depth: / });
+const depthButton = pane.getByRole('button', { name: 'Depth', exact: true });
 const modeButton = pane.getByRole('button', { name: 'Mode', exact: true });
 const menu = page.getByRole('menu', { name: 'Depth' });
 const suggestSwitch = pane.getByRole('switch', { name: 'Auto-suggest' }); // the one Auto-suggest control, beside the mode selector (not in the Depth menu)
@@ -73,7 +73,7 @@ try {
   await pane.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
   await step('the composer shows Depth reading Standard, and its menu offers Overview, Standard and Deep with Standard checked', async () => {
     await depthButton.waitFor();
-    assert.equal((await depthButton.getAttribute('aria-label')).replace('Depth: ', ''), 'Standard');
+    assert.equal((await depthButton.innerText()).trim(), 'Standard');
     await openMenu();
     assert.deepEqual(await menu.getByRole('menuitemradio').evaluateAll(nodes => nodes.map(n => n.dataset.depthOption)), ['overview', 'standard', 'deep']);
     assert.equal(await menu.locator('[data-depth-option="standard"]').getAttribute('aria-checked'), 'true');
@@ -102,7 +102,7 @@ try {
     await menu.locator('[data-depth-option="deep"]').click();
     await until(async () => posts.length === before + 1, 'one POST');
     assert.deepEqual([posts.at(-1).app, posts.at(-1).board, posts.at(-1).depth, posts.at(-1).expectedRevision], [canvas.name, 'main', 'deep', 0]);
-    await until(async () => (await depthButton.getAttribute('aria-label')).replace('Depth: ', '') === 'Deep', 'the control reads Deep');
+    await until(async () => (await depthButton.innerText()).trim() === 'Deep', 'the control reads Deep');
     assert.equal(await menu.count(), 0);
   });
   await step('switching Auto-suggest off posts only that change and the switch shows it off', async () => {
@@ -120,7 +120,7 @@ try {
     refuse = true;
     await openMenu();
     await menu.locator('[data-depth-option="overview"]').click();
-    await until(async () => (await depthButton.getAttribute('aria-label')).replace('Depth: ', '') === 'Overview', 'applied in this tab');
+    await until(async () => (await depthButton.innerText()).trim() === 'Overview', 'applied in this tab');
     await openMenu();
     const note = menu.locator('[data-depth-status="error"]');
     await note.waitFor();

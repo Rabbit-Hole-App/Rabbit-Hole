@@ -227,6 +227,12 @@ function validateCreate(p) {
   if (p.features != null && (!Array.isArray(p.features) || p.features.length > 16 || p.features.some(f => typeof f !== 'string' || f.length > 40))) throw fail('Invalid client features.');
 }
 
+// The words above a plan in Chat: what differs from the request, in the server's own lines, is said here as well as on the card.
+function planWords(job, previous) {
+  if (job.revisedFrom && !previous) return 'Here is a revised plan for your animation. Generate makes it.';
+  const notices = planScene(job.plan).notices;
+  return notices.length ? `Here is the plan for your animation. It differs from what you asked: ${notices.join(' ')} Generate makes it.` : 'Here is the plan for your animation. Generate makes it.';
+}
 // The plan as the proposal's review lines (generation-review.js lists, max 20 x 300): the recommendation and its reason, the
 // interactions, controls, behavior and parameters, so the learner reviews what will be built in the existing card (no new widget).
 export function planLines(plan) {
@@ -681,7 +687,7 @@ export class AnimationJobs {
       limitations: [...notes, ...(plan.limitations || [])].map(a => clean(a, 300)).filter(Boolean).slice(0, 20), requirements: planLines(plan),
       input: { org: job.owner.org, app: job.app, job: job.id, plan_hash: job.planHash, request: job.prompt.slice(0, 500), scene: { ...planScene(plan), planCredits: credits(job.reservation?.preparationMicros) } } }, job.owner.email,
     { envelope: envelopeFor(this.env, { org: job.owner.org, app: job.app }), ...(previous ? { id: previous.id, version: (record?.current?.version ?? previous.version) + 1 } : {}) });
-    const row = await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?) RETURNING id').bind(job.threadId, 'assistant', '').first(); // no canned lead-in: the plan card speaks for itself, and what differs from the request is on it as limitations
+    const row = await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?) RETURNING id').bind(job.threadId, 'assistant', planWords(job, previous)).first();
     const meta = { version: 1, mode: 'ask', kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, proposal: p, ...(previous ? {} : { proposalState: proposalState(p) }) };
     await db.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, alternative_of, meta_json) VALUES (?, ?, 'assistant', NULL, ?)").bind(row.id, job.threadId, JSON.stringify(meta)).run();
     if (previous && !(record?.root && await publishRevision(db, record, p))) return;

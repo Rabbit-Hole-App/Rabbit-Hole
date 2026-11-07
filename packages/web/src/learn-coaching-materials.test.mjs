@@ -212,9 +212,7 @@ test('the material seam is the Tutor material tool through the existing Learn co
   const seen = [];
   const make = explainMaterial(async (line, deps) => { seen.push([line, deps.internal, deps.app]); }, { app: 'canvas-0a1b2c3d' });
   await make({ command: 'explain', request: 'how the sigmoid maps a score' }, { canvas: {} });
-  // Owner 2026-11-07: the Tutor's saved material command stays the id `explain` (its bindings are untouched); the learner-typed word for that
-  // id is now /interactive, so the internal line reads /interactive and resolves to the same command, the same job path.
-  assert.deepEqual(seen, [['/interactive how the sigmoid maps a score', true, 'canvas-0a1b2c3d']]);
+  assert.deepEqual(seen, [['/explain how the sigmoid maps a score', true, 'canvas-0a1b2c3d']]);
 });
 
 test('assessmentText: honest copy for every processing state; an unassessable answer never reads as feedback or progress', () => {

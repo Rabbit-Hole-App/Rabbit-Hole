@@ -146,29 +146,6 @@ test('JEV outcomes: answer, low confidence and several ask one question, none an
   assert.equal((await decideWith(counted(jev('generate-image', 0.95)), 'draw me a cat')).route, 'unsupported', 'image generation is off: routing never enables it');
 });
 
-test('a whole-message greeting makes zero JEV calls, even with JEV unconfigured; a greeting with a request, an explicit /motion and an ambiguous request are routed as before', async t => {
-  noFetch(t);
-  const unconfigured = { ...MOTION_ENV, LEARN_DB: untouchable, DB: untouchable, LEARN_VIDEOS: untouchable }; // no JEV key, no signing key
-  for (const text of ['hi', ' Hello! ', 'hey', 'thanks', 'Thank you!']) {
-    for (const mode of ['auto', 'ask']) {
-      const ask = counted(jev('motion', 0.99));
-      const greeted = await decideWith(ask, text, { env: unconfigured, over: { mode } });
-      assert.deepEqual([greeted.route, greeted.via, greeted.code, greeted.retryable, greeted.token], ['answer', 'default', null, false, null], `${mode} ${text}`);
-      assert.equal(ask.calls.length, 0, `${mode} ${text}: zero JEV calls`);
-    }
-  }
-  // With JEV unconfigured, an ordinary message still falls back (the client then sends it once, text only); a greeting plus a request is not a greeting.
-  assert.equal((await decideWith(counted(jev('answer', 0.9)), 'why is the sky blue', { env: unconfigured })).via, 'fallback');
-  const mixed = counted(jev('motion', 0.97));
-  assert.equal((await decideWith(mixed, 'Hi, make me a video of photosynthesis')).route, 'capability:motion');
-  assert.equal(mixed.calls.length, 1);
-  // An explicit /motion still gets its signed proposal when Motion is available, and an ambiguous request still clarifies.
-  const motion = await decideWith(counted(jev('answer', 0.9)), '/motion explain photosynthesis');
-  assert.deepEqual([motion.route, motion.flow, typeof motion.token], ['capability:motion', 'proposal', 'string']);
-  const unsure = await decideWith(counted(jev('motion', 0.45, 0.3)), 'make something about photosynthesis');
-  assert.deepEqual([unsure.route, unsure.token], ['clarify', null]);
-});
-
 test('a router timeout, failure, malformed answer or missing key answers normally: never a paid capability', async t => {
   noFetch(t);
   for (const [ask, code] of [[counted(new JevError('timeout', 'Jev timed out after 2500 ms')), 'timeout'], [counted(new JevError('http', 'Jev 500', 500)), 'unavailable'], [counted({ body: { answers: { route: { type: 'choice', choice: 'rocket', confidence: 1, probabilities: { rocket: 1 } } } } }), 'malformed']]) {
@@ -233,24 +210,17 @@ test('/goal is explicit only: typed or picked it is a direct route with no route
 });
 
 // EXP-T15: /explain's deterministic dispatch and its guarded natural-language route.
-// Owner 2026-11-07: typed /explain is the written command (id explanation); the interactive one is typed /interactive and keeps the saved id explain.
-test('/explain and /interactive typed, picked or with a selected card dispatch directly with no router call, flag on or off', async t => {
+test('/explain typed, picked or with a selected card dispatches directly with no router call, flag on or off', async t => {
   const fetches = noFetch(t);
   for (const env of [ENV, { ...ENV, EXPLAIN_V2_ENABLED: 'true' }]) {
     const none = counted(jev('motion', 0.99));
-    const typed = await decideWith(none, '/interactive how a heap keeps its order', { env });
+    const typed = await decideWith(none, '/explain how a heap keeps its order', { env });
     assert.deepEqual([typed.route, typed.via, typed.flow, typed.args, typed.settings], ['capability:explain', 'command', 'direct', 'how a heap keeps its order', null]);
-    const written = await decideWith(none, '/explain how a heap keeps its order', { env });
-    assert.deepEqual([written.route, written.capability, written.via, written.flow, written.args, written.settings, written.paid], ['capability:explanation', 'explanation', 'command', 'direct', 'how a heap keeps its order', null, false]);
     const picked = await decideWith(none, 'how a heap keeps its order', { env, capability: 'explain' });
     assert.deepEqual([picked.route, picked.via, picked.flow], ['capability:explain', 'capability', 'direct']);
-    const pickedWritten = await decideWith(none, 'how a heap keeps its order', { env, capability: 'explanation' });
-    assert.deepEqual([pickedWritten.route, pickedWritten.via, pickedWritten.flow], ['capability:explanation', 'capability', 'direct']);
-    // A selected card rides as context; both still make a new card (never an edit of the selection).
-    const selected = await decideWith(none, '/interactive this', { env, over: { selection: { kind: 'card', title: 'Heaps', text: 'a tree' } } });
+    // A selected card rides as context; /explain still makes a new card (never an edit of the selection).
+    const selected = await decideWith(none, '/explain this', { env, over: { selection: { kind: 'card', title: 'Heaps', text: 'a tree' } } });
     assert.deepEqual([selected.route, selected.flow], ['capability:explain', 'direct']);
-    const selectedWritten = await decideWith(none, '/explain this', { env, over: { selection: { kind: 'card', title: 'Heaps', text: 'a tree' } } });
-    assert.deepEqual([selectedWritten.route, selectedWritten.flow], ['capability:explanation', 'direct']);
     assert.equal(none.calls.length, 0);
   }
   assert.deepEqual(fetches, []);

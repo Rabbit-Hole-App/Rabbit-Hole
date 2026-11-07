@@ -127,30 +127,22 @@ export async function canvasAccess(req, env, name, pending = null) {
   if (app instanceof Response && app.status === 404 && pending) app = (await pendingHoleApp(env, user, name, pending)) || app;
   return app instanceof Response ? app : { ...app, user_id: user.userId ?? null };
 }
-// Titles are labels, never identities (docs/features/canvas-naming.md): different people may share one. One owner's canvases never do
-// (owner 2026-11-07, superseding "a typed title is kept exactly"): a canvas made or copied for its owner - New canvas, a Duplicate, a fork -
-// steps to the next free " (n)" when that owner's top-level Library (archived included) already has the title, "Example", "Example (2)",
-// "Example (3)", skipping numbers in use; a rename to a title another of their canvases has is refused (409 title_taken). Compared case-insensitively
-// (SQLite NOCASE: ASCII letters). Nested Rabbit Holes, other owners and projects never count.
+// Titles are labels, never identities (docs/features/canvas-naming.md): different people may share one, and an owner
+// may give two canvases the same title by hand - a typed title is kept exactly. Only a copy the system makes for its
+// owner - a Duplicate, a fork - steps to the next free " (n)" when that owner's top-level Library (archived included)
+// already has the title: "Example", "Example (2)", "Example (3)", skipping numbers in use. Nested Rabbit Holes, other
+// owners and projects never count.
 export async function freeTitle(db, org, owner, title) {
   const base = title.replace(/ \(\d+\)$/, '') || title;
   const like = `${base.replace(/[\\%_]/g, char => `\\${char}`)} (%)`;
-  const { results } = await db.prepare(`SELECT c.title FROM canvases c WHERE c.org=? AND c.owner_email=? AND (c.title COLLATE NOCASE=? OR c.title COLLATE NOCASE=? OR c.title LIKE ? ESCAPE '\\') AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%')`)
+  const { results } = await db.prepare(`SELECT c.title FROM canvases c WHERE c.org=? AND c.owner_email=? AND (c.title=? OR c.title=? OR c.title LIKE ? ESCAPE '\\') AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%')`)
     .bind(org, owner, title, base, like, org, owner).all();
-  const taken = new Set(results.map(row => row.title.toLowerCase()));
-  if (!taken.has(title.toLowerCase())) return title;
+  const taken = new Set(results.map(row => row.title));
+  if (!taken.has(title)) return title;
   for (let n = 2; ; n += 1) {
     const suffix = ` (${n})`, next = `${base.slice(0, TITLE - suffix.length)}${suffix}`;
-    if (!taken.has(next.toLowerCase())) return next;
+    if (!taken.has(next)) return next;
   }
-}
-// True when another of this owner's top-level canvases (the scope freeTitle counts) already has the title: what a rename checks.
-export async function titleTakenByOther(db, org, owner, title, exceptName) {
-  // A nested Rabbit Hole is identified by its parent and origin and needs no unique title (canvas-naming.md): renaming one is never refused.
-  if (await db.prepare("SELECT 1 FROM canvas_dives WHERE org=? AND owner_email=? AND child=? AND parent_app NOT LIKE 'share:%'").bind(org, owner, exceptName).first()) return false;
-  const row = await db.prepare(`SELECT 1 AS taken FROM canvases c WHERE c.org=? AND c.owner_email=? AND c.title COLLATE NOCASE=? AND c.name<>? AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%') LIMIT 1`)
-    .bind(org, owner, title, exceptName, org, owner).first();
-  return !!row;
 }
 
 // The caller's own canvases only (owner-only in phase 1, section 8.2). Nested Rabbit Holes are left
@@ -407,8 +399,7 @@ export async function canvasesFetch(req, env) {
       if (req.method === 'GET') return json({ canvases: await ownerCanvases(env, user, url.searchParams.get('archived') === '1') });
       if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
       const body = await req.json();
-      // A title the owner already has steps to " (2)", " (3)" (freeTitle); a canvas is never refused over its name.
-      const title = await freeTitle(db, user.org, user.email, canvasTitle(body.title ?? '') || 'Untitled canvas'), project = body.project ?? null, device = body.device_id ?? null;
+      const title = canvasTitle(body.title ?? '') || 'Untitled canvas', project = body.project ?? null, device = body.device_id ?? null;
       if (device !== null && !(typeof device === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(device))) throw Error('Invalid device id');
       if (project !== null && !(typeof project === 'string' && await db.prepare('SELECT 1 FROM repository_apps WHERE org=? AND name=? AND owner_email=?').bind(user.org, project, user.email).first())) return json({ error: 'Project not found in this workspace' }, 404);
       // ponytail: no per-owner canvas cap (repositories cap 25 per workspace); add one if dev rows grow unbounded.
@@ -516,8 +507,6 @@ export async function canvasesFetch(req, env) {
       if (!title) throw Error('Title required');
       const description = body.description === undefined ? app.description ?? null : canvasDescription(body.description, app.description);
       if (title === app.title && description === (app.description ?? null)) return json(app);
-      // One title to an owner's canvases: a rename to a title another of theirs has is refused with its own code, the canvas unchanged.
-      if (title !== app.title && await titleTakenByOther(db, user.org, user.email, title, name)) return json({ error: 'Another canvas already has this name', code: 'title_taken' }, 409);
       await db.batch([
         db.prepare('UPDATE canvases SET title=? WHERE id=?').bind(title, app.id),
         touchCanvas(db, user.org, name),

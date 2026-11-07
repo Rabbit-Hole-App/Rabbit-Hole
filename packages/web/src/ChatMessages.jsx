@@ -1,6 +1,5 @@
 // The chat transcript (moved out of ask.jsx's AskPanel): one ChatMessage per message, and the cards a message can be.
 import { Component, useEffect, useRef, useState } from 'react';
-import { SKELETON_DROPPED_EVENT } from './explain-client.js';
 import { ArrowDown, Copy, CornerDownRight, Loader2, Network } from 'lucide-react';
 import CommandPill from './CommandPill.jsx';
 import { sentCommand } from './command-token.js';
@@ -58,12 +57,6 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   const made = pressed || !!ops?.proposalMade?.(p.proposal_id) || (!!output && !refusedCard);
   // An Explain brief stopped here (Cancel: the job's own cancel action); a reload asks the server, which refuses its Generate.
   const [stopped, setStopped] = useState(false);
-  // Its skeleton card deleted on the canvas (explain-client.js skeletonJobOf, LearnPage dropSkeletons): the plan is dropped, nothing was started.
-  useEffect(() => {
-    const dropped = event => { if (event.detail?.jobId && event.detail.jobId === p.input?.job) setStopped(true); };
-    window.addEventListener(SKELETON_DROPPED_EVENT, dropped);
-    return () => window.removeEventListener(SKELETON_DROPPED_EVENT, dropped);
-  }, [p.input?.job]);
   // Generate is enabled by the command's own start adapter: an output card (Motion) or an existing job (Explain).
   const active = !made && !stopped && !!startAdapter(p, ops) && proposalActive(p, msgs);
   // Edit (conversational editing): this exact revision becomes the Chat's editing target, the composer opens and keeps its draft.
@@ -203,18 +196,16 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
     // A stopped brief is no longer an Edit target (the server refuses its refine), so the composer stops naming it.
     try { await ops.cancelExplain(p); setStopped(true); if (targeted) editing.clear(); } catch (failure) { setError(problemOf(failure).message); } finally { setBusy(false); }
   } : null;
-  // The proposal's skeleton on the canvas (explainWaiting) is the card Go to card reaches before anything is generated.
-  const skeletonId = !status?.cardId && explainJob ? ops?.skeletonCardId?.(p.input?.job) ?? null : null, linkedId = status?.cardId || skeletonId;
-  const goToCard = linkedId ? async () => {
+  const goToCard = status?.cardId ? async () => {
     setError(null);
-    const result = await openOutput(output && output.cardId === linkedId ? output : { cardId: linkedId }, ops);
+    const result = await openOutput(output && output.cardId === status.cardId ? output : { cardId: status.cardId }, ops);
     if (result.problem) setError(result.problem);
   } : null;
   return (
     <div className="mt-2">
       {/* A motion or image proposal draws its job's status on the card itself (status), so it no longer reads Added to the canvas. */}
       <GenerationProposalCard proposal={p} active={active} made={cardKind ? false : made} released={released} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
-        {...(explainJob ? { ...jobReviewCopy(p), onCancel, skeleton: !!ops?.explainWaiting?.(p.input?.job), ...animationReview(p) } : isBriefCommand(p.command) ? { eyebrow: briefHeading(p.command) } : {})}
+        {...(explainJob ? { ...jobReviewCopy(p), onCancel, ...animationReview(p) } : isBriefCommand(p.command) ? { eyebrow: briefHeading(p.command) } : {})}
         status={status} startedAt={output?.startedAt || pressedAt} noun={cardKind === 'image' ? 'image' : 'video'} onGoToCard={goToCard}
         onStop={status?.canStop && ops?.stopGeneration ? () => ops.stopGeneration(status.cardId) : null} onStopFailed={setError}
         onEdit={onEdit} targeted={targeted} onGenerate={onGenerate} onSave={onSave} onOpenReference={ref => chat?.openSource?.({ sourceId: ref.sourceId, kind: ref.kind, name: ref.label, version: ref.revision, range: ref.range })} />
@@ -304,7 +295,7 @@ export function RunResultCard({ runId, app }) {
   return (
     <div className="max-w-[520px] rounded-md border border-line p-3 text-sm">
       <div className="flex items-center gap-2 pb-1.5">
-        {meta?.status === 'running' && <Loader2 size={13} className="animate-spin text-claude" />}
+        {meta?.status === 'running' && <Loader2 size={13} className="animate-spin text-ink-3" />}
         <span className="font-medium">Run {runId.replace(/^r-/, '').slice(0, 7)}</span>
         <span className="text-ink-2">{meta?.status || 'starting'}</span>
         {runUrl && (
@@ -347,7 +338,7 @@ function OutputRow({ runId, name, size }) {
 export class AnswerBoundary extends Component {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(error, info) { console.error('[chat answer]', error); reportClientError('render_failed', error, { artifact: 'chat_answer', componentStack: info?.componentStack }); }
+  componentDidCatch(error) { console.error('[chat answer]', error); reportClientError('render_failed', error, { artifact: 'chat_answer' }); }
   render() { return this.state.failed ? <div data-answer className="min-w-0 whitespace-pre-wrap text-sm">{String(this.props.text ?? '')}</div> : this.props.children; }
 }
 
@@ -395,7 +386,7 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
           <span className="min-w-0 flex-1 break-words">{m.content}</span>
           <button type="button" aria-label="Copy error" title="Copy error" onClick={() => navigator.clipboard.writeText(m.content)} className="shrink-0 rounded p-1 hover:bg-danger/10"><Copy size={14} /></button>
         </div>
-      ) : (m.content || proposalOnly(m)) ? ( // a plan message with no text is its card alone, not the waiting shimmer
+      ) : m.content ? (
         <>{learnChat ? (
           // A Learn answer reads as a document at the pane's width, no colored box (owner brief section 9); the footer is
           // its one utility row (section 10). data-answer-body is what Copy puts on the clipboard as HTML.
@@ -414,7 +405,7 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
         {m.graph&&onGraph&&<div className="mt-2"><EvidencePill icon={Network} type="button" onClick={()=>onGraph(m.graph)} title={m.graph.title}>Show on graph</EvidencePill></div>}
 </>
       ) : (
-        <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-claude" /><span className="shimmer">{waitingText(m.stage ?? m.status)}</span></span>
+        <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{waitingText(m.stage ?? m.status)}</span></span>
       )}
     </div>
   );

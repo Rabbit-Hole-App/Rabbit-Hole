@@ -4,7 +4,6 @@
 // the job or the video; anywhere else (a share link, a fork before W5) the card says the video is not available, never a broken player.
 import { useContext, useEffect, useMemo, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
-import CardHeader from './CardHeader.jsx';
 import { api } from './api.js';
 import { AnimationBoard } from './animation3d/board-context.js';
 import { EXPLAIN_BRIEF_EVENT } from './explain-client.js';
@@ -83,7 +82,7 @@ function Video({ block, appName }) {
 function Sample({ block }) {
   return (
     <div data-whiteboard-video-card data-whiteboard-phase="sample" className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3">
-      <CardHeader block={block} meta="Whiteboard video" className="-mx-4 -mt-3 px-4 pt-3 pb-1" />
+      <p data-drag-zone className="-mx-4 -mt-3 cursor-grab px-4 pt-3 text-sm font-medium active:cursor-grabbing">{block.title}</p>
       <div data-player className="aspect-video w-full overflow-hidden rounded-md bg-black">
         <video data-whiteboard-player controls preload="metadata" poster={block.poster} src={block.src} className="h-full w-full" />
       </div>
@@ -98,7 +97,7 @@ export default function WhiteboardVideoCard({ block, onChange, onChangeQuiet, re
   const ready = !!videoOf(block), waiting = !ready && !!jobOf(block);
   return (
     <div data-whiteboard-video-card data-whiteboard-phase={ready ? 'ready' : waiting ? jobOf(block).stage : 'none'} className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3">
-      <CardHeader block={block} meta="Whiteboard video" className="-mx-4 -mt-3 px-4 pt-3 pb-1" />
+      <p data-drag-zone className="-mx-4 -mt-3 cursor-grab px-4 pt-3 text-sm font-medium active:cursor-grabbing">{block.title}</p>
       {!ready && !waiting ? null : !owner ? <p data-whiteboard-unavailable className="text-sm text-ink-2">{WHITEBOARD_UNAVAILABLE}</p>
         : ready ? <Video block={block} appName={appName} />
           : waiting ? <Pending block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} readOnly={readOnly} fetchJson={fetchJson} /> : null}

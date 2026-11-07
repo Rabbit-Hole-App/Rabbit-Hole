@@ -129,9 +129,7 @@ const openCanvas = async (canvas, blockId) => { await page.goto(`${BASE}/apps/${
 const blockEl = (id, p = page) => p.locator(`[data-block-id="${id}"]`).first();
 const strip = (id, p = page) => p.locator(`[data-block-id="${id}"] [data-drag-zone]`).last();
 const menu = (p = page) => p.locator('[data-canvas-menu]');
-const linkItem = (p = page) => menu(p).getByRole('menuitem', { name: 'Add a link', exact: true });
-// The chooser the menu row opens (LinkPickers.jsx AddLinkChooser): its Link to canvas choice opens the canvas picker below.
-const chooseCanvas = (p = page) => p.getByRole('dialog', { name: 'Add a link', exact: true }).getByRole('button', { name: 'Link to canvas', exact: true }).click();
+const linkItem = (p = page) => menu(p).getByRole('menuitem', { name: 'Link to canvas', exact: true });
 const picker = (p = page) => p.getByRole('dialog', { name: 'Link to canvas', exact: true });
 const search = (p = page) => picker(p).getByPlaceholder('Search canvases');
 const pickerState = (p = page) => picker(p).evaluate(el => (el.matches('[data-picker-state]') ? el : el.querySelector('[data-picker-state]'))?.getAttribute('data-picker-state') ?? null);
@@ -207,9 +205,8 @@ await check('1 right-click linking: the menu and a cancelled picker create nothi
   assert.deepEqual(await selected(), ['a1'], 'another card selected first');
   const before = await objectsOf(A.name);
   await rightClick('a2');
-  assert.ok(await linkItem().locator(':scope > svg').count() > 0, '"Add a link" has its icon');
+  assert.ok(await linkItem().locator(':scope > svg').count() > 0, '"Link to canvas" has its icon');
   await linkItem().click();
-  await chooseCanvas();
   await picker().waitFor();
   assert.equal(await addLink().isDisabled(), true, '"Add link" is disabled until a canvas is chosen');
   await search().fill(T.title);
@@ -241,7 +238,6 @@ await check('1 keyboard: Shift+F10 on a focused card reaches "Link to canvas"; t
   }
   await linkItem().focus();
   await page.keyboard.press('Enter');
-  await chooseCanvas();
   await picker().waitFor();
   await page.keyboard.type(`${T.title}`);
   await waitFor(async () => (await pickerState()) === 'ready' && (await option(T.title).count()) > 0, 10000, 'no result for the typed search');
@@ -257,7 +253,6 @@ await check('1 keyboard: Shift+F10 on a focused card reaches "Link to canvas"; t
   }
   await linkItem().focus();
   await page.keyboard.press('Enter');
-  await chooseCanvas();
   await picker().waitFor();
   await page.keyboard.type(T.title);
   await waitFor(async () => (await pickerState()) === 'ready' && (await option(T.title).count()) > 0, 10000, 'no result for the typed search');
@@ -311,7 +306,7 @@ await check('2 empty-canvas menu: a reference card near the right-click, selecte
   await savedRefs(A.name, menuCard, r => r.length === 1, 'the redone card is not on the server');
 });
 await check('2 Insert > Link to canvas…: Escape creates nothing; confirming places a selected card in a visible free spot overlapping nothing', async () => {
-  const insert = async () => { await page.locator('[role="menubar"][aria-label="Canvas menu"]').getByRole('menuitem', { name: 'Insert', exact: true }).click(); await page.locator('[role="menubar"]').getByRole('menuitem', { name: 'Add a link', exact: true }).click(); await chooseCanvas(); await picker().waitFor(); };
+  const insert = async () => { await page.locator('[role="menubar"][aria-label="Canvas menu"]').getByRole('menuitem', { name: 'Insert', exact: true }).click(); await page.locator('[role="menubar"]').getByRole('menuitem', { name: 'Link to canvas', exact: true }).click(); await picker().waitFor(); };
   const before = await refCards().count(), objects = await objectsOf(A.name);
   await insert();
   await page.keyboard.press('Escape');
@@ -464,7 +459,6 @@ await check('6 renaming the target keeps the link and shows the new title; the p
   assert.ok((await backlinkRefs(T, A)).some(r => r.object === 'a1'), 'the rename broke the backlink');
   await rightClick('a1');
   await linkItem().click();
-  await chooseCanvas();
   await search().fill(renamed);
   await waitFor(async () => (await option(renamed).count()) > 0, 10000, 'the renamed canvas is not in the picker');
   assert.match(await option(renamed).innerText(), /Already linked/, 'the target a1 already references is not marked "Already linked"');
@@ -477,7 +471,6 @@ await check('6 renaming the target keeps the link and shows the new title; the p
   // A double click on Add link makes one reference.
   await rightClick('a4');
   await linkItem().click();
-  await chooseCanvas();
   await pick(E.title);
   await addLink().dblclick();
   await picker().waitFor({ state: 'hidden' });
@@ -557,12 +550,12 @@ await check('9 card duplicate: Ctrl+D gives the copy new reference ids with the 
 await check('10 the card menu keeps its items, each with an icon; panel tabs keep their order, with no Links tab (now in Search); BlockNote Canvas/Editor still switches', async () => {
   await rightClick('a1');
   const labels = await menu().locator('[role="menuitem"]').evaluateAll(rows => rows.map(row => ({ text: (row.querySelector(':scope > span') || row).innerText.split('\n')[0].trim(), icon: !!row.querySelector(':scope > svg, :scope > img') })));
-  // UI-25 (owner brief 2026-10-22): a card's whole-card copy reads Copy (owner 2026-11-07), apart from Copy text, code or LaTeX.
-  for (const label of ['Add to chat', 'Cut', 'Copy', 'Paste', 'Duplicate', 'Delete', 'Add a link']) assert.ok(labels.some(row => row.text === label), `the card menu lost "${label}"`);
+  // UI-25 (owner brief 2026-10-22): a card's whole-card copy reads Copy card, apart from Copy text, code or LaTeX.
+  for (const label of ['Add to chat', 'Cut', 'Copy card', 'Paste', 'Duplicate', 'Delete', 'Link to canvas']) assert.ok(labels.some(row => row.text === label), `the card menu lost "${label}"`);
   assert.deepEqual(labels.filter(row => !row.icon).map(row => row.text), [], 'menu items without an icon');
   await page.keyboard.press('Escape');
   const tabs = await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-panel-tab')));
-  assert.deepEqual(tabs, ['chat', 'toc', 'progress', 'comments', 'find'], `panel tabs: ${tabs.join(',')}`);
+  assert.deepEqual(tabs, ['chat', 'find', 'toc', 'comments', 'progress'], `panel tabs: ${tabs.join(',')}`);
   assert.equal(await page.locator('[data-panel-tab="links"]').count(), 0, 'Links is a Search filter, not a tab');
   await chooseWorkspace(page, 'Editor'); // Owner brief 2026-10-22: View > Workspace
   await waitFor(async () => (await page.locator('[data-canvas-doc]').getAttribute('data-doc-state').catch(() => null)) === 'ready', 20000, 'Editor view never got ready');

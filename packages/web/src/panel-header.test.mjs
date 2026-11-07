@@ -9,14 +9,14 @@ import { cardWords, findMatches, readPanelPin, savePanelPin } from './canvas-fin
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const header = read('./PanelHeader.jsx'), page = read('./LearnPage.jsx');
 
-test('the tabs are Chat, Table of contents, Progress, Comments, Find in that order (owner 2026-11-07), then Pin and Close on the right', () => {
-  const order = ["label: 'Chat'", "label: 'Table of contents'", "label: 'Progress'", "label: 'Comments'", "label: 'Find text on canvas'", 'aria-label="Keep sidebar open"', 'aria-label="Close sidebar"'].map(text => header.indexOf(text));
+test('the tabs are Chat, Find, Table of contents, Comments, Progress in that order, then Pin and Close on the right', () => {
+  const order = ["label: 'Chat'", "label: 'Find text on canvas'", "label: 'Table of contents'", "label: 'Comments'", "label: 'Progress'",'aria-label="Keep sidebar open"', 'aria-label="Close sidebar"'].map(text => header.indexOf(text));
   assert.ok(order.every(at => at > 0), 'every label is there');
   assert.deepEqual([...order].sort((a, b) => a - b), order, 'in the owner\'s order');
-  assert.match(header, /export const PANEL_TABS = \[\n\s+\{ id: 'chat', label: 'Chat', Icon: MessageCircleMore \},/, 'Chat first; a newer icon that is not the removed Card conversation one');
-  assert.match(header, /\{ id: 'find', label: 'Find text on canvas', Icon: Search \}/, 'Search keeps its icon, and is last');
-  assert.match(header, /\{ id: 'toc', label: 'Table of contents', Icon: ListTree \}/);
-  assert.match(header, /\{ id: 'comments', label: 'Comments', Icon: MessageSquareQuote \}/);
+  assert.match(header, /export const PANEL_TABS = \[\n\s+\{ id: 'chat', label: 'Chat', Icon: MessageSquareText \},/, 'Chat first, a non-brand icon');
+  assert.match(header, /\{ id: 'find', label: 'Find text on canvas', Icon: Search \}/);
+  assert.match(header, /\{ id: 'toc', label: 'Table of contents', Icon: BookOpen \}/);
+  assert.match(header, /\{ id: 'comments', label: 'Comments', Icon: MessageCircle \}/);
   assert.match(header, /data-panel-pin aria-label="Keep sidebar open" title="Keep sidebar open"[\s\S]{0,300}?<Pin /);
   assert.match(header, /data-panel-close aria-label="Close sidebar" title="Close sidebar"[\s\S]{0,300}?<X /);
 });
@@ -67,8 +67,8 @@ test('Comments selects only on a saved top-level canvas; elsewhere it is aria-di
 
 // Canvas references (owner, 2026-10-14 Q3) were a fifth Links tab; owner UI brief 2026-10-20 section 7 moved them into Search's
 // Links filter (canvas-search-index.test.mjs); Progress (owner 2026-10-22) is last. A narrow panel scrolls the tab row.
-test('no Links tab: Search is the last tab, and a narrow panel scrolls the tab row, never squeezing it', () => {
-  assert.match(header, /\{ id: 'find', label: 'Find text on canvas', Icon: Search \},\n\s+\/\/[^\n]*\n\];/);
+test('no Links tab: Progress is the last tab, and a narrow panel scrolls the tab row, never squeezing it', () => {
+  assert.match(header, /\{ id: 'progress', label: 'Progress', Icon: ChartColumnIncreasing \},\n\s+\/\/[^\n]*\n\];/);
   assert.doesNotMatch(header, /id: 'links'|Link2/);
   assert.match(header, /role="tablist" aria-label="Panel views" onKeyDown=\{arrow\} className="flex min-w-0 items-center gap-0\.5 overflow-x-auto/);
   assert.match(header, /className=\{`relative flex h-8 w-\[30px\] shrink-0 items-center/, 'every tab keeps its size (30 x 32)');
@@ -93,11 +93,11 @@ test('Chat\'s tabs hold no viewer: no Context or Files tab', () => {
 // same selected purple, arrow keys and aria-selected as the others (the shared tab code above); no column opens beside Chat for
 // it, and it is not in Chat's own header or the canvas toolbar. Mounted on its first show and kept, so its viewed goal and goal
 // drafts survive a switch.
-test('Progress: a tab of the panel (after the Table of contents), its tabpanel inside the Chat panel, never a column beside Chat', () => {
+test('Progress: the last tab of the panel, its tabpanel inside Chat\'s panel, never a column beside Chat', () => {
   const pane = readFileSync(new URL('./ChatPane.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.doesNotMatch(pane, /data-chat-progress|ChartColumnIncreasing/, 'not in the Chat header');
   assert.doesNotMatch(page + header, /data-chat-progress|ChartColumnIncreasing size/, 'no separate Progress toggle anywhere');
-  assert.match(header, /\{ id: 'toc', label: 'Table of contents', Icon: ListTree \},\n[^\n]*\n\s+\{ id: 'progress', label: 'Progress', Icon: Gauge \},/, 'right after the Table of contents, a descriptive icon');
+  assert.match(header, /\{ id: 'comments', label: 'Comments', Icon: MessageCircle \},\n[^\n]*\n\s+\{ id: 'progress', label: 'Progress', Icon: ChartColumnIncreasing \},/, 'right after Comments, a descriptive icon');
   assert.doesNotMatch(header, /progress = null|progress\.onToggle/, 'no Progress toggle prop');
   assert.doesNotMatch(page, /companionView === 'progress'|companion\.show\('progress'\)|panels\.progress/, 'the companion column never shows Progress');
   assert.match(page, /if \(panelOpen && panelTab === 'progress'\) shown\.current\.add\('progress'\);/);
@@ -136,10 +136,9 @@ test('Close shuts the panel and touches nothing else', () => {
 // Owner brief 2026-10-13 13.8: readers open in the Sources pane beside Chat, so nothing forces another tab over Chat.
 // Owner decision 5B (R4, 2026-10-15): the learner's click on 'Use as table of contents' opens the Apply/Discard flow, so a
 // syllabus proposal is the one other thing that brings the Table of contents forward; a Tutor proposal never does.
-test('an opened reader leaves the tab alone; only the course interview, a syllabus proposal and a card link to a section (owner 2026-11-07) bring the Table of contents forward', () => {
+test('an opened reader leaves the tab alone; only the course interview and a syllabus proposal bring the Table of contents forward', () => {
   assert.doesNotMatch(page, /if \(wikiOpen \|\| paperOpen[^\n]*setPanelTab/);
-  assert.deepEqual(page.match(/setPanelTab\('toc'\)/g), ["setPanelTab('toc')", "setPanelTab('toc')", "setPanelTab('toc')"]);
-  assert.match(page, /goToc: entryId => \{ setPanelOpen\(true\); setPanelTab\('toc'\); setTocFlash/, 'a card Linked section Open: the panel, its Table of contents tab, then the highlight');
+  assert.deepEqual(page.match(/setPanelTab\('toc'\)/g), ["setPanelTab('toc')", "setPanelTab('toc')"]);
   assert.match(page, /useEffect\(\(\) => \{ if \(setupChat\) setPanelTab\('toc'\); \}, \[setupChat\]\);/);
   assert.match(page, /if \(proposal\?\.source === 'syllabus'\) setPanelTab\('toc'\);/);
 });
@@ -159,9 +158,9 @@ test('the Chat header: the thread title, History, New chat (icon only under 360 
   assert.match(page, /<ChatPane key=\{app\.name\} hidden=\{panelTab !== 'chat'\} chatAskProps/, 'Chat only in the Chat tab (owner brief 2026-10-16 item 7)');
 });
 
-// Owner approved 2026-11-07 (supersedes checklist UI.02 of 2026-11-06): the Table of contents has its own conversation and composer again, with its own thread
-// (slot 'toc') and draft key, fixed under the scrolling outline; its threads also reopen through ordinary Chat History; Chat stays in Chat.
-test('the Table of contents has its own conversation (owner approved 2026-11-07); its threads reopen in Chat with their own drafts; Chat stays in Chat', () => {
+// Checklist UI.02 (owner 2026-11-06, supersedes the 2026-10-16 ToC conversation): the Table of contents has no conversation or composer in any
+// state; its former conversations keep their own thread (slot 'toc') and draft key and reopen through ordinary Chat History.
+test('the Table of contents has no conversation; its old threads reopen in Chat with their own drafts; Chat stays in Chat', () => {
   const ask = read('./ask.jsx'), threads = read('./chat-threads.js'), workspace = read('./chat-workspace.jsx'), modes = read('./ModeSelector.jsx'), history = read('./ChatHistory.jsx');
   assert.doesNotMatch(page, /composerDocked|holdMode/, 'Chat\'s composer no longer docks under the contents');
   assert.match(workspace, /const tocThread = useChatThread\(canvas, \{ slot: 'toc' \}\);/);
@@ -171,10 +170,9 @@ test('the Table of contents has its own conversation (owner approved 2026-11-07)
   assert.match(threads, /threads\?\.find\(thread => thread\.id !== toc\)/, 'Chat never falls back to the TOC\'s thread');
   assert.doesNotMatch(history, /tocThread/, 'History lists the former TOC conversations, so they reopen in ordinary Chat');
   assert.match(modes, /if \(chat\.tocView\) return <span data-chat-mode="tutor"/, 'Tutor shown, no menu');
-  assert.match(workspace, /export function TocWorkspace\(\{ children \}\)/, 'the contents conversation has its own workspace (owner approved 2026-11-07)');
-  assert.match(page, /<TocWorkspace key=\{app\.name\}><TocConversation \{\.\.\.chatAskProps\}/, 'the contents conversation is mounted under the outline (owner approved 2026-11-07)');
-  assert.doesNotMatch(page, /RoadmapToc|RoadmapChat/, 'the removed roadmap panels stay removed: roadmap talk, parameters and actions are in Chat');
-  assert.ok(existsSync(new URL('./TocConversation.jsx', import.meta.url)));
+  assert.doesNotMatch(workspace, /TocWorkspace/, 'no ToC conversation mount in any state');
+  assert.doesNotMatch(page, /<(TocConversation|TocWorkspace|RoadmapToc)b|import (TocConversation|{[^}]*(TocWorkspace|RoadmapToc))/, "no mount or import of the removed ToC panels");
+  assert.ok(!existsSync(new URL('./TocConversation.jsx', import.meta.url)), 'the component is gone');
   const toc = page.indexOf('<div role="tabpanel" aria-label="Table of contents"'), chatPane = page.indexOf('<ChatPane key={app.name}');
   assert.ok(toc > 0 && chatPane > toc, 'Chat after the contents tab');
   assert.equal(page.match(/<ChatPane\b/g).length, 1);

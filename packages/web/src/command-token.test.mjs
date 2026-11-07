@@ -159,9 +159,9 @@ test('ask.jsx wires the token: boundary Backspace, x, Undo/Redo steps, and Send 
 
 // Slash pills (owner brief 2026-10-29, BRIEF-PILLS 1-4): what the Chat composer stores, shows and sends for a picked, typed or pasted
 // command. typed is what a learner types; id the stable command id stored in the draft and the saved message (agent/slash.js typed).
-// Owner roadmap 2026-11-04: /whiteboard (id whiteboard-video) joins them where the server offers it; owner 2026-11-07: /explain (id explanation) and /interactive (id explain), so 20.
+// Owner roadmap 2026-11-04: /whiteboard (id whiteboard-video) joins them where the server offers it, so 19.
 const NINETEEN = [
-  ['explain', 'explanation'], ['interactive', 'explain'], ['practice', 'practice'], ['quiz', 'quiz'], ['flashcards', 'flashcards'], ['goal', 'goal'], ['code', 'code'],
+  ['explain', 'explain'], ['practice', 'practice'], ['quiz', 'quiz'], ['flashcards', 'flashcards'], ['goal', 'goal'], ['code', 'code'],
   ['graph', 'graph'], ['diagram', 'diagram'], ['notebook', 'notebook'], ['image', 'generate-image'], ['motion', 'motion'], ['cad', 'cad'],
   ['3d', '3d'], ['browser', 'browser'], ['photos', 'image'], ['youtube', 'youtube'], ['arxiv', 'arxiv'], ['wikipedia', 'wikipedia'],
   ['whiteboard', 'whiteboard-video'],
@@ -171,8 +171,8 @@ const withImages = (on, run) => { setImageGeneration(on); try { return run(); } 
 const withWhiteboard = run => { setWhiteboardVideo(true); try { return run(); } finally { setWhiteboardVideo(false); } };
 const shownPill = name => B.renderToStaticMarkup(B.createElement(B.CommandPill, { name })).match(/data-command-pill="([^"]+)".*?font-medium">([^<]*)</).slice(1);
 
-test('Chat: each of the 20 picked, typed, uppercase or pasted stores its id, shows its typed pill and sends its typed line', () => withImages(true, () => withWhiteboard(() => {
-  assert.equal(NINETEEN.length, 20);
+test('Chat: each of the 19 picked, typed, uppercase or pasted stores its id, shows its typed pill and sends its typed line', () => withImages(true, () => withWhiteboard(() => {
+  assert.equal(NINETEEN.length, 19);
   for (const [typed, id] of NINETEEN) {
     // Picked (LearnSlash choose writes "/typed ") and typed with a separator: the pill, and the words typed before the palette come back.
     assert.deepEqual(token.composerCommand(`/${typed} `, 'my draft', LIVE), { command: id, text: 'my draft' }, `picked /${typed}`);

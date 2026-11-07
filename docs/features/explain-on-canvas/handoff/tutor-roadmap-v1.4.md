@@ -4,7 +4,7 @@
 
 **Companion:** [Tutor implementation checklist v1.2](tutor-implementation-checklist.md) describes HOW: current files and functions, changes, interfaces, owners, local commands, test assertions and delivery evidence. Read both before implementing. This roadmap defines the learner experience and release boundaries; the checklist must implement that experience without inventing another UI or approval flow.
 
-**Reviewed main:** `e447525a83c6e9809f2f1cdaa27071c31a3a0b3f`. This audit reviews the 21 commits after `72d6536657af269bb894511220975fd2254246ed`. The expanded R1–R7 audit passed **496 distinct local Node tests across 46 files**; the initial 213-test batch is included. Production release workflow [185](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/42331915345) succeeded for this SHA. The complete updated core flow still needs the work and acceptance evidence recorded below.
+**Reviewed main:** `e447525a83c6e9809f2f1cdaa27071c31a3a0b3f`. This audit reviews the 21 commits after `72d6536657af269bb894511220975fd2254246ed`. The core backend and client checks passed 213 local Node tests. Production release workflow [185](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/42331915345) succeeded for this SHA. The complete updated core flow still needs the work and acceptance evidence recorded below.
 
 **This MVP flow update supersedes conflicting earlier v1.4/v1.3 instructions for active work.** The complete Tutor conversation, parameters, draft review, editing and progress now live in existing Chat messages. Only accepted roadmap entries are published to the existing ToC. Every proposed/accepted step has a synchronized Chat entry and a persistent canvas slot, placed near its highlighted source passage with two-way navigation. Full-document context, one ordinary author call and no citation-review publication gate remain required. Sections 3–8 specify the complete interaction; section 14 records replaced rules. Preserve the remaining R1–R16 scope. The historical cleanup v0.1 file is not the current cleanup execution plan.
 
@@ -16,13 +16,11 @@
 - [2 Current implementation and the immediate correction](#2-current-implementation-and-the-immediate-correction)
 - [3 The complete learner flow](#3-the-complete-learner-flow)
 - [4 Chat, Table of Contents and Progress](#4-chat-table-of-contents-and-progress)
-  - [4.7 Ordinary messages and tool requests](#47-ordinary-messages-and-tool-requests)
 - [5 Context, scope and source references](#5-context-scope-and-source-references)
 - [6 Proposal, generation and delivery lifecycle](#6-proposal-generation-and-delivery-lifecycle)
 - [7 Canvas placement and source navigation](#7-canvas-placement-and-source-navigation)
 - [8 Pacing, feedback and practice](#8-pacing-feedback-and-practice)
 - [9 Formats and Tutor capabilities](#9-formats-and-tutor-capabilities)
-  - [9.4 R12 command selection and the shared Tutor flow](#94-r12-command-selection-and-the-shared-tutor-flow)
 - [10 Uncertainty, research, safety and privacy](#10-uncertainty-research-safety-and-privacy)
 - [11 Credits, persistence and failure recovery](#11-credits-persistence-and-failure-recovery)
 - [12 Release ladder and cleanup dependencies](#12-release-ladder-and-cleanup-dependencies)
@@ -48,12 +46,10 @@ A step is one coherent teaching addition. A skill is a concept or ability tracke
 
 ### 1.3 Sprint boundaries
 
-**Current owner decisions — supersede older release/design instructions:** Finish the complete core Tutor MVP first. Claude Code may push docs and code to main, set `MVP_ALLOWED_SHA` for the exact tested release candidate, run the existing release launcher and monitor production without another owner command. Keep the existing isolated clone deployment required by that launcher as release verification; production is the delivery target. No new no-clone mode is requested. Disregard the earlier Contents Q1–Q7 discussion/hold; implement the current docs and file 01 in this sprint. Use five agents with one integrator and separate backend, Chat/ToC, canvas/Explanation and verification ownership. Run affected tests/build per release and finish checklist section 8.0 before the final handoff. Continue implementing and releasing without waiting for owner manual checks between tasks or releases. Local tests use doubles, with no paid model calls. Reuse `chat_message_meta`/`scope_json` where sufficient; an unavoidable production migration still needs the owner's command, while independent work continues. Remaining R7 extensions may be deferred; preserve existing enabled R7a behavior. Investigate R12/R10/R11/R9 dependencies for discussion before changing that later queue.
-
 - Prioritize the ordinary Markdown core and its actual learner flow before optional formats or cleanup database removal.
 - Reuse the current app, components, state, command handlers and placement helpers. Do not reintroduce the retired browser Tutor planner.
 - Record nonblocking defects in `docs/features/explain-on-canvas/OWNER-INBOX.md` with the affected action and next task. Do not turn them into extra release gates.
-- Ship to main/production using the existing MVP launcher, including its required isolated clone deployment, focused tests/build/smoke and recovery. This latest owner decision supersedes the earlier no-clone direction. Use deployed main and the approved HTML as styling authority; the clone is release verification, not a new design baseline. No no-clone tooling rewrite is needed.
+- Use the owner's direct-to-main/production MVP delivery direction, focused checks, production smoke and recovery. Do not require an isolated clone, dev clone, stable preview or broad-CI wait for this sprint. Any incompatible release-tool precondition must be addressed explicitly as described in the checklist; never fabricate a preview receipt or mark a bypassed check passed.
 - Existing production authorization and approved budgets remain in force within their scope. An unknown or exhausted budget is not new spending authority; production database deletion and new infrastructure retain their specific approvals.
 - Desktop first. Phone layout, a new reward system, cross-user reuse, arbitrary code execution and Animation-engine changes are not part of the core correction.
 
@@ -63,7 +59,7 @@ A step is one coherent teaching addition. A skill is a concept or ability tracke
 
 | Area | What is present or observed | What must not be inferred |
 |---|---|---|
-| R1 feedback, R2 settings, R3 source references | Existing contracts, routes, state and Node-rendered controls/reference foundations reviewed and tested at the pinned SHA; task statuses reconciled in checklist section 5.1. | New Chat/slot/source-link UI and owner manual acceptance are separate; do not keep proven foundations unchecked. |
+| R1 feedback, R2 settings, R3 source references | Implementations and focused tests are on main; earlier releases were reported deployed. | This review did not re-run every authenticated UI flow. |
 | R4 core and R6 Auto-suggest | Roadmap modules are on main; the production app config sets `ROADMAP_ENABLED` and `ROADMAP_AUTO_ENABLED` to true. The earlier reviewed production workflow succeeded; this audit has not established the served status of the newest source commits. | Config and workflow success do not establish complete learner acceptance. |
 | Owner's real Markdown attempt | The owner reports the first card generated, but the second was withheld with a source-matching message. | No passing two-card end-to-end verdict exists from that report. The exact failed claim requires the private stored result. |
 | Current author context | `a1e4094` now sends the full fitting document plus title/goal/claims/outcome, using `roadmap-card-3` and trusted `repairs:0`. | Narrow-scope planning still slices its input; accepted-plan binding, original instruction and actual request/allowance reconciliation still need targeted verification. The writer never inherits planner memory implicitly. |
@@ -71,7 +67,7 @@ A step is one coherent teaching addition. A skill is a concept or ability tracke
 | Current two-card test | The three `roadmap-document-context.test.js` regressions passed locally at the reviewed main. The writer gets the whole bounded document and step brief, grounding is recorded as not run, and two accepted cards are saved and acknowledged. | The fixture uses external doubles and direct SQL board writes. Full section 8.0 route/save coverage and owner manual production acceptance remain required. |
 | Current proposal/ToC UI | World-positioned slots, source-range navigation, Chat transcript rendering and server Tutor-thread binding are present. `TableOfContents` now owns one scroller with a `top` slot for `RoadmapToc`. | The ToC still renders the roadmap parameter/action block before ordinary headings. It needs the accepted-only tree in file 01. Chat lifecycle rows are derived from current roadmap state and need durable per-step message identity. Slot geometry needs private reload persistence. |
 | R5 proposal editing/reuse | Pending Edit uses the existing preview/apply/discard flow. Five previews per proposal and 30 per learner per UTC day are checked. `ROADMAP_EDIT_ENABLED` is true in the production app config. | Preserve the implemented edit foundation. Complete the composer-target UI, accepted edited-title/brief binding and the broader reuse subset separately. Config and focused tests establish their own scope of evidence. |
-| R7a long Markdown | Deterministic index/summary/retrieval/coverage and bounded long-plan foundations locally verified; migration 0042 and enabled production config retained. | Source-selection outbox/new-UI/manual extensions may be deferred. Ordinary authoring uses passage fallback above 40,000 characters. Whole-PDF Tutor planning is separate unbuilt R7b. |
+| R7a long Markdown | Index/summary/retrieval, migration 0042 and bounded long-plan code exist. `ROADMAP_LONG_MARKDOWN_ENABLED` is true in the production app config. | Qualify the enabled long-source behavior and preserve honest coverage. Ordinary authoring still falls back to the passage above 40,000 characters. The bounded-source core correction and PDF adapter have distinct scopes. |
 | Cleanup | P1–P5 changes/receipts are present. Archive-sensitive joins remain; P6 backfill/join removal/drop and P7 closeout are not established complete. | Do not reuse cleanup v0.1's old migration number or wait for table deletion before fixing the Tutor core. |
 | R8–R16 | The ladder retains these capabilities; some branch work was reported earlier. | Treat branch work as material to reconcile, not proof of integration, activation or acceptance. |
 
@@ -89,27 +85,6 @@ A step is one coherent teaching addition. A skill is a concept or ability tracke
 The intended order is still drop → acknowledge/choose Chat → Explain → draft and parameters → accept roadmap → accepted ToC → one pending card → accept → validate/save/acknowledge → one next proposal → second saved card → finite completion. The successful local regression covers part of this order. The rows above identify the additional work for the approved product flow.
 
 The current docs and UI references are reviewed on `chatgpt/tutor`. Claude Code imports that handoff into main before implementation. The checklist's section 1.7 specifies the repeated fetch, document sync, implementation receipt and commit-review loop.
-
-### 2.1.1 R1–R7 completion reconciliation
-
-The earlier "nine completed" count covered only narrow correction checkboxes. It omitted 18 R1–R3 table tasks and existing R5–R7 work. Every table task and checkbox through R7 in the companion checklist is now reviewed. Compound requirements are split where a tested foundation is complete but a new behavior remains. Superseded no-clone work is struck through; receipt bullets and standing constraints are not unfinished implementation tasks. No release rung is declared fully owner-accepted.
-
-| Rung/task group | Checked | Open | Total | Meaning |
-| --- | ---: | ---: | ---: | --- |
-| R1 | 5 | 1 | 6 | Existing foundations checked; updated slice/manual receipt open. |
-| R2 | 5 | 1 | 6 | Existing Depth/settings checked; immutable accepted roadmap settings open. |
-| R3 | 5 | 1 | 6 | Existing reference engine checked; new viewer/source-link receipt open. |
-| R4 | 2 | 12 | 14 | Rollup tasks; partial rows map to detailed CORE/UI below. |
-| R5 | 8 | 7 | 15 | Existing preview/Apply/keyboard/link guards checked; author/composer/reuse/geometry work open. |
-| R6 | 6 | 1 | 7 | Existing trigger/composer/delivery guards checked; persistent Chat/offscreen integration open. |
-| R7a | 15 | 3 | 18 | Existing index/retrieval/coverage checked; remaining extensions deferred. |
-| R7b | 0 | 15 | 15 | Whole-PDF Tutor adapter unbuilt and deferred; R3 excerpts counted separately. |
-
-R4's detailed correction lists contain **15 / 50 checked CORE items** and **12 / 72 checked UI items**. These are detailed subtasks of the R4/integration rollup above in the companion checklist, not extra completed releases. BE and per-release receipts remain separate evidence tasks. Do not sum overlapping rollups and subtasks into a misleading project percentage. Checked UI foundations mean source/Node verification; owner manual production acceptance is still separate.
-
-**Still required for the core:** complete planner context for selected scope; accepted instruction/title/Depth/version binding; one ordinary author dispatch across terminal failures; actual request quote equality; durable Chat acknowledgment/routing/revision and per-step messages; accepted-only ToC; persisted/final saved geometry; new source highlights/hover links and viewport-bottom Next card; shared Explanation prompts, caps, pinned header, downward sections, tables/Mermaid; then missing BE cases, build and release receipts. Existing safety, access, atomic money, feedback, settings, references and metadata-offer foundations are reused.
-
-The owner permits deferring remaining R7a extensions and the unbuilt R7b adapter. The current four enabled production config flags stay unchanged. R12/R10/R11/R9 dependencies will be discussed before changing their task order or scope.
 
 ### 2.2 Owner-reported release snapshot
 
@@ -143,13 +118,9 @@ The corrected core must deliver the whole flow in section 3:
 7. Save and reload two consecutive accepted cards, with exactly one synchronized next proposal after canonical delivery when Auto-suggest permits it. Never add a Retry/Replace/Omit recovery UI or automatically offer a next card after safety refusal.
 8. Keep ToC limited to the accepted heading/step tree, status and navigation. Remove the obsolete split list, parameter box, Stopping point block and roadmap action/composer regions.
 
-9. Continue ordinary Chat replies through a recoverable tool-routing outage, following [section 4.7](#47-ordinary-messages-and-tool-requests). Qualify the shared answer path separately by mode and enabled capability set.
-
 These are corrections to R2/R3/R4/R5/R6 and their integration, not a new ladder rung that postpones them. The checklist's `CORE.*` and `UI.*` work maps the missing contracts to code. The ordinary **Explanations only** core can ship independently; acceptance of **Explanations + practice** additionally requires the minimal real R9 practice/assessment integration in section 8.2. Other later tools do not block ordinary Markdown acceptance.
 
 ## 3 The complete learner flow
-
-The [Explain on Canvas workflow](explain-on-canvas-workflow.md) shows the shared lesson entry, two approvals and in-place recovery. The sections below specify the existing Chat, Canvas and ToC behavior for each stage.
 
 This section is the ordered product contract. Implement each transition in the existing Chat, canvas and ToC; do not infer a second panel, separate chat or extra action vocabulary. Section 4 defines the shared labels and surface responsibilities; sections 5–8 define context, lifecycle and placement details.
 
@@ -177,8 +148,6 @@ In the selected conversation, the Tutor says: “You've added **Decision Trees.m
 
 An explicit source drop is the trigger for this acknowledgment, conversation routing and **Explain on canvas / Just keep it here** invitation in every mode, including **Ask** and **Auto-suggest off**. Do not suppress the invitation because of either setting. Showing it does not start reading for a roadmap, generate a card, purchase anything or silently change the learner's mode/Auto-suggest preference. The learner's explicit **Explain on canvas** choice starts the following flow even in Ask; it is different from unsolicited Tutor initiative. Ask/off still gate subsequent unsolicited offers and speculative work. Explicit roadmap/card decisions and manual **Propose next step** remain available in the chosen conversation without changing those settings.
 
-A clear typed request to start a lesson on the Canvas, with an authorized source and a resolved thread, goes through the same **Explain on canvas** action through the shared message routing in section 4.7. The typed instruction carries the learner's goal and scope into the draft. An informational question uses the ordinary Chat reply and a request for one card uses its existing review. If the intended source or lesson scope is unclear, ask one focused question in the same Chat before starting a draft. Reuse the source and thread binding so the invitation and typed action converge on one lesson.
-
 ### 3.4 Step 4 — Read the whole supported source and prepare the draft
 
 After **Explain on canvas**, the Tutor reads the complete authorized, supported Markdown revision and generates the draft roadmap using the learner's existing instruction and chosen scope. The immediate acknowledgment is already visible; full reading now happens for planning, not as a prerequisite to acknowledging the drop.
@@ -197,7 +166,7 @@ Use [03 — Chat roadmap](ui/03-chat-roadmap.html) for this Chat message, its tw
 | Scope | **Full content · filename.md** by default for an uploaded supported Markdown. A supported **Selected passage** choice binds a stable source revision/range. A scope is not the source viewer's display mode or current scroll position. |
 | Depth | A direct three-position slider labelled **Overview**, **Standard**, **Deep**, showing the selected value. No extra button that opens another slider. |
 | Roadmap | Dropdown labels **Explanations only** and **Explanations + practice**. Capability readiness is governed by section 8.2; no selectable inert mode. |
-| Roadmap draft | A separate bordered container below **Roadmap parameters**, headed **Roadmap draft** in sentence case; ordered step titles, useful short descriptions and suggested formats let the learner review the actual plan before acceptance. Keep any format or behavior the learner explicitly requires as a requirement. |
+| Roadmap draft | A separate bordered container below **Roadmap parameters**, headed **Roadmap draft** in sentence case; ordered step titles, useful short descriptions and proposed formats let the learner review the actual plan before acceptance. |
 | Decision actions | **Accept roadmap** and **Edit roadmap** in the same Tutor Chat entry. |
 
 The finite endpoint remains represented by the outcome and planned steps and can be explained in Chat prose. Do not recreate the former separate **Stopping point** block or **Accept plan / Edit plan / End roadmap** footer in the ToC.
@@ -218,11 +187,9 @@ Use the accepted tree in [01 — Table of contents](ui/01-table-of-contents.html
 
 Publish the accepted steps into the existing H1/H2/H3 contents tree, preserving manual headings. ToC now provides only accepted roadmap structure, short descriptions, status, expand/collapse and navigation. Draft parameters, draft review, editing, stopping controls and conversation stay in Chat. There is no second roadmap list, half-height split or ToC composer.
 
-Roadmap acceptance freezes the reviewed goal, scope, Depth, order and explicit requirements. It authorizes the next offer to be prepared. Each card has its own approval for actual generation. If keyboard ownership permits, make the first ready proposal the active Tab target. Keep the learner's focus if they start typing before it arrives.
+Roadmap acceptance does not generate/purchase all the cards. It makes the first eligible pending card proposal available in the canvas and the corresponding Tutor Chat step entry. If keyboard ownership permits, make that proposal the active Tab target; do not steal focus if the learner starts typing before it arrives.
 
 ### 3.8 Step 8 — Present the same proposed card on the canvas and in Chat
-
-**Confirm the tool for this step.** Start from the accepted learning goal, required behavior and suggested format. Before the offer is actionable, confirm the actual available tool or built-in format can meet those requirements with the authorized source, inputs, settings and Depth. If it cannot, recover in the same Tutor Chat step. Offer a qualified alternative, ask for the detail that unlocks the work, or give useful help in Chat and a concrete next step. Ask before changing a required format or behavior. A partial reply leaves the card undelivered. Keep any existing slot tied to this step. Changes to the learning goal, scope or Depth use **Edit roadmap** and acceptance of the revised plan.
 
 The pending canvas slot and its Tutor Chat entry contain the same proposed **title, description, exact highlighted source excerpt when resolvable, and format**. The Tutor explains that this is the proposed next card, not an already generated result. Missing/ambiguous source anchors are labelled honestly and do not generate an invented quotation.
 
@@ -232,11 +199,9 @@ Use [02 — Canvas card skeleton](ui/02-canvas-card-skeleton.html) for the skele
 
 One step/proposal identity connects both surfaces. Clicking **Accept** (first card), **Next card** (ready subsequent card), **Cancel** or **Edit card** in Chat changes the same underlying offer as the canvas actions. Disable stale/conflicting controls together. A simultaneous Chat click, canvas click and Tab cannot create extra author calls or charges.
 
-R12 uses this same slot and step identity. Its generation commands show their existing **Generate / Edit** review inside the Tutor Chat entry, with the review and authorization rules in [section 9.4](#94-r12-command-selection-and-the-shared-tutor-flow).
-
 ### 3.9 Step 9 — Accept, generate, save and fill the same slot
 
-The learner presses eligible **Tab**, **Accept** for the first proposal or **Next card** for an already-ready subsequent proposal in either surface. These are the same acceptance transition; **Next card** must not first create another offer and ask for Accept again. Immediately retain the proposal frame, title, description, source excerpt, world position and width, and show **Accepting**. At acceptance, validate and bind the exact offered format, settings, source revision and inputs. Once accepted, transition the same slot to **Generating** and applicable checking/saving states with a spinner/shimmer. It never disappears while a response, safety decision, board save or acknowledgment is pending.
+The learner presses eligible **Tab**, **Accept** for the first proposal or **Next card** for an already-ready subsequent proposal in either surface. These are the same acceptance transition; **Next card** must not first create another offer and ask for Accept again. Immediately retain the proposal frame, title, description, source excerpt, world position and width, and show **Accepting**. Once accepted, transition the same slot to **Generating** and applicable checking/saving states with a spinner/shimmer. It never disappears while a response, safety decision, board save or acknowledgment is pending.
 
 The associated Chat step entry updates to the same lifecycle state, retaining the title, description and source excerpt. This is one entry per step updated as work advances, not a new message for every poll/token/heartbeat. Use factual status: a proposed card is proposed; generated content is not announced as saved/ready before its durable delivery completes.
 
@@ -369,61 +334,9 @@ These six files are the visual references for the current MVP. Open their HTML, 
 
 **Use deployed main as the product styling/component authority.** Never use a dev/preview deployment as the baseline, and never invent a replacement blue or hover color. Reuse main's shared `Button` and theme tokens: primary fill `--color-primary-fill` (`#1b6fc2`) and hover `--color-primary-fill-hover` (`#165ca3`), white text. Reuse the existing panel, Chat, skeleton, ToC and icon components. The owner explicitly approved green **Accept / Next card** and muted-red **Cancel** for these canvas pills; that local action-color change supersedes the older neutral/pale-blue pill rule. Use sentence case consistently; interpret the owner's wording rather than copying accidental capitalization. Do not add redundant instruction sentences below pills.
 
-**The HTML illustrates appearance; the full workflow and persistence contract still govern implementation.** Demo buttons, fixture text, timers, simulated updates and DOM-only effects are not production logic. In particular, the Next-card demo is not permission to overwrite the previous card, lose its original source anchor, ask for a second Accept, fabricate progress, enable unqualified practice or discard ordinary unsent Chat input. Preserve saved cards and their highlights, create the successor's own slot, and use real canonical state. File 03 illustrates the roadmap message. Use the current Tutor Chat step from main for card offers, progress and delivery. For R12, put the existing shared Generate / Edit review inside that same step, following [section 9.4](#94-r12-command-selection-and-the-shared-tutor-flow). Preserve all existing production composer controls even where the focused mockup omits them.
+**The HTML illustrates appearance; the full workflow and persistence contract still govern implementation.** Demo buttons, fixture text, timers, simulated updates and DOM-only effects are not production logic. In particular, the Next-card demo is not permission to overwrite the previous card, lose its original source anchor, ask for a second Accept, fabricate progress, enable unqualified practice or discard ordinary unsent Chat input. Preserve saved cards and their highlights, create the successor's own slot, and use real canonical state. File 03 demonstrates the roadmap portion of Chat only; the later Chat card-proposal/generation/completion UI has not been designed/approved by this handoff. Preserve all existing production composer controls even where the focused mockup omits them.
 
 Use files 04 and 06 for the delivered Explanation frame and supported Markdown. File 05 specifies the source highlight and reverse link. File 02 illustrates the proposal slot and its actions. Record implementation evidence separately from reference review.
-
-### 4.7 Ordinary messages and tool requests
-
-The standalone routing diagram and recovery path are in [ask-auto-tutor-workflow.md](ask-auto-tutor-workflow.md).
-
-**Shared reply path for Ask, Auto and Tutor.** Use the existing Chat composer and answer turn for ordinary messages. The learner's full request, authorized canvas and selected source context, thread and Depth travel together. Conversation, questions about a tool and a request to produce something can use similar words. Decide from the meaning of the request and the current context. A greeting such as `hi` is a test case alongside other conversational turns.
-
-| Mode | Ordinary typed message | Explicit action |
-| --- | --- | --- |
-| **Ask** | Answer questions in Chat and honor a requested tool where the existing mode and command policy allow it. Ask pauses unsolicited Tutor initiative. | A typed or picked slash command uses its existing handler. Explicit drop, Explain on canvas, roadmap approval and manual next-card actions still work. |
-| **Auto** | The answer model can reply, ask a focused question or request an eligible tool. The Auto-suggest preference separately controls unsolicited Tutor proposals. | Use the selected command or Tutor action's existing handler and review. |
-| **Tutor** | Use the shared reply path with the authorized conversation and lesson context. | Roadmap approval, an explicitly targeted edit and **Next card** use the Tutor controller and accepted step. R12 selects an eligible format for that step's learning objective under [section 9.4](#94-r12-command-selection-and-the-shared-tutor-flow). |
-
-**First ship the routing outage fix.** On main `8deb778fa2b0442b4ac494f9d94e88fffd72a6c3`, ordinary Ask and Auto sends use JEV before the answer request. An ordinary message in Tutor uses the Auto wire mode outside the Contents conversation. A recoverable routing failure currently returns an answer fallback that stops the send. Continue that uncommanded turn once through the authorized text-only reply in the same thread. Keep the same canvas, source references and Depth. Remove the tool-check failure banner, **Answer normally** and **Retry**. Show specific errors for authorization, invalid requests and explicit unavailable tools. An interrupted or stale send follows the normal cancellation behavior.
-
-**Then qualify the shared path.** Let the existing answer model reply directly or request a structured tool handoff within its answer turn. Offer only capabilities that the current mode, canvas and server allow. Use the current command adapters, availability checks and signed **Generate / Edit** review where required. The app verifies the requested capability and inputs, and generation starts with the existing approval. A known plan can be revised through an explicit Edit or a clear refinement request bound to that plan's revision. A conversation beside a waiting plan can still receive a reply. Use ordinary Chat for the recovery choices below.
-
-**Natural-language tool requests.** A typed message can ask for a command's result in everyday language. The answer model receives the eligible functions for this turn with their typed input schemas and descriptions of what they produce, when to use them and their limits. Shared system instructions govern when to reply, clarify or request a tool. Read the full request for its intended output, learning goal and required behavior. Compare the eligible tools on what their current engines can deliver, including narration, interactivity, supported settings and required inputs. Choose the best fit for the whole request. If a tool cannot be offered, continue with the recovery path below.
-
-| Requested result | Candidate when available and qualified |
-| --- | --- |
-| A playable animated explainer with visuals timed to the concept | `/motion`. Current Motion supports visual video and its approved settings with audio off. |
-| A narrated video that draws a derivation, process or worked example step by step | `/whiteboard` (internal ID `whiteboard-video`). Check narration and rendering readiness. |
-| A live 3D scene the learner can adjust or play | `/animation`. The required output is an interactive scene. |
-
-A playable animated video can suit Motion or Whiteboard. Choose based on the requested presentation and actual tool readiness. Reserve Animation for a request that needs a live 3D scene. The review shows the chosen tool and plan before the learner authorizes generation. The [routing evaluation](tutor-implementation-checklist.md#focused-chat-routing-tests-and-build) uses 20 learner-intent cases and 20 cases from **Send**, stored in [test fixtures](../../../../packages/control-plane/test/fixtures/chat-routing). The Send fixtures are split by Ask, Auto and Tutor so each can grow independently. Check the chosen route and whether it can meet the request, then stop before any tool runs.
-
-**Recover when a tool cannot be offered.** Keep the original goal, authorized context and explicit requirements. Give the learner a next step in the same Chat turn.
-
-1. If a qualified tool can still deliver what the learner asked for, offer it with a short reason and its existing review. Show any material tradeoff. A change to a required format or behavior needs the learner's choice before creating a revised offer.
-2. If a missing input or an unresolved choice can unblock the work, ask one focused question. Use the answer to continue the same request with its context.
-3. If a tool path is unavailable, make useful progress in Chat when possible. Give a short explanation, worked step or storyboard suited to the goal and say what the learner can do next.
-
-This recovery happens before an offer is accepted. Use the normal approval and readiness checks for an alternative. Access and safety decisions still apply, and an already accepted job follows its existing delivery and reconciliation path. The text-only reply used for a router outage can give useful help directly in Chat.
-
-```mermaid
-flowchart TD
-    Send["Send in Ask, Auto or Tutor"] --> Kind{"Explicit command or Tutor action?"}
-    Kind -->|"Yes"| Existing["Existing handler"]
-    Kind -->|"Natural-language message"| Reply["Answer model reads request and eligible tools"]
-    Reply -->|"Reply or clarification"| Chat["Existing Chat turn"]
-    Reply -->|"Artifact requested"| Fit["Choose a tool for the desired output"]
-    Fit --> Check{"Tool fits and is ready?"}
-    Check -->|"Yes"| Review["Existing action or Generate / Edit"]
-    Check -->|"Tool cannot be offered"| Recover{"What can still advance the goal?"}
-    Existing -->|"Tool offer blocked"| Recover
-    Recover -->|"Qualified alternative"| Review
-    Recover -->|"Learner can resolve a detail"| Clarify["Ask one focused question"]
-    Recover -->|"Tool path unavailable"| Help["Give useful help and a next step in Chat"]
-```
-
-Start with the existing in-answer Motion proposal. Verify parity for the affected set of enabled tools and modes before switching that scope from JEV preflight. Use the current classifier for scopes awaiting parity, as well as its qualified inline and safety roles. Reuse the answer model and existing dispatchers for one semantic decision on ordinary turns. Keep example phrases in test cases. The two deliverables and focused local tests are in [checklist section 4.5](tutor-implementation-checklist.md#45-chat-routing-and-reply-reliability).
 
 ## 5 Context, scope and source references
 
@@ -670,49 +583,6 @@ Tutor tools read authorized source content, inspect current canvas coverage, rea
 | Sandboxed execution | Run authorized examples or exercises and report actual output. | R16; no invented execution before it. |
 | Existing command adapters | Create the accepted format through its existing lifecycle. | R12, one adapter or small coherent batch at a time. |
 
-### 9.4 R12 command selection and the shared Tutor flow
-
-**Choose for the learning outcome.** In the existing roadmap draft/revision pass, read the learner's instruction and edits, the step goal, the highlighted passage, its pinned source context, Depth and language, and relevant delivered coverage. State what the learner should be able to do and separately specify the behavior the card must provide. For example, testing what happens when a decision-tree cutoff changes requires a supported control and branch labels that update. A fixed branch diagram can serve a step about tracing a fixed decision. The source highlight identifies the teaching focus and navigation target. The author can use relevant definitions elsewhere in the pinned source under section 5.
-
-**Check the format before offering it.** The server supplies the planner with the enabled and supported command variants, what each can show or let a learner do, and their required inputs. Use the existing roadmap planning roles to record the outcome and suggest a format. Confirm the actual ready command at the card offer under section 3.8. R12 adapters remain on hold until the owner gives the go-ahead. [Section 4.7](#47-ordinary-messages-and-tool-requests) covers the separate ordinary Chat decision and staged JEV transition. Use its output distinctions when choosing between a playable explainer, a narrated whiteboard video and an interactive 3D scene for a Tutor step. JEV continues its qualified inline and safety roles. Verify the selected variant against its actual runtime, source access and evidence, required interactions, supported settings, and the command's readiness and work bound. For instance, Motion settings that disallow audio cannot satisfy a narrated demonstration, and a measured plot needs real data. If the planned tool cannot be offered, use [the recovery path](#47-ordinary-messages-and-tool-requests) inside the existing Tutor Chat step. Offer a qualified alternative for the same learning outcome, ask for the one detail needed to continue, or give useful help and a next step in Chat. A clarification or partial reply does not mark the step delivered. The alternative uses the same step and required review. Use the simplest eligible format that delivers the goal. Qualify each R12 command with [20 selection-only learner prompts](tutor-implementation-checklist.md#r12-routing-tests-for-each-command) during its adapter work. Include both familiar capability wording and requests without the command name or obvious keywords. Give each command its own fixture file as it is implemented.
-
-| R12 path | Commands | What the learner reviews |
-| --- | --- | --- |
-| Command plan | `/whiteboard`, `/motion`, `/animation`, `/cad`, `/image`, interactive `/explain` | The command's own plan or signed prompt and applicable settings. Reuse the shared generation review schema and card. |
-| Simple brief | `/code`, `/graph`, `/diagram`, `/3d` | A short brief assembled from the step and supported inputs without a separate model call. Use the existing author and any qualified renderer or worker. |
-| Source or workspace | `/browser`, `/photos`, `/youtube`, `/arxiv`, `/wikipedia`, `/notebook` | A validated URL or actual learner-selected result, or the purpose of the empty notebook. Use the existing selection and insertion actions. |
-
-**UI references for all three paths.** Use [02 — Canvas card skeleton](ui/02-canvas-card-skeleton.html) for the frame, shimmer and canvas actions, [03 — Chat roadmap](ui/03-chat-roadmap.html) for the surrounding Chat flow, [05 — Markdown source links](ui/05-markdown-source-links.html) for navigation, and [01 — Table of contents](ui/01-table-of-contents.html) for the accepted step tree. The review body is the existing `GenerationProposalCard` from main with that command's schema, fields and Edit or Edit details behavior. The delivered artifact uses the command's existing renderer. [04](ui/04-explanation-card.html) and [06](ui/06-explanation-depth.html) describe the core Explanation renderer.
-
-1. **Show one skeleton, then review in the existing Tutor Chat step.** Use the same slot, source excerpt, navigation and Chat lifecycle as sections 3.8–3.9. Keep the original canvas position and card identity through review, edits, generation and delivery. For a generation command, show the current plan or brief and its relevant fields in the shared Chat review card with **Generate / Edit**, and **Cancel** where supported. **Edit** targets that exact revision and retains the slot. An edit creates a revised offer when it changes what is approved. Source and workspace actions use their existing selection and add/accept controls.
-2. **Authorize the current offer.** When the required review is ready, Chat **Generate** approves the exact reviewed revision through the same Tutor acceptance as eligible canvas **Accept / Next card / Tab**. Those canvas actions cannot skip a required review or confirm a hidden revision. If a command needs paid plan preparation, accept a bounded offer before that work, show planning in the same slot, then show its real plan for review in the same Chat step. The command's required **Generate** approval uses the same accepted card and allowance. Motion and Image can carry a reviewed signed proposal in the initial offer. Interactive Explain follows the scoped R12.09 D2(b) rule when its brief fits the accepted offer. A material change to the plan, settings or work bound requires approval of the revised offer before further paid work.
-3. **Use the core progress and delivery behavior.** Once work starts, show the actual phase in the same skeleton and Chat step, with the existing spinner/shimmer when progress is indeterminate and a progress bar when the engine supplies measured progress. Validate the actual output against the promised behavior and the command's existing checks. Fill the original slot, save its final card ID and geometry, then acknowledge and update Chat and ToC. Only then offer the next eligible step. For a terminal failure, retain the truthful failure state in the same slot and Chat entry and reconcile the existing charge or refund under the command policy.
-
-```mermaid
-flowchart TD
-    brief["Step goal, source, highlight and Depth"] --> fit{"Format fits and can run?"}
-    fit -->|"Missing requirement"| revise["Clarify or revise the offer"]
-    revise --> brief
-    fit -->|"Eligible"| slot["Show or keep one canvas skeleton"]
-    slot --> review["Review current offer in the same Chat step"]
-    review --> accept["Accept the current revision"]
-    accept --> route{"Adapter path"}
-    route -->|"Command plan"| plan["Use approved plan or prepare and review in Chat"]
-    plan --> approval{"Required review approved?"}
-    approval -->|"Material change"| revise
-    approval -->|"Approved"| generate["Run the existing job"]
-    route -->|"Simple brief"| author["Run the existing author"]
-    route -->|"Source or workspace"| add["Add selected source or notebook"]
-    generate --> check["Show progress and check the result"]
-    author --> check
-    add --> check
-    check -->|"Pass"| save["Save in the same slot, then acknowledge"]
-    check -->|"Terminal failure"| failed["Keep the same slot and show failure"]
-    save --> next["Offer the next eligible step"]
-```
-
-The [implementation checklist](tutor-implementation-checklist.md#r1201-register-the-accepted-command-boundary-and-per-adapter-release-checks) specifies the readiness, review and delivery checks. Release adapters individually once their own requirements pass.
-
 ## 10. Uncertainty, research, safety and privacy
 
 ### 10.1 Unfamiliar or incomplete source material
@@ -810,14 +680,14 @@ The immediate ordinary sprint deliverable is: **drop Markdown → Chat opens and
 | R4 Core roadmap | Drop → Chat acknowledgment and routing → draft/parameters/Edit/Accept in Chat → accepted ToC → synchronized step lifecycle, durable cards and billing. Core Explanation work includes shared teaching guidance for direct questions and roadmap steps, Depth caps, a pinned header, downward disclosures, Markdown tables and Mermaid. | Existing foundation enabled with MVP correction and acceptance work outstanding. Include the planner and writer prompt changes in CORE.09 and the checks in BE.06a. The separately enabled empty-canvas invitation follow-up can ship after the Markdown flow. |
 | R6 Automatic proposals | One next canvas proposal and matching Chat entry after saved/acknowledged delivery; no camera/focus theft or poll spam. | Existing foundation enabled; prove first/second delivery and failure/safety successor rules. Manual **Propose next step** stays in Chat. R11 speculation is separate. |
 | R5 Edit/reuse | Edit card in Chat and Ctrl/Cmd+K share the existing proposal-edit foundation. Explicit linking can reuse suitable content. | The production app config enables R5 at the reviewed main. Complete the current MVP composer/edited-brief contract and qualify broader link/drag/Add-to-Chat behavior separately. |
-| R7a Long Markdown | Versioned outline, bounded summaries, original retrieval and explicit coverage beyond bounded full-context source input. | Existing foundations locally verified and production config enabled. Remaining source-selection outbox/new-UI/manual extensions may be deferred; preserve the honest author passage fallback. |
-| R7b PDF text | Future whole-PDF Tutor planning with page/section context and honest unreadable-page coverage. | Deferred/unbuilt adapter. Existing R3 selected-PDF references remain available. Does not require OCR. |
+| R7a Long Markdown | Whole-document coverage beyond the bounded full-context source path. | The production app config enables R7a at the reviewed main. Verify current coverage/context/limits and preserve the explicit passage fallback above the supported author context bound. |
+| R7b PDF text | Page/section context and accurate references; unreadable scans identified. | Reuse PDF extraction; add the roadmap adapter. Does not require OCR. |
 | R8b Calculator | Verified bounded computations within the explanation. | Small independent tool; can precede web research. No sandbox dependency. |
 | R8a Research | Scoped Exa search and guarded fetched evidence for genuine gaps. | Independent tool slice with privacy/quota/provenance checks. Does not block source-supported explanations. |
 | R9 Practice/Progress | **Explanations + practice** produces supported practice and private assessed evidence without a personal goal. | Minimal real generation/assessment integration is required to accept that selectable MVP mode; ordinary explanations can ship first. Retain immutable quiz snapshots, outbox and remaining practice/evidence scope as separate R9 work. |
 | R10 Adaptation | Future steps respond to evidence and changed context without losing delivered work. | Builds on MVP explicit Chat edit/reaccept; uses R9 evidence when available. Richer adaptive revisions remain here; no rigid explanation/practice ratio. |
 | R11 One-ahead preparation | Fast eligible additions with platform-funded unused work and exactly-once accepted billing. | Requires stable lifecycle and money binding. No expensive speculative media or cross-user reuse. |
-| R12 Command adapters | Tutor can choose the remaining registered formats. | Track each command in the [R12 command checklist](tutor-implementation-checklist.md#r12-command-checklist). Complete the shared acceptance contract first, then release each adapter when it meets its own requirements. |
+| R12 Command adapters | Tutor can choose the remaining registered formats. | Ship per adapter/small useful batch; common lifecycle first. No all-media megarelease. |
 | R13 Projects | Explain on canvas from authorized codebase context/files. | Same flow and source honesty; no revival of old journeys or fixed codebase goals. |
 | R14 Editors | Authorized editors run their own private Tutor state/evidence on a shared canvas. | Actor/owner/payer access matrix is required; no unrelated full gate. |
 | R15 Images/notes/OCR | Interpret scans, figures and notes with extraction uncertainty/coverage. | Dedicated visual source adapter; not a claim existing image assessment already does OCR. |
@@ -857,8 +727,6 @@ For the immediate release, prove the complete updated flow with distinct scenari
 - Save-before-acknowledge, lost response, reload and reconciliation preserve one actual card and charge. Genuine failure stays visible without Retry/Replace/Omit; safety refusal suppresses automatic next; other failure requires canonical successor eligibility. A save failure does not author again.
 - Exactly one next proposal appears on both surfaces after acknowledged delivery; with Auto-suggest off/Ask, **Propose next step** creates only metadata and the ready **Next card** action buys once without a second Accept. Explicit accepted-roadmap revision preserves delivered/in-flight history and controls future work only. Finite completion/end/pause stop unsolicited work.
 
-Run the companion checklist's [focused Chat routing tests](tutor-implementation-checklist.md#focused-chat-routing-tests-and-build) for changes in section 4.7. Verify replies under classifier failure and tool/review parity on the normal Ask, Auto and Tutor entry points.
-
 Test minimal R9 generation, immutable assessment and private evidence separately before claiming **Explanations + practice** works; a disabled dropdown is not that acceptance. Include real D1/workerd behavior where database/query/runtime changes require it; a permissive fake cannot prove D1-specific limits.
 
 Claude Code completes the checklist's section 8.0 local backend/Node flow tests and build before handing off the matching deployed main candidate for the owner's manual check. That check covers geometry, focus, scrolling, navigation and the delivered Explanation behavior in files 04 and 06.
@@ -867,9 +735,9 @@ Do not repeatedly ask the owner to reproduce a failure that can be replayed from
 
 ### 13.2 Direct production sprint path
 
-The owner has authorized Claude Code to push docs and code to main, set `MVP_ALLOWED_SHA` to the exact tested candidate and complete production releases hands-off. Keep the existing isolated clone deployment required by the MVP launcher. Retain build, affected tests, focused smoke, exact SHA/tree/build, schema/secrets preflight, recovery and rollback. Use only the broad-CI/gate bypass already supported by that launcher; record skipped checks honestly. Production is the final target.
+The owner has instructed direct main/production delivery for this sprint, without a dev clone or stable-preview deployment cycle. Broad CI/release gates remain nonblocking for authorized MVP work. Retain a successful build, relevant local tests, focused production smoke, exact commit/build identity, required schema/secrets checks and available recovery. Record omitted checks as bypassed/not run, never passed.
 
-~~Implement a new no-clone release mode.~~ Superseded by owner decision 2B. Current `mvp-fast-path.mjs::REQUIRED` already requires build, affected-tests, smoke and preview; `mvpVerdict` validates the exact clone/build/recovery record and production checks the exact SHA allowance. Reuse this path. Do not wait for the owner's manual UI testing before continuing or releasing the next core slice. Complete local backend evidence and release checks first; owner manual checking follows the completed deployed core.
+If current release tooling still requires a preview receipt, make the smallest explicit compatibility change using the existing MVP path and test its consumers offline. Do not fabricate a preview record or run an unsupported flag, and do not silently reinstate the rejected clone process. This is a release-tool implementation task, not a new general approval round.
 
 After deployment report the served SHA/build, flags/migrations actually checked, smoke result and authenticated functional result separately. Test on production under the existing authorized account/spend limits. The docs update does not itself deploy application changes, apply migrations or increase a paid-test cap.
 
@@ -913,7 +781,7 @@ Use separate labels: **implemented**, **locally verified**, **deployed**, **enab
 | Green/red tall or capsule-shaped accept/cancel. | Retain neutral/pale-blue attached pill geometry in checklist: 28px high, 4px radius, 8px below slot. |
 | New global recovery/progress panels. | Existing slot plus its Chat entry; no separate Tutor toast or removed recovery buttons. |
 | All later rungs wait for cleanup P7/schema drop. | Only actual shared-interface dependencies block integration. |
-| ~~Remove the existing clone predicate and create a no-clone release mode.~~ | Superseded by the later owner 2B decision: keep the launcher's existing isolated clone deployment; no new mode. Production remains the target and styling authority. |
+| Deploy a dev clone/stable preview before every sprint candidate. | Owner-authorized direct-production path with honest focused evidence and recovery. |
 | Every R1–R16 task is still new work, or a release label proves completion. | Reconcile current code; preserve implemented foundations, distinguish owner-reported releases and verify each new behavior before checking completion. |
 
 ### 14.2 Decision identifiers remain stable

@@ -75,7 +75,7 @@ const refused = async (marker, args, answer, label) => {
   const expected = gateWords(answer);
   assert.ok(expected, `${label}: the fixture must fail the gates`);
   const before = await blockIds(page), saved = (await board()).blocks.length, sent = posts.length, called = (await stub()).length;
-  await send(page, `/interactive ${args}`);
+  await send(page, `/explain ${args}`);
   const result = page.locator('[data-chat-pane] [data-slash-result]');
   await result.getByText('The interactive explanation could not be made', { exact: false }).waitFor({ timeout: 60000 });
   await until(async () => answers.length === sent + 1, 'the artifact answer was not read');

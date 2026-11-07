@@ -74,8 +74,7 @@ export const PROPOSAL_TOOL = {
   input_schema: {
     type: 'object', additionalProperties: false, required: ['command', 'title', 'description', 'settings'],
     properties: {
-      command: { type: 'string', enum: WIRED, description: 'motion: a short animated explainer video: visuals timed to the concept, no narration (audio is off), not interactive.' },
-      requirements: { type: 'object', additionalProperties: false, description: 'Behaviors the learner required of the result; set only what they asked for. Motion cannot narrate and is not interactive.', properties: { narration: { type: 'boolean' }, interactive: { type: 'boolean' } } },
+      command: { type: 'string', enum: WIRED, description: 'motion: a short animated explainer video.' },
       title: { type: 'string', description: 'A short, specific title, at most 80 characters.' },
       description: { type: 'string', description: 'What the result will contain, in order: 3 to 10 complete sentences, normally 3 or 4. For a video it is the brief of what it shows, not its narration. No labels, lists, ids or code names.' },
       settings: { type: 'object', description: `motion: {duration_seconds: the closest of ${MOTION_SECONDS.join(', ')} to what the learner asked for, else 10 to 20; aspect_ratio: one of ${MOTION_RATIOS.join(', ')}, as the learner asked for, else ${MOTION_DEFAULT_RATIO}; audio: false}.` },
@@ -89,7 +88,7 @@ const sentences = text => text.match(/[^.!?]+[.!?]+["')\]]*(?=\s|$)/g) || [];
 // -> the proposal's shared fields and validated settings, or { error } in words the model (and a test) reads.
 export function validateProposalInput(input, refs = []) {
   if (!plain(input)) return { error: 'the proposal must be an object' };
-  const extra = Object.keys(input).find(k => !['command', 'title', 'description', 'settings', 'source_ref_ids', 'requirements'].includes(k));
+  const extra = Object.keys(input).find(k => !['command', 'title', 'description', 'settings', 'source_ref_ids'].includes(k));
   if (extra) return { error: `${extra} is not a field` };
   if (!WIRED.includes(input.command)) return { error: `command must be one of ${WIRED.join(', ')}` };
   const title = typeof input.title === 'string' ? input.title.replace(/\s+/g, ' ').trim() : '';

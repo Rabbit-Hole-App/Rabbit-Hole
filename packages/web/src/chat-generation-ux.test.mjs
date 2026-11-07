@@ -198,21 +198,18 @@ test('awaiting confirmation: an enabled Generate and no job status', () => {
 test('a running job: Generating with a spinner, the stage line, a polite announcement without the time, Go to card and Stop; no Added to the canvas', () => {
   const block = videoBlock();
   const html = slot(ops({ proposalCard: () => block, block: () => block, proposalMade: () => true }));
-  // The Generate button itself is the Stop button while the job runs: red (the existing danger variant), white text, one control in the row.
-  assert.equal(generateButton(html), null, 'no Generate button while the job runs');
-  const button = html.match(/<button[^>]*data-proposal-stop="true"[^>]*>([\s\S]*?)<\/button>/)[0];
+  const button = generateButton(html)[0];
   assert.match(button, /data-proposal-phase="running"/);
   assert.match(button, /aria-busy="true"/);
-  assert.match(button, /aria-label="Stop video"/);
-  assert.match(button, /class="[^"]*bg-danger-fill text-white/);
-  assert.doesNotMatch(button, /bg-ink|disabled=""/, 'not the inverse fill, and pressable');
-  assert.match(button, /<span>Stop<\/span>/);
-  assert.equal([...html.matchAll(/data-proposal-(generate|stop|edit|cancel|go-to-card|discard|save)=/g)].length, 1, 'the row is the Stop button alone: no Edit, Cancel or Go to card');
+  assert.match(button, /disabled=""/);
+  assert.match(button, /lucide-loader-circle[^>]*animate-spin[^>]*motion-reduce:animate-none|animate-spin[^>]*motion-reduce:animate-none/);
+  assert.match(button, /<span>Generating<\/span>/);
   assert.match(html, /data-proposal-job-status="running"/);
   assert.match(html, /role="status" aria-live="polite" data-proposal-announcement="true" class="sr-only">Generating\. Planning, reviewing and rendering</);
   assert.match(html, /data-proposal-job-detail="true" class="shimmer">Planning, reviewing and rendering</);
+  assert.match(html, /data-proposal-go-to-card/);
   assert.match(html, /data-proposal-stop="true"[^>]*aria-expanded="false"/);
-  assert.doesNotMatch(html, /data-proposal-go-to-card|Added to the canvas|data-proposal-made/);
+  assert.doesNotMatch(html, /Added to the canvas|data-proposal-made/);
   assert.doesNotMatch(text(html), /\.\.\.|…/);
 });
 
@@ -221,9 +218,7 @@ test('each state: Starting, Queued, Ready (check, no spinner), failed, Stopped a
   const starting = at(videoBlock({ status: 'idle', confirmedStart: true, placementId: undefined }));
   assert.match(generateButton(starting)[0], /<span>Starting<\/span>/);
   assert.doesNotMatch(starting, /data-proposal-stop/, 'nothing to stop before the job has a placement');
-  const queued = at(videoBlock({ status: 'queued' }));
-  assert.equal(generateButton(queued), null, 'a queued job that can be stopped: the Generate button is the Stop button');
-  assert.match(queued, /data-proposal-stop="true"[^>]*data-proposal-phase="queued"/);
+  assert.match(generateButton(at(videoBlock({ status: 'queued' })))[0], /<span>Queued<\/span>/);
   const ready = at(videoBlock({ status: 'ready' }));
   assert.match(generateButton(ready)[0], /lucide-check[\s\S]*<span>Ready<\/span>/);
   assert.doesNotMatch(generateButton(ready)[0], /animate-spin/);

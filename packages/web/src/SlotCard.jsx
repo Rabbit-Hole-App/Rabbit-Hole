@@ -38,7 +38,7 @@ export function SlotCard({ slot, actions = null }) {
       <div data-slot-id={slot.id} role="status" aria-label={slot.label} style={{ width: slot.w, height: slot.h, ...place }} className={frame}>
         {strip}
         <div className="flex items-center gap-2 px-4 pb-4 text-sm">
-          <Loader2 size={14} className="shrink-0 animate-spin text-claude" />
+          <Loader2 size={14} className="shrink-0 animate-spin text-ink-3" />
           <span className="shimmer min-w-0 truncate">{slot.label}</span>
           <span aria-hidden="true" data-slot-elapsed className="ml-auto shrink-0 text-xs text-ink-3 tabular-nums">{((now - slot.started) / 1000).toFixed(1)}s</span>
         </div>
@@ -65,7 +65,7 @@ export function SlotCard({ slot, actions = null }) {
           ? <p role="alert" className="px-4 pt-2 text-[13px] break-words text-ink-2">{card.failure?.message || ROADMAP_STRINGS.failed}</p>
           : <div className="relative">
             {lines}
-            {!pending && <Loader2 size={16} aria-hidden="true" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin text-claude" />}
+            {!pending && <Loader2 size={16} aria-hidden="true" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin text-ink-3" />}
           </div>}
       </div>
       {/* The first offer's Accept [Tab] | Cancel, 8px below; a later offer's Next card | Cancel is the canvas's bottom pill (UI.08), never beside the card. */}

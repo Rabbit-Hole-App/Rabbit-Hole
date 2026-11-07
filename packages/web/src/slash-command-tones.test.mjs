@@ -82,7 +82,7 @@ test('the same command looks the same everywhere: the / picker, the composer pil
 test('every command in the registry has its own colour in both themes; no two share one', async () => {
   const { SLASH } = await import('./agent/slash.js');
   const names = SLASH.map((command) => command.name);
-  assert.equal(names.length, 21 /* /explain split into /explain and /interactive, owner 2026-11-07; /animation added, owner 2026-10-30; /whiteboard (whiteboard-video), owner roadmap 2026-11-04 */);
+  assert.equal(names.length, 20 /* /animation added, owner 2026-10-30; /whiteboard (whiteboard-video), owner roadmap 2026-11-04 */);
   const accent = token('light', '--color-accent');
   for (const theme of ['light', 'dark']) {
     const seen = new Map();

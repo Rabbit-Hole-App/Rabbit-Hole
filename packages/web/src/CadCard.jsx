@@ -1,8 +1,7 @@
-import { Button, SlidePanel, Tip } from './ui.jsx';
-import CardHeader from './CardHeader.jsx';
+import { SlidePanel, Tip } from './ui.jsx';
 import { track } from './usage-analytics.js';
 import { useEffect, useRef, useState } from 'react';
-import { Ban, Download, LoaderCircle, Maximize2, RefreshCw, Rotate3d, Ruler, Scan, Square } from 'lucide-react';
+import { Ban, Download, LoaderCircle, Maximize2, RefreshCw, Rotate3d, Ruler, Scan } from 'lucide-react';
 import { api, apiFetch } from './api.js';
 import { fileScope, scopeQuery } from './file-source-client.js';
 import { inspectGlb, MAX_MODEL_BYTES } from './three-d-asset.js';
@@ -293,7 +292,7 @@ export default function CadCard({block,onChange,onChangeQuiet,appName,selected=f
   // A shared canvas uses hand-mode hit testing to select, then only this viewer
   // accepts pointers. Editing stays governed by mutable, not viewing selection.
   return <div data-cad-card data-cad-state={state} className={`flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3 ${readOnly && selected ? 'pointer-events-auto' : ''}`}>
-    <CardHeader block={block} meta="CAD model" className="pt-0 pb-0" />
+    <p data-drag-zone className="cursor-grab text-sm font-medium">{block.title || 'CAD model'}</p>
     {/* data-gen-active: the generation state the chat's indicator follows (UI changes contract). A spinner, never a percentage: the job reports stages only. */}
     <div role="status" data-cad-progress data-gen-active={running ? 'true' : 'false'} className="flex flex-wrap items-center gap-2 text-xs text-ink-2">{running && <LoaderCircle size={13} aria-hidden className="animate-spin"/>}<span>{proposed?'Revision ready for review':cadStage(state)}</span><span>{block.units || 'Units pending'}</span>{running && !!job?.createdAt && <span>{elapsed}s elapsed</span>}</div>
     {mutable && state==='awaiting_approval' && <p data-cad-review-hint className="text-xs text-ink">Review the design brief above the chat box. Nothing is generated until you press Generate there.</p>}
@@ -306,8 +305,7 @@ export default function CadCard({block,onChange,onChangeQuiet,appName,selected=f
       <Tip label="Expand"><button type="button" aria-label="Expand" data-cad-action="expand" className={iconButton} disabled={!cadArtifact(shown,'glb')} onClick={()=>setExpanded(true)}><Maximize2 size={15} aria-hidden/></button></Tip>
       <Tip label="Download"><button type="button" aria-label="Download" aria-expanded={downloads} data-cad-action="download" className={iconButton} onClick={()=>setDownloads(open=>!open)}><Download size={15} aria-hidden/></button></Tip>
       {downloads && <div role="group" aria-label="Download formats" className="flex flex-wrap gap-1">{CAD_DOWNLOADS.map(format=>{const artifact=cadArtifact(manifest,format);return artifact?<button key={format} onClick={()=>download(artifact)} className={button}>{format.toUpperCase()}</button>:mutable && block.revisionId && ['stl','3mf'].includes(format)?<button key={format} className={button} disabled={busy || ['queued','preparing','exporting'].includes(job?.exportState)} onClick={()=>action('exports',{format})}>Prepare {format.toUpperCase()}</button>:null;})}</div>}
-      {mutable && running && <Button type="button" variant="danger" data-cad-action="cancel" disabled={busy} onClick={()=>action('cancel')}><Square size={14} aria-hidden="true" className="shrink-0 fill-current" />Stop</Button>}
-      {mutable && !running && state==='waiting_for_answer' && <button data-cad-action="cancel" className={button} disabled={busy} onClick={()=>action('cancel')}>Cancel</button>}
+      {mutable && (running || state==='waiting_for_answer') && <button data-cad-action="cancel" className={button} disabled={busy} onClick={()=>action('cancel')}>Cancel</button>}
       {mutable && ['failed','cancelled'].includes(state) && !rebuild && <button className={button} disabled={busy} onClick={()=>action('retry')}>Retry generation</button>}
       {!readOnly && cadArtifact(shown,'glb') && <div className="ml-auto"><BackgroundControl value={background} onChange={setBackground}/></div>}
     </div>

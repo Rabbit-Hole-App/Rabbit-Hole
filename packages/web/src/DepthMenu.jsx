@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown, SignalHigh, SignalLow, SignalMedium } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { COMPOSER_TOOL } from './ChatComposer.jsx';
 import { cn } from './ui.jsx';
 import { DEPTHS } from './learn-settings.js';
@@ -7,9 +7,6 @@ import { DEPTHS } from './learn-settings.js';
 // Depth (Overview, Standard, Deep) in the Chat composer toolbar, beside the mode selector (Tutor ladder R2, decisions D11, D12).
 // Depth is this canvas's. The Auto-suggest switch is its own control (AutoSuggestSwitch, use-learn-coaching.jsx), so only one
 // control carries that name. settings: useLearnSettings().
-// The Depth trigger is an icon, not a word (owner 2026-11-07): signal bars read as a scale, one, two or three bars, and the colour follows the level
-// (one Claude-orange scale from the --color-claude tokens: a pale tint, the colour, then the deeper step). The shape carries the meaning, so colour is never the only cue; the name stays in the aria-label and tooltip.
-export const LEVEL_MARK = { overview: [SignalLow, 'text-claude/45'], standard: [SignalMedium, 'text-claude'], deep: [SignalHigh, 'text-claude-deep'] };
 export default function DepthMenu({ settings, disabled = false }) {
   const [open, setOpen] = useState(false);
   const box = useRef(null), button = useRef(null), items = useRef([]);
@@ -21,7 +18,6 @@ export default function DepthMenu({ settings, disabled = false }) {
   }, [open]);
   const at = Math.max(0, DEPTHS.findIndex(([id]) => id === settings.depth));
   const current = DEPTHS[at];
-  const [LevelIcon, levelColor] = LEVEL_MARK[current[0]] || LEVEL_MARK.standard;
   const failed = settings.status === 'error' || settings.saveStatus === 'error';
   const count = DEPTHS.length;
   const show = () => { setOpen(true); requestAnimationFrame(() => items.current[at]?.focus()); };
@@ -39,11 +35,11 @@ export default function DepthMenu({ settings, disabled = false }) {
   };
   return (
     <div ref={box} className="relative shrink-0" data-depth-menu>
-      <button ref={button} type="button" aria-label={`Depth: ${current[1]}`} title={`Depth: ${current[1]}`} aria-haspopup="menu" aria-expanded={open} data-depth={current[0]} disabled={disabled}
+      <button ref={button} type="button" aria-label="Depth" title={`Depth: ${current[1]}`} aria-haspopup="menu" aria-expanded={open} data-depth={current[0]} disabled={disabled}
         onMouseDown={event => event.preventDefault()} onClick={() => (open ? setOpen(false) : show())}
         onKeyDown={event => { if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); show(); } }}
         className={cn(COMPOSER_TOOL, 'text-sm', open && 'bg-active text-ink')}>
-        <LevelIcon size={17} strokeWidth={2} aria-hidden="true" className={levelColor} data-depth-icon={current[0]} /><ChevronDown size={12} aria-hidden="true" className="text-ink-3" />
+        {current[1]}<ChevronDown size={14} aria-hidden="true" />
       </button>
       {open && (
         <div role="menu" aria-label="Depth" onKeyDown={keys} className="absolute bottom-full left-0 z-30 mb-1 w-72 rounded-md bg-white p-1 shadow-pop">
@@ -51,7 +47,6 @@ export default function DepthMenu({ settings, disabled = false }) {
             <button key={id} ref={node => { items.current[index] = node; }} type="button" role="menuitemradio" aria-checked={id === settings.depth} tabIndex={-1} data-depth-option={id}
               onClick={() => { settings.set({ depth: id }); close(); }} className="flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-left outline-none hover:bg-hover focus-visible:bg-hover">
               <span className="flex h-5 w-4 shrink-0 items-center justify-center">{id === settings.depth && <Check size={14} className="text-accent" />}</span>
-              {(() => { const [Mark, color] = LEVEL_MARK[id] || LEVEL_MARK.standard; return <Mark size={16} strokeWidth={2} aria-hidden="true" className={cn('mt-0.5 shrink-0', color)} />; })()}
               <span className="min-w-0"><span className="block text-sm text-ink">{label}</span><span className="block text-xs text-ink-3">{hint}</span></span>
             </button>
           ))}

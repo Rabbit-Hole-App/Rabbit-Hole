@@ -48,8 +48,8 @@ export async function ensureNextProposal(env, access, { roadmapId, triggerEventI
     const reason = await ineligible(db, access, roadmap, { autoSuggest, revalidate });
     if (reason) return { status: 'skipped', reason };
     try {
-      const done = await proposeNextStep(db, access, { roadmapId, expectedRevision: roadmap.revision, actionKey: `rmauto_${triggerEventId}`, compose: compose || ((rm, step) => composeProposal(db, rm, step)), env, revalidate, now });
-      return { status: done.body.state === 'completed' ? 'completed' : done.body.offer === 'blocked' ? 'blocked' : 'offered', body: done.body, replayed: !!done.replayed };
+      const done = await proposeNextStep(db, access, { roadmapId, expectedRevision: roadmap.revision, actionKey: `rmauto_${triggerEventId}`, compose: compose || ((rm, step) => composeProposal(db, rm, step)), now });
+      return { status: done.body.state === 'completed' ? 'completed' : 'offered', body: done.body, replayed: !!done.replayed };
     } catch (error) {
       if (!(error instanceof StateError)) throw error;
       if (error.code === 'stale_revision' && attempt === 0) continue; // the roadmap moved under us: decide again from the new state

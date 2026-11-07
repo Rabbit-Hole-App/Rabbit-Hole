@@ -135,19 +135,19 @@ const harness = (mint) => {
   return { started, posts, canvas, post };
 };
 
-test('/interactive (owner 2026-11-07: the playable command, id explain) on a selected passage mints the ref first and the job gets its id; a stale source stops the command before anything is made', async () => {
+test('/explain on a selected passage mints the ref first and the job gets its id; a stale source stops the command before anything is made', async () => {
   const h = harness(async () => ({ ref: md() }));
   const sourceDraft = markdownDraft({ block: file(), quote: QUOTE, app: 'demo' });
-  const out = await runLearnCommand('/interactive the loss', { app: 'demo', target: { id: 'file-1', title: 'notes', text: QUOTE.exact, sourceDraft }, canvas: h.canvas, post: h.post });
+  const out = await runLearnCommand('/explain the loss', { app: 'demo', target: { id: 'file-1', title: 'notes', text: QUOTE.exact, sourceDraft }, canvas: h.canvas, post: h.post });
   assert.equal(out.notice.blockId, 'ex-1');
   assert.deepEqual(h.started, [['the loss', md().id]]);
   assert.deepEqual(h.posts, [['/api/learn/source-refs', sourceDraft]]);
   const plain = harness(async () => { throw new Error('no mint'); });
-  await runLearnCommand('/interactive the loss', { app: 'demo', target: { id: 'c', title: 'c', text: 'x' }, canvas: plain.canvas, post: plain.post });
+  await runLearnCommand('/explain the loss', { app: 'demo', target: { id: 'c', title: 'c', text: 'x' }, canvas: plain.canvas, post: plain.post });
   assert.deepEqual(plain.started, [['the loss', null]], 'no selected passage, no sourceRef: unchanged');
   const stale = harness(async () => { throw err(409, { code: 'source_changed' }); });
-  const refused = await runLearnCommand('/interactive the loss', { app: 'demo', target: { id: 'file-1', text: 'x', sourceDraft }, canvas: stale.canvas, post: stale.post });
-  assert.deepEqual([refused.notice.tone, refused.notice.text, refused.keep], ['error', CREATE_REFUSED.source_changed, '/interactive the loss']);
+  const refused = await runLearnCommand('/explain the loss', { app: 'demo', target: { id: 'file-1', text: 'x', sourceDraft }, canvas: stale.canvas, post: stale.post });
+  assert.deepEqual([refused.notice.tone, refused.notice.text, refused.keep], ['error', CREATE_REFUSED.source_changed, '/explain the loss']);
   assert.deepEqual(stale.started, [], 'nothing was started');
 });
 
@@ -155,14 +155,8 @@ test('a command that makes a card directly sends the ref id with the request', a
   const h = harness(async () => ({ ref: pdf() }));
   const sourceDraft = excerptDraft({ excerpt: { kind: 'text', source: { key: DOC, sha256: REV, name: 'p', home: null }, page: { index: 3, label: null }, rects: [[1, 1, 2, 2]], rotate: 0, view: [0, 0, 1, 1], quote: { exact: 'x', prefix: '', suffix: '' } }, app: 'demo' });
   const canvas = { ...h.canvas, startExplain: undefined };
-  await runLearnCommand('/interactive the loss', { app: 'demo', target: { id: 'x', text: 'x', sourceDraft }, canvas, post: h.post });
+  await runLearnCommand('/explain the loss', { app: 'demo', target: { id: 'x', text: 'x', sourceDraft }, canvas, post: h.post });
   assert.equal(h.posts.find(([path]) => path === '/api/learn/artifact')[1].sourceRefId, pdf().id);
-  // The written /explain (id explanation, owner 2026-11-07) always makes its card directly, with the same ref, and never starts a job.
-  const written = harness(async () => ({ ref: pdf() }));
-  await runLearnCommand('/explain the loss', { app: 'demo', target: { id: 'x', text: 'x', sourceDraft }, canvas: written.canvas, post: written.post });
-  assert.equal(written.posts.find(([path]) => path === '/api/learn/artifact')[1].sourceRefId, pdf().id);
-  assert.equal(written.posts.find(([path]) => path === '/api/learn/artifact')[1].command, 'explanation');
-  assert.deepEqual(written.started.filter(entry => entry[0] !== 'inserted'), [], 'no explain job for the written command');
 });
 
 // ---- R3.01 / R3.04: placing a quote, the PDF anchor across zoom, and no jump the data does not support ----

@@ -129,10 +129,10 @@ export const COMMON_ACTIONS = [
   { id: 'add-comment', label: 'Add comment', icon: 'MessageCircle', group: 'primary', order: 20, targets: ['card', 'object', 'group', 'multi'],
     applies: (t, ctx) => !!ctx.canvas.addComment && !!(t.id || t.group), requires: 'comment.draft', keys: 'comment',
     data: 'data-menu-add-comment', run: (t, ctx) => ctx.canvas.addComment(canvasPoint(t), t.id || t.group) },
-  { id: 'link-canvas', label: 'Add a link', icon: 'Link2', group: 'primary', order: 30, targets: ['card', 'canvas'],
+  { id: 'link-canvas', label: 'Link to canvas', icon: 'Link2', group: 'primary', order: 30, targets: ['card', 'canvas'],
     applies: (t, ctx) => !!ctx.canvas.linkCanvas && (t.kind === 'canvas' || (t.family === 'block' && t.type !== 'canvas-ref')), requires: 'source.write',
     data: 'data-menu-link-canvas', run: (t, ctx) => ctx.canvas.linkCanvas(t.kind === 'canvas' ? { point: canvasPoint(t) } : { blockId: t.id }) },
-  { id: 'rename', label: 'Rename', icon: 'PencilLine', group: 'primary', order: 40, keys: 'rename', targets: ['card'], mutates: true,
+  { id: 'rename', label: 'Rename', icon: 'PencilLine', group: 'primary', order: 40, targets: ['card'], mutates: true,
     applies: (t, ctx) => !!ctx.canvas.renamable?.(t.object), requires: 'canvas.local-edit', data: 'data-menu-rename', run: (t, ctx) => ctx.canvas.rename(t.id) },
 
   // Add to chat attaches the context and opens the composer; it never sends. Quick Edit is the AI editor (a model call
@@ -152,7 +152,7 @@ export const COMMON_ACTIONS = [
   // Duplicate, Copy card, Lock, Arrange, Group, Delete: one order everywhere (brief section 3).
   { id: 'duplicate', label: 'Duplicate', icon: 'CopyPlus', group: 'clipboard', order: 10, targets: SELECTION_KINDS, keys: 'duplicate',
     shortcut: { key: 'd', mod: true }, applies: t => t.ids.length > 0, requires: 'canvas.local-edit', data: 'data-menu-duplicate', run: (t, ctx) => ctx.commands.duplicate() },
-  { id: 'copy', label: 'Copy',
+  { id: 'copy', label: t => (t.kind === 'card' ? 'Copy card' : 'Copy'),
     icon: 'Copy', group: 'clipboard', order: 20, targets: SELECTION_KINDS, keys: t => (t.part?.text ? null : 'copy'), applies: (t, ctx) => !!ctx.canvas.copyable?.(t.ids), requires: 'content.copy',
     data: 'data-menu-copy', run: (t, ctx) => ctx.commands.copy() },
   { id: 'cut', label: 'Cut', icon: 'Scissors', group: 'clipboard', order: 30, targets: SELECTION_KINDS, keys: t => (t.part?.text ? null : 'cut'), mutates: true,
@@ -169,7 +169,7 @@ export const COMMON_ACTIONS = [
     targets: SELECTION_KINDS, keys: 'lock', shortcut: { key: 'l', mod: true, shift: true }, applies: lockable, requires: 'canvas.local-edit',
     data: 'data-menu-lock', run: (t, ctx) => ctx.commands.lockSelection() },
   // Full content (owner, 2026-10-21): one checkable row on a card that supports it; checked is full, unchecked scrolls.
-  { id: 'full-content', label: 'Full content', icon: (t, ctx) => (ctx.canvas.fullContent?.(t.object) ? 'UnfoldVertical' : 'ScrollText'), group: 'lock', order: 20, keys: 'full-content',
+  { id: 'full-content', label: 'Full content', icon: (t, ctx) => (ctx.canvas.fullContent?.(t.object) ? 'UnfoldVertical' : 'ScrollText'), group: 'lock', order: 20,
     targets: ['card'], applies: (t, ctx) => !!ctx.canvas.supportsCardLayout?.(t.object), checked: (t, ctx) => !!ctx.canvas.fullContent?.(t.object), mutates: true,
     requires: 'canvas.local-edit', data: 'data-card-layout-toggle', run: (t, ctx) => ctx.canvas.setCardLayout(t.id, ctx.canvas.fullContent(t.object) ? 'scrollable' : 'full') },
 

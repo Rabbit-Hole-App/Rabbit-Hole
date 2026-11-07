@@ -63,15 +63,11 @@ test('two different people may own canvases with exactly the same title', async 
   assert.notEqual(a.name, b.name, 'identity is the canonical name, never the title');
 });
 
-test('a new canvas whose title the owner already has steps to "(2)", "(3)", whatever the case (owner 2026-11-07: one title to an owner\'s canvases)', async t => {
+test('a typed title is kept exactly, even when the owner already has it', async t => {
   const f = setup(t);
+  await f.create('ana', 'Binary Search');
   assert.equal((await f.create('ana', 'Binary Search')).title, 'Binary Search');
-  assert.equal((await f.create('ana', 'Binary Search')).title, 'Binary Search (2)');
-  assert.equal((await f.create('ana', '  binary search ')).title, 'binary search (3)', 'case and surrounding spaces do not make a different title');
-  assert.equal((await f.create('ana', '')).title, 'Untitled canvas');
-  assert.equal((await f.create('ana', '')).title, 'Untitled canvas (2)', 'the default name is stepped too');
-  assert.deepEqual(await f.titles('ana'), ['Binary Search', 'Binary Search (2)', 'Untitled canvas', 'Untitled canvas (2)', 'binary search (3)']);
-  assert.equal((await f.create('ben', 'Binary Search')).title, 'Binary Search', 'another owner never collides');
+  assert.deepEqual(await f.titles('ana'), ['Binary Search', 'Binary Search']);
 });
 
 test('Duplicate makes "(2)", then "(3)": a private copy of the owner\'s, never a fork', async t => {
@@ -114,46 +110,21 @@ test('a fork keeps the source title when the forker has none like it, and steps 
   assert.equal(provenance.forked_from_title, 'Transformer Playground', 'provenance keeps the source\'s own title');
 });
 
-test('a rename to a title another of the owner\'s canvases has is refused with title_taken; their own title, a case change and another owner\'s title are fine', async t => {
+test('an explicit rename to a title the owner already uses is allowed and never rewritten', async t => {
   const f = setup(t);
   await f.create('ana', 'Gradients');
   const other = await f.create('ana', 'Something else');
-  const refused = await f.call('PATCH', `/api/apps/${other.name}`, { as: 'ana', body: { title: 'gradients' } });
-  assert.deepEqual([refused.status, refused.body.code, refused.body.error], [409, 'title_taken', 'Another canvas already has this name']);
-  assert.equal((await f.call('GET', `/api/apps/${other.name}`, { as: 'ana' })).body.title, 'Something else', 'the canvas is unchanged');
-  const same = await f.call('PATCH', `/api/apps/${other.name}`, { as: 'ana', body: { title: 'Something else' } });
-  assert.equal(same.status, 200, 'its own title is not a collision');
-  const recased = await f.call('PATCH', `/api/apps/${other.name}`, { as: 'ana', body: { title: 'SOMETHING ELSE' } });
-  assert.equal(recased.status, 200, 'a case change of its own title is fine');
-  assert.equal(recased.body.title, 'SOMETHING ELSE');
-  await f.create('ben', 'Optics');
-  assert.equal((await f.call('PATCH', `/api/apps/${other.name}`, { as: 'ana', body: { title: 'Optics' } })).status, 200, 'another owner\'s title never counts');
-  const free = await f.call('PATCH', `/api/apps/${other.name}`, { as: 'ana', body: { title: 'Gradients 2' } });
-  assert.equal(free.status, 200);
-  assert.equal(free.body.name, other.name, 'a rename never changes the canonical id');
+  const renamed = await f.call('PATCH', `/api/apps/${other.name}`, { as: 'ana', body: { title: 'Gradients' } });
+  assert.equal(renamed.status, 200);
+  assert.equal(renamed.body.title, 'Gradients');
+  assert.equal(renamed.body.name, other.name, 'a rename never changes the canonical id');
 });
 
-test('duplicate titles saved before the rule never touch routing or identity, can still be opened and renamed away, and are not refused for being what they are', async t => {
+test('duplicate titles never touch routing or identity: each opens by its own name', async t => {
   const f = setup(t);
-  const a = await f.create('ana', 'Same');
-  f.sqlite.prepare("INSERT INTO canvases (org, name, owner_email, title) VALUES ('ana-ws', 'canvas-1e9ac001', 'ana@test', 'Same')").run();
-  const [openA, openB] = [await f.call('GET', `/api/apps/${a.name}`, { as: 'ana' }), await f.call('GET', '/api/apps/canvas-1e9ac001', { as: 'ana' })];
-  assert.deepEqual([openA.body.name, openB.body.name], [a.name, 'canvas-1e9ac001'], 'each opens by its own name');
-  const renamed = await f.call('PATCH', '/api/apps/canvas-1e9ac001', { as: 'ana', body: { title: 'Same renamed' } });
-  assert.equal(renamed.status, 200, 'a legacy duplicate can be renamed to a free title');
-  const stuck = await f.call('PATCH', '/api/apps/canvas-1e9ac001', { as: 'ana', body: { title: 'Same' } });
-  assert.deepEqual([stuck.status, stuck.body.code], [409, 'title_taken'], 'and renaming one back to a taken title is refused');
-});
-
-test('a nested Rabbit Hole is never refused or stepped over a title (it is identified by its parent and origin)', async t => {
-  const f = setup(t);
-  const root = await f.create('ana', 'Physics');
-  await f.create('ana', 'Optics');
-  f.sqlite.prepare("INSERT INTO canvases (org, name, owner_email, title) VALUES ('ana-ws', 'canvas-0be1e5ab', 'ana@test', 'Hole')").run();
-  f.sqlite.prepare("INSERT INTO canvas_dives (org, owner_email, child, parent_app, origin_block_id, dive_json) VALUES ('ana-ws', 'ana@test', 'canvas-0be1e5ab', ?, 'b1', '{}')").run(root.name);
-  const renamed = await f.call('PATCH', '/api/apps/canvas-0be1e5ab', { as: 'ana', body: { title: 'Optics' } });
-  assert.equal(renamed.status, 200, 'a hole may take a Library title');
-  assert.equal(renamed.body.title, 'Optics');
+  const a = await f.create('ana', 'Same'), b = await f.create('ana', 'Same');
+  const [openA, openB] = [await f.call('GET', `/api/apps/${a.name}`, { as: 'ana' }), await f.call('GET', `/api/apps/${b.name}`, { as: 'ana' })];
+  assert.deepEqual([openA.body.name, openB.body.name], [a.name, b.name]);
 });
 
 test('a project and a canvas may share a title; nested Rabbit Holes and other owners never count', async t => {

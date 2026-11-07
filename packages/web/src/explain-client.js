@@ -57,17 +57,10 @@ export const explainPendingBlock = ({ job, title, prompt, threadId = null }) => 
   // R3: the passage this explanation is about, as the server read it when the job was made (source-ref.js); the chip shows from the first moment.
   ...(job.sourceRef ? { sourceRef: job.sourceRef } : {}),
 });
-// The reviewed job a canvas card is the skeleton of: its plan waits for Generate (/explain, /animation or /whiteboard), nothing is made yet.
-// Deleting that card drops the plan (LearnPage cancels the job); a running job is stopped from its own Stop, never by deleting.
-export const skeletonJobOf = block => [['explain', block?.explainJob], ['animation', block?.animation3dJob], ['whiteboard-video', block?.whiteboardJob]]
-  .map(([command, job]) => (job?.stage === 'awaiting_approval' ? { command, id: job.id } : null)).find(Boolean) ?? null;
 // A job changed from outside its card (Generate approved its brief, a refinement started its next version): its card polls
 // again. A brief became ready for review: the chat showing its thread reloads it, so the brief and its Generate appear.
-export const SKELETON_DROPPED_EVENT = 'rh-skeleton-dropped';
 export const EXPLAIN_JOB_EVENT = 'rh-explain-job';
 export const EXPLAIN_BRIEF_EVENT = 'rh-explain-brief';
-// The skeleton's Go to plan (the reverse of the chat card's Go to card): Chat opens on the job's thread and scrolls to its plan card (chat-workspace.jsx).
-export const showPlanInChat = (threadId, jobId) => window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId, jobId, reveal: true } }));
 
 // A program result (explain-program) carries its artifact, source included, on the job result. The saved card keeps only the
 // reference ({ bundleHash }) and the result identity without the artifact, so source never lives in canvas JSON: the card

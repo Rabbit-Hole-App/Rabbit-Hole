@@ -77,7 +77,6 @@ import { paidRefusal } from '../control-plane/src/learn-paid.js';
 import { feedbackFetch } from '../control-plane/src/learn-feedback.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
 import { forwardToProduction, guardControlPlane, devIdentity } from '../control-plane/src/dev-forwarding.js';
-import { CRASH_PATH, crashRoute } from '../control-plane/src/crash-report.js';
 import { usageFeature, withUsage, finishAction, finishWithResponse, recordMedia } from '../control-plane/src/learn-usage.js';
 import { imageEstimate, ESTIMATE_PRICE } from '../control-plane/src/learn-usage-estimates.js';
 import { usageFetch } from '../control-plane/src/learn-usage-route.js';
@@ -191,8 +190,6 @@ const routes = {
       return repositoriesFetch(new Request(target, req), env, ctx);
     }
     // Browser error batches (docs/features/telemetry.md "Browser errors"): same-origin, bounded, 204 where telemetry is not provisioned.
-    // A page crash with its message, stack and account (docs/features/telemetry.md "Crash alerts"): logged and sent to Sentry; the email goes through /api/crash/notify on the control plane.
-    if (path === CRASH_PATH) return crashRoute(req, env, ctx, { identity: devIdentity });
     if (path === '/api/telemetry/client') { const accepted = await clientTelemetryRoute(path, req, env); if (accepted) return accepted; }
     // The owner's telemetry API (docs/features/telemetry.md): 404 to anyone but SUBSCRIPTION_OWNER_EMAIL's session, whatever the mode.
     if (path.startsWith('/api/owner/telemetry')) { const owned = await ownerTelemetryRoute(path, req, env); if (owned) return owned; }

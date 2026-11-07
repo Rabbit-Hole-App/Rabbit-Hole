@@ -1,7 +1,7 @@
 // /explain v2 entry points (EXP-T20 slice 3, EXP-T21, Lane L2) against the LOCAL stack only. The board save, chat threads and
 // sign-in are REAL; the /explain job API (C:/s/spec/explain/job-api-c.md) is a fake job server in the browser, so this runs
 // with EXPLAIN_V2_ENABLED off, never calls a model, and every other model-capable request is aborted and counted.
-//   1. typed /interactive (id explain; /explain is now the written card): one job (source explicit, the saved line's chat thread), its card placed at once and waiting;
+//   1. typed /explain: one job (source explicit, the saved line's chat thread), its card placed at once and waiting;
 //   2. a reload while it waits shows the same card, observes the job and creates nothing; ready, the card becomes the
 //      explanation and the board saves its result identity, and does not open in Focus (a reload never reveals);
 //   Owner, 2026-10-28: a job this canvas started opens its card in Focus once when ready; Back to canvas dismisses it for good
@@ -9,7 +9,7 @@
 //   3. the picker (explain pill + words) is the same job path;
 //   4. Use example (a submitted suggestion) only fills the composer; its Send makes one job;
 //   5. natural language the server routes to explain (chat route, flow direct) is the same job path;
-//   6. a command-bearing Ctrl+K /interactive on a selected card: one job (source command) with the card's words as context;
+//   6. a command-bearing Ctrl+K /explain on a selected card: one job (source command) with the card's words as context;
 //   7. canvas switch: a job made on canvas A that finishes while canvas B is open attaches to nothing on B, and to its card on A;
 //   8. provider_unavailable: the card says the explanation is paused and keeps the request; Retry (twice) sends one Retry with
 //      the job's attempt, and the card then fills in;
@@ -130,8 +130,8 @@ const newJob = async count => { await until(async () => creates.length === count
 let { context, page } = await open(canvasA.name);
 let first = null;
 
-await step('typed /interactive: one job from the saved line\'s thread, its card placed at once and waiting', async () => {
-  await send(page, '/interactive how a heap keeps its order');
+await step('typed /explain: one job from the saved line\'s thread, its card placed at once and waiting', async () => {
+  await send(page, '/explain how a heap keeps its order');
   first = await newJob(1);
   const body = lastCreate();
   assert.deepEqual([body.prompt, body.requestClass, body.source], ['how a heap keeps its order', 'simple', 'explicit']);
@@ -158,7 +158,7 @@ await step('a reload while it waits shows the same card, creates nothing; ready,
 
 await step('the picker: the explain pill and its words make the same job', async () => {
   const box = composerOf(page);
-  await box.click(); await box.fill('/interact');
+  await box.click(); await box.fill('/expl');
   await page.locator('[data-slash-command="explain"]').click();
   await page.locator('[data-chat-pane] [data-chat-composer] [data-command-pill="explain"]').waitFor(); // the composer's pill, not the sent line's
   await box.fill('why a heap is a complete tree');
@@ -179,10 +179,10 @@ await step('Use example only fills the composer; its Send makes one job', async 
   await sheet.waitFor({ state: 'detached', timeout: 5000 });
   await page.waitForTimeout(800);
   assert.equal(creates.length, 2, 'a suggestion click sends nothing');
-  assert.equal(await composerOf(page).inputValue(), 'how a hot coffee cools in a cold room, and let me change the room temperature');
+  assert.equal(await composerOf(page).inputValue(), 'how binary search works');
   await composerOf(page).press('Enter');
   const job = await newJob(3);
-  assert.equal(lastCreate().prompt, 'how a hot coffee cools in a cold room, and let me change the room temperature');
+  assert.equal(lastCreate().prompt, 'how binary search works');
   release(job);
   await revealed(page, job.cardId);
 });
@@ -198,12 +198,12 @@ await step('natural language the server routes to explain is the same job path',
   await revealed(page, job.cardId);
 });
 
-await step('a command-bearing Ctrl+K /interactive on a selected card: one job, source command, the card\'s words as context', async () => {
+await step('a command-bearing Ctrl+K /explain on a selected card: one job, source command, the card\'s words as context', async () => {
   await page.locator('[data-block-id="notes"]').click({ position: { x: 70, y: 22 } });
   await page.keyboard.press('Control+k');
   const editor = page.locator('[data-inline-ai]');
   await editor.waitFor();
-  await editor.locator('[data-inline-prompt]').fill('/interactive why the root is the largest');
+  await editor.locator('[data-inline-prompt]').fill('/explain why the root is the largest');
   await editor.locator('[data-inline-submit]').click();
   const job = await newJob(5);
   const body = lastCreate();
@@ -216,7 +216,7 @@ await step('a command-bearing Ctrl+K /interactive on a selected card: one job, s
 });
 
 await step('canvas switch: a job finishing while canvas B is open attaches to nothing there, and to its card on A', async () => {
-  await send(page, '/interactive how heapify builds a heap');
+  await send(page, '/explain how heapify builds a heap');
   const job = await newJob(6);
   await until(async () => (await board(canvasA.name)).blocks.some(block => block.id === job.cardId), 'the waiting card was not saved on A');
   await page.goto(`${BASE}/apps/${canvasB.name}`);
@@ -232,7 +232,7 @@ await step('canvas switch: a job finishing while canvas B is open attaches to no
 });
 
 await step('provider_unavailable: paused with the request kept; Retry twice sends one Retry at the job\'s attempt; then it fills in', async () => {
-  await send(page, '/interactive how a heap removes its root');
+  await send(page, '/explain how a heap removes its root');
   const job = await newJob(7);
   // The job view L1 documents (job-api-c.md, Provider unavailable).
   Object.assign(job, { stage: 'failed', stopReason: 'provider_unavailable', failure: { stage: 'authoring', category: 'provider_unavailable', message: 'Explanations are temporarily unavailable. Your request is saved. Try again in a few minutes.', retryable: true }, recovery: ['new_attempt', 'edit_request'] });

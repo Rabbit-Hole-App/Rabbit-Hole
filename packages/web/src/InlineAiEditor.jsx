@@ -36,10 +36,6 @@ import { descFor, typedOf } from './agent/slash.js';
 import CommandPill from './CommandPill.jsx';
 import { CommandMark } from './CommandTone.jsx';
 import { FILE_EDIT_LOCKED, fileEditLocked } from './file-chat-ref.js';
-
-// The Context button (what this request includes) is hidden for now (owner 2026-11-07): Ctrl+K should later choose its context automatically instead of
-// relying on the learner. The popover and its data stay in place; set this back to true to show the button again.
-const SHOW_CONTEXT_BUTTON = false;
 import { withPrompt } from './card-prompt.js';
 import { keyLabel } from './shortcuts.js';
 
@@ -95,7 +91,7 @@ export function CardEditPreview({ fields, proposedOnly = false }) {
     </section>)}
   </div>;
 }
-export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, initialMode = null, preset = null, onClose }) {
+export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, initialMode = null, onClose }) {
   const board = canvas.board;
   // A creation (nothing selected) is always Explain: Edit changes a selection, and there is none (creation §1).
   // A file card with no semantic editing path (file-chat-ref.js fileEditLocked) is Explain only: Edit is never offered for it.
@@ -123,11 +119,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const cardEditReason = !imageTarget && !notebookTarget && !cadTarget && !target.creation && (explainTarget ? explainEditReason : cardEditSelectionReason(target.ids || [], canvas.board?.() || {}));
   const fileLocked = !imageTarget && !cadTarget && !target.creation && fileEditLocked(target.ids || [], canvas.board?.());
   const [mode, setMode] = useState(target.creation || fileLocked || cardEditReason ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain');
-  // preset: { command, prompt } from an opener that already knows the command and its words (Explain on a highlighted passage).
-  const [prompt, setPrompt] = useState(preset?.prompt ?? '');
+  const [prompt, setPrompt] = useState('');
   // A / command (Release B, contract B4): the one picked or typed, as its registry name; prompt is then its words. /explain
   // is the Explain mode itself and has no pill; it is still sent. The picker opens while the line is a leading /word.
-  const [command, setCommand] = useState(preset?.command ?? null);
+  const [command, setCommand] = useState(null);
   const [pickerShut, setPickerShut] = useState(false);
   const [active, setActive] = useState(0);
   const [refused, setRefused] = useState(null);
@@ -966,9 +961,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           <div className="mt-2 max-h-64 overflow-auto" data-scroll><InlineRepositoryEvidence {...config.repositoryEvidence} contextKey={canvas.boardKey} suggestedQuery={evidenceAction}/></div>
         </details>}
         <div className="mt-2 flex items-center gap-2">
-          {SHOW_CONTEXT_BUTTON && <button type="button" data-inline-context aria-haspopup="dialog" aria-expanded={contextOpen} title="What this request includes"
+          <button type="button" data-inline-context aria-haspopup="dialog" aria-expanded={contextOpen} title="What this request includes"
             onClick={() => { setModeOpen(false); setContextOpen(open => !open); }}
-            className="rounded-md px-1 py-0.5 text-xs text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-ai">Context</button>}
+            className="rounded-md px-1 py-0.5 text-xs text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-ai">Context</button>
           <div className="relative ml-auto flex items-center gap-1.5">
             <button type="button" data-inline-mode-toggle data-inline-mode-current={mode} aria-haspopup="menu" aria-expanded={modeOpen} disabled={busy(status)} title="Quick Edit mode"
               onClick={() => { setContextOpen(false); setModeOpen(open => !open); }}
@@ -979,7 +974,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
               <div role="menu" data-inline-mode-menu aria-label="Mode" className={`absolute right-9 z-50 w-44 rounded-lg border border-line bg-white p-1 shadow-[0_2px_12px_rgba(15,15,15,0.12)] ${popBelow ? 'top-full mt-1' : 'bottom-full mb-1'}`}>
                 {MODES.map(([value, label]) => (
                   <button key={value} type="button" role="menuitemradio" aria-checked={mode === value} data-inline-mode={value}
-                    disabled={(target.creation || fileLocked || cardEditReason) && value === 'edit'} title={value !== 'edit' ? undefined : target.creation ? 'Select something to edit.' : fileLocked ? undefined : cardEditReason || undefined}
+                    disabled={(target.creation || fileLocked || cardEditReason) && value === 'edit'} title={value !== 'edit' ? undefined : target.creation ? 'Select something to edit.' : fileLocked ? FILE_EDIT_LOCKED : cardEditReason || undefined}
                     onClick={() => { changeMode(value); setModeOpen(false); focusField(); }}
                     className="flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-xs text-ink outline-none hover:bg-hover focus-visible:bg-hover disabled:text-ink-3 disabled:hover:bg-transparent">
                     <span className="flex w-3.5 justify-center">{mode === value && <Check size={13} className="text-ai" />}</span>{label}
@@ -987,6 +982,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
                 ))}
                 {target.creation && <p data-inline-edit-disabled className="px-2 pt-0.5 pb-1 text-[11px] text-ink-3">Select something to edit.</p>}
                 {cardEditReason && !fileLocked && <p data-inline-edit-disabled className="px-2 pt-0.5 pb-1 text-[11px] text-ink-3">{cardEditReason}</p>}
+                {fileLocked && <p data-inline-edit-disabled data-inline-file-locked className="px-2 pt-0.5 pb-1 text-[11px] text-ink-3">{FILE_EDIT_LOCKED}</p>}
               </div>
             )}
             {busy(status) ? (
@@ -996,7 +992,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             ) : (
               <button type="button" data-inline-submit aria-label={preview ? 'Refine' : 'Send'} title={preview ? 'Refine (Enter)' : 'Send (Enter)'}
                 disabled={!!cadJob || cadPending || readOnly || status === 'proposal' || !outgoing.trim() || outgoing.length > PROMPT_MAX} onClick={send}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-white outline-none hover:bg-accent-hover focus-visible:ring-2 focus-visible:ring-ai disabled:bg-hover disabled:text-ink-3"><ArrowUp size={15} /></button>
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-white outline-none focus-visible:ring-2 focus-visible:ring-ai disabled:bg-hover disabled:text-ink-3"><ArrowUp size={15} /></button>
             )}
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BookOpen, Highlighter, Lightbulb, MessageSquarePlus, ScanText, Trash2, X } from 'lucide-react';
+import { BookOpen, Highlighter, Lightbulb, ScanText, Trash2, X } from 'lucide-react';
 import { Button } from './ui.jsx';
 import { Md } from './Md.jsx';
 import { ToolButton, placeNear } from './selection-toolbar.jsx';
@@ -12,8 +12,6 @@ import { EXPLAIN_PASSAGE_EVENT, PASSAGE_TEXT, SOURCE_REF_EVENT, explanationsFor,
 import { textSegments } from './markdown-anchor.js';
 import { focusExplanation, mintSourceRef, registerPassageMeasure } from './source-refs.js';
 import { api } from './api.js';
-import { useChatWorkspace } from './chat-workspace.jsx';
-import { selectionRef } from './selection-ref.js';
 import { useSourcePending, useSourceRefBlocks } from './SourceRefChip.jsx';
 
 // UI.07: the Tutor's persistent source tint, its own Highlight registry (never the learner's wiki-highlight, never the transient emphasis), one entry per card.
@@ -250,24 +248,12 @@ export function MarkdownText({ block, text, children }) {
   // explanation with it, so the card that comes back can open the passage again. A file that changed since it was shown stops here.
   const explain = async quote => {
     const draft = markdownDraft({ block, quote, app: source.app });
-    // Where the passage is on screen now: the Explain skeleton is placed beside it (LearnPage passageSites, AdaptiveCanvas placeExplain).
-    const picked = window.getSelection?.(), box = picked?.rangeCount ? picked.getRangeAt(0).getBoundingClientRect() : null;
-    const rect = box && box.width > 0 ? { left: box.left, top: box.top, width: box.width, height: box.height } : null;
     window.getSelection?.()?.removeAllRanges(); setBar(null);
     if (!draft) return;
     try {
       const ref = await mintSourceRef((path, body) => api(path, { method: 'POST', body: JSON.stringify(body) }), draft);
-      window.dispatchEvent(new CustomEvent(EXPLAIN_PASSAGE_EVENT, { detail: { sourceRef: ref.id, text: quote.exact, cardId: block.id, rect } }));
+      window.dispatchEvent(new CustomEvent(EXPLAIN_PASSAGE_EVENT, { detail: { sourceRef: ref.id, text: quote.exact } }));
     } catch (problem) { setMessage({ text: problem.message }); }
-  };
-  // Add to chat: the highlighted passage joins the right-hand Chat composer as a context pill (the webpage card's Ask about selection, the canvas bar's
-  // Add to chat): nothing is sent, no highlight or proposal is made, the draft is untouched, and the same passage is not added twice (chat context).
-  const chat = useChatWorkspace();
-  const addToChat = quote => {
-    if (quote.exact.length > EXCERPT_LIMIT) { setMessage({ text: `Select up to ${EXCERPT_LIMIT.toLocaleString('en-US')} characters to add to chat.` }); return; }
-    const name = String(block.fileRef?.meta?.name || block.label || block.title || 'Markdown').slice(0, 120);
-    chat.addToChat(selectionRef({ ids: [block.id], kind: 'card', name, content: quote.exact, quote: quote.exact, text: () => quote.exact }));
-    window.getSelection?.()?.removeAllRanges(); setBar(null);
   };
   const remove = async h => {
     setMenu(null);
@@ -298,7 +284,6 @@ export function MarkdownText({ block, text, children }) {
     {bar && <div ref={barEl} data-file-doc-selection-toolbar role="toolbar" aria-label="Selected text" className="absolute z-30 flex items-center gap-0.5 rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>
       <ToolButton label="Highlight" icon={Highlighter} onClick={() => highlight(bar.quote)} />
       <ToolButton label="Explain" icon={Lightbulb} onClick={() => explain(bar.quote)} />
-      {chat && <ToolButton label="Add to chat" icon={MessageSquarePlus} onClick={() => addToChat(bar.quote)} />}
     </div>}
     {menu && <div ref={menuEl} data-file-doc-highlight-menu role="menu" aria-label="Highlight" className="absolute z-30 flex w-44 flex-col rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>
       {menu.cardId && <button type="button" role="menuitem" data-file-doc-view-explanation autoFocus onClick={() => { const id = menu.cardId; setMenu(null); focusExplanation(id); }} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><BookOpen size={14} className="shrink-0 text-ink-2" />View explanation</button>}

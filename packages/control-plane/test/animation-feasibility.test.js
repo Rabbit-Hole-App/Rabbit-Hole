@@ -170,7 +170,7 @@ test('oversized: Chat explains it and offers changes, no Generate exists until o
   assert.equal(rows(s.sqlite, 'chat_message_meta').filter(r => JSON.parse(r.meta_json).proposal).length, 1, 'one plan message for two presses');
   assert.ok(proposal.input.scene.notices.some(n => n.startsWith(CHANGED)), 'the review card keeps the change in view');
   assert.ok(proposal.input.scene.parameters.length === big.parameters.length);
-  assert.equal(chat(s).at(-1).content, '', 'the plan card alone; what changed is on its review card (notices above)');
+  assert.match(chat(s).at(-1).content, /It differs from what you asked: Changed: the trail draws/);
   assert.equal(choiceOf(s).chosen, 'fewer_markers');
   assert.equal((await pick(s, id, 'no_kept_path')).status, 409, 'the other choice is gone');
   // Generate is then the existing action on the changed plan, and its cost is on the card (usage.max_credits).
@@ -245,7 +245,7 @@ test('supported: the usual plan message; the outcome says what the checks found,
   const { body } = await s.create();
   await s.run(body.job.id);
   assert.equal((await s.job(body.job.id)).job.outcome, 'supported');
-  assert.equal(chat(s).at(-1).content, '', 'the plan card alone, no canned sentence');
+  assert.equal(chat(s).at(-1).content, 'Here is the plan for your animation. Generate makes it.');
   assert.doesNotMatch(JSON.stringify(postedProposal(s.sqlite, body.job.id)), /guarante|will fit/i);
 });
 

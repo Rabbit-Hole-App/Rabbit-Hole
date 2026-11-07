@@ -23,12 +23,7 @@ test('every registered Learn command has exactly one inline status (A6), and nav
   }
   // /animate, /video and /motion are three routes, never one.
   assert.deepEqual(['animate', 'video', 'motion'].map(inlineStatus), ['route', 'route', 'route']);
-  // Owner 2026-11-07: the id `explain` (typed /interactive) shares its key with inline's written-card route, so NOT_INLINE names it and is
-  // checked first; the written command is the id `explanation`, which resolves to that route.
-  assert.ok(Object.keys(NOT_INLINE).every(name => name === 'explain' || !ROUTES[name]));
-  assert.deepEqual([inlineStatus('explanation'), inlineStatus('explain')], ['route', 'n/a']);
-  assert.deepEqual(planRoute({ mode: 'explain', prompt: '/explain why', enabled: all }), { route: 'explain', via: 'command', args: 'why' }, 'typed /explain is the written card route');
-  assert.equal(planRoute({ mode: 'explain', prompt: '/interactive why', enabled: all }).clarify.question, "/interactive isn't part of inline Explain (an interactive visual with controls and an approval step: use it from the chat composer). Use it from the chat composer.");
+  assert.ok(Object.keys(NOT_INLINE).every(name => !ROUTES[name]));
 });
 
 test('explicit commands come from the learner\'s prompt only, at its start; quoted or later commands are words', () => {

@@ -6,15 +6,13 @@ import worker from './dev-worker.js';
 import { ownControlPlane } from '../control-plane/src/dev-forwarding.js';
 import { cadJobDiagnostic } from '../control-plane/src/cad-job-diagnostic.js';
 import { withFraming } from '../control-plane/src/framing-headers.js';
-import { captureServerError } from '../control-plane/src/crash-report.js';
 export { RepositoryImports, LearnScenes, LearnVideos, CadJobs, ExplainJobs, AnimationJobs, ImageJobs, FileJobs, WhiteboardJobs, RoadmapJobs } from './dev-worker.js';
 
 export default {
   queue: (batch, env) => worker.queue(batch, ownControlPlane(env)),
   scheduled: (event, env, ctx) => worker.scheduled(event, env, ctx),
   // Every response, these early ones too, passes the framing wrapper (framing-headers.js): the dev worker applies it to what it routes.
-  // An uncaught exception is sent to Sentry (crash-report.js) and thrown again, so the platform's own 500 and logs are unchanged.
-  fetch: async (req, env, ctx) => { try { return withFraming(req, await respond(req, env, ctx)); } catch (error) { captureServerError(env, ctx, req, error); throw error; } },
+  fetch: async (req, env, ctx) => withFraming(req, await respond(req, env, ctx)),
 };
 
 function respond(req, env, ctx) {

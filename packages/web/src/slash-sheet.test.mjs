@@ -27,10 +27,10 @@ const asset = path => existsSync(new URL(`../public${path}`, import.meta.url));
 const sheet = read('./SlashCommandsSheet.jsx'), stage = read('./SlashCommandPreview.jsx');
 const argsOf = name => parseSlash(EXAMPLES[name]).args;
 
-test('the window reads the picker sections: 21 commands, each with an example and exactly one preview of its own', () => {
-  assert.deepEqual(all.map(section => section.title), ['Tutor', 'Create', 'Search']); // owner 2026-11-07: the first section reads Tutor
+test('the window reads the picker sections: 20 commands, each with an example and exactly one preview of its own', () => {
+  assert.deepEqual(all.map(section => section.title), ['Learn', 'Create', 'Search']);
   const listed = names(all);
-  assert.equal(listed.length, 21, 'owner, 2026-10-30: /animation added; owner roadmap 2026-11-04: /whiteboard added; owner 2026-11-07: /explain split into /explain and /interactive');
+  assert.equal(listed.length, 20, 'owner, 2026-10-30: /animation added; owner roadmap 2026-11-04: /whiteboard added');
   // /whiteboard (id whiteboard-video): the roadmap 1.3 example line, a card preview, and its about as the window's description.
   assert.equal(EXAMPLES['whiteboard-video'], '/whiteboard explain gradient descent with one worked example');
   assert.equal(previewOf('whiteboard-video').kind, 'card');

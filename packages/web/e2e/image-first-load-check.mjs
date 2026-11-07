@@ -107,7 +107,7 @@ async function prepare(context) {
       original_request: `/image ${words}`, references: [], sig: `v3.${'0'.repeat(64)}`, usage: { estimate_credits: 1, max_credits: 4, reserve_credits: 5 }, expires_at: Math.floor(Date.now() / 1000) + 3600 };
     const threadId = body.thread_id || `canvaschat-img-${run}`, messageId = 900000 + n;
     plans.set(words, { proposal, artifact });
-    turns.push({ threadId, user: { role: 'user', content: `/image ${words}`, messageId: String(800000 + n) }, answer: { role: 'assistant', content: '', messageId: String(messageId), kind: 'answer', status: 'done', meta: { proposal, alternatives: [String(messageId)] } } });
+    turns.push({ threadId, user: { role: 'user', content: `/image ${words}`, messageId: String(800000 + n) }, answer: { role: 'assistant', content: 'Here is the plan for your image. Generate makes it.', messageId: String(messageId), kind: 'answer', status: 'done', meta: { proposal, alternatives: [String(messageId)] } } });
     return route.fulfill({ json: { thread_id: threadId, message_id: messageId, proposal, references: [] } });
   });
   // MOCKED restore of that thread after a reload (step 4).

@@ -148,16 +148,17 @@ await check('7 Invited people only: the link stops; forks made from it survive',
   assert.equal((await api(viewer, `/api/learn/boards/shared/${shareToken}`)).status, 404);
   assert.equal((await api(viewer, `/api/apps/${fork.name}`)).status, 200);
 });
-await check('8 Rename to a title another of your canvases has is refused: the error shows and Save stays off (owner 2026-11-07)', async () => {
+await check('8 Rename keeps a typed title exactly; a repeat only earns a quiet note', async () => {
   await menuOf(TITLE);
   await button('Rename').click();
   const dialog = page.getByRole('dialog', { name: 'Rename' });
   await dialog.getByLabel('Title').fill(OTHER);
   await dialog.locator('[data-same-title]').waitFor();
   await shot('03-rename-same-title');
-  assert.equal(await dialog.getByRole('button', { name: 'Save' }).isDisabled(), true, 'a taken name cannot be saved');
-  await dialog.getByRole('button', { name: 'Cancel' }).click();
-  assert.equal((await row()).title, TITLE, 'the title is unchanged');
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await page.waitForTimeout(1000);
+  assert.equal((await row()).title, OTHER, 'kept exactly, no "(2)"');
+  await api(owner, `/api/apps/${c.name}`, { method: 'PATCH', body: JSON.stringify({ title: TITLE }) });
   await library();
 });
 await check('9 Edit description: up to 340 characters (owner, 2026-10-23), saved on the canvas', async () => {

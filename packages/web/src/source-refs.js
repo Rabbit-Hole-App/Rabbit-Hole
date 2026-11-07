@@ -2,7 +2,6 @@
 // server mints a ref from a selection (mintSourceRef), a job and a card carry it, and a card's status is read again
 // (resolveSourceRef) whenever it is shown: an immutable revision means "current" is a fact the server checked, not a guess.
 // `post` is the page's api POST (learn-slash.js's, LearnPage's): { data, status } errors as api() throws them. Pure: no React.
-import { startTiming } from './client-timing.js';
 import { CREATE_REFUSED, SOURCE_REF_EVENT, explanationsFor, markdownCardOf, navigable, readerRef, sourceRefOf } from './source-ref.js';
 
 export const SOURCE_REFS = '/api/learn/source-refs';
@@ -27,9 +26,8 @@ export function resolveSourceRef(post, app, id, { delay = 0, schedule = setTimeo
     batch = { ids: new Set(), done: null };
     batch.done = new Promise(resolve => schedule(async () => {
       waiting.delete(key);
-      const timing = startTiming('source_resolve_ms');
-      try { resolve(new Map((await post(`${SOURCE_REFS}/resolve`, { app, ids: [...batch.ids] })).refs.map(ref => [ref.id, ref]))); timing.end('ok'); }
-      catch { timing.end('failed'); resolve(new Map()); }
+      try { resolve(new Map((await post(`${SOURCE_REFS}/resolve`, { app, ids: [...batch.ids] })).refs.map(ref => [ref.id, ref]))); }
+      catch { resolve(new Map()); }
     }, delay));
     waiting.set(key, batch);
   }
@@ -115,22 +113,8 @@ export function stepExcerpt(post, app, id) {
   if (!app || !id) return Promise.resolve(UNAVAILABLE);
   const key = `${app}|${id}`;
   if (excerpts.has(key)) return Promise.resolve(excerpts.get(key));
-  const timing = startTiming('source_resolve_ms');
   return post(`${SOURCE_REFS}/resolve`, { app, ids: [id], excerpt: true }).then(
-    ({ refs }) => { timing.end('ok'); const found = (refs || []).find(ref => ref.id === id), out = found?.status === 'current' && typeof found.excerpt === 'string' && found.excerpt ? { state: 'ready', text: found.excerpt } : UNAVAILABLE; excerpts.set(key, out); return out; },
-    () => { timing.end('failed'); return UNAVAILABLE; });
+    ({ refs }) => { const found = (refs || []).find(ref => ref.id === id), out = found?.status === 'current' && typeof found.excerpt === 'string' && found.excerpt ? { state: 'ready', text: found.excerpt } : UNAVAILABLE; excerpts.set(key, out); return out; },
+    () => UNAVAILABLE);
 }
 export const forgetExcerpts = () => excerpts.clear();
-
-// The Ctrl+K line that follows Explain on a highlighted passage (FileDocMarkdown's bulb opens Ctrl+K with /explain and the passage):
-// the minted ref and the passage ride that one /explain or /interactive line, once, and only within five minutes. `held` is a ref
-// ({ current: { sourceRef, text, at } }); any other line, or a stale hold, leaves the target as Ctrl+K sent it.
-// The pill the bulb opens: 'explain' is the /interactive job route (the plan card with Generate, Edit and Cancel, and the skeleton beside the passage);
-// 'explanation' would be the written /explain. One constant, so switching back is a one-word edit.
-export const HIGHLIGHT_EXPLAIN_COMMAND = 'explain';
-export function heldPassageTarget(target, line, held, now = Date.now()) {
-  const pass = held?.current;
-  if (!pass || !/^\/(explain|interactive)\b/i.test(String(line ?? '').trim())) return target;
-  held.current = null;
-  return now - pass.at > 5 * 60_000 ? target : { ...(target || {}), id: target?.id ?? null, text: pass.text, sourceRef: pass.sourceRef };
-}

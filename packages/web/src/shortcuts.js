@@ -86,8 +86,6 @@ export function shortcutRows({ sendKey = 'enter' } = {}) {
     { id: 'nudge-10', section: 'Selection, editing and arrangement', label: 'Nudge by 10 units', keys: ['Shift+ArrowKeys'] },
     { id: 'comment', section: 'Selection, editing and arrangement', label: 'Comment on the selection', keys: ['C'] },
     { id: 'edit-text', section: 'Selection, editing and arrangement', label: 'Edit the selected text, note, shape or line label', keys: ['Enter'] },
-    { id: 'rename', section: 'Selection, editing and arrangement', label: 'Rename the selected card', keys: ['F2'] },
-    { id: 'full-content', section: 'Selection, editing and arrangement', label: 'Full content on or off for the selected card', keys: ['Shift+F'] },
     { id: 'select-card', section: 'Selection, editing and arrangement', label: 'Select the keyboard-focused card', keys: [' '] },
     // The canvas menu (CanvasMenu.jsx, WAI-ARIA menu). Shift+F10 and the Menu key are not verified on a Mac, so a Mac shows
     // the pointer ways in (owner brief, message 2 section 3).

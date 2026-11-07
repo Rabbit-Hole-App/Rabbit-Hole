@@ -8,7 +8,7 @@ import { useStepExcerpt } from './SourceRefChip.jsx';
 import { STRINGS } from './roadmap-strings.js';
 import { chatOf, invitationOf } from './roadmap-client.js';
 import { newThreadId, saveMessage, saveTutorEntry } from './chat-persist.js';
-import { ensureTutorThread, entriesOf, invitationThreadId, occupied, outcomeOf, roadmapEditTarget, roadmapInvitationOf, roadmapThreadClientId, routeClientId, toSave } from './roadmap-transcript.js';
+import { ensureTutorThread, entriesOf, historyActions, invitationThreadId, occupied, roadmapEditTarget, roadmapThreadClientId, routeClientId, toSave } from './roadmap-transcript.js';
 
 // The Tutor inside the real Chat transcript (BRIEF contract 6; checklist UI.01, UI.03, UI.08). Every Tutor entry is an ordinary saved Chat
 // message in its bound thread (entriesOf + saveTutorEntry), drawn by the existing ChatMessage with the roadmap's own controls under it:
@@ -26,12 +26,10 @@ const SESSION = { get: key => { try { return sessionStorage.getItem(key); } catc
 const ROUTE = id => `rh.roadmap.route.${id}`, IV_THREAD = id => `rh.roadmap.ivthread.${id}`;
 const ATTR = { explain_on_canvas: 'data-roadmap-explain', keep_here: 'data-roadmap-keep', accept: 'data-roadmap-accept', cancel: 'data-roadmap-cancel', accept_roadmap: 'data-roadmap-accept-plan',
   edit_roadmap: 'data-roadmap-edit-plan', end: 'data-roadmap-end', propose_next: 'data-roadmap-propose-next', open_toc: 'data-roadmap-review', edit_card: 'data-roadmap-edit', route_new: 'data-roadmap-route-new',
-  route_stay: 'data-roadmap-route-stay', go_card: 'data-roadmap-go-card', go_text: 'data-roadmap-go-text', answer: 'data-roadmap-option', recover: 'data-roadmap-recover' };
+  route_stay: 'data-roadmap-route-stay', go_card: 'data-roadmap-go-card', go_text: 'data-roadmap-go-text', answer: 'data-roadmap-option' };
 // The approved green affirmative (file 02/03) on the existing success token; everything else the roadmap's existing secondary button.
 const GREEN = 'h-8 rounded-md border border-success/40 bg-success/15 px-3 text-xs font-medium text-ink outline-none hover:bg-success/25 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-default disabled:opacity-45';
 const SECOND = `${SECONDARY} disabled:cursor-default disabled:opacity-45`;
-// Cancel is the plain text control after the buttons (owner 2026-11-07: Generate/Accept, Edit, then Cancel as text with a hover fill).
-const TEXT = 'h-8 rounded-md px-3 text-xs text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-default disabled:opacity-45';
 
 // The live context entriesOf needs: the shown invitation (or the one this route record names), its route and the second-source boundary.
 function contextOf(roadmap) {
@@ -49,7 +47,7 @@ function targetOf(entry, { bound, threadId, route }) {
 }
 
 // One entry: the existing ChatMessage for its words (or its waiting row while generating), the draft containers, an activity spinner, actions.
-export function EntryView({ entry, live, run, app = null, busy = false, invitation = null, acceptedPlanVersion = null }) {
+function EntryView({ entry, live, run, app = null, busy = false }) {
   // UI.04 / roadmap 3.8: the same exact passage the canvas slot shows (SourceRefChip useStepExcerpt); a step with no reference shows none, an unreadable
   // one says so, and no quote is ever invented.
   const found = useStepExcerpt(live ? entry.sourceRef : null, app);
@@ -57,29 +55,20 @@ export function EntryView({ entry, live, run, app = null, busy = false, invitati
   const m = entry.activity && entry.kind === 'draft'
     ? { role: 'assistant', content: '', status: entry.activity, clientId: entry.clientId, meta: { roadmap: entry.clientId } }
     : { role: 'assistant', content: draftIntro ?? entry.content, status: 'done', clientId: entry.clientId, meta: { roadmap: entry.clientId } };
-  // The invitation message while its roadmap is made (or once made): one Generating roadmap shimmer where the buttons were, then no buttons.
-  const resolved = entry.kind === 'invitation' && !!invitation && invitation.invitationId === entry.tutor?.invitationId; // its roadmap exists
-  const generating = entry.kind === 'invitation' && (entry.creating === true || (resolved && invitation.first));
-  // A decided or stored entry keeps no button (a dead, greyed control reads as broken and hides what happened): history shows a one-line outcome instead.
-  const decided = !live || (entry.kind === 'invitation' && (entry.creating === true || resolved)) || (entry.kind === 'route' && !!entry.tutor?.choice);
-  const actions = decided ? [] : entry.actions;
-  const outcome = outcomeOf(entry, { live, acceptedPlanVersion });
-  if (entry.kind === 'draft' && entry.activity && invitation?.first) return null; // the invitation's shimmer stands for this draft until it arrives
+  const actions = live ? entry.actions : historyActions(entry.tutor);
   return (
     <div data-roadmap-item={entry.clientId} data-roadmap-kind={entry.kind} data-roadmap-stale={live ? undefined : ''} {...(entry.kind === 'invitation' ? { 'data-roadmap-invitation': entry.tutor.invitationId } : {})}>
       <ChatMessage m={m} i={0} msgs={[m]} learnChat busy={false} setMsgs={() => {}} setFilePeek={() => {}} setRunPeek={() => {}} />
       {found.state === 'ready' && found.text && <blockquote data-roadmap-excerpt className="mb-1.5 max-h-24 overflow-auto border-l-2 border-accent/40 pl-2 text-xs break-words text-ink-2">{found.text}</blockquote>}
       {found.state === 'unavailable' && <p data-roadmap-excerpt-unavailable className="mb-1.5 text-xs text-ink-3">{STRINGS.excerptUnavailable}</p>}
       {entry.draft && <RoadmapPlan draft={entry.draft} disabled={!live || busy} onDepth={depth => run({ kind: 'depth', depth })} />}
-      {live && entry.activity && entry.kind !== 'draft' && <span role="status" className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-claude" /><span className="shimmer">{entry.activity}</span></span>}
-      {generating && <span role="status" data-roadmap-generating className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-claude" /><span className="shimmer">{STRINGS.generatingRoadmap}</span></span>}
-      {outcome && <p data-roadmap-outcome className="pb-1.5 text-xs text-ink-2">{outcome}</p>}
+      {live && entry.activity && entry.kind !== 'draft' && <span role="status" className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-ink-3" /><span className="shimmer">{entry.activity}</span></span>}
       {actions.length > 0 && (
-        <div data-roadmap-actions className={entry.draft ? 'flex flex-wrap gap-2 pt-3 pb-1.5' : 'flex flex-wrap gap-1.5 pt-1 pb-1.5'}>
+        <div className="flex flex-wrap gap-1.5 pt-1 pb-1.5">
           {actions.map(action => {
             const attr = ATTR[action.id], marks = attr ? { [attr]: action.key || true } : {}, off = !live || !!action.disabled;
             if (action.blue) return <Button key={action.id} type="button" variant="primary" size="sm" {...marks} disabled={off} onClick={() => run(action.run)}>{action.label}</Button>;
-            return <button key={action.key || action.id} type="button" {...marks} disabled={off} onClick={() => run(action.run)} className={action.id === 'cancel' ? TEXT : action.green ? GREEN : action.primary && action.id === 'explain_on_canvas' ? PRIMARY : SECOND}>{action.label}</button>;
+            return <button key={action.key || action.id} type="button" {...marks} disabled={off} onClick={() => run(action.run)} className={action.green ? GREEN : action.primary && action.id === 'explain_on_canvas' ? PRIMARY : SECOND}>{action.label}</button>;
           })}
         </div>
       )}
@@ -107,7 +96,6 @@ function runner(roadmap, chat, choose) {
       }
       case 'open_toc': chat.panels.setTab('toc'); chat.panels.setOpen(true); return null; // navigation only, on this click
       case 'propose_next': return c.proposeNext();
-      case 'recover': return c.recoverOffer({ choice: r.choice });
       case 'end': return c.end();
       case 'accept': return c.acceptProposal();
       case 'cancel': return c.cancelProposal();
@@ -126,7 +114,7 @@ export function TutorMessage({ m, roadmap, chat }) {
   const entries = useEntries(roadmap);
   const live = entries.find(e => e.clientId === m.clientId) || null;
   const entry = live || { clientId: m.clientId, kind: m.meta.tutor.kind, content: m.content, tutor: m.meta.tutor, actions: [] };
-  return <EntryView entry={entry} live={!!live} app={chat.canvas} run={runner(roadmap, chat, () => {})} busy={roadmap.state.view?.revisionPending === true} invitation={roadmapInvitationOf(roadmap.state)} acceptedPlanVersion={roadmap.state.view?.roadmap?.acceptedPlanVersion ?? null} />;
+  return <EntryView entry={entry} live={!!live} app={chat.canvas} run={runner(roadmap, chat, () => {})} busy={roadmap.state.view?.revisionPending === true} />;
 }
 
 export default function RoadmapTranscript({ roadmap, chat, msgs }) {
@@ -222,7 +210,7 @@ export default function RoadmapTranscript({ roadmap, chat, msgs }) {
         return <div key={line.id} data-roadmap-item={line.id}><ChatMessage m={m} i={0} msgs={[m]} learnChat busy={false} setMsgs={() => {}} setFilePeek={() => {}} setRunPeek={() => {}} />
           {line.kind === 'coverage' && <div className="flex flex-wrap gap-1.5 pb-1.5">{line.choices.map(choice => <button key={`${choice.locationId}:${choice.part}`} type="button" data-roadmap-choice={`${choice.locationId}:${choice.part}`} onClick={() => run({ kind: 'part', choice })} className={SECOND}>{choice.label}</button>)}</div>}</div>;
       })}
-      {shown.map(entry => <EntryView key={entry.clientId} entry={entry} live app={chat.canvas} run={run} busy={roadmap.state.view?.revisionPending === true} invitation={roadmapInvitationOf(roadmap.state)} acceptedPlanVersion={roadmap.state.view?.roadmap?.acceptedPlanVersion ?? null} />)}
+      {shown.map(entry => <EntryView key={entry.clientId} entry={entry} live app={chat.canvas} run={run} busy={roadmap.state.view?.revisionPending === true} />)}
     </div>
   );
 }

@@ -289,7 +289,7 @@ test('brief and author prompts pin the four elements, on both routes, in the exi
   for (const prompt of [EXPLAIN_BRIEF_SYSTEM, EXPLAIN_PROGRAM_BRIEF_SYSTEM]) assert.ok(prompt.includes(BRIEF_ELEMENTS));
   for (const tool of [briefTool(['flow']), briefTool(null)]) {
     assert.ok(tool.input_schema.properties.summary.description.includes(BRIEF_ELEMENTS));
-    assert.deepEqual(Object.keys(tool.input_schema.properties).filter(k => !['title', 'summary', 'presentation', 'components', 'assumptions', 'evidence_ids', 'limitations', 'ambiguous', 'expanded', 'gap', 'reply'].includes(k)), [], 'no new brief field but the optional reply lead-in (owner 2026-11-07: no canned assistant sentence)');
+    assert.deepEqual(Object.keys(tool.input_schema.properties).filter(k => !['title', 'summary', 'presentation', 'components', 'assumptions', 'evidence_ids', 'limitations', 'ambiguous', 'expanded', 'gap'].includes(k)), [], 'no new brief field');
   }
   assert.match(EXPLAIN_AUTHOR_SYSTEM, /With brief: make the card deliver what its summary says: draw the objects it names, make the change it names visible, show the relationship it names in labels or readouts, and give each control, button or selectable part the test it names/);
   assert.doesNotMatch(BRIEF_ELEMENTS, /pendulum|gravity|cool|sort|heap|earth|moon|interest|rain/i);

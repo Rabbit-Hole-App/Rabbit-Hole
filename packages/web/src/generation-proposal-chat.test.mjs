@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isSmallTalk } from './inline-ai-route.js';
 import { EDIT_ONE_THING, currentProposal, editPath, editRefusal, editSpent, editTarget, failedStart, generateProposal, generationField, madeFrom, proposalActive, proposalBlock, proposalRefusal, refinementConflictText, refusedReason, settingsConflict } from './generation-proposal-chat.js';
 
 const soon = Math.floor(Date.now() / 1000) + 3600;
@@ -59,14 +58,13 @@ test('route: the bound fields come from the ask payload; each decision becomes s
   assert.equal(url, '/api/learn/chat/route');
   assert.deepEqual({ ...body, request_id: 'x' }, { request_id: 'x', app: 'canvas-1', pending: null, text: payload.message, capability: null, mode: 'auto', selection: { id: 'k1' }, source_refs: [{ sourceId: 'card:shape:k1' }], motion: { concept: 'Biology' } });
   assert.deepEqual(routeOutcome(proposal), { send: true, token: 'tok' }, 'a proposal is the ordinary turn with its token');
-  assert.deepEqual(routeOutcome({ route: 'capability:motion', flow: 'proposal', token: null }).show.kind, 'error', 'no token: never sent as a proposal');
+  assert.deepEqual(routeOutcome({ route: 'capability:motion', flow: 'proposal', token: null }).show.kind, 'fallback', 'no token: never sent as a proposal');
   assert.deepEqual(routeOutcome({ route: 'answer', via: 'jev' }), { send: true, token: null });
   assert.deepEqual(routeOutcome({ route: 'capability:youtube', flow: 'direct', capability: 'youtube', args: 'photosynthesis' }), { direct: { command: 'youtube', args: 'photosynthesis' } }, 'a search keeps its own handler: no Generate card');
   assert.deepEqual(routeOutcome({ route: 'clarify', clarification: { question: 'Did you want a Motion video or an answer in chat?', options: ['motion', 'answer'] } }).show, { kind: 'clarify', message: 'Did you want a Motion video or an answer in chat?', options: ['motion', 'answer'] });
   assert.deepEqual(routeOutcome({ route: 'unsupported', message: 'Motion is paused.' }).show, { kind: 'unsupported', message: 'Motion is paused.' });
-  const failed = { route: 'answer', via: 'fallback', recoverable: true, code: 'timeout', message: ROUTE_FAILED };
-  assert.deepEqual(routeOutcome(failed).show, { kind: 'error', message: ROUTE_FAILED }, 'a command that cannot start shows its error, never answered as a paid capability');
-  assert.equal(routeOutcome(failed, { plain: true }).show, undefined, 'an ordinary message shows nothing and goes on as an answer-only turn');
+  const failed = { route: 'answer', via: 'fallback', retryable: true, code: 'timeout', message: ROUTE_FAILED };
+  assert.deepEqual(routeOutcome(failed).show, { kind: 'fallback', message: ROUTE_FAILED, retryable: true }, 'a router failure is shown with Answer normally and Retry, never answered as a paid capability');
   // Not deployed (404): the turn goes as today. A network error or a refusal: the failure, retryable.
   assert.equal(await routeChat(reply(404, null), payload), null);
   assert.deepEqual(routeOutcome(null), { send: true, token: null });
@@ -79,16 +77,10 @@ test('route: the bound fields come from the ask payload; each decision becomes s
 test('the Chat routes plain turns and proposed commands; other command prompts, regenerations and Tutor turns do not', async () => {
   const { readFileSync } = await import('node:fs');
   const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
-  const routable = "const routable = chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && !edit && payload.mode !== 'tutor';";
-  assert.ok(ask.includes(routable), 'only a plain Learn Chat turn is routable: no private chat, attachment, regeneration, demo, Edit target, Tutor turn or contents conversation');
-  assert.ok(ask.includes("if (routable && !answerChosen && ((!prompted && !commandName) || reviewRequired(commandName))) {"), 'plain turns and proposed commands route (a greeting is decided inside routeChat with no request); the clarification option Answer in chat does not; other command prompts never loop back through it');
-  assert.ok(ask.includes("if (routable && !commandName && answerChosen) payload.answer_only = true;"), 'the clarification option Answer in chat is a server-enforced answer-only turn');
-  assert.ok(ask.includes('if (outcome.answerOnly) Object.assign(payload, { answer_only: true, ...(outcome.failure ? { route_failure: outcome.failure } : {}) });'), 'a greeting or a recoverable router failure continues once as an answer-only turn');
-  assert.ok(ask.includes('{ plain: !commandName && !routeAs && !prompted }'), 'only an uncommanded turn recovers; a command keeps its shown failure');
+  assert.ok(ask.includes("if (chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && !edit && payload.mode !== 'tutor' && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {"), 'plain turns and proposed commands route; other command prompts and Edit turns (an explicit proposal target) never loop back through it');
   assert.ok(ask.includes('{ capability: routeAs ?? commandName ?? null }'), 'an explicit command names its capability: zero router calls');
   assert.ok(ask.includes('if (outcome.token) payload.route_token = outcome.token;'));
-  assert.ok(ask.includes('if (!keepDraft) setInput(current => current || (commandName ?'), 'a refused or clarified turn gives the words back, never over a kept draft');
-  assert.ok(ask.includes("const say = text => setMsgs(m => [...m, { role: 'assistant', content: text }]);"), 'a refusal or clarification is a line in the Chat, not a banner above or below it');
+  assert.ok(ask.includes('if (!keepDraft) setInput(current => current || (commandName ?'), 'a shown decision gives the words back, never over a kept draft');
 });
 test('the e2e route fixture (e2e/dev-cp.mjs) passes the client: routeChat keeps it and the turn is sent; a body with no route falls back', async () => {
   const { routeChat, routeOutcome, ROUTE_FAILED } = await import('./generation-proposal-chat.js');
@@ -102,7 +94,7 @@ test('the e2e route fixture (e2e/dev-cp.mjs) passes the client: routeChat keeps 
   assert.deepEqual(routeOutcome(decision), { send: true, token: null }, 'an answer: the turn is sent, with no token');
   // The catch-all the checks used to answer it with ({ ok: true }) is malformed: the fallback, and no turn.
   const caught = await routeChat(serve(() => ({ ok: true })), payload);
-  assert.deepEqual([caught.via, caught.code, routeOutcome(caught).show], ['fallback', 'malformed', { kind: 'error', message: ROUTE_FAILED }]);
+  assert.deepEqual([caught.via, caught.code, routeOutcome(caught).show], ['fallback', 'malformed', { kind: 'fallback', message: ROUTE_FAILED, retryable: true }]);
   // mockChatRoute answers only the route path, with the request's own body.
   const handlers = [];
   await mockChatRoute({ route: async (pattern, handler) => handlers.push([pattern, handler]) }, []);
@@ -312,136 +304,12 @@ test('an /animation plan approves its job like an /explain brief, with its own h
 
 // Owner decision 35 (2026-11-04): /animation's Generate line states the most a build can cost, from the server's figure, in the owner's words. Explain keeps its own cost note.
 test('the /animation card says what Generate costs from the server figure, with the Edit plan cost beside it; Explain keeps its own note', async () => {
-  const { jobReviewCopy, animationCostNote } = await import('./generation-proposal-chat.js');
+  const { jobReviewCopy, animationCostNote, EXPLAIN_COST_NOTE } = await import('./generation-proposal-chat.js');
   const plan = { command: 'animation', usage: { estimate_credits: null, max_credits: 591, reserve_credits: null }, input: { job: 'aj_1', scene: {} } };
   assert.equal(jobReviewCopy(plan).note, 'Generate: up to 591 credits; most animations use 50–100; a failed one is refunded.');
   assert.equal(jobReviewCopy({ ...plan, usage: { max_credits: 1234 } }).note, 'Generate: up to 1,234 credits; most animations use 50–100; a failed one is refunded.', 'the number comes from the server, never typed here');
   assert.equal(animationCostNote({ ...plan, input: { scene: { planCredits: 56 } } }), 'Edit plan uses up to 56 AI credits to rewrite the plan. Generate: up to 591 credits; most animations use 50–100; a failed one is refunded.');
   assert.equal(animationCostNote({ ...plan, usage: {} , input: { scene: { planCredits: 56 } } }), 'Edit plan uses up to 56 AI credits to rewrite the plan.', 'the plan credits alone when the server sent no maximum');
   assert.doesNotMatch(jobReviewCopy(plan).note, /\.\.\.|…|\$|dollar/);
-  assert.equal(jobReviewCopy({ command: 'explain', usage: { max_credits: 591 } }).note, undefined, 'the Explain review card carries no cost note (owner 2026-11-07)');
+  assert.equal(jobReviewCopy({ command: 'explain', usage: { max_credits: 591 } }).note, EXPLAIN_COST_NOTE, 'Explain does not share the string');
 });
-
-test('a recoverable router failure on an ordinary turn goes on once as an answer-only turn; a refusal, a command and a decided route do not', async () => {
-  const { routeChat, routeOutcome, ROUTE_FAILED } = await import('./generation-proposal-chat.js');
-  const payload = { scope: { app: 'canvas-0a1b2c3d' }, message: 'why is the sky blue', mode: 'auto' };
-  const reply = (status, body) => async () => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-  const down = await routeChat(async () => { throw new Error('offline'); }, payload, { requestId: 'req-0000aaaa' });
-  assert.deepEqual([down.via, down.recoverable, down.code, down.requestId, down.status], ['fallback', true, 'unavailable', 'req-0000aaaa', null]);
-  assert.deepEqual(routeOutcome(down, { plain: true }), { send: true, token: null, answerOnly: true, failure: { request_id: 'req-0000aaaa', status: null, code: 'unavailable' } });
-  const server = await routeChat(reply(200, { route: 'answer', via: 'fallback', retryable: true, code: 'timeout', message: ROUTE_FAILED }), payload, { requestId: 'req-0000bbbb' });
-  assert.deepEqual(routeOutcome(server, { plain: true }), { send: true, token: null, answerOnly: true, failure: { request_id: 'req-0000bbbb', status: 200, code: 'timeout' } });
-  for (const status of [500, 502, 503, 408, 429]) assert.equal(routeOutcome(await routeChat(reply(status, { error: 'x' }), payload), { plain: true }).answerOnly, true, String(status));
-  // Authorization and validation errors stay shown, with the server's own words: the turn is not sent around them.
-  for (const status of [400, 401, 403, 413]) {
-    const refused = routeOutcome(await routeChat(reply(status, { error: 'No access to this canvas.' }), payload), { plain: true });
-    assert.deepEqual([refused.send, refused.show.kind, refused.show.message], [undefined, 'error', 'No access to this canvas.'], String(status));
-  }
-  // A command (typed or picked) keeps the shown failure: never a silent answer in place of a tool the learner asked for.
-  assert.equal(routeOutcome(down).show.kind, 'error');
-  assert.equal(routeOutcome(down, { plain: false }).send, undefined);
-  // Decided routes are untouched: an answer sends, a clarification and an unsupported ask show, a proposal needs its token.
-  assert.deepEqual(routeOutcome({ route: 'answer', via: 'jev' }, { plain: true }), { send: true, token: null });
-  assert.equal(routeOutcome({ route: 'clarify', clarification: { question: 'Which first?', options: ['answer'] } }, { plain: true }).show.kind, 'clarify');
-  assert.equal(routeOutcome({ route: 'capability:motion', flow: 'proposal', token: 'tok' }, { plain: true }).token, 'tok');
-});
-
-test('isSmallTalk: a whole-message greeting or acknowledgment only; a mixed or real request is never small talk', () => {
-  for (const text of ['hi', 'Hi', 'Hello!', ' Hello! ', 'hey', 'HEY.', 'thanks', 'Thanks!!', 'thank you', 'Thank you!', '  hi  ']) assert.equal(isSmallTalk(text), true, text);
-  for (const text of ['hi, make me a video', 'hello can you explain softmax', 'thanks, now a diagram', 'hey there', 'ok', 'Good morning.', 'hi hi hi', '/motion hi', 'what is hi', 'ok so why', '', 'hi' + String.fromCharCode(10) + 'make a video']) assert.equal(isSmallTalk(text), false, text);
-});
-
-test('no router-failure banner, no Answer normally and no Retry exist anywhere in the Chat', async () => {
-  const { readFileSync, existsSync } = await import('node:fs');
-  const read = name => readFileSync(new URL('./' + name, import.meta.url), 'utf8');
-  assert.ok(!existsSync(new URL('./RouteDecision.jsx', import.meta.url)), 'the banner component is gone');
-  for (const name of ['ask.jsx', 'generation-proposal-chat.js', 'ChatMessages.jsx']) {
-    const source = read(name);
-    for (const gone of ['Answer normally', 'data-route-answer', 'data-route-retry', 'check whether this asks', "kind: 'fallback'", 'onRetry', 'onAnswer', 'RouteDecision', 'routeShown', 'setRouteShown']) assert.ok(!source.includes(gone), name + ' has no ' + gone);
-  }
-  // Rendered: whichever decision the Chat can show, the markup has no such button.
-  const { routeOutcome } = await import('./generation-proposal-chat.js');
-  const failures = [{ route: 'answer', via: 'fallback', recoverable: true, code: 'timeout' }, { route: 'answer', via: 'fallback', recoverable: false, code: 'malformed', message: 'No access to this canvas.' }];
-  assert.equal(routeOutcome(failures[0], { plain: true }).show, undefined, 'a recoverable failure on an ordinary message shows nothing');
-  assert.equal(routeOutcome(failures[1], { plain: true }).show.kind, 'error');
-});
-
-test('a bare greeting makes zero route requests in Auto and Ask; a greeting followed by a request still routes; a failed router continues an ordinary turn once with no banner', async () => {
-  const { routeChat, routeOutcome } = await import('./generation-proposal-chat.js');
-  const sent = [];
-  const fetcher = async (url, init) => { sent.push(JSON.parse(init.body)); return new Response(JSON.stringify({ route: 'answer', via: 'jev', capability: null, flow: null, token: null }), { status: 200, headers: { 'Content-Type': 'application/json' } }); };
-  for (const mode of ['auto', 'ask']) {
-    for (const message of ['hi', ' Hello! ', 'thanks']) {
-      const decision = await routeChat(fetcher, { scope: { app: 'canvas-0a1b2c3d' }, message, mode });
-      assert.deepEqual(routeOutcome(decision, { plain: true }), { send: true, token: null, answerOnly: true, failure: null }, mode + ' ' + message);
-    }
-  }
-  assert.equal(sent.length, 0, 'zero route requests for a greeting');
-  await routeChat(fetcher, { scope: { app: 'canvas-0a1b2c3d' }, message: 'hi, make me a video', mode: 'auto' });
-  await routeChat(fetcher, { scope: { app: 'canvas-0a1b2c3d' }, message: 'hi', mode: 'auto' }, { capability: 'answer' });
-  assert.deepEqual(sent.map(body => body.text), ['hi, make me a video', 'hi'], 'a mixed request routes; a named capability is decided by the server');
-  // Timeout (server fallback), malformed body and a network failure each continue the ordinary turn once, with nothing to show.
-  const timeout = async () => new Response(JSON.stringify({ route: 'answer', via: 'fallback', code: 'timeout', retryable: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-  const malformed = async () => new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
-  const offline = async () => { throw new Error('offline'); };
-  for (const failing of [timeout, malformed, offline]) {
-    const outcome = routeOutcome(await routeChat(failing, { scope: { app: 'canvas-0a1b2c3d' }, message: 'why is the sky blue', mode: 'auto' }), { plain: true });
-    assert.deepEqual([outcome.send, outcome.answerOnly, outcome.show], [true, true, undefined]);
-  }
-});
-
-test('a waiting plan cannot consume a bare greeting; an explicit Editing pill still revises; a canceled send does nothing after the route', async () => {
-  const { readFileSync } = await import('node:fs');
-  const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
-  assert.ok(ask.includes(": chat && !tocView && !regenerate && !prompted && !commandName && !file && !isSmallTalk(raw) && workspace?.canvasOps?.refineExplain ? currentProposal("), 'the implicit refinement leaves a greeting alone');
-  assert.ok(ask.includes("const brief = edit ? ((edit.command === 'explain' || edit.command === 'animation') && workspace?.canvasOps?.refineExplain ? edit.proposal : null)"), 'an explicit Editing pill still sends its revision');
-  const route = ask.indexOf('const outcome = routeOutcome(await routeChat('), after = ask.indexOf('if (late()) return;', route);
-  assert.ok(route > 0 && after > route && after - route < 600, 'a send canceled or moved to another thread while the route was out returns before anything is sent');
-});
-
-// CHAT.01 (checklist 4.5): an abort is not a router failure, a legacy 404 is not a scoped one, and each refusal keeps its specific words.
-test('an aborted route request propagates and is never recovered into a send; a scoped 404 is shown while a legacy 404 sends as today', async () => {
-  const { routeChat, routeOutcome } = await import('./generation-proposal-chat.js');
-  const payload = { scope: { app: 'canvas-0a1b2c3d' }, message: 'why is the sky blue', mode: 'auto' };
-  const abort = Object.assign(new Error('The operation was aborted'), { name: 'AbortError' });
-  await assert.rejects(routeChat(async () => { throw abort; }, payload), error => error.name === 'AbortError');
-  const reply = (status, body, type = 'application/json') => async () => new Response(body === null ? 'Not found' : JSON.stringify(body), { status, headers: { 'Content-Type': type } });
-  // Legacy: the route is not deployed (no JSON error body): the turn is sent as today.
-  assert.equal(await routeChat(reply(404, null, 'text/plain'), payload), null);
-  assert.equal(await routeChat(reply(404, {}), payload), null);
-  assert.deepEqual(routeOutcome(null, { plain: true }), { send: true, token: null });
-  // Scoped: a canvas that is gone answers 404 with its own words, which are shown and the turn is not sent around them.
-  const scoped = routeOutcome(await routeChat(reply(404, { error: 'This canvas no longer exists.' }), payload), { plain: true });
-  assert.deepEqual([scoped.send, scoped.show], [undefined, { kind: 'error', message: 'This canvas no longer exists.' }]);
-  // Validation and access errors keep their words; a proposal route with no token is a tool-specific error, never a send.
-  for (const [status, error] of [[400, 'Invalid chat route request'], [401, 'Sign in again.'], [403, 'No access to this canvas.'], [413, 'Request too large']]) {
-    const shown = routeOutcome(await routeChat(reply(status, { error }), payload), { plain: true });
-    assert.deepEqual([shown.send, shown.show.kind, shown.show.message], [undefined, 'error', error], String(status));
-  }
-  const noToken = routeOutcome({ route: 'capability:motion', flow: 'proposal', token: null }, { plain: true });
-  assert.deepEqual([noToken.send, noToken.show.kind], [undefined, 'error']);
-  // The failed request carries what the Worker log needs to find it again: the id, the status and the code (no words of the message).
-  const down = await routeChat(reply(503, { error: 'x' }), payload, { requestId: 'req-0000cccc' });
-  assert.deepEqual(routeOutcome(down, { plain: true }).failure, { request_id: 'req-0000cccc', status: 503, code: 'malformed' });
-  const offline = await routeChat(async () => { throw new Error('offline'); }, payload, { requestId: 'req-0000dddd' });
-  assert.deepEqual(routeOutcome(offline, { plain: true }).failure, { request_id: 'req-0000dddd', status: null, code: 'unavailable' });
-});
-
-test('the Worker checks the board and session before it hands the ask to apiAsk, so answer_only never runs for a denied canvas', async () => {
-  const { readFileSync } = await import('node:fs');
-  const worker = readFileSync(new URL('../dev-worker.js', import.meta.url), 'utf8');
-  const start = worker.indexOf("['/api/learn/selection', '/api/learn/ask'].includes(path) && req.method === 'POST'");
-  const authorized = worker.indexOf('await authorizedBoardApp(req, env, body.scope?.app', start), handed = worker.indexOf('return apiAsk(req, env, ctx', start);
-  assert.ok(start > 0 && authorized > start && handed > authorized, 'authorizedBoardApp answers (and returns a denial) before apiAsk is called');
-});
-
-test('CHAT.02: a model-routed ordinary message is sent as is, and an answer that asks for a tool runs the existing command handler once', async () => {
-  const { readFileSync } = await import('node:fs');
-  const { routeOutcome } = await import('./generation-proposal-chat.js');
-  assert.deepEqual(routeOutcome({ route: 'answer', via: 'model', token: null }, { plain: true }), { send: true, token: null }, 'no banner, no extra request');
-  const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
-  assert.ok(ask.includes('if (d.toolRequest?.command) {'), 'answer_meta carries the validated tool request');
-  assert.ok(ask.includes("slashRef.current?.intercept(('/' + typedOf(command) + ' ' + args).trim())"), 'a direct tool runs through the same command intercept as a router decision');
-  assert.ok(ask.includes("command === 'generate-image' && chatThread && imageGenerationOn()) imagePlan(args)"), 'image generation keeps its plan route');
-});
-

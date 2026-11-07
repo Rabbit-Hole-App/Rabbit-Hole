@@ -55,7 +55,7 @@ test('Revise plan: one new job for the same card and request, its revised plan r
   assert.equal(waiting.plan.limitations[0], 'You asked for the Left mass control; this revised plan leaves it out so the animation can be built.');
   const proposal = postedProposal(s.sqlite, next);
   assert.ok(proposal.input.scene.notices.includes(waiting.plan.limitations[0]), 'the dropped control stays in view on the review card');
-  assert.ok(rows(s.sqlite, 'messages').some(m => m.role === 'assistant' && m.content === ''));
+  assert.ok(rows(s.sqlite, 'messages').some(m => m.content === 'Here is a revised plan for your animation. Generate makes it.'));
   assert.deepEqual(s.model.roles(), ['brief', 'author', 'repair', 'repair', 'brief'], 'nothing is built before Generate');
   const pressed = await s.approve(next);
   assert.equal(pressed.status, 202);

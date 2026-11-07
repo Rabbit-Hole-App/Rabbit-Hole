@@ -26,7 +26,7 @@ export const depthInstruction = (depth, kind = 'answer') => WORDS[kind]?.[validD
 // Artifact commands that make an explanation (learn-artifact.js): the others (a quiz, a table, a graph, a diagram) are not
 // "how much to explain", so Depth does not reach them.
 // ponytail: Depth reaches /explain and /walkthrough only; add a command here when its card has a depth to choose.
-export const DEPTH_COMMANDS = Object.freeze(['explain', 'explanation', 'walkthrough']);
+export const DEPTH_COMMANDS = Object.freeze(['explain', 'walkthrough']);
 
 // CORE.09: an Explanation card's teaching objective and inclusive display-text budget per Depth, the same on the direct and roadmap paths.
 // Unlike depthInstruction, Standard has an explicit target too. An omitted or unknown Depth is the default.

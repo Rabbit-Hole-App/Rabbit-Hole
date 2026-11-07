@@ -9,7 +9,6 @@
 // pauses the viewer and never writes the card.
 import { useEffect, useRef, useState } from 'react';
 import { Download, FilePlus, Rotate3d, Scan, TriangleAlert } from 'lucide-react';
-import CardHeader from './CardHeader.jsx';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { formatLabel, modelKindLabel } from './model-import.js';
 import { addModelFiles, chooseModel, modelFromPlan, openModelFiles, useModelUploads } from './model-storage.js';
@@ -177,15 +176,16 @@ export default function ModelCard({ block, selected, onChange, onSelect = null }
   const status = (problem && (missing.length || blocked.length) ? 'This model cannot be shown without the files listed below.' : problem) || (lost ? 'The graphics context was lost, so this viewer paused. The card is unchanged.' : '');
   return (
     <div ref={root} data-model-card data-model-format={model.format || ''} data-model-state={active ? 'active' : ready ? 'ready' : 'idle'} className="flex min-h-0 flex-1 flex-col px-3 pb-3">
-      {/* The shared pinned header (CardHeader.jsx, owner 2026-11-07): the title (the learner's name, or a placeholder to rename), the file name and kind under it, the viewer buttons beside it. */}
-      <CardHeader block={block} className="px-1 pb-2" meta={[block.label, kind].filter(Boolean).join(' · ')} trailing={
-          <div className="flex shrink-0 items-center gap-0.5" onPointerDown={stop}>
-            {viewable && <button type="button" data-model-interact aria-pressed={active} disabled={!ready || lost} onClick={event => (active ? exit() : enter(event))} title={active ? 'Done (Esc)' : 'Interact: orbit, pan and zoom the model'} aria-label={active ? 'Done interacting' : 'Interact with the 3D view'}
-              className={`flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium disabled:opacity-40 ${active ? 'bg-ink text-white' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}><Rotate3d size={14} />{active ? 'Done' : 'Interact'}</button>}
-            {viewable && <button type="button" data-model-fit disabled={!ready} onClick={() => engine.current?.fit()} title="Fit the model in view" aria-label="Fit the model in view" className="flex h-7 w-7 items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40"><Scan size={14} /></button>}
-            <button type="button" data-model-download disabled={!blob} onClick={download} title={`Download the original (${model.download || block.label})`} aria-label="Download the original file" className="flex h-7 w-7 items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40"><Download size={14} /></button>
-          </div>
-      } />
+      <div data-drag-zone className="flex shrink-0 cursor-grab items-center gap-2 px-1 pb-2 active:cursor-grabbing">
+        <span className="text-[11px] font-semibold tracking-wider whitespace-nowrap text-ink-2 uppercase"><span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-ink align-middle" />{kind}</span>
+        <span className="min-w-0 flex-1 truncate text-xs text-ink-3" title={block.label}>{block.label}</span>
+        <div className="flex shrink-0 items-center gap-0.5" onPointerDown={stop}>
+          {viewable && <button type="button" data-model-interact aria-pressed={active} disabled={!ready || lost} onClick={event => (active ? exit() : enter(event))} title={active ? 'Done (Esc)' : 'Interact: orbit, pan and zoom the model'} aria-label={active ? 'Done interacting' : 'Interact with the 3D view'}
+            className={`flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium disabled:opacity-40 ${active ? 'bg-ink text-white' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}><Rotate3d size={14} />{active ? 'Done' : 'Interact'}</button>}
+          {viewable && <button type="button" data-model-fit disabled={!ready} onClick={() => engine.current?.fit()} title="Fit the model in view" aria-label="Fit the model in view" className="flex h-7 w-7 items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40"><Scan size={14} /></button>}
+          <button type="button" data-model-download disabled={!blob} onClick={download} title={`Download the original (${model.download || block.label})`} aria-label="Download the original file" className="flex h-7 w-7 items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40"><Download size={14} /></button>
+        </div>
+      </div>
       <div data-pointer-body tabIndex={-1} {...(active ? { 'data-viewer-active': true } : {})} aria-label={`${kind} viewer${active ? ', interacting' : ''}`}
         onPointerDown={event => { if (active) stop(event); }} onDoubleClick={event => { stop(event); enter(event); }} onContextMenu={event => { if (active) event.preventDefault(); }}
         onKeyDown={event => { if (active && event.key === 'Escape') { event.preventDefault(); stop(event); exit(); } }}
