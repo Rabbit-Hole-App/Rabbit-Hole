@@ -1,6 +1,6 @@
 # Chat routing run results (40 shared cases)
 
-**Candidate:** 31915184faadc74b65d5f0ff588fb9843b349bf7
+**Candidate:** bdefe3a38e976efd941049ece6a7b7d6ae3a7ccb
 
 Source: `packages/control-plane/test/chat-routing-fixtures.test.js` over `packages/control-plane/test/fixtures/chat-routing/` (checklist 4.5, Sets A and B). Each case starts at its real entry point and stops at the validated decision; execution spies assert zero downstream effects. The JEV classifier and the answer model are **doubles scripted from each case's own label**, so a pass here proves wiring and guards, never model quality.
 
