@@ -494,3 +494,197 @@ test('BE.08 same identity, board save, acknowledgment and reload (CORE.07, UI.04
     assert.equal((await status(h)).results[0].stage, 'ready');
   });
 });
+
+test('BE.09 durable Chat lifecycle and late events (UI.01/04/08)', async t => {
+  const { h, view, resultId, cardId } = await firstCard(t, [explanation()]);
+  await chats(h);
+  const clientId = `roadmap-step-${view.proposal.stepId}`;
+  // contracts.md absent: assumed one message per logical entry, re-POSTed with the same client_id and a higher `meta.version` to advance it;
+  // its lifecycle in `meta.tutor` (BRIEF contract 6). A lower version never regresses the entry.
+  const entry = (version, stage, extra = {}) => ({ client_id: clientId, role: 'assistant', content: `${STEPS[0].title}: ${stage}`, meta: { version, tutor: { kind: 'roadmap_step', stage, stepId: view.proposal.stepId, proposalId: view.proposal.id, proposalVersion: view.proposal.version, ...extra } } });
+  assert.equal((await saveMessage(h, T_BUSY, entry(1, 'proposed'))).status, 201);
+  // The learner switches Chat to another thread; the late result still lands in the entry's own thread.
+  assert.equal((await h.send('alice', 'PUT', '/api/learn/chat/active', { app: USERS.alice.canvas, thread_id: T_DRAFT })).status, 200);
+  for (const [v, stage] of [[2, 'accepting'], [3, 'generating'], [4, 'saving']]) await saveMessage(h, T_BUSY, entry(v, stage));
+  assert.equal((await deliver(h, resultId)).status, 200);
+  await saveMessage(h, T_BUSY, entry(5, 'ready', { resultId, cardId }));
+  await saveMessage(h, T_BUSY, entry(3, 'generating')); // a duplicate, older outbox/poll event
+  const thread = (await readThread(h, T_BUSY)).body;
+  const mine = thread.messages.filter(m => m.clientId === clientId);
+  assert.equal(mine.length, 1, 'one logical Chat entry per card');
+  assert.deepEqual(thread.messages.slice(0, 2).map(m => m.clientId), ['u-old-1', 'a-old-1'], 'older history preserved');
+  assert.equal((await readThread(h, T_DRAFT)).body.draft?.text, 'half typed question', 'the unsent draft preserved');
+  assert.equal((await h.send('bob', 'GET', `/api/ask/threads/${T_BUSY}`)).status, 404, 'another learner cannot read it');
+  assert.ok([403, 404].includes((await saveMessage(h, T_BUSY, entry(6, 'failed'), 'bob')).status), 'or write into it');
+  assert.equal(mine[0].meta?.tutor?.stage, 'ready', 'the entry advanced to ready and a late duplicate did not regress it');
+  assert.deepEqual([mine[0].meta.tutor.cardId, mine[0].meta.tutor.resultId], [cardId, resultId], 'card and result ids restore from storage');
+});
+
+test('BE.10 automatic next offer and an actual second card (CORE.07, UI.08, R6)', async t => {
+  const { h, resultId, cardId } = await firstCard(t, [explanation(), table()]);
+  assert.equal((await deliver(h, resultId)).status, 200);
+  const offered = await status(h);
+  assert.equal(pending(h).length, 1, 'exactly one checked next metadata proposal');
+  assert.equal(offered.proposal.title, STEPS[1].title);
+  assert.deepEqual([h.authorCalls.length, authorizations(h).length], [1, 1], 'no second hold or author call before its acceptance');
+  await h.run(); await h.run(); // duplicate outbox wakes converge on the same offer
+  assert.equal(pending(h).length, 1);
+  assert.equal((await status(h)).proposal.id, offered.proposal.id);
+  assert.equal(pillOf({ flag: 'on', view: offered, busy: [], editing: false, mode: 'auto' })?.accept, true, 'the projected pill targets the ready offer');
+  const next = await acceptCard(h, offered, 'next'); // Next card: the ready proposal's own accept route, once
+  assert.equal(next.status, 202);
+  const second = next.body.slots[0];
+  assert.equal((await deliver(h, second.resultId, { geometry: { x: 520, y: 600, w: 420 } })).status, 200);
+  const blocks = await boardBlocks(h);
+  assert.ok(blocks.some(b => b.id === cardId) && blocks.some(b => b.id === second.cardId), 'both cards saved; the first is preserved');
+  assert.notEqual(second.cardId, cardId);
+  const settled = h.rows("SELECT id, card_id, delivery, billing FROM learn_step_results WHERE decision = 'accepted'");
+  assert.deepEqual(settled.map(r => [r.delivery, r.billing]), [['delivered', 'settled'], ['delivered', 'settled']]);
+  assert.deepEqual([h.authorCalls.length, learnerActions(h).length, authorizations(h).length], [2, 2, 2], 'two author dispatches, two learner card actions, no extras');
+  assert.ok(h.authorCalls[1].text.includes('CLAIM-TABLE') && !h.authorCalls[1].text.includes('CLAIM-GINI'), 'the second card has its own accepted context');
+  const refs = h.rows('SELECT card_id, ref_id FROM learn_source_ref_cards WHERE board_id = ?', h.boards.alice);
+  assert.equal(new Set(refs.map(r => r.ref_id)).size, 2, 'each card keeps its own source anchor');
+  assert.deepEqual(h.handlerErrors, []);
+});
+
+test('BE.11 manual pacing, cancellation, end and finite completion (UI.08, R6)', async t => {
+  await t.test('BE.11 Auto-suggest off: no unsolicited successor; Propose next step is metadata only; Next card accepts it directly', async () => {
+    const h = await workflow(t, { script: [explanation(), table()] });
+    h.sqlite.prepare("INSERT INTO learn_user_settings (org, owner_user_id, auto_suggest, updated_at) VALUES ('team', 'u-alice', 0, 'x')").run();
+    const view = await started(h);
+    assert.ok(view.proposal, 'explicit Accept roadmap still offers the first card with Auto-suggest off');
+    const first = await acceptCard(h, view, 'a1');
+    assert.equal((await deliver(h, first.body.slots[0].resultId)).status, 200);
+    assert.equal(pending(h).length, 0, 'no unsolicited successor');
+    const proposed = await h.route('alice', routes.proposeNext(await status(h), KEY('propose')));
+    assert.equal(proposed.status, 200);
+    assert.deepEqual([h.authorCalls.length, authorizations(h).length], [1, 1], 'Propose next step creates metadata only');
+    assert.equal((await acceptCard(h, proposed.body, 'a2')).status, 202, 'Next card accepts the ready offer directly');
+    assert.equal(h.authorCalls.length, 2);
+    assert.equal(h.rows('SELECT auto_suggest FROM learn_user_settings')[0].auto_suggest, 0, 'the setting is unchanged');
+  });
+  await t.test('BE.11 Cancel removes only the pending offer and pauses; End keeps delivered cards; no author call or debit', async () => {
+    const { h, resultId, cardId } = await firstCard(t, [explanation()]);
+    assert.equal((await deliver(h, resultId)).status, 200);
+    const offered = await status(h), used = (await h.totals()).used;
+    assert.equal((await h.route('alice', routes.cancelProposal(offered, KEY('cancel')))).status, 200);
+    const paused = await status(h);
+    assert.deepEqual([paused.roadmap.state, paused.proposal], ['paused', null]);
+    await h.run();
+    assert.equal(pending(h).length, 0, 'automatic progression paused');
+    assert.equal((await h.route('alice', routes.end(paused, KEY('end')))).status, 200);
+    assert.ok((await boardBlocks(h)).some(b => b.id === cardId), 'delivered cards remain');
+    assert.deepEqual([h.authorCalls.length, (await h.totals()).used], [1, used]);
+    assert.equal(pillOf({ flag: 'on', view: await status(h), busy: [], editing: false, mode: 'auto' }), null, 'no pill after End');
+  });
+  await t.test('BE.11 the finite endpoint completes with no extra offer', async () => {
+    const h = await workflow(t, { plans: [planOf([STEPS[0]], { coverage: { uncovered: [{ start: AT.entropy, end: MD.length, reason: 'Only Gini was asked for.' }] } })], script: [explanation()] });
+    const view = await started(h);
+    const first = await acceptCard(h, view, 'a1');
+    assert.equal((await deliver(h, first.body.slots[0].resultId)).status, 200);
+    const done = (await h.send('alice', 'GET', `/api/learn/roadmap/${view.roadmap.id}?boardId=${h.boards.alice}`)).body;
+    assert.deepEqual([done.roadmap.state, done.proposal, pending(h).length], ['completed', null, 0]);
+  });
+});
+
+test('BE.12 terminal failures, refusals and uncertain outcomes (CORE.04/06, UI.04/08)', async t => {
+  for (const [name, bad] of [['provider 4xx', httpError(400)], ['provider 5xx', httpError(503)], ['timeout', timeout()]]) {
+    await t.test(`BE.12 ${name}: truthful failure on the same slot, one settlement, no redispatch, no Retry/Replace/Omit`, async () => {
+      const { h, view, resultId, cardId } = await firstCard(t, [bad, explanation(), explanation()]);
+      assert.equal(h.authorCalls.length, 1, 'zero automatic author redispatch');
+      const now = await status(h);
+      const result = now.results.find(r => r.id === resultId);
+      assert.equal(result.slot.cardId, cardId, 'the original slot identity');
+      assert.doesNotMatch(JSON.stringify(now), /"(retry|replace|omit|recovery)"/i, 'no ordinary recovery action is advertised');
+      assert.ok(result.failure || result.generation === 'failed' || result.reconciliation === 'required' || h.rows("SELECT 1 FROM learn_roadmap_calls WHERE result_id = ? AND checkpoint IN ('unknown','reconciling')", resultId).length, 'a truthful stage');
+      assert.ok(h.rows('SELECT * FROM usage_adjustments').length <= 1, 'at most one refund');
+      void view;
+    });
+  }
+  await t.test('BE.12 a valid safety refusal stops automatic successors', async () => {
+    const { h, resultId } = await firstCard(t, [explanation()], { classifier: async ({ role } = {}) => (role === 'output' ? unsafe : calm) });
+    const row = resultRow(h, resultId);
+    assert.equal(row.failure_class, 'policy_block');
+    await h.run();
+    assert.equal(pending(h).length, 0, 'no automatic offer after a refusal');
+  });
+  await t.test('BE.12 an ordinary failed step continues to one next offer only after settlement', async () => {
+    const { h, resultId } = await firstCard(t, [explanation('t', ''), explanation()]);
+    assert.equal(resultRow(h, resultId).generation, 'failed');
+    await h.run(); await h.run();
+    assert.equal(pending(h).length, 1, 'one successor after the settled failure');
+  });
+});
+
+test('BE.13 source anchors, placement data and invalidation (CORE.02, UI.06-07)', async t => {
+  const { h, resultId, cardId } = await firstCard(t, [explanation(), table()]);
+  assert.equal((await deliver(h, resultId)).status, 200);
+  const second = await acceptCard(h, await status(h), 'a2');
+  assert.equal((await deliver(h, second.body.slots[0].resultId, { geometry: { x: 520, y: 600, w: 420 } })).status, 200);
+  const blocks = await boardBlocks(h);
+  const cards = [blocks.find(b => b.id === cardId), blocks.find(b => b.id === second.body.slots[0].cardId)];
+  for (const [i, card] of cards.entries()) {
+    assert.deepEqual([card.sourceRef?.source?.key, card.sourceRef?.source?.rev], [`file:${USERS.alice.fileId}`, h.rev], `card ${i + 1}: exact source revision`);
+    const quote = card.sourceRef?.anchor?.quote?.exact || '';
+    assert.ok(quote && MD.slice(STEPS[i].passage.start, STEPS[i].passage.end).includes(quote.slice(0, 40)), `card ${i + 1}: the anchor quotes its own passage`);
+  }
+  const index = h.rows('SELECT card_id, ref_id, status FROM learn_source_ref_cards WHERE board_id = ? ORDER BY position', h.boards.alice);
+  assert.deepEqual(index.map(r => [r.card_id, r.status]).sort(), cards.map(c => [c.id, 'current']).sort(), 'source -> card index for both delivered cards');
+  // A repeated/ambiguous quotation is refused, not guessed.
+  const ref = 'sref_00000000000000000000000b';
+  h.sqlite.prepare("INSERT INTO learn_source_refs (id, org, owner_email, kind, source_key, source_name, source_rev, anchor_json, anchor_hash, created_at) VALUES (?, 'team', ?, 'markdown', ?, ?, ?, ?, 'h', 1)")
+    .run(ref, USERS.alice.email, `file:${USERS.alice.fileId}`, FILE_NAME, h.rev, JSON.stringify({ quote: { exact: 'A decision tree asks one question' } }));
+  const h2 = await workflow(t);
+  h2.sqlite.prepare("INSERT INTO learn_source_refs (id, org, owner_email, kind, source_key, source_name, source_rev, anchor_json, anchor_hash, created_at) VALUES (?, 'team', ?, 'markdown', ?, ?, ?, ?, 'h', 1)")
+    .run(ref, USERS.alice.email, `file:${USERS.alice.fileId}`, FILE_NAME, h2.rev, JSON.stringify({ quote: { exact: 'A decision tree asks one question' } }));
+  const ambiguous = await explain(h2, { scope: { kind: 'passage', sourceRefId: ref } });
+  assert.deepEqual([ambiguous.status, ambiguous.body.code], [422, 'needs_clarification']);
+  // A source change: the delivered cards and history stay; the index reports it honestly; nothing regenerates.
+  h.sqlite.prepare('UPDATE file_sources SET sha256 = ? WHERE id = ?').run('changed-revision', USERS.alice.fileId);
+  const resave = await h.send('alice', 'PUT', `/api/learn/boards/${USERS.alice.canvas}/main`, { state: { blocks }, version: (await h.send('alice', 'GET', `/api/learn/boards/${USERS.alice.canvas}/main`)).body.version });
+  assert.equal(resave.status, 200);
+  assert.ok(h.rows('SELECT status FROM learn_source_ref_cards WHERE board_id = ?', h.boards.alice).every(r => r.status === 'changed'), 'changed revision is reported, not hidden');
+  assert.equal((await boardBlocks(h)).length, blocks.length, 'delivered cards preserved');
+  assert.equal(h.authorCalls.length, 2, 'no silent regeneration');
+});
+
+test('BE.14 access, entitlement and private projections (CORE.05, UI.01-08)', async t => {
+  const { h, view, resultId, cardId } = await firstCard(t, [explanation(), explanation()]);
+  const rm = view.roadmap.id;
+  // Missing identity: 401 on every surface, nothing spent.
+  for (const [method, path, body] of [['GET', `/api/learn/roadmap?boardId=${h.boards.alice}`], ['POST', `/api/learn/roadmap/${rm}/proposals/${view.proposal.id}/accept`, { boardId: h.boards.alice }],
+    ['GET', `/api/ask/threads/${T_BUSY}`], ['PUT', `/api/learn/boards/${USERS.alice.canvas}/main`, { state: { blocks: [] } }]])
+    assert.equal((await h.send(null, method, path, body)).status, 401, `${method} ${path}`);
+  // A second learner: another board, forged roadmap/proposal/result ids.
+  const bob = await started(h, { who: 'bob' });
+  assert.equal((await h.send('bob', 'GET', `/api/learn/roadmap?boardId=${h.boards.alice}`)).status, 404, 'another board is not found');
+  assert.equal((await h.send('bob', 'POST', `/api/learn/roadmap/${rm}/proposals/${view.proposal.id}/accept`, { boardId: h.boards.bob, revision: bob.roadmap.revision, proposalVersion: 1, actionKey: KEY('forge') })).status, 404, 'a forged proposal id');
+  assert.equal((await h.send('bob', 'POST', `/api/learn/roadmap/${bob.roadmap.id}/results/${resultId}/deliver`, { boardId: h.boards.bob })).status, 404, 'a forged result id');
+  assert.equal((await h.send('bob', 'GET', `/api/learn/roadmap/${rm}/results/${resultId}?boardId=${h.boards.bob}`)).status, 404);
+  assert.equal((await h.send('bob', 'GET', `/api/learn/boards/${USERS.alice.canvas}/main`)).status, 403, 'another learner\'s board');
+  assert.equal(h.rows("SELECT * FROM learn_step_authorizations WHERE owner_user_id = 'u-bob'").length, 0, 'no hold or charge for bob');
+  // Status, share and history projections carry no private source text, drafts, evidence or prices.
+  noLeak(h, JSON.stringify(await status(h)));
+  assert.equal((await deliver(h, resultId)).status, 200);
+  const shared = await h.send('alice', 'POST', `/api/learn/boards/${USERS.alice.canvas}/main/share`, { shared: true, view: true });
+  assert.equal(shared.status, 200);
+  const token = h.rows('SELECT view_token FROM learn_boards WHERE id = ?', h.boards.alice)[0].view_token;
+  const open = await h.send('bob', 'GET', `/api/learn/boards/shared/${token}`);
+  assert.equal(open.status, 200);
+  const sharedJson = JSON.stringify(open.body);
+  assert.ok(sharedJson.includes(cardId), 'the delivered card is shared');
+  assert.doesNotMatch(sharedJson, /pr_[0-9a-f]{24}|rm_[0-9a-f]{24}|rs_[0-9a-f]{24}|authorization|proposal/i, 'no private roadmap state in the share');
+  noLeak(h, sharedJson);
+  // Source revocation: a new accept spends nothing and calls no author; delivered card stays.
+  h.sqlite.prepare('DELETE FROM file_sources WHERE id = ?').run(USERS.alice.fileId);
+  const next = await status(h);
+  if (next.proposal) {
+    const tried = await acceptCard(h, next, 'after-revoke');
+    assert.ok(tried.status >= 400 || resultRow(h, tried.body.slots[0].resultId).generation === 'failed', 'revoked source: refused or a zero-call failure');
+  }
+  assert.equal(h.authorCalls.length, 1, 'no author call after revocation');
+  assert.ok((await boardBlocks(h)).some(b => b.id === cardId), 'delivered material preserved');
+  // contracts.md absent: assumed documented denial code on a forged accept is `not_found` with the existing NOT_AVAILABLE body.
+  const forged = await h.send('alice', 'POST', `/api/learn/roadmap/${rm}/proposals/pr_000000000000000000000000/accept`, { boardId: h.boards.alice, revision: next.roadmap.revision, proposalVersion: 1, actionKey: KEY('forged') });
+  assert.deepEqual([forged.status, forged.body.code], [404, 'not_found'], 'the exact error contract');
+});
