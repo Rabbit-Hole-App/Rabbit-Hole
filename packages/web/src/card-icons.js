@@ -34,7 +34,8 @@ export function cardIconOf(block) {
 // insertPaper / insertWiki, learn-slash.js runLearnCommand insert_whiteboard, and slash-sheet.js PREVIEWS. NOT traced to an insert call (named by BLOCK_TYPES / the
 // primitive's own name): code_exercise -> code, knowledge_graph -> knowledge, 3d_model -> model3d, narration -> audio. goal opens the goal manager and creates no card.
 export const COMMAND_CARDS = {
-  explain: ['explanation', 'table', 'animation', 'audio'],
+  explanation: ['explanation', 'table'], // /explain (written, owner 2026-11-07)
+  explain: ['animation', 'audio'], // /interactive keeps the original id: the playable visual
   practice: ['explainBack', 'quiz', 'code'], quiz: ['quiz'], flashcards: ['flashcards'], goal: [],
   code: ['snippet', 'code'], graph: ['graph', 'plot', 'knowledge'], diagram: ['flow', 'mermaid'], notebook: ['notebook'],
   'generate-image': ['image'], motion: ['video'], cad: ['cad'], animation: ['animation3d'], 'whiteboard-video': ['whiteboardVideo'], '3d': ['model3d', 'scene'],
