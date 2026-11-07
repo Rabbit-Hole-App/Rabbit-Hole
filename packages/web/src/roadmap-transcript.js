@@ -143,6 +143,14 @@ export function entriesOf(state, { invitation = null, route = null, boundary = n
       { activity: ['accepting', 'generating', 'checking', 'saving'].includes(stage) ? status : null, sourceRef: (isOffer && view.proposal.sourceRelation?.sourceRef) || step.sourceRef || null }); // live only: the excerpt is read through the entitled reference at render, never stored in the message
     earlier = true;
   }
+  // BE.05a: a card offer that could not be prepared (view.offerRecovery): ONE entry for the step, in the same Chat. A required format that cannot be kept asks one
+  // focused question (the alternative, or Edit roadmap); otherwise it is useful help. Nothing was authored, held or charged, and the step stays undelivered.
+  const held = view.offerRecovery;
+  if (held && !view.proposal) {
+    const options = held.question?.options ?? [];
+    push(cid(`roadmap-recovery-${rid}-${held.stepId}`), 'recovery', 1, held.question?.text || held.help || '', { roadmapId: rid, stepId: held.stepId, reason: held.reason },
+      options.length ? options.map(o => (o.id === 'edit' ? act('edit_roadmap', o.label, {}, { key: 'edit' }) : act('recover', o.label, { stepId: held.stepId, choice: o.id }, { key: o.id, primary: true }))) : [act('edit_roadmap', STRINGS.editRoadmap, {})]);
+  }
   if (rm.state === 'completed') push(doneClientId(rid), 'done', 1, STRINGS.completed, { roadmapId: rid, state: 'completed' });
   if (rm.state === 'ended') push(doneClientId(rid), 'done', 1, STRINGS.ended, { roadmapId: rid, state: 'ended' });
   return out;
@@ -152,6 +160,7 @@ export function entriesOf(state, { invitation = null, route = null, boundary = n
 // buttons; a stored one (history) never has any. choice: the routing entry's stored choice; acceptedPlanVersion: the roadmap's accepted draft version.
 export function outcomeOf(entry, { live = true, acceptedPlanVersion = null } = {}) {
   const tutor = entry.tutor || {};
+  if (entry.kind === 'recovery' && !live) return STRINGS.recoveryDone;
   if (entry.kind === 'route' && tutor.choice) return tutor.choice === 'new' ? STRINGS.routedNew : STRINGS.routedStay;
   if (entry.kind === 'draft' && !live && tutor.planVersion != null && tutor.stage !== 'generating') return acceptedPlanVersion != null && Number(tutor.planVersion) === Number(acceptedPlanVersion) ? STRINGS.draftAccepted : STRINGS.draftReplaced;
   return null;

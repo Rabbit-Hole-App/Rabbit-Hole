@@ -26,7 +26,7 @@ const SESSION = { get: key => { try { return sessionStorage.getItem(key); } catc
 const ROUTE = id => `rh.roadmap.route.${id}`, IV_THREAD = id => `rh.roadmap.ivthread.${id}`;
 const ATTR = { explain_on_canvas: 'data-roadmap-explain', keep_here: 'data-roadmap-keep', accept: 'data-roadmap-accept', cancel: 'data-roadmap-cancel', accept_roadmap: 'data-roadmap-accept-plan',
   edit_roadmap: 'data-roadmap-edit-plan', end: 'data-roadmap-end', propose_next: 'data-roadmap-propose-next', open_toc: 'data-roadmap-review', edit_card: 'data-roadmap-edit', route_new: 'data-roadmap-route-new',
-  route_stay: 'data-roadmap-route-stay', go_card: 'data-roadmap-go-card', go_text: 'data-roadmap-go-text', answer: 'data-roadmap-option' };
+  route_stay: 'data-roadmap-route-stay', go_card: 'data-roadmap-go-card', go_text: 'data-roadmap-go-text', answer: 'data-roadmap-option', recover: 'data-roadmap-recover' };
 // The approved green affirmative (file 02/03) on the existing success token; everything else the roadmap's existing secondary button.
 const GREEN = 'h-8 rounded-md border border-success/40 bg-success/15 px-3 text-xs font-medium text-ink outline-none hover:bg-success/25 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-default disabled:opacity-45';
 const SECOND = `${SECONDARY} disabled:cursor-default disabled:opacity-45`;
@@ -105,6 +105,7 @@ function runner(roadmap, chat, choose) {
       }
       case 'open_toc': chat.panels.setTab('toc'); chat.panels.setOpen(true); return null; // navigation only, on this click
       case 'propose_next': return c.proposeNext();
+      case 'recover': return c.recoverOffer({ choice: r.choice });
       case 'end': return c.end();
       case 'accept': return c.acceptProposal();
       case 'cancel': return c.cancelProposal();

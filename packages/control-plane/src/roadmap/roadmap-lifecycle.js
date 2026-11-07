@@ -2,6 +2,7 @@
 // replay-safe) and commits its outbox event with the fact. No model call happens here: composing a proposal is an injected dependency (Tools).
 import { StateError } from './roadmap-contract.js';
 import { applyRoadmapAction, eventStatement, offerProposal, readRoadmap, readProposal, readResult } from './roadmap-store.js';
+import { checkOffer, offFormats, recoveryOf } from './roadmap-offer-readiness.js';
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
@@ -25,7 +26,11 @@ export async function cancelProposal(db, access, { roadmapId, expectedRevision, 
 // Manual Propose next step: the next planned step by position (a cancelled position is never silently re-offered), only when nothing is offered,
 // or generating (a failed card closed its step: owner 2026-11-06, no recovery). With no planned step left, or the ceiling reached, the roadmap completes at its stopping point.
 // compose(roadmap, step) -> { format, title, description, contentHash, state? } is the Tools lane's checked proposal.
-export async function proposeNextStep(db, access, { roadmapId, expectedRevision, actionKey, compose, now = nowSeconds() }) {
+// Every offer (the first after Accept roadmap, this manual one and the automatic one) is confirmed here first (roadmap-offer-readiness.js): env supplies the
+// format switches, revalidate the source check (null: skipped, for callers with no access to either). A ready step is offered as planned; an unready one
+// is offered with an eligible alternative that needs no change to a required format, else NOTHING is offered, the step stays planned and a recovery fact is
+// recorded for Chat (offer: 'blocked'). useAlternative: the learner chose the alternative for a required format (offer-recovery route).
+export async function proposeNextStep(db, access, { roadmapId, expectedRevision, actionKey, compose, env = null, revalidate = null, useAlternative = false, now = nowSeconds() }) {
   const roadmap = await readRoadmap(db, access, roadmapId);
   if (!roadmap) throw new StateError('not_found', 'Not available', 404);
   if (!['active', 'paused'].includes(roadmap.state)) throw new StateError('roadmap_not_active', 'Not available', 409);
@@ -42,8 +47,45 @@ export async function proposeNextStep(db, access, { roadmapId, expectedRevision,
       ],
     });
   }
-  const proposal = await compose(roadmap, next);
-  return offerProposal(db, access, { roadmapId, expectedRevision, actionKey, stepId: next.id, ...proposal, now });
+  const planRow = await db.prepare('SELECT plan_json FROM learn_roadmap_plan_versions WHERE roadmap_id = ? AND version = ?').bind(roadmapId, next.plan_version).first();
+  let planStep = null; try { const s = JSON.parse(planRow?.plan_json || '{}')?.steps?.[next.position - 1]; planStep = s && s.title === next.title ? s : null; } catch { planStep = null; }
+  const verdict = checkOffer({ step: next, planStep, off: offFormats(env), source: revalidate ? await revalidate(db, access, roadmap) : { ok: true }, depth: roadmap.depth, sourceRevision: roadmap.source_rev });
+  const alternative = !verdict.ready && verdict.alternative && (!verdict.question || useAlternative) ? verdict.alternative : null;
+  if (useAlternative && !alternative) throw new StateError('recovery_unavailable', 'This choice is no longer available.', 409);
+  if (verdict.ready || alternative) {
+    const proposal = await compose(roadmap, alternative ? { ...next, format: alternative.format } : next);
+    return offerProposal(db, access, { roadmapId, expectedRevision, actionKey, stepId: next.id, ...proposal, now });
+  }
+  return recordOfferBlocked(db, access, { roadmapId, expectedRevision, actionKey, step: next, verdict, now });
+}
+
+// A blocked offer: no proposal, no author call, no hold, no debit. The step stays planned and the reason is kept on the roadmap (scope_json.offerRecovery, no
+// migration; read by the view) until a real offer for the step clears it (roadmap-store.js offerProposal).
+async function recordOfferBlocked(db, access, { roadmapId, expectedRevision, actionKey, step, verdict, now }) {
+  const recovery = recoveryOf(step, verdict);
+  return applyRoadmapAction(db, access, {
+    operation: 'offer_blocked', actionKey, roadmapId, expectedRevision, parts: [step.id, verdict.reason], now, outcome: { status: 200, body: { roadmapId, offer: 'blocked', stepId: step.id, reason: verdict.reason } },
+    guard: { sql: "(SELECT state FROM learn_roadmaps WHERE id = ?) IN ('active', 'paused') AND (SELECT state FROM learn_roadmap_steps WHERE id = ?) IN ('planned', 'cancelled', 'incomplete')", binds: [roadmapId, step.id] },
+    statements: r => [db.prepare(`UPDATE learn_roadmaps SET scope_json = json_set(scope_json, '$.offerRecovery', json(?)) WHERE id = ? AND ${r.and}`).bind(JSON.stringify(recovery), roadmapId, ...r.binds)],
+  });
+}
+
+// Acceptance found the offered format no longer ready (roadmap-run.js quoteStepAcceptance refused it with nothing written): take the stale offer back
+// (superseded, the step planned again) and offer again through the same check, so the learner gets the alternative's own review or the recovery entry.
+export async function retakeUnreadyOffer(db, access, { roadmapId, proposalId, proposalVersion, actionKey, compose, env = null, revalidate = null, now = nowSeconds() }) {
+  const roadmap = await readRoadmap(db, access, roadmapId);
+  const proposal = await readProposal(db, access, proposalId);
+  if (!roadmap || !proposal || proposal.roadmap_id !== roadmapId || proposal.version !== proposalVersion || proposal.state !== 'pending') return null;
+  await applyRoadmapAction(db, access, {
+    operation: 'offer_retaken', actionKey: `${actionKey}_retake`, roadmapId, expectedRevision: roadmap.revision, parts: [proposalId, proposalVersion], now, outcome: { status: 200, body: { roadmapId, proposalId, state: 'superseded' } },
+    guard: { sql: "EXISTS (SELECT 1 FROM learn_step_proposals WHERE id = ? AND version = ? AND state = 'pending') AND (SELECT state FROM learn_roadmaps WHERE id = ?) = 'active'", binds: [proposalId, proposalVersion, roadmapId] },
+    statements: r => [
+      db.prepare(`UPDATE learn_step_proposals SET state = 'superseded', decided_at = ? WHERE id = ? AND version = ? AND state = 'pending' AND ${r.and}`).bind(now, proposalId, proposalVersion, ...r.binds),
+      db.prepare(`UPDATE learn_roadmap_steps SET state = 'planned', updated_at = ? WHERE id = ? AND state = 'proposed' AND ${r.and}`).bind(now, proposal.step_id, ...r.binds),
+    ],
+  });
+  const fresh = await readRoadmap(db, access, roadmapId);
+  return proposeNextStep(db, access, { roadmapId, expectedRevision: fresh.revision, actionKey: `${actionKey}_reoffer`, compose, env, revalidate, now });
 }
 
 // End roadmap: delivered cards, decisions and evidence stay. Refused while accepted work is still being made (it finishes or fails first), so
