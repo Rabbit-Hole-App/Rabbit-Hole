@@ -687,7 +687,7 @@ Tutor tools read authorized source content, inspect current canvas coverage, rea
 
 #### 9.3.1 Shared tool-call workflow
 
-The application reads the shared registry and supplies eligible function schemas to the existing answer, planning or command path. Each registry entry describes the function, required inputs, output and limits. Use the current typed capability catalogue and call-validation seams. The model can respond, ask for a detail or propose a function call with arguments. The server admits and runs calls and returns their typed results to the same request.
+The application reads the shared registry and supplies eligible function schemas to the existing answer, planning or command path. Each registry entry describes the function, required inputs, output and limits. Use the current typed capability catalogue and call-validation seams. The model can respond, ask for a detail or propose a function call with arguments. The server admits and runs calls and returns their typed results to the same request. Use Exa as the first new qualification of this shared workflow under the R8a build order in §10.2.1.
 
 ```mermaid
 flowchart TD
@@ -776,6 +776,12 @@ If an external fact is needed, use an enabled research tool within its scope and
 #### 10.2.1 Exa research tool
 
 R8a exposes one read-only evidence tool for authorized replies, roadmap drafts, accepted roadmap steps and standalone card briefs. Each call identifies the output and version, the missing fact, and why that fact affects the result. Return scoped evidence references and passages, coverage, and a typed outcome such as `ok`, `partial`, `needs_clarification`, `unsupported` or `unavailable`.
+
+Build R8a in this order.
+
+1. **Make the Exa evidence operation work.** Reuse the existing discovery and guarded page reader. Verify public query checks, bounded work and evidence from pages actually read with local fixtures.
+2. **Wire Exa through the [shared tool-call workflow](#931-shared-tool-call-workflow).** Reuse the typed registry and existing callers. Qualify eligibility and preflight, exact call admission, owner-configured limits and typed results in the same request. Exa is the first new tool to qualify through this flow.
+3. **Integrate and qualify R8a at its entry points.** Use the tool in [Ask, Auto and Tutor](ask-auto-tutor-workflow.md), [Explain on Canvas](explain-on-canvas-workflow.md), and eligible standalone card briefs. Verify cited evidence in the actual reply, roadmap draft, card review and saved card before enabling each caller. Calculator and Sandbox qualify in their own rungs.
 
 1. **Check existing evidence.** Read the authorized source and reuse applicable evidence that is fresh enough for the claim. Research can address a material gap, a current fact, a source conflict or an explicit verification request. Proceed with the available evidence when it covers the needed facts. Honor a source-only instruction or an explicit request for fresh verification within the authorized scope and budget.
 2. **Search a public query.** Send Exa the minimum authorized public concept after a server-side egress check. Keep private source passages, secrets, learner evidence and private repository content inside Rabbit Hole. If the question cannot be made public within scope, offer the supported part or ask one focused question.
@@ -915,7 +921,7 @@ The immediate ordinary sprint deliverable is: **drop Markdown → Chat opens and
 | R7a Long Markdown | Versioned outline, bounded summaries, original retrieval and explicit coverage beyond bounded full-context source input. | Existing foundations locally verified and production config enabled. Remaining source-selection outbox/new-UI/manual extensions may be deferred; preserve the honest author passage fallback. |
 | R7b PDF text | Future whole-PDF Tutor planning with page/section context and honest unreadable-page coverage. | Deferred/unbuilt adapter. Existing R3 selected-PDF references remain available. Does not require OCR. |
 | R8b Calculator | Verified bounded computations within the explanation. | Small independent tool; can precede web research. No sandbox dependency. |
-| R8a Research | One scoped web evidence tool for Ask, Auto, Tutor, Explain on Canvas drafts and steps, and supported standalone card briefs. | Independent tool slice with privacy, quota, provenance and source UI checks. Resolve evidence only where a gap matters. |
+| R8a Research | One scoped web evidence tool for Ask, Auto, Tutor, Explain on Canvas drafts and steps, and supported standalone card briefs. | Build the Exa evidence operation, wire the shared tool-call workflow, then qualify the supported callers and source UI under §10.2. |
 | R9 Practice/Progress | **Explanations + practice** produces supported practice and private assessed evidence without a personal goal. | Minimal real generation/assessment integration is required to accept that selectable MVP mode; ordinary explanations can ship first. Retain immutable quiz snapshots, outbox and remaining practice/evidence scope as separate R9 work. |
 | R10 Adaptation | Future steps respond to learner instructions and feedback without losing delivered work. | Deliver explanations-only adaptation after Core Tutor. Add assessed-practice evidence after R9 qualifies it. Track expanded source and version revisions separately. |
 | R11 One-ahead preparation | While one card is on offer, privately prepare at most one eligible following explanation or table. | Deliver after Core Tutor and before R12. Requires stable lifecycle, versions and money binding. Reuse a checked, reconciled result on normal approval. |
