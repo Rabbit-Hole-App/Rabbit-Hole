@@ -22,7 +22,7 @@ const lib = createRequire(import.meta.url)(outfile);
 const render = depth => lib.renderToStaticMarkup(lib.createElement(lib.DepthMenu, { settings: { depth, status: 'ready', saveStatus: 'ready', set() {}, retry() {} } }));
 
 test('the trigger is an icon for each level, never the word; the name stays in the accessible name and tooltip', () => {
-  const rows = [['overview', 'Overview', 'text-accent/45', 'lucide-signal-low'], ['standard', 'Standard', 'text-accent', 'lucide-signal-medium'], ['deep', 'Deep', 'text-primary-fill-hover', 'lucide-signal-high']];
+  const rows = [['overview', 'Overview', 'text-warn/45', 'lucide-signal-low'], ['standard', 'Standard', 'text-warn', 'lucide-signal-medium'], ['deep', 'Deep', 'text-danger', 'lucide-signal-high']];
   const seen = new Set();
   for (const [id, label, color, shape] of rows) {
     const markup = render(id);

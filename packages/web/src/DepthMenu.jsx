@@ -8,8 +8,8 @@ import { DEPTHS } from './learn-settings.js';
 // Depth is this canvas's. The Auto-suggest switch is its own control (AutoSuggestSwitch, use-learn-coaching.jsx), so only one
 // control carries that name. settings: useLearnSettings().
 // The Depth trigger is an icon, not a word (owner 2026-11-07): signal bars read as a scale, one, two or three bars, and the colour follows the level
-// (the blue button's palette, by lightness: a pale tint of --color-accent, --color-accent, then the darker --color-primary-fill-hover). The shape carries the meaning, so colour is never the only cue; the name stays in the aria-label and tooltip.
-export const LEVEL_MARK = { overview: [SignalLow, 'text-accent/45'], standard: [SignalMedium, 'text-accent'], deep: [SignalHigh, 'text-primary-fill-hover'] };
+// (one red-orange scale: a pale tint of --color-warn, --color-warn, then --color-danger). The shape carries the meaning, so colour is never the only cue; the name stays in the aria-label and tooltip.
+export const LEVEL_MARK = { overview: [SignalLow, 'text-warn/45'], standard: [SignalMedium, 'text-warn'], deep: [SignalHigh, 'text-danger'] };
 export default function DepthMenu({ settings, disabled = false }) {
   const [open, setOpen] = useState(false);
   const box = useRef(null), button = useRef(null), items = useRef([]);
