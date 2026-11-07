@@ -70,24 +70,45 @@ const BAD = {
   'not JSON': 'this is not json',
 };
 
-test('a valid rh-diagram is delivered unchanged; every invalid spec is refused and never delivered, at both entry points and in a More section', async () => {
+test('a valid rh-diagram is delivered unchanged; every invalid spec is checked by the validator, repaired once on the direct path and then DROPPED so the prose is delivered (never the invalid spec)', async () => {
   assert.equal(diagramProblem(fence()), null);
   const ok = { title: 'T', body: 'See:\n\n' + fence() };
   const direct = await viaDirect('standard', ok);
-  assert.deepEqual([direct.out.result, direct.out.block.body], ['artifact', ok.body], 'the spec text is delivered as written');
+  assert.deepEqual([direct.out.result, direct.out.block.body, direct.out.diagramsDropped], ['artifact', ok.body, undefined], 'the spec text is delivered as written');
   assert.equal((await viaRoadmap('standard', ok)).out.outcome, 'ok');
   for (const [name, spec] of Object.entries(BAD)) {
     const body = 'See:\n\n' + fence(spec);
     assert.match(diagramProblem(body) || '', /^explanation_bad_diagram: the rh-diagram spec is not valid/, name);
+    // direct path: one repair call, then the written explanation without the diagram
     const d = await viaDirect('standard', { title: 'T', body });
-    assert.match(d.out.error || '', /^explanation_bad_diagram:/, `direct ${name}`);
-    assert.notEqual(d.out.result, 'artifact', `direct ${name} is never delivered`);
+    assert.deepEqual([d.out.result, d.out.block?.body, d.out.diagramsDropped, d.m.seen.length], ['artifact', 'See:', 1, 2], 'direct ' + name);
+    // roadmap path: one call, repairs 0, the same delivery
     const r = await viaRoadmap('standard', { title: 'T', body });
-    assert.deepEqual([r.out.failure_class, r.out.code, r.m.seen.length], ['terminal_validation_failure', 'explanation_bad_diagram', 1], `roadmap ${name}`);
+    assert.deepEqual([r.out.outcome, r.out.block?.body, r.out.diagramsDropped, r.m.seen.length], ['ok', 'See:', 1, 1], 'roadmap ' + name);
     const inMore = await viaRoadmap('standard', { title: 'T', body: 'b', more: [{ label: 'L', text: body }] });
-    assert.equal(inMore.out.code, 'explanation_bad_diagram', `section ${name}`);
+    assert.deepEqual([inMore.out.outcome, inMore.out.block?.more?.[0]?.text, inMore.out.diagramsDropped], ['ok', 'See:', 1], 'section ' + name);
   }
+  const unclosed = await viaRoadmap('standard', { title: 'T', body: 'See:\n\n```rh-diagram\n' + JSON.stringify(SPEC) });
+  assert.deepEqual([unclosed.out.outcome, unclosed.out.block?.body, unclosed.out.diagramsDropped], ['ok', 'See:', 1], 'an unclosed fence is dropped');
   assert.match(diagramProblem('```rh-diagram\n' + JSON.stringify(SPEC)) || '', /not closed/, 'an unclosed fence');
+});
+
+test('the single repair: invalid then valid keeps the diagram; two bad fences drop independently; the prose still has to pass its own checks', async () => {
+  const bad = { title: 'T', body: 'See:\n\n' + fence(BAD.cycle) }, good = { title: 'T', body: 'See:\n\n' + fence() };
+  const m = scripted(['make_explanation', bad], ['make_explanation', good]);
+  const repaired = await generateArtifact({}, { command: 'explanation', args: 'x', depth: 'standard' }, { callModel: m.callModel });
+  assert.deepEqual([repaired.result, repaired.block.body, repaired.repaired, repaired.diagramsDropped, m.seen.length], ['artifact', good.body, true, undefined, 2], 'the repaired diagram is kept');
+  // a body diagram that is bad and a More diagram that is good: only the bad one goes, the good one stays and still counts
+  const mixed = { title: 'T', body: 'Intro.\n\n' + fence(BAD['not JSON']) + '\n\nOutro.', more: [{ label: 'L', text: fence() }, { label: 'M', text: 'p\n\n' + fence(BAD['unknown kind']) }] };
+  const r = await viaRoadmap('standard', mixed);
+  assert.equal(r.out.outcome, 'ok');
+  assert.deepEqual([r.out.block.body, r.out.block.more[0].text, r.out.block.more[1].text, r.out.diagramsDropped], ['Intro.\n\nOutro.', fence(), 'p', 2]);
+  // dropping the fence removes its words from the count, and the prose alone must still fit the cap
+  const over = { title: 'T', body: 'é'.repeat(EXPLANATION_CAPS.overview) + '\n\n' + fence(BAD.cycle) };
+  const failed = await viaRoadmap('overview', over);
+  assert.deepEqual([failed.out.failure_class, failed.out.code], ['terminal_validation_failure', 'explanation_over_budget']);
+  const fits = await viaRoadmap('overview', { title: 'T', body: 'é'.repeat(EXPLANATION_CAPS.overview - 2) + '\n\n' + fence(BAD.cycle) });
+  assert.deepEqual([fits.out.outcome, fits.out.diagramsDropped], ['ok', 1], 'the invalid fence does not count once dropped');
 });
 
 test('a NEW Mermaid fence is the superseded format: refused under every info string, at both entry points (the card still draws saved ones)', async () => {

@@ -359,3 +359,28 @@ function describeContent(diagram) {
 export function describeTutorDiagram({ diagram }) {
   return [diagram.title, ...describeContent(diagram), diagram.caption].filter(Boolean).join('\n');
 }
+
+// The words an author wrote that the renderer draws: title, caption and every label, heading, item, detail, source, unit and account name.
+// Ids, roles, anchors, directions and numbers are not words. The written-Explanation validator counts exactly these against the Depth cap.
+export function tutorDiagramVisibleText({ diagram: d }) {
+  const own = [d.title, d.caption];
+  const labels = list => list.map(item => item.label);
+  switch (d.kind) {
+    case 'flow': case 'relationship': return [...own, ...labels(d.nodes), ...labels(d.edges)];
+    case 'comparison': return [...own, ...d.columns.flatMap(c => [c.heading, ...c.items])];
+    case 'timeline': return [...own, ...d.events.flatMap(e => [e.time, e.label, e.detail])];
+    case 'sequence': return [...own, ...labels(d.actors), ...labels(d.messages)];
+    case 'matrix': return [...own, ...d.columns, ...d.rows.flatMap(r => [r.heading, ...r.cells])];
+    case 'layers': return [...own, ...d.layers.flatMap(l => [l.label, l.detail])];
+    case 'cycle': return [...own, ...d.steps];
+    case 'figure': return [...own, d.unit, ...d.callouts.flatMap(c => [c.label, c.detail]), ...(d.vectors ?? []).map(v => v.label)];
+    case 'tree': return [...own, ...labels(d.nodes)];
+    case 'transformation': return [...own, d.before.label, ...d.before.items, d.after.label, ...d.after.items, d.operation, ...(d.links ?? []).map(l => l.label)];
+    case 'argument': return [...own, d.claim, ...[...d.support, ...d.objections].flatMap(e => [e.label, e.source]), d.conclusion];
+    case 'number-line': return [...own, ...labels(d.markers), ...labels(d.intervals ?? [])];
+    case 'coordinate-plot': return [...own, d.x.label, d.x.unit, d.y.label, d.y.unit, ...labels(d.series)];
+    case 'bar-chart': return [...own, d.unit, ...labels(d.bars)];
+    case 't-account': return [...own, d.account, d.unit, ...labels(d.debits), ...labels(d.credits)];
+    case 'waterfall': return [...own, d.unit, ...labels(d.changes)];
+  }
+}

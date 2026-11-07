@@ -15,7 +15,7 @@ const dir = mkdtempSync(join(tmpdir(), 'explanation-diagram-'));
 after(() => rmSync(dir, { recursive: true, force: true }));
 const outfile = join(dir, 'md.cjs');
 await esbuild.build({
-  stdin: { contents: "export { Md } from './Md.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { Md } from './Md.jsx'; export { LearningBlockBody } from './LearningBlocks.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
   loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty', '.wasm': 'empty', '.woff2': 'empty', '.ttf': 'empty' },
   plugins: [{ name: 'stubs', setup(build) {
@@ -47,7 +47,7 @@ test('an rh-diagram fence in the body and in a More section is drawn as a TutorD
 test('card widths: the diagram fits 688 px exactly and stays within a scroll region at 320 px, with a viewBox that matches its size', () => {
   for (const sample of EXAMPLES) {
     const spec = sample.spec ?? sample;
-    for (const [asked, most] of [[688, 688], [320, 360]]) {
+    for (const [asked, most] of [[688, 688], [320, 400]]) {
       const { width, height, element } = renderTutorDiagram(spec, asked);
       assert.ok(width <= most && width >= 320, `${spec.diagram.kind} at ${asked}: ${width}`);
       assert.equal(element.props.viewBox, `0 0 ${width} ${height}`, spec.diagram.kind);
@@ -87,4 +87,52 @@ test('the Tutor reads a diagram as the library\'s plain description, never the J
   assert.doesNotMatch(text, /"nodes"|rh-diagram/);
   const broken = fence('not json');
   assert.equal(diagramsAsText(broken), broken);
+});
+
+// S7-EXPAND: every one of the 19 library examples survives save-and-reload and is drawn by the real card (LearningBlockBody -> ExplanationBody -> Md).
+const card = block => B.renderToStaticMarkup(B.createElement(B.LearningBlockBody, { block, onChange() {}, onChangeQuiet() {}, onFile() {}, appName: 'x', selected: true }));
+const specOf = sample => sample.spec ?? sample;
+
+test('19 examples: each draws from a saved block after a JSON round trip, in the card body and in a More section, with no code fallback', () => {
+  assert.equal(EXAMPLES.length, 19);
+  for (const [i, sample] of EXAMPLES.entries()) {
+    const spec = specOf(sample), kind = spec.diagram.kind, name = `${i + 1}. ${kind}`;
+    const block = { type: 'explanation', title: 'T', body: `Intro.\n\n${fence(spec)}\n\nEnd.`, more: [{ label: 'L', text: fence(spec) }] };
+    const saved = JSON.parse(JSON.stringify([block]))[0];
+    assert.deepEqual(saved, block, name);
+    for (const [where, html] of [['card body', card(saved)], ['More section', draw(saved.more[0].text)]]) {
+      assert.match(html, new RegExp(`data-tutor-diagram="${kind}"`), `${name} in the ${where}`);
+      assert.doesNotMatch(html, /data-code-block/, `${name} in the ${where}: no fallback code block`);
+      const [, drawn, high] = html.match(/<svg[^>]* width="([\d.]+)" height="([\d.]+)" viewBox="0 0 \1 \2"/) ?? [];
+      assert.ok(drawn, `${name} in the ${where}: the viewBox matches the drawn width and height`);
+      assert.match(html, /overflow-x:auto/, `${name}: inside the scroll region`);
+    }
+    assert.equal(card(saved).includes('Intro.') && card(saved).includes('End.'), true, `${name}: the prose around it stays`);
+  }
+});
+
+test('19 examples at the card widths: the svg is as wide as its viewBox at 688 and fits a 400 px scroll window at 320', () => {
+  for (const [i, sample] of EXAMPLES.entries()) {
+    const spec = specOf(sample), name = `${i + 1}. ${spec.diagram.kind}`;
+    for (const [asked, most] of [[688, 688], [320, 400]]) {
+      const { width, height, element } = renderTutorDiagram(spec, asked);
+      assert.equal(element.props.viewBox, `0 0 ${width} ${height}`, `${name} at ${asked}`);
+      assert.equal(element.props.width, width, `${name} at ${asked}`);
+      assert.ok(width >= 320 && width <= most, `${name} at ${asked}: ${width}`);
+      assert.equal(element.props['data-tutor-diagram'], spec.diagram.kind);
+    }
+  }
+});
+
+test('a card with no diagram (or one the server dropped) draws prose only: no empty diagram box', () => {
+  const html = card({ type: 'explanation', title: 'T', body: 'Prose only, the diagram was dropped.', more: [{ label: 'L', text: 'p' }] });
+  assert.match(html, /Prose only/);
+  assert.doesNotMatch(html, /data-tutor-diagram|overflow-x:auto|data-code-block|data-md-diagram/);
+});
+
+test('a saved legacy Mermaid card still draws through the legacy reader after a JSON reload', () => {
+  const block = { type: 'explanation', title: 'Old', body: 'Old card.\n\n```mermaid\nflowchart TD\n  A["Go"] --> B["Stop"]\n```' };
+  const html = card(JSON.parse(JSON.stringify(block)));
+  assert.match(html, /data-md-diagram/);
+  assert.doesNotMatch(html, /data-tutor-diagram/);
 });

@@ -14,7 +14,7 @@ import { BRIEF_LIMITS, generationArgs, isBriefCommand } from '../../web/src/mate
 import { consumeProposal, releaseProposal, verifyProposal } from './generation-proposal.js';
 import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
-import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem } from './learn-primitives.js';
+import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, dropInvalidDiagrams } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { authorizedBoardApp } from './learn-board.js';
@@ -133,7 +133,7 @@ export async function generateArtifact(env, input, { callModel: baseCall = logge
     try {
       if (result.stop_reason === 'max_tokens') throw new Error('The artifact was cut off before it was complete');
       if (!id) throw new Error('The clarifying question was empty');
-      let block, extraction;
+      let block, extraction, diagramsDropped = 0;
       if (input.imageSource) {
         const checked = checkImageExtraction(call.input, content => ({ result: artifactBlock(id, content) }), input.imageSource);
         if (checked.error) throw new Error(checked.error);
@@ -142,11 +142,15 @@ export async function generateArtifact(env, input, { callModel: baseCall = logge
       } else block = artifactBlock(id, call.input);
       if (title && typeof block.title === 'string') block = { ...block, title };
       // CORE.09: the final title first, then the Depth's display-text budget and supported Mermaid, on every path that makes an explanation.
-      if (id === 'explanation') { const problem = explanationProblem(block, input.depth); if (problem) throw new Error(problem); }
+      // No repair left: an rh-diagram that cannot be drawn is dropped and the written explanation is delivered (the prose still passes its own checks).
+      if (id === 'explanation') {
+        if (attempt >= repairs) ({ block, dropped: diagramsDropped } = dropInvalidDiagrams(block));
+        const problem = explanationProblem(block, input.depth); if (problem) throw new Error(problem);
+      }
       if (GATES[id]) block = GATES[id](block);
       if (id === 'animation' && env.LEARN_SCENE_VERIFIER !== 'off') { const problem = await verify(block); if (problem) throw new Error(problem); }
       if (contract(id).paid) return { result: 'paid_proposal', primitive: id, block, message: 'This uses paid generation.', estimatedCost: contract(id).estimatedCost ?? null, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
-      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
+      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, ...(diagramsDropped ? { diagramsDropped } : {}), ...(extraction ? { extraction } : {}) };
     } catch (error) {
       // Which check refused which attempt: the validator's words only, never the spec (a repair's cause is otherwise invisible).
       console.log(JSON.stringify({ event: 'learn_artifact_invalid', primitive: id || null, attempt, error: String(error.message).slice(0, 300) }));
