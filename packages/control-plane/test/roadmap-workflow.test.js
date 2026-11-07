@@ -726,3 +726,149 @@ test('BE.14 access, entitlement and private projections (CORE.05, UI.01-08)', as
   const forged = await h.send('alice', 'POST', `/api/learn/roadmap/${rm}/proposals/pr_000000000000000000000000/accept`, { boardId: h.boards.alice, revision: next.roadmap.revision, proposalVersion: 1, actionKey: KEY('forged') });
   assert.deepEqual([forged.status, forged.body.code], [404, 'not_found'], 'the exact error contract');
 });
+
+// ---- Offer readiness and recovery in place (checklist 4.1.1, BE.04 extension, BE.05a). Built-in formats only (explanation, table); ROADMAP_FORMATS_OFF is the
+// runtime fact that changes after a roadmap was approved. Nothing here may start an author call, a hold or a debit for an offer that is not ready.
+const TABLE_FIRST = (required = false) => planOf([{ ...STEPS[1], passage: { start: 0, end: AT.entropy }, ...(required ? { formatRequired: true } : {}) }, { ...STEPS[0], passage: { start: AT.entropy, end: AT.background } }], { coverage: { uncovered: [{ start: AT.background, end: MD.length, reason: 'The learner asked to focus on the criteria.' }] } });
+const noWork = (h, before) => assert.deepEqual([h.authorCalls.length, authorizations(h).length, learnerActions(h).length, pending(h).length, JSON.stringify(h.totals())], [0, 0, 0, 0, before], 'zero author dispatch, hold, debit and offer');
+const recover = (h, view, choice, key) => h.send('alice', 'POST', `/api/learn/roadmap/${view.roadmap.id}/steps/recover`, { boardId: h.boards.alice, revision: view.roadmap.revision, stepId: view.offerRecovery?.stepId ?? view.steps[0].id, choice, actionKey: KEY(key) });
+const stepAcceptedSnapshot = h => JSON.parse(h.rows("SELECT payload_json FROM learn_roadmap_outbox WHERE kind = 'step_accepted' ORDER BY rowid DESC LIMIT 1")[0].payload_json).snapshot;
+
+test('BE.04 the first metadata proposal exists only when the first format qualifies (extension)', async t => {
+  await t.test('BE.04 ready first format: one proposal, no author dispatch; a repeated plan acceptance changes nothing', async () => {
+    const h = await workflow(t);
+    const view = await started(h);
+    assert.equal(pending(h).length, 1);
+    assert.deepEqual([view.proposal.format, view.offerRecovery], ['explanation', null]);
+    const again = await acceptPlan(h, view, { key: 'plan' });
+    assert.deepEqual([again.status, pending(h).length, h.authorCalls.length, authorizations(h).length], [200, 1, 0, 0], 'idempotent acceptance, still one offer, no charge');
+  });
+  await t.test('BE.04 a first format that does not qualify offers no proposal; the accepted tree is unchanged and the step stays planned', async () => {
+    const h = await workflow(t, { plans: [TABLE_FIRST(true)] });
+    h.env.ROADMAP_FORMATS_OFF = 'table';
+    const before = JSON.stringify(h.totals());
+    const view = await started(h);
+    assert.equal(view.roadmap.state, 'active');
+    assert.equal(view.acceptedPlan.steps.length, 2, 'the accepted tree is published whole');
+    assert.equal(view.proposal, null, 'no proposal became actionable');
+    assert.deepEqual([view.steps[0].state, view.offerRecovery?.stepId === view.steps[0].id, view.offerRecovery?.question?.options.map(o => o.id)], ['planned', true, ['alternative', 'edit']]);
+    noWork(h, before);
+  });
+});
+
+test('BE.05a tool readiness and recovery at the card offer (CORE.03-05, UI.04, R6)', async t => {
+  await t.test('BE.05a ready format: offered as planned, approval binds the exact format, settings and source revision, and that binding reaches the writer', async () => {
+    const h = await workflow(t, { script: [explanation()] });
+    const view = await started(h);
+    const accepted = await acceptCard(h, view, 'ready');
+    assert.equal(accepted.status, 202);
+    const snap = stepAcceptedSnapshot(h);
+    assert.deepEqual([snap.format, snap.sourceRevision, snap.source.rev, snap.settings.depth, snap.depth], ['explanation', h.rev, h.rev, 'standard', 'standard']);
+    assert.equal(h.authorCalls.length, 1);
+    assert.deepEqual(h.authorCalls[0].body.tools.map(x => x.name).filter(n => n.startsWith('make_')), ['make_explanation'], 'the writer was offered exactly the approved format');
+  });
+
+  await t.test('BE.05a first offer: an unavailable suggested format with a free alternative is offered as that alternative for the SAME step, with its own review', async () => {
+    const h = await workflow(t, { plans: [TABLE_FIRST(false)], script: [explanation()] });
+    h.env.ROADMAP_FORMATS_OFF = 'table';
+    const view = await started(h);
+    assert.equal(pending(h).length, 1, 'one step, one offer');
+    assert.deepEqual([view.proposal.stepId === view.steps[0].id, view.proposal.format, view.steps[0].format, view.offerRecovery], [true, 'explanation', 'table', null], 'the same step; the alternative is the offer');
+    assert.equal(h.authorCalls.length, 0, 'offering charges and authors nothing');
+    const accepted = await acceptCard(h, view, 'alt');
+    assert.equal(accepted.status, 202);
+    assert.deepEqual([stepAcceptedSnapshot(h).format, h.authorCalls[0].body.tools.map(x => x.name).filter(n => n.startsWith('make_'))], ['explanation', ['make_explanation']]);
+  });
+
+  await t.test('BE.05a first offer: a REQUIRED format is never changed silently: one focused question in Chat, step undelivered; choosing the alternative offers it once', async () => {
+    const h = await workflow(t, { plans: [TABLE_FIRST(true)], script: [explanation()] });
+    h.env.ROADMAP_FORMATS_OFF = 'table';
+    const before = JSON.stringify(h.totals());
+    const view = await started(h);
+    assert.equal(view.proposal, null);
+    assert.match(view.offerRecovery.question.text, /table card cannot be prepared right now/);
+    assert.deepEqual(view.offerRecovery.question.options.map(o => o.id), ['alternative', 'edit']);
+    noWork(h, before);
+    const chosen = await recover(h, view, 'alternative', 'choose');
+    assert.equal(chosen.status, 200);
+    assert.deepEqual([chosen.body.proposal.format, chosen.body.proposal.stepId === view.steps[0].id, chosen.body.offerRecovery], ['explanation', true, null], 'the alternative is the same step, with its own review, and the recovery is cleared');
+    assert.equal(pending(h).length, 1);
+    assert.equal((await recover(h, view, 'alternative', 'choose-again')).status, 409, 'a repeated or stale choice is refused');
+    assert.equal((await recover(h, view, 'edit', 'edit')).status, 400, 'Edit roadmap is the Chat edit target and sends no recovery request');
+    assert.equal(h.authorCalls.length, 0);
+  });
+
+  await t.test('BE.05a no qualified tool: useful help and a next step in Chat, step undelivered, zero work', async () => {
+    const h = await workflow(t, { plans: [TABLE_FIRST(false)] });
+    h.env.ROADMAP_FORMATS_OFF = 'table,explanation';
+    const before = JSON.stringify(h.totals());
+    const view = await started(h);
+    assert.equal(view.proposal, null);
+    assert.match(view.offerRecovery.help, /Edit roadmap/);
+    assert.equal(view.offerRecovery.question, undefined);
+    assert.equal(view.steps[0].state, 'planned');
+    noWork(h, before);
+    const manual = await h.route('alice', routes.proposeNext(view, KEY('manual-help')));
+    assert.deepEqual([manual.status, manual.body.proposal, pending(h).length], [200, null, 0], 'a manual retry runs the same check and offers nothing');
+  });
+
+  await t.test('BE.05a manual next offer and automatic next offer run the same guard after the roadmap was approved', async () => {
+    for (const manualPath of [true, false]) {
+      const h = await workflow(t, { script: [explanation()], auto: !manualPath });
+      const view = await started(h);
+      const card = await acceptCard(h, view, 'first');
+      assert.equal(card.status, 202);
+      h.env.ROADMAP_FORMATS_OFF = 'table'; // the suggested format of step 2 stops being ready after approval
+      assert.equal((await deliver(h, card.body.slots[0].resultId)).status, 200);
+      await h.run();
+      let next = await status(h);
+      if (manualPath) { assert.equal(next.proposal, null, 'Auto-suggest off: nothing unsolicited'); next = (await h.route('alice', routes.proposeNext(next, KEY('manual-next')))).body; }
+      assert.deepEqual([next.proposal.stepId === next.steps[1].id, next.proposal.format, next.steps[1].format], [true, 'explanation', 'table'], (manualPath ? 'manual' : 'automatic') + ': the eligible alternative for the same step');
+      assert.equal(h.authorCalls.length, 1, 'only the first card was authored: the successor offer authored nothing');
+      assert.equal(authorizations(h).length, 1);
+      assert.deepEqual(h.handlerErrors, []);
+    }
+  });
+
+  await t.test('BE.05a automatic offer with a required format and no ready alternative routes to Chat recovery, undelivered', async () => {
+    const plan = planOf(STEPS.map((s, i) => (i === 1 ? { ...s, formatRequired: true } : s)));
+    const h = await workflow(t, { plans: [plan], script: [explanation()] });
+    const view = await started(h);
+    const card = await acceptCard(h, view, 'first');
+    h.env.ROADMAP_FORMATS_OFF = 'table';
+    assert.equal((await deliver(h, card.body.slots[0].resultId)).status, 200);
+    await h.run();
+    const next = await status(h);
+    assert.equal(next.proposal, null);
+    assert.deepEqual([next.offerRecovery.stepId === next.steps[1].id, next.offerRecovery.question.options.map(o => o.id), next.steps[1].state], [true, ['alternative', 'edit'], 'planned']);
+    assert.equal(pending(h).length, 0);
+    assert.equal(h.authorCalls.length, 1, 'no author dispatch for the unready offer');
+  });
+
+  await t.test('BE.05a acceptance of an offer that stopped being eligible: refused with zero author call, hold or debit; the eligible alternative is offered for the same step', async () => {
+    const h = await workflow(t, { plans: [TABLE_FIRST(false)], script: [explanation()] });
+    const view = await started(h); // table is ready now: the offer is the table card
+    assert.equal(view.proposal.format, 'table');
+    h.env.ROADMAP_FORMATS_OFF = 'table'; // after the offer, before Accept
+    const before = JSON.stringify(h.totals());
+    const refused = await acceptCard(h, view, 'stale');
+    assert.deepEqual([refused.status, refused.body.code], [409, 'offer_unready']);
+    assert.deepEqual([h.authorCalls.length, authorizations(h).length, learnerActions(h).length, JSON.stringify(h.totals())], [0, 0, 0, before], 'nothing was priced, held or debited');
+    const cur = refused.body.current;
+    assert.deepEqual([cur.proposal.stepId === view.proposal.stepId, cur.proposal.format, cur.proposal.id === view.proposal.id], [true, 'explanation', false], 'a new current review for the same step');
+    assert.equal(pending(h).length, 1);
+    assert.equal((await acceptCard(h, cur, 'now')).status, 202, 'the alternative accepts normally');
+    assert.equal(h.authorCalls.length, 1);
+  });
+
+  await t.test('BE.05a the successor offer waits for the saved acknowledgment of the approved card', async () => {
+    const h = await workflow(t, { script: [explanation()] });
+    const view = await started(h);
+    const card = await acceptCard(h, view, 'first');
+    await h.run(); await h.run();
+    assert.equal((await status(h)).proposal, null, 'no successor while the approved card is not saved and acknowledged');
+    assert.equal((await deliver(h, card.body.slots[0].resultId)).status, 200);
+    await h.run();
+    assert.equal((await status(h)).proposal.stepId === view.steps[1].id, true, 'the next offer appears only after the acknowledgment');
+  });
+});

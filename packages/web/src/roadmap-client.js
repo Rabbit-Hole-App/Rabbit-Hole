@@ -21,6 +21,7 @@ export const routes = {
   revise: (view, fields, actionKey) => mutate(view, 'revise', fields, actionKey),
   acceptPlan: (view, actionKey) => mutate(view, 'accept-plan', { planVersion: view.planDraft?.version ?? view.roadmap.planVersion }, actionKey), // the displayed draft (contracts.md: 409 stale_draft otherwise)
   proposeNext: (view, actionKey) => mutate(view, 'steps/propose', {}, actionKey),
+  recover: (view, stepId, choice, actionKey) => mutate(view, 'steps/recover', { stepId, choice }, actionKey), // the Chat recovery entry's chosen alternative (BE.05a)
   acceptProposal: (view, actionKey) => mutate(view, `proposals/${view.proposal.id}/accept`, { proposalVersion: view.proposal.version }, actionKey),
   cancelProposal: (view, actionKey) => mutate(view, `proposals/${view.proposal.id}/cancel`, { proposalVersion: view.proposal.version }, actionKey),
   deliver: (view, resultId, actionKey) => mutate(view, `results/${resultId}/deliver`, {}, actionKey),

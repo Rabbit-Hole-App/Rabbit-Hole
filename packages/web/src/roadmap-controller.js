@@ -239,6 +239,12 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
       meter.manual();
       return mutateView(`propose:${state.view.roadmap.id}:${state.view.roadmap.revision}`, key => routes.proposeNext(state.view, key));
     },
+    // BE.05a: the learner chose the alternative offered when a required format could not be prepared; the same step then gets its own review.
+    recoverOffer({ choice = 'alternative' } = {}) {
+      const held = state.view?.offerRecovery;
+      if (!held || state.view.proposal) return Promise.resolve(null);
+      return mutateView(`recover:${state.view.roadmap.id}:${held.stepId}:${choice}`, key => routes.recover(state.view, held.stepId, choice, key));
+    },
     // R5: edit the pending proposal. The preview never changes it; Apply (after the server confirms) replaces it with the next version.
     openEditor() { dispatch({ type: 'edit_open' }); },
     closeEditor() { const draft = state.draft; dispatch({ type: 'edit_close' }); if (draft && state.view && !stopped) call(routes.discardDraft(state.view, draft)).catch(() => {}); }, // best effort: the Apply guard is the correctness boundary

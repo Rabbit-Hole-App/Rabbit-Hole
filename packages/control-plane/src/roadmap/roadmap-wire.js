@@ -16,6 +16,7 @@ import { makeComposeEdit, makeProposalScreen } from './roadmap-edit.js';
 import { roadmapEditEnabled, sweepProposalDrafts } from './roadmap-proposal-drafts.js';
 import { AUTO_KINDS, autoProposalHandler, settingsFanoutHandler } from './roadmap-auto.js';
 import { roadmapAutoEnabled } from './roadmap-settings-events.js';
+import { revalidateSourceAsJob } from './roadmap-access.js';
 
 const scopeOf = access => ({ org: access.org, ownerUserId: access.actorUserId, boardId: access.boardId });
 
@@ -47,6 +48,7 @@ export function roadmapDeps(env, ctx = null, { settings = learnerSettings(env), 
   const kick = roadmapKick(env, ctx);
   return { readSource: makeReadSource(env, readSourceOptions), startPlanning: kick, onAccepted: kick, onFact: roadmapAutoEnabled(env) ? kick : undefined, // R6: no wake on ack/mode change unless the automatic switch is on
     compose: (roadmap, step) => composeProposal(env.LEARN_DB, roadmap, step),
+    revalidate: revalidateSourceAsJob, // the offer readiness check (roadmap-offer-readiness.js) reads the source through the same revalidation the writer uses
     mintStepRefs: (e, access, roadmapId) => mintStepRefs(e, access, roadmapId), settings,
     quote: (e, access, args) => quoteStepAcceptance(e, access, args), // CORE.05: the accept route quotes the actual author request before any hold
     // R5 (ROADMAP_EDIT_ENABLED): `screen` is R4's safety classifier path over the learner's words and the composed words (held when unknown); the composer is platform-funded

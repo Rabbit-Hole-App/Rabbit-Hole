@@ -735,6 +735,7 @@
 
     "packages/control-plane/src/roadmap/roadmap-access.js": ["packages/control-plane/test/roadmap-loop.test.js","packages/control-plane/test/roadmap-routes.test.js","packages/control-plane/test/roadmap-workflow.test.js"],
     "packages/control-plane/src/roadmap/roadmap-check.js": ["packages/control-plane/test/roadmap-grounding.test.js","packages/control-plane/test/roadmap-safety.test.js","packages/control-plane/test/roadmap-loop.test.js"],
+    "packages/control-plane/src/roadmap/roadmap-offer-readiness.js": ["packages/control-plane/test/roadmap-offer-readiness.test.js","packages/control-plane/test/roadmap-workflow.test.js"],
     "packages/control-plane/src/roadmap/roadmap-compose.js": ["packages/control-plane/test/roadmap-loop.test.js","packages/control-plane/test/roadmap-workflow.test.js"],
     "packages/control-plane/src/roadmap/roadmap-events.js": ["packages/control-plane/test/roadmap-events.test.js","packages/control-plane/test/roadmap-glue.test.js"],
     "packages/control-plane/src/roadmap/roadmap-generate.js": ["packages/control-plane/test/roadmap-generate.test.js","packages/control-plane/test/roadmap-loop.test.js","packages/control-plane/test/roadmap-workflow.test.js"],
