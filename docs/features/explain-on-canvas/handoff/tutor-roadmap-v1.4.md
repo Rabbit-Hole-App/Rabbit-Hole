@@ -787,11 +787,24 @@ Build R8a in this order.
 2. **Search a public query.** Send Exa the minimum authorized public concept after a server-side egress check. Keep private source passages, secrets, learner evidence and private repository content inside Rabbit Hole. If the question cannot be made public within scope, offer the supported part or ask one focused question.
 3. **Read the pages.** Start with the existing Exa `auto` discovery path and guarded original-page fetch. Prefer sources with authority over the fact and the relevant date or version. Recheck URLs and redirects, bound time, bytes and content types, and treat retrieved material as untrusted source data. A search hit or provider synthesis can guide discovery. Use passages actually read as evidence.
 4. **Check coverage and stop.** Stop when the facts needed for this output have direct support. A current primary source may suffice for a straightforward fact. Seek independent corroboration when a material claim is disputed or consequential. Record the final URL, title, supporting excerpt, retrieval time, applicable version or date, and any partial coverage or disagreement. Distinguish sourced facts from Tutor's explanations, inferences and illustrative examples.
-5. **Bound the work.** Start with one search of up to five candidates, up to four page reads across the research pass, and one focused follow-up search only when it could close a remaining gap. Enforce the platform's configured time, work and cost caps across the request and lesson. At a limit or an inconclusive result, use the supported portion or ask a focused question. Research depth follows the evidence need and available budget. Overview, Standard and Deep set teaching detail.
+5. **Bound the work.** Start with one search of up to five candidates, up to four page reads across the research pass, and one focused follow-up search only when it could close a remaining gap. Use the pilot limits below and enforce the configured time, work and cost caps across the request and lesson. At a limit or an inconclusive result, use the supported portion or ask a focused question. Research depth follows the evidence need and available budget. Overview, Standard and Deep set teaching detail.
 
 **First Explanation slice.** Use a supported Markdown lesson and the ordinary accepted-step card flow. Qualify a source-supported step with zero Exa calls, a step that needs one public fact, and an essential gap that research cannot resolve. For the researched card, bind the evidence to the offer before approval. Give the writer the pinned Markdown, approved step and relevant read passages, then save one Explanation in its existing slot with its cited **Sources** and **Copy link** controls. Use the existing recovery for an unresolved gap. The first caller is tracked in checklist §6.4, R8a.03.
 
 The platform funds authorized research. Use the existing safety, access, quota and reconciliation boundaries for each request. Bind citations to passages from pages actually read and keep citation IDs, scope and versions available to the final output. The ordinary Explanation authoring contract remains in §5.3.
+
+**Proposed first R8a pilot limits.** The owner records the approved values and eligible caller in the release configuration. Use the following starting values for the written Explanation slice. Verify the configuration and provider quote before enabling live research.
+
+| Scope | Starting cap |
+| --- | --- |
+| One research pass for a reply, draft or card offer | One Exa `auto` search and at most one targeted follow-up. Up to five candidates per search and four page reads total. **20 seconds** wall time and **$0.10** in R8a provider spend. |
+| One learner's lesson | **Six Exa searches** across the lesson, including draft revisions and cards. Count each admitted search, including a follow-up. |
+| One learner across R8a entry points | **12 Exa searches per rolling 24 hours**. |
+| R8a platform pilot | **$1 per rolling 24 hours** and **$5 total** for the owner-approved pilot allocation. Apply these within the existing platform-wide guard. |
+
+Budget every paid R8a operation, including bounded query formation when needed. The ordinary card generation uses its own approval and charge. Keep stable pass, lesson, learner and pilot identities so reloads, edits and deploys share the applicable counters. At each provider dispatch, reserve against all applicable remaining caps. Settle provider-reported cost and release confirmed unused reservations. Keep unknown costs reserved until reconciled. When a cap or deadline is reached, return the supported result or ask a focused question for an essential gap.
+
+Exa's published Auto Search base price is **$0.007 per request** for up to ten results, or **$0.014 for two discovery requests** at that rate. These figures cover search only. Use the existing conservative server quote for admission and check it against the configured account terms. The pilot uses guarded original-page reads for evidence. https://exa.ai/pricing
 
 Exa references for search modes, extracted content and freshness, and bounded search loops.
 
