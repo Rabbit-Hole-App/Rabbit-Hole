@@ -2464,7 +2464,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   returnFocus={() => (tocPick.blockId ? document.querySelector(`[data-block-id="${CSS.escape(tocPick.blockId)}"]`) : null)}
   onPick={entry => { if (tocPick.blockId) return canvasApi.current?.addTocLink?.(tocPick.blockId, entry.id) || { ok: false }; setCardPick({ entryId: entry.id }); return { ok: true }; }} />}
 {cardPick && <ItemPicker title="Link a card to this section" searchLabel="Search cards by title" Icon={FileText} emptyText="No cards on this canvas can hold a link yet."
-  items={(canvasApi.current?.linkableCards?.() || []).map(card => ({ id: card.id, title: card.title }))}
+  items={(canvasApi.current?.linkableCards?.() || []).map(card => ({ id: card.id, title: card.title, path: card.path }))}
   linked={(canvasApi.current?.linkableCards?.() || []).filter(card => card.tocLinks.includes(cardPick.entryId)).map(card => card.id)} onClose={() => setCardPick(null)}
   onPick={card => canvasApi.current?.addTocLink?.(card.id, cardPick.entryId) || { ok: false }} />}
 {refPick && <CanvasRefPicker exclude={commentBoard} onClose={() => setRefPick(null)}

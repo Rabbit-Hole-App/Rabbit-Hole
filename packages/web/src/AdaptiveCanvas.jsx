@@ -6,7 +6,8 @@ import { createPortal, flushSync } from 'react-dom';
 import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock, fitFrame, naturalHeight } from './card-layout.js';
-import { customTitleOf, renamable, renameBlock, startTitleOf, groupEditText, groupLabelFrom } from './card-rename.js';
+import { customTitleOf, renamable, renameBlock, startTitleOf, groupEditText, groupLabelFrom, namedTitleOf, TITLE_MAX } from './card-rename.js';
+import { nameKey, positionHint, titleTaken, uniquifyBlocks } from './unique-title.js';
 import CardCustomTitle from './CardCustomTitle.jsx';
 import CardHeader, { CardRename } from './CardHeader.jsx';
 import './card-layout.css';
@@ -1707,9 +1708,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // saved CONTENT always wins - but a saved EMPTY board re-seeds, because [] is
   // truthy and an empty array in storage is how a visit during a deploy
   // rollout, or to a then-unregistered name, permanently froze a board blank.
-  const [blocks, setBlocks] = useState(stored.current.blocks?.length ? stored.current.blocks.map(expandedToFull) : (seedBlocks || [])); // course-authored lesson blocks
+  // A board saved with two cards of one name shows the later one stepped to "(2)" (unique-title.js), the same on every load; in memory until the next ordinary save.
+  const [blocks, setBlocks] = useState(() => uniquifyBlocks(stored.current.blocks?.length ? stored.current.blocks.map(expandedToFull) : (seedBlocks || []))); // course-authored lesson blocks
   const blocksRef = useRef(blocks);
   blocksRef.current = blocks;
+  // One name to a card (owner 2026-11-07): whatever put a card on the board (paste, duplicate, Alt-drag, a generated result, an import, a command), a name
+  // already in use steps to "(2)", "(3)" here, in the one place every insert passes through. The card that was there first keeps its name; a view-only board writes nothing.
+  const knownBlockIds = useRef(null);
+  if (knownBlockIds.current === null) knownBlockIds.current = new Set(blocks.map(block => block.id));
+  useEffect(() => {
+    const next = readOnlyRef.current ? blocks : uniquifyBlocks(blocks, knownBlockIds.current);
+    for (const block of blocks) knownBlockIds.current.add(block.id);
+    if (next !== blocks) setBlocks(next);
+  }, [blocks]);
   // Reserved slots for cards on their way (canvas-slots.js): this viewer's UI only, never in `blocks`, so
   // never saved, pushed, undone, forked or counted as content.
   const [slots, setSlots] = useState([]);
@@ -2480,7 +2491,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       },
       // What the two pickers list: this canvas's manual contents sections (with their number path), and the cards that can hold a link, by title.
       tocSections: () => sectionChoices(outlineFrom(blocksRef.current, tocRef.current)),
-      linkableCards: () => blocksRef.current.filter(holdsTocLink).map(block => ({ id: block.id, title: objectName(block, describeBlock(block)), tocLinks: block.tocLinks || [] })),
+      // Cards by title for Add a link. Names are unique on a canvas (unique-title.js), but a board saved before that, or a card with no title yet, can still
+      // share one: those rows carry their place in board order ("#3") so the picker always tells them apart.
+      linkableCards: () => {
+        const rows = blocksRef.current.filter(holdsTocLink).map(block => ({ id: block.id, title: objectName(block, describeBlock(block)), tocLinks: block.tocLinks || [] }));
+        const uses = new Map();
+        for (const row of rows) uses.set(nameKey(row.title), (uses.get(nameKey(row.title)) || 0) + 1);
+        return rows.map(row => (uses.get(nameKey(row.title)) > 1 ? { ...row, path: positionHint(blocksRef.current, row.id) } : row));
+      },
       // A standalone reference card near `point` (world units: (menuAt.x - view.x) / view.z) or the view's centre, in free
       // space, placed as openInNotebook places (the end of the column, offset to the spot), then selected. Returns its id.
       insertRefCard: (target, point = null, at = null) => {
@@ -6345,24 +6363,33 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {menuAt && presenting === null && <CanvasMenu rows={actionsFor(menuAt.target, actionCtx)} at={menuAt} surface={surface.current} onPick={pickMenu} onClose={closeMenu} />}
         {/* Rename (card-rename.js): the card's title edited in place over its top edge; Enter or blur saves, Escape cancels, focus goes back to the card. */}
         {renaming && !readOnly && renaming.rect && (() => {
+          const target = blocks.find(block => block.id === renaming.id), heading = target?.type === 'heading';
           const done = (save, refocus = true) => {
             if (renaming.closed) return; // a blur after Enter or Escape must not save again
-            renaming.closed = true;
             const { id, title } = renaming;
-            setRenaming(null);
             const next = save ? renameBlock(blocks, id, title) : blocks;
+            // A name another card already has is refused here, in the editor, with the old name kept; nothing is stepped to "(2)" behind the learner's back.
+            if (next !== blocks) {
+              const renamed = next.find(block => block.id === id), name = heading ? String(renamed?.text ?? '').trim() : namedTitleOf(renamed);
+              if (titleTaken(blocks, name, id, heading ? 'heading' : 'card')) { setRenaming(previous => ({ ...previous, error: heading ? 'Another section already has this name' : 'Another card already has this name' })); return; }
+            }
+            renaming.closed = true;
+            setRenaming(null);
             if (next !== blocks) { snapshot(); setBlocks(next); }
             // Enter or Escape hands focus back to the card; a click elsewhere keeps the focus it moved to.
             if (refocus) requestAnimationFrame(() => document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.focus?.());
           };
-          return <input autoFocus data-card-rename aria-label="Card title" value={renaming.title}
+          return <><input autoFocus data-card-rename aria-label="Card title" value={renaming.title} maxLength={heading ? 200 : TITLE_MAX}
             style={{ position: 'fixed', left: renaming.rect.left, top: renaming.rect.top, width: Math.max(160, renaming.rect.width) }}
-            className="z-50 rounded-md border border-accent bg-white px-2 py-1.5 text-sm text-ink shadow-pop outline-none"
+            className={`z-50 rounded-md border bg-white px-2 py-1.5 text-sm text-ink shadow-pop outline-none ${renaming.error ? 'border-danger' : 'border-accent'}`}
+            aria-invalid={renaming.error ? true : undefined}
             onFocus={event => event.currentTarget.select()}
             onPointerDown={event => event.stopPropagation()}
-            onChange={event => setRenaming(previous => ({ ...previous, title: event.target.value }))}
+            onChange={event => setRenaming(previous => ({ ...previous, title: event.target.value, error: null }))}
             onKeyDown={event => { event.stopPropagation(); if (event.key === 'Enter') { event.preventDefault(); done(true); } else if (event.key === 'Escape') { event.preventDefault(); done(false); } }}
-            onBlur={() => done(true, false)} />;
+            onBlur={() => done(true, false)} />
+          {renaming.error && <p role="alert" data-card-rename-error style={{ position: 'fixed', left: renaming.rect.left, top: renaming.rect.top + 42, width: Math.max(160, renaming.rect.width) }}
+            className="z-50 rounded-md bg-white px-2 py-1 text-xs text-danger shadow-pop">{renaming.error}</p>}</>;
         })()}
       </div>
       {/* The Explain-back Sketch panel's dock (sketchHost.portal): over the surface, outside its zoom, clear of the tools'

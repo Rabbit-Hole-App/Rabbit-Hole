@@ -13,6 +13,7 @@ import { moveTargets } from './toc-move.js';
 import { ancestorsOf, linkedCards } from './toc-links.js';
 import { DESCRIPTION_MAX, outlineTree, proposalProblem, withRoadmap } from './learn-outline-model.js';
 import { keyLabel } from './shortcuts.js';
+import { nameKey } from './unique-title.js';
 
 const SECTION_LEVELS = [[1, 'Section', Heading1], [2, 'Sub-section', Heading2], [3, 'Sub-sub-section', Heading3]];
 const LEVEL_NAMES = { 1: 'section', 2: 'sub-section', 3: 'sub-sub-section' };
@@ -75,6 +76,8 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
   const shown = proposal && !readOnly ? (Array.isArray(proposal) ? { ops: proposal, base: null } : proposal) : null;
   const endDrag = () => { setDrag(null); setDrop(undefined); };
   const save = (entry, title, description) => {
+    // A section name another section already has is refused in the editor (the editor keeps its words), never stepped to "(2)" behind the learner's back.
+    if (title && title !== entry.label && outline.some(other => other.id !== entry.id && !other.roadmap && nameKey(other.label) === nameKey(title))) return { error: 'Another section already has this name' };
     const ops = [];
     if (title && title !== entry.label) ops.push({ op: 'retitle', id: entry.id, text: title });
     if (description !== entry.description) ops.push({ op: 'describe', id: entry.id, description });
@@ -301,11 +304,13 @@ function Editor({ entry, topic, onSave, onCancel }) {
   const form = useRef(null);
   // Closed once: Enter saves and unmounts the editor, and the blur that follows must not save again.
   const closed = useRef(false);
+  const [error, setError] = useState('');
   const commit = () => {
     if (closed.current) return;
     closed.current = true;
     const data = new FormData(form.current);
-    onSave(String(data.get('title')).trim(), String(data.get('description')).trim());
+    const refused = onSave(String(data.get('title')).trim(), String(data.get('description')).trim());
+    if (refused?.error) { closed.current = false; setError(refused.error); }
   };
   const keys = event => {
     if (event.key === 'Escape') { event.preventDefault(); closed.current = true; onCancel(); }
@@ -316,7 +321,9 @@ function Editor({ entry, topic, onSave, onCancel }) {
       onBlur={event => { if (!form.current?.contains(event.relatedTarget)) commit(); }}
       className="flex min-w-0 flex-1 flex-col gap-1.5">
       <input name="title" autoFocus defaultValue={entry.label} aria-label={`Title of ${entry.label}`} maxLength={200} onKeyDown={keys} onFocus={event => event.currentTarget.select()}
-        className={`h-8 min-w-0 rounded border border-line px-1.5 outline-none focus:border-ink-3 ${topic ? 'text-base font-semibold' : 'text-sm font-medium'}`} />
+        onChange={() => error && setError('')} aria-invalid={error ? true : undefined}
+        className={`h-8 min-w-0 rounded border px-1.5 outline-none focus:border-ink-3 ${error ? 'border-danger' : 'border-line'} ${topic ? 'text-base font-semibold' : 'text-sm font-medium'}`} />
+      {error && <p role="alert" data-toc-editor-error className="text-xs text-danger">{error}</p>}
       <textarea name="description" defaultValue={entry.description} aria-label={`Description of ${entry.label}`} placeholder="What this section covers (optional)" maxLength={DESCRIPTION_MAX} rows={2} onKeyDown={keys}
         className="min-w-0 resize-none rounded border border-line px-1.5 py-1 text-[13px] leading-normal text-ink-2 outline-none focus:border-ink-3" />
     </form>

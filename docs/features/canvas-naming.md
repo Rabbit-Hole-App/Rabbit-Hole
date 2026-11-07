@@ -6,7 +6,11 @@ Owner rules, 2026-10-06. Titles are labels, never identities.
 
 - **Identity is the canonical name** (`canvas-xxxxxxxx`), immutable. It carries routing, ownership, forks, Rabbit Holes, shares, publications and telemetry. A title never identifies anything. A rename changes the title only.
 - **Different people may own the same title.** The creator's @handle disambiguates in public.
-- **A title the learner types is kept exactly:** at creation ("new canvas Binary Search") and on rename. It is never rewritten to "(2)", even when the owner already has that title. Uniqueness is never required, and creation is never refused over a title.
+- **One title to an owner's canvases (owner 2026-11-07; this supersedes "a typed title is kept exactly").** The Add a link picker and the Library pick a canvas by its title, so an owner's own top-level canvases never share one, compared without regard to case or surrounding spaces:
+  - **Creating** a canvas (New canvas, the default "Untitled canvas") whose title the owner already has steps to the next free " (n)" ("Binary Search", "Binary Search (2)"): a canvas is never refused over its name.
+  - **Renaming** to a title another of the owner's canvases has is refused: `409 { code: 'title_taken', error: 'Another canvas already has this name' }`, the canvas unchanged. Keeping its own title, or changing only its case, is fine. The Library's rename dialog shows the message and keeps Save off.
+  - **Titles saved before this rule** stay as they are (no migration): each still opens by its own name, can be renamed to a free title, and is only refused when renamed to a title another canvas has. The canvas picker shows the path to tell equal titles apart.
+  - Compared with SQLite NOCASE: ASCII letters fold, other scripts compare exactly.
 - **Copies the system makes for their owner** step to the next free ` (n)` when the owner's own top-level Library already has the title:
 
   | Copy | Result |
@@ -16,7 +20,7 @@ Owner rules, 2026-10-06. Titles are labels, never identities.
 
   "Next free" is the smallest number from 2 up that is not in use, so a number already taken (typed by hand, say) is skipped and never overwritten.
 - **What counts as a collision:** only the same owner's top-level canvases, archived included (`freeTitle`, canvases.js). Nested Rabbit Holes, another owner's canvases and projects (repositories) never count. A project and a canvas may share a title; the card's type icon tells them apart.
-- **Nested Rabbit Holes need no unique titles,** and their creation is never suffixed. They are identified by their parent and origin.
+- **Nested Rabbit Holes need no unique titles,** and their creation is never suffixed and a rename of one is never refused. They are identified by their parent and origin.
 - **One title per object:** the same canonical title shows on every surface (Home, Library, Explore, shared, `/e`, fork provenance).
 
 ## Duplicate
