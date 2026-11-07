@@ -131,3 +131,23 @@ test('a later offer (next) keeps the keyboard-owning frame but has no attached p
   assert.match(markup, /^<div [^>]*data-roadmap-overlay=""/);
   assert.doesNotMatch(markup, /data-roadmap-pill|data-roadmap-accept/);
 });
+
+// The slot and Chat show the passage through the entitled reference (useStepExcerpt -> stepExcerpt): cached, honest when it cannot be read.
+test('stepExcerpt: asks resolve with excerpt once per ref, caches it, and answers unavailable (not a quote) for anything but a current excerpt', async () => {
+  const { stepExcerpt, forgetExcerpts, cachedExcerpt, UNAVAILABLE } = await import('./source-refs.js');
+  forgetExcerpts();
+  const calls = [], answers = { sref_a: { id: 'sref_a', status: 'current', excerpt: 'A split is useful.' }, sref_b: { id: 'sref_b', status: 'changed' }, sref_c: { id: 'sref_c', status: 'current' } };
+  const post = async (path, body) => { calls.push([path, body]); if (body.ids[0] === 'sref_x') throw Object.assign(Error('offline'), { status: 500 }); return { refs: [answers[body.ids[0]]] }; };
+  assert.deepEqual(await stepExcerpt(post, 'demo', 'sref_a'), { state: 'ready', text: 'A split is useful.' });
+  assert.deepEqual(calls[0], ['/api/learn/source-refs/resolve', { app: 'demo', ids: ['sref_a'], excerpt: true }]);
+  await stepExcerpt(post, 'demo', 'sref_a');
+  assert.equal(calls.length, 1, 'cached');
+  assert.deepEqual(cachedExcerpt('demo', 'sref_a'), { state: 'ready', text: 'A split is useful.' });
+  assert.equal(await stepExcerpt(post, 'demo', 'sref_b'), UNAVAILABLE, 'changed source: no stale passage');
+  assert.equal(await stepExcerpt(post, 'demo', 'sref_c'), UNAVAILABLE, 'current but no text (a PDF): no invented quote');
+  assert.equal(await stepExcerpt(post, 'demo', 'sref_x'), UNAVAILABLE);
+  assert.equal(cachedExcerpt('demo', 'sref_x'), null, 'a failed request is asked again');
+  assert.equal(await stepExcerpt(post, 'demo', null), UNAVAILABLE);
+  assert.equal(calls.length, 4);
+  assert.match(readFileSync(new URL('./SlotCard.jsx', import.meta.url), 'utf8'), /useStepExcerpt\(card\?\.sourceRef, actions\?\.app/, 'the slot reads it from the reference, in every state');
+});

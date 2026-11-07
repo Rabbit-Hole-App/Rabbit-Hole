@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { StepPill, PILL_BOX, STAGE } from './NextStepPill.jsx';
 import { STRINGS as ROADMAP_STRINGS } from './roadmap-strings.js';
-import { SourceRefLine, useSourceRefStatus } from './SourceRefChip.jsx';
+import { SourceRefLine, useSourceRefStatus, useStepExcerpt } from './SourceRefChip.jsx';
 import { NO_FILE_CARD } from './source-ref.js';
 
 // Moved out of AdaptiveCanvas.jsx unchanged for plain slots, so it can be rendered and tested alone; AdaptiveCanvas still draws every slot with it.
@@ -21,6 +21,9 @@ export function SlotCard({ slot, actions = null }) {
   const ref = card?.state === 'pending' && card.sourceRef?.id && card.passage ? card.sourceRef : null;
   const status = useSourceRefStatus(ref?.id ?? null, actions?.app ?? null, ref?.source?.rev);
   const [note, setNote] = useState('');
+  // The exact passage this step is about, read from its entitled reference (never from the polled view); the same hook Chat's entry uses. A given card.excerpt wins.
+  const found = useStepExcerpt(card?.sourceRef, actions?.app ?? null);
+  const excerpt = card?.excerpt || (found.state === 'ready' ? found.text : null);
   useEffect(() => { if (card) return undefined; const timer = setInterval(() => setNow(performance.now()), 100); return () => clearInterval(timer); }, [card]);
   // An anchored slot (canvas-slots.js anchoredSlots) stands at its own world position, out of the column's flow; any other slot is the column's, as always.
   const place = slot.at ? { position: 'absolute', left: slot.at.x, top: slot.at.y } : { marginTop: slot.top || undefined };
@@ -55,7 +58,8 @@ export function SlotCard({ slot, actions = null }) {
         <p data-slot-format className="px-4 text-[11px] leading-4 text-ink-3">{ROADMAP_STRINGS.formatName[card.format] || ROADMAP_STRINGS.formatName.explanation}</p>
         <p className="px-4 pb-1 text-[17px] leading-[1.35] font-semibold break-words text-ink">{card.title}</p>
         {card.description && <p className="px-4 pb-3 text-[13px] leading-normal break-words text-ink-2">{card.description}</p>}
-        {card.excerpt && <blockquote data-slot-excerpt className="mx-4 mb-3 border-l-2 border-line-strong bg-hover px-2.5 py-1.5 text-xs leading-relaxed break-words text-ink-2">{card.excerpt}</blockquote>}
+        {excerpt && <blockquote data-slot-excerpt className="mx-4 mb-3 border-l-2 border-line-strong bg-hover px-2.5 py-1.5 text-xs leading-relaxed break-words text-ink-2">{excerpt}</blockquote>}
+        {!excerpt && found.state === 'unavailable' && <p data-slot-excerpt-unavailable className="mx-4 mb-3 text-xs text-ink-3">{ROADMAP_STRINGS.excerptUnavailable}</p>}
         {ref && <SourceRefLine ref_={ref} status={status} note={note} onOpen={() => setNote(actions?.onPassage?.(card) === 'no-card' ? NO_FILE_CARD : '')} />}
         {failed
           ? <p role="alert" className="px-4 pt-2 text-[13px] break-words text-ink-2">{card.failure?.message || ROADMAP_STRINGS.failed}</p>

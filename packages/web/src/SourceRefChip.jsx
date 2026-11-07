@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { BookOpen, FileText, ScanText } from 'lucide-react';
 import { api } from './api.js';
 import { NO_FILE_CARD, STATUS_SHORT, STATUS_TEXT, navigable, refLabel, sourceRefOf } from './source-ref.js';
-import { publishBlocks, published, resolveSourceRef, subscribeBlocks, viewPassage } from './source-refs.js';
+import { cachedExcerpt, publishBlocks, published, resolveSourceRef, stepExcerpt, subscribeBlocks, viewPassage } from './source-refs.js';
 
 const NONE = [];
 const post = (path, body) => api(path, { method: 'POST', body: JSON.stringify(body) });
@@ -35,6 +35,23 @@ export function useSourceRefStatus(id, app, rev) {
     return () => { live = false; };
   }, [id, app, rev]);
   return status;
+}
+
+// The passage a Tutor step is about (source-refs.js stepExcerpt): the slot and the Chat entry call this with the step's `sourceRef` (steps[].sourceRef or
+// proposal.sourceRelation.sourceRef: only its `id` is used) and the canvas name. -> { state: 'none' } (no reference to ask), { state: 'loading' },
+// { state: 'ready', text } (the exact quote, at most 400 characters) or { state: 'unavailable' } (honest: no quote is invented).
+export function useStepExcerpt(sourceRef, app) {
+  const id = sourceRef?.id ?? null;
+  const [found, setFound] = useState(() => (id && app ? cachedExcerpt(app, id) : null));
+  useEffect(() => {
+    if (!id || !app) { setFound(null); return undefined; }
+    let live = true;
+    const held = cachedExcerpt(app, id);
+    if (held) setFound(held);
+    else { setFound(null); stepExcerpt(post, app, id).then(out => { if (live) setFound(out); }); }
+    return () => { live = false; };
+  }, [id, app]);
+  return !id || !app ? { state: 'none' } : found || { state: 'loading' };
 }
 
 export default function SourceRefChip({ block, app, onHeight = null }) {
