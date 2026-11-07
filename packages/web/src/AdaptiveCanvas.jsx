@@ -85,6 +85,7 @@ import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
 import { buildContext, buildCreationContext, createContextCache, freezeTarget } from './inline-ai-context.js';
 import { applyTx, obstaclesOf, placeAnswers, placeNote } from './inline-ai-apply.js';
 import { REF_CARD, refCardSpot, reIdRefs, withRef, withoutRef } from './canvas-refs-model.js';
+import { holdsTocLink, resolvedLinks, sectionChoices, withLiveLinks, withTocLink, withoutTocLink } from './toc-links.js';
 import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.js';
 import { semanticReader } from './curious-context.js';
 import CanvasRefChips, { CanvasRefs } from './CanvasRefChips.jsx';
@@ -2466,6 +2467,30 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         setBlocks(previous => previous.map(block => block.id === blockId ? { ...block, refs } : block));
         return true;
       },
+      // Links from a card to a Table of contents section (toc-links.js): block.tocLinks, one undo step each, never block.refs (the server indexes those).
+      // addTocLink answers { ok } or { ok: false, reason }, as addRef does.
+      addTocLink: (blockId, entryId) => {
+        const entries = outlineFrom(blocksRef.current, tocRef.current);
+        const next = readOnlyRef.current || !entries.some(entry => entry.id === entryId) ? { reason: 'unsupported' } : withTocLink(withLiveLinks(blocksRef.current.find(block => block.id === blockId), entries), entryId);
+        if (!next.tocLinks) return { ok: false, reason: next.reason };
+        snapshot();
+        setBlocks(previous => previous.map(block => (block.id === blockId ? { ...block, tocLinks: next.tocLinks } : block)));
+        return { ok: true };
+      },
+      removeTocLink: (blockId, entryId) => {
+        const tocLinks = readOnlyRef.current ? null : withoutTocLink(blocksRef.current.find(block => block.id === blockId), entryId);
+        if (!tocLinks) return false;
+        snapshot();
+        setBlocks(previous => previous.map(block => {
+          if (block.id !== blockId) return block;
+          const { tocLinks: _gone, ...rest } = block;
+          return tocLinks.length ? { ...rest, tocLinks } : rest;
+        }));
+        return true;
+      },
+      // What the two pickers list: this canvas's manual contents sections (with their number path), and the cards that can hold a link, by title.
+      tocSections: () => sectionChoices(outlineFrom(blocksRef.current, tocRef.current)),
+      linkableCards: () => blocksRef.current.filter(holdsTocLink).map(block => ({ id: block.id, title: objectName(block, describeBlock(block)), tocLinks: block.tocLinks || [] })),
       // A standalone reference card near `point` (world units: (menuAt.x - view.x) / view.z) or the view's centre, in free
       // space, placed as openInNotebook places (the end of the column, offset to the spot), then selected. Returns its id.
       insertRefCard: (target, point = null, at = null) => {
@@ -2644,6 +2669,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // heading is added, retitled, reordered or ticked, and only then.
   const outlineKey = JSON.stringify(outline);
   const cardsKey = JSON.stringify(blocks.map(block => [block.id, block.pdf || block.assetKey || null, block.paper?.id || null]));
+  // [[cardId, title, entryIds]] for the cards that link to contents sections (toc-links.js linkedCards): the Table of contents' side of each link.
+  const linksKey = JSON.stringify(blocks.filter(block => block.tocLinks?.length).map(block => [block.id, objectName(block, describeBlock(block)), block.tocLinks]));
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
   const clipboard = useRef(null);
@@ -3237,7 +3264,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The section being viewed (learn-present.js activeSection), for the Table of contents' marker.
   // ponytail: follows the camera and the layout, not a window resize on its own; the next pan catches up.
   const viewing = surface.current ? activeSection(blocks, bounds, { x: -view.x / view.z, y: -view.y / view.z, w: surface.current.clientWidth / view.z, h: surface.current.clientHeight / view.z }) : null;
-  useEffect(() => { onState?.({ grid, lock, minimap, holeMap, curious, toolbar, pages, presenting: presenting !== null, focus: focusSnapshot(focus), outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, activeSection: tocEntryFor(toc, viewing), card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, holeMap, curious, toolbar, pages, presenting, focus?.id, focus?.kind, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, viewing, toc, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { onState?.({ grid, lock, minimap, holeMap, curious, toolbar, pages, presenting: presenting !== null, focus: focusSnapshot(focus), outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), tocLinks: JSON.parse(linksKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, activeSection: tocEntryFor(toc, viewing), card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, holeMap, curious, toolbar, pages, presenting, focus?.id, focus?.kind, outlineKey, cardsKey, linksKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, viewing, toc, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => connectionCleanup.current?.(), []);
   // Deleting is a command as well as a key, so it lives outside the key handler.
   const deleteSelection = async () => {
@@ -6162,7 +6189,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {exchanges.map(exchange => (String(exchange.linkFrom).startsWith('area:') || (exchange.linkFrom && exchange.float)
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
-          <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; } }}>
+          <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; }, tocLinksOf: id => (refLinks.goToc ? resolvedLinks(blocks.find(block => block.id === id), outline) : []) }}>
             {anchoredSlots(slots).map(slot => <SurfaceBoundary key={slot.id} artifact="slot_card"><SlotCard slot={slot} actions={roadmap && { ...roadmap, app: appName, onPassage: card => viewPassage(card.sourceRef, { range: card.passage, raw: true }) }} /></SurfaceBoundary>)}{columnEntries(blocks, slots).flatMap(({ block, slot }) => slot ? <SurfaceBoundary key={slot.id} artifact="slot_card"><SlotCard slot={slot} /></SurfaceBoundary> : [<LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} placing={pendingAt.current.has(block.id)} />, roomAfter[block.id] ? <div key={`room:${block.id}`} data-group-room aria-hidden="true" style={{ height: roomAfter[block.id] }} /> : null])}
           </CanvasRefs.Provider></CardOpen.Provider></SketchHost.Provider>
         </div>

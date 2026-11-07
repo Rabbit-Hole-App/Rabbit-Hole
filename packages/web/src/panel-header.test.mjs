@@ -136,9 +136,10 @@ test('Close shuts the panel and touches nothing else', () => {
 // Owner brief 2026-10-13 13.8: readers open in the Sources pane beside Chat, so nothing forces another tab over Chat.
 // Owner decision 5B (R4, 2026-10-15): the learner's click on 'Use as table of contents' opens the Apply/Discard flow, so a
 // syllabus proposal is the one other thing that brings the Table of contents forward; a Tutor proposal never does.
-test('an opened reader leaves the tab alone; only the course interview and a syllabus proposal bring the Table of contents forward', () => {
+test('an opened reader leaves the tab alone; only the course interview, a syllabus proposal and a card link to a section (owner 2026-11-07) bring the Table of contents forward', () => {
   assert.doesNotMatch(page, /if \(wikiOpen \|\| paperOpen[^\n]*setPanelTab/);
-  assert.deepEqual(page.match(/setPanelTab\('toc'\)/g), ["setPanelTab('toc')", "setPanelTab('toc')"]);
+  assert.deepEqual(page.match(/setPanelTab\('toc'\)/g), ["setPanelTab('toc')", "setPanelTab('toc')", "setPanelTab('toc')"]);
+  assert.match(page, /goToc: entryId => \{ setPanelOpen\(true\); setPanelTab\('toc'\); setTocFlash/, 'a card Linked section Open: the panel, its Table of contents tab, then the highlight');
   assert.match(page, /useEffect\(\(\) => \{ if \(setupChat\) setPanelTab\('toc'\); \}, \[setupChat\]\);/);
   assert.match(page, /if \(proposal\?\.source === 'syllabus'\) setPanelTab\('toc'\);/);
 });

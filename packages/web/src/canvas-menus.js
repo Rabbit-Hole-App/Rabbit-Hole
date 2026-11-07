@@ -31,7 +31,7 @@ export const ownerInsertItems = ({ canvas, onUpload, onSearchSources, onLinkToCa
   { label: 'Webpage', icon: Globe, onSelect: () => canvas()?.insertWebpage() },
   { label: 'Search sources', icon: Search, onSelect: onSearchSources },
   { divider: true },
-  { label: 'Link to canvas', icon: Link, onSelect: onLinkToCanvas },
+  { label: 'Add a link', icon: Link, onSelect: onLinkToCanvas },
 ];
 
 // Align needs two pieces, Distribute three (a group counts as one piece).

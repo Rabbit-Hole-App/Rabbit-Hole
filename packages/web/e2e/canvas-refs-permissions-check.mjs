@@ -188,11 +188,11 @@ await check('item 8: on the member page the reference is read-only - a title lin
   const box = await pageB.locator('[data-block-id="s1"]').boundingBox();
   await pageB.mouse.click(box.x + box.width / 2, box.y + 14, { button: 'right' });
   await pageB.waitForTimeout(300);
-  assert.equal(await pageB.getByText('Link to canvas', { exact: true }).count(), 0, 'the card menu offers Link to canvas… to a member');
+  assert.equal(await pageB.getByText('Add a link', { exact: true }).count(), 0, 'the card menu offers Add a link to a member');
   await pageB.keyboard.press('Escape');
   await pageB.mouse.click(box.x + box.width + 260, box.y + 200, { button: 'right' });
   await pageB.waitForTimeout(300);
-  assert.equal(await pageB.getByText('Link to canvas', { exact: true }).count(), 0, 'the canvas menu offers Link to canvas… to a member');
+  assert.equal(await pageB.getByText('Add a link', { exact: true }).count(), 0, 'the canvas menu offers Add a link to a member');
   await pageB.keyboard.press('Escape');
   await shot(pageB, '02-member-chip-read-only');
   // A view-only member can follow a destination they may read.

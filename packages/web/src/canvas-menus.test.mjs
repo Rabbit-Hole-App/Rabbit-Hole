@@ -19,22 +19,22 @@ const allMenus = () => [
   { title: 'Insert', items: walk(ownerInsertItems({ canvas })) },
 ];
 
-test('Insert: sections, local rows, then Notebook, Upload a file, Webpage, Search sources, then Link to canvas', () => {
+test('Insert: sections, local rows, then Notebook, Upload a file, Webpage, Search sources, then Add a link', () => {
   const insert = ownerInsertItems({ canvas, onUpload() {}, onSearchSources() {}, onLinkToCanvas() {} });
-  assert.deepEqual(groups(insert), [['Section', 'Text box', 'Sticky note', 'Divider', 'Equation'], ['Notebook', 'Upload a file', 'Webpage', 'Search sources'], ['Link to canvas']]);
+  assert.deepEqual(groups(insert), [['Section', 'Text box', 'Sticky note', 'Divider', 'Equation'], ['Notebook', 'Upload a file', 'Webpage', 'Search sources'], ['Add a link']]);
   assert.deepEqual(labels(find(insert, 'Section').items), ['Section', 'Sub-section', 'Sub-sub-section']);
   assert.ok(find(insert, 'Section').items.every(item => !item.size && !item.weight && !item.icon), 'text-only choices, typography not enlarged');
   assert.deepEqual(groups(localInsertItems(canvas)), [['Section', 'Text box', 'Sticky note', 'Divider', 'Equation']], 'a shared canvas gets the local rows');
   assert.doesNotMatch(labels(walk(insert)).join('|'), /YouTube|arXiv|Wikipedia|Files|Share|Publish|Embed/, 'one source finder, no Files, Share, Publish or Embed');
 });
 
-test('Insert rows call the canvas api; the page supplies Upload, Search sources and Link to canvas', () => {
+test('Insert rows call the canvas api; the page supplies Upload, Search sources and Add a link', () => {
   calls.length = 0;
   const seen = [];
   const insert = ownerInsertItems({ canvas, onUpload: () => seen.push('upload'), onSearchSources: () => seen.push('search'), onLinkToCanvas: () => seen.push('link') });
   for (const label of ['Text box', 'Sticky note', 'Divider', 'Equation', 'Notebook', 'Webpage']) find(insert, label).onSelect();
   find(find(insert, 'Section').items, 'Sub-section').onSelect();
-  for (const label of ['Upload a file', 'Search sources', 'Link to canvas']) find(insert, label).onSelect();
+  for (const label of ['Upload a file', 'Search sources', 'Add a link']) find(insert, label).onSelect();
   assert.deepEqual(calls, [['insertText'], ['insertSticky'], ['insertDivider'], ['insertEquation'], ['insertNotebook'], ['insertWebpage'], ['insertHeading', 2]]);
   assert.deepEqual(seen, ['upload', 'search', 'link']);
 });
