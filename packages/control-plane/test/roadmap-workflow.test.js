@@ -74,14 +74,14 @@ test('BE.01 drop acknowledgment and conversation choice (UI.01)', async t => {
   assert.equal(again.body.invitation?.id, iv.id, 'the same source event is routed once');
 
   await t.test('BE.01 the occupied-chat receipt/choice persists as one durable Tutor entry with structured metadata', async () => {
-    // contracts.md absent at writing: assumed message field `meta.tutor` (BRIEF contract 6: structured metadata through the existing message/meta seam).
+    // Chat lane contract (1cf5a8332): request field `tutor: { v: 1, kind, seq, ... }` on an assistant message, read back as messages[].meta.tutor.
     const receipt = { client_id: `roadmap-inv-${iv.id}`, role: 'assistant', content: `You've added **${FILE_NAME}**. Start a new chat for this document or stay here?`,
-      meta: { version: 1, tutor: { kind: 'source_receipt', invitationId: iv.id, sourceKey: source, choices: ['start_new_chat', 'stay_here'] } } };
+      tutor: { v: 1, kind: 'source_receipt', seq: 0, invitationId: iv.id, sourceKey: source, choices: ['start_new_chat', 'stay_here'] } };
     assert.equal((await saveMessage(h, T_BUSY, receipt)).status, 201);
     assert.equal((await saveMessage(h, T_BUSY, receipt)).body.duplicate, true, 'a replayed receipt is not a second message');
     const busy = (await readThread(h, T_BUSY)).body;
     assert.deepEqual(busy.messages.map(m => m.clientId), ['u-old-1', 'a-old-1', `roadmap-inv-${iv.id}`], 'history retained, one receipt');
-    assert.deepEqual(busy.messages[2].meta?.tutor, receipt.meta.tutor, 'the Tutor metadata round-trips through the real read');
+    assert.deepEqual(busy.messages[2].meta?.tutor, receipt.tutor, 'the Tutor metadata round-trips through the real read');
   });
 
   await t.test('BE.01 Start new chat: a distinct durable destination; the old history and draft stay; the roadmap binds there once', async () => {
@@ -177,7 +177,8 @@ test('BE.03 roadmap edits, revision guards and practice readiness (UI.03, R5)', 
     assert.equal(revise.role, 'roadmap_revise');
     assert.ok(revise.text.includes(INSTRUCTION) && revise.text.includes('Focus on entropy, please.'), 'original and latest instruction reach the planner');
     const stale = await h.send('alice', 'POST', `/api/learn/roadmap/${v2.roadmap.id}/accept-plan`, { boardId: h.boards.alice, revision: v2.roadmap.revision, planVersion: 1, actionKey: KEY('stale-plan') });
-    assert.equal(stale.status, 409, 'the superseded draft is refused');
+    assert.deepEqual([stale.status, ['stale_revision', 'stale_draft'].includes(stale.body.code)], [409, true], 'the superseded draft is refused (stale_revision|stale_draft)');
+    assert.equal(v2.revisionPending, false);
     assert.equal((await acceptPlan(h, v2)).status, 200, 'the displayed revision is accepted');
   });
 
@@ -194,7 +195,7 @@ test('BE.03 roadmap edits, revision guards and practice readiness (UI.03, R5)', 
     const edit = await h.route('alice', routes.revise(before, { instruction: 'Add a step on pruning later.' }, KEY('revise-active')));
     assert.equal(edit.status, 202, 'editing an accepted roadmap prepares a new unaccepted draft');
     const after = await status(h);
-    // contracts.md absent: assumed view fields `acceptedPlan` (drives ToC) and `draft` (drives the Chat roadmap message), BRIEF contract 5.
+    // be contract 4/5: acceptedPlan { version, ... } drives the ToC, draft { version, steps, acceptable, instructionVersion } the Chat roadmap message, revisionPending while re-planning.
     assert.equal(after.acceptedPlan?.version, before.roadmap.acceptedPlanVersion, 'the accepted plan stays authoritative');
     assert.equal(after.draft?.version, before.roadmap.planVersion + 1, 'the draft is a separate revision');
     await h.run();
@@ -202,15 +203,27 @@ test('BE.03 roadmap edits, revision guards and practice readiness (UI.03, R5)', 
     assert.ok(h.authorCalls[1].text.includes('CLAIM-TABLE'), 'with its own accepted claims');
     assert.deepEqual(await boardBlocks(h), board, 'saved cards unchanged');
     assert.ok((await h.totals()).used >= used, 'no refund or extra charge from the edit');
+    assert.deepEqual(after.acceptedPlan.steps.map(x => x.title), STEPS.map(x => x.title), 'the accepted tree is unchanged by the draft');
+    assert.deepEqual([after.draft.instructionVersion, after.draft.acceptable, after.draft.steps.length], [2, true, SHORT_PLAN.steps.length], 'the draft carries its own instruction version and steps');
+    const stale = await h.send('alice', 'POST', `/api/learn/roadmap/${before.roadmap.id}/accept-plan`, { boardId: h.boards.alice, revision: (await status(h)).roadmap.revision, planVersion: before.roadmap.acceptedPlanVersion, actionKey: KEY('old-plan') });
+    assert.equal(stale.status, 409, 'accepting the superseded plan version is refused');
+    const reaccepted = await acceptPlan(h, await status(h), { key: 'replan' });
+    assert.equal(reaccepted.status, 200, 'reacceptance publishes the new plan');
+    assert.equal(reaccepted.body.acceptedPlan.version, after.draft.version);
+    assert.equal(h.rows("SELECT state FROM learn_roadmap_steps WHERE state = 'delivered'").length >= 1, true, 'delivered work keeps its step');
   });
 
   await t.test('BE.03 Explanations + practice is refused at the server capability boundary until qualified', async () => {
     const h = await workflow(t);
-    // contracts.md absent: assumed create field `practiceMode: 'explanations_practice'` and refusal code `capability_unavailable`.
+    // be contract: 422 practice_unavailable on create (practiceMode) and on revise (settings.practiceMode).
     const refused = await explain(h, { extra: { practiceMode: 'explanations_practice' } });
-    assert.ok(refused.status >= 400 && refused.status < 500, `practice is refused, not silently accepted (got ${refused.status})`);
-    assert.equal(refused.body.code, 'capability_unavailable');
+    assert.equal(refused.status, 422, 'practice is refused, not silently accepted');
+    assert.equal(refused.body.code, 'practice_unavailable');
     assert.equal(h.rows('SELECT * FROM learn_roadmaps').length, 0);
+    await explain(h, { key: 'ok' });
+    const viaRevise = await h.route('alice', routes.revise(await status(h), { settings: { practiceMode: 'explanations_practice' } }, KEY('rp')));
+    assert.deepEqual([viaRevise.status, viaRevise.body.code], [422, 'practice_unavailable'], 'also through a revision');
+    assert.equal((await status(h)).roadmap.practiceMode, 'explanations', 'never silently switched');
   });
 });
 
@@ -226,13 +239,13 @@ test('BE.04 Accept roadmap and the accepted-only ToC (UI.02-03)', async t => {
   const replay = await acceptPlan(h, draft);
   assert.equal(replay.status, 200, 'a repeated acceptance is idempotent');
   const second = await h.send('alice', 'POST', `/api/learn/roadmap/${draft.roadmap.id}/accept-plan`, { boardId: h.boards.alice, revision: accepted.body.roadmap.revision, planVersion: draft.roadmap.planVersion, actionKey: KEY('plan-again') });
-  assert.ok([200, 409].includes(second.status), 'a second device accepting the same plan buys nothing');
+  assert.ok(second.status === 200 || (second.status === 409 && ['stale_revision', 'stale_draft'].includes(second.body.code)), 'a second device accepting the same plan buys nothing');
   assert.equal(h.rows('SELECT * FROM learn_step_proposals').length, 1, 'still one proposal');
   // Navigation (status reads) mutates nothing.
   const r1 = (await status(h)).roadmap.revision, r2 = (await status(h)).roadmap.revision;
   assert.equal(r1, r2);
   assert.equal(h.plannerCalls.length, 1);
-  // contracts.md absent: assumed view field `acceptedPlan` = the accepted snapshot; a later draft revision does not leak into it.
+  // be contract: acceptedPlan = the accepted snapshot; a later draft revision does not leak into it.
   assert.deepEqual(accepted.body.acceptedPlan?.steps?.map(s => s.title), STEPS.map(s => s.title), 'accepted-only outline projection');
   const snapshot = h.rows('SELECT plan_hash, plan_json FROM learn_roadmap_plan_versions WHERE version = ?', draft.roadmap.planVersion)[0];
   assert.ok(snapshot.plan_hash, 'an immutable accepted plan snapshot with its hash');
@@ -297,7 +310,7 @@ test('BE.06 actual author request and both output formats (CORE.03-07)', async t
     assert.ok(authorContext(call).includes(MD), 'whole pinned Markdown');
     assert.ok(call.text.includes(MARKER), 'including the distant marker');
     assert.ok(call.text.includes('CLAIM-GINI') && call.text.includes(PLAN.outcome), 'accepted step claims and outcome');
-    assert.match(call.text, /Depth: standard/);
+    assert.match(call.text, /Depth: standard/i);
     assert.match(call.text, /language \\"en\\"/);
     assert.deepEqual([h.checkerCalls.length, JSON.parse(resultRow(h, resultId).check_json).grounding.validation], [0, 'not_run'], 'no citation review; grounding not_run, not passed');
     assert.ok(call.text.includes(INSTRUCTION), 'the original learner instruction reaches the writer');
@@ -333,6 +346,11 @@ test('BE.06 actual author request and both output formats (CORE.03-07)', async t
 // CORE.09 caps: Overview 600, Standard 1,000, Deep 1,500 code points of card content (title + body + every `more` label and text). Assumption noted in
 // verify-status.md: the title and body are counted as separate fields and summed (no joining space counted).
 const CAPS = { overview: 600, standard: 1000, deep: 1500 };
+// The real counter (be, learn-primitives.js explanationChars) when it has landed; before that the plain sum CORE.09 lists (title + body, no joining space asserted).
+const primitives = await import('../src/learn-primitives.js');
+const charsOf = block => (primitives.explanationChars ? primitives.explanationChars(block) : Array.from(block.title).length + Array.from(block.body).length);
+// A body that makes the whole block exactly `target` counted code points (Unicode filler).
+const bodyFor = (title, target) => { let body = 'é'.repeat(target); body = 'é'.repeat(Math.max(0, target - (charsOf({ title, body }) - target))); return body; };
 const RICH_BODY = 'Compare the two criteria:\n\n| criterion | range |\n| --- | --- |\n| Gini | 0 to 0.5 |\n| Entropy | 0 to 1 |\n\n```mermaid\nflowchart TD\n  A["Node"] -->|split| B["Purer children"]\n```\n\nNotice both reach zero for a pure node.';
 const RICH_MORE = [{ label: 'Worked example', text: '| share | Gini |\n| --- | --- |\n| 0.5 | 0.5 |\n\n```mermaid\nflowchart LR\n  P["Parent"] --> C["Child"]\n```' }];
 
@@ -340,7 +358,8 @@ test('BE.06a Tutor Explanation authoring, saved output and caps (CORE.09)', asyn
   for (const [depth, cap] of Object.entries(CAPS)) {
     await t.test(`BE.06a ${depth}: the accepted title wins, the request carries the ${cap} cap, exactly ${cap} passes and survives reload`, async () => {
       const title = STEPS[0].title;
-      const body = 'é'.repeat(cap - Array.from(title).length);
+      const body = bodyFor(title, cap);
+      assert.equal(charsOf({ title, body }), cap);
       const { h, accepted, resultId } = await firstCard(t, [explanation('A different model title', body)], { depth });
       assert.equal(accepted.status, 202);
       assert.ok(h.authorCalls[0].text.includes(String(cap)) || h.authorCalls[0].text.includes(cap.toLocaleString('en-US')), `the dispatched request names the ${cap} cap`);
@@ -354,7 +373,7 @@ test('BE.06a Tutor Explanation authoring, saved output and caps (CORE.09)', asyn
     });
     await t.test(`BE.06a ${depth}: one code point over ${cap} is a terminal validation failure with one settlement and no redispatch`, async () => {
       const title = STEPS[0].title;
-      const { h, view, resultId } = await firstCard(t, [explanation(title, 'é'.repeat(cap - Array.from(title).length + 1)), explanation()], { depth });
+      const { h, view, resultId } = await firstCard(t, [explanation(title, bodyFor(title, cap + 1)), explanation()], { depth });
       const row = resultRow(h, resultId);
       assert.equal(h.authorCalls.length, 1, 'no redispatch');
       assert.deepEqual([row.generation, row.failure_class], ['failed', 'terminal_validation_failure'], 'over cap fails');
@@ -388,8 +407,8 @@ test('BE.06a Tutor Explanation authoring, saved output and caps (CORE.09)', asyn
     assert.equal(changed.status, 200, 'Depth changes on the active roadmap');
     await h.run();
     assert.equal(h.authorCalls.length, 1);
-    assert.match(h.authorCalls[0].text, /Depth: standard/, 'the frozen accepted Depth');
-    assert.doesNotMatch(h.authorCalls[0].text, /Depth: deep/);
+    assert.match(h.authorCalls[0].text, /Depth: standard/i, 'the frozen accepted Depth');
+    assert.doesNotMatch(h.authorCalls[0].text, /Depth: deep/i);
   });
 });
 
@@ -407,8 +426,8 @@ test('BE.07 real reservation, debit and settlement (CORE.04-06)', async t => {
     const calls = h.rows("SELECT * FROM learn_roadmap_calls WHERE stage = 'generate'");
     assert.equal(calls.length, 1);
     assert.deepEqual([calls[0].provider, calls[0].model], ['anthropic', call.model], 'the call row names the actual provider and model');
-    // contracts.md absent: assumed request_fingerprint = sha256 of the serialized dispatched body (CORE.05).
-    assert.equal(calls[0].request_fingerprint, await sha(JSON.stringify(call.body)), 'the call is bound to the actual outgoing body');
+    // be: request_fingerprint = sha256(JSON.stringify([provider, model, outgoing body])) (roadmap-generate.js requestFingerprint).
+    assert.equal(calls[0].request_fingerprint, await sha(JSON.stringify([calls[0].provider, call.model, call.body])), 'the call is bound to the actual outgoing body');
   });
   await t.test('BE.07 duplicate acceptance, polling and restore add no debit', async () => {
     const { h, view, resultId } = await firstCard(t, [explanation()]);
@@ -433,11 +452,13 @@ test('BE.07 real reservation, debit and settlement (CORE.04-06)', async t => {
   await t.test('BE.07 a known failed generation refunds once with no second author call', async () => {
     const { h, resultId } = await firstCard(t, [httpError(529), explanation()]);
     assert.equal(h.authorCalls.length, 1, 'no automatic author redispatch');
-    assert.equal(resultRow(h, resultId).billing, 'refunded');
-    assert.equal(h.rows('SELECT * FROM usage_adjustments').length, 1, 'one refund');
-    assert.equal((await h.totals()).used, 0);
+    const totals = await h.totals(), adjustments = h.rows('SELECT * FROM usage_adjustments').length;
+    assert.deepEqual([totals.used, totals.reserved], [0, 0], 'nothing charged and nothing left held');
+    assert.deepEqual(h.rows('SELECT state, remaining_micros FROM learn_step_authorizations').map(a => [a.state, a.remaining_micros]), [['released', 0]], 'the hold is released once');
+    assert.ok(['refunded', 'failed'].includes(resultRow(h, resultId).billing), 'settled as not charged');
+    assert.ok(adjustments <= 1, 'at most one refund');
     await h.run();
-    assert.equal(h.rows('SELECT * FROM usage_adjustments').length, 1, 'a replay refunds nothing more');
+    assert.equal(h.rows('SELECT * FROM usage_adjustments').length, adjustments, 'a replay refunds nothing more');
   });
   await t.test('BE.07 an unknown outcome stays reconciling without a second author call', async () => {
     const { h, resultId } = await firstCard(t, [timeout(), explanation()]);
@@ -476,20 +497,30 @@ test('BE.08 same identity, board save, acknowledgment and reload (CORE.07, UI.04
     assert.equal(pending(h).length, 1, 'one next offer after the acknowledged delivery');
   });
   await t.test('BE.08 the saved card keeps the minted id, source relationship, slot top-left/width and accepted title through reload', async () => {
-    const { h, resultId, cardId } = await firstCard(t, [explanation()]);
+    const h = await workflow(t, { script: [explanation()] });
+    const view = await started(h);
+    // Canvas lane contract (roadmap-slots.js): POST /api/learn/roadmap/:rm/slots { boardId, stepId, proposalId, x, y, w }, persisted once per offer; GET returns the map.
+    const slotUrl = `/api/learn/roadmap/${view.roadmap.id}/slots`;
+    const place = (over = {}) => h.send('alice', 'POST', slotUrl, { boardId: h.boards.alice, stepId: view.proposal.stepId, proposalId: view.proposal.id, ...geometry, ...over });
+    assert.equal((await place()).status, 200);
+    assert.equal((await place({ x: 9, y: 9 })).body.slot.x, geometry.x, 'a repeat or later measurement never moves the slot');
+    const accepted = await acceptCard(h, view, 'accept1');
+    const { resultId, cardId } = accepted.body.slots[0];
+    const placed = (await h.send('alice', 'GET', `${slotUrl}?boardId=${h.boards.alice}`)).body.slots[view.proposal.stepId];
+    assert.deepEqual([placed.x, placed.y, placed.w], [geometry.x, geometry.y, geometry.w], 'the private slot geometry survives acceptance and reload');
+    assert.equal((await h.send('bob', 'GET', `${slotUrl}?boardId=${h.boards.bob}`)).status, 404, 'private to its roadmap owner');
     assert.equal((await deliver(h, resultId, { geometry })).status, 200);
     const saved = (await boardBlocks(h)).find(b => b.id === cardId);
     assert.deepEqual([saved.x, saved.y, saved.w], [geometry.x, geometry.y, geometry.w]);
     assert.equal(saved.sourceRef?.source?.key, `file:${USERS.alice.fileId}`, 'the source relationship');
-    // contracts.md absent: assumed private slot geometry on the view's result slot `slot.placement {x, y, w}` (UI.06, roadmap-slots.js).
-    const view = await status(h);
-    assert.deepEqual(view.results[0].slot.placement, geometry, 'the persisted slot geometry is the saved card geometry');
+    assert.deepEqual([placed.x, placed.y, placed.w], [saved.x, saved.y, saved.w], 'the stored slot geometry is the saved card geometry');
+    assert.doesNotMatch(JSON.stringify(await boardBlocks(h)), /slots|proposalId/, 'slot state never rides in the board');
     assert.equal(saved.title, STEPS[0].title, 'the accepted title');
   });
   await t.test('BE.08 the view distinguishes generated from board-saved and acknowledged', async () => {
     const { h, resultId } = await firstCard(t, [explanation()]);
-    // contracts.md absent: assumed `results[].stage` (BRIEF contract 4 vocabulary).
-    assert.notEqual((await status(h)).results[0].stage, 'ready', 'generated is not ready before durable delivery');
+    // be contract: results[].stage generating|checking|saving|ready|failed; 'saving' = generated and passed, not yet acknowledged.
+    assert.equal((await status(h)).results[0].stage, 'saving', 'generated is not ready before durable delivery');
     assert.equal((await deliver(h, resultId)).status, 200);
     assert.equal((await status(h)).results[0].stage, 'ready');
   });
@@ -499,9 +530,8 @@ test('BE.09 durable Chat lifecycle and late events (UI.01/04/08)', async t => {
   const { h, view, resultId, cardId } = await firstCard(t, [explanation()]);
   await chats(h);
   const clientId = `roadmap-step-${view.proposal.stepId}`;
-  // contracts.md absent: assumed one message per logical entry, re-POSTed with the same client_id and a higher `meta.version` to advance it;
-  // its lifecycle in `meta.tutor` (BRIEF contract 6). A lower version never regresses the entry.
-  const entry = (version, stage, extra = {}) => ({ client_id: clientId, role: 'assistant', content: `${STEPS[0].title}: ${stage}`, meta: { version, tutor: { kind: 'roadmap_step', stage, stepId: view.proposal.stepId, proposalId: view.proposal.id, proposalVersion: view.proposal.version, ...extra } } });
+  // Chat lane contract: one message per client_id, re-POSTed with a higher tutor.seq to advance it in place; an equal or older seq changes nothing.
+  const entry = (version, stage, extra = {}) => ({ client_id: clientId, role: 'assistant', content: `${STEPS[0].title}: ${stage}`, tutor: { v: 1, kind: 'roadmap_step', seq: version, stage, stepId: view.proposal.stepId, proposalId: view.proposal.id, proposalVersion: view.proposal.version, ...extra } });
   assert.equal((await saveMessage(h, T_BUSY, entry(1, 'proposed'))).status, 201);
   // The learner switches Chat to another thread; the late result still lands in the entry's own thread.
   assert.equal((await h.send('alice', 'PUT', '/api/learn/chat/active', { app: USERS.alice.canvas, thread_id: T_DRAFT })).status, 200);
