@@ -40,6 +40,7 @@ import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
 import { CadReview } from './CadReview.jsx';
 import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
 import { approvesJob, currentProposal, editRefusal, editSpent, routeChat, routeOutcome } from './generation-proposal-chat.js';
+import { isSmallTalk } from './inline-ai-route.js';
 import { imageGenerationOn, requestImagePlan } from './generate-image.js';
 import { isBriefCommand, requestMaterialBrief } from './material-brief.js';
 import { problemOf } from './generation-review-client.js';
@@ -360,7 +361,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const [, setWhiteboardOffered] = useState(false);
   useEffect(() => { if (conversation === 'learn') loadWhiteboardCapability((url, init) => fetch(url, init), wsHeaders()).then(setWhiteboardOffered); }, [conversation]);
   const [choices, setChoices] = useState(null); // { message, candidates }
-  // CR-1's route decision shown above the composer (RouteDecision.jsx): { kind, message, options?, retryable?, raw }.
+  // CR-1's route decision shown above the composer (RouteDecision.jsx): { kind (clarify, unsupported or error), message, options?, raw }.
   const [routeShown, setRouteShown] = useState(null);
   const [file, setFile] = useState(null); // one attachment per question
   const [mentions, setMentions] = useState([]); // @app chips
@@ -800,8 +801,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       // with zero router calls and signs its route. Other commands' prompts, Tutor turns, regenerations and attachments are not
       // routed. Only a decided answer or proposal is sent (a proposal with its route_token); a direct capability runs its own
       // command; anything else gives the words back with the decision.
-      if (chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && !edit && payload.mode !== 'tutor' && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {
-        const outcome = routeOutcome(await routeChat((url, init) => fetch(url, { ...init, headers: { ...init.headers, ...wsHeaders() }, signal: flight.signal }), payload, { capability: routeAs ?? commandName ?? null }));
+      // A whole-message greeting ("hi", "thanks") is never classified, and the clarification's "Answer in chat" skips the classifier: both go to the server as
+      // answer-only turns (answer_only), which it runs with no proposal, tool or credit hold. A router that fails on an ordinary turn does the same, once.
+      const routable = chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && !edit && payload.mode !== 'tutor';
+      const smallTalk = routable && !commandName && !prompted && isSmallTalk(raw);
+      if (routable && !commandName && (routeAs === 'answer' || smallTalk)) payload.answer_only = true;
+      if (routable && !smallTalk && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {
+        const outcome = routeOutcome(await routeChat((url, init) => fetch(url, { ...init, headers: { ...init.headers, ...wsHeaders() }, signal: flight.signal }), payload, { capability: routeAs ?? commandName ?? null }), { plain: !commandName && !routeAs && !prompted });
         if (late()) return;
         // Plain words the router read as an image request take the same plan route as the typed command.
         if (!outcome.send && outcome.direct?.command === 'generate-image' && chatThread && imageGenerationOn()) { await imagePlan(outcome.direct.args || message); return; }
@@ -813,6 +819,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           return;
         }
         if (outcome.token) payload.route_token = outcome.token;
+        if (outcome.answerOnly) Object.assign(payload, { answer_only: true, route_failure: outcome.failure });
       }
       let r;
       if (attached) {
@@ -1202,8 +1209,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         {!tocView && <GenerationIndicator entries={generation.entries} ops={outputOps} onDismiss={generation.dismiss} />}
         {/* A /cad request's design brief to approve before anything is generated (CAD_BRIEF_FIRST; CadReview.jsx). */}
         {!tocView && <CadReview ops={workspace?.canvasOps} />}
-        {routeShown && <RouteDecision decision={routeShown} onDismiss={() => setRouteShown(null)} onChoose={id => send(routeShown.raw, undefined, { routeAs: id })}
-          onAnswer={() => send(routeShown.raw, undefined, { routeAs: 'answer' })} onRetry={() => send(routeShown.raw, undefined, routeShown.command ? { command: routeShown.command, prompted: true } : {})} />}
+        {routeShown && <RouteDecision decision={routeShown} onDismiss={() => setRouteShown(null)} onChoose={id => send(routeShown.raw, undefined, { routeAs: id })} />}
         {slash && <div className="relative"><slash.Picker apiRef={slashRef} scope={chatThread?.restore.key ?? null} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={(prompt, handoff) => send(prompt, undefined, { skipJourney: true, command: promptCommand.current, prompted: true, ...(handoff ? { about: handoff.about, keepDraft: true } : {}) })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
         {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command} token={commandToken}

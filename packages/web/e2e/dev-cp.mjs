@@ -6,8 +6,7 @@ export const DEV_CP = process.env.RABBIT_HOLE_DEV_CP || 'https://rabbit-hole-cp-
 
 // CR-1's chat route decision (C:/s/spec/day-1021/chat-route-interface.md section 3) for a chat line that is a question: every
 // response field, as decideChat answers a JEV "answer" choice (an answer carries no route_token; only a capability route has
-// one). The CI stack has no JEV key, so the real POST /api/learn/chat/route falls back (Answer normally / Retry) and the turn
-// is never sent; a check that sends a routed Chat turn answers the route with this. generation-proposal-chat.test.mjs runs it
+// one). The CI stack has no JEV key, so the real POST /api/learn/chat/route falls back and the turn would go on as an answer-only reply; a check that sends a routed Chat turn answers the route with this. generation-proposal-chat.test.mjs runs it
 // through the client's own routeChat/routeOutcome and chat-capability-route.test.js compares it with the server's decision.
 export const chatRouteAnswer = (body = {}) => ({
   route: 'answer', flow: null, via: 'jev', capability: null, args: String(body.text ?? '').trim(), confidence: 0.9, probability: 0.9,

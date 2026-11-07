@@ -131,7 +131,7 @@ for (const theme of ['light', 'dark']) {
   const scripted = new Map([
     ['Create a 15-second animated explanation of photosynthesis', { route: 'capability:motion', flow: 'proposal', via: 'jev', capability: 'motion', confidence: 0.93, probability: 0.9 }],
     ['make something about this', { route: 'clarify', via: 'jev', capability: null, clarification: { question: 'Did you want a Motion video or an answer in chat?', options: ['motion', 'answer'] } }],
-    ['the router times out on this', { route: 'answer', via: 'fallback', retryable: true, code: 'timeout', capability: null, token: null, message: 'Couldn\'t check whether this asks for a video or another tool. Answer normally, or try again.' }],
+    ['the router times out on this', { route: 'answer', via: 'fallback', recoverable: true, code: 'timeout', capability: null, token: null, message: 'The request check did not finish. The turn is answered in text only.' }],
   ]);
   await context.route(/\/api\/learn\/chat\/route$/, route => {
     const body = JSON.parse(route.request().postData() || '{}');
@@ -814,20 +814,12 @@ for (const theme of ['light', 'dark']) {
     await dismiss();
   }));
 
-  await step(`${theme}: router failure: the draft is kept with Answer normally and Retry; never a paid capability (Ask mode)`, inAsk(async () => {
+  await step(`${theme}: router failure: an ordinary message is sent once as an answer-only turn; no banner, no buttons; never a paid capability (Ask mode)`, inAsk(async () => {
     const r0 = routes.length, a0 = asks.length, before = await proposalCards.count();
     await composer().fill('the router times out on this'); await composer().press('Enter');
-    const shown = dock.locator('[data-route-decision="fallback"]');
-    await shown.waitFor();
-    assert.match(await shown.innerText(), /Answer normally, or try again\./);
-    assert.deepEqual([await shown.locator('[data-route-answer]').count(), await shown.locator('[data-route-retry]').count()], [1, 1]);
-    assert.deepEqual([asks.length, await composer().inputValue()], [a0, 'the router times out on this'], 'no turn, the draft kept');
-    await shown.locator('[data-route-retry]').click();
-    await until(() => routes.length - r0 === 2, 'Retry routes again');
-    await shown.waitFor();
-    await shown.locator('[data-route-answer]').click();
-    await until(() => asks.length > a0, 'Answer normally sends the turn');
-    assert.deepEqual([asks[a0].message, asks[a0].route_token ?? null, asks[a0].command ?? null, routes.length - r0], ['the router times out on this', null, null, 2], 'answered as a chat turn: no token, no command, no third route call');
+    await until(() => asks.length > a0, 'the turn is sent without a banner');
+    assert.deepEqual([asks[a0].message, asks[a0].answer_only, asks[a0].route_token ?? null, asks[a0].command ?? null, routes.length - r0], ['the router times out on this', true, null, null, 1], 'one route call, then an answer-only chat turn: no token, no command');
+    assert.equal(await dock.locator('[data-route-decision], [data-route-answer], [data-route-retry]').count(), 0, 'no banner, no Answer normally, no Retry');
     await dock.getByText('Photosynthesis turns light into sugar.').last().waitFor();
     assert.equal(await proposalCards.count(), before, 'no proposal card');
     await dismiss();

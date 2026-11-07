@@ -11,7 +11,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { MOTION_PAUSED, motionOffered, motionPaused, reviewRequired } from './generation-proposal.js';
 import { sha256, sign, verify } from './token.js';
-import { CHAT_ROUTE_PROTOCOL_VERSION, ROUTE_THRESHOLDS, ROUTE_TIMEOUT_MS, chatCapability, chatRouteRequest, chatRoutesWith, explicitCommand, isPlainExplain, readChatRoute } from '../../web/src/inline-ai-route.js';
+import { CHAT_ROUTE_PROTOCOL_VERSION, ROUTE_THRESHOLDS, ROUTE_TIMEOUT_MS, chatCapability, chatRouteRequest, chatRoutesWith, explicitCommand, isPlainExplain, isSmallTalk, readChatRoute } from '../../web/src/inline-ai-route.js';
 import { SLASH, commandLabel, typedOf, unavailableCommand } from '../../web/src/agent/slash.js';
 import { imageAllowed } from './image-settings.js';
 import { paidOf } from '../../web/src/inline-ai-decide.js';
@@ -19,7 +19,7 @@ import { paidOf } from '../../web/src/inline-ai-decide.js';
 const TOKEN_TTL_S = 300, TEXT_MAX = 20000;
 const REQUEST_ID = /^[A-Za-z0-9-]{8,80}$/;
 const MODES = ['auto', 'ask', 'tutor'];
-export const FALLBACK = 'Couldn\'t check whether this asks for a video or another tool. Answer normally, or try again.';
+export const FALLBACK = 'The request check did not finish. The turn is answered in text only.'; // in the body for logs and tools; the Chat shows nothing for it
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const log = fields => { try { console.log(JSON.stringify({ event: 'chat_route', ...fields })); } catch { /* never worth a failed route */ } };
 
@@ -67,11 +67,13 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
   const command = explicitCommand(text);
   if (command) return pick(command.name, 'command', command.args);
   if (fields.mode === 'tutor') return answer('mode');
-  if (isPlainExplain(text)) return answer('default');
+  if (isPlainExplain(text) || isSmallTalk(text)) return answer('default');
   const transport = jevTransport(env);
   const started = Date.now();
   const failed = code => answer('fallback', { retryable: true, code, message: FALLBACK, meta: { ...base.meta, ms: Date.now() - started } });
-  if (!transport || !(await signingKey(env))) return failed('unavailable');
+  // Which piece of router configuration is missing is logged (names only), so a production fallback is explained by its Worker log line.
+  const keyed = !!transport && !!(await signingKey(env));
+  if (!keyed) { log({ request_id: requestId, outcome: 'unavailable', reason: transport ? 'no_signing_key' : 'no_transport', ms: Date.now() - started }); return failed('unavailable'); }
   const routes = offeredRoutes(env);
   let out, read;
   try {
@@ -79,7 +81,7 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
     read = readChatRoute(out.body, routes);
   } catch (error) {
     const code = error instanceof JevError ? (error.code === 'timeout' ? 'timeout' : 'unavailable') : 'malformed';
-    log({ request_id: requestId, outcome: code, ms: Date.now() - started, transport, called: error?.called !== false });
+    log({ request_id: requestId, outcome: code, reason: error instanceof JevError ? error.code : 'unreadable', status: error?.status ?? null, ms: Date.now() - started, transport, called: error?.called !== false });
     return failed(code);
   }
   const meta = { ...base.meta, model: out.model ?? null, ms: out.ms ?? Date.now() - started, input_tokens: out.inputTokens ?? null, cost: out.cost ?? null, transport };

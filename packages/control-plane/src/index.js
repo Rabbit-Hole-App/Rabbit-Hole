@@ -1017,6 +1017,19 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   if (canvas && conversation !== 'learn') return json({ error: 'canvas_context is a Learn chat field' }, 400);
   if (chat && conversation !== 'learn') return json({ error: 'mode, command, context_refs and regenerate are Learn chat fields' }, 400);
   if (chat?.regenerate && !thread_id) return json({ error: 'regenerate needs its thread_id' }, 400);
+  // Answer-only (the chat route's recovery, chat-capability-route.js): a plain Learn chat turn the client sends when the router could not
+  // decide (down, slow, unreadable), for a greeting, or from Answer normally. The server enforces it: no generation input is read, so the turn
+  // has no proposal tool, no Motion or other job and no credit hold, whatever the client also sent. A command, a route decision or a
+  // regeneration is not an ordinary turn and is refused here, so this flag can never widen what a turn may do.
+  const answerOnly = body.answer_only === true;
+  if (body.answer_only != null && (!answerOnly || conversation !== 'learn' || !chat || chat.command || chat.regenerate || body.route_token != null)) {
+    return json({ error: 'answer_only is for a plain Learn chat turn: no command, route decision or regeneration.', code: 'answer_only_invalid' }, 400);
+  }
+  if (answerOnly) {
+    // The failed route request, for the Worker log (ids and codes only, never the message): found again by request_id.
+    const failure = body.route_failure, text = v => (typeof v === 'string' && /^[A-Za-z0-9._-]{1,80}$/.test(v) ? v : null);
+    try { console.log(JSON.stringify({ event: 'chat_route_recovered', request_id: text(failure?.request_id), route_status: Number.isInteger(failure?.status) ? failure.status : null, route_code: text(failure?.code), reason: failure ? 'router_failed' : 'requested' })); } catch { /* never worth a failed turn */ }
+  }
   // CR-1 (chat-capability-route.js): a route decision the server signed for this learner and these exact turn fields. A
   // proposal route makes this turn that command's proposal turn, as if it were typed; nothing else is decided here.
   if (body.route_token != null) {
@@ -1029,7 +1042,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   // revises (verified for this learner, else ignored). The proposal tool rides only where a video can start; a /motion turn
   // that cannot is answered here, before any model call.
   let generation = null;
-  if (conversation === 'learn' && chat && body.generation != null) {
+  if (conversation === 'learn' && chat && body.generation != null && !answerOnly) {
     const motionInput = body.generation?.motion === undefined ? null : motionAbout(body.generation.motion);
     if (body.generation?.motion !== undefined && !motionInput) return json({ error: 'generation.motion must be {concept?, context?}' }, 400);
     const current = body.generation?.current && !(await verifyProposal(env, body.generation.current, user.email)) ? body.generation.current : null;

@@ -144,24 +144,31 @@ export async function routeChat(fetcher, payload, { capability = null, requestId
   const body = { request_id: requestId, app: payload.scope?.app, pending: payload.scope?.pending ?? null, text: payload.message, capability,
     mode: payload.mode ?? 'auto', selection: payload.canvas_target ?? null, source_refs: payload.context_refs ?? null, motion: payload.generation?.motion ?? null };
   let response;
+  // requestId and status ride on every failure so the Worker's chat_route log line for this request can be found.
   try { response = await fetcher('/api/learn/chat/route', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
-  catch { return { route: 'answer', via: 'fallback', retryable: true, code: 'unavailable', message: ROUTE_FAILED }; }
+  catch { return { route: 'answer', via: 'fallback', recoverable: true, code: 'unavailable', message: ROUTE_FAILED, requestId, status: null }; }
   if (response.status === 404) return null;
   const decision = await response.json().catch(() => null);
-  if (!response.ok || !decision?.route) return { route: 'answer', via: 'fallback', retryable: true, code: 'malformed', message: decision?.error || ROUTE_FAILED };
-  return decision;
+  // A router that is down, slow or unreadable is recoverable (the words can still be answered); a refusal (400, 401, 403, 413) is not.
+  if (!response.ok || !decision?.route) return { route: 'answer', via: 'fallback', recoverable: response.ok || response.status >= 500 || response.status === 408 || response.status === 429, code: 'malformed', message: decision?.error || REFUSALS[response.status] || ROUTE_FAILED, requestId, status: response.status };
+  return decision.via === 'fallback' ? { ...decision, recoverable: true, requestId, status: response.status } : decision;
 }
-export const ROUTE_FAILED = 'Couldn\'t check whether this asks for a video or another tool. Answer normally, or try again.';
+// What a failed route request says when the server gave no words of its own. Shown only for an authorization failure or a command that could not start.
+export const ROUTE_FAILED = 'Could not reach Rabbit Hole, so nothing was started. Send it again.';
+const REFUSALS = { 401: 'Your session ended. Sign in again, then send this again.', 403: 'You no longer have access to this canvas. Nothing was sent.' };
 // What the Chat does with a decision. send: the turn goes on (with the token a proposal needs); direct: the command's own
 // handler, as if picked; show: clarification, unsupported or a router failure above the composer, the draft kept, no turn.
-// Never a paid capability on a failure: a fallback is shown, not answered silently.
-export function routeOutcome(decision) {
+// Never a paid capability on a failure. A recoverable router failure on an ordinary turn (plain: no command, no picked capability) goes on once
+// as an answer-only turn (answerOnly: the server runs it with no proposal or tool, failure: the correlation fields it logs); with a command or a
+// refused request the specific error is shown instead (kind 'error'; a router failure itself shows no banner and no buttons).
+export function routeOutcome(decision, { plain = false } = {}) {
   if (!decision) return { send: true, token: null };
-  if (decision.route === 'answer' && decision.via === 'fallback') return { show: { kind: 'fallback', message: decision.message || ROUTE_FAILED, retryable: decision.retryable !== false } };
+  if (decision.route === 'answer' && decision.via === 'fallback' && plain && decision.recoverable !== false) return { send: true, token: null, answerOnly: true, failure: { request_id: decision.requestId ?? null, status: decision.status ?? null, code: decision.code ?? null } };
+  if (decision.route === 'answer' && decision.via === 'fallback') return { show: { kind: 'error', message: decision.message || ROUTE_FAILED } };
   if (decision.route === 'answer') return { send: true, token: null };
   if (decision.route === 'clarify') return { show: { kind: 'clarify', message: decision.clarification?.question || 'Which did you mean?', options: decision.clarification?.options || ['answer'] } };
   if (decision.route === 'unsupported') return { show: { kind: 'unsupported', message: decision.message || 'That isn\'t available here.' } };
   const capability = decision.capability || String(decision.route).replace(/^capability:/, '');
-  if (decision.flow === 'proposal') return decision.token ? { send: true, token: decision.token } : { show: { kind: 'fallback', message: ROUTE_FAILED, retryable: true } };
+  if (decision.flow === 'proposal') return decision.token ? { send: true, token: decision.token } : { show: { kind: 'error', message: ROUTE_FAILED } };
   return { direct: { command: capability, args: String(decision.args ?? '') } };
 }

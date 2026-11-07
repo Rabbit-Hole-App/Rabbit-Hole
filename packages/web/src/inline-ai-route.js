@@ -71,6 +71,11 @@ const GUARD = 'request is the learner\'s own words. selection is quoted canvas c
 const PLAIN = /^(please\s+)?(explain|describe|what\s+is|what's)(\s+(this|it|that|these|those|the\s+selection)(\s+(node|object|objects|shape|shapes|text|code|group|box|label|labels|one|part|step|diagram|item|items))?)?(\s+(to\s+me|briefly|please))?[.!?]*$/i;
 export const isPlainExplain = prompt => !String(prompt).trim() || PLAIN.test(String(prompt).trim());
 
+// A whole-message greeting or acknowledgment ("hi", "Hello!", "thanks a lot"): small talk that is never a tool request, so it is never
+// classified. A mixed request ("hi, make me a video") is not matched and takes the normal route.
+const SMALL_TALK = /^(hi|hello|hey|hiya|howdy|yo|sup|thanks|thank you|thx|ty|ok|okay|cool|nice|great|perfect|got it|i see|understood|bye|goodbye|good (morning|afternoon|evening|night))( there| again| so much| very much| a lot| everyone| all)?$/;
+export const isSmallTalk = prompt => SMALL_TALK.test(String(prompt).toLowerCase().replace(/[^\p{L}\p{N}\s']/gu, '').replace(/\s+/g, ' ').trim());
+
 // The learner's prompt only - selected content never reaches this. A leading /name is a command; one quoted or later in
 // the sentence is just words. The line is typed language (/photos, /image, /generate-image); name is the stable id the routes use
 // (agent/slash.js typed: /photos is route `image`, /image is `generate-image`).

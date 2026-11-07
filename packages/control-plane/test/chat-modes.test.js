@@ -843,3 +843,100 @@ test('a canvas ref is a board id only: its name is never the browser\'s, and mal
   assert.equal(validContextRefs([ref(1, { sourceId: 'canvas:nope' })]), false);
   assert.match(chatContext('base', contextRefs([ref(1)]), null, 10000), /\[canvas\] "Canvas" sourceId "canvas:00000001-[^"]+" - a mentioned canvas: its title and saved content are included below/);
 });
+
+// ---------- Auto Chat: "hi" and a router outage never leave the message unsent (owner bug 2026-11-07) ----------
+// The client's own routing functions (web/src/generation-proposal-chat.js) drive the real route and the real /ask here, with a stubbed JEV.
+test('Auto Chat: hi gets one reply and no classifier call; a router outage lets an ordinary question be answered once, text only, with no banner, proposal, job or hold', async t => {
+  const f = fixture(t);
+  Object.assign(f.env, MOTION_ENV, { VERCEL_TYPESAFE_API_KEY: 'test-only' });
+  const { chatRouteFetch, decideChat } = await import('../src/chat-capability-route.js');
+  const { routeChat, routeOutcome } = await import('../../web/src/generation-proposal-chat.js');
+  const { isSmallTalk } = await import('../../web/src/inline-ai-route.js');
+  const { JevError } = await import('../src/learn-grade-jev.js');
+  const logs = [], log = console.log;
+  console.log = line => { logs.push(String(line)); };
+  t.after(() => { console.log = log; });
+  const counted = reply => { const ask = async () => { ask.calls += 1; if (reply instanceof Error) throw reply; return reply; }; ask.calls = 0; return ask; };
+  const choice = name => ({ body: { model: 'jev-1.13.0', answers: { route: { type: 'choice', choice: name, confidence: 0.9, probabilities: { [name]: 0.92 } } } }, ms: 5, model: 'jev-1.13.0', inputTokens: 100, cost: 0 });
+  const authorize = async () => ({ email: owner.email, org: owner.org, kind: 'owner' });
+  const route = async (text, ask, { over = {}, authorizeWith = authorize } = {}) => chatRouteFetch(new Request('https://dev.test/api/learn/chat/route', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ request_id: 'req-00000001', app: 'canvas-0a1b2c3d', text, mode: 'auto', ...over }) }), f.env, { authorize: authorizeWith, ask });
+  const fetcher = ask => async (url, init) => route(JSON.parse(init.body).text, ask, { over: { request_id: JSON.parse(init.body).request_id } });
+  const payloadOf = message => ({ scope: { app: 'canvas-0a1b2c3d' }, message, mode: 'auto' });
+
+  // 1. "hi": the Chat skips the router; if it were called the server would still answer with zero classifier calls. One reply.
+  assert.equal(isSmallTalk('hi'), true);
+  const never = counted(choice('motion'));
+  const hi = await (await route('hi', never)).json();
+  assert.deepEqual([hi.route, hi.via, hi.token, hi.retryable], ['answer', 'default', null, false]);
+  assert.equal(never.calls, 0, 'zero classifier calls for a greeting');
+  const greeted = await f.ask({ message: 'hi', mode: 'auto', answer_only: true });
+  assert.equal(greeted.res.status, 200);
+  assert.equal(greeted.events.filter(e => e.event === 'chunk').length, 1, 'exactly one reply');
+  assert.equal(f.calls.length, 1);
+  assert.ok(!(f.calls[0].tools || []).some(tool => tool.name === 'propose_generation'));
+  // A mixed request is not small talk: it takes the normal route (one classifier call, then a Motion token).
+  const mixed = counted(choice('motion'));
+  assert.equal(isSmallTalk('hi, make me a video'), false);
+  assert.equal((await (await route('hi, make me a video', mixed, { over: { motion: { concept: 'x' } } })).json()).route, 'capability:motion');
+  assert.equal(mixed.calls, 1);
+
+  // 2. Forced router outage (timeout, provider down, unreadable): the ordinary question goes on once as an answer-only turn, no banner.
+  const question = 'Why does a metal spoon feel colder than a wooden one?';
+  const outages = [['timeout', counted(new JevError('timeout', 'slow'))], ['unavailable', counted(new JevError('http', 'down', 503))], ['malformed', counted(new Error('unreadable'))]];
+  for (const [code, ask] of outages) {
+    const before = f.calls.length, requestId = `req-${code.padEnd(8, '0')}`;
+    const decision = await routeChat(fetcher(ask), payloadOf(question), { requestId });
+    assert.deepEqual([decision.route, decision.via, decision.code, decision.recoverable], ['answer', 'fallback', code, true], code);
+    const outcome = routeOutcome(decision, { plain: true });
+    assert.deepEqual([outcome.send, outcome.answerOnly, outcome.show], [true, true, undefined], `${code}: sent, answer-only, nothing shown (no banner, no buttons)`);
+    assert.equal(outcome.failure.request_id, requestId);
+    // The turn the client then sends, with the generation fields it would normally also send (a Motion proposal could ride them).
+    const { res, events } = await f.ask({ message: question, mode: 'auto', answer_only: true, route_failure: outcome.failure, generation: { motion: { concept: 'Heat' } } });
+    assert.equal(res.status, 200, code);
+    assert.equal(events.filter(e => e.event === 'chunk').length, 1, `${code}: exactly one reply`);
+    assert.equal(f.calls.length - before, 1, `${code}: one model call`);
+    assert.deepEqual((f.calls.at(-1).tools || []).filter(tool => tool.name === 'propose_generation'), [], `${code}: no proposal tool`);
+    assert.doesNotMatch(f.calls.at(-1).system, /Generation proposals:/);
+    assert.equal(events.find(e => e.event === 'answer_meta').data.proposal ?? null, null, `${code}: no proposal`);
+  }
+  // The server never touched live D1 (a credit hold or job row would have thrown), and nothing proposed was stored.
+  assert.equal(f.rows('SELECT COUNT(*) AS n FROM chat_message_meta WHERE meta_json LIKE \'%"proposal"%\'')[0].n, 0, 'nothing proposed is stored');
+  assert.ok(logs.some(line => line.includes('"event":"chat_route_recovered"') && line.includes('"request_id":"req-timeout0"')), 'the recovered turn is logged under the failed route request id');
+  assert.ok(logs.some(line => line.includes('"event":"chat_route"') && line.includes('"reason":"timeout"')), 'the router failure logs its reason');
+  assert.ok(logs.every(line => !line.includes(question) && !line.includes('test-only')), 'no prompt or secret is logged');
+  // Missing router configuration is named in the log (the reason, never a value).
+  const bare = { ...f.env };
+  delete bare.VERCEL_TYPESAFE_API_KEY; delete bare.INLINE_DECISION_KEY;
+  assert.equal((await decideChat(bare, { email: owner.email, app: 'canvas-0a1b2c3d', requestId: 'req-00000009', fields: { text: question, mode: 'auto' } }, { ask: counted(choice('answer')) })).code, 'unavailable');
+  assert.ok(logs.some(line => line.includes('"outcome":"unavailable"') && /"reason":"no_(transport|signing_key)"/.test(line)));
+
+  // 3. answer_only cannot widen a turn: not with a command, a route decision, a regeneration or a non-true value; the model is never called.
+  const before = f.calls.length;
+  for (const extra of [{ command: 'motion' }, { route_token: 'x' }, { regenerate: { messageId: '1' }, thread_id: greeted.events.at(-1).data.threadId }]) {
+    const refused = await f.ask({ message: question, mode: 'auto', answer_only: true, ...extra });
+    assert.deepEqual([refused.res.status, (await refused.res.json()).code], [400, 'answer_only_invalid'], JSON.stringify(Object.keys(extra)));
+  }
+  assert.equal((await f.ask({ message: question, mode: 'auto', answer_only: 'yes' })).res.status, 400);
+  assert.equal(f.calls.length, before);
+
+  // 4. Genuine decisions are unchanged: ambiguity clarifies; a real /motion request still reaches the signed proposal; a denied canvas stays denied
+  // with its own words, and a command that cannot start shows its error.
+  const several = await (await route('make a video and a diagram', counted({ body: { model: 'jev-1.13.0', answers: { route: { type: 'choice', choice: 'several', confidence: 0.9, probabilities: { several: 0.9 } } } }, ms: 5 }))).json();
+  assert.deepEqual([several.route, several.via], ['clarify', 'jev']);
+  assert.equal(routeOutcome(several, { plain: true }).show.kind, 'clarify');
+  const words = 'Create a 15-second animated explanation of photosynthesis';
+  const video = await (await route(words, counted(choice('motion')), { over: { motion: { concept: 'Weather' } } })).json();
+  assert.deepEqual([video.route, video.flow, typeof video.token], ['capability:motion', 'proposal', 'string']);
+  f.replies.push(proposeCall('tu-real'), 'Here is a proposal.\n<answer_meta>{}</answer_meta>');
+  const proposed = await f.ask({ message: words, mode: 'auto', generation: { motion: { concept: 'Weather' } }, route_token: video.token });
+  assert.equal(proposed.res.status, 200);
+  assert.equal(proposed.events.find(e => e.event === 'answer_meta').data.proposal.command, 'motion', 'the real request still reaches signed review');
+  const denial = async () => Response.json({ error: 'No access to this canvas.' }, { status: 403 });
+  const denied = await route(question, counted(choice('answer')), { authorizeWith: denial });
+  assert.equal(denied.status, 403);
+  const refusal = routeOutcome(await routeChat(async () => denied, payloadOf(question)), { plain: true });
+  assert.deepEqual([refusal.send, refusal.show], [undefined, { kind: 'error', message: 'No access to this canvas.' }], 'a denial is shown with its own words, never answered around');
+  const commandDown = routeOutcome(await routeChat(async () => { throw new Error('offline'); }, payloadOf('/motion a video')), { plain: false });
+  assert.equal(commandDown.show.kind, 'error', 'an explicit tool command that cannot start shows an error and sends nothing');
+  assert.equal(commandDown.send, undefined);
+});

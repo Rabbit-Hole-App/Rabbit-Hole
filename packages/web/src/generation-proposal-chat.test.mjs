@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { isSmallTalk } from './inline-ai-route.js';
 import { EDIT_ONE_THING, currentProposal, editPath, editRefusal, editSpent, editTarget, failedStart, generateProposal, generationField, madeFrom, proposalActive, proposalBlock, proposalRefusal, refinementConflictText, refusedReason, settingsConflict } from './generation-proposal-chat.js';
 
 const soon = Math.floor(Date.now() / 1000) + 3600;
@@ -58,13 +59,14 @@ test('route: the bound fields come from the ask payload; each decision becomes s
   assert.equal(url, '/api/learn/chat/route');
   assert.deepEqual({ ...body, request_id: 'x' }, { request_id: 'x', app: 'canvas-1', pending: null, text: payload.message, capability: null, mode: 'auto', selection: { id: 'k1' }, source_refs: [{ sourceId: 'card:shape:k1' }], motion: { concept: 'Biology' } });
   assert.deepEqual(routeOutcome(proposal), { send: true, token: 'tok' }, 'a proposal is the ordinary turn with its token');
-  assert.deepEqual(routeOutcome({ route: 'capability:motion', flow: 'proposal', token: null }).show.kind, 'fallback', 'no token: never sent as a proposal');
+  assert.deepEqual(routeOutcome({ route: 'capability:motion', flow: 'proposal', token: null }).show.kind, 'error', 'no token: never sent as a proposal');
   assert.deepEqual(routeOutcome({ route: 'answer', via: 'jev' }), { send: true, token: null });
   assert.deepEqual(routeOutcome({ route: 'capability:youtube', flow: 'direct', capability: 'youtube', args: 'photosynthesis' }), { direct: { command: 'youtube', args: 'photosynthesis' } }, 'a search keeps its own handler: no Generate card');
   assert.deepEqual(routeOutcome({ route: 'clarify', clarification: { question: 'Did you want a Motion video or an answer in chat?', options: ['motion', 'answer'] } }).show, { kind: 'clarify', message: 'Did you want a Motion video or an answer in chat?', options: ['motion', 'answer'] });
   assert.deepEqual(routeOutcome({ route: 'unsupported', message: 'Motion is paused.' }).show, { kind: 'unsupported', message: 'Motion is paused.' });
-  const failed = { route: 'answer', via: 'fallback', retryable: true, code: 'timeout', message: ROUTE_FAILED };
-  assert.deepEqual(routeOutcome(failed).show, { kind: 'fallback', message: ROUTE_FAILED, retryable: true }, 'a router failure is shown with Answer normally and Retry, never answered as a paid capability');
+  const failed = { route: 'answer', via: 'fallback', recoverable: true, code: 'timeout', message: ROUTE_FAILED };
+  assert.deepEqual(routeOutcome(failed).show, { kind: 'error', message: ROUTE_FAILED }, 'a command that cannot start shows its error, never answered as a paid capability');
+  assert.equal(routeOutcome(failed, { plain: true }).show, undefined, 'an ordinary message shows nothing and goes on as an answer-only turn');
   // Not deployed (404): the turn goes as today. A network error or a refusal: the failure, retryable.
   assert.equal(await routeChat(reply(404, null), payload), null);
   assert.deepEqual(routeOutcome(null), { send: true, token: null });
@@ -77,7 +79,12 @@ test('route: the bound fields come from the ask payload; each decision becomes s
 test('the Chat routes plain turns and proposed commands; other command prompts, regenerations and Tutor turns do not', async () => {
   const { readFileSync } = await import('node:fs');
   const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
-  assert.ok(ask.includes("if (chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && !edit && payload.mode !== 'tutor' && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {"), 'plain turns and proposed commands route; other command prompts and Edit turns (an explicit proposal target) never loop back through it');
+  const routable = "const routable = chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && !edit && payload.mode !== 'tutor';";
+  assert.ok(ask.includes(routable), 'only a plain Learn Chat turn is routable: no private chat, attachment, regeneration, demo, Edit target, Tutor turn or contents conversation');
+  assert.ok(ask.includes("if (routable && !smallTalk && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {"), 'plain turns and proposed commands route; a greeting and Answer normally do not; other command prompts never loop back through it');
+  assert.ok(ask.includes("if (routable && !commandName && (routeAs === 'answer' || smallTalk)) payload.answer_only = true;"), 'a greeting and Answer normally are server-enforced answer-only turns');
+  assert.ok(ask.includes('if (outcome.answerOnly) Object.assign(payload, { answer_only: true, route_failure: outcome.failure });'), 'a recoverable router failure continues once as an answer-only turn');
+  assert.ok(ask.includes('{ plain: !commandName && !routeAs && !prompted }'), 'only an uncommanded turn recovers; a command keeps its shown failure');
   assert.ok(ask.includes('{ capability: routeAs ?? commandName ?? null }'), 'an explicit command names its capability: zero router calls');
   assert.ok(ask.includes('if (outcome.token) payload.route_token = outcome.token;'));
   assert.ok(ask.includes('if (!keepDraft) setInput(current => current || (commandName ?'), 'a shown decision gives the words back, never over a kept draft');
@@ -94,7 +101,7 @@ test('the e2e route fixture (e2e/dev-cp.mjs) passes the client: routeChat keeps 
   assert.deepEqual(routeOutcome(decision), { send: true, token: null }, 'an answer: the turn is sent, with no token');
   // The catch-all the checks used to answer it with ({ ok: true }) is malformed: the fallback, and no turn.
   const caught = await routeChat(serve(() => ({ ok: true })), payload);
-  assert.deepEqual([caught.via, caught.code, routeOutcome(caught).show], ['fallback', 'malformed', { kind: 'fallback', message: ROUTE_FAILED, retryable: true }]);
+  assert.deepEqual([caught.via, caught.code, routeOutcome(caught).show], ['fallback', 'malformed', { kind: 'error', message: ROUTE_FAILED }]);
   // mockChatRoute answers only the route path, with the request's own body.
   const handlers = [];
   await mockChatRoute({ route: async (pattern, handler) => handlers.push([pattern, handler]) }, []);
@@ -312,4 +319,47 @@ test('the /animation card says what Generate costs from the server figure, with 
   assert.equal(animationCostNote({ ...plan, usage: {} , input: { scene: { planCredits: 56 } } }), 'Edit plan uses up to 56 AI credits to rewrite the plan.', 'the plan credits alone when the server sent no maximum');
   assert.doesNotMatch(jobReviewCopy(plan).note, /\.\.\.|…|\$|dollar/);
   assert.equal(jobReviewCopy({ command: 'explain', usage: { max_credits: 591 } }).note, EXPLAIN_COST_NOTE, 'Explain does not share the string');
+});
+
+test('a recoverable router failure on an ordinary turn goes on once as an answer-only turn; a refusal, a command and a decided route do not', async () => {
+  const { routeChat, routeOutcome, ROUTE_FAILED } = await import('./generation-proposal-chat.js');
+  const payload = { scope: { app: 'canvas-0a1b2c3d' }, message: 'why is the sky blue', mode: 'auto' };
+  const reply = (status, body) => async () => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  const down = await routeChat(async () => { throw new Error('offline'); }, payload, { requestId: 'req-0000aaaa' });
+  assert.deepEqual([down.via, down.recoverable, down.code, down.requestId, down.status], ['fallback', true, 'unavailable', 'req-0000aaaa', null]);
+  assert.deepEqual(routeOutcome(down, { plain: true }), { send: true, token: null, answerOnly: true, failure: { request_id: 'req-0000aaaa', status: null, code: 'unavailable' } });
+  const server = await routeChat(reply(200, { route: 'answer', via: 'fallback', retryable: true, code: 'timeout', message: ROUTE_FAILED }), payload, { requestId: 'req-0000bbbb' });
+  assert.deepEqual(routeOutcome(server, { plain: true }), { send: true, token: null, answerOnly: true, failure: { request_id: 'req-0000bbbb', status: 200, code: 'timeout' } });
+  for (const status of [500, 502, 503, 408, 429]) assert.equal(routeOutcome(await routeChat(reply(status, { error: 'x' }), payload), { plain: true }).answerOnly, true, String(status));
+  // Authorization and validation errors stay shown, with the server's own words: the turn is not sent around them.
+  for (const status of [400, 401, 403, 413]) {
+    const refused = routeOutcome(await routeChat(reply(status, { error: 'No access to this canvas.' }), payload), { plain: true });
+    assert.deepEqual([refused.send, refused.show.kind, refused.show.message], [undefined, 'error', 'No access to this canvas.'], String(status));
+  }
+  // A command (typed or picked) keeps the shown failure: never a silent answer in place of a tool the learner asked for.
+  assert.equal(routeOutcome(down).show.kind, 'error');
+  assert.equal(routeOutcome(down, { plain: false }).send, undefined);
+  // Decided routes are untouched: an answer sends, a clarification and an unsupported ask show, a proposal needs its token.
+  assert.deepEqual(routeOutcome({ route: 'answer', via: 'jev' }, { plain: true }), { send: true, token: null });
+  assert.equal(routeOutcome({ route: 'clarify', clarification: { question: 'Which first?', options: ['answer'] } }, { plain: true }).show.kind, 'clarify');
+  assert.equal(routeOutcome({ route: 'capability:motion', flow: 'proposal', token: 'tok' }, { plain: true }).token, 'tok');
+});
+
+test('isSmallTalk: a whole-message greeting or acknowledgment only; a mixed or real request is never small talk', () => {
+  for (const text of ['hi', 'Hi', 'Hello!', 'hey there', 'thanks', 'Thanks!!', 'thank you so much', 'ok', 'Good morning.', 'got it', 'bye', '  hi  ', 'Hi 👋']) assert.equal(isSmallTalk(text), true, text);
+  for (const text of ['hi, make me a video', 'hello can you explain softmax', 'thanks, now a diagram', 'hi hi hi', '/motion hi', 'what is hi', 'ok so why', '', 'hi' + String.fromCharCode(10) + 'make a video']) assert.equal(isSmallTalk(text), false, text);
+});
+
+test('no router-failure banner, no Answer normally and no Retry exist anywhere in the Chat', async () => {
+  const { readFileSync } = await import('node:fs');
+  const read = name => readFileSync(new URL('./' + name, import.meta.url), 'utf8');
+  for (const name of ['ask.jsx', 'RouteDecision.jsx', 'generation-proposal-chat.js', 'ChatMessages.jsx']) {
+    const source = read(name);
+    for (const gone of ['Answer normally', 'data-route-answer', 'data-route-retry', 'check whether this asks', "kind: 'fallback'", 'onRetry', 'onAnswer']) assert.ok(!source.includes(gone), name + ' has no ' + gone);
+  }
+  // Rendered: whichever decision the Chat can show, the markup has no such button.
+  const { routeOutcome } = await import('./generation-proposal-chat.js');
+  const failures = [{ route: 'answer', via: 'fallback', recoverable: true, code: 'timeout' }, { route: 'answer', via: 'fallback', recoverable: false, code: 'malformed', message: 'No access to this canvas.' }];
+  assert.equal(routeOutcome(failures[0], { plain: true }).show, undefined, 'a recoverable failure on an ordinary message shows nothing');
+  assert.equal(routeOutcome(failures[1], { plain: true }).show.kind, 'error');
 });
