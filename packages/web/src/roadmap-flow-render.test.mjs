@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { pillOf, tocOf } from './roadmap-client.js';
+import { entriesOf, roadmapInvitationOf } from './roadmap-transcript.js';
 
 const DIR = fileURLToPath(new URL('../../../docs/features/explain-on-canvas/contracts/fixtures/', import.meta.url));
 const view = name => JSON.parse(readFileSync(DIR + name + '.json', 'utf8')).response.body;
@@ -16,8 +17,9 @@ const tmp = mkdtempSync(join(tmpdir(), 'roadmap-flow-'));
 after(() => rmSync(tmp, { recursive: true, force: true }));
 const outfile = join(tmp, 'bundle.cjs');
 await esbuild.build({
-  stdin: { contents: "export { useRoadmap } from './use-roadmap.js'; export { RoadmapCanvas } from './RoadmapSurfaces.jsx'; export { default as TableOfContents } from './TableOfContents.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { useRoadmap } from './use-roadmap.js'; export { RoadmapCanvas } from './RoadmapSurfaces.jsx'; export { default as TableOfContents } from './TableOfContents.jsx'; export { EntryView } from './RoadmapTranscript.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
+  plugins: [{ name: 'asset-url-stub', setup(build) { build.onResolve({ filter: /[?](url|raw|worker)$/ }, args => ({ path: args.path, namespace: 'asset-stub' })); build.onLoad({ filter: /.*/, namespace: 'asset-stub' }, () => ({ contents: 'export default ""', loader: 'js' })); } }],
   loader: { '.css': 'empty', '.woff2': 'empty', '.woff': 'empty', '.ttf': 'empty', '.svg': 'empty', '.png': 'empty', '.wasm': 'empty', '.py': 'text', '.md': 'text', '.txt': 'text', '.html': 'text' },
 });
 const lib = createRequire(import.meta.url)(outfile);
@@ -88,4 +90,65 @@ test('every Tutor surface is drawn inside a SurfaceBoundary, so one throwing ren
     assert.ok(read(file).includes('<SurfaceBoundary ') && read(file).includes('artifact="' + artifact + '"'), file + ' wraps ' + artifact);
   }
   assert.match(read('TableOfContents.jsx'), /try \{ outline = withRoadmap\(/, 'a malformed roadmap never hides the ordinary outline');
+});
+
+// Chat invitation and draft (owner 2026-11-07): the buttons give way to ONE Generating roadmap shimmer while the first draft is written, and the draft's
+// actions sit 12 px (pt-3) below the preview with 8 px (gap-2) between them, whatever the draft's length.
+const INVITATION = { id: 'iv_1', title: 'en.md', sourceKeys: ['k'], state: 'offered' };
+const entryOf = (state, kind, options = {}) => entriesOf(state, options).find(e => e.kind === kind);
+const render = (entry, props = {}) => lib.renderToStaticMarkup(lib.createElement(lib.EntryView, { entry, live: true, run() {}, ...props }));
+const count = (markup, text) => markup.split(text).length - 1;
+
+test('Explain on canvas accepted: the invitation text stays, both buttons leave the layout, one Generating roadmap shimmer takes their place', () => {
+  const idle = { view: null, busy: [], editing: false, flag: 'on', notice: null, invitation: INVITATION, limitation: null, draft: null };
+  const before = render(entryOf(idle, 'invitation', { invitation: INVITATION }));
+  assert.equal(count(before, '<button'), 2, 'idle: Explain on canvas and Keep here');
+  assert.ok(!before.includes('data-roadmap-generating'));
+  // The click is accepted (the create request is in flight).
+  const creating = { ...idle, busy: ['create:iv_1'] };
+  const during = render(entryOf(creating, 'invitation', { invitation: INVITATION }));
+  assert.equal(count(during, '<button'), 0, 'no buttons in the layout or the tab order');
+  assert.equal(count(during, 'Generating roadmap'), 1, 'one shimmer');
+  assert.ok(during.includes('data-roadmap-generating') && during.includes('shimmer'));
+  assert.ok(during.includes('en.md') || during.includes('data-roadmap-invitation'), 'the invitation text stays');
+  // The saved invitation message while the first draft is written: shimmer, no buttons, and the draft entry draws nothing of its own.
+  const drafted = { ...view('create-response-draft'), roadmap: { ...view('create-response-draft').roadmap, invitationId: 'iv_1' } };
+  const drafting = { ...idle, invitation: null, view: drafted };
+  const invitation = roadmapInvitationOf(drafting);
+  assert.deepEqual(invitation, { invitationId: 'iv_1', first: true });
+  const saved = { clientId: 'iv-entry', kind: 'invitation', content: 'Explain this?', tutor: { v: 1, kind: 'invitation', seq: 1, invitationId: 'iv_1' }, actions: [] };
+  const stored = render(saved, { live: false, invitation });
+  assert.equal(count(stored, '<button'), 0);
+  assert.equal(count(stored, 'Generating roadmap'), 1);
+  const pending = entryOf(drafting, 'draft');
+  assert.ok(pending?.activity, 'the draft entry is the generating one');
+  assert.equal(render(pending, { invitation }), '', 'and it draws no second indicator');
+  // The draft arrives: the shimmer goes and the invitation shows no buttons; a failed or stopped generation also clears it.
+  const arrived = roadmapInvitationOf({ view: { ...drafted, roadmap: { ...drafted.roadmap, state: 'proposed' } } });
+  assert.deepEqual(arrived, { invitationId: 'iv_1', first: false });
+  const after = render(saved, { live: false, invitation: arrived });
+  assert.equal(count(after, 'Generating roadmap') + count(after, '<button'), 0);
+  // A different invitation is untouched, and a later revision keeps the draft entry's own indicator.
+  assert.equal(count(render({ ...saved, tutor: { ...saved.tutor, invitationId: 'iv_0' } }, { live: false, invitation }), 'Generating roadmap'), 0);
+  assert.equal(roadmapInvitationOf({ view: { ...drafted, planDraft: { version: 1 } } }).first, false);
+});
+
+test('the draft actions sit 12 px under the preview and 8 px apart, outside it, for a short and a long roadmap', () => {
+  for (const steps of [1, 14]) {
+    const base = view('status-proposed-plan');
+    const draftView = { ...base, steps: Array.from({ length: steps }, (_, i) => ({ ...base.steps[i % base.steps.length], id: 'st_' + i, title: 'Step ' + i })), plan: { ...base.plan, steps: Array.from({ length: steps }, (_, i) => ({ ...base.plan.steps[i % base.plan.steps.length], title: 'Step ' + i })) } };
+    const state = { view: draftView, busy: [], editing: false, flag: 'on', notice: null, invitation: null, limitation: null, draft: null };
+    const entry = entryOf(state, 'draft');
+    assert.ok(entry?.draft && entry.actions.length === 2, steps + ' steps: a draft with Accept roadmap and Edit roadmap');
+    const markup = render(entry);
+    const wrapper = markup.match(/data-roadmap-actions="[^"]*" class="([^"]*)"/);
+    assert.ok(wrapper, 'the action row is its own wrapper');
+    assert.match(wrapper[1], /\bpt-3\b/, '12 px from the preview border');
+    assert.match(wrapper[1], /\bgap-2\b/, '8 px between the buttons');
+    assert.doesNotMatch(wrapper[1], /\b(pt-1|gap-1\.5|-mt-|mt-)/);
+    const plan = markup.indexOf('data-roadmap-steps'), actions = markup.indexOf('data-roadmap-actions');
+    assert.ok(plan > 0 && actions > plan, 'the buttons follow the preview, outside it');
+    assert.ok(markup.slice(markup.indexOf('data-roadmap-actions')).split('</div>')[0].includes('Accept roadmap'));
+    assert.ok(!markup.slice(plan, actions).includes('Accept roadmap'), 'not inside the preview');
+  }
 });

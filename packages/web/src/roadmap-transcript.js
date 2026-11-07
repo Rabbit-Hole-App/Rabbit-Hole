@@ -64,6 +64,13 @@ export function stepStage(state, step) {
 const formatName = format => STRINGS.formatName[format] || format || '';
 const act = (id, label, run, extra = {}) => ({ id, label, run: { kind: id, ...run }, ...extra });
 
+// The invitation the current roadmap was made from: { invitationId, first } (first: its FIRST draft is still being written), else null. The invitation message
+// shows the one Generating roadmap shimmer in place of its buttons while first, no buttons once its roadmap exists, and the draft entry draws nothing of
+// its own until the draft arrives.
+export function roadmapInvitationOf(state) {
+  const view = state.view, rm = view?.roadmap;
+  return rm?.invitationId ? { invitationId: rm.invitationId, first: rm.state === 'draft' && view.planDraft == null && view.acceptedPlan == null } : null;
+}
 // -> [{ clientId, kind, seq, content, tutor, actions, draft?, activity? }] for the current state. ctx: invitation (invitationOf); route
 // ({ invitationId, choice? }: the occupied-Chat choice, shown before the invitation until a destination wins); boundary ({ key, name }: a
 // source dropped during an unfinished roadmap). Every action here is explicit, so none is gated by Ask or Auto-suggest off.
@@ -78,7 +85,7 @@ export function entriesOf(state, { invitation = null, route = null, boundary = n
   if (invitation && (!routed || route.choice)) {
     const busy = state.busy.some(g => g.startsWith(`create:${invitation.id}`) || g === `dismiss:${invitation.id}`);
     push(invitationClientId(invitation.id), 'invitation', 1, STRINGS.inviteDrop(mdName(invitation.title)), { invitationId: invitation.id },
-      [act('explain_on_canvas', STRINGS.explain, {}, { disabled: busy, primary: true }), act('keep_here', STRINGS.keepHere, {}, { disabled: busy })]);
+      [act('explain_on_canvas', STRINGS.explain, {}, { disabled: busy, primary: true }), act('keep_here', STRINGS.keepHere, {}, { disabled: busy })], { creating: busy });
   }
   if (boundary) push(boundaryClientId(boundary.key), 'boundary', 1, STRINGS.boundary(mdName(boundary.name)), { sourceKey: boundary.key });
   if (!view) return out;
