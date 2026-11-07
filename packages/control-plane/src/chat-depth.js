@@ -27,3 +27,13 @@ export const depthInstruction = (depth, kind = 'answer') => WORDS[kind]?.[validD
 // "how much to explain", so Depth does not reach them.
 // ponytail: Depth reaches /explain and /walkthrough only; add a command here when its card has a depth to choose.
 export const DEPTH_COMMANDS = Object.freeze(['explain', 'walkthrough']);
+
+// CORE.09: an Explanation card's teaching objective and inclusive display-text budget per Depth, the same on the direct and roadmap paths.
+// Unlike depthInstruction, Standard has an explicit target too. An omitted or unknown Depth is the default.
+export const EXPLANATION_CAPS = Object.freeze({ overview: 600, standard: 1000, deep: 1500 });
+export const EXPLANATION_OBJECTIVES = Object.freeze({
+  overview: 'Depth: Overview. Explain the central idea and essential mechanism in everyday language. A concrete example can make the idea easier to follow.',
+  standard: 'Depth: Standard. Explain how and why the mechanism works, with enough reasoning to apply it to another case.',
+  deep: 'Depth: Deep. Develop the reasoning and relevant assumptions, limitations or connections. Work through a calculation or consequence when it helps.',
+});
+export const explanationTarget = depth => { const d = validDepth(depth) || DEFAULT_DEPTH; return `${EXPLANATION_OBJECTIVES[d]} Budget: at most ${EXPLANATION_CAPS[d].toLocaleString('en-US')} characters of card content in total.`; };

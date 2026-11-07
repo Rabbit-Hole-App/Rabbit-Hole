@@ -8,7 +8,7 @@ import { makeReadSource } from './roadmap-source-read.js';
 import { composeProposal } from './roadmap-compose.js';
 import { mintStepRefs } from './roadmap-source-refs.js';
 import { planningHandler } from './roadmap-planning.js';
-import { generationHandler } from './roadmap-run.js';
+import { generationHandler, quoteStepAcceptance } from './roadmap-run.js';
 import { sweepUndelivered } from './roadmap-sweep.js';
 import { readAutoSuggest } from '../learn-user-settings.js';
 import { platformCallModel } from './roadmap-models.js';
@@ -48,6 +48,7 @@ export function roadmapDeps(env, ctx = null, { settings = learnerSettings(env), 
   return { readSource: makeReadSource(env, readSourceOptions), startPlanning: kick, onAccepted: kick, onFact: roadmapAutoEnabled(env) ? kick : undefined, // R6: no wake on ack/mode change unless the automatic switch is on
     compose: (roadmap, step) => composeProposal(env.LEARN_DB, roadmap, step),
     mintStepRefs: (e, access, roadmapId) => mintStepRefs(e, access, roadmapId), settings,
+    quote: (e, access, args) => quoteStepAcceptance(e, access, args), // CORE.05: the accept route quotes the actual author request before any hold
     // R5 (ROADMAP_EDIT_ENABLED): `screen` is R4's safety classifier path over the learner's words and the composed words (held when unknown); the composer is platform-funded
     // (role roadmap_proposal; unregistered, the route answers 503 edit_unavailable). `callModel` and `classify` are the test seams.
     screen: makeProposalScreen(env, classify ? { classify } : {}),

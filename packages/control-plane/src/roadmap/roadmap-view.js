@@ -32,37 +32,57 @@ function failureOf(r) {
   return { failure: { code: 'generation_failed', message: FAILURE_MESSAGE } };
 }
 
+// Contract 4: one lifecycle stage per step and per accepted result (the client adds `accepting` and its own save-before-ack `saving`).
+const resultStage = r => (r.generation === 'failed' || (r.billing === 'refunded' && r.delivery === 'not_delivered') ? 'failed'
+  : r.delivery !== 'not_delivered' ? 'ready' : r.generation === 'generated' ? (r.validation === 'passed' ? 'saving' : 'checking')
+  : r.validation === 'checking' ? 'checking' : 'generating');
+const STEP_STAGE = { planned: 'planned', proposed: 'proposed', delivered: 'ready', skipped: 'skipped', cancelled: 'cancelled', incomplete: 'failed', already_understood: 'skipped' };
+const planShape = (version, plan, steps, settings) => ({ version, outcome: plan.outcome, assumptions: plan.assumptions ?? [], formats: plan.formats ?? [], steps, stoppingPoint: plan.stoppingPoint,
+  ...(plan.sourceCoverage ? { sourceCoverage: plan.sourceCoverage } : {}), settings });
+
 export async function roadmapView(db, access, roadmap) {
   if (!roadmap) return null;
   const id = roadmap.id;
   const first = await db.prepare('SELECT text FROM learn_roadmap_instructions WHERE roadmap_id = ? ORDER BY version ASC LIMIT 1').bind(id).first();
-  const planRow = await db.prepare('SELECT * FROM learn_roadmap_plan_versions WHERE roadmap_id = ? AND version = ?').bind(id, roadmap.plan_version).first();
+  const lastInstruction = (await db.prepare('SELECT MAX(version) AS v FROM learn_roadmap_instructions WHERE roadmap_id = ?').bind(id).first())?.v ?? 1;
+  // Contract 5: the accepted plan drives the ToC (`plan`/`steps`, and `acceptedPlan`); the newest unaccepted version is the Chat `draft`.
+  const active = roadmap.accepted_plan_version ?? roadmap.plan_version;
+  const rowOf = version => db.prepare('SELECT * FROM learn_roadmap_plan_versions WHERE roadmap_id = ? AND version = ?').bind(id, version).first();
+  const planRow = await rowOf(active);
   const plan = planRow ? json(planRow.plan_json) : null;
-  const { results: stepRows } = await db.prepare('SELECT * FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? ORDER BY position').bind(id, roadmap.plan_version).all();
+  const draftRow = roadmap.plan_version !== roadmap.accepted_plan_version ? (roadmap.plan_version === active ? planRow : await rowOf(roadmap.plan_version)) : null;
+  const draftPlan = draftRow ? json(draftRow.plan_json) : null;
+  const { results: stepRows } = await db.prepare('SELECT * FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? ORDER BY position').bind(id, active).all();
   const scopeJson = json(roadmap.scope_json) || {};
   const sourceName = scopeJson.sourceName || '';
   const threadId = await tutorThreadOf(db, roadmap); // every device shows the roadmap in this Chat thread; null: none bound, or it was deleted
   // The invitation the roadmap was made from (null: none), so the client binds THIS roadmap's invitation thread, never an older roadmap's.
   const invitationId = (await db.prepare('SELECT id FROM learn_roadmap_invitations WHERE roadmap_id = ? AND org = ? AND owner_user_id = ? LIMIT 1').bind(id, roadmap.org, roadmap.owner_user_id).first())?.id ?? null;
+  const { results: resultRows } = await db.prepare(`SELECT r.*, p.title AS p_title, p.description AS p_description, p.format AS p_format FROM learn_step_results r
+    LEFT JOIN learn_step_proposals p ON p.id = r.proposal_id AND p.version = r.proposal_version WHERE r.roadmap_id = ? AND r.decision = 'accepted' ORDER BY r.created_at, r.slot_index`).bind(id).all();
   // R3's reference for each step, minted at Accept plan (roadmap-source-refs.js); null where none was minted.
   const refs = await d1PublicRefs({ LEARN_DB: db }, access, (stepRows || []).map(s => s.source_ref_id));
-  // Polling never carries source text (api.md): where R3's table exists the reference's anchor holds the passage quote, so the view keeps only identity and source; the delivered card carries the full reference.
+  // Polling never carries source text (api.md): the reference keeps identity and source only. The verified excerpt is read through the entitled reference (canvas-to-be-1 answer).
   for (const [key, ref] of refs) if (ref) refs.set(key, { v: ref.v, id: ref.id, kind: ref.kind, source: ref.source });
+  const latestResult = new Map((resultRows || []).map(r => [r.step_id, r]));
   const steps = (stepRows || []).map(s => ({ id: s.id, position: s.position, title: s.title, goal: s.goal, format: s.format, passage: { start: s.passage_start, end: s.passage_end }, sourceRef: refs.get(s.source_ref_id) ?? null, state: s.state,
+    stage: s.state === 'generating' ? (latestResult.has(s.id) ? resultStage(latestResult.get(s.id)) : 'generating') : STEP_STAGE[s.state] ?? s.state,
     ...(s.card_removed ? { cardRemoved: true } : {}), ...(s.answered ? { answered: true } : {}) }));
+  const stepOf = stepId => steps.find(s => s.id === stepId);
   const offered = await db.prepare("SELECT * FROM learn_step_proposals WHERE roadmap_id = ? AND state IN ('checking', 'held', 'pending') ORDER BY created_at DESC LIMIT 1").bind(id).first();
-  const position = offered ? steps.find(s => s.id === offered.step_id)?.position : null;
+  const position = offered ? stepOf(offered.step_id)?.position : null;
   const link = offered ? await linkOf(db, offered) : null;
   const proposal = offered && {
-    id: offered.id, stepId: offered.step_id, version: offered.version, state: offered.state, title: offered.title, description: offered.description, format: offered.format,
-    sourceRelation: { kind: 'from', source: { key: roadmap.source_key, rev: roadmap.source_rev, name: sourceName }, sourceRef: steps.find(s => s.id === offered.step_id)?.sourceRef ?? null }, position: { index: position ?? null, total: steps.length }, acceptable: offered.state === 'pending' && !offered.stale && roadmap.state === 'active',
+    id: offered.id, stepId: offered.step_id, version: offered.version, state: offered.state, stage: 'proposed', title: offered.title, description: offered.description, format: offered.format,
+    sourceRelation: { kind: 'from', source: { key: roadmap.source_key, rev: roadmap.source_rev, name: sourceName }, sourceRef: stepOf(offered.step_id)?.sourceRef ?? null }, position: { index: position ?? null, total: steps.length }, acceptable: offered.state === 'pending' && !offered.stale && roadmap.state === 'active',
     ...(link ? { link } : {}),
   };
-  const { results: resultRows } = await db.prepare(`SELECT r.* FROM learn_step_results r WHERE r.roadmap_id = ? AND r.decision = 'accepted' ORDER BY r.created_at, r.slot_index`).bind(id).all();
   const isFailed = r => r.generation === 'failed' || (r.billing === 'refunded' && r.delivery === 'not_delivered');
   const results = (resultRows || []).map(r => {
     const failed = isFailed(r);
-    return { id: r.id, stepId: r.step_id, proposalVersion: r.proposal_version, slot: { index: r.slot_index, cardId: r.card_id }, generation: r.generation, delivery: r.delivery, billing: r.billing,
+    // canvas-to-be-1: the accepted proposal version's own words, so an applied Edit card survives a reload.
+    return { id: r.id, stepId: r.step_id, proposalVersion: r.proposal_version, slot: { index: r.slot_index, cardId: r.card_id }, generation: r.generation, delivery: r.delivery, billing: r.billing, stage: resultStage(r),
+      title: r.p_title ?? null, description: r.p_description ?? null, format: r.p_format ?? null,
       ...(r.billing === 'zero_priced' && r.body_json == null ? { existingCard: true } : {}), // R5: a linked card, delivered at acceptance
       ...(r.generation === 'generated' && r.validation !== 'passed' && !failed ? { held: true } : {}),
       ...(failed ? failureOf(r) : {}) };
@@ -71,15 +91,24 @@ export async function roadmapView(db, access, roadmap) {
   const settled = results.some(r => r.delivery === 'delivered') && (resultRows || []).every(r => r.delivery !== 'not_delivered' || isFailed(r));
   const next = steps.some(s => s.state === 'planned');
   const busy = results.some(r => r.generation === 'pending' || r.generation === 'generating');
+  // A requested revision not yet planned: the shown draft is stale and its acceptance is refused (409 stale_draft).
+  const revisionPending = !['completed', 'ended', 'failed'].includes(roadmap.state) && lastInstruction > ((draftRow ?? planRow)?.instruction_version ?? lastInstruction);
+  const keptNow = (stepRows || []).filter(s => !['planned', 'proposed'].includes(s.state)).length;
+  const draft = draftPlan && planShape(roadmap.plan_version, draftPlan, (draftPlan.steps || []).map((s, i) => ({ position: i + 1, title: s.title, goal: s.goal, format: s.format, passage: s.passage })), { depth: draftPlan.settings?.depth ?? roadmap.depth });
+  if (draft) Object.assign(draft, { instructionVersion: draftRow.instruction_version, acceptable: !!draft.steps.length && !revisionPending && !draftPlan.question && !draftPlan.limitation
+    && (roadmap.state === 'proposed' || (['active', 'paused'].includes(roadmap.state) && (draftPlan.keptSteps ?? 0) === keptNow)) });
+  const acceptedPlan = roadmap.accepted_plan_version && plan ? planShape(active, plan, steps, { depth: plan.settings?.depth ?? roadmap.depth }) : null;
+  const shown = draftPlan ?? plan;
   return {
     roadmap: { id, boardId: roadmap.board_id, state: roadmap.state, revision: roadmap.revision, planVersion: roadmap.plan_version, acceptedPlanVersion: roadmap.accepted_plan_version ?? null, depth: roadmap.depth,
       practiceMode: roadmap.practice_mode, instruction: first?.text ?? '', language: roadmap.language, scope: { kind: scopeJson.kind || 'whole', chars: scopeJson.chars ?? null, source: { key: roadmap.source_key, rev: roadmap.source_rev, name: sourceName }, fingerprint: roadmap.scope_fingerprint },
       ceiling: roadmap.ceiling, deliveredCount: roadmap.delivered_count, mode: roadmap.mode, modeRevision: roadmap.mode_revision, threadId, invitationId, createdAt: iso(roadmap.created_at), updatedAt: iso(roadmap.updated_at) },
-    question: plan?.question ?? null, limitation: plan?.limitation ?? null,
-    plan: plan && { version: roadmap.plan_version, outcome: plan.outcome, assumptions: plan.assumptions ?? [], formats: plan.formats ?? [], steps, stoppingPoint: plan.stoppingPoint, ...(plan.sourceCoverage ? { sourceCoverage: plan.sourceCoverage } : {}) },
+    question: shown?.question ?? null, limitation: shown?.limitation ?? null,
+    plan: plan && planShape(active, plan, steps, { depth: plan.settings?.depth ?? roadmap.depth }),
+    acceptedPlan, planDraft: draft ?? null, revisionPending, // planDraft, not `draft`: the R5 proposal-draft route already answers `draft`
     steps, proposal: proposal ?? null, results,
     nextStepReady: !!proposal?.acceptable && settled,
-    poll: { afterMs: busy || roadmap.state === 'draft' ? 1500 : proposal ? 2000 : next ? 5000 : 10000, etag: `rv-${roadmap.revision}${threadId ? `-${threadId.slice(-12)}` : ''}`, ...(roadmap.state === 'completed' || roadmap.state === 'ended' ? { afterMs: 30000 } : {}) },
+    poll: { afterMs: busy || roadmap.state === 'draft' || revisionPending ? 1500 : proposal ? 2000 : next ? 5000 : 10000, etag: `rv-${roadmap.revision}${threadId ? `-${threadId.slice(-12)}` : ''}`, ...(roadmap.state === 'completed' || roadmap.state === 'ended' ? { afterMs: 30000 } : {}) },
   };
 }
 

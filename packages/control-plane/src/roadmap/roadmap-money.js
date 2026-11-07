@@ -71,12 +71,14 @@ export function learnerUsageEnv(env, access, proposalId, proposalVersion) {
 // It does not write. The caller (acceptRoadmapStep) puts `guard` in the winning acceptance receipt and `statements(r)` in the same batch, so
 // the full-step allowance test, the hold, the authorization, the allocations and the acceptance are one transaction: when the allowance
 // does not cover the whole step the receipt is not inserted and nothing else is.
-export async function admitStepAuthorization(env, access, { roadmapId, proposalId, proposalVersion, slots, callMicros, now, deadlineSeconds = 900, ids = {} }) {
-  const aggregateMicros = slots.length * cardEnvelopeMicros(callMicros);
+// cardBoundMicros / contentFingerprint (CORE.05, trusted, from the acceptance quote): the exact one-call bound of the actual request and its binding.
+export async function admitStepAuthorization(env, access, { roadmapId, proposalId, proposalVersion, slots, callMicros, cardBoundMicros = null, contentFingerprint = null, now, deadlineSeconds = 900, ids = {} }) {
+  const perCard = Number.isSafeInteger(cardBoundMicros) && cardBoundMicros > 0 ? cardBoundMicros : cardEnvelopeMicros(callMicros);
+  const aggregateMicros = slots.length * perCard;
   const authorizationId = ids.authorization || newId('az_');
-  const base = { authorizationId, aggregateMicros, usageClientKey: usageKeyFor(proposalId, proposalVersion) };
+  const base = { authorizationId, aggregateMicros, contentFingerprint, usageClientKey: usageKeyFor(proposalId, proposalVersion) };
   const own = [access.org, access.actorUserId, access.boardId];
-  const allocations = slots.map(slot => ({ id: newId('al_'), resultId: slot.resultId, cardId: slot.cardId, bound: cardEnvelopeMicros(callMicros) }));
+  const allocations = slots.map(slot => ({ id: newId('al_'), resultId: slot.resultId, cardId: slot.cardId, bound: perCard }));
   if (!spendEnforced(env)) {
     // Spend is not enforced (SMALL_ENV test): the authorization is still recorded so the state machine is identical, with no hold row.
     return { ...base, holdAttemptId: '', allocations, guard: { sql: '1 = 1', binds: [] }, statements: () => authorizationStatements(env, own, { ...base, roadmapId, proposalId, proposalVersion, actionId: '', holdAttemptId: '', payerUserId: access.payerUserId, period: periodOf(now), now, deadline: now + deadlineSeconds, allocations, hold: false }) };
@@ -102,9 +104,9 @@ function authorizationStatements(env, [org, owner, board], a) {
       SELECT ?, ?, 'tool', NULL, NULL, ?, 'reserved', 'running', ? WHERE ${r.and}`).bind(a.holdAttemptId, a.actionId, a.aggregateMicros, a.now, ...r.binds)] : []),
     db.prepare(`INSERT INTO learn_step_authorizations (id, org, owner_user_id, board_id, roadmap_id, proposal_id, proposal_version, payer_user_id, period, usage_client_key, action_id, hold_attempt_id,
       aggregate_micros, per_card_bound_micros, remaining_micros, content_fingerprint, state, deadline_at, created_at)
-      SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT content_hash FROM learn_step_proposals WHERE id = ? AND version = ?), 'admitted', ?, ? WHERE ${r.and}`)
+      SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, (SELECT content_hash FROM learn_step_proposals WHERE id = ? AND version = ?)), 'admitted', ?, ? WHERE ${r.and}`)
       .bind(a.authorizationId, org, owner, board, a.roadmapId, a.proposalId, a.proposalVersion, a.payerUserId, a.period, a.usageClientKey, a.actionId, a.holdAttemptId, a.aggregateMicros,
-        a.allocations[0]?.bound ?? 0, a.aggregateMicros, a.proposalId, a.proposalVersion, a.deadline, a.now, ...r.binds),
+        a.allocations[0]?.bound ?? 0, a.aggregateMicros, a.contentFingerprint ?? null, a.proposalId, a.proposalVersion, a.deadline, a.now, ...r.binds),
     ...a.allocations.map(al => db.prepare(`INSERT INTO learn_step_allocations (id, authorization_id, result_id, card_id, bound_micros, remaining_micros, version, state, created_at)
       SELECT ?, ?, ?, ?, ?, ?, 1, 'held', ? WHERE ${r.and}`).bind(al.id, a.authorizationId, al.resultId, al.cardId, al.bound, al.bound, a.now, ...r.binds)),
   ];

@@ -133,7 +133,7 @@ test('insufficient allowance for the whole step: the proposal stays pending, acc
 });
 
 test('the allowance must cover the WHOLE step: exactly the aggregate admits, one micro less admits nothing', async t => {
-  const aggregate = 4 * NEED; // callMicros = NEED, two calls, one automatic retry
+  const aggregate = 2 * NEED; // legacy callMicros = NEED: one call (CORE.04) times the legacy retry factor
   for (const [allowance, admits] of [[aggregate, true], [aggregate - 1, false]]) {
     const w = world(t, { allowanceMicros: allowance });
     const o = await offered(w, w.access);
@@ -144,7 +144,7 @@ test('the allowance must cover the WHOLE step: exactly the aggregate admits, one
 });
 
 test('an ordinary call cannot spend credits a roadmap step has reserved', async t => {
-  const aggregate = 4 * NEED;
+  const aggregate = 2 * NEED;
   const w = world(t, { allowanceMicros: aggregate + 10 });
   const o = await offered(w, w.access);
   await acceptRoadmapStep(w.env, w.access, { roadmapId: o.roadmapId, revision: o.revision, proposalId: o.proposalId, proposalVersion: o.proposalVersion, actionKey: 'accept-key-0001', callMicros: NEED });

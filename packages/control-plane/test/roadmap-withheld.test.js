@@ -7,7 +7,7 @@ import { runDueRoadmapEvents } from '../src/roadmap/roadmap-events.js';
 import { withheldCause } from '../src/roadmap/roadmap-check.js';
 import { rows } from './roadmap-fixture.js';
 import { STRINGS } from '../../web/src/roadmap-strings.js';
-import { BOARD, FAIL, FULL, GOOD, ID_B, INSTRUCTION, KEY, answer, calm, loop } from './roadmap-loop-fixture.js';
+import { BOARD, FAIL, FULL, GOOD, ID_B, INSTRUCTION, KEY, answer, calm, loop, planInput } from './roadmap-loop-fixture.js';
 
 async function toProposal(h) {
   const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'standard', actionKey: KEY('create') });
@@ -113,4 +113,50 @@ test('nextStepReady: true only for an acceptable pending proposal after a delive
   set("UPDATE learn_step_results SET delivery = 'delivered', generation = 'generated'");
   set("UPDATE learn_roadmaps SET state = 'paused'");
   assert.equal((await h.status()).nextStepReady, false, 'paused roadmap');
+});
+
+// --- CORE.06: the accepted learner revisions reach the learner-intent screen by role; grounding is never called -----------------------------
+const SIGN = 'I feel hopeless and want to hurt myself';
+// A classifier double that scores only what it is shown, per role, and records every part it screened.
+const roleAware = seen => async ({ role, text }) => { seen.push({ role, text }); return { ...calm, scores: { ...calm.scores, self_harm_personal: text.includes(SIGN) ? 0.9 : 0 } }; };
+const noGrounding = async role => { if (String(role).startsWith('roadmap_grounding')) throw new Error('the ordinary path must never call a grounding role'); throw new Error(`unexpected ${role}`); };
+
+test('CORE.06: an accepted learner revision is screened as the learner\'s own words; the same words quoted in the source are not personal risk', async t => {
+  const seen = [];
+  const h = await loop(t, { script: [GOOD], classifier: roleAware(seen) });
+  const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'standard', actionKey: KEY('create') });
+  const revised = await h.json('POST', `/api/learn/roadmap/${created.body.roadmapId}/revise`, { boardId: BOARD, revision: created.body.roadmap.revision, actionKey: KEY('rev'), instruction: `${SIGN}. Keep it short.` });
+  const plan = await h.json('POST', `/api/learn/roadmap/${created.body.roadmapId}/accept-plan`, { boardId: BOARD, revision: revised.body.roadmap.revision, actionKey: KEY('plan'), planVersion: revised.body.roadmap.planVersion });
+  assert.equal(plan.status, 200, JSON.stringify(plan.body).slice(0, 400));
+  registerRoadmapHandlers({ callModel: h.m.callModel, checkCallModel: noGrounding, classify: roleAware(seen), base: h.p.base });
+  const result = await accept(h, created.body.roadmapId, plan.body);
+  const learner = seen.filter(p => p.role === 'learner');
+  assert.ok(learner.some(p => p.text.includes(INSTRUCTION) && p.text.includes(SIGN)), 'original and accepted revision screened as learner words');
+  assert.equal(result.failure?.code, 'personal_risk', 'the learner\'s own signs of danger pause with support');
+  assert.equal(JSON.parse(rows(h.w.sqlite, 'SELECT check_json FROM learn_step_results')[0].check_json).grounding.calls, 0);
+  // The same sentence quoted in the document: source role, educational content, delivered.
+  const seen2 = [];
+  const QMD = `# Notes\n\nA character says: "${SIGN}".\n\n## Slope\nThe gradient of the loss points uphill.\n`;
+  const quoted = await loop(t, { script: [GOOD], md: QMD, plans: [planInput([['The gradient', 0, QMD.length]])], classifier: roleAware(seen2) });
+  registerRoadmapHandlers({ callModel: quoted.m.callModel, checkCallModel: noGrounding, classify: roleAware(seen2), base: quoted.p.base });
+  const { id, view } = await toProposal(quoted);
+  const ok = await accept(quoted, id, view);
+  assert.equal(ok.generation, 'generated');
+  assert.equal(ok.failure, undefined, 'quoted sensitive source text is not the learner\'s danger');
+  assert.ok(!seen2.some(p => p.role === 'learner' && p.text.includes(SIGN)));
+});
+
+test('CORE.06: an unknown safety screen is neither prohibited nor passed: withheld, unreadable, refunded once', async t => {
+  const unsure = async () => ({ ...calm, uncertainty: 0.9 });
+  const h = await loop(t, { script: [GOOD], classifier: unsure });
+  registerRoadmapHandlers({ callModel: h.m.callModel, checkCallModel: noGrounding, classify: unsure, base: h.p.base });
+  const { id, view } = await toProposal(h);
+  const result = await accept(h, id, view);
+  const check = JSON.parse(rows(h.w.sqlite, 'SELECT check_json FROM learn_step_results')[0].check_json);
+  assert.equal(check.safety.decision, 'unknown');
+  assert.notEqual(check.safety.decision, 'block', 'not counted as prohibited');
+  assert.notEqual(rows(h.w.sqlite, 'SELECT validation FROM learn_step_results')[0].validation, 'passed');
+  assert.equal((await h.json('GET', `/api/learn/roadmap/${id}/results/${result.id}?boardId=${BOARD}`)).status, 404, 'the withheld body is unreadable');
+  assert.equal((await h.totals()).used, 0, 'refunded');
+  assert.equal(rows(h.w.sqlite, "SELECT COUNT(*) AS n FROM learn_roadmap_actions WHERE operation = 'card_failed'")[0].n, 1);
 });
