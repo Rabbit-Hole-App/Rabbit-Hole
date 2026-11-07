@@ -81,7 +81,7 @@ export default function ExplainPending({ block, onChange, onChangeQuiet, readOnl
       {!readOnly && (
         <div className="flex gap-1.5">
           {running && <button type="button" data-explain-stop disabled={busy} onClick={() => act('cancel')}
-            className="flex h-8 items-center rounded-lg border border-line px-3 text-sm hover:bg-hover disabled:opacity-40">Stop</button>}
+            className="flex h-8 items-center rounded-lg px-3 text-sm bg-danger text-white hover:opacity-90 active:opacity-80 disabled:opacity-40">Stop</button>}
           {retry && <button type="button" data-explain-retry disabled={busy} onClick={() => act('retry', { expectedAttempt: shown.attempt })}
             className="flex h-8 items-center rounded-lg border border-line px-3 text-sm hover:bg-hover disabled:opacity-40">{paused ? 'Retry' : retry === 'retry_render' ? 'Render again' : 'Try again'}</button>}
         </div>

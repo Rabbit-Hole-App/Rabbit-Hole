@@ -30,6 +30,8 @@ const ATTR = { explain_on_canvas: 'data-roadmap-explain', keep_here: 'data-roadm
 // The approved green affirmative (file 02/03) on the existing success token; everything else the roadmap's existing secondary button.
 const GREEN = 'h-8 rounded-md border border-success/40 bg-success/15 px-3 text-xs font-medium text-ink outline-none hover:bg-success/25 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-default disabled:opacity-45';
 const SECOND = `${SECONDARY} disabled:cursor-default disabled:opacity-45`;
+// Cancel is the plain text control after the buttons (owner 2026-11-07: Generate/Accept, Edit, then Cancel as text with a hover fill).
+const TEXT = 'h-8 rounded-md px-3 text-xs text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-default disabled:opacity-45';
 
 // The live context entriesOf needs: the shown invitation (or the one this route record names), its route and the second-source boundary.
 function contextOf(roadmap) {
@@ -77,7 +79,7 @@ export function EntryView({ entry, live, run, app = null, busy = false, invitati
           {actions.map(action => {
             const attr = ATTR[action.id], marks = attr ? { [attr]: action.key || true } : {}, off = !live || !!action.disabled;
             if (action.blue) return <Button key={action.id} type="button" variant="primary" size="sm" {...marks} disabled={off} onClick={() => run(action.run)}>{action.label}</Button>;
-            return <button key={action.key || action.id} type="button" {...marks} disabled={off} onClick={() => run(action.run)} className={action.green ? GREEN : action.primary && action.id === 'explain_on_canvas' ? PRIMARY : SECOND}>{action.label}</button>;
+            return <button key={action.key || action.id} type="button" {...marks} disabled={off} onClick={() => run(action.run)} className={action.id === 'cancel' ? TEXT : action.green ? GREEN : action.primary && action.id === 'explain_on_canvas' ? PRIMARY : SECOND}>{action.label}</button>;
           })}
         </div>
       )}

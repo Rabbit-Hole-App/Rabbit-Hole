@@ -67,7 +67,7 @@ async function createImageProposal(req, env, deps) {
     db.prepare("INSERT OR IGNORE INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,'',?)").bind(body.thread_id, user.org, user.email, body.app, (p.title || 'Image').slice(0, 120)),
     db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(body.thread_id, 'user', `/generate-image ${words}`.slice(0, 4000)),
     db.prepare('INSERT INTO chat_message_meta(message_id,thread_id,role,meta_json) SELECT max(id),?,?,? FROM messages WHERE thread_id=?').bind(body.thread_id, 'user', JSON.stringify({ mode: 'auto', command: 'generate-image', contextRefs: [] }), body.thread_id),
-    db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(body.thread_id, 'assistant', 'Here is the plan for your image. Generate makes it.'),
+    db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(body.thread_id, 'assistant', ''), // no model call made this plan: the card alone, never a canned sentence
     db.prepare('INSERT INTO chat_message_meta(message_id,thread_id,role,meta_json) SELECT max(id),?,?,? FROM messages WHERE thread_id=?').bind(body.thread_id, 'assistant', JSON.stringify(meta), body.thread_id),
     db.prepare('INSERT INTO chat_thread_state(thread_id,last_activity_at,updated_at) VALUES(?,?,?) ON CONFLICT(thread_id) DO UPDATE SET last_activity_at=excluded.last_activity_at, updated_at=excluded.updated_at').bind(body.thread_id, at, at),
   ]);

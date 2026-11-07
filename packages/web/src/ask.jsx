@@ -704,7 +704,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       if (attached) throw new Error('Add reference images on the plan card after it appears, not as an attachment.');
       const made = await requestImagePlan(api, { app: chat.canvas, threadId: threadId.current || chatThread.id || newThreadId(), text: words });
       if (late()) return;
-      mirror('Here is the plan for your image. Generate makes it.');
       setMsgs(messages => withDone(withAnswerMeta(messages, replyId, { kind: 'answer', proposal: made.proposal }), replyId, { messageId: made.message_id }));
       threadId.current = made.thread_id;
       chatThread.adopt(made.thread_id, message.slice(0, 120));

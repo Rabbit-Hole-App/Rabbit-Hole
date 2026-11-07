@@ -1956,13 +1956,13 @@ function VideoBody({ block, appName, onChange, onFile }) {
                   {since === undefined
                     ? <p data-progress-restoring role="status" className="text-xs text-ink-2">Restoring progress</p>
                     : <Progress seconds={elapsed} expected={label.expected} label={label.progress} />}
-                  {label.stoppable && placement && <button ref={stopButton} type="button" data-stop-video aria-expanded={askStop} onClick={() => setAskStop(true)} className="flex h-8 items-center rounded-lg border border-line px-3.5 text-sm font-medium text-ink hover:bg-white">Stop</button>}
+                  {label.stoppable && placement && <button ref={stopButton} type="button" data-stop-video aria-expanded={askStop} onClick={() => setAskStop(true)} className="flex h-8 items-center rounded-lg px-3.5 text-sm font-medium bg-danger text-white hover:opacity-90 active:opacity-80">Stop</button>}
                   {label.stoppable && placement && askStop && (
                     <div data-stop-confirm role="group" aria-label="Stop this video" className="flex flex-wrap items-center justify-center gap-2 text-xs text-ink-2"
                       onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); keepGoing(); } }}>
                       <span>Stop this video? Credits already used won't be refunded.</span>
                       <Button type="button" variant="secondary" size="sm" data-stop-cancel autoFocus onClick={keepGoing}>Cancel</Button>
-                      <Button type="button" variant="inverse" size="sm" data-stop-confirmed onClick={() => { setAskStop(false); stop(); }}>Stop</Button>
+                      <Button type="button" variant="danger" size="sm" data-stop-confirmed onClick={() => { setAskStop(false); stop(); }}>Stop</Button>
                     </div>
                   )}
                 </>

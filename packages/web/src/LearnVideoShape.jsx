@@ -19,8 +19,8 @@ export class LearnVideoShapeUtil extends BaseBoxShapeUtil {
       {status === 'unavailable' ? <span data-paid-unavailable style={{ fontSize: 12 }}>Generation isn't available from this canvas yet.</span> : status === 'proposed' ? <>
         <span style={{ fontSize: 12 }}>This uses paid generation.</span>
         <span style={{ display: 'flex', gap: 8 }}>
-          <button data-paid-cancel style={button} onPointerDown={stop} onClick={event => { stop(event); this.editor.deleteShapes([shape.id]); }}>Cancel</button>
           <button data-paid-generate style={{ ...button, background: '#171717', color: 'white', borderColor: '#171717' }} onPointerDown={stop} onClick={event => { stop(event); this.editor.getContainer().dispatchEvent(new CustomEvent('learn-video-generate', { detail: shape.id })); }}>Generate</button>
+          <button data-paid-cancel style={{ ...button, border: 'none', background: 'transparent', color: '#525252' }} onPointerDown={stop} onClick={event => { stop(event); this.editor.deleteShapes([shape.id]); }}>Cancel</button>
         </span>
       </> : status === 'failed' ? <><span style={{ fontSize: 12 }}>{shape.props.error}</span>{shape.props.retryable && <button style={button} onPointerDown={stop} onClick={event => { stop(event); this.editor.updateShape({ id: shape.id, type: shape.type, meta: { ...shape.meta, retry: true }, props: { status: 'proposed', error: '' } }); }}>{scene ? 'Retry scene' : 'Retry video'}</button>}</> : <span style={{ fontSize: 12 }}>You can continue the lesson while this finishes.</span>}
     </HTMLContainer>;

@@ -473,7 +473,7 @@ export class ExplainJobs {
       limitations: [...(job.context?.refs || []).filter(r => r.note).map(r => `${r.name}: ${r.note}.`), ...(job.brief.limitations || [])].map(a => String(a).replace(/\s+/g, ' ').trim().slice(0, 300)).filter(Boolean).slice(0, 20),
       input: { org: job.owner.org, app: job.app, job: job.id, brief_hash: job.briefHash, request: job.prompt.slice(0, 500) } }, job.owner.email,
       { envelope: envelopeFor(this.env, { org: job.owner.org, app: job.app }), ...(previous ? { id: previous.id, version: (record?.current?.version ?? previous.version) + 1 } : {}) });
-    const row = await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?) RETURNING id').bind(job.threadId, 'assistant', 'Here is the plan for your explanation. Generate makes it.').first();
+    const row = await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?) RETURNING id').bind(job.threadId, 'assistant', job.reply || '').first(); // the model's lead-in or an empty message: the plan card speaks for itself
     const meta = { version: 1, mode: 'ask', kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, proposal: p, ...(previous ? {} : { proposalState: proposalState(p) }) };
     await db.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, alternative_of, meta_json) VALUES (?, ?, 'assistant', NULL, ?)").bind(row.id, job.threadId, JSON.stringify(meta)).run();
     if (previous && !(record?.root && await publishRevision(db, record, p))) return;
@@ -678,6 +678,7 @@ export class ExplainJobs {
     if (out.gap) { await this.stopWith(job, 'capability_gap', 'capability', out.gap.message); job.failure.gap = out.gap; return this.save(job); }
     if (stage === 'preparing') {
       job.brief = out.brief; job.briefHash = await sha256Hex(JSON.stringify(out.brief)); job.approval = null; job.refinement = null;
+      job.reply = typeof out.reply === 'string' ? out.reply : ''; // the model's own lead-in for the plan message, or nothing
       job.decision = out.decision ?? { capability: 'explain', requiresBrief: true, briefReasons: ['review_always'] };
       await this.finishUsage({ ...job, actionKey: null }, 'completed');
       // A prepared brief always waits for the learner's Generate (owner, 2026-10-29): no decision, threshold or pipeline answer

@@ -121,3 +121,13 @@ export function stepExcerpt(post, app, id) {
     () => { timing.end('failed'); return UNAVAILABLE; });
 }
 export const forgetExcerpts = () => excerpts.clear();
+
+// The Ctrl+K line that follows Explain on a highlighted passage (FileDocMarkdown's bulb opens Ctrl+K with /explain and the passage):
+// the minted ref and the passage ride that one /explain or /interactive line, once, and only within five minutes. `held` is a ref
+// ({ current: { sourceRef, text, at } }); any other line, or a stale hold, leaves the target as Ctrl+K sent it.
+export function heldPassageTarget(target, line, held, now = Date.now()) {
+  const pass = held?.current;
+  if (!pass || !/^\/(explain|interactive)\b/i.test(String(line ?? '').trim())) return target;
+  held.current = null;
+  return now - pass.at > 5 * 60_000 ? target : { ...(target || {}), id: target?.id ?? null, text: pass.text, sourceRef: pass.sourceRef };
+}

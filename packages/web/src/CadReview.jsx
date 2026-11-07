@@ -45,7 +45,7 @@ function Review({ block, ops }) {
   return (
     <GenerationProposalCard view={view} groups={groups} groupProblem={groupProblem} extraSections={extraSections} settingsMode="form" eyebrow="Review design" requestLabel="Original request" note={COST_NOTE}
       attrs={cadAttrs(job)} compact isolate busy={busy} problem={problem ? { message: problem } : null}
-      onSave={save} onGenerate={() => run('approve', { briefHash: job.briefHash })} onCancel={() => run('cancel')} />
+      onSave={save} onGenerate={() => run('approve', { briefHash: job.briefHash })} skeleton onCancel={async () => { if (await run('cancel')) ops.removeCard?.(block.id); }} />
   );
 }
 

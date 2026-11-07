@@ -1,0 +1,120 @@
+// Explain on a highlighted passage and the shared proposal card's actions (owner 2026-11-07): the bulb opens Ctrl+K with /explain instead of
+// generating; Cancel exists only where the proposal has a canvas skeleton and removes it; Generate becomes the red Stop button while the job
+// runs (and then Edit, Cancel and Go to card are not drawn); Add to chat joins Highlight and Explain on a Markdown selection.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import * as esbuild from 'esbuild';
+import { heldPassageTarget } from './source-refs.js';
+import { skeletonJobOf } from './explain-client.js';
+
+const dir = mkdtempSync(join(tmpdir(), 'selection-explain-')), outfile = join(dir, 'card.cjs');
+const viteUrl = { name: 'vite-url', setup(build) {
+  build.onResolve({ filter: /\?url$/ }, args => ({ path: args.path, namespace: 'vite-url' }));
+  build.onLoad({ filter: /.*/, namespace: 'vite-url' }, () => ({ contents: 'export default ""' }));
+} };
+await esbuild.build({
+  stdin: { contents: "export { default as Card, StopConfirm } from './GenerationProposalCard.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'js' },
+  bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', plugins: [viteUrl], loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty' },
+});
+const B = createRequire(import.meta.url)(outfile);
+rmSync(dir, { recursive: true, force: true });
+
+const explain = { proposal_id: 'gp-aaaaaaaaaaaaaaaa', version: 1, schema_version: 1, command: 'explain', title: 'Pendulum', description: 'One. Two.', prompt: 'One. Two.', settings: { presentation: 'steps' },
+  input: { request: 'Explain a pendulum.', org: 'w', app: 'a', job: 'ej_1' }, original_request: 'Explain a pendulum.', references: [], assumptions: ['No friction.'], sig: `v3.${'0'.repeat(64)}` };
+const html = props => B.renderToStaticMarkup(B.createElement(B.Card, { proposal: explain, onGenerate: () => {}, onSave: async () => {}, onEdit: () => {}, onCancel: () => {}, onStop: async () => {}, noun: 'explanation', ...props }));
+const controls = out => [...out.matchAll(/data-proposal-(generate|stop|edit|cancel|go-to-card)=/g)].map(m => m[1]);
+const running = { phase: 'running', label: 'Generating', active: true, spinner: true, detail: 'Working', canStop: true, cardId: 'c1' };
+
+test('the proposal row: Generate, Edit, then Cancel only with a canvas skeleton; Generate is not greyed', () => {
+  const withSkeleton = html({ skeleton: true });
+  assert.deepEqual(controls(withSkeleton), ['generate', 'edit', 'cancel']);
+  assert.doesNotMatch(withSkeleton.match(/<button[^>]*data-proposal-generate[^>]*>/)[0], /disabled=""/);
+  assert.match(withSkeleton.match(/<button[^>]*data-proposal-cancel[^>]*>/)[0], /hover:bg-hover/, 'Cancel is the text control');
+  assert.doesNotMatch(withSkeleton.match(/<button[^>]*data-proposal-cancel[^>]*>/)[0], /border-line-strong/);
+  assert.match(withSkeleton.match(/<button[^>]*data-proposal-edit[^>]*>/)[0], /border-line-strong/, 'Edit is a real button');
+  assert.deepEqual(controls(html({ skeleton: false })), ['generate', 'edit'], 'no skeleton: Generate and Edit only');
+});
+
+test('a running job: the Generate button is the red Stop button and the only control; the normal row returns when it ends', () => {
+  const out = html({ skeleton: true, status: running });
+  assert.deepEqual(controls(out), ['stop']);
+  const stop = out.match(/<button[^>]*data-proposal-stop[^>]*>[\s\S]*?<\/button>/)[0];
+  assert.match(stop, /bg-danger text-white/);
+  assert.doesNotMatch(stop, /bg-ink|disabled=""/);
+  assert.match(stop, /aria-label="Stop explanation"/);
+  assert.match(stop, /<span>Stop<\/span>/);
+  // Not stoppable (no onStop): the progress label stays, disabled, and Edit / Cancel are still not drawn.
+  const fixed = html({ skeleton: true, status: running, onStop: null });
+  assert.deepEqual(controls(fixed), ['generate']);
+  assert.match(fixed, /<span>Generating<\/span>/);
+  // Ended: done offers Go to card, failed or stopped is back to Generate, Edit, Cancel.
+  const done = html({ skeleton: true, onGoToCard: () => {}, status: { ...running, phase: 'done', label: 'Ready', active: false, spinner: false, canStop: false }, active: false });
+  assert.deepEqual(controls(done), ['generate', 'go-to-card']);
+  const failed = html({ skeleton: true, status: { ...running, phase: 'failed', label: null, active: false, spinner: false, canStop: false, cardId: null } });
+  assert.deepEqual(controls(failed), ['generate', 'edit', 'cancel']);
+});
+
+test('Stop asks first: Cancel keeps the job (Escape too), only Stop calls onStop', () => {
+  const calls = [];
+  const tree = B.StopConfirm({ noun: 'explanation', onKeep: () => calls.push('keep'), onStop: () => calls.push('stop') });
+  const out = B.renderToStaticMarkup(B.createElement(B.StopConfirm, { noun: 'explanation', onKeep() {}, onStop() {} }));
+  assert.match(out, /Stop this explanation\? Credits already used won(&#x27;|&#39;|')t be refunded\./);
+  assert.match(out, /data-proposal-stop-cancel[^>]*>Cancel</);
+  assert.match(out, /bg-danger text-white[^>]*data-proposal-stop-confirmed|data-proposal-stop-confirmed[^>]*bg-danger/);
+  tree.props.onKeyDown({ key: 'Escape', stopPropagation() {} });
+  assert.deepEqual(calls, ['keep']);
+  const buttons = [];
+  (function walk(n) { if (Array.isArray(n)) n.forEach(walk); else if (n?.props) { if (n.props['data-proposal-stop-cancel']) buttons.push(['cancel', n.props.onClick]); if (n.props['data-proposal-stop-confirmed']) buttons.push(['stop', n.props.onClick]); walk(n.props.children); } })(tree);
+  buttons.find(([name]) => name === 'cancel')[1]();
+  assert.deepEqual(calls, ['keep', 'keep']);
+  buttons.find(([name]) => name === 'stop')[1]();
+  assert.deepEqual(calls, ['keep', 'keep', 'stop']);
+});
+
+test('the passage the bulb held rides one /explain or /interactive line, once, and only while fresh', () => {
+  const held = () => ({ current: { sourceRef: 'sref_1', text: 'the quote', at: 1000 } });
+  const a = held();
+  assert.deepEqual(heldPassageTarget(null, '/explain the quote', a, 2000), { id: null, text: 'the quote', sourceRef: 'sref_1' });
+  assert.equal(a.current, null, 'used once');
+  assert.deepEqual(heldPassageTarget({ id: 'x' }, '/interactive why', held(), 2000), { id: 'x', text: 'the quote', sourceRef: 'sref_1' });
+  const other = held();
+  assert.equal(heldPassageTarget(null, '/motion a pendulum', other, 2000), null, 'another command leaves it alone');
+  assert.ok(other.current, 'and keeps the hold');
+  assert.equal(heldPassageTarget(null, '/explain late', held(), 1000 + 5 * 60_000 + 1), null, 'stale after five minutes');
+  assert.equal(heldPassageTarget(null, '/explain x', { current: null }), null);
+});
+
+test('a skeleton is a card whose reviewed plan still waits for Generate', () => {
+  assert.deepEqual(skeletonJobOf({ explainJob: { id: 'ej_1', stage: 'awaiting_approval' } }), { command: 'explain', id: 'ej_1' });
+  assert.deepEqual(skeletonJobOf({ animation3dJob: { id: 'aj_1', stage: 'awaiting_approval' } }), { command: 'animation', id: 'aj_1' });
+  assert.deepEqual(skeletonJobOf({ whiteboardJob: { id: 'wj_1', stage: 'awaiting_approval' } }), { command: 'whiteboard-video', id: 'wj_1' });
+  assert.equal(skeletonJobOf({ explainJob: { id: 'ej_1', stage: 'authoring' } }), null, 'a running job is stopped, not dropped');
+  assert.equal(skeletonJobOf({ type: 'note' }), null);
+});
+
+const read = name => readFileSync(new URL(name, import.meta.url), 'utf8');
+
+test('the bulb opens Ctrl+K with the /explain pill and the passage; it never starts the job itself', () => {
+  const page = read('./LearnPage.jsx');
+  const listener = page.slice(page.indexOf('const onPassage'), page.indexOf('window.addEventListener(EXPLAIN_PASSAGE_EVENT'));
+  assert.match(listener, /inlineAi\?\.\('explain', \{ command: 'explanation', prompt: text \}\)/);
+  assert.doesNotMatch(listener, /startExplain/);
+  assert.match(read('./InlineAiEditor.jsx'), /useState\(preset\?\.command \?\? null\)/);
+  assert.match(read('./InlineAiEditor.jsx'), /useState\(preset\?\.prompt \?\? ''\)/);
+});
+
+test('a Markdown selection offers Highlight, Explain and Add to chat, in that order, and Add to chat only attaches', () => {
+  const source = read('./FileDocMarkdown.jsx');
+  const bar = source.slice(source.indexOf('data-file-doc-selection-toolbar'));
+  const labels = [...bar.slice(0, bar.indexOf('</div>')).matchAll(/<ToolButton label="([^"]+)"/g)].map(m => m[1]);
+  assert.deepEqual(labels, ['Highlight', 'Explain', 'Add to chat']);
+  const add = source.slice(source.indexOf('const addToChat'), source.indexOf('const remove = async'));
+  assert.match(add, /quote\.exact\.length > EXCERPT_LIMIT/);
+  assert.match(add, /chat\.addToChat\(selectionRef\(/);
+  assert.doesNotMatch(add, /putHighlight|generate|send|startExplain/);
+});

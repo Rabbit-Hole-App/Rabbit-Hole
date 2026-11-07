@@ -187,7 +187,7 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
       {problem && <p role="alert" className="text-xs text-fail">{problem}</p>}
       {!readOnly && (
         <div className="flex gap-1.5">
-          {running && <button type="button" data-animation-stop disabled={busy} onClick={() => act('cancel')} className={buttonClass}>Stop</button>}
+          {running && <button type="button" data-animation-stop disabled={busy} onClick={() => act('cancel')} className="flex h-8 items-center rounded-lg bg-danger px-3 text-sm text-white hover:opacity-90 active:opacity-80 disabled:opacity-40">Stop</button>}
           {retry && <button type="button" data-animation-job-retry={retry} disabled={busy} onClick={() => act('retry', { expectedAttempt: shown.attempt, action: retry })} className={buttonClass}>
             <RefreshCw size={13} aria-hidden />{RETRY_LABELS[retry]}</button>}
         </div>

@@ -44,10 +44,8 @@ export const proposalBlock = p => ADAPTERS[p?.command]?.(p) ?? null;
 // waits on its canvas; Generate approves that job (ops.approveExplain sends it to the command's own job route).
 // /whiteboard (roadmap W1.5, control-plane whiteboard-job.js) likewise: its pending card waits for the plan's Generate.
 export const approvesJob = p => ['explain', 'animation', 'whiteboard-video'].includes(p?.command) && typeof p.input?.job === 'string' && !proposalBlock(p);
-// The Explain review card (owner, 2026-10-29): its heading, and what it says about cost. The brief it shows was a model call, as a
-// change asked for in Chat is; Save is not (generation-review-client.js); Generate starts the paid work. Said as CAD's brief says it.
+// The Explain review card's heading. It carries no cost note (owner 2026-11-07).
 export const EXPLAIN_REVIEW_HEADING = 'Review explanation';
-export const EXPLAIN_COST_NOTE = 'Preparing this plan used one model call, and each change asked for in Chat uses another. Saving edits here makes no call. Generate starts the paid work: writing the explanation, checking it and reviewing its render.';
 export const EXPLAIN_STOPPED = 'Stopped before anything was generated.';
 // The /animation plan's review card heading (owner, 2026-10-31: no long cost note; owner decision 35, 2026-11-04: one line on what Generate costs).
 export const ANIMATION_REVIEW_HEADING = 'Review your scene';
@@ -68,9 +66,10 @@ export const durationRefinement = (before, after) => (after?.command === 'whiteb
   && after.settings.duration_seconds !== before?.settings?.duration_seconds ? `duration: ${after.settings.duration_seconds}` : null);
 // A /whiteboard plan message shows only its review card (owner try, 2026-11-05): the server writes the plan as the message text for the
 // history, and the card already shows it. Every other answer, proposals included, shows its text.
-export const proposalOnly = m => m?.meta?.proposal?.command === 'whiteboard-video';
+// A plan message with no text of its own (the model gave no lead-in; owner 2026-11-07: no canned sentence) is the card alone, never an empty bubble.
+export const proposalOnly = m => m?.meta?.proposal?.command === 'whiteboard-video' || (!!m?.meta?.proposal && !String(m.content ?? '').trim());
 // A job-approving proposal's heading and cost note, by its command.
-export const jobReviewCopy = p => (p?.command === 'whiteboard-video' ? { eyebrow: WHITEBOARD_REVIEW_HEADING, ...(whiteboardCostNote(p) ? { note: whiteboardCostNote(p) } : {}) } : p?.command === 'animation' ? { eyebrow: ANIMATION_REVIEW_HEADING, ...(animationCostNote(p) ? { note: animationCostNote(p) } : {}) } : { eyebrow: EXPLAIN_REVIEW_HEADING, note: EXPLAIN_COST_NOTE });
+export const jobReviewCopy = p => (p?.command === 'whiteboard-video' ? { eyebrow: WHITEBOARD_REVIEW_HEADING, ...(whiteboardCostNote(p) ? { note: whiteboardCostNote(p) } : {}) } : p?.command === 'animation' ? { eyebrow: ANIMATION_REVIEW_HEADING, ...(animationCostNote(p) ? { note: animationCostNote(p) } : {}) } : { eyebrow: EXPLAIN_REVIEW_HEADING });
 // How a proposal starts, by its command's adapter: 'output' (add the output card, needs ops.insertCard), 'job' (approve the existing job, needs
 // ops.approveExplain) or null (this build cannot start it). Generate is enabled by THIS, never by one command's adapter.
 // 'image' (IMG-01, generate-image.js): the image job is started and followed from the card, behind the web flag.

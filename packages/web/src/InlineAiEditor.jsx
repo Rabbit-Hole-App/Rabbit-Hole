@@ -95,7 +95,7 @@ export function CardEditPreview({ fields, proposedOnly = false }) {
     </section>)}
   </div>;
 }
-export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, initialMode = null, onClose }) {
+export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, initialMode = null, preset = null, onClose }) {
   const board = canvas.board;
   // A creation (nothing selected) is always Explain: Edit changes a selection, and there is none (creation §1).
   // A file card with no semantic editing path (file-chat-ref.js fileEditLocked) is Explain only: Edit is never offered for it.
@@ -123,10 +123,11 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const cardEditReason = !imageTarget && !notebookTarget && !cadTarget && !target.creation && (explainTarget ? explainEditReason : cardEditSelectionReason(target.ids || [], canvas.board?.() || {}));
   const fileLocked = !imageTarget && !cadTarget && !target.creation && fileEditLocked(target.ids || [], canvas.board?.());
   const [mode, setMode] = useState(target.creation || fileLocked || cardEditReason ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain');
-  const [prompt, setPrompt] = useState('');
+  // preset: { command, prompt } from an opener that already knows the command and its words (Explain on a highlighted passage).
+  const [prompt, setPrompt] = useState(preset?.prompt ?? '');
   // A / command (Release B, contract B4): the one picked or typed, as its registry name; prompt is then its words. /explain
   // is the Explain mode itself and has no pill; it is still sent. The picker opens while the line is a leading /word.
-  const [command, setCommand] = useState(null);
+  const [command, setCommand] = useState(preset?.command ?? null);
   const [pickerShut, setPickerShut] = useState(false);
   const [active, setActive] = useState(0);
   const [refused, setRefused] = useState(null);
