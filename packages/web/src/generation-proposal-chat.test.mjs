@@ -398,3 +398,39 @@ test('a waiting plan cannot consume a bare greeting; an explicit Editing pill st
   const route = ask.indexOf('const outcome = routeOutcome(await routeChat('), after = ask.indexOf('if (late()) return;', route);
   assert.ok(route > 0 && after > route && after - route < 600, 'a send canceled or moved to another thread while the route was out returns before anything is sent');
 });
+
+// CHAT.01 (checklist 4.5): an abort is not a router failure, a legacy 404 is not a scoped one, and each refusal keeps its specific words.
+test('an aborted route request propagates and is never recovered into a send; a scoped 404 is shown while a legacy 404 sends as today', async () => {
+  const { routeChat, routeOutcome } = await import('./generation-proposal-chat.js');
+  const payload = { scope: { app: 'canvas-0a1b2c3d' }, message: 'why is the sky blue', mode: 'auto' };
+  const abort = Object.assign(new Error('The operation was aborted'), { name: 'AbortError' });
+  await assert.rejects(routeChat(async () => { throw abort; }, payload), error => error.name === 'AbortError');
+  const reply = (status, body, type = 'application/json') => async () => new Response(body === null ? 'Not found' : JSON.stringify(body), { status, headers: { 'Content-Type': type } });
+  // Legacy: the route is not deployed (no JSON error body): the turn is sent as today.
+  assert.equal(await routeChat(reply(404, null, 'text/plain'), payload), null);
+  assert.equal(await routeChat(reply(404, {}), payload), null);
+  assert.deepEqual(routeOutcome(null, { plain: true }), { send: true, token: null });
+  // Scoped: a canvas that is gone answers 404 with its own words, which are shown and the turn is not sent around them.
+  const scoped = routeOutcome(await routeChat(reply(404, { error: 'This canvas no longer exists.' }), payload), { plain: true });
+  assert.deepEqual([scoped.send, scoped.show], [undefined, { kind: 'error', message: 'This canvas no longer exists.' }]);
+  // Validation and access errors keep their words; a proposal route with no token is a tool-specific error, never a send.
+  for (const [status, error] of [[400, 'Invalid chat route request'], [401, 'Sign in again.'], [403, 'No access to this canvas.'], [413, 'Request too large']]) {
+    const shown = routeOutcome(await routeChat(reply(status, { error }), payload), { plain: true });
+    assert.deepEqual([shown.send, shown.show.kind, shown.show.message], [undefined, 'error', error], String(status));
+  }
+  const noToken = routeOutcome({ route: 'capability:motion', flow: 'proposal', token: null }, { plain: true });
+  assert.deepEqual([noToken.send, noToken.show.kind], [undefined, 'error']);
+  // The failed request carries what the Worker log needs to find it again: the id, the status and the code (no words of the message).
+  const down = await routeChat(reply(503, { error: 'x' }), payload, { requestId: 'req-0000cccc' });
+  assert.deepEqual(routeOutcome(down, { plain: true }).failure, { request_id: 'req-0000cccc', status: 503, code: 'malformed' });
+  const offline = await routeChat(async () => { throw new Error('offline'); }, payload, { requestId: 'req-0000dddd' });
+  assert.deepEqual(routeOutcome(offline, { plain: true }).failure, { request_id: 'req-0000dddd', status: null, code: 'unavailable' });
+});
+
+test('the Worker checks the board and session before it hands the ask to apiAsk, so answer_only never runs for a denied canvas', async () => {
+  const { readFileSync } = await import('node:fs');
+  const worker = readFileSync(new URL('../dev-worker.js', import.meta.url), 'utf8');
+  const start = worker.indexOf("['/api/learn/selection', '/api/learn/ask'].includes(path) && req.method === 'POST'");
+  const authorized = worker.indexOf('await authorizedBoardApp(req, env, body.scope?.app', start), handed = worker.indexOf('return apiAsk(req, env, ctx', start);
+  assert.ok(start > 0 && authorized > start && handed > authorized, 'authorizedBoardApp answers (and returns a denial) before apiAsk is called');
+});

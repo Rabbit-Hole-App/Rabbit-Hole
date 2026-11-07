@@ -1291,7 +1291,8 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     if (generation && chat.command === 'motion') Object.assign(research, { tools: [PROPOSAL_TOOL], system: `${PROPOSAL_SYSTEM}\nThis turn is a /motion request for a video of what the learner wrote: call ${PROPOSAL_TOOL.name} once now with command motion, then reply in one short sentence.`, arxiv: false });
     // An Edit turn: the learner pressed Edit on the proposal below, and this message says how to change it. Its one tool is the proposal.
     if (generation?.edit) Object.assign(research, { tools: [PROPOSAL_TOOL], system: `${PROPOSAL_SYSTEM}\nThe learner pressed Edit on the proposal you made (below) and this message says how to change it: call ${PROPOSAL_TOOL.name} once now with command motion and the whole proposal, changed as they asked, then reply in one short sentence.`, arxiv: false });
-    if (answerOnly) Object.assign(research, { tools: [], system: '', arxiv: false }); // text only: no Wikipedia, video, outline, repository, paper or proposal tool
+    // text only: no Wikipedia, video, outline, repository, paper or proposal tool; a tool call the model makes anyway is refused (researchAnswer offers none) and runs nothing
+    if (answerOnly) Object.assign(research, { tools: [], system: '', arxiv: false, runTool: async () => { throw new Error('No tools in this turn'); } });
     memory = await threadMemory(db, threadId, history.userMessageId);
     // On a project canvas its code refs are read from the repository snapshot (canvases.js projectRepository), once each:
     // they are not listed again as named attachments.
@@ -1312,7 +1313,7 @@ ${await progressQuestionContext(req, env, chat.contextRefs, seam?.app)}`;
     context = chatContext(context, code.length ? chat.contextRefs.filter(ref => ref.kind !== 'code') : chat.contextRefs, memory.long ? memory.summary : null, CAP_CHARS, source?.paper ? body.paper_context.id : null, files);
     // An image file ref (a dropped image, a PDF region crop) rides as the picture itself, beside the documents (file-context.js).
     if (files?.images?.length) extraBlocks.push(...files.images);
-    system = chatSystem(system, answerMetaSystem({ repository: !!repository, motion: !!generation }), resolved, memory.long);
+    system = chatSystem(system, answerMetaSystem({ repository: !!repository && !answerOnly, motion: !!generation }), resolved, memory.long);
     // The trailer is split off before any chunk is sent or anything stored.
     research.onAnswer = text => { const split = splitAnswerMeta(text); trailer = split.raw; return split.content; };
     // A refinement revises the learner's unanswered proposal: the model sees what the card says now. MOT-22: the server's current
@@ -1339,7 +1340,7 @@ ${await progressQuestionContext(req, env, chat.contextRefs, seam?.app)}`;
   // it goes through learnMomentsDb (learn-storage.js), LEARN_DB on dev for every app kind.
   return askStream(seam ? { ...env, DB: db } : env, context, history, q, async (full, stopped = false) => {
     // motionDev: motion is suggested only on a turn where a Motion video can start (generation, MOT-20b); its Send proposes it first.
-    if (chat) return recordAnswer(db, { threadId, userMessageId: history.userMessageId, content: full, raw: trailer, stopped, chat, resolved, turn, prior: memory.summary, long: memory.long, proposal: proposed, proposalMeta, validate: (raw, opts) => validateAnswerMeta(raw, { ...opts, motionDev: !!generation }) });
+    if (chat) return recordAnswer(db, { threadId, userMessageId: history.userMessageId, content: full, raw: trailer, stopped, chat, resolved, turn, prior: memory.summary, long: memory.long, proposal: proposed, proposalMeta, validate: (raw, opts) => { const meta = validateAnswerMeta(raw, { ...opts, motionDev: !!generation }); return answerOnly ? { ...meta, actions: [] } : meta; } }); // an answer-only turn suggests no artifact to make next
     if (stopped) return;
     await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
   }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId, conversation === 'learn' ? null : user.org, system, research);

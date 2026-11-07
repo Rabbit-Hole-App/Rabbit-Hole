@@ -953,3 +953,75 @@ test('Auto Chat: hi gets one reply and no classifier call; a router outage lets 
   assert.equal(commandDown.show.kind, 'error', 'an explicit tool command that cannot start shows an error and sends nothing');
   assert.equal(commandDown.send, undefined);
 });
+
+// CHAT.01 (checklist 4.5): a restricted turn cannot be talked into a tool, and suggests no artifact to make next.
+test('answer_only: a tool call the model makes anyway dispatches nothing, and its suggested actions are dropped', async t => {
+  const f = fixture(t);
+  Object.assign(f.env, MOTION_ENV);
+  const suggests = build({ ...fakeMeta, validateAnswerMeta: () => ({ actions: [{ capability: 'diagram', label: 'Draw it', subject: 'x' }], followUps: [] }) });
+  // Control: an ordinary turn keeps its suggestions.
+  f.replies.push('Plain text.\n<answer_meta>{"actions":[{"capability":"diagram"}]}</answer_meta>');
+  const normal = await f.ask({ message: 'Why is the sky blue?', mode: 'auto' }, suggests);
+  assert.equal(normal.events.find(e => e.event === 'answer_meta').data.actions.length, 1, 'control: an ordinary turn offers its action');
+  // The restricted turn: the provider answers with a Motion proposal call although no tool was offered, then with text.
+  const before = f.calls.length;
+  f.replies.push(proposeCall('tu-restricted'), 'Plain text.\n<answer_meta>{"actions":[{"capability":"diagram"}]}</answer_meta>');
+  const { res, events } = await f.ask({ message: 'Why is the grass green?', mode: 'auto', answer_only: true, generation: { motion: { concept: 'Plants' } } }, suggests);
+  assert.equal(res.status, 200);
+  assert.equal(f.calls[before].tools, undefined, 'no tool definition is sent');
+  assert.doesNotMatch(f.calls[before].system, /Generation proposals:|propose_generation|propose_outline/);
+  const meta = events.find(e => e.event === 'answer_meta').data;
+  assert.deepEqual([meta.actions, meta.proposal ?? null], [[], null], 'no suggested artifact and no proposal');
+  assert.equal(f.rows('SELECT COUNT(*) AS n FROM chat_message_meta WHERE meta_json LIKE \'%"proposal"%\'')[0].n, 0, 'nothing proposed is stored');
+  // The tool call was answered as an error and the text followed: exactly one saved reply, and the live D1 (credit holds, jobs) was never touched.
+  assert.equal(f.rows("SELECT COUNT(*) AS n FROM messages WHERE role = 'assistant'")[0].n, 2, 'one reply per turn, two turns');
+  assert.match(JSON.stringify(f.calls[before + 1].messages.at(-1)), /Unknown Learn tool/, 'the call came back as a refusal');
+});
+
+test('CHAT.01 table: conversation and questions about a tool stay replies; a full creation request gets one signed review; search and typed commands keep their routes', async t => {
+  const f = fixture(t);
+  Object.assign(f.env, MOTION_ENV, { VERCEL_TYPESAFE_API_KEY: 'test-only' });
+  const { chatRouteFetch } = await import('../src/chat-capability-route.js');
+  const { routeChat, routeOutcome } = await import('../../web/src/generation-proposal-chat.js');
+  const log = console.log;
+  console.log = () => {};
+  t.after(() => { console.log = log; });
+  const counted = reply => { const ask = async () => { ask.calls += 1; return reply; }; ask.calls = 0; return ask; };
+  const choice = name => ({ body: { model: 'jev-1.13.0', answers: { route: { type: 'choice', choice: name, confidence: 0.9, probabilities: { [name]: 0.95 } } } }, ms: 5, model: 'jev-1.13.0', inputTokens: 100, cost: 0 });
+  const authorize = async () => ({ email: owner.email, org: owner.org, kind: 'owner' });
+  const fetcher = (jev, mode) => async (url, init) => chatRouteFetch(new Request('https://dev.test/api/learn/chat/route', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: init.body }), f.env, { authorize, ask: jev });
+  const payload = (message, mode, extra = {}) => ({ scope: { app: 'canvas-0a1b2c3d' }, message, mode, ...extra });
+  // Conversation in varied wording and languages, a question about Motion, and "without a video": one reply, zero artifact requests, in Ask and Auto.
+  for (const mode of ['ask', 'auto']) {
+    for (const message of ['Hola, soy nuevo aquí. ¿Cómo empiezo?', 'Can Motion generate audio?', 'Explain this without a video', 'Quel est le but du gradient ?']) {
+      const jev = counted(choice('answer'));
+      const outcome = routeOutcome(await routeChat(fetcher(jev, mode), payload(message, mode)), { plain: true });
+      assert.deepEqual([outcome.send, outcome.token, outcome.show], [true, null, undefined], `${mode}: ${message}`);
+      const before = f.calls.length;
+      const { res, events } = await f.ask({ message, mode });
+      assert.equal(res.status, 200);
+      assert.equal(events.filter(e => e.event === 'chunk').length, 1, `${mode}: one reply`);
+      assert.equal(f.calls.length - before, 1, `${mode}: one model call`);
+      assert.ok(!(f.calls.at(-1).tools || []).some(tool => tool.name === 'propose_generation'), `${mode}: zero artifact requests`);
+      assert.equal(events.find(e => e.event === 'answer_meta').data.proposal ?? null, null);
+    }
+  }
+  // "Hi, make a short video of the tree split": the full request gets one signed Motion review, and the proposal is the only artifact.
+  const words = 'Hi, make a short video of the tree split';
+  const motion = counted(choice('motion'));
+  const decision = await routeChat(fetcher(motion, 'auto'), payload(words, 'auto', { generation: { motion: { concept: 'Trees' } } }));
+  const outcome = routeOutcome(decision, { plain: true });
+  assert.equal(motion.calls, 1);
+  assert.equal(typeof outcome.token, 'string');
+  f.replies.push(proposeCall('tu-tree'), 'Here is a proposal.\n<answer_meta>{}</answer_meta>');
+  const proposed = await f.ask({ message: words, mode: 'auto', generation: { motion: { concept: 'Trees' } }, route_token: outcome.token });
+  assert.equal(proposed.events.find(e => e.event === 'answer_meta').data.proposal.command, 'motion', 'one signed review, a job only on Generate');
+  // "find me a video": the existing search handler (a direct command), not a Motion review.
+  const search = routeOutcome(await routeChat(fetcher(counted(choice('youtube')), 'auto'), payload('find me a video', 'auto')), { plain: true });
+  assert.deepEqual(search.direct && search.direct.command, 'youtube');
+  // Typed /motion: the named route, no classification at all, and the signed review.
+  const classifier = counted(choice('answer'));
+  const typed = routeOutcome(await routeChat(fetcher(classifier, 'auto'), payload('/motion tree split', 'auto', { generation: { motion: { concept: 'Trees' } } }), { capability: null }), { plain: false });
+  assert.equal(classifier.calls, 0, 'a typed command is not classified');
+  assert.equal(typeof typed.token, 'string');
+});

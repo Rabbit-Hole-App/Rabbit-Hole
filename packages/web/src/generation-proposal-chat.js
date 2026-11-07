@@ -150,9 +150,13 @@ async function routeDecision(fetcher, payload, { capability = null, requestId = 
   let response;
   // requestId and status ride on every failure so the Worker's chat_route log line for this request can be found.
   try { response = await fetcher('/api/learn/chat/route', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
-  catch { return { route: 'answer', via: 'fallback', recoverable: true, code: 'unavailable', message: ROUTE_FAILED, requestId, status: null }; }
-  if (response.status === 404) return null;
+  catch (error) {
+    if (error?.name === 'AbortError') throw error; // the learner stopped or left: not a router failure, the send does not go on
+    return { route: 'answer', via: 'fallback', recoverable: true, code: 'unavailable', message: ROUTE_FAILED, requestId, status: null };
+  }
   const decision = await response.json().catch(() => null);
+  // A 404 with no error body is the route not being deployed (the turn is sent as today); a 404 that names its error is a scoped answer (a missing canvas) and is shown.
+  if (response.status === 404 && typeof decision?.error !== 'string') return null;
   // A router that is down, slow or unreadable is recoverable (the words can still be answered); a refusal (400, 401, 403, 413) is not.
   if (!response.ok || !decision?.route) return { route: 'answer', via: 'fallback', recoverable: response.ok || response.status >= 500 || response.status === 408 || response.status === 429, code: 'malformed', message: decision?.error || REFUSALS[response.status] || ROUTE_FAILED, requestId, status: response.status };
   return decision.via === 'fallback' ? { ...decision, recoverable: true, requestId, status: response.status } : decision;
@@ -161,7 +165,8 @@ async function routeDecision(fetcher, payload, { capability = null, requestId = 
 // The route round trip, timed for benchmarking (client-timing.js): a greeting is decided locally, so its interval is the cost of the check itself.
 export async function routeChat(fetcher, payload, options) {
   const timing = startTiming('chat_route_ms', { mode: payload.mode ?? 'auto', depth: payload.depth });
-  const decision = await routeDecision(fetcher, payload, options);
+  let decision;
+  try { decision = await routeDecision(fetcher, payload, options); } catch (error) { timing.end('cancelled'); throw error; }
   timing.end('ok', { path: decision?.local ? 'greeting' : decision?.via === 'fallback' ? 'fallback' : 'routed' });
   return decision;
 }
