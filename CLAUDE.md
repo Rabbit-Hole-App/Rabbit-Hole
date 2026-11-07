@@ -94,8 +94,10 @@ Non-obvious traps that have caused mistakes. Remove an entry when its condition 
 - UI labels never contain "..." or "…". A disabled item keeps its name, greyed.
 - Build testable features into the existing app UI (canvas, panels, Settings). Never ship a separate demo page as the
   deliverable.
-- **UI: read [UI.md](UI.md) before writing, briefing or reviewing any UI change.** Hard rule: always check the
-  existing UI, templates and components and reuse them; never recreate UI (owner, 2026-11-06).
+- Check the existing code before any UI change and reuse its components; never recreate UI (owner, 2026-11-06). Name
+  the component you reuse in the plan or lane brief. Notices and errors use `toast()` from `packages/web/src/ui.jsx`;
+  never add a new banner, status chip, fixed overlay, button strip or toast look-alike. If nothing existing fits, ask
+  the owner first.
 - Mark anything deliberately skipped with a `ponytail:` comment.
 - Before changing Coaching or its dev deployment, read and keep current `docs/features/coaching.md`.
 - MVP-labelled work follows the [MVP fast path](#mvp-fast-path) (owner, 2026-11-03).
@@ -145,8 +147,7 @@ not leave executable work unassigned while suitable agent and execution capacity
 
 - **Assignments.** Divide substantial work into bounded assignments. Each states its objective and scope, base branch
   and commit, the files or interfaces it owns, dependencies, required deliverables, acceptance checks and a required
-  hand-back. Independent implementation uses isolated worktrees and avoids overlapping edits. An assignment that
-  touches UI names the existing components and templates to reuse and links [UI.md](UI.md).
+  hand-back. Independent implementation uses isolated worktrees and avoids overlapping edits.
 - **Ownership.** Shared contracts, migrations, accounting semantics and integration each have one owner. Dependent
   lanes consume the committed interface; they do not invent variants.
 - **Priority and capacity.** Prioritize work that unlocks other tasks or shortens the path to a usable release. If
