@@ -4,6 +4,7 @@ import { cadArtifact, cadClient, cadRunning, mergeCadBlock } from './cad-client.
 import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
+import { CapturingLabel, beginAreaCapture, endAreaCapture } from './AreaCapturing.jsx';
 import { Md } from './ask.jsx';
 import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock, fitFrame, naturalHeight } from './card-layout.js';
 import { customTitleOf, renamable, renameBlock, startTitleOf, groupEditText, groupLabelFrom, namedTitleOf, TITLE_MAX } from './card-rename.js';
@@ -4736,7 +4737,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const apply = (px, py) => { rect = { ...rect, x2: px, y2: py }; setAreaMarquee(rect); };
     // The rectangle stays, labelled Capturing..., until the picture is ready (a big board takes seconds).
     // ponytail: the whole surface is rendered, then cropped; render only the cards under the area if it is too slow.
-    apply.done = () => { setTool('select'); setAreaMarquee({ ...rect, busy: true }); requestAnimationFrame(() => askArea(rect).finally(() => setAreaMarquee(null))); };
+    apply.done = () => { setTool('select'); setAreaMarquee({ ...rect, busy: true }); beginAreaCapture(); requestAnimationFrame(() => askArea(rect).finally(() => { endAreaCapture(); setAreaMarquee(null); })); };
     startDrag(event, start, apply, view.z);
   };
   // The drawing tools' gestures, run against a store: the canvas's own lists, or an Explain Back sketch's
@@ -6266,7 +6267,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             <rect x={Math.min(areaMarquee.x1, areaMarquee.x2)} y={Math.min(areaMarquee.y1, areaMarquee.y2)}
               width={Math.abs(areaMarquee.x2 - areaMarquee.x1)} height={Math.abs(areaMarquee.y2 - areaMarquee.y1)}
               fill="rgba(220, 38, 38, 0.06)" stroke="#dc2626" strokeWidth={2 / view.z} strokeDasharray={`${6 / view.z} ${4 / view.z}`} />
-            {areaMarquee.busy && <text x={Math.min(areaMarquee.x1, areaMarquee.x2) + 6 / view.z} y={Math.min(areaMarquee.y1, areaMarquee.y2) - 6 / view.z} fill="#dc2626" fontSize={12 / view.z} fontWeight="600">Capturing</text>}
+            {areaMarquee.busy && <CapturingLabel x={Math.min(areaMarquee.x1, areaMarquee.x2) + 6 / view.z} y={Math.min(areaMarquee.y1, areaMarquee.y2) - 6 / view.z} size={12 / view.z} />}
           </svg>
         )}
         {marquee && (
