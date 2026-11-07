@@ -393,6 +393,7 @@ Use the numbered HTML references and the reusable shell below. Read their layout
 | [05 — Markdown source links](ui/05-markdown-source-links.html) | Hover over annotated prose, code, a diagram, an image or a whole section. The matching ScanText View card icon appears. Activate it to frame and briefly outline the exact linked card in blue. View section returns to the resolved source. | Sections 3.10 and 7.5–7.6. Checklist UI.07 and BE.13. |
 | [06 — Explanation depth](ui/06-explanation-depth.html) | Depth, accepted title and Markdown fixtures across Overview, Standard and Deep. File 07 supplies the delivered frame. | Sections 3.9 and 12.1. Checklist CORE.09 and BE.06a. |
 | [07 — Approved Explanation card](ui/07-explanation-card-approved.html) | Pinned title, one reading flow, titled SVG and image examples, hover source, term pills, suggestion routes and bottom follow-up. | Section 3.9. Checklist CORE.09 and UI.04. |
+| [08 — Interactive review](ui/08-interactive-review.html) | Interactive pill and title, short copy around an SVG preview, and Generate/Edit. Presentation is chosen by the backend. | Section 9.2 and checklist Standalone Interactive review. |
 | [Generated card shell](ui/templates/generated-card-shell.html) | Reusable frame with slots for title, optional source, rendered content and follow-up controls. | Start here for another generated card using the same frame. |
 
 **Use deployed main as the product styling/component authority.** Never use a dev/preview deployment as the baseline, and never invent a replacement blue or hover color. Reuse main's shared `Button` and theme tokens: primary fill `--color-primary-fill` (`#1b6fc2`) and hover `--color-primary-fill-hover` (`#165ca3`), white text. Reuse the existing panel, Chat, skeleton, ToC and icon components. The owner explicitly approved green **Accept / Next card** and muted-red **Cancel** for these canvas pills; that local action-color change supersedes the older neutral/pale-blue pill rule. Use sentence case consistently; interpret the owner's wording rather than copying accidental capitalization. Do not add redundant instruction sentences below pills.
@@ -756,6 +757,12 @@ The catalogue governs planning eligibility as well as rendering. A future adapte
 
 On the reviewed main, the public `/explain` entry still covers multiple formats. In the standalone split, use the visible label **Explanation** and public `/explain` for the written card with a distinct internal ID. Use **Interactive** and public `/interactive` for the playable card, keeping internal ID `explain` and replaying saved drafts, proposals and jobs with their original bindings. New typed and picked commands select the requested format directly. List both under **Tutor** in the shared `/` picker, Ctrl+K and **View → Slash Commands**. Give each its own preview and **Use example** prompt. The written example uses the actual Explanation card with a Markdown table, and the playable coffee-cooling example uses `/interactive`.
 
+**Interactive review in Chat.** Use [08 — Interactive review](ui/08-interactive-review.html) for the existing standalone `/interactive` review and reuse it in the Tutor adapter when that adapter is released. The header is the **Interactive** pill followed by the title. The body has a short line above a teaching visual and a short line below it. Write for a 15-year-old using everyday words. Show **Generate** and **Edit** below. The Presentation, Assumptions and Limitations controls are removed from this review. An essential caveat can appear as one plain sentence in the preview.
+
+The backend brief model chooses Static, Steps, Over time or Experiment to match the learning goal. The server qualifies that choice against the enabled renderer, available inputs and supported interactions before showing the review. Use a simpler compatible mode if it still teaches the goal. For a real capability or input gap, use the existing alternative or focused-question flow. Bind the validated presentation to the reviewed version. **Edit** revises the learning intent and produces a new preview when it changes what the learner would approve.
+
+Use the SVG component library for the first review visual. The image slot can use Recraft after the separate image decision. The preview shows what the learner is approving, with the existing signed Generate/Edit lifecycle.
+
 ### 9.3 Tools are capabilities, not a new visible toolbar
 
 Tutor tools read authorized source content, inspect current canvas coverage, read relevant private learning evidence, search/fetch when needed, calculate, and later inspect images or execute in a sandbox. They do not add a new learner-facing tools panel.
@@ -815,7 +822,7 @@ Official references for the application-owned tool-call loop and dispatch checks
 
 | R12 path | Commands | What the learner reviews |
 | --- | --- | --- |
-| Command plan | `/whiteboard`, `/motion`, `/animation`, `/cad`, `/image`, `/interactive` | The command's own plan or signed prompt and applicable settings. Reuse the shared generation review schema and card. |
+| Command plan | `/whiteboard`, `/motion`, `/animation`, `/cad`, `/image`, `/interactive` | The command's own plan or signed prompt and applicable settings. Reuse the shared generation review schema and card. Use the compact [08 — Interactive review](ui/08-interactive-review.html) for Interactive. |
 | Simple brief | `/code`, `/graph`, `/diagram`, `/3d` | A short brief assembled from the step and supported inputs without a separate model call. Use the existing author and any qualified renderer or worker. |
 | Source or workspace | `/browser`, `/photos`, `/youtube`, `/arxiv`, `/wikipedia`, `/notebook` | A validated URL or actual learner-selected result, or the purpose of the empty notebook. Use the existing selection and insertion actions. |
 
