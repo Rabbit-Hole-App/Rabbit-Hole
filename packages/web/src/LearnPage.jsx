@@ -468,6 +468,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // A chat card added under its answer's local id takes the saved message's id (ask.jsx), unless that id is already here.
     rekeyCard: (from, to) => setExchanges(previous => rekeyed(previous, from, to)),
     locate: id => canvasApi.current?.focusBlock(id),
+    // A Chat pill's Go to (pill-target.js): the cards to look the ref up in, then frame an object or an Ask about selection area.
+    blocks: () => canvasApi.current?.blocks?.() || [],
+    locateObject: id => !!canvasApi.current?.locateObject?.(id),
+    locateArea: id => !!canvasApi.current?.locateArea?.(id),
     // Generate on a simple material brief (owner spec 2026-10-29; material-brief.js): the existing generator, with the signed brief,
     // which the server consumes once and generates from (its own words, selection and context). The card holds its place while it is
     // made and carries the brief's id (madeFrom). Anything but a card gives the place up and says why. -> { blockId }
