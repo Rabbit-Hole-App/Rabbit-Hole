@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { anthropic } from '../src/ask.js';
 import { COMPOSITION, catalogue } from '../../web/src/visual-components/registry.js';
 import { EXAMPLES } from '../../web/src/visual-components/examples/index.js';
+import { EXPLAIN_PROGRAM_RULES, programContext } from '../src/agents/explain-author.js';
 import { SPEC_LIMITS, authorExplanation, capabilityGap, capabilityGaps, compilerSupport, selectExamples, specFacts, validateStage } from '../src/explain-author.js';
 
 const env = { SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'test-key' };
@@ -139,4 +140,17 @@ test('evidence bindings come only from the records provided; examples add no fac
 
 test('the facts the reviewer reads are the text the spec carries', () => {
   assert.deepEqual(specFacts(SPEC), ['Where rain comes from', 'Sun warms the sea', 'Vapour rises and cools', 'Droplets form clouds', 'Rain falls']);
+});
+
+test('the program author is told to use the visual helpers instead of drawing their pictures by hand: the rules name each helper and what it draws, and the context says to prefer them', () => {
+  for (const [helper, drawing] of [['sdk.plot', /curve or scatter plot/], ['sdk.graph', /branching/], ['sdk.grid', /grid|matrix/], ['sdk.geometry', /segments, vectors/], ['sdk.timeline', /lanes of events with a cursor/], ['sdk.readout', /labeled value/]]) {
+    assert.ok(EXPLAIN_PROGRAM_RULES.includes(helper), `${helper} is in the rules, not only in the data field`);
+    assert.match(EXPLAIN_PROGRAM_RULES, drawing);
+  }
+  assert.match(EXPLAIN_PROGRAM_RULES, /Do not draw those with line, polyline, box, arrow or text by hand/);
+  assert.doesNotMatch(EXPLAIN_PROGRAM_RULES, /Use program\.sdk for geometry and number formatting\./, 'the old sentence that pointed only at the generic helpers is gone');
+  const context = programContext({ sourceBytes: 1, manifestBytes: 1 }, {}, {});
+  assert.match(context.sdk.visual.usage, /^Prefer these to drawing the same picture/);
+  // the repair keeps the signatures in its shorter text
+  assert.match(programContext({ sourceBytes: 1, manifestBytes: 1 }, {}, { repair: true }).sdk.visual, /sdk\.plot, sdk\.graph, sdk\.grid, sdk\.geometry, sdk\.timeline and sdk\.readout/);
 });
