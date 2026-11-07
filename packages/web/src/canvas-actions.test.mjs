@@ -372,9 +372,10 @@ test('hints: platform spelling, aria keys from the same row, and only where the 
   assert.equal(rowsOf(selectionTarget(model(['eq'])), true)['Edit LaTeX'].keyshortcuts, null);
   // Similar names never borrow a key: Focus, Delete Rabbit Hole, Rename, the canvas's Add text and Add sticky note.
   const keyed = Object.fromEntries(allActions().map(entry => [entry.id, entry.keys]));
-  for (const id of ['card.focus', 'delete-rabbit-hole', 'rename', 'canvas.add-text', 'canvas.add-sticky', 'selection.add-to-chat', 'study.pin', 'notebook.run-all', 'notebook.restart', 'equation.edit', 'cad.reset-view'])
+  for (const id of ['card.focus', 'delete-rabbit-hole', 'canvas.add-text', 'canvas.add-sticky', 'selection.add-to-chat', 'study.pin', 'notebook.run-all', 'notebook.restart', 'equation.edit', 'cad.reset-view'])
     assert.equal(keyed[id], undefined, `${id} has no key`);
   assert.equal(keyed['card.open'], 'open-card');
+  assert.deepEqual([keyed.rename, keyed['full-content']], ['rename', 'full-content'], 'Rename (F2) and Full content (Shift+F) are keyed since the owner asked, 2026-11-07');
 });
 
 test('the menu greys a disabled row and says nothing: no reason line or tooltip, only the short sign-in reason (owner 2026-11-07)', async () => {

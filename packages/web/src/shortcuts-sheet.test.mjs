@@ -91,3 +91,15 @@ test('the window: titled Shortcuts, modal, search focused, Tab kept inside, Esc 
   assert.doesNotMatch(sheet, /h-\[min\(/);
   assert.doesNotMatch(sheet, /\.\.\.'|…/, 'no ellipsis');
 });
+
+test('Rename (F2) and Full content (Shift+F) are listed, hinted in the card menu, and handled by the canvas (owner 2026-11-07)', async () => {
+  const rows = Object.fromEntries(all({ mac: false }).map(row => [row.id, row.labels.join(' / ')]));
+  assert.deepEqual([rows.rename, rows['full-content']], ['F2', 'Shift+F']);
+  assert.deepEqual([hintFor('rename', false), hintFor('full-content', false), hintFor('rename', true), hintFor('full-content', true)], ['F2', 'Shift+F', 'F2', 'Shift+F']);
+  const { readFileSync } = await import('node:fs');
+  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  assert.ok(canvas.includes("event.key === 'F2') { if (typing || busy || selectedRef.current.length !== 1) return; event.preventDefault(); keyActionRef.current('rename');"), 'F2 runs the rename row on one selected card');
+  assert.ok(canvas.includes("event.key.toLowerCase() === 'f') { if (typing || busy || event.repeat || !selectedRef.current.length) return; event.preventDefault(); keyActionRef.current('full-content');"), 'Shift+F runs the full-content row');
+  const actions = readFileSync(new URL('./canvas-actions.js', import.meta.url), 'utf8');
+  assert.ok(actions.includes("keys: 'rename',") && actions.includes("keys: 'full-content',"), 'the menu rows take their hints from the same rows');
+});

@@ -3952,6 +3952,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // Shift+G turns Snap to grid on or off, the Arrange menu's row (owner brief 2026-11-02, new): only where the canvas owns the
       // keyboard, and once per press, never again from a held key's repeats.
       if (!mod && !event.altKey && event.shiftKey && event.key.toLowerCase() === 'g') { if (busy || event.repeat) return; event.preventDefault(); commands.toggleGrid(); return; }
+      // F2 renames the one selected card and Shift+F turns Full content on or off for the selected cards: each runs the menu's own row (owner 2026-11-07), so a card
+      // that cannot be renamed or has no Full content, a locked object and a view-only board do nothing, exactly as the menu row would.
+      if (!mod && !event.altKey && !event.shiftKey && event.key === 'F2') { if (typing || busy || selectedRef.current.length !== 1) return; event.preventDefault(); keyActionRef.current('rename'); return; }
+      if (!mod && !event.altKey && event.shiftKey && event.key.toLowerCase() === 'f') { if (typing || busy || event.repeat || !selectedRef.current.length) return; event.preventDefault(); keyActionRef.current('full-content'); return; }
       // Lock (Ctrl+Shift+L), layers (Ctrl+[ / ], with Shift all the way) and copy / paste style (Ctrl+Alt+C / V).
       if (mod && event.shiftKey && event.code === 'KeyL') { if (typing) return; event.preventDefault(); keyActionRef.current('lock'); return; }
       if (mod && (event.code === 'BracketLeft' || event.code === 'BracketRight')) {
