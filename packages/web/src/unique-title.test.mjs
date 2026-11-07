@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { TITLE_MAX, cardTitleOf, cutTitle, fullTitleOf, namedTitleOf, renameBlock } from './card-rename.js';
+import { TITLE_MAX, DERIVED_MAX, cardTitleOf, cutTitle, fullTitleOf, namedTitleOf, renameBlock } from './card-rename.js';
 import { nameKey, positionHint, titleTaken, uniqueTitle, uniquifyBlocks } from './unique-title.js';
 
 const read = name => readFileSync(new URL('./' + name, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -87,16 +87,18 @@ test('titleTaken: another card of the same scope shows the name (case-insensitiv
   assert.equal(positionHint(blocks, 'zzz'), '');
 });
 
-test('TITLE_MAX: a long derived name is shown cut on a word boundary with no ellipsis, the stored text intact; the full text stays available', () => {
-  const stored = card('e', 'Why does coffee cool faster at first? A long model title that goes on');
+test('a generated or imported title is shown whole up to DERIVED_MAX, then cut on a word boundary with no ellipsis; the stored text stays intact (the header is one clipped line)', () => {
+  const real = card('r', 'Why trees, and what a tree actually does');
+  assert.equal(shown(real), 'Why trees, and what a tree actually does', 'a normal Tutor title is never cut');
+  const stored = card('e', 'Why does coffee cool faster at first? A long model title that goes on and on and on past the proposal bound');
   const text = shown(stored);
-  assert.ok(text.length <= TITLE_MAX && !/[.…]$/.test(text) && !text.includes('…'), text);
-  assert.equal(text, 'Why does coffee cool');
-  assert.equal(stored.title.length > 60, true, 'the card\'s own title is untouched');
+  assert.ok(text.length <= DERIVED_MAX && !/[.…]$/.test(text) && !text.includes('…'), text);
+  assert.equal(text, 'Why does coffee cool faster at first? A long model title that goes on and on');
+  assert.equal(stored.title.length > DERIVED_MAX, true, 'the card own title is untouched');
   assert.equal(fullTitleOf(stored), stored.title, 'the whole text is available (tooltip, chat context)');
-  assert.equal(cutTitle('x'.repeat(100)).length, TITLE_MAX, 'one long word is cut hard');
+  assert.equal(cutTitle('x'.repeat(100)).length, TITLE_MAX, 'one long word is cut hard at the default limit');
   assert.equal(cutTitle('short'), 'short');
-  assert.equal(shown(card('l', 'y'.repeat(200))).length, TITLE_MAX, 'a 200-character legacy title');
+  assert.equal(shown(card('l', 'y'.repeat(200))).length, DERIVED_MAX, 'a 200-character legacy title');
   assert.equal(namedTitleOf({ type: 'note' }), '', 'no name, only a placeholder');
 });
 

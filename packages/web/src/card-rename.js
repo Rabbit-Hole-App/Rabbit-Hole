@@ -9,7 +9,8 @@ const LOADED = new Set(['wiki', 'webpage']); // their `title` names what they lo
 // the type icon (18 px at the Explanation head's text-xl size) plus its gap-2 take 26 px, leaving 262 px for the title; text-xl is 20 px, and semibold
 // English text (lowercase and spaces) averages about 0.52 em = 10.4 px a character: 262 / 10.4 = 25, taken down to 24 for the card's own actions.
 // At the card's default 560 px column the same arithmetic allows 45 (text-xl) or 66 (text-sm). The header also clips a longer legacy title (CardHeader.jsx).
-export const TITLE_MAX = 24;
+export const TITLE_MAX = 40; // a name the learner types: the rename editor, renameBlock and the (N) suffix (owner 2026-11-07 asked for a limit; 24, derived for the narrowest card at the Explanation title size, cut real Tutor titles, so 40)
+export const DERIVED_MAX = 80; // a generated or imported title shown as given up to the proposal title bound; the header is one clipped line with the full text as its tooltip, which is what stops wrapping
 const HEADING_MAX = 200; // a section heading is document content listed in the Table of contents at full width, not a pinned card header (learn-outline-model.js TITLE_MAX)
 
 export const customTitleOf = block => (typeof block?.customTitle === 'string' ? block.customTitle.trim() : '');
@@ -23,14 +24,14 @@ export const titleKey = block => (typeof block?.title === 'string' && !LOADED.ha
 // never written back by a rename that is cancelled or left empty.
 export const PLACEHOLDERS = { note: 'Untitled note', notebook: 'Untitled notebook', heading: 'Untitled heading', file: 'Untitled file', pdf: 'Untitled PDF', slide: 'Untitled slide', divider: 'Untitled divider', 'canvas-ref': 'Untitled link', 'repo-code': 'Untitled code', 'repo-graph': 'Untitled graph', wiki: 'Untitled article', webpage: 'Untitled page', quiz: 'Untitled quiz', challenge: 'Untitled practice', flashcards: 'Untitled flashcards', explanation: 'Untitled explanation', table: 'Untitled table', image: 'Untitled image', video: 'Untitled video', audio: 'Untitled audio', code: 'Untitled code', snippet: 'Untitled code', cad: 'Untitled model' };
 export const PLACEHOLDER = 'Untitled card';
-// A derived name longer than TITLE_MAX is shown cut there, on a word boundary when one is near, with no ellipsis; the stored title is never changed.
+// A derived name longer than DERIVED_MAX is shown cut there, on a word boundary when one is near, with no ellipsis; the stored title is never changed.
 export function cutTitle(text, max = TITLE_MAX) {
   const flat = typeof text === 'string' ? text.trim().replace(/\s+/g, ' ') : '';
   if (flat.length <= max) return flat;
   const head = flat.slice(0, max), space = head.lastIndexOf(' ');
   return (space >= Math.floor(max / 2) ? head.slice(0, space) : head).replace(/[\s,;:\-\u2013\u2014]+$/, '');
 }
-const short = text => (typeof text === 'string' && text.trim() ? cutTitle(text) : '');
+const short = text => (typeof text === 'string' && text.trim() ? cutTitle(text, DERIVED_MAX) : '');
 // The same derived name uncut: the tooltip, chat context and anything that must keep the whole text.
 const flatOf = text => (typeof text === 'string' ? text.trim().replace(/\s+/g, ' ') : '');
 const derivedTitleOf = block => short(block?.title) || short(block?.label) || (block?.type === 'heading' ? short(block.text) : '') || short(block?.question) || short(block?.prompt);

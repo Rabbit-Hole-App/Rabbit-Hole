@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PLACEHOLDER, PLACEHOLDERS, cardTitleOf, customTitleOf, renameBlock, renamable, startTitleOf, titleKey, TITLE_MAX } from './card-rename.js';
+import { PLACEHOLDER, PLACEHOLDERS, cardTitleOf, customTitleOf, renameBlock, renamable, startTitleOf, titleKey, TITLE_MAX, DERIVED_MAX } from './card-rename.js';
 
 const blocks = [{ id: 'a', type: 'video', title: 'Old', dx: 10, dy: 20, w: 300, videoId: 'v' }, { id: 'b', type: 'divider', label: 'Chapter 1' }];
 
@@ -89,7 +89,7 @@ test('cardTitleOf: custom name, then the derived name, then a neutral type place
   assert.equal(cardTitleOf({ type: 'file' }), PLACEHOLDERS.file);
   assert.equal(cardTitleOf({ type: 'never-heard-of-it' }), PLACEHOLDER);
   assert.equal(cardTitleOf(null), PLACEHOLDER);
-  assert.equal(cardTitleOf({ type: 'quiz', question: 'x'.repeat(200) }).length, TITLE_MAX);
+  assert.equal(cardTitleOf({ type: 'quiz', question: 'x'.repeat(200) }).length, DERIVED_MAX);
   const card = { id: 'n', type: 'notebook' };
   cardTitleOf(card);
   assert.deepEqual(card, { id: 'n', type: 'notebook' }, 'computing the placeholder writes nothing');
