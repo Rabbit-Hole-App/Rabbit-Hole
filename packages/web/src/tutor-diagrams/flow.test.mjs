@@ -123,3 +123,70 @@ test('wrapped decision text fits inside the sloping sides on a narrow tier', () 
     assert.ok(span.props.children.length * 11.66 <= widthAtLine);
   }
 });
+
+test('flow preserves ordinary long words and wraps hyphenated labels at their hyphens', () => {
+  const flow = {
+    nodes: [
+      { id: 'root', label: 'Check the request', role: 'decision' },
+      { id: 'a', label: 'Review recommendations', role: 'decision' },
+      { id: 'b', label: 'Configuration-dependent response', role: 'outcome' },
+      { id: 'c', label: 'Escalate', role: 'outcome' },
+    ],
+    edges: [
+      { from: 'root', to: 'a', label: 'Has recommendations' },
+      { from: 'root', to: 'b', label: 'Skip review' },
+      { from: 'a', to: 'b', label: 'Approve' },
+      { from: 'a', to: 'c', label: 'Decline' },
+    ],
+  };
+  for (const width of [320, 688]) {
+    const layout = layoutFlow(flow, width);
+    const review = layout.elements.find(element => element.props['data-tutor-node'] === 'a');
+    const [diamond] = review.props.children;
+    const [[, top], [right], [, bottom], [left]] = diamond.props.points.split(' ').map(pair => pair.split(',').map(Number));
+    assert.ok(bottom - top <= right - left, 'long label should not force an unusually tall diamond');
+    assert.match(render({ elements: [review] }).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' '), /Review recommendations/);
+    const paths = layout.elements.filter(element => element.props['data-tutor-edge']?.startsWith('root:'));
+    assert.ok(pointsFor(paths[0])[0][0] < pointsFor(paths[1])[0][0], 'the outer route leaves from the outer port');
+    const visible = render(layout).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    assert.match(visible, /Has recommendations/);
+    assert.match(visible, /Configuration- ?dependent response/);
+    assert.doesNotMatch(render(layout), /font-size="12"/);
+  }
+});
+
+test('converging routes have distinct arrowheads that meet the rounded outcome', () => {
+  const checks = Array.from({ length: 7 }, (_, index) => `check${index}`);
+  const flow = {
+    nodes: [
+      ...checks.map(id => ({ id, label: id, role: 'decision' })),
+      { id: 'passed', label: 'Approved', role: 'outcome' },
+      { id: 'rejected', label: 'The purchase order has been rejected by the reviewer', role: 'outcome' },
+    ],
+    edges: checks.flatMap((id, index) => [
+      { from: id, to: checks[index + 1] ?? 'passed', label: 'Yes' },
+      { from: id, to: 'rejected', label: 'No' },
+    ]),
+  };
+  for (const width of [320, 688]) {
+    const { elements } = layoutFlow(flow, width);
+    const target = elements.find(element => element.props['data-tutor-node'] === 'rejected');
+    const rect = target.props.children[0].props;
+    const routes = elements.filter(element => element.props['data-tutor-edge']?.endsWith(':rejected')).map(pointsFor);
+    const tips = routes.map(points => points.at(-1)).sort(([a], [b]) => a - b);
+    assert.equal(tips.length, 7);
+    assert.equal(routes.at(-1).at(-1)[0], tips[0][0], 'the direct route stays inside the outer routes');
+    for (let i = 1; i < routes.length - 1; i++) {
+      assert.ok(routes[i - 1][2][0] > routes[i][2][0], 'earlier departures use the outer lanes');
+      assert.ok(routes[i - 1][3][1] > routes[i][3][1], 'the inner lane turns toward the outcome first');
+    }
+    if (width === 320) assert.ok(tips.some(([, y]) => y > rect.y), 'outer tips reach the rounded corners');
+    const rx = Math.min(rect.rx, rect.width / 2);
+    const ry = Math.min(rect.rx, rect.height / 2);
+    for (const [index, [x, y]] of tips.entries()) {
+      const dx = Math.max(0, Math.abs(x - rect.x - rect.width / 2) - (rect.width / 2 - rx));
+      assert.ok(Math.abs((dx / rx) ** 2 + ((y - rect.y - ry) / ry) ** 2 - 1) < 0.001);
+      if (index > 0) assert.ok(x - tips[index - 1][0] >= 8, 'adjacent arrowheads have visible space between them');
+    }
+  }
+});

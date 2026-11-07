@@ -28,6 +28,14 @@ export function textWidth(text, size = 14) {
   return width * size;
 }
 
+function wordParts(word) {
+  return word.split(/(?<=[\p{L}\p{N}][-‐])(?=[\p{L}\p{N}])/u);
+}
+
+export function longestWordWidth(text, size = 14) {
+  return Math.max(...text.trim().split(/\s+/u).flatMap(wordParts).map(part => textWidth(part, size)));
+}
+
 export function wrap(text, width, size = 14) {
   const lines = [];
   let line = '';
@@ -39,13 +47,19 @@ export function wrap(text, width, size = 14) {
     }
     if (line) lines.push(line);
     line = '';
-    // Long identifiers and unspaced scripts still need a bounded line.
-    for (const char of word) {
-      if (line && textWidth(line + char, size) > width) {
+    for (const part of wordParts(word)) {
+      if (line && textWidth(line + part, size) > width) {
         lines.push(line);
         line = '';
       }
-      line += char;
+      // Long identifiers and unspaced scripts still need a bounded line.
+      for (const char of part) {
+        if (line && textWidth(line + char, size) > width) {
+          lines.push(line);
+          line = '';
+        }
+        line += char;
+      }
     }
   }
   if (line) lines.push(line);
