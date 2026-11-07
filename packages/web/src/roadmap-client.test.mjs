@@ -53,8 +53,10 @@ test('held result: a status line, never any result text', () => {
   assert.deepEqual(chatOf(withView('status-held-for-checking')).map(l => l.text), [STRINGS.checking]);
 });
 
-test('Ask mode pauses initiative: no pill, no invitation, no plan-ready line; accepted progress still reads', () => {
-  assert.equal(pillOf({ ...withView('status-active-proposal-pending'), mode: 'ask' }), null);
+test('Ask mode pauses unsolicited initiative: no invitation, no plan-ready line; an offer the server made stays acceptable (explicit action, UI.03); accepted progress still reads', () => {
+  const asked = { ...withView('status-active-proposal-pending'), mode: 'ask' };
+  assert.equal(pillOf(asked).accept, true, 'Accept / Next card / Tab work in Ask without changing the preference');
+  assert.equal(pillOf(asked).gesture, pillOf(withView('status-active-proposal-pending')).gesture, 'one gesture for every surface, so one coalesced request');
   const inv = reduce({ ...initialState(), mode: 'ask' }, { type: 'invitation', invitation: view('invitation-offered').invitation });
   assert.equal(invitationOf(inv), null);
   assert.ok(!chatOf({ ...withView('status-proposed-plan'), mode: 'ask' }).some(l => l.id === 'plan'));

@@ -108,7 +108,7 @@ test('the offer follows the pill gate: Ask mode, the flag off and the open edito
   const v = view('status-active-proposal-pending');
   assert.equal(canvasCardsOf(v, { state: client('status-active-proposal-pending') })[0].state, 'pending');
   assert.equal(canvasCardsOf(v, { state: client('status-active-proposal-pending') })[0].acceptable, true);
-  assert.deepEqual(canvasCardsOf(v, { state: client('status-active-proposal-pending', { mode: 'ask' }) }), [], 'Ask holds the offer back: no dead Accept');
+  assert.equal(canvasCardsOf(v, { state: client('status-active-proposal-pending', { mode: 'ask' }) })[0].acceptable, true, 'Ask does not hide an offer the server made: explicit Accept works');
   assert.deepEqual(canvasCardsOf(v, { state: client('status-active-proposal-pending', { flag: 'off' }) }), []);
   assert.deepEqual(canvasCardsOf(v, { state: client('status-active-proposal-pending', { editing: true }) }), [], 'the editor (overlay) has the offer while it is open');
   const gesture = `accept:${v.proposal.id}:${v.proposal.version}`;

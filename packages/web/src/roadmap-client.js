@@ -92,11 +92,11 @@ const unfinished = view => !!view && isUnfinishedRoadmap(view.roadmap.state);
 const resultsOf = view => view?.results || [];
 const askMode = state => state.mode === 'ask';
 
-// The compact pill and its overlay. Ask pauses new initiative: no new proposal is shown, the accepted work still finishes.
+// The compact pill and its overlay. Ask/off only stop UNSOLICITED offers (the server makes none); an offer it made stays acceptable (explicit action, UI.03 bullet 7).
 // acceptable comes from the server (a held or blocked version is not accept-ready); the busy latch stops a second request.
 export function pillOf(state) {
   const view = state.view, proposal = view?.proposal;
-  if (!enabled(state) || !proposal || view.roadmap.state !== 'active' || proposal.state !== 'pending' || askMode(state)) return null;
+  if (!enabled(state) || !proposal || view.roadmap.state !== 'active' || proposal.state !== 'pending') return null;
   const gesture = `accept:${proposal.id}:${proposal.version}`;
   return {
     proposalId: proposal.id, version: proposal.version, title: proposal.title, description: proposal.description, format: proposal.format,
