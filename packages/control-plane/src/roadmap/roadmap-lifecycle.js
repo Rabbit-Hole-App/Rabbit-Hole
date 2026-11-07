@@ -1,7 +1,7 @@
 // R4.12 backend: Cancel, manual next step, End roadmap, the mode fact, and card removal. Each is an applyRoadmapAction batch (receipt-guarded,
 // replay-safe) and commits its outbox event with the fact. No model call happens here: composing a proposal is an injected dependency (Tools).
 import { StateError } from './roadmap-contract.js';
-import { applyRoadmapAction, eventStatement, offerProposal, readRoadmap, readProposal, readResult } from './roadmap-store.js';
+import { applyRoadmapAction, eventStatement, offerProposal, outcomeUnresolved, readRoadmap, readProposal, readResult } from './roadmap-store.js';
 import { checkOffer, offFormats, recoveryOf } from './roadmap-offer-readiness.js';
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
@@ -36,6 +36,7 @@ export async function proposeNextStep(db, access, { roadmapId, expectedRevision,
   if (!['active', 'paused'].includes(roadmap.state)) throw new StateError('roadmap_not_active', 'Not available', 409);
   const busy = await db.prepare("SELECT 1 AS n FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND state IN ('proposed', 'generating') LIMIT 1").bind(roadmapId, roadmap.accepted_plan_version ?? roadmap.plan_version).first(); // the accepted plan, never an unaccepted draft (UI.03)
   if (busy) throw new StateError('proposal_not_pending', 'Finish or resolve the current step first.', 409);
+  if (await outcomeUnresolved(db, roadmapId)) throw new StateError('outcome_unresolved', 'The previous card is still being settled.', 409); // BE.12: reconcile before any successor
   const next = await db.prepare("SELECT * FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND state = 'planned' ORDER BY position LIMIT 1").bind(roadmapId, roadmap.accepted_plan_version ?? roadmap.plan_version).first(); // the accepted plan, never an unaccepted draft (UI.03)
   if (!next || roadmap.delivered_count >= roadmap.ceiling) {
     return applyRoadmapAction(db, access, {

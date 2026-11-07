@@ -7,7 +7,7 @@ import { recordGenerated, failCard } from '../src/roadmap/roadmap-store.js';
 import { withRoadmapProviderCall, learnerUsageEnv, planCall } from '../src/roadmap/roadmap-money.js';
 import { spendTransport } from '../src/learn-spend.js';
 import { usageTotals, periodOf } from '../src/learn-usage.js';
-import { world, offered, rows, provider, body as modelBody, MODEL } from './roadmap-fixture.js';
+import { world, offered, rows, provider, body as modelBody, MODEL, savedBlock } from './roadmap-fixture.js';
 
 const PERIOD = periodOf(Math.floor(Date.now() / 1000));
 const BOARD = 'lb_board00000000000001';
@@ -128,7 +128,7 @@ test('flag off during generation and after settlement: routes 404, the accepted 
   assert.equal((await (await call(env, 'POST', `/api/learn/roadmap/${o.roadmapId}/results/${resultId}/deliver`, { boardId: BOARD })).json()).cards[0].block.id, cardId, 'the retry reuses the already generated result');
   assert.equal((await totals()).used, charged, 'a refused acknowledgement and its retry charge nothing');
   // The save succeeds at revision 3 with the card: the same acknowledgement now delivers, once.
-  w.sqlite.prepare('UPDATE learn_boards SET state_json = ?, version = 3 WHERE id = ?').run(JSON.stringify({ blocks: [{ id: cardId, type: 'explanation' }] }), BOARD);
+  w.sqlite.prepare('UPDATE learn_boards SET state_json = ?, version = 3 WHERE id = ?').run(JSON.stringify({ blocks: [savedBlock(w.sqlite, cardId)] }), BOARD);
   const ack = await sendAck({ boardRevision: 3 });
   assert.equal(ack.status, 200);
   assert.equal((await sendAck({ boardRevision: 3 })).status, 200, 'the replay answers the recorded outcome');
@@ -197,7 +197,7 @@ test('deletion keeps the delivery record and the charge; a duplicate removal not
   await recordGenerated(w.LEARN_DB, w.access, { resultId, primitive: 'explanation', body: { type: 'explanation' }, validation: 'passed' });
   const base = `/api/learn/roadmap/${o.roadmapId}`;
   let view = await (await call(env, 'GET', `/api/learn/roadmap?boardId=${BOARD}`)).json();
-  w.sqlite.prepare('UPDATE learn_boards SET state_json = ?, version = 2 WHERE id = ?').run(JSON.stringify({ blocks: [{ id: cardId }] }), BOARD);
+  w.sqlite.prepare('UPDATE learn_boards SET state_json = ?, version = 2 WHERE id = ?').run(JSON.stringify({ blocks: [savedBlock(w.sqlite, cardId)] }), BOARD);
   await call(env, 'POST', `${base}/results/${resultId}/ack`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: 'ack-key-00001', cardIds: [cardId], boardRevision: 2 });
   const used = (await totals()).used;
   view = await (await call(env, 'GET', `/api/learn/roadmap?boardId=${BOARD}`)).json();
@@ -214,7 +214,7 @@ test('Restore: a removed card comes back from the stored result, delivery return
   await recordGenerated(w.LEARN_DB, w.access, { resultId, primitive: 'explanation', body: { type: 'explanation' }, validation: 'passed' });
   const base = `/api/learn/roadmap/${o.roadmapId}`;
   let view = await (await call(env, 'GET', `/api/learn/roadmap?boardId=${BOARD}`)).json();
-  w.sqlite.prepare('UPDATE learn_boards SET state_json = ?, version = 2 WHERE id = ?').run(JSON.stringify({ blocks: [{ id: cardId }] }), BOARD);
+  w.sqlite.prepare('UPDATE learn_boards SET state_json = ?, version = 2 WHERE id = ?').run(JSON.stringify({ blocks: [savedBlock(w.sqlite, cardId)] }), BOARD);
   await call(env, 'POST', `${base}/results/${resultId}/ack`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: 'ack-key-00001', cardIds: [cardId], boardRevision: 2 });
   view = await (await call(env, 'GET', `/api/learn/roadmap?boardId=${BOARD}`)).json();
   const used = (await totals()).used;

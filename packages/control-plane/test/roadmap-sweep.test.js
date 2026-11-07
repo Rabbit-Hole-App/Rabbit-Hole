@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { sweepUndelivered } from '../src/roadmap/roadmap-sweep.js';
 import { scheduledRoadmapKick } from '../src/roadmap/roadmap-wire.js';
 import { ROADMAP_LIMITS } from '../src/roadmap/roadmap-policy.js';
-import { rows } from './roadmap-fixture.js';
+import { rows, savedBlock } from './roadmap-fixture.js';
 import { BOARD, KEY, ID_B, INSTRUCTION, loop } from './roadmap-loop-fixture.js';
 
 const DEADLINE = ROADMAP_LIMITS.retention.deliveryDeadlineHours * 3600;
@@ -42,7 +42,7 @@ test('after the deadline an unplaced card is refunded: the learner nets zero, th
 test('a card that is on the saved board is acknowledged, never refunded, when its acknowledgement was lost', async t => {
   const { h, result } = await undelivered(t, 1000);
   const card = result.slot.cardId;
-  h.w.sqlite.prepare('UPDATE learn_boards SET state_json = ? WHERE id = ?').run(JSON.stringify({ blocks: [{ id: card, type: 'explanation', title: 'T', body: 'B' }] }), BOARD);
+  h.w.sqlite.prepare('UPDATE learn_boards SET state_json = ? WHERE id = ?').run(JSON.stringify({ blocks: [savedBlock(h.w.sqlite, card)] }), BOARD);
   const spent = await h.totals();
   assert.deepEqual(await sweepUndelivered(h.env, { now: 1000 + DEADLINE }), { acknowledged: 1, refunded: 0 });
   assert.equal(rows(h.w.sqlite, 'SELECT delivery, billing FROM learn_step_results')[0].delivery, 'delivered');
