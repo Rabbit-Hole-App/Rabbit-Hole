@@ -9,6 +9,7 @@ const root = fileURLToPath(new URL('../src/', import.meta.url));
 // file + a snippet of the allowed line, and why: model prompts, truncation, or text never shown in the web UI.
 const ALLOW = [
   ['cad-model.js', '{"brief":{"title":"..."', 'model prompt JSON template'],
+  ['agents/roadmap-check.js', 'never join separate parts with', 'model instruction that names the ellipsis it forbids, not UI text'],
   ['chat-answer-meta.js', '<answer_meta>', 'model prompt JSON template'],
   ['chat-answer-meta.js', '"cells":["..."]', 'model prompt JSON template'],
   ['index.js', 'add schedule = "..." to small.toml', 'TOML placeholder the user fills in (CLI error)'],
