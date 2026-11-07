@@ -105,14 +105,15 @@ test('rejects sequence self messages, missing actors, duplicate actor IDs, and r
   assert.throws(() => parseTutorDiagram(versioned(matrix)), /cells.*columns/i);
 });
 
-test('exports a strict, serializable JSON Schema with all seven kinds', () => {
+test('exports a strict, serializable JSON Schema and keeps the original seven kinds', () => {
   const schema = JSON.parse(JSON.stringify(tutorDiagramJsonSchema));
   assert.equal(schema.type, 'object');
   assert.equal(schema.additionalProperties, false);
   assert.deepEqual(schema.required, ['version', 'diagram']);
   assert.equal(schema.properties.version.const, 1);
   const shapes = schema.properties.diagram.anyOf ?? schema.properties.diagram.oneOf;
-  assert.deepEqual(new Set(shapes.map(shape => shape.properties.kind.const)), new Set(['flow', ...other.map(d => d.kind)]));
+  const kinds = new Set(shapes.map(shape => shape.properties.kind.const));
+  for (const kind of ['flow', ...other.map(d => d.kind)]) assert.ok(kinds.has(kind), kind);
   assert.ok(shapes.every(shape => shape.additionalProperties === false));
 });
 

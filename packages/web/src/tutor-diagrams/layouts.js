@@ -1,4 +1,8 @@
+import { balanceLayouts } from './balance-layouts.js';
+import { layoutFigure } from './figure-layout.js';
 import { box, connector, dot, label, lineHeight, wrap } from './primitives.js';
+import { quantitativeLayouts } from './quantitative-layouts.js';
+import { teachingLayouts } from './teaching-layouts.js';
 
 const PAD = 12;
 const TEXT = 14;
@@ -189,4 +193,7 @@ function cycle(diagram, width) {
   return { width, height: y - 20 + PAD, elements };
 }
 
-export const layouts = Object.freeze({ comparison, timeline, sequence, matrix, layers, cycle });
+export const layouts = Object.freeze({
+  comparison, timeline, sequence, matrix, layers, cycle, figure: layoutFigure,
+  ...teachingLayouts, ...quantitativeLayouts, ...balanceLayouts,
+});
