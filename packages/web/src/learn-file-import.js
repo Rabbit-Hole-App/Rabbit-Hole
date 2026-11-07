@@ -3,7 +3,8 @@
 // cells in the notebook runtime and runs them only from its own Run all.
 import { newNotebookBlock, trimOutputs } from './learn-notebook.js';
 import { codeLanguage } from './code-language.js';
-import { textBlock } from './file-doc-import.js';
+import { DOC_CARD, textBlock } from './file-doc-import.js';
+import { switchCardLayout } from './card-layout.js';
 
 import { BOARD_FILE_LIMIT, formatBytes } from './file-capabilities.js';
 
@@ -96,7 +97,11 @@ export function importBlock({ name: raw, kind, choice, text, assetKey, size }) {
   // A Text or Markdown card reads its own asset (FileDocCard.jsx); a NUL in the text means a binary file, refused before placing.
   if (choice === 'text' || choice === 'markdown') {
     if (String(text).includes('\u0000')) throw Error(`${name} looks like a binary file, not text. Add it as a File attachment to keep it as it is.`);
-    return textBlock({ name, size, assetKey, kind: choice });
+    const card = textBlock({ name, size, assetKey, kind: choice });
+    // Owner 2026-11-06 (release 92): a NEW Markdown card opens in Full content, so the Tutor's cards are placed around the whole file. It is the existing layout
+    // switch (card-layout.js) from the card's default size: that size stays its slot, so no neighbour moves, the preview bound still applies, and the card's
+    // layout control switches it back. A Text card and every saved card are unchanged.
+    return choice === 'markdown' ? switchCardLayout(card, 'full', DOC_CARD.markdown) : card;
   }
   let block;
   if (choice === 'code') block = { id: crypto.randomUUID(), type: 'snippet', dx: 0, dy: 0, title: name, code: text, output: '', source_asset: assetKey };

@@ -147,3 +147,19 @@ test('a drop of several files is one dialog that says what it will create before
   assert.match(dialog, /<span data-import-summary[^>]*>Adds \{importSummary\(choices\)\}\.<\/span>/);
   assert.match(dialog, /onConfirm=\{\(\) => \{ if \(!busy\) onConfirm\(choices\); \}\}/, 'one Add to canvas for the whole drop');
 });
+
+// Owner 2026-11-06 (release 92): a newly dropped or imported Markdown card shows its full content by default, through the existing Full content layout.
+test('a new Markdown card opens in Full content from its default size; a Text card, other kinds and saved cards are unchanged', async () => {
+  const { fullContent, switchCardLayout } = await import('./card-layout.js');
+  const { DOC_CARD } = await import('./file-doc-import.js');
+  const md = importBlock({ name: 'notes.md', kind: 'markdown', choice: 'markdown', text: '# Notes\n\nBody.', assetKey: 'local:1', size: 15 });
+  assert.equal(fullContent(md), true);
+  assert.deepEqual(md.cardLayout, { mode: 'full', scrollableSize: DOC_CARD.markdown, fullWidth: DOC_CARD.markdown.w, slot: DOC_CARD.markdown }, 'the slot is the default footprint: neighbours keep their places');
+  assert.deepEqual(switchCardLayout(md, 'scrollable', null).cardLayout.mode, 'scrollable', 'the existing layout control switches it back');
+  const txt = importBlock({ name: 'notes.txt', kind: 'text', choice: 'text', text: 'Plain.', assetKey: 'local:2', size: 6 });
+  assert.equal(txt.cardLayout, undefined, 'a Text card keeps today\'s layout');
+  const code = importBlock({ name: 'notes.md', kind: 'markdown', choice: 'code', text: '# x', assetKey: 'local:3', size: 3 });
+  assert.equal(code.cardLayout, undefined, 'the Markdown source as a code card is unchanged');
+  const saved = { id: 'old', type: 'file', kind: 'markdown', fileRef: { v: 1 } };
+  assert.equal(fullContent(saved), false, 'a saved Markdown card without a layout stays as it was');
+});
