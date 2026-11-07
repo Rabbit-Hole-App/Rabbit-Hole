@@ -71,8 +71,8 @@ export function EntryView({ entry, live, run, app = null, busy = false, invitati
       {found.state === 'ready' && found.text && <blockquote data-roadmap-excerpt className="mb-1.5 max-h-24 overflow-auto border-l-2 border-accent/40 pl-2 text-xs break-words text-ink-2">{found.text}</blockquote>}
       {found.state === 'unavailable' && <p data-roadmap-excerpt-unavailable className="mb-1.5 text-xs text-ink-3">{STRINGS.excerptUnavailable}</p>}
       {entry.draft && <RoadmapPlan draft={entry.draft} disabled={!live || busy} onDepth={depth => run({ kind: 'depth', depth })} />}
-      {live && entry.activity && entry.kind !== 'draft' && <span role="status" className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-ink-3" /><span className="shimmer">{entry.activity}</span></span>}
-      {generating && <span role="status" data-roadmap-generating className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-ink-3" /><span className="shimmer">{STRINGS.generatingRoadmap}</span></span>}
+      {live && entry.activity && entry.kind !== 'draft' && <span role="status" className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-claude" /><span className="shimmer">{entry.activity}</span></span>}
+      {generating && <span role="status" data-roadmap-generating className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-claude" /><span className="shimmer">{STRINGS.generatingRoadmap}</span></span>}
       {outcome && <p data-roadmap-outcome className="pb-1.5 text-xs text-ink-2">{outcome}</p>}
       {actions.length > 0 && (
         <div data-roadmap-actions className={entry.draft ? 'flex flex-wrap gap-2 pt-3 pb-1.5' : 'flex flex-wrap gap-1.5 pt-1 pb-1.5'}>

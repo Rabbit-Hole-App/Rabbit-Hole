@@ -304,7 +304,7 @@ export function RunResultCard({ runId, app }) {
   return (
     <div className="max-w-[520px] rounded-md border border-line p-3 text-sm">
       <div className="flex items-center gap-2 pb-1.5">
-        {meta?.status === 'running' && <Loader2 size={13} className="animate-spin text-ink-3" />}
+        {meta?.status === 'running' && <Loader2 size={13} className="animate-spin text-claude" />}
         <span className="font-medium">Run {runId.replace(/^r-/, '').slice(0, 7)}</span>
         <span className="text-ink-2">{meta?.status || 'starting'}</span>
         {runUrl && (
@@ -414,7 +414,7 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
         {m.graph&&onGraph&&<div className="mt-2"><EvidencePill icon={Network} type="button" onClick={()=>onGraph(m.graph)} title={m.graph.title}>Show on graph</EvidencePill></div>}
 </>
       ) : (
-        <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{waitingText(m.stage ?? m.status)}</span></span>
+        <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-claude" /><span className="shimmer">{waitingText(m.stage ?? m.status)}</span></span>
       )}
     </div>
   );

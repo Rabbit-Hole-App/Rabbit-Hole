@@ -46,6 +46,10 @@
   --color-select: #2383e2;
   /* The inline AI editor's target and accent: the product's purple (--tok-k, --viz-prediction), flipped in .dark. */
   --color-ai: #9065b0;
+  /* Claude orange (owner 2026-11-07, #C15F3C): intensity and in-progress only (the Depth icon, spinners, the waiting shimmer); never a button,
+     a link, a warning or an error. Blue stays the action colour. -deep is the stronger step of the same orange. claude-orange.test.mjs. */
+  --color-claude: #c15f3c;
+  --color-claude-deep: #9a4528;
   --color-danger: #eb5757;
   /* The filled danger button (Button variant danger, Stop): white on --color-danger is 3.5:1, under the 4.5:1 small-text floor;
      white on this fill is 4.98:1, its hover 6.33:1. .dark leaves both alone (the bg-danger rule below keeps the text white).
@@ -342,6 +346,8 @@ html {
   --tok-s: #6fbf8e;
   --tok-k: #b79ae3;
   --color-ai: #b79ae3;
+  --color-claude: #e2825d;
+  --color-claude-deep: #f09a76;
   --tok-n: #e8a15c;
   --color-white: #191919; /* page + popover surfaces */
   --color-surface: #191919;
@@ -952,7 +958,7 @@ html:is([data-card-size="0"], [data-card-size="1"]) .card-grid > li > [data-card
 
 /* A waiting label (Thinking…) shimmers: a light band sweeps across the text. */
 .shimmer {
-  background: linear-gradient(90deg, var(--color-ink-3) 0%, var(--color-ink-3) 35%, var(--color-ink) 50%, var(--color-ink-3) 65%, var(--color-ink-3) 100%);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--color-claude) 55%, var(--color-white)) 0%, color-mix(in srgb, var(--color-claude) 55%, var(--color-white)) 35%, var(--color-claude-deep) 50%, color-mix(in srgb, var(--color-claude) 55%, var(--color-white)) 65%, color-mix(in srgb, var(--color-claude) 55%, var(--color-white)) 100%);
   background-size: 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -964,11 +970,11 @@ html:is([data-card-size="0"], [data-card-size="1"]) .card-grid > li > [data-card
   to { background-position: -100% 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .shimmer { animation: none; background: none; color: var(--color-ink-2); }
+  .shimmer { animation: none; background: none; color: var(--color-claude); }
 }
 /* A reserved card's placeholder lines (AdaptiveCanvas SlotCard): the same soft band, slower. */
 .skeleton-line {
-  background: linear-gradient(90deg, var(--color-hover) 0%, var(--color-hover) 40%, var(--color-line) 50%, var(--color-hover) 60%, var(--color-hover) 100%);
+  background: linear-gradient(90deg, var(--color-hover) 0%, var(--color-hover) 40%, color-mix(in srgb, var(--color-claude) 22%, var(--color-hover)) 50%, var(--color-hover) 60%, var(--color-hover) 100%);
   background-size: 200% 100%;
   animation: shimmer 2.4s linear infinite;
 }
@@ -1032,7 +1038,7 @@ html[data-reduce-motion] :not(:where([data-canvas-world] *))::after {
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
-html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation: none; background: none; color: var(--color-ink-2); }
+html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation: none; background: none; color: var(--color-claude); }
 
 /* Focus (focus-adapter-notebook.js, docs/features/focus-study.md section 4): a focused card's own host fills the working frame
    in place. !important wins over the inline width, height and transform React keeps writing; the custom properties are the

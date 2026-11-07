@@ -179,7 +179,7 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
   return (
     <div data-animation-pending={shown.stage} className="flex min-h-[125px] flex-col items-start gap-3 pt-2">
       <div className="flex items-center gap-2">
-        {running && !progress && <Loader2 aria-hidden size={16} className="shrink-0 text-ink-3 motion-safe:animate-spin" />}
+        {running && !progress && <Loader2 aria-hidden size={16} className="shrink-0 text-claude motion-safe:animate-spin" />}
         <p data-animation-stage aria-live="polite" className={`text-sm ${animationAsks(shown) ? 'text-ink' : failed ? 'text-fail' : running ? 'shimmer' : 'text-ink-2'}`}>{animationStage(shown)}</p>
       </div>
       {progress && <StageProgress progress={progress} stage={animationStage(shown)} />}

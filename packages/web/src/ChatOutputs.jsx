@@ -78,7 +78,7 @@ function GenerationRow({ entry, onOpen, onDismiss }) {
       onPointerDown={event => { if (event.pointerType === 'touch') setTapped(value => !value); }}
       onFocus={() => setFocus(true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocus(false); }}
       className="mb-1.5 flex w-full items-start gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-sm">
-      {gen.active ? <Loader2 size={15} aria-hidden="true" className="mt-0.5 shrink-0 animate-spin text-ink-2 motion-reduce:animate-none" /> : <Icon size={15} aria-hidden="true" className={`mt-0.5 shrink-0 ${gen.phase === 'failed' ? 'text-fail' : 'text-ink-2'}`} />}
+      {gen.active ? <Loader2 size={15} aria-hidden="true" className="mt-0.5 shrink-0 animate-spin text-claude motion-reduce:animate-none" /> : <Icon size={15} aria-hidden="true" className={`mt-0.5 shrink-0 ${gen.phase === 'failed' ? 'text-fail' : 'text-ink-2'}`} />}
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-baseline gap-x-2 text-ink">
           <span data-gen-text className={gen.active ? 'shimmer' : ''}>{gen.active ? 'Generating on the canvas' : SETTLED_TEXT[gen.phase] || gen.label}</span>

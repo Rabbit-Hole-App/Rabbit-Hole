@@ -278,7 +278,7 @@ function JobStatus({ status, startedAt }) {
     <div data-proposal-job-status={status.phase} className="flex flex-col gap-1">
       <p role="status" aria-live="polite" data-proposal-announcement className="sr-only">{announcement(status)}</p>
       <p aria-hidden="true" className={cn('flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs', status.phase === 'failed' || status.phase === 'unknown' ? 'text-fail' : 'text-ink-2')}>
-        {status.spinner ? <Loader2 size={13} className="shrink-0 animate-spin motion-reduce:animate-none" /> : <Icon size={13} className="shrink-0" />}
+        {status.spinner ? <Loader2 size={13} className="shrink-0 animate-spin text-claude motion-reduce:animate-none" /> : <Icon size={13} className="shrink-0" />}
         <span data-proposal-job-detail className={cn(status.active && 'shimmer')}>{status.detail}</span>
         {status.active && seconds != null && <span data-proposal-elapsed className="text-ink-3 tabular-nums">{elapsedText(seconds)}</span>}
       </p>

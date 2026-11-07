@@ -74,7 +74,7 @@ export default function ExplainPending({ block, onChange, onChangeQuiet, readOnl
         </div>
       ) : (
         <div className="flex items-center gap-2">
-          {working && <Loader2 data-explain-spinner aria-hidden="true" size={16} className="shrink-0 text-ink-3 motion-safe:animate-spin" />}
+          {working && <Loader2 data-explain-spinner aria-hidden="true" size={16} className="shrink-0 text-claude motion-safe:animate-spin" />}
           <p data-explain-stage aria-live="polite" className={`text-sm ${shown.stage === 'failed' ? 'text-red-700' : working ? 'shimmer' : 'text-ink-2'}`}>{explainStage(shown)}</p>
         </div>
       )}
