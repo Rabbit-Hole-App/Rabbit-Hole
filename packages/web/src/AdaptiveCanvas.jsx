@@ -76,7 +76,8 @@ import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
 import { SlotCard } from './SlotCard.jsx';
 import { NextCardPill } from './NextStepPill.jsx';
 import SurfaceBoundary from './SurfaceBoundary.jsx';
-import { areaTarget, areaTooSmall, cropBinding, visibleCrop } from './area-crop.js';
+import { areaTarget, areaTooSmall, cropBinding, unmountedBinding, visibleCrop } from './area-crop.js';
+import { cardEvidence } from './area-evidence.js';
 import { flushBoard, lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
 import { withFlushedAnimations } from './animation3d/storage.js';
 import { waitingText } from './waiting-text.js';
@@ -4734,10 +4735,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const screen = { left: box.left + crop.x, top: box.top + crop.y, width: crop.w, height: crop.h };
     const bindings = inside.map(block => {
       const card = node.querySelector(`[data-block-id="${CSS.escape(block.id)}"]`);
-      if (!card) return null;
+      // A card the rectangle meets that is not drawn right now is still named, so the model is told what it cannot see.
+      if (!card) return { ...unmountedBinding(block), ...cardEvidence(block) };
       const objects = [...card.querySelectorAll('[data-animation-object]')].map(el => ({ id: el.getAttribute('data-animation-object'), rect: el.getBoundingClientRect() }));
       const shapes = block.type === 'whiteboard' ? boardAsk(block.id)?.shapesIn(screen) : undefined;
-      return cropBinding(block, screen, { card: card.getBoundingClientRect(), page: card.querySelector('canvas[aria-label="Paper PDF page"]')?.getBoundingClientRect(), objects, shapes });
+      const binding = cropBinding(block, screen, { card: card.getBoundingClientRect(), page: card.querySelector('canvas[aria-label="Paper PDF page"]')?.getBoundingClientRect(), objects, shapes });
+      return binding && { ...binding, ...cardEvidence(block) };
     }).filter(Boolean);
     // A later crop supersedes this one, and a canvas switched or closed meanwhile takes nothing from it.
     const shot = ++areaShot.current, key = storageKeyRef.current;
