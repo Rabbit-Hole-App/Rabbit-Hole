@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { actionKeys, canProposeNext, chatOf, claimsFocus, deliverable, keyboardOwned, idleGrouper, indicatorOf, initialState, invitationOf, pillOf, planDelivery, readyMarkdownSources, failuresOf, reduce, routes, stepLabelFor, tabAccepts, texts, tocOf } from './roadmap-client.js';
+import { actionKeys, canProposeNext, chatOf, claimsFocus, deliverable, keyboardOwned, idleGrouper, initialState, invitationOf, pillOf, planDelivery, readyMarkdownSources, failuresOf, reduce, routes, stepLabelFor, tabAccepts, texts, tocOf } from './roadmap-client.js';
 import { STRINGS } from './roadmap-strings.js';
 import { pageKeyAllowed } from './shortcut-owner.js';
 import { ROADMAP_STATES } from './roadmap-contract.js';
@@ -122,15 +122,6 @@ test('accept busy latch: a second gesture on the same proposal version is not ac
   assert.equal(pillOf(state).accept, false);
   state = reduce(state, { type: 'end', gesture });
   assert.equal(pillOf(state).accept, true);
-});
-
-test('Next step ready: only with a pending proposal, flagged ready and offscreen; click navigates, nothing else', () => {
-  const state = withView('status-delivered-next-ready');
-  assert.deepEqual(indicatorOf(state, { offscreen: true }), { label: 'Next step ready' });
-  assert.equal(indicatorOf(state, { offscreen: false }), null);
-  assert.equal(indicatorOf(withView('status-active-proposal-pending'), { offscreen: true }), null, 'not flagged ready');
-  assert.equal(indicatorOf(withView('status-cancelled-paused'), { offscreen: true }), null);
-  assert.equal(indicatorOf({ ...state, mode: 'ask' }, { offscreen: true }), null);
 });
 
 const key = (over = {}) => ({ key: 'Tab', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, repeat: false, isComposing: false, keyCode: 9, ...over });
@@ -304,18 +295,6 @@ test('Accept plan reports busy at once so the button can show Accepting and refu
   state = reduce(state, { type: 'begin', gesture });
   assert.equal(tocOf(state).actions.acceptPlan.busy, true);
   assert.equal(pillOf(withView('status-active-proposal-pending')).accepting, false);
-});
-
-test('Next step ready: a pending acceptable proposal whose view says nextStepReady shows the compact indicator offscreen, once', () => {
-  const ready = clone(view('status-active-proposal-pending'));
-  ready.nextStepReady = true; // what roadmapView returns for an acceptable pending proposal after a finished delivery
-  const state = reduce(initialState(), { type: 'view', view: ready });
-  assert.deepEqual(indicatorOf(state, { offscreen: true }), { label: 'Next step ready' });
-  assert.equal(indicatorOf(state, { offscreen: false }), null, 'onscreen: the overlay itself is the signal');
-  const checking = clone(ready); checking.proposal.state = 'checking'; checking.proposal.acceptable = false;
-  assert.equal(indicatorOf(reduce(initialState(), { type: 'view', view: checking }), { offscreen: true }), null, 'a proposal still being checked is not ready');
-  const none = clone(ready); none.proposal = null;
-  assert.equal(indicatorOf(reduce(initialState(), { type: 'view', view: none }), { offscreen: true }), null, 'no proposal, no readiness');
 });
 
 test('accepted work says what the server says in Chat: making; nothing invented', () => {

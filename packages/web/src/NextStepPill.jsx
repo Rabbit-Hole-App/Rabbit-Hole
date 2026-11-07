@@ -10,8 +10,8 @@ export const PILL_BOX = 'inline-flex h-7 items-center overflow-hidden rounded bo
 const ACTION = 'flex h-7 cursor-pointer items-center gap-2 px-2.5 text-xs font-medium whitespace-nowrap focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none';
 const GO = 'bg-success/10 text-success hover:bg-success/20 dark:bg-[#1d3b2b] dark:text-[#b9edce] dark:hover:bg-[#28513a] dark:hover:text-[#dcfce7]';
 const STOP = 'bg-danger/10 text-[#b83b3b] hover:bg-danger/20 dark:bg-[#402626] dark:text-[#f0b9b9] dark:hover:bg-[#583131] dark:hover:text-[#ffe0e0]';
-// The stage a slot shows in the pill's place once accepted (UI.04; contracts.md results[].stage). shortcut: these live here until roadmap-strings.js (Chat lane) takes them.
-export const STAGE = Object.freeze({ generating: STRINGS.generating, checking: 'Checking', saving: 'Saving' });
+// The stage a slot shows in the pill's place once accepted (UI.04; contracts.md results[].stage).
+export const STAGE = Object.freeze({ generating: STRINGS.generating, checking: STRINGS.stageChecking, saving: STRINGS.stageSaving });
 // tabHint: the [Tab] key label, shown where Tab accepts (the canvas); the Chat message's copy of the pill leaves it out (Tab does not accept there).
 export function StepPill({ pill, onAccept, onCancel, tabHint = true }) {
   return (

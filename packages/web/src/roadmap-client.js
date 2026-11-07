@@ -106,12 +106,8 @@ export function pillOf(state) {
     next: isNext(view, proposal), label: isNext(view, proposal) ? NEXT_CARD : STRINGS.accept,
   };
 }
-// shortcut: the vocabulary's 'Next card' lives here until roadmap-strings.js (Chat lane) takes it.
-export const NEXT_CARD = 'Next card';
+export const NEXT_CARD = STRINGS.nextCard;
 const isNext = (view, proposal) => resultsOf(view).some(r => r.stepId !== proposal.stepId);
-// "Next step ready": only when a pending proposal exists, the server says it is ready and the overlay is offscreen. It navigates.
-export const indicatorOf = (state, { offscreen }) => (nextStepReady(state) && offscreen ? { label: STRINGS.nextReady } : null);
-export const nextStepReady = state => !!pillOf(state) && state.view.nextStepReady === true;
 
 const stepNav = (step, view) => {
   const result = resultsOf(view).find(r => r.stepId === step.id);
