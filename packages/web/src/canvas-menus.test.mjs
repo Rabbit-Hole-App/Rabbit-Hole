@@ -249,6 +249,6 @@ test('View: Canvas, Study and Page guides each lead with an icon (owner 2026-11-
   const bar = readFileSync(new URL('./CanvasMenubar.jsx', import.meta.url), 'utf8');
   assert.ok(bar.split('<Lead icon={item.icon} />').length - 1 >= 2, 'a submenu row and a choice row both draw their icon');
   assert.ok(!bar.includes('<Lead />'), 'no row is drawn without asking for its icon');
-  const section = find(owner({}, {})[0].items, 'Section');
+  const section = find(localInsertItems(canvas), 'Section');
   assert.deepEqual(section.items.map(item => item.icon), [Heading1, Heading2, Heading3], 'Insert > Section: H1, H2 and H3');
 });
