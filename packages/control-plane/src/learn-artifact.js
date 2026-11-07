@@ -254,14 +254,13 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
   // explanation (DEPTH_COMMANDS) get none, whatever was sent.
   const depth = !DEPTH_COMMANDS.includes(body.command) ? DEFAULT_DEPTH : body.depth !== undefined ? body.depth
     : await readDepth(env, { org: access.org, userId: access.user_id, app: body.app, board: typeof body.board === 'string' ? body.board : null });
-  let celeris = null; // DEV ONLY (explain-celeris-dev.js): declared outside the try so a refused request can still report what the route saw
   try {
-    celeris = celerisExplainRoute(env, body.command); // DEV ONLY (explain-celeris-dev.js): off unless a dev or test Worker turns it on; production never takes it
+    const celeris = celerisExplainRoute(env, body.command); // DEV ONLY (explain-celeris-dev.js): off unless a dev or test Worker turns it on; production never takes it
     const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}) }, celeris?.options);
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
     if (out?.result !== 'artifact' && out?.result !== 'paid_proposal') await giveBack();
     const done = celeris ? { ...out, devModel: celeris.served() } : out;
     return json(passage && done?.block ? { ...done, block: { ...done.block, sourceRef: passage } } : done);
   }
-  catch (error) { await giveBack(); return json({ error: error.message, ...(celeris ? { devModel: celeris.served() } : {}) }, 502); }
+  catch (error) { await giveBack(); return json({ error: error.message }, 502); }
 }
