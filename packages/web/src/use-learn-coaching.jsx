@@ -96,9 +96,7 @@ export function TutorCoaching({ chat, send, messages = 0, busy = false }) {
       composer.focus();
     }
   };
-  // The welcome and "no active lesson" entry (welcome, existing_work) is retired (owner, 2026-11-06: "always hide. this is old UI which we
-  // are no longer using"); only a saved activity's return (resume, completed) is still offered here.
-  const offer = ['resume', 'completed'].includes(entry.kind) && engaged !== chat.canvas && !codebase.menu && !startedHere;
+  const offer = ['welcome', 'existing_work', 'resume', 'completed'].includes(entry.kind) && engaged !== chat.canvas && !codebase.menu && !startedHere;
   return <>
     {note && <p role={note.tone === 'error' ? 'alert' : 'status'} data-tutor-status={note.action || note.tone} className={`mb-1.5 flex flex-wrap items-center gap-x-2 text-xs ${note.tone === 'error' ? 'text-fail' : 'text-ink-2'}`}>
       {note.text}

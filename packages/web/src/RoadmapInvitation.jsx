@@ -1,8 +1,5 @@
 
-// The roadmap's choice buttons, shared with its Chat transcript items (RoadmapTranscript.jsx).
-export const PRIMARY = 'h-8 rounded-md bg-accent px-3 text-xs font-medium text-white outline-none hover:bg-accent/90 focus-visible:ring-2 focus-visible:ring-accent/60';
-export const SECONDARY = 'h-8 rounded-md border border-line px-3 text-xs font-medium text-ink outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent/60';
-export const ghost = 'h-7 rounded-md border border-line px-2.5 text-xs outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent/60';
+const ghost = 'h-7 rounded-md border border-line px-2.5 text-xs outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent/60';
 
 // The right-side Chat strip for the roadmap: the two-choice invitation, then the state lines (planning, plan ready, paused,
 // stopping point, checking, a focused question, an oversize-source limitation).
@@ -16,8 +13,8 @@ export default function RoadmapInvitation({ invitation, lines, onExplain, onKeep
         <section data-roadmap-invitation={invitation.id} aria-label="Explain on canvas" className="flex flex-col gap-2 rounded-md border border-line bg-white p-3">
           <p className="break-words text-sm text-ink">{invitation.text}</p>
           <div className="flex flex-wrap gap-1.5">
-            <button type="button" data-roadmap-explain onClick={onExplain} className={PRIMARY}>{invitation.choices[0].label}</button>
-            <button type="button" data-roadmap-keep onClick={onKeep} className={SECONDARY}>{invitation.choices[1].label}</button>
+            <button type="button" data-roadmap-explain onClick={onExplain} className="h-8 rounded-md bg-accent px-3 text-xs font-medium text-white outline-none hover:bg-accent/90 focus-visible:ring-2 focus-visible:ring-accent/60">{invitation.choices[0].label}</button>
+            <button type="button" data-roadmap-keep onClick={onKeep} className="h-8 rounded-md border border-line px-3 text-xs font-medium text-ink outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent/60">{invitation.choices[1].label}</button>
           </div>
         </section>
       )}

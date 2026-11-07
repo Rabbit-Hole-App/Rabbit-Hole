@@ -104,7 +104,7 @@ import { useNextSteps } from './LearnNextSteps.jsx';
 import { useRoadmap } from './use-roadmap.js';
 import { readyMarkdownSources } from './roadmap-client.js';
 import { canvasCardsOf } from './roadmap-canvas.js';
-import { RoadmapCanvas, RoadmapToc } from './RoadmapSurfaces.jsx';
+import { RoadmapCanvas, RoadmapChat, RoadmapToc } from './RoadmapSurfaces.jsx';
 import LearnProgress from './LearnProgress.jsx';
 import { CardFeedbackScope } from './CardFeedback.jsx';
 import { explainMaterial } from './learn-coaching-materials.js';
@@ -2255,7 +2255,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // carried rides on the Chat's AskPanel (ChatPane, A1 spreads these): the / commands, the Tutor,
   // Voice Mode, the Next Steps hook sends and the selected card's chip. Its answers never land on the canvas by themselves (no
   // onExchange): Add as card is Lane B's footer, through the provider's canvasOps.
-  const chatAskProps = { slash: learnSlash, voice, nextStepRef: nextStepSend, canvasTarget: askTarget, onClearCanvasTarget: clearAskTarget, roadmap }; // Fix B: the roadmap's lines render in Chat's transcript
+  const chatAskProps = { slash: learnSlash, voice, nextStepRef: nextStepSend, canvasTarget: askTarget, onClearCanvasTarget: clearAskTarget };
   const [titleDraft, setTitleDraft] = useState(null); // non-null only while the title is focused
   // Renaming a canvas from the top bar saves it on the server through the Rabbit Hole map's rename
   // (Dive.jsx), so the map, Home, Library and the placeholder follow; that rename calls saveTitle back.
@@ -2522,6 +2522,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         codebase={repository} repositoryExcerpt={repositoryExcerpt} repositoryContext={!repoAttached ? null : repositoryContext} onClearRepository={onClearRepository}
         boardContext={{ ...boardContext, onOutlineProposal: canEditCanvas ? proposal => { const result = canvasApi.current?.applyOutline(proposal.ops, { base: proposal.base, source: proposal.source }); if (!result?.ok) setProposal(proposal); } : undefined }} /></TocWorkspace>}
       </div>
+      {panelTab === 'chat' && <RoadmapChat roadmap={roadmap} />}
       <ChatPane key={app.name} hidden={panelTab !== 'chat'} chatAskProps={chatAskProps} unavailable={app.hosting === 'aws' && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : null}
         codebase={repository} onGraph={onGraph} repositoryExcerpt={repositoryExcerpt} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" boardContext={boardContext} placeholder={askPlaceholder}
         // Focus on open only beside the canvas (lg up): below lg the pane stacks under the canvas, and focusing it scrolled

@@ -180,12 +180,10 @@ for (const mode of ['Auto', 'Ask', 'Tutor']) {
     assert.equal(await field().inputValue(), DRAFT, 'the draft stays');
     if (mode === 'Tutor') {
       await field().fill('');
-      await page.waitForTimeout(1500);
-      // The welcome and "no active lesson" entry is retired (owner 2026-11-06: always hide); any Tutor card left stays above the composer.
-      assert.equal(await page.locator('[data-chat-pane] [data-tutor-entry]').count(), 0, 'no Tutor entry card');
+      await page.locator('[data-chat-pane] [data-tutor-entry]').first().waitFor({ timeout: 10000 });
       const above = await tutorAbove();
-      assert.ok(above.every(Boolean), `a Tutor card is above the composer: ${above}`);
-      assertPlaced(await pills(), 'Tutor, empty draft');
+      assert.ok(above.length > 0 && above.every(Boolean), `the Tutor entry card is above the composer: ${above}`);
+      assertPlaced(await pills(), 'Tutor entry');
       await shot('01-tutor-entry-selected-light');
       await field().fill(DRAFT);
     }

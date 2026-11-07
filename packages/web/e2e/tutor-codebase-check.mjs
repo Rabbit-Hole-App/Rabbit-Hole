@@ -143,10 +143,9 @@ await check('a project canvas in Tutor offers the five codebase goals; opening a
   await shot('codebase-01-menu');
 });
 
-await check('Learn something else closes the menu (the general welcome is retired, owner 2026-11-06); a typed unrelated question skips the menu and sends no code', async () => {
+await check('Learn something else returns the general welcome; a typed unrelated question skips the menu and sends no code', async () => {
   await menu().getByRole('button', { name: 'Learn something else' }).click();
-  await page.waitForTimeout(1500);
-  assert.equal(await page.locator('[data-tutor-entry]').count(), 0, 'no welcome entry: it is retired');
+  await page.locator('[data-tutor-entry]').waitFor({ timeout: 5000 });
   assert.equal(await menu().count(), 0);
   await page.reload(); await pane().waitFor({ state: 'visible', timeout: 60000 }); await field().waitFor({ timeout: 30000 });
   await menu().waitFor({ timeout: 15000 });

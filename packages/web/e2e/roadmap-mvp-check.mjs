@@ -61,7 +61,6 @@ try {
   let page = await open(main, server);
   await step('Explain on canvas creates the roadmap from the invitation; the plan shows outcome, assumptions and stopping point in the ToC', async () => {
     await page.locator('[data-roadmap-invitation]').getByRole('button', { name: 'Explain on canvas' }).click();
-    await page.locator('[data-roadmap-start]').click(); // owner D1: Depth is confirmed for this source, then Start planning sends create
     await until(async () => server.calls.some(c => c.method === 'POST' && (c.path === '' || c.path === '/')), 'create request');
     const create = server.calls.find(c => c.method === 'POST' && (c.path === '' || c.path === '/'));
     assert.ok(create.body.invitationId && create.body.source?.key && create.body.source.scope.kind === 'whole');
@@ -106,7 +105,7 @@ try {
     server.stage = 'delivered'; // step 1 delivered, step 2 proposed and pending
     await page.reload();
     await page.locator('[data-roadmap-overlay]').waitFor();
-    await page.locator('[data-roadmap-overlay] [data-roadmap-cancel]').click(); // the canvas proposal (Chat carries the same pill)
+    await page.locator('[data-roadmap-cancel]').click();
     await until(async () => server.count('/cancel') === 1, 'cancel sent once');
     await page.getByText('Proposal cancelled').first().waitFor();
     assert.equal(await page.locator('[data-roadmap-overlay]').count(), 0, 'no automatic re-proposal');
@@ -133,7 +132,7 @@ try {
     await page.locator('[data-roadmap-overlay]').waitFor();
     const before = server.count('/accept');
     server.stage = 'generating'; // the other device accepted
-    await page.locator('[data-roadmap-overlay] [data-roadmap-accept]').click(); // the canvas proposal (Chat carries the same pill)
+    await page.locator('[data-roadmap-accept]').click();
     await page.getByText('This roadmap changed. Showing the latest.').first().waitFor();
     assert.equal(server.count('/accept'), before, 'no accept applied');
     assert.equal(await page.locator('[data-roadmap-overlay]').count(), 0);

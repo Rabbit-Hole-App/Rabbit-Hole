@@ -13,7 +13,7 @@ const serverId = id => /^\d+$/.test(String(id ?? ''));
 export const cardIdFor = message => (message.messageId ?? message.id) == null ? undefined : `chat-${message.messageId ?? message.id}`;
 export const REASON_MAX = 280;
 // A finished answer: done, not an error line, not the demo's canned reply.
-export const footerShown = message => message?.role === 'assistant' && message.status === 'done' && !message.demo && !message.meta?.roadmap && !String(message.clientId || '').startsWith('roadmap-inv-') && !!message.content && !message.content.startsWith('✗'); // a roadmap line has no saved message to rate
+export const footerShown = message => message?.role === 'assistant' && message.status === 'done' && !message.demo && !!message.content && !message.content.startsWith('✗');
 // Clicking the active thumb clears it.
 export const nextRating = (current, clicked) => (current === clicked ? null : clicked);
 

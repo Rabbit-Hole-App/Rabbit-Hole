@@ -120,13 +120,11 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     report: ({ sourceKeys, idleKey }) => call(routes.invite(boardId, sourceKeys, idleKey)).then(body => dispatch({ type: 'invitation', invitation: body.invitation, suppressed: body.suppressed }), refuse),
   });
 
-  // Fix B (T5): the Depth and instruction the learner confirmed for THIS source in Chat (explain); a part chosen later (R7a) keeps them.
-  let chosen = {};
   function createWith(scope, suffix) {
     const iv = state.invitation;
     if (!iv) return Promise.resolve(null);
     const key = iv.sourceKeys[0];
-    return act(`create:${iv.id}${suffix}`, actionKey => routes.create(boardId, { invitationId: iv.id, source: { key, rev: host.sourceRev?.(key), scope }, instruction: chosen.instruction ?? host.instruction?.() ?? '', depth: chosen.depth || host.depth?.() || 'standard' }, actionKey)).then(applyView);
+    return act(`create:${iv.id}${suffix}`, actionKey => routes.create(boardId, { invitationId: iv.id, source: { key, rev: host.sourceRev?.(key), scope }, instruction: host.instruction?.() || '', depth: host.depth?.() || 'standard' }, actionKey)).then(applyView);
   }
 
   return {
@@ -145,7 +143,7 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
       if (state.view && unfinished()) call(routes.mode(state.view, mode)).then(applyView, () => {}); // idempotent by value; failure is harmless
     },
     // Invitation
-    explain: ({ depth, instruction } = {}) => { chosen = { depth, instruction }; return createWith({ kind: 'whole' }, ''); },
+    explain: () => createWith({ kind: 'whole' }, ''),
     // R7a: a part of a long source the server offered after the whole source did not fit. The server resolves it against its own outline.
     explainPart: choice => (choice && typeof choice.locationId === 'string' ? createWith({ kind: 'section', locationId: choice.locationId, part: choice.part || 1 }, `:${choice.locationId}:${choice.part || 1}`) : Promise.resolve(null)),
     dismiss() {

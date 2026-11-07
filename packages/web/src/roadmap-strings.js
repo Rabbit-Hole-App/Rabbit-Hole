@@ -2,7 +2,6 @@
 // owner approval list is this file. No ellipsis, no price, no model name. ponytail: S3, S11-S25 and S29 are NEW, pending approval.
 export const STRINGS = Object.freeze({
   explain: 'Explain on canvas', // S1 approved
-  chooseDepth: title => `Choose a depth for ${title}.`, startPlanning: 'Start planning', // Fix B, approved by the owner 2026-11-06
   keepHere: 'Just keep it here', // S2 approved
   invite: title => `I can explain "${title}" on the canvas, step by step.`, // S3 NEW
   accept: 'Accept', cancel: 'Cancel', tab: 'Tab', // S4 approved (Accept [Tab] | Cancel)

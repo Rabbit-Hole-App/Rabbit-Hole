@@ -23,8 +23,6 @@ export function turnIndex(msgs, i) {
 export function responseKind(message, turn = null) {
   const done = (kind, reason = null, command = null) => ({ kind, ordinary: kind === 'ordinary', command, reason });
   if (message?.meta?.proposal?.proposal_id || message?.meta?.proposalConflict) return done('artifact', 'proposal');
-  // Fix B: a roadmap line (derived from the server view, or the saved invitation that opened the Tutor thread) is the Tutor's status, not an answer.
-  if (message?.meta?.roadmap || String(message?.clientId ?? '').startsWith('roadmap-')) return done('artifact', 'roadmap');
   if (turn?.outputs?.length) return done('artifact', 'outputs');
   const { command } = sentCommand(turn?.role === 'user' ? turn : {});
   return command ? done('command', 'command', command) : done('ordinary');
