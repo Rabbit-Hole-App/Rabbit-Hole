@@ -4,6 +4,7 @@ import { ChatMessage } from './ChatMessages.jsx';
 import RoadmapPlan from './RoadmapPlan.jsx';
 import { PRIMARY, SECONDARY } from './RoadmapInvitation.jsx';
 import { Button } from './ui.jsx';
+import { useStepExcerpt } from './SourceRefChip.jsx';
 import { STRINGS } from './roadmap-strings.js';
 import { chatOf, invitationOf } from './roadmap-client.js';
 import { newThreadId, saveMessage, saveTutorEntry } from './chat-persist.js';
@@ -46,7 +47,10 @@ function targetOf(entry, { bound, threadId, route }) {
 }
 
 // One entry: the existing ChatMessage for its words (or its waiting row while generating), the draft containers, an activity spinner, actions.
-function EntryView({ entry, live, run, busy = false }) {
+function EntryView({ entry, live, run, app = null, busy = false }) {
+  // UI.04 / roadmap 3.8: the same exact passage the canvas slot shows (SourceRefChip useStepExcerpt); a step with no reference shows none, an unreadable
+  // one says so, and no quote is ever invented.
+  const found = useStepExcerpt(live ? entry.sourceRef : null, app);
   const draftIntro = entry.draft ? entry.content.split('\n\n')[0] : null;
   const m = entry.activity && entry.kind === 'draft'
     ? { role: 'assistant', content: '', status: entry.activity, clientId: entry.clientId, meta: { roadmap: entry.clientId } }
@@ -55,6 +59,8 @@ function EntryView({ entry, live, run, busy = false }) {
   return (
     <div data-roadmap-item={entry.clientId} data-roadmap-kind={entry.kind} data-roadmap-stale={live ? undefined : ''} {...(entry.kind === 'invitation' ? { 'data-roadmap-invitation': entry.tutor.invitationId } : {})}>
       <ChatMessage m={m} i={0} msgs={[m]} learnChat busy={false} setMsgs={() => {}} setFilePeek={() => {}} setRunPeek={() => {}} />
+      {found.state === 'ready' && found.text && <blockquote data-roadmap-excerpt className="mb-1.5 max-h-24 overflow-auto border-l-2 border-accent/40 pl-2 text-xs break-words text-ink-2">{found.text}</blockquote>}
+      {found.state === 'unavailable' && <p data-roadmap-excerpt-unavailable className="mb-1.5 text-xs text-ink-3">{STRINGS.excerptUnavailable}</p>}
       {entry.draft && <RoadmapPlan draft={entry.draft} disabled={!live || busy} onDepth={depth => run({ kind: 'depth', depth })} />}
       {live && entry.activity && entry.kind !== 'draft' && <span role="status" className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-ink-3" /><span className="shimmer">{entry.activity}</span></span>}
       {actions.length > 0 && (
@@ -108,7 +114,7 @@ export function TutorMessage({ m, roadmap, chat }) {
   const entries = useEntries(roadmap);
   const live = entries.find(e => e.clientId === m.clientId) || null;
   const entry = live || { clientId: m.clientId, kind: m.meta.tutor.kind, content: m.content, tutor: m.meta.tutor, actions: [] };
-  return <EntryView entry={entry} live={!!live} run={runner(roadmap, chat, () => {})} busy={roadmap.state.view?.revisionPending === true} />;
+  return <EntryView entry={entry} live={!!live} app={chat.canvas} run={runner(roadmap, chat, () => {})} busy={roadmap.state.view?.revisionPending === true} />;
 }
 
 export default function RoadmapTranscript({ roadmap, chat, msgs }) {
@@ -204,7 +210,7 @@ export default function RoadmapTranscript({ roadmap, chat, msgs }) {
         return <div key={line.id} data-roadmap-item={line.id}><ChatMessage m={m} i={0} msgs={[m]} learnChat busy={false} setMsgs={() => {}} setFilePeek={() => {}} setRunPeek={() => {}} />
           {line.kind === 'coverage' && <div className="flex flex-wrap gap-1.5 pb-1.5">{line.choices.map(choice => <button key={`${choice.locationId}:${choice.part}`} type="button" data-roadmap-choice={`${choice.locationId}:${choice.part}`} onClick={() => run({ kind: 'part', choice })} className={SECOND}>{choice.label}</button>)}</div>}</div>;
       })}
-      {shown.map(entry => <EntryView key={entry.clientId} entry={entry} live run={run} busy={roadmap.state.view?.revisionPending === true} />)}
+      {shown.map(entry => <EntryView key={entry.clientId} entry={entry} live app={chat.canvas} run={run} busy={roadmap.state.view?.revisionPending === true} />)}
     </div>
   );
 }

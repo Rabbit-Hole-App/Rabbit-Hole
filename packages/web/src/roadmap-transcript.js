@@ -133,7 +133,7 @@ export function entriesOf(state, { invitation = null, route = null, boundary = n
     if (['proposed', 'accepting', 'generating', 'checking', 'saving', 'ready'].includes(stage) && step.sourceRef) actions.push(act('go_text', STRINGS.goToText, { stepId: step.id }));
     push(stepClientId(step.id), 'step', RANK[stage] * 20 + Math.min(version, 19), [`**${title}**`, description, [format, status].filter(Boolean).join(' · ')].filter(Boolean).join('\n\n'),
       { roadmapId: rid, stepId: step.id, proposalId: isOffer ? offer.proposalId : null, proposalVersion: version, stage, ...(cardId ? { cardId } : {}) }, actions,
-      { activity: ['accepting', 'generating', 'checking', 'saving'].includes(stage) ? status : null });
+      { activity: ['accepting', 'generating', 'checking', 'saving'].includes(stage) ? status : null, sourceRef: (isOffer && view.proposal.sourceRelation?.sourceRef) || step.sourceRef || null }); // live only: the excerpt is read through the entitled reference at render, never stored in the message
     earlier = true;
   }
   if (rm.state === 'completed') push(doneClientId(rid), 'done', 1, STRINGS.completed, { roadmapId: rid, state: 'completed' });

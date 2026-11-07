@@ -162,7 +162,7 @@ const viteUrl = { name: 'vite-url', setup(build) {
   build.onLoad({ filter: /.*/, namespace: 'vite-url' }, () => ({ contents: 'export default ""' }));
 } };
 await esbuild.build({
-  stdin: { contents: "export { default as RoadmapTranscript, TutorMessage } from './RoadmapTranscript.jsx'; export { footerShown } from './AnswerFooter.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { default as RoadmapTranscript, TutorMessage } from './RoadmapTranscript.jsx'; export { stepExcerpt, forgetExcerpts } from './source-refs.js'; export { footerShown } from './AnswerFooter.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', plugins: [viteUrl], loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty' },
 });
 const lib = createRequire(import.meta.url)(outfile);
@@ -271,4 +271,27 @@ test('RoadmapTranscript opens a thread only for an invitation: the silent bindin
   const binding = source.slice(source.indexOf('ensureTutorThread(rm'), source.indexOf('}).catch(() => {}); // a failed save or bind'));
   assert.ok(binding.length > 0);
   assert.doesNotMatch(binding, /\.open\(|openChat/);
+});
+
+// UI.04 / roadmap 3.8: the Chat step entry shows the same exact passage as the canvas slot (useStepExcerpt), only when ready and non-empty;
+// an unreadable one says so; the excerpt is never part of the saved message.
+test('a step entry shows the slot\'s exact excerpt when ready, the honest line when unavailable, nothing when there is no reference or while loading', async () => {
+  const state = at('status-active-proposal-pending'), step = state.view.steps[0], id = step.sourceRef?.id;
+  assert.ok(id, 'the fixture step has a minted reference');
+  const entry = entriesOf(state).find(e => e.kind === 'step');
+  assert.equal(entry.sourceRef.id, id);
+  assert.ok(!entry.content.includes('EXACT'), 'the excerpt is not in the stored content');
+  assert.ok(!JSON.stringify(entry.tutor).includes('EXACT'), 'nor in the tutor record');
+  lib.forgetExcerpts();
+  assert.doesNotMatch(render(state), /data-roadmap-excerpt/, 'loading: nothing');
+  await lib.stepExcerpt(async () => ({ refs: [{ id, status: 'current', excerpt: 'EXACT quoted passage' }] }), chat.canvas, id);
+  const ready = render(state);
+  assert.match(ready, /<blockquote data-roadmap-excerpt[^>]*>EXACT quoted passage<\/blockquote>/);
+  lib.forgetExcerpts();
+  await lib.stepExcerpt(async () => ({ refs: [{ id, status: 'changed' }] }), chat.canvas, id);
+  assert.match(render(state), /data-roadmap-excerpt-unavailable[^>]*>The passage is not available right now\.</);
+  assert.doesNotMatch(render(state), /data-roadmap-excerpt[ >]/);
+  const noRef = at('status-active-proposal-pending', v => ({ ...v, steps: v.steps.map(s => ({ ...s, sourceRef: null })), proposal: { ...v.proposal, sourceRelation: { ...v.proposal.sourceRelation, sourceRef: null } } }));
+  assert.doesNotMatch(render(noRef), /data-roadmap-excerpt/, 'no reference: no excerpt, no unavailable line');
+  lib.forgetExcerpts();
 });
