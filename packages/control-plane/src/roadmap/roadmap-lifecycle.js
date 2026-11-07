@@ -118,6 +118,22 @@ export async function markResultRemoved(db, access, { roadmapId, resultId, expec
   });
 }
 
+// Restore (owner 2026-11-07): the learner put a removed card back from the table of contents. The client re-inserted the stored result body (the deliver
+// route is idempotent and hands the same block back; no model call, no charge) and saved the board; this returns delivery to delivered and clears the
+// step's removed mark. Nothing is billed or refunded: the result kept its charge when it was removed.
+export async function markResultRestored(db, access, { roadmapId, resultId, expectedRevision, actionKey, now = nowSeconds() }) {
+  const row = await readResult(db, access, resultId);
+  if (!row || row.roadmap_id !== roadmapId) throw new StateError('not_found', 'Not available', 404);
+  return applyRoadmapAction(db, access, {
+    operation: 'result_restored', actionKey, roadmapId, expectedRevision, parts: [resultId], now, outcome: { status: 200, body: { resultId, delivery: 'delivered' } },
+    guard: { sql: "(SELECT delivery FROM learn_step_results WHERE id = ?) = 'removed'", binds: [resultId] },
+    statements: r => [
+      db.prepare(`UPDATE learn_step_results SET delivery = 'delivered', updated_at = ? WHERE id = ? AND ${r.and}`).bind(now, resultId, ...r.binds),
+      db.prepare(`UPDATE learn_roadmap_steps SET card_removed = 0, removed_at = NULL, updated_at = ? WHERE id = ? AND ${r.and}`).bind(now, row.step_id, ...r.binds),
+    ],
+  });
+}
+
 // The mode fact (api.md 17). modeRevision counts distinct changes, so Ask -> Tutor -> Ask is three events. Same value: nothing is written.
 export async function setMode(db, access, { roadmapId, mode, actionKey, now = nowSeconds() }) {
   if (!['auto', 'ask', 'tutor'].includes(mode)) throw new StateError('invalid_request', 'mode', 400);

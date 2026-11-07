@@ -6,7 +6,7 @@
 // when the learner clicks one, never because a section is visible, open or discussed. Dragging a row moves its entry, its
 // sub-sections with it; clicking a title frames its linked canvas heading, if any.
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Check, ChevronRight, Ellipsis, GripVertical, Heading1, Heading2, Heading3, Link as AddLinkIcon, Link2, LocateFixed, MessageSquarePlus, Pencil, Plus, TextSelect, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, ChevronRight, Ellipsis, GripVertical, Heading1, Heading2, Heading3, Link as AddLinkIcon, Link2, LocateFixed, MessageSquarePlus, Pencil, Plus, TextSelect, Trash2, Undo2, X } from 'lucide-react';
 import { Button, Menu, MenuItem, toast } from './ui.jsx';
 import { cardLink } from './canvas-refs-model.js';
 import { moveTargets } from './toc-move.js';
@@ -183,6 +183,8 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
           const nav = entry.roadmap?.nav, goes = nav && (nav.kind === 'card' || nav.kind === 'proposal');
           const cardId = nav?.kind === 'card' ? nav.cardId : null;
           const deletesCard = entry.roadmap && cardId && !entry.roadmap.removed && !readOnly;
+          // Restore: a row that reads Card removed puts its card back from the stored result (roadmap.restoreCard; no model call, no charge).
+          const restores = !!entry.roadmap?.removed && !!entry.roadmap.resultId && !readOnly && !!roadmap?.restoreCard;
           const deletesHeading = !entry.roadmap && !readOnly;
           const linksCard = !entry.roadmap && !readOnly && !!onAddLink; // "Add a link": a card, by its title, linked to this section
           // Add to chat: the heading's block, or a roadmap row's delivered card (a planned step with no card has nothing to add).
@@ -192,13 +194,14 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
           const moves = !entry.roadmap && !readOnly ? moveTargets(own, entry.id) : { up: null, down: null };
           const linkId = entry.roadmap ? cardId : entry.id;
           const hasMenu = !!source || !!moves.up || !!moves.down || !!linkId;
-          if (!goes && !deletesCard && !deletesHeading && !addId && !hasMenu && !linksCard) return null;
+          if (!goes && !deletesCard && !deletesHeading && !addId && !hasMenu && !linksCard && !restores) return null;
           const open = confirming === entry.id, menuOpen = menuFor === entry.id;
           const icon = "flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-ink";
           return (
             <div data-no-drag data-toc-actions className="relative flex shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100" style={open || menuOpen ? { opacity: 1 } : undefined}>
               {addId && <button type="button" data-toc-add-to-chat aria-label={"Add " + entry.label + " to chat"} title="Add to chat (the contents conversation)" onClick={() => addRowToConversation(canvasApi, addId, onAddToChat, message => toast(message, { tone: 'error' }))} className={icon}><MessageSquarePlus size={14} /></button>}
               {linksCard && <button type="button" data-toc-add-link aria-label={"Add a link to " + entry.label} title="Add a link (a card)" onClick={() => onAddLink(entry.id)} className={icon}><AddLinkIcon size={14} /></button>}
+              {restores && <button type="button" data-toc-restore-card aria-label={"Restore card for " + entry.label} title="Restore card" onClick={async () => { if (!(await roadmap.restoreCard(entry.roadmap.resultId))) toast('The card could not be restored. Try again.', { tone: 'error' }); }} className={icon}><Undo2 size={14} /></button>}
               {goes && <button type="button" data-toc-go-card aria-label={"Go to card for " + entry.label} title="Go to card" onClick={() => roadmap?.go?.(nav)} className={icon}><LocateFixed size={14} /></button>}
               {deletesHeading && <button type="button" aria-label={"Edit " + entry.label} title="Edit title and description" onClick={() => setEditing(entry.id)} className={icon}><Pencil size={14} /></button>}
               {(deletesHeading || deletesCard) && <button type="button" data-toc-delete aria-label={(deletesCard ? "Delete card " : "Remove heading ") + entry.label} aria-haspopup="dialog" aria-expanded={open} title={deletesCard ? "Delete this card from the canvas" : "Remove from the contents"} onClick={() => setConfirming(open ? null : entry.id)}

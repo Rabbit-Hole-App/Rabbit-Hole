@@ -21,7 +21,7 @@ import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
 import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
-import { skeletonJobOf } from './explain-client.js';
+import { skeletonJobOf, skeletonThreadOf } from './explain-client.js';
 import { CAPTURE_MAX_BYTES, SketchCaptureError, captureProblem, captureResult, captureSize, fitZoom, pixelRatios, releasedTool, sketchDraftOf } from './sketch-host.js';
 import { gapsFrom, nearestGap, nudgeBy } from './learn-gap-rail.js';
 import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, reorderStep, headsOf, copyStyle, pasteStyle, strokePatch, strokeOf, TEXT_LEVELS, ARROW_KINDS } from './learn-style-panel.js';
@@ -2455,6 +2455,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         setSelection([id]);
         if (revealRef.current?.id === id) return;
         cameraRef.current = { id, smooth: true, moves: slotsRef.current.find(slot => slot.id === slotId)?.moves ?? manualMoves.current };
+      },
+      // A chat was deleted: the skeletons whose plan waited in it go with it, through the same path as deleting them by hand (LearnPage cancels each job, one undo step restores the cards but not the plans). Running or finished cards are never touched.
+      dropThreadSkeletons: threadId => {
+        if (!threadId || readOnlyRef.current) return 0;
+        const hit = blocksRef.current.filter(block => skeletonThreadOf(block) === threadId);
+        if (!hit.length) return 0;
+        const ids = new Set(hit.map(block => block.id));
+        snapshot();
+        onSkeletonsDropped?.(hit.map(block => ({ cardId: block.id, ...skeletonJobOf(block) })));
+        setBlocks(previous => previous.filter(block => !ids.has(block.id)));
+        setLinks(previous => previous.filter(link => !ids.has(link.from) && !ids.has(link.to)));
+        setSelection(previous => previous.filter(id => !ids.has(id)));
+        return hit.length;
       },
       removeBlock: async id => {
         const cad=blocksRef.current.find(block=>block.id===id && block.type==='cad' && block.jobId && !block.cadDetached);
