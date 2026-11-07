@@ -189,3 +189,66 @@ test('CORE.05: an allowance of exactly the quoted bound admits the card; one mic
     } else assert.equal(h.p.used.length, 1);
   }
 });
+
+// --- UI.03 / BE.03: Edit roadmap after acceptance is a draft of future work; delivered and in-flight work keep their frozen inputs -------------
+test('BE.03: with a delivered card and an accepted in-flight card, an edit makes a separate draft; a race refuses the stale draft; reacceptance keeps history', async t => {
+  const REVISED = planInput([['Gini', 0, AT.entropy], ['Entropy', AT.entropy, AT.notes], ['Why trees grow', AT.notes, AT.comparison - 1], ['Comparison', AT.comparison, MD.length]]);
+  REVISED.steps[2].passage.end = AT.half; REVISED.coverage.uncovered = [{ start: AT.half, end: AT.comparison, reason: 'repetition' }];
+  const h = await loop(t, { plans: [PLAN, REVISED, REVISED], script: [CARD_1, CARD_2], md: MD });
+  const { id, view } = await start(h);
+  const first = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${view.proposal.id}/accept`, acceptBody(view, KEY('accept1')));
+  const acked = await deliverAndAck(h, id, first.body, first.body.results[0], 1);
+  let proposed = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: acked.roadmap.revision, actionKey: KEY('propose2') });
+  for (let i = 0; i < 5 && proposed.status === 409 && proposed.body.code === 'stale_revision'; i++) proposed = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: proposed.body.currentRevision, actionKey: KEY(`propose2${i}`) });
+  const stepIds = proposed.body.steps.map(s => s.id);
+  // Edit while step 2 is only offered: the draft keeps the one delivered step.
+  const edit1 = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: proposed.body.roadmap.revision, actionKey: KEY('edit1'), instruction: 'Explain why trees grow instead of the notes.', settings: { depth: 'overview' } });
+  assert.equal(edit1.status, 202);
+  assert.deepEqual([edit1.body.planDraft.version, edit1.body.planDraft.acceptable, edit1.body.plan.version], [2, true, 1], 'a separate draft; the ToC stays on the accepted plan');
+  assert.equal(edit1.body.proposal.version, proposed.body.proposal.version, 'the offered card of the accepted plan is untouched');
+  // The learner accepts the offered step 2 first (the accepted plan is still authoritative): it is bought and made with ITS inputs.
+  const second = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${proposed.body.proposal.id}/accept`, acceptBody(edit1.body, KEY('accept2')));
+  assert.equal(second.status, 202);
+  const snap2 = JSON.parse(rows(h.w.sqlite, "SELECT payload_json FROM learn_roadmap_outbox WHERE kind = 'step_accepted' ORDER BY created_at DESC, rowid DESC")[0].payload_json).snapshot;
+  assert.deepEqual([snap2.planVersion, snap2.depth], [1, 'standard'], 'the in-flight card keeps the accepted plan and Depth');
+  assert.ok(!context(h.p.bodies[1]).includes('why trees grow'), 'the unaccepted edit never reaches the in-flight request');
+  // The draft no longer matches what happened: its acceptance is refused, nothing changes.
+  const race = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: second.body.roadmap.revision, actionKey: KEY('race'), planVersion: 2 });
+  assert.deepEqual([race.status, race.body.code], [409, 'stale_draft']);
+  // A fresh revision keeps both steps that happened; accepting it moves them (same ids, results, charges) and offers the next new step.
+  const charged = (await h.totals()).used;
+  const latest = await h.status();
+  const edit2 = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: latest.roadmap.revision, actionKey: KEY('edit2'), instruction: 'Explain why trees grow instead of the notes.', settings: { depth: 'overview' } });
+  assert.equal(edit2.body.planDraft.acceptable, true);
+  const re = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: edit2.body.roadmap.revision, actionKey: KEY('reaccept'), planVersion: edit2.body.planDraft.version });
+  assert.equal(re.status, 200, JSON.stringify(re.body).slice(0, 300));
+  assert.deepEqual(re.body.steps.slice(0, 2).map(s => s.id), stepIds.slice(0, 2), 'delivered and in-flight steps keep their identity');
+  assert.deepEqual(re.body.steps.map(s => s.title), ['Gini', 'Entropy', 'Why trees grow', 'Comparison']);
+  assert.deepEqual([re.body.roadmap.depth, re.body.roadmap.acceptedPlanVersion, re.body.planDraft], ['overview', edit2.body.planDraft.version, null]);
+  assert.equal(re.body.proposal, null, 'no second active offer while the in-flight card is unfinished');
+  assert.equal(re.body.results.length, 2, 'both results stay');
+  const result2 = re.body.results.find(r => r.id !== first.body.results[0].id);
+  const acked2 = await deliverAndAck(h, id, re.body, result2, 2);
+  let next = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: acked2.roadmap.revision, actionKey: KEY('propose3') });
+  for (let i = 0; i < 5 && next.status === 409 && next.body.code === 'stale_revision'; i++) next = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: next.body.currentRevision, actionKey: KEY(`propose3${i}`) });
+  assert.equal(next.body.proposal?.title, 'Why trees grow', 'the next eligible step comes from the new accepted plan');
+  assert.equal((await h.totals()).used, charged, 'no charge moved');
+  assert.equal(h.p.bodies.length, 2, 'no author call from editing or reaccepting');
+});
+
+test('contract 4: the view projects one lifecycle stage per step and result, with the accepted proposal words on the result', async t => {
+  const h = await loop(t, { plans: [PLAN], script: [CARD_1], md: MD });
+  const { id, view } = await start(h);
+  assert.deepEqual([view.proposal.stage, view.steps[0].stage, view.steps[1].stage], ['proposed', 'proposed', 'planned']);
+  h.w.sqlite.prepare("UPDATE learn_step_proposals SET title = 'Gini, edited', description = 'An edited description'").run(); // as an applied Edit card leaves it
+  h.deps.onAccepted = async () => true;
+  const accepted = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${view.proposal.id}/accept`, acceptBody(view, KEY('accept')));
+  assert.deepEqual([accepted.body.results[0].stage, accepted.body.steps[0].stage], ['generating', 'generating']);
+  assert.deepEqual([accepted.body.results[0].title, accepted.body.results[0].description, accepted.body.results[0].format], ['Gini, edited', 'An edited description', 'explanation']);
+  await runDueRoadmapEvents(h.env, {});
+  const generated = await h.status();
+  assert.deepEqual([generated.results[0].stage, generated.steps[0].stage], ['saving', 'saving'], 'generated and checked, waiting for the board save and acknowledgement');
+  const acked = await deliverAndAck(h, id, generated, generated.results[0], 1);
+  assert.deepEqual([acked.results[0].stage, acked.steps[0].stage], ['ready', 'ready']);
+  assert.ok(!JSON.stringify(acked).includes('Gini impurity is one minus'), 'polling still carries no source text');
+});

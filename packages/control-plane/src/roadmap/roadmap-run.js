@@ -134,6 +134,7 @@ async function generateOne(env, access, roadmap, result, ids, deps) {
 async function finish(env, access, roadmap, result, ids, out, { passage, original, rev }, deps, now, fail) {
   const db = env.LEARN_DB;
   const checkIds = { roadmapId: roadmap.id, version: ids.proposalVersion, anchor: result.card_id };
+  await db.prepare("UPDATE learn_step_results SET validation = 'checking', updated_at = ? WHERE id = ? AND generation = 'generating' AND validation = 'pending'").bind(now(), result.id).run(); // the view's `checking` stage
   const callModel = deps.checkCallModel || platformCallModel(env, access, { ...checkIds, quota: 'check', registry: deps.registry, transport: deps.transport, now });
   const classify = deps.classify || makeClassify({ ask: platformJevAsk(env, access, { ...checkIds, ask: deps.askJev || ((e, request) => askJev(e, request, { transport: 'direct' })), now }) });
   // Owner MVP policy (2026-11-06): an ordinary explanation is not held for a per-card citation check; safety, the source revision and the

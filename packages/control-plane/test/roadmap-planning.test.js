@@ -172,19 +172,36 @@ test('Accept plan mints one R3 reference per step; the delivered card carries it
   assert.equal(refused.body.code, 'source_changed');
 });
 
-test('revision limits: Depth alone applies at once to an accepted roadmap; an instruction edit on an accepted plan and a scope change are refused', async t => {
-  const h = await loop(t);
+// UI.03 (owner 2026-11-06, superseding the earlier set-Depth-at-once rule): Depth and typed edits are new draft revisions; accepted work keeps its Depth.
+test('UI.03: after acceptance a Depth change and a typed edit make new unaccepted drafts; the accepted Depth and ToC stay; refused inputs', async t => {
+  const h = await loop(t, { plans: [FULL, FULL, FULL] });
   const made = await create(h);
   const id = made.body.roadmapId;
   const plan = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: made.body.roadmap.revision, actionKey: KEY('plan'), planVersion: 1 });
   let view = plan.body;
+  assert.equal(view.planDraft, null, 'no draft once the plan is accepted');
   const depth = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('depth'), settings: { depth: 'overview' } });
-  assert.equal(depth.status, 200);
-  assert.deepEqual([depth.body.roadmap.depth, depth.body.roadmap.ceiling], ['overview', 5]);
+  assert.equal(depth.status, 202);
+  assert.deepEqual([depth.body.roadmap.depth, depth.body.roadmap.ceiling], ['standard', 10], 'the accepted roadmap keeps its Depth until a draft is accepted');
+  assert.deepEqual([depth.body.planDraft.version, depth.body.planDraft.settings.depth, depth.body.planDraft.acceptable], [2, 'overview', true]);
+  assert.deepEqual([depth.body.plan.version, depth.body.acceptedPlan.version], [1, 1], 'the ToC still shows the accepted plan');
+  assert.equal(depth.body.proposal.state, 'pending', 'the accepted plan\'s offer is untouched');
   view = depth.body;
   const edit = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('edit'), instruction: 'Skip the learning rate.' });
-  assert.equal(edit.status, 409);
-  assert.equal(edit.body.code, 'invalid_transition');
+  assert.equal(edit.status, 202);
+  assert.equal(edit.body.planDraft.version, 3);
+  assert.equal(rows(h.w.sqlite, 'SELECT text FROM learn_roadmap_instructions WHERE version = 3')[0].text, 'Skip the learning rate.', 'the typed words are kept verbatim');
+  const stale = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: edit.body.roadmap.revision, actionKey: KEY('stale'), planVersion: 2 });
+  assert.equal(stale.status, 409, 'a superseded draft cannot be accepted');
+  view = edit.body;
+  for (const settings of [{ practiceMode: 'explanations_practice' }, { practiceMode: 'practice' }]) {
+    const refused = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY(`pr${settings.practiceMode.length}`), instruction: 'x', settings });
+    assert.deepEqual([refused.status, refused.body.code], [422, 'practice_unavailable']);
+  }
+  const h2 = await loop(t);
+  const practice = await create(h2, { practiceMode: 'explanations_practice' });
+  assert.deepEqual([practice.status, practice.body.code], [422, 'practice_unavailable'], 'never silently made explanations-only');
+  assert.equal(rows(h2.w.sqlite, 'SELECT COUNT(*) AS n FROM learn_roadmaps')[0].n, 0);
   assert.equal((await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('scope'), scope: { kind: 'whole' } })).status, 400);
   assert.equal((await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('bad'), settings: { depth: 'enormous' } })).status, 400);
   assert.equal((await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('none') })).status, 400);
