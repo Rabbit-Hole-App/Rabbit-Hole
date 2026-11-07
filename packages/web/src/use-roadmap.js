@@ -4,7 +4,7 @@
 //   sourceElement(sourceKey) -> the source card's DOM element or null, sourceRev(key), instruction(), depth().
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createRoadmapController } from './roadmap-controller.js';
-import { anchorState, overlayPosition } from './roadmap-placement.js';
+import { anchorState, overlayPosition, overlayShown } from './roadmap-placement.js';
 import { chatOf, claimsFocus, indicatorOf, invitationOf, keyboardOwned, pillOf, tabAccepts, tocOf } from './roadmap-client.js';
 import { pageKeyAllowed } from './shortcut-owner.js';
 import { opensEditor } from './inline-ai-proposal.js';
@@ -74,7 +74,7 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto', 
     document.addEventListener('focusin', moved);
     return () => document.removeEventListener('focusin', moved);
   }, []);
-  const showOverlay = !!pill && where.visible;
+  const showOverlay = overlayShown({ pill, visible: where.visible, editing: state.editing });
   useEffect(() => {
     if (!handoff.current || !pill) return;
     handoff.current = false;

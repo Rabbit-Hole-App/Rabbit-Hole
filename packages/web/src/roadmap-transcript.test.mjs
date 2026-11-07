@@ -145,3 +145,10 @@ test('the proposal message shows the existing Edit (ProposalTools) only when vie
   assert.doesNotMatch(markup, /data-roadmap-editor/, 'the editor itself opens in the proposal overlay, never here');
   assert.doesNotMatch(render(reduce(initialState(), { type: 'view', view: { ...plain.view, edit: true, proposal: { ...plain.view.proposal, link: { cardId: 'c' } } } })), /data-roadmap-edit/, 'a linked card has nothing to edit');
 });
+
+test('the reused Edit button has the pill radius (4px, rounded), 28px high', () => {
+  const plain = at('status-active-proposal-pending');
+  const markup = render(reduce(initialState(), { type: 'view', view: { ...plain.view, edit: true } }));
+  assert.match(markup, /data-roadmap-edit="true" class="h-7 rounded border/);
+  assert.doesNotMatch(markup.slice(markup.indexOf('data-roadmap-edit')), /^[^>]*rounded-none/);
+});
