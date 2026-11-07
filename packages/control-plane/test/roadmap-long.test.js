@@ -86,7 +86,7 @@ test('the whole flow: a late section of a long document is planned from the outl
   assert.deepEqual(rows(h.w.sqlite, "SELECT stage, call_no AS call, payer, checkpoint FROM learn_roadmap_calls WHERE stage = 'draft' ORDER BY call_no").map(r => [r.stage, r.call, r.payer, r.checkpoint]), [['draft', 0, 'platform', 'settled'], ['draft', 1, 'platform', 'settled']]);
   assert.equal(rows(h.w.sqlite, "SELECT calls FROM learn_roadmap_quota WHERE scope = 'plan.hour'")[0].calls, 2);
   assert.equal((await h.totals()).used, 0, 'planning is never charged to the learner');
-  assert.equal(rows(h.w.sqlite, 'SELECT prompt_version FROM learn_roadmap_plan_versions')[0].prompt_version, 'roadmap-plan-2+long-1');
+  assert.equal(rows(h.w.sqlite, 'SELECT prompt_version FROM learn_roadmap_plan_versions')[0].prompt_version, 'roadmap-plan-3+long-1');
   assert.ok(widest.n <= 100, `widest statement binds ${widest.n} parameters`);
 
   // Accept: R3 passage references are minted from the exact late passage.
