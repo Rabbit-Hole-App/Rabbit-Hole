@@ -16,7 +16,7 @@ import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
 import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
-import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock } from './LearningBlocks.jsx';
+import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
 import { CAPTURE_MAX_BYTES, SketchCaptureError, captureProblem, captureResult, captureSize, fitZoom, pixelRatios, releasedTool, sketchDraftOf } from './sketch-host.js';
 import { gapsFrom, nearestGap, nudgeBy } from './learn-gap-rail.js';
@@ -306,7 +306,9 @@ const CanvasEdit = createContext({ locked: new Set(), altDrag: null });
 // Shared node chrome for everything card-shaped on the canvas: drag with
 // lift, corner resize, selection ring, top/bottom connection ports, and the
 // layout observer that keeps connector geometry fresh. Content is children.
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, saved = null, cardLayout = null, fitContent = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, children }) {
+// A frame height grown by `grow` (an Explanation's opened sections below its fixed core, CORE.09); no height stays none.
+const grown = (height, grow) => (height == null ? height : height + grow);
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, grow = 0, saved = null, cardLayout = null, fitContent = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, children }) {
   const [lifted, setLifted] = useState(false);
   // A card with a Rabbit Hole under it (docs/features/dive-v1.md): derived from the dive link, never stored on the card.
   const dive = useContext(DivePortals), portal = dive?.portals?.[id];
@@ -378,7 +380,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
     const element = card.current;
     // The drag sizes the body: rows under it (Sources, the Prompt row, references) are added on top, during the drag and after
     // it is saved, so releasing never grows the card by them. A card layout's saved height is its whole frame.
-    const extra = cardLayout ? 0 : extraHeight + refsHeight;
+    const extra = cardLayout ? 0 : extraHeight + refsHeight + grow;
     let last = null;
     const apply = (w, h) => { last = clampBox(w, h, fit ? naturalHeight(element, extra) : undefined); setSize(last); setCornerDrag(last); };
     apply.done = () => {
@@ -406,7 +408,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         if (!opensFrom(event.target) || (selectedAtPress.current && event.target.closest('[data-pointer-body]'))) return;
         opener.open(id, 'learner_dblclick');
       } : undefined}
-      style={{ transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(cardLayout?.slot ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, ...fitFrame(full ? undefined : (cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight, fit) }}
+      style={{ transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(cardLayout?.slot ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, ...fitFrame(full ? undefined : grown((cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), grow), full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight + grow, fit) }}
       className={`group relative ${selected ? 'z-[5]' : ''} ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 outline-none ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-select' : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* The selected card's controls above it are ONE row (owner finding 2026-10-23: Open at the left edge and the CAD controls with
           Add to chat / Quick Edit from the right edge were anchored apart and met when the card was narrow). Open leads, `tools`
@@ -899,6 +901,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   // measured heights (wrapped rows included).
   const [sourcesHeight, setSourcesHeight] = useState(0);
   const [sourceRefHeight, setSourceRefHeight] = useState(0);
+  const [expandHeight, setExpandHeight] = useState(0); // an Explanation's opened sections under its rail: the frame grows down by them (CORE.09)
   // The stored prompt's Prompt control sits in the card's own top-right pill when its body draws one (Kicker claims the slot), else in the card's top strip.
   const [slotted, setSlotted] = useState(false);
   const promptSlot = useMemo(() => block.promptUsed ? { text: block.promptUsed, selected, claim: setSlotted } : null, [block.promptUsed, selected]);
@@ -938,7 +941,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
       autoMax={BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
       width={sized?.width ?? BLOCK_TYPES[block.type]?.width}
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
-      extraHeight={sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }}
+      extraHeight={sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} grow={expandHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
       tools={selected ? <>
         {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
@@ -946,10 +949,10 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
         <SelectionActionsHost id={block.id} divider={cadTools || ['code', 'snippet'].includes(block.type)} />
       </> : null}>
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}><PromptSlot.Provider value={promptSlot}>
-        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} onProgramFrame={setProgramFrame} />
+        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} onProgramFrame={setProgramFrame} onExpandHeight={setExpandHeight} />
       </PromptSlot.Provider></PerfContext.Provider>
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
-      {block.sourceRef && <SourceRefChip block={block} app={appName} onHeight={setSourceRefHeight} />}
+      {block.sourceRef && !headerSource(block) && <SourceRefChip block={block} app={appName} onHeight={setSourceRefHeight} />}
       {block.promptUsed && !slotted && <CardPrompt text={block.promptUsed} selected={selected} />}
       {!cadPermissions.readOnly && !cadPermissions.localCopy && <CardFeedback block={block} />}
     </CanvasNode>

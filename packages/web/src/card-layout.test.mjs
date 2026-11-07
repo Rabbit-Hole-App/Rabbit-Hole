@@ -134,3 +134,13 @@ test('toggling Full on a quiz, flashcards or walkthrough keeps answers, ratings 
   assert.deepEqual(back.cardLayout.slot,{w:420,h:300},'the canvas footprint never changes');
  }
 });
+
+// CORE.09: an Explanation's opened sections grow the frame below its fixed core (CanvasNode grow, added to the height and the auto-height ceiling), and its
+// source row lives in the header, so the footer row is not drawn a second time.
+test('an opened Explanation section grows the frame, never squeezes the core; the source row counts once',()=>{
+ const canvas=readFileSync(new URL('./AdaptiveCanvas.jsx',import.meta.url),'utf8');
+ assert.match(canvas,/autoMax \+ refsHeight \+ grow, fit\)/,'the ceiling grows by the opened height');
+ assert.match(canvas,/extraHeight \+ refsHeight \+ grow;/,'a corner drag leaves the opened height out of the body');
+ assert.match(canvas,/block\.sourceRef && !headerSource\(block\) && <SourceRefChip/);
+ assert.deepEqual(fitFrame(undefined,520+120,true),{height:undefined,maxHeight:640});
+});
