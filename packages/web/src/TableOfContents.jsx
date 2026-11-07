@@ -5,10 +5,10 @@
 // each title and a thin guide line through the topic markers. The round controls are checkboxes: completion changes only
 // when the learner clicks one, never because a section is visible, open or discussed. Dragging a row moves its entry, its
 // sub-sections with it; clicking a title frames its linked canvas heading, if any.
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronRight, GripVertical, Heading1, Heading2, Heading3, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button, toast } from './ui.jsx';
-import { DESCRIPTION_MAX, outlineTree, proposalProblem } from './learn-outline-model.js';
+import { DESCRIPTION_MAX, outlineTree, proposalProblem, withRoadmap } from './learn-outline-model.js';
 import { keyLabel } from './shortcuts.js';
 
 const SECTION_LEVELS = [[1, 'Section', Heading1], [2, 'Sub-section', Heading2], [3, 'Sub-sub-section', Heading3]];
@@ -22,9 +22,17 @@ const LEVEL_NAMES = { 1: 'section', 2: 'sub-section', 3: 'sub-sub-section' };
 // subtitle: the project or repository the contents belong to; goal: the learner's accepted learning goal (LearnPage: the
 // structured goal record, never a planning message; draft Task 11, acceptance 52), clamped to two lines, or null for none.
 // Both under the heading (owner brief 2026-10-16 item 7).
-// top: the explain-on-canvas roadmap (RoadmapToc), drawn under the heading inside this same scroll, so the whole Contents is one scroll
-// (owner 2026-11-06: "the TOC is the roadmap. you just had to make it scroll").
-export default function TableOfContents({ outline, canvasApi, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '', subtitle = null, goal = null, top = null }) {
+// roadmap: useRoadmap (UI.02): its accepted steps are rows of this same tree (withRoadmap), in this one scroller, with their description and
+// status line; a title navigates to the step's slot or card (roadmap.go), never generates. No roadmap list, parameters, actions or composer here.
+// top: legacy slot, still drawn under the heading.
+const doneKey = id => `rh.toc.roadmap-done.${id}`;
+export default function TableOfContents({ outline: own, canvasApi, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '', subtitle = null, goal = null, top = null, roadmap = null }) {
+  // A roadmap row's manual done mark is the learner's own, kept per roadmap in this browser; it never means delivered, paid or understood.
+  const rid = roadmap?.toc?.roadmapId ?? null;
+  const [roadmapDone, setRoadmapDone] = useState(() => new Set());
+  useEffect(() => { try { setRoadmapDone(new Set(rid ? JSON.parse(localStorage.getItem(doneKey(rid)) || '[]') : [])); } catch { setRoadmapDone(new Set()); } }, [rid]);
+  const toggleRoadmapDone = stepId => setRoadmapDone(previous => { const next = new Set(previous); if (next.has(stepId)) next.delete(stepId); else next.add(stepId); try { localStorage.setItem(doneKey(rid), JSON.stringify([...next])); } catch { /* private mode */ } return next; });
+  const outline = withRoadmap(own, roadmap?.toc, roadmapDone);
   // Which level is being added, the section being edited, the section being dragged, and the heading it lands before
   // (null: the end).
   const [adding, setAdding] = useState(null);
@@ -52,7 +60,7 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
     const active = entry.id === activeId;
     return (
       <div data-toc-entry={entry.id} data-level={entry.level} data-done={entry.done || undefined} data-active={active || undefined}
-        draggable={!readOnly && editing !== entry.id}
+        data-roadmap-step={entry.roadmap?.stepId} draggable={!readOnly && !entry.roadmap && editing !== entry.id}
         onPointerDownCapture={event => { pressed.current = event.target; }}
         onDragStart={event => {
           // The circle, the edit and delete buttons and the text being edited never start a drag.
@@ -60,7 +68,7 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
           event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', entry.id); setDrag(entry.id);
         }}
         onDragOver={event => {
-          if (!drag) return;
+          if (!drag || entry.roadmap) return;
           event.preventDefault();
           event.stopPropagation();
           const box = event.currentTarget.getBoundingClientRect();
@@ -68,20 +76,21 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
         }}
         onDrop={event => { event.preventDefault(); event.stopPropagation(); if (drag && drop !== undefined) canvasApi.current?.moveSection(drag, drop); endDrag(); }}
         className={`group relative flex items-start gap-3 rounded-sm ${drag === entry.id ? 'opacity-40' : ''} ${drag && drop === entry.id ? 'shadow-[0_-2px_0_0_var(--color-accent)]' : ''} ${drag && drop === null && index === outline.length - 1 ? 'shadow-[0_2px_0_0_var(--color-accent)]' : ''}`}>
-        {!readOnly && <GripVertical size={14} aria-hidden className={`absolute -left-4 ${topic ? 'top-[5px]' : 'top-[3px]'} cursor-grab text-ink-3 opacity-0 group-hover:opacity-100`} />}
-        <Circle entry={entry} topic={topic} active={active} readOnly={readOnly} onToggle={() => canvasApi.current?.toggleSectionDone(entry.id)} />
+        {!readOnly && !entry.roadmap && <GripVertical size={14} aria-hidden className={`absolute -left-4 ${topic ? 'top-[5px]' : 'top-[3px]'} cursor-grab text-ink-3 opacity-0 group-hover:opacity-100`} />}
+        <Circle entry={entry} topic={topic} active={active} readOnly={readOnly} onToggle={() => (entry.roadmap ? toggleRoadmapDone(entry.roadmap.stepId) : canvasApi.current?.toggleSectionDone(entry.id))} />
         {number && <span data-toc-number className={`${topic ? 'min-w-[18px] pt-[3px] text-xs' : `${entry.level === 3 ? 'min-w-12' : 'min-w-9'} pt-px text-[13px]`} -mr-1 shrink-0 leading-5 text-ink-2 tabular-nums`}>{number}</span>}
         {editing === entry.id ? <Editor entry={entry} topic={topic} onSave={(title, description) => save(entry, title, description)} onCancel={() => setEditing(null)} /> : (
           <div className="min-w-0 flex-1">
-            <button type="button" title={readOnly ? undefined : 'Double-click to edit'} aria-current={active ? 'location' : undefined}
-              onClick={() => onShow?.(entry.id)} onDoubleClick={readOnly ? undefined : () => setEditing(entry.id)}
+            <button type="button" title={readOnly || entry.roadmap ? undefined : 'Double-click to edit'} aria-current={active ? 'location' : undefined}
+              onClick={() => (entry.roadmap ? entry.roadmap.nav && roadmap?.go?.(entry.roadmap.nav) : onShow?.(entry.id))} onDoubleClick={readOnly || entry.roadmap ? undefined : () => setEditing(entry.id)}
               className={`rounded-sm text-left break-words hover:text-accent ${topic || entry.level === 1 ? 'text-base leading-6 font-semibold' : 'text-sm leading-5 font-medium'} ${active ? 'text-accent' : 'text-ink'}`}>
               {entry.label}
             </button>
             {entry.description && <p className={`mt-1 break-words text-ink-2 ${entry.level === 1 ? 'text-sm leading-normal' : 'text-[13px] leading-normal'}`}>{entry.description}</p>}
+            {entry.roadmap && <div data-roadmap-status className="mt-[5px] text-[11px] leading-4 text-ink-2">{entry.roadmap.status}{entry.roadmap.removed ? ` · ${'Card removed'}` : ''}</div>}
           </div>
         )}
-        {!readOnly && editing !== entry.id && (
+        {!readOnly && !entry.roadmap && editing !== entry.id && (
           <div data-no-drag className="flex shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100">
             <button type="button" aria-label={`Edit ${entry.label}`} title="Edit title and description" onClick={() => setEditing(entry.id)}
               className="flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-ink"><Pencil size={14} /></button>

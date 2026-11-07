@@ -3,7 +3,7 @@
 // server for the authorized cards, insert each by its server-minted id once, save the board, then acknowledge. Nothing here
 // mints an id, predicts a result or touches a price.
 import { STRINGS } from './roadmap-strings.js';
-import { actionKeys, canProposeNext, deliverable, idleGrouper, initialState, pillOf, planDelivery, reduce, routes } from './roadmap-client.js';
+import { actionKeys, canProposeNext, deliverable, initialState, offerOf, planDelivery, reduce, routes } from './roadmap-client.js';
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
 import { FOLLOW_UP_MS, createAutoMeter } from './roadmap-auto.js';
 
@@ -115,10 +115,20 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
   }
 
   const unfinished = () => !!state.view && isUnfinishedRoadmap(state.view.roadmap.state);
-  const grouper = idleGrouper({
-    isIdle: () => !host.busy?.(),
-    report: ({ sourceKeys, idleKey }) => call(routes.invite(boardId, sourceKeys, idleKey)).then(body => dispatch({ type: 'invitation', invitation: body.invitation, suppressed: body.suppressed }), refuse),
-  });
+  // UI.01: an explicit drop is reported at once, one source per report (never a silent multi-source invitation), under a 'drop-' key: the
+  // server acknowledges it in every mode (roadmap-invitations.js). No typing or idle deferral. An unfinished roadmap answers suppressed, and
+  // the Chat explains the one-roadmap boundary for that source (state.boundary). The same source's ready events coalesce into one report.
+  const reported = new Set();
+  const report = key => {
+    if (stopped || host.readOnly?.() || reported.has(key)) return Promise.resolve(null);
+    reported.add(key);
+    const idleKey = `drop-${key}`.replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 120);
+    return call(routes.invite(boardId, [key], idleKey)).then(body => {
+      dispatch({ type: 'invitation', invitation: body.invitation, suppressed: body.suppressed });
+      if (body.suppressed?.reason === 'unfinished_roadmap') dispatch({ type: 'boundary', boundary: { key, name: host.sourceName?.(key) || '' } });
+      return body;
+    }, error => { reported.delete(key); refuse(error); return null; });
+  };
 
   // Fix B (T5): the Depth and instruction the learner confirmed for THIS source in Chat (explain); a part chosen later (R7a) keeps them.
   let chosen = {};
@@ -138,7 +148,7 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     timings: () => meter.summary(), timingSamples: () => meter.samples(),
     refresh,
     // A supported source finished importing: reported, grouped, once the learner is idle.
-    sourceReady: key => grouper.ready(key), idleTick: () => grouper.tick(),
+    sourceReady: key => report(key), idleTick: () => false,
     setMode(mode) {
       if (mode === state.mode) return;
       dispatch({ type: 'mode', mode });
@@ -155,16 +165,17 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     },
     // Plan
     acceptPlan: () => mutateView(`plan:${state.view?.roadmap.id}:${state.view?.plan?.version}`, key => routes.acceptPlan(state.view, key)),
+    // UI.03: a Depth change or the typed Edit roadmap request is a new draft revision (contracts.md revise; 422 practice_unavailable).
     revise: fields => mutateView(`revise:${state.view?.roadmap.id}:${state.view?.roadmap.revision}`, key => routes.revise(state.view, fields, key)),
     answer: fields => mutateView(`answer:${state.view?.question?.id}`, key => routes.answer(state.view, { questionId: state.view.question.id, ...fields }, key)),
     // Proposal: the same call from the Accept button and from Tab; a second press joins the first (same gesture).
     acceptProposal() {
-      const pill = pillOf(state);
+      const pill = offerOf(state); // explicit in every mode (Chat, canvas, Tab): the same gesture, so one request
       if (!pill?.accept) return Promise.resolve(null);
       return mutateView(pill.gesture, key => routes.acceptProposal(state.view, key));
     },
     cancelProposal() {
-      const pill = pillOf(state);
+      const pill = offerOf(state);
       if (!pill) return Promise.resolve(null);
       return mutateView(pill.cancelGesture, key => routes.cancelProposal(state.view, key));
     },
@@ -177,7 +188,7 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     openEditor() { dispatch({ type: 'edit_open' }); },
     closeEditor() { const draft = state.draft; dispatch({ type: 'edit_close' }); if (draft && state.view && !stopped) call(routes.discardDraft(state.view, draft)).catch(() => {}); }, // best effort: the Apply guard is the correctness boundary
     previewEdit(instruction) {
-      const pill = pillOf(state), text = String(instruction || '').trim();
+      const pill = offerOf(state), text = String(instruction || '').trim();
       if (!pill || !text || !state.editing) return Promise.resolve(null);
       return act(`draft:${pill.proposalId}:${pill.version}:${text}`, key => routes.draft(state.view, text, key)).then(body => { if (!body) return null; applyView(body); if (body.draft) dispatch({ type: 'draft', draft: body.draft }); return body; });
     },

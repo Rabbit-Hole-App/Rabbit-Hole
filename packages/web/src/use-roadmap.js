@@ -10,7 +10,7 @@ import { pageKeyAllowed } from './shortcut-owner.js';
 import { opensEditor } from './inline-ai-proposal.js';
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
 
-const METHODS = ['hasBlock', 'insertCard', 'persist', 'boardRevision', 'savedHas', 'readOnly', 'sourceRev', 'instruction', 'depth'];
+const METHODS = ['hasBlock', 'insertCard', 'persist', 'boardRevision', 'savedHas', 'settled', 'readOnly', 'sourceRev', 'sourceName', 'instruction', 'depth'];
 const rectOf = element => { const r = element?.getBoundingClientRect?.(); return r ? { left: r.left, top: r.top, width: r.width, height: r.height } : null; };
 const same = (a, b) => (!a && !b) || (a && b && a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height);
 
@@ -24,7 +24,7 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto', 
   }, [api, boardId]);
   const state = useSyncExternalStore(controller.subscribe, controller.getState, controller.getState);
 
-  useEffect(() => { if (!enabled || !boardId) return undefined; controller.start(); const tick = setInterval(() => controller.idleTick(), 1500); return () => { clearInterval(tick); controller.stop(); }; }, [controller, enabled, boardId]);
+  useEffect(() => { if (!enabled || !boardId) return undefined; controller.start(); return () => controller.stop(); }, [controller, enabled, boardId]);
   useEffect(() => { controller.setMode(mode); }, [controller, mode]);
 
   const pill = pillOf(state);
@@ -83,20 +83,20 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto', 
     if (showOverlay && claimsFocus(document.activeElement, { typing: busyRef.current })) take(2);
   }, [pill?.proposalId, pill?.version, showOverlay]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Edit plan routes into the ToC conversation: the next message the learner sends there is the plan revision (divert).
-  const editing = useRef(false);
-  const editPlan = useCallback(() => {
-    editing.current = true;
-    document.querySelector('[data-toc-start] button')?.click();
-    requestAnimationFrame(() => document.querySelector('[data-toc-composer] textarea, [data-toc-composer] input:not([type="file"])')?.focus());
-  }, []);
-  const divert = useCallback(text => { if (!editing.current || !text?.trim()) return false; editing.current = false; controller.revise({ instruction: text.trim() }); return true; }, [controller]);
-  const go = useCallback(nav => { if (nav.kind === 'card') hostRef.current?.focusBlock?.(nav.cardId); else if (nav.kind === 'proposal') hostRef.current?.focusBlock?.(hostRef.current.sourceBlockId?.(live.current.pill?.sourceKey)); }, []);
+  // Edit roadmap is a targeted pill in the real Chat composer (RoadmapTranscript.jsx, chat-workspace.jsx editing); the typed change goes to
+  // the roadmap revision as its instruction (ask.jsx send -> controller.revise). Navigation only: never accepts, generates or charges.
+  // source: the roadmap's source card (Go to highlighted text frames it; the verified passage scroll is UI.07's).
+  const go = useCallback(nav => {
+    const h = hostRef.current, view = controller.getState().view;
+    if (nav.kind === 'card') h?.focusBlock?.(nav.cardId);
+    else if (nav.kind === 'proposal') h?.focusBlock?.(h.sourceBlockId?.(live.current.pill?.sourceKey || view?.roadmap?.scope?.source?.key));
+    else if (nav.kind === 'source') h?.focusBlock?.(h.sourceBlockId?.(view?.roadmap?.scope?.source?.key));
+  }, [controller]);
 
   return {
-    state, controller, pill, active: !!state.view && state.flag !== 'off' && isUnfinishedRoadmap(state.view.roadmap.state), toc: tocOf(state), lines: chatOf(state), invitation: invitationOf(state, { typing, answering }),
+    state, controller, pill, active: !!state.view && state.flag !== 'off' && isUnfinishedRoadmap(state.view.roadmap.state), toc: tocOf(state), lines: chatOf(state), invitation: invitationOf(state),
     indicator: indicatorOf(state, { offscreen: where.offscreen }), position: overlayPosition(geometry.anchor, surface), surface, showOverlay,
-    acceptPlan, editPlan, divert, go, sourceReady: key => controller.sourceReady(key),
+    acceptPlan, go, sourceReady: key => controller.sourceReady(key),
     on: enabled && !!boardId && state.flag !== 'off', // the roadmap runs on this canvas: its lines render in Chat's transcript (RoadmapTranscript.jsx)
   };
 }

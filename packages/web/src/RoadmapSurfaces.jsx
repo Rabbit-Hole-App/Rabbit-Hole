@@ -1,5 +1,4 @@
 import RoadmapInvitation from './RoadmapInvitation.jsx';
-import RoadmapPlan from './RoadmapPlan.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { NextStepIndicator, ProposalOverlay } from './NextStepPill.jsx';
 import { toast } from './ui.jsx';
@@ -15,12 +14,9 @@ export function RoadmapChat({ roadmap }) {
   return <RoadmapInvitation invitation={roadmap.invitation} lines={roadmap.lines} onExplain={() => c.explain()} onKeep={() => c.dismiss()}
     onAnswer={fields => c.answer(fields)} onOffer={() => roadmap.editPlan()} onChoose={choice => c.explainPart(choice)} />;
 }
-export function RoadmapToc({ roadmap }) {
-  const c = roadmap.controller;
-  if (!roadmap.toc) return null;
-  // Drawn inside the Table of contents' own scroll (TableOfContents `top`): the ToC is the roadmap, one scroll for all of it (owner, 2026-11-06).
-  return <RoadmapPlan toc={roadmap.toc} onAcceptPlan={() => roadmap.acceptPlan()} onEdit={roadmap.editPlan} onProposeNext={() => c.proposeNext()} onEnd={() => c.end()} onGo={roadmap.go} />;
-}
+// UI.02: the ToC draws the accepted roadmap as rows of its own tree (TableOfContents roadmap prop); no Tutor panel above it in any flag or state.
+// ponytail: kept as a null component until LearnPage stops passing it as `top` (chat-LearnPage patch), then delete it.
+export function RoadmapToc() { return null; }
 // hosted: the canvas really draws this proposal as its slot (AdaptiveCanvas SlotCard beside its source; the page learns it from the canvas), so the fixed overlay is
 // not drawn: never both. A proposal the canvas cannot draw (a link, a source not measured yet, the editor open) keeps the overlay: never neither.
 export function RoadmapCanvas({ roadmap, hosted = false }) {

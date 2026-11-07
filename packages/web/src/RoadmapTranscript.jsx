@@ -1,48 +1,182 @@
-import { useEffect, useRef, useState } from 'react';
-import { BookOpen } from 'lucide-react';
-import DepthMenu from './DepthMenu.jsx';
-import { EvidencePill } from './Md.jsx';
-import { ProposalTools, StepPill } from './NextStepPill.jsx';
-import { STRINGS } from './roadmap-strings.js';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { ChatMessage } from './ChatMessages.jsx';
-import { ChatOutputs } from './ChatOutputs.jsx';
-import { PRIMARY, SECONDARY, ghost } from './RoadmapInvitation.jsx';
-import { newThreadId, saveMessage } from './chat-persist.js';
-import { ensureTutorThread, invitationClientId, invitationThreadId, roadmapThreadClientId, transcriptOf } from './roadmap-transcript.js';
+import RoadmapPlan from './RoadmapPlan.jsx';
+import { PRIMARY, SECONDARY } from './RoadmapInvitation.jsx';
+import { Button } from './ui.jsx';
+import { STRINGS } from './roadmap-strings.js';
+import { chatOf, invitationOf } from './roadmap-client.js';
+import { newThreadId, saveMessage, saveTutorEntry } from './chat-persist.js';
+import { ensureTutorThread, entriesOf, historyActions, invitationThreadId, occupied, roadmapEditTarget, roadmapThreadClientId, routeClientId, toSave } from './roadmap-transcript.js';
 
-// Fix B (T4): the roadmap inside the Chat transcript, after the thread's own messages (ask.jsx). Each item is the existing
-// ChatMessage (text, its waiting row, its error row) or ChatOutputs (Go to card); choices use the roadmap's own buttons.
+// The Tutor inside the real Chat transcript (BRIEF contract 6; checklist UI.01, UI.03, UI.08). Every Tutor entry is an ordinary saved Chat
+// message in its bound thread (entriesOf + saveTutorEntry), drawn by the existing ChatMessage with the roadmap's own controls under it:
+// - stored entries already in the thread render in place (TutorMessage, from ChatMessages), resolved against the live state; one with no
+//   live counterpart is history, its actions disabled;
+// - live entries not yet in the thread's restored messages render after them (RoadmapTranscript), and are saved;
+// - an invitation is routed once: an occupied Chat (messages or an unsent draft) first asks Start new chat / Stay here (UI.01).
 // roadmap: useRoadmap; chat: the Chat workspace; msgs: the open thread's messages.
 const LEGACY = canvas => `rh.roadmap.thread.${canvas}`; // Fix B's per-browser binding: read once to record it on the roadmap, never written again
 const read = key => { try { return localStorage.getItem(key); } catch { return null; } };
-const write = (key, value) => { try { localStorage.setItem(key, value); } catch { /* private mode: the thread still opens */ } };
+const write = (key, value) => { try { localStorage.setItem(key, value); } catch { /* private mode: this tab still routes once (refs) */ } };
+const readJson = key => { try { return JSON.parse(read(key) || 'null'); } catch { return null; } };
 const SESSION = { get: key => { try { return sessionStorage.getItem(key); } catch { return null; } }, set: (key, value) => { try { sessionStorage.setItem(key, value); } catch { /* private mode */ } } };
-const ATTR = { explain_on_canvas: 'data-roadmap-explain', keep_here: 'data-roadmap-keep', answer: 'data-roadmap-option', part: 'data-roadmap-choice', offer: 'data-roadmap-offer' };
+// Where an invitation's entries live: its route record (the occupied thread and the choice made there) and the thread its invitation went to.
+const ROUTE = id => `rh.roadmap.route.${id}`, IV_THREAD = id => `rh.roadmap.ivthread.${id}`;
+const ATTR = { explain_on_canvas: 'data-roadmap-explain', keep_here: 'data-roadmap-keep', accept: 'data-roadmap-accept', cancel: 'data-roadmap-cancel', accept_roadmap: 'data-roadmap-accept-plan',
+  edit_roadmap: 'data-roadmap-edit-plan', end: 'data-roadmap-end', propose_next: 'data-roadmap-propose-next', open_toc: 'data-roadmap-review', edit_card: 'data-roadmap-edit', route_new: 'data-roadmap-route-new',
+  route_stay: 'data-roadmap-route-stay', go_card: 'data-roadmap-go-card', go_text: 'data-roadmap-go-text', answer: 'data-roadmap-option' };
+// The approved green affirmative (file 02/03) on the existing success token; everything else the roadmap's existing secondary button.
+const GREEN = 'h-8 rounded-md border border-success/40 bg-success/15 px-3 text-xs font-medium text-ink outline-none hover:bg-success/25 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-default disabled:opacity-45';
+const SECOND = `${SECONDARY} disabled:cursor-default disabled:opacity-45`;
+
+// The live context entriesOf needs: the shown invitation (or the one this route record names), its route and the second-source boundary.
+function contextOf(roadmap) {
+  const iv = roadmap.invitation ?? invitationOf(roadmap.state);
+  return { invitation: iv, route: iv ? (() => { const r = readJson(ROUTE(iv.id)); return r ? { invitationId: iv.id, ...r } : null; })() : null, boundary: roadmap.state.boundary };
+}
+const useEntries = (roadmap, tick = 0) => useMemo(() => entriesOf(roadmap.state, contextOf(roadmap)), [roadmap.state, roadmap.invitation, tick]); // eslint-disable-line react-hooks/exhaustive-deps
+
+// The thread an entry belongs to (never simply the visible one): the route's occupied thread, the invitation's thread, else the roadmap's bound one.
+function targetOf(entry, { bound, threadId, route }) {
+  if (entry.kind === 'route') return route?.threadId || null;
+  if (entry.kind === 'invitation') return read(IV_THREAD(entry.tutor.invitationId));
+  if (entry.kind === 'boundary') return bound || threadId || null;
+  return bound;
+}
+
+// One entry: the existing ChatMessage for its words (or its waiting row while generating), the draft containers, an activity spinner, actions.
+function EntryView({ entry, live, run, busy = false }) {
+  const draftIntro = entry.draft ? entry.content.split('\n\n')[0] : null;
+  const m = entry.activity && entry.kind === 'draft'
+    ? { role: 'assistant', content: '', status: entry.activity, clientId: entry.clientId, meta: { roadmap: entry.clientId } }
+    : { role: 'assistant', content: draftIntro ?? entry.content, status: 'done', clientId: entry.clientId, meta: { roadmap: entry.clientId } };
+  const actions = live ? entry.actions : historyActions(entry.tutor);
+  return (
+    <div data-roadmap-item={entry.clientId} data-roadmap-kind={entry.kind} data-roadmap-stale={live ? undefined : ''} {...(entry.kind === 'invitation' ? { 'data-roadmap-invitation': entry.tutor.invitationId } : {})}>
+      <ChatMessage m={m} i={0} msgs={[m]} learnChat busy={false} setMsgs={() => {}} setFilePeek={() => {}} setRunPeek={() => {}} />
+      {entry.draft && <RoadmapPlan draft={entry.draft} disabled={!live || busy} onDepth={depth => run({ kind: 'depth', depth })} />}
+      {live && entry.activity && entry.kind !== 'draft' && <span role="status" className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-ink-3" /><span className="shimmer">{entry.activity}</span></span>}
+      {actions.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pt-1 pb-1.5">
+          {actions.map(action => {
+            const attr = ATTR[action.id], marks = attr ? { [attr]: action.key || true } : {}, off = !live || !!action.disabled;
+            if (action.blue) return <Button key={action.id} type="button" variant="primary" size="sm" {...marks} disabled={off} onClick={() => run(action.run)}>{action.label}</Button>;
+            return <button key={action.key || action.id} type="button" {...marks} disabled={off} onClick={() => run(action.run)} className={action.green ? GREEN : action.primary && action.id === 'explain_on_canvas' ? PRIMARY : SECOND}>{action.label}</button>;
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// The actions every entry dispatches: the shared controller's (BRIEF contract 2), the Chat workspace's edit target and panel tabs, navigation.
+function runner(roadmap, chat, choose) {
+  const c = roadmap.controller;
+  return r => {
+    switch (r.kind) {
+      case 'route_new': return choose('new');
+      case 'route_stay': return choose('stay');
+      case 'explain_on_canvas': return c.explain({ depth: chat.settings?.depth || 'standard', instruction: '' });
+      case 'keep_here': return c.dismiss();
+      case 'accept_roadmap': return roadmap.acceptPlan();
+      case 'depth': return c.revise({ settings: { depth: r.depth } });
+      case 'edit_roadmap': {
+        const rm = roadmap.state.view?.roadmap;
+        if (!rm) return null;
+        chat.editing?.set(roadmapEditTarget({ roadmapId: rm.id, planVersion: r.planVersion ?? rm.planVersion, threadId: chat.thread.id, canvas: chat.canvas, draft: chat.composer.draft }));
+        chat.composer.setText(''); chat.composer.setCommand(null); chat.composer.focus();
+        return null;
+      }
+      case 'open_toc': chat.panels.setTab('toc'); chat.panels.setOpen(true); return null; // navigation only, on this click
+      case 'propose_next': return c.proposeNext();
+      case 'end': return c.end();
+      case 'accept': return c.acceptProposal();
+      case 'cancel': return c.cancelProposal();
+      case 'edit_card': return c.openEditor();
+      case 'go_card': return roadmap.go(r.cardId ? { kind: 'card', cardId: r.cardId } : { kind: 'proposal' });
+      case 'go_text': return roadmap.go({ kind: 'source' });
+      case 'answer': return c.answer({ optionId: r.optionId });
+      case 'part': return c.explainPart(r.choice);
+      default: return null;
+    }
+  };
+}
+
+// A saved Tutor message in the transcript (ChatMessages renderTutor): drawn with its live entry when that is still current, else as history.
+export function TutorMessage({ m, roadmap, chat }) {
+  const entries = useEntries(roadmap);
+  const live = entries.find(e => e.clientId === m.clientId) || null;
+  const entry = live || { clientId: m.clientId, kind: m.meta.tutor.kind, content: m.content, tutor: m.meta.tutor, actions: [] };
+  return <EntryView entry={entry} live={!!live} run={runner(roadmap, chat, () => {})} busy={roadmap.state.view?.revisionPending === true} />;
+}
 
 export default function RoadmapTranscript({ roadmap, chat, msgs }) {
-  const c = roadmap.controller, iv = roadmap.invitation, thread = chat.thread;
-  // T5: Explain on canvas asks for this source's Depth first, seeded from the composer's; the choice is this roadmap's only (DepthMenu
-  // gets a local settings object, so the canvas setting is never written). Planning starts on Start planning.
-  const [choosing, setChoosing] = useState(null), [depth, setDepth] = useState(null);
-  const seed = chat.settings?.depth || 'standard';
-  const rm = roadmap.state.view?.roadmap ?? null, bound = rm?.threadId ?? null, attempted = useRef(null), lastBound = useRef(null);
-  // One new Tutor thread per invitation (owner plan 5.1), its id derived from the invitation so every device uses the same one: the invitation is saved as its first message through the existing
-  // chat-persist path, so the thread exists on the server, survives a reload and becomes this canvas's open one. The previous
-  // thread keeps its messages and draft (open() saves the draft first). Chat opens once, here: invitationOf already waited for
-  // the learner to stop typing and for any answer to finish.
+  const c = roadmap.controller, thread = chat.thread, iv = roadmap.invitation ?? null;
+  const [tick, setTick] = useState(0), saved = useRef(new Map()), routing = useRef(new Set()), attempted = useRef(null), lastBound = useRef(null);
+  const entries = useEntries(roadmap, tick);
+  const rm = roadmap.state.view?.roadmap ?? null, bound = rm?.threadId ?? null;
+  const route = iv ? readJson(ROUTE(iv.id)) : null;
+  const where = { bound: bound || (rm?.invitationId ? read(IV_THREAD(rm.invitationId)) : null), threadId: thread.id, route };
+
+  // UI.01: route a new invitation once. Chat opens once for the drop (never again on a poll; focus and draft stay). An occupied Chat (its
+  // messages, a nonempty unsent draft, or a conversation not yet loaded) is asked Start new chat / Stay here first, in that thread; an unsaved
+  // new chat with a draft is saved first under its own thread id (adopt carries the draft to it), so nothing is lost when switching.
   useEffect(() => {
-    if (!iv || thread.status !== 'ready') return;
-    const done = `rh.roadmap.invited.${iv.id}`;
-    if (read(done)) return;
-    write(done, '1');
-    invitationThreadId(iv.id)
-      .then(threadId => saveMessage({ threadId, app: chat.canvas, client_id: invitationClientId(iv.id), role: 'assistant', content: iv.text, mode: thread.mode, title: iv.text }).then(() => thread.open(threadId)))
-      .then(() => chat.panels.openChat(), () => chat.panels.openChat()); // a failed save still shows the invitation, in the thread already open
+    if (!iv || thread.status === 'loading' || routing.current.has(iv.id) || read(ROUTE(iv.id)) || read(IV_THREAD(iv.id))) return;
+    routing.current.add(iv.id);
+    chat.panels.openChat();
+    const entry = entriesOf(roadmap.state, { invitation: iv, route: { invitationId: iv.id } })[0];
+    (async () => {
+      if (occupied({ status: thread.status, messages: msgs, draft: chat.composer.draft })) {
+        const threadId = thread.id || newThreadId();
+        write(ROUTE(iv.id), JSON.stringify({ threadId }));
+        await saveTutorEntry({ app: chat.canvas, threadId, clientId: routeClientId(iv.id), content: entry.content, tutor: entry.tutor, title: iv.title });
+        saved.current.set(entry.clientId, `${entry.seq}|${entry.content}`);
+        if (!thread.id) thread.adopt(threadId, iv.title);
+      } else {
+        const threadId = await invitationThreadId(iv.id);
+        write(IV_THREAD(iv.id), threadId);
+        const inv = entriesOf(roadmap.state, { invitation: iv })[0];
+        await saveTutorEntry({ app: chat.canvas, threadId, clientId: inv.clientId, content: inv.content, tutor: inv.tutor, title: iv.title });
+        saved.current.set(inv.clientId, `${inv.seq}|${inv.content}`);
+        await thread.open(threadId);
+      }
+    })().catch(() => {}).finally(() => setTick(n => n + 1)); // a failed save leaves the entry live in the open thread; the sync below retries it
   }, [iv?.id, thread.status]); // eslint-disable-line react-hooks/exhaustive-deps
-  // The roadmap's one Tutor thread is kept on the server (view.roadmap.threadId), so every device shows the roadmap in the same thread. With none
-  // bound (a new roadmap, or the bound thread was deleted) one device records it silently (ensureTutorThread: this roadmap's invitation thread, else
-  // at most one fresh thread per session; it never opens one, so Chat never jumps). The server keeps the first one recorded; a device that lost the
-  // race simply reads the winner. Lines are never lost: while nothing is bound they show in the open thread.
+
+  // Start new chat / Stay here: one guarded choice per invitation (a double click or a second tab reads the stored choice and does nothing).
+  const choosing = useRef(false);
+  const choose = async choice => {
+    const held = iv && readJson(ROUTE(iv.id));
+    if (!held || held.choice || choosing.current) return;
+    choosing.current = true;
+    try {
+      if (choice === 'new') {
+        const threadId = await invitationThreadId(iv.id);
+        write(ROUTE(iv.id), JSON.stringify({ ...held, choice })); write(IV_THREAD(iv.id), threadId);
+        const inv = entriesOf(roadmap.state, { invitation: iv, route: { invitationId: iv.id, ...held, choice } }).find(e => e.kind === 'invitation');
+        await saveTutorEntry({ app: chat.canvas, threadId, clientId: inv.clientId, content: inv.content, tutor: inv.tutor, title: iv.title });
+        saved.current.set(inv.clientId, `${inv.seq}|${inv.content}`);
+        await thread.open(threadId); // open() saves the previous thread's draft first: the old conversation and its draft stay as they were
+      } else { write(ROUTE(iv.id), JSON.stringify({ ...held, choice })); write(IV_THREAD(iv.id), held.threadId); }
+    } finally { choosing.current = false; setTick(n => n + 1); }
+  };
+
+  // Durable entries (BRIEF contract 6): save each changed entry to ITS thread (bound, routed, or the invitation's), whichever thread is open.
+  useEffect(() => {
+    for (const entry of toSave(entries, saved.current)) {
+      const threadId = targetOf(entry, where);
+      if (!threadId || (entry.kind === 'route' && !route)) continue;
+      const mark = `${entry.seq}|${entry.content}`;
+      saved.current.set(entry.clientId, mark);
+      saveTutorEntry({ app: chat.canvas, threadId, clientId: entry.clientId, content: entry.content, tutor: entry.tutor })
+        .catch(() => { if (saved.current.get(entry.clientId) === mark) saved.current.delete(entry.clientId); });
+    }
+  }, [entries, bound, tick]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The roadmap's one Tutor thread is kept on the server (view.roadmap.threadId). With none bound one device records it silently: the thread its
+  // invitation went to, else the invitation's derived thread, else at most one fresh thread per session. It never opens a thread.
   if (bound) lastBound.current = bound;
   useEffect(() => {
     if (!rm || bound || thread.status !== 'ready') return;
@@ -50,52 +184,27 @@ export default function RoadmapTranscript({ roadmap, chat, msgs }) {
     if (attempted.current === attempt) return;
     attempted.current = attempt;
     const text = STRINGS.invite(rm.scope?.source?.name || '');
-    ensureTutorThread(rm, { legacy: lastBound.current ? null : read(LEGACY(chat.canvas)), openId: thread.id, msgs }, {
+    const legacy = lastBound.current ? null : (rm.invitationId && read(IV_THREAD(rm.invitationId))) || read(LEGACY(chat.canvas));
+    ensureTutorThread(rm, { legacy, openId: thread.id, msgs }, {
       session: SESSION, newId: newThreadId, bindThread: c.bindThread,
       saveFresh: threadId => saveMessage({ threadId, app: chat.canvas, client_id: roadmapThreadClientId(rm.id), role: 'assistant', content: text, mode: thread.mode, title: text }),
     }).catch(() => {}); // a failed save or bind keeps the lines in the open thread
   }, [rm?.id, bound, thread.status]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (bound && thread.id && thread.id !== bound) return null;
-  const items = transcriptOf(roadmap.state, { invitation: iv, saved: !!iv && msgs.some(m => m.clientId === invitationClientId(iv.id)), choosing: !!iv && choosing === iv.id });
-  const local = { depth: depth || seed, set: next => setDepth(next.depth), status: 'ready', saveStatus: 'ready', retry() {} };
-  const planning = !!iv && roadmap.state.busy.includes(`create:${iv.id}`);
-  if (!items.length) return null;
-  const run = action => {
-    const r = action.run;
-    if (r.kind === 'explain_on_canvas') { setChoosing(iv.id); setDepth(null); }
-    else if (r.kind === 'keep_here') c.dismiss();
-    else if (r.kind === 'answer') c.answer({ optionId: r.optionId });
-    else if (r.kind === 'part') c.explainPart(r.choice);
-    else if (r.kind === 'offer') roadmap.editPlan();
-  };
+
+  // Live entries not yet in this thread's restored messages, shown only in their own thread (or the open one while none is known).
+  const have = new Set(msgs.map(m => m.clientId).filter(Boolean));
+  const run = runner(roadmap, chat, choose);
+  const shown = entries.filter(e => !have.has(e.clientId) && (() => { const t = targetOf(e, where); return !t || !thread.id || t === thread.id; })());
+  const notes = chatOf(roadmap.state).filter(line => line.kind === 'notice' || line.kind === 'coverage'); // transient, never saved
+  if (!shown.length && !notes.length) return null;
   return (
     <div data-roadmap-chat>
-      {items.map(item => (
-        <div key={item.key} data-roadmap-item={item.key} {...(item.key.startsWith('invitation:') ? { 'data-roadmap-invitation': iv.id } : {})}>
-          {item.m && <ChatMessage m={item.m} i={0} msgs={[item.m]} learnChat busy={false} setMsgs={() => {}} setFilePeek={() => {}} setRunPeek={() => {}} outputOps={chat.canvasOps ?? null} />}
-          {item.actions && (
-            <div className="flex flex-wrap gap-1.5 pb-1.5">
-              {item.actions.map(action => {
-                const attr = ATTR[action.run.kind];
-                return <button key={action.id} type="button" {...{ [attr]: attr === ATTR.explain_on_canvas || attr === ATTR.keep_here ? true : action.id }} onClick={() => run(action)}
-                  className={action.run.kind === 'explain_on_canvas' ? PRIMARY : action.run.kind === 'keep_here' ? SECONDARY : ghost}>{action.label}</button>;
-              })}
-            </div>
-          )}
-          {item.review && <div className="py-1.5"><EvidencePill icon={BookOpen} type="button" data-roadmap-review onClick={() => { chat.panels.setTab('toc'); chat.panels.setOpen(true); }}>{item.review}</EvidencePill></div>}
-          {item.depth && (
-            <div data-roadmap-depth className="flex flex-wrap items-center gap-1.5 pb-1.5">
-              <DepthMenu settings={local} disabled={planning} />
-              <button type="button" data-roadmap-start disabled={planning} onClick={() => c.explain({ depth: local.depth, instruction: '' })} className={PRIMARY}>{STRINGS.startPlanning}</button>
-            </div>
-          )}
-          {/* T8: Edit is the existing R5 Edit (ProposalTools, closed), only when the server says editing is on (view.edit: ROADMAP_EDIT_ENABLED); it opens the same
-              editor as Ctrl/Cmd+K on the canvas (the proposal overlay), never a second one. */}
-          {item.pill && <div className="flex flex-wrap items-center gap-1.5 pb-1.5"><StepPill pill={item.pill} tabHint={false} onAccept={() => c.acceptProposal()} onCancel={() => c.cancelProposal()} />
-            {item.pill.canEdit && <ProposalTools pill={item.pill} edit={{ open: false, onOpen: () => c.openEditor() }} />}</div>}
-          {item.outputs && <ChatOutputs outputs={item.outputs} ops={chat.canvasOps ?? null} />}
-        </div>
-      ))}
+      {notes.map(line => {
+        const m = { role: 'assistant', content: line.kind === 'coverage' && line.notes?.length ? `${line.text}\n\n${line.notes.join('\n\n')}` : line.text, status: 'done', meta: { roadmap: line.id } };
+        return <div key={line.id} data-roadmap-item={line.id}><ChatMessage m={m} i={0} msgs={[m]} learnChat busy={false} setMsgs={() => {}} setFilePeek={() => {}} setRunPeek={() => {}} />
+          {line.kind === 'coverage' && <div className="flex flex-wrap gap-1.5 pb-1.5">{line.choices.map(choice => <button key={`${choice.locationId}:${choice.part}`} type="button" data-roadmap-choice={`${choice.locationId}:${choice.part}`} onClick={() => run({ kind: 'part', choice })} className={SECOND}>{choice.label}</button>)}</div>}</div>;
+      })}
+      {shown.map(entry => <EntryView key={entry.clientId} entry={entry} live run={run} busy={roadmap.state.view?.revisionPending === true} />)}
     </div>
   );
 }

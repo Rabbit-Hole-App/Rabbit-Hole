@@ -2,7 +2,8 @@
 // source file name (decision T6). The server decides whether to offer (Tools' decideInvitation); the client only reports "this Markdown source is
 // ready and Chat is idle". Dismissal is scoped to that invitation's row: the same source set is not offered again, a different one is, and
 // nothing global changes. Auto-suggest off and Ask suppress an unsolicited invitation without writing a row; explicit teaching requests (the
-// create route) are unaffected. Ask never starts a roadmap.
+// create route) are unaffected. Ask never starts a roadmap. An explicit drop (idleKey 'drop-...', UI.01 / roadmap 3.3) is acknowledged in
+// every mode: its invitation is the learner's own trigger, so Ask and Auto-suggest off do not suppress it (an unfinished roadmap still does).
 import { StateError } from './roadmap-contract.js';
 import { decideInvitation } from './roadmap-validate.js';
 import { readUnfinishedRoadmap } from './roadmap-store.js';
@@ -37,7 +38,8 @@ export async function offerInvitation(db, access, { sourceKeys, idleKey, mode: h
   const mode = MODES.includes(stored.mode) ? stored.mode : MODES.includes(hint) ? hint : 'tutor';
   const setKey = await sha256(sources.map(s => `${s.key}@${s.rev}`).join('|'));
   const existing = sources.length ? await db.prepare('SELECT * FROM learn_roadmap_invitations WHERE org = ? AND owner_user_id = ? AND board_id = ? AND source_set_key = ?').bind(access.org, access.actorUserId, access.boardId, setKey).first() : null;
-  const decision = decideInvitation({ sourceSupported: sources.length > 0, autoSuggest: stored.autoSuggest !== false, mode, unfinishedRoadmap: !!(await readUnfinishedRoadmap(db, access)), alreadyOffered: !!existing });
+  const explicit = idleKey.startsWith('drop-');
+  const decision = decideInvitation({ sourceSupported: sources.length > 0, autoSuggest: explicit || stored.autoSuggest !== false, mode: explicit ? 'tutor' : mode, unfinishedRoadmap: !!(await readUnfinishedRoadmap(db, access)), alreadyOffered: !!existing });
   // An invitation that is still offered is returned as it is (reload, a second device, the same idle window sent twice).
   if (!decision.offer && existing?.state === 'offered' && decision.reason === 'already_offered') return { status: 200, body: { invitation: view(existing, sources.map(s => s.name).join(', ')) } };
   if (!decision.offer) return { status: 200, body: { invitation: null, suppressed: { reason: decision.reason } } };

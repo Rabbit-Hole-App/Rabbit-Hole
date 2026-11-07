@@ -21,10 +21,11 @@ after(() => rmSync(tmp, { recursive: true, force: true }));
 const outfile = join(tmp, 'bundle.cjs');
 await esbuild.build({
   stdin: {
-    contents: "export { default as RoadmapInvitation } from './RoadmapInvitation.jsx'; export { default as RoadmapPlan } from './RoadmapPlan.jsx'; export { ProposalOverlay, NextStepIndicator, StepPill } from './NextStepPill.jsx'; export { useRoadmap } from './use-roadmap.js'; export { RoadmapChat, RoadmapToc, RoadmapCanvas } from './RoadmapSurfaces.jsx'; export { default as TableOfContents } from './TableOfContents.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';",
+    contents: "export { default as RoadmapInvitation } from './RoadmapInvitation.jsx'; export { default as RoadmapPlan } from './RoadmapPlan.jsx'; export { ProposalOverlay, NextStepIndicator, StepPill } from './NextStepPill.jsx'; export { useRoadmap } from './use-roadmap.js'; export { RoadmapChat, RoadmapToc, RoadmapCanvas } from './RoadmapSurfaces.jsx'; export { default as TableOfContents } from './TableOfContents.jsx'; export { default as TocConversation } from './TocConversation.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';",
     resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx',
   },
-  bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
+  bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', loader: { '.css': 'empty', '.woff2': 'empty', '.woff': 'empty', '.ttf': 'empty', '.png': 'empty', '.svg': 'empty' },
+  plugins: [{ name: 'vite-url', setup(build) { build.onResolve({ filter: /\?url$/ }, args => ({ path: args.path, namespace: 'vite-url' })); build.onLoad({ filter: /.*/, namespace: 'vite-url' }, () => ({ contents: 'export default ""' })); } }],
 });
 const lib = createRequire(import.meta.url)(outfile);
 const html = (Component, props) => lib.renderToStaticMarkup(lib.createElement(Component, props));
@@ -68,39 +69,22 @@ test('the invitation offers exactly the two choices; no other control', () => {
   assert.equal((markup.match(/<button/g) || []).length, 2);
   assert.match(markup, />Explain on canvas</);
   assert.match(markup, />Just keep it here</);
-  assert.match(markup, /I can explain &quot;Gradient descent notes\.md&quot; on the canvas, step by step\./);
+  assert.match(markup, /You’ve added \*\*Gradient descent notes\.md\*\*\. Would you like me to explain it on the canvas\?/);
   assert.equal(html(lib.RoadmapInvitation, { invitation: null, lines: [] }), '');
-});
-
-test('the ToC plan: outcome, assumptions, steps, stopping point, Accept plan and Edit plan; no practice control', () => {
-  const markup = html(lib.RoadmapPlan, { toc: tocOf(at('status-proposed-plan')), onAcceptPlan: noop, onEdit: noop, onProposeNext: noop, onEnd: noop, onGo: noop });
-  for (const needle of ['data-roadmap-outcome', 'Assumptions', 'Stopping point', 'data-roadmap-accept-plan', 'data-roadmap-edit-plan', 'Explanations', 'data-roadmap-end']) assert.match(markup, new RegExp(needle));
-  assert.doesNotMatch(markup, /data-roadmap-propose-next/);
-  assert.doesNotMatch(markup, /practice/i);
-  assert.doesNotMatch(markup.replace(/<[^>]+>/g, ' '), BANNED);
-});
-
-test('ToC steps navigate only where there is something to navigate to; paused offers Propose next step and End roadmap', () => {
-  const delivered = html(lib.RoadmapPlan, { toc: tocOf(at('status-delivered-next-ready')), onAcceptPlan: noop, onEdit: noop, onProposeNext: noop, onEnd: noop, onGo: noop });
-  assert.equal((delivered.match(/data-roadmap-go=/g) || []).length, 2, 'delivered card and pending proposal');
-  const paused = html(lib.RoadmapPlan, { toc: tocOf(at('status-cancelled-paused')), onAcceptPlan: noop, onEdit: noop, onProposeNext: noop, onEnd: noop, onGo: noop });
-  assert.match(paused, /data-roadmap-propose-next/);
-  assert.match(paused, /data-roadmap-end/);
-  assert.doesNotMatch(paused, /data-roadmap-accept-plan/);
 });
 
 test('a failed card adds no recovery block to Chat or the Contents (the existing error toast carries its sentence)', () => {
   const state = at('status-failed-card');
   const chat = html(lib.RoadmapInvitation, { invitation: null, lines: chatOf(state), onExplain: noop, onKeep: noop, onAnswer: noop, onOffer: noop });
-  const toc = html(lib.RoadmapPlan, { toc: tocOf(state), onAcceptPlan: noop, onEdit: noop, onProposeNext: noop, onEnd: noop, onGo: noop });
-  assert.doesNotMatch(chat + toc, /data-roadmap-recover/);
+  const toc = html(lib.TableOfContents, { outline: [], canvasApi: { current: null }, roadmap: { toc: tocOf(state), go: noop } });
+  assert.doesNotMatch(chat + toc, /data-roadmap-recover|>(Retry|Replace|Omit)</);
   assert.equal(failuresOf(state.view).length, 1);
 });
 
 test('no learner string anywhere has an ellipsis', () => {
   for (const name of ['status-proposed-plan', 'status-failed-card', 'status-held-for-checking', 'status-limitation', 'status-questioning', 'status-cancelled-paused']) {
     const state = at(name);
-    const markup = html(lib.RoadmapInvitation, { invitation: null, lines: chatOf(state), onExplain: noop, onKeep: noop, onAnswer: noop, onOffer: noop }) + html(lib.RoadmapPlan, { toc: tocOf(state), onAcceptPlan: noop, onEdit: noop, onProposeNext: noop, onEnd: noop, onGo: noop });
+    const markup = html(lib.RoadmapInvitation, { invitation: null, lines: chatOf(state), onExplain: noop, onKeep: noop, onAnswer: noop, onOffer: noop }) + html(lib.TableOfContents, { outline: [], canvasApi: { current: null }, roadmap: { toc: tocOf(state), go: noop } });
     assert.doesNotMatch(markup, /\.\.\.|…|&hellip;/, name);
   }
 });
@@ -130,30 +114,32 @@ test('delivered cards are placed around the anchor in free space, never on an ob
 test('the hook and the three surfaces mount with nothing to show before the server answers (no flash, no price, no error)', () => {
   const Probe = () => {
     const roadmap = lib.useRoadmap({ api: async () => ({}), boardId: 'lb_1', host: {} });
-    return lib.createElement('div', null, lib.createElement(lib.RoadmapChat, { roadmap }), lib.createElement(lib.RoadmapToc, { roadmap }), lib.createElement(lib.RoadmapCanvas, { roadmap }));
+    return lib.createElement('div', null, lib.createElement(lib.RoadmapChat, { roadmap }), lib.createElement(lib.RoadmapToc, {}), lib.createElement(lib.RoadmapCanvas, { roadmap }));
   };
   assert.equal(lib.renderToStaticMarkup(lib.createElement(Probe)), '<div></div>');
 });
 
-test('Contents is one scroll: the roadmap plan, its stopping point and actions sit inside the Table of contents scroller, before the headings; no second scroller', () => {
+// UI.02 (file 01): the accepted roadmap is rows of the ONE Table of contents tree inside its one scroller: before the manual headings, with
+// descriptions and a status line, manual entries untouched; no parameters, stopping point, actions, composer or conversation in any state.
+test('Contents is one scroll and one tree: accepted roadmap rows, then the manual headings; no Tutor panel, draft, actions or composer in any state', () => {
   const noop = () => {};
-  const roadmap = state => ({ controller: {}, toc: tocOf(state), editPlan: noop, go: noop, acceptPlan: noop });
-  const outline = [{ id: 'h1', level: 1, label: 'First heading', description: '', done: false }];
-  const toc = html(lib.TableOfContents, { outline, canvasApi: { current: null }, className: 'min-h-0 flex flex-col overflow-y-auto', top: lib.createElement(lib.RoadmapToc, { roadmap: roadmap(at('status-proposed-plan')) }) });
+  const outline = [{ id: 'h1', level: 1, label: 'First heading', description: 'mine', done: true }];
+  const draw = state => html(lib.TableOfContents, { outline, canvasApi: { current: null }, className: 'min-h-0 flex flex-col overflow-y-auto', roadmap: { toc: tocOf(state), go: noop }, top: lib.createElement(lib.RoadmapToc, {}) });
+  const toc = draw(at('status-active-proposal-pending'));
   assert.match(toc, /^<div data-toc="true" class="min-h-0 flex flex-col overflow-y-auto">/, 'the page-sized [data-toc] is the one scroller');
-  for (const needle of ['data-roadmap-plan', 'data-roadmap-outcome', 'Stopping point', 'data-roadmap-accept-plan', 'data-roadmap-edit-plan', 'data-roadmap-end']) assert.ok(toc.includes(needle), needle);
-  assert.ok(toc.indexOf('data-roadmap-plan') < toc.indexOf('data-toc-entry="h1"'), 'the roadmap comes before the ordinary headings');
   assert.equal((toc.match(/overflow-y-auto/g) || []).length, 1, 'no nested scroller');
-  assert.doesNotMatch(toc, /data-roadmap-scroll|max-h-\[50vh\]/);
-  const markup = html(lib.RoadmapToc, { roadmap: roadmap(at('status-proposed-plan')) });
-  assert.match(markup, />Accept plan</);
-  assert.doesNotMatch(markup, /data-roadmap-accept-plan="true"[^>]* disabled=""/);
-  const planned = at('status-proposed-plan');
-  const busy = reduce(planned, { type: 'begin', gesture: `plan:${planned.view.roadmap.id}:${planned.view.plan.version}` });
-  const pressed = html(lib.RoadmapToc, { roadmap: roadmap(busy) });
-  assert.match(pressed, /data-roadmap-accept-plan="true"[^>]* disabled=""/);
-  assert.match(pressed, />Accepting</);
-  assert.equal(html(lib.RoadmapToc, { roadmap: { controller: {}, toc: null } }), '');
+  const steps = at('status-active-proposal-pending').view.steps;
+  for (const step of steps) assert.ok(toc.includes(`data-roadmap-step="${step.id}"`), step.id);
+  assert.ok(toc.indexOf(`data-roadmap-step="${steps[0].id}"`) < toc.indexOf('data-toc-entry="h1"'), 'roadmap rows first, in the same tree');
+  assert.match(toc, /data-toc-entry="h1"[^>]*data-done="true"/, 'the manual heading keeps its own done mark');
+  assert.match(toc, /data-roadmap-status[^>]*>Proposed card · Explanation</);
+  assert.match(toc, new RegExp(steps[0].goal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), 'the step description, not a repeated title');
+  for (const state of [at('status-proposed-plan'), at('status-active-proposal-pending'), at('status-completed'), at('status-cancelled-paused'), initialState(), { ...initialState(), flag: 'off' }]) {
+    const markup = draw(state);
+    assert.doesNotMatch(markup, /data-roadmap-plan|data-roadmap-parameters|data-roadmap-accept-plan|data-roadmap-edit-plan|data-roadmap-end|data-roadmap-propose-next|Stopping point|data-toc-composer|data-toc-conversation|Accept plan|Edit plan/);
+  }
+  assert.doesNotMatch(draw(at('status-proposed-plan')), /data-roadmap-step=/, 'a draft never reaches the ToC');
+  assert.equal(html(lib.TocConversation, {}), '', 'no ToC conversation in any state');
 });
 
 test('Fix A: the proposal button reads Accepting while in flight; the status text follows the view, with no percentage or ellipsis', () => {

@@ -13,7 +13,7 @@ const clone = v => JSON.parse(JSON.stringify(v));
 const fail = (status, data) => Object.assign(new Error(data.error || 'x'), { status, data });
 
 // routes: (method path-suffix) -> handler(body) returning a body or throwing fail(...)
-function harness({ routes, board = new Set(), persist = async () => ({ ok: true }), readOnly = false, revision = null, busy = () => false, depth = undefined, sourceRev = undefined } = {}) {
+function harness({ routes, board = new Set(), persist = async () => ({ ok: true }), readOnly = false, revision = null, busy = () => false, depth = undefined, sourceRev = undefined, host: extra = {} } = {}) {
   const calls = [], saved = { cards: new Set(board), revision: 40 }; // the SAVED board: a successful persist copies the canvas into it
   const api = async (path, opts = {}) => {
     const method = opts.method || 'GET', body = opts.body ? JSON.parse(opts.body) : null;
@@ -24,7 +24,7 @@ function harness({ routes, board = new Set(), persist = async () => ({ ok: true 
     }
     throw fail(404, { error: 'Not available', code: 'not_found' });
   };
-  const host = { hasBlock: id => board.has(id), insertCard: block => { board.add(block.id); return block.id; }, persist: async () => { const out = await persist(); if (out?.ok === true) { saved.cards = new Set(board); saved.revision += 1; } return out; }, boardRevision: () => (revision ? revision() : saved.revision), savedHas: id => saved.cards.has(id), readOnly: () => readOnly, busy, depth, sourceRev };
+  const host = { hasBlock: id => board.has(id), insertCard: block => { board.add(block.id); return block.id; }, persist: async () => { const out = await persist(); if (out?.ok === true) { saved.cards = new Set(board); saved.revision += 1; } return out; }, boardRevision: () => (revision ? revision() : saved.revision), savedHas: id => saved.cards.has(id), readOnly: () => readOnly, busy, depth, sourceRev, ...extra };
   const timers = [];
   const controller = createRoadmapController({ api, boardId: 'lb_7c1e5a90d2b84f63a1c07e92', host, schedule: fn => timers.push(fn) && timers.length, cancel() {}, random: (() => { let n = 0; return () => `key${++n}aaaaaaaa`; })() });
   return { controller, calls, board, host, timers };
@@ -224,18 +224,23 @@ test('Explain on canvas sends the selected Depth and the source revision; a miss
   }
 });
 
-test('a source dropped while the learner is typing or an answer streams is reported after they stop, as one report', async () => {
-  let typing = true;
-  const { controller, calls } = harness({ busy: () => typing, routes: { 'GET ': () => ({ roadmap: null }), 'GET /invitations': () => ({ invitation: null }), 'POST /invitations': () => view('invitation-offered') } });
+// UI.01 / BE.01: a drop is acknowledged at once (no typing or idle deferral), one source per report under a 'drop-' key, its repeats
+// coalesced; no planner, author or paid request happens before Explain. A second source over an unfinished roadmap gets the boundary.
+test('a dropped source is reported at once even while typing, once per source, with no paid call; a second source over a roadmap gets the boundary', async () => {
+  let suppress = false;
+  const { controller, calls } = harness({ busy: () => true, host: { sourceName: key => (key === 'file:fs_cd34' ? 'Second.md' : 'First.md') },
+    routes: { 'GET ': () => ({ roadmap: null }), 'GET /invitations': () => ({ invitation: null }), 'POST /invitations': () => (suppress ? { invitation: null, suppressed: { reason: 'unfinished_roadmap' } } : view('invitation-offered')) } });
   controller.start(); await settle();
-  controller.sourceReady('file:fs_ab12'); controller.idleTick(); controller.idleTick(); await settle();
-  assert.equal(calls.filter(c => c.method === 'POST').length, 0, 'nothing is reported while busy');
-  typing = false;
-  controller.idleTick(); await settle();
+  controller.sourceReady('file:fs_ab12'); controller.sourceReady('file:fs_ab12'); await settle();
   const sent = calls.filter(c => c.method === 'POST' && c.path.endsWith('/invitations'));
-  assert.equal(sent.length, 1);
+  assert.equal(sent.length, 1, 'repeated ready events for one source coalesce');
   assert.deepEqual(sent[0].body.sourceKeys, ['file:fs_ab12']);
-  assert.ok(controller.getState().invitation, 'the invitation is held in state once the server offers it');
+  assert.match(sent[0].body.idleKey, /^drop-/);
+  assert.ok(controller.getState().invitation, 'the invitation is held in state at once, typing or not');
+  assert.equal(calls.filter(c => c.method === 'POST' && !c.path.endsWith('/invitations')).length, 0, 'no roadmap, planner or card request before Explain');
+  suppress = true;
+  controller.sourceReady('file:fs_cd34'); await settle();
+  assert.deepEqual(controller.getState().boundary, { key: 'file:fs_cd34', name: 'Second.md' });
 });
 
 test('bindThread records the Tutor thread and shows the view the server answers; a refusal rejects so the page starts a fresh thread', async () => {
