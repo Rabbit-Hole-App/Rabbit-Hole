@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { api } from './api.js';
 import { Toggle } from './ui.jsx';
 import { controlsNote, createCoachingSync, effectiveControls } from './learn-coaching-client.js';
-import { checkpointOf, entryAction, entryCopy, resolveTutorEntry, retiredForRoadmap } from './learn-coaching-entry.js';
+import { checkpointOf, entryAction, entryCopy, resolveTutorEntry } from './learn-coaching-entry.js';
 import { shownActivity } from './TutorActivity.jsx';
 import { useTutorCodebase } from './TutorCodebase.jsx';
 
@@ -65,7 +65,7 @@ const PRIMARY = 'cursor-pointer rounded-full border border-ink bg-ink px-3 py-1 
 
 // Above the Chat composer (ask.jsx): the controls' status line and the static entry card (Task 04). chat: the workspace;
 // send(text): the Chat's own send; messages: how many messages the open conversation shows; busy: a turn is in flight.
-export function TutorCoaching({ chat, send, messages = 0, busy = false, roadmapOn = false }) {
+export function TutorCoaching({ chat, send, messages = 0, busy = false }) {
   const { coaching, thread, composer, canvasOps } = chat;
   const [engaged, setEngaged] = useState(null); // the canvas whose entry the learner already acted on in this view
   const [shown, setShown] = useState(null); // the saved activity prompt Continue put back in view
@@ -96,7 +96,9 @@ export function TutorCoaching({ chat, send, messages = 0, busy = false, roadmapO
       composer.focus();
     }
   };
-  const offer = ['welcome', 'existing_work', 'resume', 'completed'].includes(entry.kind) && engaged !== chat.canvas && !codebase.menu && !startedHere && !retiredForRoadmap(entry, roadmapOn);
+  // The welcome and "no active lesson" entry (welcome, existing_work) is retired (owner, 2026-11-06: "always hide. this is old UI which we
+  // are no longer using"); only a saved activity's return (resume, completed) is still offered here.
+  const offer = ['resume', 'completed'].includes(entry.kind) && engaged !== chat.canvas && !codebase.menu && !startedHere;
   return <>
     {note && <p role={note.tone === 'error' ? 'alert' : 'status'} data-tutor-status={note.action || note.tone} className={`mb-1.5 flex flex-wrap items-center gap-x-2 text-xs ${note.tone === 'error' ? 'text-fail' : 'text-ink-2'}`}>
       {note.text}

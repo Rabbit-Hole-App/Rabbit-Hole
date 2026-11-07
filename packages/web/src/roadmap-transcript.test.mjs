@@ -1,5 +1,5 @@
 // Fix B (T4): the roadmap's Chat lines as transcript items (roadmap-transcript.js), drawn by the existing ChatMessage and
-// ChatOutputs (RoadmapTranscript.jsx); the old Tutor entry yields to the roadmap; roadmap lines are not ordinary answers.
+// ChatOutputs (RoadmapTranscript.jsx); roadmap lines are not ordinary answers; Depth is confirmed for this source before planning.
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -11,20 +11,12 @@ import * as esbuild from 'esbuild';
 import { initialState, invitationOf, reduce } from './roadmap-client.js';
 import { invitationClientId, transcriptOf } from './roadmap-transcript.js';
 import { responseKind } from './chat-response-kind.js';
-import { retiredForRoadmap } from './learn-coaching-entry.js';
+import { createRoadmapController } from './roadmap-controller.js';
 
 const DIR = fileURLToPath(new URL('../../../docs/features/explain-on-canvas/contracts/fixtures/', import.meta.url));
 const body = name => JSON.parse(readFileSync(DIR + name + '.json', 'utf8')).response.body;
 const at = name => reduce(initialState(), { type: 'view', view: body(name) });
 const offered = () => reduce(initialState(), { type: 'invitation', invitation: body('invitation-offered').invitation });
-
-test('the old Tutor entry (welcome, "no active lesson" choices) yields to the roadmap; a saved activity return does not', () => {
-  for (const kind of ['welcome', 'existing_work']) {
-    assert.equal(retiredForRoadmap({ kind }, true), true, kind);
-    assert.equal(retiredForRoadmap({ kind }, false), false, `${kind} with the roadmap off`);
-  }
-  for (const kind of ['resume', 'completed', 'quiet', 'loading']) assert.equal(retiredForRoadmap({ kind }, true), false, kind);
-});
 
 test('the invitation: its sentence and the two choices; once saved in the thread only the choices are added', () => {
   const state = offered(), invitation = invitationOf(state);
@@ -50,7 +42,9 @@ test('planning and checking use the waiting row; plan ready is text; a question 
   const planning = transcriptOf(at('create-response-draft')).find(i => i.key.endsWith(':planning'));
   assert.equal(planning.m.content, '');
   assert.equal(planning.m.status, 'Planning your roadmap');
-  assert.match(transcriptOf(at('status-proposed-plan')).find(i => i.key.endsWith(':plan')).m.content, /ready to review/);
+  const ready = transcriptOf(at('status-proposed-plan')).find(i => i.key.endsWith(':plan'));
+  assert.equal(ready.review, 'Your plan is ready to review.', 'the existing line is itself the link to Contents');
+  assert.equal(ready.m, null);
   const question = transcriptOf(at('status-questioning')).find(i => i.actions?.some(a => a.run.kind === 'answer'));
   assert.ok(question, 'the plan question offers its options');
   const held = transcriptOf(at('status-held-for-checking')).find(i => /:held:/.test(i.key));
@@ -69,7 +63,7 @@ test('a delivered card is reached by Go to card; a failed one is an error row wi
 });
 
 test('a roadmap line is not an ordinary answer (no Regenerate, Add as card, Explore next) and has no rating footer', () => {
-  const [line] = transcriptOf(at('status-proposed-plan'));
+  const line = transcriptOf(at('status-questioning')).find(i => i.m?.content);
   assert.equal(responseKind(line.m, null).ordinary, false);
   assert.equal(responseKind({ role: 'assistant', content: 'x', clientId: 'roadmap-inv-iv_1' }, null).ordinary, false, 'the saved invitation after a reload');
   assert.equal(responseKind({ role: 'assistant', content: 'x' }, { role: 'user', content: 'hi' }).ordinary, true);
@@ -102,5 +96,39 @@ test('RoadmapTranscript renders through ChatMessage and ChatOutputs, with the in
   assert.match(render(at('status-failed-card')), /role="alert"/);
   assert.doesNotMatch(render(at('status-failed-card')), />(Retry|Replace|Omit)</);
   assert.equal(render(initialState()), '');
-  assert.equal(lib.footerShown(transcriptOf(at('status-proposed-plan'))[0].m), false, 'a roadmap line has no rating footer');
+  assert.equal(lib.footerShown(transcriptOf(at('status-questioning')).find(i => i.m?.content).m), false, 'a roadmap line has no rating footer');
+  assert.match(render(at('status-proposed-plan')), /data-roadmap-review[^>]*>[\s\S]*Your plan is ready to review\./);
+  const pending = render(at('status-active-proposal-pending'));
+  assert.match(pending, /data-roadmap-pill/);
+  assert.match(pending, /data-roadmap-accept[^>]*>Accept<kbd[^>]*>Tab<\/kbd>/);
+  assert.match(pending, /data-roadmap-cancel[^>]*>Cancel</);
+});
+
+test('Explain on canvas asks for this source Depth first: the line, the depth row, no other choice; nothing is created yet', () => {
+  const state = offered(), invitation = invitationOf(state);
+  const items = transcriptOf(state, { invitation, choosing: true });
+  assert.equal(items[0].actions, undefined, 'the two choices give way to the Depth row');
+  const depth = items.find(i => i.depth);
+  assert.equal(depth.m.content, `Choose a depth for ${state.invitation.title}.`);
+  assert.doesNotMatch(depth.m.content, /\.\.\.|…|\$|credit/);
+});
+
+test('the pending proposal in Chat is the same pill and version as the canvas; none while checking or in Ask', () => {
+  const state = at('status-active-proposal-pending');
+  const item = transcriptOf(state).find(i => i.pill);
+  assert.equal(item.pill.version, state.view.proposal.version);
+  assert.ok(item.key.endsWith(`:proposal:${state.view.proposal.id}:${state.view.proposal.version}`));
+  assert.match(item.m.content, new RegExp(state.view.proposal.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.equal(transcriptOf({ ...state, mode: 'ask' }).some(i => i.pill), false);
+});
+
+test('Start planning creates the roadmap with the confirmed Depth and the flow instruction, never the canvas setting', async () => {
+  const calls = [];
+  const api = async (path, opts = {}) => { calls.push({ path, method: opts.method || 'GET', body: opts.body ? JSON.parse(opts.body) : null }); if (path.includes('/invitations') && !opts.method) return body('invitation-offered'); if (!opts.method) return { roadmap: null }; return body('create-response-draft'); };
+  const controller = createRoadmapController({ api, boardId: 'lb_7c1e5a90d2b84f63a1c07e92', host: { readOnly: () => false, depth: () => 'standard', instruction: () => 'scraped', sourceRev: () => 'rev1', hasBlock: () => false }, schedule: () => 0, cancel() {}, random: () => 'k1aaaaaaaa' });
+  controller.start(); await new Promise(r => setTimeout(r, 10));
+  await controller.explain({ depth: 'deep', instruction: '' });
+  const create = calls.find(c => c.method === 'POST' && c.body?.invitationId);
+  assert.equal(create.body.depth, 'deep');
+  assert.equal(create.body.instruction, '', 'the explicit (empty) instruction of this flow, not a host read');
 });
