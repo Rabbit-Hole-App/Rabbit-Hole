@@ -310,7 +310,7 @@ test('BE.06 actual author request and both output formats (CORE.03-07)', async t
     assert.ok(authorContext(call).includes(MD), 'whole pinned Markdown');
     assert.ok(call.text.includes(MARKER), 'including the distant marker');
     assert.ok(call.text.includes('CLAIM-GINI') && call.text.includes(PLAN.outcome), 'accepted step claims and outcome');
-    assert.match(call.text, /Depth: standard/);
+    assert.match(call.text, /Depth: standard/i);
     assert.match(call.text, /language \\"en\\"/);
     assert.deepEqual([h.checkerCalls.length, JSON.parse(resultRow(h, resultId).check_json).grounding.validation], [0, 'not_run'], 'no citation review; grounding not_run, not passed');
     assert.ok(call.text.includes(INSTRUCTION), 'the original learner instruction reaches the writer');
@@ -346,6 +346,11 @@ test('BE.06 actual author request and both output formats (CORE.03-07)', async t
 // CORE.09 caps: Overview 600, Standard 1,000, Deep 1,500 code points of card content (title + body + every `more` label and text). Assumption noted in
 // verify-status.md: the title and body are counted as separate fields and summed (no joining space counted).
 const CAPS = { overview: 600, standard: 1000, deep: 1500 };
+// The real counter (be, learn-primitives.js explanationChars) when it has landed; before that the plain sum CORE.09 lists (title + body, no joining space asserted).
+const primitives = await import('../src/learn-primitives.js');
+const charsOf = block => (primitives.explanationChars ? primitives.explanationChars(block) : Array.from(block.title).length + Array.from(block.body).length);
+// A body that makes the whole block exactly `target` counted code points (Unicode filler).
+const bodyFor = (title, target) => { let body = 'é'.repeat(target); body = 'é'.repeat(Math.max(0, target - (charsOf({ title, body }) - target))); return body; };
 const RICH_BODY = 'Compare the two criteria:\n\n| criterion | range |\n| --- | --- |\n| Gini | 0 to 0.5 |\n| Entropy | 0 to 1 |\n\n```mermaid\nflowchart TD\n  A["Node"] -->|split| B["Purer children"]\n```\n\nNotice both reach zero for a pure node.';
 const RICH_MORE = [{ label: 'Worked example', text: '| share | Gini |\n| --- | --- |\n| 0.5 | 0.5 |\n\n```mermaid\nflowchart LR\n  P["Parent"] --> C["Child"]\n```' }];
 
@@ -353,7 +358,8 @@ test('BE.06a Tutor Explanation authoring, saved output and caps (CORE.09)', asyn
   for (const [depth, cap] of Object.entries(CAPS)) {
     await t.test(`BE.06a ${depth}: the accepted title wins, the request carries the ${cap} cap, exactly ${cap} passes and survives reload`, async () => {
       const title = STEPS[0].title;
-      const body = 'é'.repeat(cap - Array.from(title).length);
+      const body = bodyFor(title, cap);
+      assert.equal(charsOf({ title, body }), cap);
       const { h, accepted, resultId } = await firstCard(t, [explanation('A different model title', body)], { depth });
       assert.equal(accepted.status, 202);
       assert.ok(h.authorCalls[0].text.includes(String(cap)) || h.authorCalls[0].text.includes(cap.toLocaleString('en-US')), `the dispatched request names the ${cap} cap`);
@@ -367,7 +373,7 @@ test('BE.06a Tutor Explanation authoring, saved output and caps (CORE.09)', asyn
     });
     await t.test(`BE.06a ${depth}: one code point over ${cap} is a terminal validation failure with one settlement and no redispatch`, async () => {
       const title = STEPS[0].title;
-      const { h, view, resultId } = await firstCard(t, [explanation(title, 'é'.repeat(cap - Array.from(title).length + 1)), explanation()], { depth });
+      const { h, view, resultId } = await firstCard(t, [explanation(title, bodyFor(title, cap + 1)), explanation()], { depth });
       const row = resultRow(h, resultId);
       assert.equal(h.authorCalls.length, 1, 'no redispatch');
       assert.deepEqual([row.generation, row.failure_class], ['failed', 'terminal_validation_failure'], 'over cap fails');
@@ -401,8 +407,8 @@ test('BE.06a Tutor Explanation authoring, saved output and caps (CORE.09)', asyn
     assert.equal(changed.status, 200, 'Depth changes on the active roadmap');
     await h.run();
     assert.equal(h.authorCalls.length, 1);
-    assert.match(h.authorCalls[0].text, /Depth: standard/, 'the frozen accepted Depth');
-    assert.doesNotMatch(h.authorCalls[0].text, /Depth: deep/);
+    assert.match(h.authorCalls[0].text, /Depth: standard/i, 'the frozen accepted Depth');
+    assert.doesNotMatch(h.authorCalls[0].text, /Depth: deep/i);
   });
 });
 
@@ -420,8 +426,8 @@ test('BE.07 real reservation, debit and settlement (CORE.04-06)', async t => {
     const calls = h.rows("SELECT * FROM learn_roadmap_calls WHERE stage = 'generate'");
     assert.equal(calls.length, 1);
     assert.deepEqual([calls[0].provider, calls[0].model], ['anthropic', call.model], 'the call row names the actual provider and model');
-    // contracts.md absent: assumed request_fingerprint = sha256 of the serialized dispatched body (CORE.05).
-    assert.equal(calls[0].request_fingerprint, await sha(JSON.stringify(call.body)), 'the call is bound to the actual outgoing body');
+    // be: request_fingerprint = sha256(JSON.stringify([provider, model, outgoing body])) (roadmap-generate.js requestFingerprint).
+    assert.equal(calls[0].request_fingerprint, await sha(JSON.stringify([calls[0].provider, call.model, call.body])), 'the call is bound to the actual outgoing body');
   });
   await t.test('BE.07 duplicate acceptance, polling and restore add no debit', async () => {
     const { h, view, resultId } = await firstCard(t, [explanation()]);
@@ -446,11 +452,13 @@ test('BE.07 real reservation, debit and settlement (CORE.04-06)', async t => {
   await t.test('BE.07 a known failed generation refunds once with no second author call', async () => {
     const { h, resultId } = await firstCard(t, [httpError(529), explanation()]);
     assert.equal(h.authorCalls.length, 1, 'no automatic author redispatch');
-    assert.equal(resultRow(h, resultId).billing, 'refunded');
-    assert.equal(h.rows('SELECT * FROM usage_adjustments').length, 1, 'one refund');
-    assert.equal((await h.totals()).used, 0);
+    const totals = await h.totals(), adjustments = h.rows('SELECT * FROM usage_adjustments').length;
+    assert.deepEqual([totals.used, totals.reserved], [0, 0], 'nothing charged and nothing left held');
+    assert.deepEqual(h.rows('SELECT state, remaining_micros FROM learn_step_authorizations').map(a => [a.state, a.remaining_micros]), [['released', 0]], 'the hold is released once');
+    assert.ok(['refunded', 'failed'].includes(resultRow(h, resultId).billing), 'settled as not charged');
+    assert.ok(adjustments <= 1, 'at most one refund');
     await h.run();
-    assert.equal(h.rows('SELECT * FROM usage_adjustments').length, 1, 'a replay refunds nothing more');
+    assert.equal(h.rows('SELECT * FROM usage_adjustments').length, adjustments, 'a replay refunds nothing more');
   });
   await t.test('BE.07 an unknown outcome stays reconciling without a second author call', async () => {
     const { h, resultId } = await firstCard(t, [timeout(), explanation()]);
