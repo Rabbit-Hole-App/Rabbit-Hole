@@ -123,9 +123,20 @@ test('the Send path carries the lesson sources and runs the typed request throug
   assert.ok(ask.includes("lessonSources?.length ? { lesson: { sources: lessonSources } } : {}"), 'only an ordinary Learn Chat turn (no command, regeneration or Edit) offers the sources');
   assert.ok(ask.includes("d.toolRequest?.command === 'explain-on-canvas'"));
   assert.ok(ask.includes("roadmap?.controller?.lesson({ depth: chat?.settings?.depth || 'standard', instruction, source:"));
-  assert.ok(ask.includes("threadId: chat?.thread?.id || null"));
+  assert.ok(ask.includes("threadId: d.threadId"), 'the saved thread of the final event, known before the roadmap starts (a new chat has no chat.thread.id when the tool event arrives)');
   const hook = readFileSync(fileURLToPath(new URL('./use-roadmap.js', import.meta.url)), 'utf8');
   assert.ok(hook.includes('lessonSources: () => lessonSourcesOf(controller.getState(), hostRef.current?.sources?.() || [])'));
   const page = readFileSync(fileURLToPath(new URL('./LearnPage.jsx', import.meta.url)), 'utf8');
   assert.ok(page.includes("block.type === 'file' && block.kind === 'markdown' && block.fileRef?.source?.id && block.fileRef.source.rev"), 'the host lists only ready Markdown sources with a stored revision');
+});
+
+// BE.01a: the typed request carries the scope the tool call named; whole is the default and never a silent override.
+test('lesson: a named scope reaches the create body (invitation path and source path); no scope means the whole source', async () => {
+  const passage = { kind: 'passage', start: 10, end: 90 };
+  const a = setup({ invitation: false }); a.controller.start(); await settle();
+  await a.controller.lesson({ depth: 'standard', instruction: 'teach the middle part', source: SOURCE, scope: passage });
+  assert.deepEqual(a.creates()[0].body.source.scope, passage);
+  const b = setup({ invitation: false }); b.controller.start(); await settle();
+  await b.controller.lesson({ depth: 'standard', instruction: 'teach it', source: SOURCE });
+  assert.deepEqual(b.creates()[0].body.source.scope, { kind: 'whole' });
 });
