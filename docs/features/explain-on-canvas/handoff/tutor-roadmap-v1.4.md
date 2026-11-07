@@ -4,7 +4,7 @@
 
 **Companion:** [Tutor implementation checklist v1.2](tutor-implementation-checklist.md) describes HOW: current files and functions, changes, interfaces, owners, local commands, test assertions and delivery evidence. Read both before implementing. This roadmap defines the learner experience and release boundaries; the checklist must implement that experience without inventing another UI or approval flow.
 
-**Reviewed main:** `e447525a83c6e9809f2f1cdaa27071c31a3a0b3f`. This audit reviews the 21 commits after `72d6536657af269bb894511220975fd2254246ed`. The core backend and client checks passed 213 local Node tests. Production release workflow [185](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/42331915345) succeeded for this SHA. The complete updated core flow still needs the work and acceptance evidence recorded below.
+**Reviewed main:** `e447525a83c6e9809f2f1cdaa27071c31a3a0b3f`. This audit reviews the 21 commits after `72d6536657af269bb894511220975fd2254246ed`. The expanded R1–R7 audit passed **496 distinct local Node tests across 46 files**; the initial 213-test batch is included. Production release workflow [185](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/42331915345) succeeded for this SHA. The complete updated core flow still needs the work and acceptance evidence recorded below.
 
 **This MVP flow update supersedes conflicting earlier v1.4/v1.3 instructions for active work.** The complete Tutor conversation, parameters, draft review, editing and progress now live in existing Chat messages. Only accepted roadmap entries are published to the existing ToC. Every proposed/accepted step has a synchronized Chat entry and a persistent canvas slot, placed near its highlighted source passage with two-way navigation. Full-document context, one ordinary author call and no citation-review publication gate remain required. Sections 3–8 specify the complete interaction; section 14 records replaced rules. Preserve the remaining R1–R16 scope. The historical cleanup v0.1 file is not the current cleanup execution plan.
 
@@ -46,10 +46,12 @@ A step is one coherent teaching addition. A skill is a concept or ability tracke
 
 ### 1.3 Sprint boundaries
 
+**Current owner decisions — supersede older release/design instructions:** Finish the complete core Tutor MVP first. Claude Code may push docs and code to main, set `MVP_ALLOWED_SHA` for the exact tested release candidate, run the existing release launcher and monitor production without another owner command. Keep the existing isolated clone deployment required by that launcher as release verification; production is the delivery target. No new no-clone mode is requested. Disregard the earlier Contents Q1–Q7 discussion/hold; implement the current docs and file 01 in this sprint. Use five agents with one integrator and separate backend, Chat/ToC, canvas/Explanation and verification ownership. Run affected tests/build per release and finish checklist section 8.0 before the final handoff. Continue implementing and releasing without waiting for owner manual checks between tasks or releases. Local tests use doubles, with no paid model calls. Reuse `chat_message_meta`/`scope_json` where sufficient; an unavoidable production migration still needs the owner's command, while independent work continues. Remaining R7 extensions may be deferred; preserve existing enabled R7a behavior. Investigate R12/R10/R11/R9 dependencies for discussion before changing that later queue.
+
 - Prioritize the ordinary Markdown core and its actual learner flow before optional formats or cleanup database removal.
 - Reuse the current app, components, state, command handlers and placement helpers. Do not reintroduce the retired browser Tutor planner.
 - Record nonblocking defects in `docs/features/explain-on-canvas/OWNER-INBOX.md` with the affected action and next task. Do not turn them into extra release gates.
-- Use the owner's direct-to-main/production MVP delivery direction, focused checks, production smoke and recovery. Do not require an isolated clone, dev clone, stable preview or broad-CI wait for this sprint. Any incompatible release-tool precondition must be addressed explicitly as described in the checklist; never fabricate a preview receipt or mark a bypassed check passed.
+- Ship to main/production using the existing MVP launcher, including its required isolated clone deployment, focused tests/build/smoke and recovery. This latest owner decision supersedes the earlier no-clone direction. Use deployed main and the approved HTML as styling authority; the clone is release verification, not a new design baseline. No no-clone tooling rewrite is needed.
 - Existing production authorization and approved budgets remain in force within their scope. An unknown or exhausted budget is not new spending authority; production database deletion and new infrastructure retain their specific approvals.
 - Desktop first. Phone layout, a new reward system, cross-user reuse, arbitrary code execution and Animation-engine changes are not part of the core correction.
 
@@ -59,7 +61,7 @@ A step is one coherent teaching addition. A skill is a concept or ability tracke
 
 | Area | What is present or observed | What must not be inferred |
 |---|---|---|
-| R1 feedback, R2 settings, R3 source references | Implementations and focused tests are on main; earlier releases were reported deployed. | This review did not re-run every authenticated UI flow. |
+| R1 feedback, R2 settings, R3 source references | Existing contracts, routes, state and Node-rendered controls/reference foundations reviewed and tested at the pinned SHA; task statuses reconciled in checklist section 5.1. | New Chat/slot/source-link UI and owner manual acceptance are separate; do not keep proven foundations unchecked. |
 | R4 core and R6 Auto-suggest | Roadmap modules are on main; the production app config sets `ROADMAP_ENABLED` and `ROADMAP_AUTO_ENABLED` to true. The earlier reviewed production workflow succeeded; this audit has not established the served status of the newest source commits. | Config and workflow success do not establish complete learner acceptance. |
 | Owner's real Markdown attempt | The owner reports the first card generated, but the second was withheld with a source-matching message. | No passing two-card end-to-end verdict exists from that report. The exact failed claim requires the private stored result. |
 | Current author context | `a1e4094` now sends the full fitting document plus title/goal/claims/outcome, using `roadmap-card-3` and trusted `repairs:0`. | Narrow-scope planning still slices its input; accepted-plan binding, original instruction and actual request/allowance reconciliation still need targeted verification. The writer never inherits planner memory implicitly. |
@@ -67,7 +69,7 @@ A step is one coherent teaching addition. A skill is a concept or ability tracke
 | Current two-card test | The three `roadmap-document-context.test.js` regressions passed locally at the reviewed main. The writer gets the whole bounded document and step brief, grounding is recorded as not run, and two accepted cards are saved and acknowledged. | The fixture uses external doubles and direct SQL board writes. Full section 8.0 route/save coverage and owner manual production acceptance remain required. |
 | Current proposal/ToC UI | World-positioned slots, source-range navigation, Chat transcript rendering and server Tutor-thread binding are present. `TableOfContents` now owns one scroller with a `top` slot for `RoadmapToc`. | The ToC still renders the roadmap parameter/action block before ordinary headings. It needs the accepted-only tree in file 01. Chat lifecycle rows are derived from current roadmap state and need durable per-step message identity. Slot geometry needs private reload persistence. |
 | R5 proposal editing/reuse | Pending Edit uses the existing preview/apply/discard flow. Five previews per proposal and 30 per learner per UTC day are checked. `ROADMAP_EDIT_ENABLED` is true in the production app config. | Preserve the implemented edit foundation. Complete the composer-target UI, accepted edited-title/brief binding and the broader reuse subset separately. Config and focused tests establish their own scope of evidence. |
-| R7a long Markdown | Index/summary/retrieval, migration 0042 and bounded long-plan code exist. `ROADMAP_LONG_MARKDOWN_ENABLED` is true in the production app config. | Qualify the enabled long-source behavior and preserve honest coverage. Ordinary authoring still falls back to the passage above 40,000 characters. The bounded-source core correction and PDF adapter have distinct scopes. |
+| R7a long Markdown | Deterministic index/summary/retrieval/coverage and bounded long-plan foundations locally verified; migration 0042 and enabled production config retained. | Source-selection outbox/new-UI/manual extensions may be deferred. Ordinary authoring uses passage fallback above 40,000 characters. Whole-PDF Tutor planning is separate unbuilt R7b. |
 | Cleanup | P1–P5 changes/receipts are present. Archive-sensitive joins remain; P6 backfill/join removal/drop and P7 closeout are not established complete. | Do not reuse cleanup v0.1's old migration number or wait for table deletion before fixing the Tutor core. |
 | R8–R16 | The ladder retains these capabilities; some branch work was reported earlier. | Treat branch work as material to reconcile, not proof of integration, activation or acceptance. |
 
@@ -85,6 +87,27 @@ A step is one coherent teaching addition. A skill is a concept or ability tracke
 The intended order is still drop → acknowledge/choose Chat → Explain → draft and parameters → accept roadmap → accepted ToC → one pending card → accept → validate/save/acknowledge → one next proposal → second saved card → finite completion. The successful local regression covers part of this order. The rows above identify the additional work for the approved product flow.
 
 The current docs and UI references are reviewed on `chatgpt/tutor`. Claude Code imports that handoff into main before implementation. The checklist's section 1.7 specifies the repeated fetch, document sync, implementation receipt and commit-review loop.
+
+### 2.1.1 R1–R7 completion reconciliation
+
+The earlier "nine completed" count covered only narrow correction checkboxes. It omitted 18 R1–R3 table tasks and existing R5–R7 work. Every table task and checkbox through R7 in the companion checklist is now reviewed. Compound requirements are split where a tested foundation is complete but a new behavior remains. Superseded no-clone work is struck through; receipt bullets and standing constraints are not unfinished implementation tasks. No release rung is declared fully owner-accepted.
+
+| Rung/task group | Checked | Open | Total | Meaning |
+| --- | ---: | ---: | ---: | --- |
+| R1 | 5 | 1 | 6 | Existing foundations checked; updated slice/manual receipt open. |
+| R2 | 5 | 1 | 6 | Existing Depth/settings checked; immutable accepted roadmap settings open. |
+| R3 | 5 | 1 | 6 | Existing reference engine checked; new viewer/source-link receipt open. |
+| R4 | 2 | 12 | 14 | Rollup tasks; partial rows map to detailed CORE/UI below. |
+| R5 | 8 | 7 | 15 | Existing preview/Apply/keyboard/link guards checked; author/composer/reuse/geometry work open. |
+| R6 | 6 | 1 | 7 | Existing trigger/composer/delivery guards checked; persistent Chat/offscreen integration open. |
+| R7a | 15 | 3 | 18 | Existing index/retrieval/coverage checked; remaining extensions deferred. |
+| R7b | 0 | 15 | 15 | Whole-PDF Tutor adapter unbuilt and deferred; R3 excerpts counted separately. |
+
+R4's detailed correction lists contain **15 / 50 checked CORE items** and **12 / 72 checked UI items**. These are detailed subtasks of the R4/integration rollup above in the companion checklist, not extra completed releases. BE and per-release receipts remain separate evidence tasks. Do not sum overlapping rollups and subtasks into a misleading project percentage. Checked UI foundations mean source/Node verification; owner manual production acceptance is still separate.
+
+**Still required for the core:** complete planner context for selected scope; accepted instruction/title/Depth/version binding; one ordinary author dispatch across terminal failures; actual request quote equality; durable Chat acknowledgment/routing/revision and per-step messages; accepted-only ToC; persisted/final saved geometry; new source highlights/hover links and viewport-bottom Next card; shared Explanation prompts, caps, pinned header, downward sections, tables/Mermaid; then missing BE cases, build and release receipts. Existing safety, access, atomic money, feedback, settings, references and metadata-offer foundations are reused.
+
+The owner permits deferring remaining R7a extensions and the unbuilt R7b adapter. The current four enabled production config flags stay unchanged. R12/R10/R11/R9 dependencies will be discussed before changing their task order or scope.
 
 ### 2.2 Owner-reported release snapshot
 
@@ -680,8 +703,8 @@ The immediate ordinary sprint deliverable is: **drop Markdown → Chat opens and
 | R4 Core roadmap | Drop → Chat acknowledgment and routing → draft/parameters/Edit/Accept in Chat → accepted ToC → synchronized step lifecycle, durable cards and billing. Core Explanation work includes shared teaching guidance for direct questions and roadmap steps, Depth caps, a pinned header, downward disclosures, Markdown tables and Mermaid. | Existing foundation enabled with MVP correction and acceptance work outstanding. Include the planner and writer prompt changes in CORE.09 and the checks in BE.06a. The separately enabled empty-canvas invitation follow-up can ship after the Markdown flow. |
 | R6 Automatic proposals | One next canvas proposal and matching Chat entry after saved/acknowledged delivery; no camera/focus theft or poll spam. | Existing foundation enabled; prove first/second delivery and failure/safety successor rules. Manual **Propose next step** stays in Chat. R11 speculation is separate. |
 | R5 Edit/reuse | Edit card in Chat and Ctrl/Cmd+K share the existing proposal-edit foundation. Explicit linking can reuse suitable content. | The production app config enables R5 at the reviewed main. Complete the current MVP composer/edited-brief contract and qualify broader link/drag/Add-to-Chat behavior separately. |
-| R7a Long Markdown | Whole-document coverage beyond the bounded full-context source path. | The production app config enables R7a at the reviewed main. Verify current coverage/context/limits and preserve the explicit passage fallback above the supported author context bound. |
-| R7b PDF text | Page/section context and accurate references; unreadable scans identified. | Reuse PDF extraction; add the roadmap adapter. Does not require OCR. |
+| R7a Long Markdown | Versioned outline, bounded summaries, original retrieval and explicit coverage beyond bounded full-context source input. | Existing foundations locally verified and production config enabled. Remaining source-selection outbox/new-UI/manual extensions may be deferred; preserve the honest author passage fallback. |
+| R7b PDF text | Future whole-PDF Tutor planning with page/section context and honest unreadable-page coverage. | Deferred/unbuilt adapter. Existing R3 selected-PDF references remain available. Does not require OCR. |
 | R8b Calculator | Verified bounded computations within the explanation. | Small independent tool; can precede web research. No sandbox dependency. |
 | R8a Research | Scoped Exa search and guarded fetched evidence for genuine gaps. | Independent tool slice with privacy/quota/provenance checks. Does not block source-supported explanations. |
 | R9 Practice/Progress | **Explanations + practice** produces supported practice and private assessed evidence without a personal goal. | Minimal real generation/assessment integration is required to accept that selectable MVP mode; ordinary explanations can ship first. Retain immutable quiz snapshots, outbox and remaining practice/evidence scope as separate R9 work. |
@@ -735,9 +758,9 @@ Do not repeatedly ask the owner to reproduce a failure that can be replayed from
 
 ### 13.2 Direct production sprint path
 
-The owner has instructed direct main/production delivery for this sprint, without a dev clone or stable-preview deployment cycle. Broad CI/release gates remain nonblocking for authorized MVP work. Retain a successful build, relevant local tests, focused production smoke, exact commit/build identity, required schema/secrets checks and available recovery. Record omitted checks as bypassed/not run, never passed.
+The owner has authorized Claude Code to push docs and code to main, set `MVP_ALLOWED_SHA` to the exact tested candidate and complete production releases hands-off. Keep the existing isolated clone deployment required by the MVP launcher. Retain build, affected tests, focused smoke, exact SHA/tree/build, schema/secrets preflight, recovery and rollback. Use only the broad-CI/gate bypass already supported by that launcher; record skipped checks honestly. Production is the final target.
 
-If current release tooling still requires a preview receipt, make the smallest explicit compatibility change using the existing MVP path and test its consumers offline. Do not fabricate a preview record or run an unsupported flag, and do not silently reinstate the rejected clone process. This is a release-tool implementation task, not a new general approval round.
+~~Implement a new no-clone release mode.~~ Superseded by owner decision 2B. Current `mvp-fast-path.mjs::REQUIRED` already requires build, affected-tests, smoke and preview; `mvpVerdict` validates the exact clone/build/recovery record and production checks the exact SHA allowance. Reuse this path. Do not wait for the owner's manual UI testing before continuing or releasing the next core slice. Complete local backend evidence and release checks first; owner manual checking follows the completed deployed core.
 
 After deployment report the served SHA/build, flags/migrations actually checked, smoke result and authenticated functional result separately. Test on production under the existing authorized account/spend limits. The docs update does not itself deploy application changes, apply migrations or increase a paid-test cap.
 
@@ -781,7 +804,7 @@ Use separate labels: **implemented**, **locally verified**, **deployed**, **enab
 | Green/red tall or capsule-shaped accept/cancel. | Retain neutral/pale-blue attached pill geometry in checklist: 28px high, 4px radius, 8px below slot. |
 | New global recovery/progress panels. | Existing slot plus its Chat entry; no separate Tutor toast or removed recovery buttons. |
 | All later rungs wait for cleanup P7/schema drop. | Only actual shared-interface dependencies block integration. |
-| Deploy a dev clone/stable preview before every sprint candidate. | Owner-authorized direct-production path with honest focused evidence and recovery. |
+| ~~Remove the existing clone predicate and create a no-clone release mode.~~ | Superseded by the later owner 2B decision: keep the launcher's existing isolated clone deployment; no new mode. Production remains the target and styling authority. |
 | Every R1–R16 task is still new work, or a release label proves completion. | Reconcile current code; preserve implemented foundations, distinguish owner-reported releases and verify each new behavior before checking completion. |
 
 ### 14.2 Decision identifiers remain stable
