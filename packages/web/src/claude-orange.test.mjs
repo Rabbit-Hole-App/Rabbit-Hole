@@ -29,3 +29,11 @@ test('orange is never a button fill', () => {
   const ui = readFileSync(new URL('./ui.jsx', import.meta.url), 'utf8');
   assert.ok(!/bg-claude/.test(ui));
 });
+
+test('warnings are amber, far enough from the orange not to blur with it, and readable as text', () => {
+  const warn = css.match(/^ {2}--color-warn: (#[0-9a-f]{6});/m)[1];
+  const hue = hex => { const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255); const mx = Math.max(r, g, b), d = mx - Math.min(r, g, b); const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (h * 60 + 360) % 360; };
+  assert.ok(hue(warn) - hue('#c15f3c') >= 25, `warn hue ${Math.round(hue(warn))} vs orange ${Math.round(hue('#c15f3c'))}`);
+  assert.ok(ratio(warn, '#ffffff') >= 4.5, 'warn text on white');
+  assert.equal((css.match(/^ {2}--color-warn: #/gm) || []).length, 2, 'light and dark');
+});

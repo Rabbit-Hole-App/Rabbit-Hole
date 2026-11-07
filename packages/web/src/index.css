@@ -56,7 +56,9 @@
      danger-button.test.mjs. */
   --color-danger-fill: #d32f2f;
   --color-danger-fill-hover: #b72626;
-  --color-warn: #d9730d;
+  /* Warnings are amber, not orange (owner 2026-11-07): Claude orange now means intensity and in-progress, and the old #d9730d warn was too close to it.
+     #8f6b00 is 5.3:1 on white; .dark brightens it. claude-orange.test.mjs. */
+  --color-warn: #8f6b00;
   --color-success: #448361;
   /* Practice feedback text (Right. / Not quite.): Tailwind's green-700 and
      red-700 in light, flipped in .dark - the fixed palette shades fell to
@@ -347,6 +349,7 @@ html {
   --tok-k: #b79ae3;
   --color-ai: #b79ae3;
   --color-claude: #e2825d;
+  --color-warn: #e5b13a;
   --color-claude-deep: #f09a76;
   --tok-n: #e8a15c;
   --color-white: #191919; /* page + popover surfaces */
