@@ -92,3 +92,12 @@ export function emphasizePassage(ref, range, { blocks = state.blocks, emit = eve
   if (cardId && range) emit(new CustomEvent(SOURCE_REF_EVENT, { detail: { cardId, key: ref.source.key, rev: ref.source.rev, range, raw: true, quiet: true } }));
   return !!cardId;
 }
+
+// UI.06: where a step's passage is drawn now, for placing its slot beside it. A Markdown file card registers how to find a raw range in its own rendered text
+// (FileDocMarkdown); the canvas asks once, when it first places the slot. null: no such card, the range does not resolve, or it is not in the card's visible
+// scroller (collapsed, scrolled away): the caller then uses the source card's own box, never a guessed paragraph.
+const measures = new Map();
+export function registerPassageMeasure(cardId, measure) { measures.set(cardId, measure); return () => { if (measures.get(cardId) === measure) measures.delete(cardId); }; }
+export const measurePassage = (cardId, detail) => { try { return measures.get(cardId)?.(detail) ?? null; } catch { return null; } };
+// A screen rect (getBoundingClientRect) to world units on a canvas whose surface starts at `origin` (its own rect) under view { x, y, z }.
+export const toWorld = (rect, origin, view) => (rect ? { x: (rect.left - origin.left - view.x) / view.z, y: (rect.top - origin.top - view.y) / view.z, w: rect.width / view.z, h: rect.height / view.z } : null);

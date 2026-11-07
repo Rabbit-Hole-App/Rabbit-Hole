@@ -83,3 +83,29 @@ const accepted = (held, card) => (held?.proposalId && card.state !== 'pending' &
 // Whether a step's kept canvas place still belongs to this card: the same offer (or its accepted work, which has no proposal id) keeps it; a new proposal for the step
 // after a Cancel (another proposal id) is placed afresh.
 export const keepsSpot = (kept, card) => !!kept && (!card?.proposalId || !kept.proposalId || kept.proposalId === card.proposalId);
+
+// UI.06: the slots' private places (control plane roadmap-slots.js), read once per roadmap and written once per offer. The canvas waits for the read before it
+// places anything (ready), so a reload restores each slot instead of measuring it again; a write answers the stored place, which wins over the one just chosen.
+// api(path, init) is the page's api(); listener() runs when the read lands.
+export function createSlotStore({ api, listener = () => {} }) {
+  let roadmapId = null, boardId = null, slots = {}, ready = false;
+  const base = id => `/api/learn/roadmap/${encodeURIComponent(id)}/slots`;
+  return {
+    load(view) {
+      const id = view?.roadmap?.id ?? null;
+      if (id === roadmapId) return;
+      roadmapId = id; boardId = view?.roadmap?.boardId ?? null; slots = {}; ready = !id;
+      if (!id) return;
+      api(`${base(id)}?boardId=${encodeURIComponent(boardId)}`, {}).then(body => { if (roadmapId === id) slots = body?.slots || {}; }, () => {}).finally(() => { if (roadmapId === id) { ready = true; listener(); } });
+    },
+    ready: () => ready,
+    // The kept place of this step's offer: the same offer, or its accepted work (no proposal id), keeps it (keepsSpot).
+    get: card => { const kept = slots[card.key]; return kept && keepsSpot(kept, card) ? { x: kept.x, y: kept.y, proposalId: kept.proposalId ?? null } : null; },
+    place(card, spot, w) {
+      if (!roadmapId) return Promise.resolve(null);
+      const slot = { x: spot.x, y: spot.y, w, proposalId: card.proposalId ?? null };
+      slots = { ...slots, [card.key]: slot };
+      return api(base(roadmapId), { method: 'POST', body: JSON.stringify({ boardId, stepId: card.key, ...slot }) }).then(body => (body?.slot ? (slots = { ...slots, [card.key]: body.slot }, body.slot) : null), () => null);
+    },
+  };
+}

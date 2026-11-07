@@ -10,7 +10,7 @@ import { containsOffset, paintHighlights, quoteFromRange, rangeFromOffsets } fro
 import { currentHighlights, highlightAt, markdownHighlightBody, markdownHighlightSource, placeHighlights } from './file-doc-highlights.js';
 import { EXPLAIN_PASSAGE_EVENT, PASSAGE_TEXT, SOURCE_REF_EVENT, explanationsFor, markdownDraft, passageTarget, resolveQuote, resolveRawPassage } from './source-ref.js';
 import { textSegments } from './markdown-anchor.js';
-import { focusExplanation, mintSourceRef } from './source-refs.js';
+import { focusExplanation, mintSourceRef, registerPassageMeasure } from './source-refs.js';
 import { api } from './api.js';
 import { useSourcePending, useSourceRefBlocks } from './SourceRefChip.jsx';
 
@@ -101,6 +101,19 @@ export function MarkdownText({ block, text, children }) {
     return () => window.removeEventListener(SOURCE_REF_EVENT, onPassage);
   }, [block.id]);
   useEffect(() => { const detail = pendingPassage.current; if (detail) requestAnimationFrame(() => passageView.current(detail)); }, [text]);
+  // UI.06: the canvas asks where a step's raw range is drawn, to place its slot beside it. Only a resolved range on this revision that is inside the visible
+  // scroller answers; anything else is null (the canvas then uses this card's box). Never scrolls, expands or paints.
+  const measureRef = useRef(null);
+  measureRef.current = ({ range: raw, rev: wanted }) => {
+    const node = root.current;
+    if (!node || wanted !== rev || !raw || raw.end > text.length) return null;
+    const quote = rawQuote(raw);
+    let found = resolveQuote(node.textContent, quote);
+    if (found.status === 'missing' && !more()) found = resolveRawPassage(textSegments(node), quote);
+    const range = found.status === 'resolved' && rangeFromOffsets(node, found.start, found.end);
+    return range && inView(range) ? range.getBoundingClientRect() : null;
+  };
+  useEffect(() => registerPassageMeasure(block.id, detail => measureRef.current(detail)), [block.id]);
   useEffect(() => {
     if (!menu?.cardId) return undefined;
     const paintKey = `srcref-open:${block.id}`;

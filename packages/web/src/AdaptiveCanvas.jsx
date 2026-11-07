@@ -47,7 +47,7 @@ import SourcesDisclosure from './SourcesDisclosure.jsx';
 import CardPrompt, { PromptSlot } from './CardPrompt.jsx';
 import { CardFeedback } from './CardFeedback.jsx';
 import SourceRefChip, { useSourceRefIndex } from './SourceRefChip.jsx';
-import { emphasizePassage, publishPending, viewPassage } from './source-refs.js';
+import { emphasizePassage, measurePassage, publishPending, toWorld, viewPassage } from './source-refs.js';
 import { draftOfBlock } from './source-ref.js';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
@@ -67,7 +67,7 @@ import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
 import { BAND_ROOM, anchoredBoxes, anchoredSlots, cardBox, chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, openingPan, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
-import { deliveredSpot } from './roadmap-placement.js';
+import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
 import { SlotCard } from './SlotCard.jsx';
 import { NextCardPill } from './NextStepPill.jsx';
 import { areaTarget, cropBinding } from './area-crop.js';
@@ -2363,6 +2363,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         if (slot) setSlots(previous => fillSlot(previous, slot.id, added.id));
         return added.id;
       },
+      // UI.06: resolves once a placed Tutor card's offsets are in the canvas's blocks (true), or false after 4 s; the delivery saves and acknowledges only after true.
+      settled: id => (!pendingAt.current.has(id) ? Promise.resolve(true) : new Promise(resolve => {
+        const timer = setTimeout(() => resolve(false), 4000), list = settleWaits.current.get(id) || [];
+        list.push(ok => { clearTimeout(timer); resolve(ok); }); settleWaits.current.set(id, list);
+      })),
       release,
       insertDivider: () => {
         snapshot();
@@ -5235,20 +5240,37 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The Tutor's offers on the canvas (roadmap-canvas.js, Fix C): `roadmap.cards` are the placeholders the server's view asks for. Each stands at ONE world position
   // beside its source passage, chosen when it first appears and kept (roadmapSpots) through proposal, generation and delivery; nothing moves the camera, and nothing
   // existing moves (obstacles only). A card whose source is not on this canvas, or not measured yet, waits (it is retried when the bounds change).
-  const roadmapSpots = useRef(new Map()), pendingAt = useRef(new Map());
+  const roadmapSpots = useRef(new Map()), pendingAt = useRef(new Map()), settleWaits = useRef(new Map());
+  // A placed card's offsets reached the blocks (the commit after the measuring pass): its delivery may save now; the page's board copy follows on the next task.
+  useEffect(() => {
+    if (!settleWaits.current.size) return;
+    for (const [id, list] of settleWaits.current) {
+      if (pendingAt.current.has(id) || !blocks.some(entry => entry.id === id)) continue;
+      settleWaits.current.delete(id);
+      setTimeout(() => list.forEach(done => done(true)), 0);
+    }
+  }, [blocks]);
   const roadmapSpot = (card, size) => {
     // The place belongs to one offer: a new proposal for the step (after a Cancel) is placed afresh; the same offer coming back (Ask, the editor) and its accepted
     // work (no proposal id) keep it.
     const kept = roadmapSpots.current.get(card.key);
     if (keepsSpot(kept, card)) return kept;
+    // UI.06: a place this learner's slot already has (roadmap-slots.js, private) comes back as it was; nothing is placed before that read lands.
+    const stored = roadmap?.slots?.get?.(card);
+    if (stored) { roadmapSpots.current.set(card.key, stored); return stored; }
+    if (roadmap?.slots && !roadmap.slots.ready()) return null;
     const source = sourceBlockOf(blocksRef.current, card.sourceKey), box = source && boundsRef.current[source.id];
     if (source && !box) return null; // the source card is not measured yet: the next bounds retry
+    // Beside the step's passage where the card draws it now (measured once, screen to world); else the source card's own box (collapsed, scrolled away, unresolved).
+    const passage = box && surface.current ? toWorld(measurePassage(source.id, { range: card.passage, rev: card.sourceRef?.source?.rev ?? source.fileRef?.source?.rev }), surface.current.getBoundingClientRect(), viewRef.current) : null;
+    const anchor = box ? proposalAnchor(box, passage) : null;
     const taken = anchoredBoxes(slotsRef.current).filter(entry => entry.id !== slotIdOf(card.key));
     // Beside the source card's canvas box (placeNote's sides, then rings), clear of everything on the board; never its scrolled text, never the camera. No source card on this
     // canvas: once, beside where the learner is looking, so an offer is never invisible.
-    const spot = { ...(box ? deliveredSpot(size, box, [...boardObstacles([source.id, slotIdOf(card.key)]), ...taken, box], null) : deliveredSpot(size, viewCenter(), [...boardObstacles([slotIdOf(card.key)]), ...taken], null)),
+    const spot = { ...(box ? deliveredSpot(size, anchor, [...boardObstacles([source.id, slotIdOf(card.key)]), ...taken, box], null) : deliveredSpot(size, viewCenter(), [...boardObstacles([slotIdOf(card.key)]), ...taken], null)),
       proposalId: card.proposalId ?? kept?.proposalId ?? null };
     roadmapSpots.current.set(card.key, spot);
+    roadmap?.slots?.place?.(card, spot, size.w); // persisted once; the store answers the server's kept place on a race
     return spot;
   };
   useLayoutEffect(() => {
