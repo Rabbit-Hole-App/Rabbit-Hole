@@ -21,9 +21,6 @@ export function columnEntries(blocks, slots) {
 // passage (roadmap-canvas.js), the same place it keeps while it generates and where the delivered card lands. Without `at` a slot is the column's, as always.
 // state: 'generating' (default: the spinner, the timer), or a roadmap card's 'pending' | 'checking' | 'failed' (no spinner or timer before acceptance).
 export const anchoredSlots = slots => slots.filter(slot => slot.at);
-// An anchored slot as the box other placements keep clear of: its frame and the pill or status 8px below it (28px).
-export const SLOT_BELOW = 36;
-export const anchoredBoxes = slots => anchoredSlots(slots).map(slot => ({ id: slot.id, x: slot.at.x, y: slot.at.y, w: slot.w, h: slot.h + SLOT_BELOW }));
 
 // Where the card that fills `slot` goes in `blocks`: exactly where the slot stands, never a new place.
 export function slotIndex(blocks, slot) {
@@ -140,8 +137,7 @@ export function openingPan(box, view, area, floorOver) {
 // (`at`, a block index); when none is free, the end of the column, below whatever is drawn there (`top`).
 // items: the column in render order - chat cards, then blocks - { id, block, flowTop, flowBottom } (their flow
 // place, margin included) and { x, y, w, h } (where they are drawn). slot: { w, h }. Returns { at, top }.
-// fixed: boxes outside the flow that a slot must not cover either (the Tutor's anchored slots, anchoredSlots); they never move with the column.
-export function freeSlot(items, at, slot, { column = 560, gap = 20, fixed = [] } = {}) {
+export function freeSlot(items, at, slot, { column = 560, gap = 20 } = {}) {
   const blocks = items.filter(item => item.block);
   const left = slot.w > column ? 0 : (column - slot.w) / 2, right = left + slot.w;
   const end = items.length ? Math.max(...items.map(item => item.flowBottom)) + gap : 0;
@@ -149,7 +145,7 @@ export function freeSlot(items, at, slot, { column = 560, gap = 20, fixed = [] }
   // What a slot at block index k, its top at `top`, would cover: the blocks from k on move down by the slot.
   const covered = (k, top) => {
     const moved = new Set(blocks.slice(k).map(block => block.id));
-    return [...items, ...fixed].filter(item => {
+    return items.filter(item => {
       const y = item.y + (moved.has(item.id) ? slot.h + gap : 0);
       return item.x < right && item.x + item.w > left && y < top + slot.h && y + item.h > top;
     });

@@ -64,9 +64,9 @@ import { DivePortals } from './Dive.jsx';
 import { canvasObjects } from './dive.js';
 import { VIEW_ONLY_CONTROLS, openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
-import { BAND_ROOM, anchoredBoxes, anchoredSlots, cardBox, chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, openingPan, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
+import { BAND_ROOM, anchoredSlots, cardBox, chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, openingPan, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
-import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
+import { liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot } from './roadmap-placement.js';
 import { SlotCard } from './SlotCard.jsx';
 import { areaTarget, cropBinding } from './area-crop.js';
@@ -2335,7 +2335,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       reserve: ({ label, card = null, samples = [], at = null, quiet = false, state = 'generating' }) => {
         const id = `slot:${crypto.randomUUID()}`;
         const size = slotSize(card, BLOCK_TYPES, samples);
-        const place = at ? { at: null, top: 0 } : freeSlot(columnItems(), flowIndexAtView(), size, { column: COLUMN, fixed: anchoredBoxes(slotsRef.current) });
+        const place = at ? { at: null, top: 0 } : freeSlot(columnItems(), flowIndexAtView(), size, { column: COLUMN });
         const before = at ? null : blocksRef.current[place.at]?.id ?? null;
         // moves: the learner's camera moves so far; once they move it, nothing about this slot moves it again.
         setSlots(previous => [...previous, { id, before, top: place.top, label, ...size, started: performance.now(), moves: manualMoves.current, ...(at ? { at } : {}), ...(state !== 'generating' ? { state } : {}) }]);
@@ -3665,8 +3665,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     }).filter(box => box.w && box.h);
   };
   // Every kind of thing on the board as boxes with their ids (obstaclesOf): the inline editor's obstacles, and linked answers'.
-  // The Tutor's anchored slots are obstacles too (canvas-slots.js anchoredBoxes), so nothing new lands on a pending or generating slot.
-  const boardObstacles = (exclude = []) => obstaclesOf({ boxes: [...contentBoxes(), ...anchoredBoxes(slotsRef.current)], paths: inlinePaths(), frames: inlineScreenBoxes('[data-group-box]', 'groupBox'), areas: areas.map(stored => ({ ...areaBox(stored), id: stored.id })), pins: inlineScreenBoxes('[data-comment-pin]') }, exclude);
+  const boardObstacles = (exclude = []) => obstaclesOf({ boxes: contentBoxes(), paths: inlinePaths(), frames: inlineScreenBoxes('[data-group-box]', 'groupBox'), areas: areas.map(stored => ({ ...areaBox(stored), id: stored.id })), pins: inlineScreenBoxes('[data-comment-pin]') }, exclude);
   const inlineCanvas = {
     locked: id => lockedRef.current.has(id),
     boardKey: inlineKey.current, cache: inlineCache.current,
@@ -5233,17 +5232,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // existing moves (obstacles only). A card whose source is not on this canvas, or not measured yet, waits (it is retried when the bounds change).
   const roadmapSpots = useRef(new Map()), pendingAt = useRef(new Map());
   const roadmapSpot = (card, size) => {
-    // The place belongs to one offer: a new proposal for the step (after a Cancel) is placed afresh; the same offer coming back (Ask, the editor) and its accepted
-    // work (no proposal id) keep it.
     const kept = roadmapSpots.current.get(card.key);
-    if (keepsSpot(kept, card)) return kept;
+    if (kept) return kept;
     const source = sourceBlockOf(blocksRef.current, card.sourceKey), box = source && boundsRef.current[source.id];
     if (source && !box) return null; // the source card is not measured yet: the next bounds retry
-    const taken = anchoredBoxes(slotsRef.current).filter(entry => entry.id !== slotIdOf(card.key));
+    const taken = anchoredSlots(slotsRef.current).filter(entry => entry.id !== slotIdOf(card.key)).map(entry => ({ id: entry.id, x: entry.at.x, y: entry.at.y, w: entry.w, h: entry.h }));
     // Beside the source card's canvas box (placeNote's sides, then rings), clear of everything on the board; never its scrolled text, never the camera. No source card on this
     // canvas: once, beside where the learner is looking, so an offer is never invisible.
-    const spot = { ...(box ? deliveredSpot(size, box, [...boardObstacles([source.id, slotIdOf(card.key)]), ...taken, box], null) : deliveredSpot(size, viewCenter(), [...boardObstacles([slotIdOf(card.key)]), ...taken], null)),
-      proposalId: card.proposalId ?? kept?.proposalId ?? null };
+    const spot = box ? deliveredSpot(size, box, [...boardObstacles([source.id]), ...taken, box], null) : deliveredSpot(size, viewCenter(), [...boardObstacles(), ...taken], null);
     roadmapSpots.current.set(card.key, spot);
     return spot;
   };

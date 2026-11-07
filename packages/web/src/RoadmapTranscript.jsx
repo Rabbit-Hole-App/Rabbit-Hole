@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { BookOpen } from 'lucide-react';
 import DepthMenu from './DepthMenu.jsx';
 import { EvidencePill } from './Md.jsx';
-import { ProposalTools, StepPill } from './NextStepPill.jsx';
+import { StepPill } from './NextStepPill.jsx';
 import { STRINGS } from './roadmap-strings.js';
 import { ChatMessage } from './ChatMessages.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
@@ -74,10 +74,7 @@ export default function RoadmapTranscript({ roadmap, chat, msgs }) {
               <button type="button" data-roadmap-start disabled={planning} onClick={() => c.explain({ depth: local.depth, instruction: '' })} className={PRIMARY}>{STRINGS.startPlanning}</button>
             </div>
           )}
-          {/* T8: Edit is the existing R5 Edit (ProposalTools, closed), only when the server says editing is on (view.edit: ROADMAP_EDIT_ENABLED); it opens the same
-              editor as Ctrl/Cmd+K on the canvas (the proposal overlay), never a second one. */}
-          {item.pill && <div className="flex flex-wrap items-center gap-1.5 pb-1.5"><StepPill pill={item.pill} tabHint={false} onAccept={() => c.acceptProposal()} onCancel={() => c.cancelProposal()} />
-            {item.pill.canEdit && <ProposalTools pill={item.pill} edit={{ open: false, onOpen: () => c.openEditor() }} />}</div>}
+          {item.pill && <div className="pb-1.5"><StepPill pill={item.pill} onAccept={() => c.acceptProposal()} onCancel={() => c.cancelProposal()} /></div>}
           {item.outputs && <ChatOutputs outputs={item.outputs} ops={chat.canvasOps ?? null} />}
         </div>
       ))}

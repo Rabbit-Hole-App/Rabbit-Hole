@@ -100,9 +100,7 @@ test('RoadmapTranscript renders through ChatMessage and ChatOutputs, with the in
   assert.match(render(at('status-proposed-plan')), /data-roadmap-review[^>]*>[\s\S]*Your plan is ready to review\./);
   const pending = render(at('status-active-proposal-pending'));
   assert.match(pending, /data-roadmap-pill/);
-  // Owner 2026-11-06 (J2): the Chat copy of the pill has no [Tab] hint, Tab does not accept in Chat; the canvas pill keeps it (roadmap-view.test.mjs).
-  assert.match(pending, /data-roadmap-accept[^>]*>Accept<\/button>/);
-  assert.doesNotMatch(pending, /<kbd[^>]*>Tab<\/kbd>/);
+  assert.match(pending, /data-roadmap-accept[^>]*>Accept<kbd[^>]*>Tab<\/kbd>/);
   assert.match(pending, /data-roadmap-cancel[^>]*>Cancel</);
 });
 
@@ -133,15 +131,4 @@ test('Start planning creates the roadmap with the confirmed Depth and the flow i
   const create = calls.find(c => c.method === 'POST' && c.body?.invitationId);
   assert.equal(create.body.depth, 'deep');
   assert.equal(create.body.instruction, '', 'the explicit (empty) instruction of this flow, not a host read');
-});
-
-// T8 (owner plan): the Chat proposal message offers the existing R5 Edit only when the server says editing is on (view.edit, ROADMAP_EDIT_ENABLED); in production it is off.
-test('the proposal message shows the existing Edit (ProposalTools) only when view.edit is true, and it opens the one editor (controller.openEditor)', () => {
-  const plain = at('status-active-proposal-pending');
-  assert.doesNotMatch(render(plain), /data-roadmap-edit/, 'flag off: no Edit');
-  const editable = reduce(initialState(), { type: 'view', view: { ...plain.view, edit: true } });
-  const markup = render(editable);
-  assert.match(markup, /data-roadmap-pill=[\s\S]*data-roadmap-edit="true"[^>]*>Edit</, 'the same Edit button, beside the pill');
-  assert.doesNotMatch(markup, /data-roadmap-editor/, 'the editor itself opens in the proposal overlay, never here');
-  assert.doesNotMatch(render(reduce(initialState(), { type: 'view', view: { ...plain.view, edit: true, proposal: { ...plain.view.proposal, link: { cardId: 'c' } } } })), /data-roadmap-edit/, 'a linked card has nothing to edit');
 });
