@@ -194,11 +194,13 @@ For each fresh ordinary explanation, send the full supported pinned document plu
 
 Fill the same frame with the real explanation at the stored top-left/width, growing downward when necessary. Save its real card ID and geometry before acknowledging delivery. Only then confirm that the card is ready in Chat and the ToC. The delivered Chat entry keeps **Go to card**, **Go to highlighted text** and **Edit card**; its pending **Accept / Next card / Cancel** controls are removed. Source highlights and their card-link icons now point to this saved card.
 
+The delivered explanation keeps the existing frame. The header holds the **Explanation** label, **Source: filename** (for example, **Source: en.md**) and the **View section** icon for an authorized current source. The explanation title, text and expanded section content share the middle scroller. The existing expandable section buttons stay below it and remain visible while reading. Opening a section reveals its content in the middle and scrolls that area to it. Use the existing card renderer and typography. [04 — Explanation card](ui/04-explanation-card.html)
+
 A lost save/acknowledgment reconciles this same result and card ID. It never generates a replacement or charges again. A genuine generation failure keeps a truthful failed/skipped state in the same slot and Chat entry, without **Retry**, **Replace** or **Omit** buttons. Section 6.3 defines failure continuation and the safety-refusal stop.
 
 ### 3.10 Step 10 — Keep passage navigation and visual order understandable
 
-Each saved roadmap card has a resolvable relationship to the relevant source passage where one exists. That Markdown passage has a subtle persistent Tutor highlight and a small accessible card-link icon. Clicking the icon navigates to the generated card; **Go to highlighted text** navigates back. Existing user-created highlights remain separate. Duplicate/overlapping relationships use a local chooser for the actual linked cards, not a stack of icons covering the text.
+A saved card with a verified source anchor has a persistent highlight in the rendered Markdown. Its nearby **View card** control appears on section hover or keyboard focus and uses the same scan-text icon as **View section**. Activation frames the actual saved card and briefly emphasizes it with the existing blue selection outline. Keep learner highlights separate and group multiple valid targets under one local chooser. Section 7.5 specifies the highlight for each content type. [05 — Markdown source links](ui/05-markdown-source-links.html)
 
 New slots progress visually from top to bottom around the Markdown, choosing left or right according to the passage and available canvas space, with above/below as fallbacks. They avoid the Markdown, existing cards/materials, pending slots and attached controls. Accepted step order remains the pedagogical order: source geometry never silently reorders the plan. Once a slot is shown, internal Markdown scrolling does not drag it around the canvas. Section 7 defines collisions, collapsed sources and honest unresolved-anchor fallbacks.
 
@@ -271,8 +273,10 @@ Use one shared action template/registry across Tutor Chat, proposal slots and so
 | Ready next-card purchase | **Next card** | In Chat and the bottom-fixed canvas **Next card / Cancel** pill; accept and generate the already-ready proposal once, with no second confirmation. Eligible keyboard acceptance retains its existing guards. |
 | Pending card cancellation | **Cancel** | Same action from Chat/canvas; remove offer and pause automatic progression. No delivered-card Cancel. |
 | Card edit | **Edit card** | Chat step entry targeting current card/proposal; existing inline shortcut remains available. |
-| Card navigation | **Go to card** | Chat entry or source icon accessible name; navigate to the real slot/card. |
-| Passage navigation | **Go to highlighted text** | Chat/card reference navigation; resolve true passage or report unavailable. |
+| Chat card navigation | **Go to card** | Frame the actual pending slot or saved card. |
+| Chat source navigation | **Go to highlighted text** | Resolve the source and scroll its viewer to the verified section. |
+| Explanation source navigation | **View section** | Scan-text icon beside **Source: filename** in the fixed header. |
+| Markdown card navigation | **View card** | Same scan-text icon beside the highlight. Reveal on hover or keyboard focus, then frame and briefly outline the linked saved card on activation. |
 | Manual next proposal | **Propose next step** | Chat when no offer is active; creates proposal metadata only. The resulting ready next offer uses **Next card** for its separate purchase. |
 | Stop initiative | **End roadmap** | Active roadmap's Chat summary; retain delivered history. |
 
@@ -280,19 +284,21 @@ Use matching disabled/busy/stale states, keyboard/accessibility labels and actio
 
 ### 4.6 Approved UI references — read before changing the app
 
-These three files are the approved visual references for the current MVP. Open them locally and inspect their HTML/CSS/state examples before changing the corresponding product components. Do not redesign an already approved surface from a prose summary.
+These five files are the approved visual references for the current MVP. Open them locally and inspect their HTML/CSS/state examples before changing the corresponding product components. Do not redesign an already approved surface from a prose summary.
 
 | File | What Claude Code must inspect and reproduce | Workflow locations |
 | --- | --- | --- |
 | [01 — Table of contents](ui/01-table-of-contents.html) | Existing panel header and tabs; one accepted H1/H2/H3 tree and one scroller; numbering, descriptions, circular manual checkboxes, fold controls and heading tools. No parameters, stopping-point block, roadmap decision footer or composer. | Sections 3.7 and 4.2; checklist UI.02. |
 | [02 — Canvas card skeleton](ui/02-canvas-card-skeleton.html) | Skeleton title, description, source excerpt, drag strip and frame; attached first **Accept [Tab] / Cancel**; same frame during generation; green affirmative actions and muted-red Cancel; subsequent **Next card / Cancel** fixed to the canvas viewport bottom. Use **Show Next card state** to inspect the bottom pill, then scroll. | Sections 3.8–3.11 and 6–7; checklist UI.04–08. |
 | [03 — Chat roadmap](ui/03-chat-roadmap.html) | Tutor message with bordered **Roadmap parameters** and separate bordered **Roadmap draft**; Scope, direct Depth slider, explanations/practice dropdown; **Accept roadmap / Edit roadmap**; edit-target pill in the existing composer; accepted confirmation and main-style blue **Open table of contents**. Its ToC destination reuses file 01. | Sections 3.5–3.7 and 4.3–4.5; checklist UI.02–03. |
+| [04 — Explanation card](ui/04-explanation-card.html) | Delivered explanation with fixed Explanation label, Source: filename and ScanText View section in the header. The middle body scrolls. The existing dropdown rows stay visible at the bottom and open content in the body. | Sections 3.9 and 7.6. Checklist UI.04 and UI.07. |
+| [05 — Markdown source links](ui/05-markdown-source-links.html) | Hover over an annotated prose, code, diagram, image or whole-section example. The matching ScanText View card icon appears. Activate it to frame and briefly outline the exact linked card in blue. View section returns to the resolved source. | Sections 3.10 and 7.5–7.6. Checklist UI.07 and BE.13. |
 
 **Use deployed main as the product styling/component authority.** Never use a dev/preview deployment as the baseline, and never invent a replacement blue or hover color. Reuse main's shared `Button` and theme tokens: primary fill `--color-primary-fill` (`#1b6fc2`) and hover `--color-primary-fill-hover` (`#165ca3`), white text. Reuse the existing panel, Chat, skeleton, ToC and icon components. The owner explicitly approved green **Accept / Next card** and muted-red **Cancel** for these canvas pills; that local action-color change supersedes the older neutral/pale-blue pill rule. Use sentence case consistently; interpret the owner's wording rather than copying accidental capitalization. Do not add redundant instruction sentences below pills.
 
 **The HTML illustrates appearance; the full workflow and persistence contract still govern implementation.** Demo buttons, fixture text, timers, simulated updates and DOM-only effects are not production logic. In particular, the Next-card demo is not permission to overwrite the previous card, lose its original source anchor, ask for a second Accept, fabricate progress, enable unqualified practice or discard ordinary unsent Chat input. Preserve saved cards and their highlights, create the successor's own slot, and use real canonical state. File 03 demonstrates the roadmap portion of Chat only; the later Chat card-proposal/generation/completion UI has not been designed/approved by this handoff. Preserve all existing production composer controls even where the focused mockup omits them.
 
-Approval/publication of these files is not evidence that UI.02–08 has shipped. Implementation boxes remain unchecked until corresponding pushed code and its required evidence are verified.
+Use file 04 for the delivered explanation and file 05 for the source highlight and reverse link. File 02 continues to illustrate the proposal slot and its actions. Record implementation evidence separately from approval of these HTML references. Implementation boxes remain unchecked until corresponding pushed code and its required evidence are verified.
 
 ## 5 Context, scope and source references
 
@@ -418,7 +424,17 @@ The checklist gives spacing, width, colors, pill geometry and renderer reuse. Fo
 
 ### 7.5 Persistent source highlights and card-link icons
 
-For each delivered card with a valid source range, show a **subtle persistent Tutor highlight** on that passage in the Markdown viewer and a **small adjacent card-link icon**. The icon's accessible name is **Go to card**; it is keyboard reachable and usable without hover or color alone. Activating it navigates to the actual generated card, even if that card is offscreen. Persist the relationship through reload and derive the annotation from its authorized source/card identity, not from a transient hover record.
+Show a subtle persistent Tutor annotation when an authorized saved card has a verified anchor in the current Markdown revision. Keep the **View card** button in an adjacent gutter that leaves text and media clear. It appears when the learner hovers over the annotated section or Tabs to the button. Keep the gutter stable when the icon is hidden. The tooltip is **View card** and the accessible name includes the destination card title. Restore valid annotations and their exact card targets after reload. [05 — Markdown source links](ui/05-markdown-source-links.html)
+
+| Source anchor | Highlight in rendered Markdown |
+| --- | --- |
+| Prose | Tint the exact resolved inline text. |
+| Code | Tint the resolved line or lines. Preserve indentation, syntax and horizontal scrolling. |
+| Diagram | Outline the resolved rendered diagram block. |
+| Image | Outline the resolved image boundary. Keep the image itself clear. |
+| Whole section | Use a subtle side rail along the resolved heading and content group. |
+
+The rendered highlight follows a verified source range or block in its pinned revision. Code and media anchors need a resolved block identity. A caption or repeated filename by itself cannot identify a target.
 
 Keep three concepts separate: the persistent Tutor passage relationship, the temporary stronger emphasis used for navigation/selection, and learner-created saved highlights. Do not overwrite learner highlights or turn the source into many opaque colored blocks. Scrolling naturally reveals the annotation when that passage enters view; it does not move the linked canvas card.
 
@@ -428,7 +444,7 @@ If the card is deleted, access is lost, the source changes or the match is ambig
 
 ### 7.6 Two-way explicit navigation
 
-**Go to highlighted text** from Chat or a card resolves the stored source revision/range, frames the source if necessary on explicit user request, and scrolls its own viewer to the correct passage with temporary navigation emphasis. **Go to card** from the source or Chat frames the stored pending slot/saved card. Both directions preserve editing, plan, billing and the card's geometry; navigation never accepts an offer.
+**View section** on an explanation and **Go to highlighted text** in Chat resolve the stored source revision and range. On activation, frame the source if needed, scroll its own viewer to the correct section and emphasize that section briefly. **View card** in Markdown frames the exact saved card and briefly outlines it using the existing blue selection token. Chat **Go to card** also supports a pending slot. Both directions preserve card geometry, editing state and the plan. Navigation has no charge or acceptance effect. The icons on the explanation and Markdown use the same ScanText glyph. [04 — Explanation card](ui/04-explanation-card.html) · [05 — Markdown source links](ui/05-markdown-source-links.html)
 
 Do not automatically pan, expand or scroll as a side effect of generation, next-offer readiness or highlighting. An explicit navigation action may perform the necessary framing/inner scroll; a missing target gets an honest message. Connectors/arrows remain optional when useful, not mandatory for every pair or a prerequisite to authoring.
 
@@ -716,7 +732,7 @@ Use separate labels: **implemented**, **locally verified**, **deployed**, **enab
 | Canvas proposal vanishes after acceptance; content appears at current viewport center. | Same private world slot through acceptance/generation/saving/delivery/failure, plus same Chat step entry. |
 | Place beside the generic source box even when its passage is measurable. | Passage-adjacent left/right first, above/below fallback, top-to-bottom visual progression; avoid all material/control bounds and preserve accepted step order. |
 | Follow the passage as the Markdown viewer scrolls. | Measure once for initial placement, persist world geometry, preserve intentional drag and never move the slot on internal source scrolling. |
-| Source highlights are only transient hover/navigation effects. | Subtle persistent Tutor passage highlight plus small accessible **Go to card** icon after saved delivery; temporary focus emphasis and user highlights stay separate. |
+| Source highlights are only transient hover/navigation effects. | Persistent Tutor highlights follow each supported rendered anchor type. The adjacent **View card** icon appears on hover or keyboard focus after saved delivery. Keep temporary emphasis and learner highlights separate. |
 | Pending/missing targets can expose generic View explanation links. | Chat can navigate to an actual pending slot; source generated-card icons require an actual accessible saved card. Missing/ambiguous links are honest. |
 | Next step ready or generating controls appear outside the chat messages. | Readiness/progress/actions are inside the matching Chat entry and existing canvas slot; no added above/below-chat Tutor control region. |
 | All accepted-roadmap edits wait for R10. | Explicit Chat draft/reaccept loop for future work is MVP; R10 retains richer evidence-driven adaptation. |
@@ -785,9 +801,9 @@ Legacy M0–M15 identifiers are historical traceability, not a second release de
 | Accept with insufficient allowance | Proposal remains pending; existing credits flow explains the limitation. | No consumed acceptance or partial step purchase. |
 | Scroll/collapse/expand the source or pan/zoom canvas | Source viewer changes normally; existing slot stays at stored world coordinates. | No re-placement, plan change, generation or acceptance. |
 | Generate ordinary first/second card | Full pinned document and accepted brief fill the same canvas slot; one Chat entry reports state and saved readiness. | Citation gate not run; applicable checks, allowance and save-before-acknowledge remain. |
-| Complete saved delivery | Source passage shows subtle persistent highlight and accessible card-link icon; Chat keeps navigation and **Edit card**. | No pending Accept/Next card/Cancel on delivered entry; no claim of mastery. |
-| Click a source icon or **Go to card** | Navigate to the actual saved card, or actual pending slot when invoked from Chat. | Navigation never buys; pending/missing source target cannot expose a dead generated-card link. |
-| Choose **Go to highlighted text** | Resolve/frame source and scroll its own viewer to the correct passage with temporary emphasis. | Do not move explanation geometry or overwrite saved user highlights; ambiguous/missing range is honest. |
+| Complete saved delivery | The source keeps its persistent highlight. Hover or keyboard focus reveals **View card**. The explanation header offers **View section** and Chat keeps navigation and **Edit card**. | No pending Accept/Next card/Cancel on delivered entry; no claim of mastery. |
+| Activate **View card** in Markdown or **Go to card** in Chat | Frame the saved card. Markdown navigation briefly outlines the destination in blue. Chat can also frame a pending slot. | Require an accessible target. Navigation creates no purchase. |
+| Activate **View section** on an explanation or **Go to highlighted text** in Chat | Frame the source and scroll its own viewer to the verified section with temporary emphasis. | Preserve stored card geometry and learner highlights. Report ambiguous or missing anchors accurately. |
 | Several cards reference the same passage | One small source affordance opens a local chooser of actual linked cards. | Correct per-target access/identity; no overlap of duplicate icons or disclosure of private proposals. |
 | Ordinary generation fails | Same slot and Chat entry retain actual failed/skipped reason and settlement state; no Retry/Replace/Omit buttons. | No auto author retry. Successor requires canonical settlement and independent/prerequisite eligibility. |
 | Safety refusal occurs | Truthful failure/held state remains in the slot and Chat. | Stop automatic next offering; no mechanical skip into related content. |
