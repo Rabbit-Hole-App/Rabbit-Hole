@@ -69,7 +69,7 @@ export default function ContextChips({ readPaper = null, selection = null, code 
     <li key={refKey(ref)} data-code-selection data-ref-key={refKey(ref)} title={`${ref.name} · ${refWhere(ref)}. Selected in the repository viewer: it goes with the next question; Add to chat keeps it.`}
       className={`${CHIP} border-dashed border-line-strong pr-0.5`}>
       <span className="flex h-full min-w-0 items-center gap-1 pl-1.5"><RefIcon kind="code" /><span className="max-w-40 truncate">{ref.name}</span>
-        {rangeLabel(ref.kind === 'excerpt' ? null : ref.range) && <span className="shrink-0 text-ink-3">{rangeLabel(ref.kind === 'excerpt' ? null : ref.range)}</span>}<span className="shrink-0 text-ink-3">· selected</span></span>
+        {rangeLabel(ref.kind === 'excerpt' ? null : ref.range) && <span className="shrink-0 text-ink-3">{rangeLabel(ref.kind === 'excerpt' ? null : ref.range)}</span>}{selection.uploading ? <span data-area-uploading className="shimmer shrink-0">Uploading</span> : <span className="shrink-0 text-ink-3">· selected</span>}</span>
       <button type="button" onClick={() => code.onRemove(ref)} aria-label={`Remove ${ref.name} from the selection`} title="Remove from the selection" className={CHIP_ICON_BUTTON}><X size={12} aria-hidden /></button>
     </li>
   );

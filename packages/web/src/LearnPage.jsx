@@ -68,7 +68,7 @@ import { CanvasChromeLoading, CHAT_PANEL, OWNER_CANVAS, OWNER_HEADER, OWNER_HEAD
 import { RepositoryBadge } from './repository-canvas.jsx';
 import { clearSelection } from './repo-context.js';
 import { releaseCodeRef } from './graph-card.js';
-import { withoutPicture } from './area-crop.js';
+import { uploadDone, uploadFailed, uploadStarted } from './area-crop.js';
 import { sameRef } from './chat-context.js';
 import PanelHeader, { CanvasSearchPanel, COMPANION_VIEWS, CompanionHeader } from './PanelHeader.jsx';
 import ChatPane from './ChatPane.jsx';
@@ -966,7 +966,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // above the composer; its PNG is uploaded like a group shot, so the tutor sees the pixels.
   const takeAreaShot = async ({ target, preview: shot, blob }) => {
     // One chip: the selection's own thumbnail and its x, no second canvas-image attachment beside it.
-    setAskTarget({ ...target, ...(shot ? { preview: shot } : {}) });
+    setAskTarget(uploadStarted({ ...target, ...(shot ? { preview: shot } : {}) }, !!blob));
     previewRequest.current++;
     setPreview(null);
     // EXP-T28: the crop lands in Chat, opened and focused, beside the draft and attachments already there; nothing is sent.
@@ -979,10 +979,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const response = await fetch(`/api/learn/media?app=${encodeURIComponent(app.name)}`, { method: 'POST', body, headers: wsHeaders() });
       const stored = await response.json();
       if (!response.ok) throw new Error(stored?.error || 'Upload failed');
-      setAskTarget(previous => previous?.id === target.id ? { ...previous, image: stored.id } : previous);
+      setAskTarget(previous => uploadDone(previous, target.id, stored.id));
     } catch {
       // The thumbnail is still on the chip, so say the tutor will not see the picture, and stop the target claiming an image is attached.
-      setAskTarget(previous => previous?.id === target.id ? withoutPicture(previous) : previous);
+      setAskTarget(previous => uploadFailed(previous, target.id));
       toast('The picture of the selection could not be sent. The question still asks about the cards inside it.', { tone: 'error' });
     }
   };

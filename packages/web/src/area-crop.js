@@ -22,6 +22,12 @@ export function visibleCrop(crop, box) {
 // A target whose picture could not be taken or uploaded must not tell the model an image is attached.
 export const withoutPicture = target => ({ ...target, text: target.text.replace(PICTURE, NO_PICTURE) });
 
+// The picture uploads after the chip is in Chat. While it does, the target says so (Chat holds Send); the flag lives on the target, so removing
+// the chip or drawing a newer area clears it, and a late answer for an older area (another id) changes nothing.
+export const uploadStarted = (target, hasBlob) => (hasBlob ? { ...target, uploading: true } : target);
+export const uploadDone = (previous, id, image) => (previous?.id === id ? { ...previous, uploading: false, image } : previous);
+export const uploadFailed = (previous, id) => (previous?.id === id ? { ...withoutPicture(previous), uploading: false } : previous);
+
 // Place, size and view state are not content: moving a card or picking an object never makes a new revision.
 const NOT_CONTENT = new Set(['dx', 'dy', 'w', 'h', 'space', 'time', 'inputs', 'inputRevision', 'programState', 'marked', 'selectedObject', 'selectRequest', 'cardLayout']);
 

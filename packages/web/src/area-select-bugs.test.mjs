@@ -41,5 +41,5 @@ test('the canvas wiring: no empty capture, only its own rectangle cleared, backg
   assert.match(canvas, /catch \{[^}]*preview = null; blob = null;[^}]*toast\('The picture of the selection could not be taken/);
   assert.match(canvas, /NAV_TOOLS\.filter\(\(\[value\]\) => value !== 'askArea' \|\| onAreaShot\)/, 'a canvas with nothing to receive the shot (shared, member) has no such tool');
   const page = read('LearnPage.jsx');
-  assert.match(page, /withoutPicture\(previous\)[\s\S]{0,260}could not be sent/);
+  assert.match(page, /uploadFailed\(previous, target\.id\)[\s\S]{0,260}could not be sent/);
 });
