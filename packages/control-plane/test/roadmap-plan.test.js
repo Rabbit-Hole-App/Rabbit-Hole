@@ -177,4 +177,12 @@ test('prompt fingerprints are stable, one tool per role, and change when a promp
   assert.equal(PINNED.roadmap_revise, a.roadmap_revise, `roadmap_revise prompt changed: re-pin ${a.roadmap_revise}`);
   assert.equal(PINNED.roadmap_subject, a.roadmap_subject, `roadmap_subject prompt changed: re-pin ${a.roadmap_subject}`);
 });
-const PINNED = { roadmap_subject: 'e7f7ff8ccf1c', roadmap_draft: '42412b4525a8', roadmap_revise: '73d9e2a18f3f' };
+const PINNED = { roadmap_subject: 'e7f7ff8ccf1c', roadmap_draft: 'f23548065372', roadmap_revise: '7b98f717f66e' }; // CORE.09 planner guidance (2026-11-06)
+
+test('CORE.09: draft and revise planner instructions plan one learning idea per step within the Depth budget, with tables and flowcharts inside an explanation', () => {
+  for (const role of ['roadmap_draft', 'roadmap_revise']) {
+    const { system } = ROADMAP_PROMPTS[role];
+    assert.match(system, /one coherent learning idea that fits one card within the selected Depth's character budget \(Overview 600, Standard 1,000, Deep 1,500/, role);
+    assert.match(system, /An explanation step is one card that may use prose, a Markdown table or a Mermaid flowchart/, role);
+  }
+});
