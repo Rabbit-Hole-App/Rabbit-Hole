@@ -32,8 +32,6 @@ export const routes = {
   discardDraft: (view, draft) => ({ method: 'POST', path: `${BASE}/${view.roadmap.id}/drafts/${draft.draftId}/discard`, body: { boardId: view.roadmap.boardId } }),
   linkCard: (view, cardId, reason, actionKey) => mutate(view, 'steps/link', { cardId, reason }, actionKey),
   mode: (view, mode) => ({ method: 'POST', path: `${BASE}/${view.roadmap.id}/mode`, body: { boardId: view.roadmap.boardId, mode } }),
-  // The roadmap's one Tutor Chat thread (first writer wins on the server; the answer is the view with the thread now bound).
-  thread: (view, threadId) => ({ method: 'POST', path: `${BASE}/${view.roadmap.id}/thread`, body: { boardId: view.roadmap.boardId, threadId } }),
   end: (view, actionKey) => mutate(view, 'end', {}, actionKey),
 };
 function mutate(view, tail, fields, actionKey) {

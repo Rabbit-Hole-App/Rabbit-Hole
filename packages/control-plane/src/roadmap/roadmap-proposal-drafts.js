@@ -7,8 +7,6 @@ import { StateError } from './roadmap-contract.js';
 import { applyRoadmapAction, currentConflict, eventStatement, readProposal, readRoadmap, recordedReplay } from './roadmap-store.js';
 import { newId, sha256 } from './roadmap-money.js';
 import { EDIT_LIMITS, validateEdit } from './roadmap-edit.js';
-import { ROADMAP_LIMITS } from './roadmap-policy.js';
-import { STRINGS } from '../../../web/src/roadmap-strings.js';
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 export const DRAFT_TTL_SECONDS = 3600;
@@ -17,19 +15,6 @@ const SCOPE = 'org = ? AND owner_user_id = ? AND board_id = ?';
 const scope = access => [access.org, access.actorUserId, access.boardId];
 export const readDraft = (db, access, draftId) => db.prepare(`SELECT * FROM learn_proposal_drafts WHERE id = ? AND ${SCOPE}`).bind(draftId, ...scope(access)).first();
 // Words that did not pass the safety screen are never shown back: a held draft carries only its identity and status.
-// M1 (owner 2026-11-06): the platform-paid previews are capped, checked BEFORE any screen or model call, so a refused preview costs nothing and writes
-// nothing. Counted from the composer's own call rows (stage 'proposal', platformCallModel in roadmap-wire.js): every preview that reached the model,
-// whatever it answered; never Apply, Discard, a replayed action key or a call that was never dispatched (planned or released). Per proposal (the
-// composer's operation keys name the proposal and its version) and per learner per quota day (ROADMAP_LIMITS.quotas.windowSeconds.day: the UTC day).
-const REACHED = "checkpoint NOT IN ('planned', 'released')";
-async function refuseOverEditLimit(db, access, { roadmapId, proposal, now }) {
-  const prefix = `rm.${roadmapId}.${proposal.version}.${proposal.id}.proposal.`; // ids are [A-Za-z0-9_.-], so ~ sorts after every key under the prefix (no LIKE: D1 limits its pattern)
-  const mine = await db.prepare(`SELECT COUNT(*) AS n FROM learn_roadmap_calls WHERE operation_key >= ? AND operation_key < ? AND ${REACHED}`).bind(prefix, `${prefix}~`).first();
-  if (mine.n >= EDIT_LIMITS.previewsPerProposal) throw new StateError('edit_limit', STRINGS.editLimitStep, 429);
-  const size = ROADMAP_LIMITS.quotas.windowSeconds.day, day = Math.floor(now / size) * size;
-  const today = await db.prepare(`SELECT COUNT(*) AS n FROM learn_roadmap_calls WHERE org = ? AND owner_user_id = ? AND stage = 'proposal' AND created_at >= ? AND ${REACHED}`).bind(access.org, access.actorUserId, day).first();
-  if (today.n >= EDIT_LIMITS.previewsPerDay) throw new StateError('edit_limit', STRINGS.editLimitDay, 429);
-}
 const view = d => ({ draftId: d.id, revision: d.revision, proposalId: d.proposal_id, proposalVersion: d.proposal_version, checkStatus: d.check_status,
   ...(d.check_status === 'passed' ? { title: d.title, description: d.description, format: d.format } : {}) });
 
@@ -48,7 +33,6 @@ export async function saveProposalDraft(db, access, { roadmapId, proposalId, pro
   if (proposal.version !== proposalVersion || proposal.state !== 'pending' || proposal.stale || roadmap.state !== 'active') throw await currentConflict(db, access, roadmapId, 'proposal_not_pending');
   const step = await db.prepare('SELECT * FROM learn_roadmap_steps WHERE id = ?').bind(proposal.step_id).first();
   if (typeof screen !== 'function') throw new StateError('edit_unavailable', 'Editing is not available right now.', 503);
-  await refuseOverEditLimit(db, access, { roadmapId, proposal, now });
   const ctx = { access, roadmap, proposal, actionKey };
   if (!(await screen(text, { ...ctx, role: 'learner' }))) throw new StateError('edit_rejected', 'That change could not be made.', 422);
   let edit;

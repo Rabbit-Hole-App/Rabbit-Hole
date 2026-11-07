@@ -39,7 +39,6 @@ export const STRINGS = Object.freeze({
   // R5 (proposal editing, existing card). All NEW, pending approval. The two refusals are the server's StateError sentences (roadmap-proposal-drafts.js).
   edit: 'Edit', editPlaceholder: 'What should change?', apply: 'Apply', discard: 'Discard', existingCard: 'Existing card', // R5-S1..S5
   editUnavailable: 'Editing is not available right now.', editRejected: 'That change could not be made.', // R5-S7, S8 (server text)
-  editLimitStep: 'You have reached the edit limit for this step.', editLimitDay: "You have reached today's edit limit.", // M1, owner-approved 2026-11-06 (server text, 429 edit_limit)
   ended: 'Roadmap ended. Your cards stay on the canvas.', // S29 NEW
   // Step status words in the ToC. NEW (not numbered in decision-records.md): approval needed with S11-S25.
   stepState: { planned: 'Planned', proposed: 'Proposed', generating: 'Being made', delivered: 'Delivered', incomplete: 'Incomplete', cancelled: 'Cancelled', skipped: 'Omitted', already_understood: 'Already understood' },

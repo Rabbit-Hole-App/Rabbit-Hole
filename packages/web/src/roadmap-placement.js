@@ -5,9 +5,6 @@ import { placeNote } from './inline-ai-apply.js';
 const inside = (rect, area) => rect.left < area.left + area.width && rect.left + rect.width > area.left && rect.top < area.top + area.height && rect.top + rect.height > area.top;
 // The proposal's anchor (its source card) against the canvas surface. No anchor card: the overlay is pinned in view, never offscreen.
 export const anchorState = (anchor, surface) => (!anchor || !surface ? { visible: true, offscreen: false } : { visible: inside(anchor, surface), offscreen: !inside(anchor, surface) });
-// Whether the fixed proposal overlay is drawn: the proposal's source card is on screen, or the learner opened the editor (Chat's Edit can open it while the
-// source is offscreen; the editor lives in the overlay, which is always kept inside the surface, so it must not be invisible).
-export const overlayShown = ({ pill, visible, editing = false }) => !!pill && (!!visible || !!editing);
 // Below the anchor when it fits, else above, else pinned to the surface bottom edge; always clamped inside the surface.
 export function overlayPosition(anchor, surface, { width = 280, height = 150, gap = 8 } = {}) {
   const w = Math.min(width, surface.width - 16), clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));

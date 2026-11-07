@@ -22,9 +22,7 @@ const LEVEL_NAMES = { 1: 'section', 2: 'sub-section', 3: 'sub-sub-section' };
 // subtitle: the project or repository the contents belong to; goal: the learner's accepted learning goal (LearnPage: the
 // structured goal record, never a planning message; draft Task 11, acceptance 52), clamped to two lines, or null for none.
 // Both under the heading (owner brief 2026-10-16 item 7).
-// top: the explain-on-canvas roadmap (RoadmapToc), drawn under the heading inside this same scroll, so the whole Contents is one scroll
-// (owner 2026-11-06: "the TOC is the roadmap. you just had to make it scroll").
-export default function TableOfContents({ outline, canvasApi, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '', subtitle = null, goal = null, top = null }) {
+export default function TableOfContents({ outline, canvasApi, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '', subtitle = null, goal = null }) {
   // Which level is being added, the section being edited, the section being dragged, and the heading it lands before
   // (null: the end).
   const [adding, setAdding] = useState(null);
@@ -130,7 +128,6 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
       {/* shrink-0: overflow-hidden lines in this flex column otherwise collapse to nothing once the contents overflow. */}
       {subtitle && <p data-toc-subtitle className="-mt-2 mb-2 shrink-0 truncate text-xs text-ink-3">{subtitle}</p>}
       {goal && <p data-toc-goal title={goal} className="mb-4 shrink-0 line-clamp-2 text-[13px] leading-normal break-words text-ink-2"><span className="font-medium text-ink">Goal</span> · {goal}</p>}
-      {top}
       {shown && <ProposalCard proposal={shown} outline={outline} canvasApi={canvasApi} onDone={() => onProposal?.(null)} />}
       {list(tree, 0)}
       {adding && (

@@ -41,7 +41,7 @@ Mutating request: `{ boardId, revision: int, actionKey: string, ...action fields
 
 ```
 roadmap   { id, boardId, state, revision, planVersion, acceptedPlanVersion|null, depth, practiceMode:'explanations', instruction, language,
-            scope:{kind:'whole'|'passage', source:{key,rev,name}, chars, fingerprint}, ceiling, deliveredCount, mode, modeRevision, threadId|null, createdAt, updatedAt }   // threadId: the roadmap's one Tutor Chat thread while it exists (owner 2026-11-06)
+            scope:{kind:'whole'|'passage', source:{key,rev,name}, chars, fingerprint}, ceiling, deliveredCount, mode, modeRevision, createdAt, updatedAt }
 question  null | { id, kind:'focus'|'conflict'|'language'|'scope', text, options? }       // at most one; roadmap.state = questioning
 limitation null | { code, message, readChars, sourceChars, offers:[{kind,label}] }       // e.g. source_too_large
 plan      null | { version, outcome, assumptions[], formats:['explanation','table'], steps[], stoppingPoint }
@@ -79,7 +79,6 @@ Every row has request/response fixtures. "G" = GET, "P" = POST. Guards listed ar
 | 17 | `P /:rm/mode` `{ revision?, mode:'auto'\|'ask'\|'tutor' }` | Records the mode fact; server increments `modeRevision` per distinct change. Ask pauses new initiative (no invitation, no proposal); accepted work still finishes. Idempotent by value | any unfinished | none |
 | 18 | `P /:rm/end` `{ revision, actionKey }` | End roadmap: `ended`; delivered cards and history kept | draft..completed | `end-request` |
 | 19 | `G /?boardId&history=1` | Optional: ended/completed roadmaps for the ToC history | any | none |
-| 20 | `P /:rm/thread` `{ threadId }` | Records the roadmap's Tutor Chat thread (owner 2026-11-06), so every device shows the roadmap in it. The thread must be a saved Chat thread of the owner on this canvas (400 bad id, 404 not saved or not theirs). First writer wins and a repeat changes nothing; a bound thread that was deleted may be replaced. Kept in `scope_json.tutorThreadId` (no migration). Answers the view with the thread now bound | any | none |
 
 Paths are relative to `/api/learn/roadmap`. `:rm`, `:pr`, `:st`, `:rs` must belong to the same `(org, owner_user_id, app, board)` as the access object.
 

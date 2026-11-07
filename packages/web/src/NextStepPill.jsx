@@ -39,7 +39,7 @@ export function ProposalOverlay({ pill, position, onAccept, onCancel, edit = nul
 // R5: Edit (Ctrl/Cmd+K), the preview beside the still-pending original, Apply and Discard. Nothing here accepts, charges or generates.
 export function ProposalTools({ pill, edit }) {
   const [text, setText] = useState('');
-  const btn = 'h-7 rounded border border-line bg-white px-2 text-xs font-medium text-ink outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-40';
+  const btn = 'h-7 rounded-none border border-line bg-white px-2 text-xs font-medium text-ink outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-40';
   if (!edit.open) return <div className="flex gap-1.5"><button type="button" data-roadmap-edit onClick={edit.onOpen} className={btn}>{STRINGS.edit}</button></div>;
   const act = action => { if (action === 'preview') edit.onPreview(text); else if (action === 'apply') edit.onApply(); else if (action === 'discard') { setText(''); edit.onDiscard(); } };
   return (
