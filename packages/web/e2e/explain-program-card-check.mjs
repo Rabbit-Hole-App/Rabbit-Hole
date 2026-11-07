@@ -298,7 +298,8 @@ try {
     await page.waitForTimeout(1500);
     if (await page.locator('[data-focus-back]').count()) { await page.locator('[data-focus-back]').first().click(); await page.waitForTimeout(1200); } // a lead program that cannot be whole opens in Focus
     const { width, height } = page.viewportSize();
-    const title = () => placedCard.locator('p[data-drag-zone]').evaluate(e => { const r = e.getBoundingClientRect(); return { x: r.x + 30, y: r.y + Math.min(r.height / 2, 12) }; });
+    // The shared CardHeader exposes the title under its own marker (owner 2026-11-07).
+    const title = () => placedCard.locator('[data-card-title]').evaluate(e => { const r = e.getBoundingClientRect(); return { x: r.x + 30, y: r.y + Math.min(r.height / 2, 12) }; });
     for (let i = 0; i < 12; i++) { const { y } = await title(); if (y > 60 && y < height - 200) break; await page.mouse.move(width * 0.35, height - 120); await page.mouse.wheel(0, y >= height - 200 ? 250 : -250); await page.waitForTimeout(250); }
     const at = await title();
     await page.mouse.click(at.x, at.y);
