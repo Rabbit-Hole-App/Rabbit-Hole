@@ -7,6 +7,17 @@ import { STRINGS } from './roadmap-strings.js';
 
 // The client_id the invitation is saved under: one per invitation, so a retried save writes it once (canvases.js saveChatMessage).
 export const invitationClientId = invitationId => `roadmap-inv-${String(invitationId).replace(/[^A-Za-z0-9_-]/g, '-')}`.slice(0, 80);
+// The client_id of the opening line of a fresh Tutor thread (none bound, or the bound one was deleted): one per roadmap and thread.
+export const roadmapThreadClientId = roadmapId => `roadmap-thread-${String(roadmapId).replace(/[^A-Za-z0-9_-]/g, '-')}`.slice(0, 80);
+// The invitation's Tutor thread id, derived from the invitation, so every device saves its sentence into the SAME thread (a second device never
+// makes its own). A Chat thread id is 'canvaschat-' and a UUID-shaped string (canvases.js CHAT_ID).
+export async function invitationThreadId(invitationId) {
+  const hex = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`roadmap-invitation:${invitationId}`)))].map(b => b.toString(16).padStart(2, '0')).join('');
+  return `canvaschat-${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+// Which thread to record for a roadmap that has none: the one this browser bound before the server kept it (Fix B's local shortcut), else the open
+// thread when it holds an invitation (the Tutor thread the roadmap began in), else null: make a fresh one.
+export const threadCandidate = ({ legacy = null, openId = null, msgs = [] } = {}) => legacy || (openId && msgs.some(m => String(m.clientId || '').startsWith('roadmap-inv-')) ? openId : null);
 
 const say = (key, content, extra = {}) => ({ key, m: { role: 'assistant', content, status: 'done', meta: { roadmap: key } }, ...extra });
 // A line still in progress: ChatMessage's waiting row (spinner and its words), the same one an answer shows while it streams.

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BookOpen } from 'lucide-react';
 import DepthMenu from './DepthMenu.jsx';
 import { EvidencePill } from './Md.jsx';
@@ -8,12 +8,12 @@ import { ChatMessage } from './ChatMessages.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
 import { PRIMARY, SECONDARY, ghost } from './RoadmapInvitation.jsx';
 import { newThreadId, saveMessage } from './chat-persist.js';
-import { invitationClientId, transcriptOf } from './roadmap-transcript.js';
+import { invitationClientId, invitationThreadId, roadmapThreadClientId, threadCandidate, transcriptOf } from './roadmap-transcript.js';
 
 // Fix B (T4): the roadmap inside the Chat transcript, after the thread's own messages (ask.jsx). Each item is the existing
 // ChatMessage (text, its waiting row, its error row) or ChatOutputs (Go to card); choices use the roadmap's own buttons.
 // roadmap: useRoadmap; chat: the Chat workspace; msgs: the open thread's messages.
-const BOUND = canvas => `rh.roadmap.thread.${canvas}`;
+const LEGACY = canvas => `rh.roadmap.thread.${canvas}`; // Fix B's per-browser binding: read once to record it on the roadmap, never written again
 const read = key => { try { return localStorage.getItem(key); } catch { return null; } };
 const write = (key, value) => { try { localStorage.setItem(key, value); } catch { /* private mode: the thread still opens */ } };
 const ATTR = { explain_on_canvas: 'data-roadmap-explain', keep_here: 'data-roadmap-keep', answer: 'data-roadmap-option', part: 'data-roadmap-choice', offer: 'data-roadmap-offer' };
@@ -24,7 +24,8 @@ export default function RoadmapTranscript({ roadmap, chat, msgs }) {
   // gets a local settings object, so the canvas setting is never written). Planning starts on Start planning.
   const [choosing, setChoosing] = useState(null), [depth, setDepth] = useState(null);
   const seed = chat.settings?.depth || 'standard';
-  // One new Tutor thread per invitation (owner plan 5.1): the invitation is saved as its first message through the existing
+  const rm = roadmap.state.view?.roadmap ?? null, bound = rm?.threadId ?? null, attempted = useRef(null), lastBound = useRef(null);
+  // One new Tutor thread per invitation (owner plan 5.1), its id derived from the invitation so every device uses the same one: the invitation is saved as its first message through the existing
   // chat-persist path, so the thread exists on the server, survives a reload and becomes this canvas's open one. The previous
   // thread keeps its messages and draft (open() saves the draft first). Chat opens once, here: invitationOf already waited for
   // the learner to stop typing and for any answer to finish.
@@ -33,13 +34,28 @@ export default function RoadmapTranscript({ roadmap, chat, msgs }) {
     const done = `rh.roadmap.invited.${iv.id}`;
     if (read(done)) return;
     write(done, '1');
-    const threadId = newThreadId();
-    saveMessage({ threadId, app: chat.canvas, client_id: invitationClientId(iv.id), role: 'assistant', content: iv.text, mode: thread.mode, title: iv.text })
-      .then(() => { write(BOUND(chat.canvas), threadId); return thread.open(threadId); })
+    invitationThreadId(iv.id)
+      .then(threadId => saveMessage({ threadId, app: chat.canvas, client_id: invitationClientId(iv.id), role: 'assistant', content: iv.text, mode: thread.mode, title: iv.text }).then(() => thread.open(threadId)))
       .then(() => chat.panels.openChat(), () => chat.panels.openChat()); // a failed save still shows the invitation, in the thread already open
   }, [iv?.id, thread.status]); // eslint-disable-line react-hooks/exhaustive-deps
-  // shortcut: the Tutor thread is remembered per browser; another device shows the roadmap in its open thread. Upgrade: store the thread id on the roadmap.
-  const bound = read(BOUND(chat.canvas));
+  // The roadmap's one Tutor thread is kept on the server (view.roadmap.threadId), so every device shows the roadmap in the same thread. With none
+  // bound (a new roadmap, or the bound thread was deleted) one device records it: the thread it began in, else a fresh thread opened with the
+  // roadmap's first line. The server keeps the first one recorded; a device that lost the race simply reads the winner. Lines are never lost: while
+  // nothing is bound they show in the open thread.
+  if (bound) lastBound.current = bound;
+  useEffect(() => {
+    if (!rm || bound || thread.status !== 'ready') return;
+    const attempt = `${rm.id}:${lastBound.current || 'none'}`;
+    if (attempted.current === attempt) return;
+    attempted.current = attempt;
+    const candidate = threadCandidate({ legacy: lastBound.current ? null : read(LEGACY(chat.canvas)), openId: thread.id, msgs });
+    const fresh = () => {
+      const threadId = newThreadId(), text = STRINGS.invite(rm.scope?.source?.name || '');
+      return saveMessage({ threadId, app: chat.canvas, client_id: roadmapThreadClientId(rm.id), role: 'assistant', content: text, mode: thread.mode, title: text })
+        .then(() => c.bindThread(threadId)).then(body => body?.roadmap?.threadId && thread.open(body.roadmap.threadId));
+    };
+    (candidate ? c.bindThread(candidate).catch(fresh) : fresh()).catch(() => { attempted.current = null; }); // a failed save keeps the lines in the open thread; tried again when Chat next restores
+  }, [rm?.id, bound, thread.status]); // eslint-disable-line react-hooks/exhaustive-deps
   if (bound && thread.id && thread.id !== bound) return null;
   const items = transcriptOf(roadmap.state, { invitation: iv, saved: !!iv && msgs.some(m => m.clientId === invitationClientId(iv.id)), choosing: !!iv && choosing === iv.id });
   const local = { depth: depth || seed, set: next => setDepth(next.depth), status: 'ready', saveStatus: 'ready', retry() {} };

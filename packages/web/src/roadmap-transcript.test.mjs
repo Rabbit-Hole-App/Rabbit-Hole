@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { initialState, invitationOf, reduce } from './roadmap-client.js';
-import { invitationClientId, transcriptOf } from './roadmap-transcript.js';
+import { invitationClientId, invitationThreadId, roadmapThreadClientId, threadCandidate, transcriptOf } from './roadmap-transcript.js';
 import { responseKind } from './chat-response-kind.js';
 import { createRoadmapController } from './roadmap-controller.js';
 
@@ -151,4 +151,20 @@ test('the reused Edit button has the pill radius (4px, rounded), 28px high', () 
   const markup = render(reduce(initialState(), { type: 'view', view: { ...plain.view, edit: true } }));
   assert.match(markup, /data-roadmap-edit="true" class="h-7 rounded border/);
   assert.doesNotMatch(markup.slice(markup.indexOf('data-roadmap-edit')), /^[^>]*rounded-none/);
+});
+
+// The Tutor thread is the roadmap's, kept on the server (owner 2026-11-06): the same on every device.
+test('an invitation has one Tutor thread id on every device: derived from the invitation, in the Chat thread id format', async () => {
+  const a = await invitationThreadId('inv_a1b2c3'), again = await invitationThreadId('inv_a1b2c3'), other = await invitationThreadId('inv_zzz');
+  assert.equal(a, again, 'a second device computes the same thread');
+  assert.notEqual(a, other);
+  assert.match(a, /^canvaschat-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  assert.match(roadmapThreadClientId('rm_5f0c1a7e9b3d4c2a8e6f1b07'), /^[A-Za-z0-9_-]{1,80}$/);
+});
+test('the thread recorded for an unbound roadmap: the browser\'s old binding, else the open thread only if it holds an invitation, else a fresh one', () => {
+  const inv = [{ role: 'assistant', clientId: invitationClientId('inv_1') }], plain = [{ role: 'user', clientId: 'turn-1' }];
+  assert.equal(threadCandidate({ legacy: 'canvaschat-old', openId: 'canvaschat-open', msgs: inv }), 'canvaschat-old');
+  assert.equal(threadCandidate({ openId: 'canvaschat-open', msgs: inv }), 'canvaschat-open');
+  assert.equal(threadCandidate({ openId: 'canvaschat-open', msgs: plain }), null, 'an unrelated thread is never taken over');
+  assert.equal(threadCandidate({ openId: null, msgs: inv }), null, 'a new chat (the bound thread was just deleted): a fresh thread');
 });
