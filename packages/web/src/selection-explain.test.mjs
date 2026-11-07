@@ -44,7 +44,7 @@ test('a running job: the Generate button is the red Stop button and the only con
   const out = html({ skeleton: true, status: running });
   assert.deepEqual(controls(out), ['stop']);
   const stop = out.match(/<button[^>]*data-proposal-stop[^>]*>[\s\S]*?<\/button>/)[0];
-  assert.match(stop, /bg-danger text-white/);
+  assert.match(stop, /bg-danger-fill text-white/);
   assert.doesNotMatch(stop, /bg-ink|disabled=""/);
   assert.match(stop, /aria-label="Stop explanation"/);
   assert.match(stop, /<span>Stop<\/span>/);
@@ -65,7 +65,7 @@ test('Stop asks first: Cancel keeps the job (Escape too), only Stop calls onStop
   const out = B.renderToStaticMarkup(B.createElement(B.StopConfirm, { noun: 'explanation', onKeep() {}, onStop() {} }));
   assert.match(out, /Stop this explanation\? Credits already used won(&#x27;|&#39;|')t be refunded\./);
   assert.match(out, /data-proposal-stop-cancel[^>]*>Cancel</);
-  assert.match(out, /bg-danger text-white[^>]*data-proposal-stop-confirmed|data-proposal-stop-confirmed[^>]*bg-danger/);
+  assert.match(out, /bg-danger-fill text-white[^>]*data-proposal-stop-confirmed|data-proposal-stop-confirmed[^>]*bg-danger-fill/);
   tree.props.onKeyDown({ key: 'Escape', stopPropagation() {} });
   assert.deepEqual(calls, ['keep']);
   const buttons = [];

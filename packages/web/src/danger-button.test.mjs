@@ -34,7 +34,7 @@ test('the danger Button uses the fill, a solid darker hover and press, and white
 
 test('every running-state Stop is the danger Button with the Square icon; no hand-drawn red Stop is left', () => {
   const stops = [
-    ['GenerationProposalCard.jsx', /<Button ref=\{primary\} type="button" variant="danger" data-proposal-stop[\s\S]{0,900}<Square size=\{14\}/],
+    ['GenerationProposalCard.jsx', /<Button ref=\{primary\} type="button" variant="danger" size="sm" data-proposal-stop[\s\S]{0,900}<Square size=\{14\}/],
     ['ExplainPending.jsx', /<Button type="button" variant="danger" data-explain-stop[\s\S]{0,120}<Square size=\{14\}/],
     ['Animation3DCard.jsx', /<Button type="button" variant="danger" data-animation-stop[\s\S]{0,120}<Square size=\{14\}/],
     ['LearningBlocks.jsx', /<Button ref=\{stopButton\} type="button" variant="danger" data-stop-video[\s\S]{0,120}<Square size=\{14\}/],
