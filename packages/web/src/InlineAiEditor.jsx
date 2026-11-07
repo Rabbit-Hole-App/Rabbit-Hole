@@ -36,6 +36,10 @@ import { descFor, typedOf } from './agent/slash.js';
 import CommandPill from './CommandPill.jsx';
 import { CommandMark } from './CommandTone.jsx';
 import { FILE_EDIT_LOCKED, fileEditLocked } from './file-chat-ref.js';
+
+// The Context button (what this request includes) is hidden for now (owner 2026-11-07): Ctrl+K should later choose its context automatically instead of
+// relying on the learner. The popover and its data stay in place; set this back to true to show the button again.
+const SHOW_CONTEXT_BUTTON = false;
 import { withPrompt } from './card-prompt.js';
 import { keyLabel } from './shortcuts.js';
 
@@ -961,9 +965,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           <div className="mt-2 max-h-64 overflow-auto" data-scroll><InlineRepositoryEvidence {...config.repositoryEvidence} contextKey={canvas.boardKey} suggestedQuery={evidenceAction}/></div>
         </details>}
         <div className="mt-2 flex items-center gap-2">
-          <button type="button" data-inline-context aria-haspopup="dialog" aria-expanded={contextOpen} title="What this request includes"
+          {SHOW_CONTEXT_BUTTON && <button type="button" data-inline-context aria-haspopup="dialog" aria-expanded={contextOpen} title="What this request includes"
             onClick={() => { setModeOpen(false); setContextOpen(open => !open); }}
-            className="rounded-md px-1 py-0.5 text-xs text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-ai">Context</button>
+            className="rounded-md px-1 py-0.5 text-xs text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-ai">Context</button>}
           <div className="relative ml-auto flex items-center gap-1.5">
             <button type="button" data-inline-mode-toggle data-inline-mode-current={mode} aria-haspopup="menu" aria-expanded={modeOpen} disabled={busy(status)} title="Quick Edit mode"
               onClick={() => { setContextOpen(false); setModeOpen(open => !open); }}

@@ -114,3 +114,11 @@ test('a locked file shows no explanatory line or tooltip in the mode menu: the E
   assert.ok(!editor.includes('fileLocked ? FILE_EDIT_LOCKED'), 'no tooltip text');
   assert.ok(editor.includes('fileLocked) && value === ') || editor.includes('|| fileLocked || cardEditReason) && value'), 'Edit stays disabled');
 });
+
+test('the Ctrl+K Context button is hidden for now, behind one flag; its popover stays for the later automatic-context work (owner 2026-11-07)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const editor = readFileSync(new URL('./InlineAiEditor.jsx', import.meta.url), 'utf8');
+  assert.ok(editor.includes('const SHOW_CONTEXT_BUTTON = false;'));
+  assert.ok(editor.includes('{SHOW_CONTEXT_BUTTON && <button type="button" data-inline-context'), 'the button is rendered only when the flag is on');
+  assert.ok(editor.includes('data-inline-context-popover'), 'the popover is kept');
+});
