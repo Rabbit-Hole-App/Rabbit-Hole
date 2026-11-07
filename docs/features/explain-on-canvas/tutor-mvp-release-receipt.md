@@ -19,8 +19,8 @@ R12 (command adapters and per-command prompt suites) is **on hold** by owner dec
 
 | Run | Tests | Pass | Fail | Notes |
 | --- | ---: | ---: | ---: | --- |
-| `packages/control-plane` `node --test "test/*.test.js"` | 3725 | 3723 | 1 | the failure is `no-ellipsis` (identical line on main `agents/roadmap-check.js:12`); 1 further test not counted as pass or fail by the runner |
-| `packages/web` `node --test "src/**/*.test.mjs"` | 5085 | 5058 | 0 expected | VOICE-08 (`voice-ui.test.mjs`) failed on the base commit too and blocked the release-77 gate (it ran because VoiceMode changed); its pin of the AdaptiveCanvas prop list was loosened and the file re-run alone (9 of 9). The full suite was not re-run after that fix. One further test (`project-ui`) failed in the run and was fixed and re-run alone (21 of 21); the suite was not re-run in full after that fix. Timing-sensitive tests (`animation3d/framing`, `sgd-golden`, `explain-program/interaction`) can fail under parallel load and pass alone |
+| `packages/control-plane` `node --test "test/*.test.js"` | 3771 | 3769 | 1 | the failure is `no-ellipsis` (identical line on main `agents/roadmap-check.js:12`); 1 further test not counted as pass or fail by the runner |
+| `packages/web` `node --test "src/**/*.test.mjs"` | 5113 | 5085 | 1 | the one failure in the run (`ctrlk-handoff`, a source pin on `ask.jsx`) was fixed and re-run alone (3 of 3); the suite was not re-run in full after that fix |
 | `scripts/ci/check-map.test.mjs` + `scripts/schema-check.test.mjs` | 29 | 29 | 0 | |
 | `npm --prefix packages/web run build` | | | | exit 0 |
 
@@ -30,6 +30,10 @@ Section 8.0 matrix and the new cases (run by the lanes, test doubles only):
 - BE.01a: `roadmap-lesson-entry.test.mjs` 7 of 7 and 3 added tests in `chat-modes.test.js`: a click and a typed lesson request reach one guarded create path; the same request from both entries yields one draft; a normal question, a single-card request and an ambiguous source keep their own paths.
 - BE.05a: readiness and recovery at the first, manual and automatic offers and at acceptance; zero author dispatch, hold or debit for an unready or stale offer; the approved format and source revision reach the writer; the successor waits for the saved acknowledgment.
 - Routing runner `chat-routing-fixtures.test.js`: 5 of 5. Report `routing-run-results.md`: 41 records, 30 pass, 11 miss, 0 wiring failures.
+
+## Core Tutor fixes (7 Nov review, SEL.01-02, generation, delivery, Explanation caps, Contents and Chat recovery)
+
+Implemented from the checklist section 2.1.3 repros with failing-first tests at the real entry points. Not seen in a browser. Open: a typed passage still plans the whole source (no offsets in the tool), the reconciler that moves an unknown charge outcome does not exist in src, the automatic offer does not catch a vanished source, and a source-caused failed card keeps the generic wording.
 
 ## Not run, or unverified (stated, not passed)
 
