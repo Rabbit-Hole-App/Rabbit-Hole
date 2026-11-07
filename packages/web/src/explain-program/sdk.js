@@ -3,7 +3,7 @@ import { GRAPH_SOURCE } from './sdk-graph.js';
 import { GRID_SOURCE } from './sdk-grid.js';
 import { PLOT_SOURCE } from './sdk-plot.js';
 import { TIMELINE_SOURCE } from './sdk-timeline.js';
-import { VISUAL_SDK_VERSION } from './stamps.js';
+import { HEAT_GRID_SDK_VERSION, VISUAL_SDK_VERSION } from './stamps.js';
 
 // The guest-side SDK (plan section 5.2): generic geometry and formatting helpers only. No subject formulas, no lesson catalogue.
 // SDK_SOURCE is plain script text the runtime evaluates in the guest BEFORE the generated module, defining one global, `sdk`.
@@ -46,9 +46,15 @@ var sdk = (function () {
 
 // Keep the old source byte-for-byte. The version is chosen by the host from the artifact's verified stamps.
 const VISUAL_SDK_SOURCE = [SDK_SOURCE, PLOT_SOURCE, GRAPH_SOURCE, GRID_SOURCE, GEOMETRY_SOURCE, TIMELINE_SOURCE].join('\n');
+const HEAT_GRID_SDK_SOURCE = `${VISUAL_SDK_SOURCE}
+sdk.heatGrid = function (id, options) {
+  return { ...options, kind: 'heat_grid', id };
+};
+`;
 export function programSdkSource(version) {
   if (version === SDK_VERSION) return SDK_SOURCE;
   if (version === VISUAL_SDK_VERSION) return VISUAL_SDK_SOURCE;
+  if (version === HEAT_GRID_SDK_VERSION) return HEAT_GRID_SDK_SOURCE;
 }
 
 // A stable build identity for the bundle hash: a SHA-256 of the exact source the guest receives.

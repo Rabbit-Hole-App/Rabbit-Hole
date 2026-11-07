@@ -26,6 +26,10 @@ function sceneObject(object) {
     case 'line':
     case 'arrow': return { ...base, type: object.kind, initialState: { x: object.from.x, y: object.from.y, from: object.from, to: object.to, ...label(object), ...common(object) } };
     case 'polyline': return { ...base, type: 'polyline', initialState: { ...bounds(object.points), points: object.points, ...(object.clip ? { clip: object.clip } : {}), ...common(object) } };
+    case 'heat_grid': {
+      const { x, y, cell, rows, cols, values } = object;
+      return { ...base, type: 'grid', initialState: { x, y, cell, rows, cols, values, matrixKind: 'input', heat: { mode: 'sequential' }, valueScale: 'fixed', ...common(object) } };
+    }
     default: throw new Error(`unknown object kind "${object.kind}"`);
   }
 }
@@ -89,6 +93,11 @@ export function normalizeFrame(raw, manifest = null) {
   try {
     // duration is a required positive number by the scene schema; a program frame is one moment, so any value serves.
     const scene = validateScene({ id: 'explain-program', width: frame.width, height: frame.height, duration: 1, objects: frame.objects.map(sceneObject), timeline: [] });
+    // The frame contract already checked the explicit domain. The shared grid reads it from the scene so the original values and
+    // units stay available, and neither input changes nor the grid's own extrema can re-normalize the colors.
+    frame.objects.forEach((object, index) => {
+      if (object.kind === 'heat_grid') scene.objects[index].valueDomain = { min: object.domain[0], max: object.domain[1] };
+    });
     return { ok: true, scene, state: getSceneState(scene, 0), readouts };
   } catch (problem) {
     return invalid(problem.message);

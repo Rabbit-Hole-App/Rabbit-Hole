@@ -5,9 +5,9 @@
 // belongs to the pinned interpreter in the browser and in the review browser. The checks here are a fast, deterministic early
 // refusal that gives the author a one-line fix; they are not the security boundary.
 import {
-  CAPABILITIES, CONTRACT_LIMITS, ProgramBundle, STATEFUL_SCHEMA_VERSION, StatefulBundle, draftSchemaVersion, resolveInputs, sealProgram, unsupportedCapabilities, verifyHashes,
+  CAPABILITIES, CONTRACT_LIMITS, ProgramBundle, STATEFUL_SCHEMA_VERSION, StatefulBundle, draftSchemaVersion, requiresHeatGrid, resolveInputs, sealProgram, unsupportedCapabilities, verifyHashes,
 } from '../../web/src/explain-program/contract.js';
-import { STATEFUL_VISUAL_PROGRAM_STAMPS, VISUAL_PROGRAM_STAMPS } from '../../web/src/explain-program/stamps.js';
+import { HEAT_GRID_PROGRAM_STAMPS, STATEFUL_HEAT_GRID_PROGRAM_STAMPS, STATEFUL_VISUAL_PROGRAM_STAMPS, VISUAL_PROGRAM_STAMPS } from '../../web/src/explain-program/stamps.js';
 
 export const programEnabled = env => env.EXPLAIN_PROGRAM_ENABLED === 'true';
 // The one switch for stateful programs (schema 2: buttons, selections and state, Task 8.3): it offers the capability to the brief, the
@@ -61,7 +61,13 @@ export function checkProgramDraft(draft, { stateful = false } = {}) {
 
 // The one stored artifact: the bundle plus the host's version stamps and computed hashes (contract.js sealProgram). A stateful bundle
 // (it declares a viewport, actions or targets) is sealed as schema 2.
-export async function buildProgramArtifact(bundle, stamps = draftSchemaVersion(bundle) === STATEFUL_SCHEMA_VERSION ? STATEFUL_VISUAL_PROGRAM_STAMPS : VISUAL_PROGRAM_STAMPS) {
+export async function buildProgramArtifact(bundle, stamps) {
+  if (stamps === undefined) {
+    const stateful = draftSchemaVersion(bundle) === STATEFUL_SCHEMA_VERSION;
+    stamps = requiresHeatGrid(bundle?.manifest)
+      ? (stateful ? STATEFUL_HEAT_GRID_PROGRAM_STAMPS : HEAT_GRID_PROGRAM_STAMPS)
+      : (stateful ? STATEFUL_VISUAL_PROGRAM_STAMPS : VISUAL_PROGRAM_STAMPS);
+  }
   const sealed = await sealProgram(bundle, stamps);
   if (!sealed.ok) throw Object.assign(new Error(sealed.issue || 'the program could not be sealed'), { code: 'invalid_program' });
   return sealed.value;

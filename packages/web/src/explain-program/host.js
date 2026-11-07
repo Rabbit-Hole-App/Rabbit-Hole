@@ -57,7 +57,7 @@ function parseResult(operation, value, program) {
     const state = parseState(value);
     return state.ok ? { ok: true, value: { state: state.value } } : state;
   }
-  return parseGuestResult(value, program.manifest);
+  return parseGuestResult(value, program.manifest, program.sdkVersion);
 }
 
 export function createProgramHost({ artifact, limits = LIMITS, createWorker = defaultWorker }) {

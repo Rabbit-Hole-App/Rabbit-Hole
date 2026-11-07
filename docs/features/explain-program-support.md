@@ -20,11 +20,9 @@ is ignored. An artifact sealed for anything else gets the fixed "could not run" 
 - Schema 2 is R3, which carries 8.1 `86d746e0d`, 8.2 `137018604`, 8.3 `0ee34e70c` and the owner-review fixes. It is on `main`
   and production-released in `d3d50986e` (3:11 PM PT), with `EXPLAIN_PROGRAM_STATEFUL=true`. `stamps.js SUPPORTED_PROGRAM_TUPLES` lists both
   tuples; schema 2 seals with `STATEFUL_PROGRAM_STAMPS`.
-- Which schema new generation seals:
-  - On `main`: `PROGRAM_STAMPS`, schema 1 only. `control-plane/src/explain-program.js` imports it from
-    `web/src/explain-program/stamps.js`.
-  - In R3: a draft is stateful when its manifest declares a viewport, actions or targets. Such a draft is admitted only
-    while `EXPLAIN_PROGRAM_STATEFUL` is on. It then needs all three exports and seals as schema 2.
+- New drafts seal as schema 1 by default. A draft that declares a viewport, actions or targets uses schema 2 when
+  `EXPLAIN_PROGRAM_STATEFUL` is on and exports `initialState`, `reduce` and `evaluate`. The server selects the SDK and renderer
+  from the supported stamps based on the declared capability.
 - The learner's card and the review renderer (`render/program-render.jsx`) both run through `host.js createProgramHost`, so
   both resolve the same tuple.
 - Evidence (`packages/web/src/explain-program/retention.test.mjs`, 6 tests): the saved sandbox-ex1-b cooling artifact
@@ -38,14 +36,18 @@ is ignored. An artifact sealed for anything else gets the fixed "could not run" 
 
 ## Interactive visual SDK
 
-The interactive kit branch seals new programs with `sdk-2` for both schemas. It adds
+The interactive kit seals ordinary new programs with `sdk-2` for both schemas. It adds
 `sdk.plot`, `sdk.graph`, `sdk.grid`, `sdk.geometry`, `sdk.timeline`, and `sdk.readout`.
 Each helper returns ordinary frame objects. Author and repair calls keep the same
 request limits, and all helpers share the existing frame limits.
 
-Saved `sdk-1` programs keep their original guest source and supported tuples.
-The server, learner player, and review renderer need the compatible build when
-new cards use `sdk-2`. Rolling back to an earlier player makes those cards
+The heat-grid capability seals a separate `sdk-3` and `renderer-2` tuple for either schema. The author declares
+`heat_grid` in the manifest and uses `sdk.heatGrid(id, { x, y, cell, rows, cols, values, domain })` to return one frame object.
+Values are finite and in row-major order. The increasing `[min, max]` domain drives the existing sequential heat renderer
+while labels can retain the original units. A comparison uses the same domain in every setting.
+
+Saved `sdk-1` and `sdk-2` programs keep their original guest source and supported tuples. The server, learner player and
+review renderer need a compatible build for a new tuple. Rolling back to a player that predates a tuple makes its cards
 unavailable until a compatible build returns.
 
 ## Limits (main: `contract.js CONTRACT_LIMITS`, `limits.js LIMITS`)
@@ -55,6 +57,7 @@ unavailable until a compatible build returns.
 | Source / manifest | 16 KiB / 4 KiB |
 | Guest output | 256 KiB serialized, depth 32 |
 | Frame | 60 objects, 2,000 points per object, 10,000 points total, coordinates ±100,000, size 2,000, text 200, 16 runs |
+| Heat grids | At most 256 cells across a frame, with each grid fully inside its viewport |
 | Inputs | 4 controls; a select has at most 8 options; at most 64 option combinations |
 | Readouts / quantities / assumptions | 8 / 32 / 8 |
 | Duration | at most 120 s |
