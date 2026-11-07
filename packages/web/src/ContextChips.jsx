@@ -7,6 +7,7 @@ import { rangeLabel, refKey, sameRef } from './chat-context.js';
 import { refIds } from './chat-canvas-context.js';
 import { labelOnlyChip } from './pdf-source.js';
 import { CanvasMentionChip } from './CanvasMention.jsx';
+import { AreaCapturingPill } from './AreaCapturing.jsx';
 
 // Sub-lane A4a owns this file: attached-context chips under the composer text area (brief section 7). A3a mounts it.
 // First a fixed "This canvas" indicator (the canvas scope the server always reads, contract A5), then this conversation's
@@ -76,6 +77,7 @@ export default function ContextChips({ readPaper = null, selection = null, code 
           <Shapes size={14} strokeWidth={1.75} aria-hidden className="shrink-0 text-ink-3" /> This canvas
         </li>
         {chat.editing?.target && <EditTargetPill target={chat.editing.target} onReveal={() => revealProposal(chat, chat.editing.target)} onCancel={chat.editing.clear} />}
+        <AreaCapturingPill />
         {selection && !selection.pinned && (() => {
           // The label is the source object's (UI-09): a document, file or code ref's own name, else the title the canvas resolved.
           const { ref } = selection, name = ref?.name || String(selection.title ?? '').replace(/\$([^$]*)\$/g, '$1'), label = ref ? rangeLabel(ref.kind === 'excerpt' ? null : ref.range) : '', labelOnly = !!ref && labelOnlyChip(ref, readPaper);
