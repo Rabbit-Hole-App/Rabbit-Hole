@@ -151,7 +151,7 @@ For the next review, compare every new main commit after this audit's pinned SHA
 | Two-card test | `roadmap-document-context.test.js` passed all three existing regressions at the pinned main. | It uses external doubles and direct SQL board writes. It establishes its named backend behavior, with the full BE matrix and physical UI still pending. |
 | Automatic next offer | R6 deterministic metadata composition, migration0040; prod auto flag on. | Correct UI visibility, saved delivery and one-offer behavior need integrated proof. No R11 speculation exists. |
 | Proposal edits/reuse | Draft/apply/link backend, existing inline editor, migration 0041 and bounded edit previews. | `ROADMAP_EDIT_ENABLED` is true in the production app config. Complete the targeted composer and accepted-edited-brief requirements, then qualify the broader reuse subset. |
-| Long Markdown | Index/summary/retrieval and bounded planning loop, migration 0042. | The production app config has `ROADMAP_LONG_MARKDOWN_ENABLED: true`. Ordinary authoring above 40k still falls back to the passage. Keep coverage claims accurate and qualify the enabled long-source slice separately. |
+| Long Markdown | Index/summary/retrieval and bounded planning loop, migration 0042. | The production app config has `ROADMAP_LONG_MARKDOWN_ENABLED: true`. Current authoring above 40,000 characters uses the step passage. R7a.04 adds bounded supporting excerpts and its own backend qualification. |
 | Remaining tools | Standalone Exa/fetch/evidence, PDF extraction, assessment and rich-command engines exist. | Tutor wrappers and R7b/R8–R16 capabilities are not implied by standalone support. |
 | Cleanup | P1–P5 removal source/receipts exist; journey archive reads remain. | P6a/backfill/drop/P7 not established complete. Historical cleanup-v0.1 is not a runnable current plan. |
 
@@ -259,7 +259,7 @@ The earlier "nine completed" count covered only narrow correction checkboxes. It
 | R4 | 2 | 12 | 14 | Rollup tasks; partial rows map to detailed CORE/UI below. |
 | R5 | 8 | 7 | 15 | Existing preview/Apply/keyboard/link guards checked; author/composer/reuse/geometry work open. |
 | R6 | 6 | 1 | 7 | Existing trigger/composer/delivery guards checked; persistent Chat/offscreen integration open. |
-| R7a | 15 | 3 | 18 | Existing index/retrieval/coverage checked; remaining extensions deferred. |
+| R7a | 15 | 4 | 19 | Existing index, retrieval and coverage checked. Card authoring context is pending alongside three deferred extensions. |
 | R7b | 0 | 15 | 15 | Docling PDF workflow planned as a separate release. R3 excerpts are counted separately. |
 
 R4's detailed correction lists contain **15 / 50 checked CORE items** and **12 / 72 checked UI items**. These are detailed subtasks of the R4/integration rollup above, not extra completed releases. BE and per-release receipts remain separate evidence tasks. Do not sum overlapping rollups and subtasks into a misleading project percentage. Checked UI foundations mean source/Node verification; owner manual production acceptance is still separate.
@@ -1017,11 +1017,11 @@ For each implemented task record the candidate SHA, actual commands/results, fix
 
 ### 6.2 R7a — Long Markdown indexing and explicit coverage
 
-**Current status:** Existing indexing, summaries, retrieval, coverage and long-plan foundations are implemented, locally tested and enabled in the production app config by `670ecbb5`. Completed items are checked below. The owner permits deferring the remaining source-selection outbox/new-UI/manual qualification extensions; preserve the existing enabled capability and its honest limits. The core index, bounded summary and long-plan loop, coverage UI and migration 0042 exist. The later receipt addendum supersedes its earlier “whole-document planning not built” statement. Source replace/detach atomic outbox integration and real current-UI/model evidence remain unfinished. Current long planning is bounded to 4 model turns, 8 evidence reads, 60,000 evidence characters, a 30,000-character outline and 150 outline units. Current ordinary authors receive the full document only within the 40,000-character supported bound; longer sources still use passage fallback. Do not claim complete long-source author context.
+**Current status:** Existing indexing, summaries, retrieval, coverage and long-plan foundations are implemented, locally tested and enabled in the production app config by `670ecbb5`. Completed items are checked below. The owner permits deferring the remaining source-selection outbox/new-UI/manual qualification extensions; preserve the existing enabled capability and its honest limits. The core index, bounded summary and long-plan loop, coverage UI and migration 0042 exist. The later receipt addendum supersedes its earlier “whole-document planning not built” statement. Source replace/detach atomic outbox integration and real current-UI/model evidence remain unfinished. Current long planning is bounded to 4 model turns, 8 evidence reads, 60,000 evidence characters, a 30,000-character outline and 150 outline units. Current ordinary authors receive the full document within the 40,000-character bound and the step passage for longer files. R7a.04 is the pending author-input extension.
 
 **Browser-local prerequisites:** Enable long Markdown only in the local fixture configuration, load migration 0042, and provide late-section, repeated-heading, headingless and over-limit Markdown fixtures. Extend the actual current ToC and source viewer; the NEW source browser harness must use the common local convention above.
 
-**Rung receipt:** Existing indexed/outlined/read/planned coverage, actual author input size, explicitly unread ranges, changed selection history, a historical citation round trip and platform work counts. Record the unsupported long-author boundary rather than pretending that a heading outline is full document reading.
+**Rung receipt:** Existing indexed/outlined/read/planned coverage, actual author input size, explicitly unread ranges, changed selection history, a historical citation round trip and platform work counts. Record which original ranges reach the writer, including the current passage-only boundary until R7a.04 qualifies.
 
 ### R7a.01 Complete deterministic access-scoped source indices
 
@@ -1082,6 +1082,24 @@ For each implemented task record the candidate SHA, actual commands/results, fix
 
 **NEW local browser harness (create first; common prerequisites plus this rung’s fixtures):** `BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node packages/web/e2e/roadmap-source-check.mjs`. Record actual assertions and screenshots; a fixture route proves UI behavior only, not live provider quality.
 
+
+### R7a.04 Pass supporting Markdown to the card writer
+
+**Owner:** Tools and State/Money. **Depends:** R7a.01–02 and the current accepted-input and quote path in CORE.03/05. **Product contract:** [Long Markdown supporting passages](tutor-roadmap-v1.4.md#long-markdown-supporting-passages-r7a). **Model:** deterministic retrieval followed by the existing single author call. Source seams checked at main `f411c6dee88a0f222ac58df638a41009e56c3867`.
+
+**Current seams:** `packages/control-plane/src/roadmap/roadmap-source-index.js::{indexSource,readSourceEvidence}`, `roadmap-run.js::{stepInput,quoteStepAcceptance,generationHandler}` and `roadmap-generate.js::{authorInput,quoteRoadmapCard,generateRoadmapCard}`. `stepInput` already reads the authorized pinned Markdown for both quoting and dispatch. `authorInput` sends the full Markdown within `ROADMAP_LIMITS.source.chars` and the step passage above it. Extend these seams and the existing accepted-input snapshot.
+
+- [ ] Wire the original-text retrieval into the quoted and dispatched long-Markdown card request. Prove the earlier supporting excerpt reaches the actual writer body while the existing focus, source revision, acceptance and accounting contracts hold.
+  - **Select the evidence before quoting.** For an enabled R7a Markdown source above 40,000 characters, use the versioned index for the same authorized file. Query with the approved step goal and points to cover. Honor exact supporting section IDs when the accepted step supplies them, then use the existing lexical ranking. Filter candidates that overlap the focus range before applying the cap. Start with configurable bounds of two original excerpts and 6,000 supporting characters in total, within the actual author input budget. Reuse the already authorized source read within this request where possible. Keep original offsets, source revision and omitted coverage.
+  - **Bind the exact request.** In `quoteStepAcceptance`, capture the selected ranges and source revision in the existing acceptance snapshot and hash the body built by `authorInput`. At dispatch, revalidate access and revision and rebuild from the same ranges. Use the same input for quote and authoring. Treat earlier snapshots without the supporting-ranges field as their original passage-only request. An edit of the accepted input uses the existing revised offer and quote. A prepared result, when eligible, must match the same request fingerprint.
+  - **Keep the focus separate.** Send the step's passage and the supporting excerpts as separate fields or blocks in the single author request, with the approved brief and Depth. The saved card's primary R3 reference continues to identify the focus passage. Treat all retrieved text as source data. The full-file path for bounded Markdown uses the existing context. Use the supported step passage if optional evidence is missing, and the existing Chat recovery for a known essential gap.
+
+**Local backend verification:** Extend the existing long-source integration and generation fixtures. Use a Markdown file over 40,000 characters with a unique definition or formula near the start and its use near the end. Capture the outgoing writer request and assert exact original text from both ranges, the correct focus anchor and accepted settings, and equality of quoted and dispatched request fingerprints. Verify the excerpt cap, absence of duplicated focus text, bounded full-file behavior, empty optional results, legacy snapshots, and changed or revoked sources. Verify one author dispatch for the accepted card and no provider calls for retrieval. Use test doubles for all provider calls.
+
+0
+**Run from repository root after adding the assertions:** `node --test packages/control-plane/test/roadmap-long.test.js packages/control-plane/test/roadmap-source-retrieval.test.js packages/control-plane/test/roadmap-generate.test.js packages/control-plane/test/roadmap-money.test.js`.
+
+**Task evidence:** Record the selected source revision/ranges, actual author input size, focus reference, quoted and sent fingerprints, dispatch count and receipt. Keep this task open until the full acceptance-to-author backend fixture passes.
 
 ### 6.3 R7b — PDF text and page references
 

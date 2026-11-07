@@ -18,6 +18,7 @@
 - [4 Chat, Table of Contents and Progress](#4-chat-table-of-contents-and-progress)
   - [4.7 Ordinary messages and tool requests](#47-ordinary-messages-and-tool-requests)
 - [5 Context, scope and source references](#5-context-scope-and-source-references)
+  - [Long Markdown supporting passages (R7a)](#long-markdown-supporting-passages-r7a)
   - [5.4.1 R7b — PDF sources on Canvas](#541-r7b--pdf-sources-on-canvas)
 - [6 Proposal, generation and delivery lifecycle](#6-proposal-generation-and-delivery-lifecycle)
 - [7 Canvas placement and source navigation](#7-canvas-placement-and-source-navigation)
@@ -72,7 +73,7 @@ A step is one coherent teaching addition. A skill is a concept or ability tracke
 | Current two-card test | The three `roadmap-document-context.test.js` regressions passed locally at the reviewed main. The writer gets the whole bounded document and step brief, grounding is recorded as not run, and two accepted cards are saved and acknowledged. | The fixture uses external doubles and direct SQL board writes. Full section 8.0 route/save coverage and owner manual production acceptance remain required. |
 | Current proposal/ToC UI | World-positioned slots, source-range navigation, Chat transcript rendering and server Tutor-thread binding are present. `TableOfContents` now owns one scroller with a `top` slot for `RoadmapToc`. | The ToC still renders the roadmap parameter/action block before ordinary headings. It needs the accepted-only tree in file 01. Chat lifecycle rows are derived from current roadmap state and need durable per-step message identity. Slot geometry needs private reload persistence. |
 | R5 proposal editing/reuse | Pending Edit uses the existing preview/apply/discard flow. Five previews per proposal and 30 per learner per UTC day are checked. `ROADMAP_EDIT_ENABLED` is true in the production app config. | Preserve the implemented edit foundation. Complete the composer-target UI, accepted edited-title/brief binding and the broader reuse subset separately. Config and focused tests establish their own scope of evidence. |
-| R7a long Markdown | Deterministic index/summary/retrieval/coverage and bounded long-plan foundations locally verified; migration 0042 and enabled production config retained. | Source-selection outbox/new-UI/manual extensions may be deferred. Ordinary authoring uses passage fallback above 40,000 characters. Whole-PDF Tutor planning is separate unbuilt R7b. |
+| R7a long Markdown | Deterministic index/summary/retrieval/coverage and bounded long-plan foundations locally verified; migration 0042 and enabled production config retained. | Source-selection outbox/new-UI/manual extensions may be deferred. Current authoring uses passage fallback above 40,000 characters. R7a.04 adds supporting excerpts at card generation. PDF planning is tracked separately under R7b. |
 | Cleanup | P1–P5 changes/receipts are present. Archive-sensitive joins remain; P6 backfill/join removal/drop and P7 closeout are not established complete. | Do not reuse cleanup v0.1's old migration number or wait for table deletion before fixing the Tutor core. |
 | R8–R16 | The ladder retains these capabilities; some branch work was reported earlier. | Treat branch work as material to reconcile, not proof of integration, activation or acceptance. |
 
@@ -103,7 +104,7 @@ The earlier "nine completed" count covered only narrow correction checkboxes. It
 | R4 | 2 | 12 | 14 | Rollup tasks; partial rows map to detailed CORE/UI below. |
 | R5 | 8 | 7 | 15 | Existing preview/Apply/keyboard/link guards checked; author/composer/reuse/geometry work open. |
 | R6 | 6 | 1 | 7 | Existing trigger/composer/delivery guards checked; persistent Chat/offscreen integration open. |
-| R7a | 15 | 3 | 18 | Existing index/retrieval/coverage checked; remaining extensions deferred. |
+| R7a | 15 | 4 | 19 | Existing index, retrieval and coverage checked. Card authoring context is pending alongside three deferred extensions. |
 | R7b | 0 | 15 | 15 | Docling PDF workflow planned as a separate release. R3 excerpts are counted separately. |
 
 R4's detailed correction lists contain **15 / 50 checked CORE items** and **12 / 72 checked UI items**. These are detailed subtasks of the R4/integration rollup above in the companion checklist, not extra completed releases. BE and per-release receipts remain separate evidence tasks. Do not sum overlapping rollups and subtasks into a misleading project percentage. Checked UI foundations mean source/Node verification; owner manual production acceptance is still separate.
@@ -470,6 +471,16 @@ Other capabilities keep their applicable rules: quiz-key/assessment validity, fe
 Do not promise that every document fits a single prompt. R7a provides a versioned whole-document outline, bounded summaries and retrieval of original sections for long Markdown. Summaries guide selection; the author receives a sufficient supporting context bundle, separate from the highlight anchor, with explicit coverage and omissions. R7b adds structured PDF page evidence. R13 adds code snapshots. R15 extends visual interpretation to images, notes and broader OCR.
 
 The first bounded-source correction does not require rebuilding R7 or a vector database. If the source is beyond the enabled capability, report the actual limit and ask for a supported teaching scope. Do not silently use the beginning of a long file, infer that an unread section is absent, or activate an unqualified adapter just to hide a limitation.
+
+#### Long Markdown supporting passages (R7a)
+
+A long Markdown roadmap can already look up original sections during planning. Today each card writer on that path receives the highlighted step passage and its approved brief. [R7a.04](tutor-implementation-checklist.md#r7a04-pass-supporting-markdown-to-the-card-writer) extends the writer input with relevant excerpts from the same pinned file.
+
+For a card about choosing a tree split, the split-selection passage stays the teaching focus. If the lesson needs the Gini formula defined earlier in the file, retrieve that exact definition and give it to the writer as supporting context. Use the existing R7a section index and original-text retrieval. The initial adjustable budget is **two supporting excerpts and 6,000 supporting characters total**, within the existing author request limits. Prefer the approved step goal, its points to cover and any explicit supporting section references when selecting excerpts.
+
+Resolve the excerpts before pricing acceptance. Bind the source revision and exact ranges to the accepted card so generation uses the same evidence. **View section** still opens the step's highlighted passage. The writer gets the approved brief, Depth, focus passage and retrieved supporting text in its usual single call. The bounded Markdown path continues to supply the full pinned file when it fits the 40,000-character limit.
+
+When optional supporting text is unavailable, the card can use its supported step passage. When a required definition or example is missing, use the existing Chat recovery to narrow the step or ask one focused question. Record which original passages the writer received.
 
 #### 5.4.1 R7b — PDF sources on Canvas
 
@@ -992,7 +1003,7 @@ The immediate ordinary sprint deliverable is: **drop Markdown → Chat opens and
 | R4 Core roadmap | Drop → Chat acknowledgment and routing → draft/parameters/Edit/Accept in Chat → accepted ToC → synchronized step lifecycle, durable cards and billing. Core Explanation work includes shared teaching guidance for direct questions and roadmap steps, Depth caps, a pinned header, downward disclosures, Markdown tables and Mermaid. | Existing foundation enabled with MVP correction and acceptance work outstanding. Include the planner and writer prompt changes in CORE.09 and the checks in BE.06a. The separately enabled empty-canvas invitation follow-up can ship after the Markdown flow. |
 | R6 Automatic proposals | One next canvas proposal and matching Chat entry after saved/acknowledged delivery; no camera/focus theft or poll spam. | Existing foundation enabled; prove first/second delivery and failure/safety successor rules. Manual **Propose next step** stays in Chat. R11 speculation is separate. |
 | R5 Edit/reuse | Edit card in Chat and Ctrl/Cmd+K share the existing proposal-edit foundation. Explicit linking can reuse suitable content. | The production app config enables R5 at the reviewed main. Complete the current MVP composer/edited-brief contract and qualify broader link/drag/Add-to-Chat behavior separately. |
-| R7a Long Markdown | Versioned outline, bounded summaries, original retrieval and explicit coverage beyond bounded full-context source input. | Existing foundations locally verified and production config enabled. Remaining source-selection outbox/new-UI/manual extensions may be deferred; preserve the honest author passage fallback. |
+| R7a Long Markdown | Versioned outline, bounded summaries, original retrieval and explicit coverage beyond bounded full-context source input. | Existing foundations locally verified and production config enabled. The card writer follow-up is R7a.04. Remaining source-selection outbox, UI and manual extensions may be deferred. |
 | R7b PDF sources | Compact PDF card or separate pages, page/range/full-content lessons and on-demand PDF evidence for Chat and card work. | Planned separate release. Docling, bounded local OCR and original page references under §5.4.1. Preserve R3 selected-PDF references. |
 | R8b Calculator | Verified bounded computations within the explanation. | Small independent tool; can precede web research. No sandbox dependency. |
 | R8a Research | One scoped web evidence tool for Ask, Auto, Tutor, Explain on Canvas drafts and steps, and supported standalone card briefs. | Next after Core Tutor. Build the Exa operation and wire the shared tool-call workflow, then qualify the written Explanation card first under §10.2.1. Qualify the other callers separately. |
