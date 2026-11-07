@@ -6351,7 +6351,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <div ref={gutter} data-tool-gutter
           // Docked right it mirrors the left side (84px, 8px in from the edge) and clears the contents rail (edgeInset).
           style={{ '--edge': `${edgeInset || 0}px` }}
-          className={`pointer-events-none absolute top-[var(--canvas-top,0px)] bottom-0 z-20 flex flex-col justify-center gap-2 [&>*]:pointer-events-auto ${toolSide === 'left' ? 'left-0 items-start pl-2 pb-(--chrome-left) w-[84px]' : 'right-(--edge) items-end pr-2 pb-(--chrome-right) w-[84px]'}`}>
+          className={`pointer-events-none absolute top-[var(--canvas-top,0px)] bottom-0 z-20 flex flex-col justify-center-safe gap-2 [&>*]:pointer-events-auto ${toolSide === 'left' ? 'left-0 items-start pl-2 pb-(--chrome-left) w-[84px]' : 'right-(--edge) items-end pr-2 pb-(--chrome-right) w-[84px]'}`}>
+        {/* justify-center-safe: centred while there is room, start-aligned when the window is short, so the Rabbit Hole Map at the top can never overflow upward under the page header (--canvas-top). */}
         {/* The Rabbit Hole navigator (Dive.jsx): top of the gutter, the tools centred in the rest. */}
         {/* Top of the tools gutter: the Rabbit Hole navigator. Canvas home is the page's top-left corner (LearnPage). */}
         <div data-gutter-top className={`pointer-events-none! mb-auto flex flex-col gap-3 [&>*]:pointer-events-auto ${import.meta.env.VITE_COACHING_DEV === 'true' ? 'pt-12' : 'pt-3'} @max-[640px]:hidden ${toolSide === 'left' ? 'items-start self-start' : 'items-end self-end'}`}>

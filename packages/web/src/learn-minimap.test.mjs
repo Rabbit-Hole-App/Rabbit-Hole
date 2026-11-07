@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { minimapLayout, minimapToView } from './learn-minimap.js';
@@ -94,4 +95,12 @@ test('the document footprint is part of the extent and keeps its flag, empty or 
   assert.ok(Math.abs(doc.w / doc.h - 760 / 960) < 0.01, 'the page keeps its world proportions');
   const panned = minimapLayout([page, card], { x: -500, y: -300, z: 2 }, surface, size);
   assert.ok(Math.abs(panned.boxes[0].w / panned.scale - 760) < 0.01 && Math.abs(panned.boxes[0].h / panned.scale - 960) < 0.01, 'pan and zoom never change its world size');
+});
+
+test('the tools gutter holding the Rabbit Hole Map is safe-centred: a short window never pushes the map up under the page header', () => {
+  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  const gutter = canvas.split(String.fromCharCode(10)).find(line => line.includes('absolute top-[var(--canvas-top,0px)] bottom-0 z-20 flex flex-col'));
+  assert.ok(gutter, 'the gutter starts below the header (--canvas-top)');
+  assert.match(gutter, /justify-center-safe/);
+  assert.doesNotMatch(gutter, /justify-center(?!-safe)/);
 });
