@@ -1355,8 +1355,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const savedRefs = useRef(null);
   // The course interview (Edit course) still lives under the Table of contents tab, so starting one brings that tab forward.
   useEffect(() => { if (setupChat) setPanelTab('toc'); }, [setupChat]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Owner brief 2026-10-16 item 7: the Table of contents has its own conversation (TocConversation, TocWorkspace's thread), not
-  // Chat's composer docked. Coming back to the tab puts the contents where they were scrolled (a hidden tab loses its scroll).
+  // Tutor core MVP (handoff UI.02): the Table of contents has no conversation or composer of its own; Tutor talk lives in Chat.
+  // Coming back to the tab puts the contents where they were scrolled (a hidden tab loses its scroll).
   // The learning goal under the contents' heading: the learner's accepted goal record, never the latest planning message
   // ("rename section 2" cannot replace it). Tutor Task 11, draft acceptance 52, superseding the lead ruling of 2026-10-16 that
   // showed the TOC conversation's latest request (owner decision 2a). No accepted goal, nothing shown.
