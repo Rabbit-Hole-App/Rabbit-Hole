@@ -95,7 +95,7 @@ test('chat context: one uploaded PDF rides per turn; every other uploaded-PDF pa
 const source = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
 const apiAskSource = source.match(/export async function apiAsk\([^]*?\n\}/)[0].replace(/^export /, '');
 const owner = { email: 'owner@example.test', org: 'workspace-a' };
-const modules = await Promise.all(['../src/ask.js', '../src/learn-wiki.js', '../src/learn-youtube.js', '../src/learn-outline-tool.js', '../src/learn-context.js', '../src/learn-ask-context.js', '../src/learn-models.js', '../src/learn-paper.js', '../src/learn-media.js', '../src/arxiv.js', '../src/canvas-conversation.js', '../src/learn-context-docs.js', '../src/learn-storage.js', '../src/token.js', '../src/agents/learn-chat.js', '../src/canvas-context.js', '../src/generation-proposal.js', '../src/chat-capability-route.js'].map(path => import(path)));
+const modules = await Promise.all(['../src/ask.js', '../src/learn-wiki.js', '../src/learn-youtube.js', '../src/learn-outline-tool.js', '../src/learn-context.js', '../src/learn-ask-context.js', '../src/learn-models.js', '../src/learn-paper.js', '../src/learn-media.js', '../src/arxiv.js', '../src/canvas-conversation.js', '../src/learn-context-docs.js', '../src/learn-storage.js', '../src/token.js', '../src/agents/learn-chat.js', '../src/canvas-context.js', '../src/generation-proposal.js', '../src/chat-capability-route.js', '../src/chat-tools.js'].map(path => import(path)));
 const { verifyProposal } = await import('../src/generation-proposal.js');
 const baseDeps = Object.fromEntries(modules.flatMap(m => Object.entries(m)).filter(([name]) => name !== 'default'));
 // A test double of B4's trailer functions (on this base they are stubs): the wiring is what is under test here.
@@ -1024,4 +1024,124 @@ test('CHAT.01 table: conversation and questions about a tool stay replies; a ful
   const typed = routeOutcome(await routeChat(fetcher(classifier, 'auto'), payload('/motion tree split', 'auto', { generation: { motion: { concept: 'Trees' } } }), { capability: null }), { plain: false });
   assert.equal(classifier.calls, 0, 'a typed command is not classified');
   assert.equal(typeof typed.token, 'string');
+});
+
+// ---------- CHAT.02: the answer model gets the eligible tools (CHAT_ANSWER_TOOLS; chat-tools.js) ----------
+// A scripted model proves wiring, validation, state and action counts. Whether the real model picks the right tool is UNVERIFIED here.
+const toolCall = (id, name, input) => ({ content: [{ type: 'tool_use', id, name, input }], stop_reason: 'tool_use' });
+const QUESTION = 'Why does a metal spoon feel colder than a wooden one?';
+function withTools(t, flag = 'auto') {
+  const f = fixture(t);
+  Object.assign(f.env, MOTION_ENV, flag === null ? {} : { CHAT_ANSWER_TOOLS: flag });
+  const elsewhere = [], prior = globalThis.fetch;
+  globalThis.fetch = async (url, init) => { if (new URL(String(url)).hostname !== 'api.anthropic.com') elsewhere.push(String(url)); return prior(url, init); };
+  t.after(() => { globalThis.fetch = prior; });
+  return { ...f, elsewhere, runTools: call => (call.tools || []).filter(tool => tool.name.startsWith('run_')).map(tool => tool.name) };
+}
+const turn = (over = {}) => ({ message: QUESTION, mode: 'auto', generation: { motion: { concept: 'Heat' } }, ...over });
+const metaOf = events => events.find(e => e.event === 'answer_meta').data;
+
+test('CHAT.02: with the flag on, an ordinary message offers the eligible tools natively; the model may answer with none', async t => {
+  const f = withTools(t);
+  const { res, events } = await f.ask(turn());
+  assert.equal(res.status, 200);
+  const call = f.calls[0];
+  assert.deepEqual(f.runTools(call).sort(), ['run_3d', 'run_arxiv', 'run_code', 'run_diagram', 'run_flashcards', 'run_graph', 'run_image', 'run_quiz', 'run_wikipedia', 'run_youtube']);
+  assert.ok(call.tools.some(tool => tool.name === 'propose_generation'), 'the Motion proposal rides beside them');
+  assert.ok(!call.tools.some(tool => /whiteboard|animation|cad|goal/.test(tool.name)), 'R12-held and explicit-only commands are never offered');
+  assert.deepEqual(call.tool_choice, { type: 'auto', disable_parallel_tool_use: true }, 'auto, never forced');
+  assert.match(call.system, /you may call one of the tools offered, once/);
+  assert.match(call.tools.find(tool => tool.name === 'propose_generation').input_schema.properties.command.description, /no narration \(audio is off\), not interactive/);
+  assert.equal(f.calls.length, 1, 'one model call');
+  assert.equal(events.filter(e => e.event === 'chunk').length, 1, 'a saved reply');
+  const meta = metaOf(events);
+  assert.deepEqual([meta.toolRequest ?? null, meta.proposal ?? null], [null, null], 'zero tool requests');
+  assert.deepEqual(f.rows('SELECT role FROM messages ORDER BY id').map(m => m.role), ['user', 'assistant']);
+  assert.deepEqual(f.elsewhere, [], 'no adapter, orchestrator or provider call other than the answer');
+});
+
+test('CHAT.02: the flag is per mode; unset, a command turn, an answer-only turn and the Contents conversation offer no direct tool', async t => {
+  for (const [flag, over, expectTools, label] of [
+    [null, {}, false, 'unset'], ['ask', {}, false, 'auto not listed'], ['auto', { mode: 'ask' }, false, 'ask not listed'],
+    ['ask', { mode: 'ask' }, true, 'ask listed'], ['all', { mode: 'ask' }, true, 'all, ask'], ['all', {}, true, 'all, auto'],
+    ['auto', { command: 'diagram' }, false, 'a command turn'], ['auto', { answer_only: true }, false, 'answer-only'], ['all', { mode: 'tutor' }, false, 'wire tutor'],
+  ]) {
+    const f = withTools(t, flag);
+    const { res } = await f.ask(turn(over));
+    assert.equal(res.status, 200, label);
+    assert.equal(f.runTools(f.calls[0]).length > 0, expectTools, label);
+  }
+});
+
+test('CHAT.02: a valid direct tool call becomes one toolRequest for the browser; the server runs nothing and creates nothing', async t => {
+  const f = withTools(t);
+  f.replies.push(toolCall('tu1', 'run_diagram', { request: 'the steps of binary search' }), 'I opened the diagram command for you.\n<answer_meta>{}</answer_meta>');
+  const { res, events } = await f.ask(turn({ message: 'draw the steps of binary search' }));
+  assert.equal(res.status, 200);
+  const meta = metaOf(events);
+  assert.deepEqual(meta.toolRequest, { command: 'diagram', args: 'the steps of binary search' });
+  assert.deepEqual([meta.proposal ?? null, meta.actions, meta.followUps], [null, [], []], 'no proposal; a tool request is a workflow answer with no extra suggestions');
+  assert.equal(f.calls.length, 2, 'the tool turn and the reply');
+  const result = JSON.parse(f.calls[1].messages.at(-1).content[0].content[0].text);
+  assert.equal(result.requested, 1);
+  assert.deepEqual(JSON.parse(f.rows("SELECT meta_json FROM chat_message_meta WHERE role = 'assistant'")[0].meta_json).toolRequest, meta.toolRequest, 'kept with the answer');
+  assert.deepEqual(f.elsewhere, [], 'zero adapter dispatch, job or credit hold');
+});
+
+test('CHAT.02: an unfit call, an unavailable tool and a second request come back to the model as errors and nothing is requested', async t => {
+  const f = withTools(t);
+  // narration is required: no existing tool narrates -> the model is told to help in Chat
+  f.replies.push(toolCall('tu1', 'run_diagram', { request: 'a narrated walkthrough', requirements: { narration: true } }), 'No tool here can narrate, so here is a storyboard you can read instead.\n<answer_meta>{}</answer_meta>');
+  const first = await f.ask(turn({ message: 'a narrated walkthrough of the tree split' }));
+  assert.equal(metaOf(first.events).toolRequest ?? null, null);
+  assert.match(f.calls[1].messages.at(-1).content[0].content[0].text, /cannot provide narration[^]*No available tool fits/);
+  // an unavailable tool (image generation is off for this caller)
+  f.replies.push(toolCall('tu2', 'run_generate_image', { request: 'a cat' }), 'I cannot generate pictures here.\n<answer_meta>{}</answer_meta>');
+  const second = await f.ask(turn({ message: 'draw me a cat' }));
+  assert.equal(metaOf(second.events).toolRequest ?? null, null);
+  assert.match(f.calls.at(-1).messages.at(-1).content[0].content[0].text, /Unknown Learn tool/, 'a tool that was never offered is rejected before it reaches the handler');
+  // two requests in one answer: the first stands, the second is refused
+  f.replies.push(toolCall('tu3', 'run_diagram', { request: 'the split' }), toolCall('tu4', 'run_graph', { request: 'the cost' }), 'Opened the diagram.\n<answer_meta>{}</answer_meta>');
+  const third = await f.ask(turn({ message: 'diagram and graph of the split' }));
+  assert.deepEqual(metaOf(third.events).toolRequest, { command: 'diagram', args: 'the split' });
+  assert.match(f.calls.at(-1).messages.at(-1).content[0].content[0].text, /One tool request per answer/);
+  assert.deepEqual(f.elsewhere, []);
+});
+
+test('CHAT.02: Motion keeps its signed review; a narration requirement is refused before any review; ordinary talk beside a waiting plan stays a reply', async t => {
+  const f = withTools(t);
+  f.replies.push(proposeCall('tu1', { requirements: { narration: true } }), 'Motion cannot narrate; want a read-along storyboard instead?\n<answer_meta>{}</answer_meta>');
+  const refused = await f.ask(turn({ message: 'a narrated video of the water cycle' }));
+  assert.equal(metaOf(refused.events).proposal ?? null, null, 'no review for a requirement Motion cannot meet');
+  assert.match(f.calls.at(-1).messages.at(-1).content[0].content[0].text, /cannot provide narration/);
+  f.replies.push(proposeCall('tu2'), 'Here is a 10-second video proposal.\n<answer_meta>{}</answer_meta>');
+  const first = await f.ask(turn({ message: 'Hi, make a short video of the water cycle' }));
+  const proposal = metaOf(first.events).proposal;
+  assert.equal(proposal.command, 'motion');
+  assert.equal(await verifyProposal(f.env, proposal, 'owner@example.test'), null, 'signed for the asker');
+  // ordinary conversation beside the waiting plan: the model answers, no new version is made
+  const before = f.calls.length;
+  const talk = await f.ask(turn({ message: 'thanks, how long do these usually take to render?', generation: { motion: { concept: 'Heat' }, current: proposal } }));
+  assert.equal(f.calls.length - before, 1);
+  assert.equal(metaOf(talk.events).proposal ?? null, null, 'no revision without a refinement');
+  assert.deepEqual(f.elsewhere, []);
+});
+
+test('CHAT.02: the route skips the classifier for a listed mode; a denied board and a mismatched token stay denied', async t => {
+  const f = withTools(t);
+  const { chatRouteFetch } = await import('../src/chat-capability-route.js');
+  const { routeChat, routeOutcome } = await import('../../web/src/generation-proposal-chat.js');
+  const jev = async () => { jev.calls += 1; throw new Error('the classifier must not be called'); };
+  jev.calls = 0;
+  const authorize = async () => ({ email: owner.email, org: owner.org, kind: 'owner' });
+  const fetcher = (authorizeWith = authorize) => async (url, init) => chatRouteFetch(new Request('https://dev.test/api/learn/chat/route', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: init.body }), f.env, { authorize: authorizeWith, ask: jev });
+  const payload = { scope: { app: 'canvas-0a1b2c3d' }, message: QUESTION, mode: 'auto' };
+  const decision = await routeChat(fetcher(), payload);
+  assert.deepEqual([decision.route, decision.via, jev.calls], ['answer', 'model', 0]);
+  assert.deepEqual(routeOutcome(decision, { plain: true }), { send: true, token: null }, 'sent as an ordinary turn with the tools, no banner');
+  const denied = await routeChat(fetcher(async () => Response.json({ error: 'No access to this canvas.' }, { status: 403 })), payload);
+  assert.equal(routeOutcome(denied, { plain: true }).show.message, 'No access to this canvas.');
+  const mismatch = await f.ask(turn({ route_token: 'not-a-token' }));
+  assert.deepEqual([mismatch.res.status, (await mismatch.res.json()).code], [400, 'route_mismatch']);
+  assert.equal(f.calls.length, 0, 'a denied or mismatched turn never reaches the model');
 });

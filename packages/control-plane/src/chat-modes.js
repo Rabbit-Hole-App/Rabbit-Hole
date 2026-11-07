@@ -244,7 +244,7 @@ export async function recordAnswer(db, { threadId, userMessageId, content, raw, 
   else {
     // A slash command's answer, and one that carries a generation proposal, belongs to the generation workflow: Explore next and suggested
     // actions are not kept for it (the Chat hides them too, web chat-response-kind.js), so nothing unused is stored or sent.
-    const workflow = !!chat.command || !!proposal || !!proposalMeta?.proposalConflict;
+    const workflow = !!chat.command || !!proposal || !!proposalMeta?.proposalConflict || !!proposalMeta?.toolRequest;
     const { actions, followUps } = workflow ? { actions: [], followUps: [] } : validate(raw, { messageId: String(messageId), contextRefs: refs });
     meta = { version: 1, mode: resolved.mode, kind: 'answer', contextRefs: refs, actions, followUps, syllabus: null, ...(proposal ? { proposal } : {}), ...proposalMeta };
   }
@@ -259,7 +259,7 @@ export async function recordAnswer(db, { threadId, userMessageId, content, raw, 
   const alternatives = turn ? [...new Set([String(turn.first), ...await turnAnswers(db, turn.first), String(messageId)])] : [String(messageId)];
   // kind and syllabus ride too (syllabus is always null since Tutor cleanup P4; old saved metas keep theirs as data).
   return {
-    answerMeta: { messageId: String(messageId), actions: meta.actions, followUps: meta.followUps, alternatives, kind: meta.kind, syllabus: meta.syllabus, ...(meta.proposal ? { proposal: meta.proposal } : {}), ...(meta.proposalConflict ? { proposalConflict: meta.proposalConflict } : {}) },
+    answerMeta: { messageId: String(messageId), actions: meta.actions, followUps: meta.followUps, alternatives, kind: meta.kind, syllabus: meta.syllabus, ...(meta.proposal ? { proposal: meta.proposal } : {}), ...(meta.proposalConflict ? { proposalConflict: meta.proposalConflict } : {}), ...(meta.toolRequest ? { toolRequest: meta.toolRequest } : {}) },
     done: { userMessageId: String(userMessageId), messageId: String(messageId) },
   };
 }

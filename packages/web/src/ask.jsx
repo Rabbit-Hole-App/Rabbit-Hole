@@ -884,7 +884,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           else if (type === 'video') { cardSink?.(boardContext?.onShowVideo?.(d, slots.video)); }
           else if (type === 'papers') setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, papers: d.papers } : item));
           else if (type === 'proposal') setMsgs((m) => [...m, { role: 'proposal', proposal: d }]);
-          else if (type === 'answer_meta') setMsgs(messages => withAnswerMeta(messages, replyId, d));
+          else if (type === 'answer_meta') {
+            setMsgs(messages => withAnswerMeta(messages, replyId, d));
+            // CHAT.02: the answer asked for a tool. The server already checked it; the command's own handler runs it, as a router decision would.
+            if (d.toolRequest?.command) { const { command, args } = d.toolRequest; if (command === 'generate-image' && chatThread && imageGenerationOn()) imagePlan(args).catch(() => {}); else slashRef.current?.intercept(('/' + typedOf(command) + ' ' + args).trim()); }
+          }
           else if (type === 'done' && d.threadId) {
             askedId(d.userMessageId != null ? String(d.userMessageId) : null);
             if (chatThread) { setMsgs(messages => withDone(messages, replyId, d)); chatThread.adopt(d.threadId, message.slice(0, 120)); }
