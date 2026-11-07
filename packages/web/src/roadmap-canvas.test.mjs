@@ -142,13 +142,3 @@ test('a kept place belongs to one offer: the same proposal or its accepted work 
   assert.equal(keepsSpot(null, { proposalId: 'pr_a' }), false);
   assert.equal(keepsSpot({ x: 1, y: 2, proposalId: null }, { proposalId: 'pr_b' }), true, 'a place first made for accepted work (after a reload) is kept');
 });
-
-// R5 latent bug (owner turning ROADMAP_EDIT_ENABLED on): Edit from Chat while the source card is offscreen must not open an invisible editor.
-test('the proposal overlay is drawn when its source is on screen, or whenever the editor is open (Chat Edit with the source offscreen)', async () => {
-  const { overlayShown } = await import('./roadmap-placement.js');
-  const pill = { proposalId: 'pr_1' };
-  assert.equal(overlayShown({ pill, visible: true }), true);
-  assert.equal(overlayShown({ pill, visible: false }), false, 'quiet: an offscreen proposal is not pinned on screen (the Next step ready indicator is)');
-  assert.equal(overlayShown({ pill, visible: false, editing: true }), true, 'the editor is never invisible');
-  assert.equal(overlayShown({ pill: null, visible: true, editing: true }), false);
-});

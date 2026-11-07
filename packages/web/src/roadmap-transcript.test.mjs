@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { initialState, invitationOf, reduce } from './roadmap-client.js';
-import { ensureTutorThread, invitationClientId, invitationThreadId, roadmapThreadClientId, threadCandidate, transcriptOf } from './roadmap-transcript.js';
+import { invitationClientId, transcriptOf } from './roadmap-transcript.js';
 import { responseKind } from './chat-response-kind.js';
 import { createRoadmapController } from './roadmap-controller.js';
 
@@ -144,67 +144,4 @@ test('the proposal message shows the existing Edit (ProposalTools) only when vie
   assert.match(markup, /data-roadmap-pill=[\s\S]*data-roadmap-edit="true"[^>]*>Edit</, 'the same Edit button, beside the pill');
   assert.doesNotMatch(markup, /data-roadmap-editor/, 'the editor itself opens in the proposal overlay, never here');
   assert.doesNotMatch(render(reduce(initialState(), { type: 'view', view: { ...plain.view, edit: true, proposal: { ...plain.view.proposal, link: { cardId: 'c' } } } })), /data-roadmap-edit/, 'a linked card has nothing to edit');
-});
-
-test('the reused Edit button has the pill radius (4px, rounded), 28px high', () => {
-  const plain = at('status-active-proposal-pending');
-  const markup = render(reduce(initialState(), { type: 'view', view: { ...plain.view, edit: true } }));
-  assert.match(markup, /data-roadmap-edit="true" class="h-7 rounded border/);
-  assert.doesNotMatch(markup.slice(markup.indexOf('data-roadmap-edit')), /^[^>]*rounded-none/);
-});
-
-// The Tutor thread is the roadmap's, kept on the server (owner 2026-11-06): the same on every device.
-test('an invitation has one Tutor thread id on every device: derived from the invitation, in the Chat thread id format', async () => {
-  const a = await invitationThreadId('inv_a1b2c3'), again = await invitationThreadId('inv_a1b2c3'), other = await invitationThreadId('inv_zzz');
-  assert.equal(a, again, 'a second device computes the same thread');
-  assert.notEqual(a, other);
-  assert.match(a, /^canvaschat-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
-  assert.match(roadmapThreadClientId('rm_5f0c1a7e9b3d4c2a8e6f1b07'), /^[A-Za-z0-9_-]{1,80}$/);
-});
-test('the thread recorded for an unbound roadmap: the browser\'s old binding, else the open thread only if it holds THIS roadmap\'s invitation', () => {
-  const inv = [{ role: 'assistant', clientId: invitationClientId('inv_1') }], plain = [{ role: 'user', clientId: 'turn-1' }];
-  assert.equal(threadCandidate({ legacy: 'canvaschat-old', openId: 'canvaschat-open', msgs: inv, invitationId: 'inv_1' }), 'canvaschat-old');
-  assert.equal(threadCandidate({ openId: 'canvaschat-open', msgs: inv, invitationId: 'inv_1' }), 'canvaschat-open');
-  assert.equal(threadCandidate({ openId: 'canvaschat-open', msgs: inv, invitationId: 'inv_2' }), null, 'an older roadmap\'s invitation thread is never taken');
-  assert.equal(threadCandidate({ openId: 'canvaschat-open', msgs: inv }), null, 'a roadmap made without an invitation takes no open thread');
-  assert.equal(threadCandidate({ openId: 'canvaschat-open', msgs: plain, invitationId: 'inv_1' }), null, 'an unrelated thread is never taken over');
-  assert.equal(threadCandidate({ openId: null, msgs: inv, invitationId: 'inv_1' }), null, 'a new chat (the bound thread was just deleted)');
-});
-
-// Release 91 fix: recording never opens a thread (no Chat jump), never runs for a finished roadmap, and makes at most one fresh thread per roadmap per session.
-const sessionStore = () => { const m = new Map(); return { get: k => m.get(k) ?? null, set: (k, v) => m.set(k, v), m }; };
-const doubles = ({ saved = new Set() } = {}) => {
-  const calls = { bind: [], fresh: [], ids: 0 };
-  return { calls, deps: (session) => ({ session, newId: () => `canvaschat-fresh-${++calls.ids}`, saveFresh: async id => { calls.fresh.push(id); saved.add(id); },
-    bindThread: async id => { calls.bind.push(id); if (!saved.has(id)) throw Object.assign(new Error('Save the thread first'), { status: 404 }); return { roadmap: { threadId: id } }; } }) };
-};
-test('ensureTutorThread binds THIS roadmap\'s invitation thread silently, and does nothing for a bound, ended or completed roadmap', async () => {
-  const derived = await invitationThreadId('inv_1'), session = sessionStore();
-  const d = doubles({ saved: new Set([derived]) });
-  assert.equal(await ensureTutorThread({ id: 'rm_1', state: 'active', invitationId: 'inv_1', threadId: null }, { openId: 'canvaschat-other', msgs: [] }, d.deps(session)), 'bound');
-  assert.deepEqual(d.calls.bind, [derived], 'the derived invitation thread, not the open one');
-  assert.deepEqual(d.calls.fresh, [], 'no new thread');
-  for (const rm of [{ id: 'rm_2', state: 'completed', threadId: null }, { id: 'rm_3', state: 'ended', threadId: null }, { id: 'rm_4', state: 'active', threadId: derived }]) {
-    assert.equal(await ensureTutorThread(rm, {}, d.deps(session)), 'skipped');
-  }
-  assert.equal(d.calls.bind.length, 1, 'nothing more was sent');
-});
-test('ensureTutorThread makes at most one fresh thread per roadmap per session, even when its bind keeps failing', async () => {
-  const session = sessionStore(), d = doubles();
-  const failing = { ...d.deps(session), bindThread: async id => { d.calls.bind.push(id); throw new Error('503'); } };
-  const rm = { id: 'rm_9', state: 'active', invitationId: null, threadId: null };
-  await assert.rejects(ensureTutorThread(rm, { openId: 'canvaschat-open', msgs: [] }, failing));
-  assert.deepEqual(d.calls.fresh, ['canvaschat-fresh-1']);
-  for (let restore = 0; restore < 3; restore += 1) assert.equal(await ensureTutorThread(rm, { openId: 'canvaschat-open', msgs: [] }, failing), 'kept');
-  assert.deepEqual(d.calls.fresh, ['canvaschat-fresh-1'], 'every later restore re-binds the same thread: no orphan thread per restore');
-  assert.equal(d.calls.bind.filter(id => id === 'canvaschat-fresh-1').length, 4);
-  const ok = doubles();
-  assert.equal(await ensureTutorThread({ id: 'rm_10', state: 'active', threadId: null }, {}, ok.deps(sessionStore())), 'fresh');
-  assert.deepEqual(ok.calls.bind, ['canvaschat-fresh-1'], 'saved first, then bound; the caller opens nothing');
-});
-test('RoadmapTranscript opens a thread only for an invitation: the silent binding path never calls thread.open', () => {
-  const source = readFileSync(new URL('./RoadmapTranscript.jsx', import.meta.url), 'utf8');
-  const binding = source.slice(source.indexOf('ensureTutorThread(rm'), source.indexOf('}).catch(() => {}); // a failed save or bind'));
-  assert.ok(binding.length > 0);
-  assert.doesNotMatch(binding, /\.open\(|openChat/);
 });

@@ -93,28 +93,3 @@ export async function setMode(db, access, { roadmapId, mode, actionKey, now = no
   });
 }
 
-// The roadmap's one Tutor Chat thread, so every device shows the roadmap in the same thread (owner 2026-11-06). No migration: it is kept as
-// scope_json.tutorThreadId (scope_json is written once at create and read by key only; the fingerprint is its own column). The thread must be a
-// saved Chat thread of this owner on this canvas (canvases.js threads). First writer wins and a repeat changes nothing; a bound thread that no
-// longer exists (deleted) may be replaced, so the roadmap's lines are never left without a thread. -> { status: 200, body: { roadmapId, threadId } }
-// with the thread now bound (another device's, if it won).
-const THREAD_ID = /^canvaschat-[0-9a-f-]{36}$/;
-const THREAD_ROW = 'SELECT 1 AS n FROM threads WHERE id = ? AND org = ? AND user = ? AND scope_ref = ?';
-export async function bindTutorThread(db, access, { roadmapId, threadId }) {
-  if (typeof threadId !== 'string' || !THREAD_ID.test(threadId)) throw new StateError('invalid_request', 'threadId', 400);
-  const roadmap = await readRoadmap(db, access, roadmapId);
-  if (!roadmap) throw new StateError('not_found', 'Not available', 404);
-  if (!await db.prepare(THREAD_ROW).bind(threadId, roadmap.org, roadmap.owner_email, roadmap.app).first()) throw new StateError('not_found', 'Save the thread first', 404);
-  await db.prepare(`UPDATE learn_roadmaps SET scope_json = json_set(scope_json, '$.tutorThreadId', ?) WHERE id = ? AND org = ? AND owner_user_id = ? AND board_id = ?
-    AND (json_extract(scope_json, '$.tutorThreadId') IS NULL OR NOT EXISTS (SELECT 1 FROM threads t WHERE t.id = json_extract(learn_roadmaps.scope_json, '$.tutorThreadId')
-      AND t.org = learn_roadmaps.org AND t.user = learn_roadmaps.owner_email AND t.scope_ref = learn_roadmaps.app))`)
-    .bind(threadId, roadmapId, access.org, access.actorUserId, access.boardId).run();
-  return { status: 200, body: { roadmapId, threadId: await tutorThreadOf(db, await readRoadmap(db, access, roadmapId)) } };
-}
-// The bound Tutor thread while it still exists, else null (never bound, or deleted: the client then makes a fresh one and binds it).
-export async function tutorThreadOf(db, roadmap) {
-  let id = null;
-  try { id = JSON.parse(roadmap?.scope_json || '{}')?.tutorThreadId ?? null; } catch { return null; }
-  if (typeof id !== 'string') return null;
-  return (await db.prepare(THREAD_ROW).bind(id, roadmap.org, roadmap.owner_email, roadmap.app).first()) ? id : null;
-}
