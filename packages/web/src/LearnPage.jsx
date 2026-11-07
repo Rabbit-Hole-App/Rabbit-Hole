@@ -101,7 +101,7 @@ import { acceptList, boardFileLimit, familyOf, formatBytes } from './file-capabi
 import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from './learn-notes.js';
 import { architectureLesson, sampleCourse } from './learn-preview.js';
 import { BOARDS, BOARD_SEED_VERSIONS } from './demo-scenes.js';
-import { DiveNavigator, DivePortals, holeApp, useDive, usePendingHole } from './Dive.jsx';
+import { BackToTop, DiveNavigator, DivePortals, holeApp, useDive, usePendingHole } from './Dive.jsx';
 import { TitleHoles } from './TitleHoles.jsx';
 import { useNextSteps } from './LearnNextSteps.jsx';
 import { useRoadmap } from './use-roadmap.js';
@@ -2395,6 +2395,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               the one its card shows (cardModel), never the repository's own. A canvas outside a project keeps its editable
               title here. */}
           <div data-title-crumbs className="flex max-w-full min-w-0 items-center">
+          <BackToTop tree={dive.navigator.tree} climb={dive.navigator.climb} />
           {project && <>
             <span data-project-crumb title={cardModel(project).title}
               className="block h-8 max-w-60 min-w-12 shrink-[50] truncate px-1.5 text-sm leading-8 text-ink-2 md:shrink-0">{cardModel(project).title}</span>
