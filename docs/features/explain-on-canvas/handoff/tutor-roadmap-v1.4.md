@@ -393,6 +393,8 @@ The standalone routing diagram and recovery path are in [ask-auto-tutor-workflow
 
 | Requested result | Candidate when available and qualified |
 | --- | --- |
+| A written Explanation card with prose, Markdown tables or Mermaid | `/explain`. Use the ordinary written-card path. |
+| A playable teaching visual with controls for the concept | `/interactive` (internal ID `explain`). Verify that its engine supports the required controls. |
 | A playable animated explainer with visuals timed to the concept | `/motion`. Current Motion supports visual video and its approved settings with audio off. |
 | A narrated video that draws a derivation, process or worked example step by step | `/whiteboard` (internal ID `whiteboard-video`). Check narration and rendering readiness. |
 | A live 3D scene the learner can adjust or play | `/animation`. The required output is an interactive scene. |
@@ -638,11 +640,12 @@ One step may combine a few complementary elements when that explains one coheren
 
 ### 9.2 Complete retained command catalogue
 
-This is the intended Tutor catalogue, checked against the application's command registry. It is **not** a claim that all commands are wired into the roadmap. The current ordinary roadmap adapter supports explanation text and tables; later rungs add the rest. `/goal` remains learner-operated and is excluded from Tutor generation.
+This is the intended Tutor catalogue, checked against the current command registry and including the planned Explanation/Interactive split. The ordinary roadmap adapter supports explanation text and tables. Each later adapter qualifies separately. `/goal` remains learner-operated and is excluded from Tutor generation.
 
 | Command | Category | Format/action and constraint | First Tutor integration |
 | --- | --- | --- | --- |
-| `/explain` | Explanation | Text or comparison table; interactive explanation uses its existing engine later. | R4; interactive R12.09 |
+| `/explain` | Explanation | One written Explanation card with optional Markdown tables or Mermaid diagrams. Reuse the ordinary writer, renderer and Depth. | R4 |
+| `/interactive` | Explanation | One playable **Interactive** visual with supported controls. Reuse the existing interactive engine under internal command ID `explain`. | R12.09 |
 | `/practice` | Practice | Explain-back and supported multiple-choice practice; grade with the retained assessment path. | R9 |
 | `/quiz` | Practice | A question, choices and feedback bound to the immutable question actually shown. | R9 |
 | `/flashcards` | Practice | Question/answer recall cards. Reveal or self-rating alone is not assessed mastery. | R9 |
@@ -663,6 +666,8 @@ This is the intended Tutor catalogue, checked against the application's command 
 | `/wikipedia` | Explanation | Find and add a Wikipedia article with source identity. | R12.17 |
 
 The catalogue governs planning eligibility as well as rendering. A future adapter is not enabled merely because its standalone slash command works. Typed commands and Tutor-selected steps can reuse the same engine while keeping their distinct authorization and lifecycle.
+
+On the reviewed main, the public `/explain` entry still covers multiple formats. In the standalone split, use the visible label **Explanation** and public `/explain` for the written card with a distinct internal ID. Use **Interactive** and public `/interactive` for the playable card, keeping internal ID `explain` and replaying saved drafts, proposals and jobs with their original bindings. New typed and picked commands select the requested format directly. List both under **Tutor** in the shared `/` picker, Ctrl+K and **View → Slash Commands**. Give each its own preview and **Use example** prompt. The written example uses the actual Explanation card with a Markdown table, and the playable coffee-cooling example uses `/interactive`.
 
 ### 9.3 Tools are capabilities, not a new visible toolbar
 
@@ -690,14 +695,14 @@ Tutor tools read authorized source content, inspect current canvas coverage, rea
 
 | R12 path | Commands | What the learner reviews |
 | --- | --- | --- |
-| Command plan | `/whiteboard`, `/motion`, `/animation`, `/cad`, `/image`, interactive `/explain` | The command's own plan or signed prompt and applicable settings. Reuse the shared generation review schema and card. |
+| Command plan | `/whiteboard`, `/motion`, `/animation`, `/cad`, `/image`, `/interactive` | The command's own plan or signed prompt and applicable settings. Reuse the shared generation review schema and card. |
 | Simple brief | `/code`, `/graph`, `/diagram`, `/3d` | A short brief assembled from the step and supported inputs without a separate model call. Use the existing author and any qualified renderer or worker. |
 | Source or workspace | `/browser`, `/photos`, `/youtube`, `/arxiv`, `/wikipedia`, `/notebook` | A validated URL or actual learner-selected result, or the purpose of the empty notebook. Use the existing selection and insertion actions. |
 
 **UI references for all three paths.** Use [02 — Canvas card skeleton](ui/02-canvas-card-skeleton.html) for the frame, shimmer and canvas actions, [03 — Chat roadmap](ui/03-chat-roadmap.html) for the surrounding Chat flow, [05 — Markdown source links](ui/05-markdown-source-links.html) for navigation, and [01 — Table of contents](ui/01-table-of-contents.html) for the accepted step tree. The review body is the existing `GenerationProposalCard` from main with that command's schema, fields and Edit or Edit details behavior. The delivered artifact uses the command's existing renderer. [04](ui/04-explanation-card.html) and [06](ui/06-explanation-depth.html) describe the core Explanation renderer.
 
 1. **Show one skeleton, then review in the existing Tutor Chat step.** Use the same slot, source excerpt, navigation and Chat lifecycle as sections 3.8–3.9. Keep the original canvas position and card identity through review, edits, generation and delivery. For a generation command, show the current plan or brief and its relevant fields in the shared Chat review card with **Generate / Edit**, and **Cancel** where supported. **Edit** targets that exact revision and retains the slot. An edit creates a revised offer when it changes what is approved. Source and workspace actions use their existing selection and add/accept controls.
-2. **Authorize the current offer.** When the required review is ready, Chat **Generate** approves the exact reviewed revision through the same Tutor acceptance as eligible canvas **Accept / Next card / Tab**. Those canvas actions cannot skip a required review or confirm a hidden revision. If a command needs paid plan preparation, accept a bounded offer before that work, show planning in the same slot, then show its real plan for review in the same Chat step. The command's required **Generate** approval uses the same accepted card and allowance. Motion and Image can carry a reviewed signed proposal in the initial offer. Interactive Explain follows the scoped R12.09 D2(b) rule when its brief fits the accepted offer. A material change to the plan, settings or work bound requires approval of the revised offer before further paid work.
+2. **Authorize the current offer.** When the required review is ready, Chat **Generate** approves the exact reviewed revision through the same Tutor acceptance as eligible canvas **Accept / Next card / Tab**. Those canvas actions cannot skip a required review or confirm a hidden revision. If a command needs paid plan preparation, accept a bounded offer before that work, show planning in the same slot, then show its real plan for review in the same Chat step. The command's required **Generate** approval uses the same accepted card and allowance. Motion and Image can carry a reviewed signed proposal in the initial offer. `/interactive` follows the scoped R12.09 D2(b) rule when its brief fits the accepted offer. A material change to the plan, settings or work bound requires approval of the revised offer before further paid work.
 3. **Use the core progress and delivery behavior.** Once work starts, show the actual phase in the same skeleton and Chat step, with the existing spinner/shimmer when progress is indeterminate and a progress bar when the engine supplies measured progress. Validate the actual output against the promised behavior and the command's existing checks. Fill the original slot, save its final card ID and geometry, then acknowledge and update Chat and ToC. Only then offer the next eligible step. For a terminal failure, retain the truthful failure state in the same slot and Chat entry and reconcile the existing charge or refund under the command policy.
 
 ```mermaid
@@ -987,7 +992,7 @@ Use separate labels: **implemented**, **locally verified**, **deployed**, **enab
 | IDs | Retained meaning / updated location |
 | --- | --- |
 | D1, D4, D20, D28, D35 | One initiative, End roadmap, readiness timing, dismissal/Auto-suggest, capability flags: §§3, 4, 8, 11. |
-| D2 | Trusted ordinary adapter with one full-context author call; standalone `/explain` and later interactive engine remain scoped: §§5, 9. |
+| D2 | Trusted ordinary adapter with one full-context author call; standalone written `/explain` and `/interactive` use their respective paths: §§5, 9. |
 | D3, D26, D32 | Hidden learning evidence container, honest Progress, immutable practice grading: §8. |
 | D5, D13, D17, D40–D42 | Source/language/project/research/calculator/OCR staging: §§5, 9, 10, 12. |
 | D6, D7, D14–D16, D24–D25, D31, D38–D39 | Atomic acceptance, deletion, quotas, retention, hidden prices, speculation and accounting: §11. No new testing budget is implied. |
