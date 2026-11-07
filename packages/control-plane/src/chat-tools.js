@@ -104,3 +104,58 @@ export const CHAT_TOOLS_POLICY = [
   'Compare what the learner asked for (the result, narration, interactivity, settings) with each tool\'s limits. If a tool cannot deliver what they asked for, offer a qualified alternative with a short reason; otherwise ask one question that would unblock it; otherwise give useful help in Chat and a concrete next step.',
   'Never say something was created. A tool call only opens the command; nothing exists until the learner uses it.',
 ].join('\n');
+
+// ---- Explain on canvas from typed words (checklist 4.1.1, BE.01a) -----------------------------------------------------------------------
+// The browser sends body.lesson = { sources: [{ key, rev, name }] } only when this canvas has authorized Markdown sources ready and no unfinished
+// roadmap (roadmap-client.js lessonSourcesOf). The tool exists only then. The server executes nothing: a valid call is handed back as
+// answer_meta.toolRequest { command: 'explain-on-canvas', args: { instruction, scope, source } } and the browser runs the SAME action the button
+// runs (roadmap-controller.js lesson). The create route re-authorizes the source and refuses a second unfinished roadmap.
+export const LESSON_COMMAND = 'explain-on-canvas';
+export const LESSON_TOOL_NAME = 'start_lesson';
+const LESSON_KEY = /^file:[A-Za-z0-9_.-]{1,100}$/;
+export function parseLesson(raw) {
+  const list = Array.isArray(raw?.sources) ? raw.sources : null;
+  if (!list || !list.length || list.length > 5) return null;
+  const sources = [];
+  for (const s of list) {
+    if (!s || typeof s.key !== 'string' || !LESSON_KEY.test(s.key) || typeof s.rev !== 'string' || !s.rev || s.rev.length > 80) return null;
+    sources.push({ key: s.key, rev: s.rev, name: typeof s.name === 'string' ? s.name.replace(/\s+/g, ' ').trim().slice(0, 120) : '' });
+  }
+  return new Set(sources.map(s => s.key)).size === sources.length ? { sources } : null;
+}
+
+export function lessonToolDef(lesson) {
+  const many = lesson.sources.length > 1;
+  return {
+    name: LESSON_TOOL_NAME,
+    description: `Start an Explain on canvas lesson: a roadmap draft the learner reviews in Chat, then one explanation card at a time on the canvas, for the source already on this canvas${many ? ` (candidates: ${lesson.sources.map(s => s.name || s.key).join('; ')})` : lesson.sources[0].name ? ` ("${lesson.sources[0].name}")` : ''}. Use it only when the learner CLEARLY asks to be taught or have the source explained as a lesson on the canvas. Limits: not for an informational question about the source, not for a request for one card, diagram, video or quiz, and nothing exists until the learner reviews and accepts the draft. Calling it only starts the roadmap draft in Chat.`,
+    input_schema: {
+      type: 'object', additionalProperties: false, required: many ? ['instruction', 'source'] : ['instruction'],
+      properties: {
+        instruction: { type: 'string', maxLength: REQUEST_MAX, description: 'What the learner wants to learn, in their own words, with any depth or focus they asked for.' },
+        scope: { type: 'string', enum: ['whole', 'passage'], description: 'whole: the whole source. Use passage only if the learner named a part; the app plans the whole source unless the learner picks a part in Chat.' },
+        ...(many ? { source: { type: 'string', enum: lesson.sources.map(s => s.key), description: 'Which source. Ask the learner one question first if they did not say.' } } : {}),
+      },
+    },
+  };
+}
+
+// -> { request: { command, args } } | { error } in words for the model (the same shape as checkToolCall).
+export function checkLessonCall(lesson, call, { taken = false } = {}) {
+  if (taken) return { error: 'One tool request per answer. Describe the rest in your reply.' };
+  const input = call?.input;
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return { error: 'The input must be an object.' };
+  const extra = Object.keys(input).find(k => !['instruction', 'scope', 'source'].includes(k));
+  if (extra) return { error: `${extra} is not a field` };
+  const instruction = typeof input.instruction === 'string' ? input.instruction.replace(/\s+/g, ' ').trim() : '';
+  if (!instruction || instruction.length > REQUEST_MAX) return { error: `instruction must be 1 to ${REQUEST_MAX} characters` };
+  if (input.scope !== undefined && !['whole', 'passage'].includes(input.scope)) return { error: 'scope must be whole or passage' };
+  const source = input.source === undefined && lesson.sources.length === 1 ? lesson.sources[0] : lesson.sources.find(s => s.key === input.source);
+  if (!source) return { error: `Which source? Ask the learner one focused question: ${lesson.sources.map(s => s.name || s.key).join('; ')}.` };
+  return { request: { command: LESSON_COMMAND, args: { instruction, scope: input.scope || 'whole', source: source.key } } };
+}
+
+export const LESSON_POLICY = [
+  `${LESSON_TOOL_NAME}: call it only for a clear request to be taught the source as a lesson on the canvas. An informational question about the source, or a request for a single card, diagram, video or quiz, is NOT a lesson request: answer it in Chat or use that tool.`,
+  'If more than one source could be meant, or the lesson\'s scope is genuinely unclear, ask ONE focused question first. No lesson exists until the learner accepts the draft.',
+].join('\n');

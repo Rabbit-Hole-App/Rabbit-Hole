@@ -16,7 +16,7 @@ import { uploadedPaperAsDocument } from './learn-paper.js';
 import { uploadedMediaAsImage } from './learn-media.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
 import { answerToolsOn, verifyChatRoute } from './chat-capability-route.js';
-import { CHAT_TOOLS_POLICY, alternativesFor, chatToolDefs, checkToolCall, fitProblem } from './chat-tools.js';
+import { CHAT_TOOLS_POLICY, LESSON_POLICY, LESSON_TOOL_NAME, alternativesFor, chatToolDefs, checkLessonCall, checkToolCall, fitProblem, lessonToolDef, parseLesson } from './chat-tools.js';
 import { MOTION_PAUSED, PROPOSAL_EDIT_STALE, PROPOSAL_SYSTEM, PROPOSAL_TOOL, currentRevision, proposalRecord, proposalState, publishRevision, motionAbout, motionOffered, motionPaused, motionRequestLine, signProposal, validateProposalInput, verifyProposal, envelopeFor } from './generation-proposal.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, searchWikipedia, readWikipedia, validateShowWikipedia, wikiTitle } from './learn-wiki.js';
 import { findVideoMoments, videoMomentTools } from './learn-youtube.js';
@@ -1061,6 +1061,8 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   }
   let proposed = null, proposalMeta = null, toolRequest = null;
   // CHAT.02: an ordinary uncommanded Learn turn in a mode that CHAT_ANSWER_TOOLS lists is answered with the eligible tools (chat-tools.js). Off by default.
+  // Explain on canvas from typed words: only under the same flag, and only when the browser found authorized sources and no unfinished roadmap (parseLesson).
+  const lesson = conversation === 'learn' && chat && body.lesson != null ? parseLesson(body.lesson) : null;
   const toolsOn = conversation === 'learn' && !!chat && !chat.command && !chat.regenerate && !answerOnly && !generation?.edit && body.route_token == null && answerToolsOn(env, chat.mode);
   let lessonSnapshot = null;
   // The tutor may propose outline changes when the learner's canvas has sections.
@@ -1085,8 +1087,8 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     // learner's screen counts as read, so the tutor can point at another of
     // its sections without fetching it twice.
     articles,
-    tools: [SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, ...videos.tools, ...(body.outline?.length ? [OUTLINE_TOOL] : []), ...(repository?.tools || []), ...(generation ? [PROPOSAL_TOOL] : []), ...(toolsOn ? chatToolDefs(env, user.email) : [])],
-    system: [WIKI_SYSTEM, videos.system, body.outline?.length ? OUTLINE_SYSTEM : null, repository?.system, generation ? PROPOSAL_SYSTEM : null, toolsOn ? CHAT_TOOLS_POLICY : null].filter(Boolean).join('\n'),
+    tools: [SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, ...videos.tools, ...(body.outline?.length ? [OUTLINE_TOOL] : []), ...(repository?.tools || []), ...(generation ? [PROPOSAL_TOOL] : []), ...(toolsOn ? chatToolDefs(env, user.email) : []), ...(toolsOn && lesson ? [lessonToolDef(lesson)] : [])],
+    system: [WIKI_SYSTEM, videos.system, body.outline?.length ? OUTLINE_SYSTEM : null, repository?.system, generation ? PROPOSAL_SYSTEM : null, toolsOn ? CHAT_TOOLS_POLICY : null, toolsOn && lesson ? LESSON_POLICY : null].filter(Boolean).join('\n'),
     runTool: async (name, input) => {
       if (repository?.tools.some(tool => tool.name === name)) return repository.runTool(name, input);
       if (name === SEARCH_WIKIPEDIA_TOOL.name) return searchWikipedia(input?.query);
@@ -1099,6 +1101,12 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
       const video = await videos.run(name, input);
       if (video !== undefined) return video;
       // CHAT.02: a direct tool is only a request. It is validated here and handed to the browser (answer_meta.toolRequest), which runs the command's own handler.
+      if (toolsOn && lesson && name === LESSON_TOOL_NAME) {
+        const checked = checkLessonCall(lesson, { name, input }, { taken: !!toolRequest });
+        if (checked.error) return { requested: 0, error: `Not requested: ${checked.error}`, note: 'No lesson was started. Do not say you started one.' };
+        toolRequest = checked.request;
+        return { requested: 1, note: 'The roadmap draft starts in Chat now; the learner reviews it before anything is made. Reply in one or two sentences saying you are starting it. Do not describe results.' };
+      }
       if (toolsOn && name.startsWith('run_')) {
         const checked = checkToolCall(env, user.email, { name, input }, { taken: !!toolRequest });
         if (checked.error) return { requested: 0, error: `Not requested: ${checked.error}`, note: 'Nothing was opened for the learner. Do not say you made anything.' };

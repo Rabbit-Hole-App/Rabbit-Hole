@@ -559,6 +559,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const send = async (raw, scopeOverride, { command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false, routeAs = null } = {}) => {
     // R2: the Depth selected at the moment of Send; a later change in the menu never alters this turn.
     const depthSnapshot = depthField(chat?.settings);
+    const lessonSources = roadmap?.lessonSources?.() || null;
     // A chosen command pill sends exactly "/command text" and a typed /command replaces the pill (learn-slash.js commandLine);
     // LearnSlash runs it and the slot goes back to "/". The composer shows the line until it runs, so a line LearnSlash holds
     // while another command runs is still there to release (releaseLine).
@@ -787,6 +788,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         // UI-15 / MOT-20: what a generation proposal would be about, and the live proposal this turn may refine (LearnPage).
         // An Edit target names its exact revision (edit: the server revises that one or refuses); otherwise the implicit latest live one.
         ...(chat && canvasOps?.generation ? ((generation) => (generation ? { generation } : {}))(canvasOps.generation(about?.selection ?? (target ? { ...target, text: targetText } : null), edit?.command === 'motion' ? edit.proposal : currentProposal(msgs, canvasOps.proposalMade), about?.concept, edit?.command === 'motion')) : {}),
+        // Explain on canvas from typed words (CHAT.02, flag-gated on the server): the authorized sources a lesson could start from, only when no roadmap is unfinished.
+        ...(chat && learnChat && !tocView && !commandName && !regenerate && !edit && lessonSources?.length ? { lesson: { sources: lessonSources } } : {}),
         // The live canvas (whole-canvas context): its inventory, relevant excerpts, relations and coverage.
         ...(canvasContext ? { canvas_context: canvasContext } : {}),
       };
@@ -887,7 +890,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           else if (type === 'answer_meta') {
             setMsgs(messages => withAnswerMeta(messages, replyId, d));
             // CHAT.02: the answer asked for a tool. The server already checked it; the command's own handler runs it, as a router decision would.
-            if (d.toolRequest?.command) { const { command, args } = d.toolRequest; if (command === 'generate-image' && chatThread && imageGenerationOn()) imagePlan(args).catch(() => {}); else slashRef.current?.intercept(('/' + typedOf(command) + ' ' + args).trim()); }
+            if (d.toolRequest?.command === 'explain-on-canvas') { const { instruction, source } = d.toolRequest.args || {}; roadmap?.controller?.lesson({ depth: chat?.settings?.depth || 'standard', instruction, source: (lessonSources || []).find(s => s.key === source) || null, threadId: chat?.thread?.id || null }); }
+            else if (d.toolRequest?.command) { const { command, args } = d.toolRequest; if (command === 'generate-image' && chatThread && imageGenerationOn()) imagePlan(args).catch(() => {}); else slashRef.current?.intercept(('/' + typedOf(command) + ' ' + args).trim()); }
           }
           else if (type === 'done' && d.threadId) {
             askedId(d.userMessageId != null ? String(d.userMessageId) : null);

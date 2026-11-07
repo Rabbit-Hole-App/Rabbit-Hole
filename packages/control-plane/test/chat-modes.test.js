@@ -1145,3 +1145,95 @@ test('CHAT.02: the route skips the classifier for a listed mode; a denied board 
   assert.deepEqual([mismatch.res.status, (await mismatch.res.json()).code], [400, 'route_mismatch']);
   assert.equal(f.calls.length, 0, 'a denied or mismatched turn never reaches the model');
 });
+
+// ---------- BE.01a (server half): Explain on canvas from typed words (chat-tools.js start_lesson; client half is web roadmap-lesson-entry.test.mjs) ----------
+// The tool exists only under the flag, only when the browser sent authorized sources (no unfinished roadmap), and the server executes nothing: a valid call is a
+// toolRequest for the same controller action the button runs. A scripted model proves wiring and validation; whether the real model picks it is UNVERIFIED.
+const LESSON_SRC = { key: 'file:fs_41c9e0a7d2b84f63a1c07e92', rev: 'rev1', name: 'Gradient descent notes.md' };
+const lessonTurn = (over = {}) => turn({ message: 'Teach me this document as a lesson on the canvas', lesson: { sources: [LESSON_SRC] }, ...over });
+const lessonTool = call => (call.tools || []).find(tool => tool.name === 'start_lesson');
+
+test('BE.01a: start_lesson is offered only under the flag, with authorized sources, for an ordinary turn; its definition says what it makes, when, and its limits', async t => {
+  const on = withTools(t);
+  await on.ask(lessonTurn());
+  const tool = lessonTool(on.calls[0]);
+  assert.ok(tool, 'offered');
+  assert.equal(tool.input_schema.additionalProperties, false);
+  assert.deepEqual(tool.input_schema.required, ['instruction'], 'one source: no choice to make');
+  assert.deepEqual(Object.keys(tool.input_schema.properties).sort(), ['instruction', 'scope']);
+  assert.match(tool.description, /roadmap draft the learner reviews in Chat/);
+  assert.match(tool.description, /CLEARLY asks/);
+  assert.match(tool.description, /not for an informational question about the source, not for a request for one card/);
+  assert.match(on.calls[0].system, /start_lesson: call it only for a clear request to be taught the source as a lesson/);
+  // Ask honors an explicit request (the model never starts one unprompted), Auto and ordinary Tutor travel as auto.
+  const ask = withTools(t, 'ask');
+  await ask.ask(lessonTurn({ mode: 'ask' }));
+  assert.ok(lessonTool(ask.calls[0]), 'Ask: an explicit request is honored');
+  for (const [flag, over, label] of [
+    [null, {}, 'flag unset (byte-identical to today)'], ['ask', {}, 'auto not listed'], ['auto', { lesson: undefined }, 'no sources: no resolved source or an unfinished roadmap'],
+    ['auto', { lesson: { sources: [] } }, 'empty sources'], ['auto', { lesson: { sources: [{ ...LESSON_SRC, key: 'file:../escape' }] } }, 'a malformed key'],
+    ['auto', { lesson: { sources: [LESSON_SRC, LESSON_SRC] } }, 'a duplicated source'], ['auto', { lesson: { sources: Array.from({ length: 6 }, (_, i) => ({ ...LESSON_SRC, key: `file:s${i}` })) } }, 'more than five'],
+    ['auto', { command: 'diagram' }, 'a command turn'], ['auto', { answer_only: true }, 'answer-only'], ['all', { mode: 'tutor' }, 'the Contents conversation'],
+  ]) {
+    const f = withTools(t, flag);
+    const { res } = await f.ask(lessonTurn(over));
+    assert.equal(res.status, 200, label);
+    assert.equal(lessonTool(f.calls[0]), undefined, label);
+  }
+});
+
+test('BE.01a: a clear lesson request becomes ONE toolRequest explain-on-canvas with the learner words, scope and source; the server starts and charges nothing', async t => {
+  const f = withTools(t);
+  f.replies.push(toolCall('tu1', 'start_lesson', { instruction: 'teach me gradient descent from this, at a deeper level', scope: 'whole' }), 'Starting the roadmap draft in Chat.\n<answer_meta>{}</answer_meta>');
+  const { res, events } = await f.ask(lessonTurn({ depth: 'deep' }));
+  assert.equal(res.status, 200);
+  const meta = metaOf(events);
+  assert.deepEqual(meta.toolRequest, { command: 'explain-on-canvas', args: { instruction: 'teach me gradient descent from this, at a deeper level', scope: 'whole', source: LESSON_SRC.key } });
+  assert.deepEqual([meta.proposal ?? null, meta.actions], [null, []]);
+  assert.equal(f.calls.length, 2, 'the tool turn and the reply: no planner, author or provider call');
+  assert.equal(JSON.parse(f.calls[1].messages.at(-1).content[0].content[0].text).requested, 1);
+  assert.deepEqual(JSON.parse(f.rows("SELECT meta_json FROM chat_message_meta WHERE role = 'assistant'")[0].meta_json).toolRequest, meta.toolRequest, 'kept with the answer');
+  assert.deepEqual(f.elsewhere, [], 'zero roadmap create, job or credit hold from the server');
+  // A second request in the same answer is refused.
+  const g = withTools(t);
+  g.replies.push(toolCall('a', 'start_lesson', { instruction: 'one' }), toolCall('b', 'start_lesson', { instruction: 'two' }), 'Done.\n<answer_meta>{}</answer_meta>');
+  const second = await g.ask(lessonTurn());
+  assert.equal(metaOf(second.events).toolRequest.args.instruction, 'one');
+  assert.match(g.calls[2].messages.at(-1).content[0].content[0].text, /One tool request per answer/);
+});
+
+test('BE.01a: a normal question and a single-card request keep their own paths; an ambiguous source asks one question and starts nothing', async t => {
+  // An informational question about the source: a reply, zero lesson and zero tool requests.
+  const q = withTools(t);
+  const asked = await q.ask(lessonTurn({ message: 'What does this document say about the learning rate?' }));
+  assert.deepEqual([metaOf(asked.events).toolRequest ?? null, q.calls.length], [null, 1]);
+  // A request for ONE card: the existing direct tool (its own review), never the lesson.
+  const card = withTools(t);
+  card.replies.push(toolCall('tu1', 'run_diagram', { request: 'the update rule as a diagram' }), 'Opening the diagram command.\n<answer_meta>{}</answer_meta>');
+  const one = await card.ask(lessonTurn({ message: 'draw the update rule as a diagram' }));
+  assert.deepEqual(metaOf(one.events).toolRequest, { command: 'diagram', args: 'the update rule as a diagram' });
+  // Two sources: the schema makes the choice explicit; a call without one is an error to the model (it asks the learner), and no request is made.
+  const two = withTools(t);
+  const other = { key: 'file:fs_0000000000000000000000aa', rev: 'rev9', name: 'Optimizers.md' };
+  two.replies.push(toolCall('tu1', 'start_lesson', { instruction: 'teach me this' }), 'Which one: Gradient descent notes.md or Optimizers.md?\n<answer_meta>{}</answer_meta>');
+  const asking = await two.ask(lessonTurn({ lesson: { sources: [LESSON_SRC, other] } }));
+  const def = lessonTool(two.calls[0]);
+  assert.deepEqual(def.input_schema.required, ['instruction', 'source']);
+  assert.deepEqual(def.input_schema.properties.source.enum, [LESSON_SRC.key, other.key]);
+  assert.equal(metaOf(asking.events).toolRequest ?? null, null, 'no roadmap is started');
+  assert.match(two.calls[1].messages.at(-1).content[0].content[0].text, /Which source\? Ask the learner one focused question: Gradient descent notes\.md; Optimizers\.md/);
+  assert.match(asking.events.find(e => e.event === 'chunk').data.text, /Which one/);
+  // A call naming a source that is not on the canvas is refused the same way; naming a real one is accepted.
+  const bad = withTools(t);
+  bad.replies.push(toolCall('tu1', 'start_lesson', { instruction: 'teach me', source: 'file:elsewhere' }), 'Which source do you mean?\n<answer_meta>{}</answer_meta>');
+  assert.equal(metaOf((await bad.ask(lessonTurn({ lesson: { sources: [LESSON_SRC, other] } }))).events).toolRequest ?? null, null);
+  const good = withTools(t);
+  good.replies.push(toolCall('tu1', 'start_lesson', { instruction: 'teach me', source: other.key }), 'Starting.\n<answer_meta>{}</answer_meta>');
+  assert.equal(metaOf((await good.ask(lessonTurn({ lesson: { sources: [LESSON_SRC, other] } }))).events).toolRequest.args.source, other.key);
+  // Malformed input never becomes a request.
+  for (const input of [{}, { instruction: '' }, { instruction: 'x'.repeat(2001) }, { instruction: 'teach me', scope: 'chapter' }, { instruction: 'teach me', extra: 1 }]) {
+    const f = withTools(t);
+    f.replies.push(toolCall('tu1', 'start_lesson', input), 'Could you tell me more?\n<answer_meta>{}</answer_meta>');
+    assert.equal(metaOf((await f.ask(lessonTurn())).events).toolRequest ?? null, null, JSON.stringify(input).slice(0, 40));
+  }
+});

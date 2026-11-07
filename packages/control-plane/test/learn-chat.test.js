@@ -22,7 +22,7 @@ import { canvasMentionRef } from '../../web/src/canvas-mention-ref.js';
 import { learnDb } from './learn-grade-fixture.js';
 import * as chatModes from '../src/chat-modes.js';
 import { answerToolsOn } from '../src/chat-capability-route.js';
-import { CHAT_TOOLS_POLICY, alternativesFor, chatToolDefs, checkToolCall, fitProblem } from '../src/chat-tools.js';
+import { CHAT_TOOLS_POLICY, LESSON_POLICY, LESSON_TOOL_NAME, alternativesFor, chatToolDefs, checkLessonCall, checkToolCall, fitProblem, lessonToolDef, parseLesson } from '../src/chat-tools.js';
 import * as answerMeta from '../src/chat-answer-meta.js';
 import { randomHex } from '../src/token.js';
 import { captureSelection, selectionSnapshot, sigmoidObjects } from '../../web/src/sigmoid-context.js';
@@ -61,7 +61,7 @@ const deps = {
   learnMedia,
   contextDocumentBlocks,
   ...chatModes,
-  answerToolsOn, CHAT_TOOLS_POLICY, alternativesFor, chatToolDefs, checkToolCall, fitProblem,
+  answerToolsOn, CHAT_TOOLS_POLICY, LESSON_POLICY, LESSON_TOOL_NAME, alternativesFor, chatToolDefs, checkLessonCall, checkToolCall, fitProblem, lessonToolDef, parseLesson,
   ...answerMeta,
   canvasMentions,
   CANVAS_UNAVAILABLE,

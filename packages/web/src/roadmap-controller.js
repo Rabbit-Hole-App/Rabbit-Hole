@@ -198,6 +198,20 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     // Invitation
     explain: ({ depth, instruction } = {}) => { chosen = { depth, instruction }; return createWith({ kind: 'whole' }, ''); },
     // R7a: a part of a long source the server offered after the whole source did not fit. The server resolves it against its own outline.
+    // A clear typed lesson request (CHAT.02): the SAME create the button runs, with the learner's words and the composer Depth bound once. With the
+    // source's invitation offered it shares the button's gesture (one request, one draft); otherwise the create route takes the source itself. An
+    // unfinished roadmap keeps its draft: nothing is created twice. threadId: the Chat thread the request came in, bound to the new roadmap.
+    async lesson({ depth, instruction, source, threadId = null } = {}) {
+      if (stopped || (state.view && unfinished())) return null;
+      const iv = state.invitation, text = typeof instruction === 'string' ? instruction.trim() : '';
+      if (!text) return null;
+      let body;
+      if (iv && (!source || iv.sourceKeys[0] === source.key)) { chosen = { depth, instruction: text }; body = await createWith({ kind: 'whole' }, ''); }
+      else if (source?.key && source.rev) body = await act(`create:${source.key}@${source.rev}`, actionKey => routes.create(boardId, { source: { key: source.key, rev: source.rev, scope: { kind: 'whole' } }, instruction: text, depth: depth || host.depth?.() || 'standard' }, actionKey)).then(applyView);
+      else return null;
+      if (threadId) { await refresh(); if (state.view && !state.view.roadmap.threadId) await call(routes.thread(state.view, threadId)).then(applyView, () => {}); }
+      return body;
+    },
     explainPart: choice => (choice && typeof choice.locationId === 'string' ? createWith({ kind: 'section', locationId: choice.locationId, part: choice.part || 1 }, `:${choice.locationId}:${choice.part || 1}`) : Promise.resolve(null)),
     dismiss() {
       const iv = state.invitation;

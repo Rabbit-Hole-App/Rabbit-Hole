@@ -246,6 +246,17 @@ export function readyMarkdownSources({ pending, blocks = [], savedBlocks = [] })
   return ready;
 }
 
+// The sources a typed lesson request may start from (checklist 4.1.1): none while a roadmap is unfinished; the invitation's own source when one is
+// offered (the button and the typed request then share its gesture); else the ready Markdown sources on the canvas (at most 5; more than one means the
+// model must ask which). sources: the host's [{ key, rev, name }]. -> [{ key, rev, name }] | null
+export function lessonSourcesOf(state, sources = []) {
+  if (!enabled(state) || unfinished(state.view)) return null;
+  const iv = state.invitation;
+  const known = (sources || []).filter(s => s?.key && s.rev);
+  if (iv?.sourceKeys?.length) { const own = known.find(s => s.key === iv.sourceKeys[0]); return own ? [own] : null; }
+  return known.length && known.length <= 5 ? known : null;
+}
+
 // --- invitation idle rule ------------------------------------------------------------------------------------------------
 // Sources that become ready are collected and reported together once the learner is idle (not typing, no answer streaming):
 // one grouped report per idle window. Reporting never interrupts: nothing is shown here, the server answers with the invitation.
