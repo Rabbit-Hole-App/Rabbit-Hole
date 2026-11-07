@@ -2036,7 +2036,7 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight }) {
           ? <CardHeader block={block} size="xs" className="px-4 pt-3 pb-2" />
           : <Kicker block={block} size="lg" sticky={false} className="px-4 pt-3 pb-2" action={headerSource(block) ? <SourceRefHeader block={block} app={appName} /> : null}>Explanation</Kicker>}
       </div>
-      <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 text-sm">{block.body && <Md text={block.body} onFile={onFile} fences />}</div>
+      <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 text-sm">{block.body && <Md text={block.body} onFile={onFile} fences explain />}</div>
       {more.length > 0 && (
         <div data-explanation-rail className="shrink-0 border-t border-line px-4">
           {more.map((section, index) => (
@@ -2052,7 +2052,7 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight }) {
       {opened && (
         <div ref={expansion} data-explanation-expansion className="shrink-0">
           {more.map((section, index) => open[index] && (
-            <section key={index} id={`${id}-more-${index}`} aria-label={section.label} className="border-t border-line px-4 py-3 text-sm text-ink-2"><Md text={section.text} onFile={onFile} fences /></section>
+            <section key={index} id={`${id}-more-${index}`} aria-label={section.label} className="border-t border-line px-4 py-3 text-sm text-ink-2"><Md text={section.text} onFile={onFile} fences explain /></section>
           ))}
         </div>
       )}

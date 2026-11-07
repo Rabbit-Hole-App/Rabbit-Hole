@@ -131,7 +131,7 @@ test('swapped: the table in the body and the Mermaid flowchart in the expanded s
   await mount(card({ body: DEEP_MORE, more: [{ label: 'See the tree', text: DEEP_BODY }] }));
   const scroll = $('[data-explanation] > [data-scroll]');
   assert.ok(scroll.querySelector('table th'), 'the table renders in the scroller');
-  assert.ok(scroll.querySelector('.overflow-x-auto > table'), 'inside its horizontal scroller');
+  assert.ok(scroll.querySelector('[data-explain-table] > table'), 'inside its horizontal scroller (the TutorDiagram frame)');
   assert.equal(scroll.querySelector('[data-md-diagram]'), null);
   await click($('[data-explain-more]'));
   await settle();

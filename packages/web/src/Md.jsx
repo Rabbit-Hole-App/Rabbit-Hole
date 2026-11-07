@@ -160,7 +160,7 @@ function fenceOf(fence, key, rich) {
 
 // One block's lines (a blockquote's lines recurse). first: nothing is drawn above, so a heading gets no section rule.
 function lines(ls, ctx, first) {
-  const { math, onFile, onRun, has, sourcePath, doc, fences } = ctx;
+  const { math, onFile, onRun, has, sourcePath, doc, fences, explain } = ctx;
   const md = s => inline(s, math, onFile, sourcePath, has);
   const out = [];
   let fence = null; // collecting a ``` block
@@ -169,7 +169,10 @@ function lines(ls, ctx, first) {
   const flush = key => {
     if (table) {
       const [head, ...rows] = table;
-      out.push(<div key={`t${key}`} className="my-2 overflow-x-auto"><table className="min-w-full border-collapse text-xs"><thead><tr>{head.map((c, j) => <th key={j} className="border border-line px-2 py-1 text-left font-semibold">{md(c)}</th>)}</tr></thead><tbody>{rows.map((r, ri) => <tr key={ri}>{r.map((c, j) => <td key={j} className="border border-line px-2 py-1 align-top">{md(c)}</td>)}</tr>)}</tbody></table></div>);
+      // A written Explanation's table (explain): the TutorDiagram frame (index.css [data-explain-table]); everywhere else the plain bordered table.
+      out.push(explain
+        ? <div key={`t${key}`} data-explain-table className="my-2"><table><thead><tr>{head.map((c, j) => <th key={j} scope="col">{md(c)}</th>)}</tr></thead><tbody>{rows.map((r, ri) => <tr key={ri}>{r.map((c, j) => <td key={j}>{md(c)}</td>)}</tr>)}</tbody></table></div>
+        : <div key={`t${key}`} className="my-2 overflow-x-auto"><table className="min-w-full border-collapse text-xs"><thead><tr>{head.map((c, j) => <th key={j} className="border border-line px-2 py-1 text-left font-semibold">{md(c)}</th>)}</tr></thead><tbody>{rows.map((r, ri) => <tr key={ri}>{r.map((c, j) => <td key={j} className="border border-line px-2 py-1 align-top">{md(c)}</td>)}</tr>)}</tbody></table></div>);
     }
     if (list) out.push(...listOf(list, key, md));
     if (quote) out.push(<blockquote key={`q${key}`} className="my-2 border-l-2 border-line pl-3 text-ink-2">{lines(quote, ctx, false)}</blockquote>);
@@ -236,7 +239,7 @@ export function MdInline({ text, onFile, sourcePath, mathOnly = false }) {
 
 // doc: the text is a document in its own pane (a Chat answer), so headings get sizes; everywhere else they stay body-sized.
 // fences: also draw math and mermaid fences as math and diagrams (a file card's Markdown); a chat answer keeps them as code.
-export function Md({ text, onRun, onFile: given, sourcePath = singleSourcePath(text), doc = false, fences = false }) {
+export function Md({ text, onRun, onFile: given, sourcePath = singleSourcePath(text), doc = false, fences = false, explain = false }) {
   const refs = useContext(CodeRefs);
   // Where the caller links files at all (an onFile), a repository context's own reader takes the click and its snapshot decides.
   const onFile = given && refs ? refs.open : given, has = given && refs ? refs.has : null;
@@ -249,7 +252,7 @@ export function Md({ text, onRun, onFile: given, sourcePath = singleSourcePath(t
   const cited = onFile ? citedSources(text).filter(c => linkable(c, has)) : [];
   return (
     <div className="min-w-0 text-sm leading-normal">
-      {blocks.map((src, i) => <Block key={i} src={src} first={i === 0} onFile={onFile ? open.file : null} onRun={onRun ? open.run : null} has={has} sourcePath={sourcePath} doc={doc} fences={fences} />)}
+      {blocks.map((src, i) => <Block key={i} src={src} first={i === 0} onFile={onFile ? open.file : null} onRun={onRun ? open.run : null} has={has} sourcePath={sourcePath} doc={doc} fences={fences} explain={explain} />)}
       {cited.length > 0 && <details key="cited" data-cited-sources className="mt-2 text-xs"><summary className="cursor-pointer text-ink-2 hover:text-ink">Sources ({cited.length})</summary>
         <div className="mt-1.5 flex flex-wrap gap-1">{cited.map(c => <EvidencePill key={`${c.path}:${c.start}-${c.end}`} type="button" data-cited-source aria-label={referenceLabel(c)} title={referenceLabel(c)} onClick={() => onFile(c.path, c.start, c.end)}>{c.path}:{c.start}{c.end > c.start ? `-${c.end}` : ''}</EvidencePill>)}</div></details>}
     </div>

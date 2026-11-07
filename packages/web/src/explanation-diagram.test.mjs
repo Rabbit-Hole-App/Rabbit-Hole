@@ -39,9 +39,9 @@ test('an rh-diagram fence in the body and in a More section is drawn as a TutorD
     assert.match(html, /Cooler than the room\?/);
     assert.doesNotMatch(html, /data-code-block/, 'the spec is not shown as source');
   }
-  // ExplanationBody gives the body and every More section to the same Md with fences on (the section is a collapsed region, not a different reader).
+  // ExplanationBody gives the body and every More section to the same Md with fences and explain on (the section is a collapsed region, not a different reader).
   const body = readFileSync(new URL('./LearningBlocks.jsx', import.meta.url), 'utf8');
-  assert.ok(body.includes('<Md text={block.body} onFile={onFile} fences />') && body.includes('<Md text={section.text} onFile={onFile} fences />'), 'body and sections');
+  assert.ok(body.includes('<Md text={block.body} onFile={onFile} fences explain />') && body.includes('<Md text={section.text} onFile={onFile} fences explain />'), 'body and sections');
 });
 
 test('card widths: the diagram fits 688 px exactly and stays within a scroll region at 320 px, with a viewBox that matches its size', () => {
@@ -135,4 +135,16 @@ test('a saved legacy Mermaid card still draws through the legacy reader after a 
   const html = card(JSON.parse(JSON.stringify(block)));
   assert.match(html, /data-md-diagram/);
   assert.doesNotMatch(html, /data-tutor-diagram/);
+});
+
+test('a written Explanation draws a pipe table in the TutorDiagram frame (body and More), keeps inline formatting, and leaves other Md tables as they were', () => {
+  const table = '| A | B |\n| --- | --- |\n| **bold** | `code` |';
+  const block = { type: 'explanation', title: 't', body: table, more: [{ label: 'More', text: table }] };
+  const card = B.renderToStaticMarkup(B.createElement(B.LearningBlockBody, { block, onChange() {}, onChangeQuiet() {}, onFile() {}, appName: 'x', selected: true }));
+  assert.equal((card.match(/data-explain-table/g) || []).length, 1, 'the body table is framed; the More section is closed until opened');
+  assert.match(card, /<th scope="col">A<\/th>/);
+  assert.match(card, /<strong[^>]*>bold<\/strong>/);
+  assert.match(card, /<code[^>]*>code<\/code>/);
+  assert.doesNotMatch(B.renderToStaticMarkup(B.createElement(B.Md, { text: table })), /data-explain-table/, 'a chat answer keeps its plain table');
+  assert.match(B.renderToStaticMarkup(B.createElement(B.Md, { text: table })), /border-collapse/);
 });

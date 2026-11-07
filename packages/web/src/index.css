@@ -1074,3 +1074,18 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
   outline: 2px solid color-mix(in srgb, var(--color-select) 35%, transparent);
   outline-offset: 2px;
 }
+
+/* A written Explanation's Markdown table (Md explain): the TutorDiagram frame - the shared surface, a 12px rounded border, a muted slate
+   header, neutral rows and hairline dividers - so a table and a diagram sit together as one set. Cells wrap; the frame scrolls sideways
+   only when the columns' minimum widths need more room than the card has. Scoped to [data-explain-table]; every other table is untouched. */
+[data-explain-table] {
+  overflow-x: auto;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--viz-surface);
+}
+[data-explain-table] table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.4; color: var(--color-ink); }
+[data-explain-table] th,
+[data-explain-table] td { min-width: 5.5rem; padding: 8px 12px; text-align: left; vertical-align: top; overflow-wrap: break-word; border-bottom: 1px solid var(--color-line); }
+[data-explain-table] th { font-weight: 600; background: color-mix(in srgb, #a8bbd0 24%, var(--viz-surface)); }
+[data-explain-table] tbody tr:last-child td { border-bottom: 0; }
