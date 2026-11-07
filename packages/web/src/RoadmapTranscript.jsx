@@ -8,7 +8,7 @@ import { ChatMessage } from './ChatMessages.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
 import { PRIMARY, SECONDARY, ghost } from './RoadmapInvitation.jsx';
 import { newThreadId, saveMessage } from './chat-persist.js';
-import { invitationClientId, invitationThreadId, roadmapThreadClientId, threadCandidate, transcriptOf } from './roadmap-transcript.js';
+import { ensureTutorThread, invitationClientId, invitationThreadId, roadmapThreadClientId, transcriptOf } from './roadmap-transcript.js';
 
 // Fix B (T4): the roadmap inside the Chat transcript, after the thread's own messages (ask.jsx). Each item is the existing
 // ChatMessage (text, its waiting row, its error row) or ChatOutputs (Go to card); choices use the roadmap's own buttons.
@@ -16,6 +16,7 @@ import { invitationClientId, invitationThreadId, roadmapThreadClientId, threadCa
 const LEGACY = canvas => `rh.roadmap.thread.${canvas}`; // Fix B's per-browser binding: read once to record it on the roadmap, never written again
 const read = key => { try { return localStorage.getItem(key); } catch { return null; } };
 const write = (key, value) => { try { localStorage.setItem(key, value); } catch { /* private mode: the thread still opens */ } };
+const SESSION = { get: key => { try { return sessionStorage.getItem(key); } catch { return null; } }, set: (key, value) => { try { sessionStorage.setItem(key, value); } catch { /* private mode */ } } };
 const ATTR = { explain_on_canvas: 'data-roadmap-explain', keep_here: 'data-roadmap-keep', answer: 'data-roadmap-option', part: 'data-roadmap-choice', offer: 'data-roadmap-offer' };
 
 export default function RoadmapTranscript({ roadmap, chat, msgs }) {
@@ -39,22 +40,20 @@ export default function RoadmapTranscript({ roadmap, chat, msgs }) {
       .then(() => chat.panels.openChat(), () => chat.panels.openChat()); // a failed save still shows the invitation, in the thread already open
   }, [iv?.id, thread.status]); // eslint-disable-line react-hooks/exhaustive-deps
   // The roadmap's one Tutor thread is kept on the server (view.roadmap.threadId), so every device shows the roadmap in the same thread. With none
-  // bound (a new roadmap, or the bound thread was deleted) one device records it: the thread it began in, else a fresh thread opened with the
-  // roadmap's first line. The server keeps the first one recorded; a device that lost the race simply reads the winner. Lines are never lost: while
-  // nothing is bound they show in the open thread.
+  // bound (a new roadmap, or the bound thread was deleted) one device records it silently (ensureTutorThread: this roadmap's invitation thread, else
+  // at most one fresh thread per session; it never opens one, so Chat never jumps). The server keeps the first one recorded; a device that lost the
+  // race simply reads the winner. Lines are never lost: while nothing is bound they show in the open thread.
   if (bound) lastBound.current = bound;
   useEffect(() => {
     if (!rm || bound || thread.status !== 'ready') return;
     const attempt = `${rm.id}:${lastBound.current || 'none'}`;
     if (attempted.current === attempt) return;
     attempted.current = attempt;
-    const candidate = threadCandidate({ legacy: lastBound.current ? null : read(LEGACY(chat.canvas)), openId: thread.id, msgs });
-    const fresh = () => {
-      const threadId = newThreadId(), text = STRINGS.invite(rm.scope?.source?.name || '');
-      return saveMessage({ threadId, app: chat.canvas, client_id: roadmapThreadClientId(rm.id), role: 'assistant', content: text, mode: thread.mode, title: text })
-        .then(() => c.bindThread(threadId)).then(body => body?.roadmap?.threadId && thread.open(body.roadmap.threadId));
-    };
-    (candidate ? c.bindThread(candidate).catch(fresh) : fresh()).catch(() => { attempted.current = null; }); // a failed save keeps the lines in the open thread; tried again when Chat next restores
+    const text = STRINGS.invite(rm.scope?.source?.name || '');
+    ensureTutorThread(rm, { legacy: lastBound.current ? null : read(LEGACY(chat.canvas)), openId: thread.id, msgs }, {
+      session: SESSION, newId: newThreadId, bindThread: c.bindThread,
+      saveFresh: threadId => saveMessage({ threadId, app: chat.canvas, client_id: roadmapThreadClientId(rm.id), role: 'assistant', content: text, mode: thread.mode, title: text }),
+    }).catch(() => {}); // a failed save or bind keeps the lines in the open thread
   }, [rm?.id, bound, thread.status]); // eslint-disable-line react-hooks/exhaustive-deps
   if (bound && thread.id && thread.id !== bound) return null;
   const items = transcriptOf(roadmap.state, { invitation: iv, saved: !!iv && msgs.some(m => m.clientId === invitationClientId(iv.id)), choosing: !!iv && choosing === iv.id });

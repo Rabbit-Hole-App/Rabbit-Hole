@@ -42,6 +42,8 @@ export async function roadmapView(db, access, roadmap) {
   const scopeJson = json(roadmap.scope_json) || {};
   const sourceName = scopeJson.sourceName || '';
   const threadId = await tutorThreadOf(db, roadmap); // every device shows the roadmap in this Chat thread; null: none bound, or it was deleted
+  // The invitation the roadmap was made from (null: none), so the client binds THIS roadmap's invitation thread, never an older roadmap's.
+  const invitationId = (await db.prepare('SELECT id FROM learn_roadmap_invitations WHERE roadmap_id = ? AND org = ? AND owner_user_id = ? LIMIT 1').bind(id, roadmap.org, roadmap.owner_user_id).first())?.id ?? null;
   // R3's reference for each step, minted at Accept plan (roadmap-source-refs.js); null where none was minted.
   const refs = await d1PublicRefs({ LEARN_DB: db }, access, (stepRows || []).map(s => s.source_ref_id));
   // Polling never carries source text (api.md): where R3's table exists the reference's anchor holds the passage quote, so the view keeps only identity and source; the delivered card carries the full reference.
@@ -72,7 +74,7 @@ export async function roadmapView(db, access, roadmap) {
   return {
     roadmap: { id, boardId: roadmap.board_id, state: roadmap.state, revision: roadmap.revision, planVersion: roadmap.plan_version, acceptedPlanVersion: roadmap.accepted_plan_version ?? null, depth: roadmap.depth,
       practiceMode: roadmap.practice_mode, instruction: first?.text ?? '', language: roadmap.language, scope: { kind: scopeJson.kind || 'whole', chars: scopeJson.chars ?? null, source: { key: roadmap.source_key, rev: roadmap.source_rev, name: sourceName }, fingerprint: roadmap.scope_fingerprint },
-      ceiling: roadmap.ceiling, deliveredCount: roadmap.delivered_count, mode: roadmap.mode, modeRevision: roadmap.mode_revision, threadId, createdAt: iso(roadmap.created_at), updatedAt: iso(roadmap.updated_at) },
+      ceiling: roadmap.ceiling, deliveredCount: roadmap.delivered_count, mode: roadmap.mode, modeRevision: roadmap.mode_revision, threadId, invitationId, createdAt: iso(roadmap.created_at), updatedAt: iso(roadmap.updated_at) },
     question: plan?.question ?? null, limitation: plan?.limitation ?? null,
     plan: plan && { version: roadmap.plan_version, outcome: plan.outcome, assumptions: plan.assumptions ?? [], formats: plan.formats ?? [], steps, stoppingPoint: plan.stoppingPoint, ...(plan.sourceCoverage ? { sourceCoverage: plan.sourceCoverage } : {}) },
     steps, proposal: proposal ?? null, results,

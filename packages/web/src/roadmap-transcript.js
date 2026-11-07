@@ -16,8 +16,26 @@ export async function invitationThreadId(invitationId) {
   return `canvaschat-${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }
 // Which thread to record for a roadmap that has none: the one this browser bound before the server kept it (Fix B's local shortcut), else the open
-// thread when it holds an invitation (the Tutor thread the roadmap began in), else null: make a fresh one.
-export const threadCandidate = ({ legacy = null, openId = null, msgs = [] } = {}) => legacy || (openId && msgs.some(m => String(m.clientId || '').startsWith('roadmap-inv-')) ? openId : null);
+// thread when it holds THIS roadmap's invitation (never an older roadmap's), else null.
+export const threadCandidate = ({ legacy = null, openId = null, msgs = [], invitationId = null } = {}) => legacy || (invitationId && openId && msgs.some(m => m.clientId === invitationClientId(invitationId)) ? openId : null);
+
+// Records the Tutor thread of a roadmap that has none bound, SILENTLY: it never opens a thread (only an invitation opens Chat, Fix B), so the learner's
+// Chat never jumps. Nothing for an ended or completed roadmap. Tries the candidate, then the invitation's derived thread; if neither is a saved
+// thread, makes ONE fresh thread per roadmap per browser session (session remembers it, so a failing bind or a reload never makes another).
+// deps: { session: {get(key), set(key, value)}, newId(), saveFresh(threadId) (saves its opening line), bindThread(threadId) (rejects when refused) }.
+// -> 'skipped' | 'bound' | 'fresh' | 'kept' (the session's fresh thread was bound again, or nothing more is tried).
+export async function ensureTutorThread(rm, { legacy = null, openId = null, msgs = [] } = {}, { session, newId, saveFresh, bindThread }) {
+  if (!rm || rm.threadId || ['ended', 'completed'].includes(rm.state)) return 'skipped';
+  const tries = [threadCandidate({ legacy, openId, msgs, invitationId: rm.invitationId }), rm.invitationId ? await invitationThreadId(rm.invitationId) : null];
+  for (const id of new Set(tries.filter(Boolean))) { try { await bindThread(id); return 'bound'; } catch { /* not a saved thread of this canvas: the next */ } }
+  const key = `rh.roadmap.fresh.${rm.id}`, made = session.get(key);
+  if (made) { await bindThread(made).catch(() => {}); return 'kept'; }
+  const threadId = newId();
+  session.set(key, threadId); // before the save: whatever happens next, this session makes no second thread for this roadmap
+  await saveFresh(threadId);
+  await bindThread(threadId);
+  return 'fresh';
+}
 
 const say = (key, content, extra = {}) => ({ key, m: { role: 'assistant', content, status: 'done', meta: { roadmap: key } }, ...extra });
 // A line still in progress: ChatMessage's waiting row (spinner and its words), the same one an answer shows while it streams.
