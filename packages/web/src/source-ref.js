@@ -11,7 +11,6 @@
 export const SOURCE_REF_ID = /^sref_[0-9a-f]{24}$/;
 export const SOURCE_KEY = /^((doc:ctx|pdf:upload):[0-9a-f]{12}|file:fs_[0-9a-f]{24})$/;
 export const SHA256 = /^[0-9a-f]{64}$/;
-import { foldedQuote, resolveFolded } from './markdown-anchor.js';
 export const STATUSES = Object.freeze(['current', 'changed', 'missing', 'unavailable']);
 export const QUOTE_LIMITS = Object.freeze({ exact: 8000, context: 500 });
 // SOURCE_REF_EVENT: View passage asks a Markdown file card to emphasize a quote. EXPLAIN_PASSAGE_EVENT: a card's Explain on a selected passage
@@ -123,10 +122,6 @@ export function passageTarget({ text, rev, detail }) {
   if (!detail || detail.rev !== rev) return { status: 'changed' };
   return resolveQuote(text, detail.quote);
 }
-// A quote the roadmap minted from the plan's passage (its card carries a stepId) is RAW Markdown that the rendered text never contains as it stands. Only for such a quote,
-// and only against the WHOLE drawn text (the caller draws all of it first), it is matched folded (markdown-anchor.js: exact on the folded form, word boundaries, near
-// context required). A passage the learner selected is rendered text and keeps resolveQuote's exact-or-missing answer. segments: markdown-anchor.js textSegments.
-export const resolveRawPassage = (segments, quote) => resolveFolded(segments, foldedQuote(quote));
 
 // ---- Navigation, from the blocks on the canvas ----
 
@@ -139,7 +134,7 @@ export function explanationsFor(blocks, { key, rev, page = null }) {
     if (!navigable(ref) || ref.source.key !== key) continue;
     if (ref.source.rev !== rev) { changed.push(block.id); continue; }
     if (page != null && ref.anchor.page?.index !== page) continue;
-    current.push({ cardId: block.id, ref, raw: !!block.stepId }); // raw: a roadmap card, its quote minted from raw Markdown (resolveRawPassage)
+    current.push({ cardId: block.id, ref });
   }
   return { current, changed };
 }

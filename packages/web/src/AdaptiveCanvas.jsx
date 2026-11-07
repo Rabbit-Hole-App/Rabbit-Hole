@@ -47,7 +47,6 @@ import SourcesDisclosure from './SourcesDisclosure.jsx';
 import CardPrompt, { PromptSlot } from './CardPrompt.jsx';
 import { CardFeedback } from './CardFeedback.jsx';
 import SourceRefChip, { useSourceRefIndex } from './SourceRefChip.jsx';
-import { emphasizePassage, publishPending, viewPassage } from './source-refs.js';
 import { draftOfBlock } from './source-ref.js';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
@@ -3097,22 +3096,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Read from the DOM after the commit that placed it, so a card inserted, or a slot dropped, this very
   // tick is seen where it really is.
   const cameraRef = useRef(null);
-  // A passage's View explanation can name a Tutor slot (source-refs.js publishPending): the camera goes to it; it is not a block, so nothing is selected.
-  const [, nudgeSlotCamera] = useState(0);
-  useSourceRefIndex(blocks, id => { if (String(id).startsWith('roadmap:')) { cameraRef.current = { id, smooth: true, centre: true }; nudgeSlotCamera(count => count + 1); return; } setSelection([id]); cameraRef.current = { id, frame: true }; });
-  const slotPassages = JSON.stringify(slots.filter(slot => slot.roadmap?.sourceRef?.id && slot.roadmap.passage).map(slot => ({ slotId: slot.id, ref: slot.roadmap.sourceRef, start: slot.roadmap.passage.start, end: slot.roadmap.passage.end })));
-  useEffect(() => { publishPending(JSON.parse(slotPassages)); }, [slotPassages]);
-  useEffect(() => () => publishPending([]), []);
-  // When a pending slot first appears, its passage is emphasized once if it is already in view (no camera, no scroll: source-refs.js emphasizePassage).
-  const emphasized = useRef(new Set());
-  useEffect(() => {
-    for (const slot of slots) {
-      const card = slot.roadmap;
-      if (card?.state !== 'pending' || !card.sourceRef?.id || !card.passage || emphasized.current.has(slot.id)) continue;
-      emphasized.current.add(slot.id);
-      emphasizePassage(card.sourceRef, card.passage);
-    }
-  }, [slots]);
+  useSourceRefIndex(blocks, id => { setSelection([id]); cameraRef.current = { id, frame: true }; });
   // ponytail: only the world transform glides; the grid backdrop (when on) jumps. Transition its
   // background-position too if that shows.
   const [glide, setGlide] = useState(false);
@@ -6117,7 +6101,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; } }}>
-            {anchoredSlots(slots).map(slot => <SlotCard key={slot.id} slot={slot} actions={roadmap && { ...roadmap, app: appName, onPassage: card => viewPassage(card.sourceRef, { range: card.passage, raw: true }) }} />)}{columnEntries(blocks, slots).flatMap(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : [<LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />, roomAfter[block.id] ? <div key={`room:${block.id}`} data-group-room aria-hidden="true" style={{ height: roomAfter[block.id] }} /> : null])}
+            {anchoredSlots(slots).map(slot => <SlotCard key={slot.id} slot={slot} actions={roadmap} />)}{columnEntries(blocks, slots).flatMap(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : [<LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />, roomAfter[block.id] ? <div key={`room:${block.id}`} data-group-room aria-hidden="true" style={{ height: roomAfter[block.id] }} /> : null])}
           </CanvasRefs.Provider></CardOpen.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its

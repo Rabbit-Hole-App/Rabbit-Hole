@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { StepPill, PILL_BOX } from './NextStepPill.jsx';
 import { STRINGS as ROADMAP_STRINGS } from './roadmap-strings.js';
-import { SourceRefLine, useSourceRefStatus } from './SourceRefChip.jsx';
-import { NO_FILE_CARD } from './source-ref.js';
 
 // Moved out of AdaptiveCanvas.jsx unchanged for plain slots, so it can be rendered and tested alone; AdaptiveCanvas still draws every slot with it.
 // A reserved slot (canvas-slots.js): the coming card's frame - its size, and CanvasNode's border, radius,
@@ -16,11 +14,6 @@ import { NO_FILE_CARD } from './source-ref.js';
 export function SlotCard({ slot, actions = null }) {
   const [now, setNow] = useState(() => performance.now());
   const card = slot.roadmap || null;
-  // The pending offer's source line: the same row a delivered card shows (SourceRefLine), its status the server's (the step's minted ref), View passage showing the
-  // step's passage from the plan's raw offsets (actions.onPassage). No ref, no passage, or not pending: no row.
-  const ref = card?.state === 'pending' && card.sourceRef?.id && card.passage ? card.sourceRef : null;
-  const status = useSourceRefStatus(ref?.id ?? null, actions?.app ?? null, ref?.source?.rev);
-  const [note, setNote] = useState('');
   useEffect(() => { if (card) return undefined; const timer = setInterval(() => setNow(performance.now()), 100); return () => clearInterval(timer); }, [card]);
   // An anchored slot (canvas-slots.js anchoredSlots) stands at its own world position, out of the column's flow; any other slot is the column's, as always.
   const place = slot.at ? { position: 'absolute', left: slot.at.x, top: slot.at.y } : { marginTop: slot.top || undefined };
@@ -53,7 +46,6 @@ export function SlotCard({ slot, actions = null }) {
         {strip}
         <p className="px-4 pb-1 text-sm font-semibold break-words text-ink">{card.title}</p>
         {pending && card.description && <p className="px-4 pb-3 text-[13px] leading-normal break-words text-ink-2">{card.description}</p>}
-        {ref && <SourceRefLine ref_={ref} status={status} note={note} onOpen={() => setNote(actions?.onPassage?.(card) === 'no-card' ? NO_FILE_CARD : '')} />}
         {failed
           ? <p role="alert" className="px-4 pt-2 text-[13px] break-words text-ink-2">{card.failure?.message || ROADMAP_STRINGS.failed}</p>
           : <div className="relative">
