@@ -40,7 +40,9 @@ async function run(role, userContent, check, { callModel, limits = ROADMAP_LIMIT
 }
 
 const request = (input, extra = {}) => JSON.stringify({ task: input.task, language: input.language, depth: input.depth, stepCeiling: ceilingFor(input.depth, input.limits),
-  passageLimit: (input.limits || ROADMAP_LIMITS).source.passageChars, scope: { start: input.scope.start, end: input.scope.end }, instruction: input.instruction, ...extra });
+  passageLimit: (input.limits || ROADMAP_LIMITS).source.passageChars, scope: { start: input.scope.start, end: input.scope.end }, instruction: input.instruction,
+  // The source file and its pinned revision, and the roadmap mode (explanations until R9): the planner knows what it was given (roadmap 3.5).
+  source: { name: input.source.name ?? null, revision: input.source.rev ?? null }, ...(input.mode ? { mode: input.mode } : {}), ...extra });
 
 // The source text follows the JSON as a quoted block, never inside the instruction.
 const content = (json, source) => `${json}\n\n${sourceBlock(source)}`;

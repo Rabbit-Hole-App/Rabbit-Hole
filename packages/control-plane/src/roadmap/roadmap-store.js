@@ -179,9 +179,10 @@ export async function acceptPlan(db, access, { roadmapId, expectedRevision, plan
   const depth = DEPTHS.includes(plan?.settings?.depth) ? plan.settings.depth : roadmap.depth;
   return applyRoadmapAction(db, access, {
     operation: 'accept_plan', actionKey, roadmapId, expectedRevision, parts: [planVersion], now,
-    guard: { sql: `(SELECT state FROM learn_roadmaps WHERE id = ?) IN (${reaccept ? "'active', 'paused'" : "'proposed'"}) AND (SELECT plan_version FROM learn_roadmaps WHERE id = ?) = ? AND EXISTS (SELECT 1 FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ?)`
+    guard: { sql: `(SELECT state FROM learn_roadmaps WHERE id = ?) IN (${reaccept ? "'active', 'paused'" : "'proposed'"}) AND (SELECT plan_version FROM learn_roadmaps WHERE id = ?) = ?`
+      + (!reaccept ? ' AND EXISTS (SELECT 1 FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ?)' : '') // a reaccepted draft may keep exactly the steps that already happened
       + (reaccept ? ` AND (SELECT COUNT(*) FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND ${KEPT}) = ?` : ''),
-      binds: [roadmapId, roadmapId, planVersion, roadmapId, planVersion, ...(reaccept ? [roadmapId, prior, plan?.keptSteps ?? 0] : [])] },
+      binds: [roadmapId, roadmapId, planVersion, ...(reaccept ? [roadmapId, prior, plan?.keptSteps ?? 0] : [roadmapId, planVersion])] },
     outcome: { status: 200, body: { roadmapId, acceptedPlanVersion: planVersion } },
     statements: r => [
       db.prepare(`UPDATE learn_roadmap_plan_versions SET accepted_at = ? WHERE roadmap_id = ? AND version = ? AND ${r.and}`).bind(now, roadmapId, planVersion, ...r.binds),

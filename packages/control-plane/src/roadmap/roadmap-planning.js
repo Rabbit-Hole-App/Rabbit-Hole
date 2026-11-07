@@ -83,7 +83,7 @@ export async function planningHandler(env, event, { now = nowSeconds() } = {}, d
     const whole = await readRoadmapSource(env, access, { ref, scope: { kind: 'declared' } }, { readSourceForActor });
     if (whole.status === 'ok') { source = whole; teach = { start: read.coverage.start, end: read.coverage.end }; }
   }
-  const input = { instruction: { original, ...(instructionVersion > 1 ? { latest } : {}) }, depth, source, language: roadmap.language ?? undefined, ...(teach ? { scope: teach } : {}) };
+  const input = { instruction: { original, ...(instructionVersion > 1 ? { latest } : {}) }, depth, source, language: roadmap.language ?? undefined, mode: roadmap.practice_mode, ...(teach ? { scope: teach } : {}) };
   let prepared = null;
   if (isLong) {
     prepared = await prepareLongPlan(env, access, roadmap, { readSourceForActor });

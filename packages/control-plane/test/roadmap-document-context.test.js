@@ -252,3 +252,20 @@ test('contract 4: the view projects one lifecycle stage per step and result, wit
   assert.deepEqual([acked.results[0].stage, acked.steps[0].stage], ['ready', 'ready']);
   assert.ok(!JSON.stringify(acked).includes('Gini impurity is one minus'), 'polling still carries no source text');
 });
+
+test('verify-to-be-1: a revised draft whose steps are exactly the steps that already happened can be accepted (no future step rows)', async t => {
+  const SAME = planInput([['Gini', 0, AT.entropy], ['Entropy', AT.entropy, AT.notes]]);
+  SAME.coverage.uncovered = [{ start: AT.notes, end: MD.length, reason: 'enough for now' }];
+  const h = await loop(t, { plans: [PLAN, SAME], script: [CARD_1, CARD_2], md: MD });
+  const { id, view } = await start(h);
+  const first = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${view.proposal.id}/accept`, acceptBody(view, KEY('accept1')));
+  const acked = await deliverAndAck(h, id, first.body, first.body.results[0], 1);
+  let next = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: acked.roadmap.revision, actionKey: KEY('propose2') });
+  for (let i = 0; i < 5 && next.status === 409 && next.body.code === 'stale_revision'; i++) next = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: next.body.currentRevision, actionKey: KEY(`propose2${i}`) });
+  const second = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${next.body.proposal.id}/accept`, acceptBody(next.body, KEY('accept2')));
+  const edit = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: second.body.roadmap.revision, actionKey: KEY('edit'), instruction: 'That is enough, stop after these two.' });
+  assert.equal(edit.body.planDraft.acceptable, true);
+  const re = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: edit.body.roadmap.revision, actionKey: KEY('reaccept'), planVersion: edit.body.planDraft.version });
+  assert.equal(re.status, 200, JSON.stringify(re.body).slice(0, 300));
+  assert.deepEqual(re.body.steps.map(s => s.title), ['Gini', 'Entropy']);
+});
