@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import CardHeader from './CardHeader.jsx';
 import { Copy, ExternalLink, Highlighter, Loader2, Lock, LockOpen, MessageSquarePlus, RotateCw, Trash2, X } from 'lucide-react';
 import { Button } from './ui.jsx';
 import { customTitleOf } from './card-rename.js';
@@ -273,22 +274,21 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
   </div>;
 
   return <section aria-label="Webpage" data-webcard data-webcard-locked={locked ? '' : undefined} className="flex min-h-0 flex-1 flex-col">
-    <header className="flex shrink-0 items-center gap-2 border-b border-line px-3 pb-2 text-xs text-ink" onPointerDown={event => { if (event.target.closest('button, a')) event.stopPropagation(); }}>
-      <div className="min-w-0 flex-1">
-        <h3 className="truncate text-sm font-medium" title={title}>{title}</h3>
-        <p className="flex min-w-0 items-center gap-1.5 text-xs text-ink-2">
+    {/* The shared pinned header (CardHeader.jsx, owner 2026-11-07): the title (the learner's name, else the capture's, else a placeholder), the host and Truncated flag under it, the page's own buttons beside it. */}
+    <div onPointerDown={event => { if (event.target.closest('button, a')) event.stopPropagation(); }}>
+      <CardHeader block={block} className="border-b border-line px-3 pb-2" meta={<span className="flex min-w-0 items-center gap-1.5">
           <a data-webcard-source href={block.url} target="_blank" rel="noopener noreferrer" className="truncate underline-offset-2 hover:underline">{host}</a>
           {truncated && <span data-webcard-truncated className="shrink-0 rounded border border-line px-1 text-[10px] text-ink-2">Truncated</span>}
-        </p>
-      </div>
-      <button type="button" data-webcard-lock aria-label={locked ? 'Unlock scrolling' : 'Lock scrolling'} aria-pressed={locked} disabled={readOnly}
-        title={locked ? 'Scrolling locked - the wheel moves the canvas. Click to unlock.' : 'Lock scrolling so the wheel moves the canvas'}
-        onClick={() => onChange({ ...latest.current, scrollLocked: !locked })}
-        className={`rounded border p-1 disabled:opacity-40 ${locked ? 'border-ink bg-ink text-white' : 'border-line hover:bg-hover'}`}>{locked ? <Lock size={14} /> : <LockOpen size={14} />}</button>
-      {owner && <button type="button" data-webcard-refresh aria-label="Refresh" title="Refresh" disabled={waiting} onClick={capture}
-        className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><RotateCw size={14} /></button>}
-      <a href={block.url} target="_blank" rel="noopener noreferrer" aria-label="Open the page in a new tab" title="Open the page in a new tab" className="rounded border border-line p-1 hover:bg-hover"><ExternalLink size={14} /></a>
-    </header>
+</span>} trailing={<>
+        <button type="button" data-webcard-lock aria-label={locked ? 'Unlock scrolling' : 'Lock scrolling'} aria-pressed={locked} disabled={readOnly}
+          title={locked ? 'Scrolling locked - the wheel moves the canvas. Click to unlock.' : 'Lock scrolling so the wheel moves the canvas'}
+          onClick={() => onChange({ ...latest.current, scrollLocked: !locked })}
+          className={`rounded border p-1 disabled:opacity-40 ${locked ? 'border-ink bg-ink text-white' : 'border-line hover:bg-hover'}`}>{locked ? <Lock size={14} /> : <LockOpen size={14} />}</button>
+        {owner && <button type="button" data-webcard-refresh aria-label="Refresh" title="Refresh" disabled={waiting} onClick={capture}
+          className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><RotateCw size={14} /></button>}
+        <a href={block.url} target="_blank" rel="noopener noreferrer" aria-label="Open the page in a new tab" title="Open the page in a new tab" className="rounded border border-line p-1 hover:bg-hover"><ExternalLink size={14} /></a>
+      </>} />
+    </div>
     {statusLine}
     {earlier > 0 && <p data-webcard-earlier role="status" className="shrink-0 border-b border-line px-3 py-1.5 text-xs text-ink-2">From an earlier version: {earlier} {earlier === 1 ? 'highlight' : 'highlights'}, not shown on this capture.</p>}
     {message && <div data-webcard-notice role={message.retry ? 'alert' : 'status'} className="flex shrink-0 items-center gap-2 border-b border-line px-3 py-1.5 text-xs text-ink-2">

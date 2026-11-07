@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { customTitleOf } from './card-rename.js';
-import { AlertTriangle, ChevronLeft, ChevronRight, CloudUpload, FileSpreadsheet, FileText, Loader2, Presentation, RotateCw, Sheet, Table2 } from 'lucide-react';
+import CardHeader from './CardHeader.jsx';
+import { AlertTriangle, ChevronLeft, ChevronRight, CloudUpload, Loader2, RotateCw, Sheet } from 'lucide-react';
 import { MarkdownText } from './FileDocMarkdown.jsx';
 import { parse } from './file-parse.js';
 import { TEXT_ENCODINGS, decodeText, textChunks, textExcerpt } from './file-text.js';
@@ -29,7 +29,6 @@ import { fullContent } from './card-layout.js';
 // link, or calls a model. Controls and scrolling areas stop the press, so they never drag the card; the header drags it.
 const stop = event => event.stopPropagation();
 const BUTTON = 'pointer-events-auto inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-50';
-const ICON = { text: FileText, markdown: FileText, table: Table2, workbook: FileSpreadsheet, document: FileText, presentation: Presentation };
 const KIND_LABEL = { text: 'Text', markdown: 'Markdown', table: 'Table', workbook: 'Workbook', document: 'Word document', presentation: 'Presentation' };
 const size = n => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MiB` : `${Math.max(1, Math.round(n / 1024))} KiB`);
 const count = n => Number(n || 0).toLocaleString('en-US');
@@ -136,18 +135,13 @@ export default function FileDocCard({ block, onChange }) {
   }, [searchKey, original.current, original.status, original.blob, original.retry, units, parseStatus]);
   useSearchContent(block.id, searchSource);
   useTextDerivative(block, update, currentFileDocUnits(original, units, searchKey) ? units : null);
-  const Icon = ICON[block.kind] || FileText;
   const [meta, setMeta] = useState('');
   useEffect(() => () => setFileExcerpt(block.id, null), [block.id]);
   return (
     <div data-file-doc-card={block.kind} data-format={block.format} data-saved={block.fileRef ? (block.fileRef.source?.id ? 'stored' : 'pending') : 'board-file'} className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <header data-drag-zone className="flex min-w-0 shrink-0 cursor-grab items-center gap-2 px-3 pt-1 pb-2 active:cursor-grabbing">
-        <Icon size={16} strokeWidth={1.75} aria-hidden className="shrink-0 text-ink-2" />
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span data-file-doc-title className="truncate text-sm font-semibold text-ink" title={customTitleOf(block) || block.label}>{customTitleOf(block) || block.label}</span>
-          <span data-file-doc-meta className="truncate text-xs text-ink-3">{KIND_LABEL[block.kind]} · {String(block.format || '').toUpperCase()}{block.size ? ` · ${size(block.size)}` : ''}{meta ? ` · ${meta}` : ''}</span>
-        </span>
-      </header>
+      {/* The shared pinned header (CardHeader.jsx, owner 2026-11-07): the card's TITLE (the learner's name, or a placeholder to rename), and under it the file name, kind, format, size and encoding. */}
+      <CardHeader block={block} className="px-3 pt-1 pb-2" titleProps={{ 'data-file-doc-title': '' }} metaProps={{ 'data-file-doc-meta': '' }}
+        meta={[block.label, KIND_LABEL[block.kind], String(block.format || '').toUpperCase(), block.size ? size(block.size) : '', meta].filter(Boolean).join(' · ')} />
       {block.fileRef && !block.fileRef.source?.id && <SaveState state={upload.state} onRetry={upload.retry} />}
       {original.status === 'loading' && <Status>Opening the file</Status>}
       {original.status === 'failed' && <div data-file-doc-read-error role="alert" className="flex items-center gap-2 px-3 py-2 text-xs text-danger" onPointerDown={stop}>The file could not be read.<button type="button" onClick={original.retry} className={BUTTON}>Retry</button></div>}

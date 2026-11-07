@@ -2,6 +2,7 @@ import { useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useStat
 import { Loader2, MessageCircle, Pencil, RefreshCw } from 'lucide-react';
 import { api } from './api.js';
 import { Pill } from './ui.jsx';
+import CardHeader from './CardHeader.jsx';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { claimViewer, releaseViewer } from './viewer-slots.js';
 import { watchSeen } from './explain-program/playback.js';
@@ -71,20 +72,17 @@ const defaultReadArtifact = fetchJson => async (ref, { signal }) => {
 };
 const EXECUTION_OFF = 'execution_off';
 
-function Header({ title, experience, fixture }) {
+function Header({ block, experience, fixture }) {
   const slot = useContext(PromptSlot);
   useLayoutEffect(() => { slot?.claim(true); return () => slot?.claim(false); }, [slot?.claim]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The shared pinned header (CardHeader.jsx, owner 2026-11-07): the icon, the title (renamable; a placeholder when none), "Animation" and its badges under it.
   return (
     <div data-focus-hide>
-      <div data-drag-zone className="-mx-4 -mt-3 mb-1 flex cursor-grab items-center justify-between gap-2 px-4 pt-3 pb-1 active:cursor-grabbing">
-        <span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-ink-2 uppercase"><span className="h-1.5 w-1.5 rounded-full bg-ink" />Animation</span>
+      <CardHeader block={block} className="-mx-4 -mt-3 mb-1 px-4 pt-3 pb-1"
+        meta={<span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">Animation
           {experience && <Pill data-animation-badge={experience} color="blue">{EXPERIENCE_LABELS[experience]}</Pill>}
-          {fixture && <Pill data-animation-fixture color="yellow">{FIXTURE_LABEL}</Pill>}
-        </span>
-        {slot?.text && <span className="relative inline-block h-[17px] w-[3.25rem] shrink-0"><CardPromptControl text={slot.text} selected={slot.selected} className="absolute top-1/2 right-0 -translate-y-1/2" /></span>}
-      </div>
-      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{title}</p>
+          {fixture && <Pill data-animation-fixture color="yellow">{FIXTURE_LABEL}</Pill>}</span>}
+        trailing={slot?.text ? <span className="relative inline-block h-[17px] w-[3.25rem] shrink-0"><CardPromptControl text={slot.text} selected={slot.selected} className="absolute top-1/2 right-0 -translate-y-1/2" /></span> : null} />
     </div>
   );
 }
@@ -331,7 +329,7 @@ function AnimationScene({ block, onChange, onChangeQuiet, selected, readOnly, on
     <div ref={root} data-animation3d-card data-animation-phase={phase} data-animation-experience={model?.experience}
       data-animation-time={model ? state.time.toFixed(3) : undefined} data-animation-duration={model?.loop?.duration}
       onKeyDownCapture={gameKey} className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3">
-      <Header title={title} experience={model?.experience} fixture={fixture} />
+      <Header block={{ ...block, title: block.title || model?.title }} experience={model?.experience} fixture={fixture} />
       {fixture && (
         <div data-animation-fixture-note className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-2" onPointerDown={event => event.stopPropagation()}>
           <span>{isDemo ? SAVED_DEMO_NOTE : FIXTURE_NOTE}</span>
@@ -418,7 +416,7 @@ export default function Animation3DCard({ block, onChange, onChangeQuiet, select
   if (jobOf(block) && !artifactRefOf(block) && !fixtureIdOf(block)) {
     return (
       <div data-animation3d-card data-animation-phase={cardPhase({ block })} className="flex min-h-0 flex-1 flex-col px-4 pb-3">
-        <Header title={block.title || 'Animation'} experience={null} fixture={false} />
+        <Header block={block} experience={null} fixture={false} />
         <AnimationPending block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} readOnly={readOnly} fetchJson={fetchJson} />
       </div>
     );

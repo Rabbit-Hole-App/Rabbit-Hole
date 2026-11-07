@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { customTitleOf } from './card-rename.js';
+import CardHeader from './CardHeader.jsx';
 import { FolderTree, MoreHorizontal, Play, RotateCcw } from 'lucide-react';
 import { NOTEBOOK_ORIGIN, NOTEBOOK_PROTOCOL, activePath, ipynbPath, notebookUrl, trimOutputs } from './learn-notebook.js';
 import { EXPORT_WORKSPACES, workspaceIdFor, workspaceStore } from './learn-board-assets.js';
@@ -135,23 +135,20 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
 
   return (
     <>
-      <div data-drag-zone data-notebook-header className="relative flex shrink-0 cursor-grab items-center gap-2 px-4 pb-2 active:cursor-grabbing">
-        <span className="text-[11px] font-semibold tracking-wider text-ink-2 uppercase">Notebook</span>
-        <span className="text-[11px] text-ink-3">· Python</span>
-        {customTitleOf(block) && <span data-card-custom-title className="min-w-0 truncate text-[11px] font-medium text-ink">{customTitleOf(block)}</span>}
-        <span className="flex-1" />
-        {onEditCells&&<button type="button" data-notebook-edit-cells className={action} disabled={!loaded||kind!=='notebook'||cellBusy||block.locked} onPointerDown={stop} onClick={editCells}>{cellBusy?'Reading cells':'Edit selected cells'}</button>}
-        <button type="button" aria-pressed={files} className={`${action} ${files ? 'bg-hover text-ink' : ''}`} disabled={!loaded} onPointerDown={stop} onClick={toggleFiles}><FolderTree size={12} />Files</button>
-        <button type="button" className={action} disabled={!loaded || kind !== 'notebook'} onPointerDown={stop} onClick={() => send('run-all')}><Play size={12} />Run all</button>
-        <button type="button" className={action} disabled={!loaded || kind !== 'notebook'} onPointerDown={stop} onClick={() => send('restart')}><RotateCcw size={12} />Restart</button>
-        <button type="button" aria-label="More notebook actions" className={action} disabled={preview} onPointerDown={stop} onClick={() => setMenu(open => !open)}><MoreHorizontal size={14} /></button>
-        {menu && (
-          // UI-25: the card's own rows from the canvas action registry, run like the right-click menu's (CanvasMenu.jsx).
-          <div role="menu" aria-label="Notebook actions" data-card-menu className="absolute top-8 right-3 z-30 w-60 rounded-lg border border-line bg-white p-1 shadow-md" onPointerDown={stop}>
-            <CardActionRows id={block.id} groups={['type', 'content']} onDone={() => setMenu(false)} />
-          </div>
-        )}
-      </div>
+      {/* The shared pinned header (CardHeader.jsx, owner 2026-11-07): the notebook's title (the learner's name, or a placeholder to rename) with its own actions beside it. */}
+      <CardHeader block={block} className="relative px-4 pb-2" meta="Notebook · Python" headerProps={{ 'data-notebook-header': '' }} trailing={<>
+          {onEditCells&&<button type="button" data-notebook-edit-cells className={action} disabled={!loaded||kind!=='notebook'||cellBusy||block.locked} onPointerDown={stop} onClick={editCells}>{cellBusy?'Reading cells':'Edit selected cells'}</button>}
+          <button type="button" aria-pressed={files} className={`${action} ${files ? 'bg-hover text-ink' : ''}`} disabled={!loaded} onPointerDown={stop} onClick={toggleFiles}><FolderTree size={12} />Files</button>
+          <button type="button" className={action} disabled={!loaded || kind !== 'notebook'} onPointerDown={stop} onClick={() => send('run-all')}><Play size={12} />Run all</button>
+          <button type="button" className={action} disabled={!loaded || kind !== 'notebook'} onPointerDown={stop} onClick={() => send('restart')}><RotateCcw size={12} />Restart</button>
+          <button type="button" aria-label="More notebook actions" className={action} disabled={preview} onPointerDown={stop} onClick={() => setMenu(open => !open)}><MoreHorizontal size={14} /></button>
+          {menu && (
+            // UI-25: the card's own rows from the canvas action registry, run like the right-click menu's (CanvasMenu.jsx).
+            <div role="menu" aria-label="Notebook actions" data-card-menu className="absolute top-8 right-3 z-30 w-60 rounded-lg border border-line bg-white p-1 shadow-md" onPointerDown={stop}>
+              <CardActionRows id={block.id} groups={['type', 'content']} onDone={() => setMenu(false)} />
+            </div>
+          )}
+      </>} />
       {/* Full content (card-layout.js): the frame is as tall as the notebook's cells (notebook-height.js), so the card is, and the page scrolls it. */}
       <div className={`relative overflow-hidden rounded-b-xl border-t border-line ${fullContent(block) ? 'flex-none' : 'min-h-0 flex-1'}`} style={fullContent(block) ? { height: notebookHeight(block.ipynb, block.cardLayout.fullWidth) } : undefined}>
         <iframe key={attempt} ref={frame} data-notebook-frame data-notebook-preview={preview || undefined} title="Jupyter notebook" src={notebookUrl(preview ? block.notebook_id : workspaceIdFor(block.notebook_id))} className="h-full w-full bg-white"

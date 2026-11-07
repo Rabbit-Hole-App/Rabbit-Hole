@@ -8,6 +8,7 @@ import { Md } from './ask.jsx';
 import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock, fitFrame, naturalHeight } from './card-layout.js';
 import { customTitleOf, renamable, renameBlock, startTitleOf, groupEditText, groupLabelFrom } from './card-rename.js';
 import CardCustomTitle from './CardCustomTitle.jsx';
+import CardHeader, { CardRename } from './CardHeader.jsx';
 import './card-layout.css';
 import { IconBtn, toast } from './ui.jsx';
 import { saveUiPref, uiPrefs } from './ui-prefs.js';
@@ -599,7 +600,7 @@ function SlideCard({ block, zoom, selected, connected, onSelect, onMove, onLayou
       connected={connected} width={SLIDE_W} autoMax={null} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && <div data-thumbnail-hide className="absolute -top-10 right-0 z-30"><SelectionActionsHost id={block.id} /></div>}
-      <CardCustomTitle block={block} />
+      <CardHeader block={block} className="px-1 pb-1" meta={`${block.label || 'PDF'} · page ${block.number}`} />
       <div data-slide={block.number} className="px-1 pb-1">
         {url ? <img src={url} alt={`${block.label || 'PDF'}, page ${block.number}`} className="w-full rounded border border-line" draggable={false} />
           : <p className="p-4 text-sm text-ink-2">This page is not in this browser.</p>}
@@ -638,9 +639,7 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={COLUMN} height={block.h || 640} autoMax={undefined} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
-      <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
-        <span className="h-1.5 w-1.5 rounded-full bg-ink" />PDF<span className="truncate normal-case tracking-normal text-ink-3">{customTitleOf(block) || block.label}</span>
-      </div>
+      <CardHeader block={block} meta={[block.label, 'PDF'].filter(Boolean).join(' · ')} className="px-4 pb-2" />
       {/* Until the card is selected the page ignores the pointer, so the first
           press selects the card and keeps focus in this document. A focused
           iframe receives keydown in its own document, where the canvas never
@@ -685,11 +684,8 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
       onSize={(id, w) => editing.patchBlock?.(id, { w })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       <div data-file-attachment className="flex items-center gap-3 px-4 pb-3">
-        <Paperclip size={16} className="shrink-0 text-ink-2" />
-        <div data-drag-zone className="min-w-0 flex-1 cursor-grab active:cursor-grabbing">
-          <p className="truncate font-mono text-sm text-ink" title={customTitleOf(block) || block.label}>{customTitleOf(block) || block.label}</p>
-          <p className="text-xs text-ink-3">{missing ? 'This file is not in this browser or saved with the board yet.' : `File attachment${block.size ? ` · ${Math.max(1, Math.round(block.size / 1024))} KB` : ''}`}</p>
-        </div>
+        <div className="min-w-0 flex-1"><CardHeader block={block} icon={Paperclip} className="p-0"
+          meta={missing ? 'This file is not in this browser or saved with the board yet.' : [block.label, 'File attachment', block.size ? `${Math.max(1, Math.round(block.size / 1024))} KB` : ''].filter(Boolean).join(' · ')} /></div>
         {url && <a href={url} download={block.label} onPointerDown={event => event.stopPropagation()}
           className="flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink"><Download size={12} />Download</a>}
       </div>
@@ -701,11 +697,9 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
       onSize={(id, w) => editing.patchBlock?.(id, { w })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && block.kind === 'image' && <div data-thumbnail-hide className="absolute -top-10 right-0 z-30"><SelectionActionsHost id={block.id} /></div>}
-      <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
-        <span className="h-1.5 w-1.5 rounded-full bg-ink" />{block.excerpt ? 'Excerpt' : media || 'Image'}<span className="min-w-0 flex-1 truncate normal-case tracking-normal text-ink-3">{customTitleOf(block) || block.label}</span>
-        {!media && url && <a href={url} download={block.label || 'image'} data-download-original aria-label="Download original" title="Download original" onPointerDown={event => event.stopPropagation()}
-          className="flex shrink-0 items-center rounded-md p-1 text-ink-2 normal-case hover:bg-hover hover:text-ink"><Download size={12} /></a>}
-      </div>
+      <CardHeader block={block} className="px-4 pb-2" meta={[block.label, block.excerpt ? 'Excerpt' : media || 'Image'].filter(Boolean).join(' · ')}
+        trailing={!media && url ? <a href={url} download={block.label || 'image'} data-download-original aria-label="Download original" title="Download original" onPointerDown={event => event.stopPropagation()}
+          className="flex shrink-0 items-center rounded-md p-1 text-ink-2 hover:bg-hover hover:text-ink"><Download size={12} /></a> : null} />
       <div data-pointer-body className="min-h-0 px-3 pb-3" onPointerDown={event => { if ((clip || block.kind === 'audio') && selected) event.stopPropagation(); }}>
         {/* A region excerpt (pdf-excerpt.js): the stored crop of the PDF page, the learner's note, the source footer. */}
         {block.excerpt
@@ -765,13 +759,7 @@ export function YouTubeMoment({ block, selected, appName, onChange, onWatch }) {
   };
   return (
     <>
-      <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
-        <span className="h-1.5 w-1.5 rounded-full bg-ink" />Video<span className="truncate normal-case tracking-normal text-ink-3">{block.title}</span>
-        {/* The tutor could not read this video's captions, so the moment is a
-            recommendation on title alone - the spec's failure table says the
-            learner hears that, not just the model. */}
-        {block.unverified && <span className="shrink-0 rounded bg-hover px-1.5 py-0.5 normal-case tracking-normal text-ink-3" title="The tutor could not read this video's captions, so its contents are unverified.">contents unverified</span>}
-      </div>
+      <CardHeader block={block} className="px-4 pb-2" meta="Video" trailing={block.unverified ? <span className="shrink-0 rounded bg-hover px-1.5 py-0.5 text-ink-3" title="The tutor could not read this video's captions, so its contents are unverified.">contents unverified</span> : null} />
       {/* Same bargain as PdfCard: the player ignores the pointer until the
           card is selected, so canvas keys and drags stay alive. */}
       <div data-pointer-body className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl border-t border-line"
@@ -853,9 +841,7 @@ function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove,
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={COLUMN} height={block.h || 640} autoMax={undefined} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
-      <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
-        <span className="h-1.5 w-1.5 rounded-full bg-ink" />Wikipedia{customTitleOf(block) && <span data-card-custom-title className="truncate normal-case tracking-normal text-ink-3">{customTitleOf(block)}</span>}
-      </div>
+      <CardHeader block={block} className="px-4 pb-2" meta={block.title ? 'Wikipedia · ' + block.title : 'Wikipedia'} />
       {/* Once selected - or while highlighting - the card keeps the pointer,
           so a drag inside it selects text instead of moving the card. */}
       <div data-pointer-body className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl border-t border-line"
@@ -939,7 +925,7 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
   if (block.type === 'heading') return <HeadingCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   // A repository graph card (GraphCard.jsx): its header strip moves it, its frame resizes it, the graph inside keeps its own pointer.
   if (block.type === 'repo-graph') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || GRAPH_CARD.w} height={block.h || GRAPH_CARD.h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
-    <CardCustomTitle block={block} /><Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the graph</p>}><GraphCard block={block} selected={selected} /></Suspense></CanvasNode>;
+    <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the graph</p>}><GraphCard block={block} selected={selected} /></Suspense></CanvasNode>;
   // A size whose height is undefined (a pending Explanation) means the content's height, not the type's fixed one.
   const sized = BLOCK_TYPES[block.type]?.sizeFor?.(block, programFrame);
   return (
@@ -956,7 +942,6 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
         <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] self-center rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
         <SelectionActionsHost id={block.id} divider={cadTools || ['code', 'snippet'].includes(block.type)} />
       </> : null}>
-      {typeof block.title !== 'string' && <CardCustomTitle block={block} />}
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}><PromptSlot.Provider value={promptSlot}>
         <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} onProgramFrame={setProgramFrame} onExpandHeight={setExpandHeight} />
       </PromptSlot.Provider></PerfContext.Provider>
@@ -1610,6 +1595,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [marquee, setMarquee] = useState(null);
   const [menuAt, setMenuAt] = useState(null); // right-click canvas actions
   const [renaming, setRenaming] = useState(null); // { id, title, rect }: a card's title being renamed in place (card-rename.js)
+  // The right-click Rename and a card header's double-click open the same in-place editor (CardRename context, CardHeader.jsx).
+  const startRename = id => { const block = blocksRef.current.find(entry => entry.id === id); if (block) setRenaming({ id, title: startTitleOf(block, describeBlock(block)?.title), rect: document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.getBoundingClientRect() }); };
   const [composerHidden, setComposerHidden] = useState(false);
   const hideComposer = useCallback(() => setComposerHidden(true), []);
   // Ask in chat (askDraft) writes a ready question into the composer: a hidden composer comes back to show it.
@@ -5886,7 +5873,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       linkCanvas: onLinkCanvas ? arg => onLinkCanvas(arg) : null,
       // A visitor's local copy renames no card (SHARE-02: titles are the source's).
       renamable: object => !localCopy && renamable(object),
-      rename: id => { const block = blocksRef.current.find(entry => entry.id === id); if (block) setRenaming({ id, title: startTitleOf(block, describeBlock(block)?.title), rect: document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.getBoundingClientRect() }); },
+      rename: id => startRename(id),
       renameGroup: gid => setChipEdit(gid),
       describable: target => target.ids.length > 0 && (!!chatWorkspace || target.objects.some(object => object && describeObject(object))),
       addToChat: options => addToChat(options),
@@ -6196,9 +6183,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {exchanges.map(exchange => (String(exchange.linkFrom).startsWith('area:') || (exchange.linkFrom && exchange.float)
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
-          <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; }, tocLinksOf: id => (refLinks.goToc ? resolvedLinks(blocks.find(block => block.id === id), outline) : []) }}>
+          <SketchHost.Provider value={sketchHost}><CardRename.Provider value={readOnly || localCopy ? null : startRename}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; }, tocLinksOf: id => (refLinks.goToc ? resolvedLinks(blocks.find(block => block.id === id), outline) : []) }}>
             {anchoredSlots(slots).map(slot => <SurfaceBoundary key={slot.id} artifact="slot_card"><SlotCard slot={slot} actions={roadmap && { ...roadmap, app: appName, onPassage: card => viewPassage(card.sourceRef, { range: card.passage, raw: true }) }} /></SurfaceBoundary>)}{columnEntries(blocks, slots).flatMap(({ block, slot }) => slot ? <SurfaceBoundary key={slot.id} artifact="slot_card"><SlotCard slot={slot} /></SurfaceBoundary> : [<LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} placing={pendingAt.current.has(block.id)} />, roomAfter[block.id] ? <div key={`room:${block.id}`} data-group-room aria-hidden="true" style={{ height: roomAfter[block.id] }} /> : null])}
-          </CanvasRefs.Provider></CardOpen.Provider></SketchHost.Provider>
+          </CanvasRefs.Provider></CardOpen.Provider></CardRename.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its
             gap), laid out like a column card - so no card moves, now or at Accept. Pale, untouchable (the editor's overlay

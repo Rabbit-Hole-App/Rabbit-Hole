@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Copy, ExternalLink, FileCode, Loader2, MessageSquarePlus } from 'lucide-react';
+import CardHeader from './CardHeader.jsx';
+import { Check, Copy, ExternalLink, Loader2, MessageSquarePlus } from 'lucide-react';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { fullContent } from './card-layout.js';
 import { highlightCode } from './code-lang.js';
@@ -63,13 +64,9 @@ export default function CodeCard({ block }) {
   useEffect(() => (code ? publishCodeCard(block.id, { code, openSource }) : undefined), [block.id, code]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div data-code-card data-code-colors="" data-source-kind={source.kind} data-status={status} className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <header className="flex min-w-0 shrink-0 items-center gap-2 px-3 pt-1 pb-2">
-        <FileCode size={16} strokeWidth={1.75} aria-hidden className="shrink-0 text-ink-2" />
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span data-code-card-title className="truncate text-sm font-semibold text-ink" title={block.title || 'Code'}>{block.title || 'Code'}</span>
-          <span data-code-card-provenance className="truncate text-xs text-ink-3" title={provenanceOf(block)}>{block.language && block.language !== 'text' ? `${block.language} · ` : ''}{provenanceOf(block)}</span>
-        </span>
-      </header>
+      {/* The shared pinned header (CardHeader.jsx, owner 2026-11-07): the title (the learner's name, else the file name, else a placeholder), and the language and where the lines come from under it. */}
+      <CardHeader block={block} className="px-3 pt-1 pb-2" titleProps={{ 'data-code-card-title': '' }} metaProps={{ 'data-code-card-provenance': '', title: provenanceOf(block) }}
+        meta={`${block.language && block.language !== 'text' ? `${block.language} · ` : ''}${provenanceOf(block)}`} />
       <div className="flex shrink-0 flex-wrap items-center gap-0.5 border-y border-line px-2 py-0.5" onPointerDown={stop}>
         <button type="button" data-code-card-open className={BUTTON} disabled={status !== 'ready'} title={source.kind === 'repository' ? 'Open these lines in Files at this commit' : 'Open the stored file'} onClick={openSource}><ExternalLink size={13} aria-hidden />Open source</button>
         <button type="button" data-code-card-chat className={BUTTON} disabled={!chat || status !== 'ready'} title="Keep this code with the chat" onClick={addToChat}><MessageSquarePlus size={13} aria-hidden />Add to chat</button>

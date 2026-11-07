@@ -18,10 +18,18 @@ export const titleKey = block => (typeof block?.title === 'string' && !LOADED.ha
 export const PLACEHOLDERS = { note: 'Untitled note', notebook: 'Untitled notebook', heading: 'Untitled heading', file: 'Untitled file', pdf: 'Untitled PDF', slide: 'Untitled slide', divider: 'Untitled divider', 'canvas-ref': 'Untitled link', 'repo-code': 'Untitled code', 'repo-graph': 'Untitled graph', wiki: 'Untitled article', webpage: 'Untitled page', quiz: 'Untitled quiz', challenge: 'Untitled practice', flashcards: 'Untitled flashcards', explanation: 'Untitled explanation', table: 'Untitled table', image: 'Untitled image', video: 'Untitled video', audio: 'Untitled audio', code: 'Untitled code', snippet: 'Untitled code', cad: 'Untitled model' };
 export const PLACEHOLDER = 'Untitled card';
 const short = text => (typeof text === 'string' && text.trim() ? text.trim().replace(/\s+/g, ' ').slice(0, 80) : '');
+const derivedTitleOf = block => short(block?.title) || short(block?.label) || (block?.type === 'heading' ? short(block.text) : '') || short(block?.question) || short(block?.prompt);
 export function cardTitleOf(block) {
   if (!block) return PLACEHOLDER;
-  return customTitleOf(block) || short(block.title) || short(block.label) || (block.type === 'heading' ? short(block.text) : '') || short(block.question) || short(block.prompt) || PLACEHOLDERS[block.type] || PLACEHOLDER;
+  return customTitleOf(block) || derivedTitleOf(block) || PLACEHOLDERS[block.type] || PLACEHOLDER;
 }
+// The title the card HEADER shows (CardHeader.jsx, owner 2026-11-07): a file, PDF or slide's label is its FILE NAME, which the header shows under the
+// title, so its title is the learner's name or the placeholder; every other card shows cardTitleOf. placeholderTitle: true when no real title exists.
+const FILE_NAMED = new Set(['file', 'pdf', 'slide']);
+// A quiz question or a practice prompt is the card's CONTENT (it can hold TeX), drawn in the body: the header never repeats it as a title.
+const headerDerived = block => (FILE_NAMED.has(block?.type) ? '' : short(block?.title) || short(block?.label) || (block?.type === 'heading' ? short(block.text) : ''));
+export const placeholderTitle = block => !customTitleOf(block) && !headerDerived(block);
+export const headerTitleOf = block => customTitleOf(block) || headerDerived(block) || PLACEHOLDERS[block?.type] || PLACEHOLDER;
 
 // What the editor opens on: the learner's name, else the card's own title or text, else the name the card shows today (derived).
 export const startTitleOf = (block, derived = '') => customTitleOf(block) || (typeof block?.title === 'string' ? block.title : '') || (block?.type === 'heading' && typeof block.text === 'string' ? block.text : '') || derived || '';

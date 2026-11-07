@@ -772,6 +772,8 @@
     "packages/web/src/RoadmapPlan.jsx": ["roadmap-command-check.mjs","roadmap-mvp-check.mjs","packages/web/src/roadmap-client.test.mjs","packages/web/src/roadmap-controller.test.mjs","packages/web/src/roadmap-view.test.mjs"],
     "packages/web/src/RoadmapRecovery.jsx": ["roadmap-command-check.mjs","roadmap-mvp-check.mjs","packages/web/src/roadmap-client.test.mjs","packages/web/src/roadmap-controller.test.mjs","packages/web/src/roadmap-view.test.mjs"],
     "packages/web/src/CardCustomTitle.jsx": ["packages/web/src/card-rename-render.test.mjs"],
+    "packages/web/src/CardHeader.jsx": ["packages/web/src/card-header.test.mjs","packages/web/src/card-rename-render.test.mjs","packages/web/src/slash-preview-header.test.mjs"],
+    "packages/web/src/card-icons.js": ["packages/web/src/card-icons.test.mjs","packages/web/src/card-header.test.mjs"],
     "packages/web/src/SurfaceBoundary.jsx": ["packages/web/src/roadmap-flow-render.test.mjs"],
     "packages/web/src/client-timing.js": ["packages/web/src/client-timing.test.mjs"],
     "packages/web/src/toc-move.js": ["packages/web/src/toc-move.test.mjs"],
