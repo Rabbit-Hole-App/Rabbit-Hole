@@ -152,7 +152,7 @@ export const COMMON_ACTIONS = [
   // Duplicate, Copy card, Lock, Arrange, Group, Delete: one order everywhere (brief section 3).
   { id: 'duplicate', label: 'Duplicate', icon: 'CopyPlus', group: 'clipboard', order: 10, targets: SELECTION_KINDS, keys: 'duplicate',
     shortcut: { key: 'd', mod: true }, applies: t => t.ids.length > 0, requires: 'canvas.local-edit', data: 'data-menu-duplicate', run: (t, ctx) => ctx.commands.duplicate() },
-  { id: 'copy', label: t => (t.kind === 'card' ? 'Copy card' : 'Copy'),
+  { id: 'copy', label: 'Copy',
     icon: 'Copy', group: 'clipboard', order: 20, targets: SELECTION_KINDS, keys: t => (t.part?.text ? null : 'copy'), applies: (t, ctx) => !!ctx.canvas.copyable?.(t.ids), requires: 'content.copy',
     data: 'data-menu-copy', run: (t, ctx) => ctx.commands.copy() },
   { id: 'cut', label: 'Cut', icon: 'Scissors', group: 'clipboard', order: 30, targets: SELECTION_KINDS, keys: t => (t.part?.text ? null : 'cut'), mutates: true,
