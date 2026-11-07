@@ -1505,6 +1505,29 @@ The command paths below were reconciled to main `fe2bf0f79c6a355a36c9b958bd82933
 
 The catalogue is complete: `/explain` text/table belongs to R4, while its interactive addition is R12.09; `/practice`, `/quiz` and `/flashcards` belong to R9 and retain their immutable-activity and free-assessment requirements. R12.02–R12.08 and R12.10–R12.17 cover the remaining fifteen commands. `/goal` is learner-only and excluded. Command labels must follow the actual catalogue: `/image` uses ID `generate-image`; `/photos` uses ID `image`; `/whiteboard` uses ID `whiteboard-video`. The legacy internal editable-whiteboard tool is not this video command. Existing definitions: `packages/web/src/agent/slash.js`; Learn dispatch: `packages/web/src/learn-slash.js`.
 
+#### R12 command checklist
+
+Each checkbox tracks one working Tutor adapter. Start with the shared [R12.01 acceptance contract](#r1201-register-the-accepted-command-boundary-and-per-adapter-release-checks), then implement and release commands independently as their prerequisites are met. Close each item with its linked acceptance evidence. Record the implementation SHA, focused verification, deployment, enablement and owner acceptance separately.
+
+- [ ] `/code` — Python snippet. [R12.02](#r1202-add-the-code-snippet-adapter)
+- [ ] `/graph` — Function graph or data plot. [R12.03](#r1203-add-graph-with-checked-function-and-data-provenance)
+- [ ] `/diagram` — Node and arrow diagram or Mermaid. [R12.04](#r1204-add-diagram-with-topology-and-rendered-checks)
+- [ ] `/notebook` — Empty notebook. [R12.05](#r1205-add-notebook-as-an-empty-workspace)
+- [ ] `/image` — Generated image. [R12.06](#r1206-add-image-through-the-existing-signed-image-plan)
+- [ ] `/motion` — Animated explainer video. [R12.07](#r1207-add-motion-preserving-duration-and-recovery-authorization)
+- [ ] `/whiteboard` — Narrated whiteboard video. [R12.08](#r1208-add-whiteboard-narrated-video-adapter)
+- [ ] `/explain` — Interactive explanation. [R12.09](#r1209-add-interactive-explain-using-the-narrow-d2b-override)
+- [ ] `/cad` — Dimensioned CAD model. [R12.10](#r1210-add-cad-without-changing-its-modelling-engine)
+- [ ] `/animation` — Live 3D animation through the Animation owner’s qualified interface. [R12.11](#r1211-specify-the-animation-tutor-handoff-with-the-existing-owner)
+- [ ] `/3d` — Technical 3D scene. [R12.12](#r1212-add-3d-technical-blender-scene-adapter)
+- [ ] `/browser` — Saved webpage. [R12.13](#r1213-add-browser-saved-webpage-adapter)
+- [ ] `/photos` — Photo search and credited insertion. [R12.14](#r1214-add-photos-with-explicit-choice-and-credit)
+- [ ] `/youtube` — YouTube video selection and insertion. [R12.15](#r1215-add-youtube-using-actual-search-and-caption-coverage)
+- [ ] `/arxiv` — Versioned paper selection and insertion. [R12.16](#r1216-add-arxiv-with-versioned-paper-selection)
+- [ ] `/wikipedia` — Article selection and insertion. [R12.17](#r1217-add-wikipedia-with-retained-article-revision-and-sections)
+
+The `/animation` item closes when Tutor can use the qualified interface to deliver the real Animation result. The handoff and contract fixtures are milestones in R12.11. Text and table output from `/explain` stays in R4. `/practice`, `/quiz` and `/flashcards` stay in R9, and `/goal` remains learner-operated.
+
 ### R12.01 Register the accepted-command boundary and per-adapter release checks
 
 **Owner:** Lead, State/Money, Tools; **Depends:** R4 accepted-step, reservation, publication and placement contracts; R5 proposal/version/review contract; R2 Depth/settings; R3 references. **Trace:** v1.3 §3.13, §§4–6, D24/D38; M5.3/M5.14, M8.2–M8.6. **Model:** none in registry; retain each command's actual route below.
