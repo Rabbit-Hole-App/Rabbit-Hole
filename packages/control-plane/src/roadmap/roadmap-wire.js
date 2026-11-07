@@ -17,6 +17,7 @@ import { roadmapEditEnabled, sweepProposalDrafts } from './roadmap-proposal-draf
 import { AUTO_KINDS, autoProposalHandler, settingsFanoutHandler } from './roadmap-auto.js';
 import { roadmapAutoEnabled } from './roadmap-settings-events.js';
 import { revalidateSourceAsJob } from './roadmap-access.js';
+import { readMarkdownForActor } from './roadmap-source-reader.js';
 
 const scopeOf = access => ({ org: access.org, ownerUserId: access.actorUserId, boardId: access.boardId });
 
@@ -48,7 +49,13 @@ export function roadmapDeps(env, ctx = null, { settings = learnerSettings(env), 
   const kick = roadmapKick(env, ctx);
   return { readSource: makeReadSource(env, readSourceOptions), startPlanning: kick, onAccepted: kick, onFact: roadmapAutoEnabled(env) ? kick : undefined, // R6: no wake on ack/mode change unless the automatic switch is on
     compose: (roadmap, step) => composeProposal(env.LEARN_DB, roadmap, step),
-    revalidate: revalidateSourceAsJob, // the offer readiness check (roadmap-offer-readiness.js) reads the source through the same revalidation the writer uses
+    // The offer readiness check (roadmap-offer-readiness.js): the writer's D1 revalidation plus the stored bytes at the pinned revision, so a vanished or replaced object is Chat recovery at the offer, not a failure at Accept.
+    revalidate: async (db, access, roadmap) => {
+      const row = await revalidateSourceAsJob(db, access, roadmap);
+      if (!row.ok) return row;
+      const got = await readMarkdownForActor(env, access, { key: roadmap.source_key, rev: roadmap.source_rev });
+      return got.status === 'ok' && got.complete !== false && got.rev === roadmap.source_rev ? row : { ok: false, code: got.status === 'changed' ? 'source_changed' : 'source_unavailable' };
+    },
     mintStepRefs: (e, access, roadmapId) => mintStepRefs(e, access, roadmapId), settings,
     quote: (e, access, args) => quoteStepAcceptance(e, access, args), // CORE.05: the accept route quotes the actual author request before any hold
     // R5 (ROADMAP_EDIT_ENABLED): `screen` is R4's safety classifier path over the learner's words and the composed words (held when unknown); the composer is platform-funded
