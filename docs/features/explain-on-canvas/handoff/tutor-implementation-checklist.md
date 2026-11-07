@@ -8,6 +8,8 @@
 
 **This is a documentation and approved-reference publication.** Three owner-approved HTML files are included in [ui](ui/); no product implementation, migration or deployment is included. During the preceding read-only baseline audit, the pinned canvas-slots, roadmap-client and roadmap-controller Node suites passed 63/63 tests; that is baseline evidence only, not validation of this new workflow. No browser, paid-provider or functional acceptance run was performed for this revision. Proposed implementation tests below remain required. The approved references are now in the separate [ui](ui/) folder; section 4.2.1 specifies what to inspect. Their approval does not complete the implementation tasks below.
 
+**Required testing order for this MVP:** Claude Code completes the [local backend flow tests](#80-required-local-backend-flow-tests-before-manual-production-checking) and reports their evidence before asking the owner to check the deployed app manually. This stage uses Node/backend tests, not a browser. The older local-browser instructions below are reference material only unless the owner separately requests them. A documentation/reference push does not mean these tests have run.
+
 ## Contents
 
 - [1 Execution rules and the next outcome](#1-execution-rules-and-the-next-outcome)
@@ -31,6 +33,7 @@
   - [6.13 R16 — A separate bounded execution service](#613-r16--a-separate-bounded-execution-service)
 - [7 Finish cleanup without blocking the core](#7-finish-cleanup-without-blocking-the-core)
 - [8 Local verification and direct production release](#8-local-verification-and-direct-production-release)
+  - [8.0 Required local backend flow tests before manual production checking](#80-required-local-backend-flow-tests-before-manual-production-checking)
 - [9 Actions, expected results and completion record](#9-actions-expected-results-and-completion-record)
 
 ## 1 Execution rules and the next outcome
@@ -67,7 +70,7 @@ No new agent framework, duplicated UI, general pipeline rewrite, all-format qual
 | Delivery | Persist exact card ID and placement before acknowledging; a save/reload/ack problem never requires another author call. Next offer follows acknowledged delivery. |
 | Error | Keep the original slot and its Chat entry with truthful status. No ordinary Retry / Replace / Omit, recovery block, from-scratch chip or automatic author redispatch. Reconcile save/ack on the same result; safety refusal stops automatic next offers. |
 | Privacy | Pending proposals/results/evidence/feedback stay actor-private. Shares/forks contain permitted delivered content and references, not private state. |
-| Testing | Real source/plan/generator/money/state modules with external doubles locally; geometry/focus in keyless local browser tests; live model/production evidence labelled separately. |
+| Testing | Required local backend/Node flow tests first (section 8.0), using real source/plan/generator/money/state/message/persistence seams with external doubles. Owner manual production UI checking follows that receipt. Browser automation is not part of this stage; model quality and visible layout remain separate evidence. |
 
 ### 1.4 Local environment and command rules
 
@@ -75,7 +78,7 @@ Use a complete current repository checkout and its lockfiles. Follow root `CLAUD
 
 Current commands include `node --test <named files>`, `npm --prefix packages/web run build`, and the repository unit entry `bash run.sh test:unit control-plane web`. There is no generic root `npm test` substitute. Prefer the named affected suites; do not repeat every unit/browser suite after each prose or unrelated label change.
 
-Local browser checks use a local app/control plane and deterministic route fixtures with paid/model routes intercepted or denied. Existing command-check harnesses name their prerequisites and session setup. A local browser fixture is **not** a deployed dev clone. A supplied `BASE` alone does not prove the check is keyless; inspect its calls before running it. Never point a destructive seed/reset fixture at production. Production smoke uses an authorized test account and bounded actions.
+For this MVP, section 8.0 is the required local pre-handoff test path and does not launch a browser. The older local browser checks are reference-only unless separately requested; they use a local app/control plane and deterministic route fixtures with paid/model routes intercepted or denied. Existing command-check harnesses name their prerequisites and session setup. A local browser fixture is **not** a deployed dev clone. A supplied `BASE` alone does not prove the check is keyless; inspect its calls before running it. Never point a destructive seed/reset fixture at production. Production smoke uses an authorized test account and bounded actions.
 
 ### 1.5 Retained setup task IDs
 
@@ -272,7 +275,7 @@ One accepted ordinary slot permits one content-author dispatch, zero repairs, ze
 
 ### CORE.07 Verify the integrated first-and-second-card flow
 
-**Owner:** Verifier with UI and State/Money. **Depends:** only CORE.02–CORE.06's actual changed interfaces. **Models:** local doubles for these deterministic tests. Keep the new `test/roadmap-document-context.test.js` as the primary two-card regression.
+**Owner:** Verifier with UI and State/Money. **Depends:** only CORE.02–CORE.06's actual changed interfaces. **Models:** local doubles for these deterministic tests. Keep `test/roadmap-document-context.test.js` as the existing two-card regression and complete the [required local backend flow matrix](#80-required-local-backend-flow-tests-before-manual-production-checking) before requesting owner production checks. Its current three tests alone do not complete that matrix.
 
 - [ ] Run its existing three tests on the candidate: actual >8k body/anchor/brief, honest no-grounding record, and two saved/acknowledged settled cards with duplicate-accept protection. It currently uses two explanations and manually proposes step two; it does not alone prove table delivery, selected-section planner context, R6 automatic successor, retained safety behavior or quote equality.
 - [ ] Add only the missing integrated cases: one table through the same author/publication path, selected teaching scope with full document, and the existing R6 `card_delivered` auto-offer enabled. Before accepting step two, assert the offer is metadata only with no author call, authorization or debit. Preserve manual Propose next step, Cancel/End and Ask/Auto-suggest controls.
@@ -532,17 +535,11 @@ Lead owns `LearnPage.jsx`, Chat route/message contracts and any shared store/mig
 
 **Verification:** existing `card-feedback.test.mjs`, `card-feedback-render.test.mjs`, `learn-progress-feedback.test.mjs`, `roadmap-auto.test.mjs`, `roadmap-controller.test.mjs` and control-plane `roadmap-auto-proposal.test.js`. Assert one metadata proposal/Chat entry per successor, no author before acceptance, no successor before durable save+ack, both Next card buttons collapse into one operation, safety stop, final completion and quiet background arrival.
 
-### 4.4 Browser acceptance — separate from offline Node tests
+### 4.4 Owner manual production UI acceptance — after local backend tests
 
-Implementation must extend the existing local harnesses, with paid/model routes intercepted or denied. This Markdown edit performs no browser, production or paid test. A local fixture is not live provider or deployment evidence.
+Claude Code must first complete [section 8.0](#80-required-local-backend-flow-tests-before-manual-production-checking) and provide the passing backend receipt. This UI matrix is then the owner's manual checking reference on the deployed main app. Claude must not substitute a request for owner browser testing for local source, request, state, money or persistence tests. No Playwright, Chromium, browser MCP or local browser harness is commissioned for this stage; the old local setup is retained only in section 8.2 for a later explicitly requested use.
 
-~~~sh
-BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node packages/web/e2e/roadmap-command-check.mjs
-BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node packages/web/e2e/roadmap-mvp-check.mjs
-BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node packages/web/e2e/depth-settings-command-check.mjs
-BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node packages/web/e2e/source-ref-command-check.mjs
-BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node packages/web/e2e/card-feedback-command-check.mjs
-~~~
+Use ordinary supported actions for manual production review. Reproduce failure injection, races, revoked access and save/ack loss in the local backend tests; do not ask the owner to cause production outages or repeatedly purchase cards to uncover those defects. Record which visible states were actually observed, and leave unobserved UI behavior unverified.
 
 | Scenario | Required observed result |
 | --- | --- |
@@ -563,7 +560,7 @@ BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node packages/web/e2e/
 | Next card and completion | Same pending step in Chat and bottom-fixed canvas Next card / Cancel; pill stays visible during scroll/pan/zoom and beside resized Chat; no pill beside the card; either acceptance generates once with no second Accept; Cancel preserves delivered cards; only after saved ack; quiet arrival; no final extra proposal |
 | Feedback / theme / reduced motion | Existing hover/focus-only thumbs and separate Progress; legible light/dark tokens; status remains understandable without animation |
 
-Record candidate SHA, exact commands/nonzero cases, persisted thread/message IDs, request/author/debit counts, geometry before/during/after, screenshots/video, and limitations. SSR/class assertions alone do not prove conversation ownership, scroll containment, placement or save timing. Check the corresponding boxes only after source and appropriate behavior evidence exist on the pushed candidate.
+Before the manual review, record the backend receipt required by section 8.0. During the owner's later manual check, associate the deployed SHA/build with the visible results and any geometry/screenshots the owner supplies. Backend evidence does not prove physical scroll containment, focus behavior, placement or appearance. Check each implementation/verification box only against the appropriate evidence; do not mark manual production acceptance from a Node result.
 
 
 
@@ -2020,6 +2017,92 @@ Extend or add exact archive-backfill/join-free/drop-window tests when those scri
 
 ## 8 Local verification and direct production release
 
+### 8.0 Required local backend flow tests before manual production checking
+
+**Order and responsibility:** Claude Code owns this local test stage. Complete it before asking the owner to open the deployed app for manual review, including when the candidate has already been deployed. If the deployed source differs from the locally tested source, identify that difference and test the actual candidate before making a readiness claim. The owner checks appearance, interaction and real lesson usefulness afterward; the owner is not the backend regression runner.
+
+**Scope:** the current supported Markdown → Chat roadmap → first card → automatic/manual next proposal → second card flow, including its edits, persistence, billing and failure branches. This is required focused integration evidence, not an all-R7–R16 gate or a request to implement every optional tool. This section overrides the earlier requirement to run local browser automation for this MVP handoff. Do not launch a browser, use Playwright/Chromium/CUA, create a preview deployment or point seed/reset fixtures at production to satisfy it. No live model/API spending is required or authorized by this test section.
+
+#### 8.0.1 Use the real local backend seams
+
+At the inspected main `72d6536657af269bb894511220975fd2254246ed`, the starting point exists: `packages/control-plane/test/roadmap-document-context.test.js`, `roadmap-loop-fixture.js`, `roadmap-fixture.js`, `roadmap-routes.test.js`, `chat-persist.test.js` and `canvas-chat-threads.test.js`. Confirm their current interfaces on the implementation candidate before editing them.
+
+The loop fixture calls the real `roadmapRoute`, `roadmapDeps`/registered handlers, source reader, planner/generator glue, `generateArtifact`, `spendTransport`, state store and money logic with a disposable SQLite/D1-compatible database. It doubles external planner/provider/classifier transports, session identity and R2 bytes. This is an appropriate starting boundary. Its `models()` records role names but not complete planner request bodies; extend the capture to assert the actual planner input. Its current `deliverAndAck()` writes the board by SQL directly; that proves a stored record, not the ordinary board-save API. Add route-level persistence coverage for the integrated acceptance case rather than treating that helper as full save-route proof. The current Chat message feedback route tests do not prove Tutor lifecycle metadata persistence; extend the real thread/message write/read seam.
+
+- [ ] **BE.00 — Prepare one reproducible local fixture.** Use the repository lockfile and Node 24 (`node:sqlite` is required); log `node --version` and the exact candidate SHA. Use disposable local data and synthetic Markdown longer than 8,000 but at most 40,000 characters, a distinctive fact well outside the highlighted range, at least two different planned steps, an explanation and a table, two users/boards, and fresh/occupied/draft-only Chat fixtures. Give each source revision, thread, plan, proposal, operation, result and card a distinct traceable ID. Deny unexpected network/provider calls and record counters; never print keys or private source text. Apply candidate local schema/migrations to this fixture; use local workerd/D1 via API tests only if a changed runtime/transaction behavior cannot be represented faithfully by the Node adapter. Do not require an unnecessary server stack for in-process route tests.
+
+**Test doubles are limited to the outside.** Script valid/invalid/timeout/refusal provider responses, classifier results, transport latency and synthetic source bytes. Keep the real input assembly, route/version validation, source-access checks, SQL persistence, authorization/allowance, result validation, settlement, events/outbox and delivery reconciliation. A fabricated final roadmap/card/status returned before those modules run is not the flow test. Spy on the actual serialized planner and author requests and read the resulting database rows. Seed data through fixture helpers; perform the workflow under test through its production routes/services. Test the ordinary board-save and Chat write/read paths, not only direct table insertion. Existing fixture model/budget constants are test inputs, not proof of the production model or allowance; separately assert the candidate's production resolver/config selection with safe overrides and no live call.
+
+#### 8.0.2 Required flow cases and assertions
+
+Extend the named existing suites and use one integrated route-level fixture for the sequence. Each item is required for its supported current MVP branch; report an unimplemented branch as failing/incomplete rather than replacing it with a mock success. Unsupported optional formats/practice/long-source capabilities stay honestly disabled and outside the ordinary core gate.
+
+- [ ] **BE.01 — Drop acknowledgment and conversation choice (UI.01).** Simulate successful source import in fresh, existing-message and draft-only conversations, including an unsaved `.new` draft and attachments. Hold source-body reading/planning unresolved and assert that the receipt/choice message can already be persisted, with zero planner/author calls or learner debit. Start new chat creates a distinct durable destination while retaining the old draft/history; Stay here keeps that thread. The Explain invitation appears once in the selected thread, after the occupied-chat choice. Replay/drop duplication, multiple drops, thread switch and reload retain the original source→thread binding; Just keep it here creates no roadmap purchase. Use actual Chat write/read storage plus pure thread/draft helpers; opening the panel visually remains the later manual check.
+
+- [ ] **BE.02 — Whole-context planning and selected teaching scope (CORE.02, UI.03).** Explain invokes the real source reader and planner request constructor. Assert full exact pinned Markdown and the outside-highlight marker, filename/source revision, original learner instruction, selected teaching scope, language, Depth and mode reach the serialized planner request. Test whole content and selected passage without clipping context; the selection remains its own stable anchor. Draft creation, parameter changes and plan acceptance have zero artifact-author calls and no learner card authorization/debit. An unreadable/missing, changed or over-limit source is rejected/qualified honestly; no fabricated full-read status.
+
+- [ ] **BE.03 — Roadmap edits, revision guards and practice readiness (UI.03, R5).** Change Depth/scope/mode and submit typed Edit roadmap before acceptance; assert updated canonical parameters/instruction history and refusal of stale or out-of-order draft acceptance. After a delivered first card and an accepted in-flight card, editing creates a separate unaccepted future revision; accepted ToC, frozen author inputs, saved cards and costs stay unchanged until reacceptance. Dismissing edit targeting preserves the ordinary unsent draft/attachments in the pure composer state model. Reject unqualified practice at the server capability boundary as well as disabling its projected action; never silently accept practice and deliver explanations only.
+
+- [ ] **BE.04 — Accept roadmap and accepted-only ToC (UI.02–03).** Accept the confirmed version through the real route. Assert exactly one immutable accepted plan/settings snapshot and one first metadata proposal, no author dispatch/card charge, accepted-only outline projection and preserved manual heading identities/done/fold state. Repeated plan acceptance is idempotent. Draft revisions do not leak into the accepted projection. The Chat confirmation/navigation action targets this same accepted tree; navigation invokes no mutation/provider/debit. Use pure outline/route tests to establish data behavior; container styling remains manual.
+
+- [ ] **BE.05 — First proposal and one guarded acceptance (CORE.03–05, UI.04–05).** Assert the pending payload supplies the same proposal/version, title, description, format, exact source excerpt, message/slot identity and placement to Chat/canvas projections. Send the same production accept payload via independent simulated Chat and canvas callers; a pure controller test maps eligible Tab to that payload and excludes composer/settings/editing/IME/repeat contexts without using a browser. Test repeated same-key acceptance, distinct keys racing on the same proposal, two sessions, stale version and Cancel/Edit races. Only the canonical winner can create one authorization/result and one billable author dispatch; do not rely on disabled CSS controls or only same-key replay.
+
+- [ ] **BE.06 — Actual author request and both output formats (CORE.03–07).** Run the real generation and validation pipeline for an explanation and a table. Capture each serialized author request and assert whole pinned Markdown including the distant marker, accepted outcome/step/claims, original and accepted edits, format, language, Depth and proposal version. Each accepted card uses exactly one ordinary content-author call, no ordinary citation-review/escalation/content-repair or automatic author retry; the grounding record is `not_run`, not `passed`. Preserve applicable schema, access and safety checks. Test malformed output, incorrect tool/format and returned model mismatch against the candidate's actual policy. Do not insert a ready-made card in place of running the generator.
+
+- [ ] **BE.07 — Real reservation, debit and settlement (CORE.04–06).** Assert request-budget/aggregate allowance checks precede dispatch, one hold/authorization/action identity per accepted card and a bound covering the actual serialized request. Planning/proposal review/navigation/next metadata do not spend the learner's card allowance. Duplicate acceptance/polling/restore adds no debit. Insufficient credits/oversized request returns a truthful non-started state with zero author calls; known failed generation releases/refunds as applicable once; unknown outcomes remain reconciling without a second author call. Read holds, usage actions, result/billing rows and totals; do not assert a hardcoded price divorced from configured request bounds.
+
+- [ ] **BE.08 — Same identity, board save, acknowledgment and reload (CORE.07, UI.04/06).** Follow the actual deliver/result entitlement and normal board-save API/service, then acknowledgment in order. Read the board back through its authorized path and restore the roadmap/message state from fresh local client/controller instances. Assert exact server-minted result/card ID, source relationship, persisted slot top-left/width and accepted edited title across pending→accepted→generating→generated→saved→acknowledged. Inject failed save and lost save/ack responses: no premature ack, ready message or successor; reconcile the same existing card/result without another generation/debit or duplicate board block. Distinguish a generated output from a board-saved/acknowledged delivery. Node evidence proves stored geometry/state, not a frame's physical continuity on screen.
+
+- [ ] **BE.09 — Durable Chat lifecycle and late events (UI.01/04/08).** Create/read/update real persisted Tutor metadata using the thread/message endpoints and their authorization checks. Assert one logical Chat entry per card advances through pending/accepting/generating/checking-if-applicable/saving/ready or failure; duplicate outbox/poll events do not append copies or regress a ready entry. A delayed result after switching threads is saved to its original thread. Restore activity, edit target and card/source IDs from storage; do not test only a transient `RoadmapChat` strip or a client-only array. Preserve older history and unsent drafts. Validate metadata round-trip and isolation, not just a feedback side-table migration.
+
+- [ ] **BE.10 — Automatic next offer and actual second card (CORE.07, UI.08, R6).** Enable the candidate's real automatic delivery/event handlers and Auto-suggest policy. Acknowledging the first saved card causes exactly one checked next metadata proposal; before its acceptance, author calls remain one and no second card hold/debit exists. Double delivery/outbox events converge on that same offer. Next card uses the ready proposal's existing accept route once, directly, without Propose then another Accept. Generate, save, acknowledge and restore a **second distinct card** with its own accepted context, source anchor and message, preserving the first card and original highlight. Assert two author dispatches total, two distinct settled results/card IDs and two learner card-action identities, with no extras. A cancelled second offer is not proof that a second card can be generated.
+
+- [ ] **BE.11 — Manual pacing, cancellation, end and finite completion (UI.08, R6).** Test Ask, Auto-suggest off, explicit pause/Cancel and End. Explicit drop/Explain/Accept roadmap/eligible card acceptance work without changing those settings; unsolicited successors do not. Propose next step creates metadata only, then Next card directly accepts the ready subsequent offer. Cancel before acceptance removes only that pending offer and pauses automatic progression, with zero new author/debit; delivered cards remain. Accepted work survives a losing Cancel/end race. Final delivery/accepted ceiling yields completion with no extra offer. The projected bottom pill targets the current eligible proposal and is absent/disabled when stale/busy/no offer/end/final; its physical bottom placement/scroll visibility is checked manually later against [02](ui/02-canvas-card-skeleton.html).
+
+- [ ] **BE.12 — Terminal failures, refusals and uncertain outcomes (CORE.04/06, UI.04/08).** Inject provider 4xx/5xx/timeout, validly classified safety refusal, classifier unknown and save/ack faults locally. Assert truthful stage/error plus original slot/message/result identity, applicable single settlement/refund and zero ordinary automatic author redispatch. Retry/Replace/Omit/recovery-strip actions are not advertised or newly purchasable for this ordinary flow. A safety refusal stops automatic successors; an ordinary failed/skipped step can continue only after settled state and the actual prerequisite/automatic policy decision. Reconcile uncertain outcomes before any further dispatch. Update superseded ordinary-flow recovery tests; preserve legitimate unrelated/platform retry policies.
+
+- [ ] **BE.13 — Source anchors, placement data and invalidation (CORE.02, UI.06–07).** Test exact source revision/range/quotation and source↔card IDs for both delivered cards, repeated/ambiguous quotations, Markdown raw/rendered offset distinctions, multiple card targets, replacement/deletion and revoked access. Reject guessed/dead/unauthorized targets while preserving delivered card/history. Pure placement tests may use supplied world rectangles to test collision avoidance, left/right/above/below choices and saved geometry, including occupied bounds/pill reserves; do not call that a browser measurement. Scroll/pan state must not mutate frozen source scope/context or reassign existing slot geometry. No source-text rewrite may destroy the first card's anchor when the second is offered.
+
+- [ ] **BE.14 — Access, entitlement and private projections (CORE.05, UI.01–08).** Use missing identity, second user/board/thread, forged proposal/result/card IDs and source revocation. Assert route-appropriate 401/403/404/409 or actual documented denial without author/hold/charge or access to private payloads; assert exact error contract on the candidate instead of treating every response as a generic failure. Unaccepted/unentitled bodies, private roadmap metadata, drafts and evidence do not leak via status/share/fork/export/thumbnail projections. Authorized restore/navigation works after flag/state changes according to current entitlement policy. Preserve unrelated source material/manual ToC data.
+
+#### 8.0.3 Extend existing tests and run exact non-browser commands
+
+**Integrated test target:** extend `packages/control-plane/test/roadmap-document-context.test.js` for the two-card context path. For missing cross-route Chat→roadmap→board persistence coverage, add **NEW/proposed** `packages/control-plane/test/roadmap-workflow.test.js` only if an equivalent integrated file is not already on the candidate. Reuse `roadmap-loop-fixture.js` and current board/Chat route fixtures, adding external request capture and fault injection. Never create a second mocked roadmap implementation. At the inspected baseline the proposed workflow file does not exist; create/import/register it through the existing test mapping before running its command. If an equivalent current file is used, put its exact path in the receipt and substitute that actual file below. A missing file, skipped file, zero-case pass or the original three tests alone is not completion of BE.01–14.
+
+From repository root, with lockfile dependencies installed and Node 24, run the relevant existing tests while developing, then the affected groups once on the final integrated candidate. These filenames exist at the pinned main; recheck them on a later candidate and record intentional replacements rather than executing deleted paths.
+
+```sh
+# Source/context, planning, edits and request construction
+node --test packages/control-plane/test/roadmap-source.test.js packages/control-plane/test/roadmap-source-reader.test.js packages/control-plane/test/roadmap-source-version.test.js packages/control-plane/test/roadmap-plan.test.js packages/control-plane/test/roadmap-planning.test.js packages/control-plane/test/roadmap-proposal-drafts.test.js
+
+# Real route/generator/lifecycle and first + second saved cards
+node --test packages/control-plane/test/roadmap-routes.test.js packages/control-plane/test/roadmap-loop.test.js packages/control-plane/test/roadmap-glue.test.js packages/control-plane/test/roadmap-document-context.test.js packages/control-plane/test/roadmap-generate.test.js packages/control-plane/test/learn-artifact.test.js
+
+# Holds, settlement, failures, event replay and successor policy
+node --test packages/control-plane/test/roadmap-money.test.js packages/control-plane/test/roadmap-store.test.js packages/control-plane/test/roadmap-policy.test.js packages/control-plane/test/roadmap-safety.test.js packages/control-plane/test/roadmap-withheld.test.js packages/control-plane/test/roadmap-recovery.test.js packages/control-plane/test/roadmap-events.test.js packages/control-plane/test/roadmap-auto-events.test.js packages/control-plane/test/roadmap-auto-proposal.test.js
+
+# Real local Chat/board/source/privacy persistence seams
+node --test packages/control-plane/test/chat-persist.test.js packages/control-plane/test/canvas-chat-threads.test.js packages/control-plane/test/learn-boards.test.js packages/control-plane/test/canvas-persistence.test.js packages/control-plane/test/source-refs.test.js packages/control-plane/test/roadmap-privacy.test.js
+
+# NEW: run only after creating the actual integrated route-level test described above
+node --test packages/control-plane/test/roadmap-workflow.test.js
+
+# Pure Node client/controller/state tests: no browser process
+node --test packages/web/src/roadmap-client.test.mjs packages/web/src/roadmap-controller.test.mjs packages/web/src/roadmap-auto.test.mjs packages/web/src/roadmap-view.test.mjs packages/web/src/roadmap-canvas.test.mjs packages/web/src/roadmap-integration-wiring.test.mjs packages/web/src/chat-persist.test.mjs packages/web/src/chat-threads.test.mjs packages/web/src/chat-draft.test.mjs packages/web/src/learn-outline-model.test.mjs packages/web/src/source-refs.test.mjs packages/web/src/learn-settings.test.mjs packages/web/src/settings-model.test.mjs
+
+# Build the final UI candidate; this does not launch or verify a browser
+npm --prefix packages/web run build
+```
+
+Do not run `npm test --workspace=web` or the web package's generic `npm test` here: they invoke Playwright. Do not make a full unrelated suite/preview gate mandatory. Run `node --test scripts/schema-check.test.mjs` if the actual candidate adds/changes schema, and `node --test scripts/ci/check-map.test.mjs` if its test mapping changed. If local workerd/D1 is needed for changed SQL/runtime behavior, use the existing supported local API runtime with disposable state and denied provider egress; report the exact command and assertions, with no browser and no remote migration.
+
+#### 8.0.4 Receipt and handoff rule
+
+- [ ] **BE.15 — Produce the local results before requesting manual production checks.** Record the exact implementation candidate SHA/tree, Node version, commands, per-file/nonzero test counts, exit codes, all BE.00–14 case names and their actual pass/fail evidence, fixture source hash, request/context captures with synthetic markers, thread/message/plan/proposal/result/card IDs, both saved board states, author-role counts and hold/debit/refund totals. State exactly where external doubles were used. Record a local runtime test when required, or explain why the Node adapter covers the changed persistence behavior. Include build success and any skipped/unavailable check; mark missing evidence `not run`, never passed. No new receipt framework is needed: use the task/release receipt from section 9.2.
+- [ ] **BE.16 — Fix blockers locally and hand over the matching deployment.** Resolve required backend failures, wrong/missing context, duplicate operations/charges, lost Chat/card data, access leaks and save/ack errors before saying the flow is ready for the owner's manual check. Retain the regression and rerun only affected failed/changed tests plus the integrated flow on the repaired candidate. An already deployed backend defect is still Claude's problem to reproduce and fix locally; do not ask the owner to keep retrying it in production. Follow the existing authorized release path for a code fix; this documentation update deploys nothing. Before handoff, identify the served app/control-plane SHA/build and enabled subset and its relationship to the locally tested SHA. If a runtime/candidate mismatch prevents this proof, report that blocker instead of a readiness claim.
+
+**Only then ask the owner to check the deployed main UI.** Provide the deployed link/build, backend receipt and a short manual sequence: drop into the intended fresh/occupied Chat; choose destination; Explain; inspect **Roadmap parameters / Roadmap draft** and one edit; Accept roadmap; open the approved ToC; accept the first skeleton; inspect generation/highlight navigation; scroll and use bottom-fixed **Next card / Cancel**; generate and reload the second card without losing the first. Use separate manual runs as necessary for mutually exclusive Cancel/Next actions. Never ask the owner to repeat backend fault injection. Link [01](ui/01-table-of-contents.html), [02](ui/02-canvas-card-skeleton.html) and [03](ui/03-chat-roadmap.html) as the visual references. Appearance, focus/keyboard behavior, physical geometry, real provider quality and owner's acceptance remain honestly separate from the local backend pass.
+
 ### 8.1 Evidence tiers and the first two cards
 
 | Evidence | Required use | What it does not establish |
@@ -2027,15 +2110,17 @@ Extend or add exact archive-backfill/join-free/drop-window tests when those scri
 | Source/contract inspection | Name current files, configured roles/flags and exact changed seam. | That tests ran, flags are deployed, or a learner flow passed. |
 | Deterministic Node tests | Real source/plan/generator/state/money/entitlement modules, scripted external responses, actual request/ledger assertions. | Model quality, D1-only runtime limits or physical browser layout. |
 | Local workerd/D1 test | Exercise changed SQL/runtime behavior where sqlite doubles cannot represent production. | Live account credentials or external provider behavior. |
-| Keyless local browser fixture | Current DOM, canvas transform, focus, intermediate states, source scroll, persistence and replay. | A real generated explanation; the fake roadmap server is explicitly a fake. |
+| Local browser fixture (reference only for this handoff) | May supply DOM/geometry evidence if separately requested later; not required by section 8.0. | A backend gate pass, real generated explanation, owner production acceptance or permission to run browser automation now. |
 | Authorized real model test | Actual requested/served model, content/usefulness, call count, latency and real costs for a small representative case. | All future source types/formats or untested edge cases. |
 | Deployment/smoke | Served SHA/build/flags and application/feature access behavior. | An authenticated two-card outcome if only signed-out HTTP was exercised. |
 
 For the immediate sprint, `roadmap-document-context.test.js` is the existing server two-card starting point. Extend it for the accepted version, actual production model/body quotation, selected-scope planner input, output table case and no automatic author retry. Do not replace it with a provider stub that bypasses `generateArtifact`. Keep the body/source synthetic in checked-in fixtures; inspect private user records only through authorized, redacted diagnostics.
 
-The actual UI acceptance trace must show intermediate states, not just start/end screenshots: pending → accepting → generating → applicable checking → actual body → board saved → acknowledgement → next proposal. Assert the same slot/card identity, world top-left and width throughout. Generate **both** cards; cancelling the second does not prove it can be generated. Reload after each saved delivery and verify no extra model operation, debit or card. Include one terminal failed/skipped generation, one safety-refusal stop and one lost-save/ack case with correct same-slot and Chat state; no ordinary Retry purchase.
+After section 8.0 passes, the owner’s manual production UI check observes the normal intermediate states; a backend receipt or start/end screenshots alone cannot establish them: pending → accepting → generating → applicable checking → actual body → board saved → acknowledgement → next proposal. Assert the same slot/card identity, world top-left and width throughout. Generate **both** cards; cancelling the second does not prove it can be generated. Reload after each saved delivery and verify no extra model operation, debit or card. Inject terminal failed/skipped generation, safety-refusal stop and lost-save/ack cases locally in BE.08/12; no ordinary Retry purchase. Do not make the owner induce production faults to prove those backend branches.
 
-### 8.2 Exact keyless local browser setup
+### 8.2 Optional local browser setup — reference only, not the pre-handoff gate
+
+**Not commissioned for the current test stage.** Section 8.0 and the owner’s subsequent manual production review govern this handoff. Keep the commands below as existing infrastructure documentation only; run them only if the owner later explicitly requests browser automation. They are not a dependency for completing the required backend tests.
 
 Use the existing **local** Linux/Git Bash-compatible test infrastructure, not a Cloudflare clone deployment. `scripts/ci/stack.sh` is documented for Linux; on Windows use an available compatible local runtime or the existing narrowly selected runner rather than claiming an unrun check passed. Node unit tests remain independently runnable in the repository's supported Node environment. Do not wait for the owner to click through every state if local fixture evidence is available.
 
@@ -2068,18 +2153,18 @@ Existing `scripts/ci/run-part.sh <selection.json> <output-dir>` can run a delibe
 
 - [ ] Read current main and candidate diff; integrate only the selected complete fix/capability. Pin SHA/tree/build and actual enabled flags. Keep independent later branch work out of this frozen candidate.
 - [ ] Compare all imports, route mounts, environment bindings and required migrations. Check existing file classifications; register genuinely new executable/test files with the smallest relevant mapping. Follow the deletion-aware selector/runner rule in section 7; do not retain a registration that executes a deleted file.
-- [ ] Run affected local unit/contract checks and successful build once on the final candidate. Repeat only if relevant changes/failures warrant it. Record nonzero test counts and skipped/unavailable checks honestly.
+- [ ] Complete section 8.0’s required local backend flow cases and successful build once on the final candidate before requesting owner manual production checks. Repeat only if relevant changes/failures warrant it. Record nonzero test counts and skipped/unavailable checks honestly.
 - [ ] Separate blockers from nonblocking inbox items. No release dependency on optional tools, unrelated cleanup drop, mockup completion or full broad CI/gate.
 
 **Receipt:** exact diff/files, candidate identities, affected checks/results, actual migration/flag prerequisites, and recovery target. No “green” shorthand that hides known feature failures.
 
-### 8.4 REL.02 Verify the complete supported current UI
+### 8.4 REL.02 Verify the supported flow locally before owner UI acceptance
 
-**Owner:** independent Verifier, with the implementer supplying an executable fixture. **Depends:** only current changed feature behavior. **Models:** local doubles.
+**Owner:** Claude Code/Verifier, with the implementer supplying an executable backend fixture. **Depends:** section 8.0 for current changed feature behavior. **Models:** local external doubles; no browser for this pre-handoff stage.
 
-- [ ] Run the relevant UI.01–08 matrix against the current candidate bundles. Capture fresh/occupied/draft-only thread choice, persisted Chat entries/edit pills/parameters, accepted-only ToC, slot/pill dimensions and intermediate states, passage-relative collisions/backlink icons, Tab exclusions, source scrolling, save/reload and the second card.
+- [ ] Run BE.00–16 against the current candidate’s real backend/routes and pure Node state/controller seams. Prove persisted conversation/version/context/entitlement/geometry data, first and second saved cards, next policy, races and failure reconciliation. After the receipt passes, the owner checks visible UI.01–08 behavior on deployed main; no agent-run browser or preview is required for this stage.
 - [ ] Verify current request/response and persisted data, not only screenshots. Stale/duplicate action cases must have one winner and one charge identity; hidden/unapproved body never enters the visible or shared surface.
-- [ ] If a browser/runtime is unavailable, record the exact missing tier and retain passing lower-tier evidence. Continue independent work; do not claim browser acceptance or demand repeated manual owner testing of a reproduced backend error.
+- [ ] Record local runtime blockers precisely and keep required backend evidence incomplete until resolved; continue independent fixes. Browser availability does not block this Node/backend stage. Leave visual/production acceptance to the owner’s later check and never demand repeated manual testing of a backend error Claude can reproduce locally.
 
 **Receipt:** candidate/build, commands and nonzero assertions, screenshots/geometry/state records, zero unexpected paid calls, unresolved failures. Reuse valid existing evidence for unchanged paths.
 
@@ -2128,6 +2213,8 @@ node --test scripts/mvp-fast-path.test.mjs scripts/prod-release.test.mjs
 ## 9 Actions, expected results and completion record
 
 ### 9.1 Required test assertions by learner action
+
+The backend/storage/charge assertions below must pass locally under [section 8.0](#80-required-local-backend-flow-tests-before-manual-production-checking) before owner production review. The visible expectation column is then checked manually on deployed main; do not treat a mocked route or Node class assertion as visual acceptance.
 
 | Action | Visible expectation | Backend/storage/charge assertion | Owning tasks |
 | --- | --- | --- | --- |
@@ -2179,8 +2266,11 @@ Commands run; nonzero case counts; failures/skips:
 Actual model/provider/call counts if exercised:
 Source/plan/proposal versions and context coverage:
 Charge/hold/refund evidence if exercised:
-UI geometry/focus/save/reload evidence if exercised:
-Deployment identity and functional acceptance (separate):
+Local backend flow cases BE.00–16, commands/nonzero counts and result:
+First/second card IDs, real board-save/ack/Chat persistence and model/ledger counters:
+UI geometry/focus/save/reload evidence if exercised (owner manual UI, separate):
+Deployed app/control-plane SHA/build versus locally tested candidate:
+Deployment identity and owner functional acceptance (separate):
 Blocking issue, or nonblocking OWNER-INBOX item and next action:
 ```
 
