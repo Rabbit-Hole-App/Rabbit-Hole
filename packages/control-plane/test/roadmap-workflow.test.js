@@ -209,7 +209,7 @@ test('BE.03 roadmap edits, revision guards and practice readiness (UI.03, R5)', 
     const stale = await h.send('alice', 'POST', `/api/learn/roadmap/${before.roadmap.id}/accept-plan`, { boardId: h.boards.alice, revision: (await status(h)).roadmap.revision, planVersion: before.roadmap.acceptedPlanVersion, actionKey: KEY('old-plan') });
     assert.equal(stale.status, 409, 'accepting the superseded plan version is refused');
     const reaccepted = await acceptPlan(h, await status(h), { key: 'replan' });
-    assert.equal(reaccepted.status, 200, 'reacceptance publishes the new plan');
+    assert.equal(reaccepted.status, 200, `reacceptance publishes the new plan ${JSON.stringify(reaccepted.body).slice(0, 300)}`);
     assert.equal(reaccepted.body.acceptedPlan.version, after.planDraft.version);
     assert.equal(h.rows("SELECT state FROM learn_roadmap_steps WHERE state = 'delivered'").length >= 1, true, 'delivered work keeps its step');
   });
@@ -411,7 +411,7 @@ test('BE.06a Tutor Explanation authoring, saved output and caps (CORE.09)', asyn
     const view = await started(h);
     assert.equal((await acceptCard(h, view, 'accept1')).status, 202);
     const changed = await h.route('alice', routes.revise(await status(h), { settings: { depth: 'deep' } }, KEY('depth')));
-    assert.equal(changed.status, 200, 'Depth changes on the active roadmap');
+    assert.equal(changed.status, 202, 'a Depth change on the active roadmap re-plans (be contract: always 202 and a new draft)');
     await h.run();
     assert.equal(h.authorCalls.length, 1);
     assert.match(h.authorCalls[0].text, /Depth: standard/i, 'the frozen accepted Depth');
