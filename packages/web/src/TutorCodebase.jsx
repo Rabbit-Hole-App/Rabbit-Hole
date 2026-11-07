@@ -12,7 +12,7 @@ import { FileCode } from 'lucide-react';
 import { api } from './api.js';
 import { codeRef } from './chat-sources.js';
 import { coachingCanvas } from './learn-coaching-client.js';
-import { CODEBASE_GOALS, CODEBASE_PROMPT, EVIDENCE_LABEL, NOT_RUN_NOTE, OMISSION_TEXT, QUESTION_LABEL, SOMETHING_ELSE, goalOf, isCitation, isRepositorySource, linesText, showCodebaseMenu, sourceLabel, startSource } from './learn-codebase-goals.js';
+import { CODEBASE_GOALS, CODEBASE_PROMPT, EVIDENCE_LABEL, NOT_RUN_NOTE, OMISSION_TEXT, QUESTION_LABEL, SOMETHING_ELSE, goalOf, isCitation, isRepositorySource, linesText, sourceLabel, startSource } from './learn-codebase-goals.js';
 
 const CHOICE = 'cursor-pointer rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-ink hover:bg-hover disabled:cursor-default disabled:opacity-50';
 const CHIP = 'inline-flex max-w-full cursor-pointer items-center gap-1 rounded-full border border-line bg-white px-2 py-0.5 text-xs font-medium text-ink hover:bg-hover';
@@ -59,7 +59,9 @@ export function useTutorCodebase({ chat, entry, typing = false }) {
     return () => { live = false; };
   }, [chat.canvas, wanted]); // eslint-disable-line react-hooks/exhaustive-deps
   const repository = info?.key === chat.canvas ? info.repository : null;
-  const menu = showCodebaseMenu({ entry, repository, dismissed: dismissed === chat.canvas, typing });
+  // Retired with the welcome entry it stood in for (owner 2026-11-06, Fix B I1: "always hide. this is old UI"): the menu is never shown. A saved codebase
+  // activity, its sources, drift and returns stay. ponytail: the menu's view and start() stay below, unused, so the retirement is one line to undo.
+  const menu = false;
 
   const start = async (goalId, text) => {
     setBusy(true); setNote(null);

@@ -132,3 +132,13 @@ test('a card already placed is never re-added as a second skeleton while the vie
   assert.deepEqual(planSlots([], liveCards([generating], id => placed.has(id))), { add: [], update: [], remove: [] });
   assert.equal(liveCards([generating], () => false).length, 1, 'not placed yet: kept');
 });
+
+test('a kept place belongs to one offer: the same proposal or its accepted work keep it, a re-proposal after Cancel is placed afresh', async () => {
+  const { keepsSpot } = await import('./roadmap-canvas.js');
+  const kept = { x: 600, y: 40, proposalId: 'pr_a' };
+  assert.equal(keepsSpot(kept, { proposalId: 'pr_a' }), true, 'Ask or the editor and back: same place');
+  assert.equal(keepsSpot(kept, { resultId: 'rs_1' }), true, 'its generation and delivery: same place');
+  assert.equal(keepsSpot(kept, { proposalId: 'pr_b' }), false, 'a new proposal after Cancel: placed fresh');
+  assert.equal(keepsSpot(null, { proposalId: 'pr_a' }), false);
+  assert.equal(keepsSpot({ x: 1, y: 2, proposalId: null }, { proposalId: 'pr_b' }), true, 'a place first made for accepted work (after a reload) is kept');
+});

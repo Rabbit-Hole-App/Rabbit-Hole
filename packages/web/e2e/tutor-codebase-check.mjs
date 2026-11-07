@@ -4,10 +4,9 @@
 // repo-canvas-cards-check does (the invented TaskBoard and Ledger repositories, control-plane/test/learn-codebase-fixtures.js).
 // Everything after that is the real app and server. Every model-capable request is aborted and counted (none may happen);
 // /api/learn/ask is answered by a script so a typed question can be sent. Prints no secrets.
-//   1. A project canvas in Tutor (On) offers the five goals, Learn something else, Continue my own work and Not now; opening
-//      it reads no source and calls no model.
-//   2. Learn something else returns the general welcome. A typed unrelated question skips the menu and carries no code.
-//   3. Understand a feature: the clarifying question, then one saved activity: a titled teaching question with no commit hash,
+//   1. A project canvas in Tutor (On) shows no codebase menu (retired with the welcome entry, owner 2026-11-06); opening it reads no source and calls no model.
+//   2. A typed unrelated question carries no code.
+//   3. Understand a feature (started through the codebase route, as the retired menu did): one saved activity: a titled teaching question with no commit hash,
 //      path or line range (owner brief 2026-10-21), Start here and More relevant code (2) as chips, and a collapsed Source
 //      details with the exact commit, file hashes, Not run here, tentative inferred links and the listed omissions (no secret
 //      shown); two code cards placed; the entry choices are gone.
@@ -26,7 +25,7 @@
 //  10. Light, dark and a narrow panel: the activity card fits with no horizontal overflow.
 //  11. A second, differently built repository: Prepare to contribute starts from its docs, manifest and tests; Try another
 //      question gives the next question on the same sources.
-//  12. Tutor Off shows no codebase menu; Not now keeps it away across a reload.
+//  12. No codebase menu with Tutor On, Off, or after a reload.
 // Usage: BASE=http://127.0.0.1:9381 SMALL_CP=http://127.0.0.1:9383 VARS=<stack .dev.vars> PERSIST=<stack>/local
 //   D1_CONFIG=<stack>/fu-integ-local-cp.jsonc [WRANGLER_BIN=<wrangler.js>] node e2e/tutor-codebase-check.mjs [outDir]
 import { chromium } from '@playwright/test';
@@ -125,34 +124,37 @@ const sources = () => page.locator('[data-codebase-sources]');
 const card = () => page.locator('[data-tutor-activity-card]');
 const pickMode = async label => { await pane().getByRole('button', { name: 'Mode', exact: true }).click(); await page.getByRole('menuitemradio', { name: new RegExp(`^${label}`) }).click(); await page.waitForTimeout(350); };
 const open = async name => { await page.goto(`${BASE}/apps/${name}`); await pane().waitFor({ state: 'visible', timeout: 60000 }); await field().waitFor({ timeout: 30000 }); await page.waitForTimeout(1500); };
+// The codebase entry menu is retired (owner 2026-11-06, Fix B I1). An activity is started as the menu started one: POST /api/learn/codebase on the current coaching
+// revision, then the first two cited source files placed as code cards (the same small:code-card events), after a reload that shows the saved activity.
+const startActivity = async (canvas, goal, question = '') => {
+  const state = (await api(`/api/learn/coaching?app=${canvas}&board=main`)).state;
+  const out = await api('/api/learn/codebase', { method: 'POST', body: JSON.stringify({ app: canvas, board: 'main', actionId: `cb-${run}-${Math.random().toString(36).slice(2)}`, expectedRevision: state?.revision ?? 0, action: 'start', goal, question }) });
+  codebasePosts.push('start');
+  await page.reload(); await pane().waitFor({ state: 'visible', timeout: 60000 }); await field().waitFor({ timeout: 30000 });
+  await page.evaluate(map => { for (const c of map.citations.filter(c => map.nodes.find(n => n.path === c.path)?.role === 'source').slice(0, 2)) window.dispatchEvent(new CustomEvent('small:code-card', { detail: { text: c.text, path: c.path, start: c.start, end: c.end, commit: c.commit, repo: map.repository.repo } })); }, out.map);
+  return out;
+};
 const statuses = () => sources().locator('[data-codebase-source]').evaluateAll(nodes => Object.fromEntries(nodes.map(n => [n.dataset.codebaseSource, n.dataset.codebaseStatus])));
 const codeCards = () => page.locator('[data-block-id]').filter({ hasText: 'completionPercent' });
 const reader = () => page.locator('[data-sources-pane] [data-source-reader="code"]');
 const pill = key => card().locator(`[data-tutor-citation="${key}"]`);
 const raw = async (path, body) => { const r = await fetch(`${BASE}${path}`, { method: 'POST', headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' }, body: JSON.stringify(body) }); return { status: r.status, body: await r.json().catch(() => ({})) }; };
 
-await check('a project canvas in Tutor offers the five codebase goals; opening and selecting Tutor read no source and call no model', async () => {
+await check('a project canvas in Tutor shows no codebase menu (retired, owner 2026-11-06); opening and selecting Tutor read no source and call no model', async () => {
   await open(CANVAS);
   await pickMode('Tutor');
-  await menu().waitFor({ timeout: 15000 });
-  assert.match(await menu().innerText(), /What would you like to do with this codebase\?/);
-  assert.deepEqual(await menu().locator('[data-codebase-goal]').evaluateAll(nodes => nodes.map(n => n.dataset.codebaseGoal)), ['understand_feature', 'debug_behavior', 'make_change', 'prepare_contribute', 'learn_concept']);
-  for (const name of ['Learn something else', 'Continue my own work', 'Not now']) assert.equal(await menu().getByRole('button', { name, exact: true }).count(), 1, name);
-  assert.equal(await page.locator('[data-tutor-entry]').count(), 0, 'the codebase menu stands in for the general welcome');
+  await page.waitForTimeout(2500);
+  assert.equal(await menu().count(), 0, 'the codebase entry menu is retired');
+  assert.equal(await page.locator('[data-tutor-entry]').count(), 0, 'and so is the welcome it stood in for');
   assert.deepEqual([model, asks, hooks, codebasePosts], [[], [], [], []], 'nothing read for a goal, no Chat turn, no hook, no model');
   await shot('codebase-01-menu');
 });
 
-await check('Learn something else closes the menu (the general welcome is retired, owner 2026-11-06); a typed unrelated question skips the menu and sends no code', async () => {
-  await menu().getByRole('button', { name: 'Learn something else' }).click();
-  await page.waitForTimeout(1500);
-  assert.equal(await page.locator('[data-tutor-entry]').count(), 0, 'no welcome entry: it is retired');
-  assert.equal(await menu().count(), 0);
+await check('a typed unrelated question sends no code', async () => {
   await page.reload(); await pane().waitFor({ state: 'visible', timeout: 60000 }); await field().waitFor({ timeout: 30000 });
-  await menu().waitFor({ timeout: 15000 });
   await field().fill('Explain the water cycle');
   await page.waitForTimeout(500);
-  assert.equal(await menu().count(), 0, 'typing skips the menu');
+  assert.equal(await menu().count(), 0, 'no menu');
   await field().press('Enter');
   // Tutor mode on a repository canvas is an ordinary Chat turn, POST /api/learn/ask (Tutor cleanup P2); the request is the learner's
   // words and the canvas, never repository source.
@@ -167,12 +169,9 @@ await check('Learn something else closes the menu (the general welcome is retire
 });
 
 let first = null;
-await check('Understand a feature: one clarifying question, then a saved activity about the current code, with its cited sources, tentative links, omissions, Not run here and two code cards', async () => {
-  await menu().waitFor({ timeout: 15000 });
-  await menu().locator('[data-codebase-goal="understand_feature"]').click();
-  assert.match(await menu().innerText(), /Which feature or behaviour should we trace first\?/);
-  await menu().locator('[data-codebase-question]').fill('the completion indicator');
-  await menu().locator('[data-codebase-start]').click();
+await check('Understand a feature: a saved activity about the current code, with its cited sources, tentative links, omissions, Not run here and two code cards', async () => {
+  const started = await startActivity(CANVAS, 'understand_feature', 'the completion indicator');
+  assert.notEqual(started.route, 'not_found');
   await card().waitFor({ timeout: 20000 });
   await sources().waitFor({ timeout: 15000 });
   assert.deepEqual(codebasePosts, ['start']);
@@ -467,8 +466,7 @@ await check('a differently built repository: Prepare to contribute starts from i
   const name = await canvasIn(LEDGER, `Ledger notes ${run}`);
   await open(name);
   await pickMode('Tutor');
-  await menu().waitFor({ timeout: 15000 });
-  await menu().locator('[data-codebase-goal="prepare_contribute"]').click();
+  await startActivity(name, 'prepare_contribute');
   await sources().waitFor({ timeout: 20000 });
   assert.deepEqual(Object.keys(await statuses()).sort(), ['README.rst', 'docs/CONTRIBUTING.md', 'pyproject.toml', 'tests/test_report.py']);
   assert.match(await card().innerText(), /which command runs the tests\? A listed script is not proof that it runs here/);
@@ -486,21 +484,17 @@ await check('a differently built repository: Prepare to contribute starts from i
   assert.equal(await card().locator('[data-tutor-check]').innerText(), 'Check my answer');
 });
 
-await check('Tutor Off shows no codebase menu; Not now keeps it away across a reload', async () => {
+await check('no codebase menu with Tutor On, with Auto-suggest Off, or after a reload', async () => {
   const name = await canvasIn(TASKBOARD, `Off and paused ${run}`);
   await open(name);
   await pickMode('Tutor');
-  await menu().waitFor({ timeout: 15000 });
+  await page.waitForTimeout(2500);
+  assert.equal(await menu().count(), 0, 'On: retired');
   await pane().getByRole('switch', { name: 'Auto-suggest' }).click();
   await page.waitForTimeout(800);
-  assert.equal(await menu().count(), 0, 'Off: no unsolicited offer');
-  await pane().getByRole('switch', { name: 'Auto-suggest' }).click();
-  await menu().waitFor({ timeout: 10000 });
-  await menu().getByRole('button', { name: 'Not now', exact: true }).click();
-  await page.waitForTimeout(800);
-  assert.equal(await menu().count(), 0);
+  assert.equal(await menu().count(), 0, 'Off');
   await page.reload(); await pane().waitFor({ state: 'visible', timeout: 60000 }); await page.waitForTimeout(2500);
-  assert.equal(await menu().count(), 0, 'paused across a reload');
+  assert.equal(await menu().count(), 0, 'after a reload');
   await shot('codebase-09-not-now');
 });
 

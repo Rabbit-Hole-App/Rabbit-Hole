@@ -71,3 +71,7 @@ export function planSlots(slots, cards) {
     remove: [...have.keys()].filter(id => !want.has(id)),
   };
 }
+
+// Whether a step's kept canvas place still belongs to this card: the same offer (or its accepted work, which has no proposal id) keeps it; a new proposal for the step
+// after a Cancel (another proposal id) is placed afresh.
+export const keepsSpot = (kept, card) => !!kept && (!card?.proposalId || !kept.proposalId || kept.proposalId === card.proposalId);

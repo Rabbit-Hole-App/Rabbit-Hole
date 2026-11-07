@@ -358,11 +358,13 @@ await check('12 during a codebase Tutor activity, selecting lines in a code card
   await pane().locator('[data-chat-composer] textarea').first().waitFor({ timeout: 30000 });
   await pane().getByRole('button', { name: 'Mode', exact: true }).click();
   await page.getByRole('menuitemradio', { name: /^Tutor/ }).click();
-  const menu = page.locator('[data-codebase-menu]');
-  await menu.waitFor({ timeout: 15000 });
-  await menu.locator('[data-codebase-goal="understand_feature"]').click();
-  await menu.locator('[data-codebase-question]').fill('the completion indicator');
-  await menu.locator('[data-codebase-start]').click();
+  // The codebase entry menu is retired (owner 2026-11-06, Fix B I1): the activity is started as the menu started one, through the codebase route on the
+  // current coaching revision, then shown by a reload; its cited source files are placed with the same small:code-card events.
+  assert.equal(await page.locator('[data-codebase-menu]').count(), 0, 'no codebase menu');
+  const before = (await api(`/api/learn/coaching?app=${tutorCanvas}&board=main`)).body.state;
+  const out = (await api('/api/learn/codebase', { method: 'POST', body: JSON.stringify({ app: tutorCanvas, board: 'main', actionId: `cb-cct-${Date.now().toString(36)}`, expectedRevision: before?.revision ?? 0, action: 'start', goal: 'understand_feature', question: 'the completion indicator' }) })).body;
+  await page.reload(); await pane().locator('[data-chat-composer] textarea').first().waitFor({ timeout: 30000 });
+  await page.evaluate(map => { for (const c of map.citations.filter(c => map.nodes.find(n => n.path === c.path)?.role === 'source').slice(0, 2)) window.dispatchEvent(new CustomEvent('small:code-card', { detail: { text: c.text, path: c.path, start: c.start, end: c.end, commit: c.commit, repo: map.repository.repo } })); }, out.map);
   await activity().waitFor({ timeout: 20000 });
   const state = (await api(`/api/learn/coaching?app=${tutorCanvas}&board=main`)).body.state;
   const shown = state.activities.find(a => a.activityId === state.activeActivityId);

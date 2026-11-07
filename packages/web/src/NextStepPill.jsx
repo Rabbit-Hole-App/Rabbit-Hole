@@ -7,11 +7,12 @@ import { editKey } from './inline-ai-proposal.js';
 // keeps its name, greyed. PILL_BOX is the box, also worn by the non-interactive Generating status that takes the pill's place after acceptance.
 export const PILL_BOX = 'inline-flex h-7 items-center overflow-hidden rounded border border-line bg-white text-xs';
 const ACTION = 'flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-xs font-medium whitespace-nowrap text-ink hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none';
-export function StepPill({ pill, onAccept, onCancel }) {
+// tabHint: the [Tab] key label, shown where Tab accepts (the canvas); the Chat message's copy of the pill leaves it out (Tab does not accept there).
+export function StepPill({ pill, onAccept, onCancel, tabHint = true }) {
   return (
     <div role="group" aria-label="Proposal" data-roadmap-pill className={PILL_BOX}>
       <button type="button" data-roadmap-accept disabled={!pill.accept} aria-busy={pill.accepting || undefined} onClick={onAccept} className={`${ACTION} disabled:cursor-default disabled:opacity-40`}>
-        {pill.accepting ? STRINGS.accepting : <>{STRINGS.accept}<kbd aria-hidden="true" className="rounded border border-line bg-hover px-1 font-sans text-[10px] font-normal text-ink-3">{STRINGS.tab}</kbd></>}
+        {pill.accepting ? STRINGS.accepting : <>{STRINGS.accept}{tabHint && <kbd aria-hidden="true" className="rounded border border-line bg-hover px-1 font-sans text-[10px] font-normal text-ink-3">{STRINGS.tab}</kbd>}</>}
       </button>
       <button type="button" data-roadmap-cancel onClick={onCancel} className={`${ACTION} border-l border-line`}>{STRINGS.cancel}</button>
     </div>
@@ -36,7 +37,7 @@ export function ProposalOverlay({ pill, position, onAccept, onCancel, edit = nul
 }
 
 // R5: Edit (Ctrl/Cmd+K), the preview beside the still-pending original, Apply and Discard. Nothing here accepts, charges or generates.
-function ProposalTools({ pill, edit }) {
+export function ProposalTools({ pill, edit }) {
   const [text, setText] = useState('');
   const btn = 'h-7 rounded-none border border-line bg-white px-2 text-xs font-medium text-ink outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-40';
   if (!edit.open) return <div className="flex gap-1.5"><button type="button" data-roadmap-edit onClick={edit.onOpen} className={btn}>{STRINGS.edit}</button></div>;

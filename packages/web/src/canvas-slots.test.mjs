@@ -189,3 +189,15 @@ test('a card box is its laid-out place plus its offset; a card saved with no off
   const slot = { offsetLeft: 100, offsetTop: 50, hasAttribute: name => name === 'data-card-slot' };
   assert.deepEqual(cardBox(element(slot), { id: 'b' }), { x: 110, y: 450, w: 996, h: 808 });
 });
+
+// Fix C nonblocker 2a: a column slot never lands on the Tutor's anchored slot (its frame and the pill below it).
+test('freeSlot keeps clear of fixed boxes (anchored Tutor slots) as it does of drawn cards; anchoredBoxes include the pill below', async () => {
+  const { anchoredBoxes, freeSlot: free } = await import('./canvas-slots.js');
+  const tutor = anchoredBoxes([{ id: 'roadmap:s', at: { x: 90, y: 0 }, w: 380, h: 420 }, { id: 'slot:plain', before: null }]);
+  assert.deepEqual(tutor, [{ id: 'roadmap:s', x: 90, y: 0, w: 380, h: 456 }]);
+  const items = [{ id: 'b1', block: true, flowTop: 0, flowBottom: 300, x: 0, y: 0, w: 560, h: 300 }];
+  assert.deepEqual(free(items, 0, { w: 380, h: 200 }), { at: 0, top: 0 }, 'nothing fixed: as before');
+  const placed = free(items, 0, { w: 380, h: 200 }, { fixed: [{ id: 'roadmap:s', x: 90, y: 0, w: 380, h: 900 }] });
+  assert.equal(placed.at, 1);
+  assert.ok(placed.top > 0, 'pushed below the Tutor slot instead of on it');
+});
