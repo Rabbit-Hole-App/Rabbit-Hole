@@ -58,7 +58,7 @@ for (const owner of [PRINCIPAL, GMAIL]) {
   test(`the listed owner (${owner.includes('rabbithole') ? 'application principal' : 'Gmail address'}) uses the whole path while the public flag is "false"`, async t => {
     const w = world(t);
     const cap = await (await w.api.capability(owner)).json();
-    assert.equal(cap.available, true); assert.equal(cap.operatorOnly, true); assert.ok(cap.models.length === 4);
+    assert.equal(cap.available, true); assert.equal(cap.operatorOnly, true); assert.ok(cap.models.length === 5);
     const made = await w.api.propose(owner);
     assert.equal(made.status, 201, JSON.stringify(await made.clone().json()));
     const { proposal } = await made.json();

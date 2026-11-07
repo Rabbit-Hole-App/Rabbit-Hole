@@ -18,6 +18,7 @@ import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
 import SharePanel from './SharePanel.jsx';
 import { ChooseHandle } from './HandleGate.jsx';
 import { assetKeysOf, requestWorkspaceExports, setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
+import { markedBlock, pendingBlock } from './illustration-target.js';
 import { setFileScope, fileScope, uploadSource } from './file-source-client.js';
 import {verifySourceReadings} from './inline-source-readings.js';
 import { verifyExtractionRead } from './inline-extraction.js';
@@ -585,6 +586,15 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const { job } = await client.action(proposal.input.job, 'refine', { message, ...(expected ? { proposal: expected } : {}) });
       window.dispatchEvent(new CustomEvent(event, { detail: { jobId: proposal.input.job } }));
       return job;
+    },
+    // A written Explanation's illustration (IllustrationFigure.jsx, generate-image.js illustrationFrom). markIllustration writes the /image plan's id on the card the learner pressed
+    // Add illustration on; attachIllustration, when that plan's job is ready, replaces the mark with the finished picture. Both go through the canvas's own updateBlock (one undo step each).
+    markIllustration: (blockId, proposalId) => !!canvasApi.current?.updateBlock?.(blockId, block => markedBlock(block, proposalId)),
+    attachIllustration: (proposalId, illustration) => {
+      const block = illustration && pendingBlock(canvasApi.current?.blocks?.(), proposalId);
+      if (!block) return null;
+      canvasApi.current.updateBlock(block.id, entry => ({ ...entry, illustration }));
+      return { id: block.id };
     },
     insertCard: (block, { same = null, at = null } = {}) => {
       const existing = same && canvasApi.current?.blocks?.().find(same);

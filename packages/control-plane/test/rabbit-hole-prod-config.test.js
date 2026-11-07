@@ -129,7 +129,7 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
     assert.ok(q.estimateUsd <= q.maxUsd && q.maxUsd <= q.reserveUsd && q.maxUsd === maxes[r.model], `${r.model} ${r.operation}: ${q.estimateUsd} <= ${q.maxUsd} <= ${q.reserveUsd}`);
     assert.ok(q.estimate_credits <= q.max_credits && q.max_credits <= q.reserve_credits);
   }
-  assert.equal(pricedRows, 8, 'every ready combination is priced: eight, Sunburst editing included');
+  assert.equal(pricedRows, 9, 'every ready combination is priced: nine, Sunburst editing and Recraft included');
   assert.equal(app.vars.EXPLAIN_V2_ENABLED, 'true'); // R1 switch-on (owner production GO, 2026-10-22)
   assert.equal(app.vars.EXPLAIN_PROGRAM_ENABLED, 'true'); // generated programs on (owner production GO, 2026-10-28)
   assert.equal(app.vars.EXPLAIN_PROGRAM_EXECUTION_KILL, 'false'); // the kill switch is present and off

@@ -145,7 +145,7 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
       setPressed(true); setPressedAt(Number.isFinite(job.createdAt) ? new Date(job.createdAt).toISOString() : null);
       const now = imageStatus(job), ended = ['ready', 'refused', 'cancelled', 'failed', 'unknown'].includes(job.stage);
       setImage(now);
-      if (job.stage === 'ready') setImageCard(job.artifact ? ops?.findCard?.(sameFileCard(job.artifact.sourceId, job.artifact.sha256))?.id ?? null : null);
+      if (job.stage === 'ready') setImageCard(job.artifact ? ops?.findCard?.(sameFileCard(job.artifact.sourceId, job.artifact.sha256))?.id ?? ops?.findCard?.(block => block.illustration?.fileRef?.source?.id === job.artifact.sourceId)?.id ?? null : null);
       if (!ended) runImageJob({ api, proposal: p, app: p.input.app, ops, onStatus: setImage }).then(done => { if (done.cardId) setImageCard(done.cardId); }).catch(() => {});
     }, () => {});
     return () => { live = false; };

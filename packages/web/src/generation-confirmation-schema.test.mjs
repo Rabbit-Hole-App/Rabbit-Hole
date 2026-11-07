@@ -168,10 +168,10 @@ test('unsaved edits stay apart from the accepted revision; read-only keys are na
   assert.equal(firstReadOnly('made-up', ['title']), 'title', 'an unknown command edits nothing');
 });
 
-test('generate-image: four models, and only the options the selected model supports (owner 2026-10-23)', () => {
-  assert.deepEqual(Object.keys(IMAGE_MODELS), ['gpt-image-2.5-sunburst', 'gpt-image-2.5-flare', 'gemini-nano-banana-2.1', 'gemini-3-pro-image']);
+test('generate-image: the models, and only the options the selected model supports (owner 2026-10-23)', () => {
+  assert.deepEqual(Object.keys(IMAGE_MODELS), ['gpt-image-2.5-sunburst', 'gpt-image-2.5-flare', 'gemini-nano-banana-2.1', 'recraftv4_1_flash', 'gemini-3-pro-image']);
   const model = settingsOf('generate-image').find(f => f.key === 'model');
-  assert.deepEqual(model.options.map(o => [o.value, o.label]), [['gpt-image-2.5-sunburst', 'GPT Image 2.5 Sunburst'], ['gpt-image-2.5-flare', 'GPT Image 2.5 Flare'], ['gemini-nano-banana-2.1', 'Nano Banana 2.1'], ['gemini-3-pro-image', 'Nano Banana Pro']]);
+  assert.deepEqual(model.options.map(o => [o.value, o.label]), [['gpt-image-2.5-sunburst', 'GPT Image 2.5 Sunburst'], ['gpt-image-2.5-flare', 'GPT Image 2.5 Flare'], ['gemini-nano-banana-2.1', 'Nano Banana 2.1'], ['recraftv4_1_flash', 'Recraft V4.1 Flash'], ['gemini-3-pro-image', 'Nano Banana Pro']]);
   assert.equal(model.required, true); assert.equal(model.default, undefined, 'no model is chosen or substituted for the person');
   assert.equal(GENERATION_COMMANDS['generate-image'].flag, 'IMAGE_GENERATION');
   assert.deepEqual(fieldsFor('generate-image', {}).map(f => f.key), ['model'], 'nothing else is offered before a model is chosen');
@@ -207,7 +207,7 @@ test('generate-image: changing the model revalidates, names every conflict with 
   assert.deepEqual(settingsProblems('generate-image', { model: 'gpt-image-2.5-sunburst', aspect_ratio: '3:2', resolution: '4K' }), [{ path: 'settings.resolution', message: 'GPT Image 2.5 Sunburst makes 3:2 at 1K, not 4K.' }]);
   // no silent substitution of a missing or unknown model
   assert.match(validateSettings('generate-image', {}).error, /settings.model is required/);
-  assert.match(validateSettings('generate-image', { model: 'gpt-image-1' }).error, /settings.model must be gpt-image-2.5-sunburst, gpt-image-2.5-flare, gemini-nano-banana-2.1 or gemini-3-pro-image/);
+  assert.match(validateSettings('generate-image', { model: 'gpt-image-1' }).error, /settings.model must be gpt-image-2.5-sunburst, gpt-image-2.5-flare, gemini-nano-banana-2.1, recraftv4_1_flash or gemini-3-pro-image/);
   assert.match(validateSettings('generate-image', { model: 'gemini-3-pro-image', size: '1024x1024' }).error, /settings.size is not an image setting/);
 });
 

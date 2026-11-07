@@ -1,37 +1,40 @@
 import { useEffect, useState } from 'react';
 import { loadAsset } from './learn-board-assets.js';
+import { loadSource } from './file-source-client.js';
 
 // A reusable figure: an illustration in its own container with its caption below (the written Explanation puts one after its opening paragraph).
 // Layout follows the approved Image mockup (handoff/ui/07-explanation-card-approved.html on chatgpt/tutor, .picture-figure): margin 13px 0 11px, the picture full width with 9px corners,
 // a centered 12px caption 7px below it.
-// The source is the image block's own asset path: a `src` (URL or data URL) or a `cacheKey` that learn-board-assets loadAsset answers from this
-// browser's cache and then the board's server copy, so the picture is saved and reloaded with the board (assetKeysOf lists the key).
+// The source is the existing asset path, in the order a generated picture needs: a `fileRef` (a stored file source, file-source-client.js loadSource: this browser's copy, else the
+// board's server copy, so a fresh browser reads it too; the server keeps it with the board through file-refs.js), a `cacheKey` (learn-board-assets loadAsset; assetKeysOf lists it) or a plain `src`.
 // The container reserves its square before the image arrives (nothing jumps), the image never leaves it, and the callouts are optional:
 // they are drawn only when the caller passes placements it trusts, as percentages of the image. The figure works on its own without them.
 export const validCallouts = list => (Array.isArray(list) ? list : []).filter(c => c && typeof c.text === 'string' && c.text && ['px', 'py', 'lx', 'ly'].every(k => Number.isFinite(c[k]) && c[k] >= 0 && c[k] <= 100)).slice(0, 6);
 
-function useIllustrationUrl({ src, cacheKey }) {
-  const [url, setUrl] = useState(src || '');
+function useIllustrationUrl({ src, cacheKey, fileRef }) {
+  const [url, setUrl] = useState(src || ''), [missing, setMissing] = useState(false);
   useEffect(() => {
     let live = true, made = '';
+    setMissing(false);
     if (src) { setUrl(src); return undefined; }
     setUrl('');
-    if (!cacheKey) return undefined;
-    loadAsset(cacheKey).then(value => {
-      if (!live || value == null) return;
+    if (!cacheKey && !fileRef?.source?.id) return undefined;
+    (fileRef?.source?.id ? loadSource({ fileRef }) : loadAsset(cacheKey)).then(value => {
+      if (!live) return;
+      if (value == null) { setMissing(true); return; } // not in this browser and not readable from the board's server copy
       if (typeof value === 'string') setUrl(value);
       else { made = URL.createObjectURL(value); setUrl(made); }
     });
     return () => { live = false; if (made) URL.revokeObjectURL(made); };
-  }, [src, cacheKey]);
-  return url;
+  }, [src, cacheKey, fileRef?.source?.id, fileRef?.source?.rev]);
+  return { url, missing };
 }
 
 export default function IllustrationFigure({ illustration, className = '' }) {
-  const url = useIllustrationUrl(illustration || {});
+  const { url, missing } = useIllustrationUrl(illustration || {});
   // What happened to THIS url (a different url is loading again). Derived, not reset in an effect: a picture that is already decoded can fire its load before an effect would run.
   const [done, setDone] = useState({ url: '', ok: null });
-  const state = url && done.url === url ? (done.ok ? 'ready' : 'failed') : 'loading'; // loading | ready | failed
+  const state = missing ? 'failed' : url && done.url === url ? (done.ok ? 'ready' : 'failed') : 'loading'; // loading | ready | failed
   const callouts = state === 'ready' ? validCallouts(illustration?.callouts) : [];
   const ratio = Number.isFinite(illustration?.aspect) && illustration.aspect > 0.3 && illustration.aspect < 3 ? illustration.aspect : 1;
   return (

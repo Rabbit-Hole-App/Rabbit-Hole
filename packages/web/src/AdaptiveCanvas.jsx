@@ -44,6 +44,8 @@ import { anchorOf } from './selection-bar-place.js';
 import { addToChatAllowed, claimChord, quickEditAllowed } from './shortcut-owner.js';
 import { askDraft } from './agent/scope.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
+import { imageGenerationOn } from './generate-image.js';
+import { illustrationPrompt, setIllustrationTarget } from './illustration-target.js';
 import { fileChatRef } from './file-chat-ref.js';
 import { objectKind, objectName, selectionName, selectionRef } from './selection-ref.js';
 import LearnWiki from './LearnWiki.jsx';
@@ -6003,6 +6005,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       editEquation: id => setEditTarget({ id, n: Date.now() }),
       patchItem: (id, patch) => { snapshot(); patchItem(id, patch); },
       updateBlock: (id, patch) => { snapshot(); setBlocks(previous => previous.map(entry => (entry.id === id ? { ...entry, ...patch } : entry))); },
+      // Add illustration (canvas-actions-types.js): Chat opens with /image and a prompt about this Explanation, unsent; its plan marks this card (illustration-target.js).
+      canAddIllustration: () => imageGenerationOn() && !readOnlyRef.current, // asked when the menu opens: whether image generation is offered is only known after the page's first answer
+      addIllustration: id => { const block = blocksRef.current.find(entry => entry.id === id); if (!block || block.type !== 'explanation') return; setIllustrationTarget(id); chatWorkspace.composer.prepare({ text: `/image ${illustrationPrompt(block)}` }); },
       openStyle: () => setStyleOpen(true),
       insertText: at => commandsRef.current.insertText(at),
       insertSticky: at => commandsRef.current.insertSticky(at),

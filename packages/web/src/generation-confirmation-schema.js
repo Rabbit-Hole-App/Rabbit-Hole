@@ -61,6 +61,7 @@ export const IMAGE_MODELS = Object.freeze({
   'gpt-image-2.5-sunburst': Object.freeze(openai('GPT Image 2.5 Sunburst')),
   'gpt-image-2.5-flare': Object.freeze(openai('GPT Image 2.5 Flare')),
   'gemini-nano-banana-2.1': Object.freeze({ label: 'Nano Banana 2.1', provider: 'google', qualities: null, ratios: opt('1:1', '1:4', '1:8', '2:3', '3:2', '3:4', '4:1', '4:3', '4:5', '5:4', '8:1', '9:16', '16:9', '21:9'), resolutions: GOOGLE_RESOLUTIONS, max_references: 14, character_references: 4, references_verified: true, pricing_verified: false }),
+  'recraftv4_1_flash': Object.freeze({ label: 'Recraft V4.1 Flash', provider: 'recraft', qualities: null, ratios: opt('1:1'), resolutions: opt('1K'), max_references: 0, references_verified: false, pricing_verified: true }),
   'gemini-3-pro-image': Object.freeze({ label: 'Nano Banana Pro', provider: 'google', qualities: null, ratios: opt('1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'), resolutions: GOOGLE_RESOLUTIONS, max_references: 14, references_verified: true, pricing_verified: false }),
 });
 const byModel = key => Object.fromEntries(Object.entries(IMAGE_MODELS).filter(([, m]) => m[key]).map(([id, m]) => [id, m[key]]));

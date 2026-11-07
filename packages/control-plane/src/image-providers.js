@@ -23,6 +23,9 @@ export const IMAGE_MODELS = Object.freeze({
   'gpt-image-2.5-sunburst': openai('GPT Image 2.5 Sunburst'),
   'gpt-image-2.5-flare': openai('GPT Image 2.5 Flare'),
   'gemini-nano-banana-2.1': Object.freeze({ label: 'Nano Banana 2.1', provider: 'google', secret: 'GEMINI_API_KEY', qualities: null, ratios: opt('1:1', '1:4', '1:8', '2:3', '3:2', '3:4', '4:1', '4:3', '4:5', '5:4', '8:1', '9:16', '16:9', '21:9'), resolutions: opt('1K', '2K', '4K'), maxReferences: 14 }),
+  // Recraft V4.1 Flash (docs/features/image-jobs.md, written 2026-11-07): one raster per request, 1024x1024, no references. Price read from the Recraft pricing page 2026-11-07:
+  // $0.007 per raster image = 7 API units, $1 = 1,000 units; six live runs (2026-11-07) each reported credits 7.
+  'recraftv4_1_flash': Object.freeze({ label: 'Recraft V4.1 Flash', provider: 'recraft', secret: 'RECRAFT_API_KEY', qualities: null, ratios: opt('1:1'), resolutions: opt('1K'), maxReferences: 0 }),
   'gemini-3-pro-image': Object.freeze({ label: 'Nano Banana Pro', provider: 'google', secret: 'GEMINI_API_KEY', qualities: null, ratios: opt('1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'), resolutions: opt('1K', '2K', '4K'), maxReferences: 14 }),
 });
 
@@ -52,6 +55,7 @@ export function imageSettings(settings, referenceCount = 0) {
 const PRICES = {
   'gemini-nano-banana-2.1': { output: { '1K': 0.0336, '2K': 0.0504, '4K': 0.113 }, referenceImage: 0.00168, textPerMillion: 1.5 },
   'gemini-3-pro-image': { output: { '1K': 0.134, '2K': 0.134, '4K': 0.24 }, referenceImage: 0.0011, textPerMillion: 2.0 },
+  'recraftv4_1_flash': { output: { '1K': 0.007 }, referenceImage: null, textPerMillion: 0 },
   'gpt-image-2.5-sunburst': { outputBySize: { low: { '1024x1024': 0.006, '2048x1152': 0.006 } }, referenceImage: 0.0021, textPerMillion: 5 },
   'gpt-image-2.5-flare': { outputBySize: { low: { '1024x1024': 0.006, '2048x1152': 0.006 } }, referenceImage: null, textPerMillion: 5 },
 };
@@ -147,11 +151,17 @@ function openaiUsage(model, usage) {
   return { measuredUsd: exact ? usd(micro) : null, estimatedUpperBoundUsd: usd(micro) };
 }
 
+// Recraft reports `credits`, the API units charged for the request ($0.001 each; Recraft pricing page 2026-11-07). A whole number of units is the measured cost.
+function recraftUsage(usage) {
+  const units = Number.isSafeInteger(usage.credits) && usage.credits >= 0 ? usage.credits : null;
+  return units == null ? { measuredUsd: null, estimatedUpperBoundUsd: null } : { measuredUsd: Number((units / 1000).toFixed(6)), estimatedUpperBoundUsd: Number((units / 1000).toFixed(6)) };
+}
+
 // Provider-reported usage -> { measuredUsd, estimatedUpperBoundUsd }; both null when there is no usable usage.
 export function usageCost(model, usage) {
   if (!usage || typeof usage !== 'object') return { measuredUsd: null, estimatedUpperBoundUsd: null };
   const provider = IMAGE_MODELS[model]?.provider;
-  return provider === 'google' ? googleUsage(model, usage) : provider === 'openai' ? openaiUsage(model, usage) : { measuredUsd: null, estimatedUpperBoundUsd: null };
+  return provider === 'google' ? googleUsage(model, usage) : provider === 'openai' ? openaiUsage(model, usage) : provider === 'recraft' ? recraftUsage(usage) : { measuredUsd: null, estimatedUpperBoundUsd: null };
 }
 export const measuredCostUsd = (model, usage) => usageCost(model, usage).measuredUsd;
 
@@ -266,10 +276,37 @@ export function geminiImageAdapter({ apiKey, transport = fetch } = {}) {
   return { provider: 'google', capabilities: { generate: true, edit: true, retrieve: false, idempotency: false }, generate: input => run(input, false), edit: input => run(input, true) };
 }
 
+// Recraft images/generations (POST https://external.api.recraft.ai/v1/images/generations, Bearer key): one 1024x1024 raster as a URL (the documented default,
+// kept about 24 hours), downloaded once from an https address and checked by its file signature like every other provider's output. `credits` in the answer is the
+// charge in API units. The download is a second request: once the provider has answered, a failure to fetch the picture is a definite invalid_output (the image
+// was made and billed), and nothing is ever resubmitted.
+export function recraftImageAdapter({ apiKey, transport = fetch } = {}) {
+  return {
+    provider: 'recraft', capabilities: { generate: true, edit: false, retrieve: false, idempotency: false },
+    async generate(input) {
+      if (!configured(apiKey)) throw failure('not_configured');
+      if (input.references?.length || input.settings?.aspect_ratio !== '1:1' || input.settings?.resolution !== '1K') throw failure('invalid_input');
+      const body = await post(transport, 'https://external.api.recraft.ai/v1/images/generations', { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: input.prompt, model: input.model, size: '1024x1024', n: 1, response_format: 'url' }) }, input);
+      const url = Array.isArray(body?.data) && body.data.length === 1 ? body.data[0]?.url : null;
+      let target; try { target = new URL(url); } catch { target = null; }
+      if (!target || target.protocol !== 'https:' || target.username || target.password) throw failure('invalid_output', { started: true, definite: true });
+      const signal = input.signal ? AbortSignal.any([input.signal, AbortSignal.timeout(TIMEOUT_MS)]) : AbortSignal.timeout(TIMEOUT_MS);
+      let picture;
+      try { picture = await transport(target.href, { method: 'GET', redirect: 'manual', signal }); } catch { throw failure('invalid_output', { started: true, definite: true }); }
+      if (!picture.ok) { await picture.body?.cancel().catch(() => {}); throw failure('invalid_output', { started: true, definite: true }); }
+      const bytes = new Uint8Array(await picture.arrayBuffer());
+      const mimeType = bytes.length && bytes.length <= MAX_OUTPUT ? kind(bytes) : null;
+      if (!mimeType) throw failure('invalid_output', { started: true, definite: true });
+      return { bytes, mimeType, providerModel: input.model, usage: Number.isSafeInteger(body?.credits) ? { credits: body.credits } : null };
+    },
+  };
+}
+
 // The adapter for a model, with its secret read by name. transport is injectable so tests use fixture transports only.
 export function imageAdapter(env, model, transport) {
   const m = IMAGE_MODELS[model];
   if (!m) return null;
-  return (m.provider === 'openai' ? openaiImageAdapter : geminiImageAdapter)({ apiKey: env?.[m.secret], ...(transport ? { transport } : {}) });
+  return (m.provider === 'openai' ? openaiImageAdapter : m.provider === 'recraft' ? recraftImageAdapter : geminiImageAdapter)({ apiKey: env?.[m.secret], ...(transport ? { transport } : {}) });
 }
 export const providerConfigured = (env, model) => configured(env?.[IMAGE_MODELS[model]?.secret]);
