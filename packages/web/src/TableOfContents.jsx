@@ -6,7 +6,7 @@
 // when the learner clicks one, never because a section is visible, open or discussed. Dragging a row moves its entry, its
 // sub-sections with it; clicking a title frames its linked canvas heading, if any.
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronRight, GripVertical, Heading1, Heading2, Heading3, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Check, ChevronRight, GripVertical, Heading1, Heading2, Heading3, LocateFixed, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button, toast } from './ui.jsx';
 import { DESCRIPTION_MAX, outlineTree, proposalProblem, withRoadmap } from './learn-outline-model.js';
 import { keyLabel } from './shortcuts.js';
@@ -40,6 +40,7 @@ export default function TableOfContents({ outline: own, canvasApi, onShow, propo
   const [editing, setEditing] = useState(null);
   const [drag, setDrag] = useState(null);
   const [drop, setDrop] = useState(undefined);
+  const [confirming, setConfirming] = useState(null); // the row id whose delete is waiting for Confirm or Cancel (one popover at a time)
   const pressed = useRef(null);
   // The sections whose sub-sections are folded away. The tab stays mounted while hidden, so this survives view switches.
   const [folded, setFolded] = useState(() => new Set());
@@ -54,6 +55,27 @@ export default function TableOfContents({ outline: own, canvasApi, onShow, propo
     if (ops.length) canvasApi.current?.applyOutline(ops);
     setEditing(null);
   };
+
+  // A pointer press outside the open delete popover (or on another row's button) cancels it.
+  useEffect(() => {
+    if (confirming === null) return undefined;
+    const away = event => { if (!event.target?.closest?.('[data-toc-confirm],[data-toc-delete]')) setConfirming(null); };
+    document.addEventListener('pointerdown', away, true);
+    return () => document.removeEventListener('pointerdown', away, true);
+  }, [confirming]);
+
+  // A row's delete asks first, in a small popover beside its button: Cancel keeps everything; Escape or a click elsewhere cancels too.
+  const confirmDelete = (entry, { title, body, label, run }) => (
+    <div role="alertdialog" aria-label={title} data-toc-confirm className="absolute top-7 right-0 z-30 w-64 rounded-md border border-line bg-white p-3 text-left shadow-md"
+      onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setConfirming(null); } }}>
+      <p className="text-[13px] font-medium text-ink">{title}</p>
+      <p className="mt-1 text-xs leading-normal text-ink-2">{body}</p>
+      <div className="mt-2 flex justify-end gap-2">
+        <Button type="button" size="sm" variant="secondary" data-toc-confirm-cancel autoFocus onClick={() => setConfirming(null)}>Cancel</Button>
+        <Button type="button" size="sm" variant="danger" data-toc-confirm-delete onClick={() => { setConfirming(null); run(); }}>{label}</Button>
+      </div>
+    </div>
+  );
 
   const row = node => {
     const { entry, number, index } = node;
@@ -91,15 +113,27 @@ export default function TableOfContents({ outline: own, canvasApi, onShow, propo
             {entry.roadmap && <div data-roadmap-status className="mt-[5px] text-[11px] leading-4 text-ink-2">{entry.roadmap.status}{entry.roadmap.removed ? ` · ${'Card removed'}` : ''}</div>}
           </div>
         )}
-        {!readOnly && !entry.roadmap && editing !== entry.id && (
-          <div data-no-drag className="flex shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100">
-            <button type="button" aria-label={`Edit ${entry.label}`} title="Edit title and description" onClick={() => setEditing(entry.id)}
-              className="flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-ink"><Pencil size={14} /></button>
-            {/* Removes the entry from the contents only; the canvas and any saved learning stay, and Ctrl+Z brings it back. */}
-            <button type="button" aria-label={`Remove heading ${entry.label}`} title={`Remove from the contents (the canvas stays; ${keyLabel('Mod+Z')} undoes it)`} onClick={() => canvasApi.current?.removeSection(entry.id)}
-              className="flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-red-700"><Trash2 size={14} /></button>
-          </div>
-        )}
+        {editing !== entry.id && (() => {
+          // Hover actions (always shown on touch, and while one has focus): Go to card (a roadmap row whose card or pending slot is on the canvas), Edit and Delete.
+          const nav = entry.roadmap?.nav, goes = nav && (nav.kind === 'card' || nav.kind === 'proposal');
+          const cardId = nav?.kind === 'card' ? nav.cardId : null;
+          const deletesCard = entry.roadmap && cardId && !entry.roadmap.removed && !readOnly;
+          const deletesHeading = !entry.roadmap && !readOnly;
+          if (!goes && !deletesCard && !deletesHeading) return null;
+          const open = confirming === entry.id;
+          const icon = "flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-ink";
+          return (
+            <div data-no-drag data-toc-actions className="relative flex shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100" style={open ? { opacity: 1 } : undefined}>
+              {goes && <button type="button" data-toc-go-card aria-label={"Go to card for " + entry.label} title="Go to card" onClick={() => roadmap?.go?.(nav)} className={icon}><LocateFixed size={14} /></button>}
+              {deletesHeading && <button type="button" aria-label={"Edit " + entry.label} title="Edit title and description" onClick={() => setEditing(entry.id)} className={icon}><Pencil size={14} /></button>}
+              {(deletesHeading || deletesCard) && <button type="button" data-toc-delete aria-label={(deletesCard ? "Delete card " : "Remove heading ") + entry.label} aria-haspopup="dialog" aria-expanded={open} title={deletesCard ? "Delete this card from the canvas" : "Remove from the contents"} onClick={() => setConfirming(open ? null : entry.id)}
+                className="flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-red-700"><Trash2 size={14} /></button>}
+              {open && (deletesCard
+                ? confirmDelete(entry, { title: "Delete this card?", body: "It is removed from the canvas only. The roadmap step stays, and " + keyLabel('Mod+Z') + " brings the card back.", label: "Delete", run: () => canvasApi.current?.removeBlock(cardId) })
+                : confirmDelete(entry, { title: "Remove this heading?", body: "It leaves the contents only; the canvas stays, and " + keyLabel('Mod+Z') + " brings it back.", label: "Remove", run: () => canvasApi.current?.removeSection(entry.id) }))}
+            </div>
+          );
+        })()}
         {node.children.length > 0 && (
           <button type="button" data-no-drag data-toc-fold aria-expanded={!folded.has(entry.id)} aria-label={`${folded.has(entry.id) ? 'Expand' : 'Collapse'} ${entry.label}`}
             onClick={() => fold(entry.id)} className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-ink">

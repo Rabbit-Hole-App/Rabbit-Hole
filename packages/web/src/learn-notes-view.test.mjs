@@ -51,7 +51,10 @@ test('the side panel is a Table of contents: no My notes link, no trophy bar, ad
   assert.ok(toc.includes('>Table of contents</h2>'));
   assert.ok(toc.includes("const SECTION_LEVELS = [[1, 'Section', Heading1], [2, 'Sub-section', Heading2], [3, 'Sub-sub-section', Heading3]];"));
   assert.ok(toc.includes('canvasApi.current?.moveSection(drag, drop)'));
-  // Owner brief 2026-10-23: removing an entry changes the contents only, never the canvas heading.
-  assert.ok(toc.includes('onClick={() => canvasApi.current?.removeSection(entry.id)}'));
-  assert.ok(!toc.includes('removeBlock'));
+  // Owner brief 2026-10-23: removing a HEADING changes the contents only, never the canvas heading (now after a Cancel / Remove popover).
+  assert.ok(toc.includes('run: () => canvasApi.current?.removeSection(entry.id)'));
+  // Owner 2026-11-07: a roadmap row's delivered CARD can be deleted from the ToC, after a Cancel / Delete popover, and only by the card's own id.
+  assert.equal(toc.split('removeBlock').length - 1, 1);
+  assert.ok(toc.includes('run: () => canvasApi.current?.removeBlock(cardId)'));
+  assert.ok(!toc.includes('removeBlock(entry.id)'));
 });

@@ -243,3 +243,36 @@ test('the controller sends the learner\'s chosen alternative for the held step o
   idle.start(); await new Promise(resolve => setTimeout(resolve, 10));
   assert.equal(await idle.recoverOffer({ choice: 'alternative' }), null, 'no recovery waiting: no request');
 });
+
+// Table of contents hover actions (owner 2026-11-07): Go to card where a card or pending slot exists, and a Delete that asks first.
+test('ToC rows: Go to card where the card or slot exists, Delete only for a delivered card, and the delete asks in a popover first', () => {
+  const base = hookReturn();
+  const rowsOf = (name, props = {}) => {
+    const s = seeded(name);
+    return lib.renderToStaticMarkup(lib.createElement(lib.TableOfContents, { roadmap: { ...base, ...s, showOverlay: false }, outline: [], canvasApi: { current: null }, ...props }));
+  };
+  const entries = markup => markup.split('data-roadmap-step=').slice(1);
+  // A delivered card: Go to card and Delete are offered on its row; the popover is closed until the trash is pressed.
+  const delivered = rowsOf('status-delivered-next-ready');
+  const deliveredRows = entries(delivered);
+  assert.ok(deliveredRows.some(r => r.includes('data-toc-go-card') && r.includes('data-toc-delete')), 'a delivered row has Go to card and Delete');
+  assert.ok(!delivered.includes('data-toc-confirm'), 'no popover until pressed');
+  // A pending proposal has a slot on the canvas (Go to card) but nothing to delete.
+  const pending = entries(rowsOf('status-active-proposal-pending'));
+  assert.ok(pending.some(r => r.includes('data-toc-go-card') && !r.includes('data-toc-delete')), 'a pending slot: go there, nothing to delete');
+  // A planned step with no card or slot shows no icon at all.
+  const planned = entries(rowsOf('status-proposed-plan'));
+  assert.ok(planned.every(r => !r.includes('data-toc-go-card') && !r.includes('data-toc-delete')));
+  // A view-only visitor can still go to the card but never delete.
+  const viewer = rowsOf('status-delivered-next-ready', { readOnly: true });
+  assert.ok(viewer.includes('data-toc-go-card') && !viewer.includes('data-toc-delete'));
+  // The interaction contract, pinned in the source: the trash only opens the popover; Cancel, Escape and a press elsewhere close it; only Delete runs the removal.
+  const source = readFileSync(fileURLToPath(new URL('./TableOfContents.jsx', import.meta.url)), 'utf8');
+  assert.match(source, /data-toc-delete[^\n]*onClick=\{\(\) => setConfirming\(open \? null : entry\.id\)\}/);
+  assert.match(source, /role="alertdialog"/);
+  assert.match(source, /data-toc-confirm-cancel[^\n]*setConfirming\(null\)/);
+  assert.match(source, /event\.key === 'Escape'[^\n]*setConfirming\(null\)/);
+  assert.match(source, /addEventListener\('pointerdown', away, true\)/);
+  assert.match(source, /setConfirming\(null\); run\(\);/, 'Delete closes the popover then runs');
+  assert.ok(!/onClick=\{\(\) => canvasApi\.current\?\.removeBlock/.test(source) && !/onClick=\{\(\) => canvasApi\.current\?\.removeSection/.test(source), 'no direct, unconfirmed removal remains');
+});
