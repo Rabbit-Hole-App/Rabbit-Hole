@@ -3,7 +3,7 @@ import StartDialog from '../StartDialog.jsx';
 import { ctxOf } from './commands.js';
 import { useSurface } from './surface.js';
 import { startJob, useStartDraft } from '../start-run.js';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Square } from 'lucide-react';
 import { Button } from '../ui.jsx';
 
 // T02 §3.3, §5: the one Start dialog host. Home's [Start a rabbit hole], Library
@@ -34,7 +34,7 @@ export default function StartHost({ takeEarly = () => null }) {
       {chip && (
         <div role="status" data-start-chip className="fixed bottom-4 left-1/2 z-40 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-3 rounded-xl border border-line bg-white p-3 text-sm shadow-pop">
           {draft.phase === 'starting'
-            ? <><Loader2 size={14} className="animate-spin" aria-hidden="true" />Adding sources, {waiting} to go<Button size="sm" variant="secondary" onClick={() => startJob.stop()}>Stop</Button></>
+            ? <><Loader2 size={14} className="animate-spin" aria-hidden="true" />Adding sources, {waiting} to go<Button size="sm" variant="danger" onClick={() => startJob.stop()}><Square size={12} aria-hidden="true" className="shrink-0 fill-current" />Stop</Button></>
             : (
               <div className="min-w-0">
                 <p>{failed === 1 ? '1 source needs another try.' : `${failed} sources need another try.`}</p>

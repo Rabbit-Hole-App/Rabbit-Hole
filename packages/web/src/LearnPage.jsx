@@ -545,6 +545,15 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       return (await client.get(proposal.input.job))?.job ?? null;
     },
     hasCard: id => { const blocks = canvasApi.current?.blocks?.(); return blocks ? blocks.some(block => block.id === id) : undefined; },
+    // Stop on a running /animation scene (the Generate button turned Stop in Chat): the job's own cancel action, as the canvas card's Stop sends it
+    // (Animation3DCard act cancel). Unlike cancelExplain the card stays, because it says Stopped; both read the job again on the card event.
+    stopAnimation: async proposal => {
+      const boardId = commentBoardRef.current;
+      if (!boardId || typeof proposal?.input?.job !== 'string') throw new Error('This scene can be stopped only on its own canvas.');
+      const { job } = await animationClient(api, boardId).action(proposal.input.job, 'cancel');
+      window.dispatchEvent(new CustomEvent(ANIMATION_JOB_EVENT, { detail: { jobId: proposal.input.job } }));
+      return job;
+    },
     // Cancel on that brief: the job's own cancel action (Lane C stop); its waiting card observes the job again and says Stopped.
     cancelExplain: async proposal => {
       const boardId = commentBoardRef.current;

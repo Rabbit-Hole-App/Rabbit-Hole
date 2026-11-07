@@ -81,7 +81,7 @@ export function animationProposalStatus({ job, unread = false, onCanvas = true, 
   // Generate found that the edited plan needs a change first (FX-AN-031): nothing is being made, and the choice is in Chat.
   if (job.stage === 'awaiting_approval' && job.choiceOpen) return { phase: 'unknown', label: null, active: false, spinner: false, detail: 'This plan needs a change before it can be made. Choose one in Chat.', canStop: false, cardId: go };
   if (job.stage === 'cancelled') return { phase: 'stopped', label: null, active: false, spinner: false, detail: `${stopped(job)}${job.usage?.note ? '' : '.'}${missing}`, canStop: false, cardId: go };
-  return { phase: 'running', label: 'Making the scene', active: true, spinner: true, detail: animationStage(job), canStop: false, cardId: go };
+  return { phase: 'running', label: 'Making the scene', active: true, spinner: true, detail: animationStage(job), canStop: true, cardId: go };
 }
 // A job's result lands through storage.js (withJob, settleAnimationJob): bound to its card, board, request, source set and base revision.
 
