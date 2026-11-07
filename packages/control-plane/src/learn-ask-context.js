@@ -66,6 +66,20 @@ export function validateLearnContext(body, conversation) {
   return videoContext;
 }
 
+// Ask about selection (web area-crop.js): its target id is `area:<id>` and its first line claims a picture. The claim is kept only for a
+// picture the model request really carries: the area image read as image_context, or the paper page region (paper_context.selection).
+export const isAreaTarget = target => typeof target?.id === 'string' && target.id.startsWith('area:');
+const PICTURE_CLAIM = 'the attached image shows that area';
+export function settleAreaPicture(target, body, source) {
+  if (!target || !isAreaTarget(target)) return target;
+  const lines = target.text.split(/\r?\n/);
+  if (!lines[0].includes(PICTURE_CLAIM)) return target;
+  if (source?.image || source?.paper?.selectedRegion) return target;
+  const why = body.paper_context && body.image_context ? 'a paper page is open and outranks it' : body.image_context ? 'it could not be read' : 'none was sent';
+  lines[0] = `The learner drew a rectangle on the canvas and asks about what is inside it; its picture was not attached (${why}), so work from the card details below.`;
+  return { ...target, text: lines.join(String.fromCharCode(10)) };
+}
+
 // The card, group or marked region the learner asked about (owner decision 2): its text travels
 // apart from the question, so the question keeps its 4000 limit and the card gets its own bound.
 export const CANVAS_TARGET_LIMIT = 8000;
@@ -139,7 +153,10 @@ export async function readLearnSource(env, body, app, { extraBlocks, papers, art
       const media = await read.uploadedMediaAsImage(env, paperIdentity(app), body.image_context.id);
       extraBlocks.push(media.image);
       source = { image: { title: media.title }, instruction: IMAGE_CONTEXT_INSTRUCTION };
-    } catch (error) { throw new Error('Could not read that image. Drop it again.'); }
+    } catch (error) {
+      // An area picture is optional: the card report in the target text still asks, and settleAreaPicture says the picture was not read.
+      if (!isAreaTarget(body.canvas_target)) throw new Error('Could not read that image. Drop it again.');
+    }
   }
   if (body.wiki_context && !body.paper_context && !body.image_context) {
     try {

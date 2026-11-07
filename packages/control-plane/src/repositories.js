@@ -1,7 +1,7 @@
 import { workerRequest } from './learn-scene.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { canvasSeed, threadTurns } from './canvas-conversation.js';
-import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from './learn-ask-context.js';
+import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource, settleAreaPicture } from './learn-ask-context.js';
 import { handleLearnCourse, generateCourseContent } from './learn-course.js';
 import { askStream, attachmentBlocks, readAskRequest, ATTACHMENT_LIMIT } from './ask.js';
 import { askModel, MESSAGE_LIMIT, MENTION_LIMIT } from './learn-models.js';
@@ -442,7 +442,7 @@ async function repositoryAsk(req,env,user,app){
   // Whole-canvas context (canvas-context.js): the same block and rules as /api/learn/ask, on every ask that sends it.
   const board=(canvas?`\n\n${canvasContextText(canvas)}`:'')+(canvasRefs?.text?`\n\n${canvasRefs.text}`:'')+chatTurn.context,rules=canvas?`\n${CANVAS_CONTEXT_RULES}`:'';
   const saveGraph=async messageId=>{if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(messageId,JSON.stringify(graphView)).run();};
-  return askStream(env,appendCanvasTarget(appendOutline(JSON.stringify({repo:app.repo,commit,selected,selectedCode,...(selectedFile?{selectedFile}:{}),...(selectedEntities?{selectedEntities,selectedNote:SELECTED_NOTE}:{}),lesson:body.lesson_snapshot||null,paper:null,...source,...(mentioned.length?{mentionedRepositories:mentioned}:{})})+notRead.map(line=>`\n\n${line}`).join(''),body.outline,body.outlineOmitted),canvasTarget)+board,history,question,
+  return askStream(env,appendCanvasTarget(appendOutline(JSON.stringify({repo:app.repo,commit,selected,selectedCode,...(selectedFile?{selectedFile}:{}),...(selectedEntities?{selectedEntities,selectedNote:SELECTED_NOTE}:{}),lesson:body.lesson_snapshot||null,paper:null,...source,...(mentioned.length?{mentionedRepositories:mentioned}:{})})+notRead.map(line=>`\n\n${line}`).join(''),body.outline,body.outlineOmitted),settleAreaPicture(canvasTarget,body,source))+board,history,question,
     chatTurn.onDone(saveGraph)||(async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();await saveGraph(message.id);}),{threadId:id,commit},extraBlocks,null,askModel(body.model),null,
     chatTurn.system((body.lesson_snapshot?LEARN_SNAPSHOT_SYSTEM:LEARN_SYSTEM)+rules),{papers,system:[REPOSITORY_SYSTEM,videos.system].filter(Boolean).join('\n'),tools:[...REPOSITORY_TOOLS,...videos.tools],runTool,getGraphView:()=>graphView,shownVideo:videos.shown,org:user.org,...chatTurn.research});
 }
