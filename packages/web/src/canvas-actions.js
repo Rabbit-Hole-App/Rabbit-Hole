@@ -129,7 +129,7 @@ export const COMMON_ACTIONS = [
   { id: 'add-comment', label: 'Add comment', icon: 'MessageCircle', group: 'primary', order: 20, targets: ['card', 'object', 'group', 'multi'],
     applies: (t, ctx) => !!ctx.canvas.addComment && !!(t.id || t.group), requires: 'comment.draft', keys: 'comment',
     data: 'data-menu-add-comment', run: (t, ctx) => ctx.canvas.addComment(canvasPoint(t), t.id || t.group) },
-  { id: 'link-canvas', label: 'Link to canvas', icon: 'Link2', group: 'primary', order: 30, targets: ['card', 'canvas'],
+  { id: 'link-canvas', label: 'Add a link', icon: 'Link2', group: 'primary', order: 30, targets: ['card', 'canvas'],
     applies: (t, ctx) => !!ctx.canvas.linkCanvas && (t.kind === 'canvas' || (t.family === 'block' && t.type !== 'canvas-ref')), requires: 'source.write',
     data: 'data-menu-link-canvas', run: (t, ctx) => ctx.canvas.linkCanvas(t.kind === 'canvas' ? { point: canvasPoint(t) } : { blockId: t.id }) },
   { id: 'rename', label: 'Rename', icon: 'PencilLine', group: 'primary', order: 40, targets: ['card'], mutates: true,

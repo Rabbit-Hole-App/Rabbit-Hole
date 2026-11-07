@@ -6,10 +6,11 @@
 // when the learner clicks one, never because a section is visible, open or discussed. Dragging a row moves its entry, its
 // sub-sections with it; clicking a title frames its linked canvas heading, if any.
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Check, ChevronRight, Ellipsis, GripVertical, Heading1, Heading2, Heading3, Link2, LocateFixed, MessageSquarePlus, Pencil, Plus, TextSelect, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, ChevronRight, Ellipsis, GripVertical, Heading1, Heading2, Heading3, Link as AddLinkIcon, Link2, LocateFixed, MessageSquarePlus, Pencil, Plus, TextSelect, Trash2, X } from 'lucide-react';
 import { Button, Menu, MenuItem, toast } from './ui.jsx';
 import { cardLink } from './canvas-refs-model.js';
 import { moveTargets } from './toc-move.js';
+import { ancestorsOf, linkedCards } from './toc-links.js';
 import { DESCRIPTION_MAX, outlineTree, proposalProblem, withRoadmap } from './learn-outline-model.js';
 import { keyLabel } from './shortcuts.js';
 
@@ -27,6 +28,8 @@ const LEVEL_NAMES = { 1: 'section', 2: 'sub-section', 3: 'sub-sub-section' };
 // roadmap: useRoadmap (UI.02): its accepted steps are rows of this same tree (withRoadmap), in this one scroller, with their description and
 // status line; a title navigates to the step's slot or card (roadmap.go), never generates. No roadmap list, parameters, actions or composer here.
 // top: legacy slot, still drawn under the heading.
+// tocLinks: [[cardId, title, entryIds]] (the canvas's report of which card links to which section, toc-links.js): each row lists its linked cards, and
+// onAddLink(entryId) opens the card picker ("Add a link"). flash: { id, key } - a card's link to a section was pressed: unfold, scroll to and highlight that row for a moment.
 const doneKey = id => `rh.toc.roadmap-done.${id}`;
 // A contents row's Add to chat (owner approved 2026-11-07): its context ref goes to the CONTENTS composer as a pill (onAddToChat), never to the right-hand Chat.
 export function addRowToConversation(canvasApi, id, onAddToChat, notify = () => {}) {
@@ -35,7 +38,7 @@ export function addRowToConversation(canvasApi, id, onAddToChat, notify = () => 
   notify('Could not add this to the conversation');
   return false;
 }
-export default function TableOfContents({ outline: own, canvasApi, onAddToChat = null, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '', subtitle = null, goal = null, top = null, roadmap = null }) {
+export default function TableOfContents({ outline: own, canvasApi, onAddToChat = null, tocLinks = [], onAddLink = null, flash = null, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '', subtitle = null, goal = null, top = null, roadmap = null }) {
   // A roadmap row's manual done mark is the learner's own, kept per roadmap in this browser; it never means delivered, paid or understood.
   const rid = roadmap?.toc?.roadmapId ?? null;
   const [roadmapDone, setRoadmapDone] = useState(() => new Set());
@@ -55,6 +58,20 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
   const [folded, setFolded] = useState(() => new Set());
   const fold = id => setFolded(previous => { const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   const tree = outlineTree(outline);
+  const rootRef = useRef(null);
+  const [flashed, setFlashed] = useState(null);
+  const [moreLinks, setMoreLinks] = useState(() => new Set()); // rows whose linked cards are all shown (else two and +N more)
+  useEffect(() => {
+    if (!flash) return undefined;
+    const parents = ancestorsOf(outline, flash.id);
+    if (parents.length) setFolded(previous => { const next = new Set(previous); parents.forEach(id => next.delete(id)); return next; });
+    setFlashed(flash.id);
+    const calm = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    // Twice a frame: the panel was just switched to this tab, so the row is laid out only after the next paints.
+    const frame = requestAnimationFrame(() => requestAnimationFrame(() => rootRef.current?.querySelector(`[data-toc-entry="${CSS.escape(flash.id)}"]`)?.scrollIntoView({ block: 'center', behavior: calm ? 'auto' : 'smooth' })));
+    const timer = setTimeout(() => setFlashed(previous => (previous === flash.id ? null : previous)), 1600);
+    return () => { cancelAnimationFrame(frame); clearTimeout(timer); };
+  }, [flash?.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const shown = proposal && !readOnly ? (Array.isArray(proposal) ? { ops: proposal, base: null } : proposal) : null;
   const endDrag = () => { setDrag(null); setDrop(undefined); };
   const save = (entry, title, description) => {
@@ -109,7 +126,7 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
     const topic = entry.level === 1 && number;
     const active = entry.id === activeId;
     return (
-      <div data-toc-entry={entry.id} data-level={entry.level} data-done={entry.done || undefined} data-active={active || undefined}
+      <div data-toc-entry={entry.id} data-toc-flash={flashed === entry.id || undefined} data-level={entry.level} data-done={entry.done || undefined} data-active={active || undefined}
         data-roadmap-step={entry.roadmap?.stepId} draggable={!readOnly && !entry.roadmap && editing !== entry.id}
         onPointerDownCapture={event => { pressed.current = event.target; }}
         onDragStart={event => {
@@ -125,7 +142,7 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
           setDrop(event.clientY < box.top + box.height / 2 ? entry.id : outline[index + 1]?.id ?? null);
         }}
         onDrop={event => { event.preventDefault(); event.stopPropagation(); if (drag && drop !== undefined) canvasApi.current?.moveSection(drag, drop); endDrag(); }}
-        className={`group relative flex items-start gap-3 rounded-sm ${drag === entry.id ? 'opacity-40' : ''} ${drag && drop === entry.id ? 'shadow-[0_-2px_0_0_var(--color-accent)]' : ''} ${drag && drop === null && index === outline.length - 1 ? 'shadow-[0_2px_0_0_var(--color-accent)]' : ''}`}>
+        className={`group relative flex items-start gap-3 rounded-sm transition-colors duration-700 motion-reduce:transition-none ${flashed === entry.id ? 'bg-accent/15 ring-1 ring-accent/40' : ''} ${drag === entry.id ? 'opacity-40' : ''} ${drag && drop === entry.id ? 'shadow-[0_-2px_0_0_var(--color-accent)]' : ''} ${drag && drop === null && index === outline.length - 1 ? 'shadow-[0_2px_0_0_var(--color-accent)]' : ''}`}>
         {!readOnly && !entry.roadmap && <GripVertical size={14} aria-hidden className={`absolute -left-4 ${topic ? 'top-[5px]' : 'top-[3px]'} cursor-grab text-ink-3 opacity-0 group-hover:opacity-100`} />}
         <Circle entry={entry} topic={topic} active={active} readOnly={readOnly} onToggle={() => (entry.roadmap ? toggleRoadmapDone(entry.roadmap.stepId) : canvasApi.current?.toggleSectionDone(entry.id))} />
         {number && <span data-toc-number className={`${topic ? 'min-w-[18px] pt-[3px] text-xs' : `${entry.level === 3 ? 'min-w-12' : 'min-w-9'} pt-px text-[13px]`} -mr-1 shrink-0 leading-5 text-ink-2 tabular-nums`}>{number}</span>}
@@ -137,6 +154,24 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
               {entry.label}
             </button>
             {entry.description && <p className={`mt-1 break-words text-ink-2 ${entry.level === 1 ? 'text-sm leading-normal' : 'text-[13px] leading-normal'}`}>{entry.description}</p>}
+            {(() => {
+              // The cards linked to this section: derived from the cards' own link lists, so a link made on a card shows here and one made here shows on the card.
+              const cards = linkedCards(tocLinks, entry.id);
+              if (!cards.length) return null;
+              const all = moreLinks.has(entry.id), shown = all ? cards : cards.slice(0, 2);
+              return (
+                <div data-toc-links className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  {shown.map(card => (
+                    <span key={card.id} data-toc-linked-card={card.id} className="inline-flex max-w-full min-w-0 items-center gap-1 rounded-md border border-line bg-hover/60 py-0.5 pr-0.5 pl-1.5 text-xs text-ink hover:border-line-strong hover:bg-hover">
+                      <AddLinkIcon size={12} strokeWidth={1.8} aria-hidden className="shrink-0 text-ink-3" />
+                      <button type="button" data-toc-linked-card-open title={`Go to ${card.title}`} onClick={() => canvasApi.current?.focusBlock(card.id)} className="max-w-44 min-w-0 truncate text-left hover:underline">{card.title}</button>
+                      {!readOnly && <button type="button" data-toc-unlink aria-label={`Unlink ${card.title}`} title="Remove link" onClick={() => canvasApi.current?.removeTocLink(card.id, entry.id)} className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-ink-3 hover:bg-white hover:text-ink"><X size={12} aria-hidden /></button>}
+                    </span>
+                  ))}
+                  {cards.length > 2 && <button type="button" data-toc-links-more aria-expanded={all} onClick={() => setMoreLinks(previous => { const next = new Set(previous); if (next.has(entry.id)) next.delete(entry.id); else next.add(entry.id); return next; })} className="rounded-md px-1.5 py-0.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">{all ? 'Show fewer' : `+${cards.length - 2} more`}</button>}
+                </div>
+              );
+            })()}
             {entry.roadmap && <div data-roadmap-status className="mt-[5px] text-[11px] leading-4 text-ink-2">{entry.roadmap.status}{entry.roadmap.removed ? ` · ${'Card removed'}` : ''}</div>}
           </div>
         )}
@@ -146,6 +181,7 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
           const cardId = nav?.kind === 'card' ? nav.cardId : null;
           const deletesCard = entry.roadmap && cardId && !entry.roadmap.removed && !readOnly;
           const deletesHeading = !entry.roadmap && !readOnly;
+          const linksCard = !entry.roadmap && !readOnly && !!onAddLink; // "Add a link": a card, by its title, linked to this section
           // Add to chat: the heading's block, or a roadmap row's delivered card (a planned step with no card has nothing to add).
           const addId = entry.roadmap ? cardId : entry.id;
           // Overflow menu: Go to source text (a step with a source), Move up / down (a manual heading with a sibling that way), Copy link (a block to point at).
@@ -153,12 +189,13 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
           const moves = !entry.roadmap && !readOnly ? moveTargets(own, entry.id) : { up: null, down: null };
           const linkId = entry.roadmap ? cardId : entry.id;
           const hasMenu = !!source || !!moves.up || !!moves.down || !!linkId;
-          if (!goes && !deletesCard && !deletesHeading && !addId && !hasMenu) return null;
+          if (!goes && !deletesCard && !deletesHeading && !addId && !hasMenu && !linksCard) return null;
           const open = confirming === entry.id, menuOpen = menuFor === entry.id;
           const icon = "flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-ink";
           return (
             <div data-no-drag data-toc-actions className="relative flex shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100" style={open || menuOpen ? { opacity: 1 } : undefined}>
               {addId && <button type="button" data-toc-add-to-chat aria-label={"Add " + entry.label + " to chat"} title="Add to chat (the contents conversation)" onClick={() => addRowToConversation(canvasApi, addId, onAddToChat, message => toast(message, { tone: 'error' }))} className={icon}><MessageSquarePlus size={14} /></button>}
+              {linksCard && <button type="button" data-toc-add-link aria-label={"Add a link to " + entry.label} title="Add a link (a card)" onClick={() => onAddLink(entry.id)} className={icon}><AddLinkIcon size={14} /></button>}
               {goes && <button type="button" data-toc-go-card aria-label={"Go to card for " + entry.label} title="Go to card" onClick={() => roadmap?.go?.(nav)} className={icon}><LocateFixed size={14} /></button>}
               {deletesHeading && <button type="button" aria-label={"Edit " + entry.label} title="Edit title and description" onClick={() => setEditing(entry.id)} className={icon}><Pencil size={14} /></button>}
               {(deletesHeading || deletesCard) && <button type="button" data-toc-delete aria-label={(deletesCard ? "Delete card " : "Remove heading ") + entry.label} aria-haspopup="dialog" aria-expanded={open} title={deletesCard ? "Delete this card from the canvas" : "Remove from the contents"} onClick={() => setConfirming(open ? null : entry.id)}
@@ -205,7 +242,7 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
   );
 
   return (
-    <div data-toc className={className} onDragEnd={endDrag}>
+    <div ref={rootRef} data-toc className={className} onDragEnd={endDrag}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
         <h2 className="text-base font-semibold text-ink">Table of contents</h2>
         {!readOnly && (
