@@ -39,7 +39,9 @@ test('a handed-off turn (keepDraft) neither uses nor clears the Chat draft, @-ch
   assert.match(send, /const sourceRange = keepDraft \? null : codeSelection;\n\s+if \(!keepDraft\) setCodeSelection\(null\);/);
   assert.match(send, /const attached = regenerate \|\| keepDraft \? null : file;\n\s+if \(!regenerate && !keepDraft\) setFile\(null\);/);
   assert.match(send, /const board = keepDraft \? null : boardContext;/);
-  for (const key of ['paper', 'wiki', 'video', 'image']) assert.match(send, new RegExp(`const question${key[0].toUpperCase()}${key.slice(1)} = board\\?\\.${key};`), key);
+  for (const key of ['wiki', 'video', 'image']) assert.match(send, new RegExp(`const question${key[0].toUpperCase()}${key.slice(1)} = board\\?\\.${key};`), key);
+  // The Paper still comes only from the Chat's board context; an area picture of its own (SEL.02) outranks it for that turn.
+  assert.match(send, /const questionPaper = ownAreaImage\(canvasTarget\) && !keepDraft \? null : board\?\.paper;/, 'paper');
   assert.match(send, /if \(!isDemo && !keepDraft\) boardContext\?\.removeImage\(\);/);
   assert.match(send, /const target = keepDraft \? null : canvasTarget;/);
   assert.match(send, /\.\.\.\(chips\.length \? \{ mentions: \[\.\.\.chips\] \} : \{\}\),/);
