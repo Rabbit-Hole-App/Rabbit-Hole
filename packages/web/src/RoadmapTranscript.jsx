@@ -8,7 +8,7 @@ import { useStepExcerpt } from './SourceRefChip.jsx';
 import { STRINGS } from './roadmap-strings.js';
 import { chatOf, invitationOf } from './roadmap-client.js';
 import { newThreadId, saveMessage, saveTutorEntry } from './chat-persist.js';
-import { ensureTutorThread, entriesOf, invitationThreadId, occupied, outcomeOf, roadmapEditTarget, roadmapInvitationOf, roadmapThreadClientId, routeClientId, toSave } from './roadmap-transcript.js';
+import { ensureTutorThread, entriesOf, invitationThreadId, occupied, outcomeOf, roadmapEditTarget, roadmapInvitationOf, roadmapThreadClientId, routeClientId, routeFromSaved, toSave } from './roadmap-transcript.js';
 
 // The Tutor inside the real Chat transcript (BRIEF contract 6; checklist UI.01, UI.03, UI.08). Every Tutor entry is an ordinary saved Chat
 // message in its bound thread (entriesOf + saveTutorEntry), drawn by the existing ChatMessage with the roadmap's own controls under it:
@@ -142,6 +142,9 @@ export default function RoadmapTranscript({ roadmap, chat, msgs }) {
   // new chat with a draft is saved first under its own thread id (adopt carries the draft to it), so nothing is lost when switching.
   useEffect(() => {
     if (!iv || thread.status === 'loading' || routing.current.has(iv.id) || read(ROUTE(iv.id)) || read(IV_THREAD(iv.id))) return;
+    // A saved route message in this thread with no record in this browser (a reload elsewhere): rebuild the record, never route a second time.
+    const revived = routeFromSaved(msgs, iv.id, thread.id);
+    if (revived) { write(ROUTE(iv.id), JSON.stringify(revived)); if (revived.choice === 'stay') write(IV_THREAD(iv.id), revived.threadId); setTick(n => n + 1); return; }
     routing.current.add(iv.id);
     chat.panels.openChat();
     const entry = entriesOf(roadmap.state, { invitation: iv, route: { invitationId: iv.id } })[0];

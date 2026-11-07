@@ -85,6 +85,14 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     if (stopped || host.readOnly?.()) return;
     try { applyView(await call(routes.status(boardId))); } catch (error) { refuse(error); }
   }
+  // Reload: with no unfinished roadmap, the latest finished one (history is newest first) supplies the accepted tree the Table of contents keeps (state.past).
+  async function refreshPast() {
+    if (stopped || state.view || state.past || host.readOnly?.()) return;
+    try {
+      const last = ((await call(routes.history(boardId)))?.roadmaps || []).find(r => r.state === 'completed' || r.state === 'ended');
+      if (last) dispatch({ type: 'past', view: await call(routes.view(boardId, last.id)) });
+    } catch (error) { refuse(error); }
+  }
   async function refreshInvitation() {
     if (stopped || host.readOnly?.()) return;
     try { const body = await call(routes.invitation(boardId)); dispatch({ type: 'invitation', invitation: body.invitation, suppressed: body.suppressed }); } catch (error) { if (roadmapOff(error)) dispatch({ type: 'flag_off' }); }
@@ -183,7 +191,7 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
   return {
     getState: () => state,
     subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn); },
-    start() { if (!stopped) return; stopped = false; refresh().then(() => (state.view ? null : refreshInvitation())).then(loop); },
+    start() { if (!stopped) return; stopped = false; refresh().then(() => (state.view ? null : refreshInvitation())).then(refreshPast).then(loop); },
     stop() { stopped = true; if (timer) cancel(timer); timer = null; for (const id of followUps) cancel(id); followUps.clear(); },
     // Delivery-to-visible samples of automatic proposals (roadmap-auto.js): { n, p50, p95 } in milliseconds.
     timings: () => meter.summary(), timingSamples: () => meter.samples(),
@@ -201,13 +209,14 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     // A clear typed lesson request (CHAT.02): the SAME create the button runs, with the learner's words and the composer Depth bound once. With the
     // source's invitation offered it shares the button's gesture (one request, one draft); otherwise the create route takes the source itself. An
     // unfinished roadmap keeps its draft: nothing is created twice. threadId: the Chat thread the request came in, bound to the new roadmap.
-    async lesson({ depth, instruction, source, threadId = null } = {}) {
+    async lesson({ depth, instruction, source, threadId = null, scope = null } = {}) {
       if (stopped || (state.view && unfinished())) return null;
       const iv = state.invitation, text = typeof instruction === 'string' ? instruction.trim() : '';
+      const named = scope && typeof scope.kind === 'string' ? scope : { kind: 'whole' }; // the scope the tool call named: whole unless a passage was chosen
       if (!text) return null;
       let body;
-      if (iv && (!source || iv.sourceKeys[0] === source.key)) { chosen = { depth, instruction: text }; body = await createWith({ kind: 'whole' }, ''); }
-      else if (source?.key && source.rev) body = await act(`create:${source.key}@${source.rev}`, actionKey => routes.create(boardId, { source: { key: source.key, rev: source.rev, scope: { kind: 'whole' } }, instruction: text, depth: depth || host.depth?.() || 'standard' }, actionKey)).then(applyView);
+      if (iv && (!source || iv.sourceKeys[0] === source.key)) { chosen = { depth, instruction: text }; body = await createWith(named, named.kind === 'whole' ? '' : `:${named.kind}:${named.start ?? ''}:${named.end ?? ''}`); }
+      else if (source?.key && source.rev) body = await act(`create:${source.key}@${source.rev}`, actionKey => routes.create(boardId, { source: { key: source.key, rev: source.rev, scope: named }, instruction: text, depth: depth || host.depth?.() || 'standard' }, actionKey)).then(applyView);
       else return null;
       if (threadId) { await refresh(); if (state.view && !state.view.roadmap.threadId) await call(routes.thread(state.view, threadId)).then(applyView, () => {}); }
       return body;

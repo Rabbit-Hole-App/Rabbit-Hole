@@ -656,6 +656,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     const sentRefs = [...new Set([...selection, ...attachments])];
     const imageObject = target?.image ? target.id : questionImage?.blockId || null;
     const replyId = crypto.randomUUID();
+    let lessonRequest = null;
     let timed = 'pending'; // the outcome of this turn's chat_first_chunk_ms / chat_total_ms (client-timing.js)
     // The late-response guard (contract A5): the Chat's open thread when this turn was sent, against the one open now, read
     // from the thread hook itself, so a turn whose pane went away with its canvas is late too.
@@ -893,13 +894,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           else if (type === 'answer_meta') {
             setMsgs(messages => withAnswerMeta(messages, replyId, d));
             // CHAT.02: the answer asked for a tool. The server already checked it; the command's own handler runs it, as a router decision would.
-            if (d.toolRequest?.command === 'explain-on-canvas') { const { instruction, source } = d.toolRequest.args || {}; roadmap?.controller?.lesson({ depth: chat?.settings?.depth || 'standard', instruction, source: (lessonSources || []).find(s => s.key === source) || null, threadId: chat?.thread?.id || null }); }
+            if (d.toolRequest?.command === 'explain-on-canvas') lessonRequest = d.toolRequest.args || {}; // started at 'done', when the thread is saved (a new chat has no id yet)
             else if (d.toolRequest?.command) { const { command, args } = d.toolRequest; if (command === 'generate-image' && chatThread && imageGenerationOn()) imagePlan(args).catch(() => {}); else slashRef.current?.intercept(('/' + typedOf(command) + ' ' + args).trim()); }
           }
           else if (type === 'done' && d.threadId) {
             askedId(d.userMessageId != null ? String(d.userMessageId) : null);
             if (chatThread) { setMsgs(messages => withDone(messages, replyId, d)); chatThread.adopt(d.threadId, message.slice(0, 120)); }
             threadId.current = d.threadId;
+            if (lessonRequest) { const { instruction, source, scope } = lessonRequest; lessonRequest = null; roadmap?.controller?.lesson({ depth: chat?.settings?.depth || 'standard', instruction, source: (lessonSources || []).find(s => s.key === source) || null, threadId: d.threadId, scope: scope && typeof scope === 'object' ? scope : null }); } // BE.01a: bound to the durable thread before it starts
             if (panelAsk) { sheetThread.current = d.threadId; rememberSheetThread(appName, d.threadId); }
             if (repository && d.commit) setRepositoryCommit(d.commit);
             if (responseGraph && onGraph) onGraph(responseGraph);
