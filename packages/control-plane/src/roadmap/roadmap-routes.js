@@ -138,7 +138,7 @@ export async function roadmapRoute(path, req, env, deps = {}) {
     if (kind === 'steps' && id === 'link' && rest.length === 3) return reply(await offerLinkProposal(db, access, { roadmapId, cardId: body.cardId, reason: body.reason, origin: body.origin === 'tutor' ? 'tutor' : 'learner', ...arg }));
     if (kind === 'proposals' && verb === 'accept' && rest.length === 4) {
       if (roadmapEditEnabled(env) && await readLink(db, id, body.proposalVersion).catch(() => null)) return reply(await acceptLinkProposal(db, access, { roadmapId, revision: arg.expectedRevision, proposalId: id, proposalVersion: body.proposalVersion, actionKey: body.actionKey, ...(now ? { now } : {}) }));
-      const done = await acceptRoadmapStep(env, access, { roadmapId, revision: arg.expectedRevision, proposalId: id, proposalVersion: body.proposalVersion, actionKey: body.actionKey, ...(now ? { now } : {}) });
+      const done = await acceptRoadmapStep(env, access, { roadmapId, revision: arg.expectedRevision, proposalId: id, proposalVersion: body.proposalVersion, actionKey: body.actionKey, ...(deps.quote ? { quote: args => deps.quote(env, access, args) } : {}), ...(now ? { now } : {}) });
       if (!done.refusal && !done.replayed) await deps.onAccepted?.(env, access, done.body);
       return reply(done);
     }

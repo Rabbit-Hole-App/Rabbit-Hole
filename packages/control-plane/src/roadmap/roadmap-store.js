@@ -193,7 +193,8 @@ export async function offerProposal(db, access, { roadmapId, expectedRevision, a
 // revision, a pending checked proposal on an active roadmap, and the allowance for the WHOLE step), the hold, the authorization, the per-card
 // allocations, the result slots with minted card ids, the accepted decision and the step's move to generating. Insufficient allowance writes
 // nothing: the proposal stays pending and the action key stays unconsumed. First valid action wins; a second device's different key is a 409.
-export async function acceptRoadmapStep(env, access, { roadmapId, revision, proposalId, proposalVersion, actionKey, callMicros, now = nowSeconds() }) {
+// quote(roadmap, proposal) (CORE.05, roadmap-run.js quoteStepAcceptance): the snapshot and the exact one-call bound; legacy callers pass callMicros instead.
+export async function acceptRoadmapStep(env, access, { roadmapId, revision, proposalId, proposalVersion, actionKey, callMicros, quote = null, now = nowSeconds() }) {
   requireAccess(access); requireKey(actionKey);
   const db = env.LEARN_DB;
   if (!(await accessStillValid(db, access))) throw new StateError('not_found', 'Not available', 404); // revoked access: no new charge
@@ -208,7 +209,9 @@ export async function acceptRoadmapStep(env, access, { roadmapId, revision, prop
     if (!verdict.ok) throw Object.assign(await currentConflict(db, access, roadmapId, verdict.code));
   }
   const slots = Array.from({ length: ROADMAP_LIMITS.cardsPerStep.r4Default }, (_, i) => ({ index: i, resultId: newId('rs_'), cardId: newId('cd_') }));
-  const auth = await admitStepAuthorization(env, access, { roadmapId, proposalId, proposalVersion, slots, callMicros, now });
+  // A replay never re-quotes: its recorded receipt is the answer.
+  const quoted = !earlier && quote ? await quote({ roadmap, proposal }) : null;
+  const auth = await admitStepAuthorization(env, access, { roadmapId, proposalId, proposalVersion, slots, callMicros, cardBoundMicros: quoted?.boundMicros, contentFingerprint: quoted?.contentFingerprint, now });
   if (auth.refusal) return { refusal: auth.refusal };
   const body = { roadmapId, proposalId, proposalVersion, authorizationId: auth.authorizationId, slots: slots.map(s => ({ index: s.index, resultId: s.resultId, cardId: s.cardId })) };
   const pending = "EXISTS (SELECT 1 FROM learn_step_proposals WHERE id = ? AND version = ? AND roadmap_id = ? AND state = 'pending' AND stale = 0) AND (SELECT state FROM learn_roadmaps WHERE id = ?) = 'active'";
@@ -225,7 +228,7 @@ export async function acceptRoadmapStep(env, access, { roadmapId, revision, prop
         ...auth.statements()(r),
         db.prepare(`UPDATE learn_step_proposals SET state = 'accepted', accepted_at = ?, decided_at = ? WHERE id = ? AND version = ? AND state = 'pending' AND ${r.and}`).bind(now, now, proposalId, proposalVersion, ...r.binds),
         db.prepare(`UPDATE learn_roadmap_steps SET state = 'generating', updated_at = ? WHERE id = ? AND ${r.and}`).bind(now, proposal.step_id, ...r.binds),
-        eventStatement(db, access, { roadmapId, kind: 'step_accepted', factId: proposalId, factRevision: proposalVersion, payload: { proposalId, proposalVersion, authorizationId: auth.authorizationId }, now }, r),
+        eventStatement(db, access, { roadmapId, kind: 'step_accepted', factId: proposalId, factRevision: proposalVersion, payload: { proposalId, proposalVersion, authorizationId: auth.authorizationId, ...(quoted ? { snapshot: quoted.snapshot } : {}) }, now }, r),
       ],
     });
   } catch (error) {

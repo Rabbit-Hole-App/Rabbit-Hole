@@ -5,7 +5,9 @@
 // terminal and refunded). Delivery stays the learner's browser: this never writes a board. Accepted work finishes even when ROADMAP_ENABLED
 // is off (v1.4 4.1); only routes and unsolicited stages are gated.
 // ponytail: a held card (unsupported claims) is refunded rather than regenerated once; a checked regeneration is a later change.
-import { generateRoadmapCard } from './roadmap-generate.js';
+import { authorRoute, generateRoadmapCard, quoteRoadmapCard, requestFingerprint } from './roadmap-generate.js';
+import { StateError } from './roadmap-contract.js';
+import { sha256 } from './roadmap-source.js';
 import { checkRoadmapCard, withheldCause } from './roadmap-check.js';
 import { modelAdjudicator } from './roadmap-safety.js';
 import { failCard, readRoadmap, recordGenerated } from './roadmap-store.js';
@@ -32,13 +34,64 @@ export async function generationHandler(env, event, { now = nowSeconds() } = {},
   const access = await accessForRoadmap(db, event, { checkBoard: false });
   if (!access) return { done: true };
   const roadmap = await readRoadmap(db, access, event.roadmap_id);
-  const { proposalId, proposalVersion, authorizationId } = parse(event.payload_json) || {};
+  const { proposalId, proposalVersion, authorizationId, snapshot = null } = parse(event.payload_json) || {};
   if (!roadmap || !proposalId) return { done: true };
   const { results } = await db.prepare("SELECT * FROM learn_step_results WHERE roadmap_id = ? AND proposal_id = ? AND proposal_version = ? AND decision = 'accepted' AND delivery = 'not_delivered' AND generation IN ('pending', 'generating') ORDER BY slot_index")
     .bind(roadmap.id, proposalId, proposalVersion).all();
   let deferred = false;
-  for (const result of results || []) if (await generateOne(env, access, roadmap, result, { proposalId, proposalVersion, authorizationId }, { now, ...deps }) === 'defer') deferred = true;
+  for (const result of results || []) if (await generateOne(env, access, roadmap, result, { proposalId, proposalVersion, authorizationId, snapshot }, { now, ...deps }) === 'defer') deferred = true;
   return deferred ? { retry: true } : { done: true };
+}
+
+// CORE.03: the learner's accepted words through a plan row's instruction version: v1 verbatim, then each non-empty accepted revision/answer in order.
+export async function learnerInstructionThrough(db, roadmapId, upTo) {
+  const { results } = await db.prepare('SELECT version, text, origin FROM learn_roadmap_instructions WHERE roadmap_id = ? AND version <= ? ORDER BY version').bind(roadmapId, upTo).all();
+  const rows = results || [];
+  return { original: rows.find(r => r.version === 1)?.text ?? '', revisions: rows.filter(r => r.version > 1 && r.text.trim()).map(r => ({ version: r.version, text: r.text, origin: r.origin })) };
+}
+const teachingScopeOf = scope => ({ kind: scope?.kind || 'whole', ...(Number.isInteger(scope?.start) && Number.isInteger(scope?.end) ? { start: scope.start, end: scope.end } : {}) });
+
+// CORE.03/05: the writer's record of one accepted (or about to be accepted) step, read from the step's OWN plan row (its plan_version and
+// position, never whichever plan is latest), the accepted instruction history through that row's instruction version, the pinned document and
+// the frozen settings. With a snapshot (acceptance) every frozen field comes from it. -> { rec, planRow } | { error }
+export async function stepInput(env, access, roadmap, { step, proposal, snapshot = null }, deps = {}) {
+  const db = env.LEARN_DB;
+  const planVersion = snapshot?.planVersion ?? step?.plan_version;
+  const planRow = step ? await db.prepare('SELECT plan_json, plan_hash, instruction_version, accepted_at FROM learn_roadmap_plan_versions WHERE roadmap_id = ? AND version = ?').bind(roadmap.id, planVersion).first() : null;
+  const plan = parse(planRow?.plan_json), planStep = plan?.steps?.[step?.position - 1];
+  // Missing or inconsistent stored plan data stops before any author call: never empty claims or outcome, never another plan's step.
+  if (!planRow?.accepted_at || !planStep || planStep.title !== step.title || (snapshot && (snapshot.planHash !== planRow.plan_hash || snapshot.position !== step.position || snapshot.stepId !== step.id))) return { error: 'plan_binding' };
+  const text = await (deps.readSourceForActor || readMarkdownForActor)(env, access, { key: roadmap.source_key, rev: roadmap.source_rev });
+  if (text.status !== 'ok' || text.complete === false) return { error: 'source' };
+  const sourceRef = step.source_ref_id ? await (deps.loadSourceRef || d1PublicRef)(env, access, step.source_ref_id) : null;
+  const rec = { stepId: step.id, proposalId: proposal.id, proposalVersion: proposal.version,
+    format: snapshot?.format ?? proposal.format ?? step.format, stepTitle: snapshot?.title ?? proposal.title ?? step.title, stepGoal: step.goal,
+    // The passage offsets are the highlight anchor; the writer's context is the whole document at the pinned revision.
+    passageText: text.text.slice(step.passage_start, step.passage_end), documentText: text.text,
+    claimsToCover: Array.isArray(planStep.claimsToCover) ? planStep.claimsToCover : [], outcome: typeof plan.outcome === 'string' ? plan.outcome : '',
+    learnerInstruction: snapshot?.learnerInstruction ?? await learnerInstructionThrough(db, roadmap.id, planRow.instruction_version),
+    instructionVersion: planRow.instruction_version, teachingScope: snapshot?.teachingScope ?? teachingScopeOf(parse(roadmap.scope_json)),
+    sourceRef, language: snapshot?.language ?? roadmap.language ?? 'en', depth: snapshot?.depth ?? plan.settings?.depth ?? roadmap.depth, retry: 0,
+    ...(snapshot ? { requestFingerprint: snapshot.requestFingerprint, boundMicros: snapshot.boundMicros } : {}) };
+  return { rec, planRow, planVersion };
+}
+
+// CORE.05: at Accept, before anything is written: the immutable accepted-input snapshot and the quote of the actual full first author request.
+// -> { snapshot, boundMicros, contentFingerprint }. Throws a 409 StateError (nothing written, the proposal stays pending) when it cannot be priced or bound.
+export async function quoteStepAcceptance(env, access, { roadmap, proposal }, deps = {}) {
+  const db = env.LEARN_DB;
+  const step = await db.prepare('SELECT * FROM learn_roadmap_steps WHERE id = ? AND roadmap_id = ?').bind(proposal.step_id, roadmap.id).first();
+  const got = await stepInput(env, access, roadmap, { step, proposal }, deps);
+  if (got.error) throw new StateError(got.error === 'source' ? 'source_unavailable' : 'step_unavailable', 'This card cannot be prepared.', 409);
+  const q = await quoteRoadmapCard(env, got.rec);
+  if (q.outcome !== 'quoted') throw new StateError('request_unpriced', 'This card cannot be prepared.', 409);
+  const { rec, planRow } = got;
+  const snapshot = { v: 1, stepId: step.id, planVersion: got.planVersion, planHash: planRow.plan_hash, position: step.position, proposalId: proposal.id, proposalVersion: proposal.version,
+    contentHash: proposal.content_hash, instructionVersion: rec.instructionVersion, learnerInstruction: rec.learnerInstruction, teachingScope: rec.teachingScope,
+    depth: rec.depth, language: rec.language, format: rec.format, title: rec.stepTitle, source: { key: roadmap.source_key, rev: roadmap.source_rev },
+    provider: q.provider, model: q.model, requestFingerprint: q.requestFingerprint, boundMicros: q.boundMicros };
+  const contentFingerprint = await sha256(JSON.stringify([proposal.content_hash, snapshot.planHash, snapshot.position, snapshot.requestFingerprint, roadmap.source_rev]));
+  return { snapshot, boundMicros: q.boundMicros, contentFingerprint };
 }
 
 async function generateOne(env, access, roadmap, result, ids, deps) {
@@ -51,38 +104,29 @@ async function generateOne(env, access, roadmap, result, ids, deps) {
   if (!await accessForRoadmap(db, { org: access.org, owner_user_id: access.actorUserId, board_id: access.boardId, roadmap_id: roadmap.id })) { await fail('denied_access'); return 'failed'; }
   await db.prepare("UPDATE learn_step_results SET generation = 'generating', updated_at = ? WHERE id = ? AND generation = 'pending'").bind(now(), result.id).run();
   const step = await db.prepare('SELECT * FROM learn_roadmap_steps WHERE id = ?').bind(result.step_id).first();
-  const proposal = await db.prepare('SELECT format FROM learn_step_proposals WHERE id = ? AND version = ?').bind(ids.proposalId, ids.proposalVersion).first();
-  const original = (await db.prepare('SELECT text FROM learn_roadmap_instructions WHERE roadmap_id = ? AND version = 1').bind(roadmap.id).first())?.text ?? '';
+  const proposal = await db.prepare('SELECT * FROM learn_step_proposals WHERE id = ? AND version = ?').bind(ids.proposalId, ids.proposalVersion).first();
   const base = deps.base || loggedModel('artifact', planModel);
-  const readSource = deps.readSourceForActor || readMarkdownForActor;
 
   for (let retryNo = await retriesUsed(db, result.id); ; ) {
     const current = await readRoadmap(db, access, roadmap.id);
     const source = await revalidateSourceAsJob(db, access, current);
     if (!source.ok) { await fail('denied_access', retryNo); return 'failed'; } // stops BEFORE admission: nothing is spent
-    const text = await readSource(env, access, { key: current.source_key, rev: current.source_rev });
-    if (text.status !== 'ok' || text.complete === false) { await fail('denied_access', retryNo); return 'failed'; }
-    // The passage offsets are the highlight anchor; the writer's context is the whole document at the pinned revision (the source card's
-    // on-screen expansion or scroll never reaches here). The accepted plan supplies the step's claims and the roadmap's outcome.
-    const passage = text.text.slice(step.passage_start, step.passage_end);
-    const sourceRef = step.source_ref_id ? await (deps.loadSourceRef || d1PublicRef)(env, access, step.source_ref_id) : null;
-    const planRow = current.accepted_plan_version ? await db.prepare('SELECT plan_json FROM learn_roadmap_plan_versions WHERE roadmap_id = ? AND version = ?').bind(roadmap.id, current.accepted_plan_version).first() : null;
-    let plan = null; try { plan = planRow ? JSON.parse(planRow.plan_json) : null; } catch { plan = null; }
-    const planStep = plan?.steps?.[step.position - 1];
-    const loadAccepted = async () => ({ cardId: result.card_id, stepId: step.id, proposalId: ids.proposalId, proposalVersion: ids.proposalVersion, format: proposal?.format ?? step.format, stepTitle: step.title, stepGoal: step.goal,
-      passageText: passage, documentText: text.text, claimsToCover: Array.isArray(planStep?.claimsToCover) ? planStep.claimsToCover : [], outcome: typeof plan?.outcome === 'string' ? plan.outcome : '',
-      sourceRef, language: current.language || 'en', depth: current.depth, retry: retryNo });
+    const got = proposal ? await stepInput(env, access, current, { step, proposal, snapshot: ids.snapshot }, deps) : { error: 'plan_binding' };
+    if (got.error) { await fail(got.error === 'source' ? 'denied_access' : 'terminal_validation_failure', retryNo); return 'failed'; }
+    const rec = { ...got.rec, cardId: result.card_id, retry: retryNo };
+    const loadAccepted = async () => rec;
     // The learner's usage context (payer from the access object, never a body) with the step hold; each call is checkpointed around the transport.
     const withProviderCall = (e, fields) => withRoadmapProviderCall(e, fields, { kind: fields.stage === 'generate' ? 'generation' : 'repair' });
     const callModel = async (e, body, model, org) => {
-      const op = operationOf(e), f = fieldsOfKey(op.key);
-      await planCall(db, access, { opId: op.opId, key: op.key, roadmapId: roadmap.id, resultId: result.id, authorizationId: ids.authorizationId, stage: f.stage, call: f.call, retry: f.retry, payer: 'learner', task: 'artifact', model, now: now() });
+      const op = operationOf(e), f = fieldsOfKey(op.key), route = authorRoute(e, model);
+      await planCall(db, access, { opId: op.opId, key: op.key, roadmapId: roadmap.id, resultId: result.id, authorizationId: ids.authorizationId, stage: f.stage, call: f.call, retry: f.retry, payer: 'learner', task: 'artifact',
+        provider: route.provider, model: route.model, requestFingerprint: await requestFingerprint(body, route), now: now() });
       return checkpointed(db, op.opId, now, () => base(e, body, model, org));
     };
     const out = await generateRoadmapCard(learnerUsageEnv(env, access, ids.proposalId, ids.proposalVersion), access, { authorizationId: ids.authorizationId, resultId: result.id, resultVersion: result.result_version },
       { loadAccepted, withProviderCall, callModel, ...(deps.generate ? { generate: deps.generate } : {}) });
 
-    if (out.outcome === 'ok') return finish(env, access, roadmap, result, ids, out, { passage, original, rev: current.source_rev }, deps, now, fail, retryNo);
+    if (out.outcome === 'ok') return finish(env, access, roadmap, result, ids, out, { passage: rec.passageText, original: rec.learnerInstruction.original, rev: current.source_rev }, deps, now, fail, retryNo);
     if (out.outcome === 'unavailable') return 'defer'; // not wired yet: the event retries, nothing was spent
     const done = await fail(out.outcome === 'forbidden' ? 'denied_access' : out.failure_class, retryNo);
     if (done.body?.retry) { retryNo = done.body.retryNo; continue; } // refunded first, then the one bounded automatic retry with a fresh operation identity
