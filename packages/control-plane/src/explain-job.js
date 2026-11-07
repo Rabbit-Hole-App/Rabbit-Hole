@@ -40,6 +40,7 @@ import { DEFAULT_DEPTH, validDepth } from './chat-depth.js';
 import { readDepth } from './learn-user-settings.js';
 import { EXPLAIN_LIMITS, EXPLAIN_POLICY_VERSION, REQUEST_CLASSES, ExplainPolicyError, callExplainRole, checkExplainRequest, explainReservation,
   explainRequest, newTiming, markTiming, beginStage, countStage, endStage, timingSummary } from './explain-policy.js';
+import { logJobFailure } from './job-failure-log.js';
 
 const PREFIX = '/api/learn/explain/jobs';
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -591,7 +592,7 @@ export class ExplainJobs {
       if (!current || current.stopped || current.attempt !== job.attempt || current.stage !== job.stage || current.inFlight) return null;
       const limit = role === 'brief' ? EXPLAIN_LIMITS.calls.brief * (1 + EXPLAIN_LIMITS.refinements) : EXPLAIN_LIMITS.calls[role];
       if (current.counts[role] + 1 > limit) throw Object.assign(fail(`This explanation reached its ${role} limit.`, 429), { stopReason: 'budget' });
-      if (Date.now() >= current.deadline) throw Object.assign(fail('This explanation reached its time limit.', 409), { stopReason: 'deadline' });
+      if (Date.now() >= current.deadline) throw Object.assign(fail(`This explanation reached its time limit while ${current.stage}.`, 409), { stopReason: 'deadline' });
       current.counts[role]++; current.reservedMicros += boundMicros;
       const callKey = `${current.id}-${role}-${current.calls.length + 1}`; // per record: a refused call gives its count back, so the count would repeat a key
       current.inFlight = { key: callKey, role, at: Date.now() };
@@ -639,17 +640,19 @@ export class ExplainJobs {
     const call = job.calls.find(c => c.key === job.inFlight.key);
     if (call) Object.assign(call, { status: 'unknown', endedAt: Date.now() });
     job.inFlight = null;
-    if (!TERMINAL.has(job.stage)) {
+    const wasLive = !TERMINAL.has(job.stage);
+    if (wasLive) {
       endStage(job.timing, 'interrupted');
       Object.assign(job, { stage: 'failed', stopReason: 'error', failure: { stage: call?.role === 'review' ? 'reviewing' : job.stage, category: 'transport', message: 'An AI step was interrupted. You are not charged for it.', retryable: true } });
       await this.finishUsage(job, 'interrupted');
     }
     await this.save(job);
+    if (wasLive) logJobFailure('explain', job, { windowMs: EXPLAIN_LIMITS.deadlines.jobMs, interrupted: true });
   }
 
   async advance(job) {
     if (job.inFlight) { if (!this.active.has(job.id)) await this.locked(async () => { const current = await this.get(job.id); if (current.inFlight && !this.active.has(job.id)) await this.reconcile(current); }); return; }
-    if (Date.now() > job.deadline) throw Object.assign(fail('This explanation reached its time limit.', 409), { stopReason: 'deadline' });
+    if (Date.now() > job.deadline) throw Object.assign(fail(`This explanation reached its time limit while ${job.stage}.`, 409), { stopReason: 'deadline' });
     if (job.stage === 'queued') return this.move(job, job.prepare && !job.approval ? 'preparing' : 'authoring');
     const ctx = { env: this.env, call: (role, spec) => this.paidCall(job, role, spec), limits: EXPLAIN_LIMITS };
     const stage = job.stage, attempt = job.attempt;
@@ -758,6 +761,7 @@ export class ExplainJobs {
     endStage(job.timing, stopReason);
     Object.assign(job, { stage: 'failed', stopReason, failure: { stage: job.stage, category, message, retryable } });
     await this.save(job); await this.finishUsage(job, 'failed');
+    logJobFailure('explain', job, { windowMs: EXPLAIN_LIMITS.deadlines.jobMs });
   }
   // A program result: the artifact (source, manifest, pinned versions, host-computed hashes) stored behind this canvas's ownership,
   // with the model that authored it and the provenance of what it was given. Its identity names the bundle, not a scene.
@@ -804,6 +808,7 @@ export class ExplainJobs {
         Object.assign(current, { stage: 'failed', stopReason: 'provider_unavailable', failure: { stage: current.stage, category: 'provider_unavailable', message: error.message, retryable: true } });
         // Not a finding: a paused repair resumes from the findings it was given (the refused call is in calls, status refused).
         await this.save(current); await this.finishUsage(current, 'failed');
+        logJobFailure('explain', current, { windowMs: EXPLAIN_LIMITS.deadlines.jobMs });
         return;
       }
       const refused = ['spend_limited', 'spend_refused'].includes(error.code) || error.status === 429;
@@ -813,6 +818,7 @@ export class ExplainJobs {
       // Private, structured: what failed, never the learner's words or the provider's raw text in a log.
       current.findings.push({ round: current.round, stage: current.failure.stage, error: error.code || error.name || 'error' });
       await this.save(current); await this.finishUsage(current, 'failed');
+      logJobFailure('explain', current, { windowMs: EXPLAIN_LIMITS.deadlines.jobMs });
     });
   }
 }

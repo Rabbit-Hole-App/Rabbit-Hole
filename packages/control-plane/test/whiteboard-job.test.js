@@ -274,3 +274,16 @@ test('routes: availability switch, 404 when off, 401 unauthorized, 403 cross-ori
     assert.deepEqual([sent.action, sent.board.id, sent.user.email, 'boardId' in sent.payload], [action, BOARD.id, OWNER.email, false]);
   }
 });
+
+test('a failed whiteboard job writes one job_failed log line: its stage and code, no request words', async t => {
+  const lines = [];
+  t.mock.method(console, 'log', line => { if (String(line).includes('"event":"job_failed"')) lines.push(String(line)); });
+  const s = stack(t, { reply: () => OVER });
+  const { id, job } = await s.planned();
+  assert.equal(job.stage, 'failed');
+  assert.equal(lines.length, 1);
+  const entry = JSON.parse(lines[0]);
+  assert.deepEqual([entry.kind, entry.job_id, entry.stop_reason, entry.interrupted], ['whiteboard', id, job.failure.code, false]);
+  assert.equal(entry.stage, job.failure.stage);
+  assert.doesNotMatch(lines[0], /gradient|Explain|could not be written/);
+});

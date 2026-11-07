@@ -739,3 +739,25 @@ overage rate, as if the product databases had already used the inclusions.
 - R2 archives at 90 days: a few GB at most, under $0.10 a month at these volumes.
 - Unknown: actual event volume (nothing is collected yet), and the account's current use of the inclusions. Until the
   increment-5 per-day event cap exists, the bound is the request volume itself: at most two model-call events per model call.
+
+## Job failure log line
+
+Every terminal failure of a generation job (Explain, Animation, Whiteboard, CAD) writes one line to the Worker log with `console.log`
+(`packages/control-plane/src/job-failure-log.js`, called from each job's failure paths). It is a log line, not a telemetry-registry
+event: it is not in the dashboard, only in Cloudflare Workers Logs (`observability` is enabled in `wrangler.jsonc`). Search the control
+plane Worker's logs for `event = job_failed`. Retention of Workers Logs is not checked here; look it up before relying on old lines.
+
+```json
+{"event":"job_failed","kind":"explain","job_id":"abc123","stage":"rendering","stop_reason":"deadline","category":"internal","retryable":false,"attempt":1,"elapsed_ms":601200,"stage_ms":{"preparing":8100,"authoring":92000,"rendering":501000},"calls":{"brief":1,"author":2,"review":1},"interrupted":false}
+```
+
+- `kind`: `explain`, `animation`, `whiteboard` or `cad`. `job_id`: the job's own id.
+- `stage`: where the job was when it stopped (`failure.stage`; CAD `failureStage`). `stop_reason`: for example `deadline`, `budget`, `rounds`,
+  `provider_unavailable`, `error`, or the failure code (`call_interrupted`, `plan_unfit`, CAD `execution_failed`). `category` and `retryable`: from the record, or null.
+- `elapsed_ms`: from the start of the current deadline window (`deadline - jobMs`; for CAD `limits.elapsedMs`), else from `createdAt`.
+  `stage_ms`: milliseconds in each stage, summed per stage name (an open stage counts to now; Whiteboard and CAD keep no stage timings, so `{}`).
+  `calls`: model calls per role. `interrupted`: a restart or eviction ended an in-flight call.
+- Only ids, tokens and numbers: never a prompt, brief, message, provider text, email or user id. A test fails if the line gains a key
+  or a non-token text value (`job-failure-log.test.js`).
+- Written after the failure is saved, once per failure. A job that resumes automatically (animation `resumeLater`) and a user cancel write nothing.
+- The deadline message names the stage: "This explanation reached its time limit while rendering."; the animation card says "The build ran out of time while reviewing."
