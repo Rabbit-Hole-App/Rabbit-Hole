@@ -384,5 +384,6 @@ test('the menu greys a disabled row and says nothing: no reason line or tooltip,
   assert.ok(menu.includes('title={reason || undefined}'));
   assert.ok(menu.includes('{reason && <span data-menu-reason'));
   assert.ok(!menu.includes('row.reason && <span'));
+  assert.ok(menu.includes('<Check size={14} strokeWidth={2.5} className="text-accent" />'), 'a checked row (Full content) shows its check in the app blue (--color-accent)');
   assert.equal(labels(actionsFor(selectionTarget(model(['c1'])), fakeCtx().ctx)).includes('Copy card'), false, 'the card row is named Copy');
 });

@@ -34,7 +34,7 @@ function ActionRow({ row, onPick }) {
       aria-keyshortcuts={row.keyshortcuts || undefined} aria-description={row.reason || undefined} hint={row.hint || undefined}
       className={`${reason ? 'h-auto py-1' : ''} ${row.danger ? 'text-danger' : ''}`}
       onClick={() => onPick(row.id)}>
-      {check ? <span className="flex items-center"><span className="min-w-0 flex-1">{row.label}</span><span aria-hidden="true" className="inline-block w-4">{row.checked ? <Check size={14} strokeWidth={2.5} /> : null}</span></span> : row.label}
+      {check ? <span className="flex items-center"><span className="min-w-0 flex-1">{row.label}</span><span aria-hidden="true" className="inline-block w-4">{row.checked ? <Check size={14} strokeWidth={2.5} className="text-accent" /> : null}</span></span> : row.label}
       {/* The reason is the row's description, never part of its name: the label stays what the row is called. */}
       {reason && <span data-menu-reason aria-hidden="true" className="block text-xs text-ink-3">{reason}</span>}
     </MenuRow>
