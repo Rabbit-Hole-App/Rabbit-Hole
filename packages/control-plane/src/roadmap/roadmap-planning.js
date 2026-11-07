@@ -66,7 +66,14 @@ export async function planningHandler(env, event, { now = nowSeconds() } = {}, d
   const previous = roadmap.plan_version ? parse((await db.prepare('SELECT plan_json FROM learn_roadmap_plan_versions WHERE roadmap_id = ? AND version = ?').bind(roadmap.id, roadmap.plan_version).first())?.plan_json) : null;
   const revising = !!previous?.steps?.length;
   const callModel = deps.callModel || platformCallModel(env, access, { roadmapId: roadmap.id, version: instructionVersion, quota: 'plan', registry: deps.registry, transport: deps.transport, now: () => now });
-  const input = { instruction: { original, ...(instructionVersion > 1 ? { latest } : {}) }, depth: roadmap.depth, source: read, language: roadmap.language ?? undefined };
+  // CORE.02: a selected passage is the teaching scope, not the planner's knowledge: a bounded document (<= ROADMAP_LIMITS.source.chars) goes whole with the
+  // passage as explicit scope. Above the bound (or a section of a long source) the passage read stays the source (R7), never a claimed full read.
+  let source = read, teach = null;
+  if (!isLong && scope.kind === 'passage') {
+    const whole = await readRoadmapSource(env, access, { ref, scope: { kind: 'declared' } }, { readSourceForActor });
+    if (whole.status === 'ok') { source = whole; teach = { start: read.coverage.start, end: read.coverage.end }; }
+  }
+  const input = { instruction: { original, ...(instructionVersion > 1 ? { latest } : {}) }, depth: roadmap.depth, source, language: roadmap.language ?? undefined, ...(teach ? { scope: teach } : {}) };
   let prepared = null;
   if (isLong) {
     prepared = await prepareLongPlan(env, access, roadmap, { readSourceForActor });

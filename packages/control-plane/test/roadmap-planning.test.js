@@ -206,3 +206,33 @@ test('Explain on canvas from an invitation carries no typed words: an empty inst
   assert.equal(made.body.roadmap.state, 'proposed');
   assert.deepEqual(seen, [{ original: '' }]);
 });
+
+// CORE.02: whole content and a selected passage send the planner the identical whole bounded document; only the teaching scope differs.
+test('CORE.02: a selected passage plans from the whole bounded document (over 8,000 characters) with the passage as explicit teaching scope', async t => {
+  const LONG = `${MD}\n## Notes\n${'Trees split the data by asking one question at a time. '.repeat(160)}\n## Far away\nThe momentum term remembers earlier gradients.\n`;
+  assert.ok(LONG.length > 8000 && LONG.length < 40000);
+  const exact = 'One update subtracts the learning rate times the gradient from the weight.';
+  const start = LONG.indexOf(exact), end = start + exact.length;
+  const capture = async (scope, plan) => {
+    const seen = [];
+    const h = await loop(t, { plans: [plan], md: LONG });
+    h.w.sqlite.exec(R3);
+    h.w.sqlite.prepare("INSERT INTO learn_source_refs (id, org, owner_email, kind, source_key, source_name, source_rev, anchor_json, anchor_hash, created_at) VALUES (?, 'team', 'u-alice@example.test', 'markdown', ?, 'n', ?, ?, 'h', 1)").run('sref_' + '1'.repeat(24), `file:${ID_B}`, h.rev, JSON.stringify({ quote: { exact, prefix: '', suffix: '' } }));
+    registerRoadmapHandlers({ callModel: async (role, body) => { seen.push(String(body.messages[0].content)); return h.m.callModel(role, body); }, checkCallModel: h.m.callModel, classify, base: h.p.base });
+    const made = await create(h, {}, { scope });
+    assert.equal(made.status, 202, JSON.stringify(made.body).slice(0, 200));
+    assert.equal(made.body.roadmap.state, 'proposed', JSON.stringify(made.body.limitation));
+    assert.equal(seen.length, 1);
+    const [json, ...rest] = seen[0].split('\n\n<source');
+    return { request: JSON.parse(json), source: rest.join('\n\n<source') };
+  };
+  const wholePlan = { ...planInput([['One update', start, end]]), coverage: { uncovered: [{ start: 0, end: start, reason: 'not asked for' }, { start: end, end: LONG.length, reason: 'not asked for' }] } };
+  const whole = await capture({ kind: 'whole' }, wholePlan);
+  const part = await capture({ kind: 'passage', sourceRefId: 'sref_' + '1'.repeat(24) }, planInput([['One update', start, end]]));
+  assert.equal(part.source, whole.source, 'identical source text for both choices');
+  assert.ok(part.source.includes('The momentum term remembers earlier gradients.'), 'a fact outside the selected passage reaches the planner');
+  assert.ok(part.source.includes(`range="0-${LONG.length}"`), 'the source block is the whole document');
+  assert.deepEqual(whole.request.scope, { start: 0, end: LONG.length });
+  assert.deepEqual(part.request.scope, { start, end }, 'the selected passage is the explicit teaching scope');
+  assert.equal(part.request.instruction.original, INSTRUCTION);
+});
