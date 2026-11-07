@@ -21,7 +21,7 @@ after(() => rmSync(tmp, { recursive: true, force: true }));
 const outfile = join(tmp, 'bundle.cjs');
 await esbuild.build({
   stdin: {
-    contents: "export { default as RoadmapInvitation } from './RoadmapInvitation.jsx'; export { default as RoadmapPlan } from './RoadmapPlan.jsx'; export { ProposalOverlay, NextCardPill, StepPill } from './NextStepPill.jsx'; export { useRoadmap } from './use-roadmap.js'; export { RoadmapChat, RoadmapToc, RoadmapCanvas } from './RoadmapSurfaces.jsx'; export { default as TableOfContents } from './TableOfContents.jsx'; export { default as TocConversation } from './TocConversation.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';",
+    contents: "export { default as RoadmapInvitation } from './RoadmapInvitation.jsx'; export { default as RoadmapPlan } from './RoadmapPlan.jsx'; export { ProposalOverlay, NextCardPill, StepPill } from './NextStepPill.jsx'; export { useRoadmap } from './use-roadmap.js'; export { RoadmapCanvas } from './RoadmapSurfaces.jsx'; export { default as TableOfContents } from './TableOfContents.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';",
     resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx',
   },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', loader: { '.css': 'empty', '.woff2': 'empty', '.woff': 'empty', '.ttf': 'empty', '.png': 'empty', '.svg': 'empty' },
@@ -122,7 +122,7 @@ test('delivered cards are placed around the anchor in free space, never on an ob
 test('the hook and the three surfaces mount with nothing to show before the server answers (no flash, no price, no error)', () => {
   const Probe = () => {
     const roadmap = lib.useRoadmap({ api: async () => ({}), boardId: 'lb_1', host: {} });
-    return lib.createElement('div', null, lib.createElement(lib.RoadmapChat, { roadmap }), lib.createElement(lib.RoadmapToc, {}), lib.createElement(lib.RoadmapCanvas, { roadmap }));
+    return lib.createElement('div', null, lib.createElement(lib.RoadmapCanvas, { roadmap }));
   };
   assert.equal(lib.renderToStaticMarkup(lib.createElement(Probe)), '<div></div>');
 });
@@ -132,7 +132,7 @@ test('the hook and the three surfaces mount with nothing to show before the serv
 test('Contents is one scroll and one tree: accepted roadmap rows, then the manual headings; no Tutor panel, draft, actions or composer in any state', () => {
   const noop = () => {};
   const outline = [{ id: 'h1', level: 1, label: 'First heading', description: 'mine', done: true }];
-  const draw = state => html(lib.TableOfContents, { outline, canvasApi: { current: null }, className: 'min-h-0 flex flex-col overflow-y-auto', roadmap: { toc: tocOf(state), go: noop }, top: lib.createElement(lib.RoadmapToc, {}) });
+  const draw = state => html(lib.TableOfContents, { outline, canvasApi: { current: null }, className: 'min-h-0 flex flex-col overflow-y-auto', roadmap: { toc: tocOf(state), go: noop } });
   const toc = draw(at('status-active-proposal-pending'));
   assert.match(toc, /^<div data-toc="true" class="min-h-0 flex flex-col overflow-y-auto">/, 'the page-sized [data-toc] is the one scroller');
   assert.equal((toc.match(/overflow-y-auto/g) || []).length, 1, 'no nested scroller');
@@ -147,7 +147,6 @@ test('Contents is one scroll and one tree: accepted roadmap rows, then the manua
     assert.doesNotMatch(markup, /data-roadmap-plan|data-roadmap-parameters|data-roadmap-accept-plan|data-roadmap-edit-plan|data-roadmap-end|data-roadmap-propose-next|Stopping point|data-toc-composer|data-toc-conversation|Accept plan|Edit plan/);
   }
   assert.doesNotMatch(draw(at('status-proposed-plan')), /data-roadmap-step=/, 'a draft never reaches the ToC');
-  assert.equal(html(lib.TocConversation, {}), '', 'no ToC conversation in any state');
 });
 
 test('Fix A: the proposal button reads Accepting while in flight; the status text follows the view, with no percentage or ellipsis', () => {
