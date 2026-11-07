@@ -995,7 +995,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             ) : (
               <button type="button" data-inline-submit aria-label={preview ? 'Refine' : 'Send'} title={preview ? 'Refine (Enter)' : 'Send (Enter)'}
                 disabled={!!cadJob || cadPending || readOnly || status === 'proposal' || !outgoing.trim() || outgoing.length > PROMPT_MAX} onClick={send}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-white outline-none focus-visible:ring-2 focus-visible:ring-ai disabled:bg-hover disabled:text-ink-3"><ArrowUp size={15} /></button>
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-white outline-none hover:bg-accent-hover focus-visible:ring-2 focus-visible:ring-ai disabled:bg-hover disabled:text-ink-3"><ArrowUp size={15} /></button>
             )}
           </div>
         </div>

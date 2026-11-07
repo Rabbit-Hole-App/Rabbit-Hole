@@ -122,3 +122,13 @@ test('the Ctrl+K Context button is hidden for now, behind one flag; its popover 
   assert.ok(editor.includes('{SHOW_CONTEXT_BUTTON && <button type="button" data-inline-context'), 'the button is rendered only when the flag is on');
   assert.ok(editor.includes('data-inline-context-popover'), 'the popover is kept');
 });
+
+test('the Ctrl+K send arrow is the app blue, like the Chat Send button (owner 2026-11-07)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const editor = readFileSync(new URL('./InlineAiEditor.jsx', import.meta.url), 'utf8');
+  const arrow = editor.split(String.fromCharCode(10)).find(line => line.includes('<ArrowUp size={15} />'));
+  assert.ok(arrow && arrow.includes('bg-accent text-white') && arrow.includes('hover:bg-accent-hover') && !arrow.includes('bg-ink'), arrow);
+  assert.ok(arrow.includes('disabled:bg-hover disabled:text-ink-3'), 'disabled stays grey');
+  const chat = readFileSync(new URL('./ChatComposer.jsx', import.meta.url), 'utf8');
+  assert.ok(chat.includes('rounded-full bg-accent text-white'), 'the Chat Send button uses the same blue');
+});
