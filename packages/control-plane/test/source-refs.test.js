@@ -419,3 +419,20 @@ test('unsupported crop has no invented text: the server refuses a quote on a reg
   assert.equal(await refAnchor('pdf', region({ exact: 'typed in' })), 'a region has no quote');
   assert.deepEqual(await refAnchor('pdf', region()), { kind: 'region', page: { index: 4, label: null }, rects: [[10, 10, 200, 100]], rotate: 0, view: [0, 0, 612, 792], quote: null });
 });
+
+// The Tutor slot and its Chat entry show the passage a step is about: resolve { excerpt: true } adds the anchored quote (collapsed, at most 400 chars) for the
+// learner's own CURRENT Markdown ref only; never for a PDF, a changed or missing source, or another learner's ref; and never unless asked.
+test('resolve with excerpt: the quote for a current Markdown ref only, trimmed; no excerpt unless asked, none for anything else', async t => {
+  const f = await setup(t);
+  const long = `${'Gradient descent moves downhill. '.repeat(30)}\n\nEnd.`;
+  const md = (await f.mint(f.markdown())).body.ref, wide = (await f.mint(f.markdown({ anchor: { quote: { exact: long, prefix: '', suffix: '' } } }))).body.ref, pdf = (await f.mint(f.pdf())).body.ref;
+  const asked = (ids, opts = {}, app = MINE) => f.call('POST', '/api/learn/source-refs/resolve', { body: { app, ids, excerpt: true }, ...opts });
+  const [mine, tall, paper] = (await asked([md.id, wide.id, pdf.id])).body.refs;
+  assert.equal(mine.excerpt, QUOTE.exact.replace(/\s+/g, ' ').trim());
+  assert.ok(tall.excerpt.length <= 400 && tall.excerpt.length > 200 && !/\s{2}/.test(tall.excerpt) && !tall.excerpt.includes('End.') && long.replace(/\s+/g, ' ').startsWith(tall.excerpt), 'a short plain prefix of the passage');
+  assert.equal('excerpt' in paper, false, 'a PDF has none');
+  assert.equal('excerpt' in (await f.resolve([md.id])).body.refs[0], false, 'only when asked');
+  assert.deepEqual((await asked([md.id, 'sref_' + '0'.repeat(24)], { as: 'friend' }, THEIRS)).body.refs.map(r => 'excerpt' in r), [false, false], "another learner's ref");
+  f.sqlite.prepare('UPDATE file_sources SET sha256 = ? WHERE id = ?').run(sha('edited'), MD);
+  assert.deepEqual((await asked([md.id])).body.refs.map(r => [r.status, 'excerpt' in r]), [['changed', false]], 'a changed source shows no stale passage');
+});

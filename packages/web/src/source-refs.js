@@ -101,3 +101,20 @@ export function registerPassageMeasure(cardId, measure) { measures.set(cardId, m
 export const measurePassage = (cardId, detail) => { try { return measures.get(cardId)?.(detail) ?? null; } catch { return null; } };
 // A screen rect (getBoundingClientRect) to world units on a canvas whose surface starts at `origin` (its own rect) under view { x, y, z }.
 export const toWorld = (rect, origin, view) => (rect ? { x: (rect.left - origin.left - view.x) / view.z, y: (rect.top - origin.top - view.y) / view.z, w: rect.width / view.z, h: rect.height / view.z } : null);
+
+// UI.04 / roadmap 3.8: the passage a Tutor step is about, for its canvas slot and its Chat entry. The roadmap view never carries source text, so this asks the
+// entitled resolve route for the step's R3 reference with excerpt: true (control plane source-refs.js: the learner's own CURRENT Markdown ref, at most 400
+// characters). One answer per (canvas, ref id), cached; a failed request is not cached (the next ask tries again). -> { state: 'ready', text } | { state: 'unavailable' }
+// (a changed or missing source, a PDF, or no reference: never a guessed or stale quote).
+const excerpts = new Map();
+export const UNAVAILABLE = Object.freeze({ state: 'unavailable' });
+export const cachedExcerpt = (app, id) => excerpts.get(`${app}|${id}`) ?? null;
+export function stepExcerpt(post, app, id) {
+  if (!app || !id) return Promise.resolve(UNAVAILABLE);
+  const key = `${app}|${id}`;
+  if (excerpts.has(key)) return Promise.resolve(excerpts.get(key));
+  return post(`${SOURCE_REFS}/resolve`, { app, ids: [id], excerpt: true }).then(
+    ({ refs }) => { const found = (refs || []).find(ref => ref.id === id), out = found?.status === 'current' && typeof found.excerpt === 'string' && found.excerpt ? { state: 'ready', text: found.excerpt } : UNAVAILABLE; excerpts.set(key, out); return out; },
+    () => UNAVAILABLE);
+}
+export const forgetExcerpts = () => excerpts.clear();

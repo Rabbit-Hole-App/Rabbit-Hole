@@ -5,7 +5,7 @@ export const STRINGS = Object.freeze({
   chooseDepth: title => `Choose a depth for ${title}.`, startPlanning: 'Start planning', // Fix B, approved by the owner 2026-11-06
   keepHere: 'Just keep it here', // S2 approved
   invite: title => `I can explain "${title}" on the canvas, step by step.`, // S3 NEW
-  nextCard: 'Next card', stageChecking: 'Checking', stageSaving: 'Saving', formatName: { explanation: 'Explanation', table: 'Table' }, // canvas lane: slot and bottom pill vocabulary (checklist 4.1)
+  excerptUnavailable: 'The passage is not available right now.', stageChecking: 'Checking', stageSaving: 'Saving', formatName: { explanation: 'Explanation', table: 'Table' }, // canvas lane: slot and bottom pill vocabulary (checklist 4.1)
   accept: 'Accept', cancel: 'Cancel', tab: 'Tab', // S4 approved (Accept [Tab] | Cancel)
   nextReady: 'Next step ready', // S5 approved
   accepting: 'Accepting', // Fix A: the click was received (button label while the request is in flight)
