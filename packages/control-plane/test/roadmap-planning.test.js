@@ -252,4 +252,5 @@ test('CORE.02: a selected passage plans from the whole bounded document (over 8,
   assert.deepEqual(whole.request.scope, { start: 0, end: LONG.length });
   assert.deepEqual(part.request.scope, { start, end }, 'the selected passage is the explicit teaching scope');
   assert.equal(part.request.instruction.original, INSTRUCTION);
+  assert.deepEqual([part.request.source.name, part.request.mode], ['Gradient descent notes.md', 'explanations'], 'verify-to-be-2: the planner knows the file and the roadmap mode');
 });
