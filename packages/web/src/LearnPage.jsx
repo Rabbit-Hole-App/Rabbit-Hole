@@ -73,12 +73,11 @@ import ChatPane from './ChatPane.jsx';
 import { useCanvasSearch } from './use-canvas-search.jsx';
 import { SearchContentProvider } from './canvas-search-content.jsx';
 import { sourceTarget } from './card-sources.js';
-import TocConversation from './TocConversation.jsx';
 import SourcesPane, { ContextUpload } from './SourcesPane.jsx';
 import CanvasRefPicker from './CanvasRefPicker.jsx';
 import { useCanvasLinks } from './LinksPanel.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
-import { ChatWorkspaceProvider, TocWorkspace, useChatWorkspace } from './chat-workspace.jsx';
+import { ChatWorkspaceProvider, useChatWorkspace } from './chat-workspace.jsx';
 import { effectiveControls } from './learn-coaching-client.js';
 import { canCoach } from './learn-coaching-contract.js';
 import { canvasContextNow } from './chat-canvas-context.js';
@@ -104,7 +103,7 @@ import { useNextSteps } from './LearnNextSteps.jsx';
 import { useRoadmap } from './use-roadmap.js';
 import { readyMarkdownSources } from './roadmap-client.js';
 import { canvasCardsOf, createSlotStore } from './roadmap-canvas.js';
-import { RoadmapCanvas, RoadmapToc } from './RoadmapSurfaces.jsx';
+import { RoadmapCanvas } from './RoadmapSurfaces.jsx';
 import LearnProgress from './LearnProgress.jsx';
 import { CardFeedbackScope } from './CardFeedback.jsx';
 import { explainMaterial } from './learn-coaching-materials.js';
@@ -825,6 +824,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         if (block.type === 'repo-code') insertCodeCard(chat?.canvasOps, block, at); else canvas()?.insertImported(block, at);
         if (block.type === 'file' && block.kind === 'markdown') droppedMarkdown.current.add(block.id);
       }
+      if (made.length) chatWorkspace.current?.panels?.openChat?.(); // UI.01: the drop reveals Chat once; focus, draft and camera stay
       nextImport();
     } catch (problem) { setImportState({ error: problem.message, busy: false }); }
   };
@@ -1332,7 +1332,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       persist: () => canvasApi.current?.persist?.(), boardRevision: () => boardVersion.current, savedHas: id => { try { const live = canvasApi.current?.blocks?.().find(block => block.id === id), saved = !!boardSynced.current && (boardFromText(boardSynced.current).blocks || []).find(block => block?.id === id); return !!saved && (!live || ((saved.dx || 0) === (live.dx || 0) && (saved.dy || 0) === (live.dy || 0))); } catch { return false; } },
       readOnly: () => !canEditCanvas, presenting: () => !!canvasStateRef.current.presenting,
       focusBlock: id => id && canvasApi.current?.focusBlock(id), sourceBlockId: key => sourceBlock(key)?.id, sourceElement: key => { const id = sourceBlock(key)?.id; return id ? document.querySelector(`[data-block-id="${CSS.escape(id)}"]`) : null; },
-      sourceRev: key => sourceBlock(key)?.fileRef?.source?.rev, instruction: () => '', depth: () => chat?.settings?.depth || 'standard' } });
+      sourceRev: key => sourceBlock(key)?.fileRef?.source?.rev, sourceName: key => sourceBlock(key)?.label || '', depth: () => chat?.settings?.depth || 'standard' } });
   // The Tutor's proposal as the canvas slot beside its Markdown card (roadmap-canvas.js -> AdaptiveCanvas SlotCard): one slot per step from proposal to delivered card,
   // accepted and cancelled through the same controller actions as Tab. The offer is shown exactly when the pill would be (state: pillOf's gate: Ask mode, the flag, the editor);
   // the canvas tells which offers it really draws (onDrawn), and the fixed overlay yields only to those.
@@ -2514,18 +2514,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       <div role="tabpanel" aria-label="Table of contents" className={`${panelTab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}
         ref={tocPanel} onScrollCapture={event => { if (event.target.matches?.('[data-toc]')) tocScroll.current = event.target.scrollTop; }}>
       {/* The table of contents IS the lesson's structure (TableOfContents.jsx). Its scroll container's sizing is the page's. */}
-      <TableOfContents top={<RoadmapToc roadmap={roadmap} />} subtitle={project?.repo || app.repo || (project ? cardModel(project).title : null)} goal={tocGoal} outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={canvasState.activeSection ?? null} readOnly={!canEditCanvas} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
+      <TableOfContents roadmap={roadmap} subtitle={project?.repo || app.repo || (project ? cardModel(project).title : null)} goal={tocGoal} outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={canvasState.activeSection ?? null} readOnly={!canEditCanvas} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
         className={`mb-3 flex ${setupChat ? 'max-h-[45%] shrink-0' : 'min-h-0'} flex-col overflow-y-auto`} />
       {setupChat && <CourseInterview state={course} app={app} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} shrink-0 flex-col`}>
       {narration && !paperOpen && !wikiOpen && !sourceOpen && !lessonSource && !learnerOpen && <details className="mb-3 max-h-40 overflow-auto rounded border border-line p-3 text-sm" open><summary className="cursor-pointer text-xs font-medium">Current page explanation</summary><p className="mt-2 whitespace-pre-wrap text-ink-2">{narration}</p></details>}
       </div>
-      {/* The TOC conversation (owner brief item 7): its own thread, always Tutor. An outline change the Tutor proposes here is
-          the learner's own request, so it applies to the contents at once (the outline renumbers itself); one that cannot
-          apply (stale or refused) waits as the Apply/Discard card with its reason. */}
-      {!setupChat && (app.hosting !== 'aws' || app.app_chat) && <TocWorkspace key={app.name}><TocConversation {...chatAskProps} divert={roadmap.divert} scope={askScope} appName={app.name} chatConfig={app.app_chat} conversation="learn" placeholder="Describe your goal or refine the outline"
-        codebase={repository} repositoryExcerpt={repositoryExcerpt} repositoryContext={!repoAttached ? null : repositoryContext} onClearRepository={onClearRepository}
-        boardContext={{ ...boardContext, onOutlineProposal: canEditCanvas ? proposal => { const result = canvasApi.current?.applyOutline(proposal.ops, { base: proposal.base, source: proposal.source }); if (!result?.ok) setProposal(proposal); } : undefined }} /></TocWorkspace>}
       </div>
       <ChatPane key={app.name} hidden={panelTab !== 'chat'} chatAskProps={chatAskProps} unavailable={app.hosting === 'aws' && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : null}
         codebase={repository} onGraph={onGraph} repositoryExcerpt={repositoryExcerpt} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" boardContext={boardContext} placeholder={askPlaceholder}
