@@ -3,6 +3,7 @@
 // slots with their state dimensions; the body comes only from the entitled result routes. Built from D1 on every read, so a reload and a second
 // device see the same state.
 import { readRoadmap, readUnfinishedRoadmap } from './roadmap-store.js';
+import { tutorThreadOf } from './roadmap-lifecycle.js';
 import { withheldCause } from './roadmap-check.js';
 import { d1PublicRefs } from './roadmap-source-read.js';
 import { STRINGS } from '../../../web/src/roadmap-strings.js';
@@ -40,6 +41,7 @@ export async function roadmapView(db, access, roadmap) {
   const { results: stepRows } = await db.prepare('SELECT * FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? ORDER BY position').bind(id, roadmap.plan_version).all();
   const scopeJson = json(roadmap.scope_json) || {};
   const sourceName = scopeJson.sourceName || '';
+  const threadId = await tutorThreadOf(db, roadmap); // every device shows the roadmap in this Chat thread; null: none bound, or it was deleted
   // R3's reference for each step, minted at Accept plan (roadmap-source-refs.js); null where none was minted.
   const refs = await d1PublicRefs({ LEARN_DB: db }, access, (stepRows || []).map(s => s.source_ref_id));
   // Polling never carries source text (api.md): where R3's table exists the reference's anchor holds the passage quote, so the view keeps only identity and source; the delivered card carries the full reference.
@@ -70,12 +72,12 @@ export async function roadmapView(db, access, roadmap) {
   return {
     roadmap: { id, boardId: roadmap.board_id, state: roadmap.state, revision: roadmap.revision, planVersion: roadmap.plan_version, acceptedPlanVersion: roadmap.accepted_plan_version ?? null, depth: roadmap.depth,
       practiceMode: roadmap.practice_mode, instruction: first?.text ?? '', language: roadmap.language, scope: { kind: scopeJson.kind || 'whole', chars: scopeJson.chars ?? null, source: { key: roadmap.source_key, rev: roadmap.source_rev, name: sourceName }, fingerprint: roadmap.scope_fingerprint },
-      ceiling: roadmap.ceiling, deliveredCount: roadmap.delivered_count, mode: roadmap.mode, modeRevision: roadmap.mode_revision, createdAt: iso(roadmap.created_at), updatedAt: iso(roadmap.updated_at) },
+      ceiling: roadmap.ceiling, deliveredCount: roadmap.delivered_count, mode: roadmap.mode, modeRevision: roadmap.mode_revision, threadId, createdAt: iso(roadmap.created_at), updatedAt: iso(roadmap.updated_at) },
     question: plan?.question ?? null, limitation: plan?.limitation ?? null,
     plan: plan && { version: roadmap.plan_version, outcome: plan.outcome, assumptions: plan.assumptions ?? [], formats: plan.formats ?? [], steps, stoppingPoint: plan.stoppingPoint, ...(plan.sourceCoverage ? { sourceCoverage: plan.sourceCoverage } : {}) },
     steps, proposal: proposal ?? null, results,
     nextStepReady: !!proposal?.acceptable && settled,
-    poll: { afterMs: busy || roadmap.state === 'draft' ? 1500 : proposal ? 2000 : next ? 5000 : 10000, etag: `rv-${roadmap.revision}`, ...(roadmap.state === 'completed' || roadmap.state === 'ended' ? { afterMs: 30000 } : {}) },
+    poll: { afterMs: busy || roadmap.state === 'draft' ? 1500 : proposal ? 2000 : next ? 5000 : 10000, etag: `rv-${roadmap.revision}${threadId ? `-${threadId.slice(-12)}` : ''}`, ...(roadmap.state === 'completed' || roadmap.state === 'ended' ? { afterMs: 30000 } : {}) },
   };
 }
 

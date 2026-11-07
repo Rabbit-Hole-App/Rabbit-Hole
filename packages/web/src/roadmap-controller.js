@@ -188,5 +188,7 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     },
     linkCard: (cardId, reason) => mutateView(`link:${cardId}`, key => routes.linkCard(state.view, cardId, reason, key)),
     end: () => mutateView(`end:${state.view?.roadmap.id}`, key => routes.end(state.view, key)),
+    // Records the roadmap's Tutor thread (RoadmapTranscript.jsx). Rejects on refusal, so the caller can start a fresh thread instead; no error is shown.
+    bindThread: threadId => (state.view ? call(routes.thread(state.view, threadId)).then(body => { applyView(body); return body; }) : Promise.resolve(null)),
   };
 }

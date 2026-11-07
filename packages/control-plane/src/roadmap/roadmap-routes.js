@@ -5,7 +5,7 @@ import { repositoryIdentity } from '../repositories.js';
 import { refusalBody } from '../learn-spend-ledger.js';
 import { StateError, ERROR_CODES, conflictReply } from './roadmap-contract.js';
 import { acceptPlan, acceptRoadmapStep, acknowledgeDelivery, createRoadmap, readEntitledResult, readRoadmap, readResult } from './roadmap-store.js';
-import { cancelProposal, endRoadmap, markResultRemoved, proposeNextStep, setMode } from './roadmap-lifecycle.js';
+import { bindTutorThread, cancelProposal, endRoadmap, markResultRemoved, proposeNextStep, setMode } from './roadmap-lifecycle.js';
 import { currentView, roadmapHistory } from './roadmap-view.js';
 import { acceptInvitation, dismissInvitation, offerInvitation, pendingInvitation } from './roadmap-invitations.js';
 import { answerQuestion, revisePlan } from './roadmap-planning.js';
@@ -95,6 +95,7 @@ export async function roadmapRoute(path, req, env, deps = {}) {
     }
     if (req.method !== 'POST') return json({ error: 'Not found', code: 'not_found' }, 404);
     const [, kind, id, verb] = rest;
+    if (kind === 'thread' && rest.length === 2) return reply(await bindTutorThread(db, access, { roadmapId, threadId: body.threadId })); // the roadmap's one Tutor Chat thread
     if (kind === 'answer' && rest.length === 2) { const done = await answerQuestion(db, access, { roadmapId, expectedRevision: arg.expectedRevision, actionKey: body.actionKey, questionId: body.questionId, optionId: body.optionId, text: body.text, ...(now ? { now } : {}) }); if (!done.replayed) await deps.startPlanning?.(env, access, roadmapId); return reply(done); }
     if (kind === 'revise' && rest.length === 2) { const done = await revisePlan(db, access, { roadmapId, expectedRevision: arg.expectedRevision, actionKey: body.actionKey, instruction: body.instruction, settings: body.settings, scope: body.scope, ...(now ? { now } : {}) }); if (!done.replayed && done.status === 202) await deps.startPlanning?.(env, access, roadmapId); return reply(done); }
     if (kind === 'accept-plan' && rest.length === 2) {

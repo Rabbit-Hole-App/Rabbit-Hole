@@ -237,3 +237,17 @@ test('a source dropped while the learner is typing or an answer streams is repor
   assert.deepEqual(sent[0].body.sourceKeys, ['file:fs_ab12']);
   assert.ok(controller.getState().invitation, 'the invitation is held in state once the server offers it');
 });
+
+test('bindThread records the Tutor thread and shows the view the server answers; a refusal rejects so the page starts a fresh thread', async () => {
+  const pending = view('status-active-proposal-pending'), threadId = 'canvaschat-11111111-1111-4111-8111-111111111111';
+  const bound = { ...pending, roadmap: { ...pending.roadmap, threadId } };
+  let refuse = false;
+  const { controller, calls } = harness({ routes: { 'GET ': () => pending, 'POST /rm_[^/]+/thread': () => { if (refuse) throw Object.assign(new Error('Save the thread first'), { status: 404, data: { code: 'not_found' } }); return bound; } } });
+  controller.start(); await settle();
+  const body = await controller.bindThread(threadId);
+  assert.equal(body.roadmap.threadId, threadId);
+  assert.deepEqual(post(calls, '/thread')[0].body, { boardId: pending.roadmap.boardId, threadId });
+  assert.equal(controller.getState().view.roadmap.threadId, threadId, 'the answer is applied');
+  refuse = true;
+  await assert.rejects(controller.bindThread('canvaschat-22222222-2222-4222-8222-222222222222'));
+});
