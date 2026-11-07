@@ -215,8 +215,8 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
       {/* A motion or image proposal draws its job's status on the card itself (status), so it no longer reads Added to the canvas. */}
       <GenerationProposalCard proposal={p} active={active} made={cardKind ? false : made} released={released} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
         {...(explainJob ? { ...jobReviewCopy(p), onCancel, skeleton: !!ops?.explainWaiting?.(p.input?.job), ...animationReview(p) } : isBriefCommand(p.command) ? { eyebrow: briefHeading(p.command) } : {})}
-        status={status} startedAt={output?.startedAt || pressedAt} noun={cardKind === 'image' ? 'image' : 'video'} onGoToCard={goToCard}
-        onStop={status?.canStop && ops?.stopGeneration ? () => ops.stopGeneration(status.cardId) : null} onStopFailed={setError}
+        status={status} startedAt={output?.startedAt || pressedAt} noun={cardKind === 'image' ? 'image' : p.command === 'animation' ? 'scene' : 'video'} onGoToCard={goToCard}
+        onStop={status?.canStop ? (p.command === 'animation' ? (ops?.stopAnimation ? () => ops.stopAnimation(p) : null) : ops?.stopGeneration ? () => ops.stopGeneration(status.cardId) : null) : null} onStopFailed={setError}
         onEdit={onEdit} targeted={targeted} onGenerate={onGenerate} onSave={onSave} onOpenReference={ref => chat?.openSource?.({ sourceId: ref.sourceId, kind: ref.kind, name: ref.label, version: ref.revision, range: ref.range })} />
       {error && <p role="alert" className="mt-1 text-xs text-danger">{error}</p>}
       {image?.retry && <p data-image-job-status={image.tone} className="mt-1 text-xs text-ink-2"><button type="button" data-image-retry-save onClick={() => retryImageSave(api, `img-${p.proposal_id}`).catch(() => {})} className="rounded border border-line px-2 py-0.5 text-ink hover:bg-hover">Try saving again</button></p>}

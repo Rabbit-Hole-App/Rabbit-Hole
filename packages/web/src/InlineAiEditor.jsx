@@ -992,7 +992,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             {busy(status) ? (
               // A second press of a double press lands here as detail 2: it never stops the request it just sent.
               <button type="button" data-inline-stop aria-label="Stop" title="Stop" onClick={event => { if (event.detail < 2) session.cancel(); }}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-white outline-none focus-visible:ring-2 focus-visible:ring-ai"><Square size={10} fill="currentColor" /></button>
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-danger-fill text-white outline-none hover:bg-danger-fill-hover active:bg-danger-fill-hover focus-visible:ring-2 focus-visible:ring-ai"><Square size={10} fill="currentColor" /></button>
             ) : (
               <button type="button" data-inline-submit aria-label={preview ? 'Refine' : 'Send'} title={preview ? 'Refine (Enter)' : 'Send (Enter)'}
                 disabled={!!cadJob || cadPending || readOnly || status === 'proposal' || !outgoing.trim() || outgoing.length > PROMPT_MAX} onClick={send}

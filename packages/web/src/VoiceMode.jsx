@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AudioLines, MessageSquareText, Mic, Minus, Square } from 'lucide-react';
-import { COMPOSER_ADD, COMPOSER_PILL } from './ChatComposer.jsx';
+import { Button } from './ui.jsx';
+import { COMPOSER_ADD } from './ChatComposer.jsx';
 
 // Voice Mode's UI (docs/features/voice-tutor-mvp.md, sections 6 and 6b). voice is useVoiceSession's
 // { state, caption: { current, previous, error }, enter, exit, interrupt }. It carries no learner
@@ -40,9 +41,9 @@ export function VoiceField({ voice }) {
         : 'Listening'}
     </span>
     {/* The learner can take the floor back at any point of a turn: while the Tutor thinks or speaks. */}
-    {(voice.state === 'speaking' || voice.state === 'thinking') && <button type="button" aria-label={voice.state === 'speaking' ? 'Stop speaking' : 'Stop the Tutor'} onClick={() => { voice.interrupt(); field.current?.querySelector('button')?.focus(); }} className={`${COMPOSER_PILL} inline-flex items-center gap-1.5`}>
+    {(voice.state === 'speaking' || voice.state === 'thinking') && <Button type="button" variant="danger" size="sm" aria-label={voice.state === 'speaking' ? 'Stop speaking' : 'Stop the Tutor'} onClick={() => { voice.interrupt(); field.current?.querySelector('button')?.focus(); }}>
       <Square size={11} fill="currentColor" /><span className="max-md:sr-only">{voice.state === 'speaking' ? 'Stop speaking' : 'Stop'}</span>
-    </button>}
+    </Button>}
   </div>;
 }
 
