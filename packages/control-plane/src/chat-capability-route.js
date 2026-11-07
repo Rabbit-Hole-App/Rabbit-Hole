@@ -30,7 +30,7 @@ const bindingOf = (email, f) => sha256(canon([String(email).toLowerCase(), f.app
 
 // Whether this capability can run here now. Never enables anything: a build flag only the browser knows must be in its
 // enabled list, Motion also needs the server's own gate (orchestrator configured, not paused), image generation is off.
-function availability(env, cap, enabled, email = null) {
+export function availability(env, cap, enabled, email = null) {
   if (Array.isArray(enabled) && !enabled.includes(cap.name)) return false;
   if (cap.name === 'motion') return motionOffered(env, email);
   if (cap.needs === 'image_generation') return imageAllowed(env, email); // the server decides per caller (public flag, else the listed operator)
@@ -38,6 +38,13 @@ function availability(env, cap, enabled, email = null) {
   if (cap.needs) return Array.isArray(enabled);
   return true;
 }
+// CHAT.02 (docs/features/explain-on-canvas/chat-answer-tools.md): the modes whose ordinary messages skip this classifier and go to the answer model
+// with the eligible tools (chat-tools.js). CHAT_ANSWER_TOOLS is a comma list of wire modes (ask, auto) or all; unset = today's JEV preflight for every mode.
+// Ordinary Tutor messages travel as the auto wire mode (web chat-route.js askMode); the wire tutor mode (the Contents conversation) is never listed here.
+export const answerToolsOn = (env, mode) => {
+  const listed = String(env?.CHAT_ANSWER_TOOLS ?? '').toLowerCase().split(/[\s,]+/).filter(Boolean);
+  return mode !== 'tutor' && (listed.includes('all') || listed.includes(mode));
+};
 // The guarded capabilities plain words may reach here (EXP-T15): /explain v2 only where EXPLAIN_V2_ENABLED (explain-job.js
 // explainEnabled). Off, the router's question is exactly what it was; a typed /explain still dispatches either way.
 const offeredRoutes = env => chatRoutesWith(env.EXPLAIN_V2_ENABLED === 'true' ? ['explain'] : []);
@@ -68,6 +75,7 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
   if (command) return pick(command.name, 'command', command.args);
   if (fields.mode === 'tutor') return answer('mode');
   if (isPlainExplain(text) || isSmallTalk(text)) return answer('default');
+  if (answerToolsOn(env, fields.mode)) return answer('model'); // the answer model decides with the eligible tools: no classifier call
   const transport = jevTransport(env);
   const started = Date.now();
   const failed = code => answer('fallback', { retryable: true, code, message: FALLBACK, meta: { ...base.meta, ms: Date.now() - started } });

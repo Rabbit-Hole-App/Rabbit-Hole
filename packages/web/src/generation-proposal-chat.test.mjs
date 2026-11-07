@@ -434,3 +434,14 @@ test('the Worker checks the board and session before it hands the ask to apiAsk,
   const authorized = worker.indexOf('await authorizedBoardApp(req, env, body.scope?.app', start), handed = worker.indexOf('return apiAsk(req, env, ctx', start);
   assert.ok(start > 0 && authorized > start && handed > authorized, 'authorizedBoardApp answers (and returns a denial) before apiAsk is called');
 });
+
+test('CHAT.02: a model-routed ordinary message is sent as is, and an answer that asks for a tool runs the existing command handler once', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { routeOutcome } = await import('./generation-proposal-chat.js');
+  assert.deepEqual(routeOutcome({ route: 'answer', via: 'model', token: null }, { plain: true }), { send: true, token: null }, 'no banner, no extra request');
+  const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
+  assert.ok(ask.includes('if (d.toolRequest?.command) {'), 'answer_meta carries the validated tool request');
+  assert.ok(ask.includes("slashRef.current?.intercept(('/' + typedOf(command) + ' ' + args).trim())"), 'a direct tool runs through the same command intercept as a router decision');
+  assert.ok(ask.includes("command === 'generate-image' && chatThread && imageGenerationOn()) imagePlan(args)"), 'image generation keeps its plan route');
+});
+
