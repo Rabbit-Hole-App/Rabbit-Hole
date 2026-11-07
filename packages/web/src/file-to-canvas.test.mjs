@@ -106,3 +106,11 @@ test('Context restores the retained model view and bundle after checking the mai
   assert.deepEqual(inserted.fileRef.bundle,[dep]);assert.equal(inserted.fileRef.view.entry,'models/cube.gltf');
   assert.equal(inserted.fileRef.source.id,ID);
 });
+
+test('a locked file shows no explanatory line or tooltip in the mode menu: the Edit option is only greyed (owner 2026-11-07)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const editor = readFileSync(new URL('./InlineAiEditor.jsx', import.meta.url), 'utf8');
+  assert.ok(!editor.includes('data-inline-file-locked'), 'no visible line');
+  assert.ok(!editor.includes('fileLocked ? FILE_EDIT_LOCKED'), 'no tooltip text');
+  assert.ok(editor.includes('fileLocked) && value === ') || editor.includes('|| fileLocked || cardEditReason) && value'), 'Edit stays disabled');
+});

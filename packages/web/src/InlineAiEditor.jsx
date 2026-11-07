@@ -974,7 +974,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
               <div role="menu" data-inline-mode-menu aria-label="Mode" className={`absolute right-9 z-50 w-44 rounded-lg border border-line bg-white p-1 shadow-[0_2px_12px_rgba(15,15,15,0.12)] ${popBelow ? 'top-full mt-1' : 'bottom-full mb-1'}`}>
                 {MODES.map(([value, label]) => (
                   <button key={value} type="button" role="menuitemradio" aria-checked={mode === value} data-inline-mode={value}
-                    disabled={(target.creation || fileLocked || cardEditReason) && value === 'edit'} title={value !== 'edit' ? undefined : target.creation ? 'Select something to edit.' : fileLocked ? FILE_EDIT_LOCKED : cardEditReason || undefined}
+                    disabled={(target.creation || fileLocked || cardEditReason) && value === 'edit'} title={value !== 'edit' ? undefined : target.creation ? 'Select something to edit.' : fileLocked ? undefined : cardEditReason || undefined}
                     onClick={() => { changeMode(value); setModeOpen(false); focusField(); }}
                     className="flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-xs text-ink outline-none hover:bg-hover focus-visible:bg-hover disabled:text-ink-3 disabled:hover:bg-transparent">
                     <span className="flex w-3.5 justify-center">{mode === value && <Check size={13} className="text-ai" />}</span>{label}
@@ -982,7 +982,6 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
                 ))}
                 {target.creation && <p data-inline-edit-disabled className="px-2 pt-0.5 pb-1 text-[11px] text-ink-3">Select something to edit.</p>}
                 {cardEditReason && !fileLocked && <p data-inline-edit-disabled className="px-2 pt-0.5 pb-1 text-[11px] text-ink-3">{cardEditReason}</p>}
-                {fileLocked && <p data-inline-edit-disabled data-inline-file-locked className="px-2 pt-0.5 pb-1 text-[11px] text-ink-3">{FILE_EDIT_LOCKED}</p>}
               </div>
             )}
             {busy(status) ? (
