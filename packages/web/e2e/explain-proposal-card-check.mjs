@@ -70,7 +70,7 @@ const briefFor = (job, n, { references = [] } = {}) => ({
   input: { org: 'w', app: canvas.name, job: job.id, brief_hash: `bh-${job.id}`, request: job.prompt }, original_request: `/explain ${job.prompt}`,
   expires_at: Math.floor(Date.now() / 1000) + 3600, sig: `v3.${'a'.repeat(64)}`, usage: { estimate_credits: 40, reserve_credits: 120 },
 });
-const briefMessage = id => ({ role: 'assistant', content: 'Here is the plan for your explanation. Generate makes it.', messageId: id, kind: 'answer', status: 'done',
+const briefMessage = id => ({ role: 'assistant', content: '', messageId: id, kind: 'answer', status: 'done',
   meta: { version: 1, mode: 'ask', kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, proposal: proposals.get(id), alternatives: [id] } });
 const refused = [], outside = [], errors = [];
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|selection|board$|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|video|transcribe|tts|voice\/|dive|explore|course|artifact))/;
@@ -212,9 +212,9 @@ await step('a brief that waits for approval: Review explanation, title, request,
   assert.match(await card.innerText(), /^Review explanation\s/);
   assert.deepEqual(await card.locator('[data-proposal-section="assumptions"] li').allInnerTexts(), ASSUMPTIONS);
   assert.deepEqual(await card.locator('[data-proposal-section="limitations"] li').allInnerTexts(), LIMITATIONS);
-  assert.match(await card.locator('[data-proposal-section="limitations"]').innerText(), /^Limitations/i);
+  assert.match(await card.locator('[data-proposal-section="limitations"]').innerText(), /^Limitations/i); // a closed disclosure header with a count (owner 2026-11-07)
   assert.match(await card.locator('[data-proposal-usage]').innerText(), /Estimated cost: 40 AI credits/);
-  assert.match(await card.locator('[data-proposal-note]').innerText(), /^Preparing this plan used one model call/);
+  assert.equal(await card.locator('[data-proposal-note]').count(), 0, 'no cost note on the Explain review card (owner 2026-11-07)');
   assert.doesNotMatch(await card.innerText(), /\$\d/);
   assert.equal(await card.locator('[data-proposal-duration], [data-proposal-audio="on"], [data-proposal-audio="off"]').count(), 0, 'no Duration or Audio');
   assert.equal(await card.locator('[data-proposal-cancel]').count(), 1, 'Cancel stops the waiting job');

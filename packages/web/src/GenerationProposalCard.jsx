@@ -16,7 +16,7 @@
 //
 // props: proposal (the envelope) or view (a logical proposal, schema proposalView); active, made, busy; onGenerate(proposal|view);
 // onSave(edit) -> Promise (settings: { settings }, details: { title, description, ... }); onSettingsChange(settings) (older callers);
-// onCancel; onOpenReference(reference); states (server reference states); problem ({ message, errors }); groups ({ key: { defs, legend,
+// onCancel + skeleton (Cancel shows only while the proposal has a canvas skeleton, and removes it; without one the card has Generate and Edit only); onOpenReference(reference); states (server reference states); problem ({ message, errors }); groups ({ key: { defs, legend,
 // parse } }) and groupProblem(key, id, value) for parameter groups; Editor (the pill editor lane's component for the description).
 // status (generation-proposal-status.js, from the REAL job): once Generate was pressed the button shows the job's state (Starting, Queued,
 // Generating, Ready) with a spinner while it runs, a status line under the actions (announced politely, elapsed time shown but never
@@ -25,7 +25,7 @@
 // An adapter may add: settingsMode, eyebrow, requestLabel, note, extraSections, compact (the review strip above the composer), isolate, and attrs(slot, arg) -> data
 // attributes for its own element names (the CAD review keeps its data-cad-review-* names this way).
 import { useEffect, useId, useRef, useState } from 'react';
-import { Ban, ChartColumnIncreasing, Check, CircleAlert, FileCheck2, FileCode2, FileText, Film, Globe, Group, Image as ImageIcon, Loader2, Shapes, StickyNote } from 'lucide-react';
+import { Ban, ChartColumnIncreasing, Check, ChevronRight, CircleAlert, FileCheck2, FileCode2, FileText, Film, Globe, Group, Image as ImageIcon, Loader2, Shapes, Square, StickyNote } from 'lucide-react';
 import AspectRatioSelect from './AspectRatioSelect.jsx';
 import CommandPill from './CommandPill.jsx';
 import { SECTIONS, changedKeys, commandDefinition, fieldsFor, isEditable, proposalView, visibleSections } from './generation-confirmation-schema.js';
@@ -241,7 +241,9 @@ function Description({ text, tokenized, references, states, onOpen, extra }) {
 }
 
 const SECTION_TITLES = { requirements: 'Requirements', assumptions: 'Assumptions', missing_information: 'Missing information', limitations: 'Not supported or not verified' };
-const TONES = { assumptions: 'rounded bg-warn/10 py-0.5 text-warn', missing_information: 'text-fail' };
+const TONES = { missing_information: 'text-fail' }; // assumptions were tinted with the warning colour: they are neutral text now (owner 2026-11-07)
+// Assumptions and limitations are closed disclosures (owner 2026-11-07): a header row with the count and a chevron; the list opens on Enter, Space or a click.
+const DISCLOSED = ['assumptions', 'limitations'];
 // The default description editor: the text with its reference codes. The pill editor lane supplies a pill-aware Editor.
 function DefaultEditor({ value, references, onChange, disabled, extra }) {
   return (
@@ -285,27 +287,19 @@ function JobStatus({ status, startedAt }) {
 }
 
 // Stop asks first, as the canvas card's does (credits already used are not refunded): Cancel is focused, Escape keeps the job going.
-function StopControl({ noun, onStop, onFailed }) {
-  const [ask, setAsk] = useState(false), [stopping, setStopping] = useState(false);
-  const ref = useRef(null);
-  const keep = () => { setAsk(false); ref.current?.focus(); };
-  const stop = async () => { setAsk(false); setStopping(true); try { await onStop(); } catch (error) { onFailed?.(error?.message || 'Could not stop it.'); } finally { setStopping(false); } };
+// The question Stop asks (the Generate button itself is the Stop button while a job runs): Cancel is focused, Escape keeps the job going.
+export function StopConfirm({ noun, onKeep, onStop }) {
   return (
-    <>
-      <Button ref={ref} type="button" variant="secondary" data-proposal-stop aria-expanded={ask} disabled={stopping} className="h-9! [@media(pointer:coarse)]:min-h-11!" onClick={() => setAsk(true)}>Stop</Button>
-      {ask && (
-        <div data-proposal-stop-confirm role="group" aria-label={`Stop this ${noun}`} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); keep(); } }} className="flex w-full flex-wrap items-center gap-2 text-xs text-ink-2">
-          <span>Stop this {noun}? Credits already used won&apos;t be refunded.</span>
-          <Button type="button" variant="secondary" size="sm" data-proposal-stop-cancel autoFocus onClick={keep}>Cancel</Button>
-          <Button type="button" variant="inverse" size="sm" data-proposal-stop-confirmed onClick={stop}>Stop</Button>
-        </div>
-      )}
-    </>
+    <div data-proposal-stop-confirm role="group" aria-label={`Stop this ${noun}`} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); onKeep(); } }} className="flex w-full flex-wrap items-center gap-2 text-xs text-ink-2">
+      <span>Stop this {noun}? Credits already used won&apos;t be refunded.</span>
+      <Button type="button" variant="secondary" size="sm" data-proposal-stop-cancel autoFocus onClick={onKeep}>Cancel</Button>
+      <Button type="button" variant="danger" size="sm" data-proposal-stop-confirmed onClick={onStop}>Stop</Button>
+    </div>
   );
 }
 
 // made: this proposal already added its card (inactive, but not superseded).
-export default function GenerationProposalCard({ proposal = null, view: given = null, defaultEditing = false, settingsMode = 'live', active = true, onGenerate, onSave, onSettingsChange, onCancel, onOpenReference, busy = false, made = false, states = null, problem = null, groups = null,
+export default function GenerationProposalCard({ proposal = null, view: given = null, defaultEditing = false, settingsMode = 'live', active = true, onGenerate, onSave, onSettingsChange, onCancel, skeleton = false, defaultOpen = [], onOpenReference, busy = false, made = false, states = null, problem = null, groups = null,
   groupProblem = null, onEdit = null, targeted = false, released = 0, status = null, startedAt = null, noun = 'video', onStop = null, onGoToCard = null, onStopFailed = null, Editor = DefaultEditor, eyebrow = null, requestLabel = null, note = null, extraSections = [], compact = false, isolate = false, attrs: attrsFn = none,
   summary = null, editLabel = 'Edit' }) {
   const view = given ?? proposalView(proposal, states ? { validation_errors: states.filter(s => s.state !== 'ok').map(s => ({ path: `references.${s.id}`, message: s.message })) } : {});
@@ -317,6 +311,9 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
   // One press, one job (owner message 37): the ref stops a double-click before React re-renders; state shows it disabled.
   const sent = useRef(null);
   const [sentKey, setSentKey] = useState(null);
+  // Stop: while a job started from this card runs and can be stopped, the primary button is the Stop button; it asks first (StopConfirm).
+  const [askStop, setAskStop] = useState(false), [stopping, setStopping] = useState(false), primary = useRef(null);
+  const [openLists, setOpenLists] = useState(() => Object.fromEntries(defaultOpen.map(key => [key, true])));
   // released: the owner of a start that is refused after Generate returned (MOT-22: the server refused it for its proposal) bumps it, and the press is given back.
   useEffect(() => { sent.current = null; setSentKey(null); }, [released]);
   const [editing, setEditing] = useState(defaultEditing), [draft, setDraft] = useState(() => (defaultEditing ? startDraft(view, form) : null)), [saving, setSaving] = useState(false), [saveError, setSaveError] = useState(null);
@@ -328,6 +325,8 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
   const bad = !!draft?.settings && fieldsFor(view.command, draft.settings).some(f => f.type === 'parameter_group' && (groups?.[f.key]?.defs ?? []).some(p => groupProblem?.(f.key, p.id, draft.settings[f.key]?.[p.id])));
   // Generate is for the saved, current, valid revision: not while the details form is open or holds unsaved edits.
   const canGenerate = view.allowed_actions.includes('generate') && !editing && !dirty && !(view.validation_errors?.length);
+  // One state for the row: a job started from this card is running (spinner or active), so Stop is the only control (Edit, Cancel and Go to card are not drawn).
+  const running = !!(status && (status.spinner || status.active)), stoppable = running && !!(status.canStop && onStop);
   const generate = () => {
     if (!active || working || !canGenerate || sent.current === key) return;
     sent.current = key;
@@ -403,6 +402,18 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
           );
         }
         if (editing && isEditable(view.command, s)) return <ListField key={s} f={{ key: s, label: SECTION_TITLES[s] }} value={draft[s]} disabled={working} onChange={value => set(s, value)} extra={attrs('field', s)} />;
+        if (DISCLOSED.includes(s)) {
+          const opened = !!openLists[s], title = def?.section_titles?.[s] ?? SECTION_TITLES[s], listId = `${view.proposal_id}-${s}`;
+          return (
+            <div key={s} data-proposal-section={s}>
+              <button type="button" data-proposal-disclosure={s} aria-expanded={opened} aria-controls={listId} onClick={() => setOpenLists(previous => ({ ...previous, [s]: !previous[s] }))}
+                className="flex min-h-7 w-full items-center justify-between gap-2 rounded text-left text-[11px] font-semibold tracking-wide text-ink-3 uppercase hover:text-ink">
+                <span>{title} {shown[s].length}</span><ChevronRight size={13} aria-hidden="true" className={opened ? 'rotate-90 transition-transform' : 'transition-transform'} />
+              </button>
+              {opened && <ul id={listId} className="list-disc pl-4 text-xs text-ink-2" {...attrs('list', s)}>{shown[s].map((item, i) => <li key={i}><MdInline text={item} mathOnly /></li>)}</ul>}
+            </div>
+          );
+        }
         return (
           <div key={s} data-proposal-section={s}>
             <p className="text-[11px] font-semibold tracking-wide text-ink-3 uppercase">{def?.section_titles?.[s] ?? SECTION_TITLES[s]}</p>
@@ -430,24 +441,30 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
       {note && <p data-proposal-note {...attrs('cost')} className="text-[11px] text-ink-2">{note}</p>}
       {message && <p role="alert" data-proposal-problem {...attrs('problem')} className="text-xs text-fail">{message}</p>}
       <div className={cn('flex flex-wrap items-center gap-3', isolate && 'justify-end gap-2')}>
-        {def?.cancel && onCancel && active && !editing && view.allowed_actions.includes('cancel') && <Button type="button" variant="secondary" size="sm" data-proposal-cancel {...attrs('cancel')} disabled={working} onClick={() => onCancel(proposal ?? view)}>Cancel</Button>}
+        {stoppable
+          ? <Button ref={primary} type="button" variant="danger" data-proposal-stop {...attrs('stop')} {...(status ? { 'data-proposal-phase': status.phase, 'aria-busy': status.spinner || undefined } : {})} aria-label={`Stop ${noun}`} aria-expanded={askStop} disabled={stopping}
+            className={cn(!compact && 'h-9! [@media(pointer:coarse)]:min-h-11!')} onClick={() => setAskStop(true)}>
+            <span className="inline-flex items-center gap-2"><Square size={14} aria-hidden="true" className="shrink-0 fill-current" /><span>Stop</span></span>
+          </Button>
+          : <Button type="button" variant="action" data-proposal-generate {...attrs('generate')} disabled={!active || working || !canGenerate || sentKey === key || !!status}
+            {...(status ? { 'data-proposal-phase': status.phase, 'aria-busy': status.spinner || undefined } : {})}
+            className={cn(!compact && 'h-9! [@media(pointer:coarse)]:min-h-11!', status?.label && 'disabled:opacity-100!', status?.spinner && 'disabled:cursor-progress')} onClick={generate}>
+            {status?.label ? <span className="inline-flex items-center gap-2">{status.spinner ? <Loader2 size={16} aria-hidden="true" className="shrink-0 animate-spin motion-reduce:animate-none" /> : <Check size={16} aria-hidden="true" className="shrink-0" />}<span>{status.label}</span></span> : 'Generate'}
+          </Button>}
         {editing
           ? <>
             <Button type="button" variant="secondary" size="sm" data-proposal-discard {...attrs('discard')} disabled={saving} onClick={close}>Discard</Button>
             <Button type="button" variant="secondary" size="sm" data-proposal-save {...attrs('save')} disabled={saving || !dirty || bad} onClick={save}>Save</Button>
           </>
-          : onEdit ? active && view.allowed_actions.includes('edit') && <Button type="button" variant="secondary" size="sm" data-proposal-edit {...attrs('edit')} disabled={working} onClick={() => onEdit(proposal ?? view)}>{editLabel}</Button>
+          : running ? null : onEdit ? active && view.allowed_actions.includes('edit') && <Button type="button" variant="secondary" size="sm" data-proposal-edit {...attrs('edit')} disabled={working} onClick={() => onEdit(proposal ?? view)}>{editLabel}</Button>
           : detailKeys.length > 0 && active && view.allowed_actions.includes('edit') && <Button type="button" variant="secondary" size="sm" data-proposal-edit {...attrs('edit')} disabled={working} onClick={open}>Edit details</Button>}
-        <Button type="button" variant="action" data-proposal-generate {...attrs('generate')} disabled={!active || working || !canGenerate || sentKey === key || !!status}
-          {...(status ? { 'data-proposal-phase': status.phase, 'aria-busy': status.spinner || undefined } : {})}
-          className={cn(!compact && 'h-9! [@media(pointer:coarse)]:min-h-11!', status?.label && 'disabled:opacity-100!', status?.spinner && 'disabled:cursor-progress')} onClick={generate}>
-          {status?.label ? <span className="inline-flex items-center gap-2">{status.spinner ? <Loader2 size={16} aria-hidden="true" className="shrink-0 animate-spin motion-reduce:animate-none" /> : <Check size={16} aria-hidden="true" className="shrink-0" />}<span>{status.label}</span></span> : 'Generate'}
-        </Button>
-        {status?.cardId && onGoToCard && <Button type="button" variant="secondary" data-proposal-go-to-card className={cn(!compact && 'h-9! [@media(pointer:coarse)]:min-h-11!')} onClick={onGoToCard}>Go to card</Button>}
-        {status?.canStop && onStop && <StopControl noun={noun} onStop={onStop} onFailed={onStopFailed} />}
+        {!running && def?.cancel && onCancel && skeleton && active && !editing && view.allowed_actions.includes('cancel') && <Button type="button" variant="ghost" size="sm" data-proposal-cancel {...attrs('cancel')} disabled={working} onClick={() => onCancel(proposal ?? view)}>Cancel</Button>}
+        {!running && (status?.cardId || skeleton) && onGoToCard && <Button type="button" variant="secondary" data-proposal-go-to-card className={cn(!compact && 'h-9! [@media(pointer:coarse)]:min-h-11!')} onClick={onGoToCard}>Go to card</Button>}
         {status ? null : made ? <span data-proposal-made className="text-xs text-ink-2">Added to the canvas</span>
           : !active && <span data-proposal-superseded className="text-xs text-ink-2">Superseded</span>}
       </div>
+      {stoppable && askStop && <StopConfirm noun={noun} onKeep={() => { setAskStop(false); primary.current?.focus(); }}
+        onStop={async () => { setAskStop(false); setStopping(true); try { await onStop(); } catch (error) { onStopFailed?.(error?.message || 'Could not stop it.'); } finally { setStopping(false); } }} />}
       {status && <JobStatus status={status} startedAt={startedAt} />}
     </section>
   );

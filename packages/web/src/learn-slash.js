@@ -315,8 +315,8 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   // legacy route because the words are empty; with neither words nor a selection it asks.
   // R3 (source-ref.js): a selected passage (target.sourceDraft: a PDF excerpt card's anchor, a Markdown quote) is minted into a server-held
   // sourceRef first. The job or the card carries its id; a source that changed since the selection stops here, before anything is made.
-  let sourceRef = null;
-  if (target?.sourceDraft) {
+  let sourceRef = target?.sourceRef || null; // the bulb's passage arrives already minted (source-refs.js heldPassageTarget)
+  if (!sourceRef && target?.sourceDraft) {
     try { sourceRef = (await mintSourceRef(post, target.sourceDraft)).id; }
     catch (error) { return { notice: { tone: 'error', text: error.message }, keep: text }; }
   }

@@ -24,6 +24,7 @@ export function briefTool(componentNames) {
         assumptions: { type: 'array', items: { type: 'string' }, description: 'Material assumptions the learner should accept; empty when none.' },
         evidence_ids: { type: 'array', items: { type: 'string' }, description: 'Evidence record ids it relies on, from the input only.' },
         limitations: { type: 'array', items: { type: 'string' }, description: 'What it will leave out or cannot show, plainly.' },
+        reply: { type: 'string', description: 'Optional. One short, natural sentence (at most 200 characters, plain text, no markup) in your own words telling the learner the plan is ready to review. Omit it rather than repeat the title.' },
         ambiguous: { type: 'boolean', description: 'true when the subject or its version is ambiguous.' },
         expanded: { type: 'boolean', description: 'true when the card goes beyond what was literally asked.' },
         gap: { type: 'object', additionalProperties: false, required: ['needs', 'reason'], properties: { needs: { type: 'array', items: { type: 'string', enum: GAP_NEEDS } }, reason: { type: 'string' } }, description: catalogue ? 'Only when the explanation cannot be drawn with the catalogue and supported features.' : 'Only when the explanation cannot be made within the runtime capabilities and limits.' },

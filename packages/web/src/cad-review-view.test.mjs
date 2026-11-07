@@ -46,21 +46,25 @@ test('the brief is the card\'s view: hash as revision, units and parameter value
 });
 
 test('the review keeps every data attribute the existing check selects, on the shared elements', () => {
-  const out = card(job({}, { missing: ['Units of the screw size were not given'] }));
+  const out = card(job({}, { missing: ['Units of the screw size were not given'] }), { skeleton: true });
   assert.match(out, /data-cad-review="job-1"/); assert.match(out, /data-brief-hash="h-1"/);
   assert.match(out, /aria-label="Review design"/); assert.match(out, /role="group"/);
   assert.match(out, /<span[^>]*data-cad-review-request[^>]*>make an L bracket<\/span>/, 'the original request, exactly');
   assert.match(text(out), /Original request/);
   assert.match(out, /<p[^>]*data-cad-review-object/);
-  assert.match(out, /<ul[^>]*data-cad-review-list="assumptions"/); assert.match(out, /<ul[^>]*data-cad-review-list="requirements"/);
-  assert.match(out, /<ul[^>]*data-cad-review-list="missing"/); assert.match(out, /<ul[^>]*data-cad-review-list="unsupported"/); assert.match(out, /<ul[^>]*data-cad-review-list="contextUsed"/);
-  assert.match(text(out), /Not supported or not verified Threads/); assert.match(text(out), /Context used Sketch card/);
+  // Assumptions and Limitations (unsupported) are closed dropdowns; their lists are drawn only when opened.
+  assert.match(out, /data-proposal-disclosure="assumptions"[^>]*aria-expanded="false"/); assert.match(out, /data-proposal-disclosure="limitations"[^>]*aria-expanded="false"/);
+  assert.doesNotMatch(out, /data-cad-review-list="assumptions"|data-cad-review-list="unsupported"/);
+  assert.match(out, /<ul[^>]*data-cad-review-list="requirements"/);
+  assert.match(out, /<ul[^>]*data-cad-review-list="missing"/); assert.match(out, /<ul[^>]*data-cad-review-list="contextUsed"/);
+  assert.match(text(out), /Not supported or not verified 1/); assert.match(text(out), /Context used Sketch card/);
   assert.match(out, /data-cad-review-param="width"[\s\S]*?40 mm[\s\S]*?Assumed/);
   assert.match(out, /data-cad-review-param="holes"[\s\S]*?Requested/);
   assert.doesNotMatch(out, /data-cad-review-param="area"/, 'an output is not listed as an input');
   assert.match(out, /<button[^>]*data-cad-review-generate[^>]*disabled=""/, 'missing information blocks Generate');
   assert.match(out, /data-cad-review-blocked/); assert.match(out, /data-cad-review-cost/); assert.match(text(out), /Editing details makes no call/);
   assert.match(out, /data-cad-review-cancel/); assert.match(out, /data-cad-review-edit/);
+  assert.doesNotMatch(card(job({}, { missing: [] })), /data-cad-review-cancel/, 'a review with no canvas skeleton has Generate and Edit only');
   assert.doesNotMatch(out, /data-cad-review-save|data-cad-review-value/, 'read-only until Edit details');
   assert.doesNotMatch(card(job()), /<button[^>]*data-cad-review-generate[^>]*disabled=""/);
 });

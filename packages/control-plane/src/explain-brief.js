@@ -14,6 +14,8 @@ import { proposalUsage } from './generation-proposal.js';
 import { modelEvidence } from './explain-evidence.js';
 
 const text = (value, max) => (typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, max) : '');
+// The model's own one-line lead-in for the plan message (never a canned sentence): plain text, no markup characters, empty when absent or invalid.
+const leadIn = value => text(value, 200).replace(/[`*_#<>{}|\[\]]/g, '').trim();
 const list = (value, max, n = 8) => (Array.isArray(value) ? value.map(v => text(v, max)).filter(Boolean).slice(0, n) : []);
 const sentences = value => value.match(/[^.!?]+[.!?]+["')\]]*(?=\s|$)/g) || [];
 
@@ -69,5 +71,5 @@ export async function prepareStage(job, ctx) {
   const brief = { version: 1, title: text(input.title, 120), summary, request: job.prompt, assumptions: list(input.assumptions, 300), presentation: input.presentation,
     components, evidenceIds: list(input.evidence_ids, 64, 16).filter(id => known.has(id)), limitations: list(input.limitations, 300),
     ambiguous: input.ambiguous === true, expanded: input.expanded === true, ...(depth ? { depth } : {}) };
-  return { brief, decision: briefDecision(ctx.env, brief, { evidence: job.evidence || [], source: job.source }) };
+  return { brief, decision: briefDecision(ctx.env, brief, { evidence: job.evidence || [], source: job.source }), reply: leadIn(input.reply) };
 }

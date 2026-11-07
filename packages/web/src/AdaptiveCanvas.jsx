@@ -19,8 +19,9 @@ import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
 import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
-import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
+import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
+import { skeletonJobOf } from './explain-client.js';
 import { CAPTURE_MAX_BYTES, SketchCaptureError, captureProblem, captureResult, captureSize, fitZoom, pixelRatios, releasedTool, sketchDraftOf } from './sketch-host.js';
 import { gapsFrom, nearestGap, nudgeBy } from './learn-gap-rail.js';
 import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, reorderStep, headsOf, copyStyle, pasteStyle, strokePatch, strokeOf, TEXT_LEVELS, ARROW_KINDS } from './learn-style-panel.js';
@@ -1573,7 +1574,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, roadmap = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, roadmap = null, onSkeletonsDropped = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -2185,7 +2186,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // With a link (the Start dialog's sources) the card is added at once and its id returned; without one, the address prompt opens.
       insertWebpage: url => { if (typeof url === 'string' && url) return addWebpage(url); if (!readOnlyRef.current && !localCopyRef.current) setWebpageAsk(''); return null; },
       // The inline AI editor from the page's Edit menu, and whether Ctrl/Cmd+K is the inline editor's right now (Dive asks).
-      inlineAi: (mode = null) => openInline(performance.now(), false, mode), inlineClaims: () => !!inlineRef.current || !!inlineTarget(true),
+      inlineAi: (mode = null, preset = null) => openInline(performance.now(), false, mode, preset), inlineClaims: () => !!inlineRef.current || !!inlineTarget(true),
       copy: copySelection,
       paste: () => !!(clipboard.current?.length && pasteIds(clipboard.current, 28, true)),
       duplicate: () => !!pasteIds(selectedRef.current),
@@ -2290,6 +2291,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         setBlocks(previous => { const at = indexAfter(previous, after); return [...previous.slice(0, at), added, ...previous.slice(at)]; });
         return revealAfter(added.id);
       },
+      // A screen rect (a selection's) in world units, for a card to be placed beside it.
+      worldRect: rect => (rect && surface.current ? toWorld(rect, surface.current.getBoundingClientRect(), viewRef.current) : null),
       // An /explain v2 job's card (EXP-T20): placed once under the job's own card id, so a resent press or a reload finds it
       // instead of adding a second card; the result attaches to it later (ExplainPending).
       // /animation (AN-05): its pending card (storage.js withJob) placed where the learner looks, once per card id.
@@ -2301,11 +2304,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         blocksRef.current = [...blocksRef.current, added];
         return insertAtView(added, into);
       },
-      placeExplain: (card, { into = null } = {}) => {
+      // near { cardId, world }: the card the passage is in and the passage's box. The skeleton stands beside that passage, in free space, never over the source card
+      // or anything else (roadmap-placement.js deliveredSpot, the Tutor slots' rule), and the camera stays where it is.
+      placeExplain: (card, { into = null, near = null } = {}) => {
         if (!alive.current || readOnlyRef.current || !card?.id || card.type !== 'animation') return null;
         if (blocksRef.current.some(block => block.id === card.id)) return card.id;
         snapshot();
-        const added = { ...card, dx: 0, dy: 0 };
+        const added = { ...card, dx: 0, dy: 0 }, source = near && blocksRef.current.find(block => block.id === near.cardId), box = source && boundsRef.current[source.id];
+        if (box) {
+          const spot = deliveredSpot({ w: EXPLAIN_PENDING_SIZE.width, h: 360 }, proposalAnchor(box, near.world), [...boardObstacles([source.id]), ...anchoredBoxes(slotsRef.current), box], null);
+          perfMark(added.id, 'insert');
+          pendingAt.current.set(added.id, spot);
+          blocksRef.current = [...blocksRef.current, added];
+          setBlocks(previous => [...previous, added]);
+          return added.id;
+        }
         blocksRef.current = [...blocksRef.current, added];
         revealing.current.add(card.id);
         return insertAtView(added, into);
@@ -3285,6 +3298,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     try { if(cad.length)await Promise.all(cad.map(block=>cadClient(api,appName).action(block.jobId,'placement',{hidden:true}))); } catch(problem) { toast(`CAD card was kept: ${problem.message}`); return; }
     const chats = ids.filter(id => exchangesRef.current.some(exchange => exchange.id === id));
     snapshot(chats.length > 0);
+    // A skeleton whose plan still waits for Generate is dropped with its card: the page cancels the job (one undo step restores the card).
+    const skeletons = blocksRef.current.filter(block => ids.includes(block.id) && skeletonJobOf(block)).map(block => ({ cardId: block.id, ...skeletonJobOf(block) }));
+    if (skeletons.length) onSkeletonsDropped?.(skeletons);
     // Selected nodes delete with their attached connections.
     for (const id of chats) onDeleteRef.current?.(id);
     const nodes = new Set([...chats, ...ids.filter(id => blocksRef.current.some(block => block.id === id) || shapesRef.current.some(shape => shape.id === id))]);
@@ -3624,12 +3640,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   // mode: the editor's first mode, 'edit' | 'explain' (the selection action bar's Quick Edit passes 'edit'); null keeps
   // the editor's own default.
-  const openInline = (opened = performance.now(), fromKey = false, mode = null) => {
+  const openInline = (opened = performance.now(), fromKey = false, mode = null, preset = null) => {
     if (inlineRef.current) { shell.current?.querySelector('[data-inline-ai] textarea')?.focus(); return true; }
-    const found = inlineTarget(fromKey);
+    // A preset command and words (Explain on a highlighted passage) are about that passage, never the cards now selected: a creation target.
+    const found = preset ? (readOnlyRef.current ? null : { target: { ids: [], range: null, groupId: null, creation: true, anchor: insertionAnchor() } }) : inlineTarget(fromKey);
     if (!found) return false;
     setMenuAt(null);
-    setInline({ ...found, opened, mode, cold: inlineOpens.current === 0, opener: document.activeElement, n: (inlineOpens.current += 1) });
+    setInline({ ...found, opened, mode, preset, cold: inlineOpens.current === 0, opener: document.activeElement, n: (inlineOpens.current += 1) });
     return true;
   };
   const closeInline = () => {
@@ -6102,7 +6119,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             <button type="submit" disabled={!isWebUrl(webpageAsk.trim())} className="h-7 rounded-md bg-accent px-2 text-xs text-white disabled:opacity-40">Add webpage</button>
           </div>
         </form>}
-        {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode}
+        {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode} preset={inline.preset}
           canvas={inlineCanvas} config={inlineAi} view={view} readOnly={readOnly} onClose={closeInline} /></Suspense>}
         {inlineHint > 0 && <div role="status" data-inline-hint className="pointer-events-none absolute top-[calc(var(--canvas-top,0px)+0.75rem)] left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">Select something to edit or explain</div>}
         {docView === 'editor' && !doc && (docError || (!docReady && !readOnly)) && (
