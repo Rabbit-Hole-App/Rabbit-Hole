@@ -21,7 +21,7 @@ after(() => rmSync(tmp, { recursive: true, force: true }));
 const outfile = join(tmp, 'bundle.cjs');
 await esbuild.build({
   stdin: {
-    contents: "export { default as RoadmapInvitation } from './RoadmapInvitation.jsx'; export { default as RoadmapPlan } from './RoadmapPlan.jsx'; export { ProposalOverlay, NextStepIndicator, StepPill } from './NextStepPill.jsx'; export { useRoadmap } from './use-roadmap.js'; export { RoadmapChat, RoadmapToc, RoadmapCanvas } from './RoadmapSurfaces.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';",
+    contents: "export { default as RoadmapInvitation } from './RoadmapInvitation.jsx'; export { default as RoadmapPlan } from './RoadmapPlan.jsx'; export { ProposalOverlay, NextStepIndicator, StepPill } from './NextStepPill.jsx'; export { useRoadmap } from './use-roadmap.js'; export { RoadmapChat, RoadmapToc, RoadmapCanvas } from './RoadmapSurfaces.jsx'; export { default as TableOfContents } from './TableOfContents.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';",
     resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx',
   },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
@@ -135,13 +135,17 @@ test('the hook and the three surfaces mount with nothing to show before the serv
   assert.equal(lib.renderToStaticMarkup(lib.createElement(Probe)), '<div></div>');
 });
 
-test('Fix A: the Contents plan scrolls inside a sized region, and Accept plan shows Accepting and is disabled once pressed', () => {
+test('Contents is one scroll: the roadmap plan, its stopping point and actions sit inside the Table of contents scroller, before the headings; no second scroller', () => {
   const noop = () => {};
   const roadmap = state => ({ controller: {}, toc: tocOf(state), editPlan: noop, go: noop, acceptPlan: noop });
+  const outline = [{ id: 'h1', level: 1, label: 'First heading', description: '', done: false }];
+  const toc = html(lib.TableOfContents, { outline, canvasApi: { current: null }, className: 'min-h-0 flex flex-col overflow-y-auto', top: lib.createElement(lib.RoadmapToc, { roadmap: roadmap(at('status-proposed-plan')) }) });
+  assert.match(toc, /^<div data-toc="true" class="min-h-0 flex flex-col overflow-y-auto">/, 'the page-sized [data-toc] is the one scroller');
+  for (const needle of ['data-roadmap-plan', 'data-roadmap-outcome', 'Stopping point', 'data-roadmap-accept-plan', 'data-roadmap-edit-plan', 'data-roadmap-end']) assert.ok(toc.includes(needle), needle);
+  assert.ok(toc.indexOf('data-roadmap-plan') < toc.indexOf('data-toc-entry="h1"'), 'the roadmap comes before the ordinary headings');
+  assert.equal((toc.match(/overflow-y-auto/g) || []).length, 1, 'no nested scroller');
+  assert.doesNotMatch(toc, /data-roadmap-scroll|max-h-\[50vh\]/);
   const markup = html(lib.RoadmapToc, { roadmap: roadmap(at('status-proposed-plan')) });
-  const region = markup.match(/<div[^>]*data-roadmap-scroll[^>]*>/)[0];
-  for (const cls of ['overflow-y-auto', 'min-h-0', 'max-h-[50vh]']) assert.ok(region.includes(cls), cls);
-  assert.ok(markup.indexOf('data-roadmap-scroll') < markup.indexOf('data-roadmap-plan') && markup.indexOf('data-roadmap-accept-plan') > markup.indexOf('data-roadmap-plan'), 'the whole plan, actions included, is inside the region');
   assert.match(markup, />Accept plan</);
   assert.doesNotMatch(markup, /data-roadmap-accept-plan="true"[^>]* disabled=""/);
   const planned = at('status-proposed-plan');
