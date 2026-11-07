@@ -1,22 +1,12 @@
-import RoadmapInvitation from './RoadmapInvitation.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { ProposalOverlay } from './NextStepPill.jsx';
 import { toast } from './ui.jsx';
 import { failuresOf } from './roadmap-client.js';
 import { createDragStore, dragged } from './roadmap-proposal-context.js';
 
-// The three places the roadmap shows, each fed by the object useRoadmap returns, so a page mounts each with one line:
-//   RoadmapChat   above the Chat composer (invitation and state lines)
-//   RoadmapToc    at the top of the Table of contents tab (plan, steps, actions)
-//   RoadmapCanvas over the canvas pane (the pending proposal overlay; a later offer's Next card | Cancel is the canvas's bottom pill, AdaptiveCanvas)
-export function RoadmapChat({ roadmap }) {
-  const c = roadmap.controller;
-  return <RoadmapInvitation invitation={roadmap.invitation} lines={roadmap.lines} onExplain={() => c.explain()} onKeep={() => c.dismiss()}
-    onAnswer={fields => c.answer(fields)} onOffer={() => roadmap.editPlan()} onChoose={choice => c.explainPart(choice)} />;
-}
-// UI.02: the ToC draws the accepted roadmap as rows of its own tree (TableOfContents roadmap prop); no Tutor panel above it in any flag or state.
-// ponytail: kept as a null component until LearnPage stops passing it as `top` (chat-LearnPage patch), then delete it.
-export function RoadmapToc() { return null; }
+// The roadmap shows in three places, each fed by the object useRoadmap returns: Chat's transcript (RoadmapTranscript.jsx, Tutor entries), the
+// Table of contents tree (TableOfContents roadmap prop, accepted rows only) and RoadmapCanvas over the canvas pane (the pending proposal
+// overlay; a later offer's Next card | Cancel is the canvas's bottom pill, AdaptiveCanvas).
 // hosted: the canvas really draws this proposal as its slot (AdaptiveCanvas SlotCard beside its source; the page learns it from the canvas), so the fixed overlay is
 // not drawn: never both. A proposal the canvas cannot draw (a link, a source not measured yet, the editor open) keeps the overlay: never neither.
 export function RoadmapCanvas({ roadmap, hosted = false }) {

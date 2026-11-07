@@ -44,7 +44,7 @@ export function ChatWorkspaceProvider({ canvas, board = 'main', canvasOps: initi
   const context = useChatContext(canvas, ownThread);
   const sources = useChatSources(canvas);
   // The Table of contents' own conversation (owner brief 2026-10-16 item 7): its own thread (slot 'toc', always Tutor), draft
-  // and attachments, so TOC and Chat never share messages, drafts or New chat. TocWorkspace hands them to the TOC's AskPanel.
+  // and attachments, so TOC and Chat never share messages, drafts or New chat. (The ToC has no conversation now; its old threads open in Chat History.)
   const tocThread = useChatThread(canvas, { slot: 'toc' });
   const tocComposer = useChatDraft(`${canvas}.toc`, tocThread);
   const tocContext = useChatContext(canvas, tocThread);
@@ -114,16 +114,5 @@ export function ChatWorkspaceProvider({ canvas, board = 'main', canvasOps: initi
   const reportAnswering = useCallback(delta => setAnswers(count => Math.max(0, count + delta)), []);
   const answering = answers > 0;
   const value = useMemo(() => ({ answering, reportAnswering, canvas, board, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, setCanvasOps, canvasCoverage, setCanvasCoverage, toc, tocThreadId: tocThread.id, coaching, settings, goals, editing }), [answering, reportAnswering, canvas, board, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, canvasCoverage, toc, tocThread.id, coaching, settings, goals, editing]);
-  return <ChatWorkspace.Provider value={value}>{children}</ChatWorkspace.Provider>;
-}
-
-// The Table of contents view's workspace: the page's, with the TOC's own thread, draft and attachments in place of Chat's,
-// and its own send loop. tocView: the composer shows Tutor as its only mode (ModeSelector).
-export function TocWorkspace({ children }) {
-  const parent = useChatWorkspace();
-  const sender = useRef(null);
-  const registerSender = useCallback(send => { sender.current = send; return () => { if (sender.current === send) sender.current = null; }; }, []);
-  const regenerate = useCallback(messageId => sender.current?.({ regenerate: { messageId: String(messageId) } }), []);
-  const value = useMemo(() => parent && ({ ...parent, ...parent.toc, registerSender, regenerate, tocView: true }), [parent, registerSender, regenerate]);
   return <ChatWorkspace.Provider value={value}>{children}</ChatWorkspace.Provider>;
 }

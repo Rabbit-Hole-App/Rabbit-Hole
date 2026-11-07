@@ -3,7 +3,7 @@
 // The rendered header, a real find and the unpinned close are e2e/panel-header-check.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { cardWords, findMatches, readPanelPin, savePanelPin } from './canvas-find.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -161,7 +161,7 @@ test('the Chat header: the thread title, History, New chat (icon only under 360 
 // Checklist UI.02 (owner 2026-11-06, supersedes the 2026-10-16 ToC conversation): the Table of contents has no conversation or composer in any
 // state; its former conversations keep their own thread (slot 'toc') and draft key and reopen through ordinary Chat History.
 test('the Table of contents has no conversation; its old threads reopen in Chat with their own drafts; Chat stays in Chat', () => {
-  const ask = read('./ask.jsx'), threads = read('./chat-threads.js'), workspace = read('./chat-workspace.jsx'), modes = read('./ModeSelector.jsx'), history = read('./ChatHistory.jsx'), conversation = read('./TocConversation.jsx');
+  const ask = read('./ask.jsx'), threads = read('./chat-threads.js'), workspace = read('./chat-workspace.jsx'), modes = read('./ModeSelector.jsx'), history = read('./ChatHistory.jsx');
   assert.doesNotMatch(page, /composerDocked|holdMode/, 'Chat\'s composer no longer docks under the contents');
   assert.match(workspace, /const tocThread = useChatThread\(canvas, \{ slot: 'toc' \}\);/);
   assert.match(workspace, /const tocComposer = useChatDraft\(`\$\{canvas\}\.toc`, tocThread\);/, 'its own draft key');
@@ -170,7 +170,9 @@ test('the Table of contents has no conversation; its old threads reopen in Chat 
   assert.match(threads, /threads\?\.find\(thread => thread\.id !== toc\)/, 'Chat never falls back to the TOC\'s thread');
   assert.doesNotMatch(history, /tocThread/, 'History lists the former TOC conversations, so they reopen in ordinary Chat');
   assert.match(modes, /if \(chat\.tocView\) return <span data-chat-mode="tutor"/, 'Tutor shown, no menu');
-  assert.match(conversation, /export default function TocConversation\(\) \{ return null; \}/, 'no ToC conversation or composer in any state');
+  assert.doesNotMatch(workspace, /TocWorkspace/, 'no ToC conversation mount in any state');
+  assert.doesNotMatch(page, /<(TocConversation|TocWorkspace|RoadmapToc)b|import (TocConversation|{[^}]*(TocWorkspace|RoadmapToc))/, "no mount or import of the removed ToC panels");
+  assert.ok(!existsSync(new URL('./TocConversation.jsx', import.meta.url)), 'the component is gone');
   const toc = page.indexOf('<div role="tabpanel" aria-label="Table of contents"'), chatPane = page.indexOf('<ChatPane key={app.name}');
   assert.ok(toc > 0 && chatPane > toc, 'Chat after the contents tab');
   assert.equal(page.match(/<ChatPane\b/g).length, 1);
