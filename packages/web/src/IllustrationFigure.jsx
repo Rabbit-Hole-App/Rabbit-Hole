@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { loadAsset } from './learn-board-assets.js';
 
 // A reusable figure: an illustration in its own container with its caption below (the written Explanation puts one after its opening paragraph).
+// Layout follows the approved Image mockup (handoff/ui/07-explanation-card-approved.html on chatgpt/tutor, .picture-figure): margin 13px 0 11px, the picture full width with 9px corners,
+// a centered 12px caption 7px below it.
 // The source is the image block's own asset path: a `src` (URL or data URL) or a `cacheKey` that learn-board-assets loadAsset answers from this
 // browser's cache and then the board's server copy, so the picture is saved and reloaded with the board (assetKeysOf lists the key).
 // The container reserves its square before the image arrives (nothing jumps), the image never leaves it, and the callouts are optional:
@@ -33,8 +35,8 @@ export default function IllustrationFigure({ illustration, className = '' }) {
   const callouts = state === 'ready' ? validCallouts(illustration?.callouts) : [];
   const ratio = Number.isFinite(illustration?.aspect) && illustration.aspect > 0.3 && illustration.aspect < 3 ? illustration.aspect : 1;
   return (
-    <figure data-illustration data-illustration-state={state} className={`m-0 my-2 ${className}`}>
-      <div data-illustration-frame style={{ aspectRatio: String(ratio) }} className="relative w-full overflow-hidden rounded-xl border border-line bg-[var(--viz-surface,#fbfbfa)]">
+    <figure data-illustration data-illustration-state={state} className={`m-0 mt-[13px] mb-[11px] ${className}`}>
+      <div data-illustration-frame style={{ aspectRatio: String(ratio) }} className="relative w-full overflow-hidden rounded-[9px] bg-[var(--viz-surface,#fbfbfa)]">
         {state !== 'ready' && <div aria-hidden="true" className={`absolute inset-0 ${state === 'loading' ? 'animate-pulse bg-hover' : ''}`} />}
         {state === 'failed' && <div role="status" className="absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-ink-2">The illustration is unavailable.</div>}
         {url && <img src={url} alt={illustration?.alt || ''} draggable={false} ref={el => { if (el && el.complete && el.naturalWidth > 0 && !(done.url === url && done.ok)) setDone({ url, ok: true }); }} onLoad={() => setDone({ url, ok: true })} onError={() => setDone({ url, ok: false })} className={`absolute inset-0 block h-full w-full object-contain transition-opacity ${state === 'ready' ? 'opacity-100' : 'opacity-0'}`} />}
@@ -52,7 +54,7 @@ export default function IllustrationFigure({ illustration, className = '' }) {
           </div>
         )}
       </div>
-      {illustration?.caption && <figcaption data-illustration-caption className="mt-1.5 text-xs text-ink-2">{illustration.caption}</figcaption>}
+      {illustration?.caption && <figcaption data-illustration-caption className="mt-[7px] text-center text-xs leading-[1.45] text-ink-2">{illustration.caption}</figcaption>}
     </figure>
   );
 }
