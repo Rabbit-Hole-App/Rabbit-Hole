@@ -334,3 +334,14 @@ test('the natural flow: focus on Accept plan is not Tab-owned (the defect), the 
   assert.equal(pageKeyAllowed(key(), overlay), true);
   assert.equal(pageKeyAllowed(key(), el('TEXTAREA', ['[data-chat-composer]'])), false, 'the Chat composer keeps its Tab');
 });
+
+// UI.04/05/08: the first offer is Accept, a later one Next card; both are the same acceptance (gesture, route, version) the canvas, Chat and eligible Tab share.
+test('pillOf: first offer Accept, a later one Next card, one gesture and route for every surface', () => {
+  const first = pillOf(withView('status-active-proposal-pending'));
+  assert.deepEqual([first.next, first.label], [false, 'Accept']);
+  const later = withView('status-delivered-next-ready'), pill = pillOf(later);
+  assert.deepEqual([pill.next, pill.label], [true, 'Next card']);
+  assert.equal(pill.gesture, `accept:${later.view.proposal.id}:${later.view.proposal.version}`);
+  assert.deepEqual(routes.acceptProposal(later.view, 'ak_x').body, { boardId: later.view.roadmap.boardId, revision: later.view.roadmap.revision, proposalVersion: later.view.proposal.version, actionKey: 'ak_x' });
+  assert.equal(tabAccepts({ event: { key: 'Tab' }, pill }), true, 'eligible Tab accepts the same Next card offer');
+});

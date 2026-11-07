@@ -1,7 +1,7 @@
 import RoadmapInvitation from './RoadmapInvitation.jsx';
 import RoadmapPlan from './RoadmapPlan.jsx';
 import { useEffect, useRef, useState } from 'react';
-import { NextStepIndicator, ProposalOverlay } from './NextStepPill.jsx';
+import { ProposalOverlay } from './NextStepPill.jsx';
 import { toast } from './ui.jsx';
 import { failuresOf } from './roadmap-client.js';
 import { createDragStore, dragged } from './roadmap-proposal-context.js';
@@ -9,7 +9,7 @@ import { createDragStore, dragged } from './roadmap-proposal-context.js';
 // The three places the roadmap shows, each fed by the object useRoadmap returns, so a page mounts each with one line:
 //   RoadmapChat   above the Chat composer (invitation and state lines)
 //   RoadmapToc    at the top of the Table of contents tab (plan, steps, actions)
-//   RoadmapCanvas over the canvas pane (the pending proposal overlay and the Next step ready indicator)
+//   RoadmapCanvas over the canvas pane (the pending proposal overlay; a later offer's Next card | Cancel is the canvas's bottom pill, AdaptiveCanvas)
 export function RoadmapChat({ roadmap }) {
   const c = roadmap.controller;
   return <RoadmapInvitation invitation={roadmap.invitation} lines={roadmap.lines} onExplain={() => c.explain()} onKeep={() => c.dismiss()}
@@ -50,7 +50,6 @@ export function RoadmapCanvas({ roadmap, hosted = false }) {
   return (
     <>
       {pill && roadmap.showOverlay && !hosted && <ProposalOverlay pill={pill} position={position} onAccept={() => c.acceptProposal()} onCancel={() => c.cancelProposal()} edit={edit} drag={startDrag} />}
-      <NextStepIndicator indicator={roadmap.indicator} onGo={() => roadmap.go({ kind: 'proposal' })} />
     </>
   );
 }

@@ -152,3 +152,28 @@ test('the proposal overlay is drawn when its source is on screen, or whenever th
   assert.equal(overlayShown({ pill, visible: false, editing: true }), true, 'the editor is never invisible');
   assert.equal(overlayShown({ pill: null, visible: true, editing: true }), false);
 });
+
+// UI.04: an applied Edit card's title survives acceptance (canvasCardsOf rebuilt the result's card from the unedited step); the stage is the server's.
+test('accepted words: the slot keeps the accepted offer title and description through generating; a later offer is next; the server stage wins', () => {
+  const [offer] = canvasCardsOf(view('status-active-proposal-pending'));
+  const edited = { ...offer, title: 'Edited: what the gradient says', description: 'The edited brief.', version: 2 };
+  const held = { id: slotIdOf(offer.key), at: { x: 1, y: 2 }, roadmap: edited };
+  const generating = JSON.parse(JSON.stringify(view('accept-proposal-response-generating')));
+  generating.results[0].proposalVersion = 2;
+  const [making] = canvasCardsOf(generating);
+  assert.notEqual(making.title, edited.title, 'reproduction: the view alone names the unedited step');
+  const [update] = planSlots([held], [making]).update;
+  assert.deepEqual([update.card.state, update.card.title, update.card.description], ['generating', edited.title, edited.description]);
+  assert.deepEqual(planSlots([{ ...held, roadmap: update.card }], [making]), { add: [], update: [], remove: [] }, 'the next poll changes nothing');
+  generating.results[0].proposalVersion = 3;
+  assert.equal(planSlots([held], canvasCardsOf(generating)).update[0].card.title, making.title, 'another version: not the edited offer');
+  generating.results[0] = { ...generating.results[0], proposalVersion: 2, title: 'Server accepted title', stage: 'saving' };
+  const [named] = canvasCardsOf(generating);
+  assert.deepEqual([named.state, planSlots([held], [named]).update[0].card.title], ['saving', 'Server accepted title']);
+  generating.results[0].stage = 'checking';
+  assert.equal(canvasCardsOf(generating)[0].state, 'checking');
+  assert.equal(canvasCardsOf(view('status-active-proposal-pending'))[0].next, false, 'the first offer is Accept');
+  const later = canvasCardsOf(view('status-delivered-next-ready')).find(card => card.state === 'pending');
+  assert.equal(later?.next, true, 'after a delivered card the offer is Next card');
+  assert.equal(canvasCardsOf(view('accept-proposal-response-generating'), { busy: [`deliver:${view('accept-proposal-response-generating').results[0].id}`] })[0].state, 'saving', 'this client delivering: saving');
+});

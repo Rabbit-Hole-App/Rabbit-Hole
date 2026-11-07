@@ -102,8 +102,13 @@ export function pillOf(state) {
     proposalId: proposal.id, version: proposal.version, title: proposal.title, description: proposal.description, format: proposal.format,
     source: relationTitle(proposal), sourceKey: proposal.sourceRelation?.sourceRef?.source?.key || proposal.sourceRelation?.source?.key || null, position: proposal.position, accept: proposal.acceptable === true && !state.editing && !state.busy.includes(gesture), accepting: state.busy.includes(gesture), gesture,
     cancelGesture: `cancel:${proposal.id}:${proposal.version}`, link: proposal.link || null, stepId: proposal.stepId, canEdit: state.view.edit === true && !proposal.link,
+    // UI.04/08: the first card is Accept (canvas: attached Accept [Tab] | Cancel); any proposal after accepted work is Next card (canvas: the bottom pill). Same action.
+    next: isNext(view, proposal), label: isNext(view, proposal) ? NEXT_CARD : STRINGS.accept,
   };
 }
+// shortcut: the vocabulary's 'Next card' lives here until roadmap-strings.js (Chat lane) takes it.
+export const NEXT_CARD = 'Next card';
+const isNext = (view, proposal) => resultsOf(view).some(r => r.stepId !== proposal.stepId);
 // "Next step ready": only when a pending proposal exists, the server says it is ready and the overlay is offscreen. It navigates.
 export const indicatorOf = (state, { offscreen }) => (nextStepReady(state) && offscreen ? { label: STRINGS.nextReady } : null);
 export const nextStepReady = state => !!pillOf(state) && state.view.nextStepReady === true;
