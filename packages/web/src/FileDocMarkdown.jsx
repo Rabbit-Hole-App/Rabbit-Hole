@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BookOpen, Highlighter, Lightbulb, Trash2, X } from 'lucide-react';
+import { BookOpen, Highlighter, Lightbulb, ScanText, Trash2, X } from 'lucide-react';
 import { Button } from './ui.jsx';
 import { Md } from './Md.jsx';
 import { ToolButton, placeNear } from './selection-toolbar.jsx';
@@ -7,12 +7,22 @@ import { EXCERPT_LIMIT } from './pdf-anchor.js';
 import { deleteHighlight, listHighlights, newId, putHighlight } from './pdf-highlights.js';
 import { canWrite, fileScope } from './file-source-client.js';
 import { containsOffset, paintHighlights, quoteFromRange, rangeFromOffsets } from './learn-wiki-highlights.js';
-import { currentHighlights, highlightAt, markdownHighlightBody, markdownHighlightSource, placeHighlights } from './file-doc-highlights.js';
+import { anchorShape, currentHighlights, highlightAt, markdownHighlightBody, markdownHighlightSource, placeHighlights, tutorAnchors, viewCardLabel } from './file-doc-highlights.js';
 import { EXPLAIN_PASSAGE_EVENT, PASSAGE_TEXT, SOURCE_REF_EVENT, explanationsFor, markdownDraft, passageTarget, resolveQuote, resolveRawPassage } from './source-ref.js';
 import { textSegments } from './markdown-anchor.js';
 import { focusExplanation, mintSourceRef, registerPassageMeasure } from './source-refs.js';
 import { api } from './api.js';
 import { useSourcePending, useSourceRefBlocks } from './SourceRefChip.jsx';
+
+// UI.07: the Tutor's persistent source tint, its own Highlight registry (never the learner's wiki-highlight, never the transient emphasis), one entry per card.
+const tutorPainted = new Map();
+function paintTutor(key, ranges) {
+  if (typeof CSS === 'undefined' || !CSS.highlights || typeof Highlight === 'undefined') return; // ponytail: no prose tint without the Highlight API (pre-2023); block shapes still show
+  if (ranges.length) tutorPainted.set(key, ranges); else tutorPainted.delete(key);
+  CSS.highlights.set('tutor-source', new Highlight(...[...tutorPainted.values()].flat()));
+}
+// Brief emphasis on the destination card (file 05): the shared selection blue as a passing outline, without touching the card's own classes or styles.
+const emphasizeCard = id => setTimeout(() => document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.animate?.([{ outline: '2px solid var(--color-select)', outlineOffset: '4px' }, { outline: '2px solid var(--color-select)', outlineOffset: '4px', offset: 0.8 }, { outline: '2px solid transparent', outlineOffset: '4px' }], { duration: 1800 }), 300);
 
 // A Markdown file card's rendered text with the PDF reader's selection popover (Highlight) and the webpage card's highlight menu
 // (Remove highlight), docs/features/pdf-excerpts.md "Markdown cards". Highlights are text quotes painted over the rendered text
@@ -29,6 +39,10 @@ export function MarkdownText({ block, text, children }) {
   const key = source?.key;
   const refBlocks = useSourceRefBlocks(); // cards made from a passage of this file (source-ref.js): the passage opens its explanation
   const pendingSlots = useSourcePending(); // the Tutor's slots for a passage of this file: the passage opens the slot that becomes the explanation
+  // UI.07: saved Tutor cards with a verified ref to THIS revision of this file (changed revisions, other files, pending or failed work: none), with their titles.
+  const tutorCards = explanationsFor(refBlocks, { key: `file:${block.fileRef?.source?.id}`, rev }).current.map(card => ({ ...card, title: refBlocks.find(entry => entry.id === card.cardId)?.title || '' }));
+  const tutorMarks = JSON.stringify(tutorCards.map(card => [card.cardId, card.title, card.raw, card.ref.anchor?.quote]));
+  const [anchors, setAnchors] = useState([]), [hovered, setHovered] = useState(null), [chooser, setChooser] = useState(null);
 
   useEffect(() => {
     if (!source) { setAnswer(null); return undefined; }
@@ -53,6 +67,45 @@ export function MarkdownText({ block, text, children }) {
     observer.observe(node, { childList: true, subtree: true, characterData: true });
     return () => { observer.disconnect(); paintHighlights(paintKey, []); };
   }, [marks, block.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // UI.07 (file 05): each resolved relationship drawn in its shape (prose tint, code lines, diagram outline, whole-section rail), drawn again when the rendered
+  // text changes, cleared on unmount, a revision change or a card going away; the View card buttons follow the anchors' rendered tops.
+  useEffect(() => {
+    const node = root.current;
+    if (!node) return undefined;
+    let marked = [];
+    const options = { childList: true, subtree: true, characterData: true };
+    const clear = () => { for (const element of marked) element.removeAttribute('data-tutor-anchor'); marked = []; paintTutor(block.id, []); };
+    const elementOf = at => (at.nodeType === 1 ? at : at.parentElement);
+    const blockOf = element => { const doc = node.firstElementChild; let at = element; while (at && at.parentElement && at.parentElement !== doc) at = at.parentElement; return at; };
+    const mark = (element, shape) => { element.setAttribute('data-tutor-anchor', shape); marked.push(element); };
+    const paint = () => {
+      observer.disconnect();
+      clear();
+      const whole = !scroller.current?.querySelector('[data-file-doc-more]'), drawn = node.textContent, base = node.getBoundingClientRect(), ranges = [], out = [];
+      tutorAnchors(tutorCards, card => { const exact = resolveQuote(drawn, card.ref.anchor?.quote); return exact.status === 'missing' && card.raw && whole ? resolveRawPassage(textSegments(node), card.ref.anchor.quote) : exact; }).forEach(anchor => {
+        const range = rangeFromOffsets(node, anchor.start, anchor.end);
+        if (!range) return;
+        const start = elementOf(range.startContainer), first = blockOf(start), last = blockOf(elementOf(range.endContainer));
+        const diagram = start.closest('[data-md-diagram]'), code = start.closest('[data-code-block] pre');
+        const shape = anchorShape({ inDiagram: !!diagram, inCode: !!code, startsAtHeading: /^H[1-6]$/.test(first?.tagName || ''), spansBlocks: first !== last });
+        if (shape === 'diagram') mark(diagram, 'diagram');
+        else if (shape === 'code') { for (const line of code.children) if (range.intersectsNode(line)) mark(line, 'code'); }
+        else if (shape === 'section') { for (let at = first; at; at = at.nextElementSibling) { mark(at, 'section'); if (at === last) break; } }
+        else ranges.push(range);
+        const box = range.getBoundingClientRect();
+        out.push({ id: `${anchor.start}-${anchor.end}`, shape, top: box.top - base.top, height: box.height, cards: anchor.cards.map(card => ({ cardId: card.cardId, title: card.title })) });
+      });
+      paintTutor(block.id, ranges);
+      setAnchors(previous => (JSON.stringify(previous) === JSON.stringify(out) ? previous : out));
+      observer.observe(node, options);
+    };
+    const observer = new MutationObserver(paint);
+    paint();
+    return () => { observer.disconnect(); clear(); setAnchors([]); };
+  }, [tutorMarks, rev, block.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const viewCard = cardId => { setChooser(null); focusExplanation(cardId); emphasizeCard(cardId); };
+  const hover = event => { const y = event.clientY - (root.current?.getBoundingClientRect().top ?? 0); setHovered(anchors.find(a => y >= a.top - 4 && y <= a.top + Math.max(a.height, 20) + 4)?.id ?? null); };
 
   // Card to passage (SourceRefChip View passage): the quote is emphasized for a moment, only on the revision the card was made from.
   // A changed file shows that instead; the passage is never searched for in other text.
@@ -215,7 +268,17 @@ export function MarkdownText({ block, text, children }) {
       <button type="button" aria-label="Dismiss" onClick={() => setMessage(null)} className="rounded p-1 hover:bg-hover"><X size={13} /></button>
     </div>}
     <div ref={scroller} data-scroll data-file-doc-text className="pointer-events-auto min-h-0 flex-1 overflow-auto px-3 py-2" onPointerDown={event => event.stopPropagation()} onScroll={reposition} onClick={click}>
-      <div ref={root} data-file-doc-md className="text-sm text-ink"><Md text={text} doc fences /></div>
+      <div ref={root} data-file-doc-md onPointerMove={anchors.length ? hover : undefined} onPointerLeave={() => setHovered(null)} className={`relative text-sm text-ink ${anchors.length ? 'pr-8' : ''}`}><Md text={text} doc fences />
+        {/* View card in the gutter beside each anchor (file 05): shown on the anchor's hover or the button's own focus; a hidden one keeps its place and Tab stop. */}
+        {anchors.map(anchor => (
+          <button key={anchor.id} type="button" data-view-card={anchor.cards.length === 1 ? anchor.cards[0].cardId : ''} title="View card" aria-label={viewCardLabel(anchor.cards)}
+            onPointerDown={event => event.stopPropagation()} onClick={() => (anchor.cards.length === 1 ? viewCard(anchor.cards[0].cardId) : setChooser(chooser === anchor.id ? null : anchor.id))}
+            style={{ top: anchor.top }} className={`absolute right-0 flex h-7 w-7 items-center justify-center rounded text-ink-2 hover:bg-hover hover:text-ink focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-accent ${hovered === anchor.id || chooser === anchor.id ? 'opacity-100' : 'pointer-events-none opacity-0'}`}><ScanText size={16} aria-hidden="true" /></button>
+        ))}
+        {chooser && <div data-file-doc-view-cards role="menu" aria-label="View card" style={{ top: (anchors.find(a => a.id === chooser)?.top ?? 0) + 30 }} className="absolute right-0 z-30 flex w-56 flex-col rounded-lg border border-line bg-white p-1 shadow-pop">
+          {anchors.find(a => a.id === chooser)?.cards.map(card => <button key={card.cardId} type="button" role="menuitem" onClick={() => viewCard(card.cardId)} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><ScanText size={14} className="shrink-0 text-ink-2" aria-hidden="true" /><span className="min-w-0 truncate">{card.title || 'Explanation'}</span></button>)}
+        </div>}
+      </div>
       {children}
     </div>
     {bar && <div ref={barEl} data-file-doc-selection-toolbar role="toolbar" aria-label="Selected text" className="absolute z-30 flex items-center gap-0.5 rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>

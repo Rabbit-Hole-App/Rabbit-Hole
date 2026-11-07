@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { currentHighlights, highlightAt, markdownHighlightBody, markdownHighlightSource, placeHighlights } from './file-doc-highlights.js';
 import { locateQuote } from './learn-wiki-highlights.js';
@@ -62,4 +63,35 @@ test('highlights of another revision are not drawn', () => {
   assert.equal(currentHighlights(answer, 'r1').length, 1);
   assert.equal(currentHighlights(answer, 'r2').length, 0);
   assert.equal(currentHighlights(null, 'r1').length, 0);
+});
+
+// UI.07 / BE.13 (file 05): the Tutor's source relationships as anchors: exact resolved spans only, overlapping cards share one anchor (one chooser),
+// repeated or changed text makes none, the five shapes, and the View card words.
+import { anchorShape, tutorAnchors, viewCardLabel } from './file-doc-highlights.js';
+import { resolveQuote } from './source-ref.js';
+test('Tutor anchors: resolved spans in text order; overlapping cards share one anchor; ambiguous or missing quotes draw nothing', () => {
+  const text = 'Intro. A split is useful. Trees vote. A split is useful.';
+  const card = (cardId, exact, prefix = '', suffix = '') => ({ cardId, title: cardId, ref: { anchor: { quote: { exact, prefix, suffix } } } });
+  const resolve = c => resolveQuote(text, c.ref.anchor.quote);
+  const cards = [card('c2', 'Trees vote.'), card('c1', 'A split is useful.', 'Intro. ', ' Trees'), card('c3', 'split is', 'Intro. A ', ' useful'), card('c4', 'A split is useful.'), card('c5', 'not in the file')];
+  const anchors = tutorAnchors(cards, resolve);
+  assert.deepEqual(anchors.map(a => [a.start, a.end, a.cards.map(c => c.cardId)]), [[7, 25, ['c1', 'c3']], [26, 37, ['c2']]]);
+  assert.deepEqual(tutorAnchors([], resolve), []);
+});
+test('anchor shapes and the View card label', () => {
+  assert.equal(anchorShape({ inDiagram: true, inCode: true }), 'diagram');
+  assert.equal(anchorShape({ inCode: true }), 'code');
+  assert.equal(anchorShape({ startsAtHeading: true, spansBlocks: true }), 'section');
+  assert.equal(anchorShape({ startsAtHeading: true, spansBlocks: false }), 'prose', 'a heading alone is text');
+  assert.equal(anchorShape({}), 'prose');
+  assert.equal(viewCardLabel([{ title: 'Why trees, and what a tree actually does' }]), 'View card: Why trees, and what a tree actually does');
+  assert.equal(viewCardLabel([{ title: 'A' }, { title: 'B' }]), 'View card: 2 cards');
+});
+test('the Markdown card wires the Tutor layer apart from learner highlights and transient emphasis, with the View card gutter button', () => {
+  const source = readFileSync(new URL('./FileDocMarkdown.jsx', import.meta.url), 'utf8');
+  assert.match(source, /CSS\.highlights\.set\('tutor-source'/, 'its own Highlight registry');
+  assert.match(source, /title="View card" aria-label=\{viewCardLabel\(anchor\.cards\)\}/);
+  assert.match(source, /focus-visible:pointer-events-auto focus-visible:opacity-100/, 'Tab reaches a hidden button and shows it');
+  assert.match(source, /focusExplanation\(cardId\); emphasizeCard\(cardId\)/);
+  assert.match(readFileSync(new URL('./card-layout.css', import.meta.url), 'utf8'), /::highlight\(tutor-source\)/);
 });

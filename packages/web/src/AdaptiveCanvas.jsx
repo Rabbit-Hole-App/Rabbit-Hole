@@ -6454,8 +6454,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           strip's grandchildren) take it. Chrome may float over the canvas but never hides what the learner cannot reach:
           fit, focus and a new card's reveal stop above it (chromeTop), and panning brings anything out from under it. */}
       {presenting === null && <div data-canvas-bottom ref={bottomStrip} className={`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:flex-row md:items-end md:gap-3 ${DOCK_PAD} [&>*>*]:pointer-events-auto`}>
-        {/* UI.08: a ready later offer's Next card | Cancel, centred over this strip (the canvas area beside the panel), above the chrome; it stays put while the world pans. */}
-        {!readOnly && roadmap && <div data-next-card-slot className="absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 justify-center empty:hidden"><NextCardPill card={(roadmap.cards || []).find(card => card.next && card.state === 'pending')} onAccept={() => roadmap.onAccept?.()} onCancel={() => roadmap.onCancel?.()} /></div>}
         <div className="flex items-end gap-2 md:min-w-fit md:flex-1 md:basis-0">
         {/* The page's own lower-left control (Learn: the feedback button). */}
         {bottomLeft}
@@ -6495,6 +6493,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">
           {hooks && <div data-hooks-slot ref={hooksSlot} className={`w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)] ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
         </div>
+        {/* UI.08: a ready later offer's Next card | Cancel, centred over this strip (the canvas area beside the panel), above the chrome; it stays put while the world pans. */}
+        {!readOnly && roadmap && <div data-next-card-slot className="absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 justify-center empty:hidden"><NextCardPill card={(roadmap.cards || []).find(card => card.next && card.state === 'pending')} onAccept={() => roadmap.onAccept?.()} onCancel={() => roadmap.onCancel?.()} /></div>}
       </div>}
     </div>
     </SelectionActionsProvider>
