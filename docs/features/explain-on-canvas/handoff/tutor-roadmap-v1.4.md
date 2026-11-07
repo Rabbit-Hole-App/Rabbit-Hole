@@ -21,6 +21,7 @@
 - [7 Canvas placement and source navigation](#7-canvas-placement-and-source-navigation)
 - [8 Pacing, feedback and practice](#8-pacing-feedback-and-practice)
 - [9 Formats and Tutor capabilities](#9-formats-and-tutor-capabilities)
+  - [9.4 R12 command selection and the shared Tutor flow](#94-r12-command-selection-and-the-shared-tutor-flow)
 - [10 Uncertainty, research, safety and privacy](#10-uncertainty-research-safety-and-privacy)
 - [11 Credits, persistence and failure recovery](#11-credits-persistence-and-failure-recovery)
 - [12 Release ladder and cleanup dependencies](#12-release-ladder-and-cleanup-dependencies)
@@ -221,6 +222,8 @@ Use [02 — Canvas card skeleton](ui/02-canvas-card-skeleton.html) for the skele
 **Edit card** targets this proposal/card in the existing Chat with a small pill, using the established edit/version behavior. Editing a pending proposal changes its proposal version and requires the learner to accept that updated offer; it is not implicit acceptance. Delivered-card editing preserves the existing card/history and uses the existing explicit edit path; a new paid generation needs its own authorized action. Do not silently regenerate a delivered card just because **Edit card** was clicked.
 
 One step/proposal identity connects both surfaces. Clicking **Accept** (first card), **Next card** (ready subsequent card), **Cancel** or **Edit card** in Chat changes the same underlying offer as the canvas actions. Disable stale/conflicting controls together. A simultaneous Chat click, canvas click and Tab cannot create extra author calls or charges.
+
+R12 uses this same slot and step identity. Its generation commands show their existing **Generate / Edit** review inside the Tutor Chat entry, with the review and authorization rules in [section 9.4](#94-r12-command-selection-and-the-shared-tutor-flow).
 
 ### 3.9 Step 9 — Accept, generate, save and fill the same slot
 
@@ -605,6 +608,47 @@ Tutor tools read authorized source content, inspect current canvas coverage, rea
 | Figure/image/OCR reader | Understand a diagram, screenshot or scan with uncertainty/coverage reported. | R15. |
 | Sandboxed execution | Run authorized examples or exercises and report actual output. | R16; no invented execution before it. |
 | Existing command adapters | Create the accepted format through its existing lifecycle. | R12, one adapter or small coherent batch at a time. |
+
+### 9.4 R12 command selection and the shared Tutor flow
+
+**Choose for the learning outcome.** In the existing roadmap draft/revision pass, read the learner's instruction and edits, the step goal, the highlighted passage, its pinned source context, Depth and language, and relevant delivered coverage. State what the learner should be able to do and separately specify the behavior the card must provide. For example, testing what happens when a decision-tree cutoff changes requires a supported control and branch labels that update. A fixed branch diagram can serve a step about tracing a fixed decision. The source highlight identifies the teaching focus and navigation target. The author can use relevant definitions elsewhere in the pinned source under section 5.
+
+**Check the format before offering it.** The server supplies the planner with the enabled and supported command variants, what each can show or let a learner do, and their required inputs. Use the existing roadmap planning roles for this decision. JEV keeps its existing Chat/inline intent and safety roles. Verify the selected variant against its actual runtime, source access and evidence, required interactions, supported settings, and the command's readiness and work bound. For instance, Motion settings that disallow audio cannot satisfy a narrated demonstration, and a measured plot needs real data. If a different enabled format fulfills the same learning goal and fits the learner's request, propose it explicitly. If the learner requested an unavailable format or essential input is missing, explain the limitation or ask one focused question before presenting an actionable offer. Use the simplest eligible format that delivers the goal.
+
+| R12 path | Commands | What the learner reviews |
+| --- | --- | --- |
+| Command plan | `/whiteboard`, `/motion`, `/animation`, `/cad`, `/image`, interactive `/explain` | The command's own plan or signed prompt and applicable settings. Reuse the shared generation review schema and card. |
+| Simple brief | `/code`, `/graph`, `/diagram`, `/3d` | A short brief assembled from the step and supported inputs without a separate model call. Use the existing author and any qualified renderer or worker. |
+| Source or workspace | `/browser`, `/photos`, `/youtube`, `/arxiv`, `/wikipedia`, `/notebook` | A validated URL or actual learner-selected result, or the purpose of the empty notebook. Use the existing selection and insertion actions. |
+
+1. **Show one skeleton, then review in the existing Tutor Chat step.** Use the same slot, source excerpt, navigation and Chat lifecycle as sections 3.8–3.9. Keep the original canvas position and card identity through review, edits, generation and delivery. For a generation command, show the current plan or brief and its relevant fields in the shared Chat review card with **Generate / Edit**, and **Cancel** where supported. **Edit** targets that exact revision and retains the slot. An edit creates a revised offer when it changes what is approved. Source and workspace actions use their existing selection and add/accept controls.
+2. **Authorize the current offer.** When the required review is ready, Chat **Generate** approves the exact reviewed revision through the same Tutor acceptance as eligible canvas **Accept / Next card / Tab**. Those canvas actions cannot skip a required review or confirm a hidden revision. If a command needs paid plan preparation, accept a bounded offer before that work, show planning in the same slot, then show its real plan for review in the same Chat step. The command's required **Generate** approval uses the same accepted card and allowance. Motion and Image can carry a reviewed signed proposal in the initial offer. Interactive Explain follows the scoped R12.09 D2(b) rule when its brief fits the accepted offer. A material change to the plan, settings or work bound requires approval of the revised offer before further paid work.
+3. **Use the core progress and delivery behavior.** Once work starts, show the actual phase in the same skeleton and Chat step, with the existing spinner/shimmer when progress is indeterminate and a progress bar when the engine supplies measured progress. Validate the actual output against the promised behavior and the command's existing checks. Fill the original slot, save its final card ID and geometry, then acknowledge and update Chat and ToC. Only then offer the next eligible step. For a terminal failure, retain the truthful failure state in the same slot and Chat entry and reconcile the existing charge or refund under the command policy.
+
+```mermaid
+flowchart TD
+    brief["Step goal, source, highlight and Depth"] --> fit{"Format fits and can run?"}
+    fit -->|"Missing requirement"| revise["Clarify or revise the offer"]
+    revise --> brief
+    fit -->|"Eligible"| slot["Show or keep one canvas skeleton"]
+    slot --> review["Review current offer in the same Chat step"]
+    review --> accept["Accept the current revision"]
+    accept --> route{"Adapter path"}
+    route -->|"Command plan"| plan["Use approved plan or prepare and review in Chat"]
+    plan --> approval{"Required review approved?"}
+    approval -->|"Material change"| revise
+    approval -->|"Approved"| generate["Run the existing job"]
+    route -->|"Simple brief"| author["Run the existing author"]
+    route -->|"Source or workspace"| add["Add selected source or notebook"]
+    generate --> check["Show progress and check the result"]
+    author --> check
+    add --> check
+    check -->|"Pass"| save["Save in the same slot, then acknowledge"]
+    check -->|"Terminal failure"| failed["Keep the same slot and show failure"]
+    save --> next["Offer the next eligible step"]
+```
+
+The [implementation checklist](tutor-implementation-checklist.md#r1201-register-the-accepted-command-boundary-and-per-adapter-release-checks) specifies the readiness, review and delivery checks. Release adapters individually once their own requirements pass.
 
 ## 10. Uncertainty, research, safety and privacy
 
