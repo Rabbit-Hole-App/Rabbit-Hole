@@ -39,6 +39,22 @@ Implemented from the checklist section 2.1.3 repros with failing-first tests at 
 
 New written-Explanation diagrams are authored, validated with `parseTutorDiagram` and drawn as `TutorDiagram` specs in an `rh-diagram` fence, in the body and in More sections; new Mermaid fences are refused; the legacy Mermaid reader stays for saved content. Not seen in a browser. Live author behavior (first-valid rate, repair) is unmeasured in the app; the Celeris lab run (20 prompts, one retry) gave 18 of 20 mechanical passes and 17 of 20 correct and clear within 2 s.
 
+## TutorDiagram expansion, polish and the table frame (`1c9d012d6`, `e6d3a3063`)
+
+`1c9d012d6` adds the 17-kind expansion (`4e9185b8`) and the renderer polish (`c766fe5a4`) to written /explain: authoring guidance for 17 kinds, visible-text caps (600 / 1000 / 1500 characters by Depth), one repair then an invalid diagram is dropped and the written explanation is delivered with the diagram area cleared, and the 19 library fixtures plus the benchmark flows p07 and p18 drawn in the real card at 688 and 320 px (46 screenshots). `e6d3a3063` draws a written /explain Markdown pipe table (body and More) in the TutorDiagram frame: shared surface, 12px rounded border, muted slate header, hairline row dividers, wrapping cells, sideways scroll only when the columns need more room; chat tables and every other Md table are unchanged; saved tables keep their Markdown and now draw in the frame.
+
+Verified on `e6d3a3063` (tutor-r6 worktree `C:/s/tc-s7d2`, no browser on production):
+
+| Run | Tests | Pass | Fail | Notes |
+| --- | ---: | ---: | ---: | --- |
+| `packages/web` `node --test "src/**/*.test.mjs"` | 5181 | 5153 | 1 | the failure is `explain-program/genuine-card.test.mjs` "time limit", a timing test that passed alone twice; 27 not counted as pass or fail by the runner |
+| `packages/web` `vite build` | | | | exit 0 (an earlier exit 1 was a stray `)` in `Md.jsx`, fixed before the commit) |
+| `explanation-card.test.mjs` + `explanation-diagram.test.mjs` | 16 | 16 | 0 | includes the new table-frame test |
+
+Table frame look checked in a local harness (the real `LearningBlockBody`, stylesheet from an older build plus the new rules, theme by the `dark` class): saved-style table, a new table beside a TutorDiagram and a table in More at 688 and 320 px, light and dark. At 688 nothing scrolls; at 320 the wide tables scroll inside the frame. Not yet checked in the launched app with the app's theme switch, a real saved card, or that the canvas stays still while a narrow table scrolls.
+
+The 20-prompt real /explain run (author model, Send to visible diagram, correct and clear, logic failures, text fallbacks) is **not done**: the `ANTHROPIC_API_KEY` in `small-deploy/.env` is rejected by Anthropic with 401 `invalid x-api-key` (also on `/v1/models`), so no model call was made and nothing was spent. The Celeris numbers above describe the lab model, not the real author, which is `claude-opus-5` through the plan transport.
+
 ## Not run, or unverified (stated, not passed)
 
 - **No browser check of any kind.** Owner manual production acceptance is pending: Ask about selection (Capturing shimmer and Chat pill, Send held until the picture uploads, per-card evidence report), clickable Chat pills, Go to plan icon on skeletons, deleting a chat drops its waiting skeletons, ToC Card removed Restore, Depth control in Ctrl+K, back arrow to the top surface inside a rabbit hole, amber warnings, job_failed log line, Claude-orange tokens (Depth icon, spinners, waiting shimmer in Chat and cards), red Stop on every running card and its contrast, equal-height proposal buttons, Go to plan on the Explain skeleton, Explain on highlight (bulb opens Ctrl+K with the /interactive pill, skeleton beside the passage, Generate/Edit/Cancel order, red Stop), Depth icon, ToC composer and row menu, rename and Add a link, card headers, Chat invitation shimmer and action spacing, accepted ToC, the one canvas skeleton, bottom Next card, Explanation card scroll and Mermaid, minimap clearance under the page header, crash page behaviour.
