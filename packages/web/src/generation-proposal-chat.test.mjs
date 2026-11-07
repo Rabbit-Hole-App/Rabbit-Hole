@@ -81,13 +81,14 @@ test('the Chat routes plain turns and proposed commands; other command prompts, 
   const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
   const routable = "const routable = chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && !edit && payload.mode !== 'tutor';";
   assert.ok(ask.includes(routable), 'only a plain Learn Chat turn is routable: no private chat, attachment, regeneration, demo, Edit target, Tutor turn or contents conversation');
-  assert.ok(ask.includes("if (routable && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {"), 'plain turns and proposed commands route (a greeting is decided inside routeChat with no request); the clarification option Answer in chat does not; other command prompts never loop back through it');
-  assert.ok(ask.includes("if (routable && !commandName && routeAs === 'answer') payload.answer_only = true;"), 'the clarification option Answer in chat is a server-enforced answer-only turn');
+  assert.ok(ask.includes("if (routable && !answerChosen && ((!prompted && !commandName) || reviewRequired(commandName))) {"), 'plain turns and proposed commands route (a greeting is decided inside routeChat with no request); the clarification option Answer in chat does not; other command prompts never loop back through it');
+  assert.ok(ask.includes("if (routable && !commandName && answerChosen) payload.answer_only = true;"), 'the clarification option Answer in chat is a server-enforced answer-only turn');
   assert.ok(ask.includes('if (outcome.answerOnly) Object.assign(payload, { answer_only: true, ...(outcome.failure ? { route_failure: outcome.failure } : {}) });'), 'a greeting or a recoverable router failure continues once as an answer-only turn');
   assert.ok(ask.includes('{ plain: !commandName && !routeAs && !prompted }'), 'only an uncommanded turn recovers; a command keeps its shown failure');
   assert.ok(ask.includes('{ capability: routeAs ?? commandName ?? null }'), 'an explicit command names its capability: zero router calls');
   assert.ok(ask.includes('if (outcome.token) payload.route_token = outcome.token;'));
-  assert.ok(ask.includes('if (!keepDraft) setInput(current => current || (commandName ?'), 'a shown decision gives the words back, never over a kept draft');
+  assert.ok(ask.includes('if (!keepDraft) setInput(current => current || (commandName ?'), 'a refused or clarified turn gives the words back, never over a kept draft');
+  assert.ok(ask.includes("const say = text => setMsgs(m => [...m, { role: 'assistant', content: text }]);"), 'a refusal or clarification is a line in the Chat, not a banner above or below it');
 });
 test('the e2e route fixture (e2e/dev-cp.mjs) passes the client: routeChat keeps it and the turn is sent; a body with no route falls back', async () => {
   const { routeChat, routeOutcome, ROUTE_FAILED } = await import('./generation-proposal-chat.js');
@@ -351,11 +352,12 @@ test('isSmallTalk: a whole-message greeting or acknowledgment only; a mixed or r
 });
 
 test('no router-failure banner, no Answer normally and no Retry exist anywhere in the Chat', async () => {
-  const { readFileSync } = await import('node:fs');
+  const { readFileSync, existsSync } = await import('node:fs');
   const read = name => readFileSync(new URL('./' + name, import.meta.url), 'utf8');
-  for (const name of ['ask.jsx', 'RouteDecision.jsx', 'generation-proposal-chat.js', 'ChatMessages.jsx']) {
+  assert.ok(!existsSync(new URL('./RouteDecision.jsx', import.meta.url)), 'the banner component is gone');
+  for (const name of ['ask.jsx', 'generation-proposal-chat.js', 'ChatMessages.jsx']) {
     const source = read(name);
-    for (const gone of ['Answer normally', 'data-route-answer', 'data-route-retry', 'check whether this asks', "kind: 'fallback'", 'onRetry', 'onAnswer']) assert.ok(!source.includes(gone), name + ' has no ' + gone);
+    for (const gone of ['Answer normally', 'data-route-answer', 'data-route-retry', 'check whether this asks', "kind: 'fallback'", 'onRetry', 'onAnswer', 'RouteDecision', 'routeShown', 'setRouteShown']) assert.ok(!source.includes(gone), name + ' has no ' + gone);
   }
   // Rendered: whichever decision the Chat can show, the markup has no such button.
   const { routeOutcome } = await import('./generation-proposal-chat.js');

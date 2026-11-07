@@ -796,21 +796,17 @@ for (const theme of ['light', 'dark']) {
     await dismiss();
   }));
 
-  await step(`${theme}: clarification: one question with its options, the draft kept and no turn; choosing Motion proposes it (Ask mode)`, inAsk(async () => {
+  await step(`${theme}: clarification: one question as a line in the Chat, the draft kept and no turn; sending it again answers in chat (Ask mode)`, inAsk(async () => {
     const r0 = routes.length, a0 = asks.length, before = await proposalCards.count();
     await composer().fill('make something about this'); await composer().press('Enter');
-    const shown = dock.locator('[data-route-decision="clarify"]');
-    await shown.waitFor();
-    assert.equal((await shown.locator('[data-route-message]').innerText()).trim(), 'Did you want a Motion video or an answer in chat?');
-    assert.deepEqual(await shown.locator('[data-route-option]').evaluateAll(nodes => nodes.map(node => node.dataset.routeOption)), ['motion', 'answer']);
+    await dock.getByText('Did you want a Motion video or an answer in chat?').last().waitFor();
+    assert.equal(await dock.locator('[data-route-decision], [data-route-option]').count(), 0, 'no banner or buttons: the question is a line in the Chat');
     assert.equal(asks.length, a0, 'no chat turn');
     assert.equal(await composer().inputValue(), 'make something about this', 'the draft is kept');
-    await shown.screenshot({ path: `${OUT}/${theme}-11-route-clarify.png` });
-    await shown.locator('[data-route-option="motion"]').click();
-    await until(async () => (await proposalCards.count()) > before, 'the chosen proposal card');
-    assert.deepEqual([routes.at(-1).capability, routes.at(-1).text, routes.length - r0], ['motion', 'make something about this', 2], 'the option asks again with the capability named');
-    assert.equal(asks.at(-1).route_token, `route-token-${routes.length}`);
-    assert.equal(await dock.locator('[data-route-decision]').count(), 0, 'the question goes once answered');
+    await composer().press('Enter');
+    await until(() => asks.length > a0, 'sending the same words again is the answer in chat');
+    assert.deepEqual([asks[a0].answer_only, asks[a0].route_token ?? null, asks[a0].command ?? null, routes.length - r0], [true, null, null, 1], 'answer-only, no token, no second route call');
+    assert.equal(await proposalCards.count(), before, 'no proposal card');
     await dismiss();
   }));
 
