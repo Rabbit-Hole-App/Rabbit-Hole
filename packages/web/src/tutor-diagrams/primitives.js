@@ -6,9 +6,6 @@ export const PALETTE = Object.freeze({
   outcome: '#67B9A0',
   olive: '#95A448',
   coral: '#F58371',
-  lavender: '#B9A4E8',
-  rose: '#E8A3B7',
-  slate: '#A8BBD0',
 });
 export const SURFACE = 'var(--viz-surface, #fbfbfa)';
 export const INK = 'var(--color-ink, #32211c)';
@@ -28,14 +25,6 @@ export function textWidth(text, size = 14) {
   return width * size;
 }
 
-function wordParts(word) {
-  return word.split(/(?<=[\p{L}\p{N}][-‐])(?=[\p{L}\p{N}])/u);
-}
-
-export function longestWordWidth(text, size = 14) {
-  return Math.max(...text.trim().split(/\s+/u).flatMap(wordParts).map(part => textWidth(part, size)));
-}
-
 export function wrap(text, width, size = 14) {
   const lines = [];
   let line = '';
@@ -47,19 +36,13 @@ export function wrap(text, width, size = 14) {
     }
     if (line) lines.push(line);
     line = '';
-    for (const part of wordParts(word)) {
-      if (line && textWidth(line + part, size) > width) {
+    // Long identifiers and unspaced scripts still need a bounded line.
+    for (const char of word) {
+      if (line && textWidth(line + char, size) > width) {
         lines.push(line);
         line = '';
       }
-      // Long identifiers and unspaced scripts still need a bounded line.
-      for (const char of part) {
-        if (line && textWidth(line + char, size) > width) {
-          lines.push(line);
-          line = '';
-        }
-        line += char;
-      }
+      line += char;
     }
   }
   if (line) lines.push(line);

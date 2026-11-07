@@ -14,8 +14,6 @@ import { fullContent } from './card-layout.js';
 import { Md } from './ask.jsx';
 import { diagramsAsText } from './diagram-fence.js';
 import { MdInline } from './Md.jsx';
-import IllustrationFigure from './IllustrationFigure.jsx';
-import { splitLead } from './explanation-lead.js';
 import { api, wsHeaders } from './api.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { loadAsset } from './learn-board-assets.js';
@@ -1482,10 +1480,10 @@ function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPract
           : proposed?.program
             ? <ProgramScene key="proposed" preview block={proposed} onControlsHeight={onControlsHeight} onProgramFrame={onProgramFrame} />
           : proposed?.scene
-            ? <AnimatedScene key="proposed" interact block={proposed} onChange={ignore} onChangeQuiet={ignore} />
+            ? <AnimatedScene key="proposed" block={proposed} onChange={ignore} onChangeQuiet={ignore} />
             : block.program
             ? <ProgramScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onControlsHeight={onControlsHeight} onProgramFrame={onProgramFrame} onFile={onFile} />
-            : <AnimatedScene block={block} interact={!!block.explain?.revision} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onControlsHeight={onControlsHeight} />}
+            : <AnimatedScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onControlsHeight={onControlsHeight} />}
       </div>
       <SceneActivity block={block} onChange={onChange} onHeight={onPracticeHeight} />
     </div>
@@ -2016,19 +2014,6 @@ export const headerSource = block => block?.type === 'explanation' && !block.anc
 // the one reading scroller, then the `more` toggles in a fixed rail below it; an opened section mounts under the rail, so the card grows downward and the
 // scroller keeps its height and scroll position (onExpandHeight: the canvas adds that height to the frame). Body and sections are Md with its Mermaid and math
 // fences on. Full content and Focus keep working through data-card-layout and data-focus-hide; a card without sections has no rail.
-// An Explanation with an illustration (block.illustration: { cacheKey | src, alt, caption, callouts? }): the opening paragraph, the figure in its own container with the caption below, then
-// the rest of the body. Without an illustration the body is the one Md it always was.
-function IllustratedBody({ block, onFile }) {
-  const { lead, rest } = splitLead(block.body);
-  return (
-    <>
-      {lead && <Md text={lead} onFile={onFile} fences explain />}
-      <IllustrationFigure illustration={block.illustration} />
-      {rest && <Md text={rest} onFile={onFile} fences explain />}
-    </>
-  );
-}
-
 function ExplanationBody({ block, onFile, appName, onExpandHeight }) {
   const [open, setOpen] = useState({});
   const id = useId(), more = block.more || [], expansion = useRef(null);
@@ -2051,7 +2036,7 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight }) {
           ? <CardHeader block={block} size="xs" className="px-4 pt-3 pb-2" />
           : <Kicker block={block} size="lg" sticky={false} className="px-4 pt-3 pb-2" action={headerSource(block) ? <SourceRefHeader block={block} app={appName} /> : null}>Explanation</Kicker>}
       </div>
-      <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 text-sm">{block.illustration && (block.illustration.src || block.illustration.cacheKey || block.illustration.fileRef?.source?.id) ? <IllustratedBody block={block} onFile={onFile} /> : block.body && <Md text={block.body} onFile={onFile} fences explain />}</div>
+      <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 text-sm">{block.body && <Md text={block.body} onFile={onFile} fences />}</div>
       {more.length > 0 && (
         <div data-explanation-rail className="shrink-0 border-t border-line px-4">
           {more.map((section, index) => (
@@ -2067,7 +2052,7 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight }) {
       {opened && (
         <div ref={expansion} data-explanation-expansion className="shrink-0">
           {more.map((section, index) => open[index] && (
-            <section key={index} id={`${id}-more-${index}`} aria-label={section.label} className="border-t border-line px-4 py-3 text-sm text-ink-2"><Md text={section.text} onFile={onFile} fences explain /></section>
+            <section key={index} id={`${id}-more-${index}`} aria-label={section.label} className="border-t border-line px-4 py-3 text-sm text-ink-2"><Md text={section.text} onFile={onFile} fences /></section>
           ))}
         </div>
       )}

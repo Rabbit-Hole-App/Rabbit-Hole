@@ -15,7 +15,7 @@ import { DefaultIntrinsics, QuickJSWASMModule, newVariant } from 'quickjs-emscri
 import { QuickJSFFI } from '@jitl/quickjs-wasmfile-release-sync/ffi';
 import emscriptenModule from '@jitl/quickjs-wasmfile-release-sync/emscripten-module';
 import { LIMITS } from './limits.js';
-import { programSdkSource, SDK_VERSION } from './sdk.js';
+import { SDK_SOURCE } from './sdk.js';
 
 // The release-sync variant, with its two parts imported statically instead of through the package's dynamic import(), so the
 // Worker bundle is self-contained: page-worker.js starts it from a Blob, where it can fetch nothing of its own.
@@ -79,12 +79,10 @@ const OPERATIONS = Object.freeze({
 // runProgram(engine, { source, request, operation = 'evaluate' }) -> { ok: true, operation, value, metrics } |
 // { ok: false, operation, code, phase, detail, metrics }. detail is bounded guest text for logs/review, never for the learner.
 // initialize and reduce return the new state as value, bounded by limits.stateBytes while it serializes; host.js checks the rest.
-export function runProgram(engine, { source, request, operation = 'evaluate', sdkVersion = SDK_VERSION }, limits = LIMITS) {
+export function runProgram(engine, { source, request, operation = 'evaluate' }, limits = LIMITS) {
   const started = performance.now();
   const metrics = () => ({ ms: performance.now() - started, wasmBytes: engine.getWasmMemory().buffer.byteLength });
   const fail = (code, phase, detail) => ({ ok: false, operation, code, phase, detail, metrics: metrics() });
-  const sdkSource = programSdkSource(sdkVersion);
-  if (sdkSource === undefined) return fail('version_unavailable', 'load', 'unknown SDK version');
   const op = Object.hasOwn(OPERATIONS, operation) ? OPERATIONS[operation] : null;
   if (!op) return fail('invalid_program', 'load', 'unknown operation');
   const maxBytes = operation === 'evaluate' ? limits.outputBytes : limits.stateBytes;
@@ -110,7 +108,7 @@ export function runProgram(engine, { source, request, operation = 'evaluate', sd
       context = runtime.newContext({ intrinsics: { ...DefaultIntrinsics, Date: false } });
       const helpers = keep(context.unwrapResult(context.evalCode(prelude(Number(request.seed) || 0, maxBytes, operation !== 'evaluate'), 'prelude.js', { type: 'global' })));
       [parse, serialize, describe] = [0, 1, 2].map(i => keep(context.getProp(helpers, i)));
-      keep(context.unwrapResult(context.evalCode(sdkSource, 'sdk.js', { type: 'global' }))); // the generic SDK (one global, sdk)
+      keep(context.unwrapResult(context.evalCode(SDK_SOURCE, 'sdk.js', { type: 'global' }))); // the generic SDK (one global, sdk)
     } catch (error) {
       // The bound was hit: a time limit, in the setup phase. Any other exception in trusted setup is a runtime error in the same phase.
       return interrupted ? fail('runtime_limit', 'setup', 'setup time limit') : fail('runtime_error', 'setup', `setup failed: ${String(error?.message ?? error).slice(0, 200)}`);

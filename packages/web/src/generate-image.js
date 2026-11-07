@@ -54,15 +54,6 @@ export function imageCard(job, proposal) {
   return card && withPrompt(card, proposal.input?.request);
 }
 
-// The finished image as a written Explanation's illustration (IllustrationFigure.jsx): the stored file source named by a fileRef (read through file-source-client loadSource, so a fresh
-// browser reads the board's server copy), the prompt as its alt text and an honest caption. The Explanation was marked with this proposal's id when the plan was made (canvasOps.markIllustration).
-export function illustrationFrom(job, proposal) {
-  const a = job.artifact;
-  if (!a) return null;
-  return { fileRef: { v: 1, source: { id: a.sourceId, rev: a.sha256 }, meta: { name: `illustration.${a.mimeType === 'image/jpeg' ? 'jpg' : a.mimeType.split('/')[1]}`, type: a.mimeType, size: a.bytes } },
-    alt: String(proposal.input?.request || '').slice(0, 300), caption: 'Generated illustration, not a photograph or a measurement.', aspect: 1 };
-}
-
 // Production acceptance only (owner-only window): the owner sets localStorage 'rh-image-fault' to a fault name and the next Generate asks the
 // server to answer from a stub instead of the provider (nothing is billed). The server honours it for a listed operator only; for anyone else it is a 400.
 export const injectedFault = () => { try { return globalThis.localStorage?.getItem('rh-image-fault') || null; } catch { return null; } };
@@ -81,9 +72,6 @@ export async function runImageJob({ api, proposal, app, ops, onStatus = () => {}
     const status = imageStatus(job, { stuck: job.saveRetryable && now() - since > STUCK_MS });
     onStatus(status);
     if (job.stage === 'ready') {
-      // An Explanation waiting for this proposal's picture takes it (ops.attachIllustration finds the card by the id written on it); otherwise the image card is placed as always.
-      const attached = ops?.attachIllustration?.(proposal.proposal_id, illustrationFrom(job, proposal));
-      if (attached) { track('rh_generation_completed', { feature: 'image', action_id: generationId }, { once: `done:${generationId}` }); return { ...job, cardId: attached.id, attached: true }; }
       const card = imageCard(job, proposal);
       if (!card || !ops?.insertCard) throw Object.assign(new Error('The image was made but cannot be placed on this canvas.'), { job });
       const placed = ops.insertCard(card, { same: sameFileCard(job.artifact.sourceId, job.artifact.sha256) });

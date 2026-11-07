@@ -14,9 +14,9 @@ engine.then(() => self.postMessage({ ready: true, bootMs: performance.now() - st
   () => { self.postMessage({ ready: false }); self.close(); });
 
 // operation (evaluate when absent; initialize, reduce) comes back on the answer, so the host matches an answer to its request by both.
-async function answer({ data: { id, source, request, operation = 'evaluate', sdkVersion } }) {
+async function answer({ data: { id, source, request, operation = 'evaluate' } }) {
   try {
-    self.postMessage({ id, ...runProgram(await engine, { source, request, operation, sdkVersion }) });
+    self.postMessage({ id, ...runProgram(await engine, { source, request, operation }) });
   } catch {
     // The engine itself failed (a WASM trap, not a guest exception): report once and stop; the host starts a new Worker.
     self.postMessage({ id, operation, ok: false, code: 'runtime_error', phase: 'engine', detail: 'engine failure: the interpreter stopped outside the program' });

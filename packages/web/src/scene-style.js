@@ -114,16 +114,16 @@ export function inkOn(role, percent = null) {
 
 // A glyph drawn over ANOTHER object's shape - a token or bar label, a line of
 // text, an equation - reads against that shape's fill, not the surface. On a
-// strong, solid or explicitly filled shape it takes that shape's onFill ink,
-// just like the shape's own label. Over a soft tint or the bare surface it
+// strong or solid role fill it takes that fill's own ink (the shape's onFill,
+// exactly what its own label gets); over a soft tint or the bare surface it
 // keeps its own. `shapes`: the boxes and circles drawn before it, as
-// { xMin, xMax, yMin, yMax, role, onFill, filled? }; `box`: the glyph's estimated box
+// { xMin, xMax, yMin, yMax, role, onFill }; `box`: the glyph's estimated box
 // (scene-layout.js estimateTextBox). The last shape holding its centre is the
 // one it sits on.
 export function inkOver(ink, shapes, box) {
   const x = (box.xMin + box.xMax) / 2, y = (box.yMin + box.yMax) / 2;
   const under = shapes.findLast(shape => x >= shape.xMin && x <= shape.xMax && y >= shape.yMin && y <= shape.yMax);
-  return under && (under.filled || ROLE_FILL[under.role]) ? under.onFill : ink;
+  return under && ROLE_FILL[under.role] ? under.onFill : ink;
 }
 
 // A grid/strip numeral's ink (non-heat). Unlit on a soft fill it is the quiet

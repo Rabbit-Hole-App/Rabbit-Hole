@@ -16,12 +16,12 @@ const frames = n => new Promise(resolve => { const step = left => (left ? reques
 const FACES = ['400 1em "Inter Variable"', '600 1em "Inter Variable"', '400 1em "JetBrains Mono"', '1em KaTeX_Main', 'italic 1em KaTeX_Math', '1em KaTeX_Size1', '1em KaTeX_Size2'];
 let mounts = 0; // one fresh card per capture (see below)
 
-// request: { scene, time, inputs, theme: 'light'|'dark', width, height, interact? }
+// request: { scene, time, inputs, theme: 'light'|'dark', width, height }
 // width/height size the diagram frame (default: the scene's own); the transport and any experiment
 // controls render below it at their natural height, as in the card.
 window.__renderScene = async request => {
   window.__renderDone = null;
-  const { scene, time, inputs, theme = 'light', interact } = request;
+  const { scene, time, inputs, theme = 'light' } = request;
   const width = request.width || scene.width;
   const height = request.height || scene.height;
   document.documentElement.classList.toggle('dark', theme === 'dark');
@@ -32,7 +32,7 @@ window.__renderScene = async request => {
     <div data-render-target className="flex h-full flex-col bg-white p-3">
       {/* A fresh card per capture, as on reload: the card reads block.time only when it mounts, so a reused one kept the
           first capture's time and every named step rendered as step one (T18 per-step capture, 2026-10-22). */}
-      <AnimatedScene key={++mounts} block={block} interact={interact === true} onChange={() => {}} onChangeQuiet={() => {}} onAskRegion={() => {}} />
+      <AnimatedScene key={++mounts} block={block} onChange={() => {}} onChangeQuiet={() => {}} onAskRegion={() => {}} />
     </div>,
   ));
   await frames(2);

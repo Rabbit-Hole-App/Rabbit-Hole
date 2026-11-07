@@ -9,14 +9,13 @@ const recorder = reply => { const calls = []; return { calls, transport: async (
 const ref = { bytes: Uint8Array.from(atob(PNG), c => c.charCodeAt(0)), mimeType: 'image/png' };
 const gen = (model, settings, references = []) => ({ model, prompt: 'A lighthouse at dusk.', settings, references });
 
-test('the verified models, nothing else, each with its provider secret by name', () => {
-  assert.deepEqual(Object.keys(IMAGE_MODELS), ['gpt-image-2.5-sunburst', 'gpt-image-2.5-flare', 'gemini-nano-banana-2.1', 'recraftv4_1_flash', 'gemini-3-pro-image']);
-  assert.deepEqual(Object.values(IMAGE_MODELS).map(m => m.secret), ['OPENAI_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'RECRAFT_API_KEY', 'GEMINI_API_KEY']);
+test('the four verified models, nothing else, each with its provider secret by name', () => {
+  assert.deepEqual(Object.keys(IMAGE_MODELS), ['gpt-image-2.5-sunburst', 'gpt-image-2.5-flare', 'gemini-nano-banana-2.1', 'gemini-3-pro-image']);
+  assert.deepEqual(Object.values(IMAGE_MODELS).map(m => m.secret), ['OPENAI_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'GEMINI_API_KEY']);
   assert.equal(providerConfigured({ GEMINI_API_KEY: ' ' }, 'gemini-3-pro-image'), false);
   assert.equal(providerConfigured({ GEMINI_API_KEY: KEY }, 'gemini-3-pro-image'), true);
   assert.equal(imageAdapter({}, 'gpt-image-1'), null);
-  for (const model of Object.keys(IMAGE_MODELS).filter(model => IMAGE_MODELS[model].provider !== 'recraft')) assert.deepEqual(imageAdapter({}, model).capabilities, { generate: true, edit: true, retrieve: false, idempotency: false });
-  assert.deepEqual(imageAdapter({}, 'recraftv4_1_flash').capabilities, { generate: true, edit: false, retrieve: false, idempotency: false }, 'Recraft makes one picture from words: no edit');
+  for (const model of Object.keys(IMAGE_MODELS)) assert.deepEqual(imageAdapter({}, model).capabilities, { generate: true, edit: true, retrieve: false, idempotency: false });
 });
 
 test('settings are refused, never adjusted, when a model cannot make them', () => {
@@ -249,47 +248,4 @@ test('every failure says whether a request left and whether the provider answere
   const pending = hanging.generate({ ...gen('gemini-3-pro-image', settings), signal: controller.signal });
   controller.abort();
   await assert.rejects(pending, error => error.code === 'timeout' && error.providerRequestStarted && !error.definiteResponse);
-});
-
-// ---- Recraft V4.1 Flash (docs/features/image-jobs.md): fixture transports only.
-const recraftOk = (credits = 7) => recorder(async url => (String(url).startsWith('https://external.api.recraft.ai/') ? Response.json({ created: 1, credits, data: [{ url: 'https://img.recraft.ai/abc/image.webp' }] }) : new Response(Uint8Array.from([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50, 1, 2, 3]), { status: 200 })));
-
-test('Recraft: one generation request (1024x1024, url output), then one download of the https picture, checked by its file signature; the credits are the usage', async () => {
-  const { calls, transport } = recraftOk();
-  const out = await imageAdapter({ RECRAFT_API_KEY: KEY }, 'recraftv4_1_flash', transport).generate(gen('recraftv4_1_flash', { aspect_ratio: '1:1', resolution: '1K' }));
-  assert.equal(calls.length, 2, 'the request and the download');
-  assert.equal(calls[0].url, 'https://external.api.recraft.ai/v1/images/generations');
-  assert.equal(calls[0].init.headers.Authorization, `Bearer ${KEY}`);
-  assert.deepEqual(JSON.parse(calls[0].init.body), { prompt: 'A lighthouse at dusk.', model: 'recraftv4_1_flash', size: '1024x1024', n: 1, response_format: 'url' });
-  assert.equal(calls[1].url, 'https://img.recraft.ai/abc/image.webp');
-  assert.equal(calls[1].init.headers, undefined, 'the key never goes to the picture host');
-  assert.equal(out.mimeType, 'image/webp');
-  assert.deepEqual(out.usage, { credits: 7 });
-});
-
-test('Recraft: no references, only 1:1 at 1K; an http, credentialed or unreadable picture address is a definite invalid output; a failed download is billed, never retried', async () => {
-  const adapter = transport => imageAdapter({ RECRAFT_API_KEY: KEY }, 'recraftv4_1_flash', transport);
-  const settings = { aspect_ratio: '1:1', resolution: '1K' };
-  await assert.rejects(adapter(recraftOk().transport).generate(gen('recraftv4_1_flash', settings, [ref])), error => error.code === 'invalid_input' && error.providerRequestStarted === false);
-  await assert.rejects(adapter(recraftOk().transport).generate(gen('recraftv4_1_flash', { aspect_ratio: '16:9', resolution: '1K' })), error => error.code === 'invalid_input');
-  for (const url of ['http://img.recraft.ai/x.webp', 'https://user:pw@img.recraft.ai/x.webp', 'not a url', undefined]) {
-    const { transport } = recorder(async () => Response.json({ credits: 7, data: [{ url }] }));
-    await assert.rejects(adapter(transport).generate(gen('recraftv4_1_flash', settings)), error => error.code === 'invalid_output' && error.providerRequestStarted === true && error.definiteResponse === true, String(url));
-  }
-  const { calls, transport } = recorder(async url => (String(url).includes('external.api') ? Response.json({ credits: 7, data: [{ url: 'https://img.recraft.ai/x.webp' }] }) : new Response('gone', { status: 404 })));
-  await assert.rejects(adapter(transport).generate(gen('recraftv4_1_flash', settings)), error => error.code === 'invalid_output' && error.definiteResponse === true);
-  assert.equal(calls.length, 2, 'the picture is fetched once');
-  await assert.rejects(imageAdapter({}, 'recraftv4_1_flash').generate(gen('recraftv4_1_flash', settings)), error => error.code === 'not_configured');
-});
-
-test('Recraft price: $0.007 a picture (7 units at $0.001), measured from the credits the answer reports; priced only with a hold and a maximum charge that cover it', () => {
-  const env = { IMAGE_RESERVED_USD_BY_MODEL: JSON.stringify({ recraftv4_1_flash: 0.02 }), IMAGE_MAX_CHARGE_USD_BY_MODEL: JSON.stringify({ recraftv4_1_flash: 0.01 }) };
-  const quote = imageQuote(env, { model: 'recraftv4_1_flash', aspect_ratio: '1:1', resolution: '1K' }, 0, 400);
-  assert.deepEqual([quote.state, quote.estimateUsd, quote.maxUsd, quote.reserveUsd, quote.estimate_credits, quote.max_credits, quote.reserve_credits], ['priced', 0.007, 0.01, 0.02, 1, 1, 2]);
-  assert.equal(imageQuote({}, { model: 'recraftv4_1_flash', aspect_ratio: '1:1', resolution: '1K' }).reason, 'reserve_unset', 'no bound configured: never quoted');
-  assert.equal(imageQuote(env, { model: 'recraftv4_1_flash', aspect_ratio: '16:9', resolution: '1K' }).reason, 'invalid_settings');
-  assert.deepEqual(usageCost('recraftv4_1_flash', { credits: 7 }), { measuredUsd: 0.007, estimatedUpperBoundUsd: 0.007 });
-  assert.deepEqual(usageCost('recraftv4_1_flash', { credits: 'x' }), { measuredUsd: null, estimatedUpperBoundUsd: null });
-  assert.deepEqual(usageCost('recraftv4_1_flash', null), { measuredUsd: null, estimatedUpperBoundUsd: null });
-  assert.equal(imageCost('recraftv4_1_flash', { credits: 7 }, 0.02, 0.01).chargedUsd, 0.007);
 });

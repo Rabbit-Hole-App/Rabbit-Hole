@@ -221,7 +221,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   const dragTo = useRef(NOOP), dragging = useRef(null); // a drag of a declared drag target (set below), and the one in progress
   const pointer = useRef(null), dragged = useRef(false); // the captured pointer of that drag; a click right after a moved drag is not a pick
   const dragIds = useMemo(() => (manifest?.targets ?? []).filter(target => target.drag).map(target => target.id), [manifest]);
-  const picture = useMemo(() => view && <Frame interact scene={view.scene} state={view.state} selecting={false} marked={null} picked={null} pop={STILL} fixedView onPick={id => pick.current(id)} onRegion={NOOP} />, [view]);
+  const picture = useMemo(() => view && <Frame scene={view.scene} state={view.state} selecting={false} marked={null} picked={null} pop={STILL} fixedView onPick={id => pick.current(id)} onRegion={NOOP} />, [view]);
   // A new artifact or host, or leaving the card, ends any drag in progress without sending anything more.
   useEffect(() => () => { dragging.current = null; pointer.current = null; }, [artifact, hostReady]);
   // The pointer side of a drag (Task 8.4), on the drawing's own container, so the shared Frame is unchanged: a press on a declared drag

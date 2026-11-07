@@ -64,7 +64,7 @@ export async function renderProgram(request, { host, root, frames, faces, nextMo
   flushSync(() => root.render(
     <div data-render-target data-program-bundle={artifact.bundleHash} key={nextMount()} className="flex h-full flex-col gap-2 bg-white p-3">
       <div data-program-frame role="group" aria-label={manifest.description} className="min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-white">
-        <Frame interact scene={view.scene} state={view.state} selecting={false} marked={null} picked={null} pop={{ duration: 0 }} fixedView onPick={NOOP} onRegion={NOOP} />
+        <Frame scene={view.scene} state={view.state} selecting={false} marked={null} picked={null} pop={{ duration: 0 }} fixedView onPick={NOOP} onRegion={NOOP} />
       </div>
       {view.readouts.length > 0 && (
         <p data-program-readouts className="shrink-0 text-sm tabular-nums text-ink">{view.readouts.map(readout => `${readout.label}: ${readout.text}`).join(' · ')}</p>

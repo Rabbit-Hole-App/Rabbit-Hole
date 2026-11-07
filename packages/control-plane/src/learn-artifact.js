@@ -14,7 +14,7 @@ import { BRIEF_LIMITS, generationArgs, isBriefCommand } from '../../web/src/mate
 import { consumeProposal, releaseProposal, verifyProposal } from './generation-proposal.js';
 import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
-import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, dropInvalidDiagrams } from './learn-primitives.js';
+import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { authorizedBoardApp } from './learn-board.js';
@@ -49,7 +49,6 @@ const GATES = {
   },
 };
 import { withAttemptKind, noteUsageResult } from './learn-usage.js';
-import { celerisExplainRoute } from './explain-celeris-dev.js';
 export { ARTIFACT_SYSTEM };
 
 // A paid renderer this deployment has not provisioned is unavailable BEFORE it is proposed, so no proposal, hold or charge
@@ -134,7 +133,7 @@ export async function generateArtifact(env, input, { callModel: baseCall = logge
     try {
       if (result.stop_reason === 'max_tokens') throw new Error('The artifact was cut off before it was complete');
       if (!id) throw new Error('The clarifying question was empty');
-      let block, extraction, diagramsDropped = 0;
+      let block, extraction;
       if (input.imageSource) {
         const checked = checkImageExtraction(call.input, content => ({ result: artifactBlock(id, content) }), input.imageSource);
         if (checked.error) throw new Error(checked.error);
@@ -143,15 +142,11 @@ export async function generateArtifact(env, input, { callModel: baseCall = logge
       } else block = artifactBlock(id, call.input);
       if (title && typeof block.title === 'string') block = { ...block, title };
       // CORE.09: the final title first, then the Depth's display-text budget and supported Mermaid, on every path that makes an explanation.
-      // No repair left: an rh-diagram that cannot be drawn is dropped and the written explanation is delivered (the prose still passes its own checks).
-      if (id === 'explanation') {
-        if (attempt >= repairs) ({ block, dropped: diagramsDropped } = dropInvalidDiagrams(block));
-        const problem = explanationProblem(block, input.depth); if (problem) throw new Error(problem);
-      }
+      if (id === 'explanation') { const problem = explanationProblem(block, input.depth); if (problem) throw new Error(problem); }
       if (GATES[id]) block = GATES[id](block);
       if (id === 'animation' && env.LEARN_SCENE_VERIFIER !== 'off') { const problem = await verify(block); if (problem) throw new Error(problem); }
       if (contract(id).paid) return { result: 'paid_proposal', primitive: id, block, message: 'This uses paid generation.', estimatedCost: contract(id).estimatedCost ?? null, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
-      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, ...(diagramsDropped ? { diagramsDropped } : {}), ...(extraction ? { extraction } : {}) };
+      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
     } catch (error) {
       // Which check refused which attempt: the validator's words only, never the spec (a repair's cause is otherwise invisible).
       console.log(JSON.stringify({ event: 'learn_artifact_invalid', primitive: id || null, attempt, error: String(error.message).slice(0, 300) }));
@@ -255,12 +250,10 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
   const depth = !DEPTH_COMMANDS.includes(body.command) ? DEFAULT_DEPTH : body.depth !== undefined ? body.depth
     : await readDepth(env, { org: access.org, userId: access.user_id, app: body.app, board: typeof body.board === 'string' ? body.board : null });
   try {
-    const celeris = celerisExplainRoute(env, body.command); // DEV ONLY (explain-celeris-dev.js): off unless a dev or test Worker turns it on; production never takes it
-    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}) }, celeris?.options);
+    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}) });
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
     if (out?.result !== 'artifact' && out?.result !== 'paid_proposal') await giveBack();
-    const done = celeris ? { ...out, devModel: celeris.served() } : out;
-    return json(passage && done?.block ? { ...done, block: { ...done.block, sourceRef: passage } } : done);
+    return json(passage && out?.block ? { ...out, block: { ...out.block, sourceRef: passage } } : out);
   }
   catch (error) { await giveBack(); return json({ error: error.message }, 502); }
 }

@@ -182,7 +182,7 @@ Stateful programs. When the learner must press buttons or select parts of the pi
 - Every frame has exactly manifest.viewport's size and draws every target under its own id. Show the result of each action in the picture, and keep the state small.`;
 // What the author is told about the runtime (program.* in the input). evaluationMs is the runtime's own per-run deadline (limits.js). The SDK list mirrors packages/web/src/explain-program/sdk.js
 // (a global `sdk`); the frame description mirrors contract.js Frame. Limits come from the contract, so they cannot drift.
-export function programContext(limits, capabilities, { stateful = false, repair = false } = {}) {
+export function programContext(limits, capabilities, { stateful = false } = {}) {
   return {
     capabilities,
     ...(stateful ? { stateful: STATEFUL_CONTRACT } : {}),
@@ -201,16 +201,6 @@ export function programContext(limits, capabilities, { stateful = false, repair 
       'sdk.clamp(v, lo, hi)', 'sdk.lerp(a, b, t)', 'sdk.linear([d0, d1], [r0, r1]) -> (v) => number', 'sdk.sample(f, from, to, count) -> [[x, y]...] (count + 1 points)', 'sdk.format(v, decimals = 2) -> string',
       'sdk.box(id, x, y, w, h, opts?)', 'sdk.circle(id, x, y, diameter, opts?)', 'sdk.text(id, x, y, text, opts?)', 'sdk.math(id, x, y, tex, opts?)',
       'sdk.line(id, x1, y1, x2, y2, opts?)', 'sdk.arrow(id, x1, y1, x2, y2, opts?)', 'sdk.polyline(id, points, opts?)', 'sdk.frame(objects, opts?) -> {objects, ...opts}',
-    ], visual: repair
-      ? 'sdk.plot, sdk.graph, sdk.grid, sdk.geometry, sdk.timeline and sdk.readout return arrays of frame objects. Preserve the existing helper signatures and spread their results into frame.objects.'
-      : {
-        usage: 'Each helper takes a unique id and a layout rectangle {x,y,w,h} in frame coordinates, and returns an array. Spread it into frame.objects. All helpers together still share the frame object and point limits. Keep labels short and leave room for axes and labels. Use controls, time or state to change the displayed values.',
-        plot: 'sdk.plot(id, {x,y,w,h,xDomain:[min,max],yDomain:[min,max],xLabel?,yLabel?,series:[{id,points:[[x,y],...],role?,kind?:"line"|"scatter"}],marker?:{x,y,role?,label?}}) for curves and scatter plots',
-        graph: 'sdk.graph(id, {x,y,w,h,nodes:[{id,label,role?}],edges:[{from,to,label?}],active?:[nodeId,...]}) for directed acyclic graphs with 2–10 nodes and at most 12 edges. Node labels <=24 characters, edge labels <=14. Use a labeled route for each decision outcome.',
-        grid: 'sdk.grid(id, {x,y,w,h,rows:[[number|string|null,...],...],rowLabels?,columnLabels?,active?:[[row,column],...],role?}) for 1–6 rows and columns with zero-based highlights. One row makes a strip.',
-        geometry: 'sdk.geometry(id, {x,y,w,h,xDomain:[min,max],yDomain:[min,max],points?:[{id,at:[x,y],label?,role?}],segments?,vectors?,paths?}). Segments and vectors are {id,from:[x,y],to:[x,y],label?,role?}; paths are {id,points:[[x,y],...],role?}. Use equal pixels per unit for distances and angles.',
-        timeline: 'sdk.timeline(id, {x,y,w,h,domain:[min,max],lanes:[{id,label,events:[{id,at,label,role?}]}],cursor?,unit?}) for ordered events with a cursor in domain units',
-        readout: 'sdk.readout(id, {x,y,w,h,label,value,unit?,decimals?,role?}) for a formatted number inside the scene. Keep manifest readouts for values shown below the scene.',
-      } },
+    ] },
   };
 }

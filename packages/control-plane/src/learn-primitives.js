@@ -16,7 +16,7 @@ import { validateToolInput as validateSchema } from './learn-validation.js';
 import { MATH_FORMAT } from './agents/math-format.js';
 import MATH_SCHEMA from '../../math-renderer/math-schema.json' with { type: 'json' };
 import { DEFAULT_DEPTH, EXPLANATION_CAPS, validDepth } from './chat-depth.js';
-import { parseTutorDiagram, tutorDiagramVisibleText } from '../../web/src/tutor-diagrams/spec.js'; // the card's own diagram library: one parser for the author, the validator and the renderer
+import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js'; // the card's own diagram library: one parser for the author, the validator and the renderer
 
 const text = (maxLength, minLength = 1) => ({ type: 'string', minLength, maxLength });
 const list = (items, minItems, maxItems) => ({ type: 'array', minItems, maxItems, items });
@@ -267,15 +267,29 @@ export function artifactBlock(id, spec) {
 // --- CORE.09: the shared Explanation teaching guidance, display-text budget and the card's diagram format ----------------------------------
 // Offered with make_explanation on every path (direct /explain, Quick Edit, the Tutor roadmap); the request's Depth objective and budget
 // (chat-depth.js explanationTarget) follow it in the same tool description.
-export const EXPLANATION_GUIDANCE = 'For make_explanation, the main body and optional section text support Markdown paragraphs, headings, lists, pipe tables and diagram fences. Choose the form that makes the idea easiest to understand. Use a table to compare items across shared attributes. Use a diagram to explain branching decisions, relationships, a sequence of events or a process. Include enough prose to explain what the learner should notice. Treat tables and diagrams as optional at every Depth. Choose the structure to suit the question. The main body must answer the learner\'s question on its own. Optional sections can add a worked example, prediction or further reasoning. Apply the requested Depth guidance and total character budget. Include the title, section labels, table cells, diagram title, caption and labels, and collapsed content in that budget. A table has leading and trailing pipes, a header row, a separator row and the same number of cells in every row. A diagram is one closed ```rh-diagram fence holding one JSON object {"version":1,"diagram":{"kind":...,"title":...}} and nothing else; never write Mermaid, HTML or SVG. Pick the kind by the idea. Kinds: flow for a process with decisions (nodes [{id,label,role:"process"|"decision"|"outcome"}], edges [{from,to,label?}]: one connected acyclic graph with exactly one start node; a decision has two or three outgoing edges with distinct short labels such as Yes and No, each to its own node, and a failed check ends in its own outcome; a process has one outgoing edge, an outcome has none; use cycle or relationship for a loop), comparison for items across attributes (columns [{heading,items:[1-5 texts]}], 2-4 columns), timeline for events in time (events [{time,label,detail?}]), sequence for messages between actors (actors [{id,label}] 2-4, messages [{from,to,label}] between different actors), matrix for a grid (columns [...], rows [{heading,cells:[one per column]}]), layers for a stack (layers [{label,detail?}]), cycle for a repeating process (steps [...]), figure for a labeled drawing (figure "cell"|"free-body"|"cross-section", callouts [{anchor,label,detail?}] with one callout per anchor: cell anchors membrane, nucleus, cytoplasm, mitochondrion; cross-section anchors top-layer, core, bottom-layer, interface; free-body anchors body or a direction that has a vector; free-body also takes vectors [{direction:"up"|"down"|"left"|"right",magnitude above zero,label}] with unique directions and an optional unit, and only free-body takes vectors and unit), tree for a hierarchy (nodes [{id,label,parent?}], exactly one node without a parent, no cycles), relationship for labeled links between things, reciprocal or cyclic allowed (nodes [{id,label}], edges [{from,to,label}]: different ends, every node linked, no repeated labeled pair), transformation for before and after (before {label,items}, after {label,items}, operation, optional links [{from,to,label?}] as zero-based item indexes), argument for claim and evidence (claim, support [{label,source?}], objections [{label,source?}] possibly empty, conclusion), number-line for values and intervals (min, max, markers [{value,label}] distinct and inside the range, optional intervals [{from,to,startClosed,endClosed,label}] increasing and inside the range; at least one marker or interval), coordinate-plot for data on two axes (x and y {label,min,max,unit?} with min below max, series [{label,kind:"line"|"scatter",points:[{x,y}]}] 1-3 series, points inside the axes, a line needs two points), bar-chart for comparing quantities (unit?, bars [{label,value}] 2-8, values may be negative), t-account for debits and credits (account, unit?, debits and credits [{label,amount}] nonnegative with at most two decimals, at least one posting), waterfall for an opening value changed by signed steps (opening, unit?, changes [{label,amount}] with at most two decimals). IDs start with a letter. Labels are short single-line text: title at most 90 characters, optional caption 140, flow node label 60 and edge label 30. Never invent numbers; use exact values from the request or the source.';
+export const EXPLANATION_GUIDANCE = 'For make_explanation, the main body and optional section text support Markdown paragraphs, headings, lists, pipe tables and diagram fences. Choose the form that makes the idea easiest to understand. Use a table to compare items across shared attributes. Use a diagram to explain branching decisions, relationships, a sequence of events or a process. Include enough prose to explain what the learner should notice. Treat tables and diagrams as optional at every Depth. Choose the structure to suit the question. The main body must answer the learner\'s question on its own. Optional sections can add a worked example, prediction or further reasoning. Apply the requested Depth guidance and total character budget. Include the title, section labels, table cells, diagram title, caption and labels, and collapsed content in that budget. A table has leading and trailing pipes, a header row, a separator row and the same number of cells in every row. A diagram is one closed ```rh-diagram fence holding one JSON object {"version":1,"diagram":{"kind":...,"title":...}} and nothing else; never write Mermaid, HTML or SVG. Kinds: flow (nodes [{id,label,role:"process"|"decision"|"outcome"}], edges [{from,to,label?}]: one connected acyclic graph with exactly one start node; a decision has two or three outgoing edges with distinct short labels such as Yes and No, a process has one outgoing edge, an outcome has none; use cycle for a loop), comparison (columns [{heading,items:[...]}]), timeline (events [{time,label,detail?}]), sequence (actors [{id,label}], messages [{from,to,label}]), matrix (columns [...], rows [{heading,cells:[one per column]}]), layers (layers [{label,detail?}]), cycle (steps [...]). IDs start with a letter. Labels are short single-line text: title at most 90 characters, flow node 60, edge label 30, optional caption 140.';
 
 // The card's own patterns (Md.jsx lines()): an opening ``` takes its language token and ignores the rest of the line, any line starting with
 // ``` closes, and the card draws a TutorDiagram for /^rh-diagram$/i. Pinned against Md.jsx by explanation-validation.test.js.
 const FENCE = /^\s*```\s*([\w+#.-]*)/;
 const DIAGRAM = 'rh-diagram';
 
+// The visible words of a diagram spec: title, caption and every label the renderer draws (spec.js describes the same content for the Tutor).
+function diagramWords({ diagram: d }) {
+  const own = [d.title, d.caption];
+  switch (d.kind) {
+    case 'flow': return [...own, ...d.nodes.map(n => n.label), ...d.edges.map(e => e.label)];
+    case 'comparison': return [...own, ...d.columns.flatMap(c => [c.heading, ...c.items])];
+    case 'timeline': return [...own, ...d.events.flatMap(e => [e.time, e.label, e.detail])];
+    case 'sequence': return [...own, ...d.actors.map(a => a.label), ...d.messages.map(m => m.label)];
+    case 'matrix': return [...own, ...d.columns, ...d.rows.flatMap(r => [r.heading, ...r.cells])];
+    case 'layers': return [...own, ...d.layers.flatMap(l => [l.label, l.detail])];
+    case 'cycle': return [...own, ...d.steps];
+    default: return own;
+  }
+}
 // A fence that does not parse still counts as the literal lines, so a bad block cannot hide text; diagramProblem refuses it anyway.
-const fenceWords = lines => { try { return tutorDiagramVisibleText(parseTutorDiagram(lines.join('\n'))).filter(Boolean); } catch { return lines; } };
+const fenceWords = lines => { try { return diagramWords(parseTutorDiagram(lines.join('\n'))).filter(Boolean); } catch { return lines; } };
 
 // The fences of a Markdown string: -> [{ lang, lines, closed }] in order, plus the prose lines outside them.
 function split(md) {
@@ -305,33 +319,6 @@ export function diagramProblem(md) {
     }
   }
   return null;
-}
-
-// The last attempt only (no repair left): every rh-diagram fence that is unclosed or does not parse is removed, so the written explanation is
-// delivered without a diagram that cannot be drawn. A Mermaid fence is still refused, not dropped. -> { block, dropped }; the block is the same
-// object when nothing was dropped.
-const parses = lines => { try { parseTutorDiagram(lines.join('\n')); return true; } catch { return false; } };
-function dropFrom(md) {
-  const out = []; let open = null, dropped = 0;
-  for (const line of String(md ?? '').split('\n')) {
-    if (open) {
-      open.raw.push(line);
-      if (/^\s*```/.test(line)) { if (open.lang === DIAGRAM && !parses(open.lines)) dropped++; else out.push(...open.raw); open = null; } else open.lines.push(line);
-      continue;
-    }
-    const m = line.match(FENCE);
-    if (m) { open = { lang: m[1].toLowerCase(), lines: [], raw: [line] }; continue; }
-    out.push(line);
-  }
-  if (open) { if (open.lang === DIAGRAM) dropped++; else out.push(...open.raw); }
-  return dropped ? { md: out.join('\n').replace(/\n{3,}/g, '\n\n').trim(), dropped } : { md, dropped: 0 };
-}
-export function dropInvalidDiagrams(block) {
-  const body = dropFrom(block?.body);
-  const more = (block?.more || []).map(s => ({ s, d: dropFrom(s?.text) }));
-  const dropped = body.dropped + more.reduce((n, { d }) => n + d.dropped, 0);
-  if (!dropped) return { block, dropped: 0 };
-  return { block: { ...block, body: body.md, ...(block.more ? { more: more.map(({ s, d }) => (d.dropped ? { ...s, text: d.md } : s)) } : {}) }, dropped };
 }
 
 // Inline Markdown as the card's Md shows it (Md.jsx EMPHASIS + plain()): one left-to-right pass, so a code span is drawn literally (markers,
@@ -367,15 +354,10 @@ function markdownText(md) {
 export const explanationText = block => [block?.title ?? '', markdownText(block?.body), ...(block?.more || []).flatMap(s => [s?.label ?? '', markdownText(s?.text)])].join(' ').replace(/\s+/g, ' ').trim();
 export const explanationChars = block => Array.from(explanationText(block)).length;
 
-// -> null, or the validator's words: over the Depth's budget and/or an invalid diagram. When both are wrong on the same card, ONE message names both, so the
-// single repair can fix them together: the measured length with its limit, and each diagram's specific errors. A fence that does not parse counts as the
-// literal lines it holds (a bad block cannot hide text), so the message says so: the length changes once the diagram is fixed.
-// The repair (direct paths) reads the words; the roadmap fails terminally.
+// -> null, or the validator's words: over the Depth's budget or an invalid diagram. The repair (direct paths) reads them; the roadmap fails terminally.
 export function explanationProblem(block, depth) {
-  const level = validDepth(depth) || DEFAULT_DEPTH, cap = EXPLANATION_CAPS[level], used = explanationChars(block);
-  const diagrams = [block?.body, ...(block?.more || []).map(s => s?.text)].map(diagramProblem).filter(Boolean);
-  const problems = [];
-  if (used > cap) problems.push(`explanation_over_budget: the card has ${used} characters, the ${level} budget is ${cap} including the title, section labels, table cells, diagram title, caption and labels, and collapsed sections; shorten it.${diagrams.length ? ' The text of a diagram that does not parse is counted as written, so fixing the diagram also changes this length.' : ''}`);
-  problems.push(...diagrams);
-  return problems.length ? problems.join(' ') : null;
+  const cap = EXPLANATION_CAPS[validDepth(depth) || DEFAULT_DEPTH], used = explanationChars(block);
+  if (used > cap) return `explanation_over_budget: the card has ${used} characters, the ${validDepth(depth) || DEFAULT_DEPTH} budget is ${cap} including the title, section labels, table cells, diagram title, caption and labels, and collapsed sections; shorten it.`;
+  for (const text of [block?.body, ...(block?.more || []).map(s => s?.text)]) { const problem = diagramProblem(text); if (problem) return problem; }
+  return null;
 }

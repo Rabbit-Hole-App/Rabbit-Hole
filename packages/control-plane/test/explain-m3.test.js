@@ -506,7 +506,7 @@ test('M3 program: the server owns execution eligibility; the kill switch turns i
 // ---- The server-sealed artifact against Agent A's REAL host and the pinned engine (no mocked runtime) ----------------------------
 // Browser Worker termination and the review entry are proven by CI browser checks; here the host, engine, contract and frame code
 // are the real ones behind a Worker-shaped stand-in (as packages/web/src/explain-program/host.test.mjs does).
-import { createProgramHost } from '../../web/src/explain-program/host.js';
+import { createProgramHost, programStamps as hostStamps } from '../../web/src/explain-program/host.js';
 import { loadEngine, runProgram } from '../../web/src/explain-program/runtime.js';
 import { normalizeFrame } from '../../web/src/explain-program/frame.js';
 import { sealProgram } from '../../web/src/explain-program/contract.js';
@@ -516,7 +516,7 @@ const ENGINE = loadEngine();
 class StandIn {
   constructor() { Object.assign(this, { onmessage: null, onerror: null, terminated: false }); ENGINE.then(() => this.emit({ ready: true, bootMs: 1 })); }
   emit(data) { setTimeout(() => !this.terminated && this.onmessage?.({ data }), 0); }
-  postMessage({ id, source, request, sdkVersion }) { ENGINE.then(engine => this.emit({ id, ...runProgram(engine, { source, request, sdkVersion }, { ...LIMITS_FOR_TESTS }) })); }
+  postMessage({ id, source, request }) { ENGINE.then(engine => this.emit({ id, ...runProgram(engine, { source, request }, { ...LIMITS_FOR_TESTS }) })); }
   terminate() { this.terminated = true; }
 }
 import { LIMITS } from '../../web/src/explain-program/limits.js';
@@ -531,9 +531,10 @@ test('M3 program: an artifact sealed by the server accept path is accepted by th
   const { view } = await runJob(s, saved.body.board_id, { requestId: 'req-prog-0000010', cardId: 'card-prog-10' });
   const artifact = view.body.job.result.program; // sealed by the real accept path, read from the authorized answer
   assert.equal(view.body.job.stage, 'ready');
-  // The real accept stage seals the current SDK; the host below verifies that exact tuple before running.
-  assert.equal(artifact.sdkVersion, 'sdk-2');
-  assert.deepEqual([artifact.runtimeVersion, artifact.fingerprints], [PROGRAM_STAMPS.runtimeVersion, PROGRAM_STAMPS.fingerprints]);
+  // The server seals with exactly the stamps the host accepts.
+  const accepted = await hostStamps();
+  assert.deepEqual([artifact.runtimeVersion, artifact.fingerprints], [accepted.runtimeVersion, accepted.fingerprints]);
+  assert.deepEqual([PROGRAM_STAMPS.runtimeVersion, PROGRAM_STAMPS.fingerprints], [accepted.runtimeVersion, accepted.fingerprints]);
   assert.match(PROGRAM.source, /^export function evaluate\(/, 'the fixture is the module format the runtime reads');
   const host = createProgramHost({ artifact, createWorker: () => new StandIn() });
   try {

@@ -336,16 +336,6 @@ reference combinations (Flare editing, OpenAI references beyond the measured sma
 learner is protected, the platform absorbs), the browser rendering of the three lines (SSR tests only; no browser check covers the image card), and everything through the deployed Worker
 until the owner-only acceptance (6d) runs.
 
-## 6g. Recraft V4.1 Flash and the Explanation illustration (2026-11-07)
-
-**Provider.** `recraftv4_1_flash` is a fifth model in `IMAGE_MODELS` (`image-providers.js`, `recraftImageAdapter`; secret `RECRAFT_API_KEY`, read by name). One raster per request, 1:1 at 1K (1024x1024), no references, no edit. The adapter sends `POST https://external.api.recraft.ai/v1/images/generations` with `response_format: 'url'`, then downloads the picture once from the returned https address (no credentials in it) and checks it by its file signature like every other provider's output. The answer's `credits` field is the charge in API units. A failed download after the provider answered is a definite `invalid_output` (the picture was made and billed) and is never retried.
-
-**Price (read from the Recraft pricing page on 2026-11-07).** US$0.007 per raster image for V4.1 Flash = 7 API units, US$1 = 1,000 units. Six live runs the same day each reported `credits: 7`. The quote estimate is 0.007 (1 credit); the hold is 0.02 and the maximum charge 0.01 (`IMAGE_RESERVED_USD_BY_MODEL`, `IMAGE_MAX_CHARGE_USD_BY_MODEL` in `wrangler.rabbit-hole-prod.jsonc`), so estimate <= maximum <= hold. The measured cost is `credits / 1000`; no usable `credits` means unknown cost. The combination is listed as validated in `image-settings.js` (evidence: the six live runs). The prompt maximum is 10,000 characters on Recraft's side; ours stays 4,000.
-
-**Production activation needs the secret.** `IMAGE_GENERATE_ENABLED` is already `"true"` in production, so the model appears as configured only once the owner sets `RECRAFT_API_KEY` on `rabbit-hole-app` (owner launcher; never an agent). Without it the model reports not configured and its jobs are refused before any provider call, as for the other providers.
-
-**Attaching a picture to a written Explanation.** A card's menu row **Add illustration** (`canvas-actions-types.js`, shown where image generation is offered and the card has no picture) opens Chat with `/image` and a prompt about the card, unsent (`illustration-target.js`). The plan the learner then sends is marked on that card (`illustration: { pending: { proposalId } }`, saved with the board). When its job is ready, `runImageJob` attaches the stored file to the marked card instead of placing an image card: `illustration: { fileRef: { source: { id, rev } }, alt, caption, aspect }`, read by `IllustrationFigure.jsx` through `file-source-client.js loadSource` (this browser's copy, else the board's server copy), and named by `file-refs.js fileRefSources` so the board keeps and shares the file. A reload finds the same job through its proposal id. Callouts are optional on `illustration.callouts` and are never produced by this flow: placement needs the layout of the picture and is only run in scratch checks so far.
-
 ## 6e. Evidence record: what exists, and what it does and does not prove
 
 Kinds: (A) fixture tests; (B) provider-adapter validation, the REAL provider called from a LOCAL harness; (C) deployed full-flow acceptance, never done.

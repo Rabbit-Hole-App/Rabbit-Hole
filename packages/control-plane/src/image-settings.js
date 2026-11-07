@@ -24,7 +24,6 @@ export const IMAGE_VALIDATED = Object.freeze([
   { model: 'gemini-nano-banana-2.1', operation: 'generate', quality: null, aspect_ratio: '1:1', resolution: '1K', max_references: 0, evidence: 'run C img-C-4, imgact-nb21-1k-1' },
   { model: 'gemini-nano-banana-2.1', operation: 'generate', quality: null, aspect_ratio: '16:9', resolution: '1K', max_references: 0, evidence: 'imgact-nb21-169-1' },
   { model: 'gemini-3-pro-image', operation: 'generate', quality: null, aspect_ratio: '1:1', resolution: '1K', max_references: 0, evidence: 'run D img-D-1' },
-  { model: 'recraftv4_1_flash', operation: 'generate', quality: null, aspect_ratio: '1:1', resolution: '1K', max_references: 0, evidence: 'imgact-recraft-1k: six live runs 2026-11-07, 1024x1024, 7 credits each (recraft2 benchmark)' },
   { model: 'gemini-nano-banana-2.1', operation: 'edit', quality: null, aspect_ratio: '1:1', resolution: '1K', max_references: 1, evidence: 'run E img-E-1, 1 reference' },
 ].map(Object.freeze));
 

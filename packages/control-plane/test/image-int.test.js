@@ -196,7 +196,7 @@ test('editing a setting on the card re-quotes and re-checks readiness; the optio
 test('the validated list is exactly the live provider runs (A to E, then imgact-*); every other option is not ready and says what was tested', () => {
   assert.deepEqual(IMAGE_VALIDATED.map(r => `${r.model}/${r.operation}/${r.quality}/${r.aspect_ratio}/${r.resolution}/${r.max_references}`).sort(), [
     'gemini-3-pro-image/generate/null/1:1/1K/0', 'gemini-nano-banana-2.1/edit/null/1:1/1K/1', 'gemini-nano-banana-2.1/generate/null/1:1/1K/0', 'gemini-nano-banana-2.1/generate/null/16:9/1K/0',
-    'gpt-image-2.5-flare/generate/low/1:1/1K/0', 'gpt-image-2.5-flare/generate/low/16:9/2K/0', 'gpt-image-2.5-sunburst/edit/low/1:1/1K/2', 'gpt-image-2.5-sunburst/generate/low/1:1/1K/0', 'recraftv4_1_flash/generate/null/1:1/1K/0'].sort());
+    'gpt-image-2.5-flare/generate/low/1:1/1K/0', 'gpt-image-2.5-flare/generate/low/16:9/2K/0', 'gpt-image-2.5-sunburst/edit/low/1:1/1K/2', 'gpt-image-2.5-sunburst/generate/low/1:1/1K/0'].sort());
   for (const r of IMAGE_VALIDATED) assert.ok(r.evidence && /^(run [A-E]|imgact-)/.test(r.evidence), r.model);
   const ready = (s, n = 0) => imageReadiness({ quality: null, aspect_ratio: '1:1', resolution: '1K', ...s }, n);
   assert.equal(ready({ model: 'gpt-image-2.5-flare', quality: 'low' }).ready, true);
