@@ -1,4 +1,4 @@
-// Explain on a highlighted passage and the shared proposal card's actions (owner 2026-11-07): the bulb opens Ctrl+K with /explain instead of
+// Explain on a highlighted passage and the shared proposal card's actions (owner 2026-11-07): the bulb opens Ctrl+K with /interactive instead of
 // generating; Cancel exists only where the proposal has a canvas skeleton and removes it; Generate becomes the red Stop button while the job
 // runs (and then Edit, Cancel and Go to card are not drawn); Add to chat joins Highlight and Explain on a Markdown selection.
 import test from 'node:test';
@@ -99,10 +99,11 @@ test('a skeleton is a card whose reviewed plan still waits for Generate', () => 
 
 const read = name => readFileSync(new URL(name, import.meta.url), 'utf8');
 
-test('the bulb opens Ctrl+K with the /explain pill and the passage; it never starts the job itself', () => {
+test('the bulb opens Ctrl+K with the /interactive pill (id explain, the plan-card job route) and the passage; it never starts the job itself', () => {
   const page = read('./LearnPage.jsx');
   const listener = page.slice(page.indexOf('const onPassage'), page.indexOf('window.addEventListener(EXPLAIN_PASSAGE_EVENT'));
-  assert.match(listener, /inlineAi\?\.\('explain', \{ command: 'explanation', prompt: text \}\)/);
+  assert.ok(listener.includes("inlineAi?.('explain', { command: HIGHLIGHT_EXPLAIN_COMMAND, prompt: text })"));
+  assert.match(read('./source-refs.js'), /HIGHLIGHT_EXPLAIN_COMMAND = 'explain';/, "the job route's id; 'explanation' is the written /explain, left untouched");
   assert.doesNotMatch(listener, /startExplain/);
   assert.match(read('./InlineAiEditor.jsx'), /useState\(preset\?\.command \?\? null\)/);
   assert.match(read('./InlineAiEditor.jsx'), /useState\(preset\?\.prompt \?\? ''\)/);

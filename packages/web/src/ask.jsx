@@ -711,14 +711,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     };
     // Owner spec 2026-10-29 section 6: an explicit simple material command (material-brief.js) or an Edit of its brief. The server
     // builds the compact brief from these words and the selected card (no model call), signs it and saves it in this chat (a revision:
-    // the next version of exactly the targeted brief, or a 409 when it changed); the answer is the brief's card, and Generate makes it.
+    // the next version of exactly the targeted brief, or a 409 when it changed); the answer is the brief's card alone, with no canned sentence above it.
     const materialPlan = async words => {
       if (attached) throw new Error('This command does not take an attachment. Select a card on the canvas to use it.');
       const chosen = about?.selection ?? (target ? { id: target.id, title: target.title, text: targetText } : null);
       const made = await requestMaterialBrief(api, { app: chat.canvas, threadId: threadId.current || chatThread.id || newThreadId(), command: commandName, text: words, selection: chosen, edit });
       if (late()) return;
       if (edit) chat.editing.clear();
-      mirror(edit ? 'Here is the updated brief. Generate makes it.' : 'Here is the brief. Generate makes it.');
       setMsgs(messages => withDone(withAnswerMeta(messages, replyId, { kind: 'answer', proposal: made.proposal }), replyId, { messageId: made.message_id }));
       threadId.current = made.thread_id;
       chatThread.adopt(made.thread_id, message.slice(0, 120));

@@ -66,6 +66,8 @@ export const skeletonJobOf = block => [['explain', block?.explainJob], ['animati
 export const SKELETON_DROPPED_EVENT = 'rh-skeleton-dropped';
 export const EXPLAIN_JOB_EVENT = 'rh-explain-job';
 export const EXPLAIN_BRIEF_EVENT = 'rh-explain-brief';
+// The skeleton's Go to plan (the reverse of the chat card's Go to card): Chat opens on the job's thread and scrolls to its plan card (chat-workspace.jsx).
+export const showPlanInChat = (threadId, jobId) => window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId, jobId, reveal: true } }));
 
 // A program result (explain-program) carries its artifact, source included, on the job result. The saved card keeps only the
 // reference ({ bundleHash }) and the result identity without the artifact, so source never lives in canvas JSON: the card

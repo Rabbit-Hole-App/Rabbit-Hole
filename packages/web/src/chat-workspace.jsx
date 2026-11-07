@@ -9,6 +9,7 @@ import { useLearnSettings } from './use-learn-settings.jsx';
 import { threadWithControls } from './learn-coaching-client.js';
 import { draftKey } from './chat-draft.js';
 import { restoredDraft } from './roadmap-transcript.js';
+import { EXPLAIN_BRIEF_EVENT } from './explain-client.js';
 
 // The right-side Chat workspace on a Learn canvas (owner brief 2026-10-13; contract:
 // agent-coordination/tasks/chat-workspace-CONTRACT.md, Part A). One provider per canvas composes five hooks, one per
@@ -113,6 +114,23 @@ export function ChatWorkspaceProvider({ canvas, board = 'main', canvasOps: initi
   const [answers, setAnswers] = useState(0);
   const reportAnswering = useCallback(delta => setAnswers(count => Math.max(0, count + delta)), []);
   const answering = answers > 0;
+  // A skeleton's Go to plan (explain-client showPlanInChat): open Chat on the job's thread and bring its plan card into view once it is drawn.
+  useEffect(() => {
+    const reveal = event => {
+      const { threadId, jobId, reveal: go } = event.detail || {};
+      if (!go || !threadId) return;
+      panels.openChat();
+      if (threadId !== thread.id) thread.open(threadId).catch(() => {});
+      let tries = 0;
+      const look = () => {
+        const card = jobId && document.querySelector(`[data-generation-proposal][data-proposal-job="${CSS.escape(jobId)}"]`);
+        if (card) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); else if (++tries < 20) setTimeout(look, 100);
+      };
+      look();
+    };
+    window.addEventListener(EXPLAIN_BRIEF_EVENT, reveal);
+    return () => window.removeEventListener(EXPLAIN_BRIEF_EVENT, reveal);
+  }, [panels, thread]);
   const value = useMemo(() => ({ answering, reportAnswering, canvas, board, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, setCanvasOps, canvasCoverage, setCanvasCoverage, toc, tocThreadId: tocThread.id, coaching, settings, goals, editing }), [answering, reportAnswering, canvas, board, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, canvasCoverage, toc, tocThread.id, coaching, settings, goals, editing]);
   return <ChatWorkspace.Provider value={value}>{children}</ChatWorkspace.Provider>;
 }

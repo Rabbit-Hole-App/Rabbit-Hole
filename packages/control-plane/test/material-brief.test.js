@@ -77,7 +77,7 @@ test('a brief is signed and saved in the chat with no generation; Generate consu
   assert.deepEqual(h.calls, [], 'preparing a brief calls no generator');
   const view = proposalView(p);
   assert.deepEqual(view.allowed_actions, ['edit', 'generate'], 'Edit (through Chat) and Generate; no prose form, no Save');
-  assert.deepEqual(h.rows().map(r => [r.role, r.content]), [['user', "/quiz Newton's second law"], ['assistant', 'Here is the brief. Generate makes it.']]);
+  assert.deepEqual(h.rows().map(r => [r.role, r.content]), [['user', "/quiz Newton's second law"], ['assistant', '']]);
   assert.equal((await h.state(p)).used, null);
 
   const first = await h.generate(p);
@@ -117,7 +117,7 @@ test('conversational Edit: the next revision of exactly the named one, with the 
   assert.deepEqual([v2.proposal_id, v2.version], [v1.proposal_id, 2]);
   assert.deepEqual(v2.input.changes, ['add cos(x) on the same axes']);
   assert.match(v2.description, /Changes you asked for: add cos\(x\) on the same axes\.$/);
-  assert.deepEqual(h.rows().slice(before).map(r => [r.role, r.content]), [['user', 'add cos(x) on the same axes'], ['assistant', 'Here is the updated brief. Generate makes it.']]);
+  assert.deepEqual(h.rows().slice(before).map(r => [r.role, r.content]), [['user', 'add cos(x) on the same axes'], ['assistant', '']]);
   assert.equal((await h.state(v1)).sig, v2.sig, 'published as the current revision');
   // Editing v1 again (stale), or Generate on v1: refused, nothing stored.
   const rowsNow = h.rows().length;

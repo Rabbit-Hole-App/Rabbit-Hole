@@ -361,7 +361,7 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
   );
   const request = !summary && view.original_request && view.original_request.replace(/^\/[a-z0-9-]+\s*/i, '');
   return (
-    <section data-generation-proposal={view.command} data-proposal-id={view.proposal_id} data-proposal-version={view.revision} data-proposal-targeted={targeted ? 'true' : undefined} data-proposal-active={active ? 'true' : 'false'} data-proposal-status={view.status} {...attrs('root')}
+    <section data-generation-proposal={view.command} data-proposal-id={view.proposal_id} data-proposal-job={proposal?.input?.job || undefined} data-proposal-version={view.revision} data-proposal-targeted={targeted ? 'true' : undefined} data-proposal-active={active ? 'true' : 'false'} data-proposal-status={view.status} {...attrs('root')}
       aria-label={eyebrow || view.title} {...(isolate ? { role: 'group', onPointerDown: event => event.stopPropagation() } : {})}
       className={cn('flex w-full', !compact && 'max-w-xl', 'min-w-0 flex-col rounded-lg border bg-surface', compact ? 'mb-1.5 max-h-[55vh] gap-1.5 overflow-y-auto border-accent/30 bg-accent/[0.07] px-3 py-2' : cn('gap-3 p-4', targeted ? 'border-accent ring-1 ring-accent' : 'border-line'), !active && !status && 'opacity-70')}>
       {eyebrow && <p className="flex items-center gap-1.5 text-sm font-semibold text-ink"><FileCheck2 size={15} aria-hidden className="shrink-0 text-accent" />{eyebrow}</p>}
@@ -442,24 +442,24 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
       {message && <p role="alert" data-proposal-problem {...attrs('problem')} className="text-xs text-fail">{message}</p>}
       <div className={cn('flex flex-wrap items-center gap-3', isolate && 'justify-end gap-2')}>
         {stoppable
-          ? <Button ref={primary} type="button" variant="danger" data-proposal-stop {...attrs('stop')} {...(status ? { 'data-proposal-phase': status.phase, 'aria-busy': status.spinner || undefined } : {})} aria-label={`Stop ${noun}`} aria-expanded={askStop} disabled={stopping}
-            className={cn(!compact && 'h-9! [@media(pointer:coarse)]:min-h-11!')} onClick={() => setAskStop(true)}>
+          ? <Button ref={primary} type="button" variant="danger" size="sm" data-proposal-stop {...attrs('stop')} {...(status ? { 'data-proposal-phase': status.phase, 'aria-busy': status.spinner || undefined } : {})} aria-label={`Stop ${noun}`} aria-expanded={askStop} disabled={stopping}
+            className={cn(!compact && '[@media(pointer:coarse)]:min-h-11!')} onClick={() => setAskStop(true)}>
             <span className="inline-flex items-center gap-2"><Square size={14} aria-hidden="true" className="shrink-0 fill-current" /><span>Stop</span></span>
           </Button>
-          : <Button type="button" variant="action" data-proposal-generate {...attrs('generate')} disabled={!active || working || !canGenerate || sentKey === key || !!status}
+          : <Button type="button" variant="action" size="sm" data-proposal-generate {...attrs('generate')} disabled={!active || working || !canGenerate || sentKey === key || !!status}
             {...(status ? { 'data-proposal-phase': status.phase, 'aria-busy': status.spinner || undefined } : {})}
-            className={cn(!compact && 'h-9! [@media(pointer:coarse)]:min-h-11!', status?.label && 'disabled:opacity-100!', status?.spinner && 'disabled:cursor-progress')} onClick={generate}>
+            className={cn(!compact && '[@media(pointer:coarse)]:min-h-11!', status?.label && 'disabled:opacity-100!', status?.spinner && 'disabled:cursor-progress')} onClick={generate}>
             {status?.label ? <span className="inline-flex items-center gap-2">{status.spinner ? <Loader2 size={16} aria-hidden="true" className="shrink-0 animate-spin motion-reduce:animate-none" /> : <Check size={16} aria-hidden="true" className="shrink-0" />}<span>{status.label}</span></span> : 'Generate'}
           </Button>}
         {editing
           ? <>
-            <Button type="button" variant="secondary" size="sm" data-proposal-discard {...attrs('discard')} disabled={saving} onClick={close}>Discard</Button>
-            <Button type="button" variant="secondary" size="sm" data-proposal-save {...attrs('save')} disabled={saving || !dirty || bad} onClick={save}>Save</Button>
+            <Button type="button" variant="secondary" size="sm" className={cn(!compact && '[@media(pointer:coarse)]:min-h-11!')} data-proposal-discard {...attrs('discard')} disabled={saving} onClick={close}>Discard</Button>
+            <Button type="button" variant="secondary" size="sm" className={cn(!compact && '[@media(pointer:coarse)]:min-h-11!')} data-proposal-save {...attrs('save')} disabled={saving || !dirty || bad} onClick={save}>Save</Button>
           </>
-          : running ? null : onEdit ? active && view.allowed_actions.includes('edit') && <Button type="button" variant="secondary" size="sm" data-proposal-edit {...attrs('edit')} disabled={working} onClick={() => onEdit(proposal ?? view)}>{editLabel}</Button>
-          : detailKeys.length > 0 && active && view.allowed_actions.includes('edit') && <Button type="button" variant="secondary" size="sm" data-proposal-edit {...attrs('edit')} disabled={working} onClick={open}>Edit details</Button>}
-        {!running && def?.cancel && onCancel && skeleton && active && !editing && view.allowed_actions.includes('cancel') && <Button type="button" variant="ghost" size="sm" data-proposal-cancel {...attrs('cancel')} disabled={working} onClick={() => onCancel(proposal ?? view)}>Cancel</Button>}
-        {!running && (status?.cardId || skeleton) && onGoToCard && <Button type="button" variant="secondary" data-proposal-go-to-card className={cn(!compact && 'h-9! [@media(pointer:coarse)]:min-h-11!')} onClick={onGoToCard}>Go to card</Button>}
+          : running ? null : onEdit ? active && view.allowed_actions.includes('edit') && <Button type="button" variant="secondary" size="sm" className={cn(!compact && '[@media(pointer:coarse)]:min-h-11!')} data-proposal-edit {...attrs('edit')} disabled={working} onClick={() => onEdit(proposal ?? view)}>{editLabel}</Button>
+          : detailKeys.length > 0 && active && view.allowed_actions.includes('edit') && <Button type="button" variant="secondary" size="sm" className={cn(!compact && '[@media(pointer:coarse)]:min-h-11!')} data-proposal-edit {...attrs('edit')} disabled={working} onClick={open}>Edit details</Button>}
+        {!running && def?.cancel && onCancel && skeleton && active && !editing && view.allowed_actions.includes('cancel') && <Button type="button" variant="ghost" size="sm" className={cn(!compact && '[@media(pointer:coarse)]:min-h-11!')} data-proposal-cancel {...attrs('cancel')} disabled={working} onClick={() => onCancel(proposal ?? view)}>Cancel</Button>}
+        {!running && (status?.cardId || skeleton) && onGoToCard && <Button type="button" variant="secondary" size="sm" data-proposal-go-to-card className={cn(!compact && '[@media(pointer:coarse)]:min-h-11!')} onClick={onGoToCard}>Go to card</Button>}
         {status ? null : made ? <span data-proposal-made className="text-xs text-ink-2">Added to the canvas</span>
           : !active && <span data-proposal-superseded className="text-xs text-ink-2">Superseded</span>}
       </div>

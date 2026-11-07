@@ -705,7 +705,7 @@ export function evaluate({ state }) {
       if (!mine.length) return route.fallback();
       const real = await route.fetch().catch(() => null);
       const base = real?.ok ? await real.json() : { id, title: 'Animation request', mode: 'auto', contextRefs: [], draft: null, messages: [] };
-      const message = b => ({ role: 'assistant', content: b.say?.content ?? 'Here is the plan for your animation. Generate makes it.', messageId: b.messageId, kind: 'answer', status: 'done',
+      const message = b => ({ role: 'assistant', content: b.say?.content ?? '', messageId: b.messageId, kind: 'answer', status: 'done',
         meta: { version: 1, mode: 'ask', kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, ...(b.say ? { ...(b.say.choice ? { animationChoice: b.say.choice } : {}) } : { proposal: flow.proposals.get(b.messageId) }), alternatives: [b.messageId] } });
       return route.fulfill({ json: { ...base, messages: [...(base.messages || []), ...mine.map(message)] } });
     }

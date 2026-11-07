@@ -86,7 +86,6 @@ async function createImageProposal(req, env, deps) {
 // stored, otherwise); the person's words are added to the brief's request, never rewritten, and its rows are written in the same batch
 // as the compare-and-swap that publishes it, so a revision that loses a race leaves nothing behind. Owner-only, as image plans are.
 const MATERIAL_PATH = '/api/learn/chat/material-proposals';
-const BRIEF_REPLY = 'Here is the brief. Generate makes it.', BRIEF_REVISED = 'Here is the updated brief. Generate makes it.';
 async function createMaterialProposal(req, env, deps) {
   if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
   if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
@@ -148,7 +147,7 @@ async function createMaterialProposal(req, env, deps) {
     ...(record ? [publishStatement(db, record, p)] : [db.prepare("INSERT OR IGNORE INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,'',?)").bind(body.thread_id, user.org, user.email, body.app, (p.title || 'Brief').slice(0, 120))]),
     db.prepare(`INSERT INTO messages(thread_id,role,content) SELECT ?,?,?${landed}`).bind(body.thread_id, 'user', line.slice(0, 4000), ...gate),
     db.prepare(`INSERT INTO chat_message_meta(message_id,thread_id,role,meta_json) SELECT max(id),?,?,? FROM messages WHERE thread_id=?${landed.replace(' WHERE ', ' AND ')} HAVING max(id) IS NOT NULL`).bind(body.thread_id, 'user', JSON.stringify({ mode: 'auto', command: p.command, contextRefs: [] }), body.thread_id, ...gate),
-    db.prepare(`INSERT INTO messages(thread_id,role,content) SELECT ?,?,?${landed}`).bind(body.thread_id, 'assistant', record ? BRIEF_REVISED : BRIEF_REPLY, ...gate),
+    db.prepare(`INSERT INTO messages(thread_id,role,content) SELECT ?,?,?${landed}`).bind(body.thread_id, 'assistant', '', ...gate),
     db.prepare(`INSERT INTO chat_message_meta(message_id,thread_id,role,meta_json) SELECT max(id),?,?,? FROM messages WHERE thread_id=?${landed.replace(' WHERE ', ' AND ')} HAVING max(id) IS NOT NULL`).bind(body.thread_id, 'assistant', JSON.stringify(meta), body.thread_id, ...gate),
     db.prepare('INSERT INTO chat_thread_state(thread_id,last_activity_at,updated_at) VALUES(?,?,?) ON CONFLICT(thread_id) DO UPDATE SET last_activity_at=excluded.last_activity_at, updated_at=excluded.updated_at').bind(body.thread_id, at, at),
   ]);
