@@ -47,6 +47,11 @@
   /* The inline AI editor's target and accent: the product's purple (--tok-k, --viz-prediction), flipped in .dark. */
   --color-ai: #9065b0;
   --color-danger: #eb5757;
+  /* The filled danger button (Button variant danger, Stop): white on --color-danger is 3.5:1, under the 4.5:1 small-text floor;
+     white on this fill is 4.98:1, its hover 6.33:1. .dark leaves both alone (the bg-danger rule below keeps the text white).
+     danger-button.test.mjs. */
+  --color-danger-fill: #d32f2f;
+  --color-danger-fill-hover: #b72626;
   --color-warn: #d9730d;
   --color-success: #448361;
   /* Practice feedback text (Right. / Not quite.): Tailwind's green-700 and

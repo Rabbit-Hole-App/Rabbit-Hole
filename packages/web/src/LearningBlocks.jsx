@@ -9,7 +9,7 @@ import { holdViewerGestures } from './content-gestures.js';
 import { createContext, Suspense, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { SourceRefHeader } from './SourceRefChip.jsx';
-import { Check, ChevronLeft, ChevronRight, Code, Loader2, PanelRightOpen, Play, RotateCcw, Search, Trash2, Volume2, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Code, Loader2, PanelRightOpen, Play, RotateCcw, Search, Square, Trash2, Volume2, X } from 'lucide-react';
 import { fullContent } from './card-layout.js';
 import { Md } from './ask.jsx';
 import { MdInline } from './Md.jsx';
@@ -1956,7 +1956,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
                   {since === undefined
                     ? <p data-progress-restoring role="status" className="text-xs text-ink-2">Restoring progress</p>
                     : <Progress seconds={elapsed} expected={label.expected} label={label.progress} />}
-                  {label.stoppable && placement && <button ref={stopButton} type="button" data-stop-video aria-expanded={askStop} onClick={() => setAskStop(true)} className="flex h-8 items-center rounded-lg px-3.5 text-sm font-medium bg-danger text-white hover:opacity-90 active:opacity-80">Stop</button>}
+                  {label.stoppable && placement && <Button ref={stopButton} type="button" variant="danger" data-stop-video aria-expanded={askStop} onClick={() => setAskStop(true)}><Square size={14} aria-hidden="true" className="shrink-0 fill-current" />Stop</Button>}
                   {label.stoppable && placement && askStop && (
                     <div data-stop-confirm role="group" aria-label="Stop this video" className="flex flex-wrap items-center justify-center gap-2 text-xs text-ink-2"
                       onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); keepGoing(); } }}>

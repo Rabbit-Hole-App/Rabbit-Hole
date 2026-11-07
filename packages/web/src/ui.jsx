@@ -43,7 +43,7 @@ export function Button({ className, variant = 'ghost', size, ...props }) {
         // "Copy link" template: accent-tinted fill for feature CTAs that should not shout
         variant === 'soft' && 'bg-accent/10 text-accent hover:bg-accent/20',
         variant === 'ghost' && 'text-ink-2 hover:bg-hover hover:text-ink',
-        variant === 'danger' && 'bg-danger text-white hover:opacity-90 active:opacity-80',
+        variant === 'danger' && 'bg-danger-fill text-white hover:bg-danger-fill-hover active:bg-danger-fill-hover',
         // legacy alias used across the app for quiet blue text actions
         variant === 'accent' && 'font-medium text-accent hover:bg-accent/10',
         className,

@@ -1,7 +1,7 @@
 import { useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, MessageCircle, Pencil, RefreshCw } from 'lucide-react';
+import { Loader2, MessageCircle, Pencil, RefreshCw, Square } from 'lucide-react';
 import { api } from './api.js';
-import { Pill } from './ui.jsx';
+import { Button, Pill } from './ui.jsx';
 import CardHeader from './CardHeader.jsx';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { claimViewer, releaseViewer } from './viewer-slots.js';
@@ -187,7 +187,7 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
       {problem && <p role="alert" className="text-xs text-fail">{problem}</p>}
       {!readOnly && (
         <div className="flex gap-1.5">
-          {running && <button type="button" data-animation-stop disabled={busy} onClick={() => act('cancel')} className="flex h-8 items-center rounded-lg bg-danger px-3 text-sm text-white hover:opacity-90 active:opacity-80 disabled:opacity-40">Stop</button>}
+          {running && <Button type="button" variant="danger" data-animation-stop disabled={busy} onClick={() => act('cancel')}><Square size={14} aria-hidden="true" className="shrink-0 fill-current" />Stop</Button>}
           {retry && <button type="button" data-animation-job-retry={retry} disabled={busy} onClick={() => act('retry', { expectedAttempt: shown.attempt, action: retry })} className={buttonClass}>
             <RefreshCw size={13} aria-hidden />{RETRY_LABELS[retry]}</button>}
         </div>

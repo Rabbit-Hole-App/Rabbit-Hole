@@ -204,7 +204,7 @@ test('a running job: Generating with a spinner, the stage line, a polite announc
   assert.match(button, /data-proposal-phase="running"/);
   assert.match(button, /aria-busy="true"/);
   assert.match(button, /aria-label="Stop video"/);
-  assert.match(button, /class="[^"]*bg-danger text-white/);
+  assert.match(button, /class="[^"]*bg-danger-fill text-white/);
   assert.doesNotMatch(button, /bg-ink|disabled=""/, 'not the inverse fill, and pressable');
   assert.match(button, /<span>Stop<\/span>/);
   assert.equal([...html.matchAll(/data-proposal-(generate|stop|edit|cancel|go-to-card|discard|save)=/g)].length, 1, 'the row is the Stop button alone: no Edit, Cancel or Go to card');

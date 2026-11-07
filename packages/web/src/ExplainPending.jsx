@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { track } from './usage-analytics.js';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Square } from 'lucide-react';
+import { Button } from './ui.jsx';
 import { api } from './api.js';
 import { EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainResultBlock, explainRetry, explainRunning, explainStage, explainUnavailable, explainWorking } from './explain-client.js';
 
@@ -80,8 +81,7 @@ export default function ExplainPending({ block, onChange, onChangeQuiet, readOnl
       {problem && <p className="text-xs text-red-700">{problem}</p>}
       {!readOnly && (
         <div className="flex gap-1.5">
-          {running && <button type="button" data-explain-stop disabled={busy} onClick={() => act('cancel')}
-            className="flex h-8 items-center rounded-lg px-3 text-sm bg-danger text-white hover:opacity-90 active:opacity-80 disabled:opacity-40">Stop</button>}
+          {running && <Button type="button" variant="danger" data-explain-stop disabled={busy} onClick={() => act('cancel')}><Square size={14} aria-hidden="true" className="shrink-0 fill-current" />Stop</Button>}
           {retry && <button type="button" data-explain-retry disabled={busy} onClick={() => act('retry', { expectedAttempt: shown.attempt })}
             className="flex h-8 items-center rounded-lg border border-line px-3 text-sm hover:bg-hover disabled:opacity-40">{paused ? 'Retry' : retry === 'retry_render' ? 'Render again' : 'Try again'}</button>}
         </div>
