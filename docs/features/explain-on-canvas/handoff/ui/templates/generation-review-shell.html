@@ -1,0 +1,37 @@
+<!--
+Shared generation-review markup for the approved ../08-interactive-review.html.
+Use its review styles with the existing GenerationProposalCard and command schema.
+
+Clone the shell per proposal. Fill command-label from the shared command label
+and title from the proposal. Give the title and any visual caption unique IDs
+and wire their aria-labelledby relationships before mounting.
+
+For a visual preview, show intro, visual and takeaway in that order. Insert the
+rendered TutorDiagram or image into visual-content. For a text-only proposal,
+show its existing description in summary. Show the settings slot only for
+commands whose review includes editable settings.
+
+Bind Generate and Edit to the existing proposal actions and action state.
+-->
+<template id="generation-review-shell">
+  <article class="review" data-review-shell>
+    <header class="review-head">
+      <span class="kind" data-slot="command-label"></span>
+      <h1 data-slot="title"></h1>
+    </header>
+
+    <p data-slot="summary" hidden></p>
+    <p data-slot="intro" hidden></p>
+    <figure class="preview" data-slot="visual" hidden>
+      <figcaption data-slot="visual-title" hidden></figcaption>
+      <div data-slot="visual-content"></div>
+    </figure>
+    <p data-slot="takeaway" hidden></p>
+    <div data-slot="settings" hidden></div>
+
+    <footer class="actions">
+      <button type="button" class="primary" data-action="generate">Generate</button>
+      <button type="button" data-action="edit">Edit</button>
+    </footer>
+  </article>
+</template>
