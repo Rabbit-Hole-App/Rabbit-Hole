@@ -392,3 +392,105 @@ test('BE.06a Tutor Explanation authoring, saved output and caps (CORE.09)', asyn
     assert.doesNotMatch(h.authorCalls[0].text, /Depth: deep/);
   });
 });
+
+test('BE.07 real reservation, debit and settlement (CORE.04-06)', async t => {
+  await t.test('BE.07 planning, proposal review and navigation spend nothing; one accepted card is one hold covering its actual request', async () => {
+    const h = await workflow(t, { script: [explanation()] });
+    const view = await started(h);
+    await status(h); await status(h);
+    assert.deepEqual([learnerActions(h).length, authorizations(h).length, (await h.totals()).used], [0, 0, 0], 'no learner spend before acceptance');
+    assert.equal((await acceptCard(h, view, 'accept1')).status, 202);
+    const [auth] = authorizations(h), [call] = h.authorCalls;
+    assert.equal(authorizations(h).length, 1, 'one hold/authorization per accepted card');
+    assert.equal(learnerActions(h).length, 1, 'one learner action identity');
+    assert.ok(auth.per_card_bound_micros >= toMicros(requestSpendBound(call.body, call.model)), 'the reserved bound covers the actual serialized request');
+    const calls = h.rows("SELECT * FROM learn_roadmap_calls WHERE stage = 'generate'");
+    assert.equal(calls.length, 1);
+    assert.deepEqual([calls[0].provider, calls[0].model], ['anthropic', call.model], 'the call row names the actual provider and model');
+    // contracts.md absent: assumed request_fingerprint = sha256 of the serialized dispatched body (CORE.05).
+    assert.equal(calls[0].request_fingerprint, await sha(JSON.stringify(call.body)), 'the call is bound to the actual outgoing body');
+  });
+  await t.test('BE.07 duplicate acceptance, polling and restore add no debit', async () => {
+    const { h, view, resultId } = await firstCard(t, [explanation()]);
+    const used = (await h.totals()).used;
+    assert.ok(used > 0, 'the card is charged');
+    await acceptCard(h, view, 'accept1'); await status(h);
+    assert.equal((await deliver(h, resultId)).status, 200);
+    await h.route('alice', routes.deliver(await status(h), resultId, KEY('restore')));
+    assert.equal((await h.totals()).used, used);
+    assert.equal(learnerActions(h).length, 1);
+  });
+  await t.test('BE.07 exactly sufficient allowance is admitted, one micro less is a truthful non-started refusal', async () => {
+    const probe = await firstCard(t, [explanation()]);
+    const aggregate = authorizations(probe.h)[0].aggregate_micros;
+    const enough = await firstCard(t, [explanation()], { allowanceMicros: aggregate });
+    assert.equal(enough.accepted.status, 202, 'exactly sufficient');
+    const short = await firstCard(t, [explanation()], { allowanceMicros: aggregate - 1 });
+    assert.equal(short.accepted.status, 429);
+    assert.equal(short.accepted.body.current.proposal.acceptable, true, 'the proposal stays acceptable');
+    assert.deepEqual([short.h.authorCalls.length, authorizations(short.h).length, (await short.h.totals()).used], [0, 0, 0], 'zero author calls, no hold');
+  });
+  await t.test('BE.07 a known failed generation refunds once with no second author call', async () => {
+    const { h, resultId } = await firstCard(t, [httpError(529), explanation()]);
+    assert.equal(h.authorCalls.length, 1, 'no automatic author redispatch');
+    assert.equal(resultRow(h, resultId).billing, 'refunded');
+    assert.equal(h.rows('SELECT * FROM usage_adjustments').length, 1, 'one refund');
+    assert.equal((await h.totals()).used, 0);
+    await h.run();
+    assert.equal(h.rows('SELECT * FROM usage_adjustments').length, 1, 'a replay refunds nothing more');
+  });
+  await t.test('BE.07 an unknown outcome stays reconciling without a second author call', async () => {
+    const { h, resultId } = await firstCard(t, [timeout(), explanation()]);
+    assert.equal(h.authorCalls.length, 1);
+    assert.ok(h.rows("SELECT * FROM learn_roadmap_calls WHERE result_id = ? AND checkpoint IN ('unknown', 'reconciling')", resultId).length >= 1 || resultRow(h, resultId).reconciliation === 'required', 'the uncertain call is not relabelled');
+    await h.run();
+    assert.equal(h.authorCalls.length, 1, 'never resent blind');
+  });
+});
+
+test('BE.08 same identity, board save, acknowledgment and reload (CORE.07, UI.04/06)', async t => {
+  const geometry = { x: 520, y: 40, w: 420 };
+  await t.test('BE.08 a failed save sends no ack and no successor; the lost ack reconciles the same card without regeneration', async () => {
+    const { h, view, resultId, cardId } = await firstCard(t, [explanation(), explanation()]);
+    const used = (await h.totals()).used;
+    const got = await h.route('alice', routes.deliver(await status(h), resultId, KEY('d1')));
+    assert.equal(got.body.cards[0].block.id, cardId, 'the server-minted card id');
+    const board = await h.send('alice', 'GET', `/api/learn/boards/${USERS.alice.canvas}/main`);
+    const stale = await h.send('alice', 'PUT', `/api/learn/boards/${USERS.alice.canvas}/main`, { state: { blocks: [...board.body.state.blocks, { ...got.body.cards[0].block, ...geometry }] }, version: board.body.version - 1 });
+    assert.equal(stale.status, 409, 'the save failed');
+    const early = await h.send('alice', 'POST', `/api/learn/roadmap/${view.roadmap.id}/results/${resultId}/ack`, { boardId: h.boards.alice, revision: (await status(h)).roadmap.revision, actionKey: KEY('early'), resultVersion: 1, cardId, boardRevision: board.body.version });
+    assert.deepEqual([early.status, early.body.code], [422, 'card_not_saved'], 'no premature ack');
+    const now = await status(h);
+    assert.equal(now.results[0].delivery, 'not_delivered');
+    assert.equal(now.proposal, null, 'no successor before a saved delivery');
+    const done = await deliver(h, resultId, { geometry, key: 'ack1' });
+    assert.equal(done.status, 200);
+    const lost = await h.send('alice', 'POST', `/api/learn/roadmap/${view.roadmap.id}/results/${resultId}/ack`, { boardId: h.boards.alice, revision: done.body.roadmap.revision, actionKey: KEY('ack1'), resultVersion: 1, cardId, boardRevision: done.boardVersion });
+    assert.equal(lost.status, 200, 'a lost ack response retried with the same key replays');
+    const blocks = await boardBlocks(h);
+    assert.equal(blocks.filter(b => b.id === cardId).length, 1, 'no duplicate board block');
+    const restored = await h.route('alice', routes.deliver(await status(h), resultId, KEY('d2')));
+    assert.deepEqual(planDelivery(restored.body, id => blocks.some(b => b.id === id)).insert, [], 'a fresh client restores without inserting again');
+    assert.deepEqual([h.authorCalls.length, (await h.totals()).used], [1, used], 'no regeneration, no new debit');
+    assert.equal(h.rows("SELECT * FROM learn_roadmap_outbox WHERE kind = 'card_delivered'").length, 1);
+    assert.equal(pending(h).length, 1, 'one next offer after the acknowledged delivery');
+  });
+  await t.test('BE.08 the saved card keeps the minted id, source relationship, slot top-left/width and accepted title through reload', async () => {
+    const { h, resultId, cardId } = await firstCard(t, [explanation()]);
+    assert.equal((await deliver(h, resultId, { geometry })).status, 200);
+    const saved = (await boardBlocks(h)).find(b => b.id === cardId);
+    assert.deepEqual([saved.x, saved.y, saved.w], [geometry.x, geometry.y, geometry.w]);
+    assert.equal(saved.sourceRef?.source?.key, `file:${USERS.alice.fileId}`, 'the source relationship');
+    // contracts.md absent: assumed private slot geometry on the view's result slot `slot.placement {x, y, w}` (UI.06, roadmap-slots.js).
+    const view = await status(h);
+    assert.deepEqual(view.results[0].slot.placement, geometry, 'the persisted slot geometry is the saved card geometry');
+    assert.equal(saved.title, STEPS[0].title, 'the accepted title');
+  });
+  await t.test('BE.08 the view distinguishes generated from board-saved and acknowledged', async () => {
+    const { h, resultId } = await firstCard(t, [explanation()]);
+    // contracts.md absent: assumed `results[].stage` (BRIEF contract 4 vocabulary).
+    assert.notEqual((await status(h)).results[0].stage, 'ready', 'generated is not ready before durable delivery');
+    assert.equal((await deliver(h, resultId)).status, 200);
+    assert.equal((await status(h)).results[0].stage, 'ready');
+  });
+});
