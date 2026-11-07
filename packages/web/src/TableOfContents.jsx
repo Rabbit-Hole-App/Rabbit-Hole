@@ -6,8 +6,10 @@
 // when the learner clicks one, never because a section is visible, open or discussed. Dragging a row moves its entry, its
 // sub-sections with it; clicking a title frames its linked canvas heading, if any.
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronRight, GripVertical, Heading1, Heading2, Heading3, LocateFixed, MessageSquarePlus, Pencil, Plus, Trash2 } from 'lucide-react';
-import { Button, toast } from './ui.jsx';
+import { ArrowDown, ArrowUp, Check, ChevronRight, Ellipsis, GripVertical, Heading1, Heading2, Heading3, Link2, LocateFixed, MessageSquarePlus, Pencil, Plus, TextSelect, Trash2 } from 'lucide-react';
+import { Button, Menu, MenuItem, toast } from './ui.jsx';
+import { cardLink } from './canvas-refs-model.js';
+import { moveTargets } from './toc-move.js';
 import { DESCRIPTION_MAX, outlineTree, proposalProblem, withRoadmap } from './learn-outline-model.js';
 import { keyLabel } from './shortcuts.js';
 
@@ -61,6 +63,24 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
     if (description !== entry.description) ops.push({ op: 'describe', id: entry.id, description });
     if (ops.length) canvasApi.current?.applyOutline(ops);
     setEditing(null);
+  };
+
+  // The row's overflow menu (one open at a time): Go to source text, Move up / down and Copy link. The first item takes focus when it opens; arrows,
+  // Home and End move within it, Escape closes it and gives the focus back to its button; a press outside closes it (ui.jsx Menu).
+  const [menuFor, setMenuFor] = useState(null);
+  useEffect(() => { if (menuFor !== null) document.querySelector('[data-toc-menu] [role="menuitem"]')?.focus(); }, [menuFor]);
+  const menuKeys = id => event => {
+    const items = [...event.currentTarget.querySelectorAll('[role="menuitem"]')], at = items.indexOf(document.activeElement);
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); items[(at + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus(); }
+    else if (event.key === 'Home' || event.key === 'End') { event.preventDefault(); items[event.key === 'Home' ? 0 : items.length - 1]?.focus(); }
+    else if (event.key === 'Escape') { event.stopPropagation(); setMenuFor(null); document.querySelector(`[data-toc-more="${CSS.escape(id)}"]`)?.focus(); }
+  };
+  // Copy link: the existing ?card=<id> address of this page (cardParam reads it on the owner and member pages); no card on the canvas, no link.
+  const copyLink = async id => {
+    setMenuFor(null);
+    const blockId = canvasApi.current?.sectionBlockId?.(id);
+    if (!blockId) { toast('There is nothing on the canvas to link to', { tone: 'error' }); return; }
+    try { await navigator.clipboard.writeText(cardLink(window.location, blockId)); toast('Link copied'); } catch { toast('Could not copy the link', { tone: 'error' }); }
   };
 
   // A pointer press outside the open delete popover (or on another row's button) cancels it.
@@ -128,16 +148,33 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
           const deletesHeading = !entry.roadmap && !readOnly;
           // Add to chat: the heading's block, or a roadmap row's delivered card (a planned step with no card has nothing to add).
           const addId = entry.roadmap ? cardId : entry.id;
-          if (!goes && !deletesCard && !deletesHeading && !addId) return null;
-          const open = confirming === entry.id;
+          // Overflow menu: Go to source text (a step with a source), Move up / down (a manual heading with a sibling that way), Copy link (a block to point at).
+          const source = entry.roadmap?.source;
+          const moves = !entry.roadmap && !readOnly ? moveTargets(own, entry.id) : { up: null, down: null };
+          const linkId = entry.roadmap ? cardId : entry.id;
+          const hasMenu = !!source || !!moves.up || !!moves.down || !!linkId;
+          if (!goes && !deletesCard && !deletesHeading && !addId && !hasMenu) return null;
+          const open = confirming === entry.id, menuOpen = menuFor === entry.id;
           const icon = "flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-ink";
           return (
-            <div data-no-drag data-toc-actions className="relative flex shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100" style={open ? { opacity: 1 } : undefined}>
+            <div data-no-drag data-toc-actions className="relative flex shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100" style={open || menuOpen ? { opacity: 1 } : undefined}>
               {addId && <button type="button" data-toc-add-to-chat aria-label={"Add " + entry.label + " to chat"} title="Add to chat (the contents conversation)" onClick={() => addRowToConversation(canvasApi, addId, onAddToChat, message => toast(message, { tone: 'error' }))} className={icon}><MessageSquarePlus size={14} /></button>}
               {goes && <button type="button" data-toc-go-card aria-label={"Go to card for " + entry.label} title="Go to card" onClick={() => roadmap?.go?.(nav)} className={icon}><LocateFixed size={14} /></button>}
               {deletesHeading && <button type="button" aria-label={"Edit " + entry.label} title="Edit title and description" onClick={() => setEditing(entry.id)} className={icon}><Pencil size={14} /></button>}
               {(deletesHeading || deletesCard) && <button type="button" data-toc-delete aria-label={(deletesCard ? "Delete card " : "Remove heading ") + entry.label} aria-haspopup="dialog" aria-expanded={open} title={deletesCard ? "Delete this card from the canvas" : "Remove from the contents"} onClick={() => setConfirming(open ? null : entry.id)}
                 className="flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-red-700"><Trash2 size={14} /></button>}
+              {hasMenu && <button type="button" data-toc-more={entry.id} aria-label={"More actions for " + entry.label} aria-haspopup="menu" aria-expanded={menuOpen} title="More actions"
+                onClick={() => setMenuFor(menuOpen ? null : entry.id)} onKeyDown={event => { if (event.key === 'ArrowDown') { event.preventDefault(); setMenuFor(entry.id); } }} className={icon}><Ellipsis size={14} /></button>}
+              {hasMenu && (
+                <Menu open={menuOpen} onClose={() => setMenuFor(null)} className="top-7 right-0 w-48">
+                  <div role="menu" aria-label={"Actions for " + entry.label} data-toc-menu onKeyDown={menuKeys(entry.id)}>
+                    {source && <MenuItem role="menuitem" icon={TextSelect} data-toc-go-source onClick={() => { setMenuFor(null); roadmap?.go?.(source); }}>Go to source text</MenuItem>}
+                    {moves.up && <MenuItem role="menuitem" icon={ArrowUp} data-toc-move-up onClick={() => { setMenuFor(null); canvasApi.current?.moveSection(entry.id, moves.up.before); }}>Move up</MenuItem>}
+                    {moves.down && <MenuItem role="menuitem" icon={ArrowDown} data-toc-move-down onClick={() => { setMenuFor(null); canvasApi.current?.moveSection(entry.id, moves.down.before); }}>Move down</MenuItem>}
+                    {linkId && <MenuItem role="menuitem" icon={Link2} data-toc-copy-link onClick={() => copyLink(linkId)}>Copy link</MenuItem>}
+                  </div>
+                </Menu>
+              )}
               {open && (deletesCard
                 ? confirmDelete(entry, { title: "Delete this card?", body: "It is removed from the canvas only. The roadmap step stays, and " + keyLabel('Mod+Z') + " brings the card back.", label: "Delete", run: () => canvasApi.current?.removeBlock(cardId) })
                 : confirmDelete(entry, { title: "Remove this heading?", body: "It leaves the contents only; the canvas stays, and " + keyLabel('Mod+Z') + " brings it back.", label: "Remove", run: () => canvasApi.current?.removeSection(entry.id) }))}

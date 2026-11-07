@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { pillOf, tocOf } from './roadmap-client.js';
+import { withRoadmap } from './learn-outline-model.js';
 import { entriesOf, outcomeOf, roadmapInvitationOf } from './roadmap-transcript.js';
 
 const DIR = fileURLToPath(new URL('../../../docs/features/explain-on-canvas/contracts/fixtures/', import.meta.url));
@@ -292,4 +293,44 @@ test('ToC rows: Add to chat shows on hover for every heading and for a roadmap r
   assert.match(canvas, /refForSection: id => \{[\s\S]*?selectionRef\(\{ ids: \[object\.id\]/, 'it builds the block context ref as the selection bar does, for the contents composer');
   assert.doesNotMatch(canvas, /addSectionToChat/, 'the right-hand Chat is not touched by the contents Add to chat');
   assert.match(readFileSync(fileURLToPath(new URL('./TableOfContents.jsx', import.meta.url)), 'utf8'), /addRowToConversation\(canvasApi, addId, onAddToChat,/);
+});
+
+// ToC row overflow menu (owner approved 2026-11-07): Go to source text, Move up / down, Copy link.
+test("ToC row menu: every heading and every roadmap row with a block or a source has the more-actions button; the data for Go to source text comes from the step", () => {
+  const base = hookReturn();
+  const toc = (props, name) => lib.renderToStaticMarkup(lib.createElement(lib.TableOfContents, { outline: [], canvasApi: { current: null }, ...props, ...(name ? { roadmap: { ...base, ...seeded(name), showOverlay: false } } : {}) }));
+  const outline = [{ id: "h1", level: 1, label: "Intro", done: false }, { id: "h2", level: 2, label: "Details", done: false }];
+  const headings = toc({ outline });
+  assert.equal(headings.split("data-toc-more=").length - 1, 2, "every heading (Copy link at least)");
+  assert.equal(toc({ outline, readOnly: true }).split("data-toc-more=").length - 1, 2, "a view-only visitor still gets Copy link");
+  assert.ok(!headings.includes("data-toc-menu"), "the menu itself renders only when opened");
+  // The step carries its source target only when the view says it has a source reference.
+  const state = seeded("status-active-proposal-pending").state;
+  const rows = tocOf(state).steps;
+  assert.ok(rows.length > 0);
+  for (const row of rows) { const step = state.view.steps.find(s => s.id === row.id); assert.deepEqual(row.source, step.sourceRef ? { kind: "source" } : null, row.id); }
+  const merged = withRoadmap([], tocOf(state));
+  assert.ok(merged.every(entry => "source" in entry.roadmap), "withRoadmap passes it to the row");
+  const withSource = merged.filter(entry => entry.roadmap.source);
+  const marked = toc({}, "status-active-proposal-pending").split("data-roadmap-step=").slice(1);
+  assert.equal(marked.filter(r => r.includes("data-toc-more=")).length >= withSource.length && (withSource.length === 0 || marked.some(r => r.includes("data-toc-more="))), true, "a roadmap row with a source has the button");
+});
+
+test("ToC row menu: the items, their conditions and their one mutation are pinned in the source", () => {
+  const read = name => readFileSync(fileURLToPath(new URL("./" + name, import.meta.url)), "utf8");
+  const source = read("TableOfContents.jsx");
+  assert.match(source, /\{source && <MenuItem role="menuitem" icon=\{TextSelect\} data-toc-go-source onClick=\{\(\) => \{ setMenuFor\(null\); roadmap\?\.go\?\.\(source\); \}\}>Go to source text/);
+  assert.match(source, /moves = !entry\.roadmap && !readOnly \? moveTargets\(own, entry\.id\)/, "Move only for a manual heading, never read-only, never a roadmap row");
+  assert.match(source, /canvasApi\.current\?\.moveSection\(entry\.id, moves\.up\.before\)/);
+  assert.match(source, /canvasApi\.current\?\.moveSection\(entry\.id, moves\.down\.before\)/);
+  assert.match(source, /const linkId = entry\.roadmap \? cardId : entry\.id;/);
+  assert.match(source, /navigator\.clipboard\.writeText\(cardLink\(window\.location, blockId\)\); toast\('Link copied'\)/);
+  assert.match(source, /Could not copy the link', \{ tone: 'error' \}/);
+  assert.match(source, /event\.key === 'Escape'[^\n]*setMenuFor\(null\)[^\n]*focus\(\)/, "Escape closes the menu and returns focus to its button");
+  assert.match(source, /event\.key === 'ArrowDown'[^\n]*setMenuFor\(entry\.id\)/, "ArrowDown on the button opens it");
+  assert.doesNotMatch(source, /\?section=|section-link/, "no second deep-link param: the existing card= focus link is reused");
+  // The existing consumers of card=<id> read it on both pages and strip it.
+  assert.match(read("LearnPage.jsx"), /cardParam\(window\.location\.search\)[\s\S]{0,700}withoutCardParam\(window\.location\.href\)/);
+  assert.match(read("comments/MemberBoardPage.jsx"), /cardParam\(window\.location\.search\)[\s\S]{0,700}withoutCardParam\(window\.location\.href\)/);
+  assert.match(read("AdaptiveCanvas.jsx"), /sectionBlockId: id => \{ const blockId = tocHeading\(tocRef\.current, id\) \?\? id; return blocksRef\.current\.some\(block => block\.id === blockId\) \? blockId : null; \}/);
 });

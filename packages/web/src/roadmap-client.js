@@ -143,7 +143,7 @@ export function tocOf(state) {
     steps: view.steps.map(s => {
       const result = resultsOf(view).find(r => r.stepId === s.id), removed = result?.delivery === 'removed';
       const nav = stepNav(s, view), stage = s.stage && s.stage !== 'planned' ? s.stage : nav?.kind === 'proposal' ? 'proposed' : null;
-      return { id: s.id, position: s.position, title: s.title, description: s.goal || '', format: STRINGS.formatName[s.format] || s.format || '', state: s.state,
+      return { id: s.id, position: s.position, title: s.title, source: s.sourceRef ? { kind: 'source' } : null, description: s.goal || '', format: STRINGS.formatName[s.format] || s.format || '', state: s.state,
         status: (stage ? STRINGS.stage[stage] : null) || STRINGS.stepState[s.state] || s.state, removed, nav };
     }),
   };

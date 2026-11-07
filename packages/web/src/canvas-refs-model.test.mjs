@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_REFS, REF_CARD, cardParam, reIdRefs, refCardSpot, withRef, withoutRef, withoutCardParam } from './canvas-refs-model.js';
+import { MAX_REFS, REF_CARD, cardParam, reIdRefs, refCardSpot, withRef, withoutRef, withoutCardParam, cardLink } from './canvas-refs-model.js';
 import { chromeObstacles } from './canvas-slots.js';
 
 const card = { id: 'c1', type: 'explanation', dx: 0, dy: 0 };
@@ -109,4 +109,15 @@ test('card= parsing: the id or null, and the address without it', () => {
   assert.equal(cardParam(`?card=${'a'.repeat(201)}`), null);
   assert.equal(withoutCardParam('https://x.dev/apps/n?card=abc&tab=links#h'), '/apps/n?tab=links#h');
   assert.equal(withoutCardParam('https://x.dev/c/b1?card=abc'), '/c/b1');
+});
+
+test("cardLink: this page's address with card=<id>, other params kept, one-shot params and the hash left out; cardParam reads it back", () => {
+  const here = href => ({ href });
+  assert.equal(cardLink(here("https://digrabbithole.com/apps/canvas-18fe316e"), "b1"), "https://digrabbithole.com/apps/canvas-18fe316e?card=b1");
+  assert.equal(cardLink(here("https://x.test/c/lb_7c1e?board=review&share=1&thread=9&comment=%7B%7D&card=old#top"), "b2"), "https://x.test/c/lb_7c1e?board=review&card=b2");
+  const hostile = "a b&card=evil#x?y/../z";
+  const link = cardLink(here("https://x.test/apps/n"), hostile);
+  assert.equal(new URL(link).searchParams.getAll("card").length, 1, "one card param, however hostile the id");
+  assert.equal(cardParam(new URL(link).search), hostile.length <= 200 ? hostile : null, "reads back exactly the id");
+  assert.equal(withoutCardParam(link), "/apps/n", "and the existing consumer strips it again");
 });

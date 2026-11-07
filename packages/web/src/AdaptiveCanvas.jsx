@@ -2588,6 +2588,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       moveSection: (id, beforeId) => { if (readOnlyRef.current) return; snapshot(); setToc(moveTocSection(blocksRef.current, tocRef.current, id, beforeId)); },
       toggleSectionDone: id => { if (readOnlyRef.current) return; snapshot(); setToc(toggleTocDone(blocksRef.current, tocRef.current, id)); },
       removeSection: id => { if (readOnlyRef.current) return; snapshot(); setToc(removeTocEntry(blocksRef.current, tocRef.current, id)); },
+      // The block a contents entry stands for (its heading, or a roadmap row's card id), or null when the canvas has none: what Copy link points at.
+      sectionBlockId: id => { const blockId = tocHeading(tocRef.current, id) ?? id; return blocksRef.current.some(block => block.id === blockId) ? blockId : null; },
       // The contents' Add to chat (owner approved 2026-11-07): the context ref for one contents entry's block (a heading, or a roadmap row's card), built as the
       // selection bar builds it, for the contents composer's pill; null when there is no such block. Nothing is selected, sent or added to Chat here.
       refForSection: id => {
