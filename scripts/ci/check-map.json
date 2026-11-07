@@ -46,6 +46,12 @@
     "docs/courses/nanogpt/quickstart-curriculum.md": "Markdown the bundles import at run time (check-map.test.mjs: markdown that the bundles import is broad)"
   },
   "mapped": {
+    "packages/web/src/explain-program/sdk-plot.js": ["packages/web/src/explain-program/sdk-plot.test.mjs"],
+    "packages/web/src/explain-program/sdk-graph.js": ["packages/web/src/explain-program/sdk-graph.test.mjs"],
+    "packages/web/src/explain-program/sdk-grid.js": ["packages/web/src/explain-program/sdk-grid.test.mjs"],
+    "packages/web/src/explain-program/sdk-geometry.js": ["packages/web/src/explain-program/sdk-geometry.test.mjs"],
+    "packages/web/src/explain-program/sdk-timeline.js": ["packages/web/src/explain-program/sdk-timeline.test.mjs"],
+    "packages/web/src/interact-style.js": ["packages/web/src/interact-style.test.mjs"],
     "packages/control-plane/src/learn-next-steps-planner.js": ["dive-check.mjs","explain-program-card-check.mjs","explain-program-check.mjs","explain-program-render-check.mjs","explain-program-state-check.mjs","explain-proposal-card-check.mjs","next-steps-check.mjs","packages/control-plane/test/learn-next-steps-route.test.js","packages/control-plane/test/tool-input.test.js","packages/web/src/learn-next-steps-anti-hardcoding.test.mjs","packages/control-plane/test/learn-next-steps-planner.test.js"],
     "packages/control-plane/src/learn-next-steps-fixtures.js": ["dive-check.mjs","packages/control-plane/test/learn-next-steps-planner.test.js","packages/control-plane/test/learn-next-steps-repository.test.js","packages/control-plane/test/learn-next-steps-route.test.js","packages/control-plane/test/learn-next-steps-shared.test.js","packages/control-plane/test/learn-next-steps.test.js","packages/control-plane/test/learn-usage.test.js","packages/web/src/learn-next-steps-anti-hardcoding.test.mjs","packages/web/src/learn-next-steps.test.mjs"],
     "packages/web/src/client-telemetry.js": ["client-telemetry-check.mjs","packages/web/src/client-telemetry.test.mjs","packages/web/src/client-crash.test.mjs"],
