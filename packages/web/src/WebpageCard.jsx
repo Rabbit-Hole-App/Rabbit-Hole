@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Copy, ExternalLink, Highlighter, Loader2, Lock, LockOpen, MessageSquarePlus, RotateCw, Trash2, X } from 'lucide-react';
 import { Button } from './ui.jsx';
+import { customTitleOf } from './card-rename.js';
 import { Boxes, ToolButton, placeNear } from './selection-toolbar.jsx';
 import { EXCERPT_LIMIT, textAnchor, toViewport } from './pdf-anchor.js';
 import { deleteHighlight, listHighlights, newId, putHighlight } from './pdf-highlights.js';
@@ -261,7 +262,7 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
   const seen = (index, on) => setVisible(previous => { if (previous.has(index) === on) return previous; const next = new Set(previous); if (on) next.add(index); else next.delete(index); return next; });
   let host = block.url;
   try { host = new URL(block.url).hostname; } catch { /* the guard normalised it; show it as pasted */ }
-  const title = block.title || host;
+  const title = customTitleOf(block) || block.title || host;
   const statusLine = notice && <div data-webcard-status={notice.status} role={notice.retry ? 'alert' : 'status'} className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line px-3 py-1.5 text-xs text-ink-2">
     {/* Capturing and checking show a spinner (a still one under reduced motion); it goes with the state on success, failure or a stop. */}
     {waiting && <Loader2 size={13} aria-hidden="true" data-webcard-spinner className="shrink-0 animate-spin text-ink-3 motion-reduce:animate-none" />}

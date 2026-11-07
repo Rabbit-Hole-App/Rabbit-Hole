@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { customTitleOf } from './card-rename.js';
 import { FolderTree, MoreHorizontal, Play, RotateCcw } from 'lucide-react';
 import { NOTEBOOK_ORIGIN, NOTEBOOK_PROTOCOL, activePath, ipynbPath, notebookUrl, trimOutputs } from './learn-notebook.js';
 import { EXPORT_WORKSPACES, workspaceIdFor, workspaceStore } from './learn-board-assets.js';
@@ -137,6 +138,7 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
       <div data-drag-zone data-notebook-header className="relative flex shrink-0 cursor-grab items-center gap-2 px-4 pb-2 active:cursor-grabbing">
         <span className="text-[11px] font-semibold tracking-wider text-ink-2 uppercase">Notebook</span>
         <span className="text-[11px] text-ink-3">· Python</span>
+        {customTitleOf(block) && <span data-card-custom-title className="min-w-0 truncate text-[11px] font-medium text-ink">{customTitleOf(block)}</span>}
         <span className="flex-1" />
         {onEditCells&&<button type="button" data-notebook-edit-cells className={action} disabled={!loaded||kind!=='notebook'||cellBusy||block.locked} onPointerDown={stop} onClick={editCells}>{cellBusy?'Reading cells':'Edit selected cells'}</button>}
         <button type="button" aria-pressed={files} className={`${action} ${files ? 'bg-hover text-ink' : ''}`} disabled={!loaded} onPointerDown={stop} onClick={toggleFiles}><FolderTree size={12} />Files</button>
