@@ -381,14 +381,25 @@ Use files 04 and 06 for the delivered Explanation frame and supported Markdown. 
 
 **Then qualify the shared path.** Let the existing answer model reply directly or request a structured tool handoff within its answer turn. Offer only capabilities that the current mode, canvas and server allow. Use the current command adapters, availability checks and signed **Generate / Edit** review where required. The app verifies the requested capability and inputs, and generation starts with the existing approval. A known plan can be revised through an explicit Edit or a clear refinement request bound to that plan's revision. A conversation beside a waiting plan can still receive a reply. Use ordinary Chat for a tool-specific limitation or a focused clarification.
 
+**Natural-language tool requests.** A typed message can ask for a command's result in everyday language. The answer model receives the eligible functions for this turn with their typed input schemas and descriptions of what they produce, when to use them and their limits. Shared system instructions govern when to reply, clarify or request a tool. Read the full request for its intended output, learning goal and required behavior. Compare the eligible tools on what their current engines can deliver, including narration, interactivity, supported settings and required inputs. Choose the best fit for the whole request. Ask one focused question when a material choice remains unclear. If the required output is unavailable, explain the specific limitation and offer a qualified alternative when one fits.
+
+| Requested result | Candidate when available and qualified |
+| --- | --- |
+| A playable animated explainer with visuals timed to the concept | `/motion`. Current Motion supports visual video and its approved settings with audio off. |
+| A narrated video that draws a derivation, process or worked example step by step | `/whiteboard` (internal ID `whiteboard-video`). Check narration and rendering readiness. |
+| A live 3D scene the learner can adjust or play | `/animation`. The required output is an interactive scene. |
+
+A playable animated video can suit Motion or Whiteboard. Choose based on the requested presentation and actual tool readiness. Reserve Animation for a request that needs a live 3D scene. The review shows the chosen tool and plan before the learner authorizes generation. The [routing evaluation](tutor-implementation-checklist.md#focused-chat-routing-tests-and-build) checks these distinctions across subjects, phrasings and tool availability.
+
 ```mermaid
 flowchart TD
-    Send["Send in Ask, Auto or Tutor"] --> Kind{"Entry action"}
-    Kind -->|"Named command or Tutor control"| Existing["Existing handler"]
-    Kind -->|"Ordinary message"| Reply["Answer model with eligible tools"]
+    Send["Send in Ask, Auto or Tutor"] --> Kind{"Explicit command or Tutor action?"}
+    Kind -->|"Yes"| Existing["Existing handler"]
+    Kind -->|"Natural-language message"| Reply["Answer model reads request and eligible tools"]
     Reply -->|"Reply or clarification"| Chat["Existing Chat turn"]
-    Reply -->|"Structured tool request"| Check{"Validate capability and inputs"}
-    Check -->|"Available"| Review["Existing action or Generate / Edit"]
+    Reply -->|"Artifact requested"| Fit["Choose a tool for the desired output"]
+    Fit --> Check{"Tool fits and is ready?"}
+    Check -->|"Yes"| Review["Existing action or Generate / Edit"]
     Check -->|"Unavailable"| Chat
 ```
 
@@ -643,7 +654,7 @@ Tutor tools read authorized source content, inspect current canvas coverage, rea
 
 **Choose for the learning outcome.** In the existing roadmap draft/revision pass, read the learner's instruction and edits, the step goal, the highlighted passage, its pinned source context, Depth and language, and relevant delivered coverage. State what the learner should be able to do and separately specify the behavior the card must provide. For example, testing what happens when a decision-tree cutoff changes requires a supported control and branch labels that update. A fixed branch diagram can serve a step about tracing a fixed decision. The source highlight identifies the teaching focus and navigation target. The author can use relevant definitions elsewhere in the pinned source under section 5.
 
-**Check the format before offering it.** The server supplies the planner with the enabled and supported command variants, what each can show or let a learner do, and their required inputs. Use the existing roadmap planning roles for this teaching decision. [Section 4.7](#47-ordinary-messages-and-tool-requests) covers the separate ordinary Chat decision and staged JEV transition. JEV continues its qualified inline and safety roles. Verify the selected variant against its actual runtime, source access and evidence, required interactions, supported settings, and the command's readiness and work bound. For instance, Motion settings that disallow audio cannot satisfy a narrated demonstration, and a measured plot needs real data. If a different enabled format fulfills the same learning goal and fits the learner's request, propose it explicitly. If the learner requested an unavailable format or essential input is missing, explain the limitation or ask one focused question before presenting an actionable offer. Use the simplest eligible format that delivers the goal.
+**Check the format before offering it.** The server supplies the planner with the enabled and supported command variants, what each can show or let a learner do, and their required inputs. Use the existing roadmap planning roles for this teaching decision. [Section 4.7](#47-ordinary-messages-and-tool-requests) covers the separate ordinary Chat decision and staged JEV transition. Use its output distinctions when choosing between a playable explainer, a narrated whiteboard video and an interactive 3D scene for a Tutor step. JEV continues its qualified inline and safety roles. Verify the selected variant against its actual runtime, source access and evidence, required interactions, supported settings, and the command's readiness and work bound. For instance, Motion settings that disallow audio cannot satisfy a narrated demonstration, and a measured plot needs real data. If a different enabled format fulfills the same learning goal and fits the learner's request, propose it explicitly. If the learner requested an unavailable format or essential input is missing, explain the limitation or ask one focused question before presenting an actionable offer. Use the simplest eligible format that delivers the goal.
 
 | R12 path | Commands | What the learner reviews |
 | --- | --- | --- |
