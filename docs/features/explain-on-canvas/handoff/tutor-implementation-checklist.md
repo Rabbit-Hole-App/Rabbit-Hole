@@ -1,12 +1,12 @@
 # Explain on Canvas — Tutor implementation checklist
 
-**Rabbit Hole · Version 1.2 · MVP flow update · 6 November 2026 · HOW we build and verify the feature**
+**Rabbit Hole · Version 1.2 · MVP flow update · 7 November 2026 · HOW we build and verify the feature**
 
 **Product authority:** [Tutor roadmap v1.4](tutor-roadmap-v1.4.md). The roadmap describes WHAT the learner receives. This companion supplies exact changes, current files/functions, dependencies, owners, configured or proposed models, local tests and completion evidence. Both supersede the earlier active v1.3/v1.0 pair. Keep the release/task identifiers for traceability; do not execute old contradictory instructions beside these.
 
-**Audited main:** `72d6536657af269bb894511220975fd2254246ed`. Latest slot changes are `b9b2dcf`, `3de7e0a` and `72d6536`; section4 uses their actual code and new tests. The unchanged backend baseline includes `399b4c0` (existing toast, removed invented recovery/status UI), `a1e4094` (whole-document ordinary authoring, no content repair, citation check recorded not run), and `fe2bf0f` (second-card test ordering/revision correction). A fresh integration must compare newer main before editing, not restart completed work.
+**Audited main:** `e447525a83c6e9809f2f1cdaa27071c31a3a0b3f`, reviewed against the 21 commits after `72d6536657af269bb894511220975fd2254246ed`. The per-commit review, local results and remaining tasks are in section 2.1.1. Keep the working foundations and implement the pending requirements from these docs.
 
-**This is a documentation and reference publication.** The six [UI references](ui/) include the delivered Explanation and depth fixtures. Section 4.2.1 maps the references to production components. The preceding read-only audit's 63/63 canvas-slots, roadmap-client and roadmap-controller Node tests are baseline evidence. Run the implementation tests below on the eventual candidate.
+**This revision records source review and focused local tests.** The six [UI references](ui/) remain the implementation targets. The audit passed 213 Node tests from pinned main source. The full section 8.0 flow matrix, production UI acceptance and shared Explanation prompt/renderer implementation still need their own evidence.
 
 **Required testing order for this MVP:** Claude Code completes the [local backend flow tests](#80-required-local-backend-flow-tests-before-manual-production-checking) and reports their evidence before asking the owner to check the deployed app manually. This stage uses Node/backend tests, not a browser. The older local-browser instructions below are reference material only unless the owner separately requests them. A documentation/reference push does not mean these tests have run.
 
@@ -89,7 +89,7 @@ For this MVP, section 8.0 is the required local pre-handoff test path and does n
 
 ### 1.6 Baseline, release report and checkbox discipline
 
-This update starts from documentation commit `bf7194dad13706da8fbe6fe8f71f0da88831deb4` on `chatgpt/tutor` and the audited main SHA above. The following is the owner's release report, **not independently verified deployment or functional acceptance evidence**:
+The earlier handoff began at documentation commit `bf7194dad13706da8fbe6fe8f71f0da88831deb4`. The current review extends docs commit `4e81d42ddbc0da99d7dfd523ffea80cb60804659` on `chatgpt/tutor` using the audited main above. Section 2.1.1 supersedes this historical release report for current source status. The following is the owner's release report, **not independently verified deployment or functional acceptance evidence**:
 
 | Release | Owner-reported position | Reconciliation required before checking work |
 | --- | --- | --- |
@@ -105,11 +105,35 @@ This update starts from documentation commit `bf7194dad13706da8fbe6fe8f71f0da888
 | 89 | Tutor in Chat, Depth, Accept in Chat, old panel hidden; being built | Actual persisted message ownership, occupied-thread choice and accepted revision still require explicit proof |
 | Not started in report | ToC reference redesign, enabling R5/R7a flags, P6/P7, R8/R9 | Retain the existing tasks; do not check them from this prose update |
 
-When Claude Code pushes an implementation, compare the actual candidate against the specific task and record SHA, file/behavior and appropriate test evidence before changing `[ ]` to `[x]`. A release number, “ready,” merged code, a successful build or deployed flag alone cannot establish the whole workflow. Separate **implemented**, **locally verified**, **deployed**, **enabled** and **owner accepted**. Preserve the existing checked CORE.01 source facts at their cited commits; all newly specified flow tasks remain unchecked. If a checked item later regresses, reopen that item and record the failing evidence. Do not erase past implementation evidence merely because the extended workflow is still incomplete.
+When Claude Code pushes an implementation, compare the actual candidate against the specific task and record SHA, file/behavior and appropriate test evidence before changing `[ ]` to `[x]`. A release number, “ready,” merged code, a successful build or deployed flag alone cannot establish the whole workflow. Separate **implemented**, **locally verified**, **deployed**, **enabled** and **owner accepted**. Preserve the checked CORE.01 source facts and the narrow checked review items in section 2.1.1. Keep containing flow tasks pending until their full requirements and evidence are met. If a checked item later regresses, reopen that item and record the failing evidence. Do not erase past implementation evidence merely because the extended workflow is still incomplete.
 
 
 
 ## 2 Current code, models and ownership
+
+### 1.7 Keep reviewed docs and implementation synchronized
+
+The two handoff documents on `rabbit-hole/chatgpt/tutor` are the reviewed WHAT and HOW for this work. At each task boundary, fetch the branch and import its latest handoff documents and UI references into the clean main worktree. Record the fetched docs commit in the implementation receipt. Preserve any ongoing code work before changing worktrees.
+
+Run these commands from the clean main worktree, using the repository's `rabbit-hole` remote.
+
+```bash
+git fetch rabbit-hole
+git pull --ff-only rabbit-hole main
+git rev-parse rabbit-hole/chatgpt/tutor
+git restore --source=rabbit-hole/chatgpt/tutor -- docs/features/explain-on-canvas/handoff/tutor-roadmap-v1.4.md docs/features/explain-on-canvas/handoff/tutor-implementation-checklist.md docs/features/explain-on-canvas/handoff/ui
+git add -- docs/features/explain-on-canvas/handoff/tutor-roadmap-v1.4.md docs/features/explain-on-canvas/handoff/tutor-implementation-checklist.md docs/features/explain-on-canvas/handoff/ui
+git diff --cached --stat
+git diff --cached --check
+git commit -m "Sync reviewed Tutor roadmap, checklist and UI references"
+git push rabbit-hole main
+```
+
+If the staged sync is empty, continue with the already synchronized docs. A divergent main uses the existing integration workflow. This import copies the handoff paths, preserving current implementation code.
+
+After syncing, read both documents and the relevant HTML before coding. Reuse the reviewed implementations in section 2.1.1 and complete the pending CORE/UI tasks. Each implementation receipt identifies the docs revision, task IDs, code commit, affected behavior, exact local commands/counts, external doubles and unresolved checks. Push the code through the existing main integration path.
+
+For the next review, compare every new main commit after this audit's pinned SHA against the relevant task IDs and normal entry points. Mark a checkbox only when its exact requirement and evidence are met. A partial commit keeps the broader item pending. Record a regression by reopening the affected item with its failing evidence. Reconcile any main-side receipt additions before publishing the next reviewed docs revision to `chatgpt/tutor`. Claude then fetches and imports that revision at the next task boundary. Use this loop to keep one current task list with an auditable implementation history.
 
 ### 2.1 Implementation inventory
 
@@ -119,14 +143,94 @@ When Claude Code pushes an implementation, compare the actual candidate against 
 | Roadmap state and core | Mounted `roadmap/` modules, `RoadmapJobs`, migration0039; prod app config enables core. | Full learner flow not accepted solely from code/config. |
 | Ordinary author | `roadmap-card-3`, full bounded document + brief, trusted `repairs:0`, `grounding:false`/`not_run`. | Planner's narrow-scope input, accepted-version selection, automatic provider retry and money bounds still need targeted reconciliation; expanded source-safety coverage is a measured follow-up. |
 | Canvas slot | `SlotCard.jsx`, `roadmap-canvas.js`, `placeRoadmapCard` and host wiring now exist, with slot/markup tests. | Extend private reload persistence, measured final-save geometry, slot navigation and exact visual contract; do not rebuild the slot framework. |
-| Two-card test | `roadmap-document-context.test.js` uses real state/glue/generator with external doubles and now exercises two saved/acknowledged cards. | This audit did not run it; fixture still uses a different model/budget from production, and DOM/world-position behavior is not covered. |
+| Two-card test | `roadmap-document-context.test.js` passed all three existing regressions at the pinned main. | It uses external doubles and direct SQL board writes. It establishes its named backend behavior, with the full BE matrix and physical UI still pending. |
 | Automatic next offer | R6 deterministic metadata composition, migration0040; prod auto flag on. | Correct UI visibility, saved delivery and one-offer behavior need integrated proof. No R11 speculation exists. |
-| Proposal edits/reuse | Draft/apply/link backend, inline edit code, migration0041. | `ROADMAP_EDIT_ENABLED` absent in checked prod config. Reuse chooser/menu/Add-to-Chat/drag integration not complete. |
-| Long Markdown | Index/summary/retrieval and bounded planning loop, migration0042. | Long flag absent in checked prod config; author for >40k still falls back to passage. Coverage/author context and source selection changes need qualification before enablement. |
+| Proposal edits/reuse | Draft/apply/link backend, existing inline editor, migration 0041 and bounded edit previews. | `ROADMAP_EDIT_ENABLED` is true in the production app config. Complete the targeted composer and accepted-edited-brief requirements, then qualify the broader reuse subset. |
+| Long Markdown | Index/summary/retrieval and bounded planning loop, migration 0042. | The production app config has `ROADMAP_LONG_MARKDOWN_ENABLED: true`. Ordinary authoring above 40k still falls back to the passage. Keep coverage claims accurate and qualify the enabled long-source slice separately. |
 | Remaining tools | Standalone Exa/fetch/evidence, PDF extraction, assessment and rich-command engines exist. | Tutor wrappers and R7b/R8–R16 capabilities are not implied by standalone support. |
 | Cleanup | P1–P5 removal source/receipts exist; journey archive reads remain. | P6a/backfill/drop/P7 not established complete. Historical cleanup-v0.1 is not a runnable current plan. |
 
 The active application flag source is `packages/web/wrangler.rabbit-hole-prod.jsonc`. Reading only a separate control-plane config would give the wrong activation answer. Migrations present in the repository are not proof they were applied in any remote environment. Allocate new numbers only after inspecting the current tree and remote migration state; do not reuse0036–0042 or blindly follow historical branch reservations.
+
+### 2.1.1 Review of main commits through e447525
+
+This audit covers the 21 commits after `72d6536`. These changes predate the owner's delivery of the newest handoff to Claude Code. Preserve the useful implementation and reconcile it with the newer approved requirements. A completed narrow source change does not complete the containing CORE/UI task.
+
+| Commit | Reviewed change | Result against this handoff |
+| --- | --- | --- |
+| `b2f5cdc4` | Removes Retry/Replace/Omit routes, projections and controls. Failed steps become skipped and can trigger the next offer. Deletes the old recovery test. | Retain. Source removal is complete. The separate automatic provider retry still needs CORE.04. |
+| `11d1ea0e` | Suppresses automatic offers after a policy refusal. | Retain. Safety-stop foundation is locally covered by the backend suites. |
+| `9da3eb5d` | Resolves a raw Markdown quote in rendered source text and reveals collapsed content on explicit navigation. | Retain. Source navigation foundation for UI.07. |
+| `e9785a07` | Preserves operators, signs, decimals and word boundaries during quote folding, with nearby context and ambiguity handling. | Retain. All seven rendered-anchor tests pass. Finish the approved persistent annotation/icon treatment. |
+| `4f3222e0` | Source control on a pending slot, navigation back to that slot, quiet source emphasis. | Retain the locator and quiet emphasis. Apply the approved View section / View card labels and ScanText glyph through UI.07. |
+| `8dc3e4e5` | Draws roadmap status inside the existing Chat renderer and unmounts the detached RoadmapChat bar. | Partial UI.01/04. `roadmap-transcript.js` derives lifecycle rows from the current view. Persist a stable step message and retain completed history. |
+| `3d2b7eec` | Adds per-source Depth confirmation, Start planning, Chat acceptance and a Contents navigation line. Hides the old welcome entry. | Preserve submitted Depth and shared acceptance. Reconcile the extra Start planning row with the approved Chat parameter/draft flow in UI.03. |
+| `98c972df` | Updates browser fixture selectors and hides the saved invitation's rating footer. | Retain the footer fix. Browser selectors describe their older flow and need alignment as UI.01–03 changes. |
+| `81171475` | Reuses proposal Edit in Chat, includes Tutor slots in placement obstacles, refreshes re-proposal placement and removes the Chat Tab hint. | Retain. Client/placement tests pass. Pending placement persistence and edited-title continuity still need UI.04/06. |
+| `92b4bf0c` | Makes the existing edit overlay visible for an offscreen source and reuses pill corner geometry. | Retain as the current editor foundation. The approved targeted composer behavior is tracked in UI.03–05. |
+| `55518736` | Moves RoadmapToc into TableOfContents' one scroller through its top slot. | Partial UI.02. The remaining RoadmapPlan still contains parameters, stopping point, draft steps and action buttons. Implement file 01's accepted-only tree. |
+| `a6abc799` | Stores the server Tutor-thread binding in scope_json and uses a guarded first-writer rule. | Retain. All five thread tests pass. Reuse this association for the selected conversation and durable messages. |
+| `c77b14a5` | Integrates the Contents change. | Reviewed with `55518736` and the current LearnPage/TableOfContents callers. Integration has the same UI.02 boundary. |
+| `37acba4b` | Integrates thread binding, including transcript-test conflict resolution. | Reviewed with the bound-thread code and current caller. Preserve cross-device thread ownership. |
+| `670ecbb5` | Sets the production app's R5 edit and R7a long-source flags to true. | Source configuration verified. Remove obsolete flag-absent instructions and qualify the enabled capabilities. |
+| `05c2aebd` | Makes thread repair silent, limits fresh fallback threads per session, and binds only the matching invitation. | Retain the safeguards. UI.01 still needs the owner's explicit destination choice on an occupied Chat. |
+| `34f42f93` | Adds five edit previews per proposal and 30 per learner per UTC day. | Sequential cap, replay and route tests pass. Preserve those limits while changing the edit UI. Include concurrent quota checks in the integrated edit coverage. |
+| `51d357c3` | Adjusts the release source-check pattern for the new ToC top slot. | Retain as a check update. It establishes the wrapper structure, not accepted-tree behavior. |
+| `b4cd3b94` | Opens newly imported Markdown in the existing Full content layout. | Retain. The import suite passes and existing saved-card layout stays compatible. |
+| `56b53f7a` | Adds the existing-UI reuse rule to CLAUDE.md. | Follow the rule with the numbered HTML references and named existing components. |
+| `e447525a` | Moves the UI rule into UI.md with a CLAUDE.md pointer. | Follow current root instructions and UI.md. |
+
+**Locally verified foundations**
+
+- [x] Run the existing whole-document/two-card backend regression on pinned main. Three tests passed. Retain its explicit limits below.
+- [x] Verify the existing server Tutor-thread association. Five thread tests passed, including first-writer behavior, access checks, deletion/rebinding and invitation identity.
+- [x] Verify raw-Markdown locator behavior through actual server-rendered Markdown. Seven anchor tests passed with ambiguous, changed and look-alike cases.
+- [x] Verify current slot markup/privacy/source-navigation foundation. Eight slot render tests passed. This is Node-rendered markup evidence.
+- [x] Verify the client/controller, placement, source-reference and import foundations. Six suites passed 106 tests.
+- [x] Confirm source removal of ordinary recovery actions and the safety-refusal successor guard. Retain the new failed/skipped state.
+- [x] Confirm the one-scroller ToC wiring and both newly enabled flags in current source. Acceptance of the new Chat/ToC design is pending.
+
+**Remaining correction by task**
+
+| Task | State after review | Required next work |
+| --- | --- | --- |
+| CORE.01 | Source retained and its focused regression rerun. | Preserve whole-source authoring, trusted repairs:0 and honest grounding not_run. |
+| CORE.02 | Pending. | Selected-scope planning still slices source context. Separate full document context from teaching scope. |
+| CORE.03 | Pending. | Bind the accepted plan/proposal version, learner revisions, title and frozen settings. Current writer still reads current accepted_plan_version/current.depth and normalized step fields. |
+| CORE.04 | Partial. | Keep removed recovery actions and skipped failures. Remove the automatic author redispatch still asserted by current loop/money tests. |
+| CORE.05 | Pending. | Quote and bind the exact serialized author request before acceptance. The fixed call envelope is still provisional. |
+| CORE.06 | Partial. | Retain schema, access, revision and safety. Bind accepted learner revisions to safety and retain the refusal stop. |
+| CORE.07 | Three document-context regressions passed, including two saved card results. | Complete section 8.0 with separate Table output, real board save routes, automatic successor, persistence, failure and race coverage. |
+| CORE.08 | Review reconciliation updated. | Complete code integration and release evidence for the changed candidate. |
+| CORE.09 | Pending. | Implement shared Explanation teaching/depth instructions, title/cap validation, rich Markdown and the approved delivered frame. |
+| UI.01 | Partial. | Reuse server thread binding and Full import. Add immediate metadata acknowledgment, explicit occupied-Chat choice and durable message ownership. |
+| UI.02 | Partial. | Reuse TableOfContents' one scroller. Publish only accepted entries into the actual tree. |
+| UI.03 | Pending approved layout. | Put parameters, draft and edit target into actual Chat messages using file 03. |
+| UI.04 | Partial. | Keep the slot and shared acceptance. Persist one lifecycle message and private geometry, and preserve accepted edited title/brief. |
+| UI.05 | Shared accept/controller foundation retained. | Verify normal click, Chat and eligible Tab through the integrated server winner and new edit/composer behavior. |
+| UI.06 | Placement/obstacle foundation retained. | Persist actual slot geometry, final bounds and explicit drag through reload and save-before-ack. |
+| UI.07 | Matching/navigation foundation retained. | Finish exact highlights and hover/focus View card with reciprocal View section. |
+| UI.08 | Automatic successor/refusal foundation retained. | Deliver the viewport-bottom Next card / Cancel, persistent Chat updates and the complete second-card flow. |
+
+**Executed local receipt**
+
+Source was read at the pinned main and loaded into a disposable source snapshot. Node was `v24.22.1`. External models, providers and source services use the repository test doubles. The existing suites completed with **213 passed, 0 failed, 0 skipped** across 17 files. Temporary test dependencies supplied Node/JSX harness imports. Full npm-ci/build parity and authenticated production interaction have separate evidence requirements.
+
+```bash
+# 9 backend files, 92 passed
+node --test packages/control-plane/test/roadmap-document-context.test.js packages/control-plane/test/roadmap-thread.test.js packages/control-plane/test/roadmap-loop.test.js packages/control-plane/test/roadmap-withheld.test.js packages/control-plane/test/roadmap-auto-proposal.test.js packages/control-plane/test/roadmap-proposal-drafts.test.js packages/control-plane/test/roadmap-planning.test.js packages/control-plane/test/roadmap-generate.test.js packages/control-plane/test/roadmap-money.test.js
+
+# 6 client/state/import files, 106 passed
+node --test packages/web/src/roadmap-client.test.mjs packages/web/src/roadmap-controller.test.mjs packages/web/src/roadmap-canvas.test.mjs packages/web/src/canvas-slots.test.mjs packages/web/src/source-refs.test.mjs packages/web/src/learn-file-import.test.mjs
+
+# Existing renderer/source tests, 7 and 8 passed respectively
+node --test packages/web/src/markdown-anchor.test.mjs
+node --test packages/web/src/canvas-slot-card.test.mjs
+```
+
+The three document-context tests pass full-document/anchor/request assertions, honest grounding not_run and first/second card generation with repeat-accept protection. Their board save helper writes SQL directly, and the second proposal is manual. This receipt therefore leaves BE.00–16 pending for the full updated flow. In addition, current loop/money tests explicitly require one transient automatic retry. Revise that behavior and its regression under CORE.04 before accepting the one-author requirement.
+
+The [production release workflow 185](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/42331915345) completed successfully for the pinned main. Config has ROADMAP_ENABLED, ROADMAP_AUTO_ENABLED, ROADMAP_EDIT_ENABLED and ROADMAP_LONG_MARKDOWN_ENABLED set to true. The audit has not observed the owner's authenticated manual acceptance of the newly specified UI.
 
 ### 2.2 Current seams instead of obsolete proposed files
 
@@ -234,7 +338,7 @@ One accepted ordinary slot permits one content-author dispatch, zero repairs, ze
 - [ ] Enforce a one-call adapter guard, not its current `generationPerCard = 2` guard. Retain the existing `repairs: 0`. Update the stale test that deliberately injects three calls and currently expects two admissions before refusal. Keep default repair behavior for typed commands and other formats untouched.
 - [ ] Apply the ordinary no-automatic-retry decision in State's failure result as well as the caller, so reload cannot turn the same failed slot back into a new purchase. Minimal proposed signature: `failCard(db,access,{roadmapId,resultId,failureClass,retryNo=null,now,allowAutomaticRetry=true})`, where **NEW trusted option** `allowAutomaticRetry` gates the existing `failureWillRetry` result and this ordinary caller supplies `false`. Preserve other callers' default behavior; do not build a new retry framework or expose the option in a request body.
 - [ ] Retain existing durable operation identity and admitted/dispatched/unknown/reconciling no-blind-send checks. Unknown outcome stays unknown until reconciled; do not relabel provider cost as zero or resend. Known pre-dispatch unavailability with zero author calls may still defer. Handler replay must not create a fresh author operation after an author call already settled.
-- [ ] Extend `test/roadmap-generate.test.js`, `roadmap-money.test.js`, `roadmap-recovery.test.js` and the loop tests: successful output, schema invalid output, zero/multiple tools, malformed response, known 529, unknown transport outcome, duplicate event/accept, and terminal skipped-step progression/safety pause. Assert one author dispatch at most per authorization, no readable failed card, one refund, preserved provider expense and no duplicate debit. Keep platform planning/safety retry tests unchanged where their policy still applies.
+- [ ] Extend `test/roadmap-generate.test.js`, `roadmap-money.test.js`, `roadmap-withheld.test.js` and the loop tests: successful output, schema invalid output, zero/multiple tools, malformed response, known 529, unknown transport outcome, duplicate event/accept, and terminal skipped-step progression/safety pause. Assert one author dispatch at most per authorization, no readable failed card, one refund, preserved provider expense and no duplicate debit. Keep platform planning/safety retry tests unchanged where their policy still applies.
 
 **Transport boundary:** the inspected default author path is `planModel → anthropic → anthropicTransport`, whose non-streaming branch makes one `send`; it has no local author HTTP retry loop to remove. JEV's separate 429/529 retry and contextual safety retry/adjudication are retained. “No automatic author redispatch” does not mean disabling those safety operations or pretending a remote provider's internal execution is observable.
 
@@ -277,7 +381,7 @@ One accepted ordinary slot permits one content-author dispatch, zero repairs, ze
 
 **Owner:** Verifier with UI and State/Money. **Depends:** CORE.02–CORE.06 and CORE.09. **Models:** local doubles for these deterministic tests. Keep `test/roadmap-document-context.test.js` as the existing two-card regression and complete the [required local backend flow matrix](#80-required-local-backend-flow-tests-before-manual-production-checking) before requesting owner production checks. Its current three tests alone do not complete that matrix.
 
-- [ ] Run its existing three tests on the candidate: actual >8k body/anchor/brief, honest no-grounding record, and two saved/acknowledged settled cards with duplicate-accept protection. It currently uses two explanations and manually proposes step two; it does not alone prove table delivery, selected-section planner context, R6 automatic successor, retained safety behavior or quote equality.
+- [x] Run its existing three tests on the candidate: actual >8k body/anchor/brief, honest no-grounding record, and two saved/acknowledged settled cards with duplicate-accept protection. It currently uses two explanations and manually proposes step two; it does not alone prove table delivery, selected-section planner context, R6 automatic successor, retained safety behavior or quote equality.
 - [ ] Add only the missing integrated cases: one table through the same author/publication path, selected teaching scope with full document, and the existing R6 `card_delivered` auto-offer enabled. Before accepting step two, assert the offer is metadata only with no author call, authorization or debit. Preserve manual Propose next step, Cancel/End and Ask/Auto-suggest controls.
 - [ ] Retain `roadmap-controller.test.mjs`/`roadmap-client.test.mjs` save-before-ack and reload/idempotency checks. Verify the first and second minted card IDs separately; results created in the same second have no stable array order. A failed board save sends no ack; a lost ack retries delivery/ack of the same saved card without regeneration or new debit. Show the actual save/reconciliation status in the same slot and Chat entry; recover the same result/ack without a user Retry purchase or a separate recovery strip.
 - [ ] Update superseded policy/test assertions and relevant `scripts/ci/check-map.json` mappings, without broad unrelated cleanup. Do not rewrite platform planner/safety retry tests to match the author policy. Record any remaining baseline failure separately.
@@ -287,7 +391,7 @@ One accepted ordinary slot permits one content-author dispatch, zero repairs, ze
 ```bash
 node --test packages/control-plane/test/roadmap-source.test.js packages/control-plane/test/roadmap-source-reader.test.js packages/control-plane/test/roadmap-source-version.test.js packages/control-plane/test/roadmap-plan.test.js packages/control-plane/test/roadmap-planning.test.js packages/control-plane/test/roadmap-long.test.js
 node --test packages/control-plane/test/roadmap-generate.test.js packages/control-plane/test/learn-artifact.test.js packages/control-plane/test/roadmap-policy.test.js packages/control-plane/test/roadmap-safety.test.js packages/control-plane/test/roadmap-withheld.test.js packages/control-plane/test/roadmap-contract.test.js
-node --test packages/control-plane/test/roadmap-money.test.js packages/control-plane/test/roadmap-store.test.js packages/control-plane/test/roadmap-recovery.test.js packages/control-plane/test/roadmap-glue.test.js packages/control-plane/test/roadmap-events.test.js packages/control-plane/test/roadmap-loop.test.js packages/control-plane/test/roadmap-document-context.test.js packages/control-plane/test/roadmap-auto-proposal.test.js packages/control-plane/test/roadmap-auto-events.test.js
+node --test packages/control-plane/test/roadmap-money.test.js packages/control-plane/test/roadmap-store.test.js packages/control-plane/test/roadmap-sweep.test.js packages/control-plane/test/roadmap-glue.test.js packages/control-plane/test/roadmap-events.test.js packages/control-plane/test/roadmap-loop.test.js packages/control-plane/test/roadmap-document-context.test.js packages/control-plane/test/roadmap-auto-proposal.test.js packages/control-plane/test/roadmap-auto-events.test.js
 node --test packages/web/src/roadmap-controller.test.mjs packages/web/src/roadmap-client.test.mjs packages/web/src/roadmap-auto.test.mjs packages/web/src/roadmap-integration-wiring.test.mjs packages/web/src/learn-slash.test.mjs
 node --test scripts/ci/check-map.test.mjs
 bash run.sh test:unit control-plane web
@@ -374,7 +478,7 @@ The user-visible sequence is: successful drop → open right Chat → immediate 
 
 **Shared state contract to agree before editing shared files:** reuse existing actor, board, roadmap, plan version, step, proposal/version, authorization, result and card IDs. Add a durable private conversation binding and message identity through the existing Chat/store interfaces; do not assume board ID alone identifies the intended conversation. One canonical step state drives Chat, canvas and ToC. The client must not start a second roadmap or generation to mirror another surface.
 
-At the audited SHA the roadmap routes/store are board-scoped, `LearnPage` supplies an empty host instruction, `RoadmapChat` is a sibling before `ChatPane`, and its strip is not persisted to the actual thread. Those are explicit integration gaps. Reuse the real conversation/message persistence and composer; do not rename the strip and call the requirement complete. Reuse `ask.jsx` → `ChatMessages.jsx:ChatMessages/ChatMessage/ProposalSlot`: `ProposalSlot` already renders structured `m.meta.proposal` with inline controls and conversation-scoped Edit. Reuse `chat-persist.js:newThreadId/saveMessage/turnSaver/rememberThread`; same `(threadId,client_id)` serializes writes, and `turnSaver` binds late replies to the original thread. The current message POST `/api/learn/chat/threads/:threadId/messages` accepts `{app,client_id,role,content,status?,mode?,title?,command?}`; it does **not** already persist arbitrary roadmap metadata. Extend the server contract and existing `chat_message_meta` read/write seam explicitly. Any new message payload is private structured Tutor metadata, authorized on read/write and versioned with the existing message format. Avoid storing the whole source body in message metadata or browser storage. A schema change is conditional on the existing persistence seams being insufficient; it is not assumed necessary.
+At the audited SHA, `RoadmapTranscript.jsx` reuses `ChatMessage` and `ChatOutputs` inside Chat, while `roadmap-transcript.js` derives lifecycle rows from the current view. The invitation is saved and `scope_json.tutorThreadId` provides a server-owned association. Reuse `bindTutorThread` with its owner/canvas validation and quiet repair while adding the explicit conversation choice and durable lifecycle metadata. Preserve that scope_json property when adding accepted-input data. `LearnPage` still supplies an empty default instruction. Reuse the real message persistence and composer to complete these requirements. Reuse `ask.jsx` → `ChatMessages.jsx:ChatMessages/ChatMessage/ProposalSlot`: `ProposalSlot` already renders structured `m.meta.proposal` with inline controls and conversation-scoped Edit. Reuse `chat-persist.js:newThreadId/saveMessage/turnSaver/rememberThread`; same `(threadId,client_id)` serializes writes, and `turnSaver` binds late replies to the original thread. The current message POST `/api/learn/chat/threads/:threadId/messages` accepts `{app,client_id,role,content,status?,mode?,title?,command?}`; it does **not** already persist arbitrary roadmap metadata. Extend the server contract and existing `chat_message_meta` read/write seam explicitly. Any new message payload is private structured Tutor metadata, authorized on read/write and versioned with the existing message format. Avoid storing the whole source body in message metadata or browser storage. A schema change is conditional on the existing persistence seams being insufficient; it is not assumed necessary.
 
 | Intent | Exact visible label | Rule |
 | --- | --- | --- |
@@ -467,7 +571,7 @@ Lead owns `LearnPage.jsx`, Chat route/message contracts and any shared store/mig
 
 **Approved UI reference:** [01-table-of-contents.html](ui/01-table-of-contents.html). Read the approved ToC tree, checkboxes, hierarchy, folding, heading tools and one-scroller layout. Reuse the same destination for Open table of contents; never create an alternate ToC.
 
-**Current seams:** `RoadmapSurfaces.jsx:RoadmapToc` currently precedes `TableOfContents`; `roadmap-client.js:tocOf` flattens steps; `learn-outline-model.js` owns the real tree. `LearnPage` currently also mounts `TocConversation`. Adapt the real outline model and renderer.
+**Current seams:** `LearnPage.jsx` now passes `RoadmapSurfaces.jsx:RoadmapToc` through `TableOfContents`' `top` slot inside one scroller. `roadmap-client.js:tocOf` still flattens steps; `learn-outline-model.js` owns the real tree. `LearnPage` currently also mounts `TocConversation`. Adapt the real outline model and renderer.
 
 - [ ] Keep draft plans exclusively in Chat. On **Accept roadmap**, publish the accepted version into the existing ToC tree with hierarchy, step descriptions, format labels, statuses and source/card navigation. Preserve normal manual headings and fold state; use stable distinct IDs so merging the Tutor projection cannot replace ordinary outline entries.
 - [ ] Send/update Chat confirmation that the roadmap is ready and provide **Open table of contents**. The link opens/selects that panel; acceptance itself must not force a tab switch, pan the canvas or hide the conversation.
@@ -514,8 +618,10 @@ Lead owns `LearnPage.jsx`, Chat route/message contracts and any shared store/mig
 - [ ] Render the delivered Explanation in the same `CanvasNode` slot using [CORE.09](#core09-deliver-the-tutor-explanation-card). Keep the accepted title and source in the fixed header, scroll only the main Markdown reading area in Scrollable mode, and expand optional sections below the controls. Reuse [04](ui/04-explanation-card.html) and [06](ui/06-explanation-depth.html).
 - [ ] **Edit card** uses a small targeted pill in the real Chat composer (or the existing explicit canvas Quick Edit entry). A pending edit updates and rechecks the same proposal, then waits for a separate Accept. A delivered-card edit preserves the original and forms a new explicit proposal/version for the requested change; do not silently regenerate, overwrite a saved card, or debit merely for opening/submitting an edit.
 - [ ] A confirmed pending **Cancel** intentionally removes that unaccepted skeleton, marks the step cancelled and pauses automatic progression; no author call/debit. If acceptance won the race, keep the accepted slot and canonical result. The “never disappears” rule forbids lifecycle removal; it does not prohibit the learner's deliberate cancellation.
-- [ ] Remove ordinary **Retry / Replace / Omit** controls from both surfaces and obsolete recovery projections/routes where scoped to this flow. Terminal known author failure keeps the slot with honest failed/skipped status; no readable invented card, repeat author call or repeated purchase. Unknown provider outcomes remain reconciling until settled; save/ack failure reconciles the same result without another generation. Do not state failure is technically impossible.
-- [ ] Stop automatic next offers after a safety refusal. Other terminal failed/skipped steps may offer the next eligible step only after failure/ledger state is settled and the normal automatic policy allows it; otherwise the learner uses **Propose next step**. Never label failed/skipped work delivered or mastered. Show truthful error/status in the original slot and its Chat entry; no separate recovery strip, from-scratch chip or Tutor toast for this flow. Ordinary unrelated application toasts remain scoped to their own features.
+- [x] Remove ordinary **Retry / Replace / Omit** controls from both surfaces and obsolete recovery projections/routes for this flow. Reviewed at `b2f5cdc4` and pinned main.
+- [ ] Complete terminal-failure author-call policy under CORE.04. Keep the original slot and honest failed/skipped state, reconcile unknown outcomes, and save/acknowledge the same result without a new author dispatch or purchase.
+- [x] Stop automatic next offers after a safety refusal. The `policy_block` successor guard from `11d1ea0e` is retained and covered by the focused backend suites.
+- [ ] Complete the remaining failed/skipped-step progression and original-slot/Chat status cases in BE.12, with canonical ledger settlement and successor eligibility.
 - [ ] Stale Chat action buttons remain historical but disabled or resolved against canonical current state; they cannot replay a superseded proposal or generation. Reopening another thread, viewport movement or React remount does not create a new paid operation.
 
 **Verification:** extend existing `roadmap-canvas.test.mjs`, `canvas-slot-card.test.mjs`, `roadmap-view.test.mjs`, `roadmap-client.test.mjs`, `roadmap-controller.test.mjs`. Assert every transition, no remount/removal gap, edited title continuity, message deduplication, reload privacy, Cancel/Accept winner, genuine stage text, no recovery strings/actions and no second author call. Use the owner's deployed-main check for physical geometry after the local backend gate in section 8.0.
@@ -673,7 +779,7 @@ Run the affected subset. These commands verify existing foundations; they do not
 
 ### 5.3 R5 proposal editing and reuse: finish the partial feature
 
-The narrow pending/delivered Edit card entry and explicit Edit roadmap loop in UI.03–05 are current MVP work. Broader existing-card reuse and Add to Chat menus below remain their own R5 subset; do not postpone all editing until that subset is complete. Current source contains `roadmap-proposal-drafts.js`, `roadmap-edit.js`, `roadmap-links.js`, migration0041, `inline-ai-proposal.js` and relevant tests. The prod edit flag is absent. A receipt addendum removed proposal Add to Chat/context references; existing-card chooser/menu and world-placement integration are unfinished. Do not call the entire feature complete from the backend or recreate removed code without checking its current consumers.
+The narrow pending/delivered Edit card entry and explicit Edit roadmap loop in UI.03–05 are current MVP work. Broader existing-card reuse and Add to Chat menus below remain their own R5 subset; do not postpone all editing until that subset is complete. Current source contains `roadmap-proposal-drafts.js`, `roadmap-edit.js`, `roadmap-links.js`, migration0041, `inline-ai-proposal.js` and relevant tests. The production app config enables the edit flag at the audited main. Preserve the five-preview-per-proposal and 30-per-learner-per-UTC-day limits. A receipt addendum removed proposal Add to Chat/context references; existing-card chooser/menu and world-placement integration are unfinished. Do not call the entire feature complete from the backend or recreate removed code without checking its current consumers.
 
 #### R5.01 Preserve draft/Apply and complete the actual proposal author input
 
@@ -777,7 +883,7 @@ For each implemented task record the candidate SHA, actual commands/results, fix
 
 ### 6.2 R7a — Long Markdown indexing and explicit coverage
 
-**Current status:** Implemented in main in part; disabled in repository production config because `ROADMAP_LONG_MARKDOWN_ENABLED` is absent. The core index, bounded summary and long-plan loop, coverage UI and migration 0042 exist. The later receipt addendum supersedes its earlier “whole-document planning not built” statement. Source replace/detach atomic outbox integration and real current-UI/model evidence remain unfinished. Current long planning is bounded to 4 model turns, 8 evidence reads, 60,000 evidence characters, a 30,000-character outline and 150 outline units. Current ordinary authors receive the full document only within the 40,000-character supported bound; longer sources still use passage fallback. Do not claim complete long-source author context.
+**Current status:** Implemented in main in part and enabled in the production app config by `670ecbb5`. Qualification and coverage work below is still required for the enabled capability. The core index, bounded summary and long-plan loop, coverage UI and migration 0042 exist. The later receipt addendum supersedes its earlier “whole-document planning not built” statement. Source replace/detach atomic outbox integration and real current-UI/model evidence remain unfinished. Current long planning is bounded to 4 model turns, 8 evidence reads, 60,000 evidence characters, a 30,000-character outline and 150 outline units. Current ordinary authors receive the full document only within the 40,000-character supported bound; longer sources still use passage fallback. Do not claim complete long-source author context.
 
 **Browser-local prerequisites:** Enable long Markdown only in the local fixture configuration, load migration 0042, and provide late-section, repeated-heading, headingless and over-limit Markdown fixtures. Extend the actual current ToC and source viewer; the NEW source browser harness must use the common local convention above.
 
@@ -1317,7 +1423,7 @@ R11 starts only after R6 automatic proposals and R5’s immutable proposal-versi
 
 **Done evidence:** deletion selection query, race trace and retained audit rows. An ordinary pause never destroys learner content or refunds a valid delivered card.
 
-**Current unit regressions (exist at baseline; root working directory):** `node --test packages/control-plane/test/roadmap-events.test.js packages/control-plane/test/roadmap-recovery.test.js`
+**Current unit regressions (exist at baseline; root working directory):** `node --test packages/control-plane/test/roadmap-events.test.js packages/control-plane/test/roadmap-sweep.test.js`
 
 **NEW unit tests (create, then run from root):** `node --test packages/control-plane/test/roadmap-expiry.test.js packages/control-plane/test/roadmap-preparation.test.js`
 
@@ -2135,7 +2241,7 @@ node --test packages/control-plane/test/roadmap-source.test.js packages/control-
 node --test packages/control-plane/test/roadmap-routes.test.js packages/control-plane/test/roadmap-loop.test.js packages/control-plane/test/roadmap-glue.test.js packages/control-plane/test/roadmap-document-context.test.js packages/control-plane/test/roadmap-generate.test.js packages/control-plane/test/learn-artifact.test.js
 
 # Holds, settlement, failures, event replay and successor policy
-node --test packages/control-plane/test/roadmap-money.test.js packages/control-plane/test/roadmap-store.test.js packages/control-plane/test/roadmap-policy.test.js packages/control-plane/test/roadmap-safety.test.js packages/control-plane/test/roadmap-withheld.test.js packages/control-plane/test/roadmap-recovery.test.js packages/control-plane/test/roadmap-events.test.js packages/control-plane/test/roadmap-auto-events.test.js packages/control-plane/test/roadmap-auto-proposal.test.js
+node --test packages/control-plane/test/roadmap-money.test.js packages/control-plane/test/roadmap-store.test.js packages/control-plane/test/roadmap-policy.test.js packages/control-plane/test/roadmap-safety.test.js packages/control-plane/test/roadmap-withheld.test.js packages/control-plane/test/roadmap-sweep.test.js packages/control-plane/test/roadmap-events.test.js packages/control-plane/test/roadmap-auto-events.test.js packages/control-plane/test/roadmap-auto-proposal.test.js
 
 # Real local Chat/board/source/privacy persistence seams
 node --test packages/control-plane/test/chat-persist.test.js packages/control-plane/test/canvas-chat-threads.test.js packages/control-plane/test/learn-boards.test.js packages/control-plane/test/canvas-persistence.test.js packages/control-plane/test/source-refs.test.js packages/control-plane/test/roadmap-privacy.test.js
@@ -2340,5 +2446,5 @@ Blocking issue, or nonblocking OWNER-INBOX item and next action:
 
 Before handing this pair to an implementer, verify that every requested action has an expected visible result, state transition, authorization/cost effect and test owner. Check current main again for completed work. Remove conflicting older instructions rather than hiding them under a vague addendum. Ensure the task tells the engineer which existing component/function to reuse, which new file is only proposed, and exactly what evidence counts.
 
-All new UI.01–08 and related corrections remain unchecked in this documentation revision. Future checkbox updates require pushed-code and appropriate behavior evidence as section 1.6 specifies. This checklist intentionally separates build work from proof and production status. It does not turn a documentation push into an application deployment, nor make later optional tools prerequisites for the corrected Markdown core.
+Section 2.1.1 records the reviewed source, executed local tests and narrow completed items. The containing CORE/UI tasks stay pending until their full requirements and appropriate evidence are met. Future commits are reviewed through section 1.7 before the next task-list update. Record implementation, local verification, deployment and owner acceptance at their actual evidence levels.
 
