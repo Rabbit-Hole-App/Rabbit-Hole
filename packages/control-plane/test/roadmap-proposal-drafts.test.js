@@ -9,7 +9,10 @@ import { EDIT_PROMPT, makeComposeEdit, validateEdit } from '../src/roadmap/roadm
 import { roadmapRoute } from '../src/roadmap/roadmap-routes.js';
 import { makeProposalScreen } from '../src/roadmap/roadmap-edit.js';
 import { SAFETY_QUESTIONS } from '../src/agents/roadmap-check.js';
-import { world, offered, accessFor, rows } from './roadmap-fixture.js';
+import { world, offered, accessFor, rows, MODEL } from './roadmap-fixture.js';
+import { platformCallModel } from '../src/roadmap/roadmap-models.js';
+import { spendTransport } from '../src/learn-spend.js';
+import { STRINGS } from '../../web/src/roadmap-strings.js';
 
 const T0 = Math.floor(Date.now() / 1000);
 const MIGRATION = readFileSync(new URL('../learn-migrations/0041-roadmap-proposal-drafts.sql', import.meta.url), 'utf8');
@@ -247,4 +250,73 @@ test('Apply then Accept: the edited version is what is accepted and bought, once
   assert.equal(money().auth, 1, 'a second Accept never buys again');
   await assert.rejects(acceptRoadmapStep(w.env, w.access, { roadmapId: o.roadmapId, revision, proposalId: o.proposalId, proposalVersion: o.proposalVersion, actionKey: 'accept-old-0001', now: T0 + 10 }), e => e.status === 409, 'the obsolete original cannot be accepted');
   assert.equal(money().auth, 1);
+});
+
+// M1 (owner 2026-11-06): platform-paid edit previews are capped at 5 per proposal and 30 per learner per UTC day, checked before any screen or model call.
+// The composer here is the production one (makeComposeEdit over platformCallModel, as roadmap-wire.js builds it) with a provider double, so every preview
+// that reaches the model leaves the same stage 'proposal' call row production leaves.
+const EDIT_REGISTRY = { roadmap_proposal: { provider: 'anthropic', model: MODEL, effort: 'low', maxTokens: 600 } };
+async function metered(t) {
+  const base = await setup(t);
+  const { w, o } = base;
+  let modelCalls = 0, screens = 0;
+  const transport = (env, body, model, org) => { modelCalls += 1; return spendTransport(env, body, model, org, async () => Response.json({ model: MODEL, usage: { input_tokens: 50, output_tokens: 20 }, content: [{ type: 'tool_use', id: 't', name: 'submit_proposal_edit', input: EDIT }] }), { userId: 'provider:platform', category: 'roadmap' }); };
+  const composeEdit = args => makeComposeEdit({ callModel: platformCallModel(w.env, w.access, { roadmapId: args.roadmap.id, version: args.proposal.version, anchor: args.proposal.id, registry: EDIT_REGISTRY, transport }) })(args);
+  const screen = async () => { screens += 1; return true; };
+  const preview = (n, extra = {}) => saveProposalDraft(w.LEARN_DB, w.access, { roadmapId: o.roadmapId, proposalId: o.proposalId, proposalVersion: o.proposalVersion, instruction: `change ${n}`, actionKey: `preview-key-${String(n).padStart(4, '0')}`, composeEdit, screen, now: T0, ...extra });
+  const proposalCalls = () => rows(w.sqlite, "SELECT COUNT(*) AS n FROM learn_roadmap_calls WHERE stage = 'proposal'")[0].n;
+  return { ...base, preview, proposalCalls, counts: () => ({ modelCalls, screens }) };
+}
+const limited = message => e => e.status === 429 && e.code === 'edit_limit' && e.message === message;
+
+test('M1: the 6th preview of one proposal is refused with 429 edit_limit and costs nothing: no screen, no model call, no call row', async t => {
+  const m = await metered(t);
+  for (let n = 1; n <= 5; n += 1) assert.equal((await m.preview(n)).status, 200);
+  assert.equal(m.proposalCalls(), 5);
+  const before = m.counts();
+  await assert.rejects(m.preview(6), limited(STRINGS.editLimitStep));
+  assert.deepEqual(m.counts(), before, 'refused before the learner screen and the composer');
+  assert.equal(m.proposalCalls(), 5, 'no call row');
+  assert.equal(STRINGS.editLimitStep, 'You have reached the edit limit for this step.');
+});
+
+test('M1: a replayed action key, Discard and Apply are never counted', async t => {
+  const m = await metered(t);
+  const first = await m.preview(1);
+  for (let i = 0; i < 4; i += 1) assert.equal((await m.preview(1)).replayed, true);
+  await discardProposalDraft(m.w.LEARN_DB, m.w.access, { roadmapId: m.o.roadmapId, draftId: first.body.draftId });
+  assert.equal(m.proposalCalls(), 1, 'replays and the discard reached no model');
+  for (let n = 2; n <= 5; n += 1) assert.equal((await m.preview(n)).status, 200, `preview ${n} is still allowed: replays did not count`);
+  const last = rows(m.w.sqlite, "SELECT id, revision FROM learn_proposal_drafts WHERE state = 'draft'")[0];
+  const applied = await applyProposalDraft(m.w.LEARN_DB, m.w.access, { roadmapId: m.o.roadmapId, draftId: last.id, draftRevision: last.revision, proposalVersion: m.o.proposalVersion, actionKey: 'apply-key-m1-001', now: T0 + 5 });
+  assert.equal(applied.status, 200);
+  assert.equal(m.proposalCalls(), 5, 'Apply made no model call');
+});
+
+test('M1: the 31st preview of the learner\'s UTC day is refused across proposals; released calls and yesterday do not count; Accept is never capped', async t => {
+  const m = await metered(t);
+  const day = Math.floor(T0 / 86400) * 86400;
+  const seed = (n, { at = day + 1, checkpoint = 'settled' } = {}) => m.w.sqlite.prepare(`INSERT INTO learn_roadmap_calls (op_id, operation_key, roadmap_id, org, owner_user_id, board_id, stage, call_no, retry_no, payer, task, checkpoint, created_at)
+    VALUES (?, ?, 'rm_other', 'team', 'u-alice', 'lb_board00000000000001', 'proposal', 0, 0, 'platform', 'roadmap_proposal', ?, ?)`).run(`op_seed_${checkpoint}_${at}_${n}`, `rm.rm_other.1.pr_${checkpoint}${at}x${n}.proposal.0.0.rm_other`, checkpoint, at);
+  for (let n = 0; n < 29; n += 1) seed(n);
+  for (let n = 0; n < 5; n += 1) seed(n, { at: day - 10 }); // yesterday
+  for (let n = 0; n < 5; n += 1) seed(n, { checkpoint: 'released' }); // never dispatched
+  assert.equal((await m.preview(1)).status, 200, 'the 30th preview today');
+  const before = m.counts();
+  await assert.rejects(m.preview(2), limited(STRINGS.editLimitDay));
+  assert.deepEqual(m.counts(), before, 'no screen, no model call');
+  assert.equal(STRINGS.editLimitDay, "You have reached today's edit limit.");
+  const accepted = await acceptRoadmapStep(m.w.env, m.w.access, { roadmapId: m.o.roadmapId, revision: m.o.revision, proposalId: m.o.proposalId, proposalVersion: m.o.proposalVersion, actionKey: 'accept-key-m1-001', now: T0 + 2 });
+  assert.ok(accepted.status < 300, 'the edit cap does not touch Accept');
+});
+
+test('M1: the route answers the refusal as 429 edit_limit with the learner sentence (the editor shows it through the existing refused path)', async t => {
+  const m = await metered(t);
+  for (let n = 1; n <= 5; n += 1) await m.preview(n);
+  const env = { ...m.w.env, ROADMAP_ENABLED: 'true', ROADMAP_EDIT_ENABLED: 'true' };
+  const deps = { identity: async () => ({ org: 'team', email: 'u-alice@example.test', userId: 'u-alice' }), screen: async () => assert.fail('no screen'), composeEdit: async () => assert.fail('no model') };
+  const res = await roadmapRoute(`/api/learn/roadmap/${m.o.roadmapId}/proposals/${m.o.proposalId}/drafts`, new Request('https://rabbit.test/x', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ boardId: 'lb_board00000000000001', proposalVersion: m.o.proposalVersion, instruction: 'one more', actionKey: 'preview-route-0001' }) }), env, deps);
+  assert.equal(res.status, 429);
+  assert.deepEqual(await res.json(), { error: STRINGS.editLimitStep, code: 'edit_limit' });
 });
