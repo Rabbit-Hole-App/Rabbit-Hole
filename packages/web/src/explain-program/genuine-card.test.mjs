@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { explainClient, explainPendingBlock, explainResultBlock } from '../explain-client.js';
 import { resolveProgram } from './program-card.js';
 import { loadEngine, runProgram } from './runtime.js';
+import { LIMITS } from './limits.js';
 import { parseGuestResult } from './contract.js';
 import { legibleFrame, normalizeFrame, programCardSize } from './frame.js';
 
@@ -60,7 +61,8 @@ test('the genuine frame gets a legible initial card size that does not change as
   const { program } = RECORDED.job.result;
   const sizes = new Set();
   for (const [time, room] of [[0, 10], [10, 10], [20, 10], [5, 0], [15, 30]]) {
-    const ran = runProgram(engine, { source: program.source, request: { inputs: { room }, time, seed: 0, state: null } });
+    // This test is about the card size, not the 50 ms deadline (tested elsewhere): a loaded machine running hundreds of test files at once must not fail it on CPU time.
+    const ran = runProgram(engine, { source: program.source, request: { inputs: { room }, time, seed: 0, state: null } }, { ...LIMITS, interruptMs: 5000 });
     assert.equal(ran.ok, true, ran.detail);
     const frame = normalizeFrame(parseGuestResult(ran.value).value.frame, program.manifest);
     assert.equal(frame.ok, true);
