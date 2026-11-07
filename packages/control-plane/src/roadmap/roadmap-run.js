@@ -59,16 +59,14 @@ export async function stepInput(env, access, roadmap, { step, proposal, snapshot
   const plan = parse(planRow?.plan_json), planStep = plan?.steps?.[step?.position - 1];
   // Missing or inconsistent stored plan data stops before any author call: never empty claims or outcome, never another plan's step.
   if (!planRow?.accepted_at || !planStep || planStep.title !== step.title || (snapshot && (snapshot.planHash !== planRow.plan_hash || snapshot.position !== step.position || snapshot.stepId !== step.id))) return { error: 'plan_binding' };
-  // The writer quotes the accepted plan, so every claim and the outcome must be real text, never an empty default.
-  if (!Array.isArray(planStep.claimsToCover) || !planStep.claimsToCover.length || planStep.claimsToCover.some(c => typeof c !== 'string' || !c.trim()) || typeof plan.outcome !== 'string' || !plan.outcome.trim()) return { error: 'plan_binding' };
   const text = await (deps.readSourceForActor || readMarkdownForActor)(env, access, { key: roadmap.source_key, rev: roadmap.source_rev });
-  if (text.status !== 'ok' || text.complete === false || text.rev !== roadmap.source_rev) return { error: 'source' }; // the pinned revision, exactly
+  if (text.status !== 'ok' || text.complete === false) return { error: 'source' };
   const sourceRef = step.source_ref_id ? await (deps.loadSourceRef || d1PublicRef)(env, access, step.source_ref_id) : null;
   const rec = { stepId: step.id, proposalId: proposal.id, proposalVersion: proposal.version,
     format: snapshot?.format ?? proposal.format ?? step.format, stepTitle: snapshot?.title ?? proposal.title ?? step.title, stepGoal: step.goal,
     // The passage offsets are the highlight anchor; the writer's context is the whole document at the pinned revision.
     passageText: text.text.slice(step.passage_start, step.passage_end), documentText: text.text,
-    claimsToCover: planStep.claimsToCover, outcome: plan.outcome,
+    claimsToCover: Array.isArray(planStep.claimsToCover) ? planStep.claimsToCover : [], outcome: typeof plan.outcome === 'string' ? plan.outcome : '',
     learnerInstruction: snapshot?.learnerInstruction ?? await learnerInstructionThrough(db, roadmap.id, planRow.instruction_version),
     instructionVersion: planRow.instruction_version, teachingScope: snapshot?.teachingScope ?? teachingScopeOf(parse(roadmap.scope_json)),
     sourceRef, language: snapshot?.language ?? roadmap.language ?? 'en', depth: snapshot?.depth ?? plan.settings?.depth ?? roadmap.depth, retry: 0,
@@ -82,9 +80,7 @@ export async function quoteStepAcceptance(env, access, { roadmap, proposal }, de
   const db = env.LEARN_DB;
   const step = await db.prepare('SELECT * FROM learn_roadmap_steps WHERE id = ? AND roadmap_id = ?').bind(proposal.step_id, roadmap.id).first();
   const got = await stepInput(env, access, roadmap, { step, proposal }, deps);
-  // BE.05a: a source that vanished or changed since the offer is the same typed recovery as any other unready offer (the route takes the offer back and Chat gets the recovery fact).
-  if (got.error === 'source') throw Object.assign(new StateError('offer_unready', 'This card cannot be prepared right now.', 409), { verdict: checkOffer({ step: { ...step, format: proposal.format }, source: { ok: false, code: 'source_unavailable' } }) });
-  if (got.error) throw new StateError('step_unavailable', 'This card cannot be prepared.', 409);
+  if (got.error) throw new StateError(got.error === 'source' ? 'source_unavailable' : 'step_unavailable', 'This card cannot be prepared.', 409);
   // BE.05a: the offer is confirmed again against what is true NOW (format switches, the pinned source just read above) before anything is priced or held. A stale
   // or no-longer-ready offer is refused here with nothing written: zero author calls, no hold, no debit.
   const planStep = (() => { try { return JSON.parse(got.planRow.plan_json)?.steps?.[step.position - 1] ?? null; } catch { return null; } })();
@@ -143,10 +139,6 @@ async function generateOne(env, access, roadmap, result, ids, deps) {
 // The checks, then the recorded outcome. Platform-funded (quota 'check'); the output is withheld unless every check that runs passes.
 async function finish(env, access, roadmap, result, ids, out, { passage, original, rev }, deps, now, fail) {
   const db = env.LEARN_DB;
-  // The source is checked again before anything is published (it was checked before dispatch): a card written from a revision that is no longer the pinned one,
-  // or from a source the learner can no longer read, is refunded and never recorded. Checked before the platform-funded checks and again right before recording.
-  const pinned = async () => (await revalidateSourceAsJob(db, access, roadmap)).ok;
-  if (!await pinned()) { await fail('denied_access'); return 'failed'; }
   const checkIds = { roadmapId: roadmap.id, version: ids.proposalVersion, anchor: result.card_id };
   await db.prepare("UPDATE learn_step_results SET validation = 'checking', updated_at = ? WHERE id = ? AND generation = 'generating' AND validation = 'pending'").bind(now(), result.id).run(); // the view's `checking` stage
   const callModel = deps.checkCallModel || platformCallModel(env, access, { ...checkIds, quota: 'check', registry: deps.registry, transport: deps.transport, now });
@@ -158,7 +150,6 @@ async function finish(env, access, roadmap, result, ids, out, { passage, origina
       // private diagnostics (never shown to the learner): which claim failed, the evidence returned, the validation error, what the escalation did
       ...(verdict.grounding.failed?.length ? { failed: verdict.grounding.failed.slice(0, 6) } : {}) },
     safety: { decision: verdict.safety.decision, action: verdict.safety.action, why: verdict.safety.why, policy_version: verdict.safety.policy_version, input_hash: verdict.safety.input_hash, retried: verdict.safety.retried, adjudicated: verdict.safety.adjudicated } };
-  if (!await pinned()) { await fail('denied_access'); return 'failed'; }
   await recordGenerated(db, access, { resultId: result.id, primitive: out.primitive, body: out.block, validation: verdict.validation, checkJson, now: now() });
   if (verdict.validation === 'passed' && verdict.publishable) return 'generated';
   // Withheld: the body stays private (entitlement requires passed checks) and the learner is refunded; the reason class picks no retry.

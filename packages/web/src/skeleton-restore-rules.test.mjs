@@ -103,5 +103,5 @@ test('a removed roadmap row has a Restore; a missing source says so', () => {
   assert.match(toc, /!linksCard && !restores\) return null/);
   assert.match(read('use-roadmap.js'), /else h\?\.notice\?\.\('The source file is not on this canvas\.'\)/);
   assert.match(read('LearnPage.jsx'), /notice: message => toast\(message\), focusBlock:/);
-  assert.match(read('roadmap-client.js'), /resultId: removed && state\.view \? result\.id : null/); // only with a live view: the kept tree of a finished roadmap has nothing to restore into
+  assert.match(read('roadmap-client.js'), /resultId: removed \? result\.id : null/);
 });

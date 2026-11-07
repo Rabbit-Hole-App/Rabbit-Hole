@@ -176,18 +176,9 @@ const REFUSALS = { 401: 'Your session ended. Sign in again, then send this again
 // Never a paid capability on a failure. A recoverable router failure on an ordinary turn (plain: no command, no picked capability) goes on once
 // as an answer-only turn (answerOnly: the server runs it with no proposal or tool, failure: the correlation fields it logs); with a command or a
 // refused request the specific error is shown instead (kind 'error'; a router failure itself shows no banner and no buttons).
-const COMMAND_TOKEN = /^[a-z][a-z0-9-]{0,40}$/;
-const soundEnvelope = d => {
-  if (typeof d.route !== 'string' || !d.route) return false;
-  if (['answer', 'clarify', 'unsupported'].includes(d.route)) return true;
-  const capability = d.capability ?? d.route.replace(/^capability:/, '');
-  return typeof capability === 'string' && COMMAND_TOKEN.test(capability);
-};
 export function routeOutcome(decision, { plain = false } = {}) {
   if (!decision) return { send: true, token: null };
   if (decision.local) return { send: true, token: null, answerOnly: true, failure: null }; // a greeting: text only, enforced by the server
-  // The envelope is validated before any action: a route that is not a string, or a capability that is not a command token, is never run (it reaches the command intercept).
-  if (!soundEnvelope(decision)) return plain && decision.recoverable !== false ? { send: true, token: null, answerOnly: true, failure: { request_id: decision.requestId ?? null, status: decision.status ?? null, code: 'malformed' } } : { show: { kind: 'error', message: ROUTE_FAILED } };
   if (decision.route === 'answer' && decision.via === 'fallback' && plain && decision.recoverable !== false) return { send: true, token: null, answerOnly: true, failure: { request_id: decision.requestId ?? null, status: decision.status ?? null, code: decision.code ?? null } };
   if (decision.route === 'answer' && decision.via === 'fallback') return { show: { kind: 'error', message: decision.message || ROUTE_FAILED } };
   if (decision.route === 'answer') return { send: true, token: null };

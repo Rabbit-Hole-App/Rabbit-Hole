@@ -31,10 +31,6 @@ export const withoutPicture = target => ({ ...target, text: target.text.replace(
 export const uploadStarted = (target, hasBlob) => (hasBlob ? { ...target, uploading: true } : target);
 export const uploadDone = (previous, id, image) => (previous?.id === id ? { ...previous, uploading: false, image } : previous);
 export const uploadFailed = (previous, id) => (previous?.id === id ? { ...withoutPicture(previous), uploading: false } : previous);
-// Send is held only for the area picture that is uploading: the flag counts on an area target, never on a card, page or group selection.
-// The uploaded picture an area selection rides with. A single-Paper region (target.paper) rides as that page's region instead.
-export const ownAreaImage = target => (target && String(target.id).startsWith('area:') && !target.paper && target.image ? target.image : null);
-export const uploadHeld = target => !!target?.uploading && String(target.id).startsWith('area:');
 
 // Place, size and view state are not content: moving a card or picking an object never makes a new revision.
 const NOT_CONTENT = new Set(['dx', 'dy', 'w', 'h', 'space', 'time', 'inputs', 'inputRevision', 'programState', 'marked', 'selectedObject', 'selectRequest', 'cardLayout']);

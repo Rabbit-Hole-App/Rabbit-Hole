@@ -13,8 +13,6 @@ const q = boardId => `?boardId=${encodeURIComponent(boardId)}`;
 // Routes, relative to BASE. Each returns { method, path, body? }.
 export const routes = {
   status: boardId => ({ method: 'GET', path: `${BASE}${q(boardId)}` }),
-  history: boardId => ({ method: 'GET', path: `${BASE}${q(boardId)}&history=1` }), // route 19: the board's ended and completed roadmaps, newest first
-  view: (boardId, id) => ({ method: 'GET', path: `${BASE}/${id}${q(boardId)}` }),
   invitation: boardId => ({ method: 'GET', path: `${BASE}/invitations${q(boardId)}` }),
   invite: (boardId, sourceKeys, idleKey) => ({ method: 'POST', path: `${BASE}/invitations`, body: { boardId, sourceKeys, idleKey } }),
   dismiss: (boardId, id, actionKey) => ({ method: 'POST', path: `${BASE}/invitations/${id}/dismiss`, body: { boardId, actionKey } }),
@@ -64,11 +62,8 @@ const newer = (held, next) => !held || !sameRoadmap(held, next) || next.roadmap.
 
 export function reduce(state, event) {
   switch (event.type) {
-    // An empty status means no UNFINISHED roadmap: the accepted tree of the one that just finished stays reachable as state.past (tocOf), until a new roadmap replaces it.
-    case 'view': if (!event.view?.roadmap) return { ...state, flag: 'on', view: null, draft: null, editing: false, past: state.view && acceptedPlanOf(state.view) ? state.view : state.past }; return newer(state.view, event.view) ? withPreview({ ...state, flag: 'on', view: event.view, notice: null, limitation: null }) : state;
+    case 'view': if (!event.view?.roadmap) return { ...state, flag: 'on', view: null, draft: null, editing: false }; return newer(state.view, event.view) ? withPreview({ ...state, flag: 'on', view: event.view, notice: null, limitation: null }) : state;
     // 409: the response carries the current state; it replaces ours even when its revision looks lower (the server is the truth).
-    // A reload: the latest finished roadmap read back from history. Never replaces a live view.
-    case 'past': return state.view || !event.view?.roadmap ? state : { ...state, past: event.view };
     case 'conflict': return withPreview({ ...state, flag: 'on', view: event.current || state.view, notice: STRINGS.stale });
     // R5: the editor box and its preview. A preview for a version the server no longer shows is dropped by withPreview (never trusted over the view).
     case 'edit_open': return state.view?.proposal && state.view.edit === true ? { ...state, editing: true } : state;
@@ -115,7 +110,7 @@ export function pillOf(state) {
   };
 }
 export const NEXT_CARD = STRINGS.nextCard;
-export const isNext = (view, proposal) => resultsOf(view).some(r => r.stepId !== proposal.stepId);
+const isNext = (view, proposal) => resultsOf(view).some(r => r.stepId !== proposal.stepId);
 
 const stepNav = (step, view) => {
   const result = resultsOf(view).find(r => r.stepId === step.id);
@@ -141,7 +136,7 @@ export function canProposeNext(state) {
 // leaks here; while a revision is a Chat draft the accepted tree stays. No parameters, stopping point, actions or conversation: those are Chat's.
 // null = nothing accepted (flag off, no roadmap, or only a draft).
 export function tocOf(state) {
-  const view = state.view || state.past;
+  const view = state.view;
   if (!enabled(state) || !view || !acceptedPlanOf(view)) return null;
   const rm = view.roadmap;
   return {
@@ -150,7 +145,7 @@ export function tocOf(state) {
       const result = resultsOf(view).find(r => r.stepId === s.id), removed = result?.delivery === 'removed';
       const nav = stepNav(s, view), stage = s.stage && s.stage !== 'planned' ? s.stage : nav?.kind === 'proposal' ? 'proposed' : null;
       return { id: s.id, position: s.position, title: s.title, source: s.sourceRef ? { kind: 'source' } : null, description: s.goal || '', format: STRINGS.formatName[s.format] || s.format || '', state: s.state,
-        status: (stage ? STRINGS.stage[stage] : null) || STRINGS.stepState[s.state] || s.state, removed, nav, resultId: removed && state.view ? result.id : null }; // the kept tree of a finished roadmap has no live view to restore into: no Restore
+        status: (stage ? STRINGS.stage[stage] : null) || STRINGS.stepState[s.state] || s.state, removed, nav, resultId: removed ? result.id : null };
     }),
   };
 }

@@ -7,7 +7,7 @@ import { withRoadmapProviderCall, learnerUsageEnv, planCall, callMayBeSent, mark
 import { spendTransport } from '../src/learn-spend.js';
 import { admitSpend } from '../src/learn-spend-ledger.js';
 import { usageTotals, periodOf } from '../src/learn-usage.js';
-import { world, offered, accessFor, rows, provider, body, MODEL, NEED, savedBlock } from './roadmap-fixture.js';
+import { world, offered, accessFor, rows, provider, body, MODEL, NEED } from './roadmap-fixture.js';
 
 const PERIOD = periodOf(Math.floor(Date.now() / 1000));
 const AGG = 2 * NEED; // legacy callMicros = NEED: one generation call (CORE.04) times the legacy automatic-retry factor
@@ -245,7 +245,7 @@ test('delivery: the acknowledgement must name exactly the minted card and is rep
   // Delivered needs the card in a SAVED board at the named revision: no revision, an unsaved card and a revision newer than the save are all refused.
   await assert.rejects(ack([cardId], 'ack-key-00002', null), e => e.code === 'invalid_request' && e.status === 400);
   await assert.rejects(ack([cardId]), e => e.code === 'card_not_saved', 'the board does not hold the card yet');
-  w.sqlite.prepare('UPDATE learn_boards SET state_json = ?, version = 6 WHERE id = ?').run(JSON.stringify({ blocks: [{ id: cardId, type: 'table' }] }), w.access.boardId);
+  w.sqlite.prepare('UPDATE learn_boards SET state_json = ?, version = 6 WHERE id = ?').run(JSON.stringify({ blocks: [{ id: cardId }] }), w.access.boardId);
   await assert.rejects(ack([cardId]), e => e.code === 'card_not_saved', 'revision 7 is not saved yet (the board is at 6)');
   assert.equal(rows(w.sqlite, 'SELECT delivery FROM learn_step_results')[0].delivery, 'not_delivered', 'a refused acknowledgement delivers nothing');
   w.sqlite.prepare('UPDATE learn_boards SET version = 7 WHERE id = ?').run(w.access.boardId);

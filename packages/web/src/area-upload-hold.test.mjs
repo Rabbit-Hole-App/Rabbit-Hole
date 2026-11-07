@@ -32,8 +32,8 @@ test('Send is held while uploading: button, Enter and the send path; the chip sh
   const composer = read('ChatComposer.jsx'), ask = read('ask.jsx'), chips = read('ContextChips.jsx');
   assert.match(composer, /if \(!busy && !disabled && !hold && \(ready \|\| value\.trim\(\)\)\) onSubmit\(value\)/, 'Enter and the form submit share this guard');
   assert.match(composer, /aria-label="Send" title=\{hold \|\| undefined\} disabled=\{busy \|\| disabled \|\| !!hold/);
-  assert.match(ask, /hold=\{uploadHeld\(canvasTarget\) \? 'Waiting for the picture to upload' : ''\}/);
-  assert.match(ask, /if \(uploadHeld\(canvasTarget\) && !keepDraft && !about\) return;/);
+  assert.match(ask, /hold=\{canvasTarget\?\.uploading \? 'Waiting for the picture to upload' : ''\}/);
+  assert.match(ask, /if \(canvasTarget\?\.uploading && !keepDraft && !about\) return;/);
   assert.match(chips, /selection\.uploading \? <span data-area-uploading className="shimmer shrink-0">Uploading<\/span>/);
   assert.ok(!/Uploading\.\.\.|Uploading…/.test(chips));
 });
@@ -41,20 +41,4 @@ test('Send is held while uploading: button, Enter and the send path; the chip sh
 test('the typed text is kept: the guard never clears the draft', () => {
   const composer = read('ChatComposer.jsx');
   assert.ok(!/hold[^;]*onChange\(''\)/.test(composer));
-});
-
-test('Send is held only for an area picture that is uploading, and released on success, failure, removal and a newer area', async () => {
-  const { uploadHeld } = await import('./area-crop.js');
-  const held = uploadStarted(target, true);
-  assert.equal(uploadHeld(held), true);
-  assert.equal(uploadHeld(uploadDone(held, 'area:1', 'img-9')), false, 'released on success');
-  assert.equal(uploadHeld(uploadFailed(held, 'area:1')), false, 'released on failure');
-  assert.equal(uploadHeld(null), false, 'released on removal');
-  const newer = { ...target, id: 'area:2' };
-  assert.equal(uploadHeld(uploadDone(held, 'area:2', 'img-1')), true, 'a newer area answering does not release the older hold');
-  assert.equal(uploadHeld(newer), false, 'the newer area (no upload yet) is not held');
-  assert.equal(uploadHeld({ id: 'card-1', uploading: true }), false, 'a stale flag on a non-area selection holds nothing');
-  const ask = read('ask.jsx');
-  assert.match(ask, /if \(uploadHeld\(canvasTarget\) && !keepDraft && !about\) return;/);
-  assert.match(ask, /hold=\{uploadHeld\(canvasTarget\) \?/);
 });

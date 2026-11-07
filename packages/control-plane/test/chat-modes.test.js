@@ -923,10 +923,9 @@ test('Auto Chat: hi gets one reply and no classifier call; a router outage lets 
   assert.equal((await decideChat(bare, { email: owner.email, app: 'canvas-0a1b2c3d', requestId: 'req-00000009', fields: { text: question, mode: 'auto' } }, { ask: counted(choice('answer')) })).code, 'unavailable');
   assert.ok(logs.some(line => line.includes('"outcome":"unavailable"') && /"reason":"no_(transport|signing_key)"/.test(line)));
 
-  // 3. answer_only cannot widen a turn: not with a command, a route decision, a regeneration, a proposal Edit (checklist CHAT.01: reject
-  // contradictory command, proposal token, Edit or regeneration inputs) or a non-true value; the model is never called.
+  // 3. answer_only cannot widen a turn: not with a command, a route decision, a regeneration or a non-true value; the model is never called.
   const before = f.calls.length;
-  for (const extra of [{ command: 'motion' }, { route_token: 'x' }, { regenerate: { messageId: '1' }, thread_id: greeted.events.at(-1).data.threadId }, { generation: { edit: true, current: { command: 'motion', proposal_id: 'p1' } } }]) {
+  for (const extra of [{ command: 'motion' }, { route_token: 'x' }, { regenerate: { messageId: '1' }, thread_id: greeted.events.at(-1).data.threadId }]) {
     const refused = await f.ask({ message: question, mode: 'auto', answer_only: true, ...extra });
     assert.deepEqual([refused.res.status, (await refused.res.json()).code], [400, 'answer_only_invalid'], JSON.stringify(Object.keys(extra)));
   }

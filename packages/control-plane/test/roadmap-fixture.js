@@ -54,7 +54,3 @@ export function provider() {
   return { calls, reply };
 }
 export const rows = (sqlite, sql, ...args) => sqlite.prepare(sql).all(...args).map(r => ({ ...r }));
-
-// The block a result authorized (its stored body plus the minted id), as the client saves it to the board. Delivery acknowledgement compares the SAVED block
-// with the authorized result, so a test that acknowledges must save this, not a bare id (a bare id is the regression roadmap-delivery-verify.test.js pins).
-export const savedBlock = (sqlite, cardId, extra = {}) => ({ ...JSON.parse(sqlite.prepare('SELECT body_json FROM learn_step_results WHERE card_id = ?').get(cardId)?.body_json || '{}'), id: cardId, ...extra });

@@ -849,7 +849,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         if (block.type === 'repo-code') insertCodeCard(chat?.canvasOps, block, at); else canvas()?.insertImported(block, at);
         if (block.type === 'file' && block.kind === 'markdown') { droppedMarkdown.current.add(block.id); markStart('dropready:' + block.id, 'drop_to_ready_ms'); markStart('drop:' + block.id, 'drop_to_invite_ms'); }
       }
-      if (made.length) panels.openChat(); // UI.01 (the provider's panels: chatWorkspace.current is null while the Chat panel is unmounted): the drop reveals Chat once; focus, draft and camera stay
+      if (made.length) chatWorkspace.current?.panels?.openChat?.(); // UI.01: the drop reveals Chat once; focus, draft and camera stay
       nextImport();
     } catch (problem) { setImportState({ error: problem.message, busy: false }); }
   };

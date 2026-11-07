@@ -8,21 +8,15 @@ Routing reference for the Tutor handoff. The shared reply path is the target des
 flowchart TD
     Send["Send in Ask, Auto, or Tutor"] --> Entry{"Explicit command or Tutor action?"}
     Entry -->|"Yes"| Handler["Use the existing handler"]
-    Entry -->|"Natural language"| Intent["Read intent and eligible tools"]
-    Intent -->|"Reply"| Evidence["Resolve evidence if needed"]
-    Intent -->|"Clarify"| Clarify["Ask one focused question"]
-    Intent -->|"Output requested"| Fit{"Can the selected tool deliver it?"}
-    Handler -->|"Eligible card brief"| Evidence
-    Handler -->|"Explain on canvas"| Lesson["Follow Explain on Canvas workflow"]
-    Handler -->|"Tool offer blocked"| Recover{"What can still advance the goal?"}
-    Fit -->|"Ready"| Evidence
-    Fit -->|"Blocked"| Recover
-    Evidence -->|"Reply supported"| Chat["Reply in Chat"]
-    Evidence -->|"Card brief supported"| Review["Existing action or Generate / Edit review"]
-    Evidence -->|"Essential gap unresolved"| Recover
-    Recover -->|"Qualified alternative"| Evidence
-    Recover -->|"Missing detail"| Clarify
-    Recover -->|"Tool path unavailable"| Chat
+    Entry -->|"Natural-language message"| Model["Answer model reads the request and eligible tools"]
+    Model -->|"Reply or clarify"| Chat["Continue in Chat"]
+    Model -->|"User requests an output"| Check{"Can the selected tool deliver it?"}
+    Check -->|"Yes"| Review["Existing action or Generate / Edit review"]
+    Check -->|"Tool offer blocked"| Recover{"What can still advance the goal?"}
+    Handler -->|"Tool offer blocked"| Recover
+    Recover -->|"Qualified alternative"| Review
+    Recover -->|"Missing detail"| Clarify["Ask one focused question"]
+    Recover -->|"Tool path unavailable"| Help["Give useful help and a next step in Chat"]
 ```
 
 | Mode | Ordinary message | Explicit action |
@@ -32,8 +26,6 @@ flowchart TD
 | Tutor | Use the shared reply path with the current lesson context. | Roadmap acceptance, targeted edits, and **Next card** use the Tutor controller and the accepted step. |
 
 The model sees the full prompt and the eligible function definitions, including each function’s name, argument schema, output, use cases, and limits. The server validates the selected output, inputs, access, and tool readiness before review. A proposed alternative follows the existing approval, and the learner chooses any change to an explicit requirement.
-
-When R8a is enabled, resolve the intent and authorized context before using its shared evidence check for a reply or eligible card brief. Reuse relevant evidence first and search Exa only for a material public gap within scope. A card brief needs its evidence before the existing review. Continue with the supported portion or ask one focused question if a gap remains. Research timing, limits and the closed **Sources (n)** disclosure are in [roadmap §10.2](tutor-roadmap-v1.4.md#102-research-and-calculation). Use the [shared tool-call workflow](tutor-roadmap-v1.4.md#931-shared-tool-call-workflow) to check known blockers before offering tools and to validate an exact call at dispatch.
 
 ## Rollout and checks
 

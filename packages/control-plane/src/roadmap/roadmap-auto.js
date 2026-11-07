@@ -76,7 +76,6 @@ export async function autoProposalHandler(env, event, { now = nowSeconds() } = {
   const autoSuggest = deps.autoSuggest ? await deps.autoSuggest(env, access) : await readAutoSuggest(env, { org: access.org, userId: access.actorUserId });
   const startedAt = Date.now();
   const result = await ensureNextProposal(env, access, { roadmapId: event.roadmap_id, triggerEventId: event.event_id, autoSuggest, compose: deps.compose, revalidate: deps.revalidate, now });
-  if (result.reason === 'outcome_unresolved') return { retry: true }; // BE.12: keep the event pending; the one successor follows reconciliation, never a distinct offer before it
   // Timing for the receipt (R6.03): the event's creation is the delivery acknowledgment; the client adds the moment the proposal became visible.
   deps.timing?.({ eventId: event.event_id, kind: event.kind, status: result.status, reason: result.reason ?? null, ackedAt: event.created_at * 1000, composeStartedAt: startedAt, composeEndedAt: Date.now() });
   return { done: true };

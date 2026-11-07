@@ -82,8 +82,6 @@ export async function planningHandler(env, event, { now = nowSeconds() } = {}, d
   if (!isLong && scope.kind === 'passage') {
     const whole = await readRoadmapSource(env, access, { ref, scope: { kind: 'declared' } }, { readSourceForActor });
     if (whole.status === 'ok') { source = whole; teach = { start: read.coverage.start, end: read.coverage.end }; }
-    // Only a document above the whole-source limit may keep the passage as its source. A reread that finds the source changed or gone refuses the draft.
-    else if (!(whole.status === 'needs_clarification' && whole.reason === 'source_too_large')) return settle(limitation(whole.reason === 'source_changed' ? 'source_changed' : 'source_unavailable', whole.reason === 'source_changed' ? LIMIT_COPY.changed : LIMIT_COPY.unavailable));
   }
   const input = { instruction: { original, ...(instructionVersion > 1 ? { latest } : {}) }, depth, source, language: roadmap.language ?? undefined, mode: roadmap.practice_mode, ...(teach ? { scope: teach } : {}) };
   let prepared = null;

@@ -268,9 +268,7 @@ export function artifactBlock(id, spec) {
 // (chat-depth.js explanationTarget) follow it in the same tool description.
 export const EXPLANATION_GUIDANCE = 'For make_explanation, the main body and optional section text support Markdown paragraphs, headings, lists, pipe tables and fenced mermaid flowcharts. Choose the form that makes the idea easiest to understand. Use a table to compare items across shared attributes. Use a Mermaid flowchart to explain branching decisions, relationships or a process. Include enough prose to explain what the learner should notice. Treat tables and diagrams as optional at every Depth. Choose the structure to suit the question. The main body must answer the learner\'s question on its own. Optional sections can add a worked example, prediction or further reasoning. Apply the requested Depth guidance and total character budget. Include the title, section labels, table cells, diagram labels and collapsed content in that budget. A table has leading and trailing pipes, a header row, a separator row and the same number of cells in every row. A diagram is one closed ```mermaid fence whose first line is flowchart TD or flowchart LR, followed only by node declarations with short quoted labels (A["Label"]) and arrow edges (A --> B, or A -->|plain label| B): no HTML, frontmatter, directives, hyperlinks, click handlers, styling commands or external assets.';
 
-// The card's own patterns (Md.jsx lines()): an opening ``` takes its language token and ignores the rest of the line (so "mermaid extra" is a
-// Mermaid fence), any line starting with ``` closes, and the card draws a diagram for /^mermaid$/i. Pinned against Md.jsx by explanation-validation.test.js.
-const FENCE = /^\s*```\s*([\w+#.-]*)/;
+const FENCE = /^\s*```\s*([\w+#.-]*)\s*$/;
 const ID = '[A-Za-z][A-Za-z0-9_]{0,29}';
 const LABEL = '"([^"<>`\\n]{1,80})"';
 const NODE = `${ID}(?:\\[${LABEL}\\]|\\(${LABEL}\\)|\\{${LABEL}\\}|\\(\\[${LABEL}\\]\\))?`;
@@ -287,7 +285,7 @@ function split(md) {
   let open = null;
   for (const line of String(md ?? '').split('\n')) {
     const m = line.match(FENCE);
-    if (open) { if (/^\s*```/.test(line)) { open.closed = true; fences.push(open); prose.push({ fence: open }); open = null; } else open.lines.push(line); continue; }
+    if (open) { if (/^\s*```\s*$/.test(line)) { open.closed = true; fences.push(open); prose.push({ fence: open }); open = null; } else open.lines.push(line); continue; }
     if (m) { open = { lang: m[1].toLowerCase(), lines: [], closed: false }; continue; }
     prose.push(line);
   }
@@ -307,18 +305,10 @@ export function mermaidProblem(md) {
   return null;
 }
 
-// Inline Markdown as the card's Md shows it (Md.jsx EMPHASIS + plain()): one left-to-right pass, so a code span is drawn literally (markers,
-// links and underscores inside it count), bold and italic keep their inner text, an https link keeps its text and any other [a](b) is drawn as written.
-const INLINE = /(`[^`\n]+`|\*\*[^*]+\*\*|\[[^\]\n]+\]\([^\s)]+\)|(?<![\w*/])\*(?![\s*])[^*\n]*?[^\s*]\*(?![\w*])|(?<![\w/.])_(?![\s_])[^_\n]*?[^\s_]_(?![\w/.]))/;
-const mathText = s => s.replace(/\$\$([\s\S]*?)\$\$/g, '$1').replace(/\$([^$\n]+)\$/g, '$1');
-const inlineText = s => s.split(INLINE).map((part, i) => {
-  if (i % 2 === 0) return mathText(part);
-  if (part.startsWith('`')) return part.slice(1, -1);
-  if (part.startsWith('**')) return inlineText(part.slice(2, -2));
-  const link = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
-  if (link) return inlineText(link[1]);
-  return part.startsWith('[') ? part : inlineText(part.slice(1, -1)); // ponytail: a source-reference pill (file.py:15) may draw different text than it matches; not mirrored
-}).join('');
+// Inline Markdown as the card's Md shows it: links keep their text, emphasis/code/math delimiters go.
+const inlineText = s => s.replace(/\[([^\]\n]+)\]\([^\s)]+\)/g, '$1').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/__([^_]+)__/g, '$1').replace(/`([^`\n]+)`/g, '$1')
+  .replace(/(?<![\w*])\*(?![\s*])([^*\n]*?[^\s*])\*(?![\w*])/g, '$1').replace(/(?<![\w/.])_(?![\s_])([^_\n]*?[^\s_])_(?![\w/.])/g, '$1')
+  .replace(/\$\$([\s\S]*?)\$\$/g, '$1').replace(/\$([^$\n]+)\$/g, '$1');
 
 // The display text of one Markdown string in reading order: prose, headings, list items, table cells, code as literal text, Mermaid labels.
 function markdownText(md) {

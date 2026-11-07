@@ -3,7 +3,7 @@
 // saved (chat-persist.js saveTutorEntry) in the roadmap's bound thread with a versioned private record (tutor: { v: 1, kind, seq, ids });
 // seq grows with the entry's stage, so the server updates it in place and never regresses it. Actions are resolved against the live state
 // at render time (RoadmapTranscript.jsx): a stored entry with no live counterpart keeps its labels, disabled, and can never replay an action.
-import { acceptedPlanOf, canProposeNext, chatOf, draftOf, isNext, offerOf } from './roadmap-client.js';
+import { acceptedPlanOf, canProposeNext, chatOf, draftOf, offerOf } from './roadmap-client.js';
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
 import { STRINGS } from './roadmap-strings.js';
 
@@ -43,13 +43,6 @@ export async function ensureTutorThread(rm, { legacy = null, openId = null, msgs
 export const mdName = name => String(name || '').replace(/[\\`*_[\]#<>|~]/g, ch => `\\${ch}`);
 const cid = text => String(text).replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 80);
 export const routeClientId = invitationId => cid(`roadmap-route-${invitationId}`);
-// The occupied-Chat route record rebuilt from the thread's saved route message, for a browser that no longer holds its own record (reload on another device, cleared
-// storage): { threadId, choice? } or null. A decided 'new' is not rebuilt (its invitation went to another thread, which carries its own entry).
-export function routeFromSaved(msgs, invitationId, threadId) {
-  const found = threadId && (msgs || []).find(m => m?.meta?.tutor?.kind === 'route' && m.meta.tutor.invitationId === invitationId);
-  if (!found || found.meta.tutor.choice === 'new') return null;
-  return { threadId, ...(found.meta.tutor.choice ? { choice: found.meta.tutor.choice } : {}) };
-}
 export const draftClientId = (roadmapId, version) => cid(`roadmap-draft-${roadmapId}-v${version}`);
 export const acceptedClientId = (roadmapId, version) => cid(`roadmap-accepted-${roadmapId}-v${version}`);
 export const stepClientId = stepId => cid(`roadmap-step-${stepId}`);
@@ -127,6 +120,7 @@ export function entriesOf(state, { invitation = null, route = null, boundary = n
   }
   // One lifecycle entry per card (UI.04/UI.08): proposed -> accepting -> generating -> checking -> saving -> ready / failed / skipped / cancelled.
   const offer = offerOf(state);
+  let earlier = false;
   for (const step of view.steps || []) {
     const stage = stepStage(state, step);
     if (!stage) continue;
@@ -138,7 +132,7 @@ export function entriesOf(state, { invitation = null, route = null, boundary = n
     const format = formatName(step.format || (isOffer && offer.format));
     const actions = [];
     if (stage === 'proposed' || stage === 'accepting') {
-      actions.push(act('accept', isNext(view, { stepId: step.id }) ? STRINGS.nextCard : STRINGS.accept, { proposalId: offer?.proposalId, version }, { disabled: !isOffer || !offer.accept, primary: true, green: true }));
+      actions.push(act('accept', earlier ? STRINGS.nextCard : STRINGS.accept, { proposalId: offer?.proposalId, version }, { disabled: !isOffer || !offer.accept, primary: true, green: true }));
       if (offer?.canEdit) actions.push(act('edit_card', STRINGS.editCard, {}, { disabled: !isOffer || stage === 'accepting' }));
       actions.push(act('cancel', STRINGS.cancel, { proposalId: offer?.proposalId, version }, { disabled: !isOffer || stage === 'accepting' }));
       actions.push(act('go_card', STRINGS.goToCard, { stepId: step.id }));
@@ -147,6 +141,7 @@ export function entriesOf(state, { invitation = null, route = null, boundary = n
     push(stepClientId(step.id), 'step', RANK[stage] * 20 + Math.min(version, 19), [`**${title}**`, description, [format, status].filter(Boolean).join(' · ')].filter(Boolean).join('\n\n'),
       { roadmapId: rid, stepId: step.id, proposalId: isOffer ? offer.proposalId : null, proposalVersion: version, stage, ...(cardId ? { cardId } : {}) }, actions,
       { activity: ['accepting', 'generating', 'checking', 'saving'].includes(stage) ? status : null, sourceRef: (isOffer && view.proposal.sourceRelation?.sourceRef) || step.sourceRef || null }); // live only: the excerpt is read through the entitled reference at render, never stored in the message
+    earlier = true;
   }
   // BE.05a: a card offer that could not be prepared (view.offerRecovery): ONE entry for the step, in the same Chat. A required format that cannot be kept asks one
   // focused question (the alternative, or Edit roadmap); otherwise it is useful help. Nothing was authored, held or charged, and the step stays undelivered.

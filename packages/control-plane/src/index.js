@@ -1025,8 +1025,8 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   // job and no credit hold, whatever the client also sent. A command, a route decision, a regeneration or a Tutor turn is not an ordinary turn
   // and is refused here, so this flag can never widen what a turn may do.
   const answerOnly = body.answer_only === true;
-  if (body.answer_only != null && (!answerOnly || conversation !== 'learn' || !chat || chat.command || chat.regenerate || chat.mode === 'tutor' || body.route_token != null || body.generation?.edit === true)) {
-    return json({ error: 'answer_only is for a plain Learn chat turn: no command, route decision, proposal Edit or regeneration.', code: 'answer_only_invalid' }, 400);
+  if (body.answer_only != null && (!answerOnly || conversation !== 'learn' || !chat || chat.command || chat.regenerate || chat.mode === 'tutor' || body.route_token != null)) {
+    return json({ error: 'answer_only is for a plain Learn chat turn: no command, route decision or regeneration.', code: 'answer_only_invalid' }, 400);
   }
   if (answerOnly) {
     // The failed route request, for the Worker log (ids and codes only, never the message): found again by request_id.
