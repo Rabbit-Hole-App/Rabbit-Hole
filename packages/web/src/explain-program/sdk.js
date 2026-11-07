@@ -1,3 +1,10 @@
+import { GEOMETRY_SOURCE } from './sdk-geometry.js';
+import { GRAPH_SOURCE } from './sdk-graph.js';
+import { GRID_SOURCE } from './sdk-grid.js';
+import { PLOT_SOURCE } from './sdk-plot.js';
+import { TIMELINE_SOURCE } from './sdk-timeline.js';
+import { VISUAL_SDK_VERSION } from './stamps.js';
+
 // The guest-side SDK (plan section 5.2): generic geometry and formatting helpers only. No subject formulas, no lesson catalogue.
 // SDK_SOURCE is plain script text the runtime evaluates in the guest BEFORE the generated module, defining one global, `sdk`.
 // The generated program is an ES module with no imports whose only contract is the named export
@@ -36,6 +43,13 @@ var sdk = (function () {
   };
 })();
 `;
+
+// Keep the old source byte-for-byte. The version is chosen by the host from the artifact's verified stamps.
+const VISUAL_SDK_SOURCE = [SDK_SOURCE, PLOT_SOURCE, GRAPH_SOURCE, GRID_SOURCE, GEOMETRY_SOURCE, TIMELINE_SOURCE].join('\n');
+export function programSdkSource(version) {
+  if (version === SDK_VERSION) return SDK_SOURCE;
+  if (version === VISUAL_SDK_VERSION) return VISUAL_SDK_SOURCE;
+}
 
 // A stable build identity for the bundle hash: a SHA-256 of the exact source the guest receives.
 export async function sdkFingerprint() {

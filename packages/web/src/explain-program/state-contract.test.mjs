@@ -7,7 +7,7 @@ import {
   CONTRACT_LIMITS, PROGRAM_VERSIONS, computeHashes, parseArtifact, parseEvent, parseGuestResult, parseManifest, parseState, sealProgram, stateProblem, verifyHashes,
 } from './contract.js';
 import { LIMITS } from './limits.js';
-import { PROGRAM_STAMPS, STATEFUL_PROGRAM_STAMPS, SUPPORTED_PROGRAM_TUPLES } from './stamps.js';
+import { PROGRAM_STAMPS, STATEFUL_PROGRAM_STAMPS, STATEFUL_VISUAL_PROGRAM_STAMPS, SUPPORTED_PROGRAM_TUPLES, VISUAL_PROGRAM_STAMPS } from './stamps.js';
 import { createProgramHost } from './host.js';
 import { loadEngine, runProgram } from './runtime.js';
 import { growthFixture } from './fixtures.js';
@@ -136,10 +136,13 @@ test('schema 2 artifacts seal and hash with schemaVersion 2; versions and manife
 
 // ---- version allowlist ------------------------------------------------------------------------------------------------
 
-test('the allowlist is exactly the old single stamp set plus its schema 2 twin', () => {
-  assert.deepEqual(SUPPORTED_PROGRAM_TUPLES[0], { ...PROGRAM_VERSIONS, ...PROGRAM_STAMPS });
-  assert.deepEqual(SUPPORTED_PROGRAM_TUPLES[1], { ...PROGRAM_VERSIONS, ...PROGRAM_STAMPS, schemaVersion: 2 });
-  assert.equal(SUPPORTED_PROGRAM_TUPLES.length, 2);
+test('the allowlist has the exact stamp set for each SDK and schema', () => {
+  assert.deepEqual(SUPPORTED_PROGRAM_TUPLES, [
+    { ...PROGRAM_VERSIONS, ...PROGRAM_STAMPS },
+    { ...PROGRAM_VERSIONS, ...STATEFUL_PROGRAM_STAMPS },
+    { ...PROGRAM_VERSIONS, ...VISUAL_PROGRAM_STAMPS },
+    { ...PROGRAM_VERSIONS, ...STATEFUL_VISUAL_PROGRAM_STAMPS },
+  ]);
   assert.equal(PROGRAM_STAMPS.runtimeVersion, 'quickjs-release-sync@0.32.0', 'the engine stays QuickJS 0.32.0');
 });
 

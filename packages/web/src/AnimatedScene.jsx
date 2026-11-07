@@ -23,6 +23,7 @@ import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-s
 import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, estimateTextBox, labelAt, requiredLeftMargin, sceneContentBounds, sceneViewBox } from './scene-layout.js';
 import { GEOMETRY } from './scene-vocab.js';
 import { cellInk, heatStyle, identityVar, inkOver, roleVar, selectionStyle, shapeStyle, textObjectInk, textStyle } from './scene-style.js';
+import { INTERACT_BOX_RADIUS, INTERACT_FONT, interactDataStyle, interactMarkColor, interactShapeStyle } from './interact-style.js';
 import { escapeYields, withoutSceneHighlight } from './scene-selection.js';
 
 // Live playback of an animation spec. The evaluator owns what the frame looks
@@ -93,7 +94,9 @@ function SelectionMark({ geometry }) {
 // The mathematical object itself: a table with a row that lights up, a strip
 // of numbers that change, a distribution that grows. Labelled rectangles do
 // not teach these; the values do.
-function DataShape({ object, role, pop, chosen, onInputPick, inkAt }) {
+function DataShape({ object, role, pop, chosen, onInputPick, inkAt, interact }) {
+  const dataStyle = interact ? interactDataStyle : shapeStyle;
+  const hue = interact ? interactMarkColor(role, object.identitySlot) : identityVar(object.identitySlot) ?? roleVar(role);
   // Direct manipulation: an object bound to a learning input turns its items
   // into that input's own REAL controls - clickable, focusable, keyboard-
   // activable - so a 'visual' presentation needs no duplicate strip widget.
@@ -144,7 +147,6 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt }) {
     // one) takes over the hue everywhere role's would otherwise have gone -
     // every cell's ring below and the object's own frame at the bottom of
     // this group - while VALUE keeps sole ownership of a heat cell's fill.
-    const hue = identityVar(object.identitySlot) ?? roleVar(role);
     // `distribution: true` (see checkProbabilityClaims, scene-consistency.js)
     // is a row-level claim - "these sum to one" - and independent per-cell
     // rounding can violate it even when every underlying float is right (see
@@ -188,10 +190,10 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt }) {
         // cell is selected - see the SelectionMark drawn below instead.
         const blocked = heatMode && value == null;
         const cellState = highlightKind === 'highlight' ? { highlighted: lit } : { selected: lit };
-        const look = shapeStyle(role, blocked ? { blocked: true } : cellState, undefined, object.identitySlot);
+        const look = dataStyle(role, blocked ? { blocked: true } : cellState, undefined, object.identitySlot);
         const heat = heatMode && value != null ? heatStyle(value, domain, heatMode) : null;
         const fill = heat ? `color-mix(in srgb, var(--viz-${heat.fillToken}) ${heat.mixPercent}%, transparent)` : look.fill;
-        const ink = heat ? heat.inkToken : cellInk(role, lit, look.onFill);
+        const ink = heat ? heat.inkToken : interact ? look.onFill : cellInk(role, lit, look.onFill);
         // INVARIANT: A CONTINUOUSLY VARYING VISUAL PROPERTY MUST HAVE ONE
         // OWNERSHIP PATH FOR THE LIFETIME OF THE ELEMENT. This cell used to
         // read `style={heat ? {fill} : undefined}` / `animate={heat ? ring :
@@ -298,7 +300,6 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt }) {
     // neighbour grows - the learner watches their own answer move.
     const peak = object.peak ?? Math.max(...values.map(entry => Math.abs(entry ?? 0)), 0.0001);
     const height = object.h || GEOMETRY.barHeight;
-    const hue = identityVar(object.identitySlot) ?? roleVar(role);
     return (
       <g>
         <line x1={object.x} y1={object.y + height} x2={object.x + (object.w || 0)} y2={object.y + height} style={{ stroke: hue }} strokeWidth="1.5" />
@@ -311,7 +312,7 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt }) {
           // 'strong' is the fallback tier, not 'soft': a resting bar still
           // has to read as a bar, which the soft band's 6-28 does not - see
           // shapeStyle's comment.
-          const look = shapeStyle(role, { chosen: lit }, 'strong', object.identitySlot);
+          const look = dataStyle(role, { chosen: lit }, 'strong', object.identitySlot);
           return (
             // The lit bar's pop grows the bar from its own foot, never the bar
             // and its label together from their shared centre: every bar, lit
@@ -351,7 +352,7 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt }) {
         const x = object.x + offset;
         offset += width + CHIP_GAP;
         const lit = marked(object, 0, index, index);
-        const look = shapeStyle(role, { highlighted: lit }, undefined, object.identitySlot);
+        const look = dataStyle(role, { highlighted: lit }, undefined, object.identitySlot);
         if (asLabels) {
           return (
             <text key={index} x={x + width / 2} y={object.y + GEOMETRY.chipHeight / 2} textAnchor="middle" dominantBaseline="central"
@@ -362,7 +363,7 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt }) {
         return (
           <motion.g key={index} {...(pickProps ? pickProps(index, lit, token) : {})}
             animate={{ scale: lit ? 1.12 : 1, y: lit ? -3 : 0 }} transition={pop} style={fromCentre}>
-            <motion.rect x={x} y={object.y} width={width} height={GEOMETRY.chipHeight} rx={8}
+            <motion.rect x={x} y={object.y} width={width} height={GEOMETRY.chipHeight} rx={interact ? INTERACT_BOX_RADIUS : 8}
               animate={{ fill: look.fill, strokeWidth: look.strokeWidth }} style={{ stroke: look.stroke }} transition={pop} />
             {/* Ink follows the chip's own resolved fill (a strong-band role
                 paints dark chips; page ink vanished on them in review) - the
@@ -428,7 +429,10 @@ function RunsLabel({ runs, text, x, y, anchor, baseline, type, fill }) {
 // Exported for ProgramScene (explain-program): the same trusted drawing for a generated program's frame, which arrives as a
 // scene plus its state at one moment. fixedView draws exactly the declared width and height instead of fitting the content, so
 // a frame that changes every tick does not rescale; every scene card leaves it off and is framed as before.
-export function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop, onInputPick = null, lockedInputs = [], fixedView = false }) {
+export function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop, onInputPick = null, lockedInputs = [], fixedView = false, interact = false }) {
+  const sceneShapeStyle = interact ? interactShapeStyle : shapeStyle;
+  const radius = interact ? INTERACT_BOX_RADIUS : 12;
+  const shadow = interact ? undefined : 'url(#animation-shadow)';
   const host = useRef(null);
   const clipPrefix = useId().replace(/[^A-Za-z0-9_-]/g, '');
   const drag = useRef(null);
@@ -499,8 +503,8 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
   const shapes = visibleObjects.map(object => {
     if (!(object.opacity > 0) || ['arrow', 'line', 'polyline', 'image', 'text', 'equation', 'code', ...DATA_TYPES].includes(object.type)) return null;
     const { x, y } = centreOf(object), w = object.w || (object.type === 'circle' ? 60 : 0), h = object.type === 'circle' ? w : object.h || 0;
-    const { onFill } = shapeStyle(object.role, { highlighted: object.highlighted, chosen: picked === object.semanticId }, undefined, object.identitySlot);
-    return { xMin: x - w / 2, xMax: x + w / 2, yMin: y - h / 2, yMax: y + h / 2, role: object.role, onFill };
+    const { onFill } = sceneShapeStyle(object.role, { highlighted: object.highlighted, chosen: picked === object.semanticId }, undefined, object.identitySlot);
+    return { xMin: x - w / 2, xMax: x + w / 2, yMin: y - h / 2, yMax: y + h / 2, role: object.role, onFill, filled: interact };
   });
   return (
     <div ref={host} data-animation-frame className="relative h-full w-full select-none"
@@ -514,7 +518,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
         if (area.w < 0.02 || area.h < 0.02) return;
         onRegion(area, find(area));
       }}>
-      <svg viewBox={view} className="h-full w-full" style={{ background: 'var(--viz-surface)' }}
+      <svg viewBox={view} fontFamily={interact ? INTERACT_FONT : undefined} className="h-full w-full" style={{ background: 'var(--viz-surface)' }}
         onClick={event => { if (event.target === event.currentTarget && !selecting && (picked || marked)) onPick(null); }}>
         {state.connections.map(connection => {
           const from = state.objects.find(object => object.id === connection.from);
@@ -525,7 +529,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
           // Path length interpolation: the line is drawn, not faded in.
           const tipX = start.x + (end.x - start.x) * connection.progress;
           const tipY = start.y + (end.y - start.y) * connection.progress;
-          return <line key={connection.key} x1={start.x} y1={start.y} x2={tipX} y2={tipY} style={{ stroke: roleVar('neutral') }} strokeWidth="2.5" strokeLinecap="round" markerEnd={connection.progress > 0.98 ? 'url(#animation-arrow)' : undefined} />;
+          return <line key={connection.key} x1={start.x} y1={start.y} x2={tipX} y2={tipY} style={{ stroke: interact ? interactMarkColor('neutral') : roleVar('neutral') }} strokeWidth={interact ? 1.5 : 2.5} strokeLinecap="round" markerEnd={connection.progress > 0.98 ? (interact ? 'url(#animation-arrow-tinted)' : 'url(#animation-arrow)') : undefined} />;
         })}
         <defs>
           {/* Connections are always drawn in the same grey, so their head is too. */}
@@ -561,7 +565,9 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
           // fill strength - one resolved look serves every shape below.
           // IDENTITY (if this object has one) takes the hue role would
           // otherwise have supplied - see shapeStyle's own comment.
-          const look = shapeStyle(role, { highlighted: object.highlighted, chosen }, undefined, object.identitySlot);
+          const look = sceneShapeStyle(role, { highlighted: object.highlighted, chosen }, undefined, object.identitySlot);
+          const isMark = isStroke || isPolyline || isImage;
+          const wireInk = interact && isMark ? interactMarkColor(role, object.identitySlot) : look.stroke;
           // A label is named by what it is doing, not by what it looks like: a
           // text object carries its own typography, every other kind draws a
           // caption on the shape beside it. Circle labels borrow the equation
@@ -578,11 +584,11 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
           // solid role hands it the ink that survives there; a data or stroke
           // label sits on the surface and keeps the page's ink.
           const textFill = object.type === 'text'
-            ? textObjectInk(role, object.typography, object.identitySlot)
-            : (isText || isData ? 'var(--color-ink-2)' : look.onFill);
+            ? (interact && role !== 'neutral' ? interactMarkColor(role, object.identitySlot) : textObjectInk(role, object.typography, object.identitySlot))
+            : (isText || isData || (interact && isMark) ? 'var(--color-ink-2)' : look.onFill);
           // A shape's own label is on its own fill (look.onFill above); any
           // other label may sit on an earlier object's box instead.
-          const labelFill = !isText && !isData && !isStroke && !isImage ? textFill
+          const labelFill = !isText && !isData && !isStroke && !isImage && !(interact && isPolyline) ? textFill
             : inkAt(textFill, estimateTextBox({ text: object.label, x: label.x, y: label.y, fontSize: type.fontSize, anchor: label.anchor, baseline: label.baseline }));
           return (
             <g key={object.id} data-animation-object={object.semanticId} opacity={object.opacity}
@@ -595,7 +601,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
                 ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2 + 8} fill="none" strokeOpacity="0.28" strokeWidth="8" style={{ stroke: look.stroke }} />
                 : <rect x={object.x - 4} y={object.y - 4} width={(object.w || 0) + 8} height={(object.h || 0) + 8} rx={16} fill="none" strokeOpacity="0.25" strokeWidth="8" style={{ stroke: look.stroke }} />)}
               {isData
-                ? <DataShape object={object} role={role} pop={pop} chosen={chosen} inkAt={inkAt}
+                ? <DataShape object={object} role={role} pop={pop} chosen={chosen} inkAt={inkAt} interact={interact}
                     onInputPick={object.pickInput && lockedInputs.includes(object.pickInput) ? null : onInputPick} />
                 : isImage
                 ? (object.crop
@@ -612,23 +618,23 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
                     </svg>
                   : <image href={object.src} x={object.x} y={object.y} width={object.w} height={object.h}
                       preserveAspectRatio="xMidYMid slice"
-                      style={{ stroke: look.stroke, strokeWidth: look.strokeWidth }} />)
+                      style={{ stroke: wireInk, strokeWidth: look.strokeWidth }} />)
                 : isPolyline
                 ? (<>
                     {object.clip && <clipPath id={`${clipPrefix}-${object.id}`}><rect x={object.clip.x} y={object.clip.y} width={object.clip.w} height={object.clip.h} /></clipPath>}
                     <polyline points={object.points.map(([px, py]) => `${px},${py}`).join(' ')} fill="none" strokeLinecap="round" strokeLinejoin="round"
-                      clipPath={object.clip ? `url(#${clipPrefix}-${object.id})` : undefined} style={{ stroke: look.stroke, strokeWidth: look.strokeWidth }} />
+                      clipPath={object.clip ? `url(#${clipPrefix}-${object.id})` : undefined} style={{ stroke: wireInk, strokeWidth: look.strokeWidth }} />
                   </>)
                 : isStroke
                 ? <line x1={object.from?.x ?? object.x} y1={object.from?.y ?? object.y}
                     x2={object.to?.x ?? object.x} y2={object.to?.y ?? object.y}
-                    strokeLinecap="round" style={{ stroke: look.stroke, strokeWidth: look.strokeWidth }}
+                    strokeLinecap="round" style={{ stroke: wireInk, strokeWidth: look.strokeWidth }}
                     markerEnd={object.type === 'arrow' ? 'url(#animation-arrow-tinted)' : undefined} />
                 : isCircle
-                ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2} filter="url(#animation-shadow)" style={{ fill: look.fill, stroke: look.stroke, strokeWidth: look.strokeWidth }} />
+                ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2} filter={shadow} style={{ fill: look.fill, stroke: look.stroke, strokeWidth: look.strokeWidth }} />
                 : isText ? null
-                  : <rect x={object.x} y={object.y} width={object.w} height={object.h} rx={12}
-                      filter="url(#animation-shadow)" style={{ fill: look.fill, stroke: look.stroke, strokeWidth: look.strokeWidth }} />}
+                  : <rect x={object.x} y={object.y} width={object.w} height={object.h} rx={radius}
+                      filter={shadow} style={{ fill: look.fill, stroke: look.stroke, strokeWidth: look.strokeWidth }} />}
               {/* Selection (picked, via onPick/selectedObject) migrated onto
                   the same generic SelectionMark the grid already uses for its
                   cells - see SelectionMark's own comment. Boxes and circles
@@ -639,7 +645,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
                   closes. */}
               {chosen && !isText && !isData && !isStroke && (isCircle
                 ? <SelectionMark geometry={{ kind: 'circle', cx: centre.x, cy: centre.y, r: (object.w || 60) / 2 }} />
-                : <SelectionMark geometry={{ kind: 'rect', x: object.x, y: object.y, width: object.w || 0, height: object.h || 0 }} />)}
+                : <SelectionMark geometry={{ kind: 'rect', x: object.x, y: object.y, width: object.w || 0, height: object.h || 0, rx: interact ? radius : 0 }} />)}
               {maths && (
                 <foreignObject x={object.x} y={object.y} width={object.w} height={object.h}>
                   {/* Only typeset() output may reach this - it is KaTeX markup,
@@ -676,7 +682,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
   );
 }
 
-export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskRegion, onControlsHeight = null }) {
+export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskRegion, onControlsHeight = null, interact = false }) {
   const [error, setError] = useState('');
   const [scene, setScene] = useState(null);
   const [time, setTime] = useState(block.time || 0);
@@ -820,7 +826,7 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
     <div className="flex min-h-0 flex-1 flex-col gap-2" onPointerDown={event => event.stopPropagation()}>
       {pager && <CardPager declaration={pager} value={evaluated.inputs[pager.name]} data={block.scene.exampleData} onInput={setInput} />}
       <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-white">
-        <Frame scene={scene} state={state} selecting={selecting} marked={block.marked} picked={block.selectedObject} pop={pop}
+        <Frame scene={scene} interact={interact} state={state} selecting={selecting} marked={block.marked} picked={block.selectedObject} pop={pop}
           onInputPick={interactive ? setInput : null} lockedInputs={lockedInputs}
           onPick={semanticId => (semanticId ? (onChangeQuiet || onChange)({ ...latest.current, selectedObject: semanticId }) : clearMark())}
           onRegion={(area, targets) => {
