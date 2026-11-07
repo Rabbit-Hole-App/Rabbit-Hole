@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChartColumnIncreasing, CircleAlert, FileCode2, FileText, Film, Globe, Group, Image, Loader2, RotateCw, Shapes, StickyNote, X } from 'lucide-react';
-import { Menu } from './ui.jsx';
+import { Menu, toast } from './ui.jsx';
 import { refWhere } from './repo-context.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { rangeLabel, refKey, sameRef } from './chat-context.js';
@@ -8,6 +8,7 @@ import { refIds } from './chat-canvas-context.js';
 import { labelOnlyChip } from './pdf-source.js';
 import { CanvasMentionChip } from './CanvasMention.jsx';
 import { AreaCapturingPill } from './AreaCapturing.jsx';
+import { ON_CANVAS, goToRef, goToSelection } from './pill-target.js';
 
 // Sub-lane A4a owns this file: attached-context chips under the composer text area (brief section 7). A3a mounts it.
 // First a fixed "This canvas" indicator (the canvas scope the server always reads, contract A5), then this conversation's
@@ -55,6 +56,15 @@ export default function ContextChips({ readPaper = null, selection = null, code 
   const [more, setMore] = useState(false);
   if (!chat) return null;
   const codeSelected = ref => !!code?.selected.some(other => sameRef(other, ref));
+  // A pill goes to what it was made from (pill-target.js). The canvas frames it; a card that is gone is said so, never restored.
+  const ops = chat.canvasOps, say = result => { if (result?.problem) toast(result.problem); };
+  const openChip = ref => {
+    if (ref.kind === 'progress') { chat.panels.openProgress(); return; }
+    const result = ops ? goToRef(ref, ops) : null;
+    if (result?.located && ON_CANVAS.has(ref.kind)) return; // the card is the content
+    chat.openSource(ref); // every other chip opens its reader too; a gone card still shows what was attached
+    say(result);
+  };
   const codeChip = ref => (
     <li key={refKey(ref)} data-code-selection data-ref-key={refKey(ref)} title={`${ref.name} · ${refWhere(ref)}. Selected in the repository viewer: it goes with the next question; Add to chat keeps it.`}
       className={`${CHIP} border-dashed border-line-strong pr-0.5`}>
@@ -95,10 +105,9 @@ export default function ContextChips({ readPaper = null, selection = null, code 
           return (
             <li data-canvas-target data-selected-card={selection.id} data-context-selection data-ref-key={ref ? refKey(ref) : undefined} data-label-only={labelOnly || undefined}
               title={`${selection.kind}: ${String(selection.title ?? '')}`} className={`${CHIP} border-dashed border-line-strong pr-0.5`}>
-              {/* A named source (a PDF, page, file or code ref) opens beside Chat; a card or region selection is its name only. */}
-              {ref?.name ? <button type="button" onClick={() => chat.openSource(ref)} title={labelOnly ? `Open ${ref.name}. Selected on the canvas: it goes with the next question. ${LABEL_ONLY}` : `Open ${ref.name}. Selected on the canvas: it goes with the next question; Add to chat keeps it.`}
-                className="flex h-full min-w-0 items-center gap-1 rounded-l-md pl-1.5 hover:bg-hover">{body}</button>
-                : <span className="flex h-full min-w-0 items-center gap-1 pl-1.5">{body}</span>}
+              {/* A named source (a PDF, page, file or code ref) opens beside Chat and is framed on the canvas; a card, region or area selection goes to it. */}
+              <button type="button" disabled={!ref?.name && !ops} onClick={() => { if (ref?.name) chat.openSource(ref); if (ops) say(goToSelection(selection, ops)); }} title={!ref?.name ? `Go to ${name}` : labelOnly ? `Open ${ref.name}. Selected on the canvas: it goes with the next question. ${LABEL_ONLY}` : `Open ${ref.name}. Selected on the canvas: it goes with the next question; Add to chat keeps it.`}
+                className="flex h-full min-w-0 items-center gap-1 rounded-l-md pl-1.5 hover:bg-hover disabled:cursor-default disabled:hover:bg-transparent">{body}</button>
               <button type="button" onClick={selection.onClear} aria-label={selection.card ? 'Remove selected card context' : 'Clear block selection'} title="Clear the selection" className={CHIP_ICON_BUTTON}><X size={12} aria-hidden /></button>
             </li>
           );
@@ -119,7 +128,7 @@ export default function ContextChips({ readPaper = null, selection = null, code 
               {...(selected && !codeSelected(ref) ? { 'data-canvas-target': true, 'data-selected-card': selection.id } : {})} data-code-pinned={codeSelected(ref) || undefined}
               className={`${CHIP} pr-0.5 ${state === 'failed' ? 'border-red-300' : selected ? 'border-accent' : ''}`}>
               {/* A progress chip (Tutor Task 10) opens Progress, which keeps its viewed goal; every other chip opens its source. */}
-              <button type="button" disabled={state !== 'ready'} onClick={() => (ref.kind === 'progress' ? chat.panels.openProgress() : chat.openSource(ref))} title={state === 'failed' ? item.error : labelOnly ? `Open ${ref.name}. ${LABEL_ONLY}` : `Open ${ref.name}`}
+              <button type="button" disabled={state !== 'ready'} onClick={() => openChip(ref)} title={state === 'failed' ? item.error : labelOnly ? `Open ${ref.name}. ${LABEL_ONLY}` : `${ON_CANVAS.has(ref.kind) ? 'Go to' : 'Open'} ${ref.name}`}
                 className="flex h-full min-w-0 items-center gap-1 rounded-l-md pl-1.5 hover:bg-hover disabled:cursor-default disabled:hover:bg-transparent">
                 {busy ? <Loader2 size={14} aria-hidden className="shrink-0 animate-spin text-ink-3" />
                   : state === 'failed' ? <CircleAlert size={14} aria-hidden className="shrink-0 text-red-700" /> : <RefIcon kind={ref.kind} />}

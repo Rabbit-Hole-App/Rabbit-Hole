@@ -1792,6 +1792,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Every area asked about stays on the canvas, outlined and lightly filled red, saved with the
   // board, until the learner clicks its outline to remove it.
   const [areas, setAreas] = useState(stored.current.areas || []);
+  const areasRef = useRef(areas); areasRef.current = areas;
   // The Table of contents' own list (owner brief 2026-10-23; learn-outline-model.js tocOf), or null while the board reads
   // its canvas headings. Saved and undone with the board; no TOC command touches the canvas objects.
   const [toc, setToc] = useState(() => (Array.isArray(stored.current.toc) ? stored.current.toc : null));
@@ -2447,6 +2448,25 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         setSelection(ids);
         const boxes = boxesOf(ids);
         if (boxes.length) frame(boxes, 64, 1.2);
+      },
+      // A Chat pill's Go to (pill-target.js): frame what the pill was made from. False when nothing here has that id any more; nothing is restored.
+      locateObject: id => {
+        const members = membersOf(id);
+        if (!boundsRef.current[id] && !objectById(id) && !members.length) return false;
+        if (boundsRef.current[id]) { setSelection([id]); cameraRef.current = { id, frame: true }; return true; }
+        const ids = members.length ? members : [id];
+        setSelection(ids);
+        const boxes = boxesOf(ids);
+        if (boxes.length) frame(boxes, 64, 1.2);
+        return true;
+      },
+      // An Ask about selection area (areas: x, y, w, h, and blockId + dx, dy while it follows its card): framed where it is drawn now.
+      locateArea: id => {
+        const area = areasRef.current.find(entry => entry.id === id);
+        if (!area) return false;
+        const host = area.blockId && boundsRef.current[area.blockId];
+        frame([host ? { ...area, x: host.x + area.dx, y: host.y + area.dy } : area], 64, 1.2);
+        return true;
       },
       // The Tutor's show (docs/features/canvas-skeleton-cards.md): select the card and glide it into the visible
       // area at the learner's zoom - never a fit - once it is laid out.
