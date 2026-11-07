@@ -13,7 +13,7 @@ import { routes, tabAccepts, pillOf, planDelivery } from '../../web/src/roadmap-
 import { draftKey } from '../../web/src/chat-draft.js';
 import {
   AT, FILE_NAME, INSTRUCTION, KEY, MARKER, MD, PLAN, STEPS, USERS, acceptCard, acceptPlan, boardBlocks, calm, deliver, explain, explanation, httpError,
-  SHORT_PLAN, planOf, readThread, saveMessage, sha, started, status, table, threadId, timeout, unsafe, workflow,
+  SHORT_PLAN, planOf, readThread, reply, saveMessage, sha, started, status, table, threadId, timeout, unsafe, workflow,
 } from './roadmap-workflow-fixture.js';
 
 const T_FRESH = threadId(1), T_BUSY = threadId(2), T_DRAFT = threadId(3), T_NEW = threadId(4), T_BOB = threadId(9);
@@ -273,5 +273,59 @@ test('BE.05 first proposal and one guarded acceptance (CORE.03-05, UI.04-05)', a
     for (const ctx of [{ event: { key: 'Tab', isComposing: true }, pill }, { event: { key: 'Tab', keyCode: 229 }, pill }, { event: { key: 'Tab', repeat: true }, pill }, { event: { key: 'Tab', shiftKey: true }, pill },
       { event: { key: 'Tab' }, pill, blocked: true }, { event: { key: 'Tab' }, pill, editorOpen: true }, { event: { key: 'Tab' }, pill: { accept: false } }])
       assert.equal(tabAccepts(ctx), false, JSON.stringify(ctx));
+  });
+});
+
+// One accepted first card through the real author path. replies: the scripted author responses.
+async function firstCard(t, replies, opts = {}) {
+  const h = await workflow(t, { script: [...replies], ...opts });
+  const view = await started(h, opts);
+  const accepted = await acceptCard(h, view, 'accept1');
+  return { h, view, accepted, resultId: accepted.body.slots?.[0]?.resultId, cardId: accepted.body.slots?.[0]?.cardId };
+}
+const resultRow = (h, id) => h.rows('SELECT * FROM learn_step_results WHERE id = ?', id)[0];
+// The author request's context field (generateArtifact serializes the input into the user message).
+const authorContext = call => { const c = call.body.messages[0].content; return JSON.parse(typeof c === 'string' ? c : c.at(-1).text).context; };
+const toolNames = call => (call.body.tools || []).map(x => x.name).filter(n => n.startsWith('make_')); // the content tools offered (ask_clarifying_question is the artifact path's own)
+
+test('BE.06 actual author request and both output formats (CORE.03-07)', async t => {
+  await t.test('BE.06 explanation: one content-author call carries the whole document, accepted brief, original instruction, format, language and Depth', async () => {
+    const { h, resultId } = await firstCard(t, [explanation()]);
+    assert.equal(h.authorCalls.length, 1, 'exactly one ordinary content-author call');
+    const [call] = h.authorCalls;
+    assert.deepEqual(toolNames(call), ['make_explanation'], 'the accepted format only');
+    assert.ok(authorContext(call).includes(MD), 'whole pinned Markdown');
+    assert.ok(call.text.includes(MARKER), 'including the distant marker');
+    assert.ok(call.text.includes('CLAIM-GINI') && call.text.includes(PLAN.outcome), 'accepted step claims and outcome');
+    assert.match(call.text, /Depth: standard/);
+    assert.match(call.text, /language \\"en\\"/);
+    assert.deepEqual([h.checkerCalls.length, JSON.parse(resultRow(h, resultId).check_json).grounding.validation], [0, 'not_run'], 'no citation review; grounding not_run, not passed');
+    assert.ok(call.text.includes(INSTRUCTION), 'the original learner instruction reaches the writer');
+  });
+  await t.test('BE.06 table: the same author/publication path with the table tool only', async () => {
+    const { h, resultId } = await firstCard(t, [explanation(), table()]);
+    assert.equal((await deliver(h, resultId)).status, 200);
+    const next = await status(h);
+    assert.equal(next.proposal?.format, 'table', 'the automatic next offer is the table step');
+    const second = await acceptCard(h, next, 'accept2');
+    assert.equal(second.status, 202);
+    assert.equal(h.authorCalls.length, 2);
+    assert.deepEqual(toolNames(h.authorCalls[1]), ['make_table']);
+    assert.ok(h.authorCalls[1].text.includes(MARKER) && h.authorCalls[1].text.includes('CLAIM-TABLE'));
+    const row = resultRow(h, second.body.slots[0].resultId);
+    assert.deepEqual([row.generation, row.primitive, row.validation], ['generated', 'table', 'passed']);
+  });
+  for (const [name, bad] of [['malformed output', explanation('Only a title', '')], ['the wrong tool', table()], ['a provider 5xx', httpError(500)]]) {
+    await t.test(`BE.06 ${name}: one author call, terminal failure, no readable card, no automatic redispatch`, async () => {
+      const { h, view, resultId } = await firstCard(t, [bad, explanation(), explanation()]);
+      assert.equal(h.authorCalls.length, 1, 'no automatic author retry or repair');
+      const row = resultRow(h, resultId);
+      assert.equal(row.generation, 'failed');
+      assert.equal((await h.send('alice', 'GET', `/api/learn/roadmap/${view.roadmap.id}/results/${resultId}?boardId=${h.boards.alice}`)).status, 404);
+    });
+  }
+  await t.test('BE.06 a returned model mismatch is not re-sent', async () => {
+    const { h } = await firstCard(t, [reply('make_explanation', { title: 'x', body: 'Gini measures mixing.' }, { served: 'claude-haiku-4-5' }), explanation()]);
+    assert.equal(h.authorCalls.length, 1);
   });
 });
