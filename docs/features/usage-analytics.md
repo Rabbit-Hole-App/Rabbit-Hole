@@ -73,7 +73,7 @@ active-time or identify event is sent or queued for later, and the server sends 
 | `rh_planning_requested` | browser | A paid plan: an /explain brief (`startExplain`), or CAD when the brief step returns `awaiting_approval` | `feature`, `action_id` |
 | `rh_generation_requested` | browser | Generation started: Explain Generate or edit, CAD build, image job, Motion video | `feature` (`explain`, `cad`, `image`, `motion`), `action_id` |
 | `rh_generation_completed` | browser | That job reached ready | `feature`, `action_id` |
-| `rh_generation_failed` | browser | That job ended failed, cancelled, refused or stopped (Explain: only after generation began) | `feature`, `action_id`, `reason` |
+| `rh_generation_failed` | browser | That job ended failed, cancelled, refused or stopped (Explain: only after generation began) | `feature`, `action_id`, `reason`; Explain also `stage` (where it stopped) and `stop_reason` (for example `deadline`), tokens from the job view only |
 | `rh_share_changed` | browser | A canvas's sharing was saved (canvas Share panel, Home card Share dialog) | `access` (`private`, `link`, `public`) |
 | `rh_canvas_forked` | browser | A fork was made (a replayed reply is not a second fork) | |
 

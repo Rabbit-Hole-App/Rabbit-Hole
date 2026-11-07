@@ -14,6 +14,7 @@ import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { notifyCadBudget } from './cad-budget-alert.js';
 import { recordCadFailure, archiveCadFailure, cadFailureMessage, modelRejection } from './cad-failure.js';
 import { diagnosticIdentity, diagnosticJob } from './cad-job-diagnostic.js';
+import { logJobFailure } from './job-failure-log.js';
 import { cadProductionEnforced, cadProductionConfig, isCadProductionBudgetObject, reserveCadProductionModel, reserveCadProductionJob, cadProductionBudgetStatus, pauseCadProductionTransfer, reportCadProductionTransferPause, recordCadInfrastructureExtras, reserveCadLifetimeBytes } from './cad-production-budget.js';
 
 const PREFIX = '/api/learn/cad/jobs';
@@ -326,12 +327,13 @@ export class CadJobs {
     return this.response(next,202);
   }
   async executor(path,body){return fetch(new URL(path,this.env.CAD_EXECUTOR_URL),{method:'POST',headers:{Authorization:`Bearer ${this.env.CAD_EXECUTOR_TOKEN}`,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,redirect:'manual',signal:AbortSignal.timeout(20000)});}
-  async fail(job,message){
+  async fail(job,message,why){
     if(job.failureAttempt!==job.attempt)recordCadFailure(job,{},this.env);
     if(!message.includes(`Job ${job.id},`))message+=` Job ${job.id}, attempt ${job.failureAttempt}, stage ${job.failureStage}.`;
     if(job.operation==='export'&&job.manifest){job.exportState='failed';job.exportError=message;job.operation='build';}
     else {job.state='failed';job.stage='failed';job.error=message;}
     job.modelInFlight=null;await this.save(job);
+    logJobFailure('cad',job,{windowMs:job.limits?.elapsedMs,stage:job.failureStage,stopReason:why??job.failureCode,interrupted:why==='model_interrupted'});
   }
   async alarm(){
     // Re-arm before network work, so a terminated isolate always gets a recovery turn.
@@ -347,10 +349,10 @@ export class CadJobs {
     if(active)await this.wake(1000);else await this.state.storage.deleteAlarm();
   }
   async advance(job){
-    if(Date.now()>job.deadline)return this.fail(job,'CAD reached its accepted time limit.');
+    if(Date.now()>job.deadline)return this.fail(job,'CAD reached its accepted time limit.','deadline');
     if(job.pendingResult)return this.publish(job);
     if(job.dispatchAfter>Date.now())return;
-    if(job.modelInFlight){if(this.activeModels.has(job.id))return;return this.fail(job,'A model request was interrupted; its cost may be unknown. Retry explicitly to continue.');}
+    if(job.modelInFlight){if(this.activeModels.has(job.id))return;return this.fail(job,'A model request was interrupted; its cost may be unknown. Retry explicitly to continue.','model_interrupted');}
     if(job.rebuild&&(job.state==='queued'||job.state==='repairing'||job.modelPhase==='review'))return this.fail(job,'A parameter rebuild cannot call a model. The accepted model is unchanged.');
     if(job.rebuild&&!job.source){
       const source=await saveCadSource(this.env,job,job.sourceText),current=await this.state.storage.get(jobKey(job.id));
