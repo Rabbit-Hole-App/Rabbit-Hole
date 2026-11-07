@@ -42,7 +42,7 @@ import { commandsFor, typedOf } from './agent/slash.js';
 import { generationArgs } from './material-brief.js';
 import { openSourceFinder, returnFocus, setSourceFinderHost, slashOpensFind } from './source-finder.js';
 import { httpTransport } from './inline-ai-transport.js';
-import { EXPLICIT_ROUTES, ROUTES as INLINE_ROUTES } from './inline-ai-route.js';
+import { EXPLICIT_ROUTES, INLINE_COMMAND_ROUTE, NOT_INLINE as INLINE_NOT, ROUTES as INLINE_ROUTES } from './inline-ai-route.js';
 import { warmLearnTools } from './learn-warmup.js';
 import ShortcutsSheet from './ShortcutsSheet.jsx';
 import UploadDestinationDialog from './UploadDestinationDialog.jsx';
@@ -1261,7 +1261,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     transport: httpTransport({ app: app.name, pending: askScope.pending || null, board: boardName, fetchRaw: apiFetch, post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify(body) }) }),
     // internal: Ctrl+K's automatic routing still makes comparisons and walkthroughs from plain words (owner, 2026-10-20), though
     // /compare and /walkthrough are no longer typed commands (its / list is the registry's user commands, inline-ai-command.js).
-    enabled: ['note', 'equation', ...commandsFor('learn', { internal: true }).filter(available).map(command => command.name).filter(name => INLINE_ROUTES[name] || EXPLICIT_ROUTES[name])],
+    enabled: ['note', 'equation', ...commandsFor('learn', { internal: true }).filter(available).filter(command => !INLINE_NOT[command.name]).map(command => INLINE_COMMAND_ROUTE[command.name] || command.name).filter(name => INLINE_ROUTES[name] || EXPLICIT_ROUTES[name])],
     // Ctrl+K's proposed capabilities (proposal-capabilities.js; /motion first, MOT-20b): the Chat's own command turn about Ctrl+K's
     // selection, so it is proposed on the same shared card as the composer's; nothing starts here. Answers false where this
     // build does not offer the command or the Chat cannot take the turn.

@@ -225,6 +225,9 @@ html {
   --cmd-quiz-bg: #ecfded;
   --cmd-quiz-fg: #107016;
   --cmd-quiz-line: #b1f1b5;
+  --cmd-explanation-bg: #effcf1;
+  --cmd-explanation-fg: #1a7335;
+  --cmd-explanation-line: #bdeec9;
   --cmd-explain-bg: #ecfdf8;
   --cmd-explain-fg: #1e765a;
   --cmd-explain-line: #b1f1dd;
@@ -281,6 +284,7 @@ html {
 [data-command-tone="motion"] { --cmd-bg: var(--cmd-motion-bg); --cmd-fg: var(--cmd-motion-fg); --cmd-line: var(--cmd-motion-line); }
 [data-command-tone="practice"] { --cmd-bg: var(--cmd-practice-bg); --cmd-fg: var(--cmd-practice-fg); --cmd-line: var(--cmd-practice-line); }
 [data-command-tone="quiz"] { --cmd-bg: var(--cmd-quiz-bg); --cmd-fg: var(--cmd-quiz-fg); --cmd-line: var(--cmd-quiz-line); }
+[data-command-tone="explanation"] { --cmd-bg: var(--cmd-explanation-bg); --cmd-fg: var(--cmd-explanation-fg); --cmd-line: var(--cmd-explanation-line); }
 [data-command-tone="explain"] { --cmd-bg: var(--cmd-explain-bg); --cmd-fg: var(--cmd-explain-fg); --cmd-line: var(--cmd-explain-line); }
 [data-command-tone="flashcards"] { --cmd-bg: var(--cmd-flashcards-bg); --cmd-fg: var(--cmd-flashcards-fg); --cmd-line: var(--cmd-flashcards-line); }
 [data-command-tone="code"] { --cmd-bg: var(--cmd-code-bg); --cmd-fg: var(--cmd-code-fg); --cmd-line: var(--cmd-code-line); }
@@ -369,6 +373,9 @@ html {
   --cmd-quiz-bg: #143416;
   --cmd-quiz-fg: #b4f9b8;
   --cmd-quiz-line: #26822c;
+  --cmd-explanation-bg: #15351f;
+  --cmd-explanation-fg: #b0f5c0;
+  --cmd-explanation-line: #2a8043;
   --cmd-explain-bg: #14342a;
   --cmd-explain-fg: #a1f7dc;
   --cmd-explain-line: #268265;

@@ -17,6 +17,7 @@
 //   { kind: 'none', reason }        no matching saved result exists: said plainly (a generator then shows its brief)
 // note: one line under the preview, where the preview needs one.
 import COOLING from './slash-examples/explain-cooling.json' with { type: 'json' };
+import COOLING_WRITTEN from './slash-examples/explanation-cooling.json' with { type: 'json' };
 import NOTEBOOK from './slash-examples/notebook-cooling.json' with { type: 'json' };
 import CAD_PLATE from './slash-examples/cad-plate.json' with { type: 'json' };
 import WIKI from './slash-examples/wiki-transformer.json' with { type: 'json' };
@@ -49,7 +50,7 @@ export const SAMPLES = {
   },
 };
 
-// /explain's example (owner, 2026-10-29): the genuine accepted program of /explain run sandbox-ex1-b (job ej_307b2e1a, result
+// /interactive's example (id `explain`; owner, 2026-10-29): the genuine accepted program of /explain run sandbox-ex1-b (job ej_307b2e1a, result
 // er_a5e59350, bundle 62c202e9; the same recorded answer as explain-program/testdata/sandbox-ex1-b-job.json): the saved card and
 // the result route's answer for it. ProgramScene resolves it through its own checks (identity, bundle and source hashes) from this
 // copy instead of the route, and runs it in its sandbox: Play, the scrubber and the room temperature work; nothing is generated.
@@ -124,9 +125,12 @@ export const withOption = (preview, option) => (option ? { ...preview, block: op
 
 export const PREVIEWS = {
   // size: about 660 px wide (owner, 2026-10-29), the drawing fitted whole inside it (ProgramScene programExample).
-  explain: { kind: 'card', card: 'animation', block: COOLING.block, program: COOLING.result, size: () => ({ width: 660, height: 620 }), note: 'A saved answer made by /explain for this request.' },
+  // /explain (id `explanation`) is the written card: the real Explanation card on the same topic, with a rendered table (owner 2026-11-07).
+  explanation: { kind: 'card', card: 'explanation', block: COOLING_WRITTEN.block, size: () => ({ width: 520 }), note: 'A saved answer made by /explain for this request.' },
+  // /interactive (id `explain`, kept for every saved binding): the playable coffee-cooling scene.
+  explain: { kind: 'card', card: 'animation', block: COOLING.block, program: COOLING.result, size: () => ({ width: 660, height: 620 }), note: 'A saved answer made by /interactive for this request.' },
   practice: { kind: 'card', card: 'explainBack', block: { type: 'challenge', mode: 'explain_back', customTitle: 'Explain why the sky is blue',
-    prompt: 'Why does the sky look blue? Explain it in your own words.',
+   prompt: 'Why does the sky look blue? Explain it in your own words.',
     hint: 'Think about what happens to sunlight as it passes through the air.',
     expects: ['sunlight contains every colour', 'air molecules scatter short blue wavelengths much more than long red ones', 'scattered blue light reaches your eyes from every part of the sky'],
     reveal: '', answer: null },

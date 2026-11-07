@@ -15,7 +15,7 @@ test('the picker lists exactly what Chat\'s picker lists (owner spec 2026-10-29:
   const chat = pickerSections('/', { motionDev: true }).flatMap(section => section.items.map(item => item.name));
   assert.deepEqual(names(ctrlkCommands({ motionDev: true })).sort(), [...chat].sort());
   assert.ok(ctrlkCommands({ motionDev: true }).every(command => commandsFor('ctrlk', { motionDev: true }).includes(command)), 'the same registry objects');
-  for (const name of ['practice', 'quiz', 'goal', 'notebook', 'browser', 'cad', 'explain']) assert.ok(names(ctrlkCommands({ motionDev: true })).includes(name), name);
+  for (const name of ['practice', 'quiz', 'goal', 'notebook', 'browser', 'cad', 'explain', 'explanation']) assert.ok(names(ctrlkCommands({ motionDev: true })).includes(name), name);
   // Where no source finder can open, only the three source searches leave the list.
   assert.deepEqual(names(ctrlkCommands({ sources: false, motionDev: true })), names(ctrlkCommands({ motionDev: true })).filter(name => !['youtube', 'arxiv', 'wikipedia'].includes(name)));
   assert.ok(!names(ctrlkCommands({ motionDev: false })).includes('motion'));
@@ -72,8 +72,12 @@ test('modes: a generation command selects Explain; /explain shows its pill and i
   assert.equal(showsPill('explain'), true);
   assert.equal(showsPill('code'), true);
   assert.equal(showsPill(null), false);
-  assert.equal(submission({ mode: 'explain', command: 'explain', text: 'why' }).handoff.line, '/explain why');
-  for (const name of ['explain', 'code', 'flashcards', 'motion']) {
+  // Owner 2026-11-07: id explanation is typed /explain (written card), id explain is typed /interactive (playable visual).
+  assert.equal(submission({ mode: 'explain', command: 'explanation', text: 'why' }).handoff.line, '/explain why');
+  assert.deepEqual(submission({ mode: 'explain', command: 'explain', text: 'why' }), { handoff: { command: 'explain', line: '/interactive why' } });
+  assert.deepEqual(submission({ mode: 'explain', text: '/explain why' }), { handoff: { command: 'explanation', line: '/explain why' } }, 'typed /explain is the written command');
+  assert.deepEqual(submission({ mode: 'explain', text: '/interactive why' }), { handoff: { command: 'explain', line: '/interactive why' } }, 'typed /interactive keeps the saved id explain');
+  for (const name of ['explanation', 'explain', 'code', 'flashcards', 'motion']) {
     assert.deepEqual(switchMode({ command: name, text: 'my words' }, 'edit'), { mode: 'edit', command: null, text: 'my words' }, name);
     assert.deepEqual(submission({ mode: 'edit', command: switchMode({ command: name, text: 'my words' }, 'edit').command, text: 'my words' }),
       { mode: 'edit', command: null, text: 'my words', prompt: 'my words' }, `${name}: nothing of it is sent`);
@@ -108,13 +112,13 @@ test('Ctrl+K: a typed leading command replaces the selected one; aliases and upp
   assert.deepEqual(submission({ mode: 'explain', command: 'quiz', text: '/photo cat' }), { handoff: { command: 'image', line: '/photos cat' } });
 });
 
-test('Ctrl+K: each of the 20 picked, typed, uppercase or replacing a selected command submits its id and typed line', () => {
+test('Ctrl+K: each of the 21 picked, typed, uppercase or replacing a selected command submits its id and typed line', () => {
   setImageGeneration(true);
   setWhiteboardVideo(true);
   try {
-    const typedNames = { 'generate-image': 'image', image: 'photos', 'whiteboard-video': 'whiteboard' };
+    const typedNames = { 'generate-image': 'image', image: 'photos', 'whiteboard-video': 'whiteboard', explain: 'interactive', explanation: 'explain' };
     const all = ctrlkCommands({ motionDev: true });
-    assert.equal(all.length, 20, 'owner, 2026-10-30: /animation added; owner roadmap 2026-11-04: /whiteboard added');
+    assert.equal(all.length, 21, 'owner, 2026-10-30: /animation added; owner roadmap 2026-11-04: /whiteboard added; owner 2026-11-07: /explain split into /explain and /interactive');
     for (const command of all) {
       const typed = typedNames[command.name] || command.name;
       const want = command.kind === 'source' ? { source: { source: command.source, query: 'a b' } } : { handoff: { command: command.name, line: `/${typed} a b` } };

@@ -55,6 +55,11 @@ test('fixed routes: Edit, slash commands and plain Explain know their route but 
   assert.deepEqual(fixedRoute(pick('make the title shorter', { mode: 'edit' })), { capability: 'edit' });
   assert.deepEqual(fixedRoute(pick('/diagram how the stages connect')), { capability: 'shapes' });
   assert.deepEqual(fixedRoute(pick('how the stages connect', { slash: 'diagram' })), { capability: 'shapes' });
+  // Owner 2026-11-07: typed /explain (id explanation) is inline's written Explanation card; /interactive (id explain) is not an inline form.
+  assert.deepEqual(fixedRoute(pick('/explain how a heap works'), ['note', 'explain']), { capability: 'explain' });
+  assert.deepEqual(fixedRoute(pick('how a heap works', { slash: 'explanation' }), ['note', 'explain']), { capability: 'explain' });
+  assert.equal(fixedRoute(pick('/interactive how a heap works'), ['note', 'explain']).decision, 'unsupported');
+  assert.match(fixedRoute(pick('how a heap works', { slash: 'explain' }), ['note', 'explain']).message, /^[/]interactive isn't part of inline Explain/);
   // Owner, 2026-10-20: a removed command runs nothing inline, even one whose route plain words still reach.
   assert.deepEqual(fixedRoute(pick('/simplify')), { decision: 'unsupported', message: '/simplify is no longer available. Type / to see the commands, or ask in your own words.', paid: false });
   assert.equal(fixedRoute(pick('/compare with mitosis'), ['note', 'compare']).decision, 'unsupported');

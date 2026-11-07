@@ -173,6 +173,8 @@ export const GENERATION_COMMANDS = Object.freeze({
   image: define({ label: 'Image search', review_policy: 'none' }),
   compare: define({ label: 'Comparison', review_policy: 'none' }),
   walkthrough: define({ label: 'Walkthrough', review_policy: 'none' }),
+  // /explain (internal id explanation, owner 2026-11-07): the written card is made directly, no brief; the interactive one is id explain above.
+  explanation: define({ label: 'Explanation', review_policy: 'none' }),
 });
 
 export const commandDefinition = command => (Object.hasOwn(GENERATION_COMMANDS, command) ? GENERATION_COMMANDS[command] : null);

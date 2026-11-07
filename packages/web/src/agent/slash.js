@@ -33,8 +33,9 @@ export const SELECTIONS = ['project', 'map_node', 'card', 'equation', 'notebook_
 // Every public command is offered in Chat and Ctrl+K alike (owner spec 2026-10-29: one catalogue, one dispatcher); the source
 // searches are also in the canvas Insert menu.
 const CTRLK = ['learn', 'ctrlk'];
-// What a learner (or the Tutor's create_material request) says to pick /explain's form: a representation, never a topic.
-// Plain text is checked first, so "/explain in plain text: <an interactive request>" (the failed-scene offer) is text.
+// What a learner (or the Tutor's create_material request) says to pick the saved id `explain`'s form: a representation, never a topic.
+// Plain text is checked first, so "/explain in plain text: <an interactive request>" (the failed-scene offer) is text. Kept exactly as it
+// was (owner 2026-11-07: original bindings are preserved), so a saved or replayed request carrying `explain` resolves to the same set.
 export const PLAIN_WORDS = /\bplain[- ](text|words|explanation)\b|\btext[- ]only\b|\bin text\b|\bwithout (a |an )?(visual|interactive)/i;
 export const INTERACTIVE_WORDS = /\binteractive\b|\bsimulat(e|ion|or)\b|\bsliders?\b|\bvisuali[sz](e|ation)\b|\banimat(e|ed|ion)\b|\bexplorable\b/i;
 // The 18 slash commands a learner can type or pick (owner spec 2026-10-29, docs/features/rabbit-hole-commands.md): /dive
@@ -45,10 +46,14 @@ export const INTERACTIVE_WORDS = /\binteractive\b|\bsimulat(e|ion|or)\b|\bslider
 // inserts something of its own (no generation). Which commands prepare a brief before Generate: learn-slash.js BRIEF_COMMANDS.
 export const SLASH = [
   // Learn
-  // /explain makes an interactive visual (animation: the authored cards' scene format) when controls, calculations or motion
-  // teach the idea, and a text explanation otherwise (owner, 2026-10-21). Asking for one in words narrows to it: a plain-text
-  // request never gets a scene, and an interactive one never gets text instead (a scene that fails says so).
-  { name: 'explain', kind: 'generate', group: 'learn', places: CTRLK, label: 'Explanation', desc: 'Explanation', about: 'Understand an idea with a visual explanation you can play and explore.', placeholder: 'What would you like to understand?', family: ['explanation', 'table', 'animation', 'narration'],
+  // Two explain commands (owner, 2026-11-07), each selecting its format directly (the written one has a single primitive). /explain is the WRITTEN card (id
+  // `explanation`): the Tutor's own Explanation writer and renderer, with Depth, the selected source and Markdown tables and Mermaid.
+  // /interactive is the PLAYABLE visual and keeps the original id `explain`, so every saved draft, proposal, job and message that carries
+  // `explain` still means the interactive flow (explain-job.js, its brief and approvals). The server (roadmap-generate.js) also writes the
+  // Tutor's roadmap cards through id `explain` with a trusted `only` set, so its family stays whole, and the saved id keeps the narrowing words it
+  // always had (PLAIN_WORDS, INTERACTIVE_WORDS) so replayed requests resolve identically. The written command has one primitive: no words narrow it.
+  { name: 'explanation', typed: 'explain', kind: 'generate', group: 'learn', places: CTRLK, label: 'Explanation', desc: 'Explanation', about: 'Get a written explanation card, with tables and diagrams where they help.', placeholder: 'What would you like explained?', family: ['explanation'] },
+  { name: 'explain', typed: 'interactive', kind: 'generate', group: 'learn', places: CTRLK, label: 'Interactive', desc: 'Interactive', about: 'Understand an idea with a visual you can play and explore, with controls.', placeholder: 'What would you like to explore?', family: ['explanation', 'table', 'animation', 'narration'],
     narrow: [[PLAIN_WORDS, 'explanation'], [INTERACTIVE_WORDS, 'animation']] },
   // Explain-back = Challenge = Practice (owner 2026-10-30): /practice makes the one Practice card (primitive explain_back);
   // quiz and code_exercise stay their own cards. The challenge primitive is no longer offered here.
@@ -153,11 +158,12 @@ export function unavailableCommand(name, { listed = true, imageGeneration = imag
 // The sections of the picker, Ctrl+K and the Slash Commands window, in order (owner spec 2026-10-29). Every public command is in
 // exactly one (slash.test.mjs), so no surface keeps a list of its own.
 export const LEARN_MENU = {
-  learn: ['explain', 'practice', 'quiz', 'flashcards', 'goal'],
+  learn: ['explanation', 'explain', 'practice', 'quiz', 'flashcards', 'goal'],
   create: ['code', 'graph', 'diagram', 'notebook', 'generate-image', 'motion', 'cad', 'animation', 'whiteboard-video', '3d', 'browser'],
   search: ['image', 'youtube', 'arxiv', 'wikipedia'],
 };
-export const MENU_TITLES = { learn: 'Learn', create: 'Create', search: 'Search' };
+// The visible section titles only (owner 2026-11-07: the first section reads Tutor). The group KEY stays `learn`, like every places value and permission.
+export const MENU_TITLES = { learn: 'Tutor', create: 'Create', search: 'Search' };
 
 // Canvas primitives are ids the Learn branch maps to block types. A paid primitive always confirms, even
 // when named with a slash: an explicit command only skips the tutor's "would this help?" proposal.

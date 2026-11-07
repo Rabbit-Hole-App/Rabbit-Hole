@@ -233,17 +233,24 @@ test('/goal is explicit only: typed or picked it is a direct route with no route
 });
 
 // EXP-T15: /explain's deterministic dispatch and its guarded natural-language route.
-test('/explain typed, picked or with a selected card dispatches directly with no router call, flag on or off', async t => {
+// Owner 2026-11-07: typed /explain is the written command (id explanation); the interactive one is typed /interactive and keeps the saved id explain.
+test('/explain and /interactive typed, picked or with a selected card dispatch directly with no router call, flag on or off', async t => {
   const fetches = noFetch(t);
   for (const env of [ENV, { ...ENV, EXPLAIN_V2_ENABLED: 'true' }]) {
     const none = counted(jev('motion', 0.99));
-    const typed = await decideWith(none, '/explain how a heap keeps its order', { env });
+    const typed = await decideWith(none, '/interactive how a heap keeps its order', { env });
     assert.deepEqual([typed.route, typed.via, typed.flow, typed.args, typed.settings], ['capability:explain', 'command', 'direct', 'how a heap keeps its order', null]);
+    const written = await decideWith(none, '/explain how a heap keeps its order', { env });
+    assert.deepEqual([written.route, written.capability, written.via, written.flow, written.args, written.settings, written.paid], ['capability:explanation', 'explanation', 'command', 'direct', 'how a heap keeps its order', null, false]);
     const picked = await decideWith(none, 'how a heap keeps its order', { env, capability: 'explain' });
     assert.deepEqual([picked.route, picked.via, picked.flow], ['capability:explain', 'capability', 'direct']);
-    // A selected card rides as context; /explain still makes a new card (never an edit of the selection).
-    const selected = await decideWith(none, '/explain this', { env, over: { selection: { kind: 'card', title: 'Heaps', text: 'a tree' } } });
+    const pickedWritten = await decideWith(none, 'how a heap keeps its order', { env, capability: 'explanation' });
+    assert.deepEqual([pickedWritten.route, pickedWritten.via, pickedWritten.flow], ['capability:explanation', 'capability', 'direct']);
+    // A selected card rides as context; both still make a new card (never an edit of the selection).
+    const selected = await decideWith(none, '/interactive this', { env, over: { selection: { kind: 'card', title: 'Heaps', text: 'a tree' } } });
     assert.deepEqual([selected.route, selected.flow], ['capability:explain', 'direct']);
+    const selectedWritten = await decideWith(none, '/explain this', { env, over: { selection: { kind: 'card', title: 'Heaps', text: 'a tree' } } });
+    assert.deepEqual([selectedWritten.route, selectedWritten.flow], ['capability:explanation', 'direct']);
     assert.equal(none.calls.length, 0);
   }
   assert.deepEqual(fetches, []);

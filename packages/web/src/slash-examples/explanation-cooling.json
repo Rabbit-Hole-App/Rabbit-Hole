@@ -1,0 +1,8 @@
+{
+  "prompt": "Why does coffee cool faster at first? Include a small table comparing early and late cooling.",
+  "block": {
+    "type": "explanation",
+    "title": "Why coffee cools fastest at the start",
+    "body": "Heat leaves the cup in proportion to the **temperature gap** between the coffee and the room. Just after you pour, the gap is large, so the coffee loses heat quickly. As it cools the gap shrinks, and so does the rate.\n\n| | Early (just poured) | Late (close to room temperature) |\n| --- | --- | --- |\n| Gap to the room | Large, about 70 °C | Small, a few °C |\n| Heat lost each minute | Fast | Slow |\n| Temperature change | Several degrees a minute | A fraction of a degree a minute |\n\nSo the cooling curve drops steeply at first, then flattens as the coffee approaches the room's temperature."
+  }
+}

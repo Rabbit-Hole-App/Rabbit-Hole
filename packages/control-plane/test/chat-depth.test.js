@@ -15,7 +15,8 @@ test('Overview and Deep say different things, for an answer and for a card; Stan
   }
   assert.notEqual(depthInstruction('deep', 'answer'), depthInstruction('deep', 'card'));
   assert.equal(validDepth('deep'), 'deep'); assert.equal(validDepth('nope'), null);
-  assert.deepEqual([...DEPTH_COMMANDS], ['explain', 'walkthrough']);
+  // Owner 2026-11-07: the written command (id explanation) takes the Depth too; explain is the playable one.
+  assert.deepEqual([...DEPTH_COMMANDS], ['explain', 'explanation', 'walkthrough']);
 });
 
 test('depth-only body is retained: a request that sends only a Depth is a Chat turn and keeps it', () => {
