@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { outlineFrom, outlineProgress, applyOutlineOps, moveSection, outlineRevision, applyOutlineProposal, proposalProblem, STALE_PROPOSAL, MAX_OUTLINE_HEADINGS, withRoadmap, outlineTree, ROADMAP_ROW } from './learn-outline-model.js';
+import { outlineFrom, outlineProgress, applyOutlineOps, moveSection, outlineRevision, applyOutlineProposal, proposalProblem, STALE_PROPOSAL, MAX_OUTLINE_HEADINGS } from './learn-outline-model.js';
 
 const h = (id, level, text, done = false) => ({ id, type: 'heading', level, text, done });
 const card = id => ({ id, type: 'explanation' });
@@ -472,21 +472,4 @@ test('TOC: AdaptiveCanvas applyOutline, moveSection, toggleSectionDone, removeSe
   // Saved with the board and restored on load and undo.
   assert.match(src, /useState\(\(\) => \(Array\.isArray\(stored\.current\.toc\) \? stored\.current\.toc : null\)\)/);
   assert.match(src, /if \('toc' in state\) setToc\(state\.toc\);/);
-});
-
-// UI.02 / BE.04: the accepted roadmap merges into the one outline tree under ids no manual heading can have; manual entries, their done
-// marks and order are untouched; repeated merges (polls) are stable; nothing from a draft is passed in here (tocOf is accepted-only).
-test('withRoadmap: accepted steps first under roadmap: ids, manual headings preserved with their done state, stable across polls', () => {
-  const manual = [{ id: 'h1', level: 1, label: 'Mine', done: true, description: 'kept' }, { id: 'h2', level: 2, label: 'Sub', done: false, description: '' }];
-  const toc = { roadmapId: 'rm_1', steps: [{ id: 'st_1', title: 'Split', description: 'Pick a split.', status: 'Ready on the canvas', format: 'Explanation', nav: { kind: 'card', cardId: 'cd_1' } }, { id: 'st_2', title: '', description: '', status: 'Planned', nav: null }] };
-  const merged = withRoadmap(manual, toc, new Set(['st_2']));
-  assert.deepEqual(merged.map(e => e.id), [`${ROADMAP_ROW}st_1`, `${ROADMAP_ROW}st_2`, 'h1', 'h2']);
-  assert.deepEqual(merged.slice(2), manual, 'manual entries are the same objects, unchanged');
-  assert.equal(merged[0].roadmap.status, 'Ready on the canvas · Explanation');
-  assert.deepEqual(merged[0].roadmap.nav, { kind: 'card', cardId: 'cd_1' });
-  assert.equal(merged[1].label, 'Untitled section');
-  assert.equal(merged[1].done, true, "the learner's own manual mark");
-  assert.deepEqual(withRoadmap(merged, toc, new Set(['st_2'])).map(e => e.id), merged.map(e => e.id), 'a second merge never duplicates');
-  assert.deepEqual(outlineTree(merged).map(n => n.number), ['1', '2', '3']);
-  assert.equal(withRoadmap(manual, null), manual, 'no accepted roadmap: the outline as it is');
 });

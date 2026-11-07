@@ -416,8 +416,7 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
 // canvas operations; it is null outside a Learn canvas. Without it (the old sheet) Explore next and generation actions put
 // their words in the composer through setInput - a command as its typed /line, which Send runs through the slash path -
 // and Regenerate stays hidden.
-// renderTutor(m): a saved Tutor entry (meta.tutor) drawn by the roadmap transcript, in its own place (RoadmapTranscript.jsx TutorMessage).
-export function ChatMessages({ follow = null, renderTutor = null, ...given }) {
+export function ChatMessages({ follow = null, ...given }) {
   const chat = useChatWorkspace();
   const ops = chat?.canvasOps;
   const typeIn = given.setInput && (({ text = '', command = null }) => {
@@ -438,7 +437,7 @@ ${line}` : line));
   useEffect(() => { if (atBottom) setSeen(msgs.length); }, [atBottom, msgs.length]);
   return (
     <>
-      {msgs.map((m, i) => (sheetMode && m.card) ? null : renderTutor && m.meta?.tutor ? <div key={i}>{renderTutor(m)}</div> : <ChatMessage key={i} {...props} m={m} i={i} />)}
+      {msgs.map((m, i) => (sheetMode && m.card) ? null : <ChatMessage key={i} {...props} m={m} i={i} />)}
       {!atBottom && (busy || msgs.length > seen) && (
         <div className="pointer-events-none sticky bottom-2 z-10 flex h-0 justify-center">
           <button type="button" data-jump-latest onClick={follow.jump} className="pointer-events-auto flex h-7 -translate-y-full cursor-pointer items-center gap-1.5 rounded-full border border-line bg-white px-3 text-xs text-ink-2 shadow-pop hover:text-ink"><ArrowDown size={13} />Jump to latest</button>

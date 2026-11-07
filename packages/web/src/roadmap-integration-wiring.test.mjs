@@ -38,16 +38,3 @@ test('gap 4: delivery acknowledges only a saved board: the real revision and a s
   assert.doesNotMatch(page, /boardRevision: \(\) => null/);
   assert.match(hook, /'persist', 'boardRevision', 'savedHas'/);
 });
-
-// UI.01/UI.03 (chat lane): Tutor entries render in place inside the real Chat transcript, the Edit roadmap target goes to the revision with the
-// typed words, and the drop path has no idle deferral.
-test('Tutor entries are real transcript messages; Edit roadmap revises with the typed text; drops are reported at once', () => {
-  const transcript = read('RoadmapTranscript.jsx'), messages = read('ChatMessages.jsx'), controller = read('roadmap-controller.js');
-  assert.match(ask, /renderTutor=\{chat && !tocView && roadmap\?\.on \? m => <TutorMessage/);
-  assert.match(messages, /renderTutor && m\.meta\?\.tutor \? <div key=\{i\}>\{renderTutor\(m\)\}<\/div>/);
-  assert.match(transcript, /saveTutorEntry\(\{ app: chat\.canvas, threadId, clientId: entry\.clientId/);
-  assert.match(ask, /edit\?\.command === 'roadmap'/);
-  assert.match(workspace, /restoredDraft/);
-  assert.match(controller, /sourceReady: key => report\(key\), idleTick: \(\) => false/);
-  assert.doesNotMatch(hook, /idleTick\(\)/);
-});

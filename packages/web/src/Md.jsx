@@ -117,7 +117,7 @@ export function Code({ lang, lines, diagram = false }) {
         </button>
       </div>
       {diagram
-        ? <div className="overflow-auto bg-white px-2 py-2 dark:bg-side"><MermaidDiagram code={lines.join('\n')} fallback /></div>
+        ? <div className="overflow-auto bg-white px-2 py-2 dark:bg-side"><MermaidDiagram code={lines.join('\n')} /></div>
         : <pre className="overflow-x-auto px-3 pt-1 pb-3 font-mono text-xs leading-normal whitespace-pre text-ink">{lines.map((l, j) => <div key={j}>{UNTINTED.test(lang) ? l || ' ' : colorLine(l)}</div>)}</pre>}
     </div>
   );

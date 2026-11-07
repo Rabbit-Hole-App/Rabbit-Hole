@@ -77,7 +77,7 @@ test('a manual Propose next step is not an automatic sample', async () => {
   assert.equal(meter.summary().n, 1, 'seen again after a gap, but no acknowledgment is waiting');
 });
 
-test('stopping cancels the follow-up reads; Ask keeps the view current and an offered proposal acceptable', async () => {
+test('stopping cancels the follow-up reads; Ask keeps the proposal hidden but the view current', async () => {
   const h = harness({ get: () => generated() });
   h.controller.start(); await settle(); await settle();
   h.controller.stop();
@@ -85,7 +85,7 @@ test('stopping cancels the follow-up reads; Ask keeps the view current and an of
   const ask = harness({ get: () => withProposal() });
   ask.controller.setMode('ask');
   ask.controller.start(); await settle();
-  assert.equal(pillOf(ask.controller.getState()).accept, true, 'Ask: an offer the server made (an explicit Propose next step) is still acceptable; the server makes none by itself in Ask');
+  assert.equal(pillOf(ask.controller.getState()), null, 'Ask: no new proposal is shown');
   assert.equal(ask.controller.getState().view.proposal.state, 'pending', 'the server view is still held, so Tutor shows it at once');
 });
 

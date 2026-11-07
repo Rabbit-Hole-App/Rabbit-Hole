@@ -90,7 +90,7 @@ test('8. typed /explain keeps its full family; the legacy path is the same witho
   assert.deepEqual(offered(narrow.seen[0].body), ['make_animation', 'ask_clarifying_question']);
 });
 
-test('9. one authoring call per accepted card (owner MVP, CORE.04): an invalid first answer fails closed with no repair call; a second call fails closed', async () => {
+test('9. one authoring call per accepted card (owner MVP): an invalid first answer fails closed with no repair call; a third call fails closed', async () => {
   const bad = { title: 'x', body: 'y'.repeat(3000) };
   const once = await run(record(), [['make_explanation', bad], ['make_explanation', explanation]]);
   assert.deepEqual([once.out.outcome, once.out.failure_class, once.out.code], ['failed', 'terminal_validation_failure', 'validation_error']);
@@ -99,7 +99,7 @@ test('9. one authoring call per accepted card (owner MVP, CORE.04): an invalid f
   let admitted = 0;
   const out = await generateRoadmapCard({}, access, ref, { loadAccepted: async () => record(), withProviderCall: e => e, callModel: async () => { admitted++; return Response.json({}); },
     generate: async (env, input, { callModel }) => { for (let i = 0; i < 3; i++) await callModel(env, { system: 's' }, 'm', null); return { result: 'artifact', primitive: 'explanation', block: {} }; } });
-  assert.equal(admitted, 1, 'the adapter guard admits one call only');
+  assert.equal(admitted, 2);
   assert.equal(out.code, 'operation_budget');
 });
 
@@ -142,75 +142,6 @@ test('the passage is the only source material: it rides as context, is never tru
   const long = await run(record({ passageText: 'z'.repeat(ROADMAP_LIMITS.source.passageChars + 1) }), []);
   assert.equal(long.out.code, 'passage_too_long');
   assert.equal(long.m.seen.length, 0);
-  assert.match(roadmapCardSuffix({ stepTitle: 'Slopes', language: 'de' }), /accepted step title \(6 characters\)[\s\S]*"de"/);
+  assert.match(roadmapCardSuffix({ depth: 'overview', language: 'de' }), /Depth: overview[\s\S]*"de"/);
   assert.equal(out.outcome, 'ok');
-});
-
-// --- CORE.09 / BE.06a: shared Explanation guidance, Depth targets, display-text caps and supported Mermaid ------------------------------------
-import { explanationChars, explanationProblem, mermaidProblem, EXPLANATION_GUIDANCE } from '../src/learn-primitives.js';
-import { EXPLANATION_CAPS, EXPLANATION_OBJECTIVES } from '../src/chat-depth.js';
-
-// File 06 fixtures (fixture-deep-body / fixture-deep-more), as the shared renderer reads them.
-const DEEP_BODY = '## One leaf, one region\n\nThe Approve path requires both age under 30 and income over $50k. Plot those two thresholds on separate axes and the intersection forms a rectangle.\n\n```mermaid\nflowchart TD\n  A["Age under 30?"]\n  B["Income over $50k?"]\n  C["Check credit score"]\n  D["Approve"]\n  E["Deny"]\n  A -->|Yes| B\n  A -->|No| C\n  B -->|Yes| D\n  B -->|No| E\n```\n\n## Why a diagonal is harder\n\nEach split is horizontal or vertical. A slanted boundary takes several cuts, forming a staircase.';
-const DEEP_MORE = '## Which split wins?\n\nGroup counts are approvals / denials.\n\n| Split | Group 1 | Group 2 | Gini after |\n| --- | --- | --- | --- |\n| A | 3 / 1 | 1 / 3 | 0.375 |\n| B | 2 / 2 | 2 / 2 | 0.5 |\n\nFor A, each group has Gini 1 − (¾)² − (¼)² = 0.375.';
-// A block of exactly n counted code points: a title plus Unicode body text (é and 😀 are one code point each).
-const sized = (n, title = 'T') => ({ title, body: 'é'.repeat(n - 2) });
-
-test('CORE.09: the counter counts code points of the visible text: title, prose, table cells, Mermaid labels and collapsed sections; markup is free', () => {
-  for (const n of [600, 1000, 1500]) assert.equal(explanationChars(sized(n)), n);
-  assert.equal(explanationChars({ title: '😀', body: 'é😀' }), 4, 'an astral character is one code point');
-  assert.equal(explanationChars({ title: 'T', body: '  a \n\n   b  ' }), 5, 'whitespace runs collapse to one space');
-  assert.equal(explanationChars({ title: 'T', body: '## **Bold** and `code` [link](https://x.test)' }), 'T Bold and code link'.length);
-  assert.equal(explanationChars({ title: 'T', body: '| a | b |\n| --- | --- |\n| c | d |' }), 'T a b c d'.length, 'the separator row and the pipes are not counted');
-  assert.equal(explanationChars({ title: 'T', body: '```mermaid\nflowchart LR\n  A["Go"] -->|now| B["Stop"]\n```' }), 'T Go Stop now'.length, 'ids and arrows are not counted, labels are');
-  assert.equal(explanationChars({ title: 'T', body: 'b', more: [{ label: 'More', text: 'hidden words' }] }), 'T b More hidden words'.length, 'a collapsed section counts');
-  assert.equal(explanationChars({ title: 'T', body: 'b', more: [] }), 3);
-  assert.ok(explanationChars({ title: 'Decision trees', body: DEEP_BODY, more: [{ label: 'Worked example', text: DEEP_MORE }] }) <= EXPLANATION_CAPS.deep);
-});
-
-test('CORE.09: each Depth passes exactly at its cap and fails one code point over; supported Mermaid only', () => {
-  for (const [depth, cap] of Object.entries(EXPLANATION_CAPS)) {
-    assert.equal(explanationProblem(sized(cap), depth), null, `${depth} at ${cap}`);
-    assert.match(explanationProblem(sized(cap + 1), depth), /^explanation_over_budget:/, `${depth} at ${cap + 1}`);
-  }
-  assert.equal(explanationProblem(sized(1000)), null, 'an omitted Depth is Standard');
-  assert.equal(mermaidProblem(DEEP_BODY), null, 'the file 06 diagram is supported');
-  for (const bad of ['```mermaid\nflowchart TD\n  A["x"] --> B', '```mermaid\nsequenceDiagram\n  A->>B: hi\n```', '```mermaid\nflowchart TD\n  click A "https://x.test"\n```', '```mermaid\nflowchart TD\n  style A fill:#f00\n```', '```mermaid\n%%{init: {}}%%\nflowchart TD\n```', '```mermaid\nflowchart TD\n  A["<b>x</b>"]\n```'])
-    assert.match(mermaidProblem(bad), /^explanation_bad_mermaid:/, bad);
-  assert.match(explanationProblem({ title: 'T', body: 'b', more: [{ label: 'L', text: '```mermaid\nflowchart TD\n  subgraph S\n```' }] }), /^explanation_bad_mermaid/, 'a section diagram is checked too');
-});
-
-const scriptedArtifact = (...replies) => { const seen = []; return { seen, callModel: async (env, body) => { seen.push(body); const [name, input] = replies[seen.length - 1]; return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `c${seen.length}`, name, input }] }); } }; };
-
-test('CORE.09: a direct question and a roadmap step get the same Explanation guidance, Depth objective and budget; the roadmap keeps its accepted title', async () => {
-  for (const [depth, cap] of Object.entries(EXPLANATION_CAPS)) {
-    const direct = scriptedArtifact(['make_explanation', { title: 'Why trees split', body: 'Prose with a table.\n\n| a | b |\n| --- | --- |\n| 1 | 2 |' }]);
-    const out = await generateArtifact({}, { command: 'explain', args: 'Why do decision trees split on one feature?', ...(depth === 'standard' ? {} : { depth }) }, { callModel: direct.callModel });
-    assert.equal(out.result, 'artifact', depth);
-    const desc = direct.seen[0].tools.find(t => t.name === 'make_explanation').description;
-    assert.ok(desc.includes(EXPLANATION_GUIDANCE) && desc.includes(EXPLANATION_OBJECTIVES[depth]) && desc.includes(`at most ${cap.toLocaleString('en-US')} characters`), depth);
-    assert.ok(JSON.parse(direct.seen[0].messages[0].content).learnerText.includes('Why do decision trees split'), 'the question rides in the request');
-    const roadmap = await run(record({ depth, stepTitle: 'Splits' }), [['make_explanation', { title: 'A different model title', body: 'b' }]]);
-    assert.equal(roadmap.out.outcome, 'ok', depth);
-    assert.equal(roadmap.out.block.title, 'Splits', 'the accepted title wins over the model title');
-    assert.equal(roadmap.m.seen[0].body.tools.find(t => t.name === 'make_explanation').description, desc, `${depth}: identical teaching target on both paths`);
-  }
-  // Non-Explanation artifacts are untouched: a table step gets no Explanation guidance.
-  const table = await run(record({ format: 'table' }), [['make_table', { title: 'Rates', caption: '', columns: ['a', 'b'], rows: [['1', '2']] }]]);
-  assert.ok(!table.m.seen[0].body.tools[0].description.includes('make_explanation, the main body'));
-});
-
-test('CORE.09: over budget or unsupported Mermaid is a terminal roadmap validation failure after one call; the direct path keeps its one repair', async () => {
-  for (const [depth, cap] of Object.entries(EXPLANATION_CAPS)) {
-    const at = await run(record({ depth, stepTitle: 'T' }), [['make_explanation', sized(cap, 'model title')]]);
-    assert.equal(at.out.outcome, 'ok', `${depth} exactly at the cap with the accepted title`);
-    const over = await run(record({ depth, stepTitle: 'T' }), [['make_explanation', sized(cap + 1)], ['make_explanation', explanation]]);
-    assert.deepEqual([over.out.failure_class, over.out.code, over.m.seen.length], ['terminal_validation_failure', 'explanation_over_budget', 1], depth);
-  }
-  const mermaid = await run(record(), [['make_explanation', { title: 'T', body: '```mermaid\nflowchart TD\n  click A "https://x.test"\n```' }]]);
-  assert.deepEqual([mermaid.out.code, mermaid.m.seen.length], ['explanation_bad_mermaid', 1]);
-  const direct = scriptedArtifact(['make_explanation', sized(1001)], ['make_explanation', { title: 'Short', body: 'fits' }]);
-  const out = await generateArtifact({}, { command: 'explain', args: 'ideas' }, { callModel: direct.callModel });
-  assert.deepEqual([out.result, direct.seen.length], ['artifact', 2], 'the direct lifecycle: one repair quoting the budget');
-  assert.match(JSON.stringify(direct.seen[1].messages.at(-1)), /explanation_over_budget/);
 });

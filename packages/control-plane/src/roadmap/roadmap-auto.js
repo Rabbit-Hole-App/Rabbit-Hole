@@ -26,7 +26,7 @@ async function ineligible(db, access, roadmap, { autoSuggest, revalidate }) {
   if (!autoSuggest) return 'auto_suggest_off';
   // The first proposal after Accept plan stays the learner's (Propose next step); automatic ones follow a step that was delivered or closed (skipped, or
   // incomplete from before 2026-11-06).
-  const finished = await db.prepare("SELECT 1 AS n FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND state IN ('delivered', 'skipped', 'incomplete') LIMIT 1").bind(roadmap.id, roadmap.accepted_plan_version ?? roadmap.plan_version).first(); // the accepted plan (UI.03)
+  const finished = await db.prepare("SELECT 1 AS n FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND state IN ('delivered', 'skipped', 'incomplete') LIMIT 1").bind(roadmap.id, roadmap.plan_version).first();
   if (!finished) return 'nothing_delivered';
   // After a safety refusal or a learner's signs of danger (policy_block: S26/S27) nothing is offered unsolicited; the learner decides when to go on.
   const last = await db.prepare("SELECT failure_class FROM learn_step_results WHERE roadmap_id = ? AND decision = 'accepted' ORDER BY created_at DESC, rowid DESC LIMIT 1").bind(roadmap.id).first();

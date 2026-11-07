@@ -1,12 +1,26 @@
+import RoadmapInvitation from './RoadmapInvitation.jsx';
+import RoadmapPlan from './RoadmapPlan.jsx';
 import { useEffect, useRef, useState } from 'react';
-import { ProposalOverlay } from './NextStepPill.jsx';
+import { NextStepIndicator, ProposalOverlay } from './NextStepPill.jsx';
 import { toast } from './ui.jsx';
 import { failuresOf } from './roadmap-client.js';
 import { createDragStore, dragged } from './roadmap-proposal-context.js';
 
-// The roadmap shows in three places, each fed by the object useRoadmap returns: Chat's transcript (RoadmapTranscript.jsx, Tutor entries), the
-// Table of contents tree (TableOfContents roadmap prop, accepted rows only) and RoadmapCanvas over the canvas pane (the pending proposal
-// overlay; a later offer's Next card | Cancel is the canvas's bottom pill, AdaptiveCanvas).
+// The three places the roadmap shows, each fed by the object useRoadmap returns, so a page mounts each with one line:
+//   RoadmapChat   above the Chat composer (invitation and state lines)
+//   RoadmapToc    at the top of the Table of contents tab (plan, steps, actions)
+//   RoadmapCanvas over the canvas pane (the pending proposal overlay and the Next step ready indicator)
+export function RoadmapChat({ roadmap }) {
+  const c = roadmap.controller;
+  return <RoadmapInvitation invitation={roadmap.invitation} lines={roadmap.lines} onExplain={() => c.explain()} onKeep={() => c.dismiss()}
+    onAnswer={fields => c.answer(fields)} onOffer={() => roadmap.editPlan()} onChoose={choice => c.explainPart(choice)} />;
+}
+export function RoadmapToc({ roadmap }) {
+  const c = roadmap.controller;
+  if (!roadmap.toc) return null;
+  // Drawn inside the Table of contents' own scroll (TableOfContents `top`): the ToC is the roadmap, one scroll for all of it (owner, 2026-11-06).
+  return <RoadmapPlan toc={roadmap.toc} onAcceptPlan={() => roadmap.acceptPlan()} onEdit={roadmap.editPlan} onProposeNext={() => c.proposeNext()} onEnd={() => c.end()} onGo={roadmap.go} />;
+}
 // hosted: the canvas really draws this proposal as its slot (AdaptiveCanvas SlotCard beside its source; the page learns it from the canvas), so the fixed overlay is
 // not drawn: never both. A proposal the canvas cannot draw (a link, a source not measured yet, the editor open) keeps the overlay: never neither.
 export function RoadmapCanvas({ roadmap, hosted = false }) {
@@ -36,6 +50,7 @@ export function RoadmapCanvas({ roadmap, hosted = false }) {
   return (
     <>
       {pill && roadmap.showOverlay && !hosted && <ProposalOverlay pill={pill} position={position} onAccept={() => c.acceptProposal()} onCancel={() => c.cancelProposal()} edit={edit} drag={startDrag} />}
+      <NextStepIndicator indicator={roadmap.indicator} onGo={() => roadmap.go({ kind: 'proposal' })} />
     </>
   );
 }

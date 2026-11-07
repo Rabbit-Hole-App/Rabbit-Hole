@@ -103,10 +103,8 @@ export async function recordedReplay(db, access, { operation, actionKey, roadmap
 // --- create ---------------------------------------------------------------------------------------------------------------------------
 // instruction is the learner's original words, stored verbatim as version 1 and never replaced by an inferred topic (v1.4 3.5).
 // allowEmpty: the Explain-on-canvas choice of an invitation carries no typed words; the planner then asks one focused question when the source covers several topics (v1.4 3.5).
-export async function createRoadmap(db, access, { actionKey, app, instruction, source, scope, scopeFingerprint, depth = 'standard', language = null, mode = 'tutor', allowEmpty = false, practiceMode = null, now = nowSeconds(), roadmapId = newId('rm_') }) {
+export async function createRoadmap(db, access, { actionKey, app, instruction, source, scope, scopeFingerprint, depth = 'standard', language = null, mode = 'tutor', allowEmpty = false, now = nowSeconds(), roadmapId = newId('rm_') }) {
   requireAccess(access);
-  // UI.03: Explanations + practice needs R9; refused here, never silently made an explanations-only roadmap.
-  if (practiceMode != null && practiceMode !== 'explanations') throw new StateError('practice_unavailable', 'Explanations + practice is not available yet.', 422);
   if (typeof instruction !== 'string' || (!instruction.trim() && !allowEmpty) || instruction.length > ROADMAP_LIMITS.source.instructionChars) throw new StateError('invalid_request', 'instruction is required', 400);
   if (!source?.key || !source?.rev || !scopeFingerprint) throw new StateError('invalid_request', 'source is required', 400);
   if (!DEPTHS.includes(depth)) throw new StateError('invalid_request', 'depth', 400); // the learner's R2 Depth; the column CHECK would otherwise 500
@@ -139,8 +137,6 @@ export async function recordPlan(db, access, { roadmapId, actionKey, expectedRev
   const planJson = JSON.stringify(plan);
   const planHash = await sha256(planJson);
   const stepIds = plan.steps.map(() => newId('st_'));
-  // UI.03: a draft of an accepted roadmap keeps its first keptSteps steps as the accepted rows themselves (moved at reacceptance), so only future steps get rows.
-  const kept = Number.isInteger(plan.keptSteps) && plan.keptSteps > 0 ? plan.keptSteps : 0;
   const instruction = await db.prepare('SELECT MAX(version) AS v FROM learn_roadmap_instructions WHERE roadmap_id = ?').bind(roadmapId).first();
   return applyRoadmapAction(db, access, {
     operation: 'record_plan', actionKey, roadmapId, expectedRevision, parts: [planHash], now, // minted values (the next version) stay out of the fingerprint so a replay still matches
@@ -149,7 +145,7 @@ export async function recordPlan(db, access, { roadmapId, actionKey, expectedRev
     statements: r => [
       db.prepare(`INSERT INTO learn_roadmap_plan_versions (roadmap_id, version, org, owner_user_id, board_id, kind, instruction_version, plan_json, plan_hash, prompt_version, model, created_at)
         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${r.and}`).bind(roadmapId, version, ...scopeOf(access), kind, instruction?.v || 1, planJson, planHash, promptVersion, model, now, ...r.binds),
-      ...plan.steps.map((s, i) => ({ s, i })).slice(kept).map(({ s, i }) => db.prepare(`INSERT INTO learn_roadmap_steps (id, roadmap_id, org, owner_user_id, board_id, position, plan_version, state, title, goal, format, passage_start, passage_end, created_at, updated_at)
+      ...plan.steps.map((s, i) => db.prepare(`INSERT INTO learn_roadmap_steps (id, roadmap_id, org, owner_user_id, board_id, position, plan_version, state, title, goal, format, passage_start, passage_end, created_at, updated_at)
         SELECT ?, ?, ?, ?, ?, ?, ?, 'planned', ?, ?, ?, ?, ?, ?, ? WHERE ${r.and}`)
         .bind(stepIds[i], roadmapId, ...scopeOf(access), i + 1, version, s.title, s.goal, s.format, s.passage?.start ?? 0, s.passage?.end ?? 0, now, now, ...r.binds)),
       db.prepare(`UPDATE learn_roadmaps SET plan_version = ?, state = CASE WHEN state IN ('draft', 'questioning', 'proposed') THEN ? ELSE state END, language = COALESCE(language, ?) WHERE id = ? AND ${r.and}`)
@@ -158,41 +154,15 @@ export async function recordPlan(db, access, { roadmapId, actionKey, expectedRev
   });
 }
 
-// Accept plan: the displayed latest draft version -> active, recording the plan revision only. It authorizes no generation and charges nothing.
-// UI.03: only the newest draft, with no revision still being planned (409 stale_draft); on an accepted roadmap reacceptance freezes the draft's
-// settings, supersedes the pending unaccepted proposal, and moves the steps that already happened (same ids, results, references, charges) into it.
-const KEPT = "state NOT IN ('planned', 'proposed')";
+// Accept plan: proposed -> active, records the plan revision only. It authorizes no generation and charges nothing.
 export async function acceptPlan(db, access, { roadmapId, expectedRevision, planVersion, actionKey, now = nowSeconds() }) {
-  const roadmap = await readRoadmap(db, access, roadmapId);
-  if (!roadmap) throw new StateError('not_found', 'Not available', 404);
-  const row = await db.prepare('SELECT plan_json, instruction_version FROM learn_roadmap_plan_versions WHERE roadmap_id = ? AND version = ?').bind(roadmapId, planVersion ?? -1).first();
-  let plan = null; try { plan = row ? JSON.parse(row.plan_json) : null; } catch { plan = null; }
-  const prior = roadmap.accepted_plan_version, reaccept = ['active', 'paused'].includes(roadmap.state);
-  const stale = () => Object.assign(new StateError('stale_draft', 'This roadmap draft is out of date.', 409), { reply: conflictReply({ code: 'stale_draft', currentRevision: roadmap.revision }) });
-  const recorded = await recordedReplay(db, access, { operation: 'accept_plan', actionKey, roadmapId, parts: [planVersion] });
-  if (recorded) return recorded;
-  if (row && reaccept) {
-    const latestInstruction = (await db.prepare('SELECT MAX(version) AS v FROM learn_roadmap_instructions WHERE roadmap_id = ?').bind(roadmapId).first())?.v;
-    const keptNow = (await db.prepare(`SELECT COUNT(*) AS n FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND ${KEPT}`).bind(roadmapId, prior).first()).n;
-    if (planVersion <= prior || row.instruction_version !== latestInstruction || (plan?.keptSteps ?? 0) !== keptNow) throw stale();
-  } else if (row && planVersion === roadmap.plan_version && row.instruction_version !== (await db.prepare('SELECT MAX(version) AS v FROM learn_roadmap_instructions WHERE roadmap_id = ?').bind(roadmapId).first())?.v) throw stale();
-  const depth = DEPTHS.includes(plan?.settings?.depth) ? plan.settings.depth : roadmap.depth;
   return applyRoadmapAction(db, access, {
     operation: 'accept_plan', actionKey, roadmapId, expectedRevision, parts: [planVersion], now,
-    guard: { sql: `(SELECT state FROM learn_roadmaps WHERE id = ?) IN (${reaccept ? "'active', 'paused'" : "'proposed'"}) AND (SELECT plan_version FROM learn_roadmaps WHERE id = ?) = ?`
-      + (!reaccept ? ' AND EXISTS (SELECT 1 FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ?)' : '') // a reaccepted draft may keep exactly the steps that already happened
-      + (reaccept ? ` AND (SELECT COUNT(*) FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND ${KEPT}) = ?` : ''),
-      binds: [roadmapId, roadmapId, planVersion, ...(reaccept ? [roadmapId, prior, plan?.keptSteps ?? 0] : [roadmapId, planVersion])] },
+    guard: { sql: "(SELECT state FROM learn_roadmaps WHERE id = ?) = 'proposed' AND (SELECT plan_version FROM learn_roadmaps WHERE id = ?) = ? AND EXISTS (SELECT 1 FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ?)", binds: [roadmapId, roadmapId, planVersion, roadmapId, planVersion] },
     outcome: { status: 200, body: { roadmapId, acceptedPlanVersion: planVersion } },
     statements: r => [
       db.prepare(`UPDATE learn_roadmap_plan_versions SET accepted_at = ? WHERE roadmap_id = ? AND version = ? AND ${r.and}`).bind(now, roadmapId, planVersion, ...r.binds),
-      ...(reaccept ? [
-        db.prepare(`UPDATE learn_roadmap_plan_versions SET superseded_at = ? WHERE roadmap_id = ? AND version = ? AND ${r.and}`).bind(now, roadmapId, prior, ...r.binds),
-        db.prepare(`UPDATE learn_step_proposals SET state = 'superseded', decided_at = ? WHERE roadmap_id = ? AND state IN ('checking', 'held', 'pending') AND ${r.and}`).bind(now, roadmapId, ...r.binds),
-        db.prepare(`UPDATE learn_roadmap_steps SET plan_version = ?, updated_at = ? WHERE roadmap_id = ? AND plan_version = ? AND ${KEPT} AND ${r.and}`).bind(planVersion, now, roadmapId, prior, ...r.binds),
-        db.prepare(`UPDATE learn_roadmap_steps SET state = 'cancelled', updated_at = ? WHERE roadmap_id = ? AND plan_version = ? AND state = 'proposed' AND ${r.and}`).bind(now, roadmapId, prior, ...r.binds),
-      ] : []),
-      db.prepare(`UPDATE learn_roadmaps SET state = 'active', paused_reason = NULL, accepted_plan_version = ?, depth = ?, ceiling = ? WHERE id = ? AND ${r.and}`).bind(planVersion, depth, ceilingFor(depth), roadmapId, ...r.binds),
+      db.prepare(`UPDATE learn_roadmaps SET state = 'active', accepted_plan_version = ? WHERE id = ? AND ${r.and}`).bind(planVersion, roadmapId, ...r.binds),
     ],
   });
 }
@@ -223,8 +193,7 @@ export async function offerProposal(db, access, { roadmapId, expectedRevision, a
 // revision, a pending checked proposal on an active roadmap, and the allowance for the WHOLE step), the hold, the authorization, the per-card
 // allocations, the result slots with minted card ids, the accepted decision and the step's move to generating. Insufficient allowance writes
 // nothing: the proposal stays pending and the action key stays unconsumed. First valid action wins; a second device's different key is a 409.
-// quote(roadmap, proposal) (CORE.05, roadmap-run.js quoteStepAcceptance): the snapshot and the exact one-call bound; legacy callers pass callMicros instead.
-export async function acceptRoadmapStep(env, access, { roadmapId, revision, proposalId, proposalVersion, actionKey, callMicros, quote = null, now = nowSeconds() }) {
+export async function acceptRoadmapStep(env, access, { roadmapId, revision, proposalId, proposalVersion, actionKey, callMicros, now = nowSeconds() }) {
   requireAccess(access); requireKey(actionKey);
   const db = env.LEARN_DB;
   if (!(await accessStillValid(db, access))) throw new StateError('not_found', 'Not available', 404); // revoked access: no new charge
@@ -239,9 +208,7 @@ export async function acceptRoadmapStep(env, access, { roadmapId, revision, prop
     if (!verdict.ok) throw Object.assign(await currentConflict(db, access, roadmapId, verdict.code));
   }
   const slots = Array.from({ length: ROADMAP_LIMITS.cardsPerStep.r4Default }, (_, i) => ({ index: i, resultId: newId('rs_'), cardId: newId('cd_') }));
-  // A replay never re-quotes: its recorded receipt is the answer.
-  const quoted = !earlier && quote ? await quote({ roadmap, proposal }) : null;
-  const auth = await admitStepAuthorization(env, access, { roadmapId, proposalId, proposalVersion, slots, callMicros, cardBoundMicros: quoted?.boundMicros, contentFingerprint: quoted?.contentFingerprint, now });
+  const auth = await admitStepAuthorization(env, access, { roadmapId, proposalId, proposalVersion, slots, callMicros, now });
   if (auth.refusal) return { refusal: auth.refusal };
   const body = { roadmapId, proposalId, proposalVersion, authorizationId: auth.authorizationId, slots: slots.map(s => ({ index: s.index, resultId: s.resultId, cardId: s.cardId })) };
   const pending = "EXISTS (SELECT 1 FROM learn_step_proposals WHERE id = ? AND version = ? AND roadmap_id = ? AND state = 'pending' AND stale = 0) AND (SELECT state FROM learn_roadmaps WHERE id = ?) = 'active'";
@@ -258,7 +225,7 @@ export async function acceptRoadmapStep(env, access, { roadmapId, revision, prop
         ...auth.statements()(r),
         db.prepare(`UPDATE learn_step_proposals SET state = 'accepted', accepted_at = ?, decided_at = ? WHERE id = ? AND version = ? AND state = 'pending' AND ${r.and}`).bind(now, now, proposalId, proposalVersion, ...r.binds),
         db.prepare(`UPDATE learn_roadmap_steps SET state = 'generating', updated_at = ? WHERE id = ? AND ${r.and}`).bind(now, proposal.step_id, ...r.binds),
-        eventStatement(db, access, { roadmapId, kind: 'step_accepted', factId: proposalId, factRevision: proposalVersion, payload: { proposalId, proposalVersion, authorizationId: auth.authorizationId, ...(quoted ? { snapshot: quoted.snapshot } : {}) }, now }, r),
+        eventStatement(db, access, { roadmapId, kind: 'step_accepted', factId: proposalId, factRevision: proposalVersion, payload: { proposalId, proposalVersion, authorizationId: auth.authorizationId }, now }, r),
       ],
     });
   } catch (error) {
@@ -347,13 +314,12 @@ export async function acknowledgeDelivery(db, access, { roadmapId, resultId, exp
 // pending (the caller then dispatches the retry with retry_no + 1 and a fresh operation identity). Anything else is terminal: refund the card's
 // learner charges, mark generation failed and close the step (skipped: there is no Retry, Replace or Omit, owner 2026-11-06), release the card's allocation.
 // Provider expense rows are never touched.
-// allowAutomaticRetry (trusted, CORE.04): the ordinary roadmap author passes false, so a failed slot is terminal here too and a reload cannot turn it into a new purchase.
-export async function failCard(db, access, { roadmapId, resultId, failureClass, retryNo = null, now = nowSeconds(), allowAutomaticRetry = true }) {
+export async function failCard(db, access, { roadmapId, resultId, failureClass, retryNo = null, now = nowSeconds() }) {
   const row = await readResult(db, access, resultId);
   if (!row || row.roadmap_id !== roadmapId) throw new StateError('not_found', 'Not available', 404);
   const used = await db.prepare('SELECT COALESCE(MAX(retry_no), 0) AS n FROM learn_roadmap_calls WHERE result_id = ?').bind(resultId).first();
   const failedAt = retryNo ?? used.n; // the attempt that failed: the job names it so a late duplicate report is the same failure
-  const retry = allowAutomaticRetry && failureWillRetry(failureClass, failedAt);
+  const retry = failureWillRetry(failureClass, failedAt);
   const refunds = r => refundCardStatements(db, resultId, `roadmap_card_${retry ? 'retry' : 'failed'}`, now, r);
   const key = `sys_fail_${resultId}_${failedAt}`;
   const outcome = { status: 200, body: { resultId, failureClass, retry, retryNo: retry ? failedAt + 1 : null } };

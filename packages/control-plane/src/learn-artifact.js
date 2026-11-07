@@ -14,7 +14,7 @@ import { BRIEF_LIMITS, generationArgs, isBriefCommand } from '../../web/src/mate
 import { consumeProposal, releaseProposal, verifyProposal } from './generation-proposal.js';
 import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
-import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem } from './learn-primitives.js';
+import { PRIMITIVES, isReady, artifactBlock } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { authorizedBoardApp } from './learn-board.js';
@@ -23,7 +23,7 @@ import { tutorImageContext } from './learn-image-context.js';
 import { IMAGE_EXTRACTION_SYSTEM, imageExtractionTool, checkImageExtraction } from './inline-image-extraction.js';
 import { SCENE_AUTHORING } from './agents/learn-scene-author.js';
 import { calculationProblem, cardAtSettings, sceneProblem, withDataSizes, withSamplesNote } from './learn-scene-gates.js';
-import { DEFAULT_DEPTH, DEPTH_COMMANDS, depthInstruction, explanationTarget, validDepth } from './chat-depth.js';
+import { DEFAULT_DEPTH, DEPTH_COMMANDS, depthInstruction, validDepth } from './chat-depth.js';
 import { readDepth } from './learn-user-settings.js';
 import { VERIFY_SYSTEM, VERIFY_TOOL, falseItems, verifyMessage } from './agents/learn-scene-verify.js';
 
@@ -78,15 +78,16 @@ export function artifactPlan(command, { args = '', selection = null } = {}, env 
   return { request, ready };
 }
 
-// CORE.05: the exact first author request (system with any trusted suffix, tools, messages, output cap), so a quote and the dispatch hash
-// the same full body. -> a plan refusal ({ result }) | { request, ready, messages, model, body }
-export function prepareArtifactAuthorRequest(env, input, { only = null, systemSuffix = '' } = {}) {
+export async function generateArtifact(env, input, { callModel: baseCall = loggedModel('artifact', planModel), only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS } = {}) {
+  // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls.
+  // R4 trusted options: `only` restricts the primitives offered, `systemSuffix` is appended to the system prompt of every call (initial and repair).
+  const callModel = systemSuffix ? (e, body, model, org) => baseCall(e, { ...body, system: `${body.system}\n${systemSuffix}` }, model, org) : baseCall;
   const plan = artifactPlan(input.command, input, env, only);
   if (plan.result) return plan;
   const { request, ready } = plan;
   const tools = [...ready.map(id => ({
     name: toolName(id),
-    description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? ` ${EXPLANATION_GUIDANCE} ${explanationTarget(input.depth)}` : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget
+    description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}`,
     input_schema: PRIMITIVES[id].schema,
   })).map(tool => input.imageSource ? imageExtractionTool(tool) : tool), CLARIFY];
   // R2: the learner's Depth for this canvas, for the commands that make an explanation (chat-depth.js DEPTH_COMMANDS); Standard sends nothing.
@@ -96,20 +97,8 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   const messages = [{ role: 'user', content: input.documents?.length ? [...input.documents, { type: 'text', text }] : text }];
   // The task's cap, or a longer one a primitive on offer needs (the interactive scene's 16,000); spend admission bounds it.
   const maxTokens = Math.max(LEARN_TASKS.artifact.maxTokens, ...ready.map(id => PRIMITIVES[id].maxTokens || 0));
-  const system = (input.imageSource ? `${ARTIFACT_SYSTEM}\n${IMAGE_EXTRACTION_SYSTEM}` : ARTIFACT_SYSTEM) + (depthNote ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '');
-  return { request, ready, messages, model: LEARN_TASKS.artifact.model, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
-}
-
-export async function generateArtifact(env, input, { callModel: baseCall = loggedModel('artifact', planModel), only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null } = {}) {
-  // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls.
-  // R4 trusted options: `only` restricts the primitives offered, `systemSuffix` is appended to the system prompt of every call (initial and repair),
-  // `title` (the roadmap's accepted step title) replaces the model's title before any check.
-  const prepared = prepareArtifactAuthorRequest(env, input, { only, systemSuffix });
-  if (prepared.result) return prepared;
-  const { request, ready, messages, body, model } = prepared;
-  const callModel = systemSuffix ? (e, b, m, org) => baseCall(e, { ...b, system: `${b.system}\n${systemSuffix}` }, m, org) : baseCall; // the verifier's call
   const ask = async (history, kind) => {
-    const response = await baseCall(kind ? withAttemptKind(env, kind) : env, { ...body, messages: history }, model, null);
+    const response = await callModel(kind ? withAttemptKind(env, kind) : env, { max_tokens: maxTokens, system: (input.imageSource ? `${ARTIFACT_SYSTEM}\n${IMAGE_EXTRACTION_SYSTEM}` : ARTIFACT_SYSTEM) + (depthNote ? `\n${depthNote}` : ''), tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages: history }, LEARN_TASKS.artifact.model, null);
     // A refused spend admission says why (learn-spend.js spendMessage), never only its status.
     const refused = response.status === 429 ? (await response.clone().json().catch(() => null)) : null;
     if (refused?.code === 'spend_limited' && refused.error) throw new Error(refused.error);
@@ -140,9 +129,6 @@ export async function generateArtifact(env, input, { callModel: baseCall = logge
         if (checked.result.kind === 'clarify') return { result: 'clarification', question: checked.result.question };
         ({ extraction, ...block } = checked.result);
       } else block = artifactBlock(id, call.input);
-      if (title && typeof block.title === 'string') block = { ...block, title };
-      // CORE.09: the final title first, then the Depth's display-text budget and supported Mermaid, on every path that makes an explanation.
-      if (id === 'explanation') { const problem = explanationProblem(block, input.depth); if (problem) throw new Error(problem); }
       if (GATES[id]) block = GATES[id](block);
       if (id === 'animation' && env.LEARN_SCENE_VERIFIER !== 'off') { const problem = await verify(block); if (problem) throw new Error(problem); }
       if (contract(id).paid) return { result: 'paid_proposal', primitive: id, block, message: 'This uses paid generation.', estimatedCost: contract(id).estimatedCost ?? null, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };

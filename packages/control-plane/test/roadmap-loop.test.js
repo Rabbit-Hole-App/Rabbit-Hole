@@ -10,7 +10,7 @@ import { forkState } from '../src/learn-boards.js';
 import { sharedState } from '../src/shared-privacy.js';
 import { rows } from './roadmap-fixture.js';
 import { STRINGS } from '../../web/src/roadmap-strings.js';
-import { BAD, BOARD, FAIL, FULL, GOOD, ID_A, ID_B, INSTRUCTION, KEY, ORIGIN, SHORT, TABLE, calm, classify, loop } from './roadmap-loop-fixture.js';
+import { BAD, BOARD, FAIL, FULL, GOOD, ID_A, ID_B, INSTRUCTION, KEY, ORIGIN, SHORT, TABLE, calm, loop } from './roadmap-loop-fixture.js';
 
 // Brings a roadmap to an accepted plan with one pending proposal.
 async function toProposal(h, { revise = false } = {}) {
@@ -169,7 +169,7 @@ test('insufficient allowance leaves the proposal pending and the same key succee
   assert.equal(retried.body.results[0].generation, 'generated');
 });
 
-test('CORE.04: a failed card is refunded once with no automatic author retry; it closes the step, the learner nets zero, the next step follows', async t => {
+test('a failed card is refunded: the transient failure earns one automatic retry after the refund, the second failure is terminal and closes the step, the learner nets zero, the next step follows', async t => {
   const h = await loop(t, { script: [FAIL, FAIL] });
   const { id, view } = await toProposal(h);
   const accept = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${view.proposal.id}/accept`, acceptBody(view, KEY('accept')));
@@ -177,8 +177,7 @@ test('CORE.04: a failed card is refunded once with no automatic author retry; it
   assert.equal(result.generation, 'failed');
   assert.equal(result.billing === 'refunded' || result.billing === 'failed', true, result.billing);
   assert.equal(result.recovery, undefined, 'no Retry, Replace or Omit (owner 2026-11-06)');
-  assert.equal(h.p.used.length, 1, 'one author dispatch, no automatic retry (owner MVP, CORE.04)');
-  assert.equal(rows(h.w.sqlite, "SELECT COUNT(*) AS n FROM learn_roadmap_actions WHERE operation = 'card_failed'")[0].n, 1, 'one terminal settlement');
+  assert.equal(h.p.used.length, 2, 'the first call and exactly one automatic retry');
   const spent = await h.totals();
   assert.equal(spent.used, 0, 'the learner is charged nothing for a failed card');
   assert.equal(spent.reserved, 0, 'the hold is released');
@@ -280,41 +279,4 @@ test('a learner\'s own signs of danger show the S27 support message, refunded, n
   assert.deepEqual(result.failure, { code: 'personal_risk', message: STRINGS.personalRisk });
   assert.match(result.failure.message, /emergency number or a crisis line in your area/);
   assert.doesNotMatch(result.failure.message, /\.\.\.|…|\$|credit/);
-});
-
-// CORE.04: every author failure class settles the slot once, terminally, after exactly one dispatch; a replayed event sends nothing more.
-test('CORE.04: schema-invalid, zero or two tools, malformed, known 529 and unknown transport each make one dispatch and one terminal settlement', async t => {
-  const reply = content => async model => Response.json({ model, stop_reason: 'tool_use', usage: { input_tokens: 400, output_tokens: 120 }, content });
-  const cases = {
-    schema_invalid: [BAD, 'failed'],
-    zero_tools: [reply([{ type: 'text', text: 'no tool' }]), 'failed'],
-    two_tools: [reply([{ type: 'tool_use', id: 'a', name: 'make_explanation', input: { title: 'a', body: 'b' } }, { type: 'tool_use', id: 'b', name: 'make_explanation', input: { title: 'a', body: 'b' } }]), 'failed'],
-    malformed: [async () => new Response('not json', { status: 200, headers: { 'content-type': 'application/json' } }), 'failed'],
-    known_529: [async () => new Response('{"error":"overloaded"}', { status: 529, headers: { 'content-type': 'application/json' } }), 'failed'],
-    unknown_transport: [async () => { throw new Error('socket hang up'); }, 'failed'],
-  };
-  for (const [name, [script, generation]] of Object.entries(cases)) {
-    const h = await loop(t, { script: [script, GOOD] });
-    const { id, view } = await toProposal(h);
-    const accept = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${view.proposal.id}/accept`, acceptBody(view, KEY('accept')));
-    assert.equal(accept.body.results[0].generation, generation, name);
-    assert.equal(h.p.used.length, 1, `${name}: one author dispatch`);
-    assert.equal(accept.body.steps[0].state, 'skipped', name);
-    assert.equal((await h.totals()).reserved, 0, `${name}: the hold is released`);
-    assert.equal(rows(h.w.sqlite, "SELECT COUNT(*) AS n FROM learn_roadmap_actions WHERE operation = 'card_failed'")[0].n, 1, `${name}: one terminal settlement`);
-    assert.equal(rows(h.w.sqlite, "SELECT COUNT(*) AS n FROM learn_roadmap_calls WHERE payer = 'learner'")[0].n, 1, `${name}: one author operation`);
-    if (name === 'unknown_transport') assert.equal(rows(h.w.sqlite, "SELECT checkpoint FROM learn_roadmap_calls WHERE payer = 'learner'")[0].checkpoint, 'unknown', 'an unknown outcome stays unknown, never relabelled');
-  }
-});
-
-test('CORE.04: a handler replay after the author call already settled (a crash before its outcome was recorded) sends nothing new', async t => {
-  const h = await loop(t, { script: [GOOD, GOOD] });
-  const { id, view } = await toProposal(h);
-  h.deps.onAccepted = async () => true;
-  const accept = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${view.proposal.id}/accept`, acceptBody(view, KEY('accept')));
-  const result = accept.body.results[0];
-  h.w.sqlite.prepare("INSERT INTO learn_roadmap_calls (op_id, operation_key, roadmap_id, result_id, org, owner_user_id, board_id, stage, call_no, retry_no, payer, task, checkpoint, created_at) VALUES ('rm-generate-crashed', 'k', ?, ?, 'team', 'u-alice', ?, 'generate', 0, 0, 'learner', 'artifact', 'settled', 1)").run(id, result.id, BOARD);
-  await runDueRoadmapEvents(h.env, {});
-  assert.equal(h.p.used.length, 0, 'no fresh author operation');
-  assert.equal(rows(h.w.sqlite, 'SELECT generation FROM learn_step_results')[0].generation, 'failed');
 });

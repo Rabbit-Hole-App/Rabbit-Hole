@@ -16,7 +16,7 @@ import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
 import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
-import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
+import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock } from './LearningBlocks.jsx';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
 import { CAPTURE_MAX_BYTES, SketchCaptureError, captureProblem, captureResult, captureSize, fitZoom, pixelRatios, releasedTool, sketchDraftOf } from './sketch-host.js';
 import { gapsFrom, nearestGap, nudgeBy } from './learn-gap-rail.js';
@@ -47,7 +47,7 @@ import SourcesDisclosure from './SourcesDisclosure.jsx';
 import CardPrompt, { PromptSlot } from './CardPrompt.jsx';
 import { CardFeedback } from './CardFeedback.jsx';
 import SourceRefChip, { useSourceRefIndex } from './SourceRefChip.jsx';
-import { emphasizePassage, measurePassage, publishPending, toWorld, viewPassage } from './source-refs.js';
+import { emphasizePassage, publishPending, viewPassage } from './source-refs.js';
 import { draftOfBlock } from './source-ref.js';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
@@ -67,9 +67,8 @@ import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
 import { BAND_ROOM, anchoredBoxes, anchoredSlots, cardBox, chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, openingPan, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
-import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
+import { deliveredSpot } from './roadmap-placement.js';
 import { SlotCard } from './SlotCard.jsx';
-import { NextCardPill } from './NextStepPill.jsx';
 import { areaTarget, cropBinding } from './area-crop.js';
 import { flushBoard, lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
 import { withFlushedAnimations } from './animation3d/storage.js';
@@ -307,12 +306,7 @@ const CanvasEdit = createContext({ locked: new Set(), altDrag: null });
 // Shared node chrome for everything card-shaped on the canvas: drag with
 // lift, corner resize, selection ring, top/bottom connection ports, and the
 // layout observer that keeps connector geometry fresh. Content is children.
-// A frame height grown by `grow` (an Explanation's opened sections below its fixed core, CORE.09); no height stays none.
-// A Tutor card inserted at the column's default place, before its offsets put it on its slot (placeRoadmapCard, pendingAt): laid out (so it is measured) but not shown,
-// so it never flashes at the default place (UI.06).
-const PLACING = { visibility: 'hidden' };
-const grown = (height, grow) => (height == null ? height : height + grow);
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, grow = 0, placing = false, saved = null, cardLayout = null, fitContent = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, saved = null, cardLayout = null, fitContent = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, children }) {
   const [lifted, setLifted] = useState(false);
   // A card with a Rabbit Hole under it (docs/features/dive-v1.md): derived from the dive link, never stored on the card.
   const dive = useContext(DivePortals), portal = dive?.portals?.[id];
@@ -384,7 +378,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
     const element = card.current;
     // The drag sizes the body: rows under it (Sources, the Prompt row, references) are added on top, during the drag and after
     // it is saved, so releasing never grows the card by them. A card layout's saved height is its whole frame.
-    const extra = cardLayout ? 0 : extraHeight + refsHeight + grow;
+    const extra = cardLayout ? 0 : extraHeight + refsHeight;
     let last = null;
     const apply = (w, h) => { last = clampBox(w, h, fit ? naturalHeight(element, extra) : undefined); setSize(last); setCornerDrag(last); };
     apply.done = () => {
@@ -412,7 +406,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         if (!opensFrom(event.target) || (selectedAtPress.current && event.target.closest('[data-pointer-body]'))) return;
         opener.open(id, 'learner_dblclick');
       } : undefined}
-      style={{ ...(placing ? PLACING : null), transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(cardLayout?.slot ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, ...fitFrame(full ? undefined : grown((cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), grow), full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight + grow, fit) }}
+      style={{ transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(cardLayout?.slot ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, ...fitFrame(full ? undefined : (cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight, fit) }}
       className={`group relative ${selected ? 'z-[5]' : ''} ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 outline-none ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-select' : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* The selected card's controls above it are ONE row (owner finding 2026-10-23: Open at the left edge and the CAD controls with
           Add to chat / Quick Edit from the right edge were anchored apart and met when the card was narrow). Open leads, `tools`
@@ -892,7 +886,7 @@ function NotebookCard({ block, zoom, selected, connected, appName, onSelect, onM
   );
 }
 
-function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onGrade, onWiki, onWatch, onNotebook = null, onRemove = null }) {
+function LessonBlockCard({ block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onGrade, onWiki, onWatch, onNotebook = null, onRemove = null }) {
   const cadPermissions = useContext(CanvasEdit);
   const cadOpen = mode => window.dispatchEvent(new CustomEvent('learn:cad-inline', { detail: { appName, id: block.id, mode } }));
   // A CAD card's Interact, Fit view and Show dimensions sit in this row, outside the card (cad-controls placement requirement).
@@ -905,7 +899,6 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
   // measured heights (wrapped rows included).
   const [sourcesHeight, setSourcesHeight] = useState(0);
   const [sourceRefHeight, setSourceRefHeight] = useState(0);
-  const [expandHeight, setExpandHeight] = useState(0); // an Explanation's opened sections under its rail: the frame grows down by them (CORE.09)
   // The stored prompt's Prompt control sits in the card's own top-right pill when its body draws one (Kicker claims the slot), else in the card's top strip.
   const [slotted, setSlotted] = useState(false);
   const promptSlot = useMemo(() => block.promptUsed ? { text: block.promptUsed, selected, claim: setSlotted } : null, [block.promptUsed, selected]);
@@ -945,7 +938,7 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
       autoMax={BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
       width={sized?.width ?? BLOCK_TYPES[block.type]?.width}
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
-      placing={placing} extraHeight={sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} grow={expandHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }}
+      extraHeight={sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
       tools={selected ? <>
         {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
@@ -953,10 +946,10 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
         <SelectionActionsHost id={block.id} divider={cadTools || ['code', 'snippet'].includes(block.type)} />
       </> : null}>
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}><PromptSlot.Provider value={promptSlot}>
-        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} onProgramFrame={setProgramFrame} onExpandHeight={setExpandHeight} />
+        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} onProgramFrame={setProgramFrame} />
       </PromptSlot.Provider></PerfContext.Provider>
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
-      {block.sourceRef && !headerSource(block) && <SourceRefChip block={block} app={appName} onHeight={setSourceRefHeight} />}
+      {block.sourceRef && <SourceRefChip block={block} app={appName} onHeight={setSourceRefHeight} />}
       {block.promptUsed && !slotted && <CardPrompt text={block.promptUsed} selected={selected} />}
       {!cadPermissions.readOnly && !cadPermissions.localCopy && <CardFeedback block={block} />}
     </CanvasNode>
@@ -2366,11 +2359,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         if (slot) setSlots(previous => fillSlot(previous, slot.id, added.id));
         return added.id;
       },
-      // UI.06: resolves once a placed Tutor card's offsets are in the canvas's blocks (true), or false after 4 s; the delivery saves and acknowledges only after true.
-      settled: id => (!pendingAt.current.has(id) ? Promise.resolve(true) : new Promise(resolve => {
-        const timer = setTimeout(() => resolve(false), 4000), list = settleWaits.current.get(id) || [];
-        list.push(ok => { clearTimeout(timer); resolve(ok); }); settleWaits.current.set(id, list);
-      })),
       release,
       insertDivider: () => {
         snapshot();
@@ -5243,37 +5231,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The Tutor's offers on the canvas (roadmap-canvas.js, Fix C): `roadmap.cards` are the placeholders the server's view asks for. Each stands at ONE world position
   // beside its source passage, chosen when it first appears and kept (roadmapSpots) through proposal, generation and delivery; nothing moves the camera, and nothing
   // existing moves (obstacles only). A card whose source is not on this canvas, or not measured yet, waits (it is retried when the bounds change).
-  const roadmapSpots = useRef(new Map()), pendingAt = useRef(new Map()), settleWaits = useRef(new Map());
-  // A placed card's offsets reached the blocks (the commit after the measuring pass): its delivery may save now; the page's board copy follows on the next task.
-  useEffect(() => {
-    if (!settleWaits.current.size) return;
-    for (const [id, list] of settleWaits.current) {
-      if (pendingAt.current.has(id) || !blocks.some(entry => entry.id === id)) continue;
-      settleWaits.current.delete(id);
-      setTimeout(() => list.forEach(done => done(true)), 0);
-    }
-  }, [blocks]);
+  const roadmapSpots = useRef(new Map()), pendingAt = useRef(new Map());
   const roadmapSpot = (card, size) => {
     // The place belongs to one offer: a new proposal for the step (after a Cancel) is placed afresh; the same offer coming back (Ask, the editor) and its accepted
     // work (no proposal id) keep it.
     const kept = roadmapSpots.current.get(card.key);
     if (keepsSpot(kept, card)) return kept;
-    // UI.06: a place this learner's slot already has (roadmap-slots.js, private) comes back as it was; nothing is placed before that read lands.
-    const stored = roadmap?.slots?.get?.(card);
-    if (stored) { roadmapSpots.current.set(card.key, stored); return stored; }
-    if (roadmap?.slots && !roadmap.slots.ready()) return null;
     const source = sourceBlockOf(blocksRef.current, card.sourceKey), box = source && boundsRef.current[source.id];
     if (source && !box) return null; // the source card is not measured yet: the next bounds retry
-    // Beside the step's passage where the card draws it now (measured once, screen to world); else the source card's own box (collapsed, scrolled away, unresolved).
-    const passage = box && surface.current ? toWorld(measurePassage(source.id, { range: card.passage, rev: card.sourceRef?.source?.rev ?? source.fileRef?.source?.rev }), surface.current.getBoundingClientRect(), viewRef.current) : null;
-    const anchor = box ? proposalAnchor(box, passage) : null;
     const taken = anchoredBoxes(slotsRef.current).filter(entry => entry.id !== slotIdOf(card.key));
     // Beside the source card's canvas box (placeNote's sides, then rings), clear of everything on the board; never its scrolled text, never the camera. No source card on this
     // canvas: once, beside where the learner is looking, so an offer is never invisible.
-    const spot = { ...(box ? deliveredSpot(size, anchor, [...boardObstacles([source.id, slotIdOf(card.key)]), ...taken, box], null) : deliveredSpot(size, viewCenter(), [...boardObstacles([slotIdOf(card.key)]), ...taken], null)),
+    const spot = { ...(box ? deliveredSpot(size, box, [...boardObstacles([source.id, slotIdOf(card.key)]), ...taken, box], null) : deliveredSpot(size, viewCenter(), [...boardObstacles([slotIdOf(card.key)]), ...taken], null)),
       proposalId: card.proposalId ?? kept?.proposalId ?? null };
     roadmapSpots.current.set(card.key, spot);
-    roadmap?.slots?.place?.(card, spot, size.w); // persisted once; the store answers the server's kept place on a race
     return spot;
   };
   useLayoutEffect(() => {
@@ -6150,7 +6121,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; } }}>
-            {anchoredSlots(slots).map(slot => <SlotCard key={slot.id} slot={slot} actions={roadmap && { ...roadmap, app: appName, onPassage: card => viewPassage(card.sourceRef, { range: card.passage, raw: true }) }} />)}{columnEntries(blocks, slots).flatMap(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : [<LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} placing={pendingAt.current.has(block.id)} />, roomAfter[block.id] ? <div key={`room:${block.id}`} data-group-room aria-hidden="true" style={{ height: roomAfter[block.id] }} /> : null])}
+            {anchoredSlots(slots).map(slot => <SlotCard key={slot.id} slot={slot} actions={roadmap && { ...roadmap, app: appName, onPassage: card => viewPassage(card.sourceRef, { range: card.passage, raw: true }) }} />)}{columnEntries(blocks, slots).flatMap(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : [<LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />, roomAfter[block.id] ? <div key={`room:${block.id}`} data-group-room aria-hidden="true" style={{ height: roomAfter[block.id] }} /> : null])}
           </CanvasRefs.Provider></CardOpen.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its
@@ -6496,8 +6467,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">
           {hooks && <div data-hooks-slot ref={hooksSlot} className={`w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)] ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
         </div>
-        {/* UI.08: a ready later offer's Next card | Cancel, centred over this strip (the canvas area beside the panel), above the chrome; it stays put while the world pans. */}
-        {!readOnly && roadmap && <div data-next-card-slot className="absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 justify-center empty:hidden"><NextCardPill card={(roadmap.cards || []).find(card => card.next && card.state === 'pending')} onAccept={() => roadmap.onAccept?.()} onCancel={() => roadmap.onCancel?.()} /></div>}
       </div>}
     </div>
     </SelectionActionsProvider>

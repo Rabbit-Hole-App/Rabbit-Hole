@@ -11,8 +11,3 @@
 [data-card-layout="full"] [data-file-doc-table] { overflow-x: auto; }
 /* A code card's lines wrap visually (the stored source and Copy keep their real line breaks); the line number stays at the left. */
 [data-card-layout="full"] [data-code-line] > span:last-child { white-space: pre-wrap; overflow-wrap: anywhere; }
-/* UI.07 (file 05): the Tutor's persistent source relationships in a Markdown card, apart from learner highlights (wiki-highlight) and transient emphasis. */
-[data-file-doc-text] ::highlight(tutor-source) { background-color: rgb(128 105 22 / 0.28); color: inherit; }
-[data-tutor-anchor="code"] { background-color: rgb(128 105 22 / 0.28); box-shadow: inset 2px 0 #a58b4c; }
-[data-tutor-anchor="diagram"] { outline: 1px solid #a58b4c; outline-offset: 2px; border-radius: 6px; }
-[data-tutor-anchor="section"] { box-shadow: inset 2px 0 #a58b4c; background-color: rgb(128 105 22 / 0.1); }

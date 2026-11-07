@@ -172,36 +172,19 @@ test('Accept plan mints one R3 reference per step; the delivered card carries it
   assert.equal(refused.body.code, 'source_changed');
 });
 
-// UI.03 (owner 2026-11-06, superseding the earlier set-Depth-at-once rule): Depth and typed edits are new draft revisions; accepted work keeps its Depth.
-test('UI.03: after acceptance a Depth change and a typed edit make new unaccepted drafts; the accepted Depth and ToC stay; refused inputs', async t => {
-  const h = await loop(t, { plans: [FULL, FULL, FULL] });
+test('revision limits: Depth alone applies at once to an accepted roadmap; an instruction edit on an accepted plan and a scope change are refused', async t => {
+  const h = await loop(t);
   const made = await create(h);
   const id = made.body.roadmapId;
   const plan = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: made.body.roadmap.revision, actionKey: KEY('plan'), planVersion: 1 });
   let view = plan.body;
-  assert.equal(view.planDraft, null, 'no draft once the plan is accepted');
   const depth = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('depth'), settings: { depth: 'overview' } });
-  assert.equal(depth.status, 202);
-  assert.deepEqual([depth.body.roadmap.depth, depth.body.roadmap.ceiling], ['standard', 10], 'the accepted roadmap keeps its Depth until a draft is accepted');
-  assert.deepEqual([depth.body.planDraft.version, depth.body.planDraft.settings.depth, depth.body.planDraft.acceptable], [2, 'overview', true]);
-  assert.deepEqual([depth.body.plan.version, depth.body.acceptedPlan.version], [1, 1], 'the ToC still shows the accepted plan');
-  assert.equal(depth.body.proposal.state, 'pending', 'the accepted plan\'s offer is untouched');
+  assert.equal(depth.status, 200);
+  assert.deepEqual([depth.body.roadmap.depth, depth.body.roadmap.ceiling], ['overview', 5]);
   view = depth.body;
   const edit = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('edit'), instruction: 'Skip the learning rate.' });
-  assert.equal(edit.status, 202);
-  assert.equal(edit.body.planDraft.version, 3);
-  assert.equal(rows(h.w.sqlite, 'SELECT text FROM learn_roadmap_instructions WHERE version = 3')[0].text, 'Skip the learning rate.', 'the typed words are kept verbatim');
-  const stale = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: edit.body.roadmap.revision, actionKey: KEY('stale'), planVersion: 2 });
-  assert.equal(stale.status, 409, 'a superseded draft cannot be accepted');
-  view = edit.body;
-  for (const settings of [{ practiceMode: 'explanations_practice' }, { practiceMode: 'practice' }]) {
-    const refused = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY(`pr${settings.practiceMode.length}`), instruction: 'x', settings });
-    assert.deepEqual([refused.status, refused.body.code], [422, 'practice_unavailable']);
-  }
-  const h2 = await loop(t);
-  const practice = await create(h2, { practiceMode: 'explanations_practice' });
-  assert.deepEqual([practice.status, practice.body.code], [422, 'practice_unavailable'], 'never silently made explanations-only');
-  assert.equal(rows(h2.w.sqlite, 'SELECT COUNT(*) AS n FROM learn_roadmaps')[0].n, 0);
+  assert.equal(edit.status, 409);
+  assert.equal(edit.body.code, 'invalid_transition');
   assert.equal((await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('scope'), scope: { kind: 'whole' } })).status, 400);
   assert.equal((await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('bad'), settings: { depth: 'enormous' } })).status, 400);
   assert.equal((await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('none') })).status, 400);
@@ -222,35 +205,4 @@ test('Explain on canvas from an invitation carries no typed words: an empty inst
   assert.equal(made.body.roadmap.instruction, '');
   assert.equal(made.body.roadmap.state, 'proposed');
   assert.deepEqual(seen, [{ original: '' }]);
-});
-
-// CORE.02: whole content and a selected passage send the planner the identical whole bounded document; only the teaching scope differs.
-test('CORE.02: a selected passage plans from the whole bounded document (over 8,000 characters) with the passage as explicit teaching scope', async t => {
-  const LONG = `${MD}\n## Notes\n${'Trees split the data by asking one question at a time. '.repeat(160)}\n## Far away\nThe momentum term remembers earlier gradients.\n`;
-  assert.ok(LONG.length > 8000 && LONG.length < 40000);
-  const exact = 'One update subtracts the learning rate times the gradient from the weight.';
-  const start = LONG.indexOf(exact), end = start + exact.length;
-  const capture = async (scope, plan) => {
-    const seen = [];
-    const h = await loop(t, { plans: [plan], md: LONG });
-    h.w.sqlite.exec(R3);
-    h.w.sqlite.prepare("INSERT INTO learn_source_refs (id, org, owner_email, kind, source_key, source_name, source_rev, anchor_json, anchor_hash, created_at) VALUES (?, 'team', 'u-alice@example.test', 'markdown', ?, 'n', ?, ?, 'h', 1)").run('sref_' + '1'.repeat(24), `file:${ID_B}`, h.rev, JSON.stringify({ quote: { exact, prefix: '', suffix: '' } }));
-    registerRoadmapHandlers({ callModel: async (role, body) => { seen.push(String(body.messages[0].content)); return h.m.callModel(role, body); }, checkCallModel: h.m.callModel, classify, base: h.p.base });
-    const made = await create(h, {}, { scope });
-    assert.equal(made.status, 202, JSON.stringify(made.body).slice(0, 200));
-    assert.equal(made.body.roadmap.state, 'proposed', JSON.stringify(made.body.limitation));
-    assert.equal(seen.length, 1);
-    const [json, ...rest] = seen[0].split('\n\n<source');
-    return { request: JSON.parse(json), source: rest.join('\n\n<source') };
-  };
-  const wholePlan = { ...planInput([['One update', start, end]]), coverage: { uncovered: [{ start: 0, end: start, reason: 'not asked for' }, { start: end, end: LONG.length, reason: 'not asked for' }] } };
-  const whole = await capture({ kind: 'whole' }, wholePlan);
-  const part = await capture({ kind: 'passage', sourceRefId: 'sref_' + '1'.repeat(24) }, planInput([['One update', start, end]]));
-  assert.equal(part.source, whole.source, 'identical source text for both choices');
-  assert.ok(part.source.includes('The momentum term remembers earlier gradients.'), 'a fact outside the selected passage reaches the planner');
-  assert.ok(part.source.includes(`range="0-${LONG.length}"`), 'the source block is the whole document');
-  assert.deepEqual(whole.request.scope, { start: 0, end: LONG.length });
-  assert.deepEqual(part.request.scope, { start, end }, 'the selected passage is the explicit teaching scope');
-  assert.equal(part.request.instruction.original, INSTRUCTION);
-  assert.deepEqual([part.request.source.name, part.request.mode], ['Gradient descent notes.md', 'explanations'], 'verify-to-be-2: the planner knows the file and the roadmap mode');
 });
