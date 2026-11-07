@@ -227,7 +227,7 @@
     "packages/web/src/CanvasMention.jsx": ["canvas-mention-check.mjs"],
     "packages/web/src/inline-diagram.js": ["inline-ai-check.mjs","dive-check.mjs"],
     "packages/web/src/inline-placement.js": ["inline-ai-check.mjs","dive-check.mjs"],
-    "packages/web/src/InlineAiEditor.jsx": ["packages/web/src/danger-button.test.mjs","inline-ai-check.mjs","canvas-skeleton-check.mjs","chat-block-check.mjs","cross-device-check.mjs","dive-check.mjs","explain-back-sketch-check.mjs","manim-render-check.mjs","practice-card-check.mjs","wiki-check.mjs","ctrlk-handoff-check.mjs"],
+    "packages/web/src/InlineAiEditor.jsx": ["packages/web/src/ctrlk-depth.test.mjs","packages/web/src/danger-button.test.mjs","inline-ai-check.mjs","canvas-skeleton-check.mjs","chat-block-check.mjs","cross-device-check.mjs","dive-check.mjs","explain-back-sketch-check.mjs","manim-render-check.mjs","practice-card-check.mjs","wiki-check.mjs","ctrlk-handoff-check.mjs"],
     "packages/web/src/inline-ai-*.js": ["inline-ai-check.mjs","ctrlk-handoff-check.mjs"],
     "packages/web/src/doc-text.js": ["inline-ai-check.mjs"],
     "packages/web/e2e/inline-ai-*.*": ["inline-ai-check.mjs"],
