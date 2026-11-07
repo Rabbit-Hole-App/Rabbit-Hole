@@ -4,7 +4,7 @@ Status: **candidate tested locally; not released; owner manual production accept
 
 ## Identity
 
-- Tested code candidate: `84f1c2d9a6c736f25cf2c355e2ced079ff15b13c` (branch `fix/timing-events`). Later commits on the branch change only this receipt and the routing report's candidate line; they do not change code.
+- Tested code candidate: `25e54a28e633226af2270da1b9b8b6ddbc3031ca` (branch `fix/timing-events`). Later commits on the branch change only this receipt and the routing report's candidate line; they do not change code.
 - Production main when this was written: `8deb778fa2b0442b4ac494f9d94e88fffd72a6c3` (the candidate descends from it).
 - Handoff docs revision imported (checklist section 1.7): `rabbit-hole/chatgpt/tutor` at `0c73b7bda3bdd5aeb817450229c0a29a807716a2`. Routing fixtures imported at `6b3fff7e1585f6814271f0290d9d91f3bf8e5445` (unchanged in `0c73b7bd`; no main-side fixture edits to reconcile).
 - Node 24, lockfile dependencies, Windows. External doubles: every model, JEV, provider, Resend and Sentry call was a test double. Denied egress. No paid call was made.
@@ -15,12 +15,12 @@ CORE.02-06 and CORE.09, UI.01-08 (core flows), BE.01a, BE.04, BE.05a, CHAT.01 (c
 
 R12 (command adapters and per-command prompt suites) is **on hold** by owner decision and is not in this candidate.
 
-## Commands and counts (candidate 84f1c2d9a)
+## Commands and counts (candidate 25e54a28e)
 
 | Run | Tests | Pass | Fail | Notes |
 | --- | ---: | ---: | ---: | --- |
-| `packages/control-plane` `node --test "test/*.test.js"` | 3704 | 3702 | 1 | the failure is `no-ellipsis` (identical line on main `agents/roadmap-check.js:12`); 1 further test not counted as pass or fail by the runner |
-| `packages/web` `node --test "src/**/*.test.mjs"` | 4918 | 4883 | 1 | the failure is VOICE-08 (`voice-ui.test.mjs`), failing on the base commit too |
+| `packages/control-plane` `node --test "test/*.test.js"` | 3708 | 3706 | 1 | the failure is `no-ellipsis` (identical line on main `agents/roadmap-check.js:12`); 1 further test not counted as pass or fail by the runner |
+| `packages/web` `node --test "src/**/*.test.mjs"` | 5014 | 4985 | 2 | VOICE-08 (`voice-ui.test.mjs`, fails on the base commit too) and `animation3d/framing.test.mjs` "saved scenes keep their fit", a 3 s timing test that failed while the build and the control-plane suite ran in parallel and passed 25 of 25 when run alone |
 | `scripts/ci/check-map.test.mjs` + `scripts/schema-check.test.mjs` | 29 | 29 | 0 | |
 | `npm --prefix packages/web run build` | | | | exit 0 |
 
@@ -33,7 +33,7 @@ Section 8.0 matrix and the new cases (run by the lanes, test doubles only):
 
 ## Not run, or unverified (stated, not passed)
 
-- **No browser check of any kind.** Owner manual production acceptance is pending: Chat invitation shimmer and action spacing, accepted ToC, the one canvas skeleton, bottom Next card, Explanation card scroll and Mermaid, minimap clearance under the page header, crash page behaviour.
+- **No browser check of any kind.** Owner manual production acceptance is pending: Explain on highlight (bulb opens Ctrl+K with the /explain pill, skeleton beside the passage, Generate/Edit/Cancel order, red Stop), Depth icon, ToC composer and row menu, rename and Add a link, card headers, Chat invitation shimmer and action spacing, accepted ToC, the one canvas skeleton, bottom Next card, Explanation card scroll and Mermaid, minimap clearance under the page header, crash page behaviour.
 - **Live model quality is unverified.** The 11 routing misses are paths the current JEV preflight cannot express (Whiteboard and Animation and CAD from free text, the recovery branch, a thread-switch seam); whether the real model chooses tools correctly under `CHAT_ANSWER_TOOLS` is unmeasured. `scripts/routing-live-eval.mjs` is ready and refuses to run without explicit spend approval; it has not been run.
 - `CHAT_ANSWER_TOOLS` is **unset** in every config, so the JEV preflight path is unchanged in production until the owner sets it.
 - Crash alerts: Sentry forwarding is inert until the `SENTRY_DSN` secret exists on the app Worker (it was uploaded 2026-11-07 and nothing reads it until this release ships); email goes to `CRASH_NOTIFY_TO` once the control plane deploys. Neither was exercised against real Resend or Sentry.
