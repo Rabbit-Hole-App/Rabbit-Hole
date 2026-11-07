@@ -66,8 +66,14 @@ export const skeletonJobOf = block => [['explain', block?.explainJob], ['animati
 export const SKELETON_DROPPED_EVENT = 'rh-skeleton-dropped';
 export const EXPLAIN_JOB_EVENT = 'rh-explain-job';
 export const EXPLAIN_BRIEF_EVENT = 'rh-explain-brief';
-// The skeleton's Go to plan (the reverse of the chat card's Go to card): Chat opens on the job's thread and scrolls to its plan card (chat-workspace.jsx).
-export const showPlanInChat = (threadId, jobId) => window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId, jobId, reveal: true } }));
+// The skeleton's Go to plan (the reverse of the chat card's Go to card; GoToPlanButton.jsx): Chat opens on the plan's thread and scrolls to its plan card (chat-workspace.jsx).
+export const showPlanInChat = ({ threadId = null, jobId = null, proposalId = null }) => window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId, jobId, proposalId, reveal: true } }));
+// The plan card in the DOM for a job id (Explain, Animation, Whiteboard: data-proposal-job; the /cad review: data-cad-review) or a proposal id (data-proposal-id), or null.
+const quoted = value => String(value).replace(/["\\]/g, '\\$&');
+export const findPlanCard = (root, { jobId = null, proposalId = null } = {}) => {
+  const selectors = [jobId && `[data-generation-proposal][data-proposal-job="${quoted(jobId)}"]`, jobId && `[data-cad-review="${quoted(jobId)}"]`, proposalId && `[data-generation-proposal][data-proposal-id="${quoted(proposalId)}"]`].filter(Boolean);
+  return selectors.length ? root.querySelector(selectors.join(', ')) : null;
+};
 
 // A program result (explain-program) carries its artifact, source included, on the job result. The saved card keeps only the
 // reference ({ bundleHash }) and the result identity without the artifact, so source never lives in canvas JSON: the card
@@ -122,3 +128,19 @@ export function applyExplainEdit(card, job, candidate) {
 export const explainProposedBlock = (card, candidate) => (candidate?.scene || candidate?.program ? { ...candidate, id: card.id } : null);
 // Discard (or a failed edit): the accepted explanation stays exactly as it was.
 export const discardExplainEdit = card => { const { explainEdit: _editing, ...rest } = card; return rest; };
+
+// Go to plan, the Chat half: open the plan's thread unless it is the one shown (the learner's other chat stays in History, nothing is closed), then bring the plan card into
+// view once it is drawn. -> 'found' | 'thread-missing' (the thread was deleted: 404) | 'card-missing' (the card never drew in the thread) | 'failed' (the thread would not open).
+export async function revealPlan(detail, { currentId = null, open, root = document, delay = 100, tries = 20 }) {
+  if (detail.threadId && detail.threadId !== currentId) {
+    try { await open(detail.threadId); } catch (error) { return error?.status === 404 ? 'thread-missing' : 'failed'; }
+  }
+  for (let n = 0; n < tries; n++) {
+    const card = findPlanCard(root, detail);
+    if (card) { card.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }); return 'found'; }
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
+  return 'card-missing';
+}
+export const PLAN_GONE = 'That plan is no longer in a chat.';
+export const PLAN_NOT_OPENED = 'The chat could not be opened. Try again.';

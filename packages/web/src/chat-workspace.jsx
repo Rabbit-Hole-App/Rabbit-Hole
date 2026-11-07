@@ -9,7 +9,8 @@ import { useLearnSettings } from './use-learn-settings.jsx';
 import { threadWithControls } from './learn-coaching-client.js';
 import { draftKey } from './chat-draft.js';
 import { restoredDraft } from './roadmap-transcript.js';
-import { EXPLAIN_BRIEF_EVENT } from './explain-client.js';
+import { EXPLAIN_BRIEF_EVENT, PLAN_GONE, PLAN_NOT_OPENED, revealPlan } from './explain-client.js';
+import { toast } from './ui.jsx';
 
 // The right-side Chat workspace on a Learn canvas (owner brief 2026-10-13; contract:
 // agent-coordination/tasks/chat-workspace-CONTRACT.md, Part A). One provider per canvas composes five hooks, one per
@@ -114,19 +115,15 @@ export function ChatWorkspaceProvider({ canvas, board = 'main', canvasOps: initi
   const [answers, setAnswers] = useState(0);
   const reportAnswering = useCallback(delta => setAnswers(count => Math.max(0, count + delta)), []);
   const answering = answers > 0;
-  // A skeleton's Go to plan (explain-client showPlanInChat): open Chat on the job's thread and bring its plan card into view once it is drawn.
+  // A skeleton's Go to plan (GoToPlanButton, explain-client revealPlan): open Chat on the plan's thread and bring its plan card into view once it is drawn; a deleted
+  // chat or a card that never draws says so in a toast instead of doing nothing.
   useEffect(() => {
-    const reveal = event => {
-      const { threadId, jobId, reveal: go } = event.detail || {};
-      if (!go || !threadId) return;
+    const reveal = async event => {
+      const detail = event.detail || {};
+      if (!detail.reveal) return;
       panels.openChat();
-      if (threadId !== thread.id) thread.open(threadId).catch(() => {});
-      let tries = 0;
-      const look = () => {
-        const card = jobId && document.querySelector(`[data-generation-proposal][data-proposal-job="${CSS.escape(jobId)}"]`);
-        if (card) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); else if (++tries < 20) setTimeout(look, 100);
-      };
-      look();
+      const result = await revealPlan(detail, { currentId: thread.id, open: thread.open });
+      if (result === 'thread-missing' || result === 'card-missing') toast(PLAN_GONE); else if (result === 'failed') toast(PLAN_NOT_OPENED);
     };
     window.addEventListener(EXPLAIN_BRIEF_EVENT, reveal);
     return () => window.removeEventListener(EXPLAIN_BRIEF_EVENT, reveal);

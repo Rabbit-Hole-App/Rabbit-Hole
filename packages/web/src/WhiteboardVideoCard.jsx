@@ -5,6 +5,7 @@
 import { useContext, useEffect, useMemo, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import CardHeader from './CardHeader.jsx';
+import GoToPlanButton from './GoToPlanButton.jsx';
 import { api } from './api.js';
 import { AnimationBoard } from './animation3d/board-context.js';
 import { EXPLAIN_BRIEF_EVENT } from './explain-client.js';
@@ -52,10 +53,13 @@ function Pending({ block, onChange, onChangeQuiet, readOnly, fetchJson }) {
   const word = waiting.stage === 'failed' ? waiting.message || null : stageWord(waiting.stage);
   const running = !ended && waiting.stage !== 'awaiting_approval';
   return (
-    <p role="status" data-whiteboard-pending={waiting.stage} className={`flex items-center gap-2 text-sm ${waiting.stage === 'failed' ? 'text-fail' : 'text-ink-2'}`}>
-      {running && <Loader2 aria-hidden size={16} className="shrink-0 text-ink-3 motion-safe:animate-spin" />}
-      {word}
-    </p>
+    <div className="flex items-center gap-2">
+      <p role="status" data-whiteboard-pending={waiting.stage} className={`flex items-center gap-2 text-sm ${waiting.stage === 'failed' ? 'text-fail' : 'text-ink-2'}`}>
+        {running && <Loader2 aria-hidden size={16} className="shrink-0 text-claude motion-safe:animate-spin" />}
+        {word}
+      </p>
+      <GoToPlanButton stage={waiting.stage} threadId={waiting.threadId} jobId={waiting.id} readOnly={readOnly} data-whiteboard-go-to-plan />
+    </div>
   );
 }
 

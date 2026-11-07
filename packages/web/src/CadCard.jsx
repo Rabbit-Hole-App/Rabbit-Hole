@@ -1,5 +1,6 @@
 import { Button, SlidePanel, Tip } from './ui.jsx';
 import CardHeader from './CardHeader.jsx';
+import GoToPlanButton from './GoToPlanButton.jsx';
 import { track } from './usage-analytics.js';
 import { useEffect, useRef, useState } from 'react';
 import { Ban, Download, LoaderCircle, Maximize2, RefreshCw, Rotate3d, Ruler, Scan, Square } from 'lucide-react';
@@ -296,7 +297,7 @@ export default function CadCard({block,onChange,onChangeQuiet,appName,selected=f
     <CardHeader block={block} meta="CAD model" className="pt-0 pb-0" />
     {/* data-gen-active: the generation state the chat's indicator follows (UI changes contract). A spinner, never a percentage: the job reports stages only. */}
     <div role="status" data-cad-progress data-gen-active={running ? 'true' : 'false'} className="flex flex-wrap items-center gap-2 text-xs text-ink-2">{running && <LoaderCircle size={13} aria-hidden className="animate-spin"/>}<span>{proposed?'Revision ready for review':cadStage(state)}</span><span>{block.units || 'Units pending'}</span>{running && !!job?.createdAt && <span>{elapsed}s elapsed</span>}</div>
-    {mutable && state==='awaiting_approval' && <p data-cad-review-hint className="text-xs text-ink">Review the design brief above the chat box. Nothing is generated until you press Generate there.</p>}
+    {mutable && state==='awaiting_approval' && <div className="flex items-center gap-2"><p data-cad-review-hint className="text-xs text-ink">Review the design brief above the chat box. Nothing is generated until you press Generate there.</p><GoToPlanButton stage={state} jobId={block.jobId} threadless data-cad-go-to-plan /></div>}
     {block.cadDetached && <p data-cad-detached className="text-xs text-ink-2">Saved model copy. Explore, Explain and download existing artifacts; generation, edits and new exports are unavailable for this copy.</p>}
     <CadPreview manifest={shown} active={!expanded} ownerRead={mutable} id={block.id} background={background} viewKey={block.id} selected={selected} showDimensions={showDimensions} draftPending={draftPending} highlight={highlight} minHeight="min-h-[45%]"/>
     {/* Below the viewport, one region that scrolls inside the card, so Quick edit and the details never spill past the card. */}
