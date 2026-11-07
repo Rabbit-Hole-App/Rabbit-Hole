@@ -75,7 +75,7 @@ export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inp
     : field;
   const size = stacked ? 'h-8 w-8' : dock ? 'h-9 w-9' : 'h-6 w-6';
   const send = voice ? null : busy && onStop ? (
-    <button type="button" aria-label="Stop" title="Stop the answer" onClick={onStop} className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-danger-fill text-white hover:bg-danger-fill-hover active:bg-danger-fill-hover ${size}`}>
+    <button type="button" aria-label="Stop" title="Stop the answer" onClick={onStop} className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-accent text-white hover:bg-accent-hover active:bg-accent-hover ${size}`}>
       <Square size={stacked ? 12 : dock ? 13 : 10} fill="currentColor" />
     </button>
   ) : (

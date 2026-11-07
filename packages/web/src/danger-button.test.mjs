@@ -48,7 +48,8 @@ test('every running-state Stop is the danger Button with the Square icon; no han
 
 test('the Stops that end a model answer or job are red too: the composer and Ctrl+K round Stops, the voice Stop, and the source-adding Stop', () => {
   for (const [file, pattern] of [
-    ['ChatComposer.jsx', /aria-label="Stop"[^>]*className=\{`[^`]*bg-danger-fill text-white hover:bg-danger-fill-hover[^`]*`\}>\s*<Square/],
+    // The Chat composer's round Stop stays the app blue like Send (owner 2026-11-07); only the generation cards' Stops are red.
+    ['ChatComposer.jsx', /aria-label="Stop"[^>]*className=\{`[^`]*bg-accent text-white hover:bg-accent-hover[^`]*`\}>\s*<Square/],
     ['InlineAiEditor.jsx', /data-inline-stop[\s\S]{0,200}className="[^"]*bg-danger-fill text-white[^"]*"><Square/],
     ['VoiceMode.jsx', /<Button type="button" variant="danger" size="sm" aria-label=\{voice\.state === 'speaking' \? 'Stop speaking' : 'Stop the Tutor'\}[\s\S]{0,260}<Square/],
     ['agent/StartHost.jsx', /<Button size="sm" variant="danger" onClick=\{\(\) => startJob\.stop\(\)\}><Square/],
