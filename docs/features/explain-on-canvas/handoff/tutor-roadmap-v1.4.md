@@ -48,7 +48,7 @@ A step is one coherent teaching addition. A skill is a concept or ability tracke
 
 ### 1.3 Sprint boundaries
 
-**Current owner decisions — supersede older release/design instructions:** Finish the complete core Tutor MVP first. Claude Code may push docs and code to main, set `MVP_ALLOWED_SHA` for the exact tested release candidate, run the existing release launcher and monitor production without another owner command. Keep the existing isolated clone deployment required by that launcher as release verification; production is the delivery target. No new no-clone mode is requested. Disregard the earlier Contents Q1–Q7 discussion/hold; implement the current docs and file 01 in this sprint. Use five agents with one integrator and separate backend, Chat/ToC, canvas/Explanation and verification ownership. Run affected tests/build per release and finish checklist section 8.0 before the final handoff. Continue implementing and releasing without waiting for owner manual checks between tasks or releases. Local tests use doubles, with no paid model calls. Reuse `chat_message_meta`/`scope_json` where sufficient; an unavoidable production migration still needs the owner's command, while independent work continues. Remaining R7 extensions may be deferred; preserve existing enabled R7a behavior. Investigate R12/R10/R11/R9 dependencies for discussion before changing that later queue.
+**Current owner decisions — supersede older release/design instructions:** Finish the complete core Tutor MVP first. Claude Code may push docs and code to main, set `MVP_ALLOWED_SHA` for the exact tested release candidate, run the existing release launcher and monitor production without another owner command. Keep the existing isolated clone deployment required by that launcher as release verification; production is the delivery target. No new no-clone mode is requested. Disregard the earlier Contents Q1–Q7 discussion/hold; implement the current docs and file 01 in this sprint. Use five agents with one integrator and separate backend, Chat/ToC, canvas/Explanation and verification ownership. Run affected tests/build per release and finish checklist section 8.0 before the final handoff. Continue implementing and releasing without waiting for owner manual checks between tasks or releases. Local tests use doubles, with no paid model calls. Reuse `chat_message_meta`/`scope_json` where sufficient; an unavoidable production migration still needs the owner's command, while independent work continues. Remaining R7 extensions may be deferred; preserve existing enabled R7a behavior. After Core Tutor, deliver R10 for **Explanations only**, then add assessed-practice adaptation after R9 qualifies that path (§8.4). R12 implementation remains on hold.
 
 - Prioritize the ordinary Markdown core and its actual learner flow before optional formats or cleanup database removal.
 - Reuse the current app, components, state, command handlers and placement helpers. Do not reintroduce the retired browser Tutor planner.
@@ -109,7 +109,7 @@ R4's detailed correction lists contain **15 / 50 checked CORE items** and **12 /
 
 **Still required for the core:** complete planner context for selected scope; accepted instruction/title/Depth/version binding; one ordinary author dispatch across terminal failures; actual request quote equality; durable Chat acknowledgment/routing/revision and per-step messages; accepted-only ToC; persisted/final saved geometry; new source highlights/hover links and viewport-bottom Next card; shared Explanation prompts, caps, pinned header, downward sections, tables/Mermaid; then missing BE cases, build and release receipts. Existing safety, access, atomic money, feedback, settings, references and metadata-offer foundations are reused.
 
-The owner permits deferring remaining R7a extensions and the unbuilt R7b adapter. The current four enabled production config flags stay unchanged. R12/R10/R11/R9 dependencies will be discussed before changing their task order or scope.
+The owner permits deferring remaining R7a extensions and the unbuilt R7b adapter. The current four enabled production config flags stay unchanged. See §8.4 for the staged R10 delivery. R11 sequencing stays separate.
 
 ### 2.2 Owner-reported release snapshot
 
@@ -290,7 +290,7 @@ Cancelling an unaccepted proposal intentionally removes that offer, records canc
 
 Switching to Ask, turning Auto-suggest off or pausing stops new unsolicited work and eligible speculative work. It does not erase the accepted plan or cancel already accepted entitlement. **End roadmap** is a Chat action available from the active roadmap's Chat summary; it stops new proposals while retaining sources, delivered cards, history and evidence. It does not live at the bottom of the ToC.
 
-At the accepted finite endpoint/step ceiling, stop adding cards. Chat explains completion of the accepted roadmap; the ToC shows delivery/coverage honestly without claiming understanding. Deeper exploration or a materially changed outcome requires an explicit **Edit roadmap** revision and reacceptance. Unanswered practice is not failure; follow section 8 when evidence arrives later. A source change, deleted card or revoked access has an honest historical/missing state and never triggers silent regeneration.
+Stop offering cards at the agreed stopping point, when the accepted outcome is covered, or when the effective execution bound is reached. Chat distinguishes completion from a bound reached before the outcome, and the ToC shows delivery and coverage. R10 can adjust the estimated count for remaining work as described in §8.4. Deeper exploration or a material change to the roadmap requires **Edit roadmap** and reacceptance. Unanswered practice stays pending. A source change, deleted card or revoked access has an honest historical or missing state and never triggers silent regeneration.
 
 ## 4 Chat, Table of Contents and Progress
 
@@ -325,7 +325,7 @@ Selecting an accepted entry navigates to its pending slot or delivered content i
 
 ### 4.4 Depth, size and learning assumptions
 
-**Overview**, **Standard** and **Deep** change explanatory detail and suitable step count. Current default ceilings are 5, 10 and 15 steps respectively. These are maximums, not target counts or an assertion that every source needs that many steps. Use fewer when the outcome needs fewer; avoid repeated introductions to known material.
+**Overview**, **Standard** and **Deep** change explanatory detail and help estimate how many steps are useful. The current Core Tutor implementation uses execution ceilings of 5, 10 and 15 steps respectively. Plan fewer when the outcome needs fewer and avoid repeated introductions to known material. R10 separates the adjustable estimate from the server's finite execution and spend bounds (§8.4).
 
 A teaching step is one coherent addition, not a textbook hidden inside one accepted item. The current ordinary path produces one explanation/table. The future maximum of three independent elements per step is a ceiling when combined formats ship. Adapt to context and learner evidence; no fixed two-explanations/one-practice lesson pattern.
 
@@ -584,6 +584,7 @@ A future combined step may deliver a few independent cards linked by private ste
 | Accept / Next card / Tab | Wants this addition and authorizes its applicable charge. | Understanding or successful practice. |
 | Cancel | Declines this proposal at this time. | A prerequisite gap, dislike of a format, mastery or failure. |
 | Thumbs up/down | Private per-card self-report of understanding/helpfulness in the agreed learning sense. | An objective assessment score. |
+| Direct learner instruction in Chat | A preference, correction or request that can guide the next unaccepted step. A statement of understanding is a self-report. | A quiz score or rubric observation. |
 | Answered practice | Evidence about the shown, version-bound task under its assessor. | General mastery of every related topic. |
 | Unanswered practice | Accepted content the learner may answer later. | Failure or refusal to learn. |
 | Delivered card | Content is saved and available. | The learner read or understood it. |
@@ -612,11 +613,15 @@ If evidence suggests a prerequisite gap, adapt an unaccepted step on the same ca
 
 The MVP includes explicit **Edit roadmap** in Chat both before and after acceptance. Changes to scope, Depth, outcome or explanation/practice mode produce a new draft for **Accept roadmap**; they do not mutate the accepted version in place. Until reacceptance, the existing accepted roadmap remains authoritative. Reacceptance governs only future/unaccepted work; preserve delivered content/history and let an already accepted in-flight card complete against its frozen source, settings and charge identity. Invalidate/reconcile stale pending proposals and speculative work without duplicate purchases or silently changing an accepted result.
 
-R10 retains broader evidence-driven adaptation, changed-context reasoning and richer automatic revision proposals. It is not a reason to omit this explicit MVP edit/reaccept loop. Ordinary Chat preferences can change without rewriting the accepted roadmap. Switching Auto/Ask/Tutor changes initiative eligibility, not the accepted learning outcome. Preserve the original instruction and later explicit revisions; the newest relevant instruction wins for future accepted work without erasing what was taught.
+Deliver **Explanations only** adaptation first, after Core Tutor. Adapt eligible future explanation steps from the learner's explicit Chat instructions, relevant private thumbs feedback and delivered context. Honor the latest applicable instruction. A thumbs signal can help choose a different treatment, and ambiguous feedback can lead to one focused question. **Already understood** records the learner's choice about coverage as a self-report. Propose a change against the current roadmap and source version, show the reason in the existing Chat and Canvas offer, and use normal card approval. Keep the accepted mode, already accepted work, delivered cards and charges intact. Ask, Auto-suggest, Cancel and End still govern unsolicited offers. This delivery works with R9 disabled and no practice evidence.
+
+Once R9 qualifies practice generation, scoring and private Progress, add valid version-bound practice results to the same decision path as a separate input. Recheck the active goal, task version and evidence validity when applying a change. Keep the learner's mode choice. **Explanations + practice** becomes selectable only through the qualified R9 path. Changing mode uses the existing **Edit roadmap** and reacceptance. Expanded source and card-version revisions remain separate R10 work.
 
 Learner-created slash-command or Quick Edit cards remain outside the roadmap unless explicitly linked. They can still contribute private feedback/evidence. Linking a suitable existing card as the next step is a zero-generation-charge action, not a claim that new content was authored.
 
-Different version affects unaccepted work and requires new acceptance for a new purchase. It does not destroy earlier delivered cards/assets. All added prerequisites and continued steps respect the accepted ceiling and stopping point until the learner accepts an expanded scope.
+Treat the planned card count as an adjustable estimate. Before the agreed stopping point, Tutor can offer a justified prerequisite or a shorter path within the same accepted goal, scope, Depth and mode. Respect explicit ordering requirements and any learner-set limit. Show the change and reason and keep each new card behind its own approval. The server still enforces finite execution and spend bounds. If an execution bound is reached before the outcome, offer an explicit bounded continuation. Material changes to the goal, scope, Depth, mode or agreed order or stopping point require a revised roadmap and reacceptance.
+
+A different version uses a fresh checked offer for future work and fresh approval for any new purchase. Earlier delivered cards and assets stay usable.
 
 ## 9. Formats and Tutor capabilities
 
@@ -815,7 +820,7 @@ The immediate ordinary sprint deliverable is: **drop Markdown → Chat opens and
 | R8b Calculator | Verified bounded computations within the explanation. | Small independent tool; can precede web research. No sandbox dependency. |
 | R8a Research | Scoped Exa search and guarded fetched evidence for genuine gaps. | Independent tool slice with privacy/quota/provenance checks. Does not block source-supported explanations. |
 | R9 Practice/Progress | **Explanations + practice** produces supported practice and private assessed evidence without a personal goal. | Minimal real generation/assessment integration is required to accept that selectable MVP mode; ordinary explanations can ship first. Retain immutable quiz snapshots, outbox and remaining practice/evidence scope as separate R9 work. |
-| R10 Adaptation | Future steps respond to evidence and changed context without losing delivered work. | Builds on MVP explicit Chat edit/reaccept; uses R9 evidence when available. Richer adaptive revisions remain here; no rigid explanation/practice ratio. |
+| R10 Adaptation | Future steps respond to learner instructions and feedback without losing delivered work. | Deliver explanations-only adaptation after Core Tutor. Add assessed-practice evidence after R9 qualifies it. Track expanded source and version revisions separately. |
 | R11 One-ahead preparation | Fast eligible additions with platform-funded unused work and exactly-once accepted billing. | Requires stable lifecycle and money binding. No expensive speculative media or cross-user reuse. |
 | R12 Command adapters | Tutor can choose the remaining registered formats. | Track each command in the [R12 command checklist](tutor-implementation-checklist.md#r12-command-checklist). Complete the shared acceptance contract first, then release each adapter when it meets its own requirements. |
 | R13 Projects | Explain on canvas from authorized codebase context/files. | Same flow and source honesty; no revival of old journeys or fixed codebase goals. |
