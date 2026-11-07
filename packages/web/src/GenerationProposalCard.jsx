@@ -361,7 +361,7 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
   );
   const request = !summary && view.original_request && view.original_request.replace(/^\/[a-z0-9-]+\s*/i, '');
   return (
-    <section data-generation-proposal={view.command} data-proposal-id={view.proposal_id} data-proposal-version={view.revision} data-proposal-targeted={targeted ? 'true' : undefined} data-proposal-active={active ? 'true' : 'false'} data-proposal-status={view.status} {...attrs('root')}
+    <section data-generation-proposal={view.command} data-proposal-id={view.proposal_id} data-proposal-job={proposal?.input?.job || undefined} data-proposal-version={view.revision} data-proposal-targeted={targeted ? 'true' : undefined} data-proposal-active={active ? 'true' : 'false'} data-proposal-status={view.status} {...attrs('root')}
       aria-label={eyebrow || view.title} {...(isolate ? { role: 'group', onPointerDown: event => event.stopPropagation() } : {})}
       className={cn('flex w-full', !compact && 'max-w-xl', 'min-w-0 flex-col rounded-lg border bg-surface', compact ? 'mb-1.5 max-h-[55vh] gap-1.5 overflow-y-auto border-accent/30 bg-accent/[0.07] px-3 py-2' : cn('gap-3 p-4', targeted ? 'border-accent ring-1 ring-accent' : 'border-line'), !active && !status && 'opacity-70')}>
       {eyebrow && <p className="flex items-center gap-1.5 text-sm font-semibold text-ink"><FileCheck2 size={15} aria-hidden className="shrink-0 text-accent" />{eyebrow}</p>}
