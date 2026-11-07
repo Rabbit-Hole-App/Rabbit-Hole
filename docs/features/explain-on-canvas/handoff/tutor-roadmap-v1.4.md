@@ -181,7 +181,7 @@ A clear typed request to start a lesson on the Canvas, with an authorized source
 
 ### 3.4 Step 4 — Read the whole supported source and prepare the draft
 
-After **Explain on canvas**, the Tutor reads the complete authorized, supported Markdown revision and generates the draft roadmap using the learner's existing instruction and chosen scope. The immediate acknowledgment is already visible; full reading now happens for planning, not as a prerequisite to acknowledging the drop.
+After **Explain on canvas**, the Tutor reads the complete authorized, supported Markdown revision and generates the draft roadmap using the learner's existing instruction and chosen scope. The immediate acknowledgment is already visible; full reading now happens for planning, not as a prerequisite to acknowledging the drop. With R8a, resolve a specific public evidence gap before drafting only when it affects the requested goal, scope or sequence (§10.2).
 
 Show a Tutor Chat entry such as **Generating roadmap** with the existing spinner/shimmer treatment. No Tutor status, parameter bar, floating conversation or roadmap controls are added above/below the chat transcript. A progress bar/percentage is permitted only when backed by actual measured progress; otherwise use an indeterminate indicator.
 
@@ -222,7 +222,7 @@ Roadmap acceptance freezes the reviewed goal, scope, Depth, order and explicit r
 
 ### 3.8 Step 8 — Present the same proposed card on the canvas and in Chat
 
-**Confirm the tool for this step.** Start from the accepted learning goal, required behavior and suggested format. Before the offer is actionable, confirm the actual available tool or built-in format can meet those requirements with the authorized source, inputs, settings and Depth. If it cannot, recover in the same Tutor Chat step. Offer a qualified alternative, ask for the detail that unlocks the work, or give useful help in Chat and a concrete next step. Ask before changing a required format or behavior. A partial reply leaves the card undelivered. Keep any existing slot tied to this step. Changes to the learning goal, scope or Depth use **Edit roadmap** and acceptance of the revised plan.
+**Confirm the tool for this step.** Start from the accepted learning goal, required behavior and suggested format. Before the offer is actionable, confirm the actual available tool or built-in format can meet those requirements with the authorized source, inputs, settings and Depth. If it cannot, recover in the same Tutor Chat step. Offer a qualified alternative, ask for the detail that unlocks the work, or give useful help in Chat and a concrete next step. Ask before changing a required format or behavior. A partial reply leaves the card undelivered. Keep any existing slot tied to this step. Changes to the learning goal, scope or Depth use **Edit roadmap** and acceptance of the revised plan. When R8a applies, resolve or reuse the evidence for this exact step before the offer is actionable (§10.2).
 
 The pending canvas slot and its Tutor Chat entry contain the same proposed **title, description, exact highlighted source excerpt when resolvable, and format**. The Tutor explains that this is the proposed next card, not an already generated result. Missing/ambiguous source anchors are labelled honestly and do not generate an invented quotation.
 
@@ -377,7 +377,7 @@ Use files 04 and 06 for the delivered Explanation frame and supported Markdown. 
 
 The standalone routing diagram and recovery path are in [ask-auto-tutor-workflow.md](ask-auto-tutor-workflow.md).
 
-**Shared reply path for Ask, Auto and Tutor.** Use the existing Chat composer and answer turn for ordinary messages. The learner's full request, authorized canvas and selected source context, thread and Depth travel together. Conversation, questions about a tool and a request to produce something can use similar words. Decide from the meaning of the request and the current context. A greeting such as `hi` is a test case alongside other conversational turns.
+**Shared reply path for Ask, Auto and Tutor.** Use the existing Chat composer and answer turn for ordinary messages. The learner's full request, authorized canvas and selected source context, thread and Depth travel together. Conversation, questions about a tool and a request to produce something can use similar words. Decide from the meaning of the request and the current context. A greeting such as `hi` is a test case alongside other conversational turns. Eligible replies and card briefs share the Exa evidence tool in §10.2.
 
 | Mode | Ordinary typed message | Explicit action |
 | --- | --- | --- |
@@ -443,7 +443,7 @@ For a readable Markdown document within the supported whole-source limit, planni
 
 Language follows the learner's explicit request, then the language of their question, then the source language for source-only entry. Ask one focused clarification if mixed-language ambiguity materially changes the intended explanation.
 
-The author also receives the accepted outcome, selected teaching scope, current step title/description/goal, planned points to cover, Depth, language and learner instruction. Relevant delivered-step coverage can prevent repetition. These are separate fields; do not concatenate only a title and goal and assume the model remembers earlier planning calls.
+The author also receives the accepted outcome, selected teaching scope, current step title/description/goal, planned points to cover, Depth, language and learner instruction. Relevant delivered-step coverage can prevent repetition. These are separate fields; do not concatenate only a title and goal and assume the model remembers earlier planning calls. With R8a, include the relevant fetched web passages and their citation IDs as a bounded, separate input for the approved version. Preserve the full supported Markdown context.
 
 The generator explains the current step, not every section merely because the full source is available. It may paraphrase, connect definitions and use clearly identified illustrative examples. It must not fabricate source quotations, external citations or claims that code was executed. When the source is incomplete or contradictory, use the uncertainty behavior in section 10.
 
@@ -668,7 +668,7 @@ Tutor tools read authorized source content, inspect current canvas coverage, rea
 | Authorized canvas/source reader | Understand the document and existing content without making the learner paste it again. | Core; larger sources in R7. |
 | Outline, section retrieval and coverage | Work honestly with documents beyond the bounded full-context path. | R7a/R7b. |
 | Private evidence reader | Adapt from relevant practice and self-reports without requiring a personal goal. | R9/R10. |
-| Exa discovery plus guarded evidence fetch | Research a real knowledge gap or a requested current fact. | R8a; use existing Exa/fetch infrastructure. |
+| Shared Exa discovery plus guarded evidence fetch | Resolve a material public fact for a reply, roadmap draft or card brief. | R8a. Reuse the existing Exa and fetch infrastructure and qualify each caller under §10.2. |
 | Restricted calculator | Produce reproducible numerical results from a bounded expression. | R8b; before arbitrary execution. |
 | Source navigation/highlight | Show which portion a card relates to and navigate in either direction. | R3/core correction; no context clipping. |
 | Figure/image/OCR reader | Understand a diagram, screenshot or scan with uncertainty/coverage reported. | R15. |
@@ -728,9 +728,58 @@ If an external fact is needed, use an enabled research tool within its scope and
 
 ### 10.2 Research and calculation
 
-Research queries contain the minimum authorized information. Do not send private source text, secrets, learner evidence or private repository contents to search by default. Reuse guarded URL fetching: reject forbidden destinations, recheck redirects, apply byte/time limits, and treat fetched text as untrusted data. A search hit is discovery, not proof that its page was inspected. Record source identity, fetched coverage, time and supporting passage where available.
+#### 10.2.1 Exa research tool
 
-Research should answer the identified gap, not start an unlimited browsing loop or rewrite the agreed outcome. Distinguish sourced facts, model explanation, inference, uncertainty and computed results. Preserve citations on the final relevant content; do not manufacture quotations or references.
+R8a exposes one read-only evidence tool for authorized replies, roadmap drafts, accepted roadmap steps and standalone card briefs. Each call identifies the output and version, the missing fact, and why that fact affects the result. Return scoped evidence references and passages, coverage, and a typed outcome such as `ok`, `partial`, `needs_clarification`, `unsupported` or `unavailable`.
+
+1. **Check existing evidence.** Read the authorized source and reuse applicable evidence that is fresh enough for the claim. Research can address a material gap, a current fact, a source conflict or an explicit verification request. Proceed with the available evidence when it covers the needed facts. Honor a source-only instruction or an explicit request for fresh verification within the authorized scope and budget.
+2. **Search a public query.** Send Exa the minimum authorized public concept after a server-side egress check. Keep private source passages, secrets, learner evidence and private repository content inside Rabbit Hole. If the question cannot be made public within scope, offer the supported part or ask one focused question.
+3. **Read the pages.** Start with the existing Exa `auto` discovery path and guarded original-page fetch. Prefer sources with authority over the fact and the relevant date or version. Recheck URLs and redirects, bound time, bytes and content types, and treat retrieved material as untrusted source data. A search hit or provider synthesis can guide discovery. Use passages actually read as evidence.
+4. **Check coverage and stop.** Stop when the facts needed for this output have direct support. A current primary source may suffice for a straightforward fact. Seek independent corroboration when a material claim is disputed or consequential. Record the final URL, title, supporting excerpt, retrieval time, applicable version or date, and any partial coverage or disagreement. Distinguish sourced facts from Tutor's explanations, inferences and illustrative examples.
+5. **Bound the work.** Start with one search of up to five candidates, up to four page reads across the research pass, and one focused follow-up search only when it could close a remaining gap. Enforce the platform's configured time, work and cost caps across the request and lesson. At a limit or an inconclusive result, use the supported portion or ask a focused question. Research depth follows the evidence need and available budget. Overview, Standard and Deep set teaching detail.
+
+The platform funds authorized research. Use the existing safety, access, quota and reconciliation boundaries for each request. Bind citations to passages from pages actually read and keep citation IDs, scope and versions available to the final output. The ordinary Explanation authoring contract remains in §5.3.
+
+Exa references for search modes, extracted content and freshness, and bounded search loops.
+
+- https://exa.ai/docs/reference/search
+- https://exa.ai/docs/reference/get-contents
+- https://exa.ai/blog/what-is-a-search-agent
+
+#### 10.2.2 Ask, Auto and Tutor
+
+Use the shared tool after resolving the learner's intent and authorized context. The tool supplies evidence to the selected reply or card path. Each mode and explicit action follows its existing authorization and review rules.
+
+| Entry | Where to resolve evidence |
+| --- | --- |
+| **Ask** | Before composing a Chat answer that needs an external fact. Use the question, authorized context, Depth and relevant fetched passages. |
+| **Auto** | After deciding whether to reply or offer a tool, check what that selected output needs. Reuse the same evidence path for the answer or eligible card brief. |
+| **Tutor** | Use the shared answer path for replies and the checks below for lesson drafts and steps. Apply the existing Auto-suggest, mode and pause rules to unsolicited follow-ups. |
+
+#### 10.2.3 Explain on Canvas and slash-card workflows
+
+| Output | Evidence timing and inputs |
+| --- | --- |
+| **Roadmap Draft** | Once the learner requests a lesson and source access and scope are resolved, read the authorized material first. Search before the draft only for gaps that change the goal, scope, order or a current fact the plan depends on. The planner receives the requested outcome, scope, Depth, supported source context and relevant web passages. Keep versioned evidence available for later steps. |
+| **Explanation card** | Before the offer is actionable, check the source and evidence already collected. Search again for a new material gap or required refresh. The writer receives the approved step brief or standalone `/explain` request, pinned source context, Depth and language, and the selected evidence passages and citation IDs. A bounded Markdown source follows §5.2. |
+| **Standalone generated slash cards** | The selected handler supplies the prompt, authorized selection, tool settings and factual requirements. Resolve evidence before the command's existing **Generate / Edit** review where it has one. Bind cited evidence to the reviewed version and use those same inputs when the learner approves generation. Commands that start directly resolve evidence through their existing authorized path. |
+
+Bind evidence to the reviewed draft or brief version. A material change to the inputs for an offer uses the existing revised review and approval flow.
+
+For the first R11 release, private preparation can reuse pinned evidence already resolved for the following card. If a required gap remains, resolve it through the ordinary next-card flow. Include evidence identity and version when checking whether a prepared result is reusable.
+
+#### 10.2.4 Source controls
+
+| Surface | Source presentation |
+| --- | --- |
+| **Chat answer** | Attach references to the claims they support and use the existing neutral **Sources (n)** disclosure below the answer, closed by default. |
+| **Roadmap in Chat** | Show a closed **Sources (n)** disclosure at the bottom of **Roadmap Draft** when external evidence shaped the plan. Keep it with the accepted version. Evidence used for a single card appears with that card. |
+| **Command review in Chat** | Show the same closed disclosure within **Generate / Edit** when external evidence informs the brief. |
+| **Saved Canvas card** | Show a small **Sources** icon in the existing card action area on hover or keyboard focus, with access through the existing touch actions. Clicking it opens a popover anchored to the card. Reuse the existing card action styling and popover behavior. Each title opens its source page and a **Copy link** button beside it copies the final URL. Use the actual source filename and **View section** for the pinned original document when applicable. |
+
+Start with a configurable maximum of **five distinct cited web links per reply, roadmap version, or card version**. Apply the same card limit in its review. Deduplicate by final URL and show the title, domain and supporting passage, plus the date when freshness matters. Show only sources used for that output. Select supported claims and citations together so each retained claim keeps its reference. Save the cited evidence with the corresponding approved version and card for reload. The web-link cap is separate from the search/read budget and existing local source navigation.
+
+#### 10.2.5 Restricted calculator
 
 The restricted calculator accepts a validated expression and bounded inputs. It does not evaluate arbitrary JavaScript, Python, shell, network or filesystem operations. A computed result includes expression/inputs, method/version and output so it can be reproduced. Arbitrary execution is a separate later capability with separate isolation and authorization.
 
@@ -820,7 +869,7 @@ The immediate ordinary sprint deliverable is: **drop Markdown → Chat opens and
 | R7a Long Markdown | Versioned outline, bounded summaries, original retrieval and explicit coverage beyond bounded full-context source input. | Existing foundations locally verified and production config enabled. Remaining source-selection outbox/new-UI/manual extensions may be deferred; preserve the honest author passage fallback. |
 | R7b PDF text | Future whole-PDF Tutor planning with page/section context and honest unreadable-page coverage. | Deferred/unbuilt adapter. Existing R3 selected-PDF references remain available. Does not require OCR. |
 | R8b Calculator | Verified bounded computations within the explanation. | Small independent tool; can precede web research. No sandbox dependency. |
-| R8a Research | Scoped Exa search and guarded fetched evidence for genuine gaps. | Independent tool slice with privacy/quota/provenance checks. Does not block source-supported explanations. |
+| R8a Research | One scoped web evidence tool for Ask, Auto, Tutor, Explain on Canvas drafts and steps, and supported standalone card briefs. | Independent tool slice with privacy, quota, provenance and source UI checks. Resolve evidence only where a gap matters. |
 | R9 Practice/Progress | **Explanations + practice** produces supported practice and private assessed evidence without a personal goal. | Minimal real generation/assessment integration is required to accept that selectable MVP mode; ordinary explanations can ship first. Retain immutable quiz snapshots, outbox and remaining practice/evidence scope as separate R9 work. |
 | R10 Adaptation | Future steps respond to learner instructions and feedback without losing delivered work. | Deliver explanations-only adaptation after Core Tutor. Add assessed-practice evidence after R9 qualifies it. Track expanded source and version revisions separately. |
 | R11 One-ahead preparation | While one card is on offer, privately prepare at most one eligible following explanation or table. | Deliver after Core Tutor and before R12. Requires stable lifecycle, versions and money binding. Reuse a checked, reconciled result on normal approval. |
