@@ -103,7 +103,7 @@
     "packages/control-plane/src/learn-user-settings.js": ["packages/control-plane/test/learn-user-settings.test.js","packages/control-plane/test/explain-depth.test.js","packages/web/src/learn-settings.test.mjs","packages/control-plane/test/roadmap-auto-events.test.js"],
     "packages/web/src/learn-settings.js": ["depth-settings-command-check.mjs","depth-settings-mvp-check.mjs","tutor-controls-check.mjs","packages/web/src/learn-settings.test.mjs","packages/web/src/learn-coaching-controls.test.mjs"],
     "packages/web/src/use-learn-settings.jsx": ["depth-settings-command-check.mjs","depth-settings-mvp-check.mjs","tutor-controls-check.mjs","chat-workspace-shell-check.mjs"],
-    "packages/web/src/DepthMenu.jsx": ["depth-settings-command-check.mjs","depth-settings-mvp-check.mjs","tutor-controls-check.mjs","chat-workspace-shell-check.mjs","packages/web/src/roadmap-transcript.test.mjs"],
+    "packages/web/src/DepthMenu.jsx": ["depth-settings-command-check.mjs","depth-settings-mvp-check.mjs","tutor-controls-check.mjs","chat-workspace-shell-check.mjs","packages/web/src/roadmap-transcript.test.mjs","packages/web/src/depth-menu.test.mjs"],
     "packages/control-plane/src/source-refs.js": ["source-ref-command-check.mjs","source-ref-mvp-check.mjs","packages/control-plane/test/source-refs.test.js"],
     "packages/web/src/source-ref.js": ["source-ref-command-check.mjs","source-ref-mvp-check.mjs","packages/control-plane/test/source-refs.test.js","packages/web/src/source-refs.test.mjs","packages/web/src/source-refs-render.test.mjs","packages/web/src/markdown-anchor.test.mjs"],
     "packages/web/src/source-refs.js": ["source-ref-command-check.mjs","source-ref-mvp-check.mjs","packages/web/src/source-refs.test.mjs","packages/web/src/client-timing.test.mjs"],
