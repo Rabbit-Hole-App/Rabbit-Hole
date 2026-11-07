@@ -11,6 +11,7 @@ import { acceptInvitation, dismissInvitation, offerInvitation, pendingInvitation
 import { answerQuestion, revisePlan } from './roadmap-planning.js';
 import { applyProposalDraft, discardProposalDraft, roadmapEditEnabled, saveProposalDraft } from './roadmap-proposal-drafts.js';
 import { acceptLinkProposal, offerLinkProposal, readLink } from './roadmap-links.js';
+import { readSlots, saveSlot } from './roadmap-slots.js';
 
 const PREFIX = '/api/learn/roadmap';
 export const roadmapEnabled = env => env?.ROADMAP_ENABLED === 'true';
@@ -93,6 +94,8 @@ export async function roadmapRoute(path, req, env, deps = {}) {
       const got = await readEntitledResult(db, access, { roadmapId, resultId: rest[2] });
       return got ? json({ resultId: got.id, cardId: got.cardId, primitive: got.primitive, block: got.block }) : json(NOT_AVAILABLE, 404);
     }
+    // UI.06: the Tutor slots' private places (roadmap-slots.js), owner and board scoped like every route here.
+    if (rest[1] === 'slots' && rest.length === 2) { const got = req.method === 'GET' ? await readSlots(db, access, roadmapId) : await saveSlot(db, access, { roadmapId, stepId: body.stepId, proposalId: body.proposalId ?? null, x: body.x, y: body.y, w: body.w }); return json(got.body, got.status); }
     if (req.method !== 'POST') return json({ error: 'Not found', code: 'not_found' }, 404);
     const [, kind, id, verb] = rest;
     if (kind === 'thread' && rest.length === 2) return reply(await bindTutorThread(db, access, { roadmapId, threadId: body.threadId })); // the roadmap's one Tutor Chat thread
