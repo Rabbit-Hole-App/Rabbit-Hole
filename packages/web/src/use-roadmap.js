@@ -95,6 +95,7 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto', 
 
   return {
     state, controller, pill, active: !!state.view && state.flag !== 'off' && isUnfinishedRoadmap(state.view.roadmap.state), toc: tocOf(state), lines: chatOf(state), invitation: invitationOf(state),
+    position: overlayPosition(geometry.anchor, surface), surface, showOverlay,
     acceptPlan, go, sourceReady: key => controller.sourceReady(key),
     on: enabled && !!boardId && state.flag !== 'off', // the roadmap runs on this canvas: its lines render in Chat's transcript (RoadmapTranscript.jsx)
   };

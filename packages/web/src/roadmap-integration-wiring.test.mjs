@@ -51,3 +51,10 @@ test('Tutor entries are real transcript messages; Edit roadmap revises with the 
   assert.match(controller, /sourceReady: key => report\(key\), idleTick: \(\) => false/);
   assert.doesNotMatch(hook, /idleTick\(\)/);
 });
+
+// Accept roadmap crashed production (undefined.left): RoadmapCanvas reads roadmap.position/surface/showOverlay whenever a proposal is pending.
+test('useRoadmap returns every field RoadmapCanvas reads, so a pending proposal never throws', () => {
+  const surfaces = read('RoadmapSurfaces.jsx');
+  for (const field of ['position', 'surface', 'showOverlay']) assert.ok(surfaces.includes('roadmap.' + field), field + ' is read by RoadmapCanvas');
+  assert.ok(hook.includes('position: overlayPosition(geometry.anchor, surface), surface, showOverlay,'), 'the hook returns position, surface and showOverlay');
+});
