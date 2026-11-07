@@ -4,7 +4,7 @@ Status: **candidate tested locally; not released; owner manual production accept
 
 ## Identity
 
-- Tested code candidate: `adce45dc0` (full SHA in the launcher pins) (branch `fix/timing-events`). Later commits on the branch change only this receipt and the routing report's candidate line; they do not change code.
+- Tested code candidate: `a55a09976` (full SHA in the launcher pins; warn amber added after the last full web run, with its contrast tests and the build re-run) (branch `fix/timing-events`). Later commits on the branch change only this receipt and the routing report's candidate line; they do not change code.
 - Production main when this was written: `8deb778fa2b0442b4ac494f9d94e88fffd72a6c3` (the candidate descends from it).
 - Handoff docs revision imported (checklist section 1.7): `rabbit-hole/chatgpt/tutor` at `0c73b7bda3bdd5aeb817450229c0a29a807716a2`. Routing fixtures imported at `6b3fff7e1585f6814271f0290d9d91f3bf8e5445` (unchanged in `0c73b7bd`; no main-side fixture edits to reconcile).
 - Node 24, lockfile dependencies, Windows. External doubles: every model, JEV, provider, Resend and Sentry call was a test double. Denied egress. No paid call was made.
@@ -15,7 +15,7 @@ CORE.02-06 and CORE.09, UI.01-08 (core flows), BE.01a, BE.04, BE.05a, CHAT.01 (c
 
 R12 (command adapters and per-command prompt suites) is **on hold** by owner decision and is not in this candidate.
 
-## Commands and counts (candidate adce45dc0)
+## Commands and counts (candidate a55a09976)
 
 | Run | Tests | Pass | Fail | Notes |
 | --- | ---: | ---: | ---: | --- |
