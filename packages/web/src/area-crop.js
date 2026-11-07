@@ -3,34 +3,7 @@
 // moment (an Explanation's time, inputs and the objects under the crop; a whiteboard's shapes by tldraw id; a paper's
 // page and the region of that page).
 
-import { EVIDENCE_LIMITS } from './area-evidence.js';
-
 const NEWLINE = String.fromCharCode(10);
-
-const PICTURE = 'The learner drew a rectangle on the canvas and asks about what is inside it; the attached image shows that area.';
-// With a card the picture cannot draw (an iframe card: notebook, PDF viewer, YouTube), the picture is not claimed whole.
-const PICTURE_PARTIAL = 'The learner drew a rectangle on the canvas and asks about what is inside it; the attached image shows that area, except the cards marked "Not in the picture" below, whose bodies are blank or incomplete in it.';
-const NO_PICTURE = 'The learner drew a rectangle on the canvas and asks about what is inside it; no picture of it could be attached, so work from the card details below.';
-
-// A drag under 8 screen pixels in either direction is a click (or an Escape), not a selection.
-export const areaTooSmall = (rect, zoom) => Math.abs(rect.x2 - rect.x1) * zoom < 8 || Math.abs(rect.y2 - rect.y1) * zoom < 8;
-
-// The part of a crop (surface pixels) that is on screen; null when under 8 pixels of it is. The picture is only of the visible surface, so
-// the cards the crop is bound to must be measured against the same part, not against pixels that were never drawn.
-export function visibleCrop(crop, box) {
-  const x = Math.max(0, crop.x), y = Math.max(0, crop.y);
-  const w = Math.min(box.width, crop.x + crop.w) - x, h = Math.min(box.height, crop.y + crop.h) - y;
-  return w < 8 || h < 8 ? null : { x, y, w, h };
-}
-
-// A target whose picture could not be taken or uploaded must not tell the model an image is attached.
-export const withoutPicture = target => ({ ...target, text: target.text.replace(PICTURE_PARTIAL, NO_PICTURE).replace(PICTURE, NO_PICTURE) });
-
-// The picture uploads after the chip is in Chat. While it does, the target says so (Chat holds Send); the flag lives on the target, so removing
-// the chip or drawing a newer area clears it, and a late answer for an older area (another id) changes nothing.
-export const uploadStarted = (target, hasBlob) => (hasBlob ? { ...target, uploading: true } : target);
-export const uploadDone = (previous, id, image) => (previous?.id === id ? { ...previous, uploading: false, image } : previous);
-export const uploadFailed = (previous, id) => (previous?.id === id ? { ...withoutPicture(previous), uploading: false } : previous);
 
 // Place, size and view state are not content: moving a card or picking an object never makes a new revision.
 const NOT_CONTENT = new Set(['dx', 'dy', 'w', 'h', 'space', 'time', 'inputs', 'inputRevision', 'programState', 'marked', 'selectedObject', 'selectRequest', 'cardLayout']);
@@ -76,12 +49,8 @@ export function cropBinding(block, crop, measured) {
   return binding;
 }
 
-// A card the rectangle meets by position that is not drawn right now (scrolled out, not mounted): named, with no bounds and no picture of it.
-export const unmountedBinding = block => ({ id: block.id, type: block.type, title: block.title || block.type, revision: cardRevision(block), bounds: null, unmounted: true });
-
-const describeCard = binding => {
+const describe = binding => {
   const where = `crop covers ${JSON.stringify(binding.bounds)} of the card (normalized x, y, w, h)`;
-  if (binding.unmounted) return `Card "${binding.title}" (${binding.type}, revision ${binding.revision}): inside the rectangle but not drawn on screen when the picture was taken.`;
   if (binding.type === 'animation') {
     return [`Explanation card "${binding.title}" (revision ${binding.revision}) paused at ${binding.time}s${binding.inputs ? ` with inputs ${JSON.stringify(binding.inputs)}` : ''}: ${where}.`,
       binding.objects.length ? `  Objects inside the crop: ${binding.objects.join(', ')}` : '  The crop contains no authored object.'].join(NEWLINE);
@@ -94,22 +63,6 @@ const describeCard = binding => {
   return `Card "${binding.title}" (${binding.type}, revision ${binding.revision}): ${where}.`;
 };
 
-// One line per card, then, for a card the picture cannot show, why and what to use instead.
-const describe = binding => [describeCard(binding), ...(binding.omitted ? [`  Not in the picture: ${binding.omitted}.${binding.saved ? ` Saved content follows below.` : ''}`] : [])].join(NEWLINE);
-
-// What the board saved about the cards, after every coverage line so a long excerpt is the part the 8000-character cap cuts.
-const excerpts = bindings => {
-  let left = EVIDENCE_LIMITS.excerpts;
-  const blocks = [];
-  for (const binding of bindings) {
-    if (!binding.saved || left <= 0) continue;
-    const text = binding.saved.length > left ? `${binding.saved.slice(0, left)} [cut]` : binding.saved;
-    left -= binding.saved.length;
-    blocks.push(`${binding.savedLabel || 'Saved content'} of "${binding.title}":${NEWLINE}${text}`);
-  }
-  return blocks.length ? [`Saved content of these cards:`, ...blocks].join(NEWLINE) : null;
-};
-
 // The ask target the composer's pill shows and the question carries. A crop that lies on one paper's page also carries
 // that page and region the way the paper's own region ask did, so the server crops the page for the model (paper.selection).
 export function areaTarget({ id, bindings, preview = null, at = Date.now() }) {
@@ -120,10 +73,9 @@ export function areaTarget({ id, bindings, preview = null, at = Date.now() }) {
   return {
     id, kind: 'Canvas selection', title, crops: bindings, at,
     text: [
-      preview ? (bindings.some(binding => binding.omitted) ? PICTURE_PARTIAL : PICTURE) : NO_PICTURE,
+      'The learner drew a rectangle on the canvas and asks about what is inside it; the attached image shows that area.',
       bindings.length ? `Cards inside or touching it:${NEWLINE}${bindings.map(describe).join(NEWLINE)}` : 'No card is inside it, only the canvas itself.',
-      excerpts(bindings),
-    ].filter(Boolean).join(NEWLINE),
+    ].join(NEWLINE),
     ...(paper && preview ? { paper: { id: paper.paperId, page: paper.page, selection: { region: paper.region, preview } } } : {}),
   };
 }

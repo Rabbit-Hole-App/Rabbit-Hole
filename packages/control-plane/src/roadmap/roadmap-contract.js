@@ -80,7 +80,7 @@ export const VALIDATION_TRANSITIONS = freeze({
 });
 export const DECISION_TRANSITIONS = freeze({ none: ['accepted', 'cancelled', 'superseded'], accepted: [], cancelled: [], superseded: [] });
 // A deleted card changes delivery metadata only; the delivery record stays (D7).
-export const DELIVERY_TRANSITIONS = freeze({ not_delivered: ['delivered'], delivered: ['removed'], removed: ['delivered'] });
+export const DELIVERY_TRANSITIONS = freeze({ not_delivered: ['delivered'], delivered: ['removed'], removed: [] });
 export const BILLING_TRANSITIONS = freeze({
   pending: ['settled', 'refunded', 'failed', 'zero_priced'],
   settled: ['refunded'],

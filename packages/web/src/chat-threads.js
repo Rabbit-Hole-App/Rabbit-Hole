@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api.js';
 import { activeThread, rememberThread } from './chat-persist.js';
-import { announceChatDeleted } from './explain-client.js';
 
 // Sub-lane A2 (threads and History) owns this file. Contract: chat-workspace-CONTRACT.md A1-A5.
 // Shape every other sub-lane relies on:
@@ -143,7 +142,6 @@ export function useChatThread(canvas, { slot = null } = {}) {
     if (!threadId) return;
     if (pending.current?.id === threadId) { clearTimeout(timer.current); pending.current = null; }
     await api(`/api/ask/threads/${threadId}/delete`, { method: 'POST' });
-    announceChatDeleted(threadId);
     if (idRef.current === threadId) newChat();
   }, [newChat]);
 

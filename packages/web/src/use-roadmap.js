@@ -90,14 +90,14 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto', 
     const h = hostRef.current, view = controller.getState().view;
     if (nav.kind === 'card') h?.focusBlock?.(nav.cardId);
     else if (nav.kind === 'proposal') h?.focusBlock?.(h.sourceBlockId?.(live.current.pill?.sourceKey || view?.roadmap?.scope?.source?.key));
-    else if (nav.kind === 'source') { const id = h?.sourceBlockId?.(view?.roadmap?.scope?.source?.key); if (id) h.focusBlock?.(id); else h?.notice?.('The source file is not on this canvas.'); } // a source card that is gone said nothing before
+    else if (nav.kind === 'source') h?.focusBlock?.(h.sourceBlockId?.(view?.roadmap?.scope?.source?.key));
   }, [controller]);
 
   return {
     lessonSources: () => lessonSourcesOf(controller.getState(), hostRef.current?.sources?.() || []),
     state, controller, pill, active: !!state.view && state.flag !== 'off' && isUnfinishedRoadmap(state.view.roadmap.state), toc: tocOf(state), lines: chatOf(state), invitation: invitationOf(state),
     position: overlayPosition(geometry.anchor, surface), surface, showOverlay,
-    acceptPlan, go, restoreCard: resultId => controller.restoreCard(resultId), sourceReady: key => controller.sourceReady(key),
+    acceptPlan, go, sourceReady: key => controller.sourceReady(key),
     on: enabled && !!boardId && state.flag !== 'off', // the roadmap runs on this canvas: its lines render in Chat's transcript (RoadmapTranscript.jsx)
   };
 }

@@ -4,7 +4,7 @@ import { NOTIFY_PATH, crashNotify } from './crash-report.js';
 import { cadBudgetAlert } from './cad-budget-alert.js';
 import { canvasSeed, threadTurns } from './canvas-conversation.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
-import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource, settleAreaPicture } from './learn-ask-context.js';
+import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from './learn-ask-context.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { fileContext } from './file-context.js';
 import { CANVAS_UNAVAILABLE, canvasMentions } from './canvas-refs.js';
@@ -1269,7 +1269,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   if (scopedApp && conversation === 'learn') {
     try { extraBlocks.push(...await contextDocumentBlocks(env, scopedApp, docIds(chat?.contextRefs), { pages: pageDocIds(chat?.contextRefs), query: message })); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
   }
-  context = appendCanvasTarget(context, settleAreaPicture(canvasTarget, body, source));
+  context = appendCanvasTarget(context, canvasTarget);
   // thread per scope and user; follow-ups ride the same thread
   let threadId = thread_id || null;
   if (threadId) {

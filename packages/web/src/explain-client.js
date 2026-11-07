@@ -59,26 +59,15 @@ export const explainPendingBlock = ({ job, title, prompt, threadId = null }) => 
 });
 // The reviewed job a canvas card is the skeleton of: its plan waits for Generate (/explain, /animation or /whiteboard), nothing is made yet.
 // Deleting that card drops the plan (LearnPage cancels the job); a running job is stopped from its own Stop, never by deleting.
-const skeletonJobs = block => [['explain', block?.explainJob], ['animation', block?.animation3dJob], ['whiteboard-video', block?.whiteboardJob]].filter(([, job]) => job?.stage === 'awaiting_approval');
-export const skeletonJobOf = block => { const [hit] = skeletonJobs(block); return hit ? { command: hit[0], id: hit[1].id } : null; };
-// The chat thread that skeleton's plan card lives in (null when the block does not record one, or when it is not waiting for Generate).
-export const skeletonThreadOf = block => skeletonJobs(block)[0]?.[1].threadId ?? null;
-// A chat was deleted (ask.jsx, chat-threads.js): the canvas drops the skeletons whose plan lived in it (AdaptiveCanvas dropThreadSkeletons), because a plan with no chat can never be generated.
-export const CHAT_DELETED_EVENT = 'rh-chat-deleted';
-export const announceChatDeleted = threadId => window.dispatchEvent(new CustomEvent(CHAT_DELETED_EVENT, { detail: { threadId } }));
+export const skeletonJobOf = block => [['explain', block?.explainJob], ['animation', block?.animation3dJob], ['whiteboard-video', block?.whiteboardJob]]
+  .map(([command, job]) => (job?.stage === 'awaiting_approval' ? { command, id: job.id } : null)).find(Boolean) ?? null;
 // A job changed from outside its card (Generate approved its brief, a refinement started its next version): its card polls
 // again. A brief became ready for review: the chat showing its thread reloads it, so the brief and its Generate appear.
 export const SKELETON_DROPPED_EVENT = 'rh-skeleton-dropped';
 export const EXPLAIN_JOB_EVENT = 'rh-explain-job';
 export const EXPLAIN_BRIEF_EVENT = 'rh-explain-brief';
-// The skeleton's Go to plan (the reverse of the chat card's Go to card; GoToPlanButton.jsx): Chat opens on the plan's thread and scrolls to its plan card (chat-workspace.jsx).
-export const showPlanInChat = ({ threadId = null, jobId = null, proposalId = null }) => window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId, jobId, proposalId, reveal: true } }));
-// The plan card in the DOM for a job id (Explain, Animation, Whiteboard: data-proposal-job; the /cad review: data-cad-review) or a proposal id (data-proposal-id), or null.
-const quoted = value => String(value).replace(/["\\]/g, '\\$&');
-export const findPlanCard = (root, { jobId = null, proposalId = null } = {}) => {
-  const selectors = [jobId && `[data-generation-proposal][data-proposal-job="${quoted(jobId)}"]`, jobId && `[data-cad-review="${quoted(jobId)}"]`, proposalId && `[data-generation-proposal][data-proposal-id="${quoted(proposalId)}"]`].filter(Boolean);
-  return selectors.length ? root.querySelector(selectors.join(', ')) : null;
-};
+// The skeleton's Go to plan (the reverse of the chat card's Go to card): Chat opens on the job's thread and scrolls to its plan card (chat-workspace.jsx).
+export const showPlanInChat = (threadId, jobId) => window.dispatchEvent(new CustomEvent(EXPLAIN_BRIEF_EVENT, { detail: { threadId, jobId, reveal: true } }));
 
 // A program result (explain-program) carries its artifact, source included, on the job result. The saved card keeps only the
 // reference ({ bundleHash }) and the result identity without the artifact, so source never lives in canvas JSON: the card
@@ -133,19 +122,3 @@ export function applyExplainEdit(card, job, candidate) {
 export const explainProposedBlock = (card, candidate) => (candidate?.scene || candidate?.program ? { ...candidate, id: card.id } : null);
 // Discard (or a failed edit): the accepted explanation stays exactly as it was.
 export const discardExplainEdit = card => { const { explainEdit: _editing, ...rest } = card; return rest; };
-
-// Go to plan, the Chat half: open the plan's thread unless it is the one shown (the learner's other chat stays in History, nothing is closed), then bring the plan card into
-// view once it is drawn. -> 'found' | 'thread-missing' (the thread was deleted: 404) | 'card-missing' (the card never drew in the thread) | 'failed' (the thread would not open).
-export async function revealPlan(detail, { currentId = null, open, root = document, delay = 100, tries = 20 }) {
-  if (detail.threadId && detail.threadId !== currentId) {
-    try { await open(detail.threadId); } catch (error) { return error?.status === 404 ? 'thread-missing' : 'failed'; }
-  }
-  for (let n = 0; n < tries; n++) {
-    const card = findPlanCard(root, detail);
-    if (card) { card.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }); return 'found'; }
-    await new Promise(resolve => setTimeout(resolve, delay));
-  }
-  return 'card-missing';
-}
-export const PLAN_GONE = 'That plan is no longer in a chat.';
-export const PLAN_NOT_OPENED = 'The chat could not be opened. Try again.';

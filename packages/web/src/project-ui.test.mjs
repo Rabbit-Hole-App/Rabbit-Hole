@@ -271,7 +271,7 @@ test('the inspector has one action, Learn this, in its header beside the title; 
 // Main canvas included; the project part is the card's own title (cardModel), plain text since the owner brief of
 // 2026-10-16 item 2 (no link, no menu: project management is in Home and the Library), and shrinks first.
 test('in a project the title is a one-line breadcrumb: the project as plain text (its card title), then the canvas selector', () => {
-  assert.match(learn, /<div data-title-crumbs className="flex max-w-full min-w-0 items-center">\n(?:\s*<BackToTop [^\n]*\/>\n)?\s*\{project && <>\n\s*<span data-project-crumb title=\{cardModel\(project\)\.title\}\n\s*className="block h-8 max-w-60 min-w-12 shrink-\[50\] truncate [^"]*">\{cardModel\(project\)\.title\}<\/span>/);
+  assert.match(learn, /<div data-title-crumbs className="flex max-w-full min-w-0 items-center">\n\s*\{project && <>\n\s*<span data-project-crumb title=\{cardModel\(project\)\.title\}\n\s*className="block h-8 max-w-60 min-w-12 shrink-\[50\] truncate [^"]*">\{cardModel\(project\)\.title\}<\/span>/);
   assert.doesNotMatch(learn, /data-project-crumb[^\n]*onClick/);
   // Outside a project the canvas title stays the renamable input with the Rabbit Holes chevron.
   assert.match(learn, /: <><input aria-label="Canvas title"[\s\S]*?<TitleHoles \{\.\.\.dive\.titleHoles\} \/><\/>\}\n\s*<\/div>/);

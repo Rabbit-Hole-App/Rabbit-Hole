@@ -25,8 +25,6 @@ import { explainEditProblem } from './explain-client.js';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp, Check, ChevronDown, CircleHelp, Loader2, RotateCcw, Square, X } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
-import DepthMenu from './DepthMenu.jsx';
-import { useChatWorkspace } from './chat-workspace.jsx';
 import { buildContext, buildCreationContext, clippedOf, contextShape, regionSummary, staleness, unionBox } from './inline-ai-context.js';
 import { inlineProvenance, cardId, cardTx, describeChange, editTx, explainConnects, explainTx, FACING, freeSpot, noteSize, placeNote, validateEdit, wordDiff } from './inline-ai-apply.js';
 import { createInlineSession, routeColumn, stageTimings } from './inline-ai-session.js';
@@ -99,8 +97,6 @@ export function CardEditPreview({ fields, proposedOnly = false }) {
 }
 export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, initialMode = null, preset = null, onClose }) {
   const board = canvas.board;
-  // The board's Depth (the Chat composer's own setting, one value for both): null on a page with no Chat workspace..
-  const depthSettings = useChatWorkspace()?.settings ?? null;
   // A creation (nothing selected) is always Explain: Edit changes a selection, and there is none (creation §1).
   // A file card with no semantic editing path (file-chat-ref.js fileEditLocked) is Explain only: Edit is never offered for it.
   const cadTarget = !target.creation && target.ids?.length === 1 && canvas.board?.().blocks?.find(block => block.id === target.ids[0] && block.type === 'cad' && block.revisionId && !block.locked && cadCanMutate(block,readOnly));
@@ -974,8 +970,6 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             onClick={() => { setModeOpen(false); setContextOpen(open => !open); }}
             className="rounded-md px-1 py-0.5 text-xs text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-ai">Context</button>}
           <div className="relative ml-auto flex items-center gap-1.5">
-            {/* Depth rides only on a command's line (handed to Chat, which sends the board's Depth); a plain Explain or Edit ignores it. */}
-            {command && depthSettings && <DepthMenu settings={depthSettings} disabled={busy(status)} />}
             <button type="button" data-inline-mode-toggle data-inline-mode-current={mode} aria-haspopup="menu" aria-expanded={modeOpen} disabled={busy(status)} title="Quick Edit mode"
               onClick={() => { setContextOpen(false); setModeOpen(open => !open); }}
               className="flex h-7 items-center gap-0.5 rounded-md px-1.5 text-xs text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-ai disabled:opacity-40">
@@ -998,7 +992,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             {busy(status) ? (
               // A second press of a double press lands here as detail 2: it never stops the request it just sent.
               <button type="button" data-inline-stop aria-label="Stop" title="Stop" onClick={event => { if (event.detail < 2) session.cancel(); }}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-danger-fill text-white outline-none hover:bg-danger-fill-hover active:bg-danger-fill-hover focus-visible:ring-2 focus-visible:ring-ai"><Square size={10} fill="currentColor" /></button>
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-white outline-none focus-visible:ring-2 focus-visible:ring-ai"><Square size={10} fill="currentColor" /></button>
             ) : (
               <button type="button" data-inline-submit aria-label={preview ? 'Refine' : 'Send'} title={preview ? 'Refine (Enter)' : 'Send (Enter)'}
                 disabled={!!cadJob || cadPending || readOnly || status === 'proposal' || !outgoing.trim() || outgoing.length > PROMPT_MAX} onClick={send}

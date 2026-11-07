@@ -40,8 +40,6 @@ test('paths, referrers and properties leave sanitized: no ids, tokens, queries, 
   assert.equal(sanitize('rh_prompt_sent', { text: 'hello' }), null, 'unknown events are dropped');
   assert.deepEqual(sanitize('rh_generation_failed', { feature: 'motion', action_id: 'job-123', reason: 'Provider said: secret prompt', prompt: 'x', email: 'a@b.c' }),
     { feature: 'motion', action_id: sanitize('rh_generation_failed', { action_id: 'job-123' }).action_id });
-  assert.deepEqual(sanitize('rh_generation_failed', { feature: 'explain', reason: 'failed', stage: 'rendering', stop_reason: 'deadline' }), { feature: 'explain', reason: 'failed', stage: 'rendering', stop_reason: 'deadline' });
-  assert.deepEqual(sanitize('rh_generation_failed', { stage: 'This explanation reached its time limit', stop_reason: 'a@b.c' }), {}, 'only tokens pass: a sentence or an address is dropped');
   assert.match(sanitize('rh_planning_requested', { action_id: 'act-1' }).action_id, /^[0-9a-f]{16}$/);
   assert.match(uuidv7(Date.UTC(2026, 0, 1), random), /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   assert.equal(optedOut({ globalPrivacyControl: true }), true);

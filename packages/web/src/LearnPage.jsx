@@ -4,7 +4,7 @@ import {readRegionalOriginal,regionalMaskBlob} from './inline-regional-mask.js';
 import { createBackgroundRemovalController, createRegionalImageEditController } from './inline-background-removal.js';
 import { createImageJobClient } from './inline-image-job-client.js';
 import { cadClient, submitCadOnce } from './cad-client.js';
-import { SKELETON_DROPPED_EVENT, EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainDisabled, skeletonJobOf, CHAT_DELETED_EVENT, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock } from './explain-client.js';
+import { SKELETON_DROPPED_EVENT, EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainDisabled, skeletonJobOf, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock } from './explain-client.js';
 import { HIGHLIGHT_EXPLAIN_COMMAND, heldPassageTarget } from './source-refs.js';
 import { withCardSink } from './chat-output-refs.js';
 import { withPrompt } from './card-prompt.js';
@@ -68,7 +68,6 @@ import { CanvasChromeLoading, CHAT_PANEL, OWNER_CANVAS, OWNER_HEADER, OWNER_HEAD
 import { RepositoryBadge } from './repository-canvas.jsx';
 import { clearSelection } from './repo-context.js';
 import { releaseCodeRef } from './graph-card.js';
-import { uploadDone, uploadFailed, uploadStarted } from './area-crop.js';
 import { sameRef } from './chat-context.js';
 import PanelHeader, { CanvasSearchPanel, COMPANION_VIEWS, CompanionHeader } from './PanelHeader.jsx';
 import ChatPane from './ChatPane.jsx';
@@ -101,7 +100,7 @@ import { acceptList, boardFileLimit, familyOf, formatBytes } from './file-capabi
 import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from './learn-notes.js';
 import { architectureLesson, sampleCourse } from './learn-preview.js';
 import { BOARDS, BOARD_SEED_VERSIONS } from './demo-scenes.js';
-import { BackToTop, DiveNavigator, DivePortals, holeApp, useDive, usePendingHole } from './Dive.jsx';
+import { DiveNavigator, DivePortals, holeApp, useDive, usePendingHole } from './Dive.jsx';
 import { TitleHoles } from './TitleHoles.jsx';
 import { useNextSteps } from './LearnNextSteps.jsx';
 import { useRoadmap } from './use-roadmap.js';
@@ -469,10 +468,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // A chat card added under its answer's local id takes the saved message's id (ask.jsx), unless that id is already here.
     rekeyCard: (from, to) => setExchanges(previous => rekeyed(previous, from, to)),
     locate: id => canvasApi.current?.focusBlock(id),
-    // A Chat pill's Go to (pill-target.js): the cards to look the ref up in, then frame an object or an Ask about selection area.
-    blocks: () => canvasApi.current?.blocks?.() || [],
-    locateObject: id => !!canvasApi.current?.locateObject?.(id),
-    locateArea: id => !!canvasApi.current?.locateArea?.(id),
     // Generate on a simple material brief (owner spec 2026-10-29; material-brief.js): the existing generator, with the signed brief,
     // which the server consumes once and generates from (its own words, selection and context). The card holds its place while it is
     // made and carries the brief's id (madeFrom). Anything but a card gives the place up and says why. -> { blockId }
@@ -550,15 +545,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       return (await client.get(proposal.input.job))?.job ?? null;
     },
     hasCard: id => { const blocks = canvasApi.current?.blocks?.(); return blocks ? blocks.some(block => block.id === id) : undefined; },
-    // Stop on a running /animation scene (the Generate button turned Stop in Chat): the job's own cancel action, as the canvas card's Stop sends it
-    // (Animation3DCard act cancel). Unlike cancelExplain the card stays, because it says Stopped; both read the job again on the card event.
-    stopAnimation: async proposal => {
-      const boardId = commentBoardRef.current;
-      if (!boardId || typeof proposal?.input?.job !== 'string') throw new Error('This scene can be stopped only on its own canvas.');
-      const { job } = await animationClient(api, boardId).action(proposal.input.job, 'cancel');
-      window.dispatchEvent(new CustomEvent(ANIMATION_JOB_EVENT, { detail: { jobId: proposal.input.job } }));
-      return job;
-    },
     // Cancel on that brief: the job's own cancel action (Lane C stop); its waiting card observes the job again and says Stopped.
     cancelExplain: async proposal => {
       const boardId = commentBoardRef.current;
@@ -966,7 +952,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // above the composer; its PNG is uploaded like a group shot, so the tutor sees the pixels.
   const takeAreaShot = async ({ target, preview: shot, blob }) => {
     // One chip: the selection's own thumbnail and its x, no second canvas-image attachment beside it.
-    setAskTarget(uploadStarted({ ...target, ...(shot ? { preview: shot } : {}) }, !!blob));
+    setAskTarget({ ...target, ...(shot ? { preview: shot } : {}) });
     previewRequest.current++;
     setPreview(null);
     // EXP-T28: the crop lands in Chat, opened and focused, beside the draft and attachments already there; nothing is sent.
@@ -979,12 +965,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       const response = await fetch(`/api/learn/media?app=${encodeURIComponent(app.name)}`, { method: 'POST', body, headers: wsHeaders() });
       const stored = await response.json();
       if (!response.ok) throw new Error(stored?.error || 'Upload failed');
-      setAskTarget(previous => uploadDone(previous, target.id, stored.id));
-    } catch {
-      // The thumbnail is still on the chip, so say the tutor will not see the picture, and stop the target claiming an image is attached.
-      setAskTarget(previous => uploadFailed(previous, target.id));
-      toast('The picture of the selection could not be sent. The question still asks about the cards inside it.', { tone: 'error' });
-    }
+      setAskTarget(previous => previous?.id === target.id ? { ...previous, image: stored.id } : previous);
+    } catch { /* the text of the cards inside still asks */ }
   };
   const repoSourceId = app.repo ? `repo:${app.repo}` : null;
   // The repository is the one source that exists on day one, and detaching it
@@ -1063,12 +1045,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       client.action(id, 'cancel').then(() => { window.dispatchEvent(new CustomEvent(event, { detail: { jobId: id } })); window.dispatchEvent(new CustomEvent(SKELETON_DROPPED_EVENT, { detail: { jobId: id } })); }, error => toast(error.message));
     }
   };
-  // A deleted chat takes the skeletons whose plan waited in it (AdaptiveCanvas dropThreadSkeletons, announced by ask.jsx and chat-threads.js). Only this open canvas is reached; a skeleton on a canvas that is not open stays until that canvas is opened and its card deleted.
-  useEffect(() => {
-    const dropFor = event => canvasApi.current?.dropThreadSkeletons?.(event.detail?.threadId);
-    window.addEventListener(CHAT_DELETED_EVENT, dropFor);
-    return () => window.removeEventListener(CHAT_DELETED_EVENT, dropFor);
-  }, []);
   const passageSites = useRef(new Map()), passageRef = useRef(null), startExplainRef = useRef(null), explainLatest = useRef((prompt, options) => startExplainRef.current?.(prompt, options) ?? null).current;
   // Whole-canvas context (chat-canvas-context.js): the canvas_context every chat turn on this canvas carries, built from the live
   // canvas when it is sent - Ask and Tutor modes (canvasOps, ask.jsx) and Auto's Tutor (useTutor) alike. The title is a weak hint
@@ -1182,7 +1158,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     catch (error) { return { failed: `${error?.data?.error || error?.message || 'the request was refused'}${error?.status ? ` (${error.status})` : ''}` }; }
     const { job, body } = result;
     // Titled by its kind until the scene's own title arrives: the request is already the Chat line above it (owner, 2026-10-31).
-    const card = withJob(withPrompt({ id: job.cardId, type: 'animation3d', title: '3D animation' }, promptUsed), { job, boardId: board, requestId: body.requestId, sourceKey: await requestRef(body.requestId, words), threadId });
+    const card = withJob(withPrompt({ id: job.cardId, type: 'animation3d', title: '3D animation' }, promptUsed), { job, boardId: board, requestId: body.requestId, sourceKey: await requestRef(body.requestId, words) });
     const blockId = canvasApi.current?.placeAnimation(threadId ? { ...card, animation3dJob: { ...card.animation3dJob, threadId } } : card);
     return { blockId: blockId || job.cardId };
   };
@@ -1382,7 +1358,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       settled: id => canvasApi.current?.settled?.(id),
       persist: () => canvasApi.current?.persist?.(), boardRevision: () => boardVersion.current, savedHas: id => { try { const live = canvasApi.current?.blocks?.().find(block => block.id === id), saved = !!boardSynced.current && (boardFromText(boardSynced.current).blocks || []).find(block => block?.id === id); return !!saved && (!live || ((saved.dx || 0) === (live.dx || 0) && (saved.dy || 0) === (live.dy || 0))); } catch { return false; } },
       readOnly: () => !canEditCanvas, presenting: () => !!canvasStateRef.current.presenting,
-      notice: message => toast(message), focusBlock: id => id && canvasApi.current?.focusBlock(id), sourceBlockId: key => sourceBlock(key)?.id, sourceElement: key => { const id = sourceBlock(key)?.id; return id ? document.querySelector(`[data-block-id="${CSS.escape(id)}"]`) : null; },
+      focusBlock: id => id && canvasApi.current?.focusBlock(id), sourceBlockId: key => sourceBlock(key)?.id, sourceElement: key => { const id = sourceBlock(key)?.id; return id ? document.querySelector(`[data-block-id="${CSS.escape(id)}"]`) : null; },
       sources: () => (canvasApi.current?.blocks?.() || []).filter(block => block.type === 'file' && block.kind === 'markdown' && block.fileRef?.source?.id && block.fileRef.source.rev).map(block => ({ key: `file:${block.fileRef.source.id}`, rev: block.fileRef.source.rev, name: block.label || '' })),
       sourceRev: key => sourceBlock(key)?.fileRef?.source?.rev, sourceName: key => sourceBlock(key)?.label || '', depth: () => chat?.settings?.depth || 'standard' } });
   // The Tutor's proposal as the canvas slot beside its Markdown card (roadmap-canvas.js -> AdaptiveCanvas SlotCard): one slot per step from proposal to delivered card,
@@ -2395,7 +2371,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               the one its card shows (cardModel), never the repository's own. A canvas outside a project keeps its editable
               title here. */}
           <div data-title-crumbs className="flex max-w-full min-w-0 items-center">
-          <BackToTop tree={dive.navigator.tree} climb={dive.navigator.climb} />
           {project && <>
             <span data-project-crumb title={cardModel(project).title}
               className="block h-8 max-w-60 min-w-12 shrink-[50] truncate px-1.5 text-sm leading-8 text-ink-2 md:shrink-0">{cardModel(project).title}</span>

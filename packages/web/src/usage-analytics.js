@@ -40,7 +40,7 @@ export const EVENTS = {
   rh_planning_requested: ['feature', 'action_id'],
   rh_generation_requested: ['feature', 'action_id'],
   rh_generation_completed: ['feature', 'action_id'],
-  rh_generation_failed: ['feature', 'action_id', 'reason', 'stage', 'stop_reason'],
+  rh_generation_failed: ['feature', 'action_id', 'reason'],
   rh_share_changed: ['access'],
   rh_canvas_forked: [],
   // Tutor R4 roadmap (D21): the action and the step state as tokens, never a title, a source or a learner's words. ui.md section 7 lists the actions.

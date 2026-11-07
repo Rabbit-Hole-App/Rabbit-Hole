@@ -1,7 +1,7 @@
 // The job behind an approved /animation plan, read for its status line in Chat (polled while it runs; a Chat message may outlive its
 // card). A temporary read failure keeps polling (client.js pollRetryDelay); unmounting or another job ends the old polling.
 import { useEffect, useState } from 'react';
-import { ANIMATION_JOB_EVENT, animationProposalStatus, animationRunning, pollRetryDelay } from './client.js';
+import { animationProposalStatus, animationRunning, pollRetryDelay } from './client.js';
 
 export function useAnimationProposal(p, made, ops) {
   const [read, setRead] = useState({ job: null, unread: false, id: null });
@@ -20,10 +20,7 @@ export function useAnimationProposal(p, made, ops) {
       }
     };
     poll();
-    // Stop (or any action from outside this card) moved the job: read it again, so the card says Stopped at once.
-    const again = event => { if (event.detail?.jobId === id) { clearTimeout(timer); poll(); } };
-    window.addEventListener(ANIMATION_JOB_EVENT, again);
-    return () => { live = false; clearTimeout(timer); window.removeEventListener(ANIMATION_JOB_EVENT, again); };
+    return () => { live = false; clearTimeout(timer); };
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!id) return null;
   // The render before the effect runs on a new job still holds the old job's read.

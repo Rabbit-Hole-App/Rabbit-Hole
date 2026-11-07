@@ -34,7 +34,6 @@ import { blockedBody, referencesKey, resolveReferences } from './generation-revi
 import { isReviewProposal } from '../../web/src/generation-review.js';
 import { canonicalJson } from './explain-render.js';
 import { beginStage, countStage, endStage, markTiming, newTiming, timingSummary } from './explain-policy.js';
-import { logJobFailure } from './job-failure-log.js';
 import { clientFeatureUses, hashAnimationPlan } from '../../web/src/animation3d/contract.js';
 import { ANIMATION_CLIENT_FEATURES } from '../../web/src/animation3d/capabilities.js';
 import { ASKED_FOR, approvedPlan, clientFeatures, prepareStage } from './animation-brief.js';
@@ -195,7 +194,7 @@ function attemptCost(job) {
 export function failureText(job) {
   const kind = failureClass(job), f = job.failure || {}, action = recoveryOf(job).find(a => a !== 'edit_request');
   if (kind === 'clarification') return f.message;
-  const what = { capability: f.gap?.shown ?? GAP_FALLBACK, output_limit: `${OUTPUT_WHO[f.stage] ?? 'An AI step'} reached its output limit before it finished. That does not prove your request is impossible; a smaller plan may fit.`, review_validation: 'The visual review returned an answer in the wrong form, and it could not be corrected within its limit, so this scene was neither accepted nor found faulty.', size_limit: 'The scene was too large to check.', deadline: f.stage ? `The build ran out of time while ${f.stage}.` : 'The build ran out of time.', limit: f.code === 'count_limit' ? f.message.replace(/^This animation/, 'The build') : 'The build reached its spending limit.',
+  const what = { capability: f.gap?.shown ?? GAP_FALLBACK, output_limit: `${OUTPUT_WHO[f.stage] ?? 'An AI step'} reached its output limit before it finished. That does not prove your request is impossible; a smaller plan may fit.`, review_validation: 'The visual review returned an answer in the wrong form, and it could not be corrected within its limit, so this scene was neither accepted nor found faulty.', size_limit: 'The scene was too large to check.', deadline: 'The build ran out of time.', limit: f.code === 'count_limit' ? f.message.replace(/^This animation/, 'The build') : 'The build reached its spending limit.',
     checks: f.stage === 'reviewing' ? reviewWords(job.findings?.filter(x => x.stage === 'reviewing').at(-1)) : CHECKS[f.stage] ?? 'The scene did not pass its checks.',
     transient: TRANSIENT[f.category] ?? TRANSIENT.transport }[kind] ?? f.message ?? 'The animation could not be made.';
   const candidate = kind === 'checks' || kind === 'size_limit';
@@ -832,7 +831,7 @@ export class AnimationJobs {
       if (again ? current.calls.some(c => c.role === role && c.again && c.status !== 'refused') : current.counts[role] + 1 > limit) throw Object.assign(fail(`This animation reached its ${role} limit.`, 429, 'count_limit'), { stopReason: 'budget' });
       const ceiling = phase === 'generation' ? current.reservation.generationMicros : current.reservation.preparationMicros * (1 + ANIMATION_LIMITS.refinements);
       if (current.bounds[phase] + boundMicros > ceiling) throw Object.assign(fail('This animation reached its spending limit.', 429), { stopReason: 'budget' });
-      if (Date.now() >= current.deadline) throw Object.assign(fail(`This animation reached its time limit while ${current.stage}.`, 409), { stopReason: 'deadline' });
+      if (Date.now() >= current.deadline) throw Object.assign(fail('This animation reached its time limit.', 409), { stopReason: 'deadline' });
       if (!again) current.counts[role]++;
       current.bounds[phase] += boundMicros;
       // Unique per call record: a refused call gives its count back, so the count alone would name the retried call like the refused one.
@@ -901,20 +900,18 @@ export class AnimationJobs {
     const at = job.calls.findIndex(c => c.key === job.inFlight.key), call = job.calls[at];
     if (call) Object.assign(call, { status: 'unknown', endedAt: Date.now() });
     job.inFlight = null;
-    const wasLive = !TERMINAL.has(job.stage);
-    if (wasLive) {
+    if (!TERMINAL.has(job.stage)) {
       endStage(job.timing, 'interrupted');
       Object.assign(job, { stage: 'failed', stopReason: 'error', failure: { stage: call?.role === 'review' ? 'reviewing' : job.stage, category: 'transport', message: 'An AI step was interrupted.', retryable: true, ...(call ? { callsFrom: at } : {}) } });
       await this.finishUsage(job, 'interrupted');
     }
     await this.save(job);
-    if (wasLive) logJobFailure('animation', job, { windowMs: ANIMATION_LIMITS.deadlines.jobMs, interrupted: true });
     await this.report(job);
   }
 
   async advance(job) {
     if (job.inFlight) { if (!this.active.has(job.id)) await this.locked(async () => { const current = await this.get(job.id); if (current.inFlight && !this.active.has(job.id)) await this.reconcile(current); }); return; }
-    if (Date.now() > job.deadline) throw Object.assign(fail(`This animation reached its time limit while ${job.stage}.`, 409), { stopReason: 'deadline' });
+    if (Date.now() > job.deadline) throw Object.assign(fail('This animation reached its time limit.', 409), { stopReason: 'deadline' });
     if (job.resumeAt > Date.now()) return; // a transient failure waits before the same stage runs again (resumeLater)
     if (job.stage === 'queued') return this.move(job, job.approval ? 'authoring' : 'preparing');
     const ctx = { env: this.env, call: (role, spec) => this.paidCall(job, role, spec), noteReview: record => this.noteReview(job, record), limits: ANIMATION_LIMITS, tasks: this.tasks };
@@ -1003,9 +1000,7 @@ export class AnimationJobs {
   async stopWith(job, stopReason, category, message, retryable = false, extra = {}) {
     endStage(job.timing, stopReason);
     Object.assign(job, { stage: 'failed', stopReason, failure: { stage: job.stage, category, message, retryable, ...extra } });
-    await this.save(job); await this.finishUsage(job, 'failed');
-    logJobFailure('animation', job, { windowMs: ANIMATION_LIMITS.deadlines.jobMs });
-    await this.report(job);
+    await this.save(job); await this.finishUsage(job, 'failed'); await this.report(job);
   }
   // The failure, explained once in the canvas Chat (one message per job and attempt; reloads, polling and retries never repeat it, found
   // again by its key): the same words the card shows (failureText). No model call. A Chat write that fails is tried again by the alarm,
@@ -1081,9 +1076,7 @@ export class AnimationJobs {
       const callsFrom = job.calls.length;
       if (error.code === 'provider_unavailable') {
         Object.assign(current, { stage: 'failed', stopReason: 'provider_unavailable', failure: { stage: current.stage, category: 'provider_unavailable', message: error.message, retryable: true, callsFrom } });
-        await this.save(current); await this.finishUsage(current, 'failed');
-        logJobFailure('animation', current, { windowMs: ANIMATION_LIMITS.deadlines.jobMs });
-        await this.report(current);
+        await this.save(current); await this.finishUsage(current, 'failed'); await this.report(current);
         return;
       }
       const refused = ['spend_limited', 'spend_refused'].includes(error.code) || error.status === 429;
@@ -1098,9 +1091,7 @@ export class AnimationJobs {
       // The underlying code and message, bounded (FX: a bare "Error" hid a missing provider key). Messages are ours or the provider's
       // error text; no request, key or cookie is ever part of one.
       current.findings.push({ repairs: current.repairs, stage: current.failure.stage, error: error.code || error.name || 'error', message: String(error.message || '').replace(/\s+/g, ' ').slice(0, 1500) }); // diagnostics only: findings never reach the learner view
-      await this.save(current); await this.finishUsage(current, 'failed');
-      logJobFailure('animation', current, { windowMs: ANIMATION_LIMITS.deadlines.jobMs });
-      await this.report(current);
+      await this.save(current); await this.finishUsage(current, 'failed'); await this.report(current);
     });
   }
 }

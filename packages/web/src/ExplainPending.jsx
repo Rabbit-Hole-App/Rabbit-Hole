@@ -2,9 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { track } from './usage-analytics.js';
 import { Loader2, Square } from 'lucide-react';
 import { Button } from './ui.jsx';
-import GoToPlanButton from './GoToPlanButton.jsx';
 import { api } from './api.js';
-import { EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainResultBlock, explainRetry, explainRunning, explainStage, explainUnavailable, explainWorking } from './explain-client.js';
+import { EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainResultBlock, showPlanInChat, explainRetry, explainRunning, explainStage, explainUnavailable, explainWorking } from './explain-client.js';
 
 // An Explanation card whose /explain v2 job is still working (EXP-T20 slice 1). It shows the server's stage and Stop; when
 // the job is ready it becomes the explanation, on this card only (explainResultBlock). Polling observes, it never advances
@@ -23,7 +22,7 @@ export default function ExplainPending({ block, onChange, onChangeQuiet, readOnl
     // usage analytics: a generated explanation, or a failure after generation began (authoring or rendering); a brief that failed
     // while planning is not a failed generation. once: a reload that sees the same job again does not count it twice.
     if (next) track('rh_generation_completed', { feature: 'explain', action_id: waiting.id }, { once: `done:${waiting.id}` });
-    else if (['failed', 'cancelled'].includes(data.job?.stage) && ['authoring', 'rendering'].includes(latest.current.explainJob?.stage)) track('rh_generation_failed', { feature: 'explain', action_id: waiting.id, reason: data.job.stage, stage: data.job.failure?.stage, stop_reason: data.job.stopReason }, { once: `done:${waiting.id}` });
+    else if (['failed', 'cancelled'].includes(data.job?.stage) && ['authoring', 'rendering'].includes(latest.current.explainJob?.stage)) track('rh_generation_failed', { feature: 'explain', action_id: waiting.id, reason: data.job.stage }, { once: `done:${waiting.id}` });
     if (next) { onChange(next); return; }
     // The stage rides on the card quietly, so a reload shows where it was; it is not an undo step.
     if (data.job?.stage && data.job.stage !== latest.current.explainJob?.stage) {
@@ -83,7 +82,7 @@ export default function ExplainPending({ block, onChange, onChangeQuiet, readOnl
       {!readOnly && (
         <div className="flex gap-1.5">
           {running && <Button type="button" variant="danger" data-explain-stop disabled={busy} onClick={() => act('cancel')}><Square size={14} aria-hidden="true" className="shrink-0 fill-current" />Stop</Button>}
-          <GoToPlanButton stage={shown.stage} threadId={waiting.threadId} jobId={waiting.id} data-explain-go-to-plan />
+          {shown.stage === 'awaiting_approval' && waiting.threadId && <Button type="button" variant="secondary" data-explain-go-to-plan onClick={() => showPlanInChat(waiting.threadId, waiting.id)}>Go to plan</Button>}
           {retry && <button type="button" data-explain-retry disabled={busy} onClick={() => act('retry', { expectedAttempt: shown.attempt })}
             className="flex h-8 items-center rounded-lg border border-line px-3 text-sm hover:bg-hover disabled:opacity-40">{paused ? 'Retry' : retry === 'retry_render' ? 'Render again' : 'Try again'}</button>}
         </div>

@@ -9,7 +9,7 @@ import { isUploadedMediaId } from '../src/learn-media.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS } from '../src/repository-context.js';
-import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource, settleAreaPicture } from '../src/learn-ask-context.js';
+import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from '../src/learn-ask-context.js';
 import { VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE } from '../src/agents/learn-chat.js';
 import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest, askStream, CAP_CHARS } from '../src/ask.js';
 import { askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS } from '../src/learn-models.js';
@@ -97,7 +97,6 @@ const deps = {
   appendCanvasTarget,
   appendOutline,
   readLearnSource,
-  settleAreaPicture,
   validateVideoContext,
   FIND_VIDEO_MOMENTS_TOOL,
   SHOW_VIDEO_TOOL,
@@ -1034,28 +1033,6 @@ test('a multipart ask with a file over 4 MB is refused before the model', async 
   assert.equal(res.status, 400);
   assert.deepEqual(await res.json(), { error: 'attachment too large - 4 MB max' });
   assert.equal(env.answers.length, 0);
-});
-
-// Ask about selection (EXP-T28): the model request carries the card report always, and the claim of a picture only with the picture.
-const AREA_CLAIM = 'The learner drew a rectangle on the canvas and asks about what is inside it; the attached image shows that area.';
-const areaTarget = { id: 'area:k1', kind: 'Canvas selection', title: 'Selected area', text: `${AREA_CLAIM}
-Cards inside or touching it:
-Card "n" (notebook, revision r1): crop covers {}.
-  Not in the picture: the live notebook pane is omitted.` };
-test('an area selection: the picture and the report reach the model request; without the picture the claim is withdrawn', async t => {
-  const env = fixture(t);
-  const ask = body => handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'what is here', canvas_target: areaTarget, ...body }), env, {}, owner, 'learn');
-  assert.equal((await ask({ image_context: { id: 'media:0123456789ab' } })).status, 200);
-  assert.equal(env.answers[0].blocks.at(-1).type, 'image');
-  assert.match(env.answers[0].context, /the attached image shows that area/);
-  assert.match(env.answers[0].context, /Not in the picture: the live notebook pane is omitted/);
-  assert.equal((await ask({})).status, 200);
-  assert.doesNotMatch(env.answers[1].context, /the attached image shows that area/);
-  assert.match(env.answers[1].context, /its picture was not attached .none was sent./);
-  assert.match(env.answers[1].context, /Not in the picture: the live notebook pane is omitted/);
-  assert.equal((await ask({ paper_context: { id: '1506.02640', page: 1 }, image_context: { id: 'media:0123456789ab' } })).status, 200);
-  assert.match(env.answers[2].context, /a paper page is open and outranks it/);
-  assert.match(env.answers[2].context, /Not in the picture/);
 });
 
 // Owner decision 2 (context-1): the card rides as canvas_target, bounded apart from the question.

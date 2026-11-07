@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 const dir=mkdtempSync(join(tmpdir(),'card-preview-')),outfile=join(dir,'preview.cjs');
-await esbuild.build({stdin:{contents:"export {CardEditPreview} from './InlineAiEditor.jsx'; export {createElement} from 'react'; export {renderToStaticMarkup} from 'react-dom/server';",resolveDir:fileURLToPath(new URL('.',import.meta.url)),loader:'jsx'},bundle:true,plugins:[{name:'asset-url-stub',setup(build){build.onResolve({filter:/[?](url|raw|worker)$/},args=>({path:args.path,namespace:'asset-stub'}));build.onLoad({filter:/.*/,namespace:'asset-stub'},()=>({contents:'export default ""',loader:'js'}));}}],loader:{'.css':'empty'},outfile,format:'cjs',platform:'node',jsx:'automatic',logLevel:'silent'});
+await esbuild.build({stdin:{contents:"export {CardEditPreview} from './InlineAiEditor.jsx'; export {createElement} from 'react'; export {renderToStaticMarkup} from 'react-dom/server';",resolveDir:fileURLToPath(new URL('.',import.meta.url)),loader:'jsx'},bundle:true,loader:{'.css':'empty'},outfile,format:'cjs',platform:'node',jsx:'automatic',logLevel:'silent'});
 const B=createRequire(import.meta.url)(outfile);unlinkSync(outfile);rmdirSync(dir);
 test('structured code preview renders literal Markdown fences through the shared Code component',()=>{
  const code='before\n```md\n## literal heading\n```\n````\nafter';

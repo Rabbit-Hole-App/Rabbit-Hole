@@ -4,7 +4,6 @@ import { cadArtifact, cadClient, cadRunning, mergeCadBlock } from './cad-client.
 import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
-import { CapturingLabel, beginAreaCapture, endAreaCapture } from './AreaCapturing.jsx';
 import { Md } from './ask.jsx';
 import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock, fitFrame, naturalHeight } from './card-layout.js';
 import { customTitleOf, renamable, renameBlock, startTitleOf, groupEditText, groupLabelFrom, namedTitleOf, TITLE_MAX } from './card-rename.js';
@@ -22,7 +21,7 @@ import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
 import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
-import { skeletonJobOf, skeletonThreadOf } from './explain-client.js';
+import { skeletonJobOf } from './explain-client.js';
 import { CAPTURE_MAX_BYTES, SketchCaptureError, captureProblem, captureResult, captureSize, fitZoom, pixelRatios, releasedTool, sketchDraftOf } from './sketch-host.js';
 import { gapsFrom, nearestGap, nudgeBy } from './learn-gap-rail.js';
 import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, reorderStep, headsOf, copyStyle, pasteStyle, strokePatch, strokeOf, TEXT_LEVELS, ARROW_KINDS } from './learn-style-panel.js';
@@ -76,8 +75,7 @@ import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
 import { SlotCard } from './SlotCard.jsx';
 import { NextCardPill } from './NextStepPill.jsx';
 import SurfaceBoundary from './SurfaceBoundary.jsx';
-import { areaTarget, areaTooSmall, cropBinding, unmountedBinding, visibleCrop } from './area-crop.js';
-import { cardEvidence } from './area-evidence.js';
+import { areaTarget, cropBinding } from './area-crop.js';
 import { flushBoard, lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
 import { withFlushedAnimations } from './animation3d/storage.js';
 import { waitingText } from './waiting-text.js';
@@ -1793,7 +1791,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Every area asked about stays on the canvas, outlined and lightly filled red, saved with the
   // board, until the learner clicks its outline to remove it.
   const [areas, setAreas] = useState(stored.current.areas || []);
-  const areasRef = useRef(areas); areasRef.current = areas;
   // The Table of contents' own list (owner brief 2026-10-23; learn-outline-model.js tocOf), or null while the board reads
   // its canvas headings. Saved and undone with the board; no TOC command touches the canvas objects.
   const [toc, setToc] = useState(() => (Array.isArray(stored.current.toc) ? stored.current.toc : null));
@@ -2450,25 +2447,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         const boxes = boxesOf(ids);
         if (boxes.length) frame(boxes, 64, 1.2);
       },
-      // A Chat pill's Go to (pill-target.js): frame what the pill was made from. False when nothing here has that id any more; nothing is restored.
-      locateObject: id => {
-        const members = membersOf(id);
-        if (!boundsRef.current[id] && !objectById(id) && !members.length) return false;
-        if (boundsRef.current[id]) { setSelection([id]); cameraRef.current = { id, frame: true }; return true; }
-        const ids = members.length ? members : [id];
-        setSelection(ids);
-        const boxes = boxesOf(ids);
-        if (boxes.length) frame(boxes, 64, 1.2);
-        return true;
-      },
-      // An Ask about selection area (areas: x, y, w, h, and blockId + dx, dy while it follows its card): framed where it is drawn now.
-      locateArea: id => {
-        const area = areasRef.current.find(entry => entry.id === id);
-        if (!area) return false;
-        const host = area.blockId && boundsRef.current[area.blockId];
-        frame([host ? { ...area, x: host.x + area.dx, y: host.y + area.dy } : area], 64, 1.2);
-        return true;
-      },
       // The Tutor's show (docs/features/canvas-skeleton-cards.md): select the card and glide it into the visible
       // area at the learner's zoom - never a fit - once it is laid out.
       // slotId: the slot this show answers; once the learner has moved the camera since it was reserved, the card is
@@ -2477,19 +2455,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         setSelection([id]);
         if (revealRef.current?.id === id) return;
         cameraRef.current = { id, smooth: true, moves: slotsRef.current.find(slot => slot.id === slotId)?.moves ?? manualMoves.current };
-      },
-      // A chat was deleted: the skeletons whose plan waited in it go with it, through the same path as deleting them by hand (LearnPage cancels each job, one undo step restores the cards but not the plans). Running or finished cards are never touched.
-      dropThreadSkeletons: threadId => {
-        if (!threadId || readOnlyRef.current) return 0;
-        const hit = blocksRef.current.filter(block => skeletonThreadOf(block) === threadId);
-        if (!hit.length) return 0;
-        const ids = new Set(hit.map(block => block.id));
-        snapshot();
-        onSkeletonsDropped?.(hit.map(block => ({ cardId: block.id, ...skeletonJobOf(block) })));
-        setBlocks(previous => previous.filter(block => !ids.has(block.id)));
-        setLinks(previous => previous.filter(link => !ids.has(link.from) && !ids.has(link.to)));
-        setSelection(previous => previous.filter(id => !ids.has(id)));
-        return hit.length;
       },
       removeBlock: async id => {
         const cad=blocksRef.current.find(block=>block.id===id && block.type==='cad' && block.jobId && !block.cadDetached);
@@ -4725,22 +4690,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const areaShot = useRef(0);
   const askArea = async rect => {
     const x = Math.min(rect.x1, rect.x2), y = Math.min(rect.y1, rect.y2), w = Math.abs(rect.x2 - rect.x1), h = Math.abs(rect.y2 - rect.y1);
-    if (areaTooSmall(rect, view.z)) return;
+    if (w * view.z < 8 || h * view.z < 8) return;
     const node = surface.current, box = node.getBoundingClientRect();
-    // Only the visible surface is drawn: a rectangle dragged past the edge is cut to it, and the cards are bound to that same part.
-    const crop = visibleCrop({ x: view.x + x * view.z, y: view.y + y * view.z, w: w * view.z, h: h * view.z }, box);
-    if (!crop) return;
+    const crop = { x: view.x + x * view.z, y: view.y + y * view.z, w: w * view.z, h: h * view.z };
     const inside = Object.entries(boundsRef.current).filter(([, b]) => b.x + b.w > x && b.x < x + w && b.y + b.h > y && b.y < y + h).map(([id]) => blocks.find(block => block.id === id)).filter(Boolean);
     // EXP-T28: bind the crop to each card as it is now (id, revision, bounds, moment), measured before the slow capture.
     const screen = { left: box.left + crop.x, top: box.top + crop.y, width: crop.w, height: crop.h };
     const bindings = inside.map(block => {
       const card = node.querySelector(`[data-block-id="${CSS.escape(block.id)}"]`);
-      // A card the rectangle meets that is not drawn right now is still named, so the model is told what it cannot see.
-      if (!card) return { ...unmountedBinding(block), ...cardEvidence(block) };
+      if (!card) return null;
       const objects = [...card.querySelectorAll('[data-animation-object]')].map(el => ({ id: el.getAttribute('data-animation-object'), rect: el.getBoundingClientRect() }));
       const shapes = block.type === 'whiteboard' ? boardAsk(block.id)?.shapesIn(screen) : undefined;
-      const binding = cropBinding(block, screen, { card: card.getBoundingClientRect(), page: card.querySelector('canvas[aria-label="Paper PDF page"]')?.getBoundingClientRect(), objects, shapes });
-      return binding && { ...binding, ...cardEvidence(block) };
+      return cropBinding(block, screen, { card: card.getBoundingClientRect(), page: card.querySelector('canvas[aria-label="Paper PDF page"]')?.getBoundingClientRect(), objects, shapes });
     }).filter(Boolean);
     // A later crop supersedes this one, and a canvas switched or closed meanwhile takes nothing from it.
     const shot = ++areaShot.current, key = storageKeyRef.current;
@@ -4749,19 +4710,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const { toCanvas } = await import('html-to-image');
       const skip = el => el.nodeType === 1 && (el.tagName === 'IFRAME' || el.getAttribute?.('role') === 'toolbar' || el.hasAttribute?.('data-canvas-minimap') || el.hasAttribute?.('data-dive-gutter') || el.hasAttribute?.('data-area-marquee') || el.hasAttribute?.('data-area-mark') || el.hasAttribute?.('data-roadmap-slot')); // a Tutor slot is private: never in a crop
       const ratio = Math.min(2, window.devicePixelRatio || 1);
-      // The page colour is painted in, so a board without a grid is not a transparent picture the model sees as black (dark theme).
-      const full = await toCanvas(node, { pixelRatio: ratio, width: box.width, height: box.height, filter: el => !skip(el), cacheBust: false, backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--color-white').trim() || '#ffffff' });
+      const full = await toCanvas(node, { pixelRatio: ratio, width: box.width, height: box.height, filter: el => !skip(el), cacheBust: false });
       const out = document.createElement('canvas');
       const scale = Math.min(1, 1400 / Math.max(crop.w * ratio, crop.h * ratio));
       out.width = Math.max(1, Math.round(crop.w * ratio * scale)); out.height = Math.max(1, Math.round(crop.h * ratio * scale));
       out.getContext('2d').drawImage(full, crop.x * ratio, crop.y * ratio, crop.w * ratio, crop.h * ratio, 0, 0, out.width, out.height);
       preview = out.toDataURL('image/png');
       blob = await new Promise(resolve => out.toBlob(resolve, 'image/png'));
-    } catch {
-      // The text of the cards inside still asks; the picture is not attached, and the target says so (areaTarget without a preview).
-      preview = null; blob = null;
-      toast('The picture of the selection could not be taken. The question still asks about the cards inside it.', { tone: 'error' });
-    }
+    } catch { /* the text of the cards inside still asks */ }
     if (shot !== areaShot.current || key !== storageKeyRef.current || !node.isConnected) return;
     const id = `area:${Date.now().toString(36)}`;
     // The area rides on the card or slide under its centre, so it stays put when the column above it grows.
@@ -4780,15 +4736,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const apply = (px, py) => { rect = { ...rect, x2: px, y2: py }; setAreaMarquee(rect); };
     // The rectangle stays, labelled Capturing..., until the picture is ready (a big board takes seconds).
     // ponytail: the whole surface is rendered, then cropped; render only the cards under the area if it is too slow.
-    // A click, or Esc (which pulls the rectangle back to its start), is no selection: nothing is captured, nothing flashes Capturing.
-    // The rectangle is cleared only by the capture that drew it, so a second rectangle drawn while this one works is not wiped by it.
-    apply.done = () => {
-      setTool('select');
-      if (areaTooSmall(rect, view.z)) { setAreaMarquee(null); return; }
-      const mine = { ...rect, busy: true };
-      setAreaMarquee(mine); beginAreaCapture();
-      requestAnimationFrame(() => askArea(rect).finally(() => { endAreaCapture(); setAreaMarquee(current => (current === mine ? null : current)); }));
-    };
+    apply.done = () => { setTool('select'); setAreaMarquee({ ...rect, busy: true }); requestAnimationFrame(() => askArea(rect).finally(() => setAreaMarquee(null))); };
     startDrag(event, start, apply, view.z);
   };
   // The drawing tools' gestures, run against a store: the canvas's own lists, or an Explain Back sketch's
@@ -6318,7 +6266,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             <rect x={Math.min(areaMarquee.x1, areaMarquee.x2)} y={Math.min(areaMarquee.y1, areaMarquee.y2)}
               width={Math.abs(areaMarquee.x2 - areaMarquee.x1)} height={Math.abs(areaMarquee.y2 - areaMarquee.y1)}
               fill="rgba(220, 38, 38, 0.06)" stroke="#dc2626" strokeWidth={2 / view.z} strokeDasharray={`${6 / view.z} ${4 / view.z}`} />
-            {areaMarquee.busy && <CapturingLabel x={Math.min(areaMarquee.x1, areaMarquee.x2) + 6 / view.z} y={Math.min(areaMarquee.y1, areaMarquee.y2) - 6 / view.z} size={12 / view.z} />}
+            {areaMarquee.busy && <text x={Math.min(areaMarquee.x1, areaMarquee.x2) + 6 / view.z} y={Math.min(areaMarquee.y1, areaMarquee.y2) - 6 / view.z} fill="#dc2626" fontSize={12 / view.z} fontWeight="600">Capturing</text>}
           </svg>
         )}
         {marquee && (
@@ -6531,7 +6479,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {/* The same tools, drawing into an Explain Back sketch: one toolbar, and it says where it draws. */}
           {drawTarget && <div data-sketch-badge title="These tools draw in the Practice sketch. Press the canvas or Esc to draw on the canvas again."
             className="col-span-2 rounded-md bg-[#2383e2]/10 py-0.5 text-center text-[10px] font-semibold tracking-wide text-[#2383e2] uppercase">Sketch</div>}
-          {NAV_TOOLS.filter(([value]) => value !== 'askArea' || onAreaShot).map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => setTool(value)} />)}
+          {NAV_TOOLS.map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => setTool(value)} />)}
           <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
           {DRAW_TOOLS.map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => pickTool(value)} />)}
           <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
