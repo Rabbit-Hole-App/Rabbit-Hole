@@ -20,7 +20,7 @@ R12 (command adapters and per-command prompt suites) is **on hold** by owner dec
 | Run | Tests | Pass | Fail | Notes |
 | --- | ---: | ---: | ---: | --- |
 | `packages/control-plane` `node --test "test/*.test.js"` | 3771 | 3769 | 1 | the failure is `no-ellipsis` (identical line on main `agents/roadmap-check.js:12`); 1 further test not counted as pass or fail by the runner |
-| `packages/web` `node --test "src/**/*.test.mjs"` | 5143 | 5116 | 0 | 27 not counted as pass or fail by the runner |
+| `packages/web` `node --test "src/**/*.test.mjs"` | 5113 | 5085 | 1 | the one failure in the run (`ctrlk-handoff`, a source pin on `ask.jsx`) was fixed and re-run alone (3 of 3); the suite was not re-run in full after that fix |
 | `scripts/ci/check-map.test.mjs` + `scripts/schema-check.test.mjs` | 29 | 29 | 0 | |
 | `npm --prefix packages/web run build` | | | | exit 0 |
 
@@ -34,10 +34,6 @@ Section 8.0 matrix and the new cases (run by the lanes, test doubles only):
 ## Core Tutor fixes (7 Nov review, SEL.01-02, generation, delivery, Explanation caps, Contents and Chat recovery)
 
 Implemented from the checklist section 2.1.3 repros with failing-first tests at the real entry points. Not seen in a browser. Open: a typed passage still plans the whole source (no offsets in the tool), the reconciler that moves an unknown charge outcome does not exist in src, the automatic offer does not catch a vanished source, and a source-caused failed card keeps the generic wording.
-
-## TutorDiagram in written /explain (library commit f2423dfef)
-
-New written-Explanation diagrams are authored, validated with `parseTutorDiagram` and drawn as `TutorDiagram` specs in an `rh-diagram` fence, in the body and in More sections; new Mermaid fences are refused; the legacy Mermaid reader stays for saved content. Not seen in a browser. Live author behavior (first-valid rate, repair) is unmeasured in the app; the Celeris lab run (20 prompts, one retry) gave 18 of 20 mechanical passes and 17 of 20 correct and clear within 2 s.
 
 ## Not run, or unverified (stated, not passed)
 

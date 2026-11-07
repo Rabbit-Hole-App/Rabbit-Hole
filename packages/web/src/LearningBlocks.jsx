@@ -12,7 +12,6 @@ import { SourceRefHeader } from './SourceRefChip.jsx';
 import { Check, ChevronLeft, ChevronRight, Code, Loader2, PanelRightOpen, Play, RotateCcw, Search, Square, Trash2, Volume2, X } from 'lucide-react';
 import { fullContent } from './card-layout.js';
 import { Md } from './ask.jsx';
-import { diagramsAsText } from './diagram-fence.js';
 import { MdInline } from './Md.jsx';
 import { api, wsHeaders } from './api.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
@@ -2311,7 +2310,7 @@ function describeBlockOwn(block) {
   // A hole started from a shared canvas opens on an anchor saying where it began (docs/features/shared-canvas-rabbit-hole.md).
   if (block.type === 'explanation' && block.anchor?.source === 'shared') return { kind: 'Origin', title: block.title, text: `Where this Rabbit Hole began: ${block.body || block.title}` };
   if (block.type === 'explanation' && block.anchor) return { kind: 'Topic', title: block.title, text: `A topic the learner went deeper into: ${block.title}${block.body ? ` (their words: ${block.body})` : ''}` };
-  if (block.type === 'explanation') return { kind: 'Explanation', title: block.title, text: [`Explanation: ${block.title}`, diagramsAsText(block.body), ...(block.more || []).map(section => `[${section.label}] ${diagramsAsText(section.text)}`)].join('\n') };
+  if (block.type === 'explanation') return { kind: 'Explanation', title: block.title, text: [`Explanation: ${block.title}`, block.body, ...(block.more || []).map(section => `[${section.label}] ${section.text}`)].join('\n') };
   if (block.type === 'graph') return { kind: 'Interactive graph', title: block.title, text: [`Interactive graph: ${block.title}`, block.brief || '', `Renderer: ${block.spec.renderer}`, `Specification: ${JSON.stringify(block.spec)}`, `Learner's current graph state: ${JSON.stringify(block.state || {})}`].join('\n') };
   if (block.type === 'snippet') return { kind: 'Code sample', title: block.title, text: `Code sample: ${block.title}\n${block.brief || ''}\nCode:\n${block.code}\nOutput:\n${block.output || '(none shown)'}` };
   if (block.type === 'quiz') return { kind: 'Quiz', title: block.question, text: `Quiz question: ${block.question}\nOptions:\n${block.options.map(option => `${option.key}. ${option.text}${option.correct ? ' (correct answer)' : ''}`).join('\n')}\nLearner's current choice: ${block.choice || 'none yet'}` };

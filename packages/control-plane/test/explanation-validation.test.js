@@ -1,11 +1,10 @@
-// CORE.09 / owner item 3 + the TutorDiagram switch: the 600 / 1,000 / 1,500 caps count VISIBLE text (literal inline code, collapsed sections,
-// table cells, a diagram's title, caption and labels) exactly at the cap and one code point over, every rh-diagram spec goes through
-// parseTutorDiagram before delivery, and a NEW Mermaid fence is refused, through BOTH entry points: the standalone written command
-// (generateArtifact) and roadmap generation (generateRoadmapCard).
+// CORE.09 / owner item 3: the 600 / 1,000 / 1,500 caps count VISIBLE text (literal inline code, collapsed sections, table cells, Mermaid
+// labels) exactly at the cap and one code point over, and every fence the renderer treats as Mermaid goes through the same validation,
+// through BOTH entry points: the standalone written command (generateArtifact) and roadmap generation (generateRoadmapCard).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { diagramProblem, explanationChars, explanationProblem } from '../src/learn-primitives.js';
+import { explanationChars, explanationProblem, mermaidProblem } from '../src/learn-primitives.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { generateRoadmapCard } from '../src/roadmap/roadmap-generate.js';
 import { EXPLANATION_CAPS } from '../src/chat-depth.js';
@@ -17,30 +16,34 @@ const scripted = (...replies) => { const seen = []; return { seen, callModel: as
 const viaRoadmap = (depth, block) => { const m = scripted(['make_explanation', block]); return generateRoadmapCard({}, access, ref, { loadAccepted: async () => record({ depth }), withProviderCall: (env, fields) => ({ ...env, fields }), callModel: m.callModel }).then(out => ({ out, m })); };
 const viaDirect = (depth, block) => { const m = scripted(['make_explanation', block], ['make_explanation', block], ['make_explanation', block]); return generateArtifact({}, { command: 'explanation', args: 'x', depth }, { callModel: m.callModel }).then(out => ({ out, m })); };
 
-// A valid flow whose drawn words are exactly WORDS: title, node labels, edge labels (spec.js: one start, labelled branches, outcomes end).
-const SPEC = { version: 1, diagram: { kind: 'flow', title: 'D', nodes: [{ id: 'a', label: 'Go', role: 'process' }, { id: 'b', label: 'Ok?', role: 'decision' }, { id: 'c', label: 'Yes end', role: 'outcome' }, { id: 'd', label: 'No end', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }, { from: 'b', to: 'c', label: 'Yes' }, { from: 'b', to: 'd', label: 'No' }] } };
-const WORDS = 'D Go Ok? Yes end No end Yes No';
-const fence = (spec = SPEC, info = 'rh-diagram') => '```' + info + '\n' + (typeof spec === 'string' ? spec : JSON.stringify(spec)) + '\n```';
-const padding = (n, base) => 'é'.repeat(n - base);
-
 // Blocks whose visible text is exactly n code points, computed here from what the card DRAWS (not from the counter under test).
 // Title 'T' is 1; every join is one space.
 const SHAPES = {
   prose: n => ({ title: 'T', body: 'é'.repeat(n - 2) }),
   // The code span's displayed text is its content: emphasis, link and underscore markers inside it are drawn literally.
   'inline code': n => { const code = 'a**b**c [d](e) f__g__h'; return { title: 'T', body: '`' + code + '` ' + 'é'.repeat(n - 2 - code.length - 1) }; },
-  // Two collapsed sections: 'T b' + ' L ' + s1 + ' L ' + s2.
+  // Two collapsed sections (the schema allows 800 characters each): 'T b' + ' L ' + s1 + ' L ' + s2.
   'collapsed section': n => { const rest = n - 'T b L  L '.length, first = Math.floor(rest / 2); return { title: 'T', body: 'b', more: [{ label: 'L', text: 'é'.repeat(first) }, { label: 'L', text: 'é'.repeat(rest - first) }] }; },
   table: n => ({ title: 'T', body: '| h1 | h2 |\n| --- | --- |\n| ' + 'é'.repeat(n - 'T h1 h2  x'.length) + ' | x |' }),
-  // Prose first, then a diagram whose title and labels are the only counted diagram text.
-  'diagram in the body': n => ({ title: 'T', body: padding(n, ['T', 'X', WORDS].join(' ').length - 1) + '\n\n' + fence() }),
-  'diagram in a More section': n => ({ title: 'T', body: 'b', more: [{ label: 'L', text: padding(n, ['T', 'b', 'L', 'X', 'L', WORDS].join(' ').length - 1) }, { label: 'L', text: fence() }] }),
-  'diagram with a caption': n => ({ title: 'T', body: padding(n, ['T', 'X', WORDS, 'cap'].join(' ').length - 1) + '\n\n' + fence({ ...SPEC, diagram: { ...SPEC.diagram, caption: 'cap' } }) }),
-  'diagram, other info strings': n => ({ title: 'T', body: padding(n, ['T', 'X', WORDS].join(' ').length - 1) + '\n\n' + fence(SPEC, 'RH-Diagram extra') }),
+  // Prose first, then a supported flowchart whose labels are the only counted diagram text.
+  'mermaid': n => mermaidShape(n, 'mermaid'),
+  'mermaid extra': n => mermaidShape(n, 'mermaid extra'),
+  'Mermaid': n => mermaidShape(n, 'Mermaid'),
+  'mermaid, trailing spaces': n => mermaidShape(n, 'mermaid   '),
+  'mermaid, spaced': n => mermaidShape(n, ' mermaid'),
 };
+function mermaidShape(n, info) {
+  const diagram = '```' + info + '\nflowchart TD\n  A["Go"] --> B["Stop"]\n```';
+  return { title: 'T', body: 'é'.repeat(n - 'T  Go Stop'.length) + '\n\n' + diagram };
+}
 
 test('the harness builds blocks of exactly n visible code points', () => {
-  for (const n of [600, 1000, 1500]) for (const name of Object.keys(SHAPES)) assert.equal(explanationChars(SHAPES[name](n)), n, name);
+  for (const n of [600, 1000, 1500]) {
+    assert.equal(explanationChars(SHAPES.prose(n)), n);
+    assert.equal(explanationChars(SHAPES['collapsed section'](n)), n);
+    assert.equal(explanationChars(SHAPES.table(n)), n);
+    assert.equal(explanationChars(SHAPES.mermaid(n)), n);
+  }
 });
 
 for (const [name, build] of Object.entries(SHAPES)) {
@@ -60,46 +63,16 @@ for (const [name, build] of Object.entries(SHAPES)) {
   });
 }
 
-const BAD = {
-  cycle: { ...SPEC, diagram: { ...SPEC.diagram, edges: [...SPEC.diagram.edges, { from: 'c', to: 'a' }] } },
-  'decision with one branch': { ...SPEC, diagram: { ...SPEC.diagram, edges: [{ from: 'a', to: 'b' }, { from: 'b', to: 'c', label: 'Yes' }], nodes: SPEC.diagram.nodes.slice(0, 3) } },
-  'unknown edge endpoint': { ...SPEC, diagram: { ...SPEC.diagram, edges: [...SPEC.diagram.edges, { from: 'b', to: 'zzz', label: 'Maybe' }] } },
-  'process with two outgoing edges': { ...SPEC, diagram: { ...SPEC.diagram, edges: [{ from: 'a', to: 'b' }, { from: 'a', to: 'c' }, { from: 'b', to: 'd', label: 'x' }, { from: 'b', to: 'c', label: 'y' }] } },
-  'over-long node label': { ...SPEC, diagram: { ...SPEC.diagram, nodes: [{ id: 'a', label: 'x'.repeat(61), role: 'process' }, ...SPEC.diagram.nodes.slice(1)] } },
-  'unknown kind': { version: 1, diagram: { kind: 'venn', title: 'T' } },
-  'not JSON': 'this is not json',
-};
-
-test('a valid rh-diagram is delivered unchanged; every invalid spec is refused and never delivered, at both entry points and in a More section', async () => {
-  assert.equal(diagramProblem(fence()), null);
-  const ok = { title: 'T', body: 'See:\n\n' + fence() };
-  const direct = await viaDirect('standard', ok);
-  assert.deepEqual([direct.out.result, direct.out.block.body], ['artifact', ok.body], 'the spec text is delivered as written');
-  assert.equal((await viaRoadmap('standard', ok)).out.outcome, 'ok');
-  for (const [name, spec] of Object.entries(BAD)) {
-    const body = 'See:\n\n' + fence(spec);
-    assert.match(diagramProblem(body) || '', /^explanation_bad_diagram: the rh-diagram spec is not valid/, name);
-    const d = await viaDirect('standard', { title: 'T', body });
-    assert.match(d.out.error || '', /^explanation_bad_diagram:/, `direct ${name}`);
-    assert.notEqual(d.out.result, 'artifact', `direct ${name} is never delivered`);
-    const r = await viaRoadmap('standard', { title: 'T', body });
-    assert.deepEqual([r.out.failure_class, r.out.code, r.m.seen.length], ['terminal_validation_failure', 'explanation_bad_diagram', 1], `roadmap ${name}`);
-    const inMore = await viaRoadmap('standard', { title: 'T', body: 'b', more: [{ label: 'L', text: body }] });
-    assert.equal(inMore.out.code, 'explanation_bad_diagram', `section ${name}`);
-  }
-  assert.match(diagramProblem('```rh-diagram\n' + JSON.stringify(SPEC)) || '', /not closed/, 'an unclosed fence');
-});
-
-test('a NEW Mermaid fence is the superseded format: refused under every info string, at both entry points (the card still draws saved ones)', async () => {
+test('every fence the renderer treats as Mermaid is validated: an unsupported diagram is refused under every info string, at both entry points', async () => {
   for (const info of ['mermaid', 'mermaid extra', 'Mermaid', 'MERMAID', 'mermaid   ', ' mermaid', 'mermaid {theme: dark}']) {
-    const body = '```' + info + '\nflowchart TD\n  A["Go"] --> B["Stop"]\n```';
-    assert.match(diagramProblem(body) || '', /^explanation_bad_diagram: a mermaid fence is not accepted/, `[${info}]`);
+    const body = '```' + info + '\nflowchart TD\n  subgraph S\n```';
+    assert.match(mermaidProblem(body) || '', /^explanation_bad_mermaid/, `[${info}]`);
     const direct = await viaDirect('standard', { title: 'T', body });
-    assert.match(direct.out.error || '', /^explanation_bad_diagram/, `direct [${info}]`);
+    assert.match(direct.out.error || '', /^explanation_bad_mermaid/, `direct [${info}]`);
     const roadmap = await viaRoadmap('standard', { title: 'T', body });
-    assert.deepEqual([roadmap.out.code, roadmap.m.seen.length], ['explanation_bad_diagram', 1], `roadmap [${info}]`);
+    assert.deepEqual([roadmap.out.code, roadmap.m.seen.length], ['explanation_bad_mermaid', 1], `roadmap [${info}]`);
     const inMore = await viaRoadmap('standard', { title: 'T', body: 'b', more: [{ label: 'L', text: body }] });
-    assert.equal(inMore.out.code, 'explanation_bad_diagram', `section [${info}]`);
+    assert.equal(inMore.out.code, 'explanation_bad_mermaid', `section [${info}]`);
   }
 });
 
@@ -108,9 +81,7 @@ test('the server reads a fence the way the card does: the renderer\'s own open a
   const prim = readFileSync(new URL('../src/learn-primitives.js', import.meta.url), 'utf8');
   assert.ok(md.includes("l.match(/^\\s*```\\s*([\\w+#.-]*)/)"), 'Md.jsx opening pattern');
   assert.ok(md.includes("if (/^\\s*```/.test(l)) { out.push(fenceOf("), 'Md.jsx closing pattern');
-  assert.ok(md.includes('DIAGRAM_FENCE.test(fence.lang)') && readFileSync(new URL('../../web/src/diagram-fence.js', import.meta.url), 'utf8').includes('/^rh-diagram$/i'), 'Md.jsx draws an rh-diagram fence with TutorDiagram');
-  assert.ok(md.includes('/^mermaid$/i.test(fence.lang)'), 'Md.jsx keeps its legacy Mermaid reader');
+  assert.ok(md.includes('/^mermaid$/i.test(fence.lang)'), 'Md.jsx Mermaid test');
   assert.ok(prim.includes("const FENCE = /^\\s*```\\s*([\\w+#.-]*)/;"), 'the server opens a fence with the same pattern');
   assert.ok(prim.includes("/^\\s*```/.test(line)"), 'the server closes a fence with the same pattern');
-  assert.ok(prim.includes("const DIAGRAM = 'rh-diagram'"), 'the server and the card name the same fence language');
 });

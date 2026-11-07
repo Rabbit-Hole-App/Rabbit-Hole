@@ -91,7 +91,7 @@ test('8. typed /explain keeps its full family; the legacy path is the same witho
 });
 
 test('9. one authoring call per accepted card (owner MVP, CORE.04): an invalid first answer fails closed with no repair call; a second call fails closed', async () => {
-  const bad = { title: 'x', body: 'y'.repeat(3001) };
+  const bad = { title: 'x', body: 'y'.repeat(3000) };
   const once = await run(record(), [['make_explanation', bad], ['make_explanation', explanation]]);
   assert.deepEqual([once.out.outcome, once.out.failure_class, once.out.code], ['failed', 'terminal_validation_failure', 'validation_error']);
   assert.deepEqual(once.marks.map(f => [f.stage, f.call, f.retry]), [['generate', 0, 0]], 'no repair call');
@@ -146,38 +146,38 @@ test('the passage is the only source material: it rides as context, is never tru
   assert.equal(out.outcome, 'ok');
 });
 
-// --- CORE.09 / BE.06a: shared Explanation guidance, Depth targets, display-text caps and the rh-diagram format ------------------------------------
-import { explanationChars, explanationProblem, diagramProblem, EXPLANATION_GUIDANCE } from '../src/learn-primitives.js';
+// --- CORE.09 / BE.06a: shared Explanation guidance, Depth targets, display-text caps and supported Mermaid ------------------------------------
+import { explanationChars, explanationProblem, mermaidProblem, EXPLANATION_GUIDANCE } from '../src/learn-primitives.js';
 import { EXPLANATION_CAPS, EXPLANATION_OBJECTIVES } from '../src/chat-depth.js';
 
 // File 06 fixtures (fixture-deep-body / fixture-deep-more), as the shared renderer reads them.
-const DEEP_BODY = '## One leaf, one region\n\nThe Approve path requires both age under 30 and income over $50k. Plot those two thresholds on separate axes and the intersection forms a rectangle.\n\n```rh-diagram\n{"version":1,"diagram":{"kind":"flow","title":"Approval path","nodes":[{"id":"a","label":"Age under 30?","role":"decision"},{"id":"b","label":"Income over $50k?","role":"decision"},{"id":"c","label":"Check credit score","role":"outcome"},{"id":"d","label":"Approve","role":"outcome"},{"id":"e","label":"Deny","role":"outcome"}],"edges":[{"from":"a","to":"b","label":"Yes"},{"from":"a","to":"c","label":"No"},{"from":"b","to":"d","label":"Yes"},{"from":"b","to":"e","label":"No"}]}}\n```\n\n## Why a diagonal is harder\n\nEach split is horizontal or vertical. A slanted boundary takes several cuts, forming a staircase.';
+const DEEP_BODY = '## One leaf, one region\n\nThe Approve path requires both age under 30 and income over $50k. Plot those two thresholds on separate axes and the intersection forms a rectangle.\n\n```mermaid\nflowchart TD\n  A["Age under 30?"]\n  B["Income over $50k?"]\n  C["Check credit score"]\n  D["Approve"]\n  E["Deny"]\n  A -->|Yes| B\n  A -->|No| C\n  B -->|Yes| D\n  B -->|No| E\n```\n\n## Why a diagonal is harder\n\nEach split is horizontal or vertical. A slanted boundary takes several cuts, forming a staircase.';
 const DEEP_MORE = '## Which split wins?\n\nGroup counts are approvals / denials.\n\n| Split | Group 1 | Group 2 | Gini after |\n| --- | --- | --- | --- |\n| A | 3 / 1 | 1 / 3 | 0.375 |\n| B | 2 / 2 | 2 / 2 | 0.5 |\n\nFor A, each group has Gini 1 − (¾)² − (¼)² = 0.375.';
 // A block of exactly n counted code points: a title plus Unicode body text (é and 😀 are one code point each).
 const sized = (n, title = 'T') => ({ title, body: 'é'.repeat(n - 2) });
 
-test('CORE.09: the counter counts code points of the visible text: title, prose, table cells, diagram labels and collapsed sections; markup is free', () => {
+test('CORE.09: the counter counts code points of the visible text: title, prose, table cells, Mermaid labels and collapsed sections; markup is free', () => {
   for (const n of [600, 1000, 1500]) assert.equal(explanationChars(sized(n)), n);
   assert.equal(explanationChars({ title: '😀', body: 'é😀' }), 4, 'an astral character is one code point');
   assert.equal(explanationChars({ title: 'T', body: '  a \n\n   b  ' }), 5, 'whitespace runs collapse to one space');
   assert.equal(explanationChars({ title: 'T', body: '## **Bold** and `code` [link](https://x.test)' }), 'T Bold and code link'.length);
   assert.equal(explanationChars({ title: 'T', body: '| a | b |\n| --- | --- |\n| c | d |' }), 'T a b c d'.length, 'the separator row and the pipes are not counted');
-  assert.equal(explanationChars({ title: 'T', body: '```rh-diagram\n{"version":1,"diagram":{"kind":"flow","title":"T2","nodes":[{"id":"a","label":"Go","role":"process"},{"id":"b","label":"Stop","role":"outcome"}],"edges":[{"from":"a","to":"b","label":"now"}]}}\n```' }), 'T T2 Go Stop now'.length, 'ids, roles and the JSON are not counted; the title and the labels are');
+  assert.equal(explanationChars({ title: 'T', body: '```mermaid\nflowchart LR\n  A["Go"] -->|now| B["Stop"]\n```' }), 'T Go Stop now'.length, 'ids and arrows are not counted, labels are');
   assert.equal(explanationChars({ title: 'T', body: 'b', more: [{ label: 'More', text: 'hidden words' }] }), 'T b More hidden words'.length, 'a collapsed section counts');
   assert.equal(explanationChars({ title: 'T', body: 'b', more: [] }), 3);
   assert.ok(explanationChars({ title: 'Decision trees', body: DEEP_BODY, more: [{ label: 'Worked example', text: DEEP_MORE }] }) <= EXPLANATION_CAPS.deep);
 });
 
-test('CORE.09: each Depth passes exactly at its cap and fails one code point over; an invalid diagram is refused', () => {
+test('CORE.09: each Depth passes exactly at its cap and fails one code point over; supported Mermaid only', () => {
   for (const [depth, cap] of Object.entries(EXPLANATION_CAPS)) {
     assert.equal(explanationProblem(sized(cap), depth), null, `${depth} at ${cap}`);
     assert.match(explanationProblem(sized(cap + 1), depth), /^explanation_over_budget:/, `${depth} at ${cap + 1}`);
   }
   assert.equal(explanationProblem(sized(1000)), null, 'an omitted Depth is Standard');
-  assert.equal(diagramProblem(DEEP_BODY), null, 'the file 06 diagram, written as an rh-diagram spec, is valid');
+  assert.equal(mermaidProblem(DEEP_BODY), null, 'the file 06 diagram is supported');
   for (const bad of ['```mermaid\nflowchart TD\n  A["x"] --> B', '```mermaid\nsequenceDiagram\n  A->>B: hi\n```', '```mermaid\nflowchart TD\n  click A "https://x.test"\n```', '```mermaid\nflowchart TD\n  style A fill:#f00\n```', '```mermaid\n%%{init: {}}%%\nflowchart TD\n```', '```mermaid\nflowchart TD\n  A["<b>x</b>"]\n```'])
-    assert.match(diagramProblem(bad), /^explanation_bad_diagram:/, bad);
-  assert.match(explanationProblem({ title: 'T', body: 'b', more: [{ label: 'L', text: '```rh-diagram\n{"version":1}\n```' }] }), /^explanation_bad_diagram/, 'a section diagram is checked too');
+    assert.match(mermaidProblem(bad), /^explanation_bad_mermaid:/, bad);
+  assert.match(explanationProblem({ title: 'T', body: 'b', more: [{ label: 'L', text: '```mermaid\nflowchart TD\n  subgraph S\n```' }] }), /^explanation_bad_mermaid/, 'a section diagram is checked too');
 });
 
 const scriptedArtifact = (...replies) => { const seen = []; return { seen, callModel: async (env, body) => { seen.push(body); const [name, input] = replies[seen.length - 1]; return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `c${seen.length}`, name, input }] }); } }; };
@@ -200,15 +200,15 @@ test('CORE.09: a direct question and a roadmap step get the same Explanation gui
   assert.ok(!table.m.seen[0].body.tools[0].description.includes('make_explanation, the main body'));
 });
 
-test('CORE.09: over budget or an invalid diagram is a terminal roadmap validation failure after one call; the direct path keeps its one repair', async () => {
+test('CORE.09: over budget or unsupported Mermaid is a terminal roadmap validation failure after one call; the direct path keeps its one repair', async () => {
   for (const [depth, cap] of Object.entries(EXPLANATION_CAPS)) {
     const at = await run(record({ depth, stepTitle: 'T' }), [['make_explanation', sized(cap, 'model title')]]);
     assert.equal(at.out.outcome, 'ok', `${depth} exactly at the cap with the accepted title`);
     const over = await run(record({ depth, stepTitle: 'T' }), [['make_explanation', sized(cap + 1)], ['make_explanation', explanation]]);
     assert.deepEqual([over.out.failure_class, over.out.code, over.m.seen.length], ['terminal_validation_failure', 'explanation_over_budget', 1], depth);
   }
-  const mermaid = await run(record(), [['make_explanation', { title: 'T', body: '```mermaid\nflowchart TD\n  A["x"] --> B["y"]\n```' }]]);
-  assert.deepEqual([mermaid.out.code, mermaid.m.seen.length], ['explanation_bad_diagram', 1]);
+  const mermaid = await run(record(), [['make_explanation', { title: 'T', body: '```mermaid\nflowchart TD\n  click A "https://x.test"\n```' }]]);
+  assert.deepEqual([mermaid.out.code, mermaid.m.seen.length], ['explanation_bad_mermaid', 1]);
   const direct = scriptedArtifact(['make_explanation', sized(1001)], ['make_explanation', { title: 'Short', body: 'fits' }]);
   const out = await generateArtifact({}, { command: 'explain', args: 'ideas' }, { callModel: direct.callModel });
   assert.deepEqual([out.result, direct.seen.length], ['artifact', 2], 'the direct lifecycle: one repair quoting the budget');

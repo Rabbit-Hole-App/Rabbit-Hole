@@ -23,7 +23,7 @@ export const SUBJECT_TOOL = {
 const PLAN_RULES = `Plan a finite sequence of explanation steps for the learner from the source scope you are given.
 - The learner's original instruction decides what to teach. It overrides any topic you infer from the source. If they say they already know something, do not teach it: list it in instructionAck.skips with reason learner_knows and plan the topic they asked for. If a topic is out of the instruction's scope, skip it with reason out_of_scope.
 - Every step has a format of explanation (a text card) or table (a standalone comparison or lookup). No other format exists yet: no practice, quiz, code run, image or video.
-- An explanation step is one card that may use prose, a Markdown table or a diagram inside it; plan the step, not its layout.
+- An explanation step is one card that may use prose, a Markdown table or a Mermaid flowchart inside it; plan the step, not its layout.
 - The format is only a suggestion. Set formatRequired to true on a step only when the learner's own words explicitly require that format for it; otherwise leave it out.
 - The step ceiling is a maximum, never a target. Use as few steps as the outcome needs, usually fewer than the ceiling. One step is one coherent learning idea that fits one card within the selected Depth's character budget (Overview 600, Standard 1,000, Deep 1,500 characters, title and folded sections included).
 - Each step's passage is a character range inside the given scope, at most the stated passage limit long. Cover every part of the scope with a step passage, or list the part in coverage.uncovered with a reason (for example the learner already knows it).
