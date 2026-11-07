@@ -156,7 +156,10 @@ export async function explain(h, { who = 'alice', scope = { kind: 'whole' }, ins
   return h.send(who, 'POST', '/api/learn/roadmap', { boardId: h.boards[who], source: { key: `file:${USERS[who].fileId}`, rev: h.rev, scope }, instruction, depth, actionKey: KEY(key), ...(invitationId ? { invitationId } : {}), ...extra });
 }
 export async function acceptPlan(h, view, { who = 'alice', key = 'plan' } = {}) {
-  return h.route(who, routes.acceptPlan(view, KEY(key)));
+  // As the client does: on stale_revision (background events bump the revision) act again on the latest view with the same key.
+  let out = await h.route(who, routes.acceptPlan(view, KEY(key)));
+  for (let i = 0; i < 4 && out.status === 409 && out.body.code === 'stale_revision' && out.body.current?.roadmap; i++) out = await h.route(who, routes.acceptPlan(out.body.current, KEY(key)));
+  return out;
 }
 // Explain + Accept roadmap -> the view with the first proposal.
 export async function started(h, opts = {}) {
