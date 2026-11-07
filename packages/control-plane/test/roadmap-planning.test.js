@@ -254,3 +254,49 @@ test('CORE.02: a selected passage plans from the whole bounded document (over 8,
   assert.equal(part.request.instruction.original, INSTRUCTION);
   assert.deepEqual([part.request.source.name, part.request.mode], ['Gradient descent notes.md', 'explanations'], 'verify-to-be-2: the planner knows the file and the roadmap mode');
 });
+
+// GEN1 (checklist 2.1.3, "Bounded source"): the whole-document reread of a selected passage may fall back to the passage ONLY for the supported
+// over-limit document. A reread that finds the source changed or gone refuses the draft: no model call, no plan, a limitation the learner sees.
+const EXACT = 'One update subtracts the learning rate times the gradient from the weight.';
+async function passageRoadmap(t, { md, reread } = {}) {
+  const h = await loop(t, { md, plans: [planInput([['One update', MD.indexOf(EXACT), MD.indexOf(EXACT) + EXACT.length]])] });
+  h.w.sqlite.exec(R3);
+  const ref = 'sref_' + '7'.repeat(24);
+  h.w.sqlite.prepare("INSERT INTO learn_source_refs (id, org, owner_email, kind, source_key, source_name, source_rev, anchor_json, anchor_hash, created_at) VALUES (?, 'team', 'u-alice@example.test', 'markdown', ?, 'n', ?, ?, 'h', 1)")
+    .run(ref, `file:${ID_B}`, h.rev, JSON.stringify({ quote: { exact: EXACT, prefix: '', suffix: '' } }));
+  // The planning handler's own reads go through this reader: the first is the passage read, the second the whole-document reread.
+  const { readMarkdownForActor } = await import('../src/roadmap/roadmap-source-reader.js');
+  let reads = 0;
+  registerRoadmapHandlers({ callModel: h.m.callModel, checkCallModel: h.m.callModel, classify, base: h.p.base,
+    readSourceForActor: async (env, access, source) => (++reads === 2 && reread ? reread(source) : readMarkdownForActor(env, access, source)) });
+  h.deps.startPlanning = async () => {};
+  const made = await create(h, {}, { scope: { kind: 'passage', sourceRefId: ref } });
+  assert.equal(made.status, 202);
+  await runDueRoadmapEvents(h.env);
+  return { h, made, reads: () => reads };
+}
+
+test('a passage roadmap whose whole-document reread finds the source changed refuses the draft: no model call, no plan', async t => {
+  const { h, reads } = await passageRoadmap(t, { reread: ({ key }) => ({ status: 'changed', key, rev: 'sha256:' + 'e'.repeat(64) }) });
+  assert.equal(reads(), 2, 'the passage read, then the whole reread');
+  const view = await h.status();
+  assert.equal(view.limitation?.code, 'source_changed');
+  assert.equal(h.m.calls.length, 0, 'no model call');
+  assert.deepEqual(rows(h.w.sqlite, 'SELECT plan_json FROM learn_roadmap_plan_versions').map(r => JSON.parse(r.plan_json).steps), [[]], 'the refusal records no steps');
+});
+
+test('a passage roadmap whose whole-document reread finds the source missing refuses the draft with the source_unavailable limitation', async t => {
+  const { h } = await passageRoadmap(t, { reread: () => ({ status: 'missing' }) });
+  const view = await h.status();
+  assert.equal(view.limitation?.code, 'source_unavailable');
+  assert.equal(h.m.calls.length, 0);
+});
+
+test('a passage roadmap over a document above the whole-source limit keeps the passage read as the source (the supported fallback)', async t => {
+  const big = `${MD}\n${'x'.repeat(40001)}`;
+  const { h } = await passageRoadmap(t, { md: big });
+  const view = await h.status();
+  assert.equal(view.limitation ?? null, null, 'no refusal');
+  assert.equal(view.roadmap.state, 'proposed');
+  assert.equal(h.m.calls.length, 1, 'planned over the selected passage');
+});
