@@ -18,6 +18,22 @@ export const ASKS_FOR_DIAGRAM = /\b(diagram|flow ?chart|draw|sketch|visuali[sz]e
 
 export const celerisExplainOn = (env, command) => command === 'explanation' && env.EXPLAIN_CELERIS_DEV === 'true' && (env.SMALL_ENV === 'dev' || env.SMALL_ENV === 'test') && !!env.CELERIS_API_KEY;
 
+// Some providers (Cerebras) refuse `oneOf` in a strict json_schema but accept `anyOf`. The two mean the same ONLY when no value can match two branches, so every oneOf is
+// rewritten only when each branch is an object pinned to its own value of one shared discriminator (the diagram's `kind` const); any other oneOf throws.
+// The rewrite is only what is SENT to the provider: RH validates what comes back against its original parser (parseTutorDiagram) and the validator.
+export function exclusiveOneOfToAnyOf(schema) {
+  if (Array.isArray(schema)) return schema.map(exclusiveOneOfToAnyOf);
+  if (!schema || typeof schema !== 'object') return schema;
+  const out = Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, exclusiveOneOfToAnyOf(value)]));
+  if (!out.oneOf) return out;
+  const keys = out.oneOf.map(branch => Object.entries(branch?.properties || {}).filter(([, v]) => v && v.const !== undefined).map(([k]) => k));
+  const shared = (keys[0] || []).filter(k => keys.every(list => list.includes(k)));
+  const key = shared.find(k => new Set(out.oneOf.map(branch => JSON.stringify(branch.properties[k].const))).size === out.oneOf.length);
+  if (!key) throw new Error('oneOf branches are not mutually exclusive on a shared const property: refusing to rewrite it as anyOf');
+  const { oneOf, ...rest } = out;
+  return { ...rest, anyOf: oneOf };
+}
+
 const cardSchema = required => ({
   type: 'object', additionalProperties: false, required: ['title', 'body', 'diagram'],
   properties: {
@@ -57,7 +73,7 @@ export function celerisExplainRoute(env, command) {
       method: 'POST',
       headers: { Authorization: `Bearer ${env.CELERIS_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: env.EXPLAIN_DEV_MODEL || CELERIS_MODEL, stream: false, max_tokens: body.max_tokens || 4000, temperature: 0.4, ...(env.EXPLAIN_DEV_PARAMS ? JSON.parse(env.EXPLAIN_DEV_PARAMS) : {}), messages,
-        response_format: { type: 'json_schema', json_schema: { name: 'explanation_card', strict: true, schema: cardSchema(required) } } }),
+        response_format: { type: 'json_schema', json_schema: { name: 'explanation_card', strict: true, schema: env.EXPLAIN_DEV_ANYOF === 'true' ? exclusiveOneOfToAnyOf(cardSchema(required)) : cardSchema(required) } } }),
     });
     if (!response.ok) return response; // the caller turns a non-ok status into its one-line error
     const json = await response.json();
