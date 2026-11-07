@@ -34,6 +34,8 @@
     // In-app Send feedback: each stored report is also mailed here, from EMAIL_FROM through the same Resend key (feedback-mail.js,
     // docs/features/learn-feedback.md). The owner's product address (never the chin01 one). Empty or absent = no email; the report is kept either way.
     "FEEDBACK_NOTIFY_TO": "yudhisteer.chin@gmail.com",
+    // Page crashes (crash-report.js, docs/features/telemetry.md "Crash alerts"): each new crash is mailed here, at most one per fingerprint per hour. hello@ forwards to the owner's Gmail. Empty or absent = no email.
+    "CRASH_NOTIFY_TO": "hello@digrabbithole.com",
     // Usage analytics (docs/features/usage-analytics.md): the verified sign-in event (product-analytics.js). The project token is
     // public and ingestion-only. ANALYTICS_INTERNAL_USER_IDS: users.id values, marked internal so the customer view leaves them
     // out: the owner's two accounts, both confirmed by him (docs/features/usage-analytics.md).

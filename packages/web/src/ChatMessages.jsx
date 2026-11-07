@@ -338,7 +338,7 @@ function OutputRow({ runId, name, size }) {
 export class AnswerBoundary extends Component {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(error) { console.error('[chat answer]', error); reportClientError('render_failed', error, { artifact: 'chat_answer' }); }
+  componentDidCatch(error, info) { console.error('[chat answer]', error); reportClientError('render_failed', error, { artifact: 'chat_answer', componentStack: info?.componentStack }); }
   render() { return this.state.failed ? <div data-answer className="min-w-0 whitespace-pre-wrap text-sm">{String(this.props.text ?? '')}</div> : this.props.children; }
 }
 

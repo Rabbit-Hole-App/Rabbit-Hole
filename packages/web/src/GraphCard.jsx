@@ -22,7 +22,7 @@ const short = commit => (commit || '').slice(0, 7);
 class GraphCardBoundary extends Component {
   state = { failed: false, attempt: 0 };
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(error) { console.error('[graph card]', error); reportClientError('render_failed', error, { artifact: 'graph_card' }); }
+  componentDidCatch(error, info) { console.error('[graph card]', error); reportClientError('render_failed', error, { artifact: 'graph_card', componentStack: info?.componentStack }); }
   render() {
     if (!this.state.failed) return <GraphCardBody key={this.state.attempt} block={this.props.block} />;
     return <div role="status" data-graph-card data-graph-card-state="failed" className="flex flex-1 flex-col items-start gap-2 px-3 pb-3 text-sm text-ink-2">

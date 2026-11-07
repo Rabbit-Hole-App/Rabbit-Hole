@@ -175,6 +175,35 @@ and one line to a list, and the contract owner reviews the pull request.
   which keeps the owner's "confirmation stays on the button" pattern; a visible reference is an owner design decision. Offline
   and reconnect behavior appears only as `online` on other failures; there is no dedicated offline event yet.
 
+## Crash alerts (owner decision 2026-11-07: Sentry and email, both)
+
+A crash is a page that threw while drawing (the root crash screen, a surface boundary, an uncaught error) or an uncaught Worker exception.
+Unlike `client.error` events above, a crash report carries what the owner needs to act on it: the error **message**, a **stack**, the
+**signed-in account**, and **where** it happened (the surface, the route template, the release, the browser). It never carries page content:
+every field is bounded and scrubbed again on the server (URLs keep only their path, share-link tokens, email addresses and long token-like
+runs are replaced). Code: `packages/control-plane/src/crash-report.js`; tests: `packages/control-plane/test/crash-report.test.js`.
+
+The browser sends one body (`v`, `kind` boundary / render_failed / uncaught, `artifact`, `name`, `message`, `stack`, `component_stack`,
+`route`, `release`, `fingerprint`, `browser`, `online`) to two endpoints:
+
+| Endpoint | Worker | Session | What it does |
+|---|---|---|---|
+| `POST /api/telemetry/crash` | app Worker (`dev-worker.js`) | optional | Same-origin, 16 KB, a token bucket per account or address. Writes one `client_crash` line to Workers Logs (with the account) and, when `SENTRY_DSN` is set, sends a Sentry envelope after answering 204. |
+| `POST /api/crash/notify` | control plane (`index.js`, after the session check) | required | Mails `CRASH_NOTIFY_TO` (the only Worker with `RESEND_API_KEY`). Subject `[Rabbit Hole CRASH] <surface>: <error> <message>`; body rows What, Where, Component stack, Who (account id, email, workspace), Build, Browser, Time, Fingerprint, Stack. |
+
+- **Sentry:** no SDK and no new dependency; one hand-built envelope POST. `SENTRY_DSN` is a **secret on `rabbit-hole-app`**, never a var. No DSN, a bad DSN or a failing Sentry is silent: the page and the log are unaffected. An uncaught exception in the app Worker (`app-worker.js`) is sent the same way (kind `server`, no email) and thrown again. Stack frames are not source-mapped yet (that needs a Sentry auth token at release).
+- **Email:** `CRASH_NOTIFY_TO` is a plain var in `wrangler.rabbit-hole-prod.jsonc` (`hello@digrabbithole.com`, which forwards to the owner). Empty or absent sends nothing. At most **one mail per fingerprint per hour** (Cache API, keyed by the server's own fingerprint of name, surface, kind and top stack frame; where the Cache API is missing the mail is sent) and **20 mails per hour per isolate**. A failed send answers 502 and is not marked, so the next crash tries again.
+- **Anonymous crashes** (a shared page, or a crash before sign-in) have no session, so they reach Sentry and the logs only, with no email. The fix is a dedicated bearer route like `cad-budget-alert` if the owner wants it.
+- **Not a replacement for `client.error`:** the privacy-minimal events stay as they are.
+
+Owner-run (production secret; the value is pasted by the owner and never printed or committed):
+
+```sh
+npx wrangler secret put SENTRY_DSN --name rabbit-hole-app
+```
+
+Verify without reading the value: `npx wrangler secret list --name rabbit-hole-app` lists `SENTRY_DSN`.
+
 ## Tutor evidence (Task 12)
 
 Plan and decisions: `C:/s/spec/telemetry/task12-tutor-evidence-plan.md`; owner decisions A to F, 2026-10-23. Evidence class for everything

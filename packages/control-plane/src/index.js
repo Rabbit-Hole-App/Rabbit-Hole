@@ -1,5 +1,6 @@
 import { readArxivPaper } from './arxiv.js';
 import { feedbackNotify } from './feedback-mail.js';
+import { NOTIFY_PATH, crashNotify } from './crash-report.js';
 import { cadBudgetAlert } from './cad-budget-alert.js';
 import { canvasSeed, threadTurns } from './canvas-conversation.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
@@ -2542,6 +2543,8 @@ export default {
         if (path === '/api/me' && req.method === 'GET') return json({ email: user.email, org: user.org, orgName: user.orgName || null, user_id: user.uid ?? null, ...(internalAccount(env, user.uid) ? { analytics_internal: true } : {}) });
         // The owner's email for a feedback report the app Worker just stored (feedback-mail.js): session only, the report's own sender.
         if (path === '/api/feedback/notify' && req.method === 'POST') return await feedbackNotify(req, env, user, { sendEmail });
+        // The owner's email for a page crash (crash-report.js): session only; deduped by fingerprint, capped per hour.
+        if (path === NOTIFY_PATH && req.method === 'POST') return await crashNotify(req, env, user, { sendEmail });
         const learnCourse = path.match(/^\/api\/apps\/([a-z0-9-]+)\/learn-course$/);
         if (learnCourse) return await handleLearnCourse(req, env, user, learnCourse[1], { appForUser, sourceSection });
         if (path === '/api/workspaces' && req.method === 'GET') return await apiWorkspaces(env, user);

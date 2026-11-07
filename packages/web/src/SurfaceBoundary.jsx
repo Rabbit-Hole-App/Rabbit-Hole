@@ -7,6 +7,6 @@ import { reportClientError } from './client-telemetry.js';
 export default class SurfaceBoundary extends Component {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(error) { console.error(`[${this.props.artifact}]`, error); reportClientError('render_failed', error, { artifact: this.props.artifact }); }
+  componentDidCatch(error, info) { console.error(`[${this.props.artifact}]`, error); reportClientError('render_failed', error, { artifact: this.props.artifact, componentStack: info?.componentStack }); }
   render() { return this.state.failed ? (this.props.fallback ?? null) : this.props.children; }
 }

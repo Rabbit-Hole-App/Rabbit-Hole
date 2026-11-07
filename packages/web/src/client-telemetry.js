@@ -10,6 +10,7 @@
 // are sent, and what the page had to drop is reported on the next event (payload.dropped), so the incompleteness is measured.
 import { makeEvent, routeTemplate, validateEvent, LIMITS } from '../../control-plane/src/telemetry-contract.js';
 import { tokenBucket } from '../../control-plane/src/telemetry-limit.js';
+import { createCrashReporter, installCrashReporter, reportCrash } from './client-crash.js';
 
 export const ENDPOINT = '/api/telemetry/client';
 export const TRACE_HEADER = 'x-rh-trace';
@@ -150,10 +151,14 @@ export function installClientTelemetry(target = globalThis, { release = null, se
   });
   const reporter = createReporter({ send: post, route: () => routeTemplate(location().pathname), env, release });
   installed = reporter;
+  // The owner's crash alerts (client-crash.js) share this install: same fetch, route, release and browser class.
+  installCrashReporter(createCrashReporter({ send: (endpoint, body) => original?.(endpoint, { method: 'POST', body, headers: { 'content-type': 'application/json' }, keepalive: true, credentials: 'same-origin' }),
+    identify: error => ({ name: errorName(error), fingerprint: errorFingerprint(error) }), route: () => routeTemplate(location().pathname), release, classes: env.classes, online: () => env.online() }));
 
   target.addEventListener?.('error', event => {
     // A resource that failed to load fires on its element and has no error; a script error without one is cross-origin noise.
     if (!event?.error) return;
+    reportCrash(event.error, { kind: 'uncaught' });
     reporter.report({ kind: 'uncaught', fingerprint: errorFingerprint(event.error), source: 'window', error_name: errorName(event.error) });
   });
   target.addEventListener?.('unhandledrejection', event => {
@@ -209,8 +214,9 @@ export function installClientTelemetry(target = globalThis, { release = null, se
 }
 
 // For React boundaries and failed artifact renders: report from a component without importing the reporter's internals.
-export function reportClientError(kind, error, { artifact = null, source = 'react' } = {}) {
+export function reportClientError(kind, error, { artifact = null, source = 'react', componentStack = '' } = {}) {
   if (!installed) return false;
+  if (kind === 'boundary' || kind === 'render_failed') reportCrash(error, { kind, artifact, componentStack });
   return installed.report({ kind, fingerprint: errorFingerprint(error), source, error_name: errorName(error), ...(artifact && /^[a-z0-9][a-z0-9_.:-]{0,63}$/i.test(artifact) ? { artifact } : {}) });
 }
 // For a feature's own browser events (weekly_top.*): false, and nothing kept, when telemetry is not installed on this page.
