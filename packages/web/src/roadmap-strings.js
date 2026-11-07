@@ -48,6 +48,7 @@ export const STRINGS = Object.freeze({
   planPrefix: 'Plan', depth: 'Depth', depthName: { overview: 'Overview', standard: 'Standard', deep: 'Deep' },
   // Tutor core MVP (checklist 4.1 vocabulary; roadmap 3.1-3.12). Exact labels from the approved action list; sentences per roadmap 3.2/3.3/3.5/3.7.
   startNewChat: 'Start new chat', stayHere: 'Stay here',
+  routedNew: 'Started a new chat', routedStay: 'Stayed in this chat', draftAccepted: 'Roadmap accepted', draftReplaced: 'Replaced by a newer draft',
   routeChoice: name => `You’ve added **${name}**. Start a new chat for this document or stay here?`,
   inviteDrop: name => `You’ve added **${name}**. Would you like me to explain it on the canvas?`,
   boundary: name => `You’ve added **${name}**. This canvas already has a roadmap in progress, so I’ll keep it here. To start a separate roadmap for it, use End roadmap on the current one first.`,

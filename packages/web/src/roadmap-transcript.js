@@ -148,6 +148,14 @@ export function entriesOf(state, { invitation = null, route = null, boundary = n
   return out;
 }
 
+// A decided entry keeps no button: its outcome is one quiet line (null: none needed, the entry's own words and stage already say it). A live entry keeps its
+// buttons; a stored one (history) never has any. choice: the routing entry's stored choice; acceptedPlanVersion: the roadmap's accepted draft version.
+export function outcomeOf(entry, { live = true, acceptedPlanVersion = null } = {}) {
+  const tutor = entry.tutor || {};
+  if (entry.kind === 'route' && tutor.choice) return tutor.choice === 'new' ? STRINGS.routedNew : STRINGS.routedStay;
+  if (entry.kind === 'draft' && !live && tutor.planVersion != null && tutor.stage !== 'generating') return acceptedPlanVersion != null && Number(tutor.planVersion) === Number(acceptedPlanVersion) ? STRINGS.draftAccepted : STRINGS.draftReplaced;
+  return null;
+}
 // A stored entry's action ids as their labels, for history (always disabled: a stored entry with no live counterpart never acts).
 const LABELS = { route_new: STRINGS.startNewChat, route_stay: STRINGS.stayHere, explain_on_canvas: STRINGS.explain, keep_here: STRINGS.keepHere, accept_roadmap: STRINGS.acceptRoadmap,
   edit_roadmap: STRINGS.editRoadmap, open_toc: STRINGS.openToc, propose_next: STRINGS.proposeNext, end: STRINGS.end, accept: STRINGS.accept, edit_card: STRINGS.editCard, cancel: STRINGS.cancel,

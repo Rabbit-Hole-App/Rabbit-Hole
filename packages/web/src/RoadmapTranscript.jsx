@@ -8,7 +8,7 @@ import { useStepExcerpt } from './SourceRefChip.jsx';
 import { STRINGS } from './roadmap-strings.js';
 import { chatOf, invitationOf } from './roadmap-client.js';
 import { newThreadId, saveMessage, saveTutorEntry } from './chat-persist.js';
-import { ensureTutorThread, entriesOf, historyActions, invitationThreadId, occupied, roadmapEditTarget, roadmapInvitationOf, roadmapThreadClientId, routeClientId, toSave } from './roadmap-transcript.js';
+import { ensureTutorThread, entriesOf, invitationThreadId, occupied, outcomeOf, roadmapEditTarget, roadmapInvitationOf, roadmapThreadClientId, routeClientId, toSave } from './roadmap-transcript.js';
 
 // The Tutor inside the real Chat transcript (BRIEF contract 6; checklist UI.01, UI.03, UI.08). Every Tutor entry is an ordinary saved Chat
 // message in its bound thread (entriesOf + saveTutorEntry), drawn by the existing ChatMessage with the roadmap's own controls under it:
@@ -47,7 +47,7 @@ function targetOf(entry, { bound, threadId, route }) {
 }
 
 // One entry: the existing ChatMessage for its words (or its waiting row while generating), the draft containers, an activity spinner, actions.
-export function EntryView({ entry, live, run, app = null, busy = false, invitation = null }) {
+export function EntryView({ entry, live, run, app = null, busy = false, invitation = null, acceptedPlanVersion = null }) {
   // UI.04 / roadmap 3.8: the same exact passage the canvas slot shows (SourceRefChip useStepExcerpt); a step with no reference shows none, an unreadable
   // one says so, and no quote is ever invented.
   const found = useStepExcerpt(live ? entry.sourceRef : null, app);
@@ -58,7 +58,10 @@ export function EntryView({ entry, live, run, app = null, busy = false, invitati
   // The invitation message while its roadmap is made (or once made): one Generating roadmap shimmer where the buttons were, then no buttons.
   const resolved = entry.kind === 'invitation' && !!invitation && invitation.invitationId === entry.tutor?.invitationId; // its roadmap exists
   const generating = entry.kind === 'invitation' && (entry.creating === true || (resolved && invitation.first));
-  const actions = entry.kind === 'invitation' && (entry.creating === true || resolved) ? [] : live ? entry.actions : historyActions(entry.tutor);
+  // A decided or stored entry keeps no button (a dead, greyed control reads as broken and hides what happened): history shows a one-line outcome instead.
+  const decided = !live || (entry.kind === 'invitation' && (entry.creating === true || resolved)) || (entry.kind === 'route' && !!entry.tutor?.choice);
+  const actions = decided ? [] : entry.actions;
+  const outcome = outcomeOf(entry, { live, acceptedPlanVersion });
   if (entry.kind === 'draft' && entry.activity && invitation?.first) return null; // the invitation's shimmer stands for this draft until it arrives
   return (
     <div data-roadmap-item={entry.clientId} data-roadmap-kind={entry.kind} data-roadmap-stale={live ? undefined : ''} {...(entry.kind === 'invitation' ? { 'data-roadmap-invitation': entry.tutor.invitationId } : {})}>
@@ -68,6 +71,7 @@ export function EntryView({ entry, live, run, app = null, busy = false, invitati
       {entry.draft && <RoadmapPlan draft={entry.draft} disabled={!live || busy} onDepth={depth => run({ kind: 'depth', depth })} />}
       {live && entry.activity && entry.kind !== 'draft' && <span role="status" className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-ink-3" /><span className="shimmer">{entry.activity}</span></span>}
       {generating && <span role="status" data-roadmap-generating className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-ink-3" /><span className="shimmer">{STRINGS.generatingRoadmap}</span></span>}
+      {outcome && <p data-roadmap-outcome className="pb-1.5 text-xs text-ink-2">{outcome}</p>}
       {actions.length > 0 && (
         <div data-roadmap-actions className={entry.draft ? 'flex flex-wrap gap-2 pt-3 pb-1.5' : 'flex flex-wrap gap-1.5 pt-1 pb-1.5'}>
           {actions.map(action => {
@@ -119,7 +123,7 @@ export function TutorMessage({ m, roadmap, chat }) {
   const entries = useEntries(roadmap);
   const live = entries.find(e => e.clientId === m.clientId) || null;
   const entry = live || { clientId: m.clientId, kind: m.meta.tutor.kind, content: m.content, tutor: m.meta.tutor, actions: [] };
-  return <EntryView entry={entry} live={!!live} app={chat.canvas} run={runner(roadmap, chat, () => {})} busy={roadmap.state.view?.revisionPending === true} invitation={roadmapInvitationOf(roadmap.state)} />;
+  return <EntryView entry={entry} live={!!live} app={chat.canvas} run={runner(roadmap, chat, () => {})} busy={roadmap.state.view?.revisionPending === true} invitation={roadmapInvitationOf(roadmap.state)} acceptedPlanVersion={roadmap.state.view?.roadmap?.acceptedPlanVersion ?? null} />;
 }
 
 export default function RoadmapTranscript({ roadmap, chat, msgs }) {
@@ -215,7 +219,7 @@ export default function RoadmapTranscript({ roadmap, chat, msgs }) {
         return <div key={line.id} data-roadmap-item={line.id}><ChatMessage m={m} i={0} msgs={[m]} learnChat busy={false} setMsgs={() => {}} setFilePeek={() => {}} setRunPeek={() => {}} />
           {line.kind === 'coverage' && <div className="flex flex-wrap gap-1.5 pb-1.5">{line.choices.map(choice => <button key={`${choice.locationId}:${choice.part}`} type="button" data-roadmap-choice={`${choice.locationId}:${choice.part}`} onClick={() => run({ kind: 'part', choice })} className={SECOND}>{choice.label}</button>)}</div>}</div>;
       })}
-      {shown.map(entry => <EntryView key={entry.clientId} entry={entry} live app={chat.canvas} run={run} busy={roadmap.state.view?.revisionPending === true} invitation={roadmapInvitationOf(roadmap.state)} />)}
+      {shown.map(entry => <EntryView key={entry.clientId} entry={entry} live app={chat.canvas} run={run} busy={roadmap.state.view?.revisionPending === true} invitation={roadmapInvitationOf(roadmap.state)} acceptedPlanVersion={roadmap.state.view?.roadmap?.acceptedPlanVersion ?? null} />)}
     </div>
   );
 }

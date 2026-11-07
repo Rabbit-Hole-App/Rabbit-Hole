@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { pillOf, tocOf } from './roadmap-client.js';
-import { entriesOf, roadmapInvitationOf } from './roadmap-transcript.js';
+import { entriesOf, outcomeOf, roadmapInvitationOf } from './roadmap-transcript.js';
 
 const DIR = fileURLToPath(new URL('../../../docs/features/explain-on-canvas/contracts/fixtures/', import.meta.url));
 const view = name => JSON.parse(readFileSync(DIR + name + '.json', 'utf8')).response.body;
@@ -151,4 +151,36 @@ test('the draft actions sit 12 px under the preview and 8 px apart, outside it, 
     assert.ok(markup.slice(markup.indexOf('data-roadmap-actions')).split('</div>')[0].includes('Accept roadmap'));
     assert.ok(!markup.slice(plan, actions).includes('Accept roadmap'), 'not inside the preview');
   }
+});
+
+test('a decided Chat entry keeps no greyed button: history shows a one-line outcome; a live entry keeps its buttons (owner 2026-11-07)', () => {
+  const base = view('status-proposed-plan');
+  const state = { view: { ...base, roadmap: { ...base.roadmap, acceptedPlanVersion: null } }, busy: [], editing: false, flag: 'on', notice: null, invitation: null, limitation: null, draft: null };
+  const live = entryOf(state, 'draft');
+  assert.ok(live.actions.length === 2 && render(live).includes('<button'), 'the current draft keeps Accept roadmap and Edit roadmap');
+  assert.equal(outcomeOf(live, { live: true }), null);
+  // The same draft as stored history: superseded, then accepted.
+  const stored = { clientId: live.clientId, kind: 'draft', content: 'I have prepared a roadmap.', tutor: { v: 1, kind: 'draft', seq: 2, roadmapId: 'rm', planVersion: 2, stage: 'draft', actions: ['accept_roadmap', 'edit_roadmap'] }, actions: [] };
+  const replaced = render(stored, { live: false, acceptedPlanVersion: null });
+  assert.equal(count(replaced, '<button'), 0, 'no dead buttons');
+  assert.equal(count(replaced, 'Replaced by a newer draft'), 1);
+  const accepted = render(stored, { live: false, acceptedPlanVersion: 2 });
+  assert.equal(count(accepted, 'Roadmap accepted'), 1);
+  assert.equal(count(accepted, '<button'), 0);
+  assert.match(accepted, /data-roadmap-outcome/);
+  // The routing choice: once made, the buttons give way to what happened (live or stored).
+  const routed = ch => ({ clientId: 'route', kind: 'route', content: 'Start a new chat or stay here?', tutor: { v: 1, kind: 'route', seq: 2, invitationId: 'iv_1', choice: ch, actions: ['route_new', 'route_stay'] }, actions: [{ id: 'route_new', label: 'Start new chat', run: { kind: 'route_new' }, disabled: true }] });
+  for (const [choice, line] of [['new', 'Started a new chat'], ['stay', 'Stayed in this chat']]) {
+    for (const isLive of [true, false]) {
+      const markup = render(routed(choice), { live: isLive });
+      assert.equal(count(markup, '<button'), 0, choice + ' live=' + isLive);
+      assert.equal(count(markup, line), 1);
+    }
+  }
+  // Before the choice, a live routing entry still offers both buttons.
+  assert.equal(count(render({ ...routed(undefined), tutor: { v: 1, kind: 'route', seq: 1, invitationId: 'iv_1' }, actions: [{ id: 'route_new', label: 'Start new chat', run: { kind: 'route_new' }, primary: true }, { id: 'route_stay', label: 'Stay here', run: { kind: 'route_stay' } }] }, { live: true }), '<button'), 2);
+  // Stored card and summary entries carry their own stage words and no buttons.
+  const step = { clientId: 'step', kind: 'step', content: '**Gradients**\n\nReady', tutor: { v: 1, kind: 'step', seq: 5, stepId: 'st', stage: 'ready', actions: ['accept', 'cancel'] }, actions: [] };
+  assert.equal(count(render(step, { live: false }), '<button'), 0);
+  assert.equal(outcomeOf(step, { live: false }), null);
 });
