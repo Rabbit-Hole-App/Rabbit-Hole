@@ -103,7 +103,7 @@ import { TitleHoles } from './TitleHoles.jsx';
 import { useNextSteps } from './LearnNextSteps.jsx';
 import { useRoadmap } from './use-roadmap.js';
 import { readyMarkdownSources } from './roadmap-client.js';
-import { canvasCardsOf } from './roadmap-canvas.js';
+import { canvasCardsOf, createSlotStore } from './roadmap-canvas.js';
 import { RoadmapCanvas, RoadmapToc } from './RoadmapSurfaces.jsx';
 import LearnProgress from './LearnProgress.jsx';
 import { CardFeedbackScope } from './CardFeedback.jsx';
@@ -1327,7 +1327,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       // The card fills the Tutor slot it was proposed in, at that slot's top-left (AdaptiveCanvas placeRoadmapCard); a canvas without it inserts as before.
       insertCard: block => (canvasApi.current?.placeRoadmapCard ? canvasApi.current.placeRoadmapCard(block) : canvasApi.current?.insertImported({ ...block, dx: 0, dy: 0 })),
       // The acknowledged revision is the server's board version after a save that succeeded; savedHas says that saved board holds the card.
-      persist: () => canvasApi.current?.persist?.(), boardRevision: () => boardVersion.current, savedHas: id => { try { return !!boardSynced.current && (boardFromText(boardSynced.current).blocks || []).some(block => block?.id === id); } catch { return false; } },
+      // UI.06: the delivery waits for the card's final place (settled), and the saved board must hold the card AT that place (its offsets), not only its id.
+      settled: id => canvasApi.current?.settled?.(id),
+      persist: () => canvasApi.current?.persist?.(), boardRevision: () => boardVersion.current, savedHas: id => { try { const live = canvasApi.current?.blocks?.().find(block => block.id === id), saved = !!boardSynced.current && (boardFromText(boardSynced.current).blocks || []).find(block => block?.id === id); return !!saved && (!live || ((saved.dx || 0) === (live.dx || 0) && (saved.dy || 0) === (live.dy || 0))); } catch { return false; } },
       readOnly: () => !canEditCanvas, presenting: () => !!canvasStateRef.current.presenting,
       focusBlock: id => id && canvasApi.current?.focusBlock(id), sourceBlockId: key => sourceBlock(key)?.id, sourceElement: key => { const id = sourceBlock(key)?.id; return id ? document.querySelector(`[data-block-id="${CSS.escape(id)}"]`) : null; },
       sourceRev: key => sourceBlock(key)?.fileRef?.source?.rev, instruction: () => '', depth: () => chat?.settings?.depth || 'standard' } });
@@ -1335,8 +1337,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // accepted and cancelled through the same controller actions as Tab. The offer is shown exactly when the pill would be (state: pillOf's gate: Ask mode, the flag, the editor);
   // the canvas tells which offers it really draws (onDrawn), and the fixed overlay yields only to those.
   const [canvasDrawn, setCanvasDrawn] = useState('');
+  // UI.06: each slot's private place (roadmap-slots.js), read once per roadmap before anything is placed, written once per offer.
+  const [slotsRead, setSlotsRead] = useState(0);
+  const slotStore = useMemo(() => createSlotStore({ api, listener: () => setSlotsRead(n => n + 1) }), []);
+  useEffect(() => { slotStore.load(roadmap.state.view); }, [slotStore, roadmap.state.view?.roadmap?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const roadmapCanvas = useMemo(() => ({ cards: canvasCardsOf(roadmap.state.view, { state: roadmap.state, hasBlock: id => !!id && !!canvasApi.current?.blocks?.().some(block => block.id === id) }),
-    onAccept: () => roadmap.controller.acceptProposal(), onCancel: () => roadmap.controller.cancelProposal(), onDrawn: setCanvasDrawn }), [roadmap.state, roadmap.controller]);
+    onAccept: () => roadmap.controller.acceptProposal(), onCancel: () => roadmap.controller.cancelProposal(), onDrawn: setCanvasDrawn, slots: slotStore }), [roadmap.state, roadmap.controller, slotStore, slotsRead]); // eslint-disable-line react-hooks/exhaustive-deps
   const canvasHosts = !!roadmap.pill && canvasDrawn.split(' ').includes(roadmap.pill.stepId);
   useEffect(() => { if (!comments.active && panelTab === 'comments') setPanelTab('chat'); }, [comments.active, panelTab]); // eslint-disable-line react-hooks/exhaustive-deps
   // Canvas references (C:/s/spec/references-plan.md): the board's links feed Search's Links results and the cards' chips; the
