@@ -18,12 +18,8 @@ export function RoadmapChat({ roadmap }) {
 export function RoadmapToc({ roadmap }) {
   const c = roadmap.controller;
   if (!roadmap.toc) return null;
-  // A long plan scrolls inside its own region (the headings below keep theirs): steps, stopping point and every action stay reachable.
-  return (
-    <div data-roadmap-scroll className="mb-3 max-h-[50vh] min-h-0 shrink overflow-y-auto">
-      <RoadmapPlan toc={roadmap.toc} onAcceptPlan={() => roadmap.acceptPlan()} onEdit={roadmap.editPlan} onProposeNext={() => c.proposeNext()} onEnd={() => c.end()} onGo={roadmap.go} />
-    </div>
-  );
+  // Drawn inside the Table of contents' own scroll (TableOfContents `top`): the ToC is the roadmap, one scroll for all of it (owner, 2026-11-06).
+  return <RoadmapPlan toc={roadmap.toc} onAcceptPlan={() => roadmap.acceptPlan()} onEdit={roadmap.editPlan} onProposeNext={() => c.proposeNext()} onEnd={() => c.end()} onGo={roadmap.go} />;
 }
 // hosted: the canvas really draws this proposal as its slot (AdaptiveCanvas SlotCard beside its source; the page learns it from the canvas), so the fixed overlay is
 // not drawn: never both. A proposal the canvas cannot draw (a link, a source not measured yet, the editor open) keeps the overlay: never neither.
