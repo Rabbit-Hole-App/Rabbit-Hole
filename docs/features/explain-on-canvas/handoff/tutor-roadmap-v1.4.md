@@ -196,7 +196,7 @@ Fill the same frame with the real explanation at the stored top-left/width, grow
 
 **Delivered Explanation · core Tutor MVP.** The existing frame keeps its position and width. Its fixed header shows **Explanation**, the prominent accepted roadmap step title, and **Source: en.md** with **View section** when that source is available. The title stays the same across Depth settings. Scroll the main explanation independently of the header and disclosure controls. A disclosure opens below the controls and grows the same card downward, preserving the main text, its height and its scroll position.
 
-The main explanation and each optional section support Markdown headings, lists, pipe tables and fenced Mermaid flowcharts. Tables and diagrams render inside the same Explanation card. The ordinary standalone Table format remains available. Use the existing canvas card, typography and source controls. [04 — Explanation card](ui/04-explanation-card.html) · [06 — Explanation depth and Markdown fixtures](ui/06-explanation-depth.html)
+The shared Explanation writer instructions explicitly allow Markdown headings, lists, pipe tables and fenced Mermaid flowcharts in the main body and each optional section. Tables and diagrams render inside the same Explanation card. The ordinary standalone Table format remains available. Use the existing canvas card, typography and source controls. [04 — Explanation card](ui/04-explanation-card.html) · [06 — Explanation depth and Markdown fixtures](ui/06-explanation-depth.html)
 
 | Accepted Depth | Maximum characters of card content |
 | --- | ---: |
@@ -204,9 +204,21 @@ The main explanation and each optional section support Markdown headings, lists,
 | Standard | 1,000 |
 | Deep | 1,500 |
 
-The maximum includes the title, rendered Markdown text, table cells, visible diagram labels and every optional section's label and content, including collapsed content. Depth is fixed for the accepted generation. The mockup's tabs, counts and example lesson copy are for review. The authoring and rendering contract ships in the core MVP. The final lesson content for each Depth is a separate decision.
+The maximum includes the title, rendered Markdown text, table cells, visible diagram labels and every optional section's label and content, including collapsed content. Depth is fixed for the accepted generation. The mockup's tabs, counts and example lesson copy are for review. The authoring and rendering contract ships in the core MVP. The shared teaching guidance below is required for the core Tutor MVP. The lesson copy in the HTML files is illustrative.
 
 A lost save/acknowledgment reconciles this same result and card ID. It never generates a replacement or charges again. A genuine generation failure keeps a truthful failed/skipped state in the same slot and Chat entry, without **Retry**, **Replace** or **Omit** buttons. Section 6.3 defines failure continuation and the safety-refusal stop.
+
+**Reusable Explanation generation · core Tutor MVP.** `make_explanation` supports a direct learner question plus Depth, with source material when available. The Tutor's existing authorized artifact path can create that card without creating a Markdown roadmap. Roadmap steps use the same Explanation teaching guidance, content budgets and renderer. The roadmap adapter supplies its accepted title, goal, claims and source identity.
+
+| Depth | Teaching objective |
+| --- | --- |
+| Overview | Explain the central idea and essential mechanism in everyday language. A concrete example can make the idea easier to follow. |
+| Standard | Explain how and why the mechanism works, with enough reasoning to apply it to another case. |
+| Deep | Develop the reasoning and relevant assumptions, limitations or connections. Work through a calculation or consequence when it helps. |
+
+The main body answers the question on its own. Optional sections can add a worked example, prediction or further reasoning. Choose headings and structure to suit the subject. Use a table for comparisons across shared attributes and a Mermaid flowchart for branching decisions, relationships or a process. Either format is available at every Depth. Explain what the learner should notice in a visual.
+
+The planner supplies one coherent learning idea per step, scoped to the selected Depth budget. An `explanation` step can contain prose, a table or a Mermaid flowchart within one card. Its accepted title remains the title at every Depth. The writer controls the explanation's structure using shared Explanation guidance. The checklist's CORE.09 assigns the prompt and validation changes to the existing planner and artifact request builders.
 
 ### 3.10 Step 10 — Keep passage navigation and visual order understandable
 
@@ -650,7 +662,7 @@ The immediate ordinary sprint deliverable is: **drop Markdown → Chat opens and
 | R1 Feedback | Per-card thumbs feed private self-reported Progress. | Existing. Preserve behavior while fixing slot/card integration. |
 | R2 Depth/Auto-suggest | Shared preference/Chat roadmap parameters and remembered Auto-suggest. | Existing settings; relocate the direct roadmap slider to Chat and freeze/version accepted settings for real author requests. |
 | R3 Source references | Bidirectional card/passage navigation, persistent subtle source highlights/icons and passage-adjacent placement. | Existing reference foundations; finish exact matching, accessible links/chooser, collision avoidance and stable world geometry. Reference identity does not restrict author context. |
-| R4 Core roadmap | Drop → Chat acknowledgment and routing → draft/parameters/Edit/Accept in Chat → accepted ToC → synchronized step lifecycle, durable cards and billing. Delivered Explanation includes the fixed header, downward disclosures, Depth caps, Markdown tables and Mermaid flowcharts in section 3.9. | Existing foundation enabled with MVP correction and acceptance work outstanding. Full-context authoring is in main. Include accepted-roadmap revision for future work. The separately enabled empty-canvas entry follow-up can ship after the Markdown flow. |
+| R4 Core roadmap | Drop → Chat acknowledgment and routing → draft/parameters/Edit/Accept in Chat → accepted ToC → synchronized step lifecycle, durable cards and billing. Core Explanation work includes shared teaching guidance for direct questions and roadmap steps, Depth caps, a pinned header, downward disclosures, Markdown tables and Mermaid. | Existing foundation enabled with MVP correction and acceptance work outstanding. Include the planner and writer prompt changes in CORE.09 and the checks in BE.06a. The separately enabled empty-canvas invitation follow-up can ship after the Markdown flow. |
 | R6 Automatic proposals | One next canvas proposal and matching Chat entry after saved/acknowledged delivery; no camera/focus theft or poll spam. | Existing foundation enabled; prove first/second delivery and failure/safety successor rules. Manual **Propose next step** stays in Chat. R11 speculation is separate. |
 | R5 Edit/reuse | **Edit card** in Chat and Ctrl/Cmd+K target the same proposal edit; explicit linking reuses suitable content free of generation charge. | Implemented portions disabled. The requested MVP **Edit card** path needs real supported edit/version behavior before its control is accepted; broader link/drag/Add-to-Chat work can ship separately. Do not conflate proposal editing with **Edit roadmap**. |
 | R7a Long Markdown | Whole-document coverage beyond the bounded full-context source path. | Existing index/plan portions disabled; qualify coverage/context/limits and enable separately. Important for the original long-document use case. |
