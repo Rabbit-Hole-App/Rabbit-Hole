@@ -5,6 +5,8 @@ import { CodeRefs } from './code-refs.js';
 import { colorLine } from './code.jsx';
 import { MathText, tokenizeMath } from './MathText.jsx';
 import MermaidDiagram from './MermaidDiagram.jsx';
+import { DIAGRAM_FENCE } from './diagram-fence.js';
+import TutorDiagram from './tutor-diagrams/TutorDiagram.js';
 import { FILE_TOKEN, INLINE_PARTS, citedSources, linkable, referenceLabel, sourceReference, singleSourcePath } from './source-references.js';
 import { cn } from './ui.jsx';
 
@@ -146,10 +148,12 @@ const LIST_ITEM = /^(\s*)([-*+]|\d{1,9}[.)])\s+(.*)$/;
 const HEADING_SIZE = { 1: 'text-xl', 2: 'text-lg', 3: 'text-base' };
 
 // A closed fence: code, except where the caller asks for rich fences (a file card's Markdown): a math, latex or tex fence is display
-// math (the same MathText as $$...$$, whose KaTeX shows its own error for a bad formula) and a mermaid fence is the diagram.
+// math (the same MathText as $$...$$, whose KaTeX shows its own error for a bad formula) a mermaid fence is the legacy diagram and an rh-diagram fence is a TutorDiagram.
 const MATH_FENCE = /^(math|latex|tex)$/i;
 function fenceOf(fence, key, rich) {
   if (rich && MATH_FENCE.test(fence.lang)) return <MathText key={key} expression={fence.lines.join('\n')} display />;
+  // A written Explanation's diagram (rh-diagram, a TutorDiagram spec): invalid text stays readable as the code it is. The legacy Mermaid reader below stays for saved content.
+  if (rich && DIAGRAM_FENCE.test(fence.lang)) return <div key={key} className="my-2"><TutorDiagram spec={fence.lines.join('\n')} fallback={<Code {...fence} />} /></div>;
   if (rich && /^mermaid$/i.test(fence.lang)) return <Code key={key} {...fence} diagram />;
   return <Code key={key} {...fence} />;
 }

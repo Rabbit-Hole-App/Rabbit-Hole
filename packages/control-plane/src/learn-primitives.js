@@ -16,6 +16,7 @@ import { validateToolInput as validateSchema } from './learn-validation.js';
 import { MATH_FORMAT } from './agents/math-format.js';
 import MATH_SCHEMA from '../../math-renderer/math-schema.json' with { type: 'json' };
 import { DEFAULT_DEPTH, EXPLANATION_CAPS, validDepth } from './chat-depth.js';
+import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js'; // the card's own diagram library: one parser for the author, the validator and the renderer
 
 const text = (maxLength, minLength = 1) => ({ type: 'string', minLength, maxLength });
 const list = (items, minItems, maxItems) => ({ type: 'array', minItems, maxItems, items });
@@ -44,7 +45,7 @@ export const PRIMITIVES = {
   explanation: {
     ready: true,
     about: `A titled explanation in Markdown with optional folded extras (worked example, misconception). ${MATH_FORMAT}`,
-    schema: shape({ title: text(120), body: text(2000), more: list(shape({ label: text(40), text: text(800) }), 0, 3) }, ['title', 'body']),
+    schema: shape({ title: text(120), body: text(3000), more: list(shape({ label: text(40), text: text(1500) }), 0, 3) }, ['title', 'body']),
     block: spec => ({ type: 'explanation', title: spec.title, body: spec.body, ...(spec.more?.length ? { more: spec.more } : {}) }),
   },
   table: {
@@ -263,23 +264,32 @@ export function artifactBlock(id, spec) {
 }
 
 
-// --- CORE.09: the shared Explanation teaching guidance, display-text budget and supported Mermaid ---------------------------------------
+// --- CORE.09: the shared Explanation teaching guidance, display-text budget and the card's diagram format ----------------------------------
 // Offered with make_explanation on every path (direct /explain, Quick Edit, the Tutor roadmap); the request's Depth objective and budget
 // (chat-depth.js explanationTarget) follow it in the same tool description.
-export const EXPLANATION_GUIDANCE = 'For make_explanation, the main body and optional section text support Markdown paragraphs, headings, lists, pipe tables and fenced mermaid flowcharts. Choose the form that makes the idea easiest to understand. Use a table to compare items across shared attributes. Use a Mermaid flowchart to explain branching decisions, relationships or a process. Include enough prose to explain what the learner should notice. Treat tables and diagrams as optional at every Depth. Choose the structure to suit the question. The main body must answer the learner\'s question on its own. Optional sections can add a worked example, prediction or further reasoning. Apply the requested Depth guidance and total character budget. Include the title, section labels, table cells, diagram labels and collapsed content in that budget. A table has leading and trailing pipes, a header row, a separator row and the same number of cells in every row. A diagram is one closed ```mermaid fence whose first line is flowchart TD or flowchart LR, followed only by node declarations with short quoted labels (A["Label"]) and arrow edges (A --> B, or A -->|plain label| B): no HTML, frontmatter, directives, hyperlinks, click handlers, styling commands or external assets.';
+export const EXPLANATION_GUIDANCE = 'For make_explanation, the main body and optional section text support Markdown paragraphs, headings, lists, pipe tables and diagram fences. Choose the form that makes the idea easiest to understand. Use a table to compare items across shared attributes. Use a diagram to explain branching decisions, relationships, a sequence of events or a process. Include enough prose to explain what the learner should notice. Treat tables and diagrams as optional at every Depth. Choose the structure to suit the question. The main body must answer the learner\'s question on its own. Optional sections can add a worked example, prediction or further reasoning. Apply the requested Depth guidance and total character budget. Include the title, section labels, table cells, diagram title, caption and labels, and collapsed content in that budget. A table has leading and trailing pipes, a header row, a separator row and the same number of cells in every row. A diagram is one closed ```rh-diagram fence holding one JSON object {"version":1,"diagram":{"kind":...,"title":...}} and nothing else; never write Mermaid, HTML or SVG. Kinds: flow (nodes [{id,label,role:"process"|"decision"|"outcome"}], edges [{from,to,label?}]: one connected acyclic graph with exactly one start node; a decision has two or three outgoing edges with distinct short labels such as Yes and No, a process has one outgoing edge, an outcome has none; use cycle for a loop), comparison (columns [{heading,items:[...]}]), timeline (events [{time,label,detail?}]), sequence (actors [{id,label}], messages [{from,to,label}]), matrix (columns [...], rows [{heading,cells:[one per column]}]), layers (layers [{label,detail?}]), cycle (steps [...]). IDs start with a letter. Labels are short single-line text: title at most 90 characters, flow node 60, edge label 30, optional caption 140.';
 
-// The card's own patterns (Md.jsx lines()): an opening ``` takes its language token and ignores the rest of the line (so "mermaid extra" is a
-// Mermaid fence), any line starting with ``` closes, and the card draws a diagram for /^mermaid$/i. Pinned against Md.jsx by explanation-validation.test.js.
+// The card's own patterns (Md.jsx lines()): an opening ``` takes its language token and ignores the rest of the line, any line starting with
+// ``` closes, and the card draws a TutorDiagram for /^rh-diagram$/i. Pinned against Md.jsx by explanation-validation.test.js.
 const FENCE = /^\s*```\s*([\w+#.-]*)/;
-const ID = '[A-Za-z][A-Za-z0-9_]{0,29}';
-const LABEL = '"([^"<>`\\n]{1,80})"';
-const NODE = `${ID}(?:\\[${LABEL}\\]|\\(${LABEL}\\)|\\{${LABEL}\\}|\\(\\[${LABEL}\\]\\))?`;
-const NODE_LINE = new RegExp(`^${NODE}$`);
-const EDGE_LINE = new RegExp(`^${NODE}\\s*(?:-->|---|-\\.->|==>)\\s*(?:\\|([^|"<>\\n]{1,60})\\|\\s*)?${NODE}$`);
-const LABELS = new RegExp(LABEL, 'g');
+const DIAGRAM = 'rh-diagram';
 
-// The visible words of one supported flowchart line: node labels, then the edge label.
-const mermaidWords = line => [...line.matchAll(LABELS)].map(m => m[1]).concat((line.match(/\|([^|"<>\n]{1,60})\|/) || [])[1] || []);
+// The visible words of a diagram spec: title, caption and every label the renderer draws (spec.js describes the same content for the Tutor).
+function diagramWords({ diagram: d }) {
+  const own = [d.title, d.caption];
+  switch (d.kind) {
+    case 'flow': return [...own, ...d.nodes.map(n => n.label), ...d.edges.map(e => e.label)];
+    case 'comparison': return [...own, ...d.columns.flatMap(c => [c.heading, ...c.items])];
+    case 'timeline': return [...own, ...d.events.flatMap(e => [e.time, e.label, e.detail])];
+    case 'sequence': return [...own, ...d.actors.map(a => a.label), ...d.messages.map(m => m.label)];
+    case 'matrix': return [...own, ...d.columns, ...d.rows.flatMap(r => [r.heading, ...r.cells])];
+    case 'layers': return [...own, ...d.layers.flatMap(l => [l.label, l.detail])];
+    case 'cycle': return [...own, ...d.steps];
+    default: return own;
+  }
+}
+// A fence that does not parse still counts as the literal lines, so a bad block cannot hide text; diagramProblem refuses it anyway.
+const fenceWords = lines => { try { return diagramWords(parseTutorDiagram(lines.join('\n'))).filter(Boolean); } catch { return lines; } };
 
 // The fences of a Markdown string: -> [{ lang, lines, closed }] in order, plus the prose lines outside them.
 function split(md) {
@@ -295,14 +305,18 @@ function split(md) {
   return { prose, fences };
 }
 
-// The problem with a Markdown string's Mermaid fences, or null: only a closed flowchart TD/LR of node declarations and arrow edges.
-export function mermaidProblem(md) {
-  for (const f of split(md).fences.filter(f => f.lang === 'mermaid')) {
-    if (!f.closed) return 'explanation_bad_mermaid: a mermaid fence is not closed';
-    const lines = f.lines.map(l => l.trim()).filter(Boolean);
-    if (!/^flowchart (TD|LR)$/.test(lines[0] || '')) return 'explanation_bad_mermaid: a diagram must start with flowchart TD or flowchart LR';
-    const bad = lines.slice(1).find(l => !NODE_LINE.test(l) && !EDGE_LINE.test(l));
-    if (bad !== undefined) return `explanation_bad_mermaid: unsupported diagram line "${bad.slice(0, 60)}" (use node declarations A["Label"] and arrow edges A --> B or A -->|label| B only)`;
+// The problem with a Markdown string's diagram fences, or null. Every rh-diagram fence must be closed and pass parseTutorDiagram (topology,
+// references, labelled branches, row widths) before anything is delivered. A Mermaid fence is the superseded format: the card still draws one
+// from saved content, but new Explanation output is refused so the author writes the diagram as an rh-diagram spec instead.
+export function diagramProblem(md) {
+  for (const f of split(md).fences) {
+    if (f.lang === 'mermaid') return 'explanation_bad_diagram: a mermaid fence is not accepted; write the diagram as one closed ```rh-diagram fence holding a TutorDiagram JSON spec';
+    if (f.lang !== DIAGRAM) continue;
+    if (!f.closed) return 'explanation_bad_diagram: an rh-diagram fence is not closed';
+    try { parseTutorDiagram(f.lines.join('\n')); } catch (error) {
+      const issues = Array.isArray(error?.issues) ? error.issues.slice(0, 3).map(i => `${i.path.join('.') || 'diagram'}: ${i.message}`).join('; ') : String(error?.message || 'invalid');
+      return `explanation_bad_diagram: the rh-diagram spec is not valid (${issues.slice(0, 280)})`;
+    }
   }
   return null;
 }
@@ -320,11 +334,11 @@ const inlineText = s => s.split(INLINE).map((part, i) => {
   return part.startsWith('[') ? part : inlineText(part.slice(1, -1)); // ponytail: a source-reference pill (file.py:15) may draw different text than it matches; not mirrored
 }).join('');
 
-// The display text of one Markdown string in reading order: prose, headings, list items, table cells, code as literal text, Mermaid labels.
+// The display text of one Markdown string in reading order: prose, headings, list items, table cells, code as literal text, diagram labels.
 function markdownText(md) {
   const out = [];
   for (const line of split(md).prose) {
-    if (typeof line !== 'string') { out.push(...(line.fence.lang === 'mermaid' ? line.fence.lines.flatMap(mermaidWords) : line.fence.lines)); continue; }
+    if (typeof line !== 'string') { out.push(...(line.fence.lang === DIAGRAM ? fenceWords(line.fence.lines) : line.fence.lines)); continue; }
     if (/^\s*\|.*\|\s*$/.test(line)) {
       const cells = line.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
       if (!cells.every(c => /^:?-{3,}:?$/.test(c))) out.push(...cells.map(inlineText));
@@ -340,10 +354,10 @@ function markdownText(md) {
 export const explanationText = block => [block?.title ?? '', markdownText(block?.body), ...(block?.more || []).flatMap(s => [s?.label ?? '', markdownText(s?.text)])].join(' ').replace(/\s+/g, ' ').trim();
 export const explanationChars = block => Array.from(explanationText(block)).length;
 
-// -> null, or the validator's words: over the Depth's budget or an unsupported diagram. The repair (direct paths) reads them; the roadmap fails terminally.
+// -> null, or the validator's words: over the Depth's budget or an invalid diagram. The repair (direct paths) reads them; the roadmap fails terminally.
 export function explanationProblem(block, depth) {
   const cap = EXPLANATION_CAPS[validDepth(depth) || DEFAULT_DEPTH], used = explanationChars(block);
-  if (used > cap) return `explanation_over_budget: the card has ${used} characters, the ${validDepth(depth) || DEFAULT_DEPTH} budget is ${cap} including the title, section labels, table cells, diagram labels and collapsed sections; shorten it.`;
-  for (const text of [block?.body, ...(block?.more || []).map(s => s?.text)]) { const problem = mermaidProblem(text); if (problem) return problem; }
+  if (used > cap) return `explanation_over_budget: the card has ${used} characters, the ${validDepth(depth) || DEFAULT_DEPTH} budget is ${cap} including the title, section labels, table cells, diagram title, caption and labels, and collapsed sections; shorten it.`;
+  for (const text of [block?.body, ...(block?.more || []).map(s => s?.text)]) { const problem = diagramProblem(text); if (problem) return problem; }
   return null;
 }

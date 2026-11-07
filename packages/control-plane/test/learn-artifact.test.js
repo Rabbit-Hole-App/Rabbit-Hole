@@ -92,11 +92,11 @@ test('a primitive outside the family is rejected on the server, whatever the bro
   assert.ok(!offered(seen[0]).includes('make_video_generate'));
 });
 
-test('a long text field states its limit in words in the tool description (an explanation body overran 2,000 characters twice)', async () => {
+test('a long text field states its limit in words in the tool description (an explanation body overran its old 2,000 character limit twice)', async () => {
   const { callModel, seen } = scripted(['make_explanation', explanation]);
   await generateArtifact({}, { command: 'explain', args: 'how the human reproductive system works' }, { callModel });
   const tool = seen[0].tools.find(entry => entry.name === 'make_explanation');
-  assert.match(tool.description, /Keep body under 2,000 characters \(about 280 words\): longer is refused\./);
+  assert.match(tool.description, /Keep body under 3,000 characters \(about 420 words\): longer is refused\./);
   assert.doesNotMatch(tool.description, /Keep title/);
 });
 
@@ -299,10 +299,10 @@ test('the written command validates a Markdown table card against the Depth budg
     assert.equal(refused.result, 'validation_error', `${depth} over`);
     assert.match(refused.error, /^explanation_over_budget:/);
   }
-  // A Mermaid block the renderer cannot draw is refused the same way.
-  const bad = { title: 'T', body: '```mermaid\nflowchart TD\n  subgraph S\n```' };
+  // A NEW Mermaid fence is the superseded format: refused the same way (the card still draws saved ones). Diagrams are rh-diagram specs.
+  const bad = { title: 'T', body: '```mermaid\nflowchart TD\n  A["Go"] --> B["Stop"]\n```' };
   const mermaid = await generateArtifact({}, { command: 'explanation', args: 'x' }, { callModel: scripted(['make_explanation', bad], ['make_explanation', bad], ['make_explanation', bad]).callModel });
-  assert.match(mermaid.error, /^explanation_bad_mermaid/);
+  assert.match(mermaid.error, /^explanation_bad_diagram: a mermaid fence is not accepted/);
 });
 
 test('the artifact route gives the written command the learner\'s Depth and selected source context, and refuses an image it does not take', async () => {

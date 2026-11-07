@@ -358,8 +358,8 @@ const primitives = await import('../src/learn-primitives.js');
 const charsOf = block => (primitives.explanationChars ? primitives.explanationChars(block) : Array.from(block.title).length + Array.from(block.body).length);
 // A body that makes the whole block exactly `target` counted code points (Unicode filler).
 const bodyFor = (title, target) => { let body = 'é'.repeat(target); body = 'é'.repeat(Math.max(0, target - (charsOf({ title, body }) - target))); return body; };
-const RICH_BODY = 'Compare the two criteria:\n\n| criterion | range |\n| --- | --- |\n| Gini | 0 to 0.5 |\n| Entropy | 0 to 1 |\n\n```mermaid\nflowchart TD\n  A["Node"] -->|split| B["Purer children"]\n```\n\nNotice both reach zero for a pure node.';
-const RICH_MORE = [{ label: 'Worked example', text: '| share | Gini |\n| --- | --- |\n| 0.5 | 0.5 |\n\n```mermaid\nflowchart LR\n  P["Parent"] --> C["Child"]\n```' }];
+const RICH_BODY = 'Compare the two criteria:\n\n| criterion | range |\n| --- | --- |\n| Gini | 0 to 0.5 |\n| Entropy | 0 to 1 |\n\n```rh-diagram\n{"version":1,"diagram":{"kind":"flow","title":"Splitting a node","nodes":[{"id":"a","label":"Node","role":"process"},{"id":"b","label":"Purer children","role":"outcome"}],"edges":[{"from":"a","to":"b","label":"split"}]}}\n```\n\nNotice both reach zero for a pure node.';
+const RICH_MORE = [{ label: 'Worked example', text: '| share | Gini |\n| --- | --- |\n| 0.5 | 0.5 |\n\n```rh-diagram\n{"version":1,"diagram":{"kind":"flow","title":"Parent to child","nodes":[{"id":"p","label":"Parent","role":"process"},{"id":"c","label":"Child","role":"outcome"}],"edges":[{"from":"p","to":"c"}]}}\n```' }];
 
 test('BE.06a Tutor Explanation authoring, saved output and caps (CORE.09)', async t => {
   for (const [depth, cap] of Object.entries(CAPS)) {
@@ -388,7 +388,7 @@ test('BE.06a Tutor Explanation authoring, saved output and caps (CORE.09)', asyn
       assert.equal((await h.send('alice', 'GET', `/api/learn/roadmap/${view.roadmap.id}/results/${resultId}?boardId=${h.boards.alice}`)).status, 404, 'no ready card');
     });
   }
-  await t.test('BE.06a a table and a supported Mermaid flowchart in body and an expanded section survive validation intact', async () => {
+  await t.test('BE.06a a table and a valid rh-diagram spec in body and an expanded section survive validation intact', async () => {
     const { h, resultId } = await firstCard(t, [explanation(STEPS[0].title, RICH_BODY, RICH_MORE)]);
     const row = resultRow(h, resultId);
     assert.equal(row.generation, 'generated');
@@ -400,7 +400,7 @@ test('BE.06a Tutor Explanation authoring, saved output and caps (CORE.09)', asyn
       assert.equal(resultRow(h, resultId).generation, 'generated', JSON.stringify(more));
     }
   });
-  await t.test('BE.06a unsupported Mermaid (a click directive / HTML) is a terminal validation failure, not a saved card', async () => {
+  await t.test('BE.06a a new Mermaid fence (the superseded format) is a terminal validation failure, not a saved card', async () => {
     const bad = 'See:\n\n```mermaid\nflowchart TD\n  A["<b>Node</b>"] --> B["Leaf"]\n  click A "https://example.test"\n```';
     const { h, resultId } = await firstCard(t, [explanation(STEPS[0].title, bad), explanation()]);
     const row = resultRow(h, resultId);
