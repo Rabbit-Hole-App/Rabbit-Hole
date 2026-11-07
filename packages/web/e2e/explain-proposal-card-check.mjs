@@ -211,7 +211,7 @@ await step('a brief that waits for approval: Review explanation, title, request,
   assert.equal(await card.getAttribute('aria-label'), 'Review explanation');
   assert.match(await card.innerText(), /^Review explanation\s/);
   // The owner made these sections closed disclosures on 2026-11-07. Verify the initial state and the exact contents after opening.
-  for (const [section, title, expected] of [['assumptions', /^Assumptions/i, ASSUMPTIONS], ['limitations', /^Not supported or not verified/i, LIMITATIONS]]) {
+  for (const [section, title, expected] of [['assumptions', /^Assumptions/i, ASSUMPTIONS], ['limitations', /^Limitations/i, LIMITATIONS]]) {
     const disclosure = card.locator(`[data-proposal-disclosure="${section}"]`);
     const items = card.locator(`[data-proposal-section="${section}"] li`);
     assert.match(await disclosure.innerText(), title);
