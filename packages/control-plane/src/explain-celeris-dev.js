@@ -37,11 +37,11 @@ export function exclusiveOneOfToAnyOf(schema) {
   return { ...rest, anyOf: oneOf };
 }
 
-// Retest arm (EXPLAIN_DEV_FLOW_RULES=true): the guidance every model gets already says how a flow must be wired, in one clause. This swaps ONLY that clause, in the copy sent to
+// Retest arm (EXPLAIN_DEV_FLOW_RULES=true, or the x-explain-dev-arm: flowrules header): the guidance every model gets already says how a flow must be wired, in one clause. This swaps ONLY that clause, in the copy sent to
 // the provider, for the same rules written as a numbered list that also names the two the clause left out (every edge joins listed ids; a retry is its own outcome, never a loop).
 // Production guidance is untouched. If the clause is not found (the guidance changed) it throws, so the arm can never silently run as the control.
 const FLOW_CLAUSE = /one connected acyclic graph with exactly one start node; a decision has two or three outgoing edges with distinct short labels such as Yes and No, each to its own node, and a failed check ends in its own outcome; a process has one outgoing edge, an outcome has none; use cycle or relationship for a loop/;
-export const FLOW_RULES = 'the app rejects the diagram if any of these is broken: (1) exactly one start node, and every other node reachable from it; (2) no edge points back to an earlier node, so a retry or a revision is its own outcome node, never a loop; (3) a decision node has two or three outgoing edges, each with a different non-empty label such as Yes and No, each to its own node; (4) a process node has exactly one outgoing edge; (5) an outcome node has none; (6) every edge from and to is the id of a listed node, and no pair of nodes is joined twice. Use cycle or relationship for a real loop';
+export const FLOW_RULES = 'the app rejects the diagram if any of these is broken: (1) exactly one start node, and every other node reachable from it; (2) no edge points back to an earlier node, so the flow never loops: when a retry is part of the flow and the process continues, draw the retry as one separate second attempt, with its own nodes, that carries on to the end, and use a node such as Retry begins as an outcome (an endpoint) only when the diagram intentionally stops there; (3) a decision node has two or three outgoing edges, each with a different non-empty label such as Yes and No, each to its own node; (4) a process node has exactly one outgoing edge; (5) an outcome node has none; (6) every edge from and to is the id of a listed node, and no pair of nodes is joined twice. Use cycle or relationship for a real loop';
 export const withFlowRules = guidance => { if (!FLOW_CLAUSE.test(guidance)) throw new Error('flow-rules arm: the flow clause is not in the guidance'); return guidance.replace(FLOW_CLAUSE, FLOW_RULES); };
 
 // Diagnostics (EXPLAIN_DEV_CAPTURE=true): per attempt the raw provider answer, the parser's exact errors, the validator's words sent back for the repair and, on a refused request, the
@@ -67,9 +67,9 @@ Answer format for this request (it replaces the tool call and the fence instruct
 
 // -> { options, served() } for generateArtifact, or null when the switch is off. served() is what the provider said it ran (the response's model field)
 // and what became of each attempt's diagram (omitted, present and valid, present and invalid).
-export function celerisExplainRoute(env, command) {
+export function celerisExplainRoute(env, command, { arm = null } = {}) { // arm: the retest's per-request switch (a header on the dev Worker); only read once the route itself is on
   if (!celerisExplainOn(env, command)) return null;
-  const capture = env.EXPLAIN_DEV_CAPTURE === 'true';
+  const capture = env.EXPLAIN_DEV_CAPTURE === 'true', flowRulesArm = env.EXPLAIN_DEV_FLOW_RULES === 'true' || arm === 'flowrules';
   const seen = { models: [], calls: 0, inTokens: 0, outTokens: 0, attempts: [], capture: [] };
   let last = null; // the previous raw answer text, sent back with the validator's words on the one repair
   if (env.EXPLAIN_DEV_MODEL === 'anthropic') {
@@ -98,7 +98,7 @@ export function celerisExplainRoute(env, command) {
     let learnerText = ''; try { learnerText = JSON.parse(firstText).learnerText || ''; } catch { /* not the author's JSON */ }
     const required = ASKS_FOR_DIAGRAM.test(learnerText);
     const toolGuidance = body.tools?.find(tool => tool.name === 'make_explanation')?.description || '';
-    const guidance = env.EXPLAIN_DEV_FLOW_RULES === 'true' ? withFlowRules(toolGuidance) : toolGuidance;
+    const guidance = flowRulesArm ? withFlowRules(toolGuidance) : toolGuidance;
     const messages = [{ role: 'system', content: `${body.system}\n${guidance}\n${ADDENDUM(required)}` }, { role: 'user', content: firstText }];
     let feedback = null;
     if (body.messages.length > 1 && last != null) {
@@ -129,5 +129,5 @@ export function celerisExplainRoute(env, command) {
     return Response.json({ model: json.model, stop_reason: json.choices?.[0]?.finish_reason === 'length' ? 'max_tokens' : 'tool_use', usage: json.usage || {},
       content: [{ type: 'tool_use', id: `t_${seen.calls}`, name: 'make_explanation', input }] });
   };
-  return { options: { callModel }, served: () => ({ requested: env.EXPLAIN_DEV_MODEL || CELERIS_MODEL, models: [...new Set(seen.models)], calls: seen.calls, inTokens: seen.inTokens, outTokens: seen.outTokens, attempts: seen.attempts, ...(capture ? { capture: seen.capture, flowRulesArm: env.EXPLAIN_DEV_FLOW_RULES === 'true' } : {}) }) };
+  return { options: { callModel }, served: () => ({ requested: env.EXPLAIN_DEV_MODEL || CELERIS_MODEL, models: [...new Set(seen.models)], calls: seen.calls, inTokens: seen.inTokens, outTokens: seen.outTokens, attempts: seen.attempts, ...(capture ? { capture: seen.capture, flowRulesArm } : {}) }) };
 }

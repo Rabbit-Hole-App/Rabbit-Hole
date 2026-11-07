@@ -81,3 +81,25 @@ test('flow-rules arm: only the flow clause of the guidance changes; off, the gui
   assert.equal(arm.includes(FLOW_RULES), true);
   assert.equal(arm.replace(FLOW_RULES, '').length < control.length, true, 'the rewritten clause replaces the old one, nothing is appended');
 });
+
+test('the retest arm can be chosen per request (the x-explain-dev-arm header), so both arms run on one stack; production ignores it', async () => {
+  const sent = async (env, arm) => withFetch([() => reply(card(GOOD))], async requests => { await ask(celerisExplainRoute(env, 'explanation', { arm }), 'How does a cache work?'); return requests[0].body.messages[0].content; });
+  assert.equal((await sent(ON, null)).includes(FLOW_RULES), false);
+  assert.equal((await sent(ON, 'control')).includes(FLOW_RULES), false);
+  assert.equal((await sent(ON, 'flowrules')).includes(FLOW_RULES), true);
+  assert.equal(celerisExplainRoute({ ...ON, SMALL_ENV: 'production' }, 'explanation', { arm: 'flowrules' }), null);
+  const env = { ...ON, EXPLAIN_DEV_CAPTURE: 'true', CONTROL_PLANE: { fetch: async () => Response.json({ name: 'demo' }) } };
+  const viaHeader = async arm => withFetch([() => reply(card(GOOD))], async () => {
+    const res = await artifactFetch(new Request('https://dev.test/api/learn/artifact', { method: 'POST', headers: arm ? { 'x-explain-dev-arm': arm } : {}, body: JSON.stringify({ app: 'demo', command: 'explanation', args: 'How does a cache work?' }) }), env, generateArtifact, { identity: { org: 'o', user_id: 'u' } });
+    return (await res.json()).devModel.flowRulesArm;
+  });
+  assert.equal(await viaHeader('flowrules'), true);
+  assert.equal(await viaHeader('control'), false);
+  assert.equal(await viaHeader(null), false);
+});
+
+test('the rewritten flow clause keeps the workflow: a retry is one separate second attempt when the flow continues, Retry begins is an endpoint only when the diagram stops there, and every edge names a listed node id', () => {
+  assert.match(FLOW_RULES, /draw the retry as one separate second attempt, with its own nodes, that carries on to the end/);
+  assert.match(FLOW_RULES, /Retry begins as an outcome \(an endpoint\) only when the diagram intentionally stops there/);
+  assert.match(FLOW_RULES, /every edge from and to is the id of a listed node/);
+});
