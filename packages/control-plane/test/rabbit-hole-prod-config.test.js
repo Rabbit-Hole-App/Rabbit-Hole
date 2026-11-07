@@ -302,5 +302,10 @@ test('production roadmap: ROADMAP_JOBS bound last with roadmap-jobs-1, ROADMAP_E
   assert.equal(cp.vars?.ROADMAP_ENABLED, undefined);
   assert.equal(app.vars?.ROADMAP_AUTO_ENABLED, 'true', 'production: the automatic next-step suggestion is on, as the exact string true');
   for (const [name, c] of [['dev', dev], ['parallel', parallel], ['control plane', cp]]) assert.equal(c.vars?.ROADMAP_AUTO_ENABLED, undefined, `${name}: stays unset`);
+  // Release 91 (owner 2026-11-06): R5 proposal editing and R7a long Markdown are on in production, as the exact string true.
+  for (const flag of ['ROADMAP_EDIT_ENABLED', 'ROADMAP_LONG_MARKDOWN_ENABLED']) {
+    assert.equal(app.vars?.[flag], 'true', `production: ${flag} is on`);
+    for (const [name, c] of [['dev', dev], ['parallel', parallel], ['control plane', cp]]) assert.equal(c.vars?.[flag], undefined, `${name}: ${flag} stays unset`);
+  }
   assert.equal(new Set(app.migrations.map(m => m.tag)).size, app.migrations.length, 'every tag is unique');
 });

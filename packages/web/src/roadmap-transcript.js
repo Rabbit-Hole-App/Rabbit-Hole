@@ -59,4 +59,4 @@ export function transcriptOf(state, { invitation = null, saved = false, choosing
   }
   return items;
 }
-// ponytail: no Edit for the proposal in Chat (ROADMAP_EDIT_ENABLED is off in production); refinement stays in the Contents conversation.
+// Edit for the proposal in Chat appears only when the view allows it (ROADMAP_EDIT_ENABLED, on from release 91); it opens the existing proposal editor.
