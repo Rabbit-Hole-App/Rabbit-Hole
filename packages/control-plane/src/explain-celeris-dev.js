@@ -10,13 +10,16 @@
 // Three switches must all be on: the Worker is a dev or test deployment (SMALL_ENV), EXPLAIN_CELERIS_DEV is "true", and CELERIS_API_KEY is set.
 // A production Worker has SMALL_ENV "production" and can never take this path.
 import { parseTutorDiagram, tutorDiagramJsonSchema } from '../../web/src/tutor-diagrams/spec.js';
+import { planModel } from './ask.js';
 
 export const CELERIS_MODEL = 'celeris-1';
 const BASE = 'https://inference.celeris.ai/celeris-1/v1';
 // Words that explicitly ask for a picture. Anything else leaves the diagram to the model ("when useful"), as null or a spec.
 export const ASKS_FOR_DIAGRAM = /\b(diagram|flow ?chart|draw|sketch|visuali[sz]e|illustrate|map out)\b/i;
 
-export const celerisExplainOn = (env, command) => command === 'explanation' && env.EXPLAIN_CELERIS_DEV === 'true' && (env.SMALL_ENV === 'dev' || env.SMALL_ENV === 'test') && !!env.CELERIS_API_KEY;
+// EXPLAIN_DEV_MODEL 'anthropic' (benchmarks only) sends the SAME request the app sends, through the real plan-model transport, and only records the usage and what became of each diagram,
+// so the production model can be measured through this route with the same token and cost accounting as the others; its key is ANTHROPIC_API_KEY instead of CELERIS_API_KEY.
+export const celerisExplainOn = (env, command) => command === 'explanation' && env.EXPLAIN_CELERIS_DEV === 'true' && (env.SMALL_ENV === 'dev' || env.SMALL_ENV === 'test') && !!(env.EXPLAIN_DEV_MODEL === 'anthropic' ? env.ANTHROPIC_API_KEY : env.CELERIS_API_KEY);
 
 // Some providers (Cerebras) refuse `oneOf` in a strict json_schema but accept `anyOf`. The two mean the same ONLY when no value can match two branches, so every oneOf is
 // rewritten only when each branch is an object pinned to its own value of one shared discriminator (the diagram's `kind` const); any other oneOf throws.
@@ -57,6 +60,25 @@ export function celerisExplainRoute(env, command) {
   if (!celerisExplainOn(env, command)) return null;
   const seen = { models: [], calls: 0, inTokens: 0, outTokens: 0, attempts: [] };
   let last = null; // the previous raw answer text, sent back with the validator's words on the one repair
+  if (env.EXPLAIN_DEV_MODEL === 'anthropic') {
+    const recording = async (callEnv, body, model, org) => {
+      seen.calls++;
+      const response = await planModel(env, body, model, org);
+      if (!response.ok) return response;
+      try {
+        const json = await response.clone().json();
+        seen.models.push(json.model || null);
+        seen.inTokens += (json.usage?.input_tokens || 0) + (json.usage?.cache_creation_input_tokens || 0) + (json.usage?.cache_read_input_tokens || 0); seen.outTokens += json.usage?.output_tokens || 0;
+        const input = (json.content || []).find(part => part.type === 'tool_use')?.input || {};
+        const text = [input.body || '', ...(input.more || []).map(section => section?.text || '')].join('\n');
+        const fence = /```\s*rh-diagram\s*\n([\s\S]*?)\n```/i.exec(text);
+        let valid = false; if (fence) { try { valid = !!parseTutorDiagram(JSON.parse(fence[1])); } catch { valid = false; } }
+        seen.attempts.push({ required: ASKS_FOR_DIAGRAM.test(String(body.messages?.[0]?.content || '')), diagram: fence ? (valid ? 'valid' : 'invalid') : 'omitted', chars: String(input.title || '').length + String(input.body || '').length });
+      } catch { /* the measurement is never worth a failed answer */ }
+      return response;
+    };
+    return { options: { callModel: recording }, served: () => ({ requested: 'anthropic (plan model)', models: [...new Set(seen.models)], calls: seen.calls, inTokens: seen.inTokens, outTokens: seen.outTokens, attempts: seen.attempts }) };
+  }
   const callModel = async (callEnv, body) => {
     seen.calls++;
     const first = body.messages?.[0]?.content;
