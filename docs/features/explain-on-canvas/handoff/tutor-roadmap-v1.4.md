@@ -270,6 +270,8 @@ The diagram frame has a bold title at the top and extra vertical padding, with i
 
 The Explanation card's right-click menu offers **Add note**. It opens the same linked note with a blank editor and the card as its context. Both actions use the Canvas toolbar's existing Sticky note tool and link back to the originating card.
 
+**Canvas connectors.** Links created by **Ask in a new card**, **Create note**, and **Add note** follow a smooth Bézier curve between the originating card and the new card or note. Give aligned ports a gentle bow so the curve stays visible. Keep both ends attached as the cards move or resize.
+
 The shared Explanation writer instructions explicitly allow Markdown headings, lists, pipe tables and fenced Mermaid flowcharts in the main body and each optional section. Tables and diagrams render inside the same Explanation card. The ordinary standalone Table format remains available. Use the existing canvas card, typography and source controls with [07 — Approved Explanation card](ui/07-explanation-card-approved.html). Read [06 — Explanation depth and Markdown fixtures](ui/06-explanation-depth.html) for Depth and content examples. The picture in file 07 is a layout fixture. Integrate SVG first and Recraft afterward. Other generated cards can start with the [Generated card shell](ui/templates/generated-card-shell.html).
 
 | Accepted Depth | Maximum characters of card content |
