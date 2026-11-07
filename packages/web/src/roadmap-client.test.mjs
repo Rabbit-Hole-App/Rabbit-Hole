@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { acceptedPlanOf, actionKeys, canProposeNext, chatOf, claimsFocus, deliverable, draftOf, keyboardOwned, idleGrouper, indicatorOf, initialState, invitationOf, offerOf, pillOf, planDelivery, readyMarkdownSources, failuresOf, reduce, routes, stepLabelFor, tabAccepts, texts, tocOf } from './roadmap-client.js';
+import { acceptedPlanOf, actionKeys, canProposeNext, chatOf, claimsFocus, deliverable, draftOf, keyboardOwned, idleGrouper, initialState, invitationOf, offerOf, pillOf, planDelivery, readyMarkdownSources, failuresOf, reduce, routes, stepLabelFor, tabAccepts, texts, tocOf } from './roadmap-client.js';
 import { STRINGS } from './roadmap-strings.js';
 import { entriesOf } from './roadmap-transcript.js';
 import { pageKeyAllowed } from './shortcut-owner.js';
@@ -55,11 +55,11 @@ test('held result: a status line, never any result text', () => {
   assert.deepEqual(chatOf(withView('status-held-for-checking')).map(l => l.text), [STRINGS.checking]);
 });
 
-// UI.01/UI.03 (checklist 4.3, roadmap 3.3): an explicit drop is acknowledged in every mode, and explicit Chat actions (offerOf) work in Ask;
-// only unsolicited initiative pauses (the canvas pill keeps its own gate).
-test('Ask mode pauses initiative: no canvas pill, no plan-ready line; the drop invitation and explicit Chat actions still work', () => {
-  assert.equal(pillOf({ ...withView('status-active-proposal-pending'), mode: 'ask' }), null);
-  assert.equal(offerOf({ ...withView('status-active-proposal-pending'), mode: 'ask' }).accept, true, 'Chat Accept works in Ask');
+test('Ask mode pauses unsolicited initiative: no invitation, no plan-ready line; an offer the server made stays acceptable (explicit action, UI.03); accepted progress still reads', () => {
+  const asked = { ...withView('status-active-proposal-pending'), mode: 'ask' };
+  assert.equal(pillOf(asked).accept, true, 'Accept / Next card / Tab work in Ask without changing the preference');
+  assert.equal(pillOf(asked).gesture, pillOf(withView('status-active-proposal-pending')).gesture, 'one gesture for every surface, so one coalesced request');
+  assert.equal(offerOf(asked).accept, true, 'Chat Accept works in Ask too');
   const inv = reduce({ ...initialState(), mode: 'ask' }, { type: 'invitation', invitation: view('invitation-offered').invitation });
   assert.equal(invitationOf(inv).id, inv.invitation.id);
   assert.ok(!chatOf({ ...withView('status-proposed-plan'), mode: 'ask' }).some(l => l.id === 'plan'));
@@ -127,15 +127,6 @@ test('accept busy latch: a second gesture on the same proposal version is not ac
   assert.equal(pillOf(state).accept, false);
   state = reduce(state, { type: 'end', gesture });
   assert.equal(pillOf(state).accept, true);
-});
-
-test('Next step ready: only with a pending proposal, flagged ready and offscreen; click navigates, nothing else', () => {
-  const state = withView('status-delivered-next-ready');
-  assert.deepEqual(indicatorOf(state, { offscreen: true }), { label: 'Next step ready' });
-  assert.equal(indicatorOf(state, { offscreen: false }), null);
-  assert.equal(indicatorOf(withView('status-active-proposal-pending'), { offscreen: true }), null, 'not flagged ready');
-  assert.equal(indicatorOf(withView('status-cancelled-paused'), { offscreen: true }), null);
-  assert.equal(indicatorOf({ ...state, mode: 'ask' }, { offscreen: true }), null);
 });
 
 const key = (over = {}) => ({ key: 'Tab', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, repeat: false, isComposing: false, keyCode: 9, ...over });
@@ -316,18 +307,6 @@ test('Accept roadmap reports busy at once so the Chat button shows Accepting and
   assert.equal(accept(state).disabled, true);
   assert.equal(accept(state).label, 'Accepting');
   assert.equal(pillOf(withView('status-active-proposal-pending')).accepting, false);
-});
-
-test('Next step ready: a pending acceptable proposal whose view says nextStepReady shows the compact indicator offscreen, once', () => {
-  const ready = clone(view('status-active-proposal-pending'));
-  ready.nextStepReady = true; // what roadmapView returns for an acceptable pending proposal after a finished delivery
-  const state = reduce(initialState(), { type: 'view', view: ready });
-  assert.deepEqual(indicatorOf(state, { offscreen: true }), { label: 'Next step ready' });
-  assert.equal(indicatorOf(state, { offscreen: false }), null, 'onscreen: the overlay itself is the signal');
-  const checking = clone(ready); checking.proposal.state = 'checking'; checking.proposal.acceptable = false;
-  assert.equal(indicatorOf(reduce(initialState(), { type: 'view', view: checking }), { offscreen: true }), null, 'a proposal still being checked is not ready');
-  const none = clone(ready); none.proposal = null;
-  assert.equal(indicatorOf(reduce(initialState(), { type: 'view', view: none }), { offscreen: true }), null, 'no proposal, no readiness');
 });
 
 test('accepted work says what the server says in Chat: making; nothing invented', () => {

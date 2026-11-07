@@ -13,7 +13,6 @@ import { NO_FILE_CARD } from './source-ref.js';
 //   pending     format, title, description and excerpt over the skeleton lines; the first offer has Accept [Tab] | Cancel (StepPill) 8px below the frame, a later one none (the bottom pill).
 //   generating, checking, saving   the same frame and words; a 16px spinner in the placeholder; the pill place shows the stage (STAGE), not interactive.
 //   failed      the same frame and words with the server sentence in place; nothing spins, nothing to press (no Retry, owner 2026-11-06).
-const FORMAT_LABEL = { explanation: 'Explanation', table: 'Table' };
 export function SlotCard({ slot, actions = null }) {
   const [now, setNow] = useState(() => performance.now());
   const card = slot.roadmap || null;
@@ -53,7 +52,7 @@ export function SlotCard({ slot, actions = null }) {
       {/* One frame from proposal to saved card (UI.04, file 02): format, the offer's title (17px) and description, the exact excerpt when the step has one. */}
       <div role={pending ? 'group' : 'status'} aria-label={card.title || slot.label} style={{ height: slot.h }} className={frame}>
         {strip}
-        <p data-slot-format className="px-4 text-[11px] leading-4 text-ink-3">{FORMAT_LABEL[card.format] || FORMAT_LABEL.explanation}</p>
+        <p data-slot-format className="px-4 text-[11px] leading-4 text-ink-3">{ROADMAP_STRINGS.formatName[card.format] || ROADMAP_STRINGS.formatName.explanation}</p>
         <p className="px-4 pb-1 text-[17px] leading-[1.35] font-semibold break-words text-ink">{card.title}</p>
         {card.description && <p className="px-4 pb-3 text-[13px] leading-normal break-words text-ink-2">{card.description}</p>}
         {card.excerpt && <blockquote data-slot-excerpt className="mx-4 mb-3 border-l-2 border-line-strong bg-hover px-2.5 py-1.5 text-xs leading-relaxed break-words text-ink-2">{card.excerpt}</blockquote>}

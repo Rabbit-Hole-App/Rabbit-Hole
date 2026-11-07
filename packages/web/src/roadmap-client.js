@@ -93,11 +93,11 @@ const unfinished = view => !!view && isUnfinishedRoadmap(view.roadmap.state);
 const resultsOf = view => view?.results || [];
 const askMode = state => state.mode === 'ask';
 
-// The compact pill and its overlay. Ask pauses new initiative: no new proposal is shown, the accepted work still finishes.
+// The compact pill and its overlay. Ask/off only stop UNSOLICITED offers (the server makes none); an offer it made stays acceptable (explicit action, UI.03 bullet 7).
 // acceptable comes from the server (a held or blocked version is not accept-ready); the busy latch stops a second request.
 export function pillOf(state) {
   const view = state.view, proposal = view?.proposal;
-  if (!enabled(state) || !proposal || view.roadmap.state !== 'active' || proposal.state !== 'pending' || askMode(state)) return null;
+  if (!enabled(state) || !proposal || view.roadmap.state !== 'active' || proposal.state !== 'pending') return null;
   const gesture = `accept:${proposal.id}:${proposal.version}`;
   return {
     proposalId: proposal.id, version: proposal.version, title: proposal.title, description: proposal.description, format: proposal.format,
@@ -107,12 +107,8 @@ export function pillOf(state) {
     next: isNext(view, proposal), label: isNext(view, proposal) ? NEXT_CARD : STRINGS.accept,
   };
 }
-// shortcut: the vocabulary's 'Next card' lives here until roadmap-strings.js (Chat lane) takes it.
-export const NEXT_CARD = 'Next card';
+export const NEXT_CARD = STRINGS.nextCard;
 const isNext = (view, proposal) => resultsOf(view).some(r => r.stepId !== proposal.stepId);
-// "Next step ready": only when a pending proposal exists, the server says it is ready and the overlay is offscreen. It navigates.
-export const indicatorOf = (state, { offscreen }) => (nextStepReady(state) && offscreen ? { label: STRINGS.nextReady } : null);
-export const nextStepReady = state => !!pillOf(state) && state.view.nextStepReady === true;
 
 const stepNav = (step, view) => {
   const result = resultsOf(view).find(r => r.stepId === step.id);
