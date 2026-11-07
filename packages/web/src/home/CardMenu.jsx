@@ -83,8 +83,8 @@ export function useCardMenu({ org, email, apps = [], onChanged, folders = null }
   };
   const revertCover = (a) => act(async () => { await api(`/api/learn/boards/${a.name}/main/thumbnail/custom`, { method: 'DELETE' }); bumpThumbnail(a.name); });
   const kindWord = (a) => (a.kind === 'repository' ? 'project' : 'canvas');
-  // A typed title is kept exactly (canvas-naming.md); a repeat only earns a quiet note.
-  const sameTitle = dialog?.kind === 'rename' && apps.some((x) => x.kind === 'canvas' && x.name !== dialog.a.name && x.title === dialog.value.trim());
+  // One title to an owner's canvases (canvas-naming.md, owner 2026-11-07): a name another of theirs has cannot be saved here, and the server refuses it too (409 title_taken).
+  const sameTitle = dialog?.kind === 'rename' && dialog.a.kind === 'canvas' && apps.some((x) => x.kind === 'canvas' && x.name !== dialog.a.name && (x.title || '').trim().toLowerCase() === dialog.value.trim().toLowerCase());
   // Over the limit and changed: an older description over 340 is shown whole and may be saved unchanged, never edited longer.
   const tooLong = dialog?.kind === 'describe' && descriptionLength(dialog.value.trim()) > DESCRIPTION_MAX && dialog.value.trim() !== (dialog.a.description || '');
   // The sidebar has no Apps tree in the preview, so projects and canvases are pinned from here.
@@ -160,13 +160,13 @@ export function useCardMenu({ org, email, apps = [], onChanged, folders = null }
       </div>
     </Menu>
     {(dialog?.kind === 'rename' || dialog?.kind === 'describe') && (
-      <ConfirmDialog title={dialog.kind === 'rename' ? 'Rename' : 'Edit description'} confirmLabel="Save" confirmVariant="primary" confirmDisabled={tooLong}
+      <ConfirmDialog title={dialog.kind === 'rename' ? 'Rename' : 'Edit description'} confirmLabel="Save" confirmVariant="primary" confirmDisabled={tooLong || sameTitle}
         onCancel={() => setDialog(null)}
         onConfirm={() => { const { a, value, kind } = dialog; setDialog(null); patch(a, kind === 'rename' ? { title: value } : { description: value }); }}
         body={dialog.kind === 'rename' ? (
           <span className="block">
             <Input autoFocus aria-label="Title" maxLength={120} value={dialog.value} onChange={(e) => setDialog({ ...dialog, value: e.target.value })} />
-            {sameTitle && <span data-same-title className="mt-1.5 block text-xs text-ink-3">You already have another canvas with this name.</span>}
+            {sameTitle && <span data-same-title role="alert" className="mt-1.5 block text-xs text-danger">Another canvas already has this name.</span>}
           </span>
         ) : (
           <span className="block">

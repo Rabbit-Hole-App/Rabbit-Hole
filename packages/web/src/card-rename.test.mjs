@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PLACEHOLDER, PLACEHOLDERS, cardTitleOf, customTitleOf, renameBlock, renamable, startTitleOf, titleKey } from './card-rename.js';
+import { PLACEHOLDER, PLACEHOLDERS, cardTitleOf, customTitleOf, renameBlock, renamable, startTitleOf, titleKey, TITLE_MAX } from './card-rename.js';
 
 const blocks = [{ id: 'a', type: 'video', title: 'Old', dx: 10, dy: 20, w: 300, videoId: 'v' }, { id: 'b', type: 'divider', label: 'Chapter 1' }];
 
@@ -61,9 +61,13 @@ test('a heading is renamed through its text, the one place the contents read', (
   assert.deepEqual(named, { id: 'h', type: 'heading', text: 'Overview', level: 2 });
 });
 
-test('a name is capped at 200 characters', () => {
+test('a card name is capped at TITLE_MAX (one line, owner 2026-11-07); a heading keeps its own 200', () => {
   const [named] = renameBlock([{ id: 'q', type: 'quiz' }], 'q', 'x'.repeat(500));
-  assert.equal(named.customTitle.length, 200);
+  assert.equal(named.customTitle.length, TITLE_MAX);
+  const [titled] = renameBlock([{ id: 'e', type: 'explanation', title: 'Old' }], 'e', 'y'.repeat(500));
+  assert.equal(titled.title.length, TITLE_MAX);
+  const [heading] = renameBlock([{ id: 'h', type: 'heading', text: 'Old' }], 'h', 'z'.repeat(500));
+  assert.equal(heading.text.length, 200, 'a section is document content with its own cap (learn-outline-model.js)');
 });
 
 test('the editor opens on the learner name, else the card title or text, else the derived name', () => {
@@ -85,7 +89,7 @@ test('cardTitleOf: custom name, then the derived name, then a neutral type place
   assert.equal(cardTitleOf({ type: 'file' }), PLACEHOLDERS.file);
   assert.equal(cardTitleOf({ type: 'never-heard-of-it' }), PLACEHOLDER);
   assert.equal(cardTitleOf(null), PLACEHOLDER);
-  assert.equal(cardTitleOf({ type: 'quiz', question: 'x'.repeat(200) }).length, 80);
+  assert.equal(cardTitleOf({ type: 'quiz', question: 'x'.repeat(200) }).length, TITLE_MAX);
   const card = { id: 'n', type: 'notebook' };
   cardTitleOf(card);
   assert.deepEqual(card, { id: 'n', type: 'notebook' }, 'computing the placeholder writes nothing');
