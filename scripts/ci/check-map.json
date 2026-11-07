@@ -746,6 +746,8 @@
     "packages/control-plane/src/roadmap/roadmap-quota.js": ["packages/control-plane/test/roadmap-glue.test.js","packages/control-plane/test/roadmap-quota-repair.test.js"],
     "packages/control-plane/learn-repairs/roadmap-quota-repair.sql.txt": ["packages/control-plane/test/roadmap-quota-repair.test.js"],
     "packages/control-plane/learn-repairs/roadmap-quota-repair-check.sql.txt": ["packages/control-plane/test/roadmap-quota-repair.test.js"],
+    "packages/control-plane/src/roadmap/roadmap-slots.js": ["packages/control-plane/test/roadmap-slots.test.js","packages/control-plane/test/roadmap-routes.test.js","packages/control-plane/test/roadmap-workflow.test.js"],
+
     "packages/control-plane/src/roadmap/roadmap-routes.js": ["packages/control-plane/test/roadmap-routes.test.js","packages/control-plane/test/roadmap-loop.test.js","packages/control-plane/test/roadmap-planning.test.js","packages/control-plane/test/roadmap-auto-proposal.test.js","packages/control-plane/test/roadmap-proposal-drafts.test.js","packages/control-plane/test/roadmap-links.test.js","packages/control-plane/test/roadmap-workflow.test.js"],
     "packages/control-plane/src/roadmap/roadmap-run.js": ["packages/control-plane/test/roadmap-loop.test.js","packages/control-plane/test/roadmap-workflow.test.js"],
     "packages/control-plane/src/roadmap/roadmap-safety.js": ["packages/control-plane/test/roadmap-safety.test.js"],
