@@ -1,20 +1,25 @@
 import { useState } from 'react';
 import { STRINGS } from './roadmap-strings.js';
 import { editKey } from './inline-ai-proposal.js';
+import { NEXT_CARD } from './roadmap-client.js';
 
 // The Accept [Tab] | Cancel pill: 28px high, 4px corners, the canvas selection bar's small actions (SelectionActions.jsx Action, class string reused) inside one
-// bordered box; no saturated green/red (owner plan 4.2 supersedes the old colours), no price or estimate (D24). A version the server has not marked accept-ready
-// keeps its name, greyed. PILL_BOX is the box, also worn by the non-interactive Generating status that takes the pill's place after acceptance.
+// bordered box; green Accept / Next card and muted-red Cancel (file 02, owner-approved; supersedes the neutral-only rule), no price or estimate (D24). A version the
+// server has not marked accept-ready keeps its name, greyed. PILL_BOX is the box, also worn by the non-interactive stage status that takes the pill's place after acceptance.
 export const PILL_BOX = 'inline-flex h-7 items-center overflow-hidden rounded border border-line bg-white text-xs';
-const ACTION = 'flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-xs font-medium whitespace-nowrap text-ink hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none';
+const ACTION = 'flex h-7 cursor-pointer items-center gap-2 px-2.5 text-xs font-medium whitespace-nowrap focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none';
+const GO = 'bg-success/10 text-success hover:bg-success/20 dark:bg-[#1d3b2b] dark:text-[#b9edce] dark:hover:bg-[#28513a] dark:hover:text-[#dcfce7]';
+const STOP = 'bg-danger/10 text-[#b83b3b] hover:bg-danger/20 dark:bg-[#402626] dark:text-[#f0b9b9] dark:hover:bg-[#583131] dark:hover:text-[#ffe0e0]';
+// The stage a slot shows in the pill's place once accepted (UI.04; contracts.md results[].stage). shortcut: these live here until roadmap-strings.js (Chat lane) takes them.
+export const STAGE = Object.freeze({ generating: STRINGS.generating, checking: 'Checking', saving: 'Saving' });
 // tabHint: the [Tab] key label, shown where Tab accepts (the canvas); the Chat message's copy of the pill leaves it out (Tab does not accept there).
 export function StepPill({ pill, onAccept, onCancel, tabHint = true }) {
   return (
     <div role="group" aria-label="Proposal" data-roadmap-pill className={PILL_BOX}>
-      <button type="button" data-roadmap-accept disabled={!pill.accept} aria-busy={pill.accepting || undefined} onClick={onAccept} className={`${ACTION} disabled:cursor-default disabled:opacity-40`}>
-        {pill.accepting ? STRINGS.accepting : <>{STRINGS.accept}{tabHint && <kbd aria-hidden="true" className="rounded border border-line bg-hover px-1 font-sans text-[10px] font-normal text-ink-3">{STRINGS.tab}</kbd>}</>}
+      <button type="button" data-roadmap-accept disabled={!pill.accept} aria-busy={pill.accepting || undefined} onClick={onAccept} className={`${ACTION} ${GO} disabled:cursor-default disabled:opacity-40`}>
+        {pill.accepting ? STRINGS.accepting : <>{pill.label || STRINGS.accept}{tabHint && <kbd aria-hidden="true" className="rounded border border-success/40 bg-success/10 px-1 font-sans text-[10px] font-normal dark:border-[#456a53] dark:bg-[#2b4c39] dark:text-[#c0dfcd]">{STRINGS.tab}</kbd>}</>}
       </button>
-      <button type="button" data-roadmap-cancel onClick={onCancel} className={`${ACTION} border-l border-line`}>{STRINGS.cancel}</button>
+      <button type="button" data-roadmap-cancel onClick={onCancel} className={`${ACTION} ${STOP} border-l border-line`}>{STRINGS.cancel}</button>
     </div>
   );
 }
@@ -30,7 +35,7 @@ export function ProposalOverlay({ pill, position, onAccept, onCancel, edit = nul
       {pill.description && <p className="break-words text-[13px] leading-normal text-ink-2">{pill.description}</p>}
       {pill.link && <p data-roadmap-existing className="truncate text-xs text-ink-3">{STRINGS.existingCard}</p>}
       {pill.source && <p data-roadmap-source className="truncate text-xs text-ink-3">{STRINGS.fromSource(pill.source)}</p>}
-      <StepPill pill={pill} onAccept={onAccept} onCancel={onCancel} />
+      {!pill.next && <StepPill pill={pill} onAccept={onAccept} onCancel={onCancel} />}
       {edit && <ProposalTools pill={pill} edit={edit} />}
     </section>
   );
@@ -60,12 +65,14 @@ export function ProposalTools({ pill, edit }) {
   );
 }
 
-// "Next step ready": navigates to the pending overlay and does nothing else (never accepts, never proposes, no automatic camera).
-export function NextStepIndicator({ indicator, onGo }) {
-  if (!indicator) return null;
+// UI.08 (file 02 Show Next card state): the one Next card | Cancel pill for a ready later offer, bottom-centre of the canvas viewport, outside the moving world
+// (AdaptiveCanvas draws it in its floating bottom strip, above the chrome there). The same acceptance as Chat's Next card and Tab; no Tab hint, no Next step ready chip.
+export function NextCardPill({ card, onAccept, onCancel }) {
+  if (!card || card.state !== 'pending' || !card.next) return null;
   return (
-    <button type="button" data-roadmap-next-ready onClick={onGo}
-      className="fixed right-4 bottom-4 z-30 h-8 rounded-none border border-line bg-white px-2.5 text-xs font-medium text-ink shadow-md outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent/60">{indicator.label}</button>
+    <div data-roadmap-next-pill className="shadow-md">
+      <StepPill pill={{ accept: card.acceptable && !card.accepting, accepting: card.accepting, label: NEXT_CARD }} tabHint={false} onAccept={onAccept} onCancel={onCancel} />
+    </div>
   );
 }
 

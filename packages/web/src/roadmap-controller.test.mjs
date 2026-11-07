@@ -251,3 +251,27 @@ test('bindThread records the Tutor thread and shows the view the server answers;
   refuse = true;
   await assert.rejects(controller.bindThread('canvaschat-22222222-2222-4222-8222-222222222222'));
 });
+
+// UI.06 delivery handoff: the card's final offsets settle in the canvas before the board is saved (host.settled), the save is checked, and only then the ack.
+// A card that never settles is neither saved nor acknowledged; the next poll reuses the same card (no second insert, no generation route on this path).
+test('delivery waits for the settled geometry, then saves, verifies and acknowledges; unsettled sends nothing; the slot reads Saving meanwhile', async () => {
+  const order = [];
+  let release, settledOk = false;
+  const { controller, calls, board, host } = harness({
+    persist: async () => { order.push('persist'); return { ok: true }; },
+    routes: { 'GET ': () => generated(), 'POST /rm_[^/]+/results/rs_[^/]+/deliver': () => { order.push('deliver'); return view('result-deliver-response'); }, 'POST /rm_[^/]+/results/rs_[^/]+/ack': () => { order.push('ack'); return view('status-delivered-next-ready'); } },
+  });
+  host.settled = id => { order.push(`settled:${id}`); return settledOk ? Promise.resolve(true) : new Promise(resolve => { release = resolve; }); };
+  controller.start(); await settle(); await settle();
+  assert.deepEqual(order, ['deliver', 'settled:cd_71e20ac49f8b3d5612a7c0e4'], 'nothing saved before the place settles');
+  const rid = generated().results[0].id;
+  assert.ok(controller.getState().busy.includes(`deliver:${rid}`), 'the slot says Saving while delivery runs');
+  release(false); await settle(); await settle();
+  assert.equal(post(calls, '/ack').length, 0, 'not settled: no save, no acknowledgement');
+  assert.equal(order.includes('persist'), false);
+  assert.equal(controller.getState().busy.includes(`deliver:${rid}`), false);
+  settledOk = true;
+  await controller.refresh(); await settle(); await settle();
+  assert.deepEqual(order.slice(2), ['deliver', 'settled:cd_71e20ac49f8b3d5612a7c0e4', 'persist', 'ack']);
+  assert.equal(board.size, 1, 'the same card, inserted once');
+});

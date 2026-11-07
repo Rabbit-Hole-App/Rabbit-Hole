@@ -47,7 +47,7 @@ test('generating: the same frame, title and size; a 16px spinner inside the plac
   assert.match(markup, /<svg[^>]*width="16"[^>]*height="16"[^>]*animate-spin/);
   assert.match(markup, /role="status" data-roadmap-generating="true" class="inline-flex h-7[^"]*">Generating</);
   assert.doesNotMatch(markup, /data-roadmap-accept|data-roadmap-cancel|data-roadmap-overlay|data-slot-elapsed|\d+%/);
-  assert.match(render(canvasCardsOf(view('status-held-for-checking'))[0]), /Generating/, 'checking is still the same slot, never ready');
+  assert.match(render(canvasCardsOf(view('status-held-for-checking'))[0]), /data-roadmap-generating="true"[^>]*>Checking</, 'checking is still the same slot, never ready; its stage says so (UI.04)');
 });
 
 test('failed: the same frame shows the error in place, nothing spins, no controls (Retry is the existing toast)', () => {
@@ -103,4 +103,31 @@ test('View passage from a slot carries the step range (raw), moves the camera to
   assert.deepEqual([sent[1].quiet, sent[1].range, focused.length], [true, pending.passage, 1], 'quiet: no camera');
   assert.equal(emphasizePassage(ref, pending.passage, { blocks: [], emit: event => sent.push(event.detail) }), false, 'no file card: nothing');
   assert.equal(sent.length, 2);
+});
+
+// UI.04 / UI.05 (file 02): one frame from proposal to saved card with the same words; the first offer's Accept [Tab] | Cancel in the approved green / muted red;
+// a later offer has no attached pill (the bottom Next card | Cancel is the canvas's); the stage text follows the server's results[].stage.
+test('the slot shows format, the 17px title, description and the exact excerpt in every stage; the first offer pill is green Accept [Tab] | muted-red Cancel', () => {
+  const card = { ...pending, excerpt: 'A split is useful when it creates child groups.' };
+  const markup = render(card);
+  assert.match(markup, /data-slot-format="true"[^>]*text-\[11px\] leading-4[^>]*>Explanation</);
+  assert.match(markup, /text-\[17px\] leading-\[1\.35\] font-semibold[^>]*>[^<]+</);
+  assert.match(markup, /data-slot-excerpt="true"[^>]*>A split is useful when it creates child groups\.</);
+  assert.match(markup, /data-roadmap-accept="true"[^>]*bg-success\/10[^>]*>Accept<kbd/);
+  assert.match(markup, /data-roadmap-cancel="true"[^>]*bg-danger\/10[^>]*>Cancel</);
+  for (const state of ['generating', 'checking', 'saving', 'failed']) {
+    const shown = render({ ...card, state, failure: state === 'failed' ? { message: 'Not made.' } : undefined });
+    assert.ok(shown.includes(card.title) && shown.includes(card.description) && shown.includes(card.excerpt), `${state}: the same words`);
+    assert.match(shown, /height:420px/);
+  }
+  assert.match(render({ ...card, state: 'checking' }), /data-roadmap-generating="true"[^>]*>Checking</);
+  assert.match(render({ ...card, state: 'saving' }), /data-roadmap-generating="true"[^>]*>Saving</);
+  assert.match(render({ ...card, format: 'table' }), /data-slot-format="true"[^>]*>Table</);
+  assert.doesNotMatch(render({ ...pending, excerpt: null }), /data-slot-excerpt/, 'no excerpt: no invented quote');
+});
+
+test('a later offer (next) keeps the keyboard-owning frame but has no attached pill: Next card | Cancel is the bottom pill', () => {
+  const markup = render({ ...pending, next: true });
+  assert.match(markup, /^<div [^>]*data-roadmap-overlay=""/);
+  assert.doesNotMatch(markup, /data-roadmap-pill|data-roadmap-accept/);
 });

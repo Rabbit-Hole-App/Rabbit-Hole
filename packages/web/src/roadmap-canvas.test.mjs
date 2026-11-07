@@ -152,3 +152,75 @@ test('the proposal overlay is drawn when its source is on screen, or whenever th
   assert.equal(overlayShown({ pill, visible: false, editing: true }), true, 'the editor is never invisible');
   assert.equal(overlayShown({ pill: null, visible: true, editing: true }), false);
 });
+
+// UI.04: an applied Edit card's title survives acceptance (canvasCardsOf rebuilt the result's card from the unedited step); the stage is the server's.
+test('accepted words: the slot keeps the accepted offer title and description through generating; a later offer is next; the server stage wins', () => {
+  const [offer] = canvasCardsOf(view('status-active-proposal-pending'));
+  const edited = { ...offer, title: 'Edited: what the gradient says', description: 'The edited brief.', version: 2 };
+  const held = { id: slotIdOf(offer.key), at: { x: 1, y: 2 }, roadmap: edited };
+  const generating = JSON.parse(JSON.stringify(view('accept-proposal-response-generating')));
+  generating.results[0].proposalVersion = 2;
+  const [making] = canvasCardsOf(generating);
+  assert.notEqual(making.title, edited.title, 'reproduction: the view alone names the unedited step');
+  const [update] = planSlots([held], [making]).update;
+  assert.deepEqual([update.card.state, update.card.title, update.card.description], ['generating', edited.title, edited.description]);
+  assert.deepEqual(planSlots([{ ...held, roadmap: update.card }], [making]), { add: [], update: [], remove: [] }, 'the next poll changes nothing');
+  generating.results[0].proposalVersion = 3;
+  assert.equal(planSlots([held], canvasCardsOf(generating)).update[0].card.title, making.title, 'another version: not the edited offer');
+  generating.results[0] = { ...generating.results[0], proposalVersion: 2, title: 'Server accepted title', stage: 'saving' };
+  const [named] = canvasCardsOf(generating);
+  assert.deepEqual([named.state, planSlots([held], [named]).update[0].card.title], ['saving', 'Server accepted title']);
+  generating.results[0].stage = 'checking';
+  assert.equal(canvasCardsOf(generating)[0].state, 'checking');
+  assert.equal(canvasCardsOf(view('status-active-proposal-pending'))[0].next, false, 'the first offer is Accept');
+  const later = canvasCardsOf(view('status-delivered-next-ready')).find(card => card.state === 'pending');
+  assert.equal(later?.next, true, 'after a delivered card the offer is Next card');
+  assert.equal(canvasCardsOf(view('accept-proposal-response-generating'), { busy: [`deliver:${view('accept-proposal-response-generating').results[0].id}`] })[0].state, 'saving', 'this client delivering: saving');
+});
+
+// UI.06 / BE.13 (pure placement; world rects are supplied, not a browser measurement): beside the measured passage, not the tall card's middle; the other side
+// when one is taken; above/below when both are; pill reserves are obstacles; a screen rect maps to world units under pan and zoom.
+import { anchoredBoxes as boxesOf } from './canvas-slots.js';
+import { toWorld } from './source-refs.js';
+import { createSlotStore } from './roadmap-canvas.js';
+const overlaps = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+test('passage-relative placement: top, middle and bottom passages; left when right is taken; below when both sides are; never over the source or a pill', () => {
+  const source = { x: 0, y: 0, w: 560, h: 3000 }, size = { w: 440, h: 330 };
+  const at = y => deliveredSpot(size, proposalAnchor(source, { x: 20, y, w: 500, h: 40 }), [source], null);
+  const [top, middle, bottom] = [100, 1500, 2800].map(at);
+  assert.ok(top.x >= source.w && middle.x >= source.w && bottom.x >= source.w, 'beside the Markdown');
+  assert.ok(top.y < middle.y && middle.y < bottom.y, 'top to bottom along the passages');
+  assert.ok(Math.abs(middle.y + size.h / 2 - 1520) < 2, 'level with its passage, not the card middle');
+  const right = { x: 600, y: 1200, w: 440, h: 700 };
+  const left = deliveredSpot(size, proposalAnchor(source, { x: 20, y: 1500, w: 500, h: 40 }), [source, right], null);
+  assert.ok(left.x + size.w <= source.x, 'the free side');
+  const both = [source, { x: -600, y: 0, w: 600, h: 3000 }, { x: 560, y: 0, w: 900, h: 3000 }];
+  const fallback = deliveredSpot(size, proposalAnchor(source, { x: 20, y: 2900, w: 500, h: 40 }), both, null);
+  assert.ok(!both.some(box => overlaps({ ...fallback, ...size }, box)), 'outward, never overlapping');
+  const slot = { id: 'roadmap:a', at: { x: 600, y: 0 }, w: 440, h: 330 }, [reserved] = boxesOf([slot]);
+  assert.equal(reserved.h, 330 + 36, 'the attached pill is part of the reserved box');
+  const next = deliveredSpot(size, proposalAnchor(source, { x: 20, y: 120, w: 500, h: 40 }), [source, reserved], null);
+  assert.ok(!overlaps({ ...next, ...size }, reserved), 'a second card on the same range keeps clear of the first and its pill');
+  assert.deepEqual(proposalAnchor(source, null), source, 'no measurable passage: the source box (honest fallback)');
+});
+
+test('a measured screen rect is world units under pan and zoom; the private slot store restores, writes once and adopts the server place', async () => {
+  assert.deepEqual(toWorld({ left: 310, top: 220, width: 100, height: 20 }, { left: 10, top: 20 }, { x: 100, y: -200, z: 2 }), { x: 100, y: 200, w: 50, h: 10 });
+  assert.equal(toWorld(null, { left: 0, top: 0 }, { x: 0, y: 0, z: 1 }), null);
+  const calls = [], stored = { st_1: { x: 640, y: 96, w: 440, proposalId: 'sp_1' } };
+  const api = async (path, init = {}) => { calls.push([init.method || 'GET', path, init.body && JSON.parse(init.body)]); return init.method ? { slot: { x: 1, y: 2, w: 440, proposalId: 'sp_2' } } : { slots: stored }; };
+  let told = 0;
+  const store = createSlotStore({ api, listener: () => { told += 1; } });
+  const view = { roadmap: { id: 'rm_1', boardId: 'lb_1' } };
+  store.load(view);
+  assert.equal(store.ready(), false, 'nothing is placed before the read lands');
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.deepEqual([store.ready(), told], [true, 1]);
+  assert.deepEqual(store.get({ key: 'st_1', proposalId: 'sp_1' }), { x: 640, y: 96, proposalId: 'sp_1' }, 'reload: the same place');
+  assert.deepEqual(store.get({ key: 'st_1' }), { x: 640, y: 96, proposalId: 'sp_1' }, 'its accepted work keeps it');
+  assert.equal(store.get({ key: 'st_1', proposalId: 'sp_9' }), null, 'a new offer after Cancel is placed afresh');
+  store.load(view);
+  assert.equal(calls.length, 1, 'read once per roadmap');
+  assert.deepEqual(await store.place({ key: 'st_2', proposalId: 'sp_2' }, { x: 5, y: 6 }, 440), { x: 1, y: 2, w: 440, proposalId: 'sp_2' }, 'the server kept place wins');
+  assert.deepEqual(calls[1], ['POST', '/api/learn/roadmap/rm_1/slots', { boardId: 'lb_1', stepId: 'st_2', x: 5, y: 6, w: 440, proposalId: 'sp_2' }]);
+});

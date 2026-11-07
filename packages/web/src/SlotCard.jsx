@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { StepPill, PILL_BOX } from './NextStepPill.jsx';
+import { StepPill, PILL_BOX, STAGE } from './NextStepPill.jsx';
 import { STRINGS as ROADMAP_STRINGS } from './roadmap-strings.js';
 import { SourceRefLine, useSourceRefStatus } from './SourceRefChip.jsx';
 import { NO_FILE_CARD } from './source-ref.js';
@@ -10,9 +10,10 @@ import { NO_FILE_CARD } from './source-ref.js';
 // shadow and drag strip - with a spinner, what is being made, and how long it has taken. Not a block: it
 // cannot be selected, moved or asked about, and it is gone when the card lands or the wait ends.
 // A Tutor slot (slot.roadmap, roadmap-canvas.js) is the SAME frame through the step's whole life, at its own world position beside the source:
-//   pending     the proposed title and description over the skeleton lines; Accept [Tab] | Cancel (StepPill) 8px below the frame, outside it.
-//   generating  (and checking) the same frame and title; a 16px spinner inside the content placeholder; the pill's place shows a non-interactive Generating status.
-//   failed      the same frame and title with the server's sentence in place (the toast in RoadmapSurfaces offers Retry); nothing spins.
+//   pending     format, title, description and excerpt over the skeleton lines; the first offer has Accept [Tab] | Cancel (StepPill) 8px below the frame, a later one none (the bottom pill).
+//   generating, checking, saving   the same frame and words; a 16px spinner in the placeholder; the pill place shows the stage (STAGE), not interactive.
+//   failed      the same frame and words with the server sentence in place; nothing spins, nothing to press (no Retry, owner 2026-11-06).
+const FORMAT_LABEL = { explanation: 'Explanation', table: 'Table' };
 export function SlotCard({ slot, actions = null }) {
   const [now, setNow] = useState(() => performance.now());
   const card = slot.roadmap || null;
@@ -49,10 +50,13 @@ export function SlotCard({ slot, actions = null }) {
     // The pending wrapper (frame and pill) is the keyboard owner, as the old overlay was: Tab inside it accepts, and its pill is found inside it.
     <div data-slot-id={slot.id} data-roadmap-slot={card.state} data-thumbnail-hide {...(pending ? { 'data-roadmap-overlay': '', tabIndex: -1 } : {})} onPointerDown={event => event.stopPropagation()}
       style={{ width: slot.w, ...place }} className="flex flex-col gap-2 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[#2383e2]/40">
+      {/* One frame from proposal to saved card (UI.04, file 02): format, the offer's title (17px) and description, the exact excerpt when the step has one. */}
       <div role={pending ? 'group' : 'status'} aria-label={card.title || slot.label} style={{ height: slot.h }} className={frame}>
         {strip}
-        <p className="px-4 pb-1 text-sm font-semibold break-words text-ink">{card.title}</p>
-        {pending && card.description && <p className="px-4 pb-3 text-[13px] leading-normal break-words text-ink-2">{card.description}</p>}
+        <p data-slot-format className="px-4 text-[11px] leading-4 text-ink-3">{FORMAT_LABEL[card.format] || FORMAT_LABEL.explanation}</p>
+        <p className="px-4 pb-1 text-[17px] leading-[1.35] font-semibold break-words text-ink">{card.title}</p>
+        {card.description && <p className="px-4 pb-3 text-[13px] leading-normal break-words text-ink-2">{card.description}</p>}
+        {card.excerpt && <blockquote data-slot-excerpt className="mx-4 mb-3 border-l-2 border-line-strong bg-hover px-2.5 py-1.5 text-xs leading-relaxed break-words text-ink-2">{card.excerpt}</blockquote>}
         {ref && <SourceRefLine ref_={ref} status={status} note={note} onOpen={() => setNote(actions?.onPassage?.(card) === 'no-card' ? NO_FILE_CARD : '')} />}
         {failed
           ? <p role="alert" className="px-4 pt-2 text-[13px] break-words text-ink-2">{card.failure?.message || ROADMAP_STRINGS.failed}</p>
@@ -61,8 +65,9 @@ export function SlotCard({ slot, actions = null }) {
             {!pending && <Loader2 size={16} aria-hidden="true" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin text-ink-3" />}
           </div>}
       </div>
-      {pending && <div className="self-start"><StepPill pill={{ accept: card.acceptable && !card.accepting, accepting: card.accepting }} onAccept={() => actions?.onAccept?.()} onCancel={() => actions?.onCancel?.()} /></div>}
-      {!pending && !failed && <span role="status" data-roadmap-generating className={`${PILL_BOX} self-start px-2 font-medium text-ink-3`}>{ROADMAP_STRINGS.generating}</span>}
+      {/* The first offer's Accept [Tab] | Cancel, 8px below; a later offer's Next card | Cancel is the canvas's bottom pill (UI.08), never beside the card. */}
+      {pending && !card.next && <div className="self-start"><StepPill pill={{ accept: card.acceptable && !card.accepting, accepting: card.accepting }} onAccept={() => actions?.onAccept?.()} onCancel={() => actions?.onCancel?.()} /></div>}
+      {!pending && !failed && <span role="status" data-roadmap-generating className={`${PILL_BOX} self-start gap-1.5 px-2 font-medium text-ink-3`}>{STAGE[card.state] || STAGE.generating}</span>}
     </div>
   );
 }

@@ -8,8 +8,8 @@ import { isUnfinishedRoadmap } from './roadmap-contract.js';
 import { FOLLOW_UP_MS, createAutoMeter } from './roadmap-auto.js';
 
 // host: the canvas as the page sees it.
-//   hasBlock(id) -> bool, insertCard(block) -> id, persist() -> Promise<{ ok }> (ok:false when the save failed), boardRevision() -> the saved
-//   board's revision|null, savedHas(id) -> bool (the saved board holds that card),
+//   hasBlock(id) -> bool, insertCard(block) -> id, settled(id) -> Promise<bool> (its final offsets are in the canvas's blocks), persist() -> Promise<{ ok }> (ok:false when
+//   the save failed), boardRevision() -> the saved board's revision|null, savedHas(id) -> bool (the saved board holds that card at the canvas's geometry),
 //   readOnly() -> bool (shared view: the controller stays silent), sourceRev(key) -> sha, instruction() -> the learner's own words.
 export function createRoadmapController({ api, boardId, host, schedule = setTimeout, cancel = clearTimeout, random, now }) {
   let state = initialState(), timer = null, stopped = true;
@@ -68,6 +68,9 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     for (const block of plan.insert) host.insertCard(block);
     plan.cardIds.forEach(id => seen.add(id));
     if (!plan.ackRequired) return;
+    // UI.06: the card's final place (its id, top-left offsets and width in the canvas's blocks) settles before the board is saved, so the save holds that geometry,
+    // never the default column place it is inserted at. Not settled: nothing is saved or acknowledged; the next poll finds the same card and tries again.
+    for (const cardId of plan.cardIds) if (await host.settled?.(cardId) === false) throw Object.assign(Error('card_not_settled'), { retry: true });
     // The board save comes first. persist() resolves { ok:false } (it does not reject) when the save failed, and the revision is only
     // real once the saved board holds the card: otherwise nothing is acknowledged, the result stays undelivered, and the next poll
     // runs this again (the card is already on the canvas and the server hands back the same result: one card, one charge).
@@ -98,7 +101,8 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     for (const result of deliverable(state.view)) {
       if (delivering.has(result.id)) continue;
       delivering.add(result.id);
-      try { await deliverOne(result); } catch (error) { if (roadmapOff(error)) dispatch({ type: 'flag_off' }); /* next poll retries */ } finally { delivering.delete(result.id); }
+      dispatch({ type: 'begin', gesture: `deliver:${result.id}` }); // the slot says Saving while this client inserts, saves and acknowledges (roadmap-canvas.js)
+      try { await deliverOne(result); } catch (error) { if (roadmapOff(error)) dispatch({ type: 'flag_off' }); /* next poll retries */ } finally { delivering.delete(result.id); dispatch({ type: 'end', gesture: `deliver:${result.id}` }); }
     }
     await watchRemoval();
   }

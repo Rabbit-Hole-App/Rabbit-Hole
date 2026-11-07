@@ -21,7 +21,7 @@ after(() => rmSync(tmp, { recursive: true, force: true }));
 const outfile = join(tmp, 'bundle.cjs');
 await esbuild.build({
   stdin: {
-    contents: "export { default as RoadmapInvitation } from './RoadmapInvitation.jsx'; export { default as RoadmapPlan } from './RoadmapPlan.jsx'; export { ProposalOverlay, NextStepIndicator, StepPill } from './NextStepPill.jsx'; export { useRoadmap } from './use-roadmap.js'; export { RoadmapChat, RoadmapToc, RoadmapCanvas } from './RoadmapSurfaces.jsx'; export { default as TableOfContents } from './TableOfContents.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';",
+    contents: "export { default as RoadmapInvitation } from './RoadmapInvitation.jsx'; export { default as RoadmapPlan } from './RoadmapPlan.jsx'; export { ProposalOverlay, NextCardPill, StepPill } from './NextStepPill.jsx'; export { useRoadmap } from './use-roadmap.js'; export { RoadmapChat, RoadmapToc, RoadmapCanvas } from './RoadmapSurfaces.jsx'; export { default as TableOfContents } from './TableOfContents.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';",
     resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx',
   },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
@@ -57,9 +57,17 @@ test('the overlay shows title, description and source relationship, is marked as
   assert.doesNotMatch(markup.replace(/<[^>]+>/g, ' '), BANNED);
 });
 
-test('Next step ready indicator renders only with an indicator', () => {
-  assert.equal(html(lib.NextStepIndicator, { indicator: null, onGo: noop }), '');
-  assert.match(html(lib.NextStepIndicator, { indicator: { label: 'Next step ready' }, onGo: noop }), /data-roadmap-next-ready[^>]*>Next step ready</);
+// UI.08 (file 02): a later offer's one Next card | Cancel pill; no Next step ready chip, no Tab hint, green / muted red; nothing for a first offer or a busy step.
+test('the bottom Next card | Cancel pill: only for a ready later offer; disabled while accepting; never a Next step ready chip', () => {
+  const card = { state: 'pending', next: true, acceptable: true, accepting: false };
+  const markup = html(lib.NextCardPill, { card, onAccept: noop, onCancel: noop });
+  assert.match(markup, /data-roadmap-next-pill/);
+  assert.match(markup, /data-roadmap-accept="true"[^>]*bg-success\/10[^>]*>Next card</);
+  assert.match(markup, /data-roadmap-cancel="true"[^>]*bg-danger\/10[^>]*>Cancel</);
+  assert.doesNotMatch(markup, /<kbd|Next step ready/);
+  assert.match(html(lib.NextCardPill, { card: { ...card, accepting: true }, onAccept: noop, onCancel: noop }), /disabled=""[^>]*>Accepting</);
+  for (const other of [{ ...card, next: false }, { ...card, state: 'generating' }, null]) assert.equal(html(lib.NextCardPill, { card: other, onAccept: noop, onCancel: noop }), '');
+  assert.doesNotMatch(readFileSync(new URL('./RoadmapSurfaces.jsx', import.meta.url), 'utf8'), /NextStepIndicator/);
 });
 
 test('the invitation offers exactly the two choices; no other control', () => {
