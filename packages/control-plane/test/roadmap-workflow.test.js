@@ -196,21 +196,21 @@ test('BE.03 roadmap edits, revision guards and practice readiness (UI.03, R5)', 
     const edit = await h.route('alice', routes.revise(before, { instruction: 'Add a step on pruning later.' }, KEY('revise-active')));
     assert.equal(edit.status, 202, 'editing an accepted roadmap prepares a new unaccepted draft');
     const after = await status(h);
-    // be contract 4/5: acceptedPlan { version, ... } drives the ToC, draft { version, steps, acceptable, instructionVersion } the Chat roadmap message, revisionPending while re-planning.
+    // be contract 4/5: acceptedPlan { version, ... } drives the ToC, planDraft { version, steps, acceptable, instructionVersion } (named planDraft; `draft` is the R5 proposal draft) the Chat roadmap message, revisionPending while re-planning.
     assert.equal(after.acceptedPlan?.version, before.roadmap.acceptedPlanVersion, 'the accepted plan stays authoritative');
-    assert.equal(after.draft?.version, before.roadmap.planVersion + 1, 'the draft is a separate revision');
+    assert.equal(after.planDraft?.version, before.roadmap.planVersion + 1, 'the draft is a separate revision');
     await h.run();
     assert.equal(h.authorCalls.length, 2, 'the in-flight card completes against its frozen inputs');
     assert.ok(h.authorCalls[1].text.includes('CLAIM-TABLE'), 'with its own accepted claims');
     assert.deepEqual(await boardBlocks(h), board, 'saved cards unchanged');
     assert.ok((await h.totals()).used >= used, 'no refund or extra charge from the edit');
     assert.deepEqual(after.acceptedPlan.steps.map(x => x.title), STEPS.map(x => x.title), 'the accepted tree is unchanged by the draft');
-    assert.deepEqual([after.draft.instructionVersion, after.draft.acceptable, after.draft.steps.length], [2, true, SHORT_PLAN.steps.length], 'the draft carries its own instruction version and steps');
+    assert.deepEqual([after.planDraft.instructionVersion, after.planDraft.acceptable, after.planDraft.steps.length], [2, true, SHORT_PLAN.steps.length], 'the draft carries its own instruction version and steps');
     const stale = await h.send('alice', 'POST', `/api/learn/roadmap/${before.roadmap.id}/accept-plan`, { boardId: h.boards.alice, revision: (await status(h)).roadmap.revision, planVersion: before.roadmap.acceptedPlanVersion, actionKey: KEY('old-plan') });
     assert.equal(stale.status, 409, 'accepting the superseded plan version is refused');
     const reaccepted = await acceptPlan(h, await status(h), { key: 'replan' });
     assert.equal(reaccepted.status, 200, 'reacceptance publishes the new plan');
-    assert.equal(reaccepted.body.acceptedPlan.version, after.draft.version);
+    assert.equal(reaccepted.body.acceptedPlan.version, after.planDraft.version);
     assert.equal(h.rows("SELECT state FROM learn_roadmap_steps WHERE state = 'delivered'").length >= 1, true, 'delivered work keeps its step');
   });
 
@@ -260,8 +260,14 @@ test('BE.05 first proposal and one guarded acceptance (CORE.03-05, UI.04-05)', a
     assert.deepEqual([p.title, p.description, p.format, p.version], [STEPS[0].title, STEPS[0].goal, 'explanation', 1]);
     assert.ok(p.id && p.stepId, 'proposal and step identity (the Chat entry key roadmap-step-<stepId>)');
     assert.equal(p.sourceRelation?.source?.name, FILE_NAME);
-    // contracts.md absent: assumed `proposal.excerpt` (BRIEF contract 4 "sourceRef/excerpt"): the exact highlighted text.
-    assert.equal(p.excerpt, MD.slice(STEPS[0].passage.start, STEPS[0].passage.end).trim(), 'the exact source excerpt');
+    // be contract: polling never carries source text; the verified excerpt is the step's R3 reference (steps[].sourceRef.id -> anchor.quote.exact).
+    assert.doesNotMatch(JSON.stringify(view), new RegExp(MARKER), 'polling carries no source text');
+    const ref = view.steps.find(x => x.id === p.stepId).sourceRef;
+    assert.ok(ref?.id, 'the proposal's step carries its source reference');
+    assert.equal(p.sourceRelation.sourceRef?.id, ref.id, 'the proposal and the step name the same reference');
+    const h2 = h.rows('SELECT anchor_json FROM learn_source_refs WHERE id = ?', ref.id)[0];
+    const exact = JSON.parse(h2.anchor_json).quote?.exact || '';
+    assert.ok(exact.length > 20 && MD.slice(STEPS[0].passage.start, STEPS[0].passage.end).includes(exact.trim().slice(0, 40)), 'the reference anchors the exact highlighted passage text');
   });
 
   await t.test('BE.05 Chat, canvas and a second session race: one winner, one authorization, one author dispatch', async () => {
