@@ -82,3 +82,25 @@ test('the pending wrapper (frame and pill) is the keyboard owner, so the pill is
   assert.doesNotMatch(checking, /Generating|animate-spin/);
   assert.match(checking, /data-roadmap-accept="true"[^>]*disabled=""/);
 });
+
+test('the pending slot shows the existing source line (SourceRefLine) for its step passage; no ref or not pending: no line', () => {
+  const withLine = lib.renderToStaticMarkup(lib.createElement(lib.SlotCard, { slot: slotOf(pending), actions: { app: 'demo', onAccept() {}, onCancel() {}, onPassage() {} } }));
+  assert.match(withLine, /data-source-ref="true"[^>]*data-source-ref-status="unknown"/, 'the same row a delivered card shows, its status not read yet');
+  assert.match(withLine, /From Gradient descent notes\.md/);
+  assert.ok(withLine.indexOf('data-source-ref=') < withLine.indexOf('data-roadmap-pill'), 'inside the frame, above the pill');
+  assert.doesNotMatch(render({ ...pending, sourceRef: null }), /data-source-ref=/);
+  assert.doesNotMatch(render({ ...pending, passage: null }), /data-source-ref=/);
+  assert.doesNotMatch(render(canvasCardsOf(view('accept-proposal-response-generating'))[0]), /data-source-ref=/);
+});
+
+test('View passage from a slot carries the step range (raw), moves the camera to the file card; the first-appearance emphasis is quiet and never moves it', async () => {
+  const { viewPassage, emphasizePassage } = await import('./source-refs.js');
+  const ref = pending.sourceRef, file = { id: 'f1', kind: 'markdown', fileRef: { source: { id: ref.source.key.slice(5), rev: ref.source.rev } } };
+  const sent = [], focused = [];
+  assert.equal(viewPassage(ref, { blocks: [file], focus: id => focused.push(id), emit: event => sent.push(event.detail), wait: fn => fn(), range: pending.passage, raw: true }), 'opened');
+  assert.deepEqual([focused, sent[0].range, sent[0].raw, sent[0].cardId], [['f1'], pending.passage, true, 'f1']);
+  assert.equal(emphasizePassage(ref, pending.passage, { blocks: [file], emit: event => sent.push(event.detail) }), true);
+  assert.deepEqual([sent[1].quiet, sent[1].range, focused.length], [true, pending.passage, 1], 'quiet: no camera');
+  assert.equal(emphasizePassage(ref, pending.passage, { blocks: [], emit: event => sent.push(event.detail) }), false, 'no file card: nothing');
+  assert.equal(sent.length, 2);
+});

@@ -38,31 +38,39 @@ export function resolveSourceRef(post, app, id, { delay = 0, schedule = setTimeo
 // The canvas's blocks that matter here - a card with a navigable ref, a Markdown file card - and its camera, as a store the readers
 // (the Markdown file card, the PDF reader) read from: they sit outside the canvas's React tree. The canvas publishes
 // (SourceRefChip.jsx useSourceRefIndex); a reader subscribes.
-let state = { blocks: [], focus: null };
+let state = { blocks: [], focus: null, pending: [] };
 const listeners = new Set();
 export const published = () => state;
 const relevant = block => navigable(sourceRefOf(block)) || (block?.kind === 'markdown' && !!block.fileRef?.source?.id);
 export function publishBlocks(blocks, focus = null) {
   const next = (Array.isArray(blocks) ? blocks : []).filter(relevant);
   if (focus === state.focus && next.length === state.blocks.length && next.every((block, i) => block === state.blocks[i])) return;
-  state = { blocks: next, focus };
+  state = { ...state, blocks: next, focus };
   for (const listener of listeners) listener();
 }
 export function subscribeBlocks(listener) { listeners.add(listener); return () => listeners.delete(listener); }
+// The Tutor's slots on this canvas that stand for a step's passage ({ slotId, ref, start, end }: the step's minted ref and the plan's raw offsets), so a Markdown file
+// card's passage menu can reach a slot before its card exists (View explanation lands on the slot that becomes the explanation).
+export function publishPending(pending) {
+  if (JSON.stringify(pending) === JSON.stringify(state.pending)) return;
+  state = { ...state, pending };
+  for (const listener of listeners) listener();
+}
 
 // Card to passage. A PDF opens the companion reader at the page with the passage emphasized (the existing
 // 'small:excerpt-source' event, ExcerptCard.jsx); a Markdown passage focuses its file card, which then emphasizes the quote.
 // Returns what happened, so the chip can say so: 'opened' | 'unavailable' (the ref cannot open) | 'no-card' (the Markdown card is
 // not on this canvas).
 // raw: the card is a roadmap card (stepId), so its Markdown quote is raw Markdown and may be matched folded once the whole file is drawn (source-ref.js resolveRawPassage).
-export function viewPassage(ref, { blocks = state.blocks, focus = state.focus, emit = event => window.dispatchEvent(event), wait = setTimeout, raw = false } = {}) {
+// range: a Tutor slot's step, which has no quote yet: the plan's raw offsets, read from the file card's own text there.
+export function viewPassage(ref, { blocks = state.blocks, focus = state.focus, emit = event => window.dispatchEvent(event), wait = setTimeout, raw = false, range = null } = {}) {
   if (!navigable(ref)) return 'unavailable';
   if (ref.kind === 'pdf') { emit(new CustomEvent('small:excerpt-source', { detail: { ref: readerRef(ref) } })); return 'opened'; }
   const cardId = markdownCardOf(blocks, ref);
   if (!cardId) return 'no-card';
   focus?.(cardId);
   // The camera moves first; the card paints its emphasis once it is on screen.
-  wait(() => emit(new CustomEvent(SOURCE_REF_EVENT, { detail: { cardId, key: ref.source.key, rev: ref.source.rev, quote: ref.anchor.quote, ...(raw ? { raw: true } : {}) } })), 250);
+  wait(() => emit(new CustomEvent(SOURCE_REF_EVENT, { detail: { cardId, key: ref.source.key, rev: ref.source.rev, quote: ref.anchor?.quote, ...(raw ? { raw: true } : {}), ...(range ? { range } : {}) } })), 250);
   return 'opened';
 }
 
@@ -75,4 +83,12 @@ export function viewExplanation(where, { blocks = state.blocks, focus = state.fo
   const { current } = explanationsFor(blocks, where);
   if (current.length) focus?.(current[0].cardId);
   return current.length;
+}
+
+// When a Tutor slot first appears: its passage is emphasized for a moment ONLY if it is already in view - no camera move, no scroll, no Show more, nothing said when it
+// cannot be shown (owner 2026-11-06, plan 5.4).
+export function emphasizePassage(ref, range, { blocks = state.blocks, emit = event => window.dispatchEvent(event) } = {}) {
+  const cardId = navigable(ref) && ref.kind === 'markdown' ? markdownCardOf(blocks, ref) : null;
+  if (cardId && range) emit(new CustomEvent(SOURCE_REF_EVENT, { detail: { cardId, key: ref.source.key, rev: ref.source.rev, range, raw: true, quiet: true } }));
+  return !!cardId;
 }

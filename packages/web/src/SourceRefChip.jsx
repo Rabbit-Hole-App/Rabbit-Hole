@@ -23,19 +23,25 @@ export function useSourceRefIndex(blocks, focus) {
 }
 // The published blocks, for a reader that lists explanations for its own source.
 export const useSourceRefBlocks = () => useSyncExternalStore(subscribeBlocks, () => published().blocks, () => NONE); // NONE: the server render (and its test) sees no blocks
-
-export default function SourceRefChip({ block, app, onHeight = null }) {
-  const ref = sourceRefOf(block);
-  const root = useRef(null);
-  const [status, setStatus] = useState(null); // null: not asked yet, or the answer failed
-  const [note, setNote] = useState('');
-  const id = ref?.id ?? null;
+// The Tutor's slots with a passage (source-refs.js publishPending), for a Markdown file card's passage menu.
+export const useSourcePending = () => useSyncExternalStore(subscribeBlocks, () => published().pending, () => NONE);
+// A ref's status as the server checks it now (null: not asked yet, or the answer failed): the chip's own read, shared with a Tutor slot's source line.
+export function useSourceRefStatus(id, app, rev) {
+  const [status, setStatus] = useState(null);
   useEffect(() => {
     if (!id || !app) return undefined;
     let live = true;
     resolveSourceRef(post, app, id).then(found => { if (live) setStatus(found?.status ?? null); });
     return () => { live = false; };
-  }, [id, app, block.sourceRef?.source?.rev]);
+  }, [id, app, rev]);
+  return status;
+}
+
+export default function SourceRefChip({ block, app, onHeight = null }) {
+  const ref = sourceRefOf(block);
+  const root = useRef(null);
+  const [note, setNote] = useState('');
+  const status = useSourceRefStatus(ref?.id ?? null, app, block.sourceRef?.source?.rev); // null: not asked yet, or the answer failed
   // The card's frame grows by exactly this row, as the Sources row does.
   useEffect(() => {
     if (!onHeight || !root.current) return undefined;

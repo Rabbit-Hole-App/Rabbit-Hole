@@ -12,7 +12,7 @@ import { EXPLAIN_PASSAGE_EVENT, PASSAGE_TEXT, SOURCE_REF_EVENT, explanationsFor,
 import { textSegments } from './markdown-anchor.js';
 import { focusExplanation, mintSourceRef } from './source-refs.js';
 import { api } from './api.js';
-import { useSourceRefBlocks } from './SourceRefChip.jsx';
+import { useSourcePending, useSourceRefBlocks } from './SourceRefChip.jsx';
 
 // A Markdown file card's rendered text with the PDF reader's selection popover (Highlight) and the webpage card's highlight menu
 // (Remove highlight), docs/features/pdf-excerpts.md "Markdown cards". Highlights are text quotes painted over the rendered text
@@ -28,6 +28,7 @@ export function MarkdownText({ block, text, children }) {
   const wrap = useRef(null), scroller = useRef(null), root = useRef(null), barEl = useRef(null), menuEl = useRef(null);
   const key = source?.key;
   const refBlocks = useSourceRefBlocks(); // cards made from a passage of this file (source-ref.js): the passage opens its explanation
+  const pendingSlots = useSourcePending(); // the Tutor's slots for a passage of this file: the passage opens the slot that becomes the explanation
 
   useEffect(() => {
     if (!source) { setAnswer(null); return undefined; }
@@ -58,21 +59,41 @@ export function MarkdownText({ block, text, children }) {
   // A passage past the part of the file drawn so far (Show more) is reached by pressing the card's own Show more for the learner, only on this explicit request and only as
   // far as needed; a passage not in the whole drawn text is then reported missing.
   const pendingPassage = useRef(null), passageView = useRef(null);
+  // A Tutor slot's step has no quote yet: detail.range (the plan's raw offsets) is read from this card's own text, with the server's context width either side.
+  // detail.quiet (the slot just appeared): paint only if the passage is already in view; never Show more, never scroll, never a notice.
+  const more = () => scroller.current?.querySelector('[data-file-doc-more]');
   passageView.current = detail => {
     const node = root.current;
     if (!node) return;
-    let found = passageTarget({ text: node.textContent, rev, detail });
-    const more = found.status === 'missing' && scroller.current?.querySelector('[data-file-doc-more]');
-    if (more) { pendingPassage.current = detail; more.click(); return; }
+    const say = text => { if (!detail.quiet) setMessage({ text }); };
+    if (detail.range && detail.rev !== rev) { say(PASSAGE_TEXT.changed); return; }
+    if (detail.range && detail.range.end > text.length) {
+      if (more() && !detail.quiet) { pendingPassage.current = detail; more().click(); } else say(PASSAGE_TEXT.missing);
+      return;
+    }
+    const quote = detail.range ? rawQuote(detail.range) : detail.quote;
+    let found = passageTarget({ text: node.textContent, rev, detail: { ...detail, quote } });
+    if (found.status === 'missing' && more()) {
+      if (!detail.quiet) { pendingPassage.current = detail; more().click(); }
+      return;
+    }
     pendingPassage.current = null;
     // Only a roadmap card's raw quote, and only now that the whole file is drawn, is matched folded; a learner's own passage stays exact or missing.
-    if (found.status === 'missing' && detail.raw) found = resolveRawPassage(textSegments(node), detail.quote);
+    if (found.status === 'missing' && detail.raw) found = resolveRawPassage(textSegments(node), quote);
     const range = found.status === 'resolved' && rangeFromOffsets(node, found.start, found.end);
-    if (!range) { setMessage({ text: PASSAGE_TEXT[found.status] || PASSAGE_TEXT.missing }); return; }
+    if (!range) { say(PASSAGE_TEXT[found.status] || PASSAGE_TEXT.missing); return; }
+    if (detail.quiet && !inView(range)) return;
     const paintKey = `srcref:${block.id}`;
     paintHighlights(paintKey, [range]);
-    (range.startContainer.parentElement || node).scrollIntoView?.({ block: 'center' });
+    if (!detail.quiet) (range.startContainer.parentElement || node).scrollIntoView?.({ block: 'center' });
     setTimeout(() => paintHighlights(paintKey, []), 2500);
+  };
+  const CONTEXT = 100; // the context roadmap-source-refs.js mints a step's quote with
+  const rawQuote = ({ start, end }) => ({ exact: text.slice(start, end), prefix: text.slice(Math.max(0, start - CONTEXT), start), suffix: text.slice(end, end + CONTEXT) });
+  // Already on screen: inside this card's scroller and inside the window.
+  const inView = range => {
+    const box = range.getBoundingClientRect(), view = scroller.current?.getBoundingClientRect();
+    return !!view && box.bottom > view.top && box.top < view.bottom && box.bottom > 0 && box.top < window.innerHeight && box.right > 0 && box.left < window.innerWidth;
   };
   useEffect(() => {
     const onPassage = event => { if (event.detail?.cardId === block.id) passageView.current(event.detail); };
@@ -129,11 +150,16 @@ export function MarkdownText({ block, text, children }) {
     const caret = selection.getRangeAt(0), before = document.createRange();
     before.setStart(node, 0); before.setEnd(caret.startContainer, caret.startOffset);
     const offset = before.toString().length, placed = saveable ? placeHighlights(node.textContent, highlights) : [], h = highlightAt(placed, offset);
-    const passage = explanationsFor(refBlocks, { key: `file:${block.fileRef?.source?.id}`, rev }).current
+    const fileKey = `file:${block.fileRef?.source?.id}`, whole = !scroller.current?.querySelector('[data-file-doc-more]');
+    // A Tutor slot for a passage of this file (its step's raw offsets, read from this card's text; folded only once the whole file is drawn) opens the slot.
+    const slot = pendingSlots.filter(entry => entry.ref?.source?.key === fileKey && entry.ref.source.rev === rev && entry.end <= text.length)
+      .flatMap(entry => { const quote = rawQuote(entry), exact = resolveQuote(node.textContent, quote), span = exact.status === 'missing' && whole ? resolveRawPassage(textSegments(node), quote) : exact; return span.status === 'resolved' && containsOffset(span, offset) ? [{ cardId: entry.slotId, span }] : []; })[0];
+    const passage = explanationsFor(refBlocks, { key: fileKey, rev }).current
       .flatMap(({ cardId, ref, raw }) => { const exact = resolveQuote(node.textContent, ref.anchor.quote), span = exact.status === 'missing' && raw && !scroller.current?.querySelector('[data-file-doc-more]') ? resolveRawPassage(textSegments(node), ref.anchor.quote) : exact; return span.status === 'resolved' && containsOffset(span, offset) ? [{ cardId, span }] : []; })[0];
-    if (!h && !passage) { setMenu(null); return; }
-    const { span } = h ? placed.find(entry => entry.h === h) : passage;
-    setMenu({ h: h || null, cardId: passage?.cardId ?? null, range: rangeFromOffsets(node, span.start, span.end) });
+    const target = passage || slot;
+    if (!h && !target) { setMenu(null); return; }
+    const { span } = h ? placed.find(entry => entry.h === h) : target;
+    setMenu({ h: h || null, cardId: target?.cardId ?? null, range: rangeFromOffsets(node, span.start, span.end) });
   };
 
   const highlight = quote => {
