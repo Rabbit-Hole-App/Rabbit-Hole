@@ -260,13 +260,13 @@ The earlier "nine completed" count covered only narrow correction checkboxes. It
 | R5 | 8 | 7 | 15 | Existing preview/Apply/keyboard/link guards checked; author/composer/reuse/geometry work open. |
 | R6 | 6 | 1 | 7 | Existing trigger/composer/delivery guards checked; persistent Chat/offscreen integration open. |
 | R7a | 15 | 3 | 18 | Existing index/retrieval/coverage checked; remaining extensions deferred. |
-| R7b | 0 | 15 | 15 | Whole-PDF Tutor adapter unbuilt and deferred; R3 excerpts counted separately. |
+| R7b | 0 | 15 | 15 | Docling PDF workflow planned as a separate release. R3 excerpts are counted separately. |
 
 R4's detailed correction lists contain **15 / 50 checked CORE items** and **12 / 72 checked UI items**. These are detailed subtasks of the R4/integration rollup above, not extra completed releases. BE and per-release receipts remain separate evidence tasks. Do not sum overlapping rollups and subtasks into a misleading project percentage. Checked UI foundations mean source/Node verification; owner manual production acceptance is still separate.
 
 **Still required for the core:** complete planner context for selected scope; accepted instruction/title/Depth/version binding; one ordinary author dispatch across terminal failures; actual request quote equality; durable Chat acknowledgment/routing/revision and per-step messages; accepted-only ToC; persisted/final saved geometry; new source highlights/hover links and viewport-bottom Next card; shared Explanation prompts, caps, pinned header, downward sections, tables/Mermaid; then missing BE cases, build and release receipts. Existing safety, access, atomic money, feedback, settings, references and metadata-offer foundations are reused.
 
-The owner permits deferring remaining R7a extensions and the unbuilt R7b adapter. The current four enabled production config flags stay unchanged. After Core Tutor, take R8a next with the first Explanation slice in §6.4. See §6.7 for staged R10 delivery and §6.8 for R11 before R12.
+The owner permits deferring remaining R7a extensions. R7b is a separate release under §6.3. The current four enabled production config flags stay unchanged. After Core Tutor, take R8a next with the first Explanation slice in §6.4. See §6.7 for staged R10 delivery and §6.8 for R11 before R12.
 
 ### 2.2 Current seams instead of obsolete proposed files
 
@@ -302,6 +302,7 @@ These are repository configuration facts at the pinned SHA, not proof of live pr
 | `tutor_rubric` / `tutor_visual` | Current Opus5.5,4,000. | Retained assessments. Visual assessment is not an OCR source reader. |
 | Existing interactive engine (internal `explain`) | Current `explain_brief/author/review/repair`, Opus5.5 with existing individual limits. | Its public command becomes `/interactive` in the standalone split. The written `/explain` uses the ordinary Explanation path. |
 | Research/adaptation/vision | `roadmap_research`, `roadmap_adapt`, `roadmap_vision_extract` are proposed future roles. | Register only at the owning rung, with bounded input/output, actual requested/served model and focused eval. |
+| PDF page reader | Planned `read_pdf_pages` with the private CPU Docling worker in §6.3. | Shared read-only tool for authorized attached PDFs. Reuse stored pages and charge indexing to platform work limits. |
 | Calculator | Deterministic restricted parser/evaluator, no model. | Finite grammar/limits and computational provenance, zero provider call. |
 | Image/Motion/Whiteboard/CAD/3D | Reuse each current engine configuration and override logging. | No blanket model replacement. Image provider IDs, CAD Sonnet, Motion/Whiteboard roles and TTS are owned by their existing engines. |
 
@@ -1084,68 +1085,135 @@ For each implemented task record the candidate SHA, actual commands/results, fix
 
 ### 6.3 R7b — PDF text and page references
 
-**Current status:** **Deferred / not implemented:** NEW Tutor whole-PDF planning adapter. All R7b checkboxes below remain future work; existing selected-PDF references are already counted under R3. Do not add R7b to the current core sprint unless separately requested. Existing PDF.js extraction, page-text storage/selection and R3 selected-PDF references are reusable; they do not enable whole-PDF Tutor planning. No OCR/vision fallback belongs to this rung.
+**Status:** Planned, 0 of 15 checked. R3 already covers selected PDF references and navigation. Keep the Core Tutor MVP and R8a Explanation priority above this release. Use the [R7b learner workflow](tutor-roadmap-v1.4.md#541-r7b--pdf-sources-on-canvas) and the [shared tool-call workflow](tutor-roadmap-v1.4.md#931-shared-tool-call-workflow). This plan checked the relevant source seams at main `f411c6dee88a0f222ac58df638a41009e56c3867`. It records design work separately from the implementation audit checkpoint and acceptance receipts.
 
-**Browser-local prerequisites:** Use a local saved PDF with readable text, a mixed scanned/text PDF, failed extraction and late-page fixtures; current PDF viewer/page extraction must be available. Implement the NEW PDF coverage harness before invoking it.
+**Current starting point.** `packages/web/src/LearnPage.jsx` uses `takePdf`, `placePdf` and `drawPages` with `PdfAddDialog.jsx`. A drop opens the PDF with PDF.js, then `context-doc-pages.js::readPageTexts` reads every page before uploading via `/api/learn/paper`, even for **Separate pages → Page range**. `learn-paper.js::putUploadedPaper` requires that derivative for a large file. `pdf-pages.js` assumes a dense page array and caps the whole derivative at 8 Mi characters. `learn-context-docs.js` already separates storage from some page-text updates. Start by separating storage and placement from extraction on the paper path, then use the same reader for authorized PDFs from Sources.
 
-**Rung receipt:** PDF byte hash plus extraction revision, per-page readable/unreadable coverage, selected-page source navigation, no vision requests, and separate platform indexing versus accepted-generation accounting.
+#### R7b tech stack and Docling API
 
-### R7b.01 Adapt existing PDF extraction into versioned coverage records
+- **Canvas and control plane.** Keep PDF.js, `PdfAddDialog`, the existing PDF and slide renderers, and the original page reader. The JavaScript control plane owns upload validation, scope, access, job admission, status, storage and tool dispatch. Store immutable bytes and bounded per-page derivatives through the existing `learnMedia(env)` R2 seam. Reuse existing source/index records or object metadata before adding a schema. Any unavoidable production migration or new infrastructure follows the owner's approval boundary.
+- **Extraction.** Use a private Linux Docker worker with CPython 3.12, the Docling standard PDF pipeline and CPU-only inference. Start local qualification with `docling[rapidocr]==2.148.0`, CPU PyTorch, RapidOCR with ONNX Runtime, and Pillow for bounded PNG crops. Lock the resolved dependencies and model artifact revisions. Stage the approved PDF bytes from Learn storage to a bounded temporary file for the job. Use an authenticated internal job interface, a per-job timeout and isolated temporary storage. Reuse the existing worker hosting and job conventions where they fit. Validate the intended host and resource footprint before release.
+- **Models and profiles.** Prefetch the layout, table, and supported OCR language artifacts into `/opt/docling-models` in the image build using `docling-tools models download --output-dir /opt/docling-models` and the pinned CLI's language options. Record artifact and license versions. Run with local `artifacts_path` and `enable_remote_services=False`. Reuse warm converters per profile. Start with native text, accurate table structure, and figure crops. For an image region with no usable text, run a bounded local OCR pass on the needed page. Configure the OCR language from reliable context. Check the supported language before dispatch and retain coverage when an unsupported language needs a readable source. A full-page OCR retry is reserved for a requested page without usable native text. Preserve the native text and mark the OCR regions separately.
+- **Code and visuals.** Keep source line breaks and indentation in code blocks. Docling's optional `do_code_enrichment` is code-aware transcription. Qualify it on the specific pages that need it with local models before enabling it, and keep that output separate from reliable native text. Iterate `result.document.iterate_items()` in reading order, preserve table cells and structure, and use `item.prov` for the original `page_no` and `bbox`. Use `PictureItem.get_image(result.document)` with `generate_picture_images=True` for a real figure crop. Preserve captions as their own evidence. Adapt page size, origin and rotation to the current R3 viewer coordinates and test the conversion. Use a page-only link for geometry that has not qualified. R15 retains the broader image, note and dedicated vision-extraction scope.
 
-**Owner:** Tools and State/Money. **Depends:** R7a retrieval/coverage contract; R3 page navigation. **Trace:** v1.3 §3.8; M4.20 PDF portion, D5/D42. **Model:** none; no OCR or vision role in this release.
+Example worker setup and one inclusive page-range job. Validate and resolve the path and range in the job adapter before calling Docling.
 
-**Current seams:** `packages/web/src/context-doc-pages.js` `readPageTexts`; `packages/control-plane/src/pdf-pages.js` page-array validation, `putPageTexts`, `readPages`; `packages/control-plane/src/learn-context-docs.js` `readOwnDocument` and upload handling. **NEW work:** create `packages/control-plane/src/roadmap/roadmap-source-pdf.js`; extend source index/coverage modules and PDF ingestion as needed; create `test/roadmap-source-pdf.test.js`.
+```python
+from pathlib import Path
 
-- [ ] Resolve the learner's immutable PDF bytes and associated extracted page text through the same ownership rules as the existing reader. Bind derivative identity to both PDF source revision and extraction-version/text hash.
-- [ ] Record `origin:'browser_pdfjs_text'`, PDF-order page number, original byte hash, per-page text status and extraction limits. Browser-produced text is a declared derivative, not a claim of server extraction or visual verification.
-- [ ] Convert empty/scanned/damaged pages, cut markers and incomplete extraction into unreadable/partial coverage. Existing extraction may throw at its total time/text limit; record that failure rather than inventing unreturned page text.
-- [ ] Validate page arrays, page counts and text bounds server-side. Re-extraction creates a new derivative revision and coverage record, leaving already delivered references bound to their historical input.
-- [ ] Test uploaded PDF ownership, mixed text/scans, first/last page, corrupt text payload, cut pages and retry. Do not silently route unreadable pages to assessment vision or an unshipped OCR provider.
+from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import (
+    PdfPipelineOptions, RapidOcrOptions, TableFormerMode, TableStructureOptions,
+)
+from docling.document_converter import DocumentConverter, PdfFormatOption
 
-**Task evidence:** Keep the PDF-to-derivative hash mapping and page coverage list.
 
-**Current unit regressions (exist at baseline; root working directory):** `node --test packages/control-plane/test/pdf-pages.test.js packages/web/src/context-doc-pages.test.mjs`
+def build_converter(*, ocr: bool, language: str = "iso:en") -> DocumentConverter:
+    options = PdfPipelineOptions(
+        artifacts_path=Path("/opt/docling-models"),
+        accelerator_options=AcceleratorOptions(device=AcceleratorDevice.CPU, num_threads=2),
+        enable_remote_services=False,
+        document_timeout=60.0,
+        do_ocr=ocr,
+        do_table_structure=True,
+        table_structure_options=TableStructureOptions(mode=TableFormerMode.ACCURATE),
+        generate_picture_images=True,
+        images_scale=1.5,
+    )
+    if ocr:
+        options.ocr_options = RapidOcrOptions(
+            backend="onnxruntime", lang=[language], force_full_page_ocr=False,
+        )
+    return DocumentConverter(
+        allowed_formats=[InputFormat.PDF],
+        format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=options)},
+    )
 
-**NEW unit tests (create, then run from root):** `node --test packages/control-plane/test/roadmap-source-pdf.test.js`
 
-### R7b.02 Retrieve page text with intact references and bounded evidence
+native_converter = build_converter(ocr=False)
+result = native_converter.convert(
+    Path(staged_pdf), page_range=(312, 316),
+    max_num_pages=2000, max_file_size=25 * 1024 * 1024, raises_on_error=False,
+)
+```
 
-**Owner:** Tools. **Depends:** R7b.01, R7a.02. **Trace:** v1.3 §§3.8, 6.2; M4.20; extends M3 page anchors. **Model:** registered `roadmap_index` Sonnet `claude-sonnet-5-5`, low, only for optional bounded summaries; page ranking/reading is deterministic.
+In the worker, `staged_pdf` is the job's private local file. Construct the converter once per process/profile. The range uses 1-based PDF page positions and includes both endpoints. Pass each contiguous batch to the original PDF. Check the result status, errors, actual `page_no` set and per-region output, including on success. Preserve valid pages from a partial result and record any missing requested page. The control plane owns retries and records them against the same source and work identity.
 
-**Current seams:** `packages/control-plane/src/pdf-pages.js` `namedPages`, `selectPages`, `pagesDocument`; `packages/control-plane/src/explain-evidence.js` permits page-bearing evidence records. **NEW work:** modify `roadmap-source-pdf.js`, current `roadmap-source.js` and source-reference adapter; add retrieval cases to `test/roadmap-source-pdf.test.js`.
+Official implementation references checked for this plan.
 
-- [ ] Implement the same `readSourceEvidence` response for PDFs: immutable source/derivative versions, page plus local offsets, original extracted excerpt, selected/omitted pages and limitations.
-- [ ] Prefer the requested page and neighbors, then explicit page ranges and lexical relevance. Reuse the existing selector where compatible; adapt its fixed request limit deliberately rather than assuming it proves full-document coverage.
-- [ ] Preserve the distinction between a page's PDF order and printed page labels. Keep repeated headers and same text on separate pages addressable.
-- [ ] Bind claims only to excerpts actually returned and read. Pages represented only by outline or summary remain unavailable as direct evidence until retrieval.
-- [ ] Test a relevant page near the end of a long PDF, multiple requested ranges exceeding the bound, empty requested page, page cut, duplicate headers and changed extraction. Round-trip each returned reference through the existing viewer.
+- https://pypi.org/project/docling/2.148.0/
+- https://docling-project.github.io/docling/reference/document_converter/
+- https://github.com/docling-project/docling/blob/v2.148.0/docling/pipeline/base_pipeline.py
+- https://docling-project.github.io/docling/reference/pipeline_options/
+- https://docling-project.github.io/docling/usage/advanced_options/
+- https://docling-project.github.io/docling/usage/enrichments/
+- https://docling-project.github.io/docling/_generated/examples/export_figures/
 
-**Task evidence:** Retain selected-page traces and evidence records whose page/offsets reopen the intended text; demonstrate exact character bounds without truncating the coverage explanation.
+#### R7b bounds, page records and tool contract
 
-**Current unit regressions (exist at baseline; root working directory):** `node --test packages/control-plane/test/pdf-pages.test.js`
+| Policy | Initial qualification setting |
+| --- | --- |
+| PDF acceptance | Keep the current **25 MiB / 2,000 physical pages** bounds in `pdf-pages.js`. Persist page count even when coverage is empty. Verify the actual count in the trusted PDF worker before extraction. A page count from the browser is a hint until verified. Keep the existing whole-PDF model eligibility checks for legacy callers. Unknown or excessive page count keeps new binary-first uploads out of the whole-PDF model path. |
+| Batch and request limits | Start with at most **8 contiguous pages per worker batch** and **8 pages per `read_pdf_pages` call**. Run separate batches for a larger scope. Use one in-flight parse per worker process, two CPU threads, a **60 s** conversion deadline and a **90 s** job deadline. Apply current per-request, learner and platform work admission in addition to these ceilings. |
+| Evidence limits | Start with existing **20,000 characters per page** and **32,000 characters per evidence response** as ceilings, with the actual model budget also enforced. Start with up to **2 figure crops per read**, bounded by existing `pdf-excerpts.js::CROP_LIMITS` and the caller's image input budget. State omitted pages, blocks and crops when a bound cuts evidence. |
 
-**NEW unit tests (create, then run from root):** `node --test packages/control-plane/test/roadmap-source-pdf.test.js`
+These are configurable server policy defaults for local qualification. Record cold and warm latency, peak RSS and throughput with the real fixtures before setting release capacity. Measure worker runtime separately from upload, placement and the user-facing wait. Persist sparse page records in bounded chunks, allowing upload and a late-page read independently of the legacy dense browser index limit. Use an owner-scoped identity over original PDF hash, extraction revision and original page. The extraction revision includes the pinned parser, model artifacts and profile policy. Atomically claim each missing page under that identity, group adjacent claimed pages into one batch, and reuse in-flight work for overlaps. Commit page data before advancing coverage, and resume unfinished pages after a reload or retry.
 
-### R7b.03 Ship PDF scope and limitations without widening the adapter
+Each page record has original page number, optional printed label, bounds, ordered blocks with local offsets or region IDs, extraction provenance, and explicit coverage. Distinguish `unprocessed`, `pending`, `ready`, `partial`, `blank`, `unreadable` and `failed`. A blank page is distinct from an image-only page or a corrupt parse. A figure can be ready while its text is unavailable. Keep existing validated `.pages` derivatives usable as `browser_pdfjs_text`; identify new native/OCR output separately. Changed bytes or extractor configuration create a new revision. Historical results retain their existing authorized links.
 
-**Owner:** UI and Verifier. **Depends:** R7b.01–R7b.02, R4 complete flow. **Trace:** v1.3 §3.8, D5; PDF portion of M4.20. **Model:** none additional.
+Register a single read-only `read_pdf_pages({ sourceId, fromPage, toPage })` schema with three required fields and closed arguments. `sourceId` identifies an attached PDF supplied by the server. Validate inclusive integer positions with `1 <= fromPage <= toPage <= verifiedPageCount`. Resolve access, pinned version, allowed teaching scope and limits from the trusted caller before dispatch. Use `roadmap-tools.js::{capabilityCatalogue,resolveToolCall,runRoadmapTool}` and the qualified `chat-tools.js`/answer-loop seams. Explicit page scopes can call the same authorized reader from the application. Reuse available excerpts before offering a model call. If the caller needs topical retrieval, use the existing index to choose candidate pages before this reader. Expose the tool only to eligible turns with attached PDF access, including `Ask`, `Auto`, `Tutor`, the roadmap and qualified command briefs. Treat instructions and code inside the PDF as source content. Tools run only on validated caller intent and authorized inputs.
 
-**Current seams:** `packages/web/src/context-doc-pages.js` `processing` exposes reading progress; `packages/web/src/context-docs.js` `retryContextDoc`; `packages/control-plane/src/pdf-pages.js` `pdfStatus` distinguishes ready/failed page extraction. **NEW work:** modify current `TableOfContents` in the existing ToC integration and `RoadmapPlan.jsx`/scope UI and source client; create `packages/web/src/roadmap-pdf-coverage.test.mjs`, `e2e/roadmap-pdf-check.mjs`.
+Return the shared tool status with the pinned `sourceId`, source and extractor revisions, requested/returned/omitted page ranges, page or block evidence, stable figure references, and per-page coverage. Use `ok` for a satisfied read and `partial` with a typed reason such as `pdf_pages_pending` or `pdf_pages_unreadable` when admitted work or coverage is incomplete. Map invalid, changed, forbidden and unavailable calls to the existing typed outcomes. Return usable scoped blocks and pending status once; resume through existing status/progress handling. Cap the loop through the shared policy. Keep private PDF bytes, paths and content within the authorized document path. R8a handles independent public gaps and retains its query privacy and fetch rules.
 
-- [ ] Present readable page scope, extraction progress and unavailable pages using the current document controls. A scanned page asks for a readable source or later supported OCR path; it never promises text the adapter has not read.
-- [ ] Let the learner narrow an incomplete whole-document request to explicit supported pages. Preserve the original instruction and show resulting coverage in the proposed revision before acceptance.
-- [ ] Gate PDF planning independently from long Markdown and R3 selected-excerpt navigation. Turning PDF planning off must not break historical page links or the supported Markdown loop.
-- [ ] Exercise extraction retry/reload, page near the end, mixed readable/unreadable document, changed source and revoked access. Verify the explanation cites the requested original pages.
-- [ ] Prove no vision endpoint, general execution service or unrelated media command is called. Confirm platform index work and learner accepted generation retain their separate accounting.
+### R7b.01 Store PDFs first and produce versioned page coverage with Docling
 
-**Task evidence:** Use the shared R4 money tests for accepted delivery. Attach current-UI screenshots, coverage and route traces to an independent R7b receipt.
+**Owner:** Tools and State/Money. **Depends:** R7a index/coverage contract, R3 page navigation. **Trace:** v1.3 §3.8; M4.20 PDF portion, D5/D42. **Model:** local Docling models only for extraction.
 
-**Current unit regressions (exist at baseline; root working directory):** `node --test packages/control-plane/test/pdf-pages.test.js packages/control-plane/test/roadmap-money.test.js`
+**Current seams:** `packages/control-plane/src/learn-paper.js::{putUploadedPaper,readUploadedPaper,uploadedPaperAsDocument}`, `learn-context-docs.js`, `pdf-pages.js::{readPageTexts,putPageTexts,readPageMeta,readPages,pdfStatus}`, `pdf-excerpts.js::{readSource,sourceHash}`. **New work:** `packages/pdf-worker/` for the private Python worker and CPU fixtures. Put the control-plane adapter in `packages/control-plane/src/roadmap/roadmap-source-pdf.js` and share the reader with current callers.
 
-**NEW unit tests (create, then run from root):** `node --test packages/web/src/roadmap-pdf-coverage.test.mjs`
+- [ ] Accept authorized PDF bytes and metadata before page parsing through the existing upload/reader paths. Persist verified original count and PDF hash. For uploaded papers and Sources PDFs, use the current ownership/home-canvas rules and guard the legacy whole-file reader while extraction is pending.
+- [ ] Package the pinned CPU Docling worker and warm converter profiles. Process only the explicit ranges admitted for the source. Normalize blocks and figure crops, attach page provenance and origin, and enforce the local OCR, time, output and figure bounds above.
+- [ ] Store validated sparse derivatives and coverage by immutable source and extractor revisions. Record legacy browser origins, partial and missing pages, unsupported OCR, empty and corrupted pages, and page cuts. Keep readable pages usable through a partial failure.
+- [ ] Make worker admission, page commits, retry and index resume idempotent. Reuse cached pages for overlapping work. Recheck access and source revision before commit and readback. Bind existing delivered references to their original input; preserve saved PDFs and legacy derivative compatibility.
+- [ ] Test ownership and malformed inputs, a small file with 400 physical pages, single first/last page and inclusive 312–316, mixed native/OCR content, indented code, tables and a figure, partial results and retry. Assert only requested pages enter extraction, the original bytes were stored before it, and original page identities survive. Verify a limit or worker failure retains the viewable PDF and existing saved cards.
 
-**NEW local browser harness (create first; common prerequisites plus this rung’s fixtures):** `BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node packages/web/e2e/roadmap-pdf-check.mjs`. Record actual assertions and screenshots; a fixture route proves UI behavior only, not live provider quality.
+**Task evidence:** Keep the mapping from PDF hash to extraction/profile revision, requested and completed page traces and per-page coverage. Run the planned CPU worker suite with `python -m pytest -q packages/pdf-worker/tests` from the pinned worker environment. Include cold/warm time to the first requested page set, peak RSS and artifact counts.
 
+### R7b.02 Retrieve bounded evidence before roadmap and card work
+
+**Owner:** Tools and Lead. **Depends:** R7b.01, R7a.02 and the shared registry/dispatch contract. **Trace:** v1.3 §§3.8, 6.2; M4.20 and R3. **Model:** deterministic reads and ranking. Reuse `roadmap_index` only for approved optional bounded summaries.
+
+**Current seams:** `pdf-pages.js::{namedPages,selectPages,pagesDocument}`, `packages/control-plane/src/roadmap/{roadmap-source.js,roadmap-source-read.js,roadmap-source-reader.js,roadmap-tools.js}`, `learn-ask-context.js`, `chat-tools.js`, and `explain-evidence.js`. Resolve existing `paper_context`/`page_context` and `doc:` context refs to the same authorized stored PDF and original page. Extend current source resolution, evidence and command brief paths. Add `packages/control-plane/test/roadmap-source-pdf.test.js` and `roadmap-pdf-tool.test.js` alongside current tests.
+
+- [ ] Register and validate `read_pdf_pages` in the shared catalogue and expose it through the qualified consumers. Resolve and pin the source once at the trusted boundary. Verify schema gating, closed arguments, current authorization, eligible range and work admission before dispatch. Return typed coverage to the same turn.
+- [ ] Implement the same `readSourceEvidence` response for PDFs with versioned source, relevant original excerpts, page and local offsets/regions, returned and omitted coverage, and image refs. Prioritize an explicit authorized page/range, then active page and allowed neighbors, then deterministic relevance. Keep duplicate headers addressable by page. Preserve actual page order and any supplemental printed label.
+- [ ] Before **Roadmap Draft**, resolve the exact chosen scope. Read the selected range first. For **Full content**, reuse a verified PDF outline when available and populate page-derived headings and coverage in resumable batches across that scope. Qualify the whole-source plan against that coverage and supporting originals. Route incomplete essential scope to progress or a disclosed narrower draft/revision through Chat.
+- [ ] Reuse the pinned excerpt/crop evidence before each step and command offer, and for direct questions in Ask, Auto and Tutor. Bind it to the reviewed version for acceptance and generation. Summaries guide retrieval; use original retrieved blocks for claims. Hydrate the authorized figure crop only when needed through a supported image input, otherwise describe the coverage. Separate PDF reading from R8a public evidence and retain normal safety and output checks.
+- [ ] Run late-page, multi-range over-budget, empty, cut, duplicate-header, rotated crop and changed-version fixtures. Test Ask, Auto, Tutor, roadmap draft, roadmap step and eligible slash briefs with doubles, a disabled or unauthorized source, one cached read across calls, and `partial` without a duplicate job. Round-trip returned pages and verified regions through the existing reader.
+
+**Task evidence:** Record call inputs, eligibility, exact pages read and omitted, the evidence actually sent to the planner/writer, and page or figure anchors reopening the original. A whole-document outline is navigation evidence until the corresponding blocks have been read.
+
+### R7b.03 Preserve both Canvas layouts and qualify the learner flow
+
+**Owner:** UI, State/Money and Verifier. **Depends:** R7b.01–R7b.02 and the complete R4 flow. **Trace:** v1.3 §3.8, D5/M4.20. **Model:** existing approved generation path.
+
+**Current seams:** `packages/web/src/PdfAddDialog.jsx`, `LearnPage.jsx::{takePdf,placePdf,drawPages}`, `pdf-source.js`, `context-docs.js::retryContextDoc`, existing PDF card/page renderer and `SourceReader`, `RoadmapPlan.jsx`, the accepted `TableOfContents` and R3 source controls. Lead owns `LearnPage.jsx` integration. Add `packages/web/src/roadmap-pdf-coverage.test.mjs` for the state/placement contract.
+
+- [ ] Exercise the existing dialog for a dropped PDF and one already in Sources. **PDF card** creates one compact card after storage. **Separate pages → Page range** draws just the chosen images, and **All pages** follows the existing drawing path with progress. Preserve the original PDF identity, original numbering, one undoable insert, and cancellation/retry. An unaccepted import leaves no new Canvas cards or extraction work.
+- [ ] Use the existing Chat scope/roadmap controls for one page, a range, or **Full content**. Show progress and available/omitted page ranges. Preserve the learner's instruction through retry or narrower scope. For **Just keep it here**, keep the saved source usable and wait for a later request before starting lesson preparation.
+- [ ] Surface page ranges in the reviewed draft and accepted ToC steps. Reuse existing source navigation and PDF reader. Place one stable generated slot by the matching page card when available, the compact PDF card otherwise, or the ordinary fallback when the source is only in Sources. Preserve stable coordinates across reader scrolling, page changes and reload. Open the original page, with a verified crop highlight where supported.
+- [ ] Gate PDF planning and the registry read independently of R7a and historical R3 links. Exercise feature-off, upload versus existing source, reload, mixed coverage, retry, changed bytes and revoked/shared access. Keep readable sections usable, and use existing Chat recovery for an essential missing page. Prove the large and late-page scopes do not fall back to an unrelated first-page context.
+- [ ] Verify local extraction/indexing work uses platform admission, with zero learner debit and zero external extraction/vision provider calls. Verify any existing image-capable writer sees only the approved bounded crop when needed. Keep the accepted card charge, reconciliation and saved result under R4. Record focused local backend results and build before release qualification or owner manual production checking.
+
+**Verification order.** First run the real local CPU worker fixture suite. Then run the existing regressions and the new Node suites from the repository root. Record results separately for worker behavior, mocked callers, release verification and owner acceptance.
+
+```bash
+node --test packages/control-plane/test/pdf-pages.test.js packages/control-plane/test/pdf-excerpts.test.js packages/control-plane/test/source-refs.test.js packages/control-plane/test/roadmap-source.test.js packages/control-plane/test/roadmap-tools.test.js packages/control-plane/test/chat-tools.test.js packages/control-plane/test/roadmap-money.test.js packages/web/src/context-doc-pages.test.mjs packages/web/src/pdf-anchor.test.mjs
+node --test packages/control-plane/test/roadmap-source-pdf.test.js packages/control-plane/test/roadmap-pdf-tool.test.js packages/web/src/roadmap-pdf-coverage.test.mjs
+```
+
+Use the existing browser verification boundary. The proposed `packages/web/e2e/roadmap-pdf-check.mjs` is an optional authorized browser qualification after the local backend pass. Attach page coverage, source jumps, scope transitions, route traces and accounting to an independent R7b receipt. The approved release process and required clone verification remain in §8.
 
 ### 6.4 R8a — Scoped web discovery and fetched evidence
 
@@ -1191,7 +1259,7 @@ Complete the three R8a checkpoints in order.
 - [ ] Search a bounded number of candidates, select relevant primary pages, then actually fetch them. Search titles/snippets and model-authored citations are never evidence records.
 - [ ] Preserve final URL, title, retrieval time, applicable date or version, hash of bytes read, original excerpt, discovery origin, access class and limitations. Distinguish partial body from complete-page reading.
 - [ ] Reuse public-network/DNS and every-redirect validation. No credential forwarding, paywall bypass, local network access or arbitrary download path is added by the Tutor wrapper.
-- [ ] Route PDF candidates only through a shipped supported document adapter; when unavailable, return the unsupported limitation. Research does not depend on R7b shipping, and must still handle HTML sources.
+- [ ] Route fetched public PDF candidates through the guarded R8a fetch path and a qualified document adapter. Return the unsupported limitation when that adapter is unavailable. Keep HTML research independent of R7b. The R7b registry reader is scoped to authorized attached PDFs.
 - [ ] Treat fetched instructions as untrusted source data. Page access failure, scripted empty body, content-type refusal, provider timeout and conflicting sources produce typed limitations or clarification, not fabricated answers.
 - [ ] Test malicious redirects, paywall response, oversized/truncated text, unsupported PDF, duplicate candidate and contradictory evidence. Supply retained excerpts with the caller's authorized context to the planner, reply writer or approved card author. Keep the cited references and coverage separately. Do not introduce a blocking LLM citation pass for ordinary Markdown text/table.
 
@@ -1989,7 +2057,7 @@ Store each command's cases in its own `packages/control-plane/test/fixtures/chat
 
 ### R12.16 Add /arxiv with versioned paper selection
 
-**Owner:** Tools, UI; **Depends:** R12.01; R7b only for whole-PDF planning/reading beyond existing supported retrieval. **Trace:** §3.13/§6.3; M5/M8. **Model:** none for metadata search and insertion; optional research uses its explicit role.
+**Owner:** Tools, UI; **Depends:** R12.01; R7b (§6.3) for structured PDF evidence beyond existing supported retrieval. **Trace:** §3.13/§6.3; M5/M8. **Model:** none for metadata search and insertion; optional research uses its explicit role.
 
 **Current seams:** `packages/control-plane/src/arxiv.js` ID/search/read/PDF/selection validation; `packages/control-plane/src/learn-search.js`; `packages/web/src/agent/slash.js`. **NEW files/contracts:** `packages/control-plane/src/roadmap/roadmap-adapters/arxiv.js`, `packages/control-plane/test/roadmap-arxiv.test.js`; **Modify:** finder selection and existing paper-card metadata.
 
@@ -2238,7 +2306,7 @@ Readable note sources and image extraction are separately enabled adapters. Neit
 
 ### R15.03 Preserve OCR uncertainty and page/crop coverage in reasoning
 
-**Owner:** Tools, State/Money; **Depends:** R15.02; R7b for scanned PDF pages. **Trace:** §§3.16, 6.2; M13/M4.20, D42. **Model:** dedicated proposed extraction role. Resolve consequential OCR ambiguity through explicit uncertainty/clarification and relevant extraction checks; do not add a blocking citation checker/escalation to ordinary Markdown text/table generated from that supported context.
+**Owner:** Tools, State/Money; **Depends:** R15.02; reuse the R7b page/crop records for PDFs. R15 extends the bounded local PDF OCR path with dedicated visual interpretation and uncertainty. **Trace:** §§3.16, 6.2; M13/M4.20, D42. **Model:** dedicated proposed extraction role. Resolve consequential OCR ambiguity through explicit uncertainty/clarification and relevant extraction checks; do not add a blocking citation checker/escalation to ordinary Markdown text/table generated from that supported context.
 
 **Current seams:** `packages/control-plane/src/inline-image-extraction.js` validates uncertainty locations; `packages/control-plane/src/learn-image-context.js` distinguishes source receipt from recognition; `packages/control-plane/src/learn-files.js` verifies uploaded bytes. **NEW files/contracts:** `packages/control-plane/src/roadmap/roadmap-ocr-evidence.js`, `packages/control-plane/test/roadmap-ocr-evidence.test.js`; **Modify:** R7 coverage records, R3 reference conversion and, when R9 is enabled, its key-support checker through owners. R9 is not an additional prerequisite for image-source explanations.
 

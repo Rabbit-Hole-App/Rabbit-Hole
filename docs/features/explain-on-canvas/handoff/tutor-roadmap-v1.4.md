@@ -18,6 +18,7 @@
 - [4 Chat, Table of Contents and Progress](#4-chat-table-of-contents-and-progress)
   - [4.7 Ordinary messages and tool requests](#47-ordinary-messages-and-tool-requests)
 - [5 Context, scope and source references](#5-context-scope-and-source-references)
+  - [5.4.1 R7b — PDF sources on Canvas](#541-r7b--pdf-sources-on-canvas)
 - [6 Proposal, generation and delivery lifecycle](#6-proposal-generation-and-delivery-lifecycle)
 - [7 Canvas placement and source navigation](#7-canvas-placement-and-source-navigation)
 - [8 Pacing, feedback and practice](#8-pacing-feedback-and-practice)
@@ -103,13 +104,13 @@ The earlier "nine completed" count covered only narrow correction checkboxes. It
 | R5 | 8 | 7 | 15 | Existing preview/Apply/keyboard/link guards checked; author/composer/reuse/geometry work open. |
 | R6 | 6 | 1 | 7 | Existing trigger/composer/delivery guards checked; persistent Chat/offscreen integration open. |
 | R7a | 15 | 3 | 18 | Existing index/retrieval/coverage checked; remaining extensions deferred. |
-| R7b | 0 | 15 | 15 | Whole-PDF Tutor adapter unbuilt and deferred; R3 excerpts counted separately. |
+| R7b | 0 | 15 | 15 | Docling PDF workflow planned as a separate release. R3 excerpts are counted separately. |
 
 R4's detailed correction lists contain **15 / 50 checked CORE items** and **12 / 72 checked UI items**. These are detailed subtasks of the R4/integration rollup above in the companion checklist, not extra completed releases. BE and per-release receipts remain separate evidence tasks. Do not sum overlapping rollups and subtasks into a misleading project percentage. Checked UI foundations mean source/Node verification; owner manual production acceptance is still separate.
 
 **Still required for the core:** complete planner context for selected scope; accepted instruction/title/Depth/version binding; one ordinary author dispatch across terminal failures; actual request quote equality; durable Chat acknowledgment/routing/revision and per-step messages; accepted-only ToC; persisted/final saved geometry; new source highlights/hover links and viewport-bottom Next card; shared Explanation prompts, caps, pinned header, downward sections, tables/Mermaid; then missing BE cases, build and release receipts. Existing safety, access, atomic money, feedback, settings, references and metadata-offer foundations are reused.
 
-The owner permits deferring remaining R7a extensions and the unbuilt R7b adapter. The current four enabled production config flags stay unchanged. After Core Tutor, take R8a next with the first Explanation slice in §10.2.1. See §8.4 for staged R10 delivery and §11.2 for R11 before R12.
+The owner permits deferring remaining R7a extensions. R7b is a separate release under §5.4.1. The current four enabled production config flags stay unchanged. After Core Tutor, take R8a next with the first Explanation slice in §10.2.1. See §8.4 for staged R10 delivery and §11.2 for R11 before R12.
 
 ### 2.2 Owner-reported release snapshot
 
@@ -466,9 +467,58 @@ Other capabilities keep their applicable rules: quiz-key/assessment validity, fe
 
 ### 5.4 Sources that exceed the supported context
 
-Do not promise that every document fits a single prompt. R7a provides a versioned whole-document outline, bounded summaries and retrieval of original sections for long Markdown. Summaries guide selection; the author receives a sufficient supporting context bundle, separate from the highlight anchor, with explicit coverage and omissions. R7b adds PDF pages; R13 code snapshots; R15 notes, images and OCR.
+Do not promise that every document fits a single prompt. R7a provides a versioned whole-document outline, bounded summaries and retrieval of original sections for long Markdown. Summaries guide selection; the author receives a sufficient supporting context bundle, separate from the highlight anchor, with explicit coverage and omissions. R7b adds structured PDF page evidence. R13 adds code snapshots. R15 extends visual interpretation to images, notes and broader OCR.
 
 The first bounded-source correction does not require rebuilding R7 or a vector database. If the source is beyond the enabled capability, report the actual limit and ask for a supported teaching scope. Do not silently use the beginning of a long file, infer that an unread section is absent, or activate an unqualified adapter just to hide a limitation.
+
+#### 5.4.1 R7b — PDF sources on Canvas
+
+R7b lets a learner study a whole PDF, a chapter, or one page without laying out a long book across the Canvas. A PDF can contain prose, code, tables, formulas, diagrams, photos and scanned pages. Use Docling to extract the relevant page structure and retain figure crops. PDF.js continues to render the original PDF and the separate page cards. The [R7b checklist](tutor-implementation-checklist.md#63-r7b--pdf-text-and-page-references) specifies the worker, limits and tests.
+
+##### Add the PDF, then choose what to study
+
+1. **Drop a PDF or use Add to canvas from Sources.** Reuse the existing dialog with the filename and page count. Save a new PDF once, with its original page count and source revision. Reuse the stored source when adding it from Sources. The PDF card can appear as soon as the file is stored. Separate page cards render only the pages the learner chose to add.
+2. **Start from the learner's intent.** Use the existing Chat acknowledgment and entry choices. **Just keep it here** leaves the file on Canvas. **Explain on canvas** or an equivalent request resolves the teaching scope before **Roadmap Draft**. A question about the PDF uses Chat, and a request for one card uses the selected command's existing review.
+3. **Prepare the scope.** For a specific page or **Page range**, read that page or range before drafting. For **Full content**, build a document-wide outline and track page coverage in resumable batches. Show progress while preparing the scope. A whole-PDF draft uses an outline covering the requested scope and enough original page evidence to support the lesson. When important coverage is unavailable, offer to narrow the scope or let the learner continue with the supported sections after showing the limitation.
+4. **Review and teach.** Show the PDF name, page scope and available coverage in the existing roadmap parameters and draft. Give each proposed step its actual source page or range. **Accept roadmap** publishes those entries to the existing ToC. Read the relevant original blocks before offering each step. Reuse the current review, single Canvas slot, progress and delivery flow. **View section** opens the original PDF at that page, with a highlight where the reference has verified coordinates.
+
+```mermaid
+flowchart TD
+    Drop["Drop PDF or add from Sources"] --> Place{"How should it appear?"}
+    Place -->|"PDF card"| Card["Place one compact PDF card"]
+    Place -->|"Separate pages"| Pages["Place the selected page cards"]
+    Card --> Intent{"What did the learner request?"}
+    Pages --> Intent
+    Intent -->|"Just keep it here"| Keep["Keep the source on Canvas"]
+    Intent -->|"Explain on canvas"| Scope{"What should the lesson cover?"}
+    Intent -->|"Question or single card"| Read["Resolve relevant PDF pages"]
+    Scope -->|"Page or range"| Read
+    Scope -->|"Full content"| Index["Build outline and coverage in batches"]
+    Index --> Read
+    Read -->|"Evidence ready"| Output["Draft roadmap, answer, or review card"]
+    Read -->|"Essential evidence missing"| Recover["Show progress or recover in Chat"]
+```
+
+| Learner case | Expected scope, placement and navigation |
+| --- | --- |
+| **PDF card** for a 400-page book | Keep one compact card. The learner can study a late range such as pages **312–316** directly. A generated slot sits beside the source card, including when its source page is deep inside the reader. |
+| **Separate pages → Page range** | Draw only the chosen pages as page cards in original order, with their original PDF page numbers and a common source. An action from one page focuses that page. The learner can select the placed range or explicitly request other authorized pages in the lesson. |
+| **Separate pages → All pages** | Preserve the explicit option to place all pages, with the existing progress and cancellation. Lesson reading still follows the chosen teaching scope and reads in bounded batches. |
+| **Full content** from either layout | Study the authorized PDF through its outline and page references. The compact card or placed page cards keep their existing dimensions. Each roadmap row can take the learner to its source page, including a page with no separate Canvas card. |
+| **Selected passage, figure or page** | Keep the existing R3 highlight or page reference as the focus. Use the nearby matching page card for initial placement when available, then the compact source card or the usual placement fallback. Persist the slot position once. Reader scroll and page jumps leave that position in place. |
+| **Existing PDF in Sources or an older Canvas** | Use its stored paper or context-document identity and original page numbers. The current access rules govern the original and its derivatives. A visible page image on a copy provides access to the image under existing sharing rules. Opening or reading the PDF itself requires authorization for the stored source. |
+
+Canvas placement, teaching scope and the pages supplied to a particular model call are separate. A roadmap for pages 312–316 can use different relevant blocks from those pages for different steps. A whole-PDF lesson still gives each model call bounded excerpts and selected figures. Show physical PDF page positions consistently, with printed labels as supplemental context where available.
+
+##### Read PDF evidence through the shared registry
+
+Expose the read-only **`read_pdf_pages`** capability under [the shared tool-call workflow](#931-shared-tool-call-workflow). PDF preparation for an explicit scope uses the same backend directly. **Ask**, **Auto**, **Tutor**, Explain on Canvas and eligible slash briefs can request pages from an authorized attached PDF when the context needs them. An ordinary question can use evidence already in context. For example, a question about page 318 reads that page, and a `/explain` request about a figure uses the relevant crop and caption before the existing review. For a Tutor-selected command, resolve needed PDF evidence before approval of its brief.
+
+The reader returns page-aware prose, code, structured tables, available formulas and figure references, with an explicit account of pages or regions left out. Preserve code whitespace and the original figure or diagram. When the answer depends on the picture, provide its authorized crop through a supported image input and keep the page reference. Mark text transcribed by local OCR. A caption and an OCR result each cover the material they actually captured.
+
+Store page results by PDF version, extraction revision and original page number. Use the same results across draft, step, Chat and command requests. Give model callers bounded evidence and separate statuses for pending, partial, blank, unreadable or failed pages. For an essential missing page, show progress while work is pending, offer retry or a narrower scope, or ask for a readable copy if needed. Keep readable pages usable. Exa can supply evidence for a separate public fact under §10.2, while the PDF reader supplies evidence about the learner's document.
+
+R7b includes local PDF layout extraction, figure crops and bounded local OCR for selected PDF pages that need it. R15 owns broader image and note understanding and dedicated visual extraction. PDF reading and indexing use platform work limits. Learner generation still requires the existing approval and accounting path.
 
 ### 5.5 Version changes, missing sources and competing material
 
@@ -677,17 +727,18 @@ Tutor tools read authorized source content, inspect current canvas coverage, rea
 | --- | --- | --- |
 | Authorized canvas/source reader | Understand the document and existing content without making the learner paste it again. | Core; larger sources in R7. |
 | Outline, section retrieval and coverage | Work honestly with documents beyond the bounded full-context path. | R7a/R7b. |
+| PDF page reader | Return structured page blocks and selected figure evidence from an authorized attached PDF. | R7b `read_pdf_pages`, with the shared Docling worker under §5.4.1. |
 | Private evidence reader | Adapt from relevant practice and self-reports without requiring a personal goal. | R9/R10. |
 | Shared Exa discovery plus guarded evidence fetch | Resolve a material public fact for a reply, roadmap draft or card brief. | R8a. Reuse the existing Exa and fetch infrastructure and qualify each caller under §10.2. |
 | Restricted calculator | Produce reproducible numerical results from a bounded expression. | R8b; before arbitrary execution. |
 | Source navigation/highlight | Show which portion a card relates to and navigate in either direction. | R3/core correction; no context clipping. |
-| Figure/image/OCR reader | Understand a diagram, screenshot or scan with uncertainty/coverage reported. | R15. |
+| Figure/image/OCR reader | Understand a diagram, screenshot or scan with uncertainty and coverage reported. | R15 extends the PDF page and local OCR foundation in R7b to broader visual and note inputs. |
 | Sandboxed execution | Run authorized examples or exercises and report actual output. | R16; no invented execution before it. |
 | Existing command adapters | Create the accepted format through its existing lifecycle. | R12, one adapter or small coherent batch at a time. |
 
 #### 9.3.1 Shared tool-call workflow
 
-The application reads the shared registry and supplies eligible function schemas to the existing answer, planning or command path. Each registry entry describes the function, required inputs, output and limits. Use the current typed capability catalogue and call-validation seams. The model can respond, ask for a detail or propose a function call with arguments. The server admits and runs calls and returns their typed results to the same request. Use Exa as the first new qualification of this shared workflow under the R8a build order in §10.2.1.
+The application reads the shared registry and supplies eligible function schemas to the existing answer, planning or command path. Each registry entry describes the function, required inputs, output and limits. Use the current typed capability catalogue and call-validation seams. The model can respond, ask for a detail or propose a function call with arguments. The server admits and runs calls and returns their typed results to the same request. Use Exa as the first new qualification of this shared workflow under the R8a build order in §10.2.1. Qualify `read_pdf_pages` for authorized attached PDFs under §5.4.1 with the same eligibility, admission and typed-result rules.
 
 ```mermaid
 flowchart TD
@@ -722,7 +773,7 @@ Official references for the application-owned tool-call loop and dispatch checks
 
 **Check the format before offering it.** The server supplies the planner with the enabled and supported command variants, what each can show or let a learner do, and their required inputs. Use the existing roadmap planning roles to record the outcome and suggest a format. Confirm the actual ready command at the card offer under section 3.8. R12 adapters remain on hold until the owner gives the go-ahead. [Section 4.7](#47-ordinary-messages-and-tool-requests) covers the separate ordinary Chat decision and staged JEV transition. Use its output distinctions when choosing between a playable explainer, a narrated whiteboard video and an interactive 3D scene for a Tutor step. JEV continues its qualified inline and safety roles. Verify the selected variant against its actual runtime, source access and evidence, required interactions, supported settings, and the command's readiness and work bound. For instance, Motion settings that disallow audio cannot satisfy a narrated demonstration, and a measured plot needs real data. If the planned tool cannot be offered, use [the recovery path](#47-ordinary-messages-and-tool-requests) inside the existing Tutor Chat step. Offer a qualified alternative for the same learning outcome, ask for the one detail needed to continue, or give useful help and a next step in Chat. A clarification or partial reply does not mark the step delivered. The alternative uses the same step and required review. Use the simplest eligible format that delivers the goal. Qualify each R12 command with [20 selection-only learner prompts](tutor-implementation-checklist.md#r12-routing-tests-for-each-command) during its adapter work. Include both familiar capability wording and requests without the command name or obvious keywords. Give each command its own fixture file as it is implemented.
 
-**Resolve facts for the selected offer.** After choosing a format and before its review is actionable, apply the shared R8a evidence check in [section 10.2](#102-research-and-calculation). Reuse applicable evidence and search only for an unresolved public fact the card requires. The same check can serve a standalone generated command brief. Source-supported and creative offers can qualify with zero Exa calls. A fact-dependent offer requires adequate evidence. If a gap remains, use the same-step recovery above. Bind the excerpts and citation IDs to the reviewed version and show its sources in Chat. A material evidence change uses the existing revised review and approval.
+**Resolve facts for the selected offer.** After choosing a format and before its review is actionable, read any needed authorized source evidence, including PDF pages through §5.4.1. Apply the shared R8a evidence check for any material public gap in [section 10.2](#102-research-and-calculation). Reuse applicable evidence and search only for an unresolved public fact the card requires. The same check can serve a standalone generated command brief. Source-supported and creative offers can qualify with zero Exa calls. A fact-dependent offer requires adequate evidence. If a gap remains, use the same-step recovery above. Bind the excerpts and citation IDs to the reviewed version and show its sources in Chat. A material evidence change uses the existing revised review and approval.
 
 | R12 path | Commands | What the learner reviews |
 | --- | --- | --- |
@@ -822,7 +873,7 @@ Exa references for search modes, extracted content and freshness, and bounded se
 
 #### 10.2.2 Ask, Auto and Tutor
 
-Use the shared tool after resolving the learner's intent and authorized context. The tool supplies evidence to the selected reply or card path. Each mode and explicit action follows its existing authorization and review rules.
+Use the shared research tool after resolving the learner's intent and authorized context. For a question or brief about the learner's attached PDF, read the needed pages under §5.4.1. R8a supplies evidence for an independent public gap in the selected reply or card path. Each mode and explicit action follows its existing authorization and review rules.
 
 | Entry | Where to resolve evidence |
 | --- | --- |
@@ -942,7 +993,7 @@ The immediate ordinary sprint deliverable is: **drop Markdown → Chat opens and
 | R6 Automatic proposals | One next canvas proposal and matching Chat entry after saved/acknowledged delivery; no camera/focus theft or poll spam. | Existing foundation enabled; prove first/second delivery and failure/safety successor rules. Manual **Propose next step** stays in Chat. R11 speculation is separate. |
 | R5 Edit/reuse | Edit card in Chat and Ctrl/Cmd+K share the existing proposal-edit foundation. Explicit linking can reuse suitable content. | The production app config enables R5 at the reviewed main. Complete the current MVP composer/edited-brief contract and qualify broader link/drag/Add-to-Chat behavior separately. |
 | R7a Long Markdown | Versioned outline, bounded summaries, original retrieval and explicit coverage beyond bounded full-context source input. | Existing foundations locally verified and production config enabled. Remaining source-selection outbox/new-UI/manual extensions may be deferred; preserve the honest author passage fallback. |
-| R7b PDF text | Future whole-PDF Tutor planning with page/section context and honest unreadable-page coverage. | Deferred/unbuilt adapter. Existing R3 selected-PDF references remain available. Does not require OCR. |
+| R7b PDF sources | Compact PDF card or separate pages, page/range/full-content lessons and on-demand PDF evidence for Chat and card work. | Planned separate release. Docling, bounded local OCR and original page references under §5.4.1. Preserve R3 selected-PDF references. |
 | R8b Calculator | Verified bounded computations within the explanation. | Small independent tool; can precede web research. No sandbox dependency. |
 | R8a Research | One scoped web evidence tool for Ask, Auto, Tutor, Explain on Canvas drafts and steps, and supported standalone card briefs. | Next after Core Tutor. Build the Exa operation and wire the shared tool-call workflow, then qualify the written Explanation card first under §10.2.1. Qualify the other callers separately. |
 | R9 Practice/Progress | **Explanations + practice** produces supported practice and private assessed evidence without a personal goal. | Minimal real generation/assessment integration is required to accept that selectable MVP mode; ordinary explanations can ship first. Retain immutable quiz snapshots, outbox and remaining practice/evidence scope as separate R9 work. |
@@ -951,7 +1002,7 @@ The immediate ordinary sprint deliverable is: **drop Markdown → Chat opens and
 | R12 Command adapters | Tutor can choose the remaining registered formats. | Track each command in the [R12 command checklist](tutor-implementation-checklist.md#r12-command-checklist). Complete the shared acceptance contract first, then release each adapter when it meets its own requirements. Require R8a only for offers that need web evidence. |
 | R13 Projects | Explain on canvas from authorized codebase context/files. | Same flow and source honesty; no revival of old journeys or fixed codebase goals. |
 | R14 Editors | Authorized editors run their own private Tutor state/evidence on a shared canvas. | Actor/owner/payer access matrix is required; no unrelated full gate. |
-| R15 Images/notes/OCR | Interpret scans, figures and notes with extraction uncertainty/coverage. | Dedicated visual source adapter; not a claim existing image assessment already does OCR. |
+| R15 Images/notes/OCR | Interpret scans, figures and notes with extraction uncertainty and coverage. | Dedicated visual source adapter beyond the R7b PDF page extraction and local OCR scope. |
 | R16 Sandbox | Execute authorized bounded code and report actual results. | Separate isolated execution service; not needed for snippets or the earlier calculator. |
 
 R5, R7, R8 and R9 can be prepared independently where their files/contracts do not collide. Integration order follows the next complete learner outcome, not historical numbering. Feature-off code still needs correct boundaries; “flag off” is not proof of harmlessness or completion.
