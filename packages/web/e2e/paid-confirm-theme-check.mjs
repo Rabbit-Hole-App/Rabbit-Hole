@@ -94,14 +94,16 @@ for (const theme of THEMES) {
     await box.click(); await box.fill('/cad a 40 mm mounting bracket with two holes'); await page.waitForTimeout(150); await box.press('Enter');
     await generate.waitFor();
     assert.equal(await cancel.count(), 1);
+    assert.equal(await generate.evaluate(node => node.nextElementSibling?.matches('[data-paid-cancel]')), true, 'Generate comes first, then Cancel');
     await notice.screenshot({ path: `${OUT}/${theme}-rest.png` });
   });
 
   await step(`${theme}: at rest the buttons are the semantic tokens and each label clears 4.5:1`, async () => {
-    const tokens = ['--color-surface', '--color-ink', '--color-line-strong'];
+    const tokens = ['--color-surface', '--color-ink', '--color-ink-2'];
     const c = await paint(cancel, tokens), g = await paint(generate, tokens);
     assert.ok(c.tokens['--color-surface'], '--color-surface is defined');
-    same(c.own.bg, c.tokens['--color-surface'], 'Cancel fill'); same(c.own.fg, c.tokens['--color-ink'], 'Cancel text'); same(c.own.border, c.tokens['--color-line-strong'], 'Cancel border');
+    // Cancel is the ghost text control (PaidConfirm.jsx:20, ui.jsx ghost: no fill, no border, --color-ink-2 text; owner 2026-11-07), after Generate.
+    same(c.own.fg, c.tokens['--color-ink-2'], 'Cancel text');
     same(g.own.bg, g.tokens['--color-ink'], 'Generate fill'); same(g.own.fg, g.tokens['--color-surface'], 'Generate text');
     console.log(`   ${theme} rest: Cancel ${readable('Cancel', c).toFixed(2)}:1, Generate ${readable('Generate', g).toFixed(2)}:1`);
   });
