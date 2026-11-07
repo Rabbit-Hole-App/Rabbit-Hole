@@ -212,6 +212,21 @@ async function canvasThread(db, user, id, app) {
   if (row.org !== user.org || row.user !== user.email) return json({ error: 'Chat not found' }, 404);
   return row.scope_ref === app ? row : json({ error: 'This chat belongs to another canvas', code: 'thread_canvas_mismatch' }, 409);
 }
+// A Tutor Chat entry's private structured record (BRIEF contract 6): { v: 1, kind, seq, ...ids and display fields }, on an assistant
+// message only. Versioned (v), small (ids, titles, stages; never a source body: 4 KB), and seq orders its updates. Read back only
+// through the owner's thread restore (repositories.js threadMessages, meta.tutor).
+const TUTOR_KIND = /^[a-z][a-z_]{0,39}$/, TUTOR_BYTES = 4000;
+const parsedMeta = text => { try { return JSON.parse(text || 'null'); } catch { return null; } };
+function tutorEntry(tutor, role, status) {
+  if (tutor === undefined || tutor === null) return null;
+  if (role !== 'assistant' || status !== 'done') throw Error('tutor rides only on a done assistant message');
+  if (typeof tutor !== 'object' || Array.isArray(tutor)) throw Error('tutor must be an object');
+  if (tutor.v !== 1) throw Error('tutor.v must be 1');
+  if (typeof tutor.kind !== 'string' || !TUTOR_KIND.test(tutor.kind)) throw Error('tutor.kind must be a short lowercase name');
+  if (!Number.isInteger(tutor.seq) || tutor.seq < 0 || tutor.seq > 1000) throw Error('tutor.seq must be an integer 0-1000');
+  if (JSON.stringify(tutor).length > TUTOR_BYTES) throw Error(`tutor must be at most ${TUTOR_BYTES} characters`);
+  return tutor;
+}
 // POST /api/learn/chat/threads/<id>/messages: one message, idempotent per (thread, client_id). The client mints the thread id,
 // so the first POST creates the thread and a retried create never makes a second one.
 async function saveChatMessage(req, env, user, id) {
@@ -227,18 +242,29 @@ async function saveChatMessage(req, env, user, id) {
   if (!content.trim() && status !== 'interrupted') throw Error('content is required');
   if (title != null && typeof title !== 'string') throw Error('title must be text');
   if (command !== null && (role !== 'user' || typeof command !== 'string' || !COMMAND.test(command))) throw Error('command must be a Learn command name, on a user message');
+  const tutor = tutorEntry(body.tutor, role, status);
   const refused = await canvasRefusal(env, user, app); if (refused) return refused;
   const thread = await canvasThread(db, user, id, app); if (thread instanceof Response) return thread;
   // ponytail: select-then-insert, so two truly concurrent POSTs of one client_id can both insert. A unique index on
   // (thread_id, json_extract(meta_json, '$.clientId')) closes that race; it is a migration, so it waits for its own GO.
-  const saved = () => db.prepare("SELECT message_id FROM chat_message_meta WHERE thread_id=? AND json_extract(meta_json, '$.clientId')=?").bind(id, clientId).first();
+  const saved = () => db.prepare("SELECT message_id, meta_json FROM chat_message_meta WHERE thread_id=? AND json_extract(meta_json, '$.clientId')=?").bind(id, clientId).first();
   let row;
   try { row = await saved(); } catch (error) { if (noChatTables(error)) return unavailable(); throw error; } // before any write: 0019 missing creates nothing
-  if (row) return json({ threadId: id, messageId: String(row.message_id), clientId, duplicate: true });
-  // The meta shapes chat-modes.js stores (recordUserTurn, recordAnswer), plus the clientId a retry is found by.
+  // The meta shapes chat-modes.js stores (recordUserTurn, recordAnswer), plus the clientId a retry is found by; a Tutor entry also its tutor record.
   const meta = role === 'user' ? { mode, command, contextRefs: [], clientId }
     : status === 'interrupted' ? { status, mode, clientId }
-    : { version: 1, mode, kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, source: 'tutor', clientId };
+    : { version: 1, mode, kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, source: 'tutor', clientId, ...(tutor ? { tutor } : {}) };
+  if (row) {
+    // A Tutor entry is one logical message (BRIEF contract 6): a later stage of the same client_id updates it in place, never appends; an
+    // equal or older seq (a replayed poll, a slow tab) changes nothing, so a ready entry never regresses.
+    const held = tutor ? parsedMeta(row.meta_json)?.tutor : null;
+    const updated = !!held && tutor.seq > (Number.isInteger(held.seq) ? held.seq : -1);
+    if (updated) await db.batch([
+      db.prepare('UPDATE messages SET content=? WHERE id=? AND thread_id=?').bind(content, row.message_id, id),
+      db.prepare('UPDATE chat_message_meta SET meta_json=? WHERE message_id=? AND thread_id=?').bind(JSON.stringify(meta), row.message_id, id),
+    ]);
+    return json({ threadId: id, messageId: String(row.message_id), clientId, duplicate: !updated, ...(updated ? { updated } : {}) });
+  }
   const at = new Date().toISOString();
   // One batch, so a message never lands without the meta row its retry is found by; that row takes the thread's newest
   // message, the one this batch just inserted.

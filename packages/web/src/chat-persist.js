@@ -45,6 +45,12 @@ export function saveMessage({ threadId, ...body }, call = api) {
   return sent;
 }
 
+// A Tutor Chat entry (BRIEF contract 6): one logical message per stable clientId in its BOUND thread (never the visible one, so a late
+// stage lands where it belongs). tutor = { v: 1, kind, seq, ...ids }: the server updates the same message in place when seq grows and
+// ignores an equal or older seq, so a poll or replay never appends or regresses it. Retried like any save.
+export const saveTutorEntry = ({ app, threadId, clientId, content, tutor, mode = 'tutor', title = null }, call = api, waits = SAVE_WAITS) =>
+  retried(() => saveMessage({ threadId, app, client_id: clientId, role: 'assistant', content, mode, tutor, ...(title ? { title } : {}) }, call), waits);
+
 // One Auto (Tutor) turn's saves, bound when it is sent to the canvas and thread it was sent from: a late reply (the learner
 // has gone to another canvas or thread meanwhile) is saved there, never where they are now. No model is called.
 // user(content): the question, before the Tutor generates; onAsked runs once it is saved. assistant(content, status): the
