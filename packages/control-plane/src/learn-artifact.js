@@ -49,6 +49,7 @@ const GATES = {
   },
 };
 import { withAttemptKind, noteUsageResult } from './learn-usage.js';
+import { celerisExplainRoute } from './explain-celeris-dev.js';
 export { ARTIFACT_SYSTEM };
 
 // A paid renderer this deployment has not provisioned is unavailable BEFORE it is proposed, so no proposal, hold or charge
@@ -254,10 +255,12 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
   const depth = !DEPTH_COMMANDS.includes(body.command) ? DEFAULT_DEPTH : body.depth !== undefined ? body.depth
     : await readDepth(env, { org: access.org, userId: access.user_id, app: body.app, board: typeof body.board === 'string' ? body.board : null });
   try {
-    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}) });
+    const celeris = celerisExplainRoute(env, body.command); // DEV ONLY (explain-celeris-dev.js): off unless a dev or test Worker turns it on; production never takes it
+    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}) }, celeris?.options);
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
     if (out?.result !== 'artifact' && out?.result !== 'paid_proposal') await giveBack();
-    return json(passage && out?.block ? { ...out, block: { ...out.block, sourceRef: passage } } : out);
+    const done = celeris ? { ...out, devModel: celeris.served() } : out;
+    return json(passage && done?.block ? { ...done, block: { ...done.block, sourceRef: passage } } : done);
   }
   catch (error) { await giveBack(); return json({ error: error.message }, 502); }
 }
