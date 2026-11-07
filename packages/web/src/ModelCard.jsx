@@ -8,6 +8,7 @@
 // MAX_LIVE viewers hold a renderer (viewer-slots.js); off-screen or displaced ones show a poster. A lost graphics context
 // pauses the viewer and never writes the card.
 import { useEffect, useRef, useState } from 'react';
+import { customTitleOf } from './card-rename.js';
 import { Download, FilePlus, Rotate3d, Scan, TriangleAlert } from 'lucide-react';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { formatLabel, modelKindLabel } from './model-import.js';
@@ -178,7 +179,7 @@ export default function ModelCard({ block, selected, onChange, onSelect = null }
     <div ref={root} data-model-card data-model-format={model.format || ''} data-model-state={active ? 'active' : ready ? 'ready' : 'idle'} className="flex min-h-0 flex-1 flex-col px-3 pb-3">
       <div data-drag-zone className="flex shrink-0 cursor-grab items-center gap-2 px-1 pb-2 active:cursor-grabbing">
         <span className="text-[11px] font-semibold tracking-wider whitespace-nowrap text-ink-2 uppercase"><span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-ink align-middle" />{kind}</span>
-        <span className="min-w-0 flex-1 truncate text-xs text-ink-3" title={block.label}>{block.label}</span>
+        <span className="min-w-0 flex-1 truncate text-xs text-ink-3" title={customTitleOf(block) || block.label}>{customTitleOf(block) || block.label}</span>
         <div className="flex shrink-0 items-center gap-0.5" onPointerDown={stop}>
           {viewable && <button type="button" data-model-interact aria-pressed={active} disabled={!ready || lost} onClick={event => (active ? exit() : enter(event))} title={active ? 'Done (Esc)' : 'Interact: orbit, pan and zoom the model'} aria-label={active ? 'Done interacting' : 'Interact with the 3D view'}
             className={`flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium disabled:opacity-40 ${active ? 'bg-ink text-white' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}><Rotate3d size={14} />{active ? 'Done' : 'Interact'}</button>}

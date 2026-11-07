@@ -59,6 +59,7 @@ import { ExcerptNote, ExcerptSource } from './ExcerptCard.jsx';
 import { CitableLines } from './TutorCitations.jsx';
 import WhiteboardVideoCard from './WhiteboardVideoCard.jsx';
 import SurfaceBoundary from './SurfaceBoundary.jsx';
+import { customTitleOf } from './card-rename.js';
 import { describeWhiteboard } from './whiteboard/card.js';
 
 // The canvas's drawing surface for an Explain Back sketch (AdaptiveCanvas renderSketch): { render, hold, release,
@@ -2292,6 +2293,10 @@ const NEWLINE = String.fromCharCode(10);
 
 // Serialize a block for the tutor prompt when the learner asks about it.
 export function describeBlock(block) {
+  const described = describeBlockOwn(block), named = customTitleOf(block);
+  return described && named ? { ...described, title: named } : described;
+}
+function describeBlockOwn(block) {
   // A PDF excerpt (text or region card) is its quotation and source, the learner's note kept apart (pdf-excerpt.js).
   if (isExcerpt(block)) return describeExcerpt(block);
   if (block.type === 'cad') return cadContext(block);

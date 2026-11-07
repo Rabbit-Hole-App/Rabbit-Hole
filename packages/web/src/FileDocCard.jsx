@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { customTitleOf } from './card-rename.js';
 import { AlertTriangle, ChevronLeft, ChevronRight, CloudUpload, FileSpreadsheet, FileText, Loader2, Presentation, RotateCw, Sheet, Table2 } from 'lucide-react';
 import { MarkdownText } from './FileDocMarkdown.jsx';
 import { parse } from './file-parse.js';
@@ -143,7 +144,7 @@ export default function FileDocCard({ block, onChange }) {
       <header data-drag-zone className="flex min-w-0 shrink-0 cursor-grab items-center gap-2 px-3 pt-1 pb-2 active:cursor-grabbing">
         <Icon size={16} strokeWidth={1.75} aria-hidden className="shrink-0 text-ink-2" />
         <span className="flex min-w-0 flex-1 flex-col">
-          <span data-file-doc-title className="truncate text-sm font-semibold text-ink" title={block.label}>{block.label}</span>
+          <span data-file-doc-title className="truncate text-sm font-semibold text-ink" title={customTitleOf(block) || block.label}>{customTitleOf(block) || block.label}</span>
           <span data-file-doc-meta className="truncate text-xs text-ink-3">{KIND_LABEL[block.kind]} · {String(block.format || '').toUpperCase()}{block.size ? ` · ${size(block.size)}` : ''}{meta ? ` · ${meta}` : ''}</span>
         </span>
       </header>
