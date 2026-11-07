@@ -135,3 +135,26 @@ test('the server reads a fence the way the card does: the renderer\'s own open a
   assert.ok(prim.includes("/^\\s*```/.test(line)"), 'the server closes a fence with the same pattern');
   assert.ok(prim.includes("const DIAGRAM = 'rh-diagram'"), 'the server and the card name the same fence language');
 });
+
+test('one card over its text budget AND with an invalid diagram: both problems reach the single repair request, with the measured length, the limit and the diagram errors', async () => {
+  const bad = BAD['decision with one branch'];
+  const block = { title: 'T', body: 'é'.repeat(1100) + '\n\n' + fence(bad) };
+  const used = explanationChars(block);
+  assert.ok(used > EXPLANATION_CAPS.standard, 'the card is over budget');
+  assert.match(diagramProblem(block.body) || '', /^explanation_bad_diagram:/, 'and its diagram is invalid');
+  const fixed = { title: 'T', body: 'é'.repeat(300) + '\n\n' + fence() };
+  const m = scripted(['make_explanation', block], ['make_explanation', fixed]);
+  const out = await generateArtifact({}, { command: 'explanation', args: 'x', depth: 'standard' }, { callModel: m.callModel });
+  assert.equal(m.seen.length, 2, 'one call and one repair, no more');
+  const feedback = m.seen[1].messages.at(-1).content[0];
+  assert.equal(feedback.is_error, true);
+  assert.match(feedback.content, new RegExp(`explanation_over_budget: the card has ${used} characters, the standard budget is ${EXPLANATION_CAPS.standard}`), 'the measured length and the limit');
+  assert.match(feedback.content, /explanation_bad_diagram: the rh-diagram spec is not valid \(.*decision/i, 'and the specific diagram error, in the same message');
+  assert.match(feedback.content, /fixing the diagram also changes this length/, 'the length counts the unparsed diagram text, and the message says so');
+  assert.deepEqual([out.result, out.repaired, out.block.body.includes('rh-diagram')], ['artifact', true, true], 'the repaired card keeps its now-valid diagram');
+  // Still one retry and the text fallback: when the repair keeps the bad diagram but fits the budget, the diagram is dropped and the text is delivered.
+  const stillBad = { title: 'T', body: 'é'.repeat(300) + '\n\n' + fence(bad) };
+  const m2 = scripted(['make_explanation', block], ['make_explanation', stillBad]);
+  const dropped = await generateArtifact({}, { command: 'explanation', args: 'x', depth: 'standard' }, { callModel: m2.callModel });
+  assert.deepEqual([m2.seen.length, dropped.result, dropped.diagramsDropped, dropped.block.body.includes('rh-diagram')], [2, 'artifact', 1, false]);
+});

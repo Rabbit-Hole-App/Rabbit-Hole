@@ -5,6 +5,8 @@
 // Celeris answers in json_schema mode (the mode that worked in the diagram benchmark; its tool calls were unreliable: 8 of 20 first answers had no title).
 // The schema is { title, body, diagram }: the TutorDiagram spec is its own structured field and RH writes the rh-diagram fence into the body, so the model
 // never has to emit a fence. The field is required when the learner's words explicitly ask for a diagram, and may be null otherwise.
+// For a same-schema comparison with another OpenAI-compatible fast model, EXPLAIN_DEV_MODEL, EXPLAIN_DEV_PARAMS (JSON, e.g. reasoning_effort) and CELERIS_BASE_URL
+// with that provider's key in CELERIS_API_KEY point the same route at it; unset, it is Celeris.
 // Three switches must all be on: the Worker is a dev or test deployment (SMALL_ENV), EXPLAIN_CELERIS_DEV is "true", and CELERIS_API_KEY is set.
 // A production Worker has SMALL_ENV "production" and can never take this path.
 import { parseTutorDiagram, tutorDiagramJsonSchema } from '../../web/src/tutor-diagrams/spec.js';
@@ -54,7 +56,7 @@ export function celerisExplainRoute(env, command) {
     const response = await fetch(`${(env.CELERIS_BASE_URL || BASE).replace(/\/+$/, '')}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${env.CELERIS_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: CELERIS_MODEL, stream: false, max_tokens: body.max_tokens || 4000, temperature: 0.4, messages,
+      body: JSON.stringify({ model: env.EXPLAIN_DEV_MODEL || CELERIS_MODEL, stream: false, max_tokens: body.max_tokens || 4000, temperature: 0.4, ...(env.EXPLAIN_DEV_PARAMS ? JSON.parse(env.EXPLAIN_DEV_PARAMS) : {}), messages,
         response_format: { type: 'json_schema', json_schema: { name: 'explanation_card', strict: true, schema: cardSchema(required) } } }),
     });
     if (!response.ok) return response; // the caller turns a non-ok status into its one-line error
@@ -70,5 +72,5 @@ export function celerisExplainRoute(env, command) {
     return Response.json({ model: json.model, stop_reason: json.choices?.[0]?.finish_reason === 'length' ? 'max_tokens' : 'tool_use', usage: json.usage || {},
       content: [{ type: 'tool_use', id: `t_${seen.calls}`, name: 'make_explanation', input }] });
   };
-  return { options: { callModel }, served: () => ({ requested: CELERIS_MODEL, models: [...new Set(seen.models)], calls: seen.calls, inTokens: seen.inTokens, outTokens: seen.outTokens, attempts: seen.attempts }) };
+  return { options: { callModel }, served: () => ({ requested: env.EXPLAIN_DEV_MODEL || CELERIS_MODEL, models: [...new Set(seen.models)], calls: seen.calls, inTokens: seen.inTokens, outTokens: seen.outTokens, attempts: seen.attempts }) };
 }

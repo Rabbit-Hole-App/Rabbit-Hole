@@ -367,10 +367,15 @@ function markdownText(md) {
 export const explanationText = block => [block?.title ?? '', markdownText(block?.body), ...(block?.more || []).flatMap(s => [s?.label ?? '', markdownText(s?.text)])].join(' ').replace(/\s+/g, ' ').trim();
 export const explanationChars = block => Array.from(explanationText(block)).length;
 
-// -> null, or the validator's words: over the Depth's budget or an invalid diagram. The repair (direct paths) reads them; the roadmap fails terminally.
+// -> null, or the validator's words: over the Depth's budget and/or an invalid diagram. When both are wrong on the same card, ONE message names both, so the
+// single repair can fix them together: the measured length with its limit, and each diagram's specific errors. A fence that does not parse counts as the
+// literal lines it holds (a bad block cannot hide text), so the message says so: the length changes once the diagram is fixed.
+// The repair (direct paths) reads the words; the roadmap fails terminally.
 export function explanationProblem(block, depth) {
-  const cap = EXPLANATION_CAPS[validDepth(depth) || DEFAULT_DEPTH], used = explanationChars(block);
-  if (used > cap) return `explanation_over_budget: the card has ${used} characters, the ${validDepth(depth) || DEFAULT_DEPTH} budget is ${cap} including the title, section labels, table cells, diagram title, caption and labels, and collapsed sections; shorten it.`;
-  for (const text of [block?.body, ...(block?.more || []).map(s => s?.text)]) { const problem = diagramProblem(text); if (problem) return problem; }
-  return null;
+  const level = validDepth(depth) || DEFAULT_DEPTH, cap = EXPLANATION_CAPS[level], used = explanationChars(block);
+  const diagrams = [block?.body, ...(block?.more || []).map(s => s?.text)].map(diagramProblem).filter(Boolean);
+  const problems = [];
+  if (used > cap) problems.push(`explanation_over_budget: the card has ${used} characters, the ${level} budget is ${cap} including the title, section labels, table cells, diagram title, caption and labels, and collapsed sections; shorten it.${diagrams.length ? ' The text of a diagram that does not parse is counted as written, so fixing the diagram also changes this length.' : ''}`);
+  problems.push(...diagrams);
+  return problems.length ? problems.join(' ') : null;
 }
