@@ -4,7 +4,7 @@ Status: **candidate tested locally; not released; owner manual production accept
 
 ## Identity
 
-- Tested code candidate: `70ed032bc` (full SHA in the launcher pins) (branch `fix/timing-events`). Later commits on the branch change only this receipt and the routing report's candidate line; they do not change code.
+- Tested code candidate: the tip commit named in the launcher pins (full SHA there) (branch `fix/timing-events`). Later commits on the branch change only this receipt and the routing report's candidate line; they do not change code.
 - Production main when this was written: `8deb778fa2b0442b4ac494f9d94e88fffd72a6c3` (the candidate descends from it).
 - Handoff docs revision imported (checklist section 1.7): `rabbit-hole/chatgpt/tutor` at `0c73b7bda3bdd5aeb817450229c0a29a807716a2`. Routing fixtures imported at `6b3fff7e1585f6814271f0290d9d91f3bf8e5445` (unchanged in `0c73b7bd`; no main-side fixture edits to reconcile).
 - Node 24, lockfile dependencies, Windows. External doubles: every model, JEV, provider, Resend and Sentry call was a test double. Denied egress. No paid call was made.
@@ -15,12 +15,12 @@ CORE.02-06 and CORE.09, UI.01-08 (core flows), BE.01a, BE.04, BE.05a, CHAT.01 (c
 
 R12 (command adapters and per-command prompt suites) is **on hold** by owner decision and is not in this candidate.
 
-## Commands and counts (candidate 70ed032bc)
+## Commands and counts (last full run at 70ed032bc)
 
 | Run | Tests | Pass | Fail | Notes |
 | --- | ---: | ---: | ---: | --- |
 | `packages/control-plane` `node --test "test/*.test.js"` | 3725 | 3723 | 1 | the failure is `no-ellipsis` (identical line on main `agents/roadmap-check.js:12`); 1 further test not counted as pass or fail by the runner |
-| `packages/web` `node --test "src/**/*.test.mjs"` | 5085 | 5057 | 1 | VOICE-08 (`voice-ui.test.mjs`), failing on the base commit too. One further test (`project-ui`) failed in the run and was fixed and re-run alone (21 of 21); the suite was not re-run in full after that fix. Timing-sensitive tests (`animation3d/framing`, `sgd-golden`, `explain-program/interaction`) can fail under parallel load and pass alone |
+| `packages/web` `node --test "src/**/*.test.mjs"` | 5085 | 5058 | 0 expected | VOICE-08 (`voice-ui.test.mjs`) failed on the base commit too and blocked the release-77 gate (it ran because VoiceMode changed); its pin of the AdaptiveCanvas prop list was loosened and the file re-run alone (9 of 9). The full suite was not re-run after that fix. One further test (`project-ui`) failed in the run and was fixed and re-run alone (21 of 21); the suite was not re-run in full after that fix. Timing-sensitive tests (`animation3d/framing`, `sgd-golden`, `explain-program/interaction`) can fail under parallel load and pass alone |
 | `scripts/ci/check-map.test.mjs` + `scripts/schema-check.test.mjs` | 29 | 29 | 0 | |
 | `npm --prefix packages/web run build` | | | | exit 0 |
 
