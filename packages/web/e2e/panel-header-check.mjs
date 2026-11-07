@@ -144,7 +144,7 @@ await check('1 the header is eight icon buttons in the owner\'s order: five tabs
   assert.deepEqual(names, [['Chat', 'Chat'], ['Find text on canvas', 'Find text on canvas'], ['Table of contents', 'Table of contents'], ['Comments', 'Comments'], ['Progress', 'Progress'], ['Context', 'Context'], ['Keep sidebar open', 'Keep sidebar open'], ['Close sidebar', 'Close sidebar']]);
   assert.equal((await header.innerText()).trim(), '', 'icons only');
   assert.equal(await header.locator('button svg').count(), 8);
-  assert.deepEqual(await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').evaluateAll(nodes => nodes.map(node => node.dataset.panelTab)), ['chat', 'find', 'toc', 'comments', 'progress'], 'the five tabs share one group');
+  assert.deepEqual(await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').evaluateAll(nodes => nodes.map(node => node.dataset.panelTab)), ['chat', 'toc', 'progress', 'comments', 'find'], 'the five tabs share one group');
   // Owner brief 2026-10-16 items 3-4: one Context / Files / Graph control (named Context on a canvas with no repository), not a tab,
   // set apart from the navigation icons by spacing.
   assert.equal(await page.locator('[data-panel-header] [role="tablist"] [data-panel-companion]').count(), 0, 'the companion control is not a tab');

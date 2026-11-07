@@ -66,8 +66,8 @@ const open = async (canvas, page = null) => {
   await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 60000 });
   return page;
 };
-const depthButton = page => page.locator('[data-chat-pane]').getByRole('button', { name: 'Depth', exact: true });
-const reads = async page => (await depthButton(page).innerText()).trim();
+const depthButton = page => page.locator('[data-chat-pane]').getByRole('button', { name: /^Depth: / });
+const reads = async page => (await depthButton(page).getAttribute('aria-label')).replace('Depth: ', '');
 const menuOf = page => page.getByRole('menu', { name: 'Depth' });
 const switchOf = page => page.locator('[data-chat-pane]').getByRole('switch', { name: 'Auto-suggest' });
 const openMenu = async page => { if (!await menuOf(page).count()) await depthButton(page).click(); await menuOf(page).waitFor(); };

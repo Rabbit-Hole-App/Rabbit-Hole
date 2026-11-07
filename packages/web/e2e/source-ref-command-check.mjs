@@ -102,8 +102,15 @@ try {
     await toolbar().getByRole('button', { name: 'Explain' }).waitFor();
     await toolbar().getByRole('button', { name: 'Highlight' }).waitFor();
   });
-  await step('Explain mints the reference to this file at this revision and quote, then starts the explanation with its id and the passage', async () => {
+  await step('Explain mints the reference to this file at this revision and quote, opens Ctrl+K with the interactive pill and the passage (no job yet), and sending it starts the explanation with its id and the passage', async () => {
     await toolbar().getByRole('button', { name: 'Explain' }).click();
+    // The bulb never generates (LearnPage.jsx onPassage -> inlineAi with HIGHLIGHT_EXPLAIN_COMMAND, source-refs.js:130): the learner sends the Ctrl+K line.
+    const editor = page.locator('[data-inline-ai]');
+    await editor.waitFor({ timeout: 20000 });
+    await editor.locator('[data-command-pill="explain"]').waitFor();
+    assert.ok((await editor.locator('[data-inline-prompt]').inputValue()).includes(SENTENCE), 'the passage is the Ctrl+K words');
+    assert.equal(flow.jobs.length, 0, 'the bulb starts no job by itself');
+    await editor.locator('[data-inline-submit]').click();
     await until(() => flow.jobs.length === 1, 'one explanation job');
     assert.equal(flow.mints.length, 1);
     const mint = flow.mints[0];

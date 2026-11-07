@@ -191,7 +191,7 @@ await check('another tab of this canvas follows a change; a failed save says thi
   await page.route('**/api/learn/user-settings', route => { if (route.request().method() === 'POST' && failOnce) { failOnce = false; return route.abort(); } return route.continue(); });
   await tutorSwitch().click();
   // A failed settings save is reported in the Depth menu (DepthMenu.jsx), which carries the shared settings status.
-  await pane().getByRole('button', { name: 'Depth', exact: true }).click();
+  await pane().getByRole('button', { name: /^Depth: / }).click();
   const note = page.locator('[data-depth-status="error"]');
   await note.waitFor({ timeout: 10000 });
   assert.match(await note.innerText(), /Not saved: this change applies in this tab only/);

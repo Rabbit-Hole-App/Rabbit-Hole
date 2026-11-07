@@ -557,12 +557,12 @@ await check('9 card duplicate: Ctrl+D gives the copy new reference ids with the 
 await check('10 the card menu keeps its items, each with an icon; panel tabs keep their order, with no Links tab (now in Search); BlockNote Canvas/Editor still switches', async () => {
   await rightClick('a1');
   const labels = await menu().locator('[role="menuitem"]').evaluateAll(rows => rows.map(row => ({ text: (row.querySelector(':scope > span') || row).innerText.split('\n')[0].trim(), icon: !!row.querySelector(':scope > svg, :scope > img') })));
-  // UI-25 (owner brief 2026-10-22): a card's whole-card copy reads Copy card, apart from Copy text, code or LaTeX.
-  for (const label of ['Add to chat', 'Cut', 'Copy card', 'Paste', 'Duplicate', 'Delete', 'Add a link']) assert.ok(labels.some(row => row.text === label), `the card menu lost "${label}"`);
+  // UI-25 (owner brief 2026-10-22): a card's whole-card copy reads Copy (owner 2026-11-07), apart from Copy text, code or LaTeX.
+  for (const label of ['Add to chat', 'Cut', 'Copy', 'Paste', 'Duplicate', 'Delete', 'Add a link']) assert.ok(labels.some(row => row.text === label), `the card menu lost "${label}"`);
   assert.deepEqual(labels.filter(row => !row.icon).map(row => row.text), [], 'menu items without an icon');
   await page.keyboard.press('Escape');
   const tabs = await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-panel-tab')));
-  assert.deepEqual(tabs, ['chat', 'find', 'toc', 'comments', 'progress'], `panel tabs: ${tabs.join(',')}`);
+  assert.deepEqual(tabs, ['chat', 'toc', 'progress', 'comments', 'find'], `panel tabs: ${tabs.join(',')}`);
   assert.equal(await page.locator('[data-panel-tab="links"]').count(), 0, 'Links is a Search filter, not a tab');
   await chooseWorkspace(page, 'Editor'); // Owner brief 2026-10-22: View > Workspace
   await waitFor(async () => (await page.locator('[data-canvas-doc]').getAttribute('data-doc-state').catch(() => null)) === 'ready', 20000, 'Editor view never got ready');

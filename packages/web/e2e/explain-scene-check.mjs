@@ -135,13 +135,13 @@ const controlValue = async (card, declaration) => {
 let { context, page } = await open();
 const commandWords = 'interactive: how binary search narrows the range';
 
-await step('the selected-command pill reads "explain", with no /', async () => {
+await step('the selected-command pill reads "interactive", with no /', async () => {
   const box = composerOf(page);
-  await box.click(); await box.fill('/expl');
+  await box.click(); await box.fill('/interact');
   await page.locator('[data-slash-command="explain"]').click();
   const pill = page.locator('[data-chat-pane] [data-command-pill="explain"]');
   await pill.waitFor();
-  assert.equal((await pill.innerText()).trim(), 'explain');
+  assert.equal((await pill.innerText()).trim(), 'interactive');
   assert.ok(!(await pill.innerText()).includes('/'));
   await page.screenshot({ path: `${OUT}/${THEME}-1-pill.png` });
   await box.fill('');
@@ -152,10 +152,10 @@ for (const entry of scenes) {
   const { scene } = entry.response.block;
   const declarations = (scene.inputs || []).filter(input => !input.hidden && input.presentation !== 'pager');
   let id = null, saved = null;
-  await step(`${entry.id} (${entry.origin}): /explain ${entry.args.slice(0, 60)} makes an Animation card with its controls`, async () => {
+  await step(`${entry.id} (${entry.origin}): /interactive ${entry.args.slice(0, 60)} makes an Animation card with its controls`, async () => {
     const before = await blockIds(page);
     next = entry.response;
-    await send(page, `/explain ${entry.args}`);
+    await send(page, `/interactive ${entry.args}`);
     id = await newCard(page, before);
     const card = page.locator(`[data-block-id="${id}"]`);
     await card.locator('svg [data-animation-object]').first().waitFor();
@@ -205,7 +205,7 @@ await step('a refused scene adds and saves no card, keeps the line, says what fa
   const before = await blockIds(page);
   const saved = (await board()).blocks.length, sent = posts.length;
   next = INVALID;
-  await send(page, `/explain ${commandWords}`);
+  await send(page, `/interactive ${commandWords}`);
   const result = page.locator('[data-chat-pane] [data-slash-result]');
   await result.getByText('The interactive explanation could not be made', { exact: false }).waitFor();
   await page.waitForTimeout(800);
@@ -227,15 +227,15 @@ await step('a refused scene adds and saves no card, keeps the line, says what fa
 
 // Owner spec 2026-10-29 sections 7-9: the window shows ONE matching preview per command (binary search for /explain), with no
 // "Can make" tabs; its previews are slash-sheet-check.mjs's. Here: /explain's entry opens from View and generates nothing.
-await step('View > Slash Commands: /explain\'s entry and its preview open there, and opening it generates nothing', async () => {
+await step('View > Slash Commands: /interactive\'s entry and its preview open there, and opening it generates nothing', async () => {
   const before = posts.length;
   await openSlashHelp(page);
   const sheet = page.getByRole('dialog', { name: 'Slash Commands' });
   await sheet.locator('button[data-slash-help="explain"]').click();
-  assert.equal(await sheet.locator('[data-slash-label]').innerText(), 'Explanation');
+  assert.equal(await sheet.locator('[data-slash-label]').innerText(), 'Interactive');
   assert.equal(await sheet.getByRole('tab', { name: 'Interactive visual' }).count(), 0, 'no Can make tabs');
   await sheet.locator('[data-slash-stage]').first().waitFor();
-  assert.match(await sheet.locator('[data-slash-example]').innerText(), /\/explain how binary search works/);
+  assert.match(await sheet.locator('[data-slash-example]').innerText(), /\/interactive how a hot coffee cools/);
   await sheet.screenshot({ path: `${OUT}/${THEME}-sheet-explain.png` });
   assert.equal(posts.length, before, 'the window posted no artifact request');
   await page.keyboard.press('Escape');

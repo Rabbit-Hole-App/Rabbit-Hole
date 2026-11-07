@@ -18,6 +18,9 @@ const browser = await chromium.launch();
 const errors = [];
 const both = () => { const tree = treeBoard(), flow = flowBoard(); return { shapes: [...tree.shapes, ...flow.shapes], links: [...tree.links, ...flow.links], items: [...tree.items, ...flow.items], blocks: flow.blocks, groups: flow.groups }; };
 
+// ponytail: the Context button is hidden (InlineAiEditor.jsx SHOW_CONTEXT_BUTTON = false); steps that open the Context popover are guarded by this until it returns.
+const CONTEXT_BUTTON = false;
+
 async function open(name, board = both(), { query = '', viewport = { width: 1500, height: 950 }, touch = false } = {}) {
   const context = await browser.newContext({ viewport, hasTouch: touch });
   const page = await context.newPage();
@@ -93,9 +96,11 @@ await run('node 23: Ctrl+K, Explain streams a grounded note, Accept adds a note 
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   check('A4: opening prepared the context locally with no model, routing or handler call', (await page.evaluate(() => window.__inlineMock.calls.length)) === 0);
+  if (CONTEXT_BUTTON) {
   await page.locator('[data-inline-context]').click();
   const contextText = await page.locator('[data-inline-context-list]').innerText();
   check('the context indicator lists the parent, the sibling and the label beside it - and not the unrelated note', /connected · Shape · 4/.test(contextText) && /sibling · Shape · 3/.test(contextText) && /label · Text · bottom row/.test(contextText) && !/Buy milk/.test(contextText), contextText.replace(/\n/g, ' | '));
+  }
   await shot('01-tree-explain-open');
   await page.locator('[data-inline-prompt]').fill('Explain this node');
   await page.keyboard.press('Enter');
@@ -196,14 +201,18 @@ await run('a flattened image is one picture; native shapes are objects', async (
   await page.locator('[data-block-id="img1"]').click({ position: { x: 20, y: 10 } });
   await ctrlK(page);
   await popover(page).waitFor();
+  if (CONTEXT_BUTTON) {
   await page.locator('[data-inline-context]').click();
   const list = await page.locator('[data-inline-context-list]').innerText();
   check('the context indicator says flattened image', /flattened image/.test(list), list.split('\n')[0]);
+  }
   await submitPrompt(page, 'Explain this');
   await waitStatus(page, ['preview']);
   const sent = (await calls(page, 'generate'))[0];
   check('the request marks the image as not native and carries its id for the vision model', sent.context.target.objects[0].native === false && sent.context.image?.id === 'img1');
+  if (CONTEXT_BUTTON) {
   await page.keyboard.press('Escape'); // folds the context list (innermost first)
+  }
   await page.keyboard.press('Escape'); // closes the editor
   await clickShape(page, 'n3');
   await ctrlK(page);
@@ -540,7 +549,7 @@ await run('Ctrl+K / commands: the registry list, keys, typed = picked, pill remo
   await field.focus();
   await page.keyboard.type('/expl');
   await page.keyboard.press('Enter');
-  check('/explain selects Explain with its pill', (await page.locator('[data-inline-ai] [data-command-pill="explain"]').count()) === 1 && (await popover(page).getAttribute('data-inline-command')) === 'explain' && await modeOf(page) === 'explain');
+  check('/explain selects Explain with its pill (id explanation; /interactive is id explain)', (await page.locator('[data-inline-ai] [data-command-pill="explanation"]').count()) === 1 && (await popover(page).getAttribute('data-inline-command')) === 'explanation' && await modeOf(page) === 'explain');
   await page.keyboard.type('why it is a leaf');
   await page.keyboard.press('Enter');
   await closed();
@@ -620,9 +629,11 @@ await run('Escape closes the innermost first; shortcut scope; IME; no selection 
   const { page, context } = await open('escape');
   await clickShape(page, 'n3');
   await ctrlK(page);
+  if (CONTEXT_BUTTON) {
   await page.locator('[data-inline-context]').click();
   await page.keyboard.press('Escape');
   check('first Escape folds the context list, the editor stays', (await page.locator('[data-inline-context-list]').count()) === 0 && (await popover(page).count()) === 1);
+  }
   await page.locator('[data-inline-prompt]').focus();
   await page.keyboard.press('Escape');
   check('the next Escape closes the editor and keeps the selection', (await popover(page).count()) === 0 && (await page.evaluate(() => window.canvasApi.current && document.querySelector('[data-shape-id="n3"] [data-handle]') !== null)));
@@ -806,9 +817,11 @@ await run('accept snapshot (b): the target edited after the preview, then a fail
   await editMember(page, 'para2');
   await submitPrompt(page, 'Rewrite this');
   await waitStatus(page, ['preview']);
+  if (CONTEXT_BUTTON) {
   await page.locator('[data-inline-context]').click();
   check('(b) Selection only is locked while a preview made with it shows', await page.locator('[data-inline-selection-only]').isDisabled());
   await page.keyboard.press('Escape');
+  }
   await typeWords(page, 'para2', ' typed meanwhile');
   await page.evaluate(() => { window.__inlineMock.failNext = 'http'; });
   await refine(page, 'Make it shorter');
@@ -1018,6 +1031,7 @@ await run('M6: a question asked while a preview shows goes back to the preview, 
 
 // ---- M7 (re-review of df144158): the context list shows the selected words as selected. Failed on df144158 ----
 await run('M7: words typed and selected, then Ctrl+K: the context list shows those words before Submit', async () => {
+  if (!CONTEXT_BUTTON) return; // ponytail: the Context button is hidden (InlineAiEditor.jsx SHOW_CONTEXT_BUTTON), so this step is skipped until it returns
   const { page, context } = await open('m7-range-row');
   await openWords(page, 'label23');
   await page.keyboard.type(' extra words');
@@ -1234,14 +1248,16 @@ await run('Purple target: with the editor open the target ring, its selection ma
     await clickShape(page, 'n23');
     await ctrlK(page);
     await page.locator('[data-inline-ai]').waitFor();
+    if (CONTEXT_BUTTON) {
     await page.locator('[data-inline-context]').click();
+    }
     await page.locator('[data-inline-prompt]').focus();
     const c = await colours();
     const [r, g, b] = (c.ai.match(/\d+/g) || []).map(Number);
     check(`purple (${theme}): the --color-ai token is a purple (red and blue over green), not the selection blue`, c.ai !== blue && r > g && b > g, c.ai);
     // The composer's prompt has no border of its own (owner brief 2026-10-13), so there is no field border to colour.
     check(`purple (${theme}): the target ring, the target's own selection mark and ports, and the Selected marker are --color-ai`,
-      c.ring === c.ai && c.mark === c.ai && c.port === c.ai && c.marker === c.ai, JSON.stringify(c));
+      c.ring === c.ai && c.mark === c.ai && c.port === c.ai && (!CONTEXT_BUTTON || c.marker === c.ai), JSON.stringify(c));
     await page.keyboard.press('Escape');
     await page.keyboard.press('Escape');
     await page.locator('[data-inline-ai]').waitFor({ state: 'detached' });
@@ -1265,7 +1281,7 @@ await run('Composer: before typing only the prompt, close, Context, the mode and
   await page.locator('[data-inline-ai]').waitFor();
   check('the editor is the Quick Edit dialog', (await page.getByRole('dialog', { name: 'Quick Edit' }).count()) === 1);
   check('Ctrl/Cmd+K focuses the prompt at once', await page.evaluate(() => document.activeElement?.matches('[data-inline-prompt]')));
-  check('before typing: exactly the prompt, a close icon, Context, the mode dropdown and Send', JSON.stringify(await visibleControls(page)) === JSON.stringify(['close', 'prompt', 'context', 'mode', 'send']), JSON.stringify(await visibleControls(page)));
+  check('before typing: exactly the prompt, a close icon, Context, the mode dropdown and Send', JSON.stringify(await visibleControls(page)) === JSON.stringify(CONTEXT_BUTTON ? ['close', 'prompt', 'context', 'mode', 'send'] : ['close', 'prompt', 'mode', 'send']), JSON.stringify(await visibleControls(page)));
   const shell = await page.locator('[data-inline-ai]').boundingBox();
   check('one surface about 420 px wide and 90-110 px tall', Math.abs(shell.width - 420) <= 2 && shell.height >= 90 && shell.height <= 110, JSON.stringify(shell));
   check('Explain: its placeholder; Send is subdued while the prompt is empty', (await page.locator('[data-inline-prompt]').getAttribute('placeholder')) === 'What would you like to understand?' && await page.locator('[data-inline-submit]').isDisabled());
@@ -1288,9 +1304,11 @@ await run('Composer: before typing only the prompt, close, Context, the mode and
   await page.locator('[data-inline-mode-toggle]').click();
   await page.keyboard.press('Escape');
   check('Escape closes the open mode menu first; the editor stays', (await page.locator('[data-inline-mode-menu]').count()) === 0 && (await popover(page).count()) === 1);
+  if (CONTEXT_BUTTON) {
   await page.locator('[data-inline-context]').click();
   await page.keyboard.press('Escape');
   check('then the open Context popover; the editor stays', (await page.locator('[data-inline-context-popover]').count()) === 0 && (await popover(page).count()) === 1);
+  }
   await page.locator('[data-inline-prompt]').focus();
   await page.keyboard.press('Escape');
   check('then the editor itself', (await popover(page).count()) === 0);
@@ -1305,6 +1323,7 @@ await run('Composer: before typing only the prompt, close, Context, the mode and
 });
 
 await run('Composer: the Context popover is the indicator (point 8) and never grows the composer; the composer holds still while words stream', async () => {
+  if (!CONTEXT_BUTTON) return; // ponytail: the Context button is hidden (InlineAiEditor.jsx SHOW_CONTEXT_BUTTON), so this step is skipped until it returns
   const { page, context } = await open('composer-context');
   await clickShape(page, 'n23');
   await ctrlK(page);
@@ -1421,10 +1440,12 @@ await run('Creation: nothing selected, Ctrl+K adds at the last empty-canvas clic
   await page.locator('[data-inline-mode-toggle]').click();
   check('Edit is off, and says why', await page.locator('[data-inline-mode="edit"]').isDisabled() && (await page.locator('[data-inline-edit-disabled]').innerText()) === 'Select something to edit.');
   await page.keyboard.press('Escape');
+  if (CONTEXT_BUTTON) {
   await page.locator('[data-inline-context]').click();
   check('Context: adding at the insertion point, the region read as support, the look to match, no Selection only', /^Adding at the insertion point/.test(await page.locator('[data-inline-context-target]').innerText())
     && (await page.locator('[data-inline-context-entry="supporting"]').count()) > 0 && (await page.locator('[data-inline-context-style]').count()) === 1 && (await page.locator('[data-inline-selection-only]').count()) === 0);
   await page.keyboard.press('Escape');
+  }
   check('opening saved nothing', JSON.stringify(await saved()) === before);
   await submitPrompt(page, 'Explain photosynthesis');
   await waitStatus(page, ['preview']);
@@ -1464,8 +1485,10 @@ await run('Creation: a blank canvas reads only the request; a changed region dur
   await blank.page.mouse.click(700, 400);
   await ctrlK(blank.page);
   await blank.page.locator('[data-inline-prompt]').waitFor({ timeout: 5000 });
+  if (CONTEXT_BUTTON) {
   await blank.page.locator('[data-inline-context]').click();
   check('blank canvas: the context says so - no supporting material, the default look', /Empty canvas here/.test(await blank.page.locator('[data-inline-context-popover]').innerText()) && (await blank.page.locator('[data-inline-context-entry="supporting"]').count()) === 0);
+  }
   await blank.context.close();
   const { page, context, saved } = await open('create-stale');
   const n23 = await shapeCenter(page, 'n23');

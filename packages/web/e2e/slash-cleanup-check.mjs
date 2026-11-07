@@ -40,8 +40,8 @@ const api = async (path, init = {}) => {
 // /animate is removed too (L8, owner 2026-10-20): /motion, offered by this development build, is the animation command.
 // Owner, 2026-10-26: /photos is the photo search (id image, what /image was), /image the paid generation (id generate-image, off here).
 // Ids stay the data-* attributes; TYPED is what a person types for an id that differs.
-const TYPED = { image: 'photos' };
-const RETAINED = ['explain', 'practice', 'quiz', 'flashcards', 'goal', 'code', 'graph', 'diagram', 'notebook', 'motion', 'cad', '3d', 'browser', 'image', 'youtube', 'arxiv', 'wikipedia'];
+const TYPED = { image: 'photos', explanation: 'explain', explain: 'interactive' };
+const RETAINED = ['explanation', 'explain', 'practice', 'quiz', 'flashcards', 'goal', 'code', 'graph', 'diagram', 'notebook', 'motion', 'cad', '3d', 'browser', 'image', 'youtube', 'arxiv', 'wikipedia'];
 const REMOVED = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper', 'animate', 'dive', 'video']; // /whiteboard returned as the whiteboard video (owner roadmap 2026-11-04)
 // Owner spec 2026-10-29: Ctrl+K offers exactly Chat's commands (it hands each to Chat's dispatcher).
 const CTRLK = RETAINED;
@@ -88,7 +88,7 @@ async function pass(theme) {
   await context.route('**/api/learn/artifact', async route => {
     const body = route.request().postDataJSON();
     artifacts.push(body.command);
-    if (body.command !== 'explain') { model.push(`artifact:${body.command}`); return route.fulfill({ status: 500, json: { error: 'not in this check' } }); }
+    if (body.command !== 'explanation') { model.push(`artifact:${body.command}`); return route.fulfill({ status: 500, json: { error: 'not in this check' } }); }
     return route.fulfill({ json: { result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'How binary search works', body: 'Halve the sorted range each step until the target is found.' } } });
   });
   await context.route('**/api/learn/photos?**', route => route.fulfill({ json: { photos: [{ id: 'p1', src: `${BASE}/apple-touch-icon.png`, alt: 'Mount Fuji fixture', photographer: 'Fixture Photographer', url: 'https://www.pexels.com/photo/fixture' }] } }));
@@ -121,19 +121,20 @@ async function pass(theme) {
   await picker.waitFor();
   const rows = await picker.locator('[data-slash-command]').evaluateAll(nodes => nodes.map(node => node.dataset.slashCommand));
   ok(`${theme}: the Chat picker lists every retained command and no removed one`, RETAINED.every(name => rows.includes(name)) && REMOVED.every(name => !rows.includes(name)) && !rows.includes('generate-image'), rows.join(' '));
-  ok(`${theme}: rows read explain, photos and 3d with their descriptions, never a /name`,
-    (await picker.locator('[data-slash-command="explain"]').innerText()).startsWith('explain') && (await picker.locator('[data-slash-command="explain"]').innerText()).includes('Understand an idea')
+  ok(`${theme}: rows read explain, interactive, photos and 3d with their descriptions, never a /name`,
+    (await picker.locator('[data-slash-command="explanation"]').innerText()).startsWith('explain') && (await picker.locator('[data-slash-command="explanation"]').innerText()).includes('written explanation')
+    && (await picker.locator('[data-slash-command="explain"]').innerText()).startsWith('interactive') && (await picker.locator('[data-slash-command="explain"]').innerText()).includes('Understand an idea')
     && (await picker.locator('[data-slash-command="image"]').innerText()).startsWith('photos') && (await picker.locator('[data-slash-command="3d"]').innerText()).startsWith('3d')
     && !(await picker.innerText()).includes('More learning tools'));
   await shot('01-chat-picker');
   // Picked: the pill is the typed name, never a /name; its x is named by the title.
-  await picker.locator('[data-slash-command="explain"]').click();
+  await picker.locator('[data-slash-command="explanation"]').click();
   await pill.waitFor();
-  ok(`${theme}: picked /explain is the explain pill`, (await pill.innerText()).trim() === 'explain' && await dock.getByRole('button', { name: 'Remove Explanation', exact: true }).count() === 1);
+  ok(`${theme}: picked /explain is the explain pill (id explanation)`, (await pill.innerText()).trim() === 'explain' && await dock.getByRole('button', { name: 'Remove Explanation', exact: true }).count() === 1);
   await shot('02-pill-explain');
   await dock.getByRole('button', { name: 'Remove Explanation', exact: true }).click();
   // Typed: the same pills.
-  for (const [name, title] of [['explain', 'Explanation'], ['image', 'Photo search'], ['3d', '3D scene'], ['browser', 'Browser']]) {
+  for (const [name, title] of [['explanation', 'Explanation'], ['explain', 'Interactive'], ['image', 'Photo search'], ['3d', '3D scene'], ['browser', 'Browser']]) {
     await composer().fill(`/${TYPED[name] || name} `);
     await pill.waitFor();
     ok(`${theme}: typed /${TYPED[name] || name} is the ${TYPED[name] || name} pill, no slash`, await pill.getAttribute('data-command-pill') === name && (await pill.innerText()).trim() === (TYPED[name] || name));
@@ -146,7 +147,7 @@ async function pass(theme) {
   await composer().fill('/explain how binary search works');
   await composer().press('Enter');
   await notice.getByText('Added an explanation.').waitFor({ timeout: 15000 });
-  ok(`${theme}: typed /explain creates an explanation card`, await blocks() === before + 1 && artifacts.at(-1) === 'explain' && await page.getByText('How binary search works').count() > 0);
+  ok(`${theme}: typed /explain creates an explanation card`, await blocks() === before + 1 && artifacts.at(-1) === 'explanation' && await page.getByText('How binary search works').count() > 0);
   await shot('04-explain-card');
   await composer().fill('/photos Mount Fuji');
   await composer().press('Enter');
@@ -231,7 +232,7 @@ async function pass(theme) {
   await sheet.locator('[data-slash-use-example="explain"]').click();
   await sheet.waitFor({ state: 'detached', timeout: 5000 });
   await pill.waitFor({ timeout: 5000 });
-  ok(`${theme}: Use example prepares an editable draft (pill and words) and sends nothing`, (await pill.innerText()).trim() === 'explain' && await composer().inputValue() === 'how a hot coffee cools in a cold room, and let me change the room temperature' && model.length + artifacts.length === posts);
+  ok(`${theme}: Use example prepares an editable draft (pill and words) and sends nothing`, (await pill.innerText()).trim() === 'interactive' && await composer().inputValue() === 'how a hot coffee cools in a cold room, and let me change the room temperature' && model.length + artifacts.length === posts);
   await shot('14-use-example-draft');
   await composer().fill('how merge sort works');
   ok(`${theme}: the draft is editable before sending`, await composer().inputValue() === 'how merge sort works' && model.length + artifacts.length === posts);

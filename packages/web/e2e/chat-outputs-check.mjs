@@ -419,7 +419,7 @@ await step('a pill line sent while another command runs stays in the composer an
     const requested = artifacts.length; // step 10's /explain is already in the list: wait for this one's own request
     await send(page, '/explain softmax as a ratio');
     await pane(page).locator('[data-slash-result]', { hasText: 'Working on /explain' }).waitFor();
-    await until(async () => artifacts.length === requested + 1 && artifacts.at(-1)?.command === 'explain', '/explain made no request');
+    await until(async () => artifacts.length === requested + 1 && artifacts.at(-1)?.command === 'explanation', '/explain made no request');
     // A card command that still asks the artifact route directly as the pill (owner, 2026-10-20, L7: the prompt commands this step used
     // are removed; owner spec 2026-10-29: /quiz now prepares a brief first, so /explain stands in).
     const before = artifacts.length, asked = asks.length;
@@ -430,7 +430,7 @@ await step('a pill line sent while another command runs stays in the composer an
     await page.screenshot({ path: `${OUT}/14-held-${THEME}.png` });
     release(); artifactHold = null;
     await until(async () => artifacts.length === before + 1, 'the held line never ran');
-    assert.deepEqual([artifacts.at(-1).command, artifacts.at(-1).args], ['explain', 'while it works']);
+    assert.deepEqual([artifacts.at(-1).command, artifacts.at(-1).args], ['explanation', 'while it works']);
     await idle(page);
     await page.waitForTimeout(800);
     assert.deepEqual([artifacts.length, asks.length], [before + 1, asked], 'it ran once, as its card command');
