@@ -104,6 +104,7 @@ import { useRoadmap } from './use-roadmap.js';
 import { readyMarkdownSources } from './roadmap-client.js';
 import { canvasCardsOf, createSlotStore } from './roadmap-canvas.js';
 import { RoadmapCanvas } from './RoadmapSurfaces.jsx';
+import SurfaceBoundary from './SurfaceBoundary.jsx';
 import LearnProgress from './LearnProgress.jsx';
 import { CardFeedbackScope } from './CardFeedback.jsx';
 import { explainMaterial } from './learn-coaching-materials.js';
@@ -2455,7 +2456,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               const api = canvasApi.current;
               if (refPick.blockId) return (await api?.addRef?.(refPick.blockId, canvas.id)) || { ok: false };
               return (await api?.insertRefCard?.(canvas.id, refPick.point)) ? { ok: true } : { ok: false };
-            }} />}<RoadmapCanvas roadmap={roadmap} hosted={canvasHosts} /><ChatHandle to={chatRef} /></div>
+            }} />}<SurfaceBoundary artifact="roadmap_canvas"><RoadmapCanvas roadmap={roadmap} hosted={canvasHosts} /></SurfaceBoundary><ChatHandle to={chatRef} /></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">

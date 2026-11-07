@@ -58,6 +58,7 @@ import { describeExcerpt, isExcerpt } from './pdf-excerpt.js';
 import { ExcerptNote, ExcerptSource } from './ExcerptCard.jsx';
 import { CitableLines } from './TutorCitations.jsx';
 import WhiteboardVideoCard from './WhiteboardVideoCard.jsx';
+import SurfaceBoundary from './SurfaceBoundary.jsx';
 import { describeWhiteboard } from './whiteboard/card.js';
 
 // The canvas's drawing surface for an Explain Back sketch (AdaptiveCanvas renderSketch): { render, hold, release,
@@ -2335,7 +2336,7 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'code') return <CodeBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'snippet') return <SnippetBody block={block} onFile={onFile} />;
   if (block.type === 'explanation' && isExcerpt(block)) return <ExcerptBody block={block} onChange={onChange} appName={appName} readOnly={readOnly} />;
-  if (block.type === 'explanation') return <ExplanationBody block={block} onFile={onFile} appName={appName} onExpandHeight={onExpandHeight} />;
+  if (block.type === 'explanation') return <SurfaceBoundary artifact="explanation_card" fallback={<p className="m-0 whitespace-pre-wrap text-sm text-ink">{String(block.text ?? block.body ?? '')}</p>}><ExplanationBody block={block} onFile={onFile} appName={appName} onExpandHeight={onExpandHeight} /></SurfaceBoundary>;
   if (block.type === 'table') return <TableBody block={block} onFile={onFile} />;
   if (block.type === 'cad') return <CadCard block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} appName={appName} selected={selected} readOnly={readOnly} onEdit={onCadEdit} account={cadAccount} />;
   // Its own Suspense (as WhiteboardBlock): a lazy card inserted on a live canvas must not suspend the canvas, which unmounted the

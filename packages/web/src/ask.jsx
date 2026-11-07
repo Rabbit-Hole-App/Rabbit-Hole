@@ -41,6 +41,7 @@ import { CadReview } from './CadReview.jsx';
 import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
 import { approvesJob, currentProposal, editRefusal, editSpent, routeChat, routeOutcome } from './generation-proposal-chat.js';
 import { isSmallTalk } from './inline-ai-route.js';
+import SurfaceBoundary from './SurfaceBoundary.jsx';
 import { imageGenerationOn, requestImagePlan } from './generate-image.js';
 import { isBriefCommand, requestMaterialBrief } from './material-brief.js';
 import { problemOf } from './generation-review-client.js';
@@ -1127,7 +1128,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
             ))}
           </div>
         )}
-        {!(sheetMode && sheetHistory) && <ChatMessages renderTutor={chat && !tocView && roadmap?.on ? m => <TutorMessage m={m} roadmap={roadmap} chat={chat} /> : null} msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} follow={follow} />}
+        {!(sheetMode && sheetHistory) && <ChatMessages renderTutor={chat && !tocView && roadmap?.on ? m => <SurfaceBoundary artifact="tutor_entry" fallback={<div className="min-w-0 whitespace-pre-wrap text-sm">{String(m.content ?? '')}</div>}><TutorMessage m={m} roadmap={roadmap} chat={chat} /></SurfaceBoundary> : null} msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} follow={follow} />}
         {/* Fix B: the explain-on-canvas roadmap's lines, in this transcript after the thread's messages (RoadmapTranscript.jsx). */}
         {chat && !tocView && roadmap?.on && <RoadmapTranscript roadmap={roadmap} chat={chat} msgs={msgs} />}
         {choices && (

@@ -60,7 +60,7 @@ export function withSharedSourceRef(block) {
 export function refLabel(ref) {
   if (!ref) return '';
   const page = ref.anchor?.page, where = page ? (page.label || page.index) : null;
-  return `${ref.source.name}${where ? `, p. ${where}` : ''}`;
+  return `${ref.source?.name ?? ''}${where ? `, p. ${where}` : ''}`;
 }
 
 // The words a status gets on the chip. A current ref says nothing.

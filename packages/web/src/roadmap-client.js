@@ -112,7 +112,7 @@ const isNext = (view, proposal) => resultsOf(view).some(r => r.stepId !== propos
 
 const stepNav = (step, view) => {
   const result = resultsOf(view).find(r => r.stepId === step.id);
-  if (result?.delivery === 'delivered' && step.state === 'delivered') return { kind: 'card', cardId: result.slot.cardId };
+  if (result?.delivery === 'delivered' && step.state === 'delivered') return { kind: 'card', cardId: result.slot?.cardId ?? null };
   if (view.proposal?.stepId === step.id && view.proposal.state === 'pending') return { kind: 'proposal' };
   return null; // an entry with neither does not pretend there is anything to navigate to
 };

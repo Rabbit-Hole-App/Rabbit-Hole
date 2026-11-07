@@ -42,7 +42,7 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     flight.set(gesture, run);
     return run;
   }
-  const applyView = body => { if (body?.roadmap !== undefined) { dispatch({ type: 'view', view: body }); meter.observe(state.view); reconcile(); } return body; };
+  const applyView = body => { if (body?.roadmap !== undefined && (body.roadmap === null || (typeof body.roadmap === 'object' && Array.isArray(body.steps)))) { dispatch({ type: 'view', view: body }); meter.observe(state.view); reconcile(); } return body; };
   const mutateView = (gesture, route) => (state.view ? act(gesture, route).then(applyView) : Promise.resolve(null)); // every roadmap action needs a view to take its revision from
 
   async function refresh() {

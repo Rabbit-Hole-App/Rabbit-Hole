@@ -32,7 +32,8 @@ export default function TableOfContents({ outline: own, canvasApi, onShow, propo
   const [roadmapDone, setRoadmapDone] = useState(() => new Set());
   useEffect(() => { try { setRoadmapDone(new Set(rid ? JSON.parse(localStorage.getItem(doneKey(rid)) || '[]') : [])); } catch { setRoadmapDone(new Set()); } }, [rid]);
   const toggleRoadmapDone = stepId => setRoadmapDone(previous => { const next = new Set(previous); if (next.has(stepId)) next.delete(stepId); else next.add(stepId); try { localStorage.setItem(doneKey(rid), JSON.stringify([...next])); } catch { /* private mode */ } return next; });
-  const outline = withRoadmap(own, roadmap?.toc, roadmapDone);
+  let outline;
+  try { outline = withRoadmap(own, roadmap?.toc, roadmapDone); } catch (error) { console.error('[toc roadmap]', error); outline = own || []; } // a malformed roadmap never hides the ordinary outline
   // Which level is being added, the section being edited, the section being dragged, and the heading it lands before
   // (null: the end).
   const [adding, setAdding] = useState(null);

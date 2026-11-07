@@ -61,3 +61,31 @@ test('every recorded status view renders on the canvas and in the ToC without th
     lib.renderToStaticMarkup(lib.createElement(lib.TableOfContents, { roadmap, outline: [], canvasApi: { current: null } }));
   }
 });
+
+// Other ways the page could crash (review 2026-11-07): a result with no slot, a source ref with no source, a response that is not a full view, and
+// a Tutor surface that throws while drawing (contained by SurfaceBoundary instead of the page crash screen).
+test('a result without a slot, a source ref without a source and a partial response do not throw', async () => {
+  const { createRoadmapController } = await import('./roadmap-controller.js');
+  const delivered = view('status-delivered-next-ready');
+  delivered.results = delivered.results.map(r => ({ ...r, slot: null }));
+  const state = { view: delivered, busy: [], editing: false, flag: 'on', notice: null, invitation: null, limitation: null, draft: null };
+  assert.doesNotThrow(() => tocOf(state));
+  const pending = view('status-active-proposal-pending');
+  pending.steps = pending.steps.map(s => ({ ...s, sourceRef: { ...s.sourceRef, source: undefined } }));
+  const base = hookReturn(), s = { state: { ...state, view: pending }, pill: pillOf({ ...state, view: pending }), toc: tocOf({ ...state, view: pending }) };
+  assert.doesNotThrow(() => lib.renderToStaticMarkup(lib.createElement(lib.RoadmapCanvas, { roadmap: { ...base, ...s, showOverlay: true } })));
+  // A body that is not a full view (no steps, or a roadmap that is not an object) never replaces the view.
+  for (const body of [{ roadmap: { id: 'x', state: 'active' } }, { roadmap: 'x', steps: [] }, { steps: [] }]) {
+    const controller = createRoadmapController({ api: async () => body, boardId: 'lb_7c1e5a90d2b84f63a1c07e92', host: { hasBlock: () => false, insertCard: () => null, persist: async () => ({ ok: true }), boardRevision: () => 1, savedHas: () => false }, schedule: () => 1, cancel() {} });
+    controller.start(); await new Promise(resolve => setTimeout(resolve, 10));
+    assert.equal(controller.getState().view, null, JSON.stringify(Object.keys(body)));
+  }
+});
+
+test('every Tutor surface is drawn inside a SurfaceBoundary, so one throwing render never reaches the page crash screen', () => {
+  const read = name => readFileSync(fileURLToPath(new URL('./' + name, import.meta.url)), 'utf8');
+  for (const [file, artifact] of [['LearnPage.jsx', 'roadmap_canvas'], ['ask.jsx', 'tutor_entry'], ['AdaptiveCanvas.jsx', 'slot_card'], ['AdaptiveCanvas.jsx', 'next_card_pill'], ['LearningBlocks.jsx', 'explanation_card']]) {
+    assert.ok(read(file).includes('<SurfaceBoundary ') && read(file).includes('artifact="' + artifact + '"'), file + ' wraps ' + artifact);
+  }
+  assert.match(read('TableOfContents.jsx'), /try \{ outline = withRoadmap\(/, 'a malformed roadmap never hides the ordinary outline');
+});
