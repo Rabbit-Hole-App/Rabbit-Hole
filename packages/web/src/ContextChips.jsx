@@ -49,7 +49,7 @@ export function EditTargetPill({ target, onReveal, onCancel }) {
 }
 // The targeted proposal's card, the Chat opened and the card scrolled into view: the revision the pill names, never a newer one.
 const revealProposal = (chat, target) => { chat.panels.openChat(); requestAnimationFrame(() => document.querySelector(`[data-generation-proposal][data-proposal-id="${CSS.escape(target.proposalId)}"][data-proposal-version="${CSS.escape(String(target.version))}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })); };
-export default function ContextChips({ readPaper = null, selection = null, code = null, extra = null }) {
+export default function ContextChips({ readPaper = null, selection = null, code = null, extra = null, hideDocs = false }) {
   const chat = useChatWorkspace();
   const [more, setMore] = useState(false);
   if (!chat) return null;
@@ -62,7 +62,8 @@ export default function ContextChips({ readPaper = null, selection = null, code 
       <button type="button" onClick={() => code.onRemove(ref)} aria-label={`Remove ${ref.name} from the selection`} title="Remove from the selection" className={CHIP_ICON_BUTTON}><X size={12} aria-hidden /></button>
     </li>
   );
-  const chips = chat.context.items.filter(item => item.attached || item.state !== 'ready');
+  // hideDocs (the contents' composer): the canvas's own documents are never its context, only what the learner added.
+  const chips = chat.context.items.filter(item => (item.attached || item.state !== 'ready') && !(hideDocs && item.ref?.kind === 'doc'));
   const failed = chips.filter(item => item.state === 'failed');
   // "This canvas" says what goes with a message (whole-canvas context): the coverage line of the package the draft would send,
   // built on hover or focus, else of the one the last message sent (canvasCoverage: the page sets it whenever it builds one).

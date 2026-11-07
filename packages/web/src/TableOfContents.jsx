@@ -26,7 +26,14 @@ const LEVEL_NAMES = { 1: 'section', 2: 'sub-section', 3: 'sub-sub-section' };
 // status line; a title navigates to the step's slot or card (roadmap.go), never generates. No roadmap list, parameters, actions or composer here.
 // top: legacy slot, still drawn under the heading.
 const doneKey = id => `rh.toc.roadmap-done.${id}`;
-export default function TableOfContents({ outline: own, canvasApi, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '', subtitle = null, goal = null, top = null, roadmap = null }) {
+// A contents row's Add to chat (owner approved 2026-11-07): its context ref goes to the CONTENTS composer as a pill (onAddToChat), never to the right-hand Chat.
+export function addRowToConversation(canvasApi, id, onAddToChat, notify = () => {}) {
+  const ref = canvasApi.current?.refForSection?.(id);
+  if (ref && onAddToChat) { onAddToChat(ref); return true; }
+  notify('Could not add this to the conversation');
+  return false;
+}
+export default function TableOfContents({ outline: own, canvasApi, onAddToChat = null, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '', subtitle = null, goal = null, top = null, roadmap = null }) {
   // A roadmap row's manual done mark is the learner's own, kept per roadmap in this browser; it never means delivered, paid or understood.
   const rid = roadmap?.toc?.roadmapId ?? null;
   const [roadmapDone, setRoadmapDone] = useState(() => new Set());
@@ -126,7 +133,7 @@ export default function TableOfContents({ outline: own, canvasApi, onShow, propo
           const icon = "flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-ink";
           return (
             <div data-no-drag data-toc-actions className="relative flex shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100" style={open ? { opacity: 1 } : undefined}>
-              {addId && <button type="button" data-toc-add-to-chat aria-label={"Add " + entry.label + " to chat"} title="Add to chat" onClick={() => { if (canvasApi.current?.addSectionToChat?.(addId) === false) toast("Could not add this to Chat", { tone: "error" }); }} className={icon}><MessageSquarePlus size={14} /></button>}
+              {addId && <button type="button" data-toc-add-to-chat aria-label={"Add " + entry.label + " to chat"} title="Add to chat (the contents conversation)" onClick={() => addRowToConversation(canvasApi, addId, onAddToChat, message => toast(message, { tone: 'error' }))} className={icon}><MessageSquarePlus size={14} /></button>}
               {goes && <button type="button" data-toc-go-card aria-label={"Go to card for " + entry.label} title="Go to card" onClick={() => roadmap?.go?.(nav)} className={icon}><LocateFixed size={14} /></button>}
               {deletesHeading && <button type="button" aria-label={"Edit " + entry.label} title="Edit title and description" onClick={() => setEditing(entry.id)} className={icon}><Pencil size={14} /></button>}
               {(deletesHeading || deletesCard) && <button type="button" data-toc-delete aria-label={(deletesCard ? "Delete card " : "Remove heading ") + entry.label} aria-haspopup="dialog" aria-expanded={open} title={deletesCard ? "Delete this card from the canvas" : "Remove from the contents"} onClick={() => setConfirming(open ? null : entry.id)}

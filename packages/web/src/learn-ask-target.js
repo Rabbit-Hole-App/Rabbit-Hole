@@ -24,6 +24,7 @@ export const TOC_VIEW = {
     ChatMessages: 'its messages, progress and errors',
     ModeSelector: 'the Tutor label (data-toc-mode)',
     ChatComposer: 'its composer (data-toc-composer)',
+    ContextChips: 'the pills the learner added from a contents row (Add to chat); never the canvas documents (hideDocs). Owner approved 2026-11-07',
   },
   hidden: {
     'data-panel-content': 'the History list (a panel with its own header; the Learn Chat and TOC never open it here)',
@@ -41,7 +42,6 @@ export const TOC_VIEW = {
     'data-context-button': 'Context documents (never on the Learn Chat either)',
     'data-command-slot': 'the / command control (slash is null)',
     'data-voice-error': 'voice (voice is null)',
-    ContextChips: 'the context pills (chips is null)',
     VoiceToggle: 'the mic (voice is null)',
     MentionHits: 'the @ mention list',
   },

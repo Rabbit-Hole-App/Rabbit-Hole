@@ -289,6 +289,7 @@ test('ToC rows: Add to chat shows on hover for every heading and for a roadmap r
   const pending = toc({}, 'status-active-proposal-pending').split('data-roadmap-step=').slice(1);
   assert.ok(pending.every(r => !r.includes('data-toc-add-to-chat')), 'a slot with no card yet has nothing to add');
   const canvas = readFileSync(fileURLToPath(new URL('./AdaptiveCanvas.jsx', import.meta.url)), 'utf8');
-  assert.match(canvas, /addSectionToChat: id => \{[^}]*setSelection\(\[blockId\]\);[^}]*return addToChat\(\);/s, 'it selects the block and adds it exactly as the selection bar does');
-  assert.match(readFileSync(fileURLToPath(new URL('./TableOfContents.jsx', import.meta.url)), 'utf8'), /addSectionToChat\?\.\(addId\) === false\) toast/);
+  assert.match(canvas, /refForSection: id => \{[\s\S]*?selectionRef\(\{ ids: \[object\.id\]/, 'it builds the block context ref as the selection bar does, for the contents composer');
+  assert.doesNotMatch(canvas, /addSectionToChat/, 'the right-hand Chat is not touched by the contents Add to chat');
+  assert.match(readFileSync(fileURLToPath(new URL('./TableOfContents.jsx', import.meta.url)), 'utf8'), /addRowToConversation\(canvasApi, addId, onAddToChat,/);
 });

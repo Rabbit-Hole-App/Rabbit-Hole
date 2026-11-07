@@ -291,8 +291,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const tocView = !!workspace?.tocView;
   if (tocView) ({ canvasTarget, onClearCanvasTarget, slash, voice, nextStepRef, boardContext } = tocAskProps({ canvasTarget, onClearCanvasTarget, slash, voice, nextStepRef, boardContext }));
   const chat = workspace && learnChat && !composerOnly && !canvasSeed ? workspace : null, chatThread = chat ? chat.thread : null;
-  // TOC has no attachments, including the canvas documents auto-offered to a new chat.
-  const attachedRefs = tocView ? NO_REFS : (chat?.context.attached || NO_REFS);
+  // The contents' composer (owner approved 2026-11-07) carries only the pills the learner added from a contents row, never the canvas documents
+  // auto-offered to a new chat.
+  const attachedRefs = tocView ? (chat?.context.attached.filter(ref => ref.kind !== 'doc') || NO_REFS) : (chat?.context.attached || NO_REFS);
   // A canvas with a repository (codebase: use-repository.js's object, the Main canvas or a project canvas; repo-canvas-graph.md
   // section 6): what the graph and Files viewers hold now is temporary context beside this chat's pinned refs - one chip and
   // one sent ref each, pinned first, up to the server's 20 (repo-context.js turnRefs). The Files selection is one of these
@@ -1236,7 +1237,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           onKeyDown={slash ? event => { if (removesToken(event, { command, selectionStart: event.target.selectionStart, selectionEnd: event.target.selectionEnd })) { event.preventDefault(); removeCommand(); return; } if (commandHistory(event)) return; slashRef.current?.onKeyDown(event);
             if (busy && !event.defaultPrevented && composerKey(event.nativeEvent, chatSendKey()) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? (toolOf(command)?.placeholder || `Add details, or press ${sendKeyLabel()}`) : placeholder} busy={busy}
           dock={dock} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
-          stacked={!!chat} tocView={tocView} chips={chat && !tocView ? <ContextChips readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, attachedRefs))?.id ?? null}
+          stacked={!!chat} tocView={tocView} chips={chat ? <ContextChips hideDocs={tocView} readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, attachedRefs))?.id ?? null}
             selection={canvasTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, card: canvasTarget.card, preview: canvasTarget.preview, paper: canvasTarget.paper, docPage: canvasTarget.docPage, image: canvasTarget.image, pinned: pinnedTarget, onClear: onClearCanvasTarget } : null} extra={boardPending}
             code={codebase || cardRefs.length ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: temporaryCode, onRemove: ref => releaseCodeRef(codebase, ref) } : null} /> : null}
           leading={<>

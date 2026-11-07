@@ -158,9 +158,9 @@ test('the Chat header: the thread title, History, New chat (icon only under 360 
   assert.match(page, /<ChatPane key=\{app\.name\} hidden=\{panelTab !== 'chat'\} chatAskProps/, 'Chat only in the Chat tab (owner brief 2026-10-16 item 7)');
 });
 
-// Checklist UI.02 (owner 2026-11-06, supersedes the 2026-10-16 ToC conversation): the Table of contents has no conversation or composer in any
-// state; its former conversations keep their own thread (slot 'toc') and draft key and reopen through ordinary Chat History.
-test('the Table of contents has no conversation; its old threads reopen in Chat with their own drafts; Chat stays in Chat', () => {
+// Owner approved 2026-11-07 (supersedes checklist UI.02 of 2026-11-06): the Table of contents has its own conversation and composer again, with its own thread
+// (slot 'toc') and draft key, fixed under the scrolling outline; its threads also reopen through ordinary Chat History; Chat stays in Chat.
+test('the Table of contents has its own conversation (owner approved 2026-11-07); its threads reopen in Chat with their own drafts; Chat stays in Chat', () => {
   const ask = read('./ask.jsx'), threads = read('./chat-threads.js'), workspace = read('./chat-workspace.jsx'), modes = read('./ModeSelector.jsx'), history = read('./ChatHistory.jsx');
   assert.doesNotMatch(page, /composerDocked|holdMode/, 'Chat\'s composer no longer docks under the contents');
   assert.match(workspace, /const tocThread = useChatThread\(canvas, \{ slot: 'toc' \}\);/);
@@ -170,9 +170,10 @@ test('the Table of contents has no conversation; its old threads reopen in Chat 
   assert.match(threads, /threads\?\.find\(thread => thread\.id !== toc\)/, 'Chat never falls back to the TOC\'s thread');
   assert.doesNotMatch(history, /tocThread/, 'History lists the former TOC conversations, so they reopen in ordinary Chat');
   assert.match(modes, /if \(chat\.tocView\) return <span data-chat-mode="tutor"/, 'Tutor shown, no menu');
-  assert.doesNotMatch(workspace, /TocWorkspace/, 'no ToC conversation mount in any state');
-  assert.doesNotMatch(page, /<(TocConversation|TocWorkspace|RoadmapToc)b|import (TocConversation|{[^}]*(TocWorkspace|RoadmapToc))/, "no mount or import of the removed ToC panels");
-  assert.ok(!existsSync(new URL('./TocConversation.jsx', import.meta.url)), 'the component is gone');
+  assert.match(workspace, /export function TocWorkspace\(\{ children \}\)/, 'the contents conversation has its own workspace (owner approved 2026-11-07)');
+  assert.match(page, /<TocWorkspace key=\{app\.name\}><TocConversation \{\.\.\.chatAskProps\}/, 'the contents conversation is mounted under the outline (owner approved 2026-11-07)');
+  assert.doesNotMatch(page, /RoadmapToc|RoadmapChat/, 'the removed roadmap panels stay removed: roadmap talk, parameters and actions are in Chat');
+  assert.ok(existsSync(new URL('./TocConversation.jsx', import.meta.url)));
   const toc = page.indexOf('<div role="tabpanel" aria-label="Table of contents"'), chatPane = page.indexOf('<ChatPane key={app.name}');
   assert.ok(toc > 0 && chatPane > toc, 'Chat after the contents tab');
   assert.equal(page.match(/<ChatPane\b/g).length, 1);
