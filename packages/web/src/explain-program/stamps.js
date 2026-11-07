@@ -13,17 +13,30 @@ export const RENDERER_VERSION = 'renderer-1';
 export const RUNTIME_POLICY_VERSION = 'policy-1';
 export const PERMISSION_PROFILE_VERSION = 'perm-1';
 
-// Pass as sealProgram(bundle, PROGRAM_STAMPS) (contract.js): schema 1, what the control plane seals today.
+// The original SDK stamps for saved artifacts and fixtures.
 export const PROGRAM_STAMPS = Object.freeze({
   runtimeVersion: ENGINE_VERSION,
   runtimePolicyVersion: RUNTIME_POLICY_VERSION,
   permissionProfileVersion: PERMISSION_PROFILE_VERSION,
   fingerprints: Object.freeze({ engine: ENGINE_FINGERPRINT, sdk: SDK_FINGERPRINT, renderer: RENDERER_VERSION }),
 });
-// The stateful contract (schema 2) on the same engine, SDK, renderer and policies. Nothing in production seals with it yet (Task 8.3).
+// The stateful contract (schema 2) on the same engine, SDK, renderer and policies.
 export const STATEFUL_PROGRAM_STAMPS = Object.freeze({ ...PROGRAM_STAMPS, schemaVersion: 2 });
+
+// New programs opt into the composable visual helpers. The old source and its fingerprint stay pinned.
+export const VISUAL_SDK_VERSION = 'sdk-2';
+const VISUAL_SDK_FINGERPRINT = 'a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1';
+export const VISUAL_PROGRAM_STAMPS = Object.freeze({
+  ...PROGRAM_STAMPS,
+  sdkVersion: VISUAL_SDK_VERSION,
+  fingerprints: Object.freeze({ ...PROGRAM_STAMPS.fingerprints, sdk: VISUAL_SDK_FINGERPRINT }),
+});
+export const STATEFUL_VISUAL_PROGRAM_STAMPS = Object.freeze({ ...VISUAL_PROGRAM_STAMPS, schemaVersion: 2 });
 
 // Every version tuple host.js will run, whole: an artifact runs only if all of these fields equal one entry exactly. No "same major",
 // no field ignored. A new engine, SDK, renderer or policy is a new entry, added beside the old one while artifacts sealed with it remain.
 const tuple = (schemaVersion, stamps) => Object.freeze({ schemaVersion, sdkVersion: 'sdk-1', rendererVersion: RENDERER_VERSION, ...stamps });
-export const SUPPORTED_PROGRAM_TUPLES = Object.freeze([tuple(1, PROGRAM_STAMPS), tuple(2, STATEFUL_PROGRAM_STAMPS)]);
+export const SUPPORTED_PROGRAM_TUPLES = Object.freeze([
+  tuple(1, PROGRAM_STAMPS), tuple(2, STATEFUL_PROGRAM_STAMPS),
+  tuple(1, VISUAL_PROGRAM_STAMPS), tuple(2, STATEFUL_VISUAL_PROGRAM_STAMPS),
+]);

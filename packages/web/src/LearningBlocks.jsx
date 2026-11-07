@@ -1482,10 +1482,10 @@ function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPract
           : proposed?.program
             ? <ProgramScene key="proposed" preview block={proposed} onControlsHeight={onControlsHeight} onProgramFrame={onProgramFrame} />
           : proposed?.scene
-            ? <AnimatedScene key="proposed" block={proposed} onChange={ignore} onChangeQuiet={ignore} />
+            ? <AnimatedScene key="proposed" interact block={proposed} onChange={ignore} onChangeQuiet={ignore} />
             : block.program
             ? <ProgramScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onControlsHeight={onControlsHeight} onProgramFrame={onProgramFrame} onFile={onFile} />
-            : <AnimatedScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onControlsHeight={onControlsHeight} />}
+            : <AnimatedScene block={block} interact={!!block.explain?.revision} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onControlsHeight={onControlsHeight} />}
       </div>
       <SceneActivity block={block} onChange={onChange} onHeight={onPracticeHeight} />
     </div>

@@ -181,7 +181,7 @@ test('an unlit cell numeral uses secondary ink only on a soft fill; on a loud fi
   }
   assert.deepEqual(failures, [], 'a loud-fill numeral under 4.5:1 that nobody named');
   assert.deepEqual(stale, [], 'these now pass - drop them from UNPROVEN, cellInk\'s ponytail and the doc rule');
-  assert.match(renderer, /const ink = heat \? heat\.inkToken : cellInk\(role, lit, look\.onFill\);/, 'the grid/strip numeral ink goes through cellInk, with its step\'s on-ink');
+  assert.match(renderer, /const ink = heat \? heat\.inkToken : interact \? look\.onFill : cellInk\(role, lit, look\.onFill\);/, 'the grid/strip numeral ink goes through cellInk, with its step\'s on-ink');
   // Every other secondary-ink use in the renderer sits on the scene surface:
   // row labels, column labels, bar labels, label-style tokens, text/data
   // labels. A new one means a new surface - add it above before raising this.
@@ -215,7 +215,7 @@ test('role- and identity-hued scene text clears 4.5:1 on the scene surface: ever
     }
   }
   assert.deepEqual(failures, [], 'role-hued text under 4.5:1');
-  assert.match(renderer, /\? textObjectInk\(role, object\.typography, object\.identitySlot\)/, 'the text path draws a text object through textObjectInk');
+  assert.match(renderer, /: textObjectInk\(role, object\.typography, object\.identitySlot\)\)/, 'the text path draws a text object through textObjectInk');
 });
 
 // Every glyph drawn straight on the scene surface, with the ink the renderer

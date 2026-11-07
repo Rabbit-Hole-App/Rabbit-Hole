@@ -116,7 +116,7 @@ export function createProgramHost({ artifact, limits = LIMITS, createWorker = de
       resolve({ requestId: request.requestId, ...result.value, metrics: { ms: performance.now() - started, outputBytes: data.metrics.outputBytes } });
     };
     const { requestId, ...fields } = request;
-    target.postMessage({ id: requestId, operation, source: program.source, request: fields });
+    target.postMessage({ id: requestId, operation, source: program.source, sdkVersion: program.sdkVersion, request: fields });
   });
 
   async function pump() {

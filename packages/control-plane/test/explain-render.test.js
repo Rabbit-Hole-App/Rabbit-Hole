@@ -95,12 +95,13 @@ test('renders each distinct state once, stores PNGs under the job, injects the s
   const { state, browser } = fakeBrowser({ pageRequests: [`${RENDER_ORIGIN}/static/render-abc.js`, 'https://cdn.example.com/x.js'] });
   const stored = [];
   const manifest = await manifestFor([entry('light'), entry('again'), entry('dark', { theme: 'dark', inputs: { len: 3 } })]);
-  const result = await renderStates({ ASSETS }, { scene }, manifest, { launch: async () => browser, jobId: 'job1', store: async (key, png) => stored.push(key) });
+  const result = await renderStates({ ASSETS }, { scene }, manifest, { launch: async () => browser, jobId: 'job1', interact: true, store: async (key, png) => stored.push(key) });
   assert.equal(result.captures.length, 2);
   assert.deepEqual(result.captures[0].aliases, ['again']);
   assert.equal(state.evaluated.length, 2);
   assert.deepEqual(state.evaluated[1].inputs, { len: 3 });
   assert.equal(state.evaluated[1].theme, 'dark');
+  assert.ok(state.evaluated.every(request => request.interact === true));
   assert.deepEqual(state.media, [{ name: 'prefers-reduced-motion', value: 'reduce' }]);
   assert.equal(state.interception, true);
   assert.ok(stored.every(key => key.startsWith('explain/job1/') && key.endsWith('.png')));
