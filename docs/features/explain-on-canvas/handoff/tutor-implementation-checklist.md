@@ -1151,6 +1151,12 @@ For each implemented task record the candidate SHA, actual commands/results, fix
 
 **Current status:** NEW shared web evidence capability and proposed `roadmap_research` role. The current `research_gap` capability is disabled. Reuse the existing Exa discovery and guarded fetch paths. Qualify replies in Ask, Auto and Tutor, roadmap drafts and accepted steps, and eligible standalone card briefs under [roadmap §10.2](tutor-roadmap-v1.4.md#102-research-and-calculation).
 
+Complete the three R8a checkpoints in order.
+
+1. **R8a.01–R8a.02** qualify the Exa evidence operation using the existing discovery and page-fetch seams.
+2. **R8a.02a** qualifies Exa through the [shared tool-call workflow](tutor-roadmap-v1.4.md#931-shared-tool-call-workflow) with local fixtures.
+3. **R8a.03** qualifies and enables the supported callers and source controls.
+
 **Local verification prerequisites:** Run focused Node/backend tests first with stubbed Exa and page reads and blocked unintended egress. Use public-gap, private-query refusal, redirect and outage fixtures. Use the UI harness for the corresponding source controls. A separately authorized live sample may use the configured service key without printing it.
 
 **Rung receipt:** Redacted queries, named gap/scope, attempted and refused egress, fetched original evidence and its actual coverage, request/latency/platform-cost totals. No learner debit or required browser-card purchase.
@@ -1193,11 +1199,25 @@ For each implemented task record the candidate SHA, actual commands/results, fix
 
 **NEW unit tests (create, then run from root):** `node --test packages/control-plane/test/roadmap-research-evidence.test.js`
 
+### R8a.02a Wire the shared tool-call workflow
+
+**Owner:** Lead, Tools, State/Money and Verifier. **Depends:** R8a.01–R8a.02 and the existing dispatcher and usage seams. Use the [shared tool-call workflow](tutor-roadmap-v1.4.md#931-shared-tool-call-workflow) as the common reference.
+
+**Current seams:** `packages/control-plane/src/roadmap/roadmap-tools.js` for `capabilityCatalogue`, `resolveToolCall` and typed argument validation. Use the existing `learn-research.js` result loop for eligible Chat callers and the current planner and command brief paths for their own scopes. Reuse `roadmap-policy.js` for configured bounds and the shared platform admission and reconciliation in R8a.01.
+
+- [ ] Register the read-only `research_gap` name, schema, scope, readiness and result contract in the existing catalogue. Filter offered schemas by the authorized caller and known readiness. Qualify the dispatcher with fixtures before enabling learner-facing callers.
+- [ ] Preflight known requirements, source access, capability readiness and remaining owner-configured limits before exposing eligible tool schemas. When the resolved request needs learner input, ask for the known required details together. Send known unavailable cases through the existing supported reply or alternative path.
+- [ ] At dispatch validate the exact tool name and arguments, current access and scope, and remaining limits. Route Exa through its trusted platform research admission and preserve the existing paid-command acceptance boundary. Bind each provider operation to one reservation and reconciliation identity. Keep research accounting separate from learner generation authorization.
+- [ ] Return the typed result or refusal to the same request and refresh eligibility and remaining limits. Reuse the evidence for the requested output. A follow-up tool must serve an essential remaining gap within the same budget. Reconcile unknown outcomes before an eligible retry.
+- [ ] Run focused local fixtures for a supported output with zero calls, grouped missing inputs, an omitted disabled schema, refused name or arguments, scope loss, a reservation race, a typed result feeding the same request and a follow-up blocked at the budget. Assert no outbound call on preflight or admission refusal and no duplicate provider operation on replay.
+
+**Task evidence:** Record the offered schemas, refusal or admitted operation, budget and result handoff for the fixture runs. Use `node --test packages/control-plane/test/roadmap-tools.test.js packages/control-plane/test/roadmap-research-tool.test.js` from the root after adding the planned research tool test.
+
 ### R8a.03 Integrate research as an independent bounded tool release
 
-**Owner:** Tools, UI and Verifier. **Depends:** R8a.01–R8a.02. Use R4.03/R4.09 for roadmap callers and the existing answer or command handler for the other callers. **Trace:** v1.3 §§3.9, 6.1–6.3; M4.21 and new-tool M4.23 checks. **Model:** proposed `roadmap_research`, Sonnet `claude-sonnet-5-5`, low; ordinary Markdown text/table uses its one author call with supported source context and accepted brief; no additional citation checker/escalation.
+**Owner:** Tools, UI and Verifier. **Depends:** R8a.02a. Use R4.03/R4.09 for roadmap callers and the existing answer or command handler for the other callers. **Trace:** v1.3 §§3.9, 6.1–6.3; M4.21 and new-tool M4.23 checks. **Model:** proposed `roadmap_research`, Sonnet `claude-sonnet-5-5`, low; ordinary Markdown text/table uses its one author call with supported source context and accepted brief; no additional citation checker/escalation. Follow the [Ask, Auto and Tutor workflow](ask-auto-tutor-workflow.md) and [Explain on Canvas workflow](explain-on-canvas-workflow.md) for the caller checkpoints.
 
-**Current seams:** `packages/control-plane/src/explain-evidence.js` `learnerCitation` is the citation-label seam; `packages/control-plane/src/learn-models.js` central task registry. Use the authorized Chat tool seam in `learn-research.js` and the current command brief/review path. `packages/web/src/Md.jsx` provides the existing neutral Sources disclosure pattern. **NEW work:** register research in current `roadmap-tools.js`, `roadmap-policy.js` and source/evidence UI; create `test/roadmap-research-tool.test.js`, `e2e/roadmap-research-check.mjs`.
+**Current seams:** `packages/control-plane/src/explain-evidence.js` `learnerCitation` is the citation-label seam; `packages/control-plane/src/learn-models.js` central task registry. Use the authorized Chat tool seam in `learn-research.js` and the current command brief/review path. `packages/web/src/Md.jsx` provides the existing neutral Sources disclosure pattern. **NEW work:** connect qualified callers to the R8a.02a registry path and expose source/evidence UI. Extend `test/roadmap-research-tool.test.js` and create `e2e/roadmap-research-check.mjs`.
 
 - [ ] Return the shared typed statuses `ok/partial/needs_clarification/unsupported/unavailable` with bounded evidence and coverage. Retain the named gap and source/policy version in the tool result.
 - [ ] Feed selected excerpts and citation IDs into qualified replies, roadmap drafts, accepted step briefs and standalone command reviews. Bind evidence to the exact output version and carry it into approved authoring. Enforce deterministic access, version, schema and citation-ID checks and existing contextual safety. Ordinary Explanation retains the one author call and existing publication checks. If research is unavailable, continue with source-supported work or clarify an essential gap.
@@ -1210,7 +1230,7 @@ For each implemented task record the candidate SHA, actual commands/results, fix
 
 **Current unit regressions (exist at baseline; root working directory):** `node --test packages/control-plane/test/roadmap-tools.test.js`
 
-**NEW unit tests (create, then run from root):** `node --test packages/control-plane/test/roadmap-research-tool.test.js`
+**R8a integration tests (extend the R8a.02a fixture file, then run from root):** `node --test packages/control-plane/test/roadmap-research-tool.test.js`
 
 **NEW local browser harness (create first; common prerequisites plus this rung’s fixtures):** `BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node packages/web/e2e/roadmap-research-check.mjs`. Record actual assertions and screenshots; a fixture route proves UI behavior only, not live provider quality.
 
