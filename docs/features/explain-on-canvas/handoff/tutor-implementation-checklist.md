@@ -300,7 +300,7 @@ These are repository configuration facts at the pinned SHA, not proof of live pr
 | Ordinary citation roles | Old Sonnet checker/Opus escalation still registered. | **Not called** for the owner-authorized ordinary Markdown path. Keep historical/other legitimate callers scoped; no needless checker polish in this release. |
 | JEV + `roadmap_safety_adjudicate` | Existing JEV screening mechanics; adjudication Opus5.5,1,500. | Separate safety decision, explicit unknown, finite deadline and enforcement. No grading from safety. |
 | `tutor_rubric` / `tutor_visual` | Current Opus5.5,4,000. | Retained assessments. Visual assessment is not an OCR source reader. |
-| Rich `/explain` | Current `explain_brief/author/review/repair`, Opus5.5 with existing individual limits. | Existing interactive engine; ordinary adapter correction must not rewrite it. |
+| Existing interactive engine (internal `explain`) | Current `explain_brief/author/review/repair`, Opus5.5 with existing individual limits. | Its public command becomes `/interactive` in the standalone split. The written `/explain` uses the ordinary Explanation path. |
 | Research/adaptation/vision | `roadmap_research`, `roadmap_adapt`, `roadmap_vision_extract` are proposed future roles. | Register only at the owning rung, with bounded input/output, actual requested/served model and focused eval. |
 | Calculator | Deterministic restricted parser/evaluator, no model. | Finite grammar/limits and computational provenance, zero provider call. |
 | Image/Motion/Whiteboard/CAD/3D | Reuse each current engine configuration and override logging. | No blanket model replacement. Image provider IDs, CAD Sonnet, Motion/Whiteboard roles and TTS are owned by their existing engines. |
@@ -1607,11 +1607,13 @@ R11 starts only after R6 automatic proposals and R5’s immutable proposal-versi
 
 The command paths below were reconciled to main `fe2bf0f79c6a355a36c9b958bd82933a966620fc`. All Tutor adapters in this rung are **NEW**; existing standalone engines do not establish a completed Tutor integration. Each enabled adapter has its own focused implementation and receipt. R11, R13–R16 and other R12 adapters are dependencies only where the specific behavior needs them. No all-adapter gate or extra preview/clone beyond the existing MVP release check is required.
 
-The catalogue is complete: `/explain` text/table belongs to R4, while its interactive addition is R12.09; `/practice`, `/quiz` and `/flashcards` belong to R9 and retain their immutable-activity and free-assessment requirements. R12.02–R12.08 and R12.10–R12.17 cover the remaining fifteen commands. `/goal` is learner-only and excluded. Command labels must follow the actual catalogue: `/image` uses ID `generate-image`; `/photos` uses ID `image`; `/whiteboard` uses ID `whiteboard-video`. The legacy internal editable-whiteboard tool is not this video command. Existing definitions: `packages/web/src/agent/slash.js`; Learn dispatch: `packages/web/src/learn-slash.js`.
+The planned catalogue has separate entries for written **Explanation** (`/explain`, R4) and playable **Interactive** (`/interactive`, R12.09). `/practice`, `/quiz` and `/flashcards` belong to R9 and retain their immutable-activity and free-assessment requirements. R12.02–R12.08 and R12.10–R12.17 cover the remaining fifteen commands. `/goal` is learner-only and excluded. Command labels must follow the actual catalogue: `/image` uses ID `generate-image`; `/photos` uses ID `image`; `/whiteboard` uses ID `whiteboard-video`. The legacy internal editable-whiteboard tool is not this video command. Existing definitions: `packages/web/src/agent/slash.js`; Learn dispatch: `packages/web/src/learn-slash.js`.
+
+The standalone split gives `/explain` a distinct internal ID and reuses the [CORE.09 writer and renderer](#core09-deliver-the-tutor-explanation-card), including Depth, source context, Markdown tables and Mermaid. `/interactive` uses the existing `explain` registry ID and interactive engine. Preserve saved command, draft, proposal and job bindings across the typed-name change. On the reviewed main the old public `/explain` still covers multiple formats. Qualify the standalone split independently of the Tutor adapter.
 
 #### R12 reuses the current core Tutor lifecycle
 
-Follow [roadmap section 9.4](tutor-roadmap-v1.4.md#94-r12-command-selection-and-the-shared-tutor-flow). The three paths are command plans (`/whiteboard`, `/motion`, `/animation`, `/cad`, `/image`, interactive `/explain`), simple briefs (`/code`, `/graph`, `/diagram`, `/3d`), and source/workspace insertion (`/browser`, `/photos`, `/youtube`, `/arxiv`, `/wikipedia`, `/notebook`). Retain each command's requirements in R12.02–17. Use the accepted step to choose its format. Reuse the [output and capability distinctions](tutor-roadmap-v1.4.md#47-ordinary-messages-and-tool-requests) for Motion, Whiteboard and interactive Animation. The [ordinary Chat routing work](#45-chat-routing-and-reply-reliability) qualifies separately. The initial verification slices can use `/notebook` for zero-charge insertion, `/diagram` for a source-grounded artifact, and `/whiteboard` for native plan revision and approval. Each adapter qualifies and releases independently.
+Follow [roadmap section 9.4](tutor-roadmap-v1.4.md#94-r12-command-selection-and-the-shared-tutor-flow). The three paths are command plans (`/whiteboard`, `/motion`, `/animation`, `/cad`, `/image`, `/interactive`), simple briefs (`/code`, `/graph`, `/diagram`, `/3d`), and source/workspace insertion (`/browser`, `/photos`, `/youtube`, `/arxiv`, `/wikipedia`, `/notebook`). Retain each command's requirements in R12.02–17. Use the accepted step to choose its format. Reuse the [output and capability distinctions](tutor-roadmap-v1.4.md#47-ordinary-messages-and-tool-requests) for Motion, Whiteboard and interactive Animation. The [ordinary Chat routing work](#45-chat-routing-and-reply-reliability) qualifies separately. The initial verification slices can use `/notebook` for zero-charge insertion, `/diagram` for a source-grounded artifact, and `/whiteboard` for native plan revision and approval. Each adapter qualifies and releases independently.
 
 **UI reference map:** [02](ui/02-canvas-card-skeleton.html) for the slot, actions and progress, [03](ui/03-chat-roadmap.html) for the surrounding Chat flow, [05](ui/05-markdown-source-links.html) for source/card navigation, and [01](ui/01-table-of-contents.html) for accepted ToC rows. In the current `RoadmapTranscript` step, render the existing `GenerationProposalCard` as its review state. Keep the step title, description and source excerpt, and use the review card's actions for the current command revision. Reuse conversational Edit or the command's existing Edit details form. The final result uses the command's existing canvas renderer. [04](ui/04-explanation-card.html) and [06](ui/06-explanation-depth.html) are the core Explanation renderer references.
 
@@ -1630,7 +1632,7 @@ Each checkbox tracks one working Tutor adapter. Start with the shared [R12.01 ac
 - [ ] `/image` — Generated image. [R12.06](#r1206-add-image-through-the-existing-signed-image-plan)
 - [ ] `/motion` — Animated explainer video. [R12.07](#r1207-add-motion-preserving-duration-and-recovery-authorization)
 - [ ] `/whiteboard` — Narrated whiteboard video. [R12.08](#r1208-add-whiteboard-narrated-video-adapter)
-- [ ] `/explain` — Interactive explanation. [R12.09](#r1209-add-interactive-explain-using-the-narrow-d2b-override)
+- [ ] `/interactive` — Interactive. [R12.09](#r1209-add-interactive-using-the-narrow-d2b-override)
 - [ ] `/cad` — Dimensioned CAD model. [R12.10](#r1210-add-cad-without-changing-its-modelling-engine)
 - [ ] `/animation` — Live 3D animation through the Animation owner’s qualified interface. [R12.11](#r1211-specify-the-animation-tutor-handoff-with-the-existing-owner)
 - [ ] `/3d` — Technical 3D scene. [R12.12](#r1212-add-3d-technical-blender-scene-adapter)
@@ -1640,7 +1642,7 @@ Each checkbox tracks one working Tutor adapter. Start with the shared [R12.01 ac
 - [ ] `/arxiv` — Versioned paper selection and insertion. [R12.16](#r1216-add-arxiv-with-versioned-paper-selection)
 - [ ] `/wikipedia` — Article selection and insertion. [R12.17](#r1217-add-wikipedia-with-retained-article-revision-and-sections)
 
-The `/animation` item closes when Tutor can use the qualified interface to deliver the real Animation result. The handoff and contract fixtures are milestones in R12.11. Text and table output from `/explain` stays in R4. `/practice`, `/quiz` and `/flashcards` stay in R9, and `/goal` remains learner-operated.
+The `/animation` item closes when Tutor can use the qualified interface to deliver the real Animation result. The handoff and contract fixtures are milestones in R12.11. The written `/explain` card uses R4. The `/interactive` adapter qualifies the playable card. `/practice`, `/quiz` and `/flashcards` stay in R9, and `/goal` remains learner-operated.
 
 ### R12.01 Register the accepted-command boundary and per-adapter release checks
 
@@ -1665,12 +1667,12 @@ The `/animation` item closes when Tutor can use the qualified interface to deliv
 
 ##### R12 routing tests for each command
 
-Store each command's cases in its own `packages/control-plane/test/fixtures/chat-routing/commands/<command-id>.json` when that adapter is built. Use the same JSON `cases` format as the [shared routing fixtures](#add-cases-to-the-fixture-files). Set `suite` to `command`, add `commandId` to identify the adapter, and set the mode per case when testing different modes. Use the registry ID for the filename, such as `whiteboard-video.json` for `/whiteboard`, `generate-image.json` for `/image` and `image.json` for `/photos`.
+Store each command's cases in its own `packages/control-plane/test/fixtures/chat-routing/commands/<command-id>.json` when that adapter is built. Use the same JSON `cases` format as the [shared routing fixtures](#add-cases-to-the-fixture-files). Set `suite` to `command`, add `commandId` to identify the adapter, and set the mode per case when testing different modes. Use the registry ID for the filename, such as `explain.json` for `/interactive` with command ID `explain`, `whiteboard-video.json` for `/whiteboard`, `generate-image.json` for `/image` and `image.json` for `/photos`.
 
 - [ ] During each command's R12 implementation, label and run **20 realistic prompts for that command**. Include requests with its familiar words, paraphrases that omit the slash name and obvious keywords, and nearby requests that should be answered, clarified or routed to a different qualified capability. Exercise the mode and accepted Tutor step context that adapter supports. Carry the authorized source and learning goal where applicable and label the desired output and required behavior. Use named command controls to verify the explicit path.
 - [ ] Capture the selected route and command ID at the validated handoff with the same selection-only stop as the [Chat routing sets](#focused-chat-routing-tests-and-build). Log expected versus observed for each prompt, tune the router or its tool descriptions when it misses, and rerun that command's cases and held-out paraphrases before enabling the adapter. Stop before research, preparation or generation. Keep routing evidence separate from the R8a integration fixtures and the adapter's generation, acceptance, billing and delivery checks.
 
-**Task evidence:** Assert all nineteen catalogue commands have one release assignment, no unsupported primitive executes, and simultaneous accepts yield one card. **Done evidence:** registry diff plus one adapter's receipt can merge independently; an unrelated disabled adapter does not block the selected implemented adapter.
+**Task evidence:** Assert all twenty catalogue commands have one release assignment, no unsupported primitive executes, and simultaneous accepts yield one card. **Done evidence:** registry diff plus one adapter's receipt can merge independently; an unrelated disabled adapter does not block the selected implemented adapter.
 
 **Current unit regressions (exist at baseline; root working directory):** `node --test packages/control-plane/test/roadmap-tools.test.js packages/control-plane/test/roadmap-money.test.js`
 
@@ -1816,7 +1818,7 @@ Store each command's cases in its own `packages/control-plane/test/fixtures/chat
 
 **Adapter browser record:** With the R12 common local prerequisites and only this adapter enabled, exercise its current renderer and the acceptance/reload/refusal cases above. Add a narrowly scoped harness to the selected adapter or record the same focused manual steps; no existing Tutor browser filename is asserted for this NEW adapter. Record actual modality coverage and the accepted card/job/operation IDs.
 
-### R12.09 Add interactive /explain using the narrow D2(b) override
+### R12.09 Add /interactive using the narrow D2(b) override
 
 **Owner:** Tools, State/Money, UI; **Depends:** R12.01 and the adopted D2(b) interaction contract; R4 text/table remains separate. **Trace:** §3.13, D2/D38; M8.1/M8.3–M8.6. **Model:** existing `explain_brief/author/review/repair`, all `claude-opus-5-5`.
 
@@ -1824,7 +1826,8 @@ Store each command's cases in its own `packages/control-plane/test/fixtures/chat
 
 - [ ] Require Tab acceptance of the Tutor offer and its aggregate bound before any paid explanation-brief preparation. Start the existing brief stage under that accepted card allocation, then retain the actual brief and its hash/revision for review. Apply D2(b) only to this roadmap path under that adopted contract.
 - [ ] Retain the content-plan review while D2(b) lets the bound Tab acceptance replace the redundant Generate wait when the brief remains within the accepted offer. A material brief/content/format/bound change returns a revised proposal requiring new acceptance before further spending. Never charge an unaccepted offer for its brief or accept public `prepare:false` or equivalent as a bypass.
-- [ ] Keep typed and Quick Edit `/explain` startExplain-first and preserve their existing review behavior; test both entry paths alongside Tutor.
+- [ ] Bind newly typed and picked `/interactive` to the existing `explain` ID and interactive `startExplain` path, including Quick Edit. Test its normal review and approval plus the separate written `/explain` writer and renderer. Replay saved mixed-command bindings with their original formats and settings.
+- [ ] Use the shared registry to show **Explanation** and **Interactive** under **Tutor** in the `/` picker, Ctrl+K and **View → Slash Commands**. Verify that the playable coffee-cooling preview uses `/interactive`. For **Explanation**, show the real written renderer and the example `/explain Why does coffee cool faster at first? Include a small table comparing early and late cooling.` Confirm that **Use example** fills the composer with the matching public command for review.
 - [ ] Reuse existing author/static/render/review/repair stages; attach actual check results and provider operations to the Tutor result, with bounded failure and refund.
 - [ ] Test zero paid brief calls before Tab, one accepted brief allocation without double reservation, and refusal of a changed brief/material review output before further spend; prevent legacy job result reads from revealing a checked but unaccepted result.
 
