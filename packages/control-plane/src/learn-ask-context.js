@@ -74,8 +74,10 @@ export function settleAreaPicture(target, body, source) {
   if (!target || !isAreaTarget(target)) return target;
   const lines = target.text.split(/\r?\n/);
   if (!lines[0].includes(PICTURE_CLAIM)) return target;
-  if (source?.image || source?.paper?.selectedRegion) return target;
-  const why = body.paper_context && body.image_context ? 'a paper page is open and outranks it' : body.image_context ? 'it could not be read' : 'none was sent';
+  // The picture must be THIS selection's: the image the request carries is the one the target names (an older client that names none keeps the old check).
+  const ownImage = source?.image && (target.image === undefined || (!!target.image && body.image_context?.id === target.image));
+  if (ownImage || source?.paper?.selectedRegion) return target;
+  const why = body.paper_context && body.image_context ? 'a paper page is open and outranks it' : source?.image ? 'a different image is attached, not this selection\'s picture' : body.image_context ? 'it could not be read' : 'none was sent';
   lines[0] = `The learner drew a rectangle on the canvas and asks about what is inside it; its picture was not attached (${why}), so work from the card details below.`;
   return { ...target, text: lines.join(String.fromCharCode(10)) };
 }
@@ -92,7 +94,10 @@ export function validateCanvasTarget(value, conversation) {
   // A quiz question or challenge prompt titles its card at up to 600 characters, and a group kind
   // carries its label, so these display fields are cut with an ellipsis rather than refused.
   const cut = (s, max) => s.length > max ? `${s.slice(0, max - 1)}…` : s;
-  return { id: value.id, kind: cut(value.kind, 200), ...(value.title ? { title: cut(value.title, 300) } : {}), text: value.text };
+  // An area target may name its uploaded picture (null: none); settleAreaPicture compares it with the image the request really carries.
+  if (value.image !== undefined && value.image !== null && !text(value.image, 200)) throw new Error('Invalid canvas target');
+  const image = String(value.id).startsWith('area:') && value.image !== undefined ? { image: value.image } : {};
+  return { id: value.id, kind: cut(value.kind, 200), ...(value.title ? { title: cut(value.title, 300) } : {}), ...image, text: value.text };
 }
 // limit: a shared PDF excerpt's target is its full 8,000-character quote plus its title and note (learn-shared-ask.js).
 export function appendCanvasTarget(context, target, limit = CANVAS_TARGET_LIMIT) {

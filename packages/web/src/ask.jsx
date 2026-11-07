@@ -63,6 +63,7 @@ import CanvasRefPicker from './CanvasRefPicker.jsx';
 import { CANVAS_MENTIONS, canvasBoardId, canvasMentionRef } from './canvas-mention-ref.js';
 import { recheckMentions, rememberCanvas } from './CanvasMention.jsx';
 import { depthField } from './learn-settings.js';
+import { ownAreaImage, uploadHeld } from './area-crop.js';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
 // Mentioned apps a chat reads at most (MENTION_LIMIT in control-plane learn-models.js).
@@ -559,7 +560,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // refuses that turn, so LearnSlash gives the line back with an error instead of losing it.
   const send = async (raw, scopeOverride, { command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false, routeAs = null } = {}) => {
     // The area picture is still uploading: Send is held (ChatComposer hold), and a line that reaches here another way waits too, so the question never goes without its image.
-    if (canvasTarget?.uploading && !keepDraft && !about) return;
+    if (uploadHeld(canvasTarget) && !keepDraft && !about) return;
     // R2: the Depth selected at the moment of Send; a later change in the menu never alters this turn.
     const depthSnapshot = depthField(chat?.settings);
     const lessonSources = roadmap?.lessonSources?.() || null;
@@ -626,7 +627,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     if (!regenerate && !keepDraft) setFile(null);
     const canvasImage = !isDemo && !keepDraft ? boardContext?.preview || (canvasTarget?.id?.startsWith?.('area:') ? canvasTarget.preview : null) : null;
     const board = keepDraft ? null : boardContext;
-    const questionPaper = board?.paper;
+    // The area's own picture outranks an open or attached Paper: a reader never displaces the selection's image (SEL.02).
+    const questionPaper = ownAreaImage(canvasTarget) && !keepDraft ? null : board?.paper;
     const questionWiki = board?.wiki;
     const questionVideo = board?.video;
     const questionImage = board?.image;
@@ -1237,7 +1239,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command} token={commandToken}
           onKeyDown={slash ? event => { if (removesToken(event, { command, selectionStart: event.target.selectionStart, selectionEnd: event.target.selectionEnd })) { event.preventDefault(); removeCommand(); return; } if (commandHistory(event)) return; slashRef.current?.onKeyDown(event);
             if (busy && !event.defaultPrevented && composerKey(event.nativeEvent, chatSendKey()) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? (toolOf(command)?.placeholder || `Add details, or press ${sendKeyLabel()}`) : placeholder} busy={busy}
-          dock={dock} hold={canvasTarget?.uploading ? 'Waiting for the picture to upload' : ''} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
+          dock={dock} hold={uploadHeld(canvasTarget) ? 'Waiting for the picture to upload' : ''} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
           stacked={!!chat} tocView={tocView} chips={chat ? <ContextChips hideDocs={tocView} readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, attachedRefs))?.id ?? null}
             selection={canvasTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, card: canvasTarget.card, preview: canvasTarget.preview, paper: canvasTarget.paper, docPage: canvasTarget.docPage, image: canvasTarget.image, pinned: pinnedTarget, uploading: !!canvasTarget.uploading, onClear: onClearCanvasTarget } : null} extra={boardPending}
             code={codebase || cardRefs.length ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: temporaryCode, onRemove: ref => releaseCodeRef(codebase, ref) } : null} /> : null}

@@ -77,3 +77,60 @@ test('a target that already says no picture, and a non-area target, are never re
   assert.equal(settleAreaPicture(card, {}, null), card);
   assert.equal(settleAreaPicture(null, {}, null), null);
 });
+
+// SEL.02: the claim is kept only for THIS selection's own picture. The web target names its uploaded picture (image: id, or null).
+const OWN = 'media:0123456789ab', OTHER = 'media:ba9876543210';
+const named = image => ({ ...target, image });
+
+test('SEL.02 the target names its own uploaded picture and the request carries exactly that image: the claim stays', async () => {
+  const { text } = await model({ message: 'm', image_context: { id: OWN }, canvas_target: named(OWN) });
+  assert.ok(text.includes('the attached image shows that area'));
+});
+
+test('SEL.02 an unrelated board image is attached while the selection has none: the claim is withdrawn and says a different image rides', async () => {
+  const { blocks, text } = await model({ message: 'm', image_context: { id: OTHER }, canvas_target: named(null) });
+  assert.deepEqual(blocks.extraBlocks, [image], 'the board image still rides as its own context');
+  assert.ok(!text.includes('the attached image shows that area'));
+  assert.match(text, /a different image is attached, not this selection's picture/);
+  assert.ok(text.includes('Saved cells of'), 'the report still rides');
+});
+
+test('SEL.02 the request image is not the one the selection named (another upload took its place): withdrawn', async () => {
+  const { text } = await model({ message: 'm', image_context: { id: OTHER }, canvas_target: named(OWN) });
+  assert.ok(!text.includes('the attached image shows that area'));
+  assert.match(text, /a different image is attached/);
+});
+
+test('SEL.02 the selection\'s own picture cannot be read (missing media): the report rides and the text says it could not be read', async () => {
+  const { text } = await model({ message: 'm', image_context: { id: OWN }, canvas_target: named(OWN) }, { uploadedMediaAsImage: async () => { throw new Error('gone'); } });
+  assert.ok(!text.includes('the attached image shows that area'));
+  assert.match(text, /its picture was not attached \(it could not be read\)/);
+  assert.ok(text.includes('Saved cells of'));
+});
+
+test('SEL.02 a Paper attachment arriving with the area picture (an older client) never makes the picture claim', async () => {
+  const { text } = await model({ message: 'm', paper_context: { id: 'upload:0123456789ab', page: 1 }, image_context: { id: OWN }, canvas_target: named(OWN) }, { uploadedPaperAsDocument: async () => ({ id: 'up', title: 'P', document: { type: 'text', text: 'page' } }) });
+  assert.match(text, /a paper page is open and outranks it/);
+});
+
+test('SEL.02 single-Paper region with the optional area upload failed (target.image null): the page region is the picture and the claim stays', async () => {
+  const selection = { region: { x: 0, y: 0, w: 1, h: 1 }, preview: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' };
+  const paperTarget = { ...named(null), text: `${CLAIM}\nPaper "P" (revision r1), page 1.` };
+  const { source, text } = await model({ message: 'm', paper_context: { id: 'upload:0123456789ab', page: 1, selection }, canvas_target: paperTarget });
+  assert.deepEqual(source.paper.selectedRegion, selection.region);
+  assert.ok(text.includes('the attached image shows that area'));
+});
+
+test('SEL.02 a target from an older client that names no picture keeps the old check (an attached image counts)', async () => {
+  const { text } = await model({ message: 'm', image_context: { id: OWN }, canvas_target: target });
+  assert.ok(text.includes('the attached image shows that area'));
+});
+
+test('SEL.02 validateCanvasTarget carries the picture id for an area target only, and refuses a malformed one', async () => {
+  const { validateCanvasTarget } = await import('../src/learn-ask-context.js');
+  assert.equal(validateCanvasTarget({ ...target, image: OWN }, 'learn').image, OWN);
+  assert.equal(validateCanvasTarget({ ...target, image: null }, 'learn').image, null);
+  assert.equal('image' in validateCanvasTarget(target, 'learn'), false, 'absent stays absent');
+  assert.equal('image' in validateCanvasTarget({ id: 'block-1', kind: 'Card', text: 'x', image: OWN }, 'learn'), false, 'only an area target carries it');
+  assert.throws(() => validateCanvasTarget({ ...target, image: 12 }, 'learn'), /Invalid canvas target/);
+});

@@ -1239,3 +1239,20 @@ test('R2 Depth reaches the model input of a Chat turn: Overview and Deep differ,
   assert.equal((await ask({ mode: 'auto', depth: 'shallow' })).status, 400);
   assert.equal(env.answers.length, answers, 'no model call');
 });
+
+// SEL.02: the outgoing model request. The picture claim follows the selection's OWN picture, not any image that rides.
+test('SEL.02 an area selection names its picture: an unrelated board image or a Paper never turns into a claim about that area', async t => {
+  const env = fixture(t);
+  const ask = body => handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'what is here', ...body }), env, {}, owner, 'learn');
+  const own = 'media:0123456789ab', other = 'media:ba9876543210';
+  assert.equal((await ask({ canvas_target: { ...areaTarget, image: own }, image_context: { id: own } })).status, 200);
+  assert.equal(env.answers[0].blocks.at(-1).type, 'image');
+  assert.match(env.answers[0].context, /the attached image shows that area/);
+  assert.equal((await ask({ canvas_target: { ...areaTarget, image: null }, image_context: { id: other } })).status, 200);
+  assert.equal(env.answers[1].blocks.at(-1).type, 'image', 'the board image still rides as its own context');
+  assert.doesNotMatch(env.answers[1].context, /the attached image shows that area/);
+  assert.match(env.answers[1].context, /a different image is attached, not this selection's picture/);
+  assert.match(env.answers[1].context, /Not in the picture: the live notebook pane is omitted/);
+  assert.equal((await ask({ canvas_target: { ...areaTarget, image: own }, image_context: { id: other } })).status, 200);
+  assert.doesNotMatch(env.answers[2].context, /the attached image shows that area/);
+});

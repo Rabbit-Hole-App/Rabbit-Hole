@@ -53,6 +53,8 @@ export function canvasTargetField(target) {
   return {
     id: String(target.id), kind: String(target.kind),
     ...(target.title ? { title: String(target.title) } : {}),
+    // An area target names the uploaded picture it rides with (null when it has none), so the server can tell it from any other image.
+    ...(String(target.id).startsWith('area:') ? { image: target.image || null } : {}),
     text: text.length > CANVAS_TARGET_MAX ? `${text.slice(0, cut)}\n[${text.length - cut} more characters not sent]` : text,
   };
 }

@@ -35,7 +35,7 @@ test('a TOC-view ask carries no selection, no Chat attachment and none of Chat e
   // boardContext, all null in the TOC view; the code refs are NO_REFS.
   assert.match(panel, /const target = keepDraft \? null : canvasTarget; \/\/ selected lesson block riding as context/); // keepDraft: Ctrl+K's turn (ctrlk-handoff.test.mjs)
   assert.match(panel, /\.\.\.\(target \? \{ canvas_target: canvasTargetField\(/);
-  assert.match(panel, /const board = keepDraft \? null : boardContext;\n\s+const questionPaper = board\?\.paper;\n\s+const questionWiki = board\?\.wiki;\n\s+const questionVideo = board\?\.video;\n\s+const questionImage = board\?\.image;/);
+  assert.match(panel, /const board = keepDraft \? null : boardContext;\n(?:\s+\/\/[^\n]*\n)?\s+const questionPaper = (?:ownAreaImage\(canvasTarget\) && !keepDraft \? null : )?board\?\.paper;\n\s+const questionWiki = board\?\.wiki;\n\s+const questionVideo = board\?\.video;\n\s+const questionImage = board\?\.image;/);
   assert.match(panel, /const cardRefs = tocView \? NO_REFS : graphCardRefs;/);
   assert.match(panel, /const temporaryCode = chat && !tocView \? \[[^\n]*\] : NO_REFS;/);
   assert.ok(Object.isFrozen(NO_REFS) && NO_REFS.length === 0);
