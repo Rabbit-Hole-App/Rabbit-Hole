@@ -1,0 +1,91 @@
+[
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "flow",
+      "title": "Cache hit or miss",
+      "nodes": [
+        {"id": "lookup", "label": "Read cache", "role": "process"},
+        {"id": "available", "label": "Value in cache?", "role": "decision"},
+        {"id": "hit", "label": "Return cached value", "role": "outcome"},
+        {"id": "database", "label": "Read database", "role": "process"},
+        {"id": "miss", "label": "Cache and return value", "role": "outcome"}
+      ],
+      "edges": [
+        {"from": "lookup", "to": "available"},
+        {"from": "available", "to": "hit", "label": "Hit"},
+        {"from": "available", "to": "database", "label": "Miss"},
+        {"from": "database", "to": "miss"}
+      ]
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "comparison",
+      "title": "What material maps control",
+      "columns": [
+        {"heading": "Base color", "items": ["Surface color", "Before lighting"]},
+        {"heading": "Normal map", "items": ["Surface direction", "Used for lighting"]},
+        {"heading": "Roughness", "items": ["Sharpness of reflections", "Used for shading"]}
+      ],
+      "caption": "The renderer combines the maps during shading."
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "timeline",
+      "title": "Request timing",
+      "events": [
+        {"time": "0 ms", "label": "Client starts the request"},
+        {"time": "35 ms", "label": "Server receives it", "detail": "The example uses a 35 ms one-way network delay."},
+        {"time": "90 ms", "label": "First response byte arrives"}
+      ]
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "sequence",
+      "title": "A cache-aside read",
+      "actors": [{"id": "app", "label": "App"}, {"id": "cache", "label": "Cache"}, {"id": "db", "label": "Database"}],
+      "messages": [
+        {"from": "app", "to": "cache", "label": "Get key"},
+        {"from": "cache", "to": "app", "label": "Miss"},
+        {"from": "app", "to": "db", "label": "Read key"},
+        {"from": "db", "to": "app", "label": "Return value"},
+        {"from": "app", "to": "cache", "label": "Store value"}
+      ]
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "matrix",
+      "title": "AND truth table",
+      "columns": ["B = 0", "B = 1"],
+      "rows": [{"heading": "A = 0", "cells": ["0", "0"]}, {"heading": "A = 1", "cells": ["0", "1"]}]
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "layers",
+      "title": "Three layers of a web application",
+      "layers": [
+        {"label": "Presentation", "detail": "Renders the interface and handles user input."},
+        {"label": "Application", "detail": "Applies rules and coordinates requests."},
+        {"label": "Data", "detail": "Stores and retrieves persistent records."}
+      ]
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "cycle",
+      "title": "An experiment cycle",
+      "steps": ["Form a hypothesis", "Run a test", "Compare the results", "Revise the hypothesis"]
+    }
+  }
+]
