@@ -14,6 +14,7 @@ import { spendTransport } from '../src/learn-spend.js';
 import { usageTotals, periodOf } from '../src/learn-usage.js';
 import { routes } from '../../web/src/roadmap-client.js';
 import { world } from './roadmap-fixture.js';
+import { readFileSync, writeFileSync } from 'node:fs';
 
 export const ORIGIN = 'https://rabbit.test';
 export const PERIOD = periodOf(Math.floor(Date.now() / 1000));
@@ -189,3 +190,20 @@ export const saveMessage = (h, thread, body, who = 'alice') => h.send(who, 'POST
 export const readThread = async (h, thread, who = 'alice') => h.send(who, 'GET', `/api/ask/threads/${thread}`);
 // A revised draft: the first two steps, the rest declared uncovered (planning.md 4 coverage).
 export const SHORT_PLAN = planOf(STEPS.slice(0, 2), { coverage: { uncovered: [{ start: AT.background, end: MD.length, reason: 'The learner asked to focus on the criteria.' }] } });
+
+// BE.15 receipt data: with RECEIPT_JSON=<file> a test records its counts (ids, author-call counts per role, hold/debit/refund totals, saved board cards) under `key`.
+export async function receipt(key, h, extra = {}) {
+  const file = process.env.RECEIPT_JSON;
+  if (!file) return;
+  const total = await h.totals();
+  const count = role => h.plannerCalls.filter(c => c.role === role).length;
+  const data = { sourceSha256: h.rev, sourceChars: h.md.length, threadIds: h.rows('SELECT id FROM threads').map(r => r.id), boards: h.boards,
+    roadmapIds: h.rows('SELECT id FROM learn_roadmaps').map(r => r.id), proposalIds: h.rows('SELECT id, version FROM learn_step_proposals').map(r => `${r.id}@${r.version}`),
+    resultIds: h.rows("SELECT id, card_id, delivery, billing FROM learn_step_results WHERE decision = 'accepted'"),
+    roleCounts: { plannerDraft: count('roadmap_draft'), plannerRevise: count('roadmap_revise'), proposalEdit: count('roadmap_proposal'), author: h.authorCalls.length, citationChecker: h.checkerCalls.length, classifier: h.classifierCalls },
+    authorModels: [...new Set(h.authorCalls.map(c => c.model))], network: h.network.length,
+    money: { holds: h.rows('SELECT id, aggregate_micros, per_card_bound_micros, remaining_micros, state FROM learn_step_authorizations'), used: total.used, reserved: total.reserved, refundRows: h.rows('SELECT count(*) AS n FROM usage_adjustments')[0].n, learnerActions: h.rows("SELECT count(*) AS n FROM usage_actions WHERE client_key LIKE 'rmact_%'")[0].n },
+    savedBoard: (await boardBlocks(h)).map(b => ({ id: b.id, type: b.type, x: b.x, y: b.y, w: b.w })), ...extra };
+  let all = {}; try { all = JSON.parse(readFileSync(file, 'utf8')); } catch { /* first writer */ }
+  writeFileSync(file, JSON.stringify({ ...all, [key]: data }, null, 1));
+}
