@@ -43,7 +43,7 @@ test('gap 4: delivery acknowledges only a saved board: the real revision and a s
 // typed words, and the drop path has no idle deferral.
 test('Tutor entries are real transcript messages; Edit roadmap revises with the typed text; drops are reported at once', () => {
   const transcript = read('RoadmapTranscript.jsx'), messages = read('ChatMessages.jsx'), controller = read('roadmap-controller.js');
-  assert.match(ask, /renderTutor=\{chat && !tocView && roadmap\?\.on \? m => <TutorMessage/);
+  assert.match(ask, /renderTutor=\{chat && !tocView && roadmap\?\.on \? m => <SurfaceBoundary artifact="tutor_entry"[^\n]*<TutorMessage/);
   assert.match(messages, /renderTutor && m\.meta\?\.tutor \? <div key=\{i\}>\{renderTutor\(m\)\}<\/div>/);
   assert.match(transcript, /saveTutorEntry\(\{ app: chat\.canvas, threadId, clientId: entry\.clientId/);
   assert.match(ask, /edit\?\.command === 'roadmap'/);
