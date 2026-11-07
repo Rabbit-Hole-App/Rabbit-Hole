@@ -869,11 +869,19 @@ test('Auto Chat: hi gets one reply and no classifier call; a router outage lets 
   const hi = await (await route('hi', never)).json();
   assert.deepEqual([hi.route, hi.via, hi.token, hi.retryable], ['answer', 'default', null, false]);
   assert.equal(never.calls, 0, 'zero classifier calls for a greeting');
-  const greeted = await f.ask({ message: 'hi', mode: 'auto', answer_only: true });
+  const { depthInstruction } = await import('../src/chat-depth.js');
+  const context = [ref({ sourceId: 'card:shape:a', kind: 'card', name: 'Base case', version: 'h1', text: 'A base case stops recursion' })];
+  const greeted = await f.ask({ message: 'hi', mode: 'auto', depth: 'deep', context_refs: context, answer_only: true });
   assert.equal(greeted.res.status, 200);
   assert.equal(greeted.events.filter(e => e.event === 'chunk').length, 1, 'exactly one reply');
   assert.equal(f.calls.length, 1);
-  assert.ok(!(f.calls[0].tools || []).some(tool => tool.name === 'propose_generation'));
+  assert.equal((f.calls[0].tools ?? []).length, 0, 'zero tools offered: no proposal, outline, research or paper tool');
+  assert.equal(f.calls[0].tool_choice, undefined);
+  assert.ok(f.calls[0].system.includes(depthInstruction('deep')), 'the learner\'s Depth is intact');
+  assert.match(JSON.stringify(f.calls[0].messages.at(-1)), /A base case stops recursion/, 'the canvas context is intact');
+  const threadId = greeted.events.at(-1).data.threadId;
+  assert.deepEqual(f.rows('SELECT role FROM messages ORDER BY id').map(m => m.role), ['user', 'assistant'], 'one saved user message and one reply');
+  assert.equal(f.rows('SELECT content FROM messages ORDER BY id')[0].content, 'hi');
   // A mixed request is not small talk: it takes the normal route (one classifier call, then a Motion token).
   const mixed = counted(choice('motion'));
   assert.equal(isSmallTalk('hi, make me a video'), false);
@@ -891,11 +899,16 @@ test('Auto Chat: hi gets one reply and no classifier call; a router outage lets 
     assert.deepEqual([outcome.send, outcome.answerOnly, outcome.show], [true, true, undefined], `${code}: sent, answer-only, nothing shown (no banner, no buttons)`);
     assert.equal(outcome.failure.request_id, requestId);
     // The turn the client then sends, with the generation fields it would normally also send (a Motion proposal could ride them).
-    const { res, events } = await f.ask({ message: question, mode: 'auto', answer_only: true, route_failure: outcome.failure, generation: { motion: { concept: 'Heat' } } });
+    const saved = f.rows('SELECT role FROM messages').length;
+    const { res, events } = await f.ask({ message: question, mode: 'auto', thread_id: threadId, depth: 'deep', context_refs: context, answer_only: true, route_failure: outcome.failure, generation: { motion: { concept: 'Heat' } } });
     assert.equal(res.status, 200, code);
     assert.equal(events.filter(e => e.event === 'chunk').length, 1, `${code}: exactly one reply`);
+    assert.equal(events.at(-1).data.threadId, threadId, `${code}: the same thread`);
     assert.equal(f.calls.length - before, 1, `${code}: one model call`);
-    assert.deepEqual((f.calls.at(-1).tools || []).filter(tool => tool.name === 'propose_generation'), [], `${code}: no proposal tool`);
+    assert.equal(f.rows('SELECT role FROM messages').length - saved, 2, `${code}: one saved user message and one reply`);
+    assert.equal((f.calls.at(-1).tools ?? []).length, 0, `${code}: zero tools offered`);
+    assert.ok(f.calls.at(-1).system.includes(depthInstruction('deep')), `${code}: Depth intact`);
+    assert.match(JSON.stringify(f.calls.at(-1).messages.at(-1)), /A base case stops recursion/, `${code}: context intact`);
     assert.doesNotMatch(f.calls.at(-1).system, /Generation proposals:/);
     assert.equal(events.find(e => e.event === 'answer_meta').data.proposal ?? null, null, `${code}: no proposal`);
   }

@@ -146,6 +146,29 @@ test('JEV outcomes: answer, low confidence and several ask one question, none an
   assert.equal((await decideWith(counted(jev('generate-image', 0.95)), 'draw me a cat')).route, 'unsupported', 'image generation is off: routing never enables it');
 });
 
+test('a whole-message greeting makes zero JEV calls, even with JEV unconfigured; a greeting with a request, an explicit /motion and an ambiguous request are routed as before', async t => {
+  noFetch(t);
+  const unconfigured = { ...MOTION_ENV, LEARN_DB: untouchable, DB: untouchable, LEARN_VIDEOS: untouchable }; // no JEV key, no signing key
+  for (const text of ['hi', ' Hello! ', 'hey', 'thanks', 'Thank you!']) {
+    for (const mode of ['auto', 'ask']) {
+      const ask = counted(jev('motion', 0.99));
+      const greeted = await decideWith(ask, text, { env: unconfigured, over: { mode } });
+      assert.deepEqual([greeted.route, greeted.via, greeted.code, greeted.retryable, greeted.token], ['answer', 'default', null, false, null], `${mode} ${text}`);
+      assert.equal(ask.calls.length, 0, `${mode} ${text}: zero JEV calls`);
+    }
+  }
+  // With JEV unconfigured, an ordinary message still falls back (the client then sends it once, text only); a greeting plus a request is not a greeting.
+  assert.equal((await decideWith(counted(jev('answer', 0.9)), 'why is the sky blue', { env: unconfigured })).via, 'fallback');
+  const mixed = counted(jev('motion', 0.97));
+  assert.equal((await decideWith(mixed, 'Hi, make me a video of photosynthesis')).route, 'capability:motion');
+  assert.equal(mixed.calls.length, 1);
+  // An explicit /motion still gets its signed proposal when Motion is available, and an ambiguous request still clarifies.
+  const motion = await decideWith(counted(jev('answer', 0.9)), '/motion explain photosynthesis');
+  assert.deepEqual([motion.route, motion.flow, typeof motion.token], ['capability:motion', 'proposal', 'string']);
+  const unsure = await decideWith(counted(jev('motion', 0.45, 0.3)), 'make something about photosynthesis');
+  assert.deepEqual([unsure.route, unsure.token], ['clarify', null]);
+});
+
 test('a router timeout, failure, malformed answer or missing key answers normally: never a paid capability', async t => {
   noFetch(t);
   for (const [ask, code] of [[counted(new JevError('timeout', 'Jev timed out after 2500 ms')), 'timeout'], [counted(new JevError('http', 'Jev 500', 500)), 'unavailable'], [counted({ body: { answers: { route: { type: 'choice', choice: 'rocket', confidence: 1, probabilities: { rocket: 1 } } } } }), 'malformed']]) {

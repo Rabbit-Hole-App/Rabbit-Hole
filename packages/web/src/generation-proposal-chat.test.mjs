@@ -81,9 +81,9 @@ test('the Chat routes plain turns and proposed commands; other command prompts, 
   const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
   const routable = "const routable = chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && !edit && payload.mode !== 'tutor';";
   assert.ok(ask.includes(routable), 'only a plain Learn Chat turn is routable: no private chat, attachment, regeneration, demo, Edit target, Tutor turn or contents conversation');
-  assert.ok(ask.includes("if (routable && !smallTalk && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {"), 'plain turns and proposed commands route; a greeting and Answer normally do not; other command prompts never loop back through it');
-  assert.ok(ask.includes("if (routable && !commandName && (routeAs === 'answer' || smallTalk)) payload.answer_only = true;"), 'a greeting and Answer normally are server-enforced answer-only turns');
-  assert.ok(ask.includes('if (outcome.answerOnly) Object.assign(payload, { answer_only: true, route_failure: outcome.failure });'), 'a recoverable router failure continues once as an answer-only turn');
+  assert.ok(ask.includes("if (routable && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {"), 'plain turns and proposed commands route (a greeting is decided inside routeChat with no request); the clarification option Answer in chat does not; other command prompts never loop back through it');
+  assert.ok(ask.includes("if (routable && !commandName && routeAs === 'answer') payload.answer_only = true;"), 'the clarification option Answer in chat is a server-enforced answer-only turn');
+  assert.ok(ask.includes('if (outcome.answerOnly) Object.assign(payload, { answer_only: true, ...(outcome.failure ? { route_failure: outcome.failure } : {}) });'), 'a greeting or a recoverable router failure continues once as an answer-only turn');
   assert.ok(ask.includes('{ plain: !commandName && !routeAs && !prompted }'), 'only an uncommanded turn recovers; a command keeps its shown failure');
   assert.ok(ask.includes('{ capability: routeAs ?? commandName ?? null }'), 'an explicit command names its capability: zero router calls');
   assert.ok(ask.includes('if (outcome.token) payload.route_token = outcome.token;'));
@@ -346,8 +346,8 @@ test('a recoverable router failure on an ordinary turn goes on once as an answer
 });
 
 test('isSmallTalk: a whole-message greeting or acknowledgment only; a mixed or real request is never small talk', () => {
-  for (const text of ['hi', 'Hi', 'Hello!', 'hey there', 'thanks', 'Thanks!!', 'thank you so much', 'ok', 'Good morning.', 'got it', 'bye', '  hi  ', 'Hi 👋']) assert.equal(isSmallTalk(text), true, text);
-  for (const text of ['hi, make me a video', 'hello can you explain softmax', 'thanks, now a diagram', 'hi hi hi', '/motion hi', 'what is hi', 'ok so why', '', 'hi' + String.fromCharCode(10) + 'make a video']) assert.equal(isSmallTalk(text), false, text);
+  for (const text of ['hi', 'Hi', 'Hello!', ' Hello! ', 'hey', 'HEY.', 'thanks', 'Thanks!!', 'thank you', 'Thank you!', '  hi  ']) assert.equal(isSmallTalk(text), true, text);
+  for (const text of ['hi, make me a video', 'hello can you explain softmax', 'thanks, now a diagram', 'hey there', 'ok', 'Good morning.', 'hi hi hi', '/motion hi', 'what is hi', 'ok so why', '', 'hi' + String.fromCharCode(10) + 'make a video']) assert.equal(isSmallTalk(text), false, text);
 });
 
 test('no router-failure banner, no Answer normally and no Retry exist anywhere in the Chat', async () => {
@@ -362,4 +362,37 @@ test('no router-failure banner, no Answer normally and no Retry exist anywhere i
   const failures = [{ route: 'answer', via: 'fallback', recoverable: true, code: 'timeout' }, { route: 'answer', via: 'fallback', recoverable: false, code: 'malformed', message: 'No access to this canvas.' }];
   assert.equal(routeOutcome(failures[0], { plain: true }).show, undefined, 'a recoverable failure on an ordinary message shows nothing');
   assert.equal(routeOutcome(failures[1], { plain: true }).show.kind, 'error');
+});
+
+test('a bare greeting makes zero route requests in Auto and Ask; a greeting followed by a request still routes; a failed router continues an ordinary turn once with no banner', async () => {
+  const { routeChat, routeOutcome } = await import('./generation-proposal-chat.js');
+  const sent = [];
+  const fetcher = async (url, init) => { sent.push(JSON.parse(init.body)); return new Response(JSON.stringify({ route: 'answer', via: 'jev', capability: null, flow: null, token: null }), { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+  for (const mode of ['auto', 'ask']) {
+    for (const message of ['hi', ' Hello! ', 'thanks']) {
+      const decision = await routeChat(fetcher, { scope: { app: 'canvas-0a1b2c3d' }, message, mode });
+      assert.deepEqual(routeOutcome(decision, { plain: true }), { send: true, token: null, answerOnly: true, failure: null }, mode + ' ' + message);
+    }
+  }
+  assert.equal(sent.length, 0, 'zero route requests for a greeting');
+  await routeChat(fetcher, { scope: { app: 'canvas-0a1b2c3d' }, message: 'hi, make me a video', mode: 'auto' });
+  await routeChat(fetcher, { scope: { app: 'canvas-0a1b2c3d' }, message: 'hi', mode: 'auto' }, { capability: 'answer' });
+  assert.deepEqual(sent.map(body => body.text), ['hi, make me a video', 'hi'], 'a mixed request routes; a named capability is decided by the server');
+  // Timeout (server fallback), malformed body and a network failure each continue the ordinary turn once, with nothing to show.
+  const timeout = async () => new Response(JSON.stringify({ route: 'answer', via: 'fallback', code: 'timeout', retryable: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const malformed = async () => new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const offline = async () => { throw new Error('offline'); };
+  for (const failing of [timeout, malformed, offline]) {
+    const outcome = routeOutcome(await routeChat(failing, { scope: { app: 'canvas-0a1b2c3d' }, message: 'why is the sky blue', mode: 'auto' }), { plain: true });
+    assert.deepEqual([outcome.send, outcome.answerOnly, outcome.show], [true, true, undefined]);
+  }
+});
+
+test('a waiting plan cannot consume a bare greeting; an explicit Editing pill still revises; a canceled send does nothing after the route', async () => {
+  const { readFileSync } = await import('node:fs');
+  const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
+  assert.ok(ask.includes(": chat && !tocView && !regenerate && !prompted && !commandName && !file && !isSmallTalk(raw) && workspace?.canvasOps?.refineExplain ? currentProposal("), 'the implicit refinement leaves a greeting alone');
+  assert.ok(ask.includes("const brief = edit ? ((edit.command === 'explain' || edit.command === 'animation') && workspace?.canvasOps?.refineExplain ? edit.proposal : null)"), 'an explicit Editing pill still sends its revision');
+  const route = ask.indexOf('const outcome = routeOutcome(await routeChat('), after = ask.indexOf('if (late()) return;', route);
+  assert.ok(route > 0 && after > route && after - route < 600, 'a send canceled or moved to another thread while the route was out returns before anything is sent');
 });

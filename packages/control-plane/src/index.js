@@ -1018,11 +1018,12 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   if (chat && conversation !== 'learn') return json({ error: 'mode, command, context_refs and regenerate are Learn chat fields' }, 400);
   if (chat?.regenerate && !thread_id) return json({ error: 'regenerate needs its thread_id' }, 400);
   // Answer-only (the chat route's recovery, chat-capability-route.js): a plain Learn chat turn the client sends when the router could not
-  // decide (down, slow, unreadable), for a greeting, or from Answer normally. The server enforces it: no generation input is read, so the turn
-  // has no proposal tool, no Motion or other job and no credit hold, whatever the client also sent. A command, a route decision or a
-  // regeneration is not an ordinary turn and is refused here, so this flag can never widen what a turn may do.
+  // decide (down, slow, unreadable), for a greeting, or from the clarification's "Answer in chat". The server enforces it: no generation input is
+  // read and no tool of any kind is offered (research.tools [] and arxiv false below), so the turn has no proposal, outline change, Motion or other
+  // job and no credit hold, whatever the client also sent. A command, a route decision, a regeneration or a Tutor turn is not an ordinary turn
+  // and is refused here, so this flag can never widen what a turn may do.
   const answerOnly = body.answer_only === true;
-  if (body.answer_only != null && (!answerOnly || conversation !== 'learn' || !chat || chat.command || chat.regenerate || body.route_token != null)) {
+  if (body.answer_only != null && (!answerOnly || conversation !== 'learn' || !chat || chat.command || chat.regenerate || chat.mode === 'tutor' || body.route_token != null)) {
     return json({ error: 'answer_only is for a plain Learn chat turn: no command, route decision or regeneration.', code: 'answer_only_invalid' }, 400);
   }
   if (answerOnly) {
@@ -1289,6 +1290,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     if (generation && chat.command === 'motion') Object.assign(research, { tools: [PROPOSAL_TOOL], system: `${PROPOSAL_SYSTEM}\nThis turn is a /motion request for a video of what the learner wrote: call ${PROPOSAL_TOOL.name} once now with command motion, then reply in one short sentence.`, arxiv: false });
     // An Edit turn: the learner pressed Edit on the proposal below, and this message says how to change it. Its one tool is the proposal.
     if (generation?.edit) Object.assign(research, { tools: [PROPOSAL_TOOL], system: `${PROPOSAL_SYSTEM}\nThe learner pressed Edit on the proposal you made (below) and this message says how to change it: call ${PROPOSAL_TOOL.name} once now with command motion and the whole proposal, changed as they asked, then reply in one short sentence.`, arxiv: false });
+    if (answerOnly) Object.assign(research, { tools: [], system: '', arxiv: false }); // text only: no Wikipedia, video, outline, repository, paper or proposal tool
     memory = await threadMemory(db, threadId, history.userMessageId);
     // On a project canvas its code refs are read from the repository snapshot (canvases.js projectRepository), once each:
     // they are not listed again as named attachments.

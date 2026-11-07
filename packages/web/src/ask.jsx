@@ -587,7 +587,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       return;
     }
     const brief = edit ? ((edit.command === 'explain' || edit.command === 'animation') && workspace?.canvasOps?.refineExplain ? edit.proposal : null)
-      : chat && !tocView && !regenerate && !prompted && !commandName && !file && workspace?.canvasOps?.refineExplain ? currentProposal(msgs, outputOps?.proposalMade) : null;
+      : chat && !tocView && !regenerate && !prompted && !commandName && !file && !isSmallTalk(raw) && workspace?.canvasOps?.refineExplain ? currentProposal(msgs, outputOps?.proposalMade) : null;
     if (edit && approvesJob(brief) && !workspace.canvasOps.explainWaiting?.(brief.input.job)) { setRouteShown({ kind: 'unsupported', message: 'This plan is not waiting for review now. Edit its latest version when it appears.', raw }); return false; }
     if (approvesJob(brief) && workspace.canvasOps.explainWaiting?.(brief.input.job)) {
       setInput(''); setMentions([]);
@@ -801,12 +801,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       // with zero router calls and signs its route. Other commands' prompts, Tutor turns, regenerations and attachments are not
       // routed. Only a decided answer or proposal is sent (a proposal with its route_token); a direct capability runs its own
       // command; anything else gives the words back with the decision.
-      // A whole-message greeting ("hi", "thanks") is never classified, and the clarification's "Answer in chat" skips the classifier: both go to the server as
-      // answer-only turns (answer_only), which it runs with no proposal, tool or credit hold. A router that fails on an ordinary turn does the same, once.
+      // A whole-message greeting ("hi", "thanks") is decided in routeChat with no request, and the clarification's "Answer in chat" skips the classifier: both go
+      // to the server as answer-only turns (answer_only), which it runs with no tool, proposal or credit hold. A router that fails on an ordinary turn does the same, once.
       const routable = chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && !edit && payload.mode !== 'tutor';
-      const smallTalk = routable && !commandName && !prompted && isSmallTalk(raw);
-      if (routable && !commandName && (routeAs === 'answer' || smallTalk)) payload.answer_only = true;
-      if (routable && !smallTalk && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {
+      if (routable && !commandName && routeAs === 'answer') payload.answer_only = true;
+      if (routable && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {
         const outcome = routeOutcome(await routeChat((url, init) => fetch(url, { ...init, headers: { ...init.headers, ...wsHeaders() }, signal: flight.signal }), payload, { capability: routeAs ?? commandName ?? null }), { plain: !commandName && !routeAs && !prompted });
         if (late()) return;
         // Plain words the router read as an image request take the same plan route as the typed command.
@@ -819,7 +818,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           return;
         }
         if (outcome.token) payload.route_token = outcome.token;
-        if (outcome.answerOnly) Object.assign(payload, { answer_only: true, route_failure: outcome.failure });
+        if (outcome.answerOnly) Object.assign(payload, { answer_only: true, ...(outcome.failure ? { route_failure: outcome.failure } : {}) });
       }
       let r;
       if (attached) {

@@ -5,6 +5,7 @@ import { motionContext } from './learn-slash.js';
 import { commandDefinition, fieldsFor } from './generation-confirmation-schema.js';
 import { imageGenerationOn } from './generate-image.js';
 import { isBriefCommand } from './material-brief.js';
+import { isSmallTalk } from './inline-ai-route.js';
 
 const proposalOf = m => (m?.role === 'assistant' && m.meta?.proposal?.proposal_id ? m.meta.proposal : null);
 // Each proposal's newest version in the conversation: a refinement in chat is a later message with the same id.
@@ -143,6 +144,8 @@ export const madeFrom = proposalId => block => (block?.operation?.proposal?.prop
 export async function routeChat(fetcher, payload, { capability = null, requestId = crypto.randomUUID() } = {}) {
   const body = { request_id: requestId, app: payload.scope?.app, pending: payload.scope?.pending ?? null, text: payload.message, capability,
     mode: payload.mode ?? 'auto', selection: payload.canvas_target ?? null, source_refs: payload.context_refs ?? null, motion: payload.generation?.motion ?? null };
+  // A bare greeting is never a tool request: decided here with no route request at all (the server's decideChat does the same for a direct caller).
+  if (!capability && isSmallTalk(payload.message)) return { route: 'answer', via: 'default', local: true, capability: null, flow: null, token: null, retryable: false, code: null, message: null };
   let response;
   // requestId and status ride on every failure so the Worker's chat_route log line for this request can be found.
   try { response = await fetcher('/api/learn/chat/route', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
@@ -163,6 +166,7 @@ const REFUSALS = { 401: 'Your session ended. Sign in again, then send this again
 // refused request the specific error is shown instead (kind 'error'; a router failure itself shows no banner and no buttons).
 export function routeOutcome(decision, { plain = false } = {}) {
   if (!decision) return { send: true, token: null };
+  if (decision.local) return { send: true, token: null, answerOnly: true, failure: null }; // a greeting: text only, enforced by the server
   if (decision.route === 'answer' && decision.via === 'fallback' && plain && decision.recoverable !== false) return { send: true, token: null, answerOnly: true, failure: { request_id: decision.requestId ?? null, status: decision.status ?? null, code: decision.code ?? null } };
   if (decision.route === 'answer' && decision.via === 'fallback') return { show: { kind: 'error', message: decision.message || ROUTE_FAILED } };
   if (decision.route === 'answer') return { send: true, token: null };
