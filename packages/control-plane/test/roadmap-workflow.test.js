@@ -329,3 +329,66 @@ test('BE.06 actual author request and both output formats (CORE.03-07)', async t
     assert.equal(h.authorCalls.length, 1);
   });
 });
+
+// CORE.09 caps: Overview 600, Standard 1,000, Deep 1,500 code points of card content (title + body + every `more` label and text). Assumption noted in
+// verify-status.md: the title and body are counted as separate fields and summed (no joining space counted).
+const CAPS = { overview: 600, standard: 1000, deep: 1500 };
+const RICH_BODY = 'Compare the two criteria:\n\n| criterion | range |\n| --- | --- |\n| Gini | 0 to 0.5 |\n| Entropy | 0 to 1 |\n\n```mermaid\nflowchart TD\n  A["Node"] -->|split| B["Purer children"]\n```\n\nNotice both reach zero for a pure node.';
+const RICH_MORE = [{ label: 'Worked example', text: '| share | Gini |\n| --- | --- |\n| 0.5 | 0.5 |\n\n```mermaid\nflowchart LR\n  P["Parent"] --> C["Child"]\n```' }];
+
+test('BE.06a Tutor Explanation authoring, saved output and caps (CORE.09)', async t => {
+  for (const [depth, cap] of Object.entries(CAPS)) {
+    await t.test(`BE.06a ${depth}: the accepted title wins, the request carries the ${cap} cap, exactly ${cap} passes and survives reload`, async () => {
+      const title = STEPS[0].title;
+      const body = 'é'.repeat(cap - Array.from(title).length);
+      const { h, accepted, resultId } = await firstCard(t, [explanation('A different model title', body)], { depth });
+      assert.equal(accepted.status, 202);
+      assert.ok(h.authorCalls[0].text.includes(String(cap)) || h.authorCalls[0].text.includes(cap.toLocaleString('en-US')), `the dispatched request names the ${cap} cap`);
+      const row = resultRow(h, resultId);
+      assert.equal(row.generation, 'generated', `exactly ${cap} code points pass`);
+      assert.equal(JSON.parse(row.body_json).title, title, 'the canonical accepted title wins over the model title');
+      const delivered = await deliver(h, resultId);
+      assert.equal(delivered.status, 200);
+      const saved = (await boardBlocks(h)).find(b => b.id === accepted.body.slots[0].cardId);
+      assert.deepEqual([saved.title, saved.body], [title, body], 'the same card/result identity survives save and reload');
+    });
+    await t.test(`BE.06a ${depth}: one code point over ${cap} is a terminal validation failure with one settlement and no redispatch`, async () => {
+      const title = STEPS[0].title;
+      const { h, view, resultId } = await firstCard(t, [explanation(title, 'é'.repeat(cap - Array.from(title).length + 1)), explanation()], { depth });
+      const row = resultRow(h, resultId);
+      assert.equal(h.authorCalls.length, 1, 'no redispatch');
+      assert.deepEqual([row.generation, row.failure_class], ['failed', 'terminal_validation_failure'], 'over cap fails');
+      assert.equal(row.billing, 'refunded', 'one applicable settlement');
+      assert.equal((await h.send('alice', 'GET', `/api/learn/roadmap/${view.roadmap.id}/results/${resultId}?boardId=${h.boards.alice}`)).status, 404, 'no ready card');
+    });
+  }
+  await t.test('BE.06a a table and a supported Mermaid flowchart in body and an expanded section survive validation intact', async () => {
+    const { h, resultId } = await firstCard(t, [explanation(STEPS[0].title, RICH_BODY, RICH_MORE)]);
+    const row = resultRow(h, resultId);
+    assert.equal(row.generation, 'generated');
+    assert.deepEqual([JSON.parse(row.body_json).body, JSON.parse(row.body_json).more], [RICH_BODY, RICH_MORE]);
+  });
+  await t.test('BE.06a absent and empty `more` both pass', async () => {
+    for (const more of [undefined, []]) {
+      const { h, resultId } = await firstCard(t, [explanation(STEPS[0].title, 'Gini measures how mixed a node is.', more)]);
+      assert.equal(resultRow(h, resultId).generation, 'generated', JSON.stringify(more));
+    }
+  });
+  await t.test('BE.06a unsupported Mermaid (a click directive / HTML) is a terminal validation failure, not a saved card', async () => {
+    const bad = 'See:\n\n```mermaid\nflowchart TD\n  A["<b>Node</b>"] --> B["Leaf"]\n  click A "https://example.test"\n```';
+    const { h, resultId } = await firstCard(t, [explanation(STEPS[0].title, bad), explanation()]);
+    const row = resultRow(h, resultId);
+    assert.deepEqual([row.generation, row.failure_class, h.authorCalls.length], ['failed', 'terminal_validation_failure', 1]);
+  });
+  await t.test('BE.06a a later Depth change leaves the accepted Depth of an in-flight card intact', async () => {
+    const h = await workflow(t, { script: [explanation(STEPS[0].title, 'Gini measures how mixed a node is.')], hold: true });
+    const view = await started(h);
+    assert.equal((await acceptCard(h, view, 'accept1')).status, 202);
+    const changed = await h.route('alice', routes.revise(await status(h), { settings: { depth: 'deep' } }, KEY('depth')));
+    assert.equal(changed.status, 200, 'Depth changes on the active roadmap');
+    await h.run();
+    assert.equal(h.authorCalls.length, 1);
+    assert.match(h.authorCalls[0].text, /Depth: standard/, 'the frozen accepted Depth');
+    assert.doesNotMatch(h.authorCalls[0].text, /Depth: deep/);
+  });
+});
