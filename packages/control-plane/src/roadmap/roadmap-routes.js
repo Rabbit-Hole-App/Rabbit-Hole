@@ -11,7 +11,6 @@ import { acceptInvitation, dismissInvitation, offerInvitation, pendingInvitation
 import { answerQuestion, revisePlan } from './roadmap-planning.js';
 import { applyProposalDraft, discardProposalDraft, roadmapEditEnabled, saveProposalDraft } from './roadmap-proposal-drafts.js';
 import { acceptLinkProposal, offerLinkProposal, readLink } from './roadmap-links.js';
-import { readSlots, saveSlot } from './roadmap-slots.js';
 
 const PREFIX = '/api/learn/roadmap';
 export const roadmapEnabled = env => env?.ROADMAP_ENABLED === 'true';
@@ -84,7 +83,7 @@ export async function roadmapRoute(path, req, env, deps = {}) {
       if (!deps.readSource) return json({ error: 'Not available', code: 'source_unavailable' }, 503);
       const source = await deps.readSource(access, { sourceId: body.source?.key ?? body.source?.sourceId, revision: body.source?.rev ?? body.source?.revision, scope: body.source?.scope });
       if (source?.error) return json({ error: source.error, code: source.code || 'source_unsupported', ...(source.limitation ? { limitation: source.limitation } : {}) }, source.status || 422);
-      const created = await createRoadmap(db, access, { actionKey: body.actionKey, app: board.app, instruction: body.instruction, allowEmpty: !!body.invitationId, source: { key: source.key, rev: source.rev }, scope: source.scope, scopeFingerprint: source.scopeFingerprint, depth: body.depth, language: source.language ?? null, practiceMode: body.practiceMode ?? null, ...(now ? { now } : {}) });
+      const created = await createRoadmap(db, access, { actionKey: body.actionKey, app: board.app, instruction: body.instruction, allowEmpty: !!body.invitationId, source: { key: source.key, rev: source.rev }, scope: source.scope, scopeFingerprint: source.scopeFingerprint, depth: body.depth, language: source.language ?? null, ...(now ? { now } : {}) });
       if (!created.replayed) { await acceptInvitation(db, access, body.invitationId, created.body.roadmapId, now); await deps.startPlanning?.(env, access, created.body.roadmapId); }
       return reply(created);
     }
@@ -94,8 +93,6 @@ export async function roadmapRoute(path, req, env, deps = {}) {
       const got = await readEntitledResult(db, access, { roadmapId, resultId: rest[2] });
       return got ? json({ resultId: got.id, cardId: got.cardId, primitive: got.primitive, block: got.block }) : json(NOT_AVAILABLE, 404);
     }
-    // UI.06: the Tutor slots' private places (roadmap-slots.js), owner and board scoped like every route here.
-    if (rest[1] === 'slots' && rest.length === 2) { const got = req.method === 'GET' ? await readSlots(db, access, roadmapId) : await saveSlot(db, access, { roadmapId, stepId: body.stepId, proposalId: body.proposalId ?? null, x: body.x, y: body.y, w: body.w }); return json(got.body, got.status); }
     if (req.method !== 'POST') return json({ error: 'Not found', code: 'not_found' }, 404);
     const [, kind, id, verb] = rest;
     if (kind === 'thread' && rest.length === 2) return reply(await bindTutorThread(db, access, { roadmapId, threadId: body.threadId })); // the roadmap's one Tutor Chat thread
@@ -141,7 +138,7 @@ export async function roadmapRoute(path, req, env, deps = {}) {
     if (kind === 'steps' && id === 'link' && rest.length === 3) return reply(await offerLinkProposal(db, access, { roadmapId, cardId: body.cardId, reason: body.reason, origin: body.origin === 'tutor' ? 'tutor' : 'learner', ...arg }));
     if (kind === 'proposals' && verb === 'accept' && rest.length === 4) {
       if (roadmapEditEnabled(env) && await readLink(db, id, body.proposalVersion).catch(() => null)) return reply(await acceptLinkProposal(db, access, { roadmapId, revision: arg.expectedRevision, proposalId: id, proposalVersion: body.proposalVersion, actionKey: body.actionKey, ...(now ? { now } : {}) }));
-      const done = await acceptRoadmapStep(env, access, { roadmapId, revision: arg.expectedRevision, proposalId: id, proposalVersion: body.proposalVersion, actionKey: body.actionKey, ...(deps.quote ? { quote: args => deps.quote(env, access, args) } : {}), ...(now ? { now } : {}) });
+      const done = await acceptRoadmapStep(env, access, { roadmapId, revision: arg.expectedRevision, proposalId: id, proposalVersion: body.proposalVersion, actionKey: body.actionKey, ...(now ? { now } : {}) });
       if (!done.refusal && !done.replayed) await deps.onAccepted?.(env, access, done.body);
       return reply(done);
     }

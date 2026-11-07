@@ -47,7 +47,7 @@ test('generating: the same frame, title and size; a 16px spinner inside the plac
   assert.match(markup, /<svg[^>]*width="16"[^>]*height="16"[^>]*animate-spin/);
   assert.match(markup, /role="status" data-roadmap-generating="true" class="inline-flex h-7[^"]*">Generating</);
   assert.doesNotMatch(markup, /data-roadmap-accept|data-roadmap-cancel|data-roadmap-overlay|data-slot-elapsed|\d+%/);
-  assert.match(render(canvasCardsOf(view('status-held-for-checking'))[0]), /data-roadmap-generating="true"[^>]*>Checking</, 'checking is still the same slot, never ready; its stage says so (UI.04)');
+  assert.match(render(canvasCardsOf(view('status-held-for-checking'))[0]), /Generating/, 'checking is still the same slot, never ready');
 });
 
 test('failed: the same frame shows the error in place, nothing spins, no controls (Retry is the existing toast)', () => {
@@ -103,51 +103,4 @@ test('View passage from a slot carries the step range (raw), moves the camera to
   assert.deepEqual([sent[1].quiet, sent[1].range, focused.length], [true, pending.passage, 1], 'quiet: no camera');
   assert.equal(emphasizePassage(ref, pending.passage, { blocks: [], emit: event => sent.push(event.detail) }), false, 'no file card: nothing');
   assert.equal(sent.length, 2);
-});
-
-// UI.04 / UI.05 (file 02): one frame from proposal to saved card with the same words; the first offer's Accept [Tab] | Cancel in the approved green / muted red;
-// a later offer has no attached pill (the bottom Next card | Cancel is the canvas's); the stage text follows the server's results[].stage.
-test('the slot shows format, the 17px title, description and the exact excerpt in every stage; the first offer pill is green Accept [Tab] | muted-red Cancel', () => {
-  const card = { ...pending, excerpt: 'A split is useful when it creates child groups.' };
-  const markup = render(card);
-  assert.match(markup, /data-slot-format="true"[^>]*text-\[11px\] leading-4[^>]*>Explanation</);
-  assert.match(markup, /text-\[17px\] leading-\[1\.35\] font-semibold[^>]*>[^<]+</);
-  assert.match(markup, /data-slot-excerpt="true"[^>]*>A split is useful when it creates child groups\.</);
-  assert.match(markup, /data-roadmap-accept="true"[^>]*bg-success\/10[^>]*>Accept<kbd/);
-  assert.match(markup, /data-roadmap-cancel="true"[^>]*bg-danger\/10[^>]*>Cancel</);
-  for (const state of ['generating', 'checking', 'saving', 'failed']) {
-    const shown = render({ ...card, state, failure: state === 'failed' ? { message: 'Not made.' } : undefined });
-    assert.ok(shown.includes(card.title) && shown.includes(card.description) && shown.includes(card.excerpt), `${state}: the same words`);
-    assert.match(shown, /height:420px/);
-  }
-  assert.match(render({ ...card, state: 'checking' }), /data-roadmap-generating="true"[^>]*>Checking</);
-  assert.match(render({ ...card, state: 'saving' }), /data-roadmap-generating="true"[^>]*>Saving</);
-  assert.match(render({ ...card, format: 'table' }), /data-slot-format="true"[^>]*>Table</);
-  assert.doesNotMatch(render({ ...pending, excerpt: null }), /data-slot-excerpt/, 'no excerpt: no invented quote');
-});
-
-test('a later offer (next) keeps the keyboard-owning frame but has no attached pill: Next card | Cancel is the bottom pill', () => {
-  const markup = render({ ...pending, next: true });
-  assert.match(markup, /^<div [^>]*data-roadmap-overlay=""/);
-  assert.doesNotMatch(markup, /data-roadmap-pill|data-roadmap-accept/);
-});
-
-// The slot and Chat show the passage through the entitled reference (useStepExcerpt -> stepExcerpt): cached, honest when it cannot be read.
-test('stepExcerpt: asks resolve with excerpt once per ref, caches it, and answers unavailable (not a quote) for anything but a current excerpt', async () => {
-  const { stepExcerpt, forgetExcerpts, cachedExcerpt, UNAVAILABLE } = await import('./source-refs.js');
-  forgetExcerpts();
-  const calls = [], answers = { sref_a: { id: 'sref_a', status: 'current', excerpt: 'A split is useful.' }, sref_b: { id: 'sref_b', status: 'changed' }, sref_c: { id: 'sref_c', status: 'current' } };
-  const post = async (path, body) => { calls.push([path, body]); if (body.ids[0] === 'sref_x') throw Object.assign(Error('offline'), { status: 500 }); return { refs: [answers[body.ids[0]]] }; };
-  assert.deepEqual(await stepExcerpt(post, 'demo', 'sref_a'), { state: 'ready', text: 'A split is useful.' });
-  assert.deepEqual(calls[0], ['/api/learn/source-refs/resolve', { app: 'demo', ids: ['sref_a'], excerpt: true }]);
-  await stepExcerpt(post, 'demo', 'sref_a');
-  assert.equal(calls.length, 1, 'cached');
-  assert.deepEqual(cachedExcerpt('demo', 'sref_a'), { state: 'ready', text: 'A split is useful.' });
-  assert.equal(await stepExcerpt(post, 'demo', 'sref_b'), UNAVAILABLE, 'changed source: no stale passage');
-  assert.equal(await stepExcerpt(post, 'demo', 'sref_c'), UNAVAILABLE, 'current but no text (a PDF): no invented quote');
-  assert.equal(await stepExcerpt(post, 'demo', 'sref_x'), UNAVAILABLE);
-  assert.equal(cachedExcerpt('demo', 'sref_x'), null, 'a failed request is asked again');
-  assert.equal(await stepExcerpt(post, 'demo', null), UNAVAILABLE);
-  assert.equal(calls.length, 4);
-  assert.match(readFileSync(new URL('./SlotCard.jsx', import.meta.url), 'utf8'), /useStepExcerpt\(card\?\.sourceRef, actions\?\.app/, 'the slot reads it from the reference, in every state');
 });

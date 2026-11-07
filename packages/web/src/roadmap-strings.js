@@ -5,7 +5,6 @@ export const STRINGS = Object.freeze({
   chooseDepth: title => `Choose a depth for ${title}.`, startPlanning: 'Start planning', // Fix B, approved by the owner 2026-11-06
   keepHere: 'Just keep it here', // S2 approved
   invite: title => `I can explain "${title}" on the canvas, step by step.`, // S3 NEW
-  excerptUnavailable: 'The passage is not available right now.', stageChecking: 'Checking', stageSaving: 'Saving', formatName: { explanation: 'Explanation', table: 'Table' }, // canvas lane: slot and bottom pill vocabulary (checklist 4.1)
   accept: 'Accept', cancel: 'Cancel', tab: 'Tab', // S4 approved (Accept [Tab] | Cancel)
   nextReady: 'Next step ready', // S5 approved
   accepting: 'Accepting', // Fix A: the click was received (button label while the request is in flight)
@@ -46,17 +45,4 @@ export const STRINGS = Object.freeze({
   stepState: { planned: 'Planned', proposed: 'Proposed', generating: 'Being made', delivered: 'Delivered', incomplete: 'Incomplete', cancelled: 'Cancelled', skipped: 'Omitted', already_understood: 'Already understood' },
   cardRemoved: 'Card removed',
   planPrefix: 'Plan', depth: 'Depth', depthName: { overview: 'Overview', standard: 'Standard', deep: 'Deep' },
-  // Tutor core MVP (checklist 4.1 vocabulary; roadmap 3.1-3.12). Exact labels from the approved action list; sentences per roadmap 3.2/3.3/3.5/3.7.
-  startNewChat: 'Start new chat', stayHere: 'Stay here',
-  routeChoice: name => `You’ve added **${name}**. Start a new chat for this document or stay here?`,
-  inviteDrop: name => `You’ve added **${name}**. Would you like me to explain it on the canvas?`,
-  boundary: name => `You’ve added **${name}**. This canvas already has a roadmap in progress, so I’ll keep it here. To start a separate roadmap for it, use End roadmap on the current one first.`,
-  generatingRoadmap: 'Generating roadmap', roadmapPrepared: name => `I’ve prepared a roadmap for **${name}**.`,
-  roadmapParameters: 'Roadmap parameters', roadmapDraft: 'Roadmap draft', scope: 'Scope', fullContent: name => `Full content · ${name}`, selectedPassage: 'Selected passage',
-  roadmapMode: 'Roadmap', modeExplanations: 'Explanations only', modePractice: 'Explanations + practice', practiceUnavailable: 'Practice is not available yet',
-  acceptRoadmap: 'Accept roadmap', editRoadmap: 'Edit roadmap', openToc: 'Open table of contents', superseded: 'Replaced by a newer draft',
-  roadmapReady: first => (first ? `Your roadmap is ready. We’ll start with “${first}”.` : 'Your roadmap is ready.'),
-  nextCard: 'Next card', editCard: 'Edit card', goToCard: 'Go to card', goToText: 'Go to highlighted text',
-  stage: { proposed: 'Proposed card', accepting: 'Accepting', generating: 'Generating', checking: 'Checking', saving: 'Saving', ready: 'Ready on the canvas', failed: 'Not made', skipped: 'Skipped', cancelled: 'Cancelled' },
-  formatName: { explanation: 'Explanation', table: 'Table' },
 });

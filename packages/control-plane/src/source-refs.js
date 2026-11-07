@@ -5,9 +5,7 @@
 // highlight and crop routes': a fork or share viewer, another account, a removed file or a changed document get no way in.
 //
 //   POST /api/learn/source-refs          { app, key, home?, rev, anchor }  -> { ref }   (404 not available, 409 source_changed)
-//   POST /api/learn/source-refs/resolve  { app, ids: [sref_...], excerpt?: true } -> { refs: [{ id, status, rev, excerpt? }] }
-//     excerpt: true adds, for this learner's own CURRENT Markdown ref only, the anchored quote's first 400 characters (the Tutor slot and its Chat entry show the passage a step
-//     is about; the roadmap view itself never carries source text). Any other status or kind: no excerpt, never a guess.
+//   POST /api/learn/source-refs/resolve  { app, ids: [sref_...] }          -> { refs: [{ id, status, rev }] }
 // Statuses: current | changed (the revision differs) | missing (the owner cannot read their own source on this canvas now:
 // deleted, or not on this canvas) | unavailable (not this learner's ref, or a ref that does not exist: one answer for both).
 // No model call, no navigation guess: a changed or missing source is reported, never matched by position or text.
@@ -17,9 +15,6 @@ const pdf = () => import('./pdf-excerpts.js');
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const MAX_RESOLVE = 50;
-export const EXCERPT_CHARS = 400;
-// The passage as a short plain line: whitespace runs collapsed, cut at EXCERPT_CHARS on a word boundary (a cut adds nothing; the slot shows it as it is).
-const excerptOf = quote => { const flat = quote.replace(/\s+/g, ' ').trim(); if (flat.length <= EXCERPT_CHARS) return flat; const cut = flat.slice(0, EXCERPT_CHARS), space = cut.lastIndexOf(' '); return cut.slice(0, space > EXCERPT_CHARS * 0.6 ? space : EXCERPT_CHARS); };
 export const NOT_AVAILABLE = 'This source is not available to you.';
 export const SOURCE_CHANGED = CREATE_REFUSED.source_changed, SOURCE_UNAVAILABLE = CREATE_REFUSED.source_unavailable;
 
@@ -107,8 +102,7 @@ async function resolve(req, env, body, deps) {
     if (!row) { refs.push({ id, status: 'unavailable', rev: null }); continue; }
     const found = await resolveRow(req, env, row, app, deps, seen);
     await record(env.LEARN_DB, row.id, found.status);
-    const quote = body.excerpt === true && found.status === 'current' && row.kind === 'markdown' ? JSON.parse(row.anchor_json)?.quote?.exact : null;
-    refs.push({ id, status: found.status, rev: found.rev, ...(typeof quote === 'string' && quote.trim() ? { excerpt: excerptOf(quote) } : {}) });
+    refs.push({ id, status: found.status, rev: found.rev });
   }
   return json({ refs });
 }

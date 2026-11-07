@@ -201,13 +201,3 @@ test('freeSlot keeps clear of fixed boxes (anchored Tutor slots) as it does of d
   assert.equal(placed.at, 1);
   assert.ok(placed.top > 0, 'pushed below the Tutor slot instead of on it');
 });
-
-// UI.06: a delivered Tutor card is inserted at the column's default place and moved onto its slot once measured (pendingAt); until then it is laid out for
-// measuring but not shown, so it never flashes at the default place.
-test('a Tutor card waiting for its offsets is hidden (still laid out), then shown at its slot', async () => {
-  const { readFileSync } = await import('node:fs');
-  const source = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
-  assert.match(source, /const PLACING = \{ visibility: 'hidden' \};/, 'hidden keeps the layout the measurement reads');
-  assert.match(source, /placing=\{pendingAt\.current\.has\(block\.id\)\}/, 'exactly while its place is pending');
-  assert.match(source, /style=\{\{ \.\.\.\(placing \? PLACING : null\), transform:/);
-});

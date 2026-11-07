@@ -15,7 +15,6 @@ import { validateMathAnimation } from './learn-math-schema.js';
 import { validateToolInput as validateSchema } from './learn-validation.js';
 import { MATH_FORMAT } from './agents/math-format.js';
 import MATH_SCHEMA from '../../math-renderer/math-schema.json' with { type: 'json' };
-import { DEFAULT_DEPTH, EXPLANATION_CAPS, validDepth } from './chat-depth.js';
 
 const text = (maxLength, minLength = 1) => ({ type: 'string', minLength, maxLength });
 const list = (items, minItems, maxItems) => ({ type: 'array', minItems, maxItems, items });
@@ -262,78 +261,3 @@ export function artifactBlock(id, spec) {
   return primitive.block(copy);
 }
 
-
-// --- CORE.09: the shared Explanation teaching guidance, display-text budget and supported Mermaid ---------------------------------------
-// Offered with make_explanation on every path (direct /explain, Quick Edit, the Tutor roadmap); the request's Depth objective and budget
-// (chat-depth.js explanationTarget) follow it in the same tool description.
-export const EXPLANATION_GUIDANCE = 'For make_explanation, the main body and optional section text support Markdown paragraphs, headings, lists, pipe tables and fenced mermaid flowcharts. Choose the form that makes the idea easiest to understand. Use a table to compare items across shared attributes. Use a Mermaid flowchart to explain branching decisions, relationships or a process. Include enough prose to explain what the learner should notice. Treat tables and diagrams as optional at every Depth. Choose the structure to suit the question. The main body must answer the learner\'s question on its own. Optional sections can add a worked example, prediction or further reasoning. Apply the requested Depth guidance and total character budget. Include the title, section labels, table cells, diagram labels and collapsed content in that budget. A table has leading and trailing pipes, a header row, a separator row and the same number of cells in every row. A diagram is one closed ```mermaid fence whose first line is flowchart TD or flowchart LR, followed only by node declarations with short quoted labels (A["Label"]) and arrow edges (A --> B, or A -->|plain label| B): no HTML, frontmatter, directives, links, click handlers, styling commands or external assets.';
-
-const FENCE = /^\s*```\s*([\w+#.-]*)\s*$/;
-const ID = '[A-Za-z][A-Za-z0-9_]{0,29}';
-const LABEL = '"([^"<>`\\n]{1,80})"';
-const NODE = `${ID}(?:\\[${LABEL}\\]|\\(${LABEL}\\)|\\{${LABEL}\\}|\\(\\[${LABEL}\\]\\))?`;
-const NODE_LINE = new RegExp(`^${NODE}$`);
-const EDGE_LINE = new RegExp(`^${NODE}\\s*(?:-->|---|-\\.->|==>)\\s*(?:\\|([^|"<>\\n]{1,60})\\|\\s*)?${NODE}$`);
-const LABELS = new RegExp(LABEL, 'g');
-
-// The visible words of one supported flowchart line: node labels, then the edge label.
-const mermaidWords = line => [...line.matchAll(LABELS)].map(m => m[1]).concat((line.match(/\|([^|"<>\n]{1,60})\|/) || [])[1] || []);
-
-// The fences of a Markdown string: -> [{ lang, lines, closed }] in order, plus the prose lines outside them.
-function split(md) {
-  const prose = [], fences = [];
-  let open = null;
-  for (const line of String(md ?? '').split('\n')) {
-    const m = line.match(FENCE);
-    if (open) { if (/^\s*```\s*$/.test(line)) { open.closed = true; fences.push(open); prose.push({ fence: open }); open = null; } else open.lines.push(line); continue; }
-    if (m) { open = { lang: m[1].toLowerCase(), lines: [], closed: false }; continue; }
-    prose.push(line);
-  }
-  if (open) { fences.push(open); prose.push({ fence: open }); }
-  return { prose, fences };
-}
-
-// The problem with a Markdown string's Mermaid fences, or null: only a closed flowchart TD/LR of node declarations and arrow edges.
-export function mermaidProblem(md) {
-  for (const f of split(md).fences.filter(f => f.lang === 'mermaid')) {
-    if (!f.closed) return 'explanation_bad_mermaid: a mermaid fence is not closed';
-    const lines = f.lines.map(l => l.trim()).filter(Boolean);
-    if (!/^flowchart (TD|LR)$/.test(lines[0] || '')) return 'explanation_bad_mermaid: a diagram must start with flowchart TD or flowchart LR';
-    const bad = lines.slice(1).find(l => !NODE_LINE.test(l) && !EDGE_LINE.test(l));
-    if (bad !== undefined) return `explanation_bad_mermaid: unsupported diagram line "${bad.slice(0, 60)}" (use node declarations A["Label"] and arrow edges A --> B or A -->|label| B only)`;
-  }
-  return null;
-}
-
-// Inline Markdown as the card's Md shows it: links keep their text, emphasis/code/math delimiters go.
-const inlineText = s => s.replace(/\[([^\]\n]+)\]\([^\s)]+\)/g, '$1').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/__([^_]+)__/g, '$1').replace(/`([^`\n]+)`/g, '$1')
-  .replace(/(?<![\w*])\*(?![\s*])([^*\n]*?[^\s*])\*(?![\w*])/g, '$1').replace(/(?<![\w/.])_(?![\s_])([^_\n]*?[^\s_])_(?![\w/.])/g, '$1')
-  .replace(/\$\$([\s\S]*?)\$\$/g, '$1').replace(/\$([^$\n]+)\$/g, '$1');
-
-// The display text of one Markdown string in reading order: prose, headings, list items, table cells, code as literal text, Mermaid labels.
-function markdownText(md) {
-  const out = [];
-  for (const line of split(md).prose) {
-    if (typeof line !== 'string') { out.push(...(line.fence.lang === 'mermaid' ? line.fence.lines.flatMap(mermaidWords) : line.fence.lines)); continue; }
-    if (/^\s*\|.*\|\s*$/.test(line)) {
-      const cells = line.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
-      if (!cells.every(c => /^:?-{3,}:?$/.test(c))) out.push(...cells.map(inlineText));
-      continue;
-    }
-    out.push(inlineText(line.replace(/^\s*#{1,6}\s+/, '').replace(/\s+#+\s*$/, '').replace(/^\s*>\s?/, '').replace(/^\s*(?:[-*+]|\d{1,9}[.)])\s+/, '')));
-  }
-  return out.join(' ');
-}
-
-// CORE.09: the counted display text of an Explanation block: title, body, then every section label and text (collapsed ones too),
-// flattened, whitespace collapsed, trimmed, counted in Unicode code points. Pure: the Worker and the web may both import it.
-export const explanationText = block => [block?.title ?? '', markdownText(block?.body), ...(block?.more || []).flatMap(s => [s?.label ?? '', markdownText(s?.text)])].join(' ').replace(/\s+/g, ' ').trim();
-export const explanationChars = block => Array.from(explanationText(block)).length;
-
-// -> null, or the validator's words: over the Depth's budget or an unsupported diagram. The repair (direct paths) reads them; the roadmap fails terminally.
-export function explanationProblem(block, depth) {
-  const cap = EXPLANATION_CAPS[validDepth(depth) || DEFAULT_DEPTH], used = explanationChars(block);
-  if (used > cap) return `explanation_over_budget: the card has ${used} characters, the ${validDepth(depth) || DEFAULT_DEPTH} budget is ${cap} including the title, section labels, table cells, diagram labels and collapsed sections; shorten it.`;
-  for (const text of [block?.body, ...(block?.more || []).map(s => s?.text)]) { const problem = mermaidProblem(text); if (problem) return problem; }
-  return null;
-}

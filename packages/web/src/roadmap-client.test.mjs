@@ -4,9 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { acceptedPlanOf, actionKeys, canProposeNext, chatOf, claimsFocus, deliverable, draftOf, keyboardOwned, idleGrouper, initialState, invitationOf, offerOf, pillOf, planDelivery, readyMarkdownSources, failuresOf, reduce, routes, stepLabelFor, tabAccepts, texts, tocOf } from './roadmap-client.js';
+import { actionKeys, canProposeNext, chatOf, claimsFocus, deliverable, keyboardOwned, idleGrouper, indicatorOf, initialState, invitationOf, pillOf, planDelivery, readyMarkdownSources, failuresOf, reduce, routes, stepLabelFor, tabAccepts, texts, tocOf } from './roadmap-client.js';
 import { STRINGS } from './roadmap-strings.js';
-import { entriesOf } from './roadmap-transcript.js';
 import { pageKeyAllowed } from './shortcut-owner.js';
 import { ROADMAP_STATES } from './roadmap-contract.js';
 
@@ -22,7 +21,7 @@ test('every status fixture reduces to a view the UI can render, with a state fro
   for (const name of statusNames()) {
     const state = withView(name);
     assert.ok(ROADMAP_STATES.includes(state.view.roadmap.state), name);
-    tocOf(state); // null before acceptance (UI.02), never throws
+    assert.ok(tocOf(state), name);
     chatOf(state); pillOf(state); // none throws
   }
 });
@@ -44,38 +43,34 @@ test('no price, credit, cost or model text on any surface in any state (D24)', (
     const state = withView(name);
     for (const text of texts(state)) assert.doesNotMatch(text, banned, `${name}: ${text}`);
     const toc = tocOf(state);
-    for (const text of (toc?.steps || []).flatMap(s => [s.title, s.description, s.status]).filter(Boolean)) assert.doesNotMatch(text, banned, name);
+    for (const text of [toc.outcome, toc.stoppingPoint, ...toc.assumptions, ...toc.steps.map(s => s.status)].filter(Boolean)) assert.doesNotMatch(text, banned, name);
   }
   for (const s of [STRINGS.accept, STRINGS.cancel, STRINGS.nextReady, STRINGS.invite('x'), STRINGS.failed, STRINGS.checking, STRINGS.stale, STRINGS.paused, STRINGS.completed]) assert.doesNotMatch(s, banned);
   for (const s of Object.values(STRINGS).filter(v => typeof v === 'string')) assert.doesNotMatch(s, /\.\.\.|…/, 'no ellipsis');
-  for (const s of [STRINGS.inviteDrop('x'), STRINGS.routeChoice('x'), STRINGS.boundary('x'), STRINGS.roadmapReady('x'), ...Object.values(STRINGS.stage)]) assert.doesNotMatch(s, banned);
 });
 
 test('held result: a status line, never any result text', () => {
   assert.deepEqual(chatOf(withView('status-held-for-checking')).map(l => l.text), [STRINGS.checking]);
 });
 
-test('Ask mode pauses unsolicited initiative: no invitation, no plan-ready line; an offer the server made stays acceptable (explicit action, UI.03); accepted progress still reads', () => {
-  const asked = { ...withView('status-active-proposal-pending'), mode: 'ask' };
-  assert.equal(pillOf(asked).accept, true, 'Accept / Next card / Tab work in Ask without changing the preference');
-  assert.equal(pillOf(asked).gesture, pillOf(withView('status-active-proposal-pending')).gesture, 'one gesture for every surface, so one coalesced request');
-  assert.equal(offerOf(asked).accept, true, 'Chat Accept works in Ask too');
+test('Ask mode pauses initiative: no pill, no invitation, no plan-ready line; accepted progress still reads', () => {
+  assert.equal(pillOf({ ...withView('status-active-proposal-pending'), mode: 'ask' }), null);
   const inv = reduce({ ...initialState(), mode: 'ask' }, { type: 'invitation', invitation: view('invitation-offered').invitation });
-  assert.equal(invitationOf(inv).id, inv.invitation.id);
+  assert.equal(invitationOf(inv), null);
   assert.ok(!chatOf({ ...withView('status-proposed-plan'), mode: 'ask' }).some(l => l.id === 'plan'));
   const generating = { ...withView('status-held-for-checking'), mode: 'ask' };
   assert.equal(tocOf(generating).steps[0].state, 'generating');
   assert.equal(chatOf(generating).length, 1, 'held line stays');
 });
 
-test('invitation: two exact choices and the drop sentence; never deferred for typing or answering; dismissal scopes to that invitation', () => {
+test('invitation: two exact choices; held back while typing or answering; dismissal scopes to that invitation', () => {
   const iv = view('invitation-offered').invitation;
   let state = reduce(initialState(), { type: 'invitation', invitation: iv });
   const shown = invitationOf(state);
   assert.deepEqual(shown.choices.map(c => c.label), ['Explain on canvas', 'Just keep it here']);
   assert.deepEqual(shown.sourceKeys, iv.sourceKeys);
-  assert.equal(shown.text, `You’ve added **${iv.title}**. Would you like me to explain it on the canvas?`);
-  assert.equal(invitationOf(state, { typing: true })?.id, iv.id, 'no indefinite typing deferral (UI.01)');
+  assert.equal(invitationOf(state, { typing: true }), null);
+  assert.equal(invitationOf(state, { answering: true }), null);
   state = reduce(state, { type: 'dismissed', id: iv.id });
   assert.equal(invitationOf(state), null);
   assert.equal(invitationOf(reduce(state, { type: 'invitation', invitation: iv })), null, 'reload does not re-prompt the same invitation');
@@ -129,6 +124,15 @@ test('accept busy latch: a second gesture on the same proposal version is not ac
   assert.equal(pillOf(state).accept, true);
 });
 
+test('Next step ready: only with a pending proposal, flagged ready and offscreen; click navigates, nothing else', () => {
+  const state = withView('status-delivered-next-ready');
+  assert.deepEqual(indicatorOf(state, { offscreen: true }), { label: 'Next step ready' });
+  assert.equal(indicatorOf(state, { offscreen: false }), null);
+  assert.equal(indicatorOf(withView('status-active-proposal-pending'), { offscreen: true }), null, 'not flagged ready');
+  assert.equal(indicatorOf(withView('status-cancelled-paused'), { offscreen: true }), null);
+  assert.equal(indicatorOf({ ...state, mode: 'ask' }, { offscreen: true }), null);
+});
+
 const key = (over = {}) => ({ key: 'Tab', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, repeat: false, isComposing: false, keyCode: 9, ...over });
 test('Tab ownership truth table (D18)', () => {
   const pill = pillOf(withView('status-active-proposal-pending'));
@@ -172,15 +176,14 @@ test('failed card: its sentence comes from the server once (the existing error t
   assert.equal(canProposeNext(state), true, 'a failed card closed its step: Propose next step is offered');
 });
 
-// UI.02 / BE.04: the ToC carries the ACCEPTED roadmap only: no draft, parameters, stopping point or actions; steps with description and status.
-test('ToC: accepted plan only, no draft leak, no actions; steps with descriptions and status; navigation only where something exists', () => {
-  assert.equal(tocOf(withView('status-proposed-plan')), null, 'a draft stays in Chat');
+test('ToC: plan, assumptions, stopping point; Accept plan only while proposed; navigation only where something exists', () => {
+  const proposed = tocOf(withView('status-proposed-plan'));
+  assert.ok(proposed.outcome && proposed.assumptions.length && proposed.stoppingPoint);
+  assert.equal(proposed.actions.acceptPlan.planVersion, view('status-proposed-plan').plan.version);
+  assert.equal(proposed.practice, 'Explanations');
+  assert.equal(proposed.actions.proposeNext, false);
   const active = tocOf(withView('status-active-proposal-pending'));
-  assert.deepEqual(Object.keys(active).sort(), ['roadmapId', 'state', 'steps']);
-  assert.ok(active.steps.every(s => s.description && s.status && s.format));
-  const pending = withView('status-active-proposal-pending');
-  const revising = reduce(initialState(), { type: 'view', view: { ...pending.view, planDraft: { version: 9, steps: [{ position: 1, title: 'Draft-only step' }] } } });
-  assert.deepEqual(tocOf(revising).steps.map(s => s.title), active.steps.map(s => s.title), 'a revision draft never replaces the accepted tree');
+  assert.equal(active.actions.acceptPlan, null);
   assert.deepEqual(active.steps.map(s => s.nav?.kind ?? null), ['proposal', null, null]);
   const delivered = tocOf(withView('status-delivered-next-ready'));
   assert.deepEqual(delivered.steps.map(s => s.nav?.kind ?? null), ['card', 'proposal', null]);
@@ -190,6 +193,7 @@ test('ToC: accepted plan only, no draft leak, no actions; steps with description
 test('manual progression: Propose next step after Cancel; blocked while one is offered or at the ceiling; End roadmap offered while unfinished', () => {
   const paused = withView('status-cancelled-paused');
   assert.equal(canProposeNext(paused), true);
+  assert.equal(tocOf(paused).actions.end, true);
   assert.deepEqual(chatOf(paused).map(l => l.text), [STRINGS.cancelled, STRINGS.paused]);
   assert.equal(canProposeNext(withView('status-delivered-next-ready')), false, 'a proposal is already offered');
   const atCeiling = { ...paused, view: { ...paused.view, roadmap: { ...paused.view.roadmap, deliveredCount: paused.view.roadmap.ceiling } } };
@@ -261,16 +265,11 @@ test('a dropped Markdown card is a ready source only once its stored revision is
   assert.deepEqual(readyMarkdownSources({ pending: new Set(['t1']), blocks: [{ ...card('t1', stored), kind: 'text' }], savedBlocks: [{ ...card('t1', stored), kind: 'text' }] }), [], 'only Markdown is a supported source');
 });
 
-test('acceptPlan binds the displayed draft version (contracts.md draft.version), falling back to the plan version', () => {
-  const v = withView('status-proposed-plan').view;
-  assert.equal(routes.acceptPlan(v, 'ak_1').body.planVersion, v.roadmap.planVersion);
-  assert.equal(routes.acceptPlan({ ...v, planDraft: { version: 7 } }, 'ak_1').body.planVersion, 7);
-  assert.equal(draftOf(v).version, v.plan.version, 'before acceptance the plan is the draft');
-  assert.equal(acceptedPlanOf(v), null);
-  const active = withView('status-active-proposal-pending').view;
-  assert.equal(draftOf(active), null);
-  assert.equal(acceptedPlanOf(active).version, active.plan.version);
-  assert.equal(acceptedPlanOf({ ...active, acceptedPlan: null }), null, 'an explicit field wins');
+test('the invitation is held while the learner types or an answer streams and offered again after they stop', () => {
+  const state = reduce(initialState(), { type: 'invitation', invitation: view('invitation-offered').invitation });
+  assert.equal(invitationOf(state, { typing: true }), null);
+  assert.equal(invitationOf(state, { answering: true }), null);
+  assert.equal(invitationOf(state, { typing: false, answering: false })?.id, state.invitation.id, 'resumes, same invitation');
 });
 
 // --- Fix A: Tab through the real acceptance sequence, the indicator once the server field is true, honest acknowledgement ---------
@@ -298,15 +297,25 @@ test('the first proposal takes the keyboard only from nothing or from Accept pla
   assert.equal(claimsFocus(el('BODY'), { typing: true }), false, 'the learner started typing');
 });
 
-test('Accept roadmap reports busy at once so the Chat button shows Accepting and refuses a second press', () => {
+test('Accept plan reports busy at once so the button can show Accepting and refuse a second press', () => {
   let state = withView('status-proposed-plan');
   const gesture = `plan:${state.view.roadmap.id}:${state.view.plan.version}`;
-  const accept = s => entriesOf(s).find(e => e.kind === 'draft').actions.find(a => a.id === 'accept_roadmap');
-  assert.equal(accept(state).disabled, false);
+  assert.equal(tocOf(state).actions.acceptPlan.busy, false);
   state = reduce(state, { type: 'begin', gesture });
-  assert.equal(accept(state).disabled, true);
-  assert.equal(accept(state).label, 'Accepting');
+  assert.equal(tocOf(state).actions.acceptPlan.busy, true);
   assert.equal(pillOf(withView('status-active-proposal-pending')).accepting, false);
+});
+
+test('Next step ready: a pending acceptable proposal whose view says nextStepReady shows the compact indicator offscreen, once', () => {
+  const ready = clone(view('status-active-proposal-pending'));
+  ready.nextStepReady = true; // what roadmapView returns for an acceptable pending proposal after a finished delivery
+  const state = reduce(initialState(), { type: 'view', view: ready });
+  assert.deepEqual(indicatorOf(state, { offscreen: true }), { label: 'Next step ready' });
+  assert.equal(indicatorOf(state, { offscreen: false }), null, 'onscreen: the overlay itself is the signal');
+  const checking = clone(ready); checking.proposal.state = 'checking'; checking.proposal.acceptable = false;
+  assert.equal(indicatorOf(reduce(initialState(), { type: 'view', view: checking }), { offscreen: true }), null, 'a proposal still being checked is not ready');
+  const none = clone(ready); none.proposal = null;
+  assert.equal(indicatorOf(reduce(initialState(), { type: 'view', view: none }), { offscreen: true }), null, 'no proposal, no readiness');
 });
 
 test('accepted work says what the server says in Chat: making; nothing invented', () => {
@@ -324,15 +333,4 @@ test('the natural flow: focus on Accept plan is not Tab-owned (the defect), the 
   assert.equal(keyboardOwned(overlay), true);
   assert.equal(pageKeyAllowed(key(), overlay), true);
   assert.equal(pageKeyAllowed(key(), el('TEXTAREA', ['[data-chat-composer]'])), false, 'the Chat composer keeps its Tab');
-});
-
-// UI.04/05/08: the first offer is Accept, a later one Next card; both are the same acceptance (gesture, route, version) the canvas, Chat and eligible Tab share.
-test('pillOf: first offer Accept, a later one Next card, one gesture and route for every surface', () => {
-  const first = pillOf(withView('status-active-proposal-pending'));
-  assert.deepEqual([first.next, first.label], [false, 'Accept']);
-  const later = withView('status-delivered-next-ready'), pill = pillOf(later);
-  assert.deepEqual([pill.next, pill.label], [true, 'Next card']);
-  assert.equal(pill.gesture, `accept:${later.view.proposal.id}:${later.view.proposal.version}`);
-  assert.deepEqual(routes.acceptProposal(later.view, 'ak_x').body, { boardId: later.view.roadmap.boardId, revision: later.view.roadmap.revision, proposalVersion: later.view.proposal.version, actionKey: 'ak_x' });
-  assert.equal(tabAccepts({ event: { key: 'Tab' }, pill }), true, 'eligible Tab accepts the same Next card offer');
 });

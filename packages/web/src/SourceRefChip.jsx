@@ -4,10 +4,10 @@
 // that changed, went away or is not yours says so and offers nothing: the passage is never found by position or by text.
 // A shared reader's card has no id: it shows only the name.
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { BookOpen, FileText, ScanText } from 'lucide-react';
+import { BookOpen, FileText } from 'lucide-react';
 import { api } from './api.js';
 import { NO_FILE_CARD, STATUS_SHORT, STATUS_TEXT, navigable, refLabel, sourceRefOf } from './source-ref.js';
-import { cachedExcerpt, publishBlocks, published, resolveSourceRef, stepExcerpt, subscribeBlocks, viewPassage } from './source-refs.js';
+import { publishBlocks, published, resolveSourceRef, subscribeBlocks, viewPassage } from './source-refs.js';
 
 const NONE = [];
 const post = (path, body) => api(path, { method: 'POST', body: JSON.stringify(body) });
@@ -37,23 +37,6 @@ export function useSourceRefStatus(id, app, rev) {
   return status;
 }
 
-// The passage a Tutor step is about (source-refs.js stepExcerpt): the slot and the Chat entry call this with the step's `sourceRef` (steps[].sourceRef or
-// proposal.sourceRelation.sourceRef: only its `id` is used) and the canvas name. -> { state: 'none' } (no reference to ask), { state: 'loading' },
-// { state: 'ready', text } (the exact quote, at most 400 characters) or { state: 'unavailable' } (honest: no quote is invented).
-export function useStepExcerpt(sourceRef, app) {
-  const id = sourceRef?.id ?? null;
-  const [found, setFound] = useState(() => (id && app ? cachedExcerpt(app, id) : null));
-  useEffect(() => {
-    if (!id || !app) { setFound(null); return undefined; }
-    let live = true;
-    const held = cachedExcerpt(app, id);
-    if (held) setFound(held);
-    else { setFound(null); stepExcerpt(post, app, id).then(out => { if (live) setFound(out); }); }
-    return () => { live = false; };
-  }, [id, app]);
-  return !id || !app ? { state: 'none' } : found || { state: 'loading' };
-}
-
 export default function SourceRefChip({ block, app, onHeight = null }) {
   const ref = sourceRefOf(block);
   const root = useRef(null);
@@ -69,31 +52,6 @@ export default function SourceRefChip({ block, app, onHeight = null }) {
   if (!ref) return null;
   const open = () => { if (viewPassage(ref, { raw: !!block.stepId }) === 'no-card') setNote(NO_FILE_CARD); else setNote(''); };
   return <div ref={root} onPointerDown={event => event.stopPropagation()}><SourceRefLine ref_={ref} status={status} note={note} onOpen={open} /></div>;
-}
-
-// A delivered Explanation's source in its header (CORE.09, file 04): "Source: filename" and View section, the ScanText glyph the Markdown View card button
-// shares (file 05). The same status read, gate and viewPassage as the footer row; it replaces that row on the card, so its height counts once.
-export function SourceRefHeader({ block, app }) {
-  const ref = sourceRefOf(block);
-  const [note, setNote] = useState('');
-  const status = useSourceRefStatus(ref?.id ?? null, app, block.sourceRef?.source?.rev);
-  if (!ref) return null;
-  return <SourceRefHead ref_={ref} status={status} note={note} onOpen={() => setNote(viewPassage(ref, { raw: !!block.stepId }) === 'no-card' ? NO_FILE_CARD : '')} />;
-}
-export function SourceRefHead({ ref_: ref, status, note = '', onOpen }) {
-  const bad = status && status !== 'current';
-  return (
-    <span data-source-ref data-source-ref-status={status || 'unknown'} onPointerDown={event => event.stopPropagation()} className="flex min-w-0 items-center gap-1.5 text-xs text-ink-2">
-      <FileText size={14} className="shrink-0" aria-hidden="true" />
-      <span className="min-w-0 truncate" title={refLabel(ref)}>Source: {refLabel(ref)}</span>
-      {bad && <span data-source-ref-note role="status" title={STATUS_TEXT[status]} aria-label={STATUS_TEXT[status]} className="shrink-0">{STATUS_SHORT[status]}</span>}
-      {!bad && note && <span data-source-ref-note role="status" className="shrink-0">{note}</span>}
-      {navigable(ref) && status === 'current' && (
-        <button type="button" data-source-ref-open data-view-section aria-label="View section" title="View section" onClick={onOpen}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"><ScanText size={16} aria-hidden="true" /></button>
-      )}
-    </span>
-  );
 }
 
 // The row itself, apart from the status read and the camera so it can be rendered and tested as markup. Plain buttons, always shown: the

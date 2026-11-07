@@ -3,7 +3,7 @@
 // The rendered header, a real find and the unpinned close are e2e/panel-header-check.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { cardWords, findMatches, readPanelPin, savePanelPin } from './canvas-find.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -158,23 +158,27 @@ test('the Chat header: the thread title, History, New chat (icon only under 360 
   assert.match(page, /<ChatPane key=\{app\.name\} hidden=\{panelTab !== 'chat'\} chatAskProps/, 'Chat only in the Chat tab (owner brief 2026-10-16 item 7)');
 });
 
-// Checklist UI.02 (owner 2026-11-06, supersedes the 2026-10-16 ToC conversation): the Table of contents has no conversation or composer in any
-// state; its former conversations keep their own thread (slot 'toc') and draft key and reopen through ordinary Chat History.
-test('the Table of contents has no conversation; its old threads reopen in Chat with their own drafts; Chat stays in Chat', () => {
-  const ask = read('./ask.jsx'), threads = read('./chat-threads.js'), workspace = read('./chat-workspace.jsx'), modes = read('./ModeSelector.jsx'), history = read('./ChatHistory.jsx');
+// Owner brief 2026-10-16 item 7 (replaces R4 A3's docked Chat composer): the Table of contents has its own conversation, a
+// separate thread (slot 'toc') that is always Tutor, below the contents. The rendered behaviour (drafts kept apart, no
+// request on open, Send stays in TOC, scroll restored, a narrow panel) is e2e/panel-header-check.mjs and toc-tutor-check.mjs.
+test('the Table of contents has its own conversation: a separate thread, always Tutor, below the contents; Chat stays in Chat', () => {
+  const ask = read('./ask.jsx'), threads = read('./chat-threads.js'), workspace = read('./chat-workspace.jsx'), modes = read('./ModeSelector.jsx'), history = read('./ChatHistory.jsx'), conversation = read('./TocConversation.jsx');
   assert.doesNotMatch(page, /composerDocked|holdMode/, 'Chat\'s composer no longer docks under the contents');
   assert.match(workspace, /const tocThread = useChatThread\(canvas, \{ slot: 'toc' \}\);/);
   assert.match(workspace, /const tocComposer = useChatDraft\(`\$\{canvas\}\.toc`, tocThread\);/, 'its own draft key');
   assert.match(workspace, /useEffect\(\(\) => \{ holdTutor\('tutor'\); \}, \[holdTutor\]\);/, 'always Tutor, shown and not saved');
   assert.match(threads, /setModeState\(held\.current \|\| 'auto'\)/, 'a new TOC thread stays Tutor');
   assert.match(threads, /threads\?\.find\(thread => thread\.id !== toc\)/, 'Chat never falls back to the TOC\'s thread');
-  assert.doesNotMatch(history, /tocThread/, 'History lists the former TOC conversations, so they reopen in ordinary Chat');
+  assert.match(history, /\.filter\(row => row\.id !== tocThread\)/, 'History leaves the TOC\'s thread out');
   assert.match(modes, /if \(chat\.tocView\) return <span data-chat-mode="tutor"/, 'Tutor shown, no menu');
-  assert.doesNotMatch(workspace, /TocWorkspace/, 'no ToC conversation mount in any state');
-  assert.doesNotMatch(page, /<(TocConversation|TocWorkspace|RoadmapToc)b|import (TocConversation|{[^}]*(TocWorkspace|RoadmapToc))/, "no mount or import of the removed ToC panels");
-  assert.ok(!existsSync(new URL('./TocConversation.jsx', import.meta.url)), 'the component is gone');
-  const toc = page.indexOf('<div role="tabpanel" aria-label="Table of contents"'), chatPane = page.indexOf('<ChatPane key={app.name}');
-  assert.ok(toc > 0 && chatPane > toc, 'Chat after the contents tab');
+  assert.match(conversation, /<AskPanel \{\.\.\.askProps\} autoFocus=\{composing && !has\} hideConversation=\{!open \|\| !has\}/, 'collapsed or empty, only the composer shows');
+  // Owner UI brief 2026-10-20 section 6: no section and no composer until there are messages, a saved thread's or a sent turn.
+  assert.match(conversation, /if \(thread\?\.restore\.messages\?\.length > 0 && shownIn !== thread\.restore\.key\) setShownIn\(thread\.restore\.key\);\n\s+const has = !!thread && shownIn === thread\.restore\.key;/);
+  assert.match(conversation, /if \(!has && !composing && !drafted\) return \(\n\s+<div data-toc-start/, 'the compact entry starts one');
+  assert.match(page, /<TocWorkspace key=\{app\.name\}><TocConversation /);
+  assert.match(page, /placeholder="Describe your goal or refine the outline"/);
+  const toc = page.indexOf('<div role="tabpanel" aria-label="Table of contents"'), conv = page.indexOf('<TocWorkspace'), chatPane = page.indexOf('<ChatPane key={app.name}');
+  assert.ok(toc > 0 && conv > toc && chatPane > conv, 'the conversation inside the contents tab, Chat after it');
   assert.equal(page.match(/<ChatPane\b/g).length, 1);
   assert.match(ask, /\(contentPanel \|\| hideConversation \|\| \(composerOnly && !sheetMode\)\) && 'hidden'/, 'the conversation stays mounted, hidden');
   assert.match(page, /onScrollCapture=\{event => \{ if \(event\.target\.matches\?\.\('\[data-toc\]'\)\) tocScroll\.current = event\.target\.scrollTop; \}\}/);

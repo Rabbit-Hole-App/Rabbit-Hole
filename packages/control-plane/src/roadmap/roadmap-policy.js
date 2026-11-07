@@ -21,7 +21,7 @@ export const ROADMAP_LIMITS = deepFreeze({
   maxTokens: { roadmap_subject: 1000, roadmap_draft: 12000, roadmap_revise: 12000, roadmap_proposal: 3000, roadmap_grounding_check: 1500,
     roadmap_grounding_escalation: 4000, roadmap_safety_adjudicate: 1500, artifact: 4000 },
   // Call counts.
-  calls: { generationPerCard: 1, automaticRetriesPerCard: 1, groundingEscalationsPerCard: 1, adjudicationsPerResult: 1, toolCallsPerPlan: 8, repairsPerPlan: 1 },
+  calls: { generationPerCard: 2, automaticRetriesPerCard: 1, groundingEscalationsPerCard: 1, adjudicationsPerResult: 1, toolCallsPerPlan: 8, repairsPerPlan: 1 },
   // Platform-work quotas per learner and window (D14): provisional counters, not budget approval.
   quotas: { windowSeconds: { hour: 3600, day: 86400 },
     perHour: { invite: 6, plan: 6, propose: 20, check: 60 }, perDay: { invite: 20, plan: 20, propose: 80, check: 240 } },
@@ -48,7 +48,7 @@ export const LIMIT_BASIS = deepFreeze({
   'summary': ['proposed', 'planning.md 4 and 10'],
   'maxTokens.artifact': ['existing', 'learn-models.js:113 LEARN_TASKS.artifact maxTokens 4000'],
   'maxTokens': ['proposed', 'planning.md 2 precedent: journey_path 12000, journey_section 3000, tutor_next_steps 1500/4000'],
-  'calls.generationPerCard': ['existing', 'owner MVP 2026-11-06 (CORE.04): one ordinary author call per accepted card, repairs 0 (roadmap-generate.js)'],
+  'calls.generationPerCard': ['existing', 'learn-artifact.js ARTIFACT_REPAIRS = 1 (learn-models.js:242): first call plus one repair'],
   'calls': ['proposed', 'billing.md 6'],
   'quotas': ['proposed', 'D14 provisional counters, not budget approval'],
   'deadlineMs.safetyFetch': ['existing', 'webpage-screen.js:14 SCREEN_LIMITS.timeoutMs 20000'],

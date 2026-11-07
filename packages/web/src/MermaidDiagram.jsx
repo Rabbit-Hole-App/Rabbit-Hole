@@ -53,22 +53,20 @@ export function MermaidSource({ code }) {
     : <pre className="overflow-x-auto rounded-lg border border-line bg-code p-2 font-mono text-[11px] leading-5">{code}</pre>;
 }
 
-// fallback: a Markdown mermaid fence (Md fences, CORE.09): when Mermaid cannot load or render, the diagram's own source stays readable (escaped, MermaidSource).
-export default function MermaidDiagram({ code, fallback = false }) {
+export default function MermaidDiagram({ code }) {
   const report = usePerf();
   const host = useRef(null);
   const [error, setError] = useState('');
   useEffect(() => {
     let live = true;
     setError('');
-    mermaidOnce(isDark()).then(async mermaid => {
+    mermaidOnce().then(async mermaid => {
       const id = `mermaid-${Math.abs([...code].reduce((hash, character) => (hash * 31 + character.charCodeAt(0)) | 0, 7))}`;
       const { svg } = await mermaid.render(id, code);
       if (live && host.current) { host.current.innerHTML = svg; afterPaint(() => { report('content'); report('interactive'); }); }
-    }).catch(problem => { if (live) setError(String(problem?.message || problem || 'The diagram could not be drawn.').split('\n')[0]); });
+    }).catch(problem => { if (live) setError(problem.message.split('\n')[0]); });
     return () => { live = false; };
   }, [code]);
-  if (error && fallback) return <div data-mermaid-fallback className="flex flex-col gap-1.5 text-left"><p role="status" className="text-xs text-ink-2">{error}</p><MermaidSource code={code} /></div>;
   if (error) return <div className="grid h-full place-content-center p-4 text-center text-xs text-red-700">{error}</div>;
   return <div ref={host} data-mermaid className="flex h-full w-full items-center justify-center overflow-auto [&_svg]:max-w-full" />;
 }

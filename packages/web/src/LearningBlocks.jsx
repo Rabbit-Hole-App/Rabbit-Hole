@@ -8,7 +8,6 @@ import { dropView, publishView } from './cad-viewer-store.js';
 import { holdViewerGestures } from './content-gestures.js';
 import { createContext, Suspense, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
-import { SourceRefHeader } from './SourceRefChip.jsx';
 import { Check, ChevronLeft, ChevronRight, Code, Loader2, PanelRightOpen, Play, RotateCcw, Search, Trash2, Volume2, X } from 'lucide-react';
 import { fullContent } from './card-layout.js';
 import { Md } from './ask.jsx';
@@ -936,7 +935,7 @@ function Kicker({ author = null, action = null, children }) {
   return (
     <div data-drag-zone className="-mx-4 -mt-3 mb-2 flex cursor-grab items-center justify-between px-4 pt-3 pb-1 active:cursor-grabbing">
       <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-ink-2 uppercase"><span className="h-1.5 w-1.5 rounded-full bg-ink" />{children}</span>
-      <span className="flex min-w-0 items-center gap-1">
+      <span className="flex items-center gap-1">
         {action}
         {slot?.text && <span className="relative inline-block h-[17px] w-[3.25rem]"><CardPromptControl text={slot.text} selected={slot.selected} className="absolute top-1/2 right-0 -translate-y-1/2" /></span>}
         {author && <span className="rounded-full bg-ink px-2 py-px text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">{author}</span>}
@@ -2014,53 +2013,26 @@ function TableBody({ block, onFile }) {
   );
 }
 
-// Whether an Explanation draws its source in its own header (CORE.09, file 04) instead of the card's footer row (AdaptiveCanvas SourceRefChip).
-export const headerSource = block => block?.type === 'explanation' && !block.anchor && !isExcerpt(block) && !!block.sourceRef;
-
-// The delivered Explanation (CORE.09, files 04 and 06): a header that never shrinks (Kicker, the accepted title, Source: file with View section), the body in
-// the one reading scroller, then the `more` toggles in a fixed rail below it; an opened section mounts under the rail, so the card grows downward and the
-// scroller keeps its height and scroll position (onExpandHeight: the canvas adds that height to the frame). Body and sections are Md with its Mermaid and math
-// fences on. Full content and Focus keep working through data-card-layout and data-focus-hide; a card without sections has no rail.
-function ExplanationBody({ block, onFile, appName, onExpandHeight }) {
+function ExplanationBody({ block, onFile }) {
   const [open, setOpen] = useState({});
-  const id = useId(), more = block.more || [], expansion = useRef(null);
-  const opened = more.some((_, index) => open[index]);
-  useEffect(() => {
-    if (!onExpandHeight) return undefined;
-    if (!opened || !expansion.current) { onExpandHeight(0); return undefined; }
-    const observer = new ResizeObserver(() => onExpandHeight(expansion.current ? expansion.current.offsetHeight : 0));
-    observer.observe(expansion.current);
-    onExpandHeight(expansion.current.offsetHeight);
-    return () => { observer.disconnect(); onExpandHeight(0); };
-  }, [opened, onExpandHeight]);
   return (
-    <div data-explanation className="flex min-h-0 flex-1 flex-col">
+    <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       {/* A /dive topic anchor (dive.js anchorBlock) is the learner's topic, not an explanation yet: no kicker, and a body only when it adds to the title. */}
       {/* Focus's own header names the card: its kicker and title hide there (index.css [data-focus-hide]). */}
-      <div data-explanation-head data-focus-hide className="shrink-0 px-4 pt-3 pb-2">
-        {!block.anchor && <Kicker action={headerSource(block) ? <SourceRefHeader block={block} app={appName} /> : null}>Explanation</Kicker>}
-        <h3 data-drag-zone className={`cursor-grab break-words text-ink active:cursor-grabbing ${block.anchor ? 'text-sm font-medium' : 'text-xl leading-tight font-semibold'}`}>{block.title}</h3>
-      </div>
-      <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 text-sm">{block.body && <Md text={block.body} onFile={onFile} fences />}</div>
-      {more.length > 0 && (
-        <div data-explanation-rail className="shrink-0 border-t border-line px-4">
-          {more.map((section, index) => (
-            <button key={index} type="button" data-explain-more aria-expanded={!!open[index]} aria-controls={`${id}-more-${index}`} onPointerDown={e => e.stopPropagation()}
-              onClick={() => setOpen(previous => ({ ...previous, [index]: !previous[index] }))}
-              className={`flex min-h-9 w-full items-center justify-between gap-2 py-2 text-left text-xs font-medium text-ink-2 hover:text-ink aria-expanded:text-ink ${index ? 'border-t border-line' : ''}`}>
-              <MdInline text={section.label} />
-              <ChevronRight size={13} aria-hidden="true" className={open[index] ? 'rotate-90 transition-transform' : 'transition-transform'} />
-            </button>
-          ))}
+      <div data-focus-hide>{!block.anchor && <Kicker>Explanation</Kicker>}
+      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p></div>
+      {block.body && <div className="mt-1 text-sm"><Md text={block.body} onFile={onFile} /></div>}
+      {(block.more || []).map((section, index) => (
+        <div key={index} className="mt-2 border-t border-line pt-2">
+          <button type="button" data-explain-more onPointerDown={e => e.stopPropagation()}
+            onClick={() => setOpen(previous => ({ ...previous, [index]: !previous[index] }))}
+            className="flex w-full items-center justify-between gap-2 text-left text-xs font-medium text-ink-2 hover:text-ink">
+            <MdInline text={section.label} />
+            <ChevronRight size={13} className={open[index] ? 'rotate-90 transition-transform' : 'transition-transform'} />
+          </button>
+          {open[index] && <div className="mt-1.5 text-sm text-ink-2"><Md text={section.text} onFile={onFile} /></div>}
         </div>
-      )}
-      {opened && (
-        <div ref={expansion} data-explanation-expansion className="shrink-0">
-          {more.map((section, index) => open[index] && (
-            <section key={index} id={`${id}-more-${index}`} aria-label={section.label} className="border-t border-line px-4 py-3 text-sm text-ink-2"><Md text={section.text} onFile={onFile} fences /></section>
-          ))}
-        </div>
-      )}
+      ))}
     </div>
   );
 }
@@ -2328,14 +2300,14 @@ export function describeBlock(block) {
 }
 
 // `viewKey`: a 3D scene's viewer is driven by a toolbar outside the card under that name (ThreeDBody); the canvas passes none.
-export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appName, onAskRegion, onGrade, onAskScene, onPracticeHeight, onControlsHeight, onProgramFrame, onExpandHeight, selected = true, readOnly = false, onCadEdit, cadAccount = '', viewKey = null }) {
+export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appName, onAskRegion, onGrade, onAskScene, onPracticeHeight, onControlsHeight, onProgramFrame, selected = true, readOnly = false, onCadEdit, cadAccount = '', viewKey = null }) {
   if (block.type === 'challenge') return <ChallengeBody block={block} onChange={onChange} onFile={onFile} onGrade={onGrade} appName={appName} />;
   if (block.type === 'quiz') return <QuizBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'flashcards') return <FlashcardsBody block={block} onChange={onChange} />;
   if (block.type === 'code') return <CodeBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'snippet') return <SnippetBody block={block} onFile={onFile} />;
   if (block.type === 'explanation' && isExcerpt(block)) return <ExcerptBody block={block} onChange={onChange} appName={appName} readOnly={readOnly} />;
-  if (block.type === 'explanation') return <ExplanationBody block={block} onFile={onFile} appName={appName} onExpandHeight={onExpandHeight} />;
+  if (block.type === 'explanation') return <ExplanationBody block={block} onFile={onFile} />;
   if (block.type === 'table') return <TableBody block={block} onFile={onFile} />;
   if (block.type === 'cad') return <CadCard block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} appName={appName} selected={selected} readOnly={readOnly} onEdit={onCadEdit} account={cadAccount} />;
   // Its own Suspense (as WhiteboardBlock): a lazy card inserted on a live canvas must not suspend the canvas, which unmounted the

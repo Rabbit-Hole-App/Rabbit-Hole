@@ -59,13 +59,12 @@ export const calm = { scores: { sexual_explicit: 0, sexual_minors: 0, nonconsens
 export const classify = async () => calm;
 
 // The artifact provider behind the real spendTransport. `script` is a list of async () => Response, consumed in order.
-// A scripted reply reports the model it was asked for (CORE.05: the served model is the requested one).
-export const answer = (name, input, usage = { input_tokens: 400, output_tokens: 120 }) => async (model = MODEL) => Response.json({ model, stop_reason: 'tool_use', usage, content: [{ type: 'tool_use', id: 'tu_p', name, input }] });
+export const answer = (name, input, usage = { input_tokens: 400, output_tokens: 120 }) => async () => Response.json({ model: MODEL, stop_reason: 'tool_use', usage, content: [{ type: 'tool_use', id: 'tu_p', name, input }] });
 export const GOOD = answer('make_explanation', { title: 'The gradient', body: 'The gradient points uphill, so stepping against it lowers the loss.' });
 export const TABLE = answer('make_table', { title: 'Rates', caption: '', columns: ['rate', 'effect'], rows: [['small', 'slow'], ['large', 'overshoots']] });
 export const BAD = answer('make_explanation', { title: 'No body' }); // fails the schema: the one repair
 export const FAIL = async () => new Response('{"error":"overloaded"}', { status: 500, headers: { 'content-type': 'application/json' } });
-export const provider = script => { const used = [], bodies = [], models = []; return { used, bodies, models, base: (e, body, model, org) => spendTransport(e, body, model, org, async () => { used.push(1); bodies.push(body); models.push(model); return script.shift()(model); }, { userId: 'u-alice', category: 'roadmap' }) }; };
+export const provider = script => { const used = [], bodies = []; return { used, bodies, base: (e, body, model, org) => spendTransport(e, body, MODEL, org, async () => { used.push(1); bodies.push(body); return script.shift()(); }, { userId: 'u-alice', category: 'roadmap' }) }; };
 
 export async function loop(t, { plans, script = [GOOD], allowanceMicros, flag = 'true', md = MD, settings, classifier = classify, envExtra } = {}) {
   const w = world(t, allowanceMicros ? { allowanceMicros } : {});

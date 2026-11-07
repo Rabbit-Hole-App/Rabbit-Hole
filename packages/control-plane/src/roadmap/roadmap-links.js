@@ -36,9 +36,9 @@ export async function offerLinkProposal(db, access, { roadmapId, expectedRevisio
   const roadmap = await readRoadmap(db, access, roadmapId);
   if (!roadmap) throw new StateError('not_found', 'Not available', 404);
   if (!['active', 'paused'].includes(roadmap.state)) throw new StateError('roadmap_not_active', 'Not available', 409);
-  const busy = await db.prepare("SELECT 1 AS n FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND state IN ('proposed', 'generating') LIMIT 1").bind(roadmapId, roadmap.accepted_plan_version ?? roadmap.plan_version).first(); // the accepted plan, never an unaccepted draft (UI.03)
+  const busy = await db.prepare("SELECT 1 AS n FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND state IN ('proposed', 'generating') LIMIT 1").bind(roadmapId, roadmap.plan_version).first();
   if (busy) throw new StateError('proposal_not_pending', 'Finish or resolve the current step first.', 409);
-  const step = await db.prepare("SELECT * FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND state = 'planned' ORDER BY position LIMIT 1").bind(roadmapId, roadmap.accepted_plan_version ?? roadmap.plan_version).first(); // the accepted plan, never an unaccepted draft (UI.03)
+  const step = await db.prepare("SELECT * FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND state = 'planned' ORDER BY position LIMIT 1").bind(roadmapId, roadmap.plan_version).first();
   if (!step || roadmap.delivered_count >= roadmap.ceiling) throw new StateError('ceiling_reached', 'Revise the plan to add another step.', 409);
   const card = await readBoardCard(db, access, cardId);
   if (!card) throw new StateError('card_unavailable', 'Not available', 404);

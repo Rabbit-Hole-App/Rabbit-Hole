@@ -13,7 +13,7 @@ const clone = v => JSON.parse(JSON.stringify(v));
 const fail = (status, data) => Object.assign(new Error(data.error || 'x'), { status, data });
 
 // routes: (method path-suffix) -> handler(body) returning a body or throwing fail(...)
-function harness({ routes, board = new Set(), persist = async () => ({ ok: true }), readOnly = false, revision = null, busy = () => false, depth = undefined, sourceRev = undefined, host: extra = {} } = {}) {
+function harness({ routes, board = new Set(), persist = async () => ({ ok: true }), readOnly = false, revision = null, busy = () => false, depth = undefined, sourceRev = undefined } = {}) {
   const calls = [], saved = { cards: new Set(board), revision: 40 }; // the SAVED board: a successful persist copies the canvas into it
   const api = async (path, opts = {}) => {
     const method = opts.method || 'GET', body = opts.body ? JSON.parse(opts.body) : null;
@@ -24,7 +24,7 @@ function harness({ routes, board = new Set(), persist = async () => ({ ok: true 
     }
     throw fail(404, { error: 'Not available', code: 'not_found' });
   };
-  const host = { hasBlock: id => board.has(id), insertCard: block => { board.add(block.id); return block.id; }, persist: async () => { const out = await persist(); if (out?.ok === true) { saved.cards = new Set(board); saved.revision += 1; } return out; }, boardRevision: () => (revision ? revision() : saved.revision), savedHas: id => saved.cards.has(id), readOnly: () => readOnly, busy, depth, sourceRev, ...extra };
+  const host = { hasBlock: id => board.has(id), insertCard: block => { board.add(block.id); return block.id; }, persist: async () => { const out = await persist(); if (out?.ok === true) { saved.cards = new Set(board); saved.revision += 1; } return out; }, boardRevision: () => (revision ? revision() : saved.revision), savedHas: id => saved.cards.has(id), readOnly: () => readOnly, busy, depth, sourceRev };
   const timers = [];
   const controller = createRoadmapController({ api, boardId: 'lb_7c1e5a90d2b84f63a1c07e92', host, schedule: fn => timers.push(fn) && timers.length, cancel() {}, random: (() => { let n = 0; return () => `key${++n}aaaaaaaa`; })() });
   return { controller, calls, board, host, timers };
@@ -224,23 +224,18 @@ test('Explain on canvas sends the selected Depth and the source revision; a miss
   }
 });
 
-// UI.01 / BE.01: a drop is acknowledged at once (no typing or idle deferral), one source per report under a 'drop-' key, its repeats
-// coalesced; no planner, author or paid request happens before Explain. A second source over an unfinished roadmap gets the boundary.
-test('a dropped source is reported at once even while typing, once per source, with no paid call; a second source over a roadmap gets the boundary', async () => {
-  let suppress = false;
-  const { controller, calls } = harness({ busy: () => true, host: { sourceName: key => (key === 'file:fs_cd34' ? 'Second.md' : 'First.md') },
-    routes: { 'GET ': () => ({ roadmap: null }), 'GET /invitations': () => ({ invitation: null }), 'POST /invitations': () => (suppress ? { invitation: null, suppressed: { reason: 'unfinished_roadmap' } } : view('invitation-offered')) } });
+test('a source dropped while the learner is typing or an answer streams is reported after they stop, as one report', async () => {
+  let typing = true;
+  const { controller, calls } = harness({ busy: () => typing, routes: { 'GET ': () => ({ roadmap: null }), 'GET /invitations': () => ({ invitation: null }), 'POST /invitations': () => view('invitation-offered') } });
   controller.start(); await settle();
-  controller.sourceReady('file:fs_ab12'); controller.sourceReady('file:fs_ab12'); await settle();
+  controller.sourceReady('file:fs_ab12'); controller.idleTick(); controller.idleTick(); await settle();
+  assert.equal(calls.filter(c => c.method === 'POST').length, 0, 'nothing is reported while busy');
+  typing = false;
+  controller.idleTick(); await settle();
   const sent = calls.filter(c => c.method === 'POST' && c.path.endsWith('/invitations'));
-  assert.equal(sent.length, 1, 'repeated ready events for one source coalesce');
+  assert.equal(sent.length, 1);
   assert.deepEqual(sent[0].body.sourceKeys, ['file:fs_ab12']);
-  assert.match(sent[0].body.idleKey, /^drop-/);
-  assert.ok(controller.getState().invitation, 'the invitation is held in state at once, typing or not');
-  assert.equal(calls.filter(c => c.method === 'POST' && !c.path.endsWith('/invitations')).length, 0, 'no roadmap, planner or card request before Explain');
-  suppress = true;
-  controller.sourceReady('file:fs_cd34'); await settle();
-  assert.deepEqual(controller.getState().boundary, { key: 'file:fs_cd34', name: 'Second.md' });
+  assert.ok(controller.getState().invitation, 'the invitation is held in state once the server offers it');
 });
 
 test('bindThread records the Tutor thread and shows the view the server answers; a refusal rejects so the page starts a fresh thread', async () => {
@@ -255,28 +250,4 @@ test('bindThread records the Tutor thread and shows the view the server answers;
   assert.equal(controller.getState().view.roadmap.threadId, threadId, 'the answer is applied');
   refuse = true;
   await assert.rejects(controller.bindThread('canvaschat-22222222-2222-4222-8222-222222222222'));
-});
-
-// UI.06 delivery handoff: the card's final offsets settle in the canvas before the board is saved (host.settled), the save is checked, and only then the ack.
-// A card that never settles is neither saved nor acknowledged; the next poll reuses the same card (no second insert, no generation route on this path).
-test('delivery waits for the settled geometry, then saves, verifies and acknowledges; unsettled sends nothing; the slot reads Saving meanwhile', async () => {
-  const order = [];
-  let release, settledOk = false;
-  const { controller, calls, board, host } = harness({
-    persist: async () => { order.push('persist'); return { ok: true }; },
-    routes: { 'GET ': () => generated(), 'POST /rm_[^/]+/results/rs_[^/]+/deliver': () => { order.push('deliver'); return view('result-deliver-response'); }, 'POST /rm_[^/]+/results/rs_[^/]+/ack': () => { order.push('ack'); return view('status-delivered-next-ready'); } },
-  });
-  host.settled = id => { order.push(`settled:${id}`); return settledOk ? Promise.resolve(true) : new Promise(resolve => { release = resolve; }); };
-  controller.start(); await settle(); await settle();
-  assert.deepEqual(order, ['deliver', 'settled:cd_71e20ac49f8b3d5612a7c0e4'], 'nothing saved before the place settles');
-  const rid = generated().results[0].id;
-  assert.ok(controller.getState().busy.includes(`deliver:${rid}`), 'the slot says Saving while delivery runs');
-  release(false); await settle(); await settle();
-  assert.equal(post(calls, '/ack').length, 0, 'not settled: no save, no acknowledgement');
-  assert.equal(order.includes('persist'), false);
-  assert.equal(controller.getState().busy.includes(`deliver:${rid}`), false);
-  settledOk = true;
-  await controller.refresh(); await settle(); await settle();
-  assert.deepEqual(order.slice(2), ['deliver', 'settled:cd_71e20ac49f8b3d5612a7c0e4', 'persist', 'ack']);
-  assert.equal(board.size, 1, 'the same card, inserted once');
 });

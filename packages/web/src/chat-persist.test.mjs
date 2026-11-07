@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { FAKE_REACT } from './fake-react-hooks.mjs';
-import { activeThread, rememberThread, saveMessage, saveTutorEntry, turnSaver } from './chat-persist.js';
+import { activeThread, rememberThread, saveMessage, turnSaver } from './chat-persist.js';
 
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const tick = () => new Promise(done => setImmediate(done));
@@ -290,15 +290,4 @@ test('ask.jsx binds a turn to its canvas and thread at send and checks it is not
   const ask = read('ask.jsx');
   assert.match(ask, /const sentKey = chatThread\?\.liveKey\(\), late = \(\) => !!chatThread && lateEvent\(sentKey, chatThread\.liveKey\(\)\);/);
   assert.match(ask, /chatThread\?\.claim\(\);/);
-});
-
-// BRIEF contract 6 / BE.09: a Tutor entry goes to its bound thread under its stable client id with the versioned tutor record.
-test('saveTutorEntry posts one assistant message per clientId with its tutor record to the bound thread, retried with the same body', async () => {
-  const route = messagesRoute({ lose: ['roadmap-step-st_1'] });
-  const tutor = { v: 1, kind: 'step', seq: 21, stepId: 'st_1', stage: 'proposed' };
-  await saveTutorEntry({ app: 'canvas-0a1b2c3d', threadId: 'canvaschat-bound', clientId: 'roadmap-step-st_1', content: '**Split**', tutor }, route.call, NO_WAIT);
-  assert.equal(route.rows.length, 1, 'the lost answer is retried and found once');
-  assert.deepEqual(route.calls.map(c => c.path), Array(2).fill('/api/learn/chat/threads/canvaschat-bound/messages'));
-  assert.deepEqual(route.calls[0].body, route.calls[1].body);
-  assert.deepEqual(route.rows[0], { threadId: 'canvaschat-bound', app: 'canvas-0a1b2c3d', client_id: 'roadmap-step-st_1', role: 'assistant', content: '**Split**', mode: 'tutor', tutor });
 });

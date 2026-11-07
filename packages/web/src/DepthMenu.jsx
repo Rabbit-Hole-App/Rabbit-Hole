@@ -61,17 +61,3 @@ export default function DepthMenu({ settings, disabled = false }) {
     </div>
   );
 }
-
-// The same Depth as a direct three-position slider (UI.03, file 03): Overview / Standard / Deep, value 0-2, step 1. A native range input, so
-// Arrow/Home/End move it and Tab leaves it normally. value: a depth id; onChange(id). The Chat roadmap parameters use it for one draft.
-export function DepthSlider({ value, onChange, disabled = false, id = "roadmap-depth" }) {
-  const at = Math.max(0, DEPTHS.findIndex(([id]) => id === value));
-  return (
-    <div data-depth-slider className="mt-3.5 mb-2.5">
-      <div className="flex justify-between text-xs"><label htmlFor={id} className="text-ink-2">Depth</label><output htmlFor={id} className="text-ink">{DEPTHS[at][1]}</output></div>
-      <input id={id} type="range" min={0} max={2} step={1} value={at} disabled={disabled} aria-valuetext={DEPTHS[at][1]}
-        onChange={event => onChange(DEPTHS[Number(event.target.value)][0])} className="mt-[3px] h-5 w-full cursor-pointer accent-accent disabled:cursor-default disabled:opacity-50" />
-      <div aria-hidden="true" className="flex justify-between text-[10px] leading-[14px] text-ink-3">{DEPTHS.map(([id, label], index) => <span key={id} className={index === at ? 'text-ink' : ''}>{label}</span>)}</div>
-    </div>
-  );
-}
