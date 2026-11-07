@@ -116,7 +116,7 @@ When Claude Code pushes an implementation, compare the actual candidate against 
 
 ### 1.7 Keep reviewed docs and implementation synchronized
 
-The two handoff documents on `rabbit-hole/chatgpt/tutor` are the reviewed WHAT and HOW for this work. At each task boundary, fetch the branch and import its latest handoff documents, UI references and shared routing fixtures into the clean main worktree. Record the fetched handoff commit in the implementation receipt. Preserve any ongoing code work before changing worktrees.
+The two handoff documents on `rabbit-hole/chatgpt/tutor` are the reviewed WHAT and HOW for this work. At each task boundary, fetch the branch and import its latest handoff documents, the [Ask, Auto and Tutor workflow](ask-auto-tutor-workflow.md), UI references and shared routing fixtures into the clean main worktree. Record the fetched handoff commit in the implementation receipt. Preserve any ongoing code work before changing worktrees.
 
 Run these commands from the clean main worktree, using the repository's `rabbit-hole` remote. Check the four shared fixture files against the last imported handoff commit before restoring them. If implementation added or changed cases on main, reconcile those cases by stable ID and stage the merged fixtures. Use the explicit paths below for a first sync or when there are no main-side fixture edits.
 
@@ -126,11 +126,11 @@ git pull --ff-only rabbit-hole main
 git rev-parse rabbit-hole/chatgpt/tutor
 routing_fixture_root=packages/control-plane/test/fixtures/chat-routing
 routing_fixture_paths=("$routing_fixture_root/intent.json" "$routing_fixture_root/send/ask.json" "$routing_fixture_root/send/auto.json" "$routing_fixture_root/send/tutor.json")
-git restore --source=rabbit-hole/chatgpt/tutor -- docs/features/explain-on-canvas/handoff/tutor-roadmap-v1.4.md docs/features/explain-on-canvas/handoff/tutor-implementation-checklist.md docs/features/explain-on-canvas/handoff/ui "${routing_fixture_paths[@]}"
-git add -- docs/features/explain-on-canvas/handoff/tutor-roadmap-v1.4.md docs/features/explain-on-canvas/handoff/tutor-implementation-checklist.md docs/features/explain-on-canvas/handoff/ui "${routing_fixture_paths[@]}"
+git restore --source=rabbit-hole/chatgpt/tutor -- docs/features/explain-on-canvas/handoff/tutor-roadmap-v1.4.md docs/features/explain-on-canvas/handoff/tutor-implementation-checklist.md docs/features/explain-on-canvas/handoff/ask-auto-tutor-workflow.md docs/features/explain-on-canvas/handoff/ui "${routing_fixture_paths[@]}"
+git add -- docs/features/explain-on-canvas/handoff/tutor-roadmap-v1.4.md docs/features/explain-on-canvas/handoff/tutor-implementation-checklist.md docs/features/explain-on-canvas/handoff/ask-auto-tutor-workflow.md docs/features/explain-on-canvas/handoff/ui "${routing_fixture_paths[@]}"
 git diff --cached --stat
 git diff --cached --check
-git commit -m "Sync Tutor handoff docs, UI references and routing fixtures"
+git commit -m "Sync Tutor handoff docs, workflow, UI and routing fixtures"
 git push rabbit-hole main
 ```
 
@@ -795,6 +795,8 @@ Provider references for tool descriptions, schemas and selection policy are the 
 - [ ] Verify fixture behavior and record coverage for every enabled answer transport in the candidate. Use the same labeled messages to compare missed and unnecessary tool requests, and time to first reply against the current JEV path when authorized provider evidence is available. Local doubles establish wiring, authorization, state and action counts. Record live intent quality as unverified where live testing is unavailable. Apply the existing model-spend authorization boundary.
 
 #### Focused Chat routing tests and build
+
+Use [ask-auto-tutor-workflow.md](ask-auto-tutor-workflow.md) to identify the reply, tool handoff and recovery branches these tests cover.
 
 Use the actual `routeChat`, `chatRouteFetch` and Ask request/response path with transport doubles. Extend the existing CR-1 case in `packages/control-plane/test/chat-modes.test.js`, which uses the real `apiAsk` function, `askStream` and disposable SQLite. Capture the outgoing answer tools and real saved rows. Use client tests to assert one Ask request and the composer decision. Run the cases at their normal entry points in Ask, Auto and ordinary Tutor.
 

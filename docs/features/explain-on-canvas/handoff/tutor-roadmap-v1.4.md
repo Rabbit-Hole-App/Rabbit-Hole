@@ -369,6 +369,8 @@ Use files 04 and 06 for the delivered Explanation frame and supported Markdown. 
 
 ### 4.7 Ordinary messages and tool requests
 
+The standalone routing diagram and recovery path are in [ask-auto-tutor-workflow.md](ask-auto-tutor-workflow.md).
+
 **Shared reply path for Ask, Auto and Tutor.** Use the existing Chat composer and answer turn for ordinary messages. The learner's full request, authorized canvas and selected source context, thread and Depth travel together. Conversation, questions about a tool and a request to produce something can use similar words. Decide from the meaning of the request and the current context. A greeting such as `hi` is a test case alongside other conversational turns.
 
 | Mode | Ordinary typed message | Explicit action |
