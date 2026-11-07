@@ -160,7 +160,7 @@ export async function recordPlan(db, access, { roadmapId, actionKey, expectedRev
 
 // Accept plan: the displayed latest draft version -> active, recording the plan revision only. It authorizes no generation and charges nothing.
 // UI.03: only the newest draft, with no revision still being planned (409 stale_draft); on an accepted roadmap reacceptance freezes the draft's
-// settings, supersedes the pending unaccepted proposal, and moves the steps that already happened (same ids, results, links, charges) into it.
+// settings, supersedes the pending unaccepted proposal, and moves the steps that already happened (same ids, results, references, charges) into it.
 const KEPT = "state NOT IN ('planned', 'proposed')";
 export async function acceptPlan(db, access, { roadmapId, expectedRevision, planVersion, actionKey, now = nowSeconds() }) {
   const roadmap = await readRoadmap(db, access, roadmapId);
