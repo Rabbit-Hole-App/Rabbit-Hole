@@ -1,22 +1,23 @@
 import { useState } from 'react';
-import { ArrowLeft, BookOpen, ChartColumnIncreasing, ChevronDown, ChevronUp, Files, FolderTree, MessageCircle, MessageSquareText, Network, PanelLeft, Pin, Search, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Files, FolderTree, Gauge, ListTree, MessageCircleMore, MessageSquareQuote, Network, PanelLeft, Pin, Search, X } from 'lucide-react';
 import { findMatches } from './canvas-find.js';
 
 // The canvas's right panel header (owner, 2026-10-07; docs/features/panel-header.md): icon tabs grouped left in one
-// rounded control - Chat (permanent and first, owner brief 2026-10-13 section 3), Find, Table of contents, Comments, Progress
+// rounded control - Chat (permanent and first, owner brief 2026-10-13 section 3), Table of contents, Progress, Comments, Find (owner 2026-11-07 order)
 // - then Pin and Close on the right. Icons only:
 // the label is the tooltip and the accessible name. Comments (docs/features/canvas-comments.md) selects on a saved
 // top-level canvas (commentsOn); anywhere else its slot never selects (aria-disabled, skipped by the arrow keys).
 // Navigation styling (owner brief 2026-10-16 item 3; the approved toc-upload-context mockup): 30 x 32 icon buttons 2px apart,
 // no enclosing box; the active tab is a rounded soft purple (--nav-selected-bg) with a purple icon (--nav-selected-fg), both
 // flipped in .dark; inactive icons are a muted neutral, and hover is the neutral --color-hover, never the selected purple.
+// Order and icons (owner 2026-11-07): Chat, Table of contents, Progress, Comments, then Search last; every icon but Search's was replaced with a newer one.
 export const PANEL_TABS = [
-  { id: 'chat', label: 'Chat', Icon: MessageSquareText },
+  { id: 'chat', label: 'Chat', Icon: MessageCircleMore },
+  { id: 'toc', label: 'Table of contents', Icon: ListTree },
+  // Progress (Tutor Task 09): a tab of this panel, never a column beside Chat.
+  { id: 'progress', label: 'Progress', Icon: Gauge },
+  { id: 'comments', label: 'Comments', Icon: MessageSquareQuote },
   { id: 'find', label: 'Find text on canvas', Icon: Search },
-  { id: 'toc', label: 'Table of contents', Icon: BookOpen },
-  { id: 'comments', label: 'Comments', Icon: MessageCircle },
-  // Progress (Tutor Task 09): owner 2026-10-22 made it a tab of this panel, after Comments, in place of a column beside Chat.
-  { id: 'progress', label: 'Progress', Icon: ChartColumnIncreasing },
   // Links (canvas references, owner 2026-10-14 Q3) left the tray for Search's Links filter (owner UI brief 2026-10-20 section 7).
 ];
 // The companion column's viewers (owner decision 1A, 2026-10-15): Context (Materials and the reader) always, the repository's
