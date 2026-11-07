@@ -8,6 +8,7 @@ The six outlines supply the lesson titles and order. This analysis maps them to 
 - [Fit assessment](#how-to-read-the-fit-assessment)
 - [Story examples](#write-the-lesson-as-a-story)
 - [Component gaps](#component-gaps-across-curricula)
+- [AI implementation status](#ai-implementation-status)
 - [Phase maps](#phase-maps) · [AI Engineering](#ai-engineering) · [Physics](#physics) · [Biology](#biology) · [Chemistry](#chemistry) · [Mathematics](#mathematics) · [Economics](#economics)
 - [AI teaching threads](#ai-depth-by-teaching-thread) · [AI subphases](#named-ai-subphases) · [AI inventory comparison](#ai-comparison-against-the-pinned-inventory)
 - [Review criteria](#review-criteria)
@@ -59,7 +60,7 @@ The fit ratings describe the 2D SDK v2 evaluated for `/interactive` on the inter
 
 A numeric grid fits up to 6 × 6 cells. The graph helper fits a directed acyclic graph of 2–10 nodes and up to 12 edges. A plot supports small line and scatter series. Timelines place point events in lanes. A generated frame has a 60-object limit and supports basic geometric marks and labeled text. These bounds favor one mechanism and a small, readable example per card. [Generated frame contract](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/ef395178db92dd066fa8f254211d92a434757989/packages/web/src/explain-program/contract.js) · [SDK helpers](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/ef395178db92dd066fa8f254211d92a434757989/packages/web/src/explain-program)
 
-The shared renderer has heat grids, strips, bars and token chips. The generated frame contract exposes a smaller set of marks. A heatmap proposal should distinguish existing drawing code from the work needed to expose it safely to a generated program. The same distinction applies to a bounded diagram of a data pipeline and a trace captured from its actual execution. [Shared renderer](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/ef395178db92dd066fa8f254211d92a434757989/packages/web/src/AnimatedScene.jsx)
+At the audited revision, the shared renderer had heat grids, strips, bars and token chips, while the generated frame contract exposed a smaller set of marks. The heat-grid implementation below exposes the heat grid to generated programs on its feature branch. A bounded diagram of a data pipeline and a trace captured from its actual execution still have different data requirements. [Shared renderer at the audited revision](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/ef395178db92dd066fa8f254211d92a434757989/packages/web/src/AnimatedScene.jsx)
 
 ## Write the lesson as a story
 
@@ -142,6 +143,22 @@ The organizers cap the price at $P=2$. Eight people now want a lantern, while se
 | **Total capability gaps** | **107** | | |
 
 Bars and distribution plots already have bounded alternatives using boxes, lines and numeric values. Exposing the shared bar renderer could reduce authoring effort. The separate 137 data-dependent designs need suitable artifacts with units, sampling details and provenance.
+
+## AI implementation status
+
+This tracks the implementation batches for the pinned 542-lesson AI curriculum. The coverage tables above retain the audited SDK baseline across both AI inventories.
+
+| Batch | Reusable capabilities | Scene designs | Status |
+| --- | ---: | ---: | --- |
+| Easy | 1 | 1 | Heat-grid SDK and spectrogram fixture implemented on `chatgpt/interactive-heat-grid`. Dev card verification and deployment are pending. |
+| Medium | 6 | 19 | Planned. Duration spans and trace inspection are first. |
+| Difficult | 5 | 23 | Planned after Medium. |
+
+### Easy · Heat-grid SDK and spectrogram
+
+Generated `/interact` programs can call `sdk.heatGrid` with a flat array of numeric values in row-major order, grid dimensions and a fixed color domain. The frame validator requires the declared `heat_grid` capability and a compatible SDK version. The grid uses the shared scene palette. The same API can render spectrograms, attention weights and other numeric matrices. [SDK at `f1b3ffbb6`](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/f1b3ffbb6115fe7077120fd02d997dc753bf50bc/packages/web/src/explain-program/sdk.js)
+
+The spectrogram fixture switches between **20 ms** and **120 ms** Hann windows for two synthetic tones at **440 Hz** and **480 Hz** starting at **0.40 s**. Both views use a **13 × 19** grid and the same **−60 to 0 dB** legend. The shorter window locates the onset more precisely. The longer window separates the two frequency bands. The offline preview was checked in both states with the legend held fixed. [Spectrogram fixture](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/f1b3ffbb6115fe7077120fd02d997dc753bf50bc/packages/web/src/explain-program/testdata/spectrogram.json)
 
 ## Phase maps
 
