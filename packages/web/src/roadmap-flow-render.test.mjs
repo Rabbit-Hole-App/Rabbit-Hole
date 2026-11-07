@@ -276,3 +276,19 @@ test('ToC rows: Go to card where the card or slot exists, Delete only for a deli
   assert.match(source, /setConfirming\(null\); run\(\);/, 'Delete closes the popover then runs');
   assert.ok(!/onClick=\{\(\) => canvasApi\.current\?\.removeBlock/.test(source) && !/onClick=\{\(\) => canvasApi\.current\?\.removeSection/.test(source), 'no direct, unconfirmed removal remains');
 });
+
+test('ToC rows: Add to chat shows on hover for every heading and for a roadmap row with a card; only the hover group carries it', () => {
+  const base = hookReturn();
+  const toc = (props, name) => lib.renderToStaticMarkup(lib.createElement(lib.TableOfContents, { outline: [], canvasApi: { current: null }, ...props, ...(name ? { roadmap: { ...base, ...seeded(name), showOverlay: false } } : {}) }));
+  const outline = [{ id: 'h1', level: 1, label: 'Intro', done: false }, { id: 'h2', level: 2, label: 'Details', done: false }, { id: 'h3', level: 3, label: 'Deep', done: false }];
+  const headings = toc({ outline });
+  assert.equal(headings.split('data-toc-add-to-chat').length - 1, 3, 'every section, sub-section and sub-sub-section');
+  assert.match(headings, /data-toc-actions="[^"]*" class="[^"]*opacity-0 group-hover:opacity-100 focus-within:opacity-100/, 'visible on hover or focus only (always on touch)');
+  const delivered = toc({}, 'status-delivered-next-ready').split('data-roadmap-step=').slice(1);
+  assert.ok(delivered.some(r => r.includes('data-toc-add-to-chat')), 'a delivered card can be added to Chat');
+  const pending = toc({}, 'status-active-proposal-pending').split('data-roadmap-step=').slice(1);
+  assert.ok(pending.every(r => !r.includes('data-toc-add-to-chat')), 'a slot with no card yet has nothing to add');
+  const canvas = readFileSync(fileURLToPath(new URL('./AdaptiveCanvas.jsx', import.meta.url)), 'utf8');
+  assert.match(canvas, /addSectionToChat: id => \{[^}]*setSelection\(\[blockId\]\);[^}]*return addToChat\(\);/s, 'it selects the block and adds it exactly as the selection bar does');
+  assert.match(readFileSync(fileURLToPath(new URL('./TableOfContents.jsx', import.meta.url)), 'utf8'), /addSectionToChat\?\.\(addId\) === false\) toast/);
+});

@@ -6,7 +6,7 @@
 // when the learner clicks one, never because a section is visible, open or discussed. Dragging a row moves its entry, its
 // sub-sections with it; clicking a title frames its linked canvas heading, if any.
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronRight, GripVertical, Heading1, Heading2, Heading3, LocateFixed, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Check, ChevronRight, GripVertical, Heading1, Heading2, Heading3, LocateFixed, MessageSquarePlus, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button, toast } from './ui.jsx';
 import { DESCRIPTION_MAX, outlineTree, proposalProblem, withRoadmap } from './learn-outline-model.js';
 import { keyLabel } from './shortcuts.js';
@@ -119,11 +119,14 @@ export default function TableOfContents({ outline: own, canvasApi, onShow, propo
           const cardId = nav?.kind === 'card' ? nav.cardId : null;
           const deletesCard = entry.roadmap && cardId && !entry.roadmap.removed && !readOnly;
           const deletesHeading = !entry.roadmap && !readOnly;
-          if (!goes && !deletesCard && !deletesHeading) return null;
+          // Add to chat: the heading's block, or a roadmap row's delivered card (a planned step with no card has nothing to add).
+          const addId = entry.roadmap ? cardId : entry.id;
+          if (!goes && !deletesCard && !deletesHeading && !addId) return null;
           const open = confirming === entry.id;
           const icon = "flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-ink";
           return (
             <div data-no-drag data-toc-actions className="relative flex shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100" style={open ? { opacity: 1 } : undefined}>
+              {addId && <button type="button" data-toc-add-to-chat aria-label={"Add " + entry.label + " to chat"} title="Add to chat" onClick={() => { if (canvasApi.current?.addSectionToChat?.(addId) === false) toast("Could not add this to Chat", { tone: "error" }); }} className={icon}><MessageSquarePlus size={14} /></button>}
               {goes && <button type="button" data-toc-go-card aria-label={"Go to card for " + entry.label} title="Go to card" onClick={() => roadmap?.go?.(nav)} className={icon}><LocateFixed size={14} /></button>}
               {deletesHeading && <button type="button" aria-label={"Edit " + entry.label} title="Edit title and description" onClick={() => setEditing(entry.id)} className={icon}><Pencil size={14} /></button>}
               {(deletesHeading || deletesCard) && <button type="button" data-toc-delete aria-label={(deletesCard ? "Delete card " : "Remove heading ") + entry.label} aria-haspopup="dialog" aria-expanded={open} title={deletesCard ? "Delete this card from the canvas" : "Remove from the contents"} onClick={() => setConfirming(open ? null : entry.id)}

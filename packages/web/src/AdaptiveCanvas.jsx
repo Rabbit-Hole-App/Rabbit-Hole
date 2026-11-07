@@ -2588,6 +2588,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       moveSection: (id, beforeId) => { if (readOnlyRef.current) return; snapshot(); setToc(moveTocSection(blocksRef.current, tocRef.current, id, beforeId)); },
       toggleSectionDone: id => { if (readOnlyRef.current) return; snapshot(); setToc(toggleTocDone(blocksRef.current, tocRef.current, id)); },
       removeSection: id => { if (readOnlyRef.current) return; snapshot(); setToc(removeTocEntry(blocksRef.current, tocRef.current, id)); },
+      // The contents' Add to chat: select the entry's block (a heading, or a roadmap row's card) and add it exactly as the selection bar does; false when
+      // there is no such block or Chat is not here. Nothing is sent and the learner's draft is never touched.
+      addSectionToChat: id => {
+        const blockId = tocHeading(tocRef.current, id) ?? id;
+        if (!blocksRef.current.some(block => block.id === blockId)) return false;
+        selectedRef.current = [blockId]; setSelection([blockId]);
+        return addToChat();
+      },
       // A journey heading just drawn joins a stored contents list (learn-journey-materialize.js).
       linkTocHeading: heading => setToc(previous => linkTocHeading(previous, heading)),
       // Frame the section rather than scroll to it: a section is a heading plus
