@@ -10,7 +10,10 @@ import { useChatWorkspace } from './chat-workspace.jsx';
 // compact "Ask the Tutor about this outline" entry; pressing it opens the composer (focused, closable while empty). The
 // section shows once a turn is sent or the saved TOC thread has messages (after a refresh too); an unsent draft keeps the
 // composer open. Nothing shows while the saved thread is still loading, so a restored conversation never flashes the entry.
-export default function TocConversation(askProps) {
+// UI.02 (checklist 4.3): the ToC has no Tutor conversation or composer in any flag or state. Its saved conversations reopen in ordinary Chat
+// (ChatHistory lists them); their drafts stay under their own key. ponytail: null until LearnPage drops the mount (chat-LearnPage patch).
+export default function TocConversation() { return null; }
+export function LegacyTocConversation(askProps) {
   const [open, setOpen] = useState(true), [shownIn, setShownIn] = useState(null), [composing, setComposing] = useState(false), [closed, setClosed] = useState(false);
   const { thread, composer } = useChatWorkspace() || {};
   // Latched per restore key (a sent turn, or a restore that brought messages): AskPanel later writes its live transcript into

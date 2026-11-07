@@ -155,3 +155,14 @@ test('unsent PDF excerpt chips save through the state PUT and restore exactly, t
   assert.deepEqual((await (await f.send('GET', '/api/ask/threads/canvaschat-a')).json()).contextRefs, refs, 'the refused save changed nothing');
   assert.equal(validContextRefs([{ ...ref(), open: refs[0].open }]), false, 'only excerpt and file refs carry a reader ref');
 });
+
+// BE.09: a Tutor entry restores as an ordinary assistant message with its clientId and versioned meta.tutor, in its own place.
+test('threadMessages: a Tutor entry keeps its clientId and meta.tutor; ordinary answers are unchanged', () => {
+  const tutor = { v: 1, kind: 'draft', seq: 2, roadmapId: 'rm_1', planVersion: 1, superseded: true };
+  const rows = [{ id: 1, role: 'user', content: 'q1' }, { id: 2, role: 'assistant', content: 'Roadmap draft', meta_json: JSON.stringify({ version: 1, mode: 'tutor', kind: 'answer', source: 'tutor', clientId: 'roadmap-draft-rm_1-v1', tutor }) },
+    { id: 3, role: 'assistant', content: 'a', meta_json: '{"version":1,"kind":"answer"}' }];
+  const [, entry, answer] = threadMessages(rows);
+  assert.equal(entry.clientId, 'roadmap-draft-rm_1-v1');
+  assert.deepEqual(entry.meta.tutor, tutor);
+  assert.equal(answer.meta.tutor, undefined);
+});

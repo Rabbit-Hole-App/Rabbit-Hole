@@ -7,6 +7,8 @@ import { useChatSources } from './chat-sources.js';
 import { useLearnCoaching } from './use-learn-coaching.jsx';
 import { useLearnSettings } from './use-learn-settings.jsx';
 import { threadWithControls } from './learn-coaching-client.js';
+import { draftKey } from './chat-draft.js';
+import { restoredDraft } from './roadmap-transcript.js';
 
 // The right-side Chat workspace on a Learn canvas (owner brief 2026-10-13; contract:
 // agent-coordination/tasks/chat-workspace-CONTRACT.md, Part A). One provider per canvas composes five hooks, one per
@@ -94,9 +96,17 @@ export function ChatWorkspaceProvider({ canvas, board = 'main', canvasOps: initi
   // key: open, New chat and a canvas change each make a new one), so it is never carried into another conversation or left hidden.
   const editScope = `${canvas}|${ownThread.restore?.key ?? ''}`;
   const [editHeld, setEditHeld] = useState(null);
-  useEffect(() => { setEditHeld(held => (held && held.scope !== editScope ? null : held)); }, [editScope]);
+  // A target that stashed the unsent draft (Edit roadmap) gives it back when it is cleared: into the composer while its conversation is open,
+  // else into that conversation's own saved draft (chat-draft.js key, stamped now so it wins over an older copy), so a switch never loses it.
+  const giveBack = useCallback((held, here) => {
+    const draft = restoredDraft(held?.target);
+    if (!draft) return;
+    if (here) { composer.setText(draft.text); composer.setCommand(draft.command); return; }
+    try { localStorage.setItem(draftKey(canvas, held.target.threadId), JSON.stringify({ ...draft, savedAt: Date.now() })); } catch { /* private mode: the draft lived in memory only */ }
+  }, [composer, canvas]);
+  useEffect(() => { setEditHeld(held => { if (held && held.scope !== editScope) { giveBack(held, false); return null; } return held; }); }, [editScope]); // eslint-disable-line react-hooks/exhaustive-deps
   const editTarget = editHeld?.scope === editScope ? editHeld.target : null;
-  const editing = useMemo(() => ({ target: editTarget, set: target => setEditHeld({ scope: editScope, target }), clear: () => setEditHeld(null) }), [editTarget, editScope]);
+  const editing = useMemo(() => ({ target: editTarget, set: target => setEditHeld({ scope: editScope, target }), clear: () => { giveBack(editHeld, editHeld?.scope === editScope); setEditHeld(null); } }), [editTarget, editScope, editHeld, giveBack]);
   // The "This canvas" chip's line: coverage.summary of the last canvas_context the page built (a sent turn, or the chip's preview).
   const [canvasCoverage, setCanvasCoverage] = useState(null);
   // R4: how many answers are streaming now (AskPanel reports +1 / -1), so a roadmap invitation waits for the answer to end.

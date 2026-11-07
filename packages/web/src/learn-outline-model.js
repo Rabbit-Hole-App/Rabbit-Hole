@@ -31,6 +31,17 @@ export function outlineFrom(blocks, toc = null) {
     });
 }
 
+// The accepted roadmap (roadmap-client.js tocOf) merged into the outline the Table of contents draws (UI.02): one tree, the roadmap's steps first
+// as top-level rows under ids no manual heading can have ('roadmap:<stepId>'), so the merge never replaces, renumbers away or edits an ordinary
+// entry. Each row keeps its step identity, description, status line and navigation; done is the learner's own manual mark (doneIds).
+export const ROADMAP_ROW = 'roadmap:';
+export function withRoadmap(outline, toc, doneIds = new Set()) {
+  if (!toc?.steps?.length) return outline || [];
+  const rows = toc.steps.map(step => ({ id: `${ROADMAP_ROW}${step.id}`, level: 1, label: String(step.title || '').trim() || UNTITLED[1], done: doneIds.has(step.id),
+    description: String(step.description || '').trim().slice(0, DESCRIPTION_MAX), roadmap: { stepId: step.id, status: [step.status, step.format].filter(Boolean).join(' · '), nav: step.nav, removed: !!step.removed } }));
+  return [...rows, ...(outline || []).filter(entry => !String(entry.id).startsWith(ROADMAP_ROW))];
+}
+
 // The outline as the Table of contents draws it (R4 owner decisions 1A, 2A): each entry under the nearest earlier entry
 // of a lower level, numbered from the current order - Topic 1, 1.1, 1.1.1. A number is display only (ids stay the keys),
 // so a reorder renumbers and carries nothing else with it. Entries before the first top-level section have no topic to

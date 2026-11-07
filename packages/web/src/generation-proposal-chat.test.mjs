@@ -270,7 +270,7 @@ test('the source pins it: an Edit target takes precedence over the implicit late
   assert.ok(ask.includes("const brief = edit ? ((edit.command === 'explain' || edit.command === 'animation') && workspace?.canvasOps?.refineExplain ? edit.proposal : null)"), 'Explain and Animation (AN-03): the target brief, never the latest one');
   assert.ok(ask.includes('refineExplain(brief, message, edit ? { proposal_id: edit.proposalId, version: edit.version } : undefined)'), 'Explain: the refine names the revision');
   assert.ok(ask.includes("edit?.command === 'motion' ? edit.proposal : currentProposal(msgs, canvasOps.proposalMade), about?.concept, edit?.command === 'motion')"), 'Motion: the target revision, marked as an Edit');
-  assert.ok(ask.includes('if (editSpent(editTarget, msgs, outputOps?.proposalMade)) chat.editing.clear();'), 'a spent target never stays hidden');
+  assert.ok(ask.includes("if (editTarget?.command !== 'roadmap' && editSpent(editTarget, msgs, outputOps?.proposalMade)) chat.editing.clear();"), 'a spent target never stays hidden (a roadmap target is not a generation proposal)');
 });
 
 // Owner spec 2026-10-29 section 6: a simple material brief starts through its own adapter (the existing generator with the signed

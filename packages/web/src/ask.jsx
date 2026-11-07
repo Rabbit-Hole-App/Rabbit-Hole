@@ -51,7 +51,7 @@ import { reviewRequired } from './proposal-capabilities.js';
 import { newThreadId, turnSaver } from './chat-persist.js';
 import { askMode } from './chat-route.js';
 import { TutorCoaching } from './use-learn-coaching.jsx';
-import RoadmapTranscript from './RoadmapTranscript.jsx';
+import RoadmapTranscript, { TutorMessage } from './RoadmapTranscript.jsx';
 import { TutorActivity } from './TutorActivity.jsx';
 import { fileReviews } from './learn-progress-question.js';
 import { cn, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
@@ -549,7 +549,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // The proposal card's Edit target (chat-workspace.jsx editing): it takes precedence over the implicit latest proposal below, and
   // is cleared once its revision is no longer the live one (a revision published, generated or expired).
   const editTarget = chat && !tocView ? chat.editing?.target ?? null : null;
-  useEffect(() => { if (editSpent(editTarget, msgs, outputOps?.proposalMade)) chat.editing.clear(); }, [msgs, editTarget]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A roadmap target (Edit roadmap, RoadmapTranscript.jsx) is not a generation proposal: it stays until it is sent or removed.
+  useEffect(() => { if (editTarget?.command !== 'roadmap' && editSpent(editTarget, msgs, outputOps?.proposalMade)) chat.editing.clear(); }, [msgs, editTarget]); // eslint-disable-line react-hooks/exhaustive-deps
   // prompted: raw is a command's prompt coming back from LearnSlash (onPrompt), the chat turn itself. Answers false when it
   // refuses that turn, so LearnSlash gives the line back with an error instead of losing it.
   const send = async (raw, scopeOverride, { command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false, routeAs = null } = {}) => {
@@ -577,6 +578,15 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     // words kept when it is refused; never another command, never a file, never Generate.
     const editRefused = edit ? editRefusal(edit, { command: commandName, file }) : null;
     if (editRefused) { setRouteShown({ kind: 'unsupported', message: editRefused, raw }); return false; }
+    // Edit roadmap (UI.03): the typed words are this roadmap's revision instruction, never an ordinary answer or a new roadmap. Clearing the
+    // target gives the stashed unsent draft back (chat-workspace.jsx editing); attachments stay as they are.
+    if (edit?.command === 'roadmap') {
+      if (!roadmap?.controller || roadmap.state.view?.roadmap?.id !== edit.proposalId) { setRouteShown({ kind: 'unsupported', message: 'This roadmap is no longer open here. Remove the Editing pill to send this as a message.', raw }); return false; }
+      setInput('');
+      const done = await roadmap.controller.revise({ instruction: raw.trim() });
+      if (done) chat.editing.clear(); else setInput(current => current || raw);
+      return;
+    }
     const brief = edit ? ((edit.command === 'explain' || edit.command === 'animation') && workspace?.canvasOps?.refineExplain ? edit.proposal : null)
       : chat && !tocView && !regenerate && !prompted && !commandName && !file && workspace?.canvasOps?.refineExplain ? currentProposal(msgs, outputOps?.proposalMade) : null;
     if (edit && approvesJob(brief) && !workspace.canvasOps.explainWaiting?.(brief.input.job)) { setRouteShown({ kind: 'unsupported', message: 'This plan is not waiting for review now. Edit its latest version when it appears.', raw }); return false; }
@@ -1107,7 +1117,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
             ))}
           </div>
         )}
-        {!(sheetMode && sheetHistory) && <ChatMessages msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} follow={follow} />}
+        {!(sheetMode && sheetHistory) && <ChatMessages renderTutor={chat && !tocView && roadmap?.on ? m => <TutorMessage m={m} roadmap={roadmap} chat={chat} /> : null} msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} follow={follow} />}
         {/* Fix B: the explain-on-canvas roadmap's lines, in this transcript after the thread's messages (RoadmapTranscript.jsx). */}
         {chat && !tocView && roadmap?.on && <RoadmapTranscript roadmap={roadmap} chat={chat} msgs={msgs} />}
         {choices && (

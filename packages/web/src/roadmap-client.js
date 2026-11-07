@@ -19,7 +19,7 @@ export const routes = {
   create: (boardId, fields, actionKey) => ({ method: 'POST', path: BASE, body: { boardId, ...fields, actionKey } }),
   answer: (view, fields, actionKey) => mutate(view, 'answer', fields, actionKey),
   revise: (view, fields, actionKey) => mutate(view, 'revise', fields, actionKey),
-  acceptPlan: (view, actionKey) => mutate(view, 'accept-plan', { planVersion: view.roadmap.planVersion }, actionKey),
+  acceptPlan: (view, actionKey) => mutate(view, 'accept-plan', { planVersion: view.planDraft?.version ?? view.roadmap.planVersion }, actionKey), // the displayed draft (contracts.md: 409 stale_draft otherwise)
   proposeNext: (view, actionKey) => mutate(view, 'steps/propose', {}, actionKey),
   acceptProposal: (view, actionKey) => mutate(view, `proposals/${view.proposal.id}/accept`, { proposalVersion: view.proposal.version }, actionKey),
   cancelProposal: (view, actionKey) => mutate(view, `proposals/${view.proposal.id}/cancel`, { proposalVersion: view.proposal.version }, actionKey),
@@ -52,7 +52,7 @@ export function actionKeys(random = () => globalThis.crypto.randomUUID()) {
 }
 
 // --- state ----------------------------------------------------------------------------------------------------------------
-export const initialState = () => ({ flag: 'unknown', view: null, invitation: null, dismissed: [], suppressed: null, notice: null, busy: [], mode: 'auto', draft: null, editing: false, limitation: null });
+export const initialState = () => ({ flag: 'unknown', view: null, invitation: null, dismissed: [], suppressed: null, boundary: null, notice: null, busy: [], mode: 'auto', draft: null, editing: false, limitation: null });
 
 const sameRoadmap = (a, b) => a?.roadmap?.id === b?.roadmap?.id;
 // A view older than the one held (same roadmap) is ignored: a slow poll never rolls the screen back.
@@ -72,6 +72,7 @@ export function reduce(state, event) {
     case 'invitation': return { ...state, flag: 'on', invitation: event.invitation && !state.dismissed.includes(event.invitation.id) ? event.invitation : null, suppressed: event.suppressed || null };
     // Dismissal scopes to this invitation id only: the id is remembered, nothing global changes.
     case 'dismissed': return { ...state, invitation: state.invitation?.id === event.id ? null : state.invitation, dismissed: [...state.dismissed, event.id] };
+    case 'boundary': return { ...state, boundary: event.boundary };
     case 'flag_off': return { ...initialState(), flag: 'off', mode: state.mode };
     case 'mode': return { ...state, mode: event.mode };
     case 'begin': return state.busy.includes(event.gesture) ? state : { ...state, busy: [...state.busy, event.gesture] };
@@ -133,25 +134,21 @@ export function canProposeNext(state) {
   if (view.roadmap.deliveredCount >= view.roadmap.ceiling) return false;
   return view.steps.some(s => s.state === 'planned');
 }
-// ToC roadmap section. null = nothing to show (flag off, no unfinished or recent roadmap).
+// The ToC's roadmap (UI.02): the ACCEPTED plan only, as rows for the existing outline tree (learn-outline-model.js withRoadmap). A draft never
+// leaks here; while a revision is a Chat draft the accepted tree stays. No parameters, stopping point, actions or conversation: those are Chat's.
+// null = nothing accepted (flag off, no roadmap, or only a draft).
 export function tocOf(state) {
   const view = state.view;
-  if (!enabled(state) || !view) return null;
-  const rm = view.roadmap, plan = view.plan;
+  if (!enabled(state) || !view || !acceptedPlanOf(view)) return null;
+  const rm = view.roadmap;
   return {
-    state: rm.state, depth: STRINGS.depthName[rm.depth] || rm.depth, practice: STRINGS.explanationsOnly,
-    outcome: plan?.outcome || null, assumptions: plan?.assumptions || [], stoppingPoint: plan?.stoppingPoint || null,
+    roadmapId: rm.id, state: rm.state,
     steps: view.steps.map(s => {
-      const result = resultsOf(view).find(r => r.stepId === s.id);
-      return { id: s.id, position: s.position, title: s.title, state: s.state, status: STRINGS.stepState[s.state] || s.state, removed: result?.delivery === 'removed', nav: stepNav(s, view) };
+      const result = resultsOf(view).find(r => r.stepId === s.id), removed = result?.delivery === 'removed';
+      const nav = stepNav(s, view), stage = s.stage && s.stage !== 'planned' ? s.stage : nav?.kind === 'proposal' ? 'proposed' : null;
+      return { id: s.id, position: s.position, title: s.title, description: s.goal || '', format: STRINGS.formatName[s.format] || s.format || '', state: s.state,
+        status: (stage ? STRINGS.stage[stage] : null) || STRINGS.stepState[s.state] || s.state, removed, nav };
     }),
-    question: view.question, limitation: view.limitation,
-    actions: {
-      acceptPlan: rm.state === 'proposed' && plan ? { planVersion: plan.version, busy: state.busy.includes(`plan:${rm.id}:${plan.version}`) } : null,
-      editPlan: ['questioning', 'proposed', 'active', 'paused', 'completed'].includes(rm.state),
-      proposeNext: canProposeNext(state),
-      end: isUnfinishedRoadmap(rm.state) || rm.state === 'completed',
-    },
   };
 }
 // A result the server is still making (not failed, not yet generated). Nothing is predicted: the words follow the view.
@@ -176,13 +173,26 @@ export function chatOf(state) {
   }
   return lines;
 }
-// The invitation card: the server offers (Auto-suggest, mode and unfinished roadmap are decided there); the client only holds it
-// back while the learner is typing or an answer is streaming, and in Ask mode. Reload re-reads the same invitation.
-export function invitationOf(state, { typing = false, answering = false } = {}) {
+// The invitation: an explicit drop is acknowledged at once in every mode (UI.01, roadmap 3.3): no typing, answering or Ask deferral. The
+// server still decides (an unfinished roadmap suppresses it; the Chat then explains the one-roadmap boundary). Reload re-reads the same one.
+export function invitationOf(state) {
   const iv = state.invitation;
-  if (!enabled(state) || !iv || iv.state !== 'offered' || typing || answering || askMode(state) || unfinished(state.view)) return null;
-  return { id: iv.id, text: STRINGS.invite(iv.title), sourceKeys: iv.sourceKeys, choices: [{ id: 'explain_on_canvas', label: STRINGS.explain }, { id: 'keep_here', label: STRINGS.keepHere }] };
+  if (!enabled(state) || !iv || iv.state !== 'offered' || unfinished(state.view)) return null;
+  return { id: iv.id, title: iv.title, text: STRINGS.inviteDrop(iv.title), sourceKeys: iv.sourceKeys, choices: [{ id: 'explain_on_canvas', label: STRINGS.explain }, { id: 'keep_here', label: STRINGS.keepHere }] };
 }
+// The pending proposal as an explicit Chat action sees it (UI.03/UI.05): pillOf without the Ask gate, so an explicit Accept / Next card / Cancel in
+// Chat works in Ask and Auto-suggest off. Same gesture strings as pillOf, so Chat, canvas and Tab coalesce into one request.
+export function offerOf(state) {
+  const view = state.view, p = view?.proposal;
+  if (!enabled(state) || !p || view.roadmap.state !== 'active' || p.state !== 'pending') return null;
+  const gesture = `accept:${p.id}:${p.version}`;
+  return { proposalId: p.id, version: p.version, stepId: p.stepId, title: p.title, description: p.description, format: p.format, gesture, cancelGesture: `cancel:${p.id}:${p.version}`,
+    accept: p.acceptable === true && !state.editing && !state.busy.includes(gesture), accepting: state.busy.includes(gesture), canEdit: view.edit === true && !p.link };
+}
+// Draft vs accepted plan (BRIEF contract 5). The backend publishes the exact fields in contracts.md; until then: an explicit view.draft /
+// view.planDraft / view.acceptedPlan wins, else the plan is the draft while the roadmap is proposed and the accepted plan once acceptedPlanVersion is set.
+export const draftOf = view => (view?.planDraft !== undefined ? view.planDraft : view?.roadmap?.state === 'proposed' ? view.plan : null);
+export const acceptedPlanOf = view => (view?.acceptedPlan !== undefined ? view.acceptedPlan : view?.roadmap?.acceptedPlanVersion != null && view.roadmap.state !== 'proposed' ? view.plan : null);
 // Hover-only label from the actor's private index (D37): derived from the view, never stored on or read from the card.
 export function stepLabelFor(view, cardId) {
   const result = resultsOf(view).find(r => r.slot?.cardId === cardId);
