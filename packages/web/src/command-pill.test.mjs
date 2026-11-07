@@ -22,10 +22,15 @@ const html = props => renderToStaticMarkup(createElement(CommandPill, { onRemove
 // Owner spec 2026-10-29: a display pill shows the canonical typed name without its slash (explain, photos, image, 3d); the slash
 // stays only in typed syntax. The x is named by the command's title.
 test('the pill is the command\'s typed name in its tint, with a remove button named by its title', () => {
+  // Owner 2026-11-07: id explain is typed /interactive (every saved binding kept); /explain is the written id explanation.
   const explain = html({ name: 'explain', onOpen: () => {} });
   assert.match(explain, /^<span data-command-pill="explain" data-command-tone="explain" class="inline-flex shrink-0 items-center border">/);
-  assert.match(explain, /<button type="button" title="Change the command" class="[^"]*font-medium">explain<\/button>/);
-  assert.match(explain, /aria-label="Remove Explanation" title="Remove Explanation"/);
+  assert.match(explain, /title="Change the command" class="[^"]*font-medium">interactive[<][/]button>/);
+  assert.match(explain, /aria-label="Remove Interactive" title="Remove Interactive"/);
+  const written = html({ name: 'explanation', onOpen: () => {} });
+  assert.match(written, /^<span data-command-pill="explanation" data-command-tone="explanation"/);
+  assert.match(written, /font-medium">explain[<][/]button>/);
+  assert.match(written, /aria-label="Remove Explanation" title="Remove Explanation"/);
   assert.match(html({ name: '3d' }), /font-medium">3d<\/span>.*aria-label="Remove 3D scene"/);
   // Stable ids keep their meaning (owner, 2026-10-26): id image is typed /photos, id generate-image is typed /image.
   assert.match(html({ name: 'image' }), /font-medium">photos<\/span>.*aria-label="Remove Photo search"/);
@@ -56,7 +61,7 @@ test('every registered command (Chat, Ctrl+K and Insert) has a pill with its typ
       assert.ok(pill.includes(`aria-label="Remove ${labelOf(command)}"`), `/${command.name}: Remove ${labelOf(command)}`);
     }
   }
-  assert.equal(SLASH.length, 20 /* /animation added, owner 2026-10-30; /whiteboard (whiteboard-video), owner roadmap 2026-11-04 */);
+  assert.equal(SLASH.length, 21 /* /explain split into /explain and /interactive, owner 2026-11-07; /animation added, owner 2026-10-30; /whiteboard (whiteboard-video), owner roadmap 2026-11-04 */);
   // The Home, Library and Project bar has no slash commands since 2026-10-20 (owner), so it draws no command pill at all.
   const bar = readFileSync(new URL('./agent/AgentBar.jsx', import.meta.url), 'utf8');
   assert.doesNotMatch(bar, /data-command-pill|commandLabel/);

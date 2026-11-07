@@ -43,14 +43,19 @@ export const NOT_INLINE = Object.freeze({
   quiz: 'assessment, not explanation: it waits for the learner\'s answer',
   // Source search opens the shared source finder, never a generator (Release B; Ctrl+K's own handling is lane B2's).
   youtube: 'source search: opens the source finder', arxiv: 'source search: opens the source finder', wikipedia: 'source search: opens the source finder',
+  // Owner 2026-11-07: id `explain` is /interactive (a playable visual with an approval step); inline's own `explain` route is the written
+  // card, now reached by the command id `explanation` (INLINE_COMMAND_ROUTE). The id shares the route's key, so NOT_INLINE is checked first.
+  explain: 'an interactive visual with controls and an approval step: use it from the chat composer',
 });
+// A command id whose inline route has another key: /explain (id explanation) is the written Explanation card, route `explain`.
+export const INLINE_COMMAND_ROUTE = Object.freeze({ explanation: 'explain' });
 // Routes reached only by their explicit command, never by automatic routing: they are not in ROUTES, so no routing
 // question or validator lists them (Release B lead ruling, 2026-10-16: owner 1A puts /flashcards in Ctrl+K; Auto decides
 // exactly as before). Each runs its own handler, as the Chat command does.
 export const EXPLICIT_ROUTES = Object.freeze({ flashcards: { tool: 'create_learning_artifact', label: 'Flashcards' }, cad: { label: 'CAD' }, animation: { label: '3D animation' }, 'whiteboard-video': { label: 'Whiteboard' } });
 export const routeLabel = route => ROUTES[route]?.label || EXPLICIT_ROUTES[route]?.label || route;
 // Every Learn command has exactly one inline status - checked against the registry by the tests.
-export const inlineStatus = name => (ROUTES[name] ? 'route' : EXPLICIT_ROUTES[name] ? 'explicit' : NOT_INLINE[name] ? 'n/a' : 'unknown');
+export const inlineStatus = name => (NOT_INLINE[name] ? 'n/a' : ROUTES[INLINE_COMMAND_ROUTE[name] || name] ? 'route' : EXPLICIT_ROUTES[name] ? 'explicit' : 'unknown');
 const META = {
   several: 'More than one of these outputs is asked for at once (for example a diagram and a video).',
   none: 'None of these fits: the request asks for something else (audio, a quiz, a translation, or to change the selection itself).',
@@ -100,12 +105,13 @@ export function planRoute({ mode, prompt, enabled = ['note'] }) {
     // A removed command is unavailable even where its route still runs from plain words (/compare, /walkthrough).
     const removed = unavailableCommand(typedOf(command.name));
     if (removed) return { clarify: { question: removed, options: [] } };
-    if (!(ROUTES[command.name] || EXPLICIT_ROUTES[command.name]) || command.name === 'note') {
+    const route = INLINE_COMMAND_ROUTE[command.name] || command.name;
+    if (NOT_INLINE[command.name] || !(ROUTES[route] || EXPLICIT_ROUTES[route]) || route === 'note') {
       const known = SLASH.some(entry => entry.name === command.name && entry.places.includes('learn'));
       return { clarify: { question: known ? `/${typedOf(command.name)} isn't part of inline Explain (${NOT_INLINE[command.name] || 'not an explanation'}). Use it from the chat composer.` : `/${command.name} is not a Learn command.`, options: ['note'] } };
     }
-    if (!enabled.includes(command.name)) return { unavailable: unavailableText(command.name) };
-    return { route: command.name, via: 'command', args: command.args };
+    if (!enabled.includes(route)) return { unavailable: unavailableText(route) };
+    return { route, via: 'command', args: command.args };
   }
   if (isPlainExplain(prompt)) return { route: 'note', via: 'default', args: String(prompt).trim() };
   return { classify: true };
