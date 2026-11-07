@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { Heading1, Heading2, Heading3 } from 'lucide-react';
 import { canvasEditMenus, localInsertItems, ownerInsertItems } from './canvas-menus.js';
 import { menuIcon, MENU_ICON_SIZE, MENU_ICON_STROKE } from './menu-icon.js';
 
@@ -23,7 +24,7 @@ test('Insert: sections, local rows, then Notebook, Upload a file, Webpage, Searc
   const insert = ownerInsertItems({ canvas, onUpload() {}, onSearchSources() {}, onLinkToCanvas() {} });
   assert.deepEqual(groups(insert), [['Section', 'Text box', 'Sticky note', 'Divider', 'Equation'], ['Notebook', 'Upload a file', 'Webpage', 'Search sources'], ['Add a link']]);
   assert.deepEqual(labels(find(insert, 'Section').items), ['Section', 'Sub-section', 'Sub-sub-section']);
-  assert.ok(find(insert, 'Section').items.every(item => !item.size && !item.weight && !item.icon), 'text-only choices, typography not enlarged');
+  assert.ok(find(insert, 'Section').items.every(item => !item.size && !item.weight && item.icon), 'H1, H2 and H3 icons (owner 2026-11-07), typography not enlarged');
   assert.deepEqual(groups(localInsertItems(canvas)), [['Section', 'Text box', 'Sticky note', 'Divider', 'Equation']], 'a shared canvas gets the local rows');
   assert.doesNotMatch(labels(walk(insert)).join('|'), /YouTube|arXiv|Wikipedia|Files|Share|Publish|Embed/, 'one source finder, no Files, Share, Publish or Embed');
 });
@@ -237,4 +238,17 @@ test('View: Shortcuts directly below Slash Commands; platform hints and aria key
   assert.ok(allMenus().flatMap(menu => menu.items).every(item => !item.hint || !/Ctrl/.test(item.hint) || !item.keys || /Control/.test(item.keys)), 'each hint and its aria keys agree');
   assert.equal(find(build({})[2].items, 'Shortcuts'), undefined, 'no callback, no row');
   assert.deepEqual(groups(build({}, { onShortcuts() {} })[2].items).at(-1), ['Shortcuts'], 'without Slash Commands it still ends the View menu');
+});
+
+test('View: Canvas, Study and Page guides each lead with an icon (owner 2026-11-07), the row renderer draws a choice row icon', async () => {
+  const study = { mode: 'canvas', setMode() {} };
+  const view = owner({}, { study })[2];
+  for (const label of ['Canvas', 'Study', 'Page guides']) assert.ok(find(view.items, label).icon, label + ' has an icon');
+  assert.notEqual(find(view.items, 'Canvas').icon, find(view.items, 'Study').icon);
+  const { readFileSync } = await import('node:fs');
+  const bar = readFileSync(new URL('./CanvasMenubar.jsx', import.meta.url), 'utf8');
+  assert.ok(bar.split('<Lead icon={item.icon} />').length - 1 >= 2, 'a submenu row and a choice row both draw their icon');
+  assert.ok(!bar.includes('<Lead />'), 'no row is drawn without asking for its icon');
+  const section = find(owner({}, {})[0].items, 'Section');
+  assert.deepEqual(section.items.map(item => item.icon), [Heading1, Heading2, Heading3], 'Insert > Section: H1, H2 and H3');
 });
