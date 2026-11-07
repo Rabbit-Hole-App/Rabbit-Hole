@@ -303,6 +303,7 @@ These are repository configuration facts at the pinned SHA, not proof of live pr
 | Existing interactive engine (internal `explain`) | Current `explain_brief/author/review/repair`, Opus5.5 with existing individual limits. | Its public command becomes `/interactive` in the standalone split. The written `/explain` uses the ordinary Explanation path. |
 | Research/adaptation/vision | `roadmap_research`, `roadmap_adapt`, `roadmap_vision_extract` are proposed future roles. | Register only at the owning rung, with bounded input/output, actual requested/served model and focused eval. |
 | PDF page reader | Planned `read_pdf_pages` with the private CPU Docling worker in §6.3. | Shared read-only tool for authorized attached PDFs. Reuse stored pages and charge indexing to platform work limits. |
+| Codebase reader with Graphify | Existing repository graph and source tools. R13 targets `graphifyy==0.9.103` in the current indexer and shared registry wiring in §6.10. | Read-only graph and source operations on an authorized snapshot. Code extraction and lookup use local deterministic work. |
 | Calculator | Deterministic restricted parser/evaluator, no model. | Finite grammar/limits and computational provenance, zero provider call. |
 | Image/Motion/Whiteboard/CAD/3D | Reuse each current engine configuration and override logging. | No blanket model replacement. Image provider IDs, CAD Sonnet, Motion/Whiteboard roles and TTS are owned by their existing engines. |
 
@@ -2116,7 +2117,7 @@ Store each command's cases in its own `packages/control-plane/test/fixtures/chat
 
 ### 6.10 R13 Project canvases
 
-**Current status:** NEW Tutor repository source adapter. Repository snapshots/readers and Project surfaces already exist; current roadmap source access is owned Markdown only. Reuse source coverage helpers without requiring all of R7, R12 or R16. Imports remain inert.
+**Current status:** Project imports and Project Chat already use Graphify-backed snapshots and code tools. At main `f411c6dee88a0f222ac58df638a41009e56c3867`, the worker pins `graphifyy==0.9.63` and the roadmap source reader accepts owned Markdown. The upgrade to `0.9.103` and the R13 Tutor/shared registry wiring are pending. See [the product workflow](tutor-roadmap-v1.4.md#95-r13-repository-evidence-with-graphify).
 
 **Browser-local prerequisites:** Provide a locally authorized repository snapshot at an immutable commit, Main and child Project canvases, missing/excluded file fixtures and a second unauthorized session. Implement the NEW Project/reference harness against existing RepositorySource and Project surfaces.
 
@@ -2124,16 +2125,32 @@ Store each command's cases in its own `packages/control-plane/test/fixtures/chat
 
 These tasks extend R4's shared source identity, coverage and access boundary with the repository adapter; they do not require R7 long-Markdown/PDF delivery or media adapters. Reuse R7 helpers when already available without making that optional reuse a release gate. Current repository seams were rechecked at the audit baseline. NEW Tutor repository files are implementation targets; existing repository reading does not mean the Tutor adapter is complete.
 
+### R13.00 Upgrade and qualify the existing Graphify indexer
+
+**Owner:** Tools and Lead. Qualify the worker update before enabling the R13 registry adapter. Use `graphifyy==0.9.103`, the latest stable pin verified at handoff (tag `v0.9.103`, 5 November 2026). Its Python floor is 3.10. The tagged package supports the existing `extract(paths, root=..., cache_root=..., parallel=False)` API for extracting code nodes and edges.
+
+**Current seams:** `packages/lesson-renderer/Dockerfile`, `index_repository.py::{VERSION,index,unpack}`, `repository_jobs.py` and `packages/control-plane/src/repositories.js::{RepositoryImports,repositorySnapshot,readableVersion}`. Reuse the existing CPU worker, file allowlist, import jobs and R2 `REPOSITORY_SNAPSHOTS` binding.
+
+- [ ] Update the indexer image to `graphifyy==0.9.103` and tag normalized output `graphifyy-0.9.103-small-1`. Use the local `graphify.extract.extract` API with the current bounded code-file set. Preserve archive validation, excluded-file reports, timeout and inert code parsing. Record resolved dependency versions and the pinned release's license/notice.
+- [ ] Validate repo, full commit, graph/file shape and the known extractor version in `RepositoryImports`. Accept old and new known worker versions during rollout. Select the versioned R2 object name from a server-owned mapping and record it in `repository_versions.storage_key`. New builds record the new version. Existing `(app_id, commit_sha)` rows keep their stored keys, including on same-commit reimport. Retain `repositorySnapshot` reads through those keys so saved graph node IDs and code links still resolve.
+- [ ] Qualify a local archive with the real pinned CPU extractor. Assert definitions and cross-file calls in TypeScript or JavaScript and Python, correct repo-relative paths and original lines, confidence labels, repeated symbols and skipped files. Check the normalized output against the existing Project graph and reader. Exercise import limits and read both a saved 0.9.63 snapshot and a new 0.9.103 snapshot.
+
+**Local checks:** Extend `packages/lesson-renderer/test_repository.py`. Run `python -m unittest test_repository.py` from `packages/lesson-renderer` in the pinned worker environment, then `node --test packages/control-plane/test/repositories.test.js` from the repo root. Use zero paid model calls. Record package and candidate SHA, emitted snapshot version, source anchors and old-snapshot readback. Use the supported release sequence and worker rollback path.
+
+- https://github.com/Graphify-Labs/graphify/releases/tag/v0.9.103
+- https://pypi.org/project/graphifyy/0.9.103/
+- https://github.com/Graphify-Labs/graphify/blob/v0.9.103/graphify/extract.py
+
 ### R13.01 Resolve authorized repository snapshots for Tutor
 
-**Owner:** Tools; Lead integrates registry. **Depends:** R4 source-tool/access and immutable source/coverage contracts; relevant cleanup interface receipt. R7 helper reuse is optional. **v1.3:** §§3.14, 4.1, 6.2; **legacy:** M12.4, M4.23. **Model:** none for reads; reuse the R4 registered planner only after evidence resolves.
+**Owner:** Tools; Lead integrates registry. **Depends:** R13.00, R4 source-tool/access and immutable source/coverage contracts, and the relevant cleanup interface receipt. R7 helper reuse is optional. **v1.3:** §§3.14, 4.1, 6.2; **legacy:** M12.4, M4.23. **Model:** none for reads; reuse the R4 registered planner only after evidence resolves.
 
-**Current seams:** `packages/control-plane/src/repositories.js` `repositoryAccess`, `readableVersion`, `repositorySnapshot`; `packages/control-plane/src/canvases.js` `projectRepository`. **NEW files/contracts:** `packages/control-plane/src/roadmap/roadmap-source-repository.js`, `test/roadmap-source-repository.test.js`; **modify:** current `roadmap-tools.js` registry through Lead.
+**Current seams:** `packages/control-plane/src/repositories.js` `repositoryAccess`, `readableVersion`, `repositorySnapshot`; `packages/control-plane/src/canvases.js` `projectRepository`. **NEW files/contracts:** `packages/control-plane/src/roadmap/roadmap-source-repository.js`, `test/roadmap-source-repository.test.js`; **modify:** current `roadmap-tools.js` catalogue and typed dispatcher plus the qualified `chat-tools.js` answer and command paths through Lead.
 
 - [ ] Implement `readRepositoryScope(access, {repo, commit, paths, ranges}, limits)` returning the shared typed tool result, immutable source identity, read ranges and omissions. Resolve the repository from authorized project/board relationships before loading R2; client repository IDs are selectors only.
 - [ ] Preserve explicit commit selection and `readableVersion` authorization. Distinguish not indexed, missing snapshot, excluded path and permission denial; do not copy `projectRepository`'s quiet `null` fallback into a Tutor claim of successful reading.
 - [ ] Bind cache keys to repository, commit, extractor version and authorization scope. Recheck access before serving cached text; a public snapshot becoming unavailable does not become readable merely because it was cached.
-- [ ] Register the adapter independently; refuse unsupported source scopes before planning. Keep imported files inert and Tutor actions owner-only until R14.
+- [ ] Register the adapter independently in the shared capability catalogue. Offer schemas only after the caller's mode, scope, permissions, pinned snapshot and remaining work limits qualify. Resolve repo and commit in trusted request context. Validate name and arguments before dispatching the existing repository operation. Keep imported files inert and Tutor actions owner-only until R14.
 
 **Task evidence:** Cover exact commit, public readable version, unauthorized private import, missing index, missing R2, forged path and revoked cache access. **Done:** fixture records show the requested commit and explicit coverage, with zero model calls on refused reads.
 
@@ -2141,22 +2158,28 @@ These tasks extend R4's shared source identity, coverage and access boundary wit
 
 **NEW unit tests (create, then run from root):** `node --test packages/control-plane/test/roadmap-source-repository.test.js`
 
-### R13.02 Build code evidence without restoring retired activities
+### R13.02 Connect Graphify-backed code evidence to the shared registry
 
 **Owner:** Tools. **Depends:** R13.01 and R4 shared coverage/support contracts; optional reuse of already-shipped R7 indexing helpers. **v1.3:** §§3.14, 6.2; **legacy:** M12.4. **Model:** deterministic retrieval; reuse registered `roadmap_index` only for enabled bounded navigation summaries. Ordinary code-source explanations use the supported original source context plus accepted brief and one author call; no mandatory source quotation reviewer or new codebase tutor model.
 
 **Current seams:** `packages/control-plane/src/repository-context.js` `repositoryTool`, bounded `read_source`; `packages/control-plane/src/learn-codebase-source-map.js` `learningSourceMap`, `sourceDrift`. The legacy map requires a known goal at its goal lookup and its route creates old coaching activities; it is not the new roadmap entry point. **NEW files/contracts:** `packages/control-plane/src/roadmap/roadmap-repository-evidence.js`, `test/roadmap-repository-evidence.test.js`; **modify:** R13.01 adapter.
 
+Use `repository-context.js::{REPOSITORY_TOOLS,repositoryTool}` behind the registry. Reuse the schemas and limits for `get_repo_overview`, `search_code`, `query_graph`, `get_relationships`, `explain_symbol` and `find_connection_path`. Expose the repository line reader as `read_code_source`, mapping to its existing `read_source` implementation with `{path, start?, end?}`. The alias keeps the shared Markdown `read_source` schema unambiguous. Project Chat can use its existing tool names.
+
+Resolve the authorized snapshot before each call. Use the graph or search to locate candidates, then read exact numbered lines as evidence. Adapt results to the typed contract with `repo`, full `commit`, snapshot version, returned source ranges and omitted coverage. Retain edge confidence and distinguish graph-only relationships from original text read. Use `partial` when scoped evidence has omissions and the current typed unavailable outcomes for missing, unindexed or revoked sources.
+
+Connect eligible tools to Ask, Auto, Tutor, roadmap preparation and supported command briefs. An explicit file or range selection can use the same reader from the application. Resolve code evidence before the draft or offer. Bind the actual file ranges and snapshot identity to the reviewed brief and accepted writer request. Reuse the existing single author call for ordinary explanations.
+
 - [ ] Reuse retained pure range/hash/omission helpers, extracting them only if cleanup removed their old owner. Accept learner instruction and selected scope without requiring a personal goal or invoking `codebaseActivity`.
 - [ ] Retrieve original numbered lines for claims; preserve the 120-line/16,000-character reader bounds and report subsequent ranges needed. Treat graph edges as structural evidence, not runtime execution.
 - [ ] Persist `{repo,commit,path,start,end,fileHash,readStatus}` and explicit excluded/unread ranges; only actual reads count as source coverage; `source_supported` is a proposed provenance label, not a required LLM review verdict for ordinary prose. Preserve tentative graph relationships separately.
-- [ ] Add fixtures for repeated symbols, missing files, skipped secrets and a selected body exceeding one range; demonstrate that omitted lines never support an answer or quiz key.
+- [ ] Add fixtures for repeated symbols, missing files, skipped secrets and a selected body exceeding one range. Exercise Ask, Auto, Tutor draft and step authoring, and an eligible slash brief through the registry. Capture offered schemas, graph lookup, original lines in the actual writer request and a typed refused or partial call. Use model doubles. Verify disabled or unauthorized contexts refuse dispatch and omitted lines cannot support an answer or quiz key.
 
 **Task evidence:** The retained source-map suite is current at this baseline; keep the legacy implementation’s activity-creation side effects out of the Tutor adapter. **Done:** evidence manifests distinguish graph-only, read and unavailable material; no retired journey/goal is created.
 
 **Current unit regressions (exist at baseline; root working directory):** `node --test packages/control-plane/test/learn-codebase-source-map.test.js`
 
-**NEW unit tests (create, then run from root):** `node --test packages/control-plane/test/roadmap-repository-evidence.test.js`
+**Registry and evidence checks from the repo root:** Extend `roadmap-tools.test.js` and `chat-tools.test.js`. After creating the evidence suite, run `node --test packages/control-plane/test/repositories.test.js packages/control-plane/test/roadmap-tools.test.js packages/control-plane/test/chat-tools.test.js packages/control-plane/test/roadmap-repository-evidence.test.js`.
 
 ### R13.03 Preserve commit-bound navigation and source changes
 

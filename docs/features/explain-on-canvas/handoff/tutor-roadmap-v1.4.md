@@ -25,6 +25,7 @@
 - [8 Pacing, feedback and practice](#8-pacing-feedback-and-practice)
 - [9 Formats and Tutor capabilities](#9-formats-and-tutor-capabilities)
   - [9.4 R12 command selection and the shared Tutor flow](#94-r12-command-selection-and-the-shared-tutor-flow)
+  - [9.5 R13 repository evidence with Graphify](#95-r13-repository-evidence-with-graphify)
 - [10 Uncertainty, research, safety and privacy](#10-uncertainty-research-safety-and-privacy)
 - [11 Credits, persistence and failure recovery](#11-credits-persistence-and-failure-recovery)
 - [12 Release ladder and cleanup dependencies](#12-release-ladder-and-cleanup-dependencies)
@@ -468,7 +469,7 @@ Other capabilities keep their applicable rules: quiz-key/assessment validity, fe
 
 ### 5.4 Sources that exceed the supported context
 
-Do not promise that every document fits a single prompt. R7a provides a versioned whole-document outline, bounded summaries and retrieval of original sections for long Markdown. Summaries guide selection; the author receives a sufficient supporting context bundle, separate from the highlight anchor, with explicit coverage and omissions. R7b adds structured PDF page evidence. R13 adds code snapshots. R15 extends visual interpretation to images, notes and broader OCR.
+Do not promise that every document fits a single prompt. R7a provides a versioned whole-document outline, bounded summaries and retrieval of original sections for long Markdown. Summaries guide selection; the author receives a sufficient supporting context bundle, separate from the highlight anchor, with explicit coverage and omissions. R7b adds structured PDF page evidence. R13 adds commit-bound repository evidence through the Graphify-backed tools in §9.5. R15 extends visual interpretation to images, notes and broader OCR.
 
 The first bounded-source correction does not require rebuilding R7 or a vector database. If the source is beyond the enabled capability, report the actual limit and ask for a supported teaching scope. Do not silently use the beginning of a long file, infer that an unread section is absent, or activate an unqualified adapter just to hide a limitation.
 
@@ -739,6 +740,7 @@ Tutor tools read authorized source content, inspect current canvas coverage, rea
 | Authorized canvas/source reader | Understand the document and existing content without making the learner paste it again. | Core; larger sources in R7. |
 | Outline, section retrieval and coverage | Work honestly with documents beyond the bounded full-context path. | R7a/R7b. |
 | PDF page reader | Return structured page blocks and selected figure evidence from an authorized attached PDF. | R7b `read_pdf_pages`, with the shared Docling worker under §5.4.1. |
+| Codebase reader with Graphify | Find definitions, callers, imports and related code, then retrieve original source lines from the pinned commit. | R13 reuses the existing repository indexer, graph tools and source reader through the shared registry. See §9.5. |
 | Private evidence reader | Adapt from relevant practice and self-reports without requiring a personal goal. | R9/R10. |
 | Shared Exa discovery plus guarded evidence fetch | Resolve a material public fact for a reply, roadmap draft or card brief. | R8a. Reuse the existing Exa and fetch infrastructure and qualify each caller under §10.2. |
 | Restricted calculator | Produce reproducible numerical results from a bounded expression. | R8b; before arbitrary execution. |
@@ -824,6 +826,16 @@ flowchart TD
 ```
 
 The [implementation checklist](tutor-implementation-checklist.md#r1201-register-the-accepted-command-boundary-and-per-adapter-release-checks) specifies the readiness, review and delivery checks. Release adapters individually once their own requirements pass.
+
+### 9.5 R13 repository evidence with Graphify
+
+Rabbit Hole already builds a Graphify code graph when importing a repository. Project Chat can query it and read the same commit's source. R13 brings those capabilities into the shared registry for **Ask**, **Auto**, **Tutor**, **Explain on canvas** and eligible command briefs with an authorized Project or attached repository scope. The [R13 checklist](tutor-implementation-checklist.md#610-r13-project-canvases) specifies the upgrade and wiring.
+
+1. **Index the authorized repository commit.** Upgrade the existing repository worker to `graphifyy==0.9.103`, the latest stable release verified on 7 November 2026. Use its local code extraction. New builds use the new pin. Previously saved graphs, selections and code links resolve through their existing commit snapshots.
+2. **Find the relevant code.** Resolve the Project or attached code selection and its commit before exposing the tools. Reuse the existing search, graph, symbol, relationship and path operations. For example, a question about how Tutor prices a card can start at the quote function and follow its calls to the writer request builder. Graphify's extracted and inferred relationships help choose which ranges to open.
+3. **Read the exact source.** Retrieve numbered lines for the relevant definitions and calls. Use the originals with the learner's question or approved goal, scope and Depth. For Explain on Canvas, resolve code evidence before drafting the roadmap and before reviewing a card that needs it. Reuse the existing review and generation flow. A source reference opens the original repository, commit, file and line range.
+
+The shared registry offers code tools only for a readable pinned snapshot. Keep graph-only results, original lines read and skipped files distinct. A graph path describes static relationships. Use the original code to explain the behavior the source supports. If a needed snapshot or range is unavailable, show that coverage and use the existing Chat recovery to narrow the request or ask a focused question.
 
 ## 10. Uncertainty, research, safety and privacy
 
@@ -1011,7 +1023,7 @@ The immediate ordinary sprint deliverable is: **drop Markdown → Chat opens and
 | R10 Adaptation | Future steps respond to learner instructions and feedback without losing delivered work. | Deliver explanations-only adaptation after Core Tutor. Add assessed-practice evidence after R9 qualifies it. Track expanded source and version revisions separately. |
 | R11 One-ahead preparation | While one card is on offer, privately prepare at most one eligible following explanation or table. | Deliver after Core Tutor and before R12. Requires stable lifecycle, versions and money binding. Reuse a checked, reconciled result on normal approval. |
 | R12 Command adapters | Tutor can choose the remaining registered formats. | Track each command in the [R12 command checklist](tutor-implementation-checklist.md#r12-command-checklist). Complete the shared acceptance contract first, then release each adapter when it meets its own requirements. Require R8a only for offers that need web evidence. |
-| R13 Projects | Explain on canvas from authorized codebase context/files. | Same flow and source honesty; no revival of old journeys or fixed codebase goals. |
+| R13 Projects | Use a Project's authorized code in Chat, Explain on Canvas and eligible card briefs, with original file and line links. | Qualify the Graphify upgrade in the existing indexer, then expose its repository tools in the shared registry under §9.5. Reuse the normal Tutor flow without requiring a personal goal. |
 | R14 Editors | Authorized editors run their own private Tutor state/evidence on a shared canvas. | Actor/owner/payer access matrix is required; no unrelated full gate. |
 | R15 Images/notes/OCR | Interpret scans, figures and notes with extraction uncertainty and coverage. | Dedicated visual source adapter beyond the R7b PDF page extraction and local OCR scope. |
 | R16 Sandbox | Execute authorized bounded code and report actual results. | Separate isolated execution service; not needed for snippets or the earlier calculator. |
