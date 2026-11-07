@@ -29,6 +29,7 @@ export function assetKeysOf(state) {
     if (block.source?.assetKey) keys.add(block.source.assetKey); // an uploaded code card's file (code-card.js)
     if (block.source_asset) keys.add(block.source_asset);
     if (block.source?.kind === 'upload' && block.source.assetKey) keys.add(block.source.assetKey); // a dropped code file's repo-code card
+    if (block.illustration?.cacheKey) keys.add(block.illustration.cacheKey); // a written Explanation's illustration (IllustrationFigure.jsx)
     for (const variant of block.variants || []) if (variant.cacheKey) keys.add(variant.cacheKey);
   }
   return [...keys];
