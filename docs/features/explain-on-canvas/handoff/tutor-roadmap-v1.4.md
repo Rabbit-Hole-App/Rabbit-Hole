@@ -16,6 +16,7 @@
 - [2 Current implementation and the immediate correction](#2-current-implementation-and-the-immediate-correction)
 - [3 The complete learner flow](#3-the-complete-learner-flow)
 - [4 Chat, Table of Contents and Progress](#4-chat-table-of-contents-and-progress)
+  - [4.7 Ordinary messages and tool requests](#47-ordinary-messages-and-tool-requests)
 - [5 Context, scope and source references](#5-context-scope-and-source-references)
 - [6 Proposal, generation and delivery lifecycle](#6-proposal-generation-and-delivery-lifecycle)
 - [7 Canvas placement and source navigation](#7-canvas-placement-and-source-navigation)
@@ -141,6 +142,8 @@ The corrected core must deliver the whole flow in section 3:
 6. Place successive slots near their highlighted passages, preferring free space on either side of the Markdown and top-to-bottom visual progression. Avoid existing material and controls, persist their world geometry and provide persistent source-to-card icons.
 7. Save and reload two consecutive accepted cards, with exactly one synchronized next proposal after canonical delivery when Auto-suggest permits it. Never add a Retry/Replace/Omit recovery UI or automatically offer a next card after safety refusal.
 8. Keep ToC limited to the accepted heading/step tree, status and navigation. Remove the obsolete split list, parameter box, Stopping point block and roadmap action/composer regions.
+
+9. Continue ordinary Chat replies through a recoverable tool-routing outage, following [section 4.7](#47-ordinary-messages-and-tool-requests). Qualify the shared answer path separately by mode and enabled capability set.
 
 These are corrections to R2/R3/R4/R5/R6 and their integration, not a new ladder rung that postpones them. The checklist's `CORE.*` and `UI.*` work maps the missing contracts to code. The ordinary **Explanations only** core can ship independently; acceptance of **Explanations + practice** additionally requires the minimal real R9 practice/assessment integration in section 8.2. Other later tools do not block ordinary Markdown acceptance.
 
@@ -363,6 +366,33 @@ These six files are the visual references for the current MVP. Open their HTML, 
 **The HTML illustrates appearance; the full workflow and persistence contract still govern implementation.** Demo buttons, fixture text, timers, simulated updates and DOM-only effects are not production logic. In particular, the Next-card demo is not permission to overwrite the previous card, lose its original source anchor, ask for a second Accept, fabricate progress, enable unqualified practice or discard ordinary unsent Chat input. Preserve saved cards and their highlights, create the successor's own slot, and use real canonical state. File 03 illustrates the roadmap message. Use the current Tutor Chat step from main for card offers, progress and delivery. For R12, put the existing shared Generate / Edit review inside that same step, following [section 9.4](#94-r12-command-selection-and-the-shared-tutor-flow). Preserve all existing production composer controls even where the focused mockup omits them.
 
 Use files 04 and 06 for the delivered Explanation frame and supported Markdown. File 05 specifies the source highlight and reverse link. File 02 illustrates the proposal slot and its actions. Record implementation evidence separately from reference review.
+
+### 4.7 Ordinary messages and tool requests
+
+**Shared reply path for Ask, Auto and Tutor.** Use the existing Chat composer and answer turn for ordinary messages. The learner's full request, authorized canvas and selected source context, thread and Depth travel together. Conversation, questions about a tool and a request to produce something can use similar words. Decide from the meaning of the request and the current context. A greeting such as `hi` is a test case alongside other conversational turns.
+
+| Mode | Ordinary typed message | Explicit action |
+| --- | --- | --- |
+| **Ask** | Answer questions in Chat and honor a requested tool where the existing mode and command policy allow it. Ask pauses unsolicited Tutor initiative. | A typed or picked slash command uses its existing handler. Explicit drop, Explain on canvas, roadmap approval and manual next-card actions still work. |
+| **Auto** | The answer model can reply, ask a focused question or request an eligible tool. The Auto-suggest preference separately controls unsolicited Tutor proposals. | Use the selected command or Tutor action's existing handler and review. |
+| **Tutor** | Use the shared reply path with the authorized conversation and lesson context. | Roadmap approval, an explicitly targeted edit and **Next card** use the Tutor controller and accepted step. R12 selects an eligible format for that step's learning objective under [section 9.4](#94-r12-command-selection-and-the-shared-tutor-flow). |
+
+**First ship the routing outage fix.** On main `8deb778fa2b0442b4ac494f9d94e88fffd72a6c3`, ordinary Ask and Auto sends use JEV before the answer request. An ordinary message in Tutor uses the Auto wire mode outside the Contents conversation. A recoverable routing failure currently returns an answer fallback that stops the send. Continue that uncommanded turn once through the authorized text-only reply in the same thread. Keep the same canvas, source references and Depth. Remove the tool-check failure banner, **Answer normally** and **Retry**. Show specific errors for authorization, invalid requests and explicit unavailable tools. An interrupted or stale send follows the normal cancellation behavior.
+
+**Then qualify the shared path.** Let the existing answer model reply directly or request a structured tool handoff within its answer turn. Offer only capabilities that the current mode, canvas and server allow. Use the current command adapters, availability checks and signed **Generate / Edit** review where required. The app verifies the requested capability and inputs, and generation starts with the existing approval. A known plan can be revised through an explicit Edit or a clear refinement request bound to that plan's revision. A conversation beside a waiting plan can still receive a reply. Use ordinary Chat for a tool-specific limitation or a focused clarification.
+
+```mermaid
+flowchart TD
+    Send["Send in Ask, Auto or Tutor"] --> Kind{"Entry action"}
+    Kind -->|"Named command or Tutor control"| Existing["Existing handler"]
+    Kind -->|"Ordinary message"| Reply["Answer model with eligible tools"]
+    Reply -->|"Reply or clarification"| Chat["Existing Chat turn"]
+    Reply -->|"Structured tool request"| Check{"Validate capability and inputs"}
+    Check -->|"Available"| Review["Existing action or Generate / Edit"]
+    Check -->|"Unavailable"| Chat
+```
+
+Start with the existing in-answer Motion proposal. Verify parity for the affected set of enabled tools and modes before switching that scope from JEV preflight. Use the current classifier for scopes awaiting parity, as well as its qualified inline and safety roles. Reuse the answer model and existing dispatchers for one semantic decision on ordinary turns. Keep example phrases in test cases. The two deliverables and focused local tests are in [checklist section 4.5](tutor-implementation-checklist.md#45-chat-routing-and-reply-reliability).
 
 ## 5 Context, scope and source references
 
@@ -613,7 +643,7 @@ Tutor tools read authorized source content, inspect current canvas coverage, rea
 
 **Choose for the learning outcome.** In the existing roadmap draft/revision pass, read the learner's instruction and edits, the step goal, the highlighted passage, its pinned source context, Depth and language, and relevant delivered coverage. State what the learner should be able to do and separately specify the behavior the card must provide. For example, testing what happens when a decision-tree cutoff changes requires a supported control and branch labels that update. A fixed branch diagram can serve a step about tracing a fixed decision. The source highlight identifies the teaching focus and navigation target. The author can use relevant definitions elsewhere in the pinned source under section 5.
 
-**Check the format before offering it.** The server supplies the planner with the enabled and supported command variants, what each can show or let a learner do, and their required inputs. Use the existing roadmap planning roles for this decision. JEV keeps its existing Chat/inline intent and safety roles. Verify the selected variant against its actual runtime, source access and evidence, required interactions, supported settings, and the command's readiness and work bound. For instance, Motion settings that disallow audio cannot satisfy a narrated demonstration, and a measured plot needs real data. If a different enabled format fulfills the same learning goal and fits the learner's request, propose it explicitly. If the learner requested an unavailable format or essential input is missing, explain the limitation or ask one focused question before presenting an actionable offer. Use the simplest eligible format that delivers the goal.
+**Check the format before offering it.** The server supplies the planner with the enabled and supported command variants, what each can show or let a learner do, and their required inputs. Use the existing roadmap planning roles for this teaching decision. [Section 4.7](#47-ordinary-messages-and-tool-requests) covers the separate ordinary Chat decision and staged JEV transition. JEV continues its qualified inline and safety roles. Verify the selected variant against its actual runtime, source access and evidence, required interactions, supported settings, and the command's readiness and work bound. For instance, Motion settings that disallow audio cannot satisfy a narrated demonstration, and a measured plot needs real data. If a different enabled format fulfills the same learning goal and fits the learner's request, propose it explicitly. If the learner requested an unavailable format or essential input is missing, explain the limitation or ask one focused question before presenting an actionable offer. Use the simplest eligible format that delivers the goal.
 
 | R12 path | Commands | What the learner reviews |
 | --- | --- | --- |
@@ -795,6 +825,8 @@ For the immediate release, prove the complete updated flow with distinct scenari
 - Persistent source highlights/icons and Chat/card navigation reach actual targets. Test overlapping links/local chooser, source revision ambiguity, absent/offscreen/collapsed passages, deleted cards and keyboard access. A pending or missing target never yields a dead generated-card link.
 - Save-before-acknowledge, lost response, reload and reconciliation preserve one actual card and charge. Genuine failure stays visible without Retry/Replace/Omit; safety refusal suppresses automatic next; other failure requires canonical successor eligibility. A save failure does not author again.
 - Exactly one next proposal appears on both surfaces after acknowledged delivery; with Auto-suggest off/Ask, **Propose next step** creates only metadata and the ready **Next card** action buys once without a second Accept. Explicit accepted-roadmap revision preserves delivered/in-flight history and controls future work only. Finite completion/end/pause stop unsolicited work.
+
+Run the companion checklist's [focused Chat routing tests](tutor-implementation-checklist.md#focused-chat-routing-tests-and-build) for changes in section 4.7. Verify replies under classifier failure and tool/review parity on the normal Ask, Auto and Tutor entry points.
 
 Test minimal R9 generation, immutable assessment and private evidence separately before claiming **Explanations + practice** works; a disabled dropdown is not that acceptance. Include real D1/workerd behavior where database/query/runtime changes require it; a permissive fake cannot prove D1-specific limits.
 

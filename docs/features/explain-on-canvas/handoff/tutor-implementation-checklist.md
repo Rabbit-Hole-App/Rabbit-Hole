@@ -16,6 +16,7 @@
 - [2 Current code, models and ownership](#2-current-code-models-and-ownership)
 - [3 Correct the remaining source, author and accounting gaps](#3-correct-the-remaining-source-author-and-accounting-gaps)
 - [4 Implement the complete Chat and canvas workflow](#4-implement-the-complete-chat-and-canvas-workflow)
+  - [4.5 Chat routing and reply reliability](#45-chat-routing-and-reply-reliability)
 - [5 Reconcile existing R1–R6 tasks](#5-reconcile-existing-r1r6-tasks)
 - [6 Continue the remaining R7–R16 ladder](#6-continue-the-remaining-r7r16-ladder)
   - [6.1 Later release implementation rules](#61-later-release-implementation-rules)
@@ -50,7 +51,7 @@ No new agent framework, duplicated UI, general pipeline rewrite, all-format qual
 
 ### 1.2 Read this document as executable tasks
 
-- `CORE.*` and `UI.*` are the current correction. Their owners commit narrow changes; shared integration belongs to the lead.
+- `CORE.*` and `UI.*` are the current correction. [`CHAT.01` and `CHAT.02`](#45-chat-routing-and-reply-reliability) track the routing outage repair and shared reply path. Their owners commit narrow changes; shared integration belongs to the lead.
 - Section 5 preserves R1–R6 IDs and maps completed/current behavior to exact implementation and remaining tests. It is not a request to rebuild them.
 - R7–R16 remain the feature ladder. A later rung's missing tests/capability are not blockers for an unrelated earlier supported slice. Each adapter can ship independently after its real dependencies.
 - `[x]` means the specifically stated implementation has been source-reviewed and locally verified at the audited SHA. `[ ]` remains incomplete or lacks the required evidence. A **partial** rollup has completed foundations and remaining work named separately; **deferred** remains unfinished outside the current sprint. A struck-through requirement is superseded, not completed. Owner manual production acceptance is a separate receipt; its absence does not uncheck verified backend work. Record existing proof and extend only what the change requires.
@@ -758,6 +759,53 @@ Use ordinary supported actions for manual production review. Reproduce failure i
 Before the manual review, record the backend receipt required by section 8.0. During the owner's later manual check, associate the deployed SHA/build with the visible results and any geometry/screenshots the owner supplies. Backend evidence does not prove physical scroll containment, focus behavior, placement or appearance. Check each implementation/verification box only against the appropriate evidence; do not mark manual production acceptance from a Node result.
 
 
+
+### 4.5 Chat routing and reply reliability
+
+Implement [roadmap section 4.7](tutor-roadmap-v1.4.md#47-ordinary-messages-and-tool-requests) in two independently testable slices. **CHAT.01** is the production outage repair. **CHAT.02** qualifies the shared reply and tool path for Ask, Auto and Tutor. The ordinary Explanation MVP, its section 8.0 verification and the individual R12 adapters have their own acceptance boundaries.
+
+**Focused routing baseline** at main `8deb778fa2b0442b4ac494f9d94e88fffd72a6c3`. `packages/web/src/ask.jsx::AskPanel.send` handles named commands and targeted edits, builds the message/context/Depth payload, then waits for `generation-proposal-chat.js::routeChat/routeOutcome` before `/api/learn/ask` on eligible plain sends. `packages/control-plane/src/chat-capability-route.js::decideChat` handles named capabilities, slash commands, wire Tutor mode and the existing plain explanation shortcut, then calls JEV for other text. The server can return `route: "answer", via: "fallback"` on a classifier failure. The client shows a decision, restores the draft and returns before the answer request. A failed browser route request reaches the same banner. The exact `hi` failure was reproduced with the real route decision and client outcome functions using local doubles. The focused baseline passed 87 Node cases including 9 reproduction cases. This evidence describes the pre-fix behavior. Section 2.1.1 records the full implementation audit checkpoint.
+
+#### CHAT.01 Continue ordinary replies during a router outage
+
+- [ ] Extend the client and route tests to reproduce the failure on an ordinary question and a conversational turn. Keep an eligible healthy tool request and a genuine clarification as controls.
+- [ ] In `packages/web/src/generation-proposal-chat.js::routeChat/routeOutcome`, separate recoverable router failure from validation/access errors and from valid clarification, unsupported and capability decisions. Cover timeout, JEV unavailable, malformed decision and a failed or transient route request. Propagate aborts. Distinguish an absent legacy route from a scoped not-found response. Refuse a missing or invalid proposal token as a tool-specific error.
+- [ ] In `packages/web/src/ask.jsx::send`, let a recoverable failure on an uncommanded turn reach the existing `/api/learn/ask` fetch once with the original frozen payload and a restrictive `answer_only: true` request field. Check the active flight and thread before continuing. Reuse the optimistic rows and the normal reply/persistence path. Keep permission and request errors visible and preserve the applicable draft. Explicit tool failures retain a specific error and their draft.
+- [ ] In `packages/control-plane/src/index.js::apiAsk`, validate the per-turn restriction and enforce it after the existing board/session checks in `packages/web/dev-worker.js`. Accept it only for ordinary canvas replies and reject contradictory command, proposal token, Edit or regeneration inputs. Keep authorized source/canvas context, thread and Depth and ordinary reply accounting. Skip generation and outline instructions and tools, suppress actionable tool suggestions for that turn, and give `researchAnswer` an empty tool list with `arxiv: false`. Keep the existing SSE and Chat persistence callbacks. Prove that a model's attempted tool call in this restricted turn cannot dispatch an action, reserve tool credits or create a job.
+- [ ] Remove the fallback banner and its **Answer normally** and **Retry** controls from `packages/web/src/RouteDecision.jsx` and its caller. Retain actual clarification options such as **Answer in chat** and specific refusals. Correlate routing failures using the existing request ID and outcome/error code. Record actionable reasons for missing transport or provider failure without source text or secrets.
+- [ ] Verify the focused matrix and build below and release this repair through [section 8](#8-local-verification-and-direct-production-release). Release evidence identifies the exact tested candidate and production build.
+
+#### CHAT.02 Qualify the shared reply and tool path
+
+- [ ] Route ordinary sends through the existing `/api/learn/ask` turn for the qualifying scope. Use current composer context and mode eligibility, including Ask's pause of unsolicited Tutor initiative. `packages/web/src/chat-route.js::askMode` maps ordinary Tutor messages to Auto today. Keep Contents/outline-only wire routing distinct and exercise the normal Tutor composer entry. Send slash commands and explicit roadmap actions through the existing handlers, including `RoadmapTranscript.jsx` and `roadmap-controller.js` for roadmap/step actions.
+- [ ] In `apiAsk` and `packages/control-plane/src/learn-research.js::researchAnswer`, use the existing answer model with optional tool calls. Reuse `generation-proposal.js::PROPOSAL_TOOL` for Motion first and use the command IDs and allowed capabilities from `packages/web/src/inline-ai-route.js` and `packages/web/src/agent/slash.js`. Use validated structured tool output. The model can answer with zero tool calls or ask a focused question. User wording, including a greeting or a tool mention, is model input. A selected source provides evidence and context for the learner's request.
+- [ ] Reuse each enabled command's existing preparation, direct dispatch or signed review through its current adapter. Validate user/canvas access, availability, capability, required inputs, context and current revision before handing off. Preserve the existing signed proposal, Edit, Generate and settlement gates and one saved turn. An explicit Edit targets its selected revision. Where a waiting Explain/Animation or Motion plan supports implicit refinement, use the existing plan/revision as context and require an actual refinement intent before invoking its revision handler. Verify both a genuine refinement and ordinary conversation beside the waiting plan. Present unavailable tool outcomes in Chat with the specific reason.
+- [ ] Qualify per affected mode and enabled command set before retiring its ordinary-turn JEV preflight. Start with the Motion proposal fixture and cover current natural-language direct commands and signed reviews before switching a scope that offers them. Use the current path with CHAT.01 resilience for scopes without parity. Keep the standalone inline and safety calls separate. R12's selected step, goal, source, eligibility and same-slot lifecycle are governed by [section 6.9](#69-r12--independently-released-command-adapters), independent of this Chat intent decision.
+- [ ] Verify fixture behavior and record coverage for every enabled answer transport in the candidate. Use the same labeled messages to compare missed and unnecessary tool requests, and time to first reply against the current JEV path when authorized provider evidence is available. Local doubles establish wiring, authorization, state and action counts. Record live intent quality as unverified where live testing is unavailable. Apply the existing model-spend authorization boundary.
+
+#### Focused Chat routing tests and build
+
+Use the actual `routeChat`, `chatRouteFetch` and Ask request/response path with transport doubles. Extend the existing CR-1 case in `packages/control-plane/test/chat-modes.test.js`, which uses the real `apiAsk` function, `askStream` and disposable SQLite. Capture the outgoing answer tools and real saved rows. Use client tests to assert one Ask request and the composer decision. Run the cases at their normal entry points in Ask, Auto and ordinary Tutor.
+
+| Case | Expected result |
+| --- | --- |
+| Conversation in varied wording/languages, a normal question, a question about Motion, or “explain this without a video” | A saved reply with zero artifact requests. In the qualifying CHAT.02 path there is no separate JEV preflight. |
+| Recoverable JEV/network failure during an ordinary send | One Ask request, one saved user/reply pair, original thread, canvas/context and Depth, zero offered tools, proposals, jobs or tool credit holds. The fallback banner and its buttons are absent. |
+| “Hi, make a short video of the tree split”, “find me a video” and typed `/motion` | The full creation request gets one signed Motion review and creates a job only on Generate. Search uses the existing search handler. A typed/picked command follows its named route without semantic classification. |
+| Ambiguous output, disabled capability, denied board, invalid/stale token, canceled flight or switched thread | Ask a focused question or show the specific failure where applicable. The request cannot dispatch a wrong tool, bypass access, create duplicate rows or land a reply in another thread. |
+| Ordinary message beside a waiting plan, real refinement, explicit Edit, Tutor roadmap approval and **Next card** | Conversation stays a reply. A refinement uses its actual target. Tutor actions keep the current revision and one accepted slot through saved delivery and acknowledgment. |
+
+Run from the repository root with lockfile dependencies and Node 24. Extend the existing suites and record actual candidate SHA, commands, test counts and any unverified transport/behavior in the task receipt.
+
+```sh
+node --test packages/web/src/chat-route.test.mjs packages/web/src/inline-ai-route.test.mjs packages/web/src/generation-proposal-chat.test.mjs
+node --test packages/control-plane/test/chat-capability-route.test.js packages/control-plane/test/chat-modes.test.js
+# When proposal, adapter or Tutor action wiring changes
+node --test packages/control-plane/test/generation-proposal.test.js packages/web/src/roadmap-workflow-web.test.mjs packages/web/src/roadmap-controller.test.mjs
+npm --prefix packages/web run build
+```
+
+Use test doubles with denied external provider egress for this local stage. Run the affected [section 8.0](#80-required-local-backend-flow-tests-before-manual-production-checking) tests for any Tutor lifecycle changes. Use the existing clone-backed verification and authorized production launcher. Owner manual checking follows the tested release.
 
 ## 5 Reconcile existing R1–R6 tasks
 
@@ -1507,7 +1555,7 @@ The catalogue is complete: `/explain` text/table belongs to R4, while its intera
 
 #### R12 reuses the current core Tutor lifecycle
 
-Follow [roadmap section 9.4](tutor-roadmap-v1.4.md#94-r12-command-selection-and-the-shared-tutor-flow). The three paths are command plans (`/whiteboard`, `/motion`, `/animation`, `/cad`, `/image`, interactive `/explain`), simple briefs (`/code`, `/graph`, `/diagram`, `/3d`), and source/workspace insertion (`/browser`, `/photos`, `/youtube`, `/arxiv`, `/wikipedia`, `/notebook`). Retain each command's requirements in R12.02–17. The initial verification slices can use `/notebook` for zero-charge insertion, `/diagram` for a source-grounded artifact, and `/whiteboard` for native plan revision and approval. Each adapter qualifies and releases independently.
+Follow [roadmap section 9.4](tutor-roadmap-v1.4.md#94-r12-command-selection-and-the-shared-tutor-flow). The three paths are command plans (`/whiteboard`, `/motion`, `/animation`, `/cad`, `/image`, interactive `/explain`), simple briefs (`/code`, `/graph`, `/diagram`, `/3d`), and source/workspace insertion (`/browser`, `/photos`, `/youtube`, `/arxiv`, `/wikipedia`, `/notebook`). Retain each command's requirements in R12.02–17. Use the accepted step to choose its format. The [ordinary Chat routing work](#45-chat-routing-and-reply-reliability) qualifies separately. The initial verification slices can use `/notebook` for zero-charge insertion, `/diagram` for a source-grounded artifact, and `/whiteboard` for native plan revision and approval. Each adapter qualifies and releases independently.
 
 **UI reference map:** [02](ui/02-canvas-card-skeleton.html) for the slot, actions and progress, [03](ui/03-chat-roadmap.html) for the surrounding Chat flow, [05](ui/05-markdown-source-links.html) for source/card navigation, and [01](ui/01-table-of-contents.html) for accepted ToC rows. In the current `RoadmapTranscript` step, render the existing `GenerationProposalCard` as its review state. Keep the step title, description and source excerpt, and use the review card's actions for the current command revision. Reuse conversational Edit or the command's existing Edit details form. The final result uses the command's existing canvas renderer. [04](ui/04-explanation-card.html) and [06](ui/06-explanation-depth.html) are the core Explanation renderer references.
 
@@ -2345,6 +2393,8 @@ node --test packages/web/src/card-layout.test.mjs packages/web/src/source-refs-r
 # Build the final UI candidate; this does not launch or verify a browser
 npm --prefix packages/web run build
 ```
+
+For Chat routing changes, run the [CHAT.01/CHAT.02 cases and commands](#focused-chat-routing-tests-and-build) with the affected groups above. Keep the same receipt and candidate SHA.
 
 Do not run `npm test --workspace=web` or the web package's generic `npm test` here: they invoke Playwright. Do not make a full unrelated suite/preview gate mandatory. Run `node --test scripts/schema-check.test.mjs` if the actual candidate adds/changes schema, and `node --test scripts/ci/check-map.test.mjs` if its test mapping changed. If local workerd/D1 is needed for changed SQL/runtime behavior, use the existing supported local API runtime with disposable state and denied provider egress; report the exact command and assertions, with no browser and no remote migration.
 
