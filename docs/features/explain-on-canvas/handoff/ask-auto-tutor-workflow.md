@@ -33,7 +33,7 @@ flowchart TD
 
 The model sees the full prompt and the eligible function definitions, including each function’s name, argument schema, output, use cases, and limits. The server validates the selected output, inputs, access, and tool readiness before review. A proposed alternative follows the existing approval, and the learner chooses any change to an explicit requirement.
 
-When R8a is enabled, resolve the intent and authorized context before using its shared evidence check for a reply or eligible card brief. Reuse relevant evidence first and search Exa only for a material public gap within scope. A card brief needs its evidence before the existing review. Continue with the supported portion or ask one focused question if a gap remains. Research timing, limits and the closed **Sources (n)** disclosure are in [roadmap §10.2](tutor-roadmap-v1.4.md#102-research-and-calculation).
+When R8a is enabled, resolve the intent and authorized context before using its shared evidence check for a reply or eligible card brief. Reuse relevant evidence first and search Exa only for a material public gap within scope. A card brief needs its evidence before the existing review. Continue with the supported portion or ask one focused question if a gap remains. Research timing, limits and the closed **Sources (n)** disclosure are in [roadmap §10.2](tutor-roadmap-v1.4.md#102-research-and-calculation). Use the [shared tool-call workflow](tutor-roadmap-v1.4.md#931-shared-tool-call-workflow) to check known blockers before offering tools and to validate an exact call at dispatch.
 
 ## Rollout and checks
 

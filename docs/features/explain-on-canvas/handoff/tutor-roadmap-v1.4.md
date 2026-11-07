@@ -685,6 +685,37 @@ Tutor tools read authorized source content, inspect current canvas coverage, rea
 | Sandboxed execution | Run authorized examples or exercises and report actual output. | R16; no invented execution before it. |
 | Existing command adapters | Create the accepted format through its existing lifecycle. | R12, one adapter or small coherent batch at a time. |
 
+#### 9.3.1 Shared tool-call workflow
+
+The application reads the shared registry and supplies eligible function schemas to the existing answer, planning or command path. Each registry entry describes the function, required inputs, output and limits. Use the current typed capability catalogue and call-validation seams. The model can respond, ask for a detail or propose a function call with arguments. The server admits and runs calls and returns their typed results to the same request.
+
+```mermaid
+flowchart TD
+    Request["Read the request and authorized context"] --> Preflight["Server checks known inputs, readiness, and remaining limits"]
+    Registry["Tool registry and budget policy"] -.-> Preflight
+    Preflight -->|"Missing required details"| Clarify["Ask for the needed details together"]
+    Preflight -->|"Known blocker"| Recover["Give supported help or offer a qualified alternative"]
+    Preflight -->|"Ready"| Model["Model receives context and eligible tool schemas"]
+    Model -->|"Ready to respond"| Output["Return reply, roadmap draft, or card review"]
+    Model -->|"Needs learner input"| Clarify
+    Model -->|"Tool name and arguments"| Admit["Server validates the exact call and reserves work"]
+    Admit -->|"Required learner input missing"| Clarify
+    Admit -->|"Blocked"| Recover
+    Admit -->|"Admitted"| Run["Run tool and record its result"]
+    Run -->|"Return typed result and refresh eligibility"| Model
+```
+
+- **Preflight uses registry metadata and current state.** Read the request and authorized context, including any explicit command. Check known requirements for the requested output, mode and source access, enabled handlers, and remaining limits before offering eligible tools. For a clear missing learner input, group the required details the app can already identify into one message. A known unavailable path can go straight to a supported reply or qualified alternative. Ordinary messages use the existing answer turn to resolve intent and select from the eligible schemas.
+- **Admission uses the exact proposed call.** Validate the tool name, arguments, current scope, access, safety, and any execution or purchase approval. Resolve fields from trusted context first. Ask for a remaining required learner detail if it becomes clear only from the chosen call. Use a typed refusal for invalid or unavailable calls and the normal recovery path. A card command's paid work follows its own existing review and acceptance.
+- **The owner sets limits and the server tracks usage.** Use the configured per-tool, request or lesson, learner and platform caps where applicable. Preflight checks known availability. At dispatch the server checks and reserves the exact authorized work against current remaining capacity and reconciles its outcome. A later tool uses the same request budget and the latest availability. Apply R8a's search and read bounds in §10.2.1.
+- **A result can inform the next decision.** Feed back only scoped evidence, observed results or a typed failure, then finish as soon as the output is supported. Continue for another essential gap only within the same limits. A provider timeout, changed access or unresolved result uses the existing recovery. Reconcile unknown outcomes before any eligible retry.
+
+Official references for the application-owned tool-call loop and dispatch checks.
+
+- https://developers.openai.com/api/docs/guides/function-calling
+- https://platform.claude.com/docs/en/agents-and-tools/tool-use/how-tool-use-works
+- https://modelcontextprotocol.io/specification/2025-11-25/server/tools
+
 ### 9.4 R12 command selection and the shared Tutor flow
 
 **Choose for the learning outcome.** In the existing roadmap draft/revision pass, read the learner's instruction and edits, the step goal, the highlighted passage, its pinned source context, Depth and language, and relevant delivered coverage. State what the learner should be able to do and separately specify the behavior the card must provide. For example, testing what happens when a decision-tree cutoff changes requires a supported control and branch labels that update. A fixed branch diagram can serve a step about tracing a fixed decision. The source highlight identifies the teaching focus and navigation target. The author can use relevant definitions elsewhere in the pinned source under section 5.
