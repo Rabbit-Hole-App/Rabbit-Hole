@@ -2,7 +2,6 @@ import { useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useStat
 import { Loader2, MessageCircle, Pencil, RefreshCw, Square } from 'lucide-react';
 import { api } from './api.js';
 import { Button, Pill } from './ui.jsx';
-import GoToPlanButton from './GoToPlanButton.jsx';
 import CardHeader from './CardHeader.jsx';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { claimViewer, releaseViewer } from './viewer-slots.js';
@@ -188,7 +187,6 @@ function AnimationPending({ block, onChange, onChangeQuiet, readOnly, fetchJson 
       {problem && <p role="alert" className="text-xs text-fail">{problem}</p>}
       {!readOnly && (
         <div className="flex gap-1.5">
-          <GoToPlanButton stage={shown.stage} threadId={shown.threadId ?? waiting.threadId} jobId={waiting.id} data-animation-go-to-plan />
           {running && <Button type="button" variant="danger" data-animation-stop disabled={busy} onClick={() => act('cancel')}><Square size={14} aria-hidden="true" className="shrink-0 fill-current" />Stop</Button>}
           {retry && <button type="button" data-animation-job-retry={retry} disabled={busy} onClick={() => act('retry', { expectedAttempt: shown.attempt, action: retry })} className={buttonClass}>
             <RefreshCw size={13} aria-hidden />{RETRY_LABELS[retry]}</button>}

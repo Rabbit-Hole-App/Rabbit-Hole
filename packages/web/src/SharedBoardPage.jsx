@@ -29,7 +29,7 @@ import SharedChat from './SharedChat.jsx';
 import { takeDraft, takeTarget } from './shared-ask.js';
 import { useCanvasComments } from './comments/useCanvasComments.js';
 import { memberBase, publicBase } from './comments/comments-api.js';
-import { BackToTop, DiveNavigator, DivePortals } from './Dive.jsx';
+import { DiveNavigator, DivePortals } from './Dive.jsx';
 import { sharedTree } from './shared-holes.js';
 import { holeRows } from './dive.js';
 import { TitleHoles } from './TitleHoles.jsx';
@@ -346,7 +346,6 @@ function SharedBoard({ token, embed = null }) {
         </div>
         <div data-header-center className={SHARED_HEADER_CENTER}>
           <div className={SHARED_TITLE_ROW}>
-            {holes && <BackToTop tree={holes.tree} climb={index => goTo(holes.tree.path[index].href)} />}
             {/* One line, the full title on hover and to a screen reader; with holes, the chevron opens their tree, each level its own link (owner r35). */}
             <span data-shared-title title={title} className="min-w-0 truncate text-sm font-semibold text-ink">{title}</span>
             {holes && <TitleHoles rows={holeRows(holes.tree)} onPick={row => goTo(row.app)} />}

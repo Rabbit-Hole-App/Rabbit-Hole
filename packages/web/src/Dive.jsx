@@ -5,7 +5,7 @@
 // The rules themselves are pure, in dive.js.
 import { createContext, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { excerptSeed } from './pdf-excerpt.js';
-import { ArrowLeft, GripHorizontal, Trash2 } from 'lucide-react';
+import { GripHorizontal, Trash2 } from 'lucide-react';
 import { api, navigate } from './api.js';
 import { ConfirmDialog, Tip, toast } from './ui.jsx';
 import { deviceId } from './home/canvas-local.js';
@@ -353,15 +353,6 @@ function useMapGrip(shown) {
       keep(place({ x: start.x + dx * 16, y: start.y + dy * 16 }));
     },
   } };
-}
-
-// Inside a Rabbit Hole, a back arrow left of the canvas title goes to the top surface (path[0]) through the map's own climb (owner 2026-11-07).
-// Read-only shared levels pass their own climb (a /b/ link), so the same arrow serves SharedBoardPage.
-export function BackToTop({ tree, climb }) {
-  if (!tree || tree.path.length < 2) return null;
-  const top = tree.path[0].title, label = `Back to ${top}`;
-  return <button type="button" data-dive-top aria-label={label} title={label} onClick={() => climb(0)}
-    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><ArrowLeft size={16} strokeWidth={1.75} aria-hidden="true" /></button>;
 }
 
 // The descending roots (R-1): path from the root, the current level marked, then its children.

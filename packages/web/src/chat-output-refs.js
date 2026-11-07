@@ -64,15 +64,13 @@ export function withCardSink(canvas, sink) {
   return { ...canvas, ...tap('insertBlock'), ...tap('insertNotebook'), ...tap('insertImported'), ...tap('insertPaper') };
 }
 
-// A card still carrying its plan or job (/interactive, /animation, /whiteboard skeletons, or one mid-run) is unfinished: generationState reads those as done (no status), so the field itself is checked. Deleting a skeleton cancels its job for good, so it is never restored (owner 2026-11-07).
-const JOB_FIELDS = ['explainJob', 'animation3dJob', 'whiteboardJob'];
 // Why a deleted card cannot come back, or null when its snapshot restores it.
 export function restoreProblem(output) {
   if (output?.unavailable === 'too_large') return 'This card was too large to keep a copy, so it can only be opened while it is on the canvas.';
   if (output?.unavailable === 'unstable') return 'This card held temporary data, so no copy was kept to restore.';
   const block = output?.snapshot?.block;
   if (!block) return 'No copy of this card was saved, so it cannot be restored.';
-  if (generationState(block).phase !== 'done' || JOB_FIELDS.some(key => block[key])) return 'This card was removed before it finished, so there is nothing to restore.';
+  if (generationState(block).phase !== 'done') return 'This card was removed before it finished, so there is nothing to restore.';
   if (block.type === 'cad' && !block.revisionId) return 'This model has no finished revision to restore.';
   return null;
 }

@@ -27,7 +27,6 @@ export const routes = {
   deliver: (view, resultId, actionKey) => mutate(view, `results/${resultId}/deliver`, {}, actionKey),
   ack: (view, result, cardId, boardRevision, actionKey) => mutate(view, `results/${result.id}/ack`, { resultVersion: result.resultVersion ?? 1, cardId, boardRevision }, actionKey),
   removed: (view, resultId, cardId, actionKey) => mutate(view, `results/${resultId}/removed`, { cardId }, actionKey),
-  restored: (view, resultId, actionKey) => mutate(view, `results/${resultId}/restored`, {}, actionKey), // Restore (owner 2026-11-07): delivery back to delivered once the stored card is on the saved canvas
   // R5: preview an edit of the pending proposal, apply or discard the preview, and offer an existing card as the next step.
   draft: (view, instruction, actionKey) => mutate(view, `proposals/${view.proposal.id}/drafts`, { proposalVersion: view.proposal.version, instruction }, actionKey),
   applyDraft: (view, draft, actionKey) => mutate(view, `drafts/${draft.draftId}/apply`, { draftRevision: draft.revision, proposalVersion: draft.proposalVersion }, actionKey),
@@ -145,7 +144,7 @@ export function tocOf(state) {
       const result = resultsOf(view).find(r => r.stepId === s.id), removed = result?.delivery === 'removed';
       const nav = stepNav(s, view), stage = s.stage && s.stage !== 'planned' ? s.stage : nav?.kind === 'proposal' ? 'proposed' : null;
       return { id: s.id, position: s.position, title: s.title, source: s.sourceRef ? { kind: 'source' } : null, description: s.goal || '', format: STRINGS.formatName[s.format] || s.format || '', state: s.state,
-        status: (stage ? STRINGS.stage[stage] : null) || STRINGS.stepState[s.state] || s.state, removed, nav, resultId: removed ? result.id : null };
+        status: (stage ? STRINGS.stage[stage] : null) || STRINGS.stepState[s.state] || s.state, removed, nav };
     }),
   };
 }

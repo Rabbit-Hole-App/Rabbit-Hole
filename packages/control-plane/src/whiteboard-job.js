@@ -24,7 +24,6 @@
 // running one. An in-flight call this object is not running (the object restarted) is never sent again: once its lease has expired the call
 // is recorded as unknown and the job fails with its stage's reason, refunded.
 import { anthropic } from './ask.js';
-import { logJobFailure } from './job-failure-log.js';
 import { LEARN_TASKS, costUsd } from './learn-models.js';
 import { platformCaps, spendEnforced, spendTransport } from './learn-spend.js';
 import { refusalBody } from './learn-spend-ledger.js';
@@ -562,9 +561,7 @@ export class WhiteboardJobs {
   async end(job, failure) {
     Object.assign(job, { failure, endedAt: Date.now() });
     moveTo(job, 'failed');
-    await this.save(job); await this.finishUsage(job, 'failed');
-    logJobFailure('whiteboard', job, { windowMs: L.jobDeadlineMs, stage: failure.stage, stopReason: failure.code, interrupted: failure.code === 'call_interrupted' });
-    await this.refund(job); await this.report(job);
+    await this.save(job); await this.finishUsage(job, 'failed'); await this.refund(job); await this.report(job);
   }
   async failed(job, error) {
     await this.locked(async () => {

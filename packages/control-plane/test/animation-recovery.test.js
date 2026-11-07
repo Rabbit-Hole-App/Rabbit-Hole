@@ -187,8 +187,8 @@ test('a billed reply that cannot be used says so and is refunded, on the card an
 
 test('failureText on saved records maps every class without quoting stored findings', () => {
   const base = { stage: 'failed', counts: { author: 1, review: 0, repair: 1 }, repairs: 1, findings: [], approval: { at: 1 }, plan: PLAN, reservation: { preparationMicros: 254800 }, attempt: 1 };
-  assert.equal(failureText({ ...base, stopReason: 'deadline', failure: { stage: 'reviewing', category: 'internal', message: 'This animation reached its time limit while reviewing.' } }),
-    'The build ran out of time while reviewing. It was corrected automatically once. Revise plan prepares a simpler plan from your request for you to review, using up to 26 AI credits; nothing is built until you press Generate.');
+  assert.equal(failureText({ ...base, stopReason: 'deadline', failure: { stage: 'reviewing', category: 'internal', message: 'This animation reached its time limit.' } }),
+    'The build ran out of time. It was corrected automatically once. Revise plan prepares a simpler plan from your request for you to review, using up to 26 AI credits; nothing is built until you press Generate.');
   assert.equal(failureText({ ...base, approval: null, stopReason: 'error', failure: { stage: 'preparing', category: 'transport', message: 'No AI model is configured here.', retryable: false } }),
     'An AI step was interrupted. It was corrected automatically once.', 'no call recorded for the step: nothing is said about charges');
   assert.equal(failureText({ ...base, stopReason: 'no_progress', failure: { stage: 'validating', category: 'spec', message: 'x' } }).split('. ').slice(0, 2).join('. '),

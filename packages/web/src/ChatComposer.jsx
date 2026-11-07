@@ -40,10 +40,10 @@ export const DOCK_PAD = 'px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))
 // token (UI-16, the Learn composers): the chosen command's pill as one inline token before the text. It sits over the
 // field's first line and the text is indented by its width, so the words start right after it and wrap under it.
 export const COMPOSER_TOOL = 'inline-flex h-8 min-w-8 shrink-0 cursor-pointer items-center justify-center gap-1 rounded-lg px-1.5 text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-45 disabled:hover:bg-transparent';
-export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, flat = false, onStop, hold = '', ready = false, voice = null, stacked = false, chips = null, tocView = false, token = null }) {
+export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, flat = false, onStop, ready = false, voice = null, stacked = false, chips = null, tocView = false, token = null }) {
   // The Table of contents' own composer (TocWorkspace: its AskPanel passes tocView) is data-toc-composer, so [data-chat-composer]
   // stays the one Chat composer. A prop, so this file never imports chat-workspace.jsx's graph (voice-ui.test.mjs bundles it).
-  const submit = () => { if (!busy && !disabled && !hold && (ready || value.trim())) onSubmit(value); };
+  const submit = () => { if (!busy && !disabled && (ready || value.trim())) onSubmit(value); };
   const keys = event => { onKeyDown?.(event); if (!event.defaultPrevented && composerKey(event.nativeEvent, chatSendKey()) === 'send') { event.preventDefault(); submit(); } };
   const tokenBox = useRef(null), [indent, setIndent] = useState(0);
   useLayoutEffect(() => {
@@ -75,11 +75,11 @@ export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inp
     : field;
   const size = stacked ? 'h-8 w-8' : dock ? 'h-9 w-9' : 'h-6 w-6';
   const send = voice ? null : busy && onStop ? (
-    <button type="button" aria-label="Stop" title="Stop the answer" onClick={onStop} className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-accent text-white hover:bg-accent-hover active:bg-accent-hover ${size}`}>
+    <button type="button" aria-label="Stop" title="Stop the answer" onClick={onStop} className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-ink text-white ${size}`}>
       <Square size={stacked ? 12 : dock ? 13 : 10} fill="currentColor" />
     </button>
   ) : (
-    <button type="submit" aria-label="Send" title={hold || undefined} disabled={busy || disabled || !!hold || !(ready || value.trim())} className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-accent text-white ${size} ${dock || stacked ? 'disabled:opacity-45' : 'disabled:opacity-30'}`}>
+    <button type="submit" aria-label="Send" disabled={busy || disabled || !(ready || value.trim())} className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-accent text-white ${size} ${dock || stacked ? 'disabled:opacity-45' : 'disabled:opacity-30'}`}>
       {busy ? <Loader2 size={dock || stacked ? 16 : 13} className="animate-spin" /> : <ArrowUp size={dock ? 17 : stacked ? 16 : 13} strokeWidth={2} />}
     </button>
   );
