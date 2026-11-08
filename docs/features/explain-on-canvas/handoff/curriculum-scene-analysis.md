@@ -152,12 +152,12 @@ This tracks the implementation batches for the pinned 542-lesson AI curriculum. 
 | --- | ---: | ---: | --- |
 | Easy | 1 | 1 | Heat-grid SDK and spectrogram fixture implemented on `chatgpt/interactive-heat-grid`. Dev card verification and deployment are pending. |
 | Medium | 6 | 19 | Implemented and locally tested; pushed to `chatgpt/interactive-medium` at `e24f7bcd95f34553046131f294075e330519d67b`. Dev browser acceptance and deployment remain pending. These 19 are candidate designs covered by the capabilities, not 19 individually generated or verified cards. |
-| Difficult | 5 | 23 | Not implemented in this workstream. See remaining work below. |
+| Difficult | 5 | 23 | Cyclic networks implemented (1 capability / 1 candidate design); 4 capabilities / 22 candidate designs remain. Browser acceptance and deployment pending. |
 
 
 ### Progress ledger · updated 2026-11-08
 
-The tracked Easy/Medium/Difficult implementation batch contains **12 reusable capabilities and 43 candidate scene designs**: **7 capabilities implemented**, covering the intended representations for **20 candidate designs**, with **5 capabilities / 23 candidate designs remaining**. “Implemented” is a code status, not a claim of deployment or end-to-end acceptance. The pinned inventory's two true-3D designs are separate from this 2D batch, bringing its original capability-gap design count to 45.
+The tracked Easy/Medium/Difficult implementation batch contains **12 reusable capabilities and 43 candidate scene designs**: **8 capabilities implemented**, covering the intended representations for **21 candidate designs**, with **4 capabilities / 22 candidate designs remaining**. “Implemented” is a code status, not a claim of deployment or end-to-end acceptance. The pinned inventory's two true-3D designs are separate from this 2D batch, bringing its original capability-gap design count to 45.
 
 | Item | Build status | Verification and limits |
 | --- | --- | --- |
@@ -170,18 +170,23 @@ The tracked Easy/Medium/Difficult implementation batch contains **12 reusable ca
 | Synchronized image views / crops | Implemented in Medium | Bundled trusted image only; learner-attachment binding remains open. |
 | Linked selection and comparison — additional composition example | Implemented; `chatgpt/interactive-linked-comparison` at `4a2952db25b71a9cc0c40457c2e1e4815bf7a8c9` | Uses existing geometry/grid/readout helpers and shared selection state. Ten focused runtime tests and the web build passed. Static output of the shared scene renderer was inspected before/after selection; browser capture was blocked by the environment, so live clicking remains unverified. |
 
+| General cyclic networks | Implemented; `chatgpt/interactive-cyclic-networks` at `801776b077c17eedf9815b555c43e67c6d64f4c3` | `sdk.cyclicGraph`, opt-in `cyclic_networks` / SDK 5; 2–8 positioned nodes, up to 12 labeled directed edges, reciprocal links, self-loops, selection, restore and Reset. Existing SDK bytes preserved. 50 focused tests and web build passed. Shared-renderer static output inspected; live browser, real generation and deployment pending. |
+
 The linked-comparison example is additional to the original 12-capability batch. It demonstrates a reusable pattern relevant to seven designs in the broader AI inventory; it does not mean seven generated cards were individually verified. Its executable fixture is `fixture-medium-linked-comparison` in `packages/web/src/explain-program/medium-fixtures.js`. The same file holds the six Medium fixtures. [SDK support and fixture IDs](../../explain-program-support.md)
+
+### Cyclic network implementation receipt
+
+Executable example: `fixture-cyclic-network` in `packages/web/src/explain-program/cyclic-fixture.js` (Plan → Act → Observe → Plan). Reuses existing boxes, arrows, polylines, text, card controls and saved state. Author and repair contexts include the API. Node centers and optional route/label positions are explicitly supplied; this does not add a force-layout explorer or automatic avoidance of every edge/label crossing. The implementation and tests are on the branch above. No planner mapping, repair budget or browser assertion was changed. Dev deployment could not run here because the authorized deployment credentials are on the owner's Windows environment.
 
 ### Remaining work
 
 | Capability | Pinned candidate designs | Suggested order |
 | --- | ---: | --- |
-| General cyclic networks | 1 | Next: one bounded directed feedback loop with selectable nodes and clear edge direction. |
-| Document and evidence panes | 4 | After cyclic networks: connect a selected passage to its supplied document. |
+| Document and evidence panes | 4 | Next: connect a selected passage to its supplied document. |
 | Dense data exploration | 1 | After the bounded examples: filtering/zooming with stable selection and provenance. |
 | Filmstrip / aligned frame playback | 8 | Later media work; needs authorized frame assets and a shared clock. |
 | Audio playback and alignment | 9 | Later media work; needs audio, waveform/transcript timestamps and synchronized controls. |
-| **Remaining in tracked batch** | **23** | **5 capabilities** |
+| **Remaining in tracked batch** | **22** | **4 capabilities** |
 
 Separate integration work: bind authorized learner images to the implemented image helpers. The 137 data-dependent designs in the broader inventory still require real source artifacts; building a renderer does not supply those artifacts. True 3D belongs to the separate 3D path.
 
