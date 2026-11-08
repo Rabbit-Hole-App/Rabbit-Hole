@@ -12,7 +12,7 @@ import { canonicalJson } from '../../web/src/explain-contract.js';
 import { parseScenePlan, planHash } from '../../web/src/interact-plan.js';
 import { CompositionError, compileCardComposition, controlDeclarations, timelineBrief, validateCompositionBindings } from '../../web/src/interact-composition.js';
 import { catalogue } from '../../web/src/visual-components/registry.js';
-import { INTERACT_BUILD_SYSTEM, INTERACT_BUILD_TOOL_NAME, interactBuildSchema, programContext } from './agents/explain-author.js';
+import { MANIFEST_SENTENCES, INTERACT_BUILD_SYSTEM, INTERACT_BUILD_TOOL_NAME, interactBuildSchema, programContext } from './agents/explain-author.js';
 import { SPEC_LIMITS, authorComposition, capabilityGap, validateStage } from './explain-author.js';
 import { PROGRAM_CAPABILITIES, PROGRAM_LIMITS, buildProgramArtifact, checkProgramDraft } from './explain-program.js';
 import { modelEvidence } from './explain-evidence.js';
@@ -33,7 +33,9 @@ export class InteractBuildError extends Error {
 //   onDone(done): called with every call that returned, so a caller that records calls records the paid ones.
 const CORRECTABLE = new Set(['schema_mismatch', 'not_object', 'no_result', 'conflicting_results']);
 export const correctable = error => error instanceof InteractModelError && error.sent !== false && CORRECTABLE.has(error.code);
-export const refusalProblems = error => (error.problems?.length ? error.problems : [error.message]).slice(0, 12).map(problem => String(problem).slice(0, 300));
+// A manifest text over its limit is named with its field, its limit and its sentence range.
+const withRange = problem => String(problem).replace(/manifest\.(summary|description|instructions): longer than (\d+)/, (_, field, n) => `manifest.${field}: longer than ${n} characters; it must be ${MANIFEST_SENTENCES[field]}, at most ${n} characters`);
+export const refusalProblems = error => (error.problems?.length ? error.problems : [error.message]).slice(0, 12).map(problem => withRange(problem).slice(0, 400));
 const withCorrection = (input, instruction, problems) => (typeof input === 'string' ? `${input}\n\n${instruction}\n${problems.map(problem => `- ${problem}`).join('\n')}` : { ...input, correction: { instruction, problems } });
 export async function callWithCorrection(ctx, role, args, { instruction, check, onDone } = {}) {
   const ask = async extra => { const done = await callInteractRole(ctx, role, extra ?? args); onDone?.(done); return done; };

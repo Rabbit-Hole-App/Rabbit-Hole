@@ -203,3 +203,19 @@ test('a scene reply without its supporting list (the schema only requires kind) 
   assert.ok(empty.problems);
   assert.equal((await repairRound({ ...j, draft: empty.draft, failure: { stage: 'validate', problems: empty.problems, findings: [] }, round: 0 }, none)).status, 'no_progress');
 });
+
+// ---- owner 2026-11-07: sentence ranges for the manifest texts ----
+test('both build prompts state the sentence ranges and the byte limits next to the character limits, and the correction names field, limit and range', async () => {
+  for (const system of [INTERACT_BUILD_SYSTEM, INTERACT_REPAIR_SYSTEM]) {
+    assert.match(system, /manifest\.summary 1 to 2 sentences/);
+    assert.match(system, /manifest\.description 2 to 4 short sentences/);
+    assert.match(system, /manifest\.instructions 1 to 2 short sentences/);
+    for (const limit of ['title 120', 'summary 400', 'description 600', 'instructions 300', 'assumptions 8', 'assumptions[] 300', 'source 16384 bytes', 'manifest 4096 bytes', 'frame objects 60']) assert.ok(system.includes(limit), limit);
+    assert.match(system, /Never put instructions or explanation in the drawn frame text/);
+  }
+  const d = fixtureDraft('standard'); d.main.program.manifest.description = 'It falls. '.repeat(70);
+  const ctx = fixtureContext({ script: fixtureScript('standard', { build_author: ({ n }) => scene(n === 1 ? d : fixtureDraft('standard')) }) });
+  assert.ok((await buildScene(await job(), ctx)).artifacts);
+  const named = ctx.adapter.log[1].input.correction.problems.find(p => /manifest\.description/.test(p));
+  assert.match(named, /longer than 600 characters; it must be 2 to 4 short sentences, at most 600 characters/);
+});

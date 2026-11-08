@@ -63,7 +63,7 @@ const PROGRAM_MANIFEST = {
     },
     duration: { type: 'number', exclusiveMinimum: 0, maximum: 120, description: 'Seconds of playback. Omit for a card that does not change over time.' },
     cardDescription: { type: 'string' },
-    instructions: { type: 'string' },
+    instructions: { type: 'string' }, // the 300-character limit is added for /interact only (interactProgramSchema): the legacy request has no room for more schema bytes
     timeline: { type: 'object' },
     readouts: { type: 'array', maxItems: 8, description: 'Named numbers the frame reports (frame.readouts [{id, value}]) and the card labels.', items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: NAME, label: { type: 'string', maxLength: 60 }, unit: { type: 'string', maxLength: 16 }, decimals: { type: 'integer', minimum: 0, maximum: 6 } } } },
     capabilities: { type: 'array', maxItems: 16, items: { type: 'string' }, description: 'Only names listed under program.capabilities in the input.' },
@@ -77,6 +77,9 @@ const STATEFUL_MANIFEST = {
   targets: { type: 'array', maxItems: 8, description: 'Stateful programs only: frame objects the learner selects (by clicking or a button); id is the frame object id, drawn in every frame; each selection is one event {type:"select", target: id}.', items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: { type: 'string', maxLength: 64 }, label: { type: 'string', maxLength: 60 }, drag: { type: 'boolean', description: 'true: the learner can also drag it; each drag is events drag_start, drag_move (merged when fast) and drag_end with x, y in frame coordinates.' } } } },
 };
 export const STATEFUL_MANIFEST_PROPERTIES = STATEFUL_MANIFEST;
+// Owner 2026-11-07: how many sentences each manifest text holds (the character limits are in the schema). Stated in the build prompts and in the correction call.
+export const INSTRUCTIONS_MAX = 300;
+export const MANIFEST_SENTENCES = Object.freeze({ summary: '1 to 2 sentences', description: '2 to 4 short sentences', instructions: '1 to 2 short sentences, only when the card needs usage instructions (how to use the controls); otherwise omit the field' });
 export const programToolSchema = ({ stateful = false } = {}) => ({
   type: 'object', additionalProperties: false, required: ['source', 'manifest'], description: 'Required when kind is program.',
   properties: {
@@ -251,10 +254,11 @@ export const INTERACT_BUILD_TOOL_NAME = 'build_scene';
 // catalogue: the declarative catalogue, offered only when a panel was approved as renderer spec (specPanels).
 export function interactBuildSchema({ catalogue = [], stateful = false, specPanels = false } = {}) {
   const spec = authorTool(catalogue, { program: true, stateful }).input_schema.properties.spec;
+  const program = programToolSchema({ stateful }), withLimit = { ...program, properties: { ...program.properties, manifest: { ...program.properties.manifest, properties: { ...program.properties.manifest.properties, instructions: { type: 'string', maxLength: INSTRUCTIONS_MAX, description: 'Only if needed: how to use the controls.' } } } } };
   const panel = {
     type: 'object', additionalProperties: false, required: ['kind'],
     description: 'Exactly the renderer this panel was approved with (plan runtime.renderer): spec for the declarative catalogue, program for a JavaScript program.',
-    properties: { kind: { type: 'string', enum: ['spec', 'program'] }, ...(specPanels ? { spec } : {}), program: programToolSchema({ stateful }) },
+    properties: { kind: { type: 'string', enum: ['spec', 'program'] }, ...(specPanels ? { spec } : {}), program: withLimit },
   };
   return checkable({
     type: 'object', additionalProperties: false, required: ['kind'],
@@ -276,7 +280,7 @@ function manifestLimits(schema, path = '') {
   const own = ['maxLength', 'maxItems', 'maximum'].filter(key => typeof schema[key] === 'number').map(key => `${path} ${schema[key]}`);
   return [...(path ? own : []), ...Object.entries(schema.properties ?? {}).flatMap(([name, child]) => manifestLimits(child, path ? `${path}.${name}` : name)), ...(schema.items ? manifestLimits(schema.items, `${path}[]`) : [])];
 }
-export const MANIFEST_LIMITS_TEXT = `Manifest limits (a longer text, a longer list or a larger number is refused, never cut: characters for text, items for a list, the value for a number): ${manifestLimits({ properties: { ...PROGRAM_MANIFEST.properties, ...STATEFUL_MANIFEST } }).join(', ')}. Wording (owner 2026-11-07): manifest.description is 2 to 4 short sentences; manifest.summary is 1 to 2 sentences; manifest.instructions is optional, only when the card needs usage instructions, and is 1 to 2 short sentences (at most 300 characters) shown below the description. Never put instructions or explanation in the drawn frame.`;
+export const MANIFEST_LIMITS_TEXT = `Manifest limits (a longer text, a longer list or a larger number is refused, never cut: characters for text, items for a list, the value for a number): ${manifestLimits({ properties: { ...PROGRAM_MANIFEST.properties, ...STATEFUL_MANIFEST } }).join(', ')}, instructions ${INSTRUCTIONS_MAX}; source ${CONTRACT_LIMITS.sourceBytes} bytes, manifest ${CONTRACT_LIMITS.manifestBytes} bytes, frame objects ${CONTRACT_LIMITS.objects}. Sentences: manifest.summary ${MANIFEST_SENTENCES.summary}; manifest.description ${MANIFEST_SENTENCES.description}; manifest.instructions ${MANIFEST_SENTENCES.instructions} (they show below the description, above the scene). Never put instructions or explanation in the drawn frame text below the scene or the controls.`;
 
 export const INTERACT_BUILD_SYSTEM = `You build the runnable artifacts of ONE already approved scene plan (a ScenePlan). Trusted code seals, checks, composes and renders what you return; an independent reviewer then looks at the actual rendered card. The plan was designed, reviewed and approved by the learner: you implement it exactly and you never change it.
 
