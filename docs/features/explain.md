@@ -13,6 +13,7 @@ Built from [slash-command-template.md](slash-command-template.md), version 1. Th
 | Product source | [Tutor roadmap v1.4](explain-on-canvas/handoff/tutor-roadmap-v1.4.md), Git blob `942ca2330bf1b80429f2dec73d06051d8c37fcdc` |
 | Implementation source | [Tutor checklist v1.2](explain-on-canvas/handoff/tutor-implementation-checklist.md), Git blob `cae2d23e391f0c00b1c469bc3eb3c52c33942b75` |
 | Deliverable | Standalone written `/explain` and the same Explanation content/renderer used by accepted Tutor steps |
+| Current scope | E0–E3 and E7. E4 web research and citations, E5 feedback-driven adaptation, and E6 background next-step preparation are deferred. |
 | Evidence for this document | Source and reference review. Runtime tests, browser acceptance and paid generation remain candidate-specific evidence. |
 
 ## Navigation
@@ -29,7 +30,7 @@ Built from [slash-command-template.md](slash-command-template.md), version 1. Th
 10. [Validation, delivery and missing decisions](#validation)
 11. [Commit review and checkbox maintenance](#commit-review)
 
-[Benchmark result files and run index](#benchmark-results) · [First-card corrections and completion tasks](#review-corrections)
+[Benchmark result files and run index](#benchmark-results) · [First-card corrections and completion tasks](#review-corrections) · [Deferred E4–E6 requirements](#deferred-explain-scope)
 
 <a id="start"></a>
 ## 1. Start here and preflight
@@ -46,7 +47,7 @@ Pin the working SHA and inspect relevant differences from both source revisions 
 
 Retain CORE, UI, BE and R identifiers when coordinating with the Tutor owner. EXP IDs below identify written-command requirements and cross-reference that existing work. Task UUIDs and To Do / Doing / Done remain in the coordinator's external ledger. This document supplies requirements and evidence mappings.
 
-Scope covers written generation, teaching/depth, content validation, shared renderer, source navigation, approved card actions, persistence and the Explanation side of Tutor integration. Shared lesson initiation, complete ToC planning, general routing and later tool engines remain owned by Tutor core. R8a research, R10 adaptation and R11 preparation are explicit later dependencies with their existing limits and authorization. R12 remains on hold according to the source roadmap.
+Scope covers written generation, teaching/depth, content validation, shared renderer, source navigation, approved card actions, persistence and the Explanation side of Tutor integration. Shared lesson initiation, complete ToC planning, general routing and later tool engines remain owned by Tutor core. The [deferred E4–E6 requirements](#deferred-explain-scope) are outside the current implementation, release and acceptance scope. The active flow uses authorized learner sources and View passage, honors explicit learner-approved edits, and authors a new Tutor card when the learner accepts its proposal. R12 remains on hold according to the source roadmap.
 
 <a id="product"></a>
 ## 2. Product contract and decisions
@@ -124,13 +125,13 @@ For a readable Markdown document within the supported whole-source limit, planni
 
 Language follows the learner's explicit request, then the language of their question, then the source language for source-only entry. Ask one focused clarification if mixed-language ambiguity materially changes the intended explanation.
 
-The author also receives the accepted outcome, selected teaching scope, current step title/description/goal, planned points to cover, Depth, language and learner instruction. Relevant delivered-step coverage can prevent repetition. These are separate fields; do not concatenate only a title and goal and assume the model remembers earlier planning calls. With R8a, include the relevant fetched web passages and their citation IDs as a bounded, separate input for the approved version. Preserve the full supported Markdown context.
+The author also receives the accepted outcome, selected teaching scope, current step title/description/goal, planned points to cover, Depth, language and learner instruction. Relevant delivered-step coverage can prevent repetition. These are separate fields; do not concatenate only a title and goal and assume the model remembers earlier planning calls. Preserve the full supported Markdown context.
 
 The generator explains the current step, not every section merely because the full source is available. It may paraphrase, connect definitions and use clearly identified illustrative examples. It must not fabricate source quotations, external citations or claims that code was executed. When the source is incomplete or contradictory, use the uncertainty behavior in section 10.
 
 #### One authoring call, with truthful publication checks
 
-For fresh generation on this ordinary Markdown explanation/table path, acceptance permits one content-authoring call. Accepting a valid prepared result or linking an existing card starts zero new author calls; R11's prepared-result billing remains separate. Do not add an LLM citation judge, escalation, repair-author loop or automatic content regeneration between that call and publication. The planner and existing safety classifier are separate operations; “one authoring call” does not falsely claim that the whole Tutor uses only one model request.
+For fresh generation on this ordinary Markdown explanation/table path, acceptance permits one content-authoring call. Linking an existing card starts zero new author calls. Do not add an LLM citation judge, escalation, repair-author loop or automatic content regeneration between that call and publication. The planner and existing safety classifier are separate operations; “one authoring call” does not falsely claim that the whole Tutor uses only one model request.
 
 Keep authorization, source-version binding, output schema/renderability, existing safety policy, payment and persistence checks. An invalid output or genuine unavailable/safety/access condition still needs a truthful failure path. This contract is not a promise that every provider call succeeds or every model assertion is infallible.
 
@@ -156,7 +157,7 @@ Use `LearningBlocks.jsx::ExplanationBody`, `Kicker`, `Md`, `SourceRefChip`, the 
 | Selection note | Editable linked Sticky note beside parent, with captured quote above its body | insertSticky, placeNote, existing note editor |
 | Add note | Context menu opens linked blank Sticky note with parent card context | canvas-actions-types.js and same note action |
 | Connectors | Curved Bézier links for new cards/notes, gentle bow at aligned ports, attached through movement/resize/reload | linkRoute, learn-connectors.js::routePath |
-| Sources | Local pinned source navigation remains access/revision scoped. Later R8a cited-web sources use the existing card action area/popover contract. | SourceRefChip and R8a source controls |
+| Sources | View passage navigates to the authorized pinned source revision. | SourceRefChip |
 
 The approved source jump in UI 07 and CORE.09 says **View passage**. Use that label for this extracted card contract and track reconciliation with **View section** in the shared action table under GAP-04. Confirm exact references before changing shared labels for other surfaces.
 
@@ -321,7 +322,7 @@ Separate reference reconstruction from original-prompt generation. Where a refer
 <a id="sprint-mvps"></a>
 ### EXP-10 — Sprint delivery ladder and parallel agents
 
-**Owner direction, 2026-11-08:** this is an MVP sprint. Deliver small usable increments to `main` as soon as their focused checks and applicable release requirements pass. Do not wait for the whole roadmap, a model tournament, all later Tutor integrations, or cosmetic polish. The detailed requirements remain intact; this ladder orders their delivery and does not silently delete deferred work.
+**Owner direction, 2026-11-08:** this is an MVP sprint. Deliver small usable increments to `main` as soon as their focused checks and applicable release requirements pass. Ship each functional increment before optional model comparison and cosmetic polish. This ladder covers E0–E3 and E7. The deferred E4–E6 requirements are recorded separately.
 
 **Agent count:** use **4 agents for `/explain` alone**: (1) coordinator/integrator, (2) backend/contracts, (3) Canvas/UI, (4) independent fixture/integration QA. For both commands concurrently use **7 total**, sharing the coordinator and QA: one `/explain` backend agent, one `/explain` UI agent, one `/interact` design/backend agent, one `/interact` build/runtime agent, one `/interact` UI agent, plus coordinator and QA. These are development workers, not LLM roles or extra production calls. Use fewer while a dependency prevents useful parallel work; do not add agents to polish.
 
@@ -337,16 +338,13 @@ Separate reference reconstruction from original-prompt generation. Where a refer
 | E0 — contracts/reuse | Small compatible foundation commit to main; incomplete additions remain off by default | Reuse/integrate main's written/playable command split, `prepareArtifactAuthorRequest`, accepted-title-before-counting and coherent quote/dispatch callers. Confirm identity/schema compatibility; add immutable profile selection around the working existing default transport. EXP-12-C01 and focused local checks. No learner-facing acceptance claim for foundation alone. | New UI, optional provider adapters/matrix, paid benchmark and later Tutor stages. |
 | E1 — first usable written card | Exact EX-01 → actual written author → correct explanation with requested table → same saved card on reopen; pinned header and one reading flow. Supported diagram requests also work through EX-07. | EXP-02, teaching/cap/title/renderer and required-visual subset of EXP-03/04/06; EXP-12-C02–C03; local gate E-B1 and build before preview. Coffee table at all three Depths; Standard EX-07 diagram generation/reload and missing-required-visual failures. Keep unfinished actions hidden. | Terms/suggestions/notes, optional image jobs, optional provider adapters/matrix and model comparison. E1 tree caption is a scoped substitute; full blue-path reference acceptance stays E3. |
 | E2 — approved interaction layer | Orange definitions, three questions, bottom follow-up, selection/highlight and linked notes backed by real APIs | Section 5's resolved metadata/ranges/ownership contract; EXP-03, EXP-04-C16–20 / EXP-05 and EXP-12-C05–C06; local gate E-B2. Owner tests one newly authored card's real actions, routing, quote preservation, duplicate prevention, keyboard actions and reload. | Extra animations, visual variants, elaborate empty states beyond the approved usable behavior. |
-| E3 — Tutor/visual completion | Same written card through accepted Tutor steps, two-card continuity, approved highlighted tree path and current optional illustration attachment | EXP-06, EXP-12-C04 and affected EXP-08; local gate E-B3. Owner tests accepted title/Depth/source, two saved cards, source jumps, image attachment and failure states. Reuse already working Tutor/image code. | R8a/R10/R11 and a full provider benchmark. If Tutor or illustration pieces are already verified, deliver their small delta earlier rather than waiting artificially. |
-| E4 — researched explanations | R8a evidence and cited sources | EXP-07-C01–03: source-supported zero-search case, evidence binding, privacy, saved sources | E5 adaptation, E6 preparation, E7 optimization |
-| E5 — adaptive explanations | R10 future-step adaptation and deeper exploration | EXP-07-C04–05: explicit feedback, revision acceptance, preserved delivered cards and zero-charge existing links | E6 preparation, E7 optimization |
-| E6 — prepared explanations | R11 private preparation and accepted reuse | EXP-07-C06–08: fingerprints, private output, one settlement and no extra author on reuse | E7 optimization |
+| E3 — Tutor/visual completion | Same written card through accepted Tutor steps, two-card continuity, approved highlighted tree path and current optional illustration attachment | EXP-06, EXP-12-C04 and affected EXP-08; local gate E-B3. Owner tests accepted title/Depth/source, two saved cards, source jumps, image attachment and failure states. Reuse already working Tutor/image code. | Full provider benchmark. Deliver already verified Tutor or illustration pieces in the earliest compatible increment. |
 | E7 — measured optimization and final closure | Factuality/speed comparison and complete-feature acceptance audit | EXP-09 plus all in-scope requirements, integrated regression/manual evidence and verified release state | Nothing silently deferred; blocked work remains open |
 
-- [ ] **EXP-10-R01** Deliver E0–E7 as separate small MVP candidates, each mapped to exact existing requirement subsets and a main commit; keep unfinished full-feature parent boxes open.
+- [ ] **EXP-10-R01** Deliver E0–E3 and E7 as small MVP candidates. Map each candidate to its requirement subset and main commit, and keep unfinished in-scope parent boxes open.
   - [ ] **EXP-10-R02** The owner receives E1 for first manual testing only after the local backend/contract gate and required build/smoke succeed.
   - [ ] **EXP-10-R03** Run independent lanes with one integration owner; progress E2/E3 while the earlier frozen candidate is under manual review or release handling.
-  - [ ] **EXP-10-R04** Ship functional increments without blocking on optional model comparison, later Tutor integrations or speculative polish; retain those tasks open.
+  - [ ] **EXP-10-R04** Ship functional increments before optional model comparison and speculative polish. Keep E4–E6 outside the sprint gates until the owner reopens them.
 
 **Stop-polishing rule:** after the increment's behavior, factual contract, access, accounting, persistence, affected tests and required build/smoke pass, prepare its main delivery immediately. Fix functional failures, broken layout, unreadable/clipped content and unsupported controls; defer refactors, new abstractions, alternate designs, cosmetic tuning and broader benchmark matrices. Do not use “MVP” to skip a known required-test failure or conceal an incomplete feature.
 
@@ -395,13 +393,9 @@ All boxes start open for this extracted spec. Existing source/code evidence is r
   - [ ] **EXP-06-R02** Invalid or absent required visual output follows a declared policy; no card claims to show a diagram that was silently dropped.
   - [ ] **EXP-06-R03** Optional illustrations reuse the existing quoted image workflow and target binding, with appropriate alt text, caption, loading/failure and authorized reload behavior.
 
-### EXP-07 — Explicit later Tutor integrations
+### EXP-07 — Deferred Tutor integrations
 
-- [ ] **EXP-07-R01** When each shared stage is authorized and ready, Explanation integrates R8a research, R10 adaptation and R11 prepared content through their existing contracts.
-  - [ ] **EXP-07-R02** Research uses existing evidence first, binds used sources to the accepted/card revision and preserves source privacy and platform-funded limits.
-  - [ ] **EXP-07-R03** Adaptation changes eligible future work from explicit feedback without silently changing accepted or delivered cards or inferring mastery from clicks.
-  - [ ] **EXP-07-R04** Prepared text/table content stays private until acceptance, reuses matching input versions and settles once without another author call.
-  - [ ] **EXP-07-R05** The written core and direct command remain independently deliverable while R12 is held.
+E4, E5 and E6 are deferred. See the [retained requirements](#deferred-explain-scope) for their scope and stable IDs.
 
 ### EXP-08 — Proven accepted-step delivery
 
@@ -418,7 +412,7 @@ All boxes start open for this extracted spec. Existing source/code evidence is r
 
 ### Complete-feature coverage and final MVP exit
 
-The MVP ladder runs until the entire in-scope feature is built. An earlier usable MVP is a release milestone, not the stopping point. Every deferred requirement must name its later MVP; a missing budget or dependency leaves that MVP blocked and its tasks open.
+The current ladder covers E0–E3 and E7. Earlier usable increments can ship as their gates pass. A missing budget or dependency leaves the affected in-scope work open. Reopen deferred E4–E6 only after an explicit owner scope decision.
 
 Each MVP must record the exact requirement subset, local tests, manual acceptance steps, candidate/main commits and remaining work. Access, billing, factuality, persistence and compatibility checks apply at the first affected increment, not only at the end.
 
@@ -431,7 +425,7 @@ The final MVP closes only after every in-scope roadmap/checklist requirement has
 | EXP-03 contracts and EXP-04 complete CORE.09 | E1 core author/reading flow; E2 interaction metadata; E3 Tutor/visual completion |
 | EXP-05 interactions | E2 |
 | EXP-06 visuals | E1 supported diagrams and required-table/diagram failure acceptance; E3 highlighted-path reference completion and illustration |
-| EXP-07 later Tutor integrations | E4 research; E5 adaptation; E6 preparation |
+| EXP-07 deferred Tutor integrations | Outside current MVP and acceptance scope. See [E4–E6](#deferred-explain-scope). |
 | EXP-08 acceptance | Affected checks in each increment; complete initial matrix E3; final audit E7 |
 | EXP-09 benchmark | E7; prepare unpaid fixtures earlier |
 | EXP-10 sprint gates | Every MVP, final reconciliation E7 |
@@ -486,14 +480,14 @@ These outcomes amend the existing requirements; they do not replace or compact t
 These sprint gates select a minimum for the affected increment, not permission to skip other affected tests required by repository policy. Never re-run broad unrelated suites after every small correction simply to appear thorough. Reuse unaffected evidence with a documented delta; rerun the failed/changed path and its affected integration checks.
 
 
-**Dependency order:** EXP-01 audit → EXP-02 identity checks and EXP-03 contracts → EXP-04 teaching/rendering plus EXP-05 interaction wiring and EXP-06 visuals → EXP-08 integrated acceptance. Build the affected boundary/fixture checks alongside each change. EXP-07 waits for its separately owned shared stages; EXP-09 requires its own benchmark scope/budget and never blocks unpaid fixtures. Do not start a second Tutor planner, job ledger, sticky-note editor or diagram library.
+**Dependency order:** EXP-01 audit → EXP-02 identity checks and EXP-03 contracts → EXP-04 teaching/rendering plus EXP-05 interaction wiring and EXP-06 visuals → EXP-08 integrated acceptance. Build the affected boundary/fixture checks alongside each change. EXP-09 requires its own benchmark scope and budget. Unpaid fixtures can proceed before that budget is available. Do not start a second Tutor planner, job ledger, sticky-note editor or diagram library.
 
 ### EXP-12 checklist — Review corrections by MVP
 
 **Dependency order:** C01 → C02/C03 establishes E1. C05/C06 follow in E2; C04 completes the approved reference in E3. C07 separates optional provider work from the first-card path. Reuse the four development lanes already allocated above; no extra production agent or LLM call is introduced.
 
 - [ ] **EXP-12-C01 — E0 integrate existing prerequisites.** On the actual starting SHA, inspect `packages/web/src/agent/slash.js`, `learn-slash.js`, control-plane artifact dispatch and `learn-artifact.js`, `learn-primitives.js`, `chat-depth.js`, plus `roadmap/roadmap-generate.js` and their tests. Reuse main `34a63b7d2322d0bb70a086612f4bfb749776496a` or a verified compatible successor's coherent command split and shared request/title implementation. If starting from the older Tutor branch, bring the dependent callers/schema changes together; copying only the registry entry or helper declaration is insufficient. Record the integration commit and resulting symbols. Assert typed/picker written `/explain` resolves to internal `explanation` and artifact generation, while `/interactive` remains internal `explain` on its playable path. Preserve existing saved IDs/drafts/jobs. Verify `prepareArtifactAuthorRequest` drives quotation and dispatch consistently and `generateArtifact(...,{title})` applies the accepted title before counting. Run affected registry/dispatch, author, depth and roadmap fixtures; coordinate shared-file ownership with Interact I0.
-- [ ] **EXP-12-C02 — E1 preserve explicit visual requirements.** Implement section 5's versioned server-owned visual requirements through direct input and accepted Tutor input, request fingerprint/quotation where used, author guidance, validation, persistence and prepared reuse. Capture actual requests for EX-01 and EX-07 and wording variations. Assert required intent cannot be weakened by an author omission or false output flag. Validate parsed tables and typed supported diagrams after final-title application/allowed cleanup. Test missing table at all Depths, malformed/empty table, diagram omission, invalid/unclosed diagram, valid required diagram alongside a separate invalid optional diagram, and no dangling figure references after optional fallback. Retain normal direct repair and Tutor zero-repair limits, terminal failure mapping and single settlement. Unsupported/ambiguous required visual intent gets an explicit outcome; no silent prose success.
+- [ ] **EXP-12-C02 — E1 preserve explicit visual requirements.** Implement section 5's versioned server-owned visual requirements through direct input and accepted Tutor input, request fingerprint/quotation where used, author guidance, validation and persistence. Capture actual requests for EX-01 and EX-07 and wording variations. Assert required intent cannot be weakened by an author omission or false output flag. Validate parsed tables and typed supported diagrams after final-title application/allowed cleanup. Test missing table at all Depths, malformed/empty table, diagram omission, invalid/unclosed diagram, valid required diagram alongside a separate invalid optional diagram, and no dangling figure references after optional fallback. Retain normal direct repair and Tutor zero-repair limits, terminal failure mapping and single settlement. Unsupported/ambiguous required visual intent gets an explicit outcome; no silent prose success.
 - [ ] **EXP-12-C03 — E1 actual first-card acceptance.** Run E-B1 and the affected renderer checks/build before handing off a preview. Through the real written route send the exact EX-01 prompt without a source, with Standard as the first real run. Verify the greater temperature-difference explanation, comparable conditions, a real early/late comparison table and no unsupported fixed rate/time. Save, close/reopen and confirm the same card ID, content and table. Repeat at Overview and Deep without relaxing their caps or the table requirement. Run Standard EX-07 through generation, saved SVG rendering and reopen; verify both Yes/No decisions and the 25-year-old/$60,000 applicant's Approve route. E1 may explain that route in a caption without claiming blue highlighting. Keep deterministic injected omission/failure tests separate from actual provider runs. Record candidate/profile, request and saved identity, model attempts, result and preview evidence. If live runs lack an authorized cap/credentials, report that specific acceptance blocker; do not mark the first usable card complete from fixtures alone.
 - [ ] **EXP-12-C04 — E3 validated highlighted tree path.** The current `flow` edge schema accepts endpoint/label fields only. Add a small optional `highlightPath` to the supported diagram schema as an ordered array of existing node IDs, bounded by the graph's node limit. Validate at least two distinct nodes, every adjacent directed edge exists, no repeats, and a contiguous root-to-terminal route for this worked-path feature. Unknown/disconnected/reversed/repeated IDs fail validation. Keep absent-field diagrams and saved cards compatible. Derive selected edges/nodes from this validated path; reuse fixed theme styles, with no author-supplied SVG, CSS or colors. Update the actual flow renderer and accessible path description as well as pure schema/text extraction; layout IDs are not teaching text, visible captions are. For EX-03/EX-07 highlight precisely Age under 30? → Income over $50k? → Approve, keep the two other branches neutral, and align Yes/No labels/caption. Test the schema, renderer, saved reload and accessible description; capture a visual comparison to approved HTML. E1's unhighlighted caption substitute cannot close this task.
 - [ ] **EXP-12-C05 — E2 author/save interaction metadata.** Implement section 5's additive envelope, eligible-card rule, exactly three distinct questions, zero-to-six anchored term definitions, field limits and separated UI allowance. Generate inside the existing author call and validate against final normalized text; assign saved IDs/revision on the server. Test all Depths, missing/duplicate/oversize questions, invalid/overlapping/ambiguous term anchors, literal Markdown and repeated occurrences, old/E1 cards without metadata, and title/section changes. Check complete envelope persistence and quote/dispatch schema consistency without increasing attempt ceilings. Extend the real artifact/interaction fixtures rather than passing a fixture-only DOM dataset to the UI.
@@ -605,18 +599,9 @@ These sprint gates select a minimum for the affected increment, not permission t
 - [ ] **EXP-06-C05** Reuse `explanation.add-illustration`, the prepared `/image` composer, signed plan quote/Generate, persisted target proposal and image job settlement. After completion attach the authorized saved asset to the intended Explanation. Cover changed/deleted target, stale proposal, duplicate completion, reload while pending and failed job without corrupting the text card or inserting an unintended duplicate image card.
 - [ ] **EXP-06-C06** Verify file access/revocation and authorized share/fork/read through the existing image path. Retain current provider selection and capability limits. Record any real-image budget/run separately; an HTML fixture or provider registry entry is not generation acceptance.
 
-### EXP-07 checklist — Later shared Tutor stages
+### EXP-07 checklist — Deferred scope
 
-**Dependencies:** accepted core, then the corresponding R8a/R10/R11 prerequisites in REF-01/02. **Ownership:** shared Tutor work stays there; these are Explanation integration obligations. Do not mark the whole stage complete from one card fixture.
-
-- [ ] **EXP-07-C01** For R8a, use an accepted written Explanation step as the first supported pilot. Check existing pinned evidence before searching; the supported-source case must make zero Exa calls. Resolve material gaps before the offer becomes actionable, bind fetched passages/citation IDs to the accepted source/plan/proposal version and retain the whole supported Markdown input.
-- [ ] **EXP-07-C02** Preserve R8a's platform-funded research, privacy/query filtering, bounded search/read/time/spend and existing clarification when essential evidence remains absent. Do not borrow an image or Interactive allowance. Use REF-01 §10.2.1 for the complete configured policy and REF-02 R8a.03 for implementation. This doc does not authorize a live research spend.
-- [ ] **EXP-07-C03** Save only actually used cited sources on the card version. Use final-URL deduplication, title and Copy link, and the existing configurable five-link Sources popover. Test authorized reload, source versions and no unrelated search result leakage. Keep local View passage navigation distinct from external citations.
-- [ ] **EXP-07-C04** For R10, keep the initial mode Explanations only with R9 disabled, using explicit instructions, relevant private feedback/self-report and delivered context. Change eligible future/unaccepted steps only. Viewing, Tab/accepting or cancellation is neutral about mastery; Already understood is self-report. Material goal/scope/Depth/mode/order/stopping-point changes require roadmap revision and reacceptance.
-- [ ] **EXP-07-C05** Preserve accepted in-flight work, delivered cards and settled cost during adaptation. Go deeper uses existing exploration navigation and a return point. Standalone/Quick Edit content joins a roadmap only by explicit linking; linking an existing card is zero generation and zero new author charge.
-- [ ] **EXP-07-C06** For R11, wait for core plus R5/R6 version/metadata readiness. Initial eligible preparation is lightweight text/table in Explanations only: while N is offered, prepare bounded private N+1 under platform accounting. Keep the full-source one-author policy and never expose prepared content before acceptance.
-- [ ] **EXP-07-C07** Reuse a prepared result only when source, plan/proposal, Depth, instructions and evidence fingerprints match. Acceptance charges the learner once and makes zero new provider calls. Invalidate stale preparation; reconcile unknown provider outcomes before any new dispatch. Keep expensive media/paid plans acceptance-first and record speculative platform spend separately from learner settlement.
-- [ ] **EXP-07-C08** Prove core written generation works while these later flags/stages are off and R12 remains held. Preserve the wider source requirements without turning this doc into a second general routing, planning or media-engine implementation.
+The [deferred checklist](#deferred-explain-scope) preserves these requirements for a later scope decision. Current candidates use the EXP-08 acceptance checks.
 
 ### EXP-08 checklist — Complete imported integration acceptance
 
@@ -820,3 +805,35 @@ Benchmark logging amendment (2026-11-08): specified canonical result/index/artif
 ### Review-correction amendment — 2026-11-08
 
 Rechecked the Tutor registry, artifact author and approved card HTML at `95e162ed5bba53d45240b9a012410a6b75fb5fd4`; inspected main's shared author implementation and flow schema at `34a63b7d2322d0bb70a086612f4bfb749776496a`. Confirmed the target branch's mixed entry, missing shared request/title seam, and missing highlighted-path field. E0 now explicitly integrates those main prerequisites; E1 requires the coffee table at every Depth and supported required-diagram generation/reload with truthful failure; E2 has concrete metadata/revision/destination contracts; E3 owns full highlighted-tree equivalence. Optional provider adapters/fixtures remain independent of first-card delivery. Added EXP-12 and corrected the original instructions/mappings in place. Documentation checks retained all 132 prior checkbox IDs, found 143 unique IDs after the amendment, and verified balanced code fences and unique navigation anchors. No runtime implementation, generation, preview, paid benchmark or runtime checkbox completion is claimed by this documentation amendment.
+
+<a id="deferred-explain-scope"></a>
+## 12. Deferred E4–E6 requirements
+
+Owner decision, 2026-11-08. These requirements are retained for a future scope decision. Current implementation and acceptance cover E0–E3 and E7.
+
+| Rung | Deferred work | Requirement IDs |
+| --- | --- | --- |
+| E4 / R8a | External web research and citations on Explanation cards | EXP-07-C01–C03 |
+| E5 / R10 | Adapting later Tutor steps from feedback | EXP-07-C04–C05 |
+| E6 / R11 | Preparing the next card in the background and reusing that prepared result | EXP-07-C06–C08 |
+
+### Retained roadmap requirements
+
+- **EXP-07-R01** (deferred) When each shared stage is authorized and ready, Explanation integrates R8a research, R10 adaptation and R11 prepared content through their existing contracts.
+  - **EXP-07-R02** (deferred) Research uses existing evidence first, binds used sources to the accepted/card revision and preserves source privacy and platform-funded limits.
+  - **EXP-07-R03** (deferred) Adaptation changes eligible future work from explicit feedback without silently changing accepted or delivered cards or inferring mastery from clicks.
+  - **EXP-07-R04** (deferred) Prepared text/table content stays private until acceptance, reuses matching input versions and settles once without another author call.
+  - **EXP-07-R05** (deferred) The written core and direct command remain independently deliverable while R12 is held.
+
+### Retained implementation checklist
+
+**Dependencies:** accepted core, then the corresponding R8a/R10/R11 prerequisites in REF-01/02. **Ownership:** shared Tutor work stays there; these are Explanation integration obligations. Do not mark the whole stage complete from one card fixture.
+
+- **EXP-07-C01** (deferred) For R8a, use an accepted written Explanation step as the first supported pilot. Check existing pinned evidence before searching; the supported-source case must make zero Exa calls. Resolve material gaps before the offer becomes actionable, bind fetched passages/citation IDs to the accepted source/plan/proposal version and retain the whole supported Markdown input.
+- **EXP-07-C02** (deferred) Preserve R8a's platform-funded research, privacy/query filtering, bounded search/read/time/spend and existing clarification when essential evidence remains absent. Do not borrow an image or Interactive allowance. Use REF-01 §10.2.1 for the complete configured policy and REF-02 R8a.03 for implementation. This doc does not authorize a live research spend.
+- **EXP-07-C03** (deferred) Save only actually used cited sources on the card version. Use final-URL deduplication, title and Copy link, and the existing configurable five-link Sources popover. Test authorized reload, source versions and no unrelated search result leakage. Keep local View passage navigation distinct from external citations.
+- **EXP-07-C04** (deferred) For R10, keep the initial mode Explanations only with R9 disabled, using explicit instructions, relevant private feedback/self-report and delivered context. Change eligible future/unaccepted steps only. Viewing, Tab/accepting or cancellation is neutral about mastery; Already understood is self-report. Material goal/scope/Depth/mode/order/stopping-point changes require roadmap revision and reacceptance.
+- **EXP-07-C05** (deferred) Preserve accepted in-flight work, delivered cards and settled cost during adaptation. Go deeper uses existing exploration navigation and a return point. Standalone/Quick Edit content joins a roadmap only by explicit linking; linking an existing card is zero generation and zero new author charge.
+- **EXP-07-C06** (deferred) For R11, wait for core plus R5/R6 version/metadata readiness. Initial eligible preparation is lightweight text/table in Explanations only: while N is offered, prepare bounded private N+1 under platform accounting. Keep the full-source one-author policy and never expose prepared content before acceptance.
+- **EXP-07-C07** (deferred) Reuse a prepared result only when source, plan/proposal, Depth, instructions and evidence fingerprints match. Acceptance charges the learner once and makes zero new provider calls. Invalidate stale preparation; reconcile unknown provider outcomes before any new dispatch. Keep expensive media/paid plans acceptance-first and record speculative platform spend separately from learner settlement.
+- **EXP-07-C08** (deferred) Prove core written generation works while these later flags/stages are off and R12 remains held. Preserve the wider source requirements without turning this doc into a second general routing, planning or media-engine implementation.
