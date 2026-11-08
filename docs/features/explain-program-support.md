@@ -172,7 +172,7 @@ this environment lacks the authorized dev credentials and working browser captur
 
 ### AI teaching examples
 
-Six hand-authored examples compose the existing 2D SDK in normal program cards.
+Seven hand-authored examples compose the existing 2D SDK in normal program cards.
 They are exported together by `ai-teaching-fixtures.js`, admitted only through the
 existing dev fixture gate. They are reusable source examples, not a new automatic
 lesson-routing system and not proof of LLM generation quality.
@@ -185,25 +185,35 @@ lesson-routing system and not proof of LLM generation quality.
 | `fixture-ai-backprop` | Inspect a tanh unit forward pass, local derivatives, chain-rule gradient and one proposed weight update. | `ai-backprop-fixture.js` |
 | `fixture-ai-boundary` | Drag six training points and a query; compare 1/3-neighbor regions, prediction and leave-one-out error. | `ai-boundary-fixture.js` |
 | `fixture-ai-qlearning` | Take actions in a 3 × 3 world; inspect terminal/wall rewards, Q updates and greedy policy. New episode retains Q; parameter changes clear it. | `ai-qlearning-fixture.js` |
+| `fixture-ai-tree-split` | Move a cutoff across ten labeled points. Compare left and right class counts, impurity and gain, then reveal the best cutoff for Gini or entropy. | `ai-tree-split-fixture.js` |
 
 All source paths above are under `packages/web/src/explain-program/`. The examples
 reuse `ProgramScene`, shared `Frame`, existing input controls and their persistence
 and Reset behavior. No new SDK version, planner mapping or repair budget is added.
 Focused tests check the numerical mechanisms independently and exercise the real
 QuickJS and frame-normalization paths. The normal fixture resolver and saved input
-round trips have their own integration checks. The two stateful examples also
+round trips have their own integration checks. The stateful examples also
 exercise initialize/reduce/evaluate, saved state round trips and Reset.
-Verification on 2026-11-08: all **28 focused AI tests pass**, using
+The original six examples passed **28 focused AI tests** on 2026-11-08, using
 `node --test --test-concurrency=1 packages/web/src/explain-program/ai-*.test.mjs`
-with unchanged runtime budgets; the dev web build passes. Independent code review
-found no concrete defects. Shared-Frame static renders were inspected, including
+with unchanged runtime budgets. That batch passed its dev web build and independent
+code review. Shared-Frame static renders were inspected, including
 initial and changed states of the new stateful examples. Offline PNG export omits
 KaTeX foreignObject formulas and drops the unsupported shadow filter; it is not
 full-card browser acceptance. Live browser/dev acceptance and real model generation
 remain pending; the authorized deployment environment is not available here.
 
+The Decision Tree Split Explorer uses the shared plot, readouts, numeric slider,
+select and action controls. It evaluates the nine midpoints between the ten synthetic
+feature values. The maximum gain occurs at cutoff 9 with Gini and cutoff 15 with
+entropy. Reveal keeps the learner's chosen cutoff visible and survives reopening.
+Reset hides the reveal and restores the default cutoff and criterion.
+Nine focused checks passed through the real resolver and sandbox. The dev web
+build passed, and the initial and revealed shared-Frame renders were inspected.
+Live browser acceptance and generated-card acceptance remain pending.
+
 See the [generation and dev acceptance handoff](./explain-on-canvas/handoff/ai-example-regeneration-handoff.md)
-for exact prompts and checks. These six examples do not increase the reusable
+for exact prompts and checks. These examples do not increase the reusable
 component capability count or retroactively change the frozen 508-topic audit.
 
 ## Limits (main: `contract.js CONTRACT_LIMITS`, `limits.js LIMITS`)
