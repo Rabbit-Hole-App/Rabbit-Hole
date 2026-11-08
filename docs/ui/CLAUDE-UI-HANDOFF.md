@@ -1,0 +1,61 @@
+# Rabbit Hole UI — master handoff for Claude Code
+
+Give Claude Code this file first. It is the entry point for implementing the UI references in `docs/ui` on `chatgpt/tutor`.
+
+This document routes work to the detailed screen handoffs and shared component library. It does not authorize implementing every screen, deploying the application, or changing feature behavior. Work on the screen requested by the owner.
+
+## Screen handoffs
+
+| Screen | Required implementation handoff | Complete HTML reference | Status |
+| --- | --- | --- | --- |
+| Start a rabbit hole | [START-DIALOG.md](START-DIALOG.md) | [12-start-rabbit-hole.html](clean/12-start-rabbit-hole.html) | Templates and source mapping pushed; runtime integration and browser verification pending |
+
+**For Start a rabbit hole, read START-DIALOG.md in full.** It maps every visible element to its canonical template, component, CSS selector, behavior script and icon. It distinguishes existing primitives from the four newly authorized templates and records the latest copy, button, resize and focus corrections.
+
+Add future screen-specific handoffs to this table as they are prepared. A component appearing in the library does not by itself establish that its full screen flow has been reviewed or integrated.
+
+## Required reading order
+
+1. Read the current repository `AGENTS.md`, `CLAUDE.md` and `UI.md` on the implementation branch.
+2. Read the selected screen handoff from the table above and inspect its complete HTML reference.
+3. Read the linked component records, editable markup/templates, shared styles and behavior scripts. Follow actual dependencies rather than estimating values from screenshots.
+4. Inspect the latest integrated app component and its callers before editing. The handoff's app paths are mapping landmarks, not a frozen implementation to overwrite.
+
+The latest explicit owner decision takes precedence over older references. Within this library, follow the [current review corrections](REVIEW-UPDATES.md), [palette roles](foundations/PALETTE.md), [design tokens](foundations/tokens.json) and the selected screen's specific contract. Flag unresolved conflicts instead of silently choosing a new design. Historical/hidden Flow examples are not current styling targets.
+
+## Shared library entry points
+
+| Need | Reference |
+| --- | --- |
+| Folder structure and editing workflow | [README.md](README.md) |
+| Search components by name, state or app path | [Searchable catalog](index.html) |
+| Browse standalone working specimens | [Component library](rabbit-hole-component-library.html) |
+| Exact component IDs and dependencies | [registry.json](registry.json) |
+| Component-to-app landmarks | [MAPPING.md](MAPPING.md) |
+| Original source inventory | [INVENTORY.md](INVENTORY.md) |
+| Known inconsistencies and gaps | [REVIEW.md](REVIEW.md) |
+| Latest owner corrections | [REVIEW-UPDATES.md](REVIEW-UPDATES.md) |
+| Validation scope and remaining limitations | [VERIFICATION.md](VERIFICATION.md) |
+
+## Reuse rules
+
+- Use the selected screen's component map. Reuse the existing app components and helpers, extending shared primitives deliberately when they need to match the current reference.
+- Do not invent alternative buttons, fields, tabs, menus, icons, palettes, type sizes, spacing or resize controls. A visually similar custom implementation is not evidence of reuse.
+- Preserve each component's hover, pressed, selected, keyboard-focus and disabled states. Preserve single-line action labels, readable text, bounded resizing and shared pale scrollbars where the screen contract requires them.
+- If a needed component or state is missing, identify the gap for the owner before designing it. Continue independent work already covered by existing references. Add any newly authorized reusable template to this library before consuming it.
+- Preserve real app behavior, access checks, loading/error handling and persistence. HTML demonstration callbacks are not production implementations.
+- Do not copy specimen-only controls or completion messages into the app. Each screen handoff identifies its demonstration boundaries.
+- Edit canonical component/template sources, then regenerate exports. Do not independently maintain the assembled HTML as a second design.
+- Keep this master file as the index. Put detailed screen decisions and component mappings in the linked screen handoff so there is one maintained source for each contract.
+
+## Completion hand-back
+
+For the requested screen, report:
+
+1. Exact implementation commit and changed app components.
+2. The handoff/reference used and a mapping of reused library components.
+3. Any shared primitive changes, newly authorized templates or remaining mapping gaps.
+4. Checks actually executed and their results. Separate structural checks, browser interactions, real backend behavior and deployed verification.
+5. Remaining limitations and the review link or artifact required by the owner's request.
+
+Do not call a screen integrated or visually verified solely because its HTML builds or its static checks pass.
