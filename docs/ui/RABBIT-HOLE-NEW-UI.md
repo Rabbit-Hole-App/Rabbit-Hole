@@ -1,4 +1,4 @@
-# Rabbit Hole UI — master handoff for Claude Code
+# Rabbit Hole New UI
 
 Give Claude Code this file first. It is the entry point for implementing the UI references in `docs/ui` on `chatgpt/tutor`.
 

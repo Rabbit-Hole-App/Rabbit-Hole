@@ -2,7 +2,7 @@
 
 # Rabbit Hole UI assets
 
-**Claude Code: start with the [master UI handoff](CLAUDE-UI-HANDOFF.md).** It links to the screen-specific references and component reuse contracts.
+**Claude Code: start with the [master UI handoff](RABBIT-HOLE-NEW-UI.md).** It links to the screen-specific references and component reuse contracts.
 
 Start with the [searchable catalog](index.html), [complete source inventory](INVENTORY.md), [component-to-app mapping](MAPPING.md), and [review of inconsistencies and gaps](REVIEW.md).
 
