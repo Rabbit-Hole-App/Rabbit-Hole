@@ -45,6 +45,7 @@ The latest explicit owner decision takes precedence over older references. Withi
 
 ## Reuse rules
 
+- Every new or updated UI screen handoff must update this master index in the same push, including the handoff, complete HTML reference and current status. This is a standing owner requirement: do it automatically without asking or waiting for a reminder. A UI handoff is incomplete until this index is updated.
 - Use the selected screen's component map. Reuse the existing app components and helpers, extending shared primitives deliberately when they need to match the current reference.
 - Do not invent alternative buttons, fields, tabs, menus, icons, palettes, type sizes, spacing or resize controls. A visually similar custom implementation is not evidence of reuse.
 - Preserve each component's hover, pressed, selected, keyboard-focus and disabled states. Preserve single-line action labels, readable text, bounded resizing and shared pale scrollbars where the screen contract requires them.
