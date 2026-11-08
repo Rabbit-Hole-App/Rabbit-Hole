@@ -1,0 +1,1039 @@
+{
+ "schema": 1,
+ "case": "convolution",
+ "attempt": 1,
+ "prompt": "Show a 3 × 3 kernel sliding across a synthetic 5 × 5 image. Let me move the window and choose vertical edges, horizontal edges or box blur. Show the input patch, elementwise products and output. Use CNN cross-correlation, stride 1, no padding or bias; divide the blur sum by nine.",
+ "path": "The dev clone's composer: \"/interactive <prompt>\", Send, then the brief's Generate. No fixture was seeded or copied; the author, review and repair ran on the real backend.",
+ "routing": {
+  "recordedInBrowser": null,
+  "replayedExplicit": {
+   "route": "capability:explain",
+   "via": "command",
+   "capability": "explain",
+   "flow": "direct",
+   "code": null,
+   "message": null,
+   "confidence": null,
+   "probability": null
+  },
+  "replayedPlainWords": {
+   "route": "answer",
+   "via": "fallback",
+   "capability": null,
+   "flow": null,
+   "code": "unavailable",
+   "message": "The request check did not finish. The turn is answered in text only.",
+   "confidence": null,
+   "probability": null
+  },
+  "note": "The explicit /interactive command resolves in the router with no model call. Plain words need the router classifier, which the dev clone does not have a key for, so the router answers in text only (via fallback); that is why the explicit command was used."
+ },
+ "environment": {
+  "clone": "rabbit-hole-web-dev-tc-s7d2",
+  "deployedCommit": "b19e8b18f3d8d181cc037f663566b8e87d486b83",
+  "startedAt": "2026-11-08T01:38:13.240Z"
+ },
+ "job": {
+  "jobId": "ej_fe8805dff2fe43e3a7480fa70925685e",
+  "boardId": "1ae420cf-a98e-448f-9368-8134db510eb8",
+  "resultId": "er_9a1ec44fc6674d05ac15d16c76df26c0",
+  "outcome": "card",
+  "stage": "ready",
+  "stopReason": "accepted",
+  "round": 0,
+  "failure": null,
+  "totalMs": 85297,
+  "calls": [
+   {
+    "role": "brief",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.0321,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "author",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.1725,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "review",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.051,
+    "ms": null,
+    "status": "settled"
+   }
+  ],
+  "costUsd": 0.256
+ },
+ "brief": "Review explanation\n\nSliding a 3 × 3 Kernel Across a 5 × 5 Image\n\ninteractive\nShow a 3 × 3 kernel sliding across a synthetic 5 × 5 image. Let me move the window and choose vertical edges, horizontal edges or box blur. Show the input patch, elementwise products and output. Use CNN cross-correlation, stride 1, no padding or bias; divide the blur sum by nine.\n\nPresentation\nStatic\nSteps\nOver time\nExperiment\n\nYou'll see three grids side by side. On the left is a 5 × 5 grid of pixel values, with the current 3 × 3 window outlined. In the middle are the chosen kernel's weights and the nine products of each pixel times its weight. On the right is the 3 × 3 output map, with the current output cell highlighted and its sum written out. When you move the window's row and column, the outline slides one pixel at a time, and the patch, products and sum all update. This shows that each output value is the weighted sum of the pixels under the window, and that 3 positions across by 3 down give a 3 × 3 output. A third setting switches between vertical edges, horizontal edges and box blur, so you can see how the edge kernels give large values where brightness changes and near zero where it doesn't, and how the blur averages the nine pixels.\n\nASSUMPTIONS 3\nLIMITATIONS 2\nGenerate\nEdit\nCancel\nGo to card",
+ "reviewFindings": [
+  {
+   "round": 0,
+   "stage": "reviewing",
+   "accepted": true,
+   "findings": [
+    {
+     "version": 1,
+     "id": "rf1",
+     "verdict": "semantic",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "a2-light",
+      "object": "kname"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "No sampled capture used the horizontal-edges kernel. In the source it is rows of 1s, 0s and −1s, which is correct, but its rendering was not shown, so it cannot be judged."
+    }
+   ]
+  }
+ ],
+ "artifact": {
+  "kind": "explain_program",
+  "schemaVersion": 1,
+  "runtimeVersion": "quickjs-release-sync@0.32.0",
+  "sdkVersion": "sdk-2",
+  "rendererVersion": "renderer-1",
+  "runtimePolicyVersion": "policy-1",
+  "permissionProfileVersion": "perm-1",
+  "fingerprints": {
+   "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+   "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+   "renderer": "renderer-1"
+  },
+  "dependencies": [],
+  "manifest": {
+   "title": "Sliding a 3 × 3 Kernel Across a 5 × 5 Image",
+   "summary": "A 5 × 5 image with a bright block, the 3 × 3 window under the kernel, the nine pixel × weight products, and the 3 × 3 output map with the current cell highlighted. Move the window and switch between vertical edges, horizontal edges and box blur.",
+   "assumptions": [
+    "CNN cross-correlation: the kernel is not flipped, stride 1, no padding, no bias.",
+    "The image is a made-up grid of whole numbers: background 1, a bright block of 9.",
+    "Vertical edges use 1, 0, −1 in each row; horizontal edges use the same turned on its side; box blur uses weight 1 everywhere and divides the sum by 9.",
+    "One channel and one fixed kernel at a time; pixel values cannot be edited."
+   ],
+   "description": "Left: a 5 × 5 grid of pixel values; the nine cells under the current window are highlighted. Middle: nine boxes, each showing a pixel times its kernel weight and the product, with the sum written below. Right: a 3 × 3 output grid giving every output value, with the cell for the current window highlighted. A formula at the bottom gives the output as the sum of the pixels times the weights.",
+   "inputs": [
+    {
+     "type": "number",
+     "id": "row",
+     "label": "Window top row",
+     "default": 0,
+     "min": 0,
+     "max": 2,
+     "step": 1
+    },
+    {
+     "type": "number",
+     "id": "col",
+     "label": "Window left column",
+     "default": 0,
+     "min": 0,
+     "max": 2,
+     "step": 1
+    },
+    {
+     "type": "select",
+     "id": "kernel",
+     "label": "Kernel",
+     "default": "vertical",
+     "options": [
+      {
+       "value": "vertical",
+       "label": "Vertical edges"
+      },
+      {
+       "value": "horizontal",
+       "label": "Horizontal edges"
+      },
+      {
+       "value": "blur",
+       "label": "Box blur (÷ 9)"
+      }
+     ]
+    }
+   ],
+   "readouts": [
+    {
+     "id": "out_value",
+     "label": "Output at window",
+     "decimals": 2
+    },
+    {
+     "id": "prod_sum",
+     "label": "Sum of products",
+     "decimals": 0
+    }
+   ],
+   "capabilities": [
+    "number_inputs",
+    "select_inputs",
+    "math_text"
+   ]
+  },
+  "source": "const IMG=[[1,1,1,1,1],[1,1,9,9,9],[1,1,9,9,9],[1,1,9,9,9],[1,1,1,1,1]];\nconst K={vertical:[[1,0,-1],[1,0,-1],[1,0,-1]],horizontal:[[1,1,1],[0,0,0],[-1,-1,-1]],blur:[[1,1,1],[1,1,1],[1,1,1]]};\nconst NAME={vertical:\"Vertical edges: each row 1, 0, \\u22121\",horizontal:\"Horizontal edges: rows 1s, 0s, \\u22121s\",blur:\"Box blur: all weights 1, then sum \\u00f7 9\"};\nfunction fm(v){return v<0?\"\\u2212\"+Math.abs(v):String(v);}\nfunction sumAt(k,r,c){let s=0;for(let m=0;m<3;m++)for(let n=0;n<3;n++)s+=IMG[r+m][c+n]*k[m][n];return s;}\nexport function evaluate({inputs}){\n const kind=K[inputs.kernel]?inputs.kernel:\"vertical\";\n const k=K[kind];const blur=kind===\"blur\";\n const r=sdk.clamp(Math.round(inputs.row),0,2),c=sdk.clamp(Math.round(inputs.col),0,2);\n const o=[];\n o.push(sdk.text(\"t_img\",160,50,\"Input image (5 \\u00d7 5)\",{align:\"middle\"}));\n o.push(sdk.text(\"t_prod\",527,50,\"Pixel \\u00d7 weight = product\",{align:\"middle\"}));\n o.push(sdk.text(\"t_out\",880,50,\"Output map (3 \\u00d7 3)\",{align:\"middle\"}));\n for(let i=0;i<5;i++)for(let j=0;j<5;j++){\n  const inW=i>=r&&i<r+3&&j>=c&&j<c+3;\n  o.push(sdk.box(\"px_\"+i+\"_\"+j,30+j*52,80+i*52,50,50,{text:String(IMG[i][j]),role:inW?\"input\":\"neutral\",opacity:inW?1:0.6}));\n }\n let s=0;\n for(let m=0;m<3;m++)for(let n=0;n<3;n++){\n  const p=IMG[r+m][c+n],w=k[m][n],pr=p*w;s+=pr;\n  o.push(sdk.box(\"pr_\"+m+\"_\"+n,340+n*126,80+m*58,120,52,{text:p+\" \\u00d7 \"+fm(w)+\" = \"+fm(pr),role:pr===0?\"neutral\":\"code\"}));\n }\n const out=blur?s/9:s;\n for(let i=0;i<3;i++)for(let j=0;j<3;j++){\n  const sv=sumAt(k,i,j);const v=blur?sdk.format(sv/9,2):fm(sv);\n  const cur=i===r&&j===c;\n  o.push(sdk.box(\"out_\"+i+\"_\"+j,775+j*72,80+i*58,68,52,{text:v,role:cur?\"output\":\"neutral\",opacity:cur?1:0.55}));\n }\n o.push(sdk.arrow(\"a1\",296,167,334,167));\n o.push(sdk.arrow(\"a2\",718,167,768,167));\n const sumTxt=blur?(\"Sum = \"+fm(s)+\", \\u00f7 9 = \"+sdk.format(out,2)+\" \\u2192 output[\"+r+\",\"+c+\"]\"):(\"Sum of products = \"+fm(s)+\" \\u2192 output[\"+r+\",\"+c+\"]\");\n o.push(sdk.text(\"sum\",527,290,sumTxt,{align:\"middle\",role:\"output\"}));\n o.push(sdk.text(\"kname\",527,320,NAME[kind],{align:\"middle\"}));\n o.push(sdk.math(\"formula\",540,400,\"O[i,j]=\\\\sum_{m=0}^{2}\\\\sum_{n=0}^{2} I[i+m,\\\\,j+n]\\\\,K[m,n]\"+(blur?\"\\\\;/\\\\;9\":\"\"),{align:\"middle\"}));\n o.push(sdk.text(\"note\",540,450,\"3 window positions across \\u00d7 3 down = 3 \\u00d7 3 output (stride 1, no padding, no bias, kernel not flipped)\",{align:\"middle\"}));\n return {frame:{width:1080,height:500,objects:o,readouts:[{id:\"out_value\",value:out},{id:\"prod_sum\",value:s}]},quantities:{output:out,sum:s,row:r,col:c}};\n}\n",
+  "sourceHash": "86c94ea4dc53aefda3663e735e9e31d6b71bff0042c2879a3401aaea30a17759",
+  "manifestHash": "8e154a504fc479f1372013e878a8137c67348053d6d23504ee05952e4b508312",
+  "bundleHash": "0e129744eb7748fa117a2be3608e2234dd428a4f08c78ad1245ba22837ecdf76"
+ },
+ "rejectedCandidate": null,
+ "stamps": {
+  "sdkVersion": "sdk-2",
+  "rendererVersion": "renderer-1",
+  "schemaVersion": 1,
+  "capabilities": [
+   "number_inputs",
+   "select_inputs",
+   "math_text"
+  ],
+  "bundleHash": "0e129744eb7748fa117a2be3608e2234dd428a4f08c78ad1245ba22837ecdf76"
+ },
+ "rawJobDetail": {
+  "job": {
+   "id": "ej_fe8805dff2fe43e3a7480fa70925685e",
+   "version": 1,
+   "boardId": "1ae420cf-a98e-448f-9368-8134db510eb8",
+   "cardId": "1b21503c-ee79-46bc-be66-a88e62fad35a",
+   "requestClass": "simple",
+   "stage": "ready",
+   "attempt": 1,
+   "terminal": true,
+   "round": 0,
+   "stopReason": "accepted",
+   "failure": null,
+   "recovery": [],
+   "usage": {
+    "credits": 26,
+    "unknown": false
+   },
+   "result": {
+    "jobId": "ej_fe8805dff2fe43e3a7480fa70925685e",
+    "resultId": "er_9a1ec44fc6674d05ac15d16c76df26c0",
+    "cardId": "1b21503c-ee79-46bc-be66-a88e62fad35a",
+    "canvas": {
+     "boardId": "1ae420cf-a98e-448f-9368-8134db510eb8"
+    },
+    "promptRef": "6c3cc37710283465",
+    "revision": "xr_c7fd4433426542139a3243a52e69c84a",
+    "baseRevision": null,
+    "kind": "program",
+    "bundleHash": "0e129744eb7748fa117a2be3608e2234dd428a4f08c78ad1245ba22837ecdf76",
+    "sourceHash": "86c94ea4dc53aefda3663e735e9e31d6b71bff0042c2879a3401aaea30a17759",
+    "manifestHash": "8e154a504fc479f1372013e878a8137c67348053d6d23504ee05952e4b508312",
+    "versions": {
+     "schema": 1,
+     "runtime": "quickjs-release-sync@0.32.0",
+     "sdk": "sdk-2",
+     "renderer": "renderer-1"
+    },
+    "policyVersion": 1,
+    "program": {
+     "kind": "explain_program",
+     "schemaVersion": 1,
+     "runtimeVersion": "quickjs-release-sync@0.32.0",
+     "sdkVersion": "sdk-2",
+     "rendererVersion": "renderer-1",
+     "runtimePolicyVersion": "policy-1",
+     "permissionProfileVersion": "perm-1",
+     "fingerprints": {
+      "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+      "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+      "renderer": "renderer-1"
+     },
+     "dependencies": [],
+     "manifest": {
+      "title": "Sliding a 3 × 3 Kernel Across a 5 × 5 Image",
+      "summary": "A 5 × 5 image with a bright block, the 3 × 3 window under the kernel, the nine pixel × weight products, and the 3 × 3 output map with the current cell highlighted. Move the window and switch between vertical edges, horizontal edges and box blur.",
+      "assumptions": [
+       "CNN cross-correlation: the kernel is not flipped, stride 1, no padding, no bias.",
+       "The image is a made-up grid of whole numbers: background 1, a bright block of 9.",
+       "Vertical edges use 1, 0, −1 in each row; horizontal edges use the same turned on its side; box blur uses weight 1 everywhere and divides the sum by 9.",
+       "One channel and one fixed kernel at a time; pixel values cannot be edited."
+      ],
+      "description": "Left: a 5 × 5 grid of pixel values; the nine cells under the current window are highlighted. Middle: nine boxes, each showing a pixel times its kernel weight and the product, with the sum written below. Right: a 3 × 3 output grid giving every output value, with the cell for the current window highlighted. A formula at the bottom gives the output as the sum of the pixels times the weights.",
+      "inputs": [
+       {
+        "type": "number",
+        "id": "row",
+        "label": "Window top row",
+        "default": 0,
+        "min": 0,
+        "max": 2,
+        "step": 1
+       },
+       {
+        "type": "number",
+        "id": "col",
+        "label": "Window left column",
+        "default": 0,
+        "min": 0,
+        "max": 2,
+        "step": 1
+       },
+       {
+        "type": "select",
+        "id": "kernel",
+        "label": "Kernel",
+        "default": "vertical",
+        "options": [
+         {
+          "value": "vertical",
+          "label": "Vertical edges"
+         },
+         {
+          "value": "horizontal",
+          "label": "Horizontal edges"
+         },
+         {
+          "value": "blur",
+          "label": "Box blur (÷ 9)"
+         }
+        ]
+       }
+      ],
+      "readouts": [
+       {
+        "id": "out_value",
+        "label": "Output at window",
+        "decimals": 2
+       },
+       {
+        "id": "prod_sum",
+        "label": "Sum of products",
+        "decimals": 0
+       }
+      ],
+      "capabilities": [
+       "number_inputs",
+       "select_inputs",
+       "math_text"
+      ]
+     },
+     "source": "const IMG=[[1,1,1,1,1],[1,1,9,9,9],[1,1,9,9,9],[1,1,9,9,9],[1,1,1,1,1]];\nconst K={vertical:[[1,0,-1],[1,0,-1],[1,0,-1]],horizontal:[[1,1,1],[0,0,0],[-1,-1,-1]],blur:[[1,1,1],[1,1,1],[1,1,1]]};\nconst NAME={vertical:\"Vertical edges: each row 1, 0, \\u22121\",horizontal:\"Horizontal edges: rows 1s, 0s, \\u22121s\",blur:\"Box blur: all weights 1, then sum \\u00f7 9\"};\nfunction fm(v){return v<0?\"\\u2212\"+Math.abs(v):String(v);}\nfunction sumAt(k,r,c){let s=0;for(let m=0;m<3;m++)for(let n=0;n<3;n++)s+=IMG[r+m][c+n]*k[m][n];return s;}\nexport function evaluate({inputs}){\n const kind=K[inputs.kernel]?inputs.kernel:\"vertical\";\n const k=K[kind];const blur=kind===\"blur\";\n const r=sdk.clamp(Math.round(inputs.row),0,2),c=sdk.clamp(Math.round(inputs.col),0,2);\n const o=[];\n o.push(sdk.text(\"t_img\",160,50,\"Input image (5 \\u00d7 5)\",{align:\"middle\"}));\n o.push(sdk.text(\"t_prod\",527,50,\"Pixel \\u00d7 weight = product\",{align:\"middle\"}));\n o.push(sdk.text(\"t_out\",880,50,\"Output map (3 \\u00d7 3)\",{align:\"middle\"}));\n for(let i=0;i<5;i++)for(let j=0;j<5;j++){\n  const inW=i>=r&&i<r+3&&j>=c&&j<c+3;\n  o.push(sdk.box(\"px_\"+i+\"_\"+j,30+j*52,80+i*52,50,50,{text:String(IMG[i][j]),role:inW?\"input\":\"neutral\",opacity:inW?1:0.6}));\n }\n let s=0;\n for(let m=0;m<3;m++)for(let n=0;n<3;n++){\n  const p=IMG[r+m][c+n],w=k[m][n],pr=p*w;s+=pr;\n  o.push(sdk.box(\"pr_\"+m+\"_\"+n,340+n*126,80+m*58,120,52,{text:p+\" \\u00d7 \"+fm(w)+\" = \"+fm(pr),role:pr===0?\"neutral\":\"code\"}));\n }\n const out=blur?s/9:s;\n for(let i=0;i<3;i++)for(let j=0;j<3;j++){\n  const sv=sumAt(k,i,j);const v=blur?sdk.format(sv/9,2):fm(sv);\n  const cur=i===r&&j===c;\n  o.push(sdk.box(\"out_\"+i+\"_\"+j,775+j*72,80+i*58,68,52,{text:v,role:cur?\"output\":\"neutral\",opacity:cur?1:0.55}));\n }\n o.push(sdk.arrow(\"a1\",296,167,334,167));\n o.push(sdk.arrow(\"a2\",718,167,768,167));\n const sumTxt=blur?(\"Sum = \"+fm(s)+\", \\u00f7 9 = \"+sdk.format(out,2)+\" \\u2192 output[\"+r+\",\"+c+\"]\"):(\"Sum of products = \"+fm(s)+\" \\u2192 output[\"+r+\",\"+c+\"]\");\n o.push(sdk.text(\"sum\",527,290,sumTxt,{align:\"middle\",role:\"output\"}));\n o.push(sdk.text(\"kname\",527,320,NAME[kind],{align:\"middle\"}));\n o.push(sdk.math(\"formula\",540,400,\"O[i,j]=\\\\sum_{m=0}^{2}\\\\sum_{n=0}^{2} I[i+m,\\\\,j+n]\\\\,K[m,n]\"+(blur?\"\\\\;/\\\\;9\":\"\"),{align:\"middle\"}));\n o.push(sdk.text(\"note\",540,450,\"3 window positions across \\u00d7 3 down = 3 \\u00d7 3 output (stride 1, no padding, no bias, kernel not flipped)\",{align:\"middle\"}));\n return {frame:{width:1080,height:500,objects:o,readouts:[{id:\"out_value\",value:out},{id:\"prod_sum\",value:s}]},quantities:{output:out,sum:s,row:r,col:c}};\n}\n",
+     "sourceHash": "86c94ea4dc53aefda3663e735e9e31d6b71bff0042c2879a3401aaea30a17759",
+     "manifestHash": "8e154a504fc479f1372013e878a8137c67348053d6d23504ee05952e4b508312",
+     "bundleHash": "0e129744eb7748fa117a2be3608e2234dd428a4f08c78ad1245ba22837ecdf76"
+    },
+    "execution": {
+     "allowed": true
+    }
+   },
+   "brief": {
+    "version": 1,
+    "title": "Sliding a 3 × 3 Kernel Across a 5 × 5 Image",
+    "summary": "You'll see three grids side by side. On the left is a 5 × 5 grid of pixel values, with the current 3 × 3 window outlined. In the middle are the chosen kernel's weights and the nine products of each pixel times its weight. On the right is the 3 × 3 output map, with the current output cell highlighted and its sum written out. When you move the window's row and column, the outline slides one pixel at a time, and the patch, products and sum all update. This shows that each output value is the weighted sum of the pixels under the window, and that 3 positions across by 3 down give a 3 × 3 output. A third setting switches between vertical edges, horizontal edges and box blur, so you can see how the edge kernels give large values where brightness changes and near zero where it doesn't, and how the blur averages the nine pixels.",
+    "assumptions": [
+     "The kernel is applied the CNN way, by cross-correlation: it is not flipped, it moves one pixel at a time and there is no padding or bias.",
+     "The image is a small made-up grid of whole-number brightness values with a bright block, so it has both vertical and horizontal edges.",
+     "Vertical edges use the weights 1, 0, −1 in each row, horizontal edges use the same weights turned on their side, and box blur adds all nine pixels and divides by 9."
+    ],
+    "presentation": "experiment",
+    "components": [],
+    "evidenceIds": [],
+    "limitations": [
+     "Only one channel and one kernel at a time. There are no colour channels, activation functions or learned weights.",
+     "The image and kernels are fixed. You can't edit individual pixel values."
+    ],
+    "ambiguous": false,
+    "expanded": false
+   },
+   "briefHash": "8001ad2d4fe0142243bf3c2ec9d9cb7550a499e9d6854fdfa3ade52192e2c7cb",
+   "timing": {
+    "requestClass": "simple",
+    "cache": null,
+    "firstFeedbackMs": 198,
+    "proposalMs": 13381,
+    "generateToResultMs": 63349,
+    "processingMs": 76532,
+    "approvalWaitMs": 1076,
+    "calls": 3,
+    "repairs": 0,
+    "stages": [
+     {
+      "stage": "preparing",
+      "ms": 13183,
+      "calls": 1,
+      "inputTokens": 489,
+      "outputTokens": 1048,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "awaiting_approval",
+      "ms": 1076,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": null
+     },
+     {
+      "stage": "authoring",
+      "ms": 47432,
+      "calls": 1,
+      "inputTokens": 9041,
+      "outputTokens": 5000,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "ms": 43,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "ms": 7052,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 5,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "ms": 8822,
+      "calls": 1,
+      "inputTokens": 7382,
+      "outputTokens": 709,
+      "images": 5,
+      "captures": 0,
+      "outcome": "accepted"
+     }
+    ]
+   },
+   "createdAt": 1794101899808,
+   "updatedAt": 1794101977614
+  },
+  "block": {
+   "type": "animation",
+   "id": "1b21503c-ee79-46bc-be66-a88e62fad35a",
+   "title": "Sliding a 3 × 3 Kernel Across a 5 × 5 Image",
+   "program": {
+    "kind": "explain_program",
+    "resultId": "er_9a1ec44fc6674d05ac15d16c76df26c0",
+    "bundleHash": "0e129744eb7748fa117a2be3608e2234dd428a4f08c78ad1245ba22837ecdf76"
+   },
+   "explain": {
+    "jobId": "ej_fe8805dff2fe43e3a7480fa70925685e",
+    "resultId": "er_9a1ec44fc6674d05ac15d16c76df26c0",
+    "cardId": "1b21503c-ee79-46bc-be66-a88e62fad35a",
+    "canvas": {
+     "boardId": "1ae420cf-a98e-448f-9368-8134db510eb8"
+    },
+    "promptRef": "6c3cc37710283465",
+    "revision": "xr_c7fd4433426542139a3243a52e69c84a",
+    "baseRevision": null,
+    "kind": "program",
+    "bundleHash": "0e129744eb7748fa117a2be3608e2234dd428a4f08c78ad1245ba22837ecdf76",
+    "sourceHash": "86c94ea4dc53aefda3663e735e9e31d6b71bff0042c2879a3401aaea30a17759",
+    "manifestHash": "8e154a504fc479f1372013e878a8137c67348053d6d23504ee05952e4b508312",
+    "versions": {
+     "schema": 1,
+     "runtime": "quickjs-release-sync@0.32.0",
+     "sdk": "sdk-2",
+     "renderer": "renderer-1"
+    },
+    "policyVersion": 1
+   }
+  },
+  "diagnostics": {
+   "spec": null,
+   "program": {
+    "source": "const IMG=[[1,1,1,1,1],[1,1,9,9,9],[1,1,9,9,9],[1,1,9,9,9],[1,1,1,1,1]];\nconst K={vertical:[[1,0,-1],[1,0,-1],[1,0,-1]],horizontal:[[1,1,1],[0,0,0],[-1,-1,-1]],blur:[[1,1,1],[1,1,1],[1,1,1]]};\nconst NAME={vertical:\"Vertical edges: each row 1, 0, \\u22121\",horizontal:\"Horizontal edges: rows 1s, 0s, \\u22121s\",blur:\"Box blur: all weights 1, then sum \\u00f7 9\"};\nfunction fm(v){return v<0?\"\\u2212\"+Math.abs(v):String(v);}\nfunction sumAt(k,r,c){let s=0;for(let m=0;m<3;m++)for(let n=0;n<3;n++)s+=IMG[r+m][c+n]*k[m][n];return s;}\nexport function evaluate({inputs}){\n const kind=K[inputs.kernel]?inputs.kernel:\"vertical\";\n const k=K[kind];const blur=kind===\"blur\";\n const r=sdk.clamp(Math.round(inputs.row),0,2),c=sdk.clamp(Math.round(inputs.col),0,2);\n const o=[];\n o.push(sdk.text(\"t_img\",160,50,\"Input image (5 \\u00d7 5)\",{align:\"middle\"}));\n o.push(sdk.text(\"t_prod\",527,50,\"Pixel \\u00d7 weight = product\",{align:\"middle\"}));\n o.push(sdk.text(\"t_out\",880,50,\"Output map (3 \\u00d7 3)\",{align:\"middle\"}));\n for(let i=0;i<5;i++)for(let j=0;j<5;j++){\n  const inW=i>=r&&i<r+3&&j>=c&&j<c+3;\n  o.push(sdk.box(\"px_\"+i+\"_\"+j,30+j*52,80+i*52,50,50,{text:String(IMG[i][j]),role:inW?\"input\":\"neutral\",opacity:inW?1:0.6}));\n }\n let s=0;\n for(let m=0;m<3;m++)for(let n=0;n<3;n++){\n  const p=IMG[r+m][c+n],w=k[m][n],pr=p*w;s+=pr;\n  o.push(sdk.box(\"pr_\"+m+\"_\"+n,340+n*126,80+m*58,120,52,{text:p+\" \\u00d7 \"+fm(w)+\" = \"+fm(pr),role:pr===0?\"neutral\":\"code\"}));\n }\n const out=blur?s/9:s;\n for(let i=0;i<3;i++)for(let j=0;j<3;j++){\n  const sv=sumAt(k,i,j);const v=blur?sdk.format(sv/9,2):fm(sv);\n  const cur=i===r&&j===c;\n  o.push(sdk.box(\"out_\"+i+\"_\"+j,775+j*72,80+i*58,68,52,{text:v,role:cur?\"output\":\"neutral\",opacity:cur?1:0.55}));\n }\n o.push(sdk.arrow(\"a1\",296,167,334,167));\n o.push(sdk.arrow(\"a2\",718,167,768,167));\n const sumTxt=blur?(\"Sum = \"+fm(s)+\", \\u00f7 9 = \"+sdk.format(out,2)+\" \\u2192 output[\"+r+\",\"+c+\"]\"):(\"Sum of products = \"+fm(s)+\" \\u2192 output[\"+r+\",\"+c+\"]\");\n o.push(sdk.text(\"sum\",527,290,sumTxt,{align:\"middle\",role:\"output\"}));\n o.push(sdk.text(\"kname\",527,320,NAME[kind],{align:\"middle\"}));\n o.push(sdk.math(\"formula\",540,400,\"O[i,j]=\\\\sum_{m=0}^{2}\\\\sum_{n=0}^{2} I[i+m,\\\\,j+n]\\\\,K[m,n]\"+(blur?\"\\\\;/\\\\;9\":\"\"),{align:\"middle\"}));\n o.push(sdk.text(\"note\",540,450,\"3 window positions across \\u00d7 3 down = 3 \\u00d7 3 output (stride 1, no padding, no bias, kernel not flipped)\",{align:\"middle\"}));\n return {frame:{width:1080,height:500,objects:o,readouts:[{id:\"out_value\",value:out},{id:\"prod_sum\",value:s}]},quantities:{output:out,sum:s,row:r,col:c}};\n}\n",
+    "manifest": {
+     "title": "Sliding a 3 × 3 Kernel Across a 5 × 5 Image",
+     "summary": "A 5 × 5 image with a bright block, the 3 × 3 window under the kernel, the nine pixel × weight products, and the 3 × 3 output map with the current cell highlighted. Move the window and switch between vertical edges, horizontal edges and box blur.",
+     "assumptions": [
+      "CNN cross-correlation: the kernel is not flipped, stride 1, no padding, no bias.",
+      "The image is a made-up grid of whole numbers: background 1, a bright block of 9.",
+      "Vertical edges use 1, 0, −1 in each row; horizontal edges use the same turned on its side; box blur uses weight 1 everywhere and divides the sum by 9.",
+      "One channel and one fixed kernel at a time; pixel values cannot be edited."
+     ],
+     "description": "Left: a 5 × 5 grid of pixel values; the nine cells under the current window are highlighted. Middle: nine boxes, each showing a pixel times its kernel weight and the product, with the sum written below. Right: a 3 × 3 output grid giving every output value, with the cell for the current window highlighted. A formula at the bottom gives the output as the sum of the pixels times the weights.",
+     "inputs": [
+      {
+       "type": "number",
+       "id": "row",
+       "label": "Window top row",
+       "min": 0,
+       "max": 2,
+       "step": 1,
+       "default": 0
+      },
+      {
+       "type": "number",
+       "id": "col",
+       "label": "Window left column",
+       "min": 0,
+       "max": 2,
+       "step": 1,
+       "default": 0
+      },
+      {
+       "type": "select",
+       "id": "kernel",
+       "label": "Kernel",
+       "default": "vertical",
+       "options": [
+        {
+         "value": "vertical",
+         "label": "Vertical edges"
+        },
+        {
+         "value": "horizontal",
+         "label": "Horizontal edges"
+        },
+        {
+         "value": "blur",
+         "label": "Box blur (÷ 9)"
+        }
+       ]
+      }
+     ],
+     "readouts": [
+      {
+       "id": "out_value",
+       "label": "Output at window",
+       "decimals": 2
+      },
+      {
+       "id": "prod_sum",
+       "label": "Sum of products",
+       "decimals": 0
+      }
+     ],
+     "capabilities": [
+      "number_inputs",
+      "select_inputs",
+      "math_text"
+     ]
+    }
+   },
+   "artifact": {
+    "kind": "explain_program",
+    "schemaVersion": 1,
+    "runtimeVersion": "quickjs-release-sync@0.32.0",
+    "sdkVersion": "sdk-2",
+    "rendererVersion": "renderer-1",
+    "runtimePolicyVersion": "policy-1",
+    "permissionProfileVersion": "perm-1",
+    "fingerprints": {
+     "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+     "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+     "renderer": "renderer-1"
+    },
+    "dependencies": [],
+    "manifest": {
+     "title": "Sliding a 3 × 3 Kernel Across a 5 × 5 Image",
+     "summary": "A 5 × 5 image with a bright block, the 3 × 3 window under the kernel, the nine pixel × weight products, and the 3 × 3 output map with the current cell highlighted. Move the window and switch between vertical edges, horizontal edges and box blur.",
+     "assumptions": [
+      "CNN cross-correlation: the kernel is not flipped, stride 1, no padding, no bias.",
+      "The image is a made-up grid of whole numbers: background 1, a bright block of 9.",
+      "Vertical edges use 1, 0, −1 in each row; horizontal edges use the same turned on its side; box blur uses weight 1 everywhere and divides the sum by 9.",
+      "One channel and one fixed kernel at a time; pixel values cannot be edited."
+     ],
+     "description": "Left: a 5 × 5 grid of pixel values; the nine cells under the current window are highlighted. Middle: nine boxes, each showing a pixel times its kernel weight and the product, with the sum written below. Right: a 3 × 3 output grid giving every output value, with the cell for the current window highlighted. A formula at the bottom gives the output as the sum of the pixels times the weights.",
+     "inputs": [
+      {
+       "type": "number",
+       "id": "row",
+       "label": "Window top row",
+       "default": 0,
+       "min": 0,
+       "max": 2,
+       "step": 1
+      },
+      {
+       "type": "number",
+       "id": "col",
+       "label": "Window left column",
+       "default": 0,
+       "min": 0,
+       "max": 2,
+       "step": 1
+      },
+      {
+       "type": "select",
+       "id": "kernel",
+       "label": "Kernel",
+       "default": "vertical",
+       "options": [
+        {
+         "value": "vertical",
+         "label": "Vertical edges"
+        },
+        {
+         "value": "horizontal",
+         "label": "Horizontal edges"
+        },
+        {
+         "value": "blur",
+         "label": "Box blur (÷ 9)"
+        }
+       ]
+      }
+     ],
+     "readouts": [
+      {
+       "id": "out_value",
+       "label": "Output at window",
+       "decimals": 2
+      },
+      {
+       "id": "prod_sum",
+       "label": "Sum of products",
+       "decimals": 0
+      }
+     ],
+     "capabilities": [
+      "number_inputs",
+      "select_inputs",
+      "math_text"
+     ]
+    },
+    "sourceHash": "86c94ea4dc53aefda3663e735e9e31d6b71bff0042c2879a3401aaea30a17759",
+    "manifestHash": "8e154a504fc479f1372013e878a8137c67348053d6d23504ee05952e4b508312",
+    "bundleHash": "0e129744eb7748fa117a2be3608e2234dd428a4f08c78ad1245ba22837ecdf76",
+    "sourceBytes": 2558
+   },
+   "coverage": {
+    "compiledHash": "fc8949fb9cfc540b32716a123382a4e7a514aab480a0eb933a05f4b9d71726ff",
+    "states": 5,
+    "moments": 1,
+    "frames": 5,
+    "themes": [
+     "light"
+    ],
+    "sampled": [
+     {
+      "id": "light",
+      "label": "default",
+      "inputs": {},
+      "time": 0
+     },
+     {
+      "id": "a0-light",
+      "label": "max of row",
+      "inputs": {
+       "row": 2
+      },
+      "time": 0
+     },
+     {
+      "id": "a1-light",
+      "label": "max of col",
+      "inputs": {
+       "col": 2
+      },
+      "time": 0
+     },
+     {
+      "id": "a2-light",
+      "label": "last of kernel",
+      "inputs": {
+       "kernel": "blur"
+      },
+      "time": 0
+     },
+     {
+      "id": "a3-light",
+      "label": "combined: every input at its max/last",
+      "inputs": {
+       "row": 2,
+       "col": 2,
+       "kernel": "blur"
+      },
+      "time": 0
+     }
+    ],
+    "omitted": []
+   },
+   "history": [
+    {
+     "round": 0,
+     "attempt": 1,
+     "stage": "reviewing",
+     "outcome": "accepted",
+     "at": 1794101977614,
+     "hashes": {
+      "programHash": "c3eda9cb9152e1bc",
+      "sourceHash": "86c94ea4dc53aefda3663e735e9e31d6b71bff0042c2879a3401aaea30a17759",
+      "manifestHash": "8e154a504fc479f1372013e878a8137c67348053d6d23504ee05952e4b508312",
+      "bundleHash": "0e129744eb7748fa117a2be3608e2234dd428a4f08c78ad1245ba22837ecdf76"
+     },
+     "sizes": {
+      "sourceBytes": 2558,
+      "manifestBytes": 1751
+     },
+     "problems": [],
+     "findings": [
+      {
+       "id": "rf1",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "semantic",
+       "capture": "a2-light",
+       "object": "kname",
+       "message": "No sampled capture used the horizontal-edges kernel. In the source it is rows of 1s, 0s and −1s, which is correct, but its rendering was not shown, so it cannot be judged.",
+       "programHash": "c3eda9cb9152e1bc"
+      }
+     ],
+     "truncated": false,
+     "cut": [],
+     "version": {
+      "stored": true,
+      "key": "explainver:ej_fe8805dff2fe43e3a7480fa70925685e:c3eda9cb9152e1bc"
+     }
+    }
+   ],
+   "historyDropped": 0,
+   "findings": [
+    {
+     "round": 0,
+     "stage": "reviewing",
+     "accepted": true,
+     "findings": [
+      {
+       "version": 1,
+       "id": "rf1",
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "a2-light",
+        "object": "kname"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "No sampled capture used the horizontal-edges kernel. In the source it is rows of 1s, 0s and −1s, which is correct, but its rendering was not shown, so it cannot be judged."
+      }
+     ]
+    }
+   ],
+   "candidates": [],
+   "settings": {
+    "presentation": "experiment"
+   },
+   "calls": [
+    {
+     "key": "ej_fe8805dff2fe43e3a7480fa70925685e-brief-1",
+     "role": "brief",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 116045,
+     "images": 0,
+     "costMicros": 32116,
+     "inputTokens": 489,
+     "outputTokens": 1048,
+     "startedAt": 1794101901006,
+     "endedAt": 1794101913031,
+     "error": null
+    },
+    {
+     "key": "ej_fe8805dff2fe43e3a7480fa70925685e-author-2",
+     "role": "author",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 422910,
+     "images": 0,
+     "costMicros": 172494,
+     "inputTokens": 9041,
+     "outputTokens": 5000,
+     "startedAt": 1794101914336,
+     "endedAt": 1794101961697,
+     "error": null
+    },
+    {
+     "key": "ej_fe8805dff2fe43e3a7480fa70925685e-review-3",
+     "role": "review",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 249045,
+     "images": 5,
+     "costMicros": 50993,
+     "inputTokens": 7382,
+     "outputTokens": 709,
+     "startedAt": 1794101970060,
+     "endedAt": 1794101977614,
+     "error": null
+    }
+   ],
+   "captures": [
+    {
+     "id": "light",
+     "aliases": [],
+     "stateHash": "ab6d59470bb3d059ab559514fcc0ae14af3ba18845518b7de5fde8c773425227",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "row": 0,
+      "col": 0,
+      "kernel": "vertical"
+     },
+     "bundleHash": "0e129744eb7748fa117a2be3608e2234dd428a4f08c78ad1245ba22837ecdf76",
+     "trace": {
+      "inputs": {
+       "row": 0,
+       "col": 0,
+       "kernel": "vertical"
+      },
+      "time": 0,
+      "quantities": {
+       "output": -16,
+       "sum": -16,
+       "row": 0,
+       "col": 0
+      },
+      "metrics": {
+       "ms": 46
+      }
+     },
+     "sha256": "7b5d977af34e5825b48eaa0fc1923e56b5501b22bb203714ac41f689588d3c11",
+     "key": "explain/ej_fe8805dff2fe43e3a7480fa70925685e/ab6d59470bb3d059.png",
+     "compiledHash": "fc8949fb9cfc540b32716a123382a4e7a514aab480a0eb933a05f4b9d71726ff",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a0-light",
+     "aliases": [],
+     "stateHash": "57cf0f185a7cab7396a41c848eeff8658a903af53f8d877b3c08ad4b5c780de4",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "row": 2,
+      "col": 0,
+      "kernel": "vertical"
+     },
+     "bundleHash": "0e129744eb7748fa117a2be3608e2234dd428a4f08c78ad1245ba22837ecdf76",
+     "trace": {
+      "inputs": {
+       "row": 2,
+       "col": 0,
+       "kernel": "vertical"
+      },
+      "time": 0,
+      "quantities": {
+       "output": -16,
+       "sum": -16,
+       "row": 2,
+       "col": 0
+      },
+      "metrics": {
+       "ms": 15.5
+      }
+     },
+     "sha256": "812b359255dc783a06f9acb06f5830c632dff32aca44688608eabfb85bb96798",
+     "key": "explain/ej_fe8805dff2fe43e3a7480fa70925685e/57cf0f185a7cab73.png",
+     "compiledHash": "fc8949fb9cfc540b32716a123382a4e7a514aab480a0eb933a05f4b9d71726ff",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a1-light",
+     "aliases": [],
+     "stateHash": "111a6eb98c012e2994eb3b35819eec940e7d979af08d3e10764243754c8390ff",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "row": 0,
+      "col": 2,
+      "kernel": "vertical"
+     },
+     "bundleHash": "0e129744eb7748fa117a2be3608e2234dd428a4f08c78ad1245ba22837ecdf76",
+     "trace": {
+      "inputs": {
+       "row": 0,
+       "col": 2,
+       "kernel": "vertical"
+      },
+      "time": 0,
+      "quantities": {
+       "output": 0,
+       "sum": 0,
+       "row": 0,
+       "col": 2
+      },
+      "metrics": {
+       "ms": 13.9
+      }
+     },
+     "sha256": "5f9308fd4e9eecc58def779dc348e87f92b75c4fd0f34b7ac7a2920a7d4cf99f",
+     "key": "explain/ej_fe8805dff2fe43e3a7480fa70925685e/111a6eb98c012e29.png",
+     "compiledHash": "fc8949fb9cfc540b32716a123382a4e7a514aab480a0eb933a05f4b9d71726ff",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a2-light",
+     "aliases": [],
+     "stateHash": "2c386de10aff109ee3d3dae31c5af102c50ced836e51ad359866576315479e7c",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "row": 0,
+      "col": 0,
+      "kernel": "blur"
+     },
+     "bundleHash": "0e129744eb7748fa117a2be3608e2234dd428a4f08c78ad1245ba22837ecdf76",
+     "trace": {
+      "inputs": {
+       "row": 0,
+       "col": 0,
+       "kernel": "blur"
+      },
+      "time": 0,
+      "quantities": {
+       "output": 2.7777777777777777,
+       "sum": 25,
+       "row": 0,
+       "col": 0
+      },
+      "metrics": {
+       "ms": 13.5
+      }
+     },
+     "sha256": "c6926cbdff12fc45aef5a7e66f42689bb4dc1883afd469a139454f6ca678a733",
+     "key": "explain/ej_fe8805dff2fe43e3a7480fa70925685e/2c386de10aff109e.png",
+     "compiledHash": "fc8949fb9cfc540b32716a123382a4e7a514aab480a0eb933a05f4b9d71726ff",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a3-light",
+     "aliases": [],
+     "stateHash": "801ef20bf0d4d18ac6bd86c1029c82068a6e20c6854c739065e2d09aff3e3d94",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "row": 2,
+      "col": 2,
+      "kernel": "blur"
+     },
+     "bundleHash": "0e129744eb7748fa117a2be3608e2234dd428a4f08c78ad1245ba22837ecdf76",
+     "trace": {
+      "inputs": {
+       "row": 2,
+       "col": 2,
+       "kernel": "blur"
+      },
+      "time": 0,
+      "quantities": {
+       "output": 6.333333333333333,
+       "sum": 57,
+       "row": 2,
+       "col": 2
+      },
+      "metrics": {
+       "ms": 13.4
+      }
+     },
+     "sha256": "44acbf445b90e34c346c9693ce5cd83a990467d036a2fdfe4a51c1d7b166f12b",
+     "key": "explain/ej_fe8805dff2fe43e3a7480fa70925685e/801ef20bf0d4d18a.png",
+     "compiledHash": "fc8949fb9cfc540b32716a123382a4e7a514aab480a0eb933a05f4b9d71726ff",
+     "mediaType": "image/png"
+    }
+   ],
+   "counts": {
+    "brief": 1,
+    "author": 1,
+    "review": 1,
+    "repair": 0
+   },
+   "timing": {
+    "requestClass": "simple",
+    "cache": null,
+    "marks": {
+     "submitted": 1794101899808,
+     "firstFeedback": 1794101900006,
+     "proposalReady": 1794101913189,
+     "generate": 1794101914265,
+     "result": 1794101977614
+    },
+    "stages": [
+     {
+      "stage": "preparing",
+      "startedAt": 1794101900006,
+      "endedAt": 1794101913189,
+      "calls": 1,
+      "inputTokens": 489,
+      "outputTokens": 1048,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "awaiting_approval",
+      "startedAt": 1794101913189,
+      "endedAt": 1794101914265,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": null
+     },
+     {
+      "stage": "authoring",
+      "startedAt": 1794101914265,
+      "endedAt": 1794101961697,
+      "calls": 1,
+      "inputTokens": 9041,
+      "outputTokens": 5000,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "startedAt": 1794101961697,
+      "endedAt": 1794101961740,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "startedAt": 1794101961740,
+      "endedAt": 1794101968792,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 5,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "startedAt": 1794101968792,
+      "endedAt": 1794101977614,
+      "calls": 1,
+      "inputTokens": 7382,
+      "outputTokens": 709,
+      "images": 5,
+      "captures": 0,
+      "outcome": "accepted"
+     }
+    ]
+   }
+  }
+ }
+}

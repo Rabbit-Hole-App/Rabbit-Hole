@@ -174,7 +174,7 @@ this environment lacks the authorized dev credentials and working browser captur
 
 ### AI teaching examples
 
-Three hand-authored examples compose the existing 2D SDK in normal program cards.
+Ten hand-authored examples compose the existing 2D SDK in normal program cards.
 They are exported together by `ai-teaching-fixtures.js`, admitted only through the
 existing dev fixture gate. They are reusable source examples, not a new automatic
 lesson-routing system and not proof of LLM generation quality.
@@ -184,19 +184,56 @@ lesson-routing system and not proof of LLM generation quality.
 | `fixture-ai-convolution` | Move a 3 × 3 kernel across a small synthetic image and inspect the calculated response. Uses the CNN cross-correlation convention. | `ai-convolution-fixture.js` |
 | `fixture-ai-attention` | Select a query and causal masking; compare scaled scores, normalized weights and their weighted value output. Numbers are synthetic. | `ai-attention-fixture.js` |
 | `fixture-ai-gradient` | Vary learning rate and update count for a known quadratic loss; compare convergence, overshoot and divergence. | `ai-gradient-fixture.js` |
+| `fixture-ai-backprop` | Inspect a tanh unit forward pass, local derivatives, chain-rule gradient and one proposed weight update. | `ai-backprop-fixture.js` |
+| `fixture-ai-boundary` | Drag six training points and a query; compare 1/3-neighbor regions, prediction and leave-one-out error. | `ai-boundary-fixture.js` |
+| `fixture-ai-qlearning` | Take actions in a 3 × 3 world; inspect terminal/wall rewards, Q updates and greedy policy. New episode retains Q; parameter changes clear it. | `ai-qlearning-fixture.js` |
+| `fixture-ai-tree-split` | Move a cutoff across ten labeled points. Compare left and right class counts, impurity and gain, then reveal the best cutoff for Gini or entropy. | `ai-tree-split-fixture.js` |
+| `fixture-ai-classifier-threshold` | Move a cutoff over ten fixed scores. Compare confusion counts, precision, recall and accuracy as the predicted classes change. | `ai-classifier-threshold-fixture.js` |
+| `fixture-ai-regression-fit` | Change a line's slope and intercept. Compare its six vertical residuals, their squares and mean squared error. | `ai-regression-fit-fixture.js` |
+| `fixture-ai-kmeans` | Drag two starting centroids and alternate assigning points and updating the means. Compare groupings and inertia from different starts. | `ai-kmeans-fixture.js` |
 
 All source paths above are under `packages/web/src/explain-program/`. The examples
 reuse `ProgramScene`, shared `Frame`, existing input controls and their persistence
 and Reset behavior. No new SDK version, planner mapping or repair budget is added.
 Focused tests check the numerical mechanisms independently and exercise the real
 QuickJS and frame-normalization paths. The normal fixture resolver and saved input
-round trips have their own integration checks. Verification: all 14 focused AI
-tests pass; the dev web build passes. Shared-Frame SVG renders were inspected for
-all three scenes (offline rasterization does not render the gradient's KaTeX
-foreignObject formulas). This is static scene inspection, not browser acceptance.
-Live browser/dev acceptance and
-real model generation remain pending; the authorized deployment environment is
-not available here.
+round trips have their own integration checks. The stateful examples also
+exercise initialize/reduce/evaluate, saved state round trips and Reset.
+The original six examples passed **28 focused AI tests** on 2026-11-08, using
+`node --test --test-concurrency=1 packages/web/src/explain-program/ai-*.test.mjs`
+with unchanged runtime budgets. That batch passed its dev web build and independent
+code review. Shared-Frame static renders were inspected, including
+initial and changed states of the new stateful examples. Offline PNG export omits
+KaTeX foreignObject formulas and drops the unsupported shadow filter; it is not
+full-card browser acceptance. Live browser/dev acceptance and real model generation
+remain pending; the authorized deployment environment is not available here.
+
+The Decision Tree Split Explorer uses the shared plot, readouts, numeric slider,
+select and action controls. It evaluates the nine midpoints between the ten synthetic
+feature values. The maximum gain occurs at cutoff 9 with Gini and cutoff 15 with
+entropy. Reveal keeps the learner's chosen cutoff visible and survives reopening.
+Reset hides the reveal and restores the default cutoff and criterion.
+Nine focused checks passed through the real resolver and sandbox. The dev web
+build passed, and the initial and revealed shared-Frame renders were inspected.
+Live browser acceptance and generated-card acceptance remain pending.
+
+The Phase 02 batch adds the classifier threshold, regression fit and K-means
+references. At cutoff 0.70 the classifier catches one of two positives with zero
+false alarms. At 0.50 it catches both with two false alarms. The regression scene
+keeps its axes fixed and shows all six residuals across both sliders' ranges.
+K-means converges to different groups from the two demonstrated starting layouts.
+The left/right result has inertia 13.5 and the top/bottom result has inertia 25.5.
+
+All 17 focused checks passed through the real sandbox and the dev fixture
+resolver, including save/reopen and Reset. The dev web build passed. The initial
+and changed shared-Frame scenes were inspected. Live browser and generated-card
+acceptance remain pending.
+
+Backend generation of the three Phase 02 prompts (plain words through the router, dev clone, `claude-opus-5-5`): the classifier threshold card was **accepted at round 0** ($0.244, job `ej_c1f8049d258747e2b726d4c1b47657ec`, fixture `fixture-generated-ai-classifier-threshold`); the regression fit **failed** with `unsupported_repair` after round 3 ($0.717, job `ej_86503b55d3834ad1b1d38545cd1ce8f7`, rejected candidate `fixture-generated-ai-regression-fit-rejected`, major overlap findings, and over the 60-object frame limit at two input extremes); K-means was **not run**, because the earlier $3.10 allowance was already exceeded by $0.138. Numerical checks on the generated programs pass offline; visual and browser acceptance is pending. Details: [results](./explain-on-canvas/handoff/ai-example-regeneration-results.md#phase-02-generation-cases-2026-11-08).
+
+See the [generation and dev acceptance handoff](./explain-on-canvas/handoff/ai-example-regeneration-handoff.md)
+for exact prompts and checks. These examples do not increase the reusable
+component capability count or retroactively change the frozen 508-topic audit.
 
 ## Dev verification evidence (integrated branch, 2026-11-08)
 
@@ -222,6 +259,14 @@ Integration decisions (flagged for review):
 Not verified: a plain-words Tutor request routing to `/interactive` on the dev clone (it lacks the chat router key, so the router answers in text); production behaviour; the heat-grid fixture in a browser on this branch (SDK 3 compatibility is covered by unit tests only).
 
 Generation access: the fixtures are resolved only by `program-card.js` from a saved card's `program.fixtureId`, and only in dev builds (`fixturesAdmitted`). The author, brief and example selection do not import them, so the generation workflow cannot use them. The author is taught the helper signatures (authoring context only).
+
+## Backend generation results for the AI teaching examples (2026-11-08)
+
+Separate from the hand-authored fixtures above, and separate from visual and browser acceptance. Five prompts were run through the real `/interactive` pipeline (brief, author, review, repair; `claude-opus-5-5`; dev clone; $1.559 in total for the first five).
+Convolution and attention were generated and accepted on the first attempt; the gradient-descent prompt failed twice and the decision-tree prompt failed once, all with `unsupported_repair` (the repair step returned no program, or the reviewer rejected the repaired program).
+A sixth run sent the decision-tree prompt as plain words (no slash command) through the chat router, after the one-line router usage fix on `fix/chat-route-usage` (611e1e55c, not released): it routed to `explain` (jev 0.84), and the job was **accepted in round 3** ($0.718, job `ej_98db85deeebe4a1d95625808e741f276`, fixture `fixture-generated-ai-tree-split`). Total generation spend $2.277.
+The generated programs' numbers pass offline acceptance from their own data. Visual, interaction and saved-state acceptance of the generated cards is **pending**. The records, the saved programs and the dev fixture ids (`fixture-generated-ai-*`) are in
+[ai-example-regeneration-results.md](explain-on-canvas/handoff/ai-example-regeneration-results.md); the generation workflow cannot use any fixture, hand-authored or generated.
 
 ## Limits (main: `contract.js CONTRACT_LIMITS`, `limits.js LIMITS`)
 

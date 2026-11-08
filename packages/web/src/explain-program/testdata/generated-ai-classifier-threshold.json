@@ -1,0 +1,885 @@
+{
+ "schema": 1,
+ "case": "classifier",
+ "attempt": 1,
+ "prompt": "Show me how moving a classifier's cutoff changes false alarms and missed positives. Use ten labeled scores with two actual positives. Let me change the cutoff and see the confusion matrix, precision, recall and accuracy.",
+ "path": "The dev clone's composer with the learner's own words (no slash command): the chat router classified the line, then the brief's Generate. No fixture was seeded or copied; the author, review and repair ran on the real backend.",
+ "routing": {
+  "recordedInBrowser": [
+   {
+    "status": 200,
+    "body": {
+     "route": "capability:explain",
+     "via": "jev",
+     "capability": "explain",
+     "flow": "direct",
+     "confidence": 0.89,
+     "probability": 0.9,
+     "code": null,
+     "message": null,
+     "meta": {
+      "protocol": "chat-route-c1",
+      "model": "jev-1.13.0",
+      "ms": 616,
+      "input_tokens": 1007,
+      "cost": null,
+      "transport": "direct"
+     }
+    }
+   }
+  ],
+  "replayedExplicit": {
+   "route": "capability:explain",
+   "via": "command",
+   "capability": "explain",
+   "flow": "direct",
+   "code": null,
+   "message": null,
+   "confidence": null,
+   "probability": null
+  },
+  "replayedPlainWords": {
+   "route": "capability:explain",
+   "via": "jev",
+   "capability": "explain",
+   "flow": "direct",
+   "code": null,
+   "message": null,
+   "confidence": 0.89,
+   "probability": 0.9
+  },
+  "note": "Plain words went through the chat router (JEV classifier, transport direct); recordedInBrowser is the router response the page received. The replays were made later against the same dev clone."
+ },
+ "environment": {
+  "clone": "rabbit-hole-web-dev-tc-s7d2",
+  "deployedCommit": "611e1e55c22ac386a6b97bea01a769cbf5cdc57b",
+  "startedAt": "2026-11-08T02:27:40.355Z"
+ },
+ "job": {
+  "jobId": "ej_c1f8049d258747e2b726d4c1b47657ec",
+  "boardId": "41ec4e15-e930-40de-a99a-37941c249222",
+  "resultId": "er_f4eea5dc664c436da48d8ee203a3ce82",
+  "outcome": "card",
+  "stage": "ready",
+  "stopReason": "accepted",
+  "round": 0,
+  "failure": null,
+  "totalMs": 92285,
+  "calls": [
+   {
+    "role": "brief",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.0269,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "author",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.1751,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "review",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.042,
+    "ms": null,
+    "status": "settled"
+   }
+  ],
+  "costUsd": 0.244
+ },
+ "brief": "Review explanation\n\nMoving a Classifier's Cutoff: False Alarms vs Missed Positives\n\ninteractive\nShow me how moving a classifier's cutoff changes false alarms and missed positives. Use ten labeled scores with two actual positives. Let me change the cutoff and see the confusion matrix, precision, recall and accuracy.\n\nPresentation\nStatic\nSteps\nOver time\nExperiment\n\nYou will see ten scored examples as dots on a line from 0 to 1. The two actual positives are marked differently from the eight actual negatives. A vertical cutoff line splits the dots into predicted positive and predicted negative. Beside the line there is a two-by-two table of true positives, false alarms, missed positives and true negatives, along with precision, recall and accuracy. As you slide the cutoff, dots change sides and are colored as false alarms or missed positives, and the table and all three numbers update at once. This lets you check the trade-off: lowering the cutoff catches both positives but adds false alarms, and raising it removes false alarms but starts missing positives. Because negatives outnumber positives, accuracy can stay high even when recall is poor.\n\nASSUMPTIONS 3\nLIMITATIONS 3\nGenerate\nEdit\nCancel\nGo to card",
+ "reviewFindings": [
+  {
+   "round": 0,
+   "stage": "reviewing",
+   "accepted": true,
+   "findings": []
+  }
+ ],
+ "artifact": {
+  "kind": "explain_program",
+  "schemaVersion": 1,
+  "runtimeVersion": "quickjs-release-sync@0.32.0",
+  "sdkVersion": "sdk-2",
+  "rendererVersion": "renderer-1",
+  "runtimePolicyVersion": "policy-1",
+  "permissionProfileVersion": "perm-1",
+  "fingerprints": {
+   "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+   "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+   "renderer": "renderer-1"
+  },
+  "dependencies": [],
+  "manifest": {
+   "title": "Moving a Classifier's Cutoff: False Alarms vs Missed Positives",
+   "summary": "Ten scored examples sit on a line from 0 to 1, two of them actual positives. Slide the cutoff: dots at or above it are predicted positive. Each dot is tagged TP, TN, false alarm or missed, and the confusion matrix, precision, recall and accuracy update together.",
+   "assumptions": [
+    "The ten scores are invented example values chosen so positives and negatives partly overlap.",
+    "An example is predicted positive when its score is at or above the cutoff.",
+    "When nothing is predicted positive, precision is shown as undefined.",
+    "With only ten examples the metrics change in coarse jumps; no ROC or precision-recall curve is drawn."
+   ],
+   "description": "A horizontal score line from 0 to 1 holds ten dots labelled with their scores; the two actual positives (0.55 and 0.85) are bigger and marked with a plus. A vertical cutoff line splits them. Above each dot a tag reads TP, TN, FA (false alarm) or MISS (missed positive); errors are coloured as warnings. Below, a two-by-two confusion matrix shows counts, and text lines give precision, recall and accuracy with their fractions, plus a note on the trade-off.",
+   "inputs": [
+    {
+     "type": "number",
+     "id": "cutoff",
+     "label": "Cutoff",
+     "default": 0.5,
+     "min": 0,
+     "max": 1,
+     "step": 0.05
+    }
+   ],
+   "readouts": [
+    {
+     "id": "tp",
+     "label": "True positives",
+     "decimals": 0
+    },
+    {
+     "id": "fp",
+     "label": "False alarms",
+     "decimals": 0
+    },
+    {
+     "id": "fn",
+     "label": "Missed positives",
+     "decimals": 0
+    },
+    {
+     "id": "tn",
+     "label": "True negatives",
+     "decimals": 0
+    },
+    {
+     "id": "recall",
+     "label": "Recall",
+     "decimals": 2
+    },
+    {
+     "id": "accuracy",
+     "label": "Accuracy",
+     "decimals": 2
+    }
+   ],
+   "capabilities": [
+    "number_inputs"
+   ]
+  },
+  "source": "const S=[{s:0.05,p:0},{s:0.12,p:0},{s:0.20,p:0},{s:0.28,p:0},{s:0.35,p:0},{s:0.45,p:0},{s:0.55,p:1},{s:0.62,p:0},{s:0.78,p:0},{s:0.85,p:1}];\nexport function evaluate({inputs}){\n  const c=inputs.cutoff;\n  const X=sdk.linear([0,1],[80,880]);\n  const o=[];\n  let tp=0,fp=0,fn=0,tn=0;\n  o.push(sdk.line('axis',80,195,880,195));\n  o.push(sdk.text('t0',80,215,'0',{align:'middle'}));\n  o.push(sdk.text('t1',880,215,'1',{align:'middle'}));\n  S.forEach((d,i)=>{\n    const pred=d.s>=c-1e-9;\n    let tag,role;\n    if(d.p&&pred){tp++;tag='TP';role='success';}\n    else if(d.p&&!pred){fn++;tag='MISS';role='warning';}\n    else if(!d.p&&pred){fp++;tag='FA';role='warning';}\n    else{tn++;tag='TN';role='neutral';}\n    const x=X(d.s);\n    const lbl=(d.p?'+':'')+sdk.format(d.s,2).replace(/^0/,'');\n    o.push(sdk.circle('d'+i,x,150,d.p?46:32,{text:lbl,role:role}));\n    o.push(sdk.text('g'+i,x,112,tag,{align:'middle',role:role}));\n  });\n  const cx=X(c);\n  o.push(sdk.line('cut',cx,85,cx,190,{role:'prediction'}));\n  o.push(sdk.text('cutl',sdk.clamp(cx,60,900),72,'cutoff '+sdk.format(c,2),{align:'middle',role:'prediction'}));\n  o.push(sdk.text('leg',80,248,'Big dots marked + are the 2 actual positives. Score >= cutoff: predicted positive. FA = false alarm, MISS = missed positive.'));\n  const act=[];\n  if(fn>0)act.push([0,1]);\n  if(fp>0)act.push([1,0]);\n  o.push(...sdk.grid('cm',{x:60,y:280,w:400,h:180,rows:[['TP '+tp,'Missed '+fn],['False alarm '+fp,'TN '+tn]],rowLabels:['Actual +','Actual -'],columnLabels:['Predicted +','Predicted -'],active:act}));\n  const pp=tp+fp;\n  const prec=pp>0?tp/pp:null;\n  const rec=tp/(tp+fn);\n  const acc=(tp+tn)/10;\n  o.push(sdk.text('mp',520,310,'Precision = TP/(TP+FP) = '+(pp>0?tp+'/'+pp+' = '+sdk.format(prec,2):'undefined (nothing predicted +)')));\n  o.push(sdk.text('mr',520,355,'Recall = TP/(TP+Missed) = '+tp+'/'+(tp+fn)+' = '+sdk.format(rec,2)));\n  o.push(sdk.text('ma',520,400,'Accuracy = (TP+TN)/10 = '+(tp+tn)+'/10 = '+sdk.format(acc,2)));\n  let note;\n  if(rec<1) note='Accuracy is still '+Math.round(acc*100)+'% while '+fn+' of 2 positives are missed: 8 negatives dominate.';\n  else note='Both positives caught, at the cost of '+fp+' false alarm'+(fp===1?'':'s')+'. Raise the cutoff to trade.';\n  o.push(sdk.text('note',60,500,note,{role:'tutor'}));\n  const q={tp:tp,fp:fp,fn:fn,tn:tn,recall:rec,accuracy:acc};\n  if(prec!==null)q.precision=prec;\n  return {frame:sdk.frame(o,{width:960,height:540,readouts:[{id:'tp',value:tp},{id:'fp',value:fp},{id:'fn',value:fn},{id:'tn',value:tn},{id:'recall',value:rec},{id:'accuracy',value:acc}]}),quantities:q};\n}\n",
+  "sourceHash": "61f453eba33584b9d0f7c23fff646e9a2a80451bc767c0bb94be74be05328dce",
+  "manifestHash": "14b5bc1f88df9f25a7bcd59deaab9d892095871db4c58fbcea26410a5e46cefd",
+  "bundleHash": "e14eeac3939299adbd4a090b92a25d07c86e1ea0f96387f9566ee6cfb62270cf"
+ },
+ "rejectedCandidate": null,
+ "stamps": {
+  "sdkVersion": "sdk-2",
+  "rendererVersion": "renderer-1",
+  "schemaVersion": 1,
+  "capabilities": [
+   "number_inputs"
+  ],
+  "bundleHash": "e14eeac3939299adbd4a090b92a25d07c86e1ea0f96387f9566ee6cfb62270cf"
+ },
+ "rawJobDetail": {
+  "job": {
+   "id": "ej_c1f8049d258747e2b726d4c1b47657ec",
+   "version": 1,
+   "boardId": "41ec4e15-e930-40de-a99a-37941c249222",
+   "cardId": "2c3b9cf9-0a9f-4856-9ac1-1542e9d2538b",
+   "requestClass": "simple",
+   "stage": "ready",
+   "attempt": 1,
+   "terminal": true,
+   "round": 0,
+   "stopReason": "accepted",
+   "failure": null,
+   "recovery": [],
+   "usage": {
+    "credits": 25,
+    "unknown": false
+   },
+   "result": {
+    "jobId": "ej_c1f8049d258747e2b726d4c1b47657ec",
+    "resultId": "er_f4eea5dc664c436da48d8ee203a3ce82",
+    "cardId": "2c3b9cf9-0a9f-4856-9ac1-1542e9d2538b",
+    "canvas": {
+     "boardId": "41ec4e15-e930-40de-a99a-37941c249222"
+    },
+    "promptRef": "4b358b66113e830f",
+    "revision": "xr_d127c34e37084e89a550f1e811318b5d",
+    "baseRevision": null,
+    "kind": "program",
+    "bundleHash": "e14eeac3939299adbd4a090b92a25d07c86e1ea0f96387f9566ee6cfb62270cf",
+    "sourceHash": "61f453eba33584b9d0f7c23fff646e9a2a80451bc767c0bb94be74be05328dce",
+    "manifestHash": "14b5bc1f88df9f25a7bcd59deaab9d892095871db4c58fbcea26410a5e46cefd",
+    "versions": {
+     "schema": 1,
+     "runtime": "quickjs-release-sync@0.32.0",
+     "sdk": "sdk-2",
+     "renderer": "renderer-1"
+    },
+    "policyVersion": 1,
+    "program": {
+     "kind": "explain_program",
+     "schemaVersion": 1,
+     "runtimeVersion": "quickjs-release-sync@0.32.0",
+     "sdkVersion": "sdk-2",
+     "rendererVersion": "renderer-1",
+     "runtimePolicyVersion": "policy-1",
+     "permissionProfileVersion": "perm-1",
+     "fingerprints": {
+      "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+      "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+      "renderer": "renderer-1"
+     },
+     "dependencies": [],
+     "manifest": {
+      "title": "Moving a Classifier's Cutoff: False Alarms vs Missed Positives",
+      "summary": "Ten scored examples sit on a line from 0 to 1, two of them actual positives. Slide the cutoff: dots at or above it are predicted positive. Each dot is tagged TP, TN, false alarm or missed, and the confusion matrix, precision, recall and accuracy update together.",
+      "assumptions": [
+       "The ten scores are invented example values chosen so positives and negatives partly overlap.",
+       "An example is predicted positive when its score is at or above the cutoff.",
+       "When nothing is predicted positive, precision is shown as undefined.",
+       "With only ten examples the metrics change in coarse jumps; no ROC or precision-recall curve is drawn."
+      ],
+      "description": "A horizontal score line from 0 to 1 holds ten dots labelled with their scores; the two actual positives (0.55 and 0.85) are bigger and marked with a plus. A vertical cutoff line splits them. Above each dot a tag reads TP, TN, FA (false alarm) or MISS (missed positive); errors are coloured as warnings. Below, a two-by-two confusion matrix shows counts, and text lines give precision, recall and accuracy with their fractions, plus a note on the trade-off.",
+      "inputs": [
+       {
+        "type": "number",
+        "id": "cutoff",
+        "label": "Cutoff",
+        "default": 0.5,
+        "min": 0,
+        "max": 1,
+        "step": 0.05
+       }
+      ],
+      "readouts": [
+       {
+        "id": "tp",
+        "label": "True positives",
+        "decimals": 0
+       },
+       {
+        "id": "fp",
+        "label": "False alarms",
+        "decimals": 0
+       },
+       {
+        "id": "fn",
+        "label": "Missed positives",
+        "decimals": 0
+       },
+       {
+        "id": "tn",
+        "label": "True negatives",
+        "decimals": 0
+       },
+       {
+        "id": "recall",
+        "label": "Recall",
+        "decimals": 2
+       },
+       {
+        "id": "accuracy",
+        "label": "Accuracy",
+        "decimals": 2
+       }
+      ],
+      "capabilities": [
+       "number_inputs"
+      ]
+     },
+     "source": "const S=[{s:0.05,p:0},{s:0.12,p:0},{s:0.20,p:0},{s:0.28,p:0},{s:0.35,p:0},{s:0.45,p:0},{s:0.55,p:1},{s:0.62,p:0},{s:0.78,p:0},{s:0.85,p:1}];\nexport function evaluate({inputs}){\n  const c=inputs.cutoff;\n  const X=sdk.linear([0,1],[80,880]);\n  const o=[];\n  let tp=0,fp=0,fn=0,tn=0;\n  o.push(sdk.line('axis',80,195,880,195));\n  o.push(sdk.text('t0',80,215,'0',{align:'middle'}));\n  o.push(sdk.text('t1',880,215,'1',{align:'middle'}));\n  S.forEach((d,i)=>{\n    const pred=d.s>=c-1e-9;\n    let tag,role;\n    if(d.p&&pred){tp++;tag='TP';role='success';}\n    else if(d.p&&!pred){fn++;tag='MISS';role='warning';}\n    else if(!d.p&&pred){fp++;tag='FA';role='warning';}\n    else{tn++;tag='TN';role='neutral';}\n    const x=X(d.s);\n    const lbl=(d.p?'+':'')+sdk.format(d.s,2).replace(/^0/,'');\n    o.push(sdk.circle('d'+i,x,150,d.p?46:32,{text:lbl,role:role}));\n    o.push(sdk.text('g'+i,x,112,tag,{align:'middle',role:role}));\n  });\n  const cx=X(c);\n  o.push(sdk.line('cut',cx,85,cx,190,{role:'prediction'}));\n  o.push(sdk.text('cutl',sdk.clamp(cx,60,900),72,'cutoff '+sdk.format(c,2),{align:'middle',role:'prediction'}));\n  o.push(sdk.text('leg',80,248,'Big dots marked + are the 2 actual positives. Score >= cutoff: predicted positive. FA = false alarm, MISS = missed positive.'));\n  const act=[];\n  if(fn>0)act.push([0,1]);\n  if(fp>0)act.push([1,0]);\n  o.push(...sdk.grid('cm',{x:60,y:280,w:400,h:180,rows:[['TP '+tp,'Missed '+fn],['False alarm '+fp,'TN '+tn]],rowLabels:['Actual +','Actual -'],columnLabels:['Predicted +','Predicted -'],active:act}));\n  const pp=tp+fp;\n  const prec=pp>0?tp/pp:null;\n  const rec=tp/(tp+fn);\n  const acc=(tp+tn)/10;\n  o.push(sdk.text('mp',520,310,'Precision = TP/(TP+FP) = '+(pp>0?tp+'/'+pp+' = '+sdk.format(prec,2):'undefined (nothing predicted +)')));\n  o.push(sdk.text('mr',520,355,'Recall = TP/(TP+Missed) = '+tp+'/'+(tp+fn)+' = '+sdk.format(rec,2)));\n  o.push(sdk.text('ma',520,400,'Accuracy = (TP+TN)/10 = '+(tp+tn)+'/10 = '+sdk.format(acc,2)));\n  let note;\n  if(rec<1) note='Accuracy is still '+Math.round(acc*100)+'% while '+fn+' of 2 positives are missed: 8 negatives dominate.';\n  else note='Both positives caught, at the cost of '+fp+' false alarm'+(fp===1?'':'s')+'. Raise the cutoff to trade.';\n  o.push(sdk.text('note',60,500,note,{role:'tutor'}));\n  const q={tp:tp,fp:fp,fn:fn,tn:tn,recall:rec,accuracy:acc};\n  if(prec!==null)q.precision=prec;\n  return {frame:sdk.frame(o,{width:960,height:540,readouts:[{id:'tp',value:tp},{id:'fp',value:fp},{id:'fn',value:fn},{id:'tn',value:tn},{id:'recall',value:rec},{id:'accuracy',value:acc}]}),quantities:q};\n}\n",
+     "sourceHash": "61f453eba33584b9d0f7c23fff646e9a2a80451bc767c0bb94be74be05328dce",
+     "manifestHash": "14b5bc1f88df9f25a7bcd59deaab9d892095871db4c58fbcea26410a5e46cefd",
+     "bundleHash": "e14eeac3939299adbd4a090b92a25d07c86e1ea0f96387f9566ee6cfb62270cf"
+    },
+    "execution": {
+     "allowed": true
+    }
+   },
+   "brief": {
+    "version": 1,
+    "title": "Moving a Classifier's Cutoff: False Alarms vs Missed Positives",
+    "summary": "You will see ten scored examples as dots on a line from 0 to 1. The two actual positives are marked differently from the eight actual negatives. A vertical cutoff line splits the dots into predicted positive and predicted negative. Beside the line there is a two-by-two table of true positives, false alarms, missed positives and true negatives, along with precision, recall and accuracy. As you slide the cutoff, dots change sides and are colored as false alarms or missed positives, and the table and all three numbers update at once. This lets you check the trade-off: lowering the cutoff catches both positives but adds false alarms, and raising it removes false alarms but starts missing positives. Because negatives outnumber positives, accuracy can stay high even when recall is poor.",
+    "assumptions": [
+     "The ten scores are invented example values chosen so the positives and negatives partly overlap.",
+     "An example counts as predicted positive when its score is at or above the cutoff.",
+     "When nothing is predicted positive, precision is shown as undefined."
+    ],
+    "presentation": "experiment",
+    "components": [],
+    "evidenceIds": [],
+    "limitations": [
+     "It does not draw a full ROC or precision-recall curve.",
+     "With only ten examples, the metrics change in coarse jumps instead of smoothly.",
+     "The scores are fixed, so you cannot edit individual scores or labels."
+    ],
+    "ambiguous": false,
+    "expanded": false
+   },
+   "briefHash": "0d98aac5790e3106df7ab20573ebf2a25e8008395a8e067ef83ead594ea2f9de",
+   "timing": {
+    "requestClass": "simple",
+    "cache": null,
+    "firstFeedbackMs": 81,
+    "proposalMs": 10081,
+    "generateToResultMs": 64944,
+    "processingMs": 74944,
+    "approvalWaitMs": 2192,
+    "calls": 3,
+    "repairs": 0,
+    "stages": [
+     {
+      "stage": "preparing",
+      "ms": 10000,
+      "calls": 1,
+      "inputTokens": 455,
+      "outputTokens": 794,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "awaiting_approval",
+      "ms": 2192,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": null
+     },
+     {
+      "stage": "authoring",
+      "ms": 49431,
+      "calls": 1,
+      "inputTokens": 8892,
+      "outputTokens": 5159,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "ms": 16,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "ms": 7029,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 3,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "ms": 8468,
+      "calls": 1,
+      "inputTokens": 5453,
+      "outputTokens": 644,
+      "images": 3,
+      "captures": 0,
+      "outcome": "accepted"
+     }
+    ]
+   },
+   "createdAt": 1794104874530,
+   "updatedAt": 1794104951747
+  },
+  "block": {
+   "type": "animation",
+   "id": "2c3b9cf9-0a9f-4856-9ac1-1542e9d2538b",
+   "title": "Moving a Classifier's Cutoff: False Alarms vs Missed Positives",
+   "program": {
+    "kind": "explain_program",
+    "resultId": "er_f4eea5dc664c436da48d8ee203a3ce82",
+    "bundleHash": "e14eeac3939299adbd4a090b92a25d07c86e1ea0f96387f9566ee6cfb62270cf"
+   },
+   "explain": {
+    "jobId": "ej_c1f8049d258747e2b726d4c1b47657ec",
+    "resultId": "er_f4eea5dc664c436da48d8ee203a3ce82",
+    "cardId": "2c3b9cf9-0a9f-4856-9ac1-1542e9d2538b",
+    "canvas": {
+     "boardId": "41ec4e15-e930-40de-a99a-37941c249222"
+    },
+    "promptRef": "4b358b66113e830f",
+    "revision": "xr_d127c34e37084e89a550f1e811318b5d",
+    "baseRevision": null,
+    "kind": "program",
+    "bundleHash": "e14eeac3939299adbd4a090b92a25d07c86e1ea0f96387f9566ee6cfb62270cf",
+    "sourceHash": "61f453eba33584b9d0f7c23fff646e9a2a80451bc767c0bb94be74be05328dce",
+    "manifestHash": "14b5bc1f88df9f25a7bcd59deaab9d892095871db4c58fbcea26410a5e46cefd",
+    "versions": {
+     "schema": 1,
+     "runtime": "quickjs-release-sync@0.32.0",
+     "sdk": "sdk-2",
+     "renderer": "renderer-1"
+    },
+    "policyVersion": 1
+   }
+  },
+  "diagnostics": {
+   "spec": null,
+   "program": {
+    "source": "const S=[{s:0.05,p:0},{s:0.12,p:0},{s:0.20,p:0},{s:0.28,p:0},{s:0.35,p:0},{s:0.45,p:0},{s:0.55,p:1},{s:0.62,p:0},{s:0.78,p:0},{s:0.85,p:1}];\nexport function evaluate({inputs}){\n  const c=inputs.cutoff;\n  const X=sdk.linear([0,1],[80,880]);\n  const o=[];\n  let tp=0,fp=0,fn=0,tn=0;\n  o.push(sdk.line('axis',80,195,880,195));\n  o.push(sdk.text('t0',80,215,'0',{align:'middle'}));\n  o.push(sdk.text('t1',880,215,'1',{align:'middle'}));\n  S.forEach((d,i)=>{\n    const pred=d.s>=c-1e-9;\n    let tag,role;\n    if(d.p&&pred){tp++;tag='TP';role='success';}\n    else if(d.p&&!pred){fn++;tag='MISS';role='warning';}\n    else if(!d.p&&pred){fp++;tag='FA';role='warning';}\n    else{tn++;tag='TN';role='neutral';}\n    const x=X(d.s);\n    const lbl=(d.p?'+':'')+sdk.format(d.s,2).replace(/^0/,'');\n    o.push(sdk.circle('d'+i,x,150,d.p?46:32,{text:lbl,role:role}));\n    o.push(sdk.text('g'+i,x,112,tag,{align:'middle',role:role}));\n  });\n  const cx=X(c);\n  o.push(sdk.line('cut',cx,85,cx,190,{role:'prediction'}));\n  o.push(sdk.text('cutl',sdk.clamp(cx,60,900),72,'cutoff '+sdk.format(c,2),{align:'middle',role:'prediction'}));\n  o.push(sdk.text('leg',80,248,'Big dots marked + are the 2 actual positives. Score >= cutoff: predicted positive. FA = false alarm, MISS = missed positive.'));\n  const act=[];\n  if(fn>0)act.push([0,1]);\n  if(fp>0)act.push([1,0]);\n  o.push(...sdk.grid('cm',{x:60,y:280,w:400,h:180,rows:[['TP '+tp,'Missed '+fn],['False alarm '+fp,'TN '+tn]],rowLabels:['Actual +','Actual -'],columnLabels:['Predicted +','Predicted -'],active:act}));\n  const pp=tp+fp;\n  const prec=pp>0?tp/pp:null;\n  const rec=tp/(tp+fn);\n  const acc=(tp+tn)/10;\n  o.push(sdk.text('mp',520,310,'Precision = TP/(TP+FP) = '+(pp>0?tp+'/'+pp+' = '+sdk.format(prec,2):'undefined (nothing predicted +)')));\n  o.push(sdk.text('mr',520,355,'Recall = TP/(TP+Missed) = '+tp+'/'+(tp+fn)+' = '+sdk.format(rec,2)));\n  o.push(sdk.text('ma',520,400,'Accuracy = (TP+TN)/10 = '+(tp+tn)+'/10 = '+sdk.format(acc,2)));\n  let note;\n  if(rec<1) note='Accuracy is still '+Math.round(acc*100)+'% while '+fn+' of 2 positives are missed: 8 negatives dominate.';\n  else note='Both positives caught, at the cost of '+fp+' false alarm'+(fp===1?'':'s')+'. Raise the cutoff to trade.';\n  o.push(sdk.text('note',60,500,note,{role:'tutor'}));\n  const q={tp:tp,fp:fp,fn:fn,tn:tn,recall:rec,accuracy:acc};\n  if(prec!==null)q.precision=prec;\n  return {frame:sdk.frame(o,{width:960,height:540,readouts:[{id:'tp',value:tp},{id:'fp',value:fp},{id:'fn',value:fn},{id:'tn',value:tn},{id:'recall',value:rec},{id:'accuracy',value:acc}]}),quantities:q};\n}\n",
+    "manifest": {
+     "title": "Moving a Classifier's Cutoff: False Alarms vs Missed Positives",
+     "summary": "Ten scored examples sit on a line from 0 to 1, two of them actual positives. Slide the cutoff: dots at or above it are predicted positive. Each dot is tagged TP, TN, false alarm or missed, and the confusion matrix, precision, recall and accuracy update together.",
+     "assumptions": [
+      "The ten scores are invented example values chosen so positives and negatives partly overlap.",
+      "An example is predicted positive when its score is at or above the cutoff.",
+      "When nothing is predicted positive, precision is shown as undefined.",
+      "With only ten examples the metrics change in coarse jumps; no ROC or precision-recall curve is drawn."
+     ],
+     "description": "A horizontal score line from 0 to 1 holds ten dots labelled with their scores; the two actual positives (0.55 and 0.85) are bigger and marked with a plus. A vertical cutoff line splits them. Above each dot a tag reads TP, TN, FA (false alarm) or MISS (missed positive); errors are coloured as warnings. Below, a two-by-two confusion matrix shows counts, and text lines give precision, recall and accuracy with their fractions, plus a note on the trade-off.",
+     "inputs": [
+      {
+       "type": "number",
+       "id": "cutoff",
+       "label": "Cutoff",
+       "min": 0,
+       "max": 1,
+       "step": 0.05,
+       "default": 0.5
+      }
+     ],
+     "readouts": [
+      {
+       "id": "tp",
+       "label": "True positives",
+       "decimals": 0
+      },
+      {
+       "id": "fp",
+       "label": "False alarms",
+       "decimals": 0
+      },
+      {
+       "id": "fn",
+       "label": "Missed positives",
+       "decimals": 0
+      },
+      {
+       "id": "tn",
+       "label": "True negatives",
+       "decimals": 0
+      },
+      {
+       "id": "recall",
+       "label": "Recall",
+       "decimals": 2
+      },
+      {
+       "id": "accuracy",
+       "label": "Accuracy",
+       "decimals": 2
+      }
+     ],
+     "capabilities": [
+      "number_inputs"
+     ]
+    }
+   },
+   "artifact": {
+    "kind": "explain_program",
+    "schemaVersion": 1,
+    "runtimeVersion": "quickjs-release-sync@0.32.0",
+    "sdkVersion": "sdk-2",
+    "rendererVersion": "renderer-1",
+    "runtimePolicyVersion": "policy-1",
+    "permissionProfileVersion": "perm-1",
+    "fingerprints": {
+     "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+     "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+     "renderer": "renderer-1"
+    },
+    "dependencies": [],
+    "manifest": {
+     "title": "Moving a Classifier's Cutoff: False Alarms vs Missed Positives",
+     "summary": "Ten scored examples sit on a line from 0 to 1, two of them actual positives. Slide the cutoff: dots at or above it are predicted positive. Each dot is tagged TP, TN, false alarm or missed, and the confusion matrix, precision, recall and accuracy update together.",
+     "assumptions": [
+      "The ten scores are invented example values chosen so positives and negatives partly overlap.",
+      "An example is predicted positive when its score is at or above the cutoff.",
+      "When nothing is predicted positive, precision is shown as undefined.",
+      "With only ten examples the metrics change in coarse jumps; no ROC or precision-recall curve is drawn."
+     ],
+     "description": "A horizontal score line from 0 to 1 holds ten dots labelled with their scores; the two actual positives (0.55 and 0.85) are bigger and marked with a plus. A vertical cutoff line splits them. Above each dot a tag reads TP, TN, FA (false alarm) or MISS (missed positive); errors are coloured as warnings. Below, a two-by-two confusion matrix shows counts, and text lines give precision, recall and accuracy with their fractions, plus a note on the trade-off.",
+     "inputs": [
+      {
+       "type": "number",
+       "id": "cutoff",
+       "label": "Cutoff",
+       "default": 0.5,
+       "min": 0,
+       "max": 1,
+       "step": 0.05
+      }
+     ],
+     "readouts": [
+      {
+       "id": "tp",
+       "label": "True positives",
+       "decimals": 0
+      },
+      {
+       "id": "fp",
+       "label": "False alarms",
+       "decimals": 0
+      },
+      {
+       "id": "fn",
+       "label": "Missed positives",
+       "decimals": 0
+      },
+      {
+       "id": "tn",
+       "label": "True negatives",
+       "decimals": 0
+      },
+      {
+       "id": "recall",
+       "label": "Recall",
+       "decimals": 2
+      },
+      {
+       "id": "accuracy",
+       "label": "Accuracy",
+       "decimals": 2
+      }
+     ],
+     "capabilities": [
+      "number_inputs"
+     ]
+    },
+    "sourceHash": "61f453eba33584b9d0f7c23fff646e9a2a80451bc767c0bb94be74be05328dce",
+    "manifestHash": "14b5bc1f88df9f25a7bcd59deaab9d892095871db4c58fbcea26410a5e46cefd",
+    "bundleHash": "e14eeac3939299adbd4a090b92a25d07c86e1ea0f96387f9566ee6cfb62270cf",
+    "sourceBytes": 2592
+   },
+   "coverage": {
+    "compiledHash": "f9163952e78d392cab753934429ca9f70afdd99dacde9dfc68b3dbba2d85e7e2",
+    "states": 3,
+    "moments": 1,
+    "frames": 3,
+    "themes": [
+     "light"
+    ],
+    "sampled": [
+     {
+      "id": "light",
+      "label": "default",
+      "inputs": {},
+      "time": 0
+     },
+     {
+      "id": "a0-light",
+      "label": "min of cutoff",
+      "inputs": {
+       "cutoff": 0
+      },
+      "time": 0
+     },
+     {
+      "id": "a1-light",
+      "label": "max of cutoff",
+      "inputs": {
+       "cutoff": 1
+      },
+      "time": 0
+     }
+    ],
+    "omitted": []
+   },
+   "history": [
+    {
+     "round": 0,
+     "attempt": 1,
+     "stage": "reviewing",
+     "outcome": "accepted",
+     "at": 1794104951747,
+     "hashes": {
+      "programHash": "1a5b928cc80ae895",
+      "sourceHash": "61f453eba33584b9d0f7c23fff646e9a2a80451bc767c0bb94be74be05328dce",
+      "manifestHash": "14b5bc1f88df9f25a7bcd59deaab9d892095871db4c58fbcea26410a5e46cefd",
+      "bundleHash": "e14eeac3939299adbd4a090b92a25d07c86e1ea0f96387f9566ee6cfb62270cf"
+     },
+     "sizes": {
+      "sourceBytes": 2592,
+      "manifestBytes": 1629
+     },
+     "problems": [],
+     "findings": [],
+     "truncated": false,
+     "cut": [],
+     "version": {
+      "stored": true,
+      "key": "explainver:ej_c1f8049d258747e2b726d4c1b47657ec:1a5b928cc80ae895"
+     }
+    }
+   ],
+   "historyDropped": 0,
+   "findings": [
+    {
+     "round": 0,
+     "stage": "reviewing",
+     "accepted": true,
+     "findings": []
+    }
+   ],
+   "candidates": [],
+   "settings": {
+    "presentation": "experiment"
+   },
+   "calls": [
+    {
+     "key": "ej_c1f8049d258747e2b726d4c1b47657ec-brief-1",
+     "role": "brief",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 115735,
+     "images": 0,
+     "costMicros": 26900,
+     "inputTokens": 455,
+     "outputTokens": 794,
+     "startedAt": 1794104875611,
+     "endedAt": 1794104884508,
+     "error": null
+    },
+    {
+     "key": "ej_c1f8049d258747e2b726d4c1b47657ec-author-2",
+     "role": "author",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 421305,
+     "images": 0,
+     "costMicros": 175078,
+     "inputTokens": 8892,
+     "outputTokens": 5159,
+     "startedAt": 1794104886853,
+     "endedAt": 1794104936234,
+     "error": null
+    },
+    {
+     "key": "ej_c1f8049d258747e2b726d4c1b47657ec-review-3",
+     "role": "review",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 194140,
+     "images": 3,
+     "costMicros": 41977,
+     "inputTokens": 5453,
+     "outputTokens": 644,
+     "startedAt": 1794104944345,
+     "endedAt": 1794104951747,
+     "error": null
+    }
+   ],
+   "captures": [
+    {
+     "id": "light",
+     "aliases": [],
+     "stateHash": "3a34c2b0eaeed90172a95aa24b27d9ba2030a8427411be1e2f8b3e36fb0e1309",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "cutoff": 0.5
+     },
+     "bundleHash": "e14eeac3939299adbd4a090b92a25d07c86e1ea0f96387f9566ee6cfb62270cf",
+     "trace": {
+      "inputs": {
+       "cutoff": 0.5
+      },
+      "time": 0,
+      "quantities": {
+       "tp": 2,
+       "fp": 2,
+       "fn": 0,
+       "tn": 6,
+       "recall": 1,
+       "accuracy": 0.8,
+       "precision": 0.5
+      },
+      "metrics": {
+       "ms": 113.6
+      }
+     },
+     "sha256": "463259ce50edcf418f8b49feb688eadd3e309185e81c41eebcee71c254868553",
+     "key": "explain/ej_c1f8049d258747e2b726d4c1b47657ec/3a34c2b0eaeed901.png",
+     "compiledHash": "f9163952e78d392cab753934429ca9f70afdd99dacde9dfc68b3dbba2d85e7e2",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a0-light",
+     "aliases": [],
+     "stateHash": "b560ccf74ade5a729faa077fc422389c92aab642776ed7fde02410d8c16ebc2a",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "cutoff": 0
+     },
+     "bundleHash": "e14eeac3939299adbd4a090b92a25d07c86e1ea0f96387f9566ee6cfb62270cf",
+     "trace": {
+      "inputs": {
+       "cutoff": 0
+      },
+      "time": 0,
+      "quantities": {
+       "tp": 2,
+       "fp": 8,
+       "fn": 0,
+       "tn": 0,
+       "recall": 1,
+       "accuracy": 0.2,
+       "precision": 0.2
+      },
+      "metrics": {
+       "ms": 42.2
+      }
+     },
+     "sha256": "b85d5a8935ae3cc175484e725e0943abd81517a8a3ddb8998836860a96dc745c",
+     "key": "explain/ej_c1f8049d258747e2b726d4c1b47657ec/b560ccf74ade5a72.png",
+     "compiledHash": "f9163952e78d392cab753934429ca9f70afdd99dacde9dfc68b3dbba2d85e7e2",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a1-light",
+     "aliases": [],
+     "stateHash": "70bef560f1ff4f82ffe9c4f011935c6f3e3e70d9bbcde3842a442d8b12f88452",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "cutoff": 1
+     },
+     "bundleHash": "e14eeac3939299adbd4a090b92a25d07c86e1ea0f96387f9566ee6cfb62270cf",
+     "trace": {
+      "inputs": {
+       "cutoff": 1
+      },
+      "time": 0,
+      "quantities": {
+       "tp": 0,
+       "fp": 0,
+       "fn": 2,
+       "tn": 8,
+       "recall": 0,
+       "accuracy": 0.8
+      },
+      "metrics": {
+       "ms": 36.1
+      }
+     },
+     "sha256": "bce1dc3c7b27ffd91d551e48afb9fe018bc9aeb3a8dc2a707ff95476132478d3",
+     "key": "explain/ej_c1f8049d258747e2b726d4c1b47657ec/70bef560f1ff4f82.png",
+     "compiledHash": "f9163952e78d392cab753934429ca9f70afdd99dacde9dfc68b3dbba2d85e7e2",
+     "mediaType": "image/png"
+    }
+   ],
+   "counts": {
+    "brief": 1,
+    "author": 1,
+    "review": 1,
+    "repair": 0
+   },
+   "timing": {
+    "requestClass": "simple",
+    "cache": null,
+    "marks": {
+     "submitted": 1794104874530,
+     "firstFeedback": 1794104874611,
+     "proposalReady": 1794104884611,
+     "generate": 1794104886803,
+     "result": 1794104951747
+    },
+    "stages": [
+     {
+      "stage": "preparing",
+      "startedAt": 1794104874611,
+      "endedAt": 1794104884611,
+      "calls": 1,
+      "inputTokens": 455,
+      "outputTokens": 794,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "awaiting_approval",
+      "startedAt": 1794104884611,
+      "endedAt": 1794104886803,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": null
+     },
+     {
+      "stage": "authoring",
+      "startedAt": 1794104886803,
+      "endedAt": 1794104936234,
+      "calls": 1,
+      "inputTokens": 8892,
+      "outputTokens": 5159,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "startedAt": 1794104936234,
+      "endedAt": 1794104936250,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "startedAt": 1794104936250,
+      "endedAt": 1794104943279,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 3,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "startedAt": 1794104943279,
+      "endedAt": 1794104951747,
+      "calls": 1,
+      "inputTokens": 5453,
+      "outputTokens": 644,
+      "images": 3,
+      "captures": 0,
+      "outcome": "accepted"
+     }
+    ]
+   }
+  }
+ }
+}

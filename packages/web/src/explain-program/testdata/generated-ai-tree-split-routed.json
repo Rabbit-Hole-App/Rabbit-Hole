@@ -1,0 +1,2099 @@
+{
+ "schema": 1,
+ "case": "tree",
+ "attempt": 2,
+ "prompt": "How does a decision tree choose where to split? Let me move a cutoff through a few labeled points, switch between Gini and entropy, and reveal the best split so I can compare it with mine.",
+ "path": "The dev clone's composer with the learner's own words (no slash command): the chat router classified the line, then the brief's Generate. No fixture was seeded or copied; the author, review and repair ran on the real backend.",
+ "routing": {
+  "recordedInBrowser": [
+   {
+    "status": 200,
+    "body": {
+     "route": "capability:explain",
+     "via": "jev",
+     "capability": "explain",
+     "flow": "direct",
+     "confidence": 0.84,
+     "probability": 0.85,
+     "code": null,
+     "message": null,
+     "meta": {
+      "protocol": "chat-route-c1",
+      "model": "jev-1.13.0",
+      "ms": 391,
+      "input_tokens": 1007,
+      "cost": null,
+      "transport": "direct"
+     }
+    }
+   }
+  ],
+  "replayedExplicit": {
+   "route": "capability:explain",
+   "via": "command",
+   "capability": "explain",
+   "flow": "direct",
+   "code": null,
+   "message": null,
+   "confidence": null,
+   "probability": null
+  },
+  "replayedPlainWords": {
+   "route": "capability:explain",
+   "via": "jev",
+   "capability": "explain",
+   "flow": "direct",
+   "code": null,
+   "message": null,
+   "confidence": 0.85,
+   "probability": 0.86
+  },
+  "note": "Plain words went through the chat router (JEV classifier, transport direct); recordedInBrowser is the router response the page received. The replays were made later against the same dev clone."
+ },
+ "environment": {
+  "clone": "rabbit-hole-web-dev-tc-s7d2",
+  "deployedCommit": "611e1e55c22ac386a6b97bea01a769cbf5cdc57b",
+  "startedAt": "2026-11-08T02:12:57.617Z"
+ },
+ "job": {
+  "jobId": "ej_98db85deeebe4a1d95625808e741f276",
+  "boardId": "7539674a-d89e-49e3-8764-4af3207d6694",
+  "resultId": "er_f42961772b714212a001bb0148fc7627",
+  "outcome": "card",
+  "stage": "ready",
+  "stopReason": "accepted",
+  "round": 3,
+  "failure": null,
+  "totalMs": 238416,
+  "calls": [
+   {
+    "role": "brief",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.0287,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "author",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.1944,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "repair",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.1017,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "repair",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.106,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "review",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.1054,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "repair",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.106,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "review",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.076,
+    "ms": null,
+    "status": "settled"
+   }
+  ],
+  "costUsd": 0.718
+ },
+ "brief": "Review explanation\n\nChoosing a Decision Tree Split: Move the Cutoff, Compare Gini and Entropy\n\ninteractive\nHow does a decision tree choose where to split? Let me move a cutoff through a few labeled points, switch between Gini and entropy, and reveal the best split so I can compare it with mine.\n\nPresentation\nStatic\nSteps\nOver time\nExperiment\n\nYou'll see about a dozen points in two colours (two classes) on a single number line, with a vertical cutoff line splitting them into a left group and a right group. As you move the cutoff, it shows how many of each colour fall on each side, the impurity of each side, their weighted average, and how much impurity the split removes compared with the unsplit set, with the formula shown. This shows that a tree picks the cutoff that leaves each side as close to one colour as possible, weighted by how many points end up on each side. Switching between Gini and entropy recalculates every number, so you can see whether the two measures agree on which cutoffs are good. Pressing the reveal button marks the best cutoff and draws the weighted impurity for every possible cutoff as a curve, so you can compare your choice with the lowest point on the curve.\n\nASSUMPTIONS 3\nLIMITATIONS 3\nGenerate\nEdit\nCancel\nGo to card",
+ "reviewFindings": [
+  {
+   "round": 0,
+   "stage": "validating",
+   "problems": [
+    "manifest.targets: Invalid input: expected array, received undefined"
+   ]
+  },
+  {
+   "round": 1,
+   "stage": "rendering",
+   "problems": [
+    "running the program failed (invalid_output; phase evaluate): frame.objects: Too big: expected array to have <=60 items (at state 1 of 1: after event 1)"
+   ]
+  },
+  {
+   "round": 2,
+   "stage": "reviewing",
+   "accepted": false,
+   "findings": [
+    {
+     "version": 1,
+     "id": "rf1",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "major",
+     "target": {
+      "capture": "light",
+      "object": "cut"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "At the default cutoff x = 3.0 the learner's vertical cutoff line runs straight through the circle for the B point at x = 2.9 and over its letter. This obscures the point the split is about. A default away from any point, such as 2.5, would avoid it."
+    },
+    {
+     "version": 1,
+     "id": "rf2",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "light",
+      "object": "leftI"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "The panel prints raw underscores ('I_L', 'I_R') instead of subscripts. It doesn't match the typeset formula above it."
+    },
+    {
+     "version": 1,
+     "id": "rf3",
+     "verdict": "semantic",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "light"
+     },
+     "evidence": [],
+     "specRepairable": false,
+     "message": "No capture uses the Entropy setting, so I could not check entropy values or that option from this sample."
+    },
+    {
+     "version": 1,
+     "id": "rf4",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "major",
+     "target": {
+      "capture": "e0-light",
+      "object": "cut"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "The cutoff line at x = 3.0 runs through the circle for the B point at x = 2.9 and covers its letter."
+    },
+    {
+     "version": 1,
+     "id": "rf5",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "e0-light",
+      "object": "curve"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "The curve's horizontal scale (70+52x) differs from the number line's (60+54x). The curve's 'best' marker sits about 3 px left of the green best-cutoff line above it, so the two don't line up exactly."
+    },
+    {
+     "version": 1,
+     "id": "rf6",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "major",
+     "target": {
+      "capture": "e2-light",
+      "object": "cut"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "After Reset, the cutoff line at x = 3.0 runs through the circle for the B point at x = 2.9 and covers its letter."
+    },
+    {
+     "version": 1,
+     "id": "rf7",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "major",
+     "target": {
+      "capture": "e3-light",
+      "object": "cut"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "After Hide, the cutoff line at x = 3.0 runs through the circle for the B point at x = 2.9 and covers its letter."
+    },
+    {
+     "version": 1,
+     "id": "rf8",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "major",
+     "target": {
+      "capture": "e4-light",
+      "object": "cut"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "After pressing Reveal four times, the cutoff line at x = 3.0 runs through the circle for the B point at x = 2.9 and covers its letter."
+    }
+   ]
+  },
+  {
+   "round": 3,
+   "stage": "reviewing",
+   "accepted": true,
+   "findings": [
+    {
+     "version": 1,
+     "id": "rf1",
+     "verdict": "semantic",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "light",
+      "object": "measure"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "The Entropy measure and the lowest cutoff value were not sampled, so the entropy readouts could not be checked against captures. The source's log2 entropy code looks correct."
+    },
+    {
+     "version": 1,
+     "id": "rf2",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "e0-light",
+      "object": "formW"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "The n_L/n and n_R/n fractions in the weighted-impurity formula are rendered very small. They are readable but could be larger."
+    }
+   ]
+  }
+ ],
+ "artifact": {
+  "kind": "explain_program",
+  "schemaVersion": 2,
+  "runtimeVersion": "quickjs-release-sync@0.32.0",
+  "sdkVersion": "sdk-2",
+  "rendererVersion": "renderer-1",
+  "runtimePolicyVersion": "policy-1",
+  "permissionProfileVersion": "perm-1",
+  "fingerprints": {
+   "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+   "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+   "renderer": "renderer-1"
+  },
+  "dependencies": [],
+  "manifest": {
+   "title": "Choosing a decision tree split: Gini vs entropy",
+   "summary": "Twelve points from two classes sit on a number line. Move the cutoff to see the class counts on each side, each side's impurity, the size-weighted average and how much impurity the split removes. Switch between Gini and entropy, then reveal the best cutoff and the curve of weighted impurity for every cutoff.",
+   "assumptions": [
+    "The points have one numeric feature and two classes (6 A, 6 B).",
+    "The best cutoff is searched among midpoints between neighbouring points, as in standard decision tree methods.",
+    "Entropy is measured in bits (log base 2).",
+    "The point set is fixed. Only one split on one feature is shown."
+   ],
+   "description": "A number line from 0 to 10 holds 12 circles labelled A or B. A vertical line marks your cutoff. On the right, text lists the A and B counts and impurity for each side, the weighted impurity formula and its value, the impurity of the unsplit set and the impurity removed. After you press Reveal, a green line marks the best cutoff, and a step curve below shows weighted impurity against cutoff position, with your cutoff and the lowest point marked.",
+   "inputs": [
+    {
+     "type": "number",
+     "id": "cutoff",
+     "label": "Cutoff position",
+     "default": 2.5,
+     "min": 0.5,
+     "max": 9.5,
+     "step": 0.1
+    },
+    {
+     "type": "select",
+     "id": "measure",
+     "label": "Impurity measure",
+     "default": "gini",
+     "options": [
+      {
+       "value": "gini",
+       "label": "Gini"
+      },
+      {
+       "value": "entropy",
+       "label": "Entropy"
+      }
+     ]
+    }
+   ],
+   "readouts": [
+    {
+     "id": "weighted",
+     "label": "Weighted impurity of your split",
+     "decimals": 3
+    },
+    {
+     "id": "gain",
+     "label": "Impurity removed by your split",
+     "decimals": 3
+    },
+    {
+     "id": "parentImp",
+     "label": "Impurity before splitting",
+     "decimals": 3
+    }
+   ],
+   "capabilities": [
+    "number_inputs",
+    "select_inputs",
+    "polyline",
+    "math_text"
+   ],
+   "viewport": {
+    "width": 960,
+    "height": 540
+   },
+   "actions": [
+    {
+     "id": "reveal",
+     "label": "Reveal best split"
+    },
+    {
+     "id": "hide",
+     "label": "Hide best split"
+    }
+   ],
+   "targets": []
+  },
+  "source": "const XS=[0.8,1.5,2.1,2.9,3.6,4.4,5.2,6.0,6.7,7.5,8.3,9.2];\nconst CL=[0,0,0,1,0,0,1,0,1,1,1,1];\nconst N=XS.length;\nfunction imp(a,b,m){const n=a+b;if(!n)return 0;const p=a/n,q=b/n;if(m==='gini')return 1-p*p-q*q;let h=0;if(p>0)h-=p*Math.log(p)/Math.LN2;if(q>0)h-=q*Math.log(q)/Math.LN2;return h;}\nfunction split(c,m){let la=0,lb=0,ra=0,rb=0;for(let i=0;i<N;i++){if(XS[i]<c){if(CL[i])lb++;else la++;}else{if(CL[i])rb++;else ra++;}}const nl=la+lb,nr=ra+rb;const il=imp(la,lb,m),ir=imp(ra,rb,m);return {la,lb,ra,rb,nl,nr,il,ir,w:(nl*il+nr*ir)/N};}\nexport function initialState(){return {revealed:false};}\nexport function reduce({state,event}){if(event.type==='action'){if(event.action==='reveal')return {revealed:true};if(event.action==='hide')return {revealed:false};}return state;}\nexport function evaluate({inputs,state}){\nconst m=inputs.measure==='entropy'?'entropy':'gini';\nconst cut=sdk.clamp(Number(inputs.cutoff),0.5,9.5);\nconst revealed=!!(state&&state.revealed);\nconst X=v=>60+v*54;\nconst s=split(cut,m);\nconst parent=imp(6,6,m);\nconst gain=parent-s.w;\nlet best=null,bw=Infinity;\nfor(let i=0;i<N-1;i++){const c=(XS[i]+XS[i+1])/2;const r=split(c,m);if(r.w<bw-1e-12){bw=r.w;best=c;}}\nconst o=[];\no.push(sdk.text('title',30,30,'Where should the tree split? Move the cutoff, then compare with the best.'));\no.push(sdk.text('legend',30,58,'Each circle is one point: A (class A) or B (class B).'));\no.push(sdk.line('axis',X(0),150,X(10),150));\no.push(sdk.text('ax0',X(0),182,'0',{align:'middle'}));\no.push(sdk.text('ax10',X(10),182,'10',{align:'middle'}));\nfor(let i=0;i<N;i++){o.push(sdk.circle('p'+i,X(XS[i]),150,22,{text:CL[i]?'B':'A',role:CL[i]?'prediction':'input'}));}\nconst cx=X(cut);\no.push(sdk.line('cut',cx,110,cx,190,{role:'learner'}));\no.push(sdk.text('cutlabel',sdk.clamp(cx,110,550),100,'your cutoff x = '+sdk.format(cut,1),{align:'middle',role:'learner'}));\nif(revealed){const bx=X(best);o.push(sdk.line('bestline',bx,118,bx,196,{role:'success',opacity:0.8}));o.push(sdk.text('bestlabel',sdk.clamp(bx,110,550),212,'best cutoff x = '+sdk.format(best,2),{align:'middle',role:'success'}));}\nconst px=640;\no.push(sdk.text('meas',px,80,'Measure: '+(m==='gini'?'Gini impurity':'Entropy (bits)')));\no.push(sdk.math('formI',px,108,m==='gini'?'I = 1 - \\\\sum_k p_k^2':'I = -\\\\sum_k p_k \\\\log_2 p_k'));\no.push(sdk.text('left',px,148,'Left side: '+s.la+' A, '+s.lb+' B  (n = '+s.nl+')'));\no.push({kind:'text',id:'leftI',x:px+20,y:170,runs:[{kind:'text',text:'impurity '},{kind:'math',tex:'I_L'},{kind:'text',text:' = '+sdk.format(s.il,3)}]});\no.push(sdk.text('right',px,198,'Right side: '+s.ra+' A, '+s.rb+' B  (n = '+s.nr+')'));\no.push({kind:'text',id:'rightI',x:px+20,y:220,runs:[{kind:'text',text:'impurity '},{kind:'math',tex:'I_R'},{kind:'text',text:' = '+sdk.format(s.ir,3)}]});\no.push(sdk.math('formW',px,256,'W = \\\\tfrac{n_L}{n} I_L + \\\\tfrac{n_R}{n} I_R'));\no.push(sdk.text('wval',px,290,'Weighted impurity W = '+sdk.format(s.w,3)));\no.push(sdk.text('pval',px,314,'Unsplit set (6 A, 6 B): '+sdk.format(parent,3)));\no.push(sdk.text('gval',px,338,'Impurity removed = '+sdk.format(gain,3),{role:'learner'}));\nif(revealed){o.push(sdk.text('cmp1',px,374,'Best: W = '+sdk.format(bw,3)+', removes '+sdk.format(parent-bw,3),{role:'success'}));\nconst diff=s.w-bw;o.push(sdk.text('cmp2',px,398,diff<1e-9?'Your cutoff is as good as the best.':'Yours leaves '+sdk.format(diff,3)+' more impurity.'));}\nelse{o.push(sdk.text('cmp1',px,374,'Press \"Reveal best split\" to compare.'));}\no.push(sdk.text('note',px,440,'Lower W = purer sides, weighted by size.'));\nif(revealed){\nconst PX=X;const ymax=parent*1.1;const PY=w=>500-w/ymax*210;\nconst b=[0.5].concat(XS,[9.5]);const pts=[];\nfor(let k=0;k<b.length-1;k++){const w=split((b[k]+b[k+1])/2,m).w;pts.push([PX(b[k]),PY(w)]);pts.push([PX(b[k+1]),PY(w)]);}\no.push(sdk.line('pxaxis',PX(0),500,PX(10),500));\no.push(sdk.line('pyaxis',PX(0),500,PX(0),PY(ymax)));\no.push(sdk.text('pylabel',PX(0)+8,PY(ymax)-6,'weighted impurity W (top = '+sdk.format(ymax,2)+')'));\no.push(sdk.text('px0',PX(0),518,'0',{align:'middle'}));\no.push(sdk.text('px10',PX(10),518,'10',{align:'middle'}));\no.push(sdk.text('pxlabel',PX(5),532,'cutoff x',{align:'middle'}));\no.push(sdk.line('pparent',PX(0),PY(parent),PX(10),PY(parent),{opacity:0.4}));\no.push(sdk.polyline('curve',pts,{role:'neutral'}));\no.push(sdk.circle('bestpt',PX(best),PY(bw),14,{role:'success'}));\no.push(sdk.text('bestpttxt',PX(best),PY(bw)+24,'best',{align:'middle',role:'success'}));\no.push(sdk.circle('youpt',PX(cut),PY(s.w),10,{role:'learner'}));\n}\nelse{o.push(sdk.text('hint',320,390,'The curve of W for every cutoff appears after Reveal.',{align:'middle'}));}\nreturn {frame:{width:960,height:540,objects:o,readouts:[{id:'weighted',value:s.w},{id:'gain',value:gain},{id:'parentImp',value:parent}]},quantities:{cutoff:cut,weighted:s.w,gain:gain,parent:parent,best:best,bestW:bw}};\n}\n",
+  "sourceHash": "0031dfbf2f848c6ba8e215f774ab2363e5e96a6e316268820178aebcb9303ae5",
+  "manifestHash": "435b5a1a4bfa7e1e5cbfd1c7e1902f0b96e144eec66df8797e8bae9ed20ed34e",
+  "bundleHash": "94bc223a0e2c4fa1de79c860ade2f4e5c5be03af48cd35745f4d79b0067be0f7"
+ },
+ "rejectedCandidate": null,
+ "stamps": {
+  "sdkVersion": "sdk-2",
+  "rendererVersion": "renderer-1",
+  "schemaVersion": 2,
+  "capabilities": [
+   "number_inputs",
+   "select_inputs",
+   "polyline",
+   "math_text"
+  ],
+  "bundleHash": "94bc223a0e2c4fa1de79c860ade2f4e5c5be03af48cd35745f4d79b0067be0f7"
+ },
+ "rawJobDetail": {
+  "job": {
+   "id": "ej_98db85deeebe4a1d95625808e741f276",
+   "version": 1,
+   "boardId": "7539674a-d89e-49e3-8764-4af3207d6694",
+   "cardId": "407e9d31-ea67-48fb-b87f-90faa126ca99",
+   "requestClass": "simple",
+   "stage": "ready",
+   "attempt": 1,
+   "terminal": true,
+   "round": 3,
+   "stopReason": "accepted",
+   "failure": null,
+   "recovery": [],
+   "usage": {
+    "credits": 72,
+    "unknown": false
+   },
+   "result": {
+    "jobId": "ej_98db85deeebe4a1d95625808e741f276",
+    "resultId": "er_f42961772b714212a001bb0148fc7627",
+    "cardId": "407e9d31-ea67-48fb-b87f-90faa126ca99",
+    "canvas": {
+     "boardId": "7539674a-d89e-49e3-8764-4af3207d6694"
+    },
+    "promptRef": "0c654b5fec5662dd",
+    "revision": "xr_20ca3ad7238e415cb9c33f4348c84a95",
+    "baseRevision": null,
+    "kind": "program",
+    "bundleHash": "94bc223a0e2c4fa1de79c860ade2f4e5c5be03af48cd35745f4d79b0067be0f7",
+    "sourceHash": "0031dfbf2f848c6ba8e215f774ab2363e5e96a6e316268820178aebcb9303ae5",
+    "manifestHash": "435b5a1a4bfa7e1e5cbfd1c7e1902f0b96e144eec66df8797e8bae9ed20ed34e",
+    "versions": {
+     "schema": 2,
+     "runtime": "quickjs-release-sync@0.32.0",
+     "sdk": "sdk-2",
+     "renderer": "renderer-1"
+    },
+    "policyVersion": 1,
+    "program": {
+     "kind": "explain_program",
+     "schemaVersion": 2,
+     "runtimeVersion": "quickjs-release-sync@0.32.0",
+     "sdkVersion": "sdk-2",
+     "rendererVersion": "renderer-1",
+     "runtimePolicyVersion": "policy-1",
+     "permissionProfileVersion": "perm-1",
+     "fingerprints": {
+      "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+      "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+      "renderer": "renderer-1"
+     },
+     "dependencies": [],
+     "manifest": {
+      "title": "Choosing a decision tree split: Gini vs entropy",
+      "summary": "Twelve points from two classes sit on a number line. Move the cutoff to see the class counts on each side, each side's impurity, the size-weighted average and how much impurity the split removes. Switch between Gini and entropy, then reveal the best cutoff and the curve of weighted impurity for every cutoff.",
+      "assumptions": [
+       "The points have one numeric feature and two classes (6 A, 6 B).",
+       "The best cutoff is searched among midpoints between neighbouring points, as in standard decision tree methods.",
+       "Entropy is measured in bits (log base 2).",
+       "The point set is fixed. Only one split on one feature is shown."
+      ],
+      "description": "A number line from 0 to 10 holds 12 circles labelled A or B. A vertical line marks your cutoff. On the right, text lists the A and B counts and impurity for each side, the weighted impurity formula and its value, the impurity of the unsplit set and the impurity removed. After you press Reveal, a green line marks the best cutoff, and a step curve below shows weighted impurity against cutoff position, with your cutoff and the lowest point marked.",
+      "inputs": [
+       {
+        "type": "number",
+        "id": "cutoff",
+        "label": "Cutoff position",
+        "default": 2.5,
+        "min": 0.5,
+        "max": 9.5,
+        "step": 0.1
+       },
+       {
+        "type": "select",
+        "id": "measure",
+        "label": "Impurity measure",
+        "default": "gini",
+        "options": [
+         {
+          "value": "gini",
+          "label": "Gini"
+         },
+         {
+          "value": "entropy",
+          "label": "Entropy"
+         }
+        ]
+       }
+      ],
+      "readouts": [
+       {
+        "id": "weighted",
+        "label": "Weighted impurity of your split",
+        "decimals": 3
+       },
+       {
+        "id": "gain",
+        "label": "Impurity removed by your split",
+        "decimals": 3
+       },
+       {
+        "id": "parentImp",
+        "label": "Impurity before splitting",
+        "decimals": 3
+       }
+      ],
+      "capabilities": [
+       "number_inputs",
+       "select_inputs",
+       "polyline",
+       "math_text"
+      ],
+      "viewport": {
+       "width": 960,
+       "height": 540
+      },
+      "actions": [
+       {
+        "id": "reveal",
+        "label": "Reveal best split"
+       },
+       {
+        "id": "hide",
+        "label": "Hide best split"
+       }
+      ],
+      "targets": []
+     },
+     "source": "const XS=[0.8,1.5,2.1,2.9,3.6,4.4,5.2,6.0,6.7,7.5,8.3,9.2];\nconst CL=[0,0,0,1,0,0,1,0,1,1,1,1];\nconst N=XS.length;\nfunction imp(a,b,m){const n=a+b;if(!n)return 0;const p=a/n,q=b/n;if(m==='gini')return 1-p*p-q*q;let h=0;if(p>0)h-=p*Math.log(p)/Math.LN2;if(q>0)h-=q*Math.log(q)/Math.LN2;return h;}\nfunction split(c,m){let la=0,lb=0,ra=0,rb=0;for(let i=0;i<N;i++){if(XS[i]<c){if(CL[i])lb++;else la++;}else{if(CL[i])rb++;else ra++;}}const nl=la+lb,nr=ra+rb;const il=imp(la,lb,m),ir=imp(ra,rb,m);return {la,lb,ra,rb,nl,nr,il,ir,w:(nl*il+nr*ir)/N};}\nexport function initialState(){return {revealed:false};}\nexport function reduce({state,event}){if(event.type==='action'){if(event.action==='reveal')return {revealed:true};if(event.action==='hide')return {revealed:false};}return state;}\nexport function evaluate({inputs,state}){\nconst m=inputs.measure==='entropy'?'entropy':'gini';\nconst cut=sdk.clamp(Number(inputs.cutoff),0.5,9.5);\nconst revealed=!!(state&&state.revealed);\nconst X=v=>60+v*54;\nconst s=split(cut,m);\nconst parent=imp(6,6,m);\nconst gain=parent-s.w;\nlet best=null,bw=Infinity;\nfor(let i=0;i<N-1;i++){const c=(XS[i]+XS[i+1])/2;const r=split(c,m);if(r.w<bw-1e-12){bw=r.w;best=c;}}\nconst o=[];\no.push(sdk.text('title',30,30,'Where should the tree split? Move the cutoff, then compare with the best.'));\no.push(sdk.text('legend',30,58,'Each circle is one point: A (class A) or B (class B).'));\no.push(sdk.line('axis',X(0),150,X(10),150));\no.push(sdk.text('ax0',X(0),182,'0',{align:'middle'}));\no.push(sdk.text('ax10',X(10),182,'10',{align:'middle'}));\nfor(let i=0;i<N;i++){o.push(sdk.circle('p'+i,X(XS[i]),150,22,{text:CL[i]?'B':'A',role:CL[i]?'prediction':'input'}));}\nconst cx=X(cut);\no.push(sdk.line('cut',cx,110,cx,190,{role:'learner'}));\no.push(sdk.text('cutlabel',sdk.clamp(cx,110,550),100,'your cutoff x = '+sdk.format(cut,1),{align:'middle',role:'learner'}));\nif(revealed){const bx=X(best);o.push(sdk.line('bestline',bx,118,bx,196,{role:'success',opacity:0.8}));o.push(sdk.text('bestlabel',sdk.clamp(bx,110,550),212,'best cutoff x = '+sdk.format(best,2),{align:'middle',role:'success'}));}\nconst px=640;\no.push(sdk.text('meas',px,80,'Measure: '+(m==='gini'?'Gini impurity':'Entropy (bits)')));\no.push(sdk.math('formI',px,108,m==='gini'?'I = 1 - \\\\sum_k p_k^2':'I = -\\\\sum_k p_k \\\\log_2 p_k'));\no.push(sdk.text('left',px,148,'Left side: '+s.la+' A, '+s.lb+' B  (n = '+s.nl+')'));\no.push({kind:'text',id:'leftI',x:px+20,y:170,runs:[{kind:'text',text:'impurity '},{kind:'math',tex:'I_L'},{kind:'text',text:' = '+sdk.format(s.il,3)}]});\no.push(sdk.text('right',px,198,'Right side: '+s.ra+' A, '+s.rb+' B  (n = '+s.nr+')'));\no.push({kind:'text',id:'rightI',x:px+20,y:220,runs:[{kind:'text',text:'impurity '},{kind:'math',tex:'I_R'},{kind:'text',text:' = '+sdk.format(s.ir,3)}]});\no.push(sdk.math('formW',px,256,'W = \\\\tfrac{n_L}{n} I_L + \\\\tfrac{n_R}{n} I_R'));\no.push(sdk.text('wval',px,290,'Weighted impurity W = '+sdk.format(s.w,3)));\no.push(sdk.text('pval',px,314,'Unsplit set (6 A, 6 B): '+sdk.format(parent,3)));\no.push(sdk.text('gval',px,338,'Impurity removed = '+sdk.format(gain,3),{role:'learner'}));\nif(revealed){o.push(sdk.text('cmp1',px,374,'Best: W = '+sdk.format(bw,3)+', removes '+sdk.format(parent-bw,3),{role:'success'}));\nconst diff=s.w-bw;o.push(sdk.text('cmp2',px,398,diff<1e-9?'Your cutoff is as good as the best.':'Yours leaves '+sdk.format(diff,3)+' more impurity.'));}\nelse{o.push(sdk.text('cmp1',px,374,'Press \"Reveal best split\" to compare.'));}\no.push(sdk.text('note',px,440,'Lower W = purer sides, weighted by size.'));\nif(revealed){\nconst PX=X;const ymax=parent*1.1;const PY=w=>500-w/ymax*210;\nconst b=[0.5].concat(XS,[9.5]);const pts=[];\nfor(let k=0;k<b.length-1;k++){const w=split((b[k]+b[k+1])/2,m).w;pts.push([PX(b[k]),PY(w)]);pts.push([PX(b[k+1]),PY(w)]);}\no.push(sdk.line('pxaxis',PX(0),500,PX(10),500));\no.push(sdk.line('pyaxis',PX(0),500,PX(0),PY(ymax)));\no.push(sdk.text('pylabel',PX(0)+8,PY(ymax)-6,'weighted impurity W (top = '+sdk.format(ymax,2)+')'));\no.push(sdk.text('px0',PX(0),518,'0',{align:'middle'}));\no.push(sdk.text('px10',PX(10),518,'10',{align:'middle'}));\no.push(sdk.text('pxlabel',PX(5),532,'cutoff x',{align:'middle'}));\no.push(sdk.line('pparent',PX(0),PY(parent),PX(10),PY(parent),{opacity:0.4}));\no.push(sdk.polyline('curve',pts,{role:'neutral'}));\no.push(sdk.circle('bestpt',PX(best),PY(bw),14,{role:'success'}));\no.push(sdk.text('bestpttxt',PX(best),PY(bw)+24,'best',{align:'middle',role:'success'}));\no.push(sdk.circle('youpt',PX(cut),PY(s.w),10,{role:'learner'}));\n}\nelse{o.push(sdk.text('hint',320,390,'The curve of W for every cutoff appears after Reveal.',{align:'middle'}));}\nreturn {frame:{width:960,height:540,objects:o,readouts:[{id:'weighted',value:s.w},{id:'gain',value:gain},{id:'parentImp',value:parent}]},quantities:{cutoff:cut,weighted:s.w,gain:gain,parent:parent,best:best,bestW:bw}};\n}\n",
+     "sourceHash": "0031dfbf2f848c6ba8e215f774ab2363e5e96a6e316268820178aebcb9303ae5",
+     "manifestHash": "435b5a1a4bfa7e1e5cbfd1c7e1902f0b96e144eec66df8797e8bae9ed20ed34e",
+     "bundleHash": "94bc223a0e2c4fa1de79c860ade2f4e5c5be03af48cd35745f4d79b0067be0f7"
+    },
+    "execution": {
+     "allowed": true
+    }
+   },
+   "brief": {
+    "version": 1,
+    "title": "Choosing a Decision Tree Split: Move the Cutoff, Compare Gini and Entropy",
+    "summary": "You'll see about a dozen points in two colours (two classes) on a single number line, with a vertical cutoff line splitting them into a left group and a right group. As you move the cutoff, it shows how many of each colour fall on each side, the impurity of each side, their weighted average, and how much impurity the split removes compared with the unsplit set, with the formula shown. This shows that a tree picks the cutoff that leaves each side as close to one colour as possible, weighted by how many points end up on each side. Switching between Gini and entropy recalculates every number, so you can see whether the two measures agree on which cutoffs are good. Pressing the reveal button marks the best cutoff and draws the weighted impurity for every possible cutoff as a curve, so you can compare your choice with the lowest point on the curve.",
+    "assumptions": [
+     "The points have a single numeric feature and two classes.",
+     "Possible cutoffs sit halfway between neighbouring points, as in standard decision tree methods.",
+     "Entropy is measured in bits (log base 2)."
+    ],
+    "presentation": "experiment",
+    "components": [],
+    "evidenceIds": [],
+    "limitations": [
+     "It shows only one split on one feature, not choosing between several features or growing a full tree.",
+     "The labelled points are a fixed example set, so you can't add or move them.",
+     "Overfitting, stopping rules and pruning are not covered."
+    ],
+    "ambiguous": false,
+    "expanded": false
+   },
+   "briefHash": "45c1ffee942430483ec4a872d448296b7db492b165934a6f90bf9a4e8f60d1eb",
+   "timing": {
+    "requestClass": "simple",
+    "cache": null,
+    "firstFeedbackMs": 79,
+    "proposalMs": 10940,
+    "generateToResultMs": 213280,
+    "processingMs": 224141,
+    "approvalWaitMs": 1515,
+    "calls": 7,
+    "repairs": 3,
+    "stages": [
+     {
+      "stage": "preparing",
+      "ms": 10861,
+      "calls": 1,
+      "inputTokens": 440,
+      "outputTokens": 886,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "awaiting_approval",
+      "ms": 1515,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": null
+     },
+     {
+      "stage": "authoring",
+      "ms": 56406,
+      "calls": 1,
+      "inputTokens": 8876,
+      "outputTokens": 6127,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "ms": 19,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "rejected"
+     },
+     {
+      "stage": "repairing",
+      "ms": 25023,
+      "calls": 1,
+      "inputTokens": 4963,
+      "outputTokens": 3449,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "ms": 1000,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "ms": 5135,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "rejected"
+     },
+     {
+      "stage": "repairing",
+      "ms": 32907,
+      "calls": 1,
+      "inputTokens": 5002,
+      "outputTokens": 4276,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "ms": 19,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "ms": 9159,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 6,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "ms": 27586,
+      "calls": 1,
+      "inputTokens": 10458,
+      "outputTokens": 2745,
+      "images": 6,
+      "captures": 0,
+      "outcome": "rejected"
+     },
+     {
+      "stage": "repairing",
+      "ms": 29252,
+      "calls": 1,
+      "inputTokens": 5969,
+      "outputTokens": 4079,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "ms": 1748,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "ms": 7696,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 6,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "ms": 17330,
+      "calls": 1,
+      "inputTokens": 10619,
+      "outputTokens": 1659,
+      "images": 6,
+      "captures": 0,
+      "outcome": "accepted"
+     }
+    ]
+   },
+   "createdAt": 1794103988822,
+   "updatedAt": 1794104214557
+  },
+  "block": {
+   "type": "animation",
+   "id": "407e9d31-ea67-48fb-b87f-90faa126ca99",
+   "title": "Choosing a decision tree split: Gini vs entropy",
+   "program": {
+    "kind": "explain_program",
+    "resultId": "er_f42961772b714212a001bb0148fc7627",
+    "bundleHash": "94bc223a0e2c4fa1de79c860ade2f4e5c5be03af48cd35745f4d79b0067be0f7"
+   },
+   "explain": {
+    "jobId": "ej_98db85deeebe4a1d95625808e741f276",
+    "resultId": "er_f42961772b714212a001bb0148fc7627",
+    "cardId": "407e9d31-ea67-48fb-b87f-90faa126ca99",
+    "canvas": {
+     "boardId": "7539674a-d89e-49e3-8764-4af3207d6694"
+    },
+    "promptRef": "0c654b5fec5662dd",
+    "revision": "xr_20ca3ad7238e415cb9c33f4348c84a95",
+    "baseRevision": null,
+    "kind": "program",
+    "bundleHash": "94bc223a0e2c4fa1de79c860ade2f4e5c5be03af48cd35745f4d79b0067be0f7",
+    "sourceHash": "0031dfbf2f848c6ba8e215f774ab2363e5e96a6e316268820178aebcb9303ae5",
+    "manifestHash": "435b5a1a4bfa7e1e5cbfd1c7e1902f0b96e144eec66df8797e8bae9ed20ed34e",
+    "versions": {
+     "schema": 2,
+     "runtime": "quickjs-release-sync@0.32.0",
+     "sdk": "sdk-2",
+     "renderer": "renderer-1"
+    },
+    "policyVersion": 1
+   }
+  },
+  "diagnostics": {
+   "spec": null,
+   "program": {
+    "source": "const XS=[0.8,1.5,2.1,2.9,3.6,4.4,5.2,6.0,6.7,7.5,8.3,9.2];\nconst CL=[0,0,0,1,0,0,1,0,1,1,1,1];\nconst N=XS.length;\nfunction imp(a,b,m){const n=a+b;if(!n)return 0;const p=a/n,q=b/n;if(m==='gini')return 1-p*p-q*q;let h=0;if(p>0)h-=p*Math.log(p)/Math.LN2;if(q>0)h-=q*Math.log(q)/Math.LN2;return h;}\nfunction split(c,m){let la=0,lb=0,ra=0,rb=0;for(let i=0;i<N;i++){if(XS[i]<c){if(CL[i])lb++;else la++;}else{if(CL[i])rb++;else ra++;}}const nl=la+lb,nr=ra+rb;const il=imp(la,lb,m),ir=imp(ra,rb,m);return {la,lb,ra,rb,nl,nr,il,ir,w:(nl*il+nr*ir)/N};}\nexport function initialState(){return {revealed:false};}\nexport function reduce({state,event}){if(event.type==='action'){if(event.action==='reveal')return {revealed:true};if(event.action==='hide')return {revealed:false};}return state;}\nexport function evaluate({inputs,state}){\nconst m=inputs.measure==='entropy'?'entropy':'gini';\nconst cut=sdk.clamp(Number(inputs.cutoff),0.5,9.5);\nconst revealed=!!(state&&state.revealed);\nconst X=v=>60+v*54;\nconst s=split(cut,m);\nconst parent=imp(6,6,m);\nconst gain=parent-s.w;\nlet best=null,bw=Infinity;\nfor(let i=0;i<N-1;i++){const c=(XS[i]+XS[i+1])/2;const r=split(c,m);if(r.w<bw-1e-12){bw=r.w;best=c;}}\nconst o=[];\no.push(sdk.text('title',30,30,'Where should the tree split? Move the cutoff, then compare with the best.'));\no.push(sdk.text('legend',30,58,'Each circle is one point: A (class A) or B (class B).'));\no.push(sdk.line('axis',X(0),150,X(10),150));\no.push(sdk.text('ax0',X(0),182,'0',{align:'middle'}));\no.push(sdk.text('ax10',X(10),182,'10',{align:'middle'}));\nfor(let i=0;i<N;i++){o.push(sdk.circle('p'+i,X(XS[i]),150,22,{text:CL[i]?'B':'A',role:CL[i]?'prediction':'input'}));}\nconst cx=X(cut);\no.push(sdk.line('cut',cx,110,cx,190,{role:'learner'}));\no.push(sdk.text('cutlabel',sdk.clamp(cx,110,550),100,'your cutoff x = '+sdk.format(cut,1),{align:'middle',role:'learner'}));\nif(revealed){const bx=X(best);o.push(sdk.line('bestline',bx,118,bx,196,{role:'success',opacity:0.8}));o.push(sdk.text('bestlabel',sdk.clamp(bx,110,550),212,'best cutoff x = '+sdk.format(best,2),{align:'middle',role:'success'}));}\nconst px=640;\no.push(sdk.text('meas',px,80,'Measure: '+(m==='gini'?'Gini impurity':'Entropy (bits)')));\no.push(sdk.math('formI',px,108,m==='gini'?'I = 1 - \\\\sum_k p_k^2':'I = -\\\\sum_k p_k \\\\log_2 p_k'));\no.push(sdk.text('left',px,148,'Left side: '+s.la+' A, '+s.lb+' B  (n = '+s.nl+')'));\no.push({kind:'text',id:'leftI',x:px+20,y:170,runs:[{kind:'text',text:'impurity '},{kind:'math',tex:'I_L'},{kind:'text',text:' = '+sdk.format(s.il,3)}]});\no.push(sdk.text('right',px,198,'Right side: '+s.ra+' A, '+s.rb+' B  (n = '+s.nr+')'));\no.push({kind:'text',id:'rightI',x:px+20,y:220,runs:[{kind:'text',text:'impurity '},{kind:'math',tex:'I_R'},{kind:'text',text:' = '+sdk.format(s.ir,3)}]});\no.push(sdk.math('formW',px,256,'W = \\\\tfrac{n_L}{n} I_L + \\\\tfrac{n_R}{n} I_R'));\no.push(sdk.text('wval',px,290,'Weighted impurity W = '+sdk.format(s.w,3)));\no.push(sdk.text('pval',px,314,'Unsplit set (6 A, 6 B): '+sdk.format(parent,3)));\no.push(sdk.text('gval',px,338,'Impurity removed = '+sdk.format(gain,3),{role:'learner'}));\nif(revealed){o.push(sdk.text('cmp1',px,374,'Best: W = '+sdk.format(bw,3)+', removes '+sdk.format(parent-bw,3),{role:'success'}));\nconst diff=s.w-bw;o.push(sdk.text('cmp2',px,398,diff<1e-9?'Your cutoff is as good as the best.':'Yours leaves '+sdk.format(diff,3)+' more impurity.'));}\nelse{o.push(sdk.text('cmp1',px,374,'Press \"Reveal best split\" to compare.'));}\no.push(sdk.text('note',px,440,'Lower W = purer sides, weighted by size.'));\nif(revealed){\nconst PX=X;const ymax=parent*1.1;const PY=w=>500-w/ymax*210;\nconst b=[0.5].concat(XS,[9.5]);const pts=[];\nfor(let k=0;k<b.length-1;k++){const w=split((b[k]+b[k+1])/2,m).w;pts.push([PX(b[k]),PY(w)]);pts.push([PX(b[k+1]),PY(w)]);}\no.push(sdk.line('pxaxis',PX(0),500,PX(10),500));\no.push(sdk.line('pyaxis',PX(0),500,PX(0),PY(ymax)));\no.push(sdk.text('pylabel',PX(0)+8,PY(ymax)-6,'weighted impurity W (top = '+sdk.format(ymax,2)+')'));\no.push(sdk.text('px0',PX(0),518,'0',{align:'middle'}));\no.push(sdk.text('px10',PX(10),518,'10',{align:'middle'}));\no.push(sdk.text('pxlabel',PX(5),532,'cutoff x',{align:'middle'}));\no.push(sdk.line('pparent',PX(0),PY(parent),PX(10),PY(parent),{opacity:0.4}));\no.push(sdk.polyline('curve',pts,{role:'neutral'}));\no.push(sdk.circle('bestpt',PX(best),PY(bw),14,{role:'success'}));\no.push(sdk.text('bestpttxt',PX(best),PY(bw)+24,'best',{align:'middle',role:'success'}));\no.push(sdk.circle('youpt',PX(cut),PY(s.w),10,{role:'learner'}));\n}\nelse{o.push(sdk.text('hint',320,390,'The curve of W for every cutoff appears after Reveal.',{align:'middle'}));}\nreturn {frame:{width:960,height:540,objects:o,readouts:[{id:'weighted',value:s.w},{id:'gain',value:gain},{id:'parentImp',value:parent}]},quantities:{cutoff:cut,weighted:s.w,gain:gain,parent:parent,best:best,bestW:bw}};\n}\n",
+    "manifest": {
+     "title": "Choosing a decision tree split: Gini vs entropy",
+     "summary": "Twelve points from two classes sit on a number line. Move the cutoff to see the class counts on each side, each side's impurity, the size-weighted average and how much impurity the split removes. Switch between Gini and entropy, then reveal the best cutoff and the curve of weighted impurity for every cutoff.",
+     "assumptions": [
+      "The points have one numeric feature and two classes (6 A, 6 B).",
+      "The best cutoff is searched among midpoints between neighbouring points, as in standard decision tree methods.",
+      "Entropy is measured in bits (log base 2).",
+      "The point set is fixed. Only one split on one feature is shown."
+     ],
+     "description": "A number line from 0 to 10 holds 12 circles labelled A or B. A vertical line marks your cutoff. On the right, text lists the A and B counts and impurity for each side, the weighted impurity formula and its value, the impurity of the unsplit set and the impurity removed. After you press Reveal, a green line marks the best cutoff, and a step curve below shows weighted impurity against cutoff position, with your cutoff and the lowest point marked.",
+     "inputs": [
+      {
+       "type": "number",
+       "id": "cutoff",
+       "label": "Cutoff position",
+       "default": 2.5,
+       "min": 0.5,
+       "max": 9.5,
+       "step": 0.1
+      },
+      {
+       "type": "select",
+       "id": "measure",
+       "label": "Impurity measure",
+       "default": "gini",
+       "options": [
+        {
+         "value": "gini",
+         "label": "Gini"
+        },
+        {
+         "value": "entropy",
+         "label": "Entropy"
+        }
+       ]
+      }
+     ],
+     "readouts": [
+      {
+       "id": "weighted",
+       "label": "Weighted impurity of your split",
+       "decimals": 3
+      },
+      {
+       "id": "gain",
+       "label": "Impurity removed by your split",
+       "decimals": 3
+      },
+      {
+       "id": "parentImp",
+       "label": "Impurity before splitting",
+       "decimals": 3
+      }
+     ],
+     "capabilities": [
+      "number_inputs",
+      "select_inputs",
+      "polyline",
+      "math_text"
+     ],
+     "viewport": {
+      "width": 960,
+      "height": 540
+     },
+     "actions": [
+      {
+       "id": "reveal",
+       "label": "Reveal best split"
+      },
+      {
+       "id": "hide",
+       "label": "Hide best split"
+      }
+     ],
+     "targets": []
+    }
+   },
+   "artifact": {
+    "kind": "explain_program",
+    "schemaVersion": 2,
+    "runtimeVersion": "quickjs-release-sync@0.32.0",
+    "sdkVersion": "sdk-2",
+    "rendererVersion": "renderer-1",
+    "runtimePolicyVersion": "policy-1",
+    "permissionProfileVersion": "perm-1",
+    "fingerprints": {
+     "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+     "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+     "renderer": "renderer-1"
+    },
+    "dependencies": [],
+    "manifest": {
+     "title": "Choosing a decision tree split: Gini vs entropy",
+     "summary": "Twelve points from two classes sit on a number line. Move the cutoff to see the class counts on each side, each side's impurity, the size-weighted average and how much impurity the split removes. Switch between Gini and entropy, then reveal the best cutoff and the curve of weighted impurity for every cutoff.",
+     "assumptions": [
+      "The points have one numeric feature and two classes (6 A, 6 B).",
+      "The best cutoff is searched among midpoints between neighbouring points, as in standard decision tree methods.",
+      "Entropy is measured in bits (log base 2).",
+      "The point set is fixed. Only one split on one feature is shown."
+     ],
+     "description": "A number line from 0 to 10 holds 12 circles labelled A or B. A vertical line marks your cutoff. On the right, text lists the A and B counts and impurity for each side, the weighted impurity formula and its value, the impurity of the unsplit set and the impurity removed. After you press Reveal, a green line marks the best cutoff, and a step curve below shows weighted impurity against cutoff position, with your cutoff and the lowest point marked.",
+     "inputs": [
+      {
+       "type": "number",
+       "id": "cutoff",
+       "label": "Cutoff position",
+       "default": 2.5,
+       "min": 0.5,
+       "max": 9.5,
+       "step": 0.1
+      },
+      {
+       "type": "select",
+       "id": "measure",
+       "label": "Impurity measure",
+       "default": "gini",
+       "options": [
+        {
+         "value": "gini",
+         "label": "Gini"
+        },
+        {
+         "value": "entropy",
+         "label": "Entropy"
+        }
+       ]
+      }
+     ],
+     "readouts": [
+      {
+       "id": "weighted",
+       "label": "Weighted impurity of your split",
+       "decimals": 3
+      },
+      {
+       "id": "gain",
+       "label": "Impurity removed by your split",
+       "decimals": 3
+      },
+      {
+       "id": "parentImp",
+       "label": "Impurity before splitting",
+       "decimals": 3
+      }
+     ],
+     "capabilities": [
+      "number_inputs",
+      "select_inputs",
+      "polyline",
+      "math_text"
+     ],
+     "viewport": {
+      "width": 960,
+      "height": 540
+     },
+     "actions": [
+      {
+       "id": "reveal",
+       "label": "Reveal best split"
+      },
+      {
+       "id": "hide",
+       "label": "Hide best split"
+      }
+     ],
+     "targets": []
+    },
+    "sourceHash": "0031dfbf2f848c6ba8e215f774ab2363e5e96a6e316268820178aebcb9303ae5",
+    "manifestHash": "435b5a1a4bfa7e1e5cbfd1c7e1902f0b96e144eec66df8797e8bae9ed20ed34e",
+    "bundleHash": "94bc223a0e2c4fa1de79c860ade2f4e5c5be03af48cd35745f4d79b0067be0f7",
+    "sourceBytes": 4870
+   },
+   "coverage": {
+    "compiledHash": "7215e03f387802bc2e5036d4e35ee7db79351346ad8e5dd73c4a0a9aab220247",
+    "states": 1,
+    "moments": 1,
+    "frames": 6,
+    "themes": [
+     "light"
+    ],
+    "sampled": [
+     {
+      "id": "light",
+      "label": "default",
+      "inputs": {},
+      "time": 0,
+      "events": []
+     },
+     {
+      "id": "e0-light",
+      "label": "press reveal",
+      "inputs": {},
+      "time": 0,
+      "events": [
+       {
+        "type": "action",
+        "action": "reveal"
+       }
+      ]
+     },
+     {
+      "id": "e1-light",
+      "label": "move cutoff to 9.5",
+      "inputs": {},
+      "time": 0,
+      "events": [
+       {
+        "type": "input",
+        "input": "cutoff",
+        "value": 9.5
+       }
+      ]
+     },
+     {
+      "id": "e2-light",
+      "label": "press reveal, then Reset",
+      "inputs": {},
+      "time": 0,
+      "events": [
+       {
+        "type": "action",
+        "action": "reveal"
+       },
+       {
+        "type": "reset"
+       }
+      ]
+     },
+     {
+      "id": "e3-light",
+      "label": "press reveal, then hide",
+      "inputs": {},
+      "time": 0,
+      "events": [
+       {
+        "type": "action",
+        "action": "reveal"
+       },
+       {
+        "type": "action",
+        "action": "hide"
+       }
+      ]
+     },
+     {
+      "id": "e4-light",
+      "label": "press reveal 4 times",
+      "inputs": {},
+      "time": 0,
+      "events": [
+       {
+        "type": "action",
+        "action": "reveal"
+       },
+       {
+        "type": "action",
+        "action": "reveal"
+       },
+       {
+        "type": "action",
+        "action": "reveal"
+       },
+       {
+        "type": "action",
+        "action": "reveal"
+       }
+      ]
+     }
+    ],
+    "omitted": [
+     "min of cutoff",
+     "max of cutoff",
+     "last of measure",
+     "combined: every input at its max/last"
+    ],
+    "transitions": {
+     "sampled": 5,
+     "declared": 5,
+     "events": 10,
+     "seed": 0
+    }
+   },
+   "history": [
+    {
+     "round": 0,
+     "attempt": 1,
+     "stage": "validating",
+     "outcome": "invalid",
+     "at": 1794104057702,
+     "hashes": {
+      "programHash": "2187e432a3dd9dc8",
+      "sourceHash": "7c2c787bbabe0abf7a42ecad4a3e4db0a94ae84e685a3fb4952b3247f7c97eb8"
+     },
+     "sizes": {
+      "sourceBytes": 4233,
+      "manifestBytes": 1850
+     },
+     "problems": [
+      {
+       "message": "manifest.targets: Invalid input: expected array, received undefined",
+       "programHash": "2187e432a3dd9dc8"
+      }
+     ],
+     "findings": [],
+     "truncated": false,
+     "cut": [],
+     "version": {
+      "stored": true,
+      "key": "explainver:ej_98db85deeebe4a1d95625808e741f276:2187e432a3dd9dc8"
+     }
+    },
+    {
+     "round": 1,
+     "attempt": 1,
+     "stage": "rendering",
+     "outcome": "runtime",
+     "at": 1794104088860,
+     "hashes": {
+      "programHash": "0268d032519d0bd9",
+      "sourceHash": "7c2c787bbabe0abf7a42ecad4a3e4db0a94ae84e685a3fb4952b3247f7c97eb8",
+      "manifestHash": "b42c30a1be2fd00b4990361c162da94b50a8a8cb143938a37076a195c2ee3c50",
+      "bundleHash": "e2e90cdebe2a84267c8899ad72acd2188402eaedfc8076eaca63380a405cb6cb"
+     },
+     "sizes": {
+      "sourceBytes": 4233,
+      "manifestBytes": 1863
+     },
+     "problems": [
+      {
+       "message": "running the program failed (invalid_output; phase evaluate): frame.objects: Too big: expected array to have <=60 items (at state 1 of 1: after event 1)",
+       "programHash": "0268d032519d0bd9"
+      }
+     ],
+     "runtime": {
+      "code": "invalid_output",
+      "phase": "evaluate",
+      "programHash": "0268d032519d0bd9"
+     },
+     "findings": [],
+     "truncated": false,
+     "cut": [],
+     "version": {
+      "stored": true,
+      "key": "explainver:ej_98db85deeebe4a1d95625808e741f276:0268d032519d0bd9"
+     }
+    },
+    {
+     "round": 2,
+     "attempt": 1,
+     "stage": "reviewing",
+     "outcome": "rejected",
+     "at": 1794104158531,
+     "hashes": {
+      "programHash": "e96a0ef95d97a146",
+      "sourceHash": "44ff8c154f2f0f5649f0e666fc8482555ad9623a5de3172d692f62f6b87e2c82",
+      "manifestHash": "b42c30a1be2fd00b4990361c162da94b50a8a8cb143938a37076a195c2ee3c50",
+      "bundleHash": "69bb46bfcc19b51accc16af48967a02e1c14248718cc5a623d91b1222f21b5e5"
+     },
+     "sizes": {
+      "sourceBytes": 4719,
+      "manifestBytes": 1863
+     },
+     "problems": [],
+     "findings": [
+      {
+       "id": "rf1",
+       "category": "spec",
+       "severity": "major",
+       "verdict": "visual",
+       "capture": "light",
+       "object": "cut",
+       "message": "At the default cutoff x = 3.0 the learner's vertical cutoff line runs straight through the circle for the B point at x = 2.9 and over its letter. This obscures the point the split is about. A default away from any point, such as 2.5, would avoid it.",
+       "programHash": "e96a0ef95d97a146"
+      },
+      {
+       "id": "rf2",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "visual",
+       "capture": "light",
+       "object": "leftI",
+       "message": "The panel prints raw underscores ('I_L', 'I_R') instead of subscripts. It doesn't match the typeset formula above it.",
+       "programHash": "e96a0ef95d97a146"
+      },
+      {
+       "id": "rf3",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "semantic",
+       "capture": "light",
+       "object": "",
+       "message": "No capture uses the Entropy setting, so I could not check entropy values or that option from this sample.",
+       "programHash": "e96a0ef95d97a146"
+      },
+      {
+       "id": "rf4",
+       "category": "spec",
+       "severity": "major",
+       "verdict": "visual",
+       "capture": "e0-light",
+       "object": "cut",
+       "message": "The cutoff line at x = 3.0 runs through the circle for the B point at x = 2.9 and covers its letter.",
+       "programHash": "e96a0ef95d97a146"
+      },
+      {
+       "id": "rf5",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "visual",
+       "capture": "e0-light",
+       "object": "curve",
+       "message": "The curve's horizontal scale (70+52x) differs from the number line's (60+54x). The curve's 'best' marker sits about 3 px left of the green best-cutoff line above it, so the two don't line up exactly.",
+       "programHash": "e96a0ef95d97a146"
+      },
+      {
+       "id": "rf6",
+       "category": "spec",
+       "severity": "major",
+       "verdict": "visual",
+       "capture": "e2-light",
+       "object": "cut",
+       "message": "After Reset, the cutoff line at x = 3.0 runs through the circle for the B point at x = 2.9 and covers its letter.",
+       "programHash": "e96a0ef95d97a146"
+      },
+      {
+       "id": "rf7",
+       "category": "spec",
+       "severity": "major",
+       "verdict": "visual",
+       "capture": "e3-light",
+       "object": "cut",
+       "message": "After Hide, the cutoff line at x = 3.0 runs through the circle for the B point at x = 2.9 and covers its letter.",
+       "programHash": "e96a0ef95d97a146"
+      },
+      {
+       "id": "rf8",
+       "category": "spec",
+       "severity": "major",
+       "verdict": "visual",
+       "capture": "e4-light",
+       "object": "cut",
+       "message": "After pressing Reveal four times, the cutoff line at x = 3.0 runs through the circle for the B point at x = 2.9 and covers its letter.",
+       "programHash": "e96a0ef95d97a146"
+      }
+     ],
+     "truncated": false,
+     "cut": [],
+     "version": {
+      "stored": true,
+      "key": "explainver:ej_98db85deeebe4a1d95625808e741f276:e96a0ef95d97a146"
+     }
+    },
+    {
+     "round": 3,
+     "attempt": 1,
+     "stage": "reviewing",
+     "outcome": "accepted",
+     "at": 1794104214557,
+     "hashes": {
+      "programHash": "7c0e97ece116f55e",
+      "sourceHash": "0031dfbf2f848c6ba8e215f774ab2363e5e96a6e316268820178aebcb9303ae5",
+      "manifestHash": "435b5a1a4bfa7e1e5cbfd1c7e1902f0b96e144eec66df8797e8bae9ed20ed34e",
+      "bundleHash": "94bc223a0e2c4fa1de79c860ade2f4e5c5be03af48cd35745f4d79b0067be0f7"
+     },
+     "sizes": {
+      "sourceBytes": 4870,
+      "manifestBytes": 1865
+     },
+     "problems": [],
+     "findings": [
+      {
+       "id": "rf1",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "semantic",
+       "capture": "light",
+       "object": "measure",
+       "message": "The Entropy measure and the lowest cutoff value were not sampled, so the entropy readouts could not be checked against captures. The source's log2 entropy code looks correct.",
+       "programHash": "7c0e97ece116f55e"
+      },
+      {
+       "id": "rf2",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "visual",
+       "capture": "e0-light",
+       "object": "formW",
+       "message": "The n_L/n and n_R/n fractions in the weighted-impurity formula are rendered very small. They are readable but could be larger.",
+       "programHash": "7c0e97ece116f55e"
+      }
+     ],
+     "truncated": false,
+     "cut": [],
+     "version": {
+      "stored": true,
+      "key": "explainver:ej_98db85deeebe4a1d95625808e741f276:7c0e97ece116f55e"
+     }
+    }
+   ],
+   "historyDropped": 0,
+   "findings": [
+    {
+     "round": 0,
+     "stage": "validating",
+     "problems": [
+      "manifest.targets: Invalid input: expected array, received undefined"
+     ]
+    },
+    {
+     "round": 1,
+     "stage": "rendering",
+     "problems": [
+      "running the program failed (invalid_output; phase evaluate): frame.objects: Too big: expected array to have <=60 items (at state 1 of 1: after event 1)"
+     ]
+    },
+    {
+     "round": 2,
+     "stage": "reviewing",
+     "accepted": false,
+     "findings": [
+      {
+       "version": 1,
+       "id": "rf1",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "target": {
+        "capture": "light",
+        "object": "cut"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "At the default cutoff x = 3.0 the learner's vertical cutoff line runs straight through the circle for the B point at x = 2.9 and over its letter. This obscures the point the split is about. A default away from any point, such as 2.5, would avoid it."
+      },
+      {
+       "version": 1,
+       "id": "rf2",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "light",
+        "object": "leftI"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The panel prints raw underscores ('I_L', 'I_R') instead of subscripts. It doesn't match the typeset formula above it."
+      },
+      {
+       "version": 1,
+       "id": "rf3",
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "light"
+       },
+       "evidence": [],
+       "specRepairable": false,
+       "message": "No capture uses the Entropy setting, so I could not check entropy values or that option from this sample."
+      },
+      {
+       "version": 1,
+       "id": "rf4",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "target": {
+        "capture": "e0-light",
+        "object": "cut"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The cutoff line at x = 3.0 runs through the circle for the B point at x = 2.9 and covers its letter."
+      },
+      {
+       "version": 1,
+       "id": "rf5",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "e0-light",
+        "object": "curve"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The curve's horizontal scale (70+52x) differs from the number line's (60+54x). The curve's 'best' marker sits about 3 px left of the green best-cutoff line above it, so the two don't line up exactly."
+      },
+      {
+       "version": 1,
+       "id": "rf6",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "target": {
+        "capture": "e2-light",
+        "object": "cut"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "After Reset, the cutoff line at x = 3.0 runs through the circle for the B point at x = 2.9 and covers its letter."
+      },
+      {
+       "version": 1,
+       "id": "rf7",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "target": {
+        "capture": "e3-light",
+        "object": "cut"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "After Hide, the cutoff line at x = 3.0 runs through the circle for the B point at x = 2.9 and covers its letter."
+      },
+      {
+       "version": 1,
+       "id": "rf8",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "target": {
+        "capture": "e4-light",
+        "object": "cut"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "After pressing Reveal four times, the cutoff line at x = 3.0 runs through the circle for the B point at x = 2.9 and covers its letter."
+      }
+     ]
+    },
+    {
+     "round": 3,
+     "stage": "reviewing",
+     "accepted": true,
+     "findings": [
+      {
+       "version": 1,
+       "id": "rf1",
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "light",
+        "object": "measure"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The Entropy measure and the lowest cutoff value were not sampled, so the entropy readouts could not be checked against captures. The source's log2 entropy code looks correct."
+      },
+      {
+       "version": 1,
+       "id": "rf2",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "e0-light",
+        "object": "formW"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The n_L/n and n_R/n fractions in the weighted-impurity formula are rendered very small. They are readable but could be larger."
+      }
+     ]
+    }
+   ],
+   "candidates": [
+    {
+     "round": 1,
+     "operation": "program",
+     "progress": true,
+     "specHash": null,
+     "programHash": "36ee1a38ea09fd4e"
+    },
+    {
+     "round": 2,
+     "operation": "program",
+     "progress": true,
+     "specHash": null,
+     "programHash": "e96a0ef95d97a146"
+    },
+    {
+     "round": 3,
+     "operation": "program",
+     "progress": true,
+     "specHash": null,
+     "programHash": "7c0e97ece116f55e"
+    }
+   ],
+   "settings": {
+    "presentation": "experiment"
+   },
+   "calls": [
+    {
+     "key": "ej_98db85deeebe4a1d95625808e741f276-brief-1",
+     "role": "brief",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 115575,
+     "images": 0,
+     "costMicros": 28680,
+     "inputTokens": 440,
+     "outputTokens": 886,
+     "startedAt": 1794103989901,
+     "endedAt": 1794103999659,
+     "error": null
+    },
+    {
+     "key": "ej_98db85deeebe4a1d95625808e741f276-author-2",
+     "role": "author",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 421250,
+     "images": 0,
+     "costMicros": 194374,
+     "inputTokens": 8876,
+     "outputTokens": 6127,
+     "startedAt": 1794104001327,
+     "endedAt": 1794104057683,
+     "error": null
+    },
+    {
+     "key": "ej_98db85deeebe4a1d95625808e741f276-repair-3",
+     "role": "repair",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 212110,
+     "images": 0,
+     "costMicros": 101737,
+     "inputTokens": 4963,
+     "outputTokens": 3449,
+     "startedAt": 1794104058702,
+     "endedAt": 1794104082725,
+     "error": null
+    },
+    {
+     "key": "ej_98db85deeebe4a1d95625808e741f276-repair-4",
+     "role": "repair",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 212605,
+     "images": 0,
+     "costMicros": 106045,
+     "inputTokens": 5002,
+     "outputTokens": 4276,
+     "startedAt": 1794104089860,
+     "endedAt": 1794104121767,
+     "error": null
+    },
+    {
+     "key": "ej_98db85deeebe4a1d95625808e741f276-review-5",
+     "role": "review",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 304235,
+     "images": 6,
+     "costMicros": 105397,
+     "inputTokens": 10458,
+     "outputTokens": 2745,
+     "startedAt": 1794104132083,
+     "endedAt": 1794104158531,
+     "error": null
+    },
+    {
+     "key": "ej_98db85deeebe4a1d95625808e741f276-repair-6",
+     "role": "repair",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 224675,
+     "images": 0,
+     "costMicros": 105973,
+     "inputTokens": 5969,
+     "outputTokens": 4079,
+     "startedAt": 1794104159531,
+     "endedAt": 1794104187783,
+     "error": null
+    },
+    {
+     "key": "ej_98db85deeebe4a1d95625808e741f276-review-7",
+     "role": "review",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 305755,
+     "images": 6,
+     "costMicros": 76003,
+     "inputTokens": 10619,
+     "outputTokens": 1659,
+     "startedAt": 1794104198311,
+     "endedAt": 1794104214557,
+     "error": null
+    }
+   ],
+   "captures": [
+    {
+     "id": "light",
+     "aliases": [],
+     "stateHash": "1f7f57619608e51bab4f7e1c0b1229f115c0ff7ed5e1ab13afde9f2feaa09c96",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "cutoff": 2.5,
+      "measure": "gini"
+     },
+     "bundleHash": "94bc223a0e2c4fa1de79c860ade2f4e5c5be03af48cd35745f4d79b0067be0f7",
+     "seed": 0,
+     "events": [],
+     "trace": {
+      "inputs": {
+       "cutoff": 2.5,
+       "measure": "gini"
+      },
+      "time": 0,
+      "quantities": {
+       "cutoff": 2.5,
+       "weighted": 0.3333333333333333,
+       "gain": 0.16666666666666669,
+       "parent": 0.5,
+       "best": 6.35,
+       "bestW": 0.25
+      },
+      "metrics": {
+       "ms": 24.9
+      },
+      "seed": 0,
+      "events": [],
+      "stateHash": "2f15e0682a4e5e6fd904144c33716d1f44c7b388fe455e01c1fee3b0290bf3e1",
+      "state": {
+       "revealed": false
+      }
+     },
+     "sha256": "b29d2b674a6b84d6cddbd7f5d69a0d744ab7b1b348c5c5d2300ddde6a4fe26e9",
+     "key": "explain/ej_98db85deeebe4a1d95625808e741f276/1f7f57619608e51b.png",
+     "compiledHash": "7215e03f387802bc2e5036d4e35ee7db79351346ad8e5dd73c4a0a9aab220247",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "e0-light",
+     "aliases": [],
+     "stateHash": "79c98274ffa91ca8c55e9aa69d813925a32b5b971fcf56947533be4824853dcd",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "cutoff": 2.5,
+      "measure": "gini"
+     },
+     "bundleHash": "94bc223a0e2c4fa1de79c860ade2f4e5c5be03af48cd35745f4d79b0067be0f7",
+     "seed": 0,
+     "events": [
+      {
+       "type": "action",
+       "action": "reveal"
+      }
+     ],
+     "trace": {
+      "inputs": {
+       "cutoff": 2.5,
+       "measure": "gini"
+      },
+      "time": 0,
+      "quantities": {
+       "cutoff": 2.5,
+       "weighted": 0.3333333333333333,
+       "gain": 0.16666666666666669,
+       "parent": 0.5,
+       "best": 6.35,
+       "bestW": 0.25
+      },
+      "metrics": {
+       "ms": 10.8
+      },
+      "seed": 0,
+      "events": [
+       {
+        "type": "action",
+        "action": "reveal"
+       }
+      ],
+      "stateHash": "94c1e3b129f38235360c9f2894c30ae7602b8050fb87d33f5d1cec56149bbafd",
+      "state": {
+       "revealed": true
+      }
+     },
+     "sha256": "077b8a001652052e21342602f17181464eb505303effd3d95c61d9fc49cef531",
+     "key": "explain/ej_98db85deeebe4a1d95625808e741f276/79c98274ffa91ca8.png",
+     "compiledHash": "7215e03f387802bc2e5036d4e35ee7db79351346ad8e5dd73c4a0a9aab220247",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "e1-light",
+     "aliases": [],
+     "stateHash": "6c69f5c3e7f8e93dea3b5097aa4557403a7920db3143ee225ca4c299bd297181",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "cutoff": 2.5,
+      "measure": "gini"
+     },
+     "bundleHash": "94bc223a0e2c4fa1de79c860ade2f4e5c5be03af48cd35745f4d79b0067be0f7",
+     "seed": 0,
+     "events": [
+      {
+       "type": "input",
+       "input": "cutoff",
+       "value": 9.5
+      }
+     ],
+     "trace": {
+      "inputs": {
+       "cutoff": 9.5,
+       "measure": "gini"
+      },
+      "time": 0,
+      "quantities": {
+       "cutoff": 9.5,
+       "weighted": 0.5,
+       "gain": 0,
+       "parent": 0.5,
+       "best": 6.35,
+       "bestW": 0.25
+      },
+      "metrics": {
+       "ms": 8.7
+      },
+      "seed": 0,
+      "events": [
+       {
+        "type": "input",
+        "input": "cutoff",
+        "value": 9.5
+       }
+      ],
+      "stateHash": "2f15e0682a4e5e6fd904144c33716d1f44c7b388fe455e01c1fee3b0290bf3e1",
+      "state": {
+       "revealed": false
+      }
+     },
+     "sha256": "fbafa75812bcee6fd5372e1e888ea2bfd0bb49616873afd008d9733a858694c1",
+     "key": "explain/ej_98db85deeebe4a1d95625808e741f276/6c69f5c3e7f8e93d.png",
+     "compiledHash": "7215e03f387802bc2e5036d4e35ee7db79351346ad8e5dd73c4a0a9aab220247",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "e2-light",
+     "aliases": [],
+     "stateHash": "fad2f31d7903d40119d0742f764e459a9d918cf39701524b9f4383e7de13067b",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "cutoff": 2.5,
+      "measure": "gini"
+     },
+     "bundleHash": "94bc223a0e2c4fa1de79c860ade2f4e5c5be03af48cd35745f4d79b0067be0f7",
+     "seed": 0,
+     "events": [
+      {
+       "type": "action",
+       "action": "reveal"
+      },
+      {
+       "type": "reset"
+      }
+     ],
+     "trace": {
+      "inputs": {
+       "cutoff": 2.5,
+       "measure": "gini"
+      },
+      "time": 0,
+      "quantities": {
+       "cutoff": 2.5,
+       "weighted": 0.3333333333333333,
+       "gain": 0.16666666666666669,
+       "parent": 0.5,
+       "best": 6.35,
+       "bestW": 0.25
+      },
+      "metrics": {
+       "ms": 9
+      },
+      "seed": 0,
+      "events": [
+       {
+        "type": "action",
+        "action": "reveal"
+       },
+       {
+        "type": "reset"
+       }
+      ],
+      "stateHash": "2f15e0682a4e5e6fd904144c33716d1f44c7b388fe455e01c1fee3b0290bf3e1",
+      "state": {
+       "revealed": false
+      }
+     },
+     "sha256": "b29d2b674a6b84d6cddbd7f5d69a0d744ab7b1b348c5c5d2300ddde6a4fe26e9",
+     "key": "explain/ej_98db85deeebe4a1d95625808e741f276/fad2f31d7903d401.png",
+     "compiledHash": "7215e03f387802bc2e5036d4e35ee7db79351346ad8e5dd73c4a0a9aab220247",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "e3-light",
+     "aliases": [],
+     "stateHash": "f2fbbec2bf23f31b693298549eb779f7ded93a7e30f135f44aae25c340ef2bfc",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "cutoff": 2.5,
+      "measure": "gini"
+     },
+     "bundleHash": "94bc223a0e2c4fa1de79c860ade2f4e5c5be03af48cd35745f4d79b0067be0f7",
+     "seed": 0,
+     "events": [
+      {
+       "type": "action",
+       "action": "reveal"
+      },
+      {
+       "type": "action",
+       "action": "hide"
+      }
+     ],
+     "trace": {
+      "inputs": {
+       "cutoff": 2.5,
+       "measure": "gini"
+      },
+      "time": 0,
+      "quantities": {
+       "cutoff": 2.5,
+       "weighted": 0.3333333333333333,
+       "gain": 0.16666666666666669,
+       "parent": 0.5,
+       "best": 6.35,
+       "bestW": 0.25
+      },
+      "metrics": {
+       "ms": 7.5
+      },
+      "seed": 0,
+      "events": [
+       {
+        "type": "action",
+        "action": "reveal"
+       },
+       {
+        "type": "action",
+        "action": "hide"
+       }
+      ],
+      "stateHash": "2f15e0682a4e5e6fd904144c33716d1f44c7b388fe455e01c1fee3b0290bf3e1",
+      "state": {
+       "revealed": false
+      }
+     },
+     "sha256": "b29d2b674a6b84d6cddbd7f5d69a0d744ab7b1b348c5c5d2300ddde6a4fe26e9",
+     "key": "explain/ej_98db85deeebe4a1d95625808e741f276/f2fbbec2bf23f31b.png",
+     "compiledHash": "7215e03f387802bc2e5036d4e35ee7db79351346ad8e5dd73c4a0a9aab220247",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "e4-light",
+     "aliases": [],
+     "stateHash": "9436bff39ad038997bf69f60a10fa37e4111f712a0205a573a0653dbb4fbc4e8",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "cutoff": 2.5,
+      "measure": "gini"
+     },
+     "bundleHash": "94bc223a0e2c4fa1de79c860ade2f4e5c5be03af48cd35745f4d79b0067be0f7",
+     "seed": 0,
+     "events": [
+      {
+       "type": "action",
+       "action": "reveal"
+      },
+      {
+       "type": "action",
+       "action": "reveal"
+      },
+      {
+       "type": "action",
+       "action": "reveal"
+      },
+      {
+       "type": "action",
+       "action": "reveal"
+      }
+     ],
+     "trace": {
+      "inputs": {
+       "cutoff": 2.5,
+       "measure": "gini"
+      },
+      "time": 0,
+      "quantities": {
+       "cutoff": 2.5,
+       "weighted": 0.3333333333333333,
+       "gain": 0.16666666666666669,
+       "parent": 0.5,
+       "best": 6.35,
+       "bestW": 0.25
+      },
+      "metrics": {
+       "ms": 8.9
+      },
+      "seed": 0,
+      "events": [
+       {
+        "type": "action",
+        "action": "reveal"
+       },
+       {
+        "type": "action",
+        "action": "reveal"
+       },
+       {
+        "type": "action",
+        "action": "reveal"
+       },
+       {
+        "type": "action",
+        "action": "reveal"
+       }
+      ],
+      "stateHash": "94c1e3b129f38235360c9f2894c30ae7602b8050fb87d33f5d1cec56149bbafd",
+      "state": {
+       "revealed": true
+      }
+     },
+     "sha256": "077b8a001652052e21342602f17181464eb505303effd3d95c61d9fc49cef531",
+     "key": "explain/ej_98db85deeebe4a1d95625808e741f276/9436bff39ad03899.png",
+     "compiledHash": "7215e03f387802bc2e5036d4e35ee7db79351346ad8e5dd73c4a0a9aab220247",
+     "mediaType": "image/png"
+    }
+   ],
+   "counts": {
+    "brief": 1,
+    "author": 1,
+    "review": 2,
+    "repair": 3
+   },
+   "timing": {
+    "requestClass": "simple",
+    "cache": null,
+    "marks": {
+     "submitted": 1794103988822,
+     "firstFeedback": 1794103988901,
+     "proposalReady": 1794103999762,
+     "generate": 1794104001277,
+     "result": 1794104214557
+    },
+    "stages": [
+     {
+      "stage": "preparing",
+      "startedAt": 1794103988901,
+      "endedAt": 1794103999762,
+      "calls": 1,
+      "inputTokens": 440,
+      "outputTokens": 886,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "awaiting_approval",
+      "startedAt": 1794103999762,
+      "endedAt": 1794104001277,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": null
+     },
+     {
+      "stage": "authoring",
+      "startedAt": 1794104001277,
+      "endedAt": 1794104057683,
+      "calls": 1,
+      "inputTokens": 8876,
+      "outputTokens": 6127,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "startedAt": 1794104057683,
+      "endedAt": 1794104057702,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "rejected"
+     },
+     {
+      "stage": "repairing",
+      "startedAt": 1794104057702,
+      "endedAt": 1794104082725,
+      "calls": 1,
+      "inputTokens": 4963,
+      "outputTokens": 3449,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "startedAt": 1794104082725,
+      "endedAt": 1794104083725,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "startedAt": 1794104083725,
+      "endedAt": 1794104088860,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "rejected"
+     },
+     {
+      "stage": "repairing",
+      "startedAt": 1794104088860,
+      "endedAt": 1794104121767,
+      "calls": 1,
+      "inputTokens": 5002,
+      "outputTokens": 4276,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "startedAt": 1794104121767,
+      "endedAt": 1794104121786,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "startedAt": 1794104121786,
+      "endedAt": 1794104130945,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 6,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "startedAt": 1794104130945,
+      "endedAt": 1794104158531,
+      "calls": 1,
+      "inputTokens": 10458,
+      "outputTokens": 2745,
+      "images": 6,
+      "captures": 0,
+      "outcome": "rejected"
+     },
+     {
+      "stage": "repairing",
+      "startedAt": 1794104158531,
+      "endedAt": 1794104187783,
+      "calls": 1,
+      "inputTokens": 5969,
+      "outputTokens": 4079,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "startedAt": 1794104187783,
+      "endedAt": 1794104189531,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "startedAt": 1794104189531,
+      "endedAt": 1794104197227,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 6,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "startedAt": 1794104197227,
+      "endedAt": 1794104214557,
+      "calls": 1,
+      "inputTokens": 10619,
+      "outputTokens": 1659,
+      "images": 6,
+      "captures": 0,
+      "outcome": "accepted"
+     }
+    ]
+   }
+  }
+ }
+}
