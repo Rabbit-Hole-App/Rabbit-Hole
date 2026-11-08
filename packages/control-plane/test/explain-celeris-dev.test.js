@@ -38,8 +38,8 @@ test('json_schema mode: title, body and a separate diagram object in one call; R
     assert.deepEqual(sent.response_format.json_schema.schema.required, ['title', 'body', 'diagram']);
     assert.ok(sent.response_format.json_schema.schema.properties.diagram.anyOf, 'optional when not asked for');
     assert.equal(sent.tools, undefined);
-    assert.match(sent.messages[0].content, /Treat tables and diagrams as optional at every Depth/, 'the make_explanation guidance, unchanged');
-    assert.match(sent.messages[0].content, /aim for 650 to 750/);
+    assert.match(sent.messages[0].content, /optional only when neither the learner nor the accepted step requires one/, 'the make_explanation guidance, unchanged');
+    assert.match(sent.messages[0].content, /do not pad it: the Depth's objective/);
     assert.deepEqual(route.served(), { requested: 'celeris-1', models: ['celeris-1'], calls: 1, inTokens: 10, outTokens: 5, attempts: [{ required: false, diagram: 'valid', chars: out.block.title.length + out.block.body.indexOf('\n\n```rh-diagram') }] });
   });
 });

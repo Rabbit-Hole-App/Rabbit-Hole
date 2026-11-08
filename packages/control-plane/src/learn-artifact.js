@@ -18,6 +18,7 @@ import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationPr
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
+import { boundRequirements, danglingFigureProblem, deriveVisualRequirements, requiredVisualProblem, requirementText } from './explanation-visuals.js';
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { tutorImageContext } from './learn-image-context.js';
@@ -97,7 +98,9 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   })).map(tool => input.imageSource ? imageExtractionTool(tool) : tool), CLARIFY];
   // R2: the learner's Depth for this canvas, for the commands that make an explanation (chat-depth.js DEPTH_COMMANDS); Standard sends nothing.
   const depthNote = depthInstruction(input.depth, 'card');
-  const text = JSON.stringify({ command: `/${request.command}`, request: request.prompt, learnerText: input.args || '', selection: request.selection, context: input.context || null, ...(depthNote ? { depth: input.depth } : {}) });
+  // E1: the server-derived required visuals ride in the request the author reads (and the quote hashes); absent, the request is unchanged.
+  const required = id => input.visualRequirements?.items?.length && ready.includes('explanation') ? { requiredVisuals: input.visualRequirements.items.map(({ id, kind, diagramKind, purpose }) => ({ id, kind, ...(diagramKind ? { diagramKind } : {}), purpose })) } : {};
+  const text = JSON.stringify({ command: `/${request.command}`, request: request.prompt, learnerText: input.args || '', selection: request.selection, context: input.context || null, ...(depthNote ? { depth: input.depth } : {}), ...required() });
   // The canvas's switched-on context documents come first (canvas-context-docs.md), then the request.
   const messages = [{ role: 'user', content: input.documents?.length ? [...input.documents, { type: 'text', text }] : text }];
   // The task's cap, or a longer one a primitive on offer needs (the interactive scene's 16,000); spend admission bounds it.
@@ -151,8 +154,18 @@ export async function generateArtifact(env, input, { callModel: baseCall = logge
       // CORE.09: the final title first, then the Depth's display-text budget and supported Mermaid, on every path that makes an explanation.
       // No repair left: an rh-diagram that cannot be drawn is dropped and the written explanation is delivered (the prose still passes its own checks).
       if (id === 'explanation') {
-        if (attempt >= repairs) ({ block, dropped: diagramsDropped } = dropInvalidDiagrams(block));
-        const problem = explanationProblem(block, input.depth); if (problem) throw new Error(problem);
+        const wanted = input.visualRequirements?.items?.length ? input.visualRequirements : null;
+        if (attempt >= repairs) {
+          const trimmed = dropInvalidDiagrams(block);
+          // E1: only an OPTIONAL diagram may be dropped. With a required one, the drop stands only if the card still holds a valid diagram for each requirement
+          // and no text points at the dropped figure; otherwise the card keeps its invalid diagram and fails the checks below, truthfully.
+          if (trimmed.dropped && !requiredVisualProblem(trimmed.block, wanted)) {
+            const dangling = danglingFigureProblem(trimmed.block); if (dangling) throw new Error(dangling);
+            ({ block, dropped: diagramsDropped } = trimmed);
+          }
+        }
+        const problem = [explanationProblem(block, input.depth), requiredVisualProblem(block, wanted)].filter(Boolean).join(' '); if (problem) throw new Error(problem);
+        if (wanted) block = { ...block, visualRequirements: boundRequirements(wanted) }; // saved provenance: what was asked for and that the card holds it
       }
       if (GATES[id]) block = GATES[id](block);
       if (id === 'animation' && env.LEARN_SCENE_VERIFIER !== 'off') { const problem = await verify(block); if (problem) throw new Error(problem); }
@@ -262,8 +275,11 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
     : await readDepth(env, { org: access.org, userId: access.user_id, app: body.app, board: typeof body.board === 'string' ? body.board : null });
   let celeris = null; // DEV ONLY (explain-celeris-dev.js): declared outside the try so a refused request can still report what the route saw
   try {
+    // E1: what the learner explicitly asked the written card to contain, read from their own words on the server; a picture the library does not draw is told now, before any call.
+    const visuals = body.command === 'explanation' ? deriveVisualRequirements(requirementText({ args: body.args })) : null;
+    if (visuals?.unsupported) { await giveBack(); return json({ result: 'unsupported', message: visuals.unsupported }); }
     celeris = celerisExplainRoute(env, body.command); // DEV ONLY (explain-celeris-dev.js): off unless a dev or test Worker turns it on; production never takes it
-    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}) }, celeris?.options);
+    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, celeris?.options);
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
     if (out?.result !== 'artifact' && out?.result !== 'paid_proposal') await giveBack();
     const done = celeris ? { ...out, devModel: celeris.served() } : out;

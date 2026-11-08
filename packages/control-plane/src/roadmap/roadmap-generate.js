@@ -10,6 +10,7 @@ import { toMicros } from '../learn-usage.js';
 import { sha256 } from './roadmap-source.js';
 import { explanationProfileBinding, resolveExplanationProfile } from '../explanation-models.js';
 import { roadmapCardSuffix } from '../agents/roadmap-card.js';
+import { deriveVisualRequirements, requirementText } from '../explanation-visuals.js';
 import { ROADMAP_LIMITS } from './roadmap-policy.js';
 import { ROADMAP_FORMATS } from './roadmap-tools.js';
 import { validateAccess } from './roadmap-contract.js';
@@ -43,8 +44,12 @@ export function authorInput(rec, limits = ROADMAP_LIMITS) {
   const context = document
     ? `${brief}\n\nHighlighted passage (the step's anchor):\n<passage>\n${passage}\n</passage>\n\nWhole document:\n<document>\n${document}\n</document>`
     : `${brief}\n\nPassage:\n<passage>\n${passage}\n</passage>`;
+  // E1: the visuals the learner explicitly asked this step for, from the accepted learner instruction (the planner's own title and goal are not a request). An
+  // unsupported picture stops here with zero author calls. A table-format step is a table already.
+  const visuals = rec.format === 'explanation' ? (rec.visualRequirements ?? deriveVisualRequirements(requirementText({ original: said?.original, revisions: said?.revisions }))) : null;
+  if (visuals?.unsupported) return { failed: fail('unsupported_capability', 'required_visual_unsupported', { error: visuals.unsupported }) };
   // CORE.09: the frozen Depth rides as the request's Depth, so the roadmap gets the same Explanation target and budget as a direct question.
-  return { input: { command: 'explain', args: `${rec.stepTitle}: ${rec.stepGoal}`.slice(0, ARGS_CAP), selection: null, context, ...(rec.depth && rec.depth !== 'standard' ? { depth: rec.depth } : {}) },
+  return { input: { command: 'explain', args: `${rec.stepTitle}: ${rec.stepGoal}`.slice(0, ARGS_CAP), selection: null, context, ...(rec.depth && rec.depth !== 'standard' ? { depth: rec.depth } : {}), ...(visuals?.items?.length ? { visualRequirements: visuals } : {}) },
     options: { only: [rec.format], systemSuffix: roadmapCardSuffix(rec), repairs: 0, title: rec.stepTitle } };
 }
 
@@ -115,7 +120,7 @@ export async function generateRoadmapCard(env, access, ref, deps = {}) {
       return { outcome: 'ok', primitive: out.primitive, repaired: !!out.repaired, calls, ...(out.diagramsDropped ? { diagramsDropped: out.diagramsDropped } : {}), block: { ...out.block, id: rec.cardId, stepId: rec.stepId, ...(rec.sourceRef ? { sourceRef: rec.sourceRef } : {}) } };
     case 'clarification': return { outcome: 'clarification', failure_class: 'clarification', question: out.question, calls };
     // A stable internal reason: explanation_over_budget / explanation_bad_diagram (CORE.09), else validation_error.
-    case 'validation_error': return fail('terminal_validation_failure', String(out.error || '').match(/^(explanation_[a-z_]+):/)?.[1] || 'validation_error', { calls, error: out.error });
+    case 'validation_error': return fail('terminal_validation_failure', String(out.error || '').match(/^((?:explanation|required_visual)_[a-z_]+):/)?.[1] || 'validation_error', { calls, error: out.error });
     default: return fail('unsupported_capability', String(out?.result || 'unknown'), { calls });
   }
 }

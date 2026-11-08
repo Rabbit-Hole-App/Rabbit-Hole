@@ -2021,10 +2021,10 @@ function TableBody({ block, onFile }) {
 // Whether an Explanation draws its source in its own header (CORE.09, file 04) instead of the card's footer row (AdaptiveCanvas SourceRefChip).
 export const headerSource = block => block?.type === 'explanation' && !block.anchor && !isExcerpt(block) && !!block.sourceRef;
 
-// The delivered Explanation (CORE.09, files 04 and 06): a header that never shrinks (Kicker, the accepted title, Source: file with View section), the body in
-// the one reading scroller, then the `more` toggles in a fixed rail below it; an opened section mounts under the rail, so the card grows downward and the
-// scroller keeps its height and scroll position (onExpandHeight: the canvas adds that height to the frame). Body and sections are Md with its Mermaid and math
-// fences on. Full content and Focus keep working through data-card-layout and data-focus-hide; a card without sections has no rail.
+// The delivered Explanation (CORE.09, files 04 and 06): a header that never shrinks (Kicker, the accepted title, Source: file with View section), then ONE reading flow
+// (approved card 07): the body and the `more` sections, each a toggle that opens in place. An opened section's height still grows the frame (onExpandHeight: the
+// canvas adds it), so the card grows downward and the scroller keeps its place. Body and sections are Md with its Mermaid and math
+// fences on. Full content and Focus keep working through data-card-layout and data-focus-hide; a card without sections has no toggles.
 // An Explanation with an illustration (block.illustration: { cacheKey | src, alt, caption, callouts? }): the opening paragraph, the figure in its own container with the caption below, then
 // the rest of the body. Without an illustration the body is the one Md it always was.
 function IllustratedBody({ block, onFile }) {
@@ -2040,46 +2040,44 @@ function IllustratedBody({ block, onFile }) {
 
 function ExplanationBody({ block, onFile, appName, onExpandHeight }) {
   const [open, setOpen] = useState({});
-  const id = useId(), more = block.more || [], expansion = useRef(null);
+  const id = useId(), more = block.more || [], sections = useRef({});
   const opened = more.some((_, index) => open[index]);
   useEffect(() => {
     if (!onExpandHeight) return undefined;
-    if (!opened || !expansion.current) { onExpandHeight(0); return undefined; }
-    const observer = new ResizeObserver(() => onExpandHeight(expansion.current ? expansion.current.offsetHeight : 0));
-    observer.observe(expansion.current);
-    onExpandHeight(expansion.current.offsetHeight);
+    const shown = () => Object.entries(sections.current).filter(([index, node]) => node && open[index]).map(([, node]) => node);
+    if (!opened || !shown().length) { onExpandHeight(0); return undefined; }
+    // The opened sections sit in the reading flow; their summed height still grows the frame, so the scroller keeps its place and the card grows downward.
+    const total = () => shown().reduce((sum, node) => sum + node.offsetHeight, 0);
+    const observer = new ResizeObserver(() => onExpandHeight(total()));
+    shown().forEach(node => observer.observe(node));
+    onExpandHeight(total());
     return () => { observer.disconnect(); onExpandHeight(0); };
-  }, [opened, onExpandHeight]);
+  }, [opened, open, onExpandHeight]);
   return (
     <div data-explanation className="flex min-h-0 flex-1 flex-col">
       {/* A /dive topic anchor (dive.js anchorBlock) is the learner's topic, not an explanation yet: no kicker, and a body only when it adds to the title. */}
       {/* Focus's own header names the card: its kicker and title hide there (index.css [data-focus-hide]). */}
-      {/* The pinned head: the type icon, the title (the learner's name, else the card's, else a placeholder) and the type label under it; the body scrolls below. */}
+      {/* The pinned head: the type icon, the title (the learner's name, else the card's, else a placeholder) and the type label under it; the reading flow scrolls below. */}
       <div data-explanation-head data-focus-hide className="shrink-0">
         {block.anchor
           ? <CardHeader block={block} size="xs" className="px-4 pt-3 pb-2" />
           : <Kicker block={block} size="lg" sticky={false} className="px-4 pt-3 pb-2" action={headerSource(block) ? <SourceRefHeader block={block} app={appName} /> : null}>Explanation</Kicker>}
       </div>
-      <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 text-sm">{block.illustration && (block.illustration.src || block.illustration.cacheKey || block.illustration.fileRef?.source?.id) ? <IllustratedBody block={block} onFile={onFile} /> : block.body && <Md text={block.body} onFile={onFile} fences explain />}</div>
-      {more.length > 0 && (
-        <div data-explanation-rail className="shrink-0 border-t border-line px-4">
-          {more.map((section, index) => (
-            <button key={index} type="button" data-explain-more aria-expanded={!!open[index]} aria-controls={`${id}-more-${index}`} onPointerDown={e => e.stopPropagation()}
+      {/* E1 (approved card 07): one continuous reading flow. The body, its visuals and the supplementary sections all scroll together under the pinned head. */}
+      <div data-scroll data-explanation-flow className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 text-sm">
+        {block.illustration && (block.illustration.src || block.illustration.cacheKey || block.illustration.fileRef?.source?.id) ? <IllustratedBody block={block} onFile={onFile} /> : block.body && <Md text={block.body} onFile={onFile} fences explain />}
+        {more.map((section, index) => (
+          <div key={index} data-explanation-section className="mt-3 border-t border-line">
+            <button type="button" data-explain-more aria-expanded={!!open[index]} aria-controls={`${id}-more-${index}`} onPointerDown={e => e.stopPropagation()}
               onClick={() => setOpen(previous => ({ ...previous, [index]: !previous[index] }))}
-              className={`flex min-h-9 w-full items-center justify-between gap-2 py-2 text-left text-xs font-medium text-ink-2 hover:text-ink aria-expanded:text-ink ${index ? 'border-t border-line' : ''}`}>
+              className="flex min-h-9 w-full items-center justify-between gap-2 py-2 text-left text-xs font-medium text-ink-2 hover:text-ink aria-expanded:text-ink">
               <MdInline text={section.label} />
               <ChevronRight size={13} aria-hidden="true" className={open[index] ? 'rotate-90 transition-transform' : 'transition-transform'} />
             </button>
-          ))}
-        </div>
-      )}
-      {opened && (
-        <div ref={expansion} data-explanation-expansion className="shrink-0">
-          {more.map((section, index) => open[index] && (
-            <section key={index} id={`${id}-more-${index}`} aria-label={section.label} className="border-t border-line px-4 py-3 text-sm text-ink-2"><Md text={section.text} onFile={onFile} fences explain /></section>
-          ))}
-        </div>
-      )}
+            {open[index] && <section ref={node => { sections.current[index] = node; }} id={`${id}-more-${index}`} aria-label={section.label} className="pb-2 text-sm text-ink-2"><Md text={section.text} onFile={onFile} fences explain /></section>}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

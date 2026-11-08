@@ -71,7 +71,7 @@ export default function SourceRefChip({ block, app, onHeight = null }) {
   return <div ref={root} onPointerDown={event => event.stopPropagation()}><SourceRefLine ref_={ref} status={status} note={note} onOpen={open} /></div>;
 }
 
-// A delivered Explanation's source in its header (CORE.09, file 04): "Source: filename" and View section, the ScanText glyph the Markdown View card button
+// A delivered Explanation's source in its header (CORE.09, file 04): "Source: filename" and View passage (approved card 07, GAP-04; other surfaces keep View section), the ScanText glyph the Markdown View card button
 // shares (file 05). The same status read, gate and viewPassage as the footer row; it replaces that row on the card, so its height counts once.
 export function SourceRefHeader({ block, app }) {
   const ref = sourceRefOf(block);
@@ -89,7 +89,7 @@ export function SourceRefHead({ ref_: ref, status, note = '', onOpen }) {
       {bad && <span data-source-ref-note role="status" title={STATUS_TEXT[status]} aria-label={STATUS_TEXT[status]} className="shrink-0">{STATUS_SHORT[status]}</span>}
       {!bad && note && <span data-source-ref-note role="status" className="shrink-0">{note}</span>}
       {navigable(ref) && status === 'current' && (
-        <button type="button" data-source-ref-open data-view-section aria-label="View section" title="View section" onClick={onOpen}
+        <button type="button" data-source-ref-open data-view-section aria-label="View passage" title="View passage" onClick={onOpen}
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"><ScanText size={16} aria-hidden="true" /></button>
       )}
     </span>
