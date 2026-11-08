@@ -557,6 +557,23 @@ The last four columns count proposed scene designs from the pinned lessons at th
 | [36 · Economic History](./All_Curricula.md#phase-36-economic-history) | 6 | Indexed output, prices, and credit series expose timing and measurement differences across historical episodes. | Align selected series around dated events, label units and base periods, and compare trajectories without assigning causes from timing. | Supply documented historical series and event sources. Causal attribution requires a separate design. |
 | [37 · Capstone Projects](./All_Curricula.md#phase-37-capstone-projects) | 14 | Growth calibration, market matching, causal studies, and option pricing capstones combine model outputs with checks against inputs. | Replay a bounded solve-to-check sequence or compare saved scenarios with residual, stability, or uncertainty readouts. | Reproducible capstones need the runnable solver or analysis, versioned data, and saved validation outputs. |
 
+## AI teaching examples — implemented 2026-11-08
+
+Three reusable, hand-authored 2D examples are built on the existing SDK and card controls. These are teaching examples, not additional component capabilities: the component totals remain unchanged.
+
+- [x] **Convolution microscope** (`fixture-ai-convolution`): select a 3 × 3 window and vertical, horizontal or blur kernel; inspect input pixels, products and computed output. Uses CNN cross-correlation, stride 1, no padding or bias, and explicitly divides the blur sum by 9.
+- [x] **Attention workbench** (`fixture-ai-attention`): select a query and causal/unmasked mode; inspect scaled dot-product scores, softmax weights and weighted value output. Uses explicitly synthetic Q, K and V.
+- [x] **Gradient-descent experiment** (`fixture-ai-gradient`): vary learning rate and step count for L(w) = w²/2 from w₀ = 3; inspect convergence, overshoot or divergence and numerical updates.
+- [x] Register all three in the existing dev fixture resolver; reuse shared Frame, ProgramScene, existing controls, saved input state and Reset.
+- [x] Fourteen focused tests pass: independent numerical checks across 27 convolution, 6 attention and 36 gradient settings; real QuickJS/frame normalization; normal resolver, saved-input round trips and Reset. Web dev build and git diff check pass.
+- [x] Inspect shared-Frame SVG renders for all three scenes. Offline PNG export cannot display KaTeX foreignObject formulas; this inspection is not full browser acceptance.
+- [ ] Live dev/browser acceptance, including actual UI interaction and reopen.
+- [ ] Real model generation acceptance. Hand-authored fixture success does not establish generated-card quality.
+
+**Pushed:** [`chatgpt/ai-teaching-examples`](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/chatgpt/ai-teaching-examples), commit [`f6fb7bc1`](https://github.com/Rabbit-Hole-App/Rabbit-Hole/commit/f6fb7bc12778c9fa14118639fb06f3f6804132d7). This branch descends from raster/masks and includes Medium, linked comparison and cyclic networks. The separate heat-grid branch is not included. No planner mapping, repair-budget changes, paid calls, deployment or broad CI were performed.
+
+Sources: `packages/web/src/explain-program/ai-*-fixture.js`, `ai-teaching-fixtures.js`, focused `ai-*.test.mjs`, and `docs/features/explain-program-support.md`.
+
 ## Review criteria
 
 - Read the story on its own. The ending should answer the opening question, and the explanation should account for the cause of the outcome.
