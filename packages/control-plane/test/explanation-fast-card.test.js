@@ -11,7 +11,7 @@ import { EXPLANATION_PROFILE_SETTING } from '../src/explanation-models.js';
 import { FIGURE_MODEL } from '../src/explanation-figures.js';
 import { EXPLANATION_BUDGET } from '../src/chat-depth.js';
 import { withUsage, noteUsageIdentity } from '../src/learn-usage.js';
-import { cycleSpec, diagramFence } from './explanation-layout-fixture.js';
+import { cycleSpec, diagramFence, illustrationFence } from './explanation-layout-fixture.js';
 import { learnDb } from './learn-grade-fixture.js';
 
 const quiet = t => { const { log, warn } = console; console.log = () => {}; console.warn = () => {}; t.after(() => { console.log = log; console.warn = warn; }); };
@@ -36,7 +36,7 @@ test('fix 2: visuals are fields; the server writes the same rh-diagram / rh-illu
   assert.deepEqual(Object.keys(schema.properties), ['title', 'visuals', 'body'], 'visuals before body');
   assert.deepEqual(schema.required, ['title', 'visuals', 'body']);
   assert.deepEqual(schema.properties.visuals.items.oneOf.map(b => [b.properties.k.const, Object.keys(b.properties)]), [['diagram', ['k', 'spec']], ['picture', ['k', 'p', 'a', 'c']]]);
-  assert.deepEqual([schema.properties.visuals.minItems, schema.properties.visuals.maxItems], [1, 2]);
+  assert.deepEqual([schema.properties.visuals.minItems, schema.properties.visuals.maxItems], [1, 3], 'owner 2026-11-08: up to three visuals');
   const picture = schema.properties.visuals.items.oneOf[1].properties;
   assert.deepEqual([picture.p.maxLength, picture.a.maxLength, picture.c.maxLength], [200, 120, 100], 'terse picture fields (owner review 2026-11-08)');
   const description = m.seen[0].tools.find(t => t.name === 'make_explanation').description;
@@ -85,18 +85,40 @@ test('fix 1c: a visual first, last or next to the other is moved to the nearest 
   assert.equal(settleExplanationBody(`${D}\n\n${P}`), `${D}\n\n${P}`, 'one prose part cannot hold a visual on both sides: left for the repair');
 });
 
-test('fix 1 (owner review): a third visual is dropped, the first two by position kept; no repair', async () => {
-  const third = { ...DIAGRAM, spec: cycleSpec('Ice and water again') };
-  const { out, m } = await direct([answer([DIAGRAM, third, PICTURE], `${ICE}\n\n[[visual:1]]\n\nWater holds it.\n\n[[visual:3]]\n\nIt rises.\n\n[[visual:2]]\n\n${AFTER}`)]);
-  assert.deepEqual([out.result, m.seen.length], ['artifact', 1], 'the author is asked for two (maxItems 2), and a third that arrives anyway is dropped, not repaired');
-  assert.equal(m.seen[0].tools.find(t => t.name === 'make_explanation').input_schema.properties.visuals.maxItems, 2);
-  assert.ok(!out.block.body.includes('Ice and water again'), 'the third by position in the body is the one dropped');
-  assert.equal(kinds(out.block.body).diagrams, 1, 'the diagram and the picture (removed after, as no store is given) were kept');
-  const body = `${ICE}\n\n${diagramFence(DIAGRAM.spec)}\n\nWater holds it.\n\n${diagramFence(cycleSpec('Ice floats'))}\n\nIt rises.\n\n${diagramFence(third.spec)}\n\n${AFTER}`;
-  assert.deepEqual(kinds(settleExplanationBody(body)), { diagrams: 2, pictures: 0 });
-  assert.ok(!settleExplanationBody(body).includes('Ice and water again'), 'the third by position is the one dropped');
-  const fenced = await direct([{ title: 'Why ice floats', body }]);
-  assert.deepEqual([fenced.out.result, fenced.m.seen.length, kinds(fenced.out.block.body).diagrams], ['artifact', 1, 2]);
+// Owner 2026-11-08: up to three visuals, any mix, at most two of them pictures; extras are dropped by the server, never repaired.
+test('three visuals: a diagram, a diagram and a picture pass in one call; a fourth is dropped, the first three by position kept; a third picture is dropped first', async () => {
+  const second = { ...DIAGRAM, spec: cycleSpec('Water and ice') }, fourth = { ...DIAGRAM, spec: cycleSpec('Ice and water again') };
+  const three = `${ICE}\n\n[[visual:1]]\n\nWater holds it.\n\n[[visual:2]]\n\nIt rises.\n\n[[visual:3]]\n\n${AFTER}`;
+  const ok = await direct([answer([DIAGRAM, second, PICTURE], three)]);
+  assert.deepEqual([ok.out.result, ok.m.seen.length, kinds(ok.out.block.body).diagrams], ['artifact', 1, 2], 'diagram, diagram, picture: no repair (the picture fence then goes, as no store is given)');
+  const { out, m } = await direct([answer([DIAGRAM, fourth, second, PICTURE], `${ICE}\n\n[[visual:1]]\n\nWater holds it.\n\n[[visual:3]]\n\nIt rises.\n\n[[visual:4]]\n\nIt stays up.\n\n[[visual:2]]\n\n${AFTER}`)]);
+  assert.deepEqual([out.result, m.seen.length], ['artifact', 1], 'the author is asked for three (maxItems 3), and a fourth that arrives anyway is dropped, not repaired');
+  assert.equal(m.seen[0].tools.find(t => t.name === 'make_explanation').input_schema.properties.visuals.maxItems, 3);
+  assert.ok(!out.block.body.includes('Ice and water again'), 'the fourth by position in the body is the one dropped');
+  assert.equal(kinds(out.block.body).diagrams, 2);
+  const D = n => diagramFence(cycleSpec(`Ice floats ${n}`)), P = n => illustrationFence({ id: `pic-${n}`, prompt: `Ice cube ${n} in water`, alt: `Ice cube ${n}`, caption: `Ice floats ${n}` });
+  const four = `${ICE}\n\n${D(1)}\n\nWater holds it.\n\n${D(2)}\n\nIt rises.\n\n${D(3)}\n\nIt stays.\n\n${D(4)}\n\n${AFTER}`;
+  assert.deepEqual(kinds(settleExplanationBody(four)), { diagrams: 3, pictures: 0 });
+  assert.ok(!settleExplanationBody(four).includes('Ice floats 4'), 'the fourth by position is the one dropped');
+  const pics = settleExplanationBody(`${ICE}\n\n${P(1)}\n\nWater holds it.\n\n${P(2)}\n\nIt rises.\n\n${P(3)}\n\n${AFTER}`);
+  assert.deepEqual(kinds(pics), { diagrams: 0, pictures: 2 }, 'three pictures keep two');
+  assert.ok(!pics.includes('Ice cube 3'), 'the third picture is the one dropped');
+  const mixed = settleExplanationBody(`${ICE}\n\n${P(1)}\n\nA.\n\n${P(2)}\n\nB.\n\n${P(3)}\n\nC.\n\n${D(4)}\n\n${AFTER}`);
+  assert.deepEqual(kinds(mixed), { diagrams: 1, pictures: 2 }, 'pictures beyond two go first, so the diagram after them is kept');
+  const fenced = await direct([{ title: 'Why ice floats', body: four }]);
+  assert.deepEqual([fenced.out.result, fenced.m.seen.length, kinds(fenced.out.block.body).diagrams], ['artifact', 1, 3]);
+});
+
+// Owner 2026-11-08: no plain bullet lists. The guidance asks for a visual or sentences; a list the model still writes is delivered unchanged and counted.
+test('no bullets: the guidance asks parallel points into a visual; a card with a list is delivered unchanged, with block.proseLists recorded', async () => {
+  const { out, m } = await direct([answer([DIAGRAM], `${ICE}\n\n- Ice is light.\n- Water is heavy.\n\n[[visual:1]]\n\n${AFTER}\n\n1. First.\n\n2. Second.\n   still the second.`)]);
+  const description = m.seen[0].tools.find(t => t.name === 'make_explanation').description;
+  assert.match(description, /Never write a bulleted or numbered list: parallel points go into a visual, a comparison diagram for 2-4 things side by side \(each column a heading and up to 5 short items\), a flow or sequence for steps, a tree for the parts of one thing; anything else is written as sentences\./);
+  assert.match(description, /a third only for a list of parallel points turned into a comparison, flow or tree/);
+  assert.deepEqual([out.result, m.seen.length], ['artifact', 1], 'no check, no repair');
+  assert.ok(out.block.body.includes('- Ice is light.\n- Water is heavy.') && out.block.body.includes('1. First.\n\n2. Second.'), 'the lists stay');
+  assert.equal(out.block.proseLists, 2, 'two list blocks (a loose numbered list is one)');
+  assert.equal((await direct([answer([DIAGRAM])])).out.block.proseLists, 0, 'recorded as 0 when there is none');
 });
 
 // ---- fix 1b: terms ------------------------------------------------------------------------------------------------------------------------------------------
@@ -121,7 +143,10 @@ test('fix 5b: "two diagrams", "two pictures", "a diagram and a picture" and plur
   assert.equal(read('Draw a flowchart of it. The flowchart should start at login.'), 'diagram', 'the same diagram named twice is one');
   assert.equal(read('Show an image of a plant cell'), 'illustration');
   assert.equal(read('Give me the big picture of the war'), '', 'not a request for a picture');
-  assert.equal(read('Two diagrams and a picture of the moon'), 'unsupported', 'a card holds two visuals at most: told before any call');
+  assert.equal(read('Two diagrams and a picture of the moon'), 'diagram,diagram,illustration', 'owner 2026-11-08: three visuals fit a card');
+  assert.equal(read('Explain the heart with three diagrams'), 'diagram,diagram,diagram');
+  assert.equal(read('Two diagrams and two pictures of the moon'), 'unsupported', 'a card holds three visuals at most: told before any call');
+  assert.equal(read('Explain the moon with three pictures'), 'unsupported', 'and two pictures at most');
   assert.equal(deriveVisualRequirements('Explain TCP with two sequence diagrams').items[0].diagramKind, 'sequence');
   assert.deepEqual(requiredMix(deriveVisualRequirements('a diagram and a picture of a bee')), { diagram: 1, illustration: 1 });
   assert.equal(requiredMix(deriveVisualRequirements('Compare them in a table')), null, 'a table fixes no visual mix');
@@ -248,6 +273,20 @@ test('fix 3: after a repair, a picture whose prompt is unchanged is reused; a ch
   assert.deepEqual([out.result, fresh.calls.map(c => c.prompt)], ['artifact', [PICTURE.p, 'A block of ice in a lake, seen from the shore']]);
   assert.deepEqual(Object.keys(out.block.figures), ['pic-1']);
   assert.equal(moved.rows("SELECT * FROM usage_attempts WHERE provider = 'recraft' AND status = 'settled'").length, 2, 'both pictures are on the ledger');
+});
+
+test('fix 3 with three visuals: a picture at visuals[2] starts early as pic-3; a third picture never starts', async t => {
+  quiet(t);
+  const pic = n => ({ ...PICTURE, p: `${PICTURE.p}, view ${n}`, c: `Ice floats, view ${n}` });
+  const body = `${ICE}\n\n[[visual:1]]\n\nWater holds it.\n\n[[visual:2]]\n\nIt rises.\n\n[[visual:3]]\n\n${AFTER}`;
+  const a = fastEnv(t), one = recraft();
+  fireworks(t, { content: answer([DIAGRAM, { ...DIAGRAM, spec: cycleSpec('Water and ice') }, PICTURE], body) });
+  const out = await generateArtifact(a.env, { command: 'explanation', args: 'Why does ice float?' }, { figures: { store: STORE, adapter: one } });
+  assert.deepEqual([out.result, one.calls.length, Object.keys(out.block.figures)], ['artifact', 1, ['pic-3']]);
+  const b = fastEnv(t), two = recraft();
+  fireworks(t, { content: answer([pic(1), pic(2), pic(3)], body) });
+  const kept = await generateArtifact(b.env, { command: 'explanation', args: 'Why does ice float?' }, { figures: { store: STORE, adapter: two } });
+  assert.deepEqual([kept.result, two.calls.map(c => c.prompt), Object.keys(kept.block.figures)], ['artifact', [pic(1).p, pic(2).p], ['pic-1', 'pic-2']], 'the third picture is dropped, never made or charged');
 });
 
 test('fix 3: the stream scanner hands over each visuals[i] once, as soon as it closes, and is not fooled by braces in strings', () => {

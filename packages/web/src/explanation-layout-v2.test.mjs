@@ -56,6 +56,16 @@ test('a v2 card reads title, prose, diagram, prose, picture, prose in one flow, 
   noFenceText(html);
 });
 
+test('three visuals (owner 2026-11-08): diagram, diagram and the picture pic-3 each draw in place, in one flow', () => {
+  const diagram = V2.body.match(/```rh-diagram[\s\S]*?```/)[0], picture = V2.body.match(/```rh-illustration[\s\S]*?```/)[0].replace(/"id":\s*"steam"/, '"id": "pic-3"');
+  const html = card({ ...V2, body: `First part.\n\n${diagram}\n\nSecond part.\n\n${diagram}\n\nThird part.\n\n${picture}\n\nLast part.`, figures: { 'pic-3': V2.figures.steam } }), at = text => html.indexOf(text);
+  assert.equal((html.match(/data-tutor-diagram/g) || []).length, 2);
+  const order = [at('First part'), at('Second part'), at('Third part'), at('data-figure-id="pic-3"'), at('Last part')];
+  assert.ok(order.every(n => n >= 0), JSON.stringify(order));
+  assert.deepEqual([...order].sort((a, b) => a - b), order);
+  noFenceText(html);
+});
+
 test('figure states: ready draws the figure and its caption; a fence with no ready entry (should not reach the client) draws nothing and the prose flows on', () => {
   const ready = card(V2);
   assert.match(ready, /data-figure-id="steam"><figure data-illustration="true"/);

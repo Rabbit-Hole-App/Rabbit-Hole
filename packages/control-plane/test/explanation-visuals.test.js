@@ -9,6 +9,7 @@ import { artifactFetch, generateArtifact, prepareArtifactAuthorRequest } from '.
 import { generateRoadmapCard } from '../src/roadmap/roadmap-generate.js';
 import { EXPLANATION_BUDGET } from '../src/chat-depth.js';
 import { cycleSpec, diagramFence, illustrationFence } from './explanation-layout-fixture.js';
+import { tutorDiagramJsonSchema } from '../../web/src/tutor-diagrams/spec.js';
 
 const EX01 = 'Why does coffee cool faster at first? Include a small table comparing early and late cooling.';
 const EX07 = 'Show a decision-tree diagram for this toy rule: if age is under 30, check whether income is over $50,000; yes means Approve and no means Deny. Otherwise, Check credit score. Trace a 25-year-old earning $60,000.';
@@ -169,8 +170,9 @@ test('optional diagram degradation: a valid required diagram beside an invalid o
 });
 
 test('owner 2026-11-08, a card should not fail: the only diagram still invalid after the repair becomes a straight flow of its own labels, no model call', async () => {
-  // The heart's loop drawn as a flow has no start node, which a flow refuses ("A flow needs exactly one root").
-  const labels = ['Right atrium', 'Right ventricle', 'Lungs', 'Left atrium', 'Left ventricle', 'Body'];
+  // The heart's loop drawn as a flow has no start node, which a flow refuses ("A flow needs exactly one root"). With 8 steps it is over the cycle's 7, so
+  // the server cannot turn it into a cycle (item 47); a loop of up to 7 is, below.
+  const labels = ['Right atrium', 'Right ventricle', 'Lungs', 'Left atrium', 'Left ventricle', 'Aorta', 'Body', 'Veins'];
   const loop = { kind: 'flow', title: 'Blood through the heart', caption: 'Blood loops through the heart twice.', nodes: labels.map((label, i) => ({ id: `s${i}`, label, role: 'process' })),
     edges: labels.map((_, i) => ({ from: `s${i}`, to: `s${(i + 1) % labels.length}` })) };
   const card = { title: 'How the heart pumps', body: `The heart is two pumps side by side, moving blood from the body to the lungs and back.\n\n${diagram(loop)}\n\nEach beat squeezes the atria first, then the ventricles.` };
@@ -179,7 +181,8 @@ test('owner 2026-11-08, a card should not fail: the only diagram still invalid a
   const [drawn] = markdownVisuals(out.block.body).diagrams;
   assert.deepEqual([drawn.ok, drawn.kind], [true, 'flow']);
   const spec = JSON.parse(out.block.body.match(/```rh-diagram\n(.*)\n```/)[1]).diagram;
-  assert.deepEqual([spec.title, spec.caption, spec.nodes.map(n => n.label), spec.nodes.map(n => n.role).at(-1), spec.edges.length], [loop.title, loop.caption, labels, 'outcome', 5]);
+  assert.deepEqual([spec.title, spec.caption, spec.nodes.map(n => n.label), spec.nodes.map(n => n.role).at(-1), spec.edges.length], [loop.title, loop.caption, labels, 'outcome', 7]);
+  assert.deepEqual(out.block.diagramCorrections, { simplified_flow: 1 }, 'counted on the card (item 47)');
   assert.ok(out.block.body.startsWith('The heart is two pumps') && out.block.body.endsWith('then the ventricles.'), 'the prose around it is kept');
   // With a repair left, nothing is simplified: the validator's words go to the model first.
   assert.match(m.seen[1].messages.at(-1).content[0].content, /exactly one root/);
@@ -259,7 +262,7 @@ test('the guidance leads its visual choice with the firm type rule, then the kin
   const g = EXPLANATION_GUIDANCE, at = s => { const i = g.indexOf(s); assert.ok(i >= 0, s); return i; };
   const order = ['objects, 3D shapes, anatomy, places, living things and how something looks always get a picture first, then a process diagram second only if the thing also does something; a diagram alone is wrong for them',
     'processes, relationships, comparisons, hierarchies, quantities, algorithms and data structures get diagrams', 'never use a picture for a data structure, an algorithm or numbers',
-    'cycle when the last step feeds the first', 'sequence for messages between actors', 'timeline for dates or eras', 'transformation for inputs becoming outputs',
+    'cycle when the last step feeds the first', 'sequence whenever two or more named parties send things to each other (client and server, sender and receiver, a protocol, request and response)', 'timeline for dates or eras', 'transformation for inputs becoming outputs',
     'tree for splits, sub-parts or sub-calls', 'relationship for causes', 'layers only for a real ordered stack', 'flow otherwise, a straight chain included',
     'Layers, matrix, comparison, flow, tree and figure cannot draw a shape, object, place or appearance', 'figure is only for a cell, a free-body diagram or a layered cross-section',
     'comparison is for 2-4 separate items, never the parts of one thing',
@@ -267,6 +270,20 @@ test('the guidance leads its visual choice with the firm type rule, then the kin
   assert.deepEqual(order, [...order].sort((a, b) => a - b), 'in the owner\'s order');
   assert.ok(at('Choose visuals in this order') < at('Kinds: flow'), 'the choice comes before the kind catalogue');
   assert.equal(g.includes('a diagram cannot draw'), false, 'the old negative rule is gone');
+});
+
+// Owner 2026-11-08 (study evidence: TCP handshake drawn as a flow 3 of 3; tree operations drawn as a step flow with no tree; volcano, eclipse and engine
+// questions got only a flow): three guidance sentences, nothing new in the diagram schema.
+test('the guidance carries the parties-send-things sequence rule, the structure-first rule for tree operations and the picture for how a physical thing works', () => {
+  const g = EXPLANATION_GUIDANCE, at = s => { const i = g.indexOf(s); assert.ok(i >= 0, s); return i; };
+  at('sequence whenever two or more named parties send things to each other (client and server, sender and receiver, a protocol, request and response);');
+  assert.ok(at('For an operation on a binary tree or BST (traversal, insertion, search, deletion) the first visual is the tree itself, showing the operation in its node labels (the visit order, as 1st, 2nd, or the new key marked as 7 (new)) or as two tree visuals, before and after; a flow with a highlightPath for the steps may follow it but never replaces it; a tree has no highlight field.') > at('For binary trees use kind "tree" with layout "binary".'));
+  at('Three visuals are a maximum, not a target.');
+  at('a "how does X work" or "how does X happen" question about a physical object, place or natural event (a volcano erupting, an eclipse, an engine) gets a picture of it and the process diagram;');
+  assert.ok(at('sequence for messages between actors (actors') > at('Kinds: flow'), 'the kind catalogue keeps its own wording');
+  // Supported means only: a tree takes no highlight field (only flow has highlightPath).
+  const tree = (tutorDiagramJsonSchema.properties.diagram.anyOf ?? tutorDiagramJsonSchema.properties.diagram.oneOf).find(s => s.properties.kind.const === 'tree');
+  assert.deepEqual([Object.keys(tree.properties), Object.keys(tree.properties.nodes.items.properties)], [['title', 'caption', 'kind', 'layout', 'nodes'], ['id', 'label', 'parent', 'side']]);
 });
 
 const meshPicture = illustrationFence({ id: 'pic-1', prompt: 'A 3D mesh of a teapot drawn as small triangles', alt: 'A teapot mesh made of triangles', caption: 'A 3D mesh is many small triangles' });

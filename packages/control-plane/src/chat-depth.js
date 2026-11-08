@@ -40,4 +40,4 @@ export const EXPLANATION_OBJECTIVES = Object.freeze({
   standard: 'Depth: Standard. Explain how and why the mechanism works, with enough reasoning to apply it to another case.',
   deep: 'Depth: Deep. Develop the reasoning and relevant assumptions, limitations or connections. Work through a calculation or consequence when it helps.',
 });
-export const explanationTarget = depth => { const d = validDepth(depth) || DEFAULT_DEPTH; return `${EXPLANATION_OBJECTIVES[d]} Budget: at most ${EXPLANATION_CAPS[d].toLocaleString('en-US')} characters of prose (paragraph, heading and list text); the title, tables, diagrams and illustrations do not count. Layout: prose, a visual, prose, and optionally a second visual and prose.`; };
+export const explanationTarget = depth => { const d = validDepth(depth) || DEFAULT_DEPTH; return `${EXPLANATION_OBJECTIVES[d]} Budget: at most ${EXPLANATION_CAPS[d].toLocaleString('en-US')} characters of prose (paragraph, heading and list text); the title, tables, diagrams and illustrations do not count. Layout: prose, a visual, prose, and optionally a second and a third visual, each followed by prose.`; };

@@ -62,6 +62,15 @@ const BOUNDS = new Set(['minItems', 'maxItems', 'minimum', 'maximum', 'exclusive
 export const withoutBounds = (o, names = false) => (Array.isArray(o) ? o.map(s => withoutBounds(s)) : o && typeof o === 'object'
   ? Object.fromEntries(Object.entries(o).filter(([k]) => names || !BOUNDS.has(k)).map(([k, v]) => [k, withoutBounds(v, !names && k === 'properties')])) : o);
 
+// Sampling (owner item 47, 2026-11-08): the author call is greedy, temperature 0, so the same request gives the same card. A fixed seed is sent only where the
+// provider documents it: Fireworks ("Random seed for deterministic sampling", https://docs.fireworks.ai/api-reference/post-chatcompletions) and Cerebras ("make a
+// best effort to sample deterministically", https://inference-docs.cerebras.ai/api-reference/chat-completions); Gemini's OpenAI-compatible page
+// (https://aistudio.google.com/docs/openai) lists no seed, so none is sent there. All read 2026-11-08. The repair's input already differs (it carries the
+// validator's problem in a tool_result), and it samples at 0.3 with no seed anyway, so a repeat of a wrong answer cannot be forced by the sampler: low enough
+// to stay on the corrected task, not greedy.
+export const AUTHOR_TEMPERATURE = 0, REPAIR_TEMPERATURE = 0.3, AUTHOR_SEED = 7;
+const SEEDED = new Set(['fireworks', 'cerebras']);
+const isRepair = body => body.messages.some(m => Array.isArray(m.content) && m.content.some(part => part.type === 'tool_result'));
 export function stepRequest(step, effort, body, stream = false) {
   const tool = body.tools?.find(t => t.name === TOOL);
   if (!tool) throw final('tool_unsupported', `The fast explanation chain makes only ${TOOL}.`);
@@ -69,7 +78,8 @@ export function stepRequest(step, effort, body, stream = false) {
   const system = [].concat(body.system ?? []).map(b => (typeof b === 'string' ? b : b.text)).join('\n');
   const options = stream && CHAIN_ENDPOINTS[step.provider]?.streamOptions;
   const schema = exclusiveOneOfToAnyOf(tool.input_schema);
-  return { model: step.model, stream, ...(options ? { stream_options: options } : {}), max_tokens: body.max_tokens, reasoning_effort: effort,
+  const sampling = isRepair(body) ? { temperature: REPAIR_TEMPERATURE } : { temperature: AUTHOR_TEMPERATURE, ...(SEEDED.has(step.provider) ? { seed: AUTHOR_SEED } : {}) };
+  return { model: step.model, stream, ...(options ? { stream_options: options } : {}), max_tokens: body.max_tokens, reasoning_effort: effort, ...sampling,
     messages: [{ role: 'system', content: `${system}\n\n${tool.description}\n${ADDENDUM}` }, ...body.messages.map(m => ({ role: m.role, content: textOf(m.content) }))],
     response_format: { type: 'json_schema', json_schema: { name: TOOL, strict: true, schema: step.provider === 'google' ? withoutBounds(schema) : schema } } };
 }
@@ -175,7 +185,9 @@ export async function generateWithFallbacks(env, input, options, generate) {
   let last = null;
   // Fix 3: one starter for the whole chain, so a later step or a repair that keeps a picture's prompt reuses its picture.
   const early = options.figures && streaming(env) ? figureStarter(env, options.figures) : null;
-  const onVisual = early ? (item, i) => { const spec = i < 2 ? authorPicture(item, i) : null; if (spec && parseIllustration(JSON.stringify(spec)).ok) early.start(spec); } : null;
+  // Only a picture the server will keep starts: among the first three visuals and the first two pictures (learn-primitives.js settleExplanationBody).
+  let pictures = 0;
+  const onVisual = early ? (item, i) => { if (i === 0) pictures = 0; /* each streamed answer counts its own */ const spec = i < 3 && pictures < 2 ? authorPicture(item, i) : null; if (spec && parseIllustration(JSON.stringify(spec)).ok) { pictures++; early.start(spec); } } : null;
   try { return await runSteps(); } finally { await early?.settled(); } // every started picture is settled, card or not, before the request ends
   async function runSteps() {
   for (const step of steps) {
