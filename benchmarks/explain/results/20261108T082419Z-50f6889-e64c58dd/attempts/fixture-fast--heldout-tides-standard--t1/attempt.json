@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "runId": "20261108T082419Z-50f6889-e64c58dd",
+  "attemptId": "fixture-fast--heldout-tides-standard--t1",
+  "kind": "benchmark",
+  "caseId": "heldout-tides-standard",
+  "baseCaseId": "heldout-tides-standard",
+  "trial": 1,
+  "depth": "standard",
+  "entry": "direct",
+  "promptLabel": "newly-specified",
+  "profile": {
+    "id": "fixture-fast",
+    "version": 1,
+    "hash": "ae8bf6a0d2e93118",
+    "roles": {
+      "author": {
+        "role": "author",
+        "task": "artifact",
+        "provider": "plan",
+        "model": "fixture-model-fast",
+        "adapter": "plan",
+        "credentialRef": "ANTHROPIC_API_KEY",
+        "maxOutputTokens": 4000,
+        "toolChoice": "any",
+        "settings": {},
+        "pricingKey": "fixture-price-fast"
+      },
+      "repair": {
+        "role": "repair",
+        "task": "artifact",
+        "provider": "plan",
+        "model": "fixture-model-fast",
+        "adapter": "plan",
+        "credentialRef": "ANTHROPIC_API_KEY",
+        "maxOutputTokens": 4000,
+        "toolChoice": "any",
+        "settings": {},
+        "pricingKey": "fixture-price-fast"
+      }
+    }
+  },
+  "request": {
+    "requestHash": "d718f62d6a10a46b",
+    "model": "fixture-model-fast",
+    "repairModel": "fixture-model-fast",
+    "max_tokens": 4000,
+    "tool_choice": {
+      "type": "any",
+      "disable_parallel_tool_use": true
+    },
+    "system": {
+      "sha": "9000332e59c5dd59",
+      "chars": 1628
+    },
+    "tools": {
+      "sha": "ad10fb24dda3fdbd",
+      "names": [
+        "make_explanation",
+        "ask_clarifying_question"
+      ]
+    },
+    "messages": [
+      {
+        "role": "user",
+        "content": "{\"command\":\"/explanation\",\"request\":\"Why do most coasts have two high tides a day, and roughly how long passes between one high tide and the next?\",\"learnerText\":\"Why do most coasts have two high tides a day, and roughly how long passes between one high tide and the next?\",\"selection\":null,\"context\":null}"
+      }
+    ],
+    "note": "the system prompt and tool text are identified by hash and prompt/schema versions in the manifest, not repeated per attempt"
+  },
+  "visualRequirements": null,
+  "status": "done",
+  "createdAt": "2026-11-08T08:24:19.548Z",
+  "finishedAt": "2026-11-08T08:24:19.569Z",
+  "callIds": [
+    "fixture-fast--heldout-tides-standard--t1.c1"
+  ]
+}

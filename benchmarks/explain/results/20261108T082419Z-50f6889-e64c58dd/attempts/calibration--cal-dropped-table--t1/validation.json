@@ -1,0 +1,31 @@
+{
+  "visualRequirements": {
+    "version": 1,
+    "items": [
+      {
+        "id": "vr-1",
+        "kind": "table",
+        "purpose": "Why does coffee cool faster at first? Include a small table comparing early and late cooling."
+      }
+    ]
+  },
+  "refusedAttempts": [
+    {
+      "attempt": 0,
+      "error": "required_visual_missing: the learner asked for a table (vr-1: \"Why does coffee cool faster at first? Include a small table comparing early and late cooling.\") and the card has none; add it in the card body, shortening the prose to stay inside the budget."
+    },
+    {
+      "attempt": 1,
+      "error": "required_visual_missing: the learner asked for a table (vr-1: \"Why does coffee cool faster at first? Include a small table comparing early and late cooling.\") and the card has none; add it in the card body, shortening the prose to stay inside the budget."
+    }
+  ],
+  "finalChecks": [],
+  "calibration": {
+    "expectFlag": true,
+    "flagged": true,
+    "ok": true,
+    "matched": [
+      "required_visual_missing"
+    ]
+  }
+}

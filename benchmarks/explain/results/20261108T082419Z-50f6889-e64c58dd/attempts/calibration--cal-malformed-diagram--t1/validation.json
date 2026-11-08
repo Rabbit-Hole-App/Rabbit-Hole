@@ -1,0 +1,34 @@
+{
+  "visualRequirements": {
+    "version": 1,
+    "items": [
+      {
+        "id": "vr-1",
+        "kind": "diagram",
+        "diagramKind": "flow",
+        "trace": true,
+        "purpose": "Show a decision-tree diagram for this toy rule: if age is under 30, check whether income is over $50,000; yes means Approve and no means Deny. Otherwise, Check credit score. Trace a 25-year-old earnin"
+      }
+    ]
+  },
+  "refusedAttempts": [
+    {
+      "attempt": 0,
+      "error": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.nodes.1: A decision needs two or three outgoing edges with distinct, non-empty labels (labeled branches); diagram.nodes: A flow needs exactly one root) required_visual_invalid: the learner asked for a diagram (vr-1) and the card's di"
+    },
+    {
+      "attempt": 1,
+      "error": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.nodes.1: A decision needs two or three outgoing edges with distinct, non-empty labels (labeled branches); diagram.nodes: A flow needs exactly one root) required_visual_invalid: the learner asked for a diagram (vr-1) and the card's di"
+    }
+  ],
+  "finalChecks": [],
+  "calibration": {
+    "expectFlag": true,
+    "flagged": true,
+    "ok": true,
+    "matched": [
+      "explanation_bad_diagram",
+      "required_visual_invalid"
+    ]
+  }
+}

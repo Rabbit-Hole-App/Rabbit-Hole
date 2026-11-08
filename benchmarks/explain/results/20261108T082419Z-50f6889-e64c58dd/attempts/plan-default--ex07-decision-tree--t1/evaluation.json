@@ -1,0 +1,34 @@
+{
+  "evaluator": "deterministic-offline-v1",
+  "checks": [
+    {
+      "id": "fact_missing:approve-result",
+      "kind": "fact",
+      "severity": "major",
+      "pass": true,
+      "detail": "The 25-year-old earning $60,000 is approved."
+    },
+    {
+      "id": "fact_missing:credit-branch",
+      "kind": "fact",
+      "severity": "minor",
+      "pass": true,
+      "detail": "Applicants not under 30 go to a credit-score check."
+    },
+    {
+      "id": "visual:flow",
+      "pass": true,
+      "detail": "flow with the expected branches and trace",
+      "kind": "visual",
+      "severity": "major"
+    }
+  ],
+  "factualPass": true,
+  "requiredOutputPass": true,
+  "majorErrors": 0,
+  "minorErrors": 0,
+  "omissions": 0,
+  "flags": [],
+  "blind": "provider identity is not given to the deterministic evaluator",
+  "reviewRequired": true
+}

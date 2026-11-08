@@ -1,0 +1,56 @@
+{
+  "status": "success",
+  "failure": null,
+  "result": {
+    "result": "artifact",
+    "repaired": false,
+    "profile": {
+      "id": "fixture-mixed",
+      "version": 1,
+      "hash": "c6d128c2ca64ed6e"
+    }
+  },
+  "block": {
+    "type": "explanation",
+    "title": "Why hot coffee cools fastest at first",
+    "body": "Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room. Fresh coffee is far hotter than the air, so it loses heat quickly; as it cools the gap shrinks and the loss slows.\n\n| Stage | Coffee vs room | Heat loss |\n| --- | --- | --- |\n| Early | Large gap | Faster |\n| Late | Small gap | Slower |",
+    "visualRequirements": {
+      "version": 1,
+      "items": [
+        {
+          "id": "vr-1",
+          "kind": "table",
+          "purpose": "Why does coffee cool faster at first? Include a small table comparing early and late cooling.",
+          "satisfied": true
+        }
+      ]
+    },
+    "depth": "overview"
+  },
+  "normalizedCalls": [
+    {
+      "callId": "fixture-mixed--ex01-coffee-overview--t1.c1",
+      "role": "author",
+      "requested": {
+        "provider": "plan",
+        "model": "fixture-model-draft"
+      },
+      "served": {
+        "provider": "plan",
+        "model": "fixture-model-draft"
+      },
+      "stop": "end",
+      "error": null,
+      "usage": {
+        "input": 1800,
+        "output": 580,
+        "cache": null,
+        "reasoning": null
+      },
+      "output": {
+        "title": "Why hot coffee cools fastest at first",
+        "body": "Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room. Fresh coffee is far hotter than the air, so it loses heat quickly; as it cools the gap shrinks and the loss slows.\n\n| Stage | Coffee vs room | Heat loss |\n| --- | --- | --- |\n| Early | Large gap | Faster |\n| Late | Small gap | Slower |"
+      }
+    }
+  ]
+}
