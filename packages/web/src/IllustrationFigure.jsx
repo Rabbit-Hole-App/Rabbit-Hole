@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { loadAsset } from './learn-board-assets.js';
 import { loadSource } from './file-source-client.js';
+import { parseIllustrationFence } from './explanation-lead.js';
 
 // A reusable figure: an illustration in its own container with its caption below (the written Explanation puts one after its opening paragraph).
 // Layout follows the approved Image mockup (handoff/ui/07-explanation-card-approved.html on chatgpt/tutor, .picture-figure): margin 13px 0 11px, the picture full width with 9px corners,
@@ -60,4 +61,13 @@ export default function IllustrationFigure({ illustration, className = '' }) {
       {illustration?.caption && <figcaption data-illustration-caption className="mt-[7px] text-center text-xs leading-[1.45] text-ink-2">{illustration.caption}</figcaption>}
     </figure>
   );
+}
+
+// EXP-13: an rh-illustration fence in a written Explanation (Md.jsx), drawn from figures[id] = { status: 'ready', fileRef | cacheKey | src, alt?, caption?, aspect? }; the entry's
+// fields win over the fence's alt and caption. A learner never sees a failed picture (owner 2026-11-08: the server retries, then removes the fence before saving), so a fence
+// without a ready entry draws nothing, no gap, and never its JSON. E2: the caption is not the body's words, so the interaction layer reads the field without it (data-explanation-skip).
+export function FenceFigure({ source, figures }) {
+  const fence = parseIllustrationFence(source), entry = fence && Object.hasOwn(figures || {}, fence.id) ? figures[fence.id] : null;
+  if (entry?.status !== 'ready') return null;
+  return <div data-explanation-skip data-figure-id={fence.id}><IllustrationFigure illustration={{ alt: fence.alt, caption: fence.caption, ...entry }} /></div>;
 }
