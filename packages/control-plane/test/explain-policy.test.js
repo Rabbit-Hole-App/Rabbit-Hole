@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { anthropic } from '../src/ask.js';
 import { ASK_MODELS, LEARN_TASKS, MODEL_PRICES } from '../src/learn-models.js';
 import { requestSpendBound } from '../src/learn-spend.js';
+import { INTERACT_ROLES, resolveInteractProfile, roleBoundMicros as interactBound, verifyServed } from '../src/interact-models.js';
 import { EXPLAIN_LIMITS, EXPLAIN_ROLES, EXPLAIN_TARGETS, callExplainRole, checkExplainRequest, explainModel, explainRequest, explainReservation,
   explainToolInput, explainTransport, roleBoundMicros, servedIdentity, newTiming, markTiming, beginStage, countStage, endStage, timingSummary } from '../src/explain-policy.js';
 
@@ -167,4 +168,24 @@ test('stage timing: marks, per-stage counters, and processing time without the a
   // L4's frozen targets (t22-targets.json): simple from observed runs; researched and Edit unmeasured, so no number.
   assert.deepEqual(EXPLAIN_TARGETS.simple, { firstFeedbackMs: 1000, proposalMs: null, resultMs: 75000, capabilityGapAnswerMs: 15000, reloadModelCalls: 0, basis: 'observed (t22-targets.json)' });
   for (const c of ['researched', 'edit']) assert.deepEqual(EXPLAIN_TARGETS[c], { firstFeedbackMs: null, proposalMs: null, resultMs: null, basis: 'unmeasured' });
+});
+
+// INT-07A-C11: the new-flow profile sits beside the legacy pinned roles and changes none of them.
+test('the legacy /explain roles keep their pinned limits and reservation while the interact profile reuses their task ids', () => {
+  assert.deepEqual(Object.values(EXPLAIN_ROLES).map(r => [r.task, r.maxInputTokens, r.maxImages]), [['explain_brief', 40000, 4], ['explain_author', 60000, 4], ['explain_review', 40000, 6], ['explain_repair', 40000, 2]]);
+  assert.deepEqual(Object.values(EXPLAIN_LIMITS.calls), [1, 1, 4, 3]);
+  assert.deepEqual(Object.values(EXPLAIN_LIMITS.deadlines), [120000, 180000, 600000]);
+  const profile = resolveInteractProfile('opus-baseline');
+  for (const [legacy, role] of [['author', 'build_author'], ['review', 'build_review'], ['repair', 'build_repair']]) {
+    assert.equal(INTERACT_ROLES[role].task, EXPLAIN_ROLES[legacy].task, role);
+    assert.equal(profile.roles[role].model, explainModel(legacy), role);
+    assert.equal(profile.roles[role].maxImages, EXPLAIN_ROLES[legacy].maxImages, role);
+    // New-flow jobs raise the builder and repairer outputs and the input bytes; the legacy bound is unchanged and lower.
+    assert.ok(interactBound(profile.roles[role]) > roleBoundMicros(legacy), role);
+  }
+  assert.throws(() => explainModel('author', 'claude-opus-5-5-fast'), { code: 'model_override' }, 'the legacy roles still refuse overrides');
+  assert.equal(servedIdentity('author', { model: 'claude-opus-5-5-20260101' }).matches, true);
+  assert.equal(verifyServed(profile.roles.build_author, 'claude-opus-5-5-20260101').verified, true, 'the profile check agrees on a dated snapshot');
+  assert.throws(() => servedIdentity('author', { model: 'claude-sonnet-5-5' }), { code: 'model_substituted' });
+  assert.throws(() => verifyServed(profile.roles.build_author, 'claude-sonnet-5-5'), { code: 'model_substituted' });
 });

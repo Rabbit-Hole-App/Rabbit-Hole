@@ -47,6 +47,8 @@
   },
   "mapped": {
     "packages/control-plane/src/explain-celeris-dev.js": ["packages/control-plane/test/explain-celeris-dev.test.js"],
+    "packages/control-plane/src/interact-model-adapters.js": ["packages/control-plane/test/interact-model-adapters.test.js","packages/control-plane/test/interact-models.test.js"],
+    "packages/control-plane/src/interact-models.js": ["packages/control-plane/test/interact-models.test.js","packages/control-plane/test/interact-model-adapters.test.js","packages/control-plane/test/explain-policy.test.js"],
     "packages/web/src/IllustrationFigure.jsx": ["packages/web/src/explanation-illustration.test.mjs"],
     "packages/web/src/explanation-lead.js": ["packages/web/src/explanation-illustration.test.mjs"],
     "packages/web/src/illustration-target.js": ["packages/web/src/illustration-attach.test.mjs"],
