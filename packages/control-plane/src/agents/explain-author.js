@@ -3,7 +3,7 @@
 // D's (explain-review.js), a separate call that never sees the author's reasoning.
 import { LIMITS as RUNTIME_LIMITS } from '../../../web/src/explain-program/limits.js';
 import { CONTRACT_LIMITS, STATEFUL_CONTRACT } from '../../../web/src/explain-program/contract.js';
-import { CYCLIC_CAPABILITY, MEDIUM_CAPABILITY } from '../../../web/src/explain-program/stamps.js';
+import { RASTER_CAPABILITY, CYCLIC_CAPABILITY, MEDIUM_CAPABILITY } from '../../../web/src/explain-program/stamps.js';
 
 export const GAP_NEEDS = Object.freeze(['math', 'steps', 'experiment', 'component', 'evidence', 'other']);
 
@@ -203,7 +203,7 @@ export function programContext(limits, capabilities, { stateful = false, repair 
       'sdk.clamp(v, lo, hi)', 'sdk.lerp(a, b, t)', 'sdk.linear([d0, d1], [r0, r1]) -> (v) => number', 'sdk.sample(f, from, to, count) -> [[x, y]...] (count + 1 points)', 'sdk.format(v, decimals = 2) -> string',
       'sdk.box(id, x, y, w, h, opts?)', 'sdk.circle(id, x, y, diameter, opts?)', 'sdk.text(id, x, y, text, opts?)', 'sdk.math(id, x, y, tex, opts?)',
       'sdk.line(id, x1, y1, x2, y2, opts?)', 'sdk.arrow(id, x1, y1, x2, y2, opts?)', 'sdk.polyline(id, points, opts?)', 'sdk.frame(objects, opts?) -> {objects, ...opts}',
-      'sdk.heatGrid(id,{x,y,cell,rows,cols,values,domain:[min,max]}) -> object. Declare heat_grid. Share the domain.',
+      ...(repair ? [] : ['sdk.heatGrid(id,{x,y,cell,rows,cols,values,domain:[min,max]}) -> object. Declare heat_grid. Share the domain.']), // authoring only, like the other helper docs
     ], visual: repair
       ? 'sdk.plot, sdk.graph, sdk.grid, sdk.geometry, sdk.timeline and sdk.readout return arrays of frame objects. Preserve the existing helper signatures and spread their results into frame.objects.'
       : {
@@ -225,6 +225,11 @@ export function programContext(limits, capabilities, { stateful = false, repair 
         usage: 'Declare cyclic_networks in manifest.capabilities. sdk.cyclicGraph returns existing frame objects; spread them into frame.objects. Node target IDs are <graphId>.node.<nodeId>; keep selected node ID in schema 2 state. The normal card Reset clears state.',
         signature: 'sdk.cyclicGraph(id,{x,y,w,h,nodes:[{id,label,x,y,role?}],edges:[{from,to,label,via?:[[x,y],...],labelAt?:[x,y]}],selected?:nodeId|null})',
         layout: 'For 2–8 nodes and 1–12 directed edges. Cycles, reciprocal links and self-loops are supported. Node centers, via waypoints and labelAt are local to the graph rectangle. Supply well-separated positions and short edge labels explaining the relationship. Use via and labelAt when default routes collide. This is a bounded teaching diagram, not a force-directed graph explorer.',
+      } } : {}), ...(!repair && capabilities?.includes(RASTER_CAPABILITY) ? { raster: { // authoring only, like the Medium, cyclic and heat-grid docs (the repair request carries the program and the problems)
+        usage: 'Declare raster_visuals in manifest.capabilities. These helpers return ONE raster object, not an array. Numeric pixels only: no URLs or markup. Synthetic pixels illustrate a mechanism; never present them as real model output. Learner-uploaded image decoding is not available in this sandbox.',
+        pixels: 'sdk.raster(id,{x,y,w,h,rows,cols,pixels}) uses flat row-major RGBA bytes (four integers 0–255 per pixel), with rows and cols each 1–64 and at most 4096 pixels. Recompute pixels from inputs/state to show bounded transformations.',
+        mask: 'sdk.mask(id,{x,y,w,h,rows,cols,values,color?,opacity?}) uses one coverage value 0–1 per pixel; color is #RRGGBB (default #E5AA46), opacity 0–1 (default 1). Returns a transparent RGBA raster. Draw it after its source with exactly the same display bounds and pixel grid so the mask stays aligned; zero coverage preserves holes and background.',
+        limits: 'At most 8192 raster pixels across the frame, and all existing output/size/runtime limits still apply. Scale is nearest-neighbor. Avoid expensive image processing or large inline arrays; use small synthetic images or supplied bounded pixel data.',
       } } : {}) },
   };
 }

@@ -7,7 +7,7 @@
 import {
   CAPABILITIES, CONTRACT_LIMITS, ProgramBundle, STATEFUL_SCHEMA_VERSION, StatefulBundle, draftSchemaVersion, requiresHeatGrid, resolveInputs, sealProgram, unsupportedCapabilities, verifyHashes,
 } from '../../web/src/explain-program/contract.js';
-import { CYCLIC_CAPABILITY, CYCLIC_PROGRAM_STAMPS, HEAT_GRID_PROGRAM_STAMPS, STATEFUL_CYCLIC_PROGRAM_STAMPS, STATEFUL_HEAT_GRID_PROGRAM_STAMPS, MEDIUM_CAPABILITY, MEDIUM_PROGRAM_STAMPS, STATEFUL_MEDIUM_PROGRAM_STAMPS, STATEFUL_VISUAL_PROGRAM_STAMPS, VISUAL_PROGRAM_STAMPS } from '../../web/src/explain-program/stamps.js';
+import { CYCLIC_CAPABILITY, CYCLIC_PROGRAM_STAMPS, HEAT_GRID_PROGRAM_STAMPS, RASTER_CAPABILITY, RASTER_PROGRAM_STAMPS, STATEFUL_CYCLIC_PROGRAM_STAMPS, STATEFUL_HEAT_GRID_PROGRAM_STAMPS, STATEFUL_RASTER_PROGRAM_STAMPS, MEDIUM_CAPABILITY, MEDIUM_PROGRAM_STAMPS, STATEFUL_MEDIUM_PROGRAM_STAMPS, STATEFUL_VISUAL_PROGRAM_STAMPS, VISUAL_PROGRAM_STAMPS } from '../../web/src/explain-program/stamps.js';
 
 export const programEnabled = env => env.EXPLAIN_PROGRAM_ENABLED === 'true';
 // The one switch for stateful programs (schema 2: buttons, selections and state, Task 8.3): it offers the capability to the brief, the
@@ -67,7 +67,9 @@ export async function buildProgramArtifact(bundle, stamps) {
     const capabilities = bundle?.manifest?.capabilities;
     const medium = Array.isArray(capabilities) && capabilities.includes(MEDIUM_CAPABILITY);
     const cyclic = Array.isArray(capabilities) && capabilities.includes(CYCLIC_CAPABILITY);
+    const raster = Array.isArray(capabilities) && capabilities.includes(RASTER_CAPABILITY);
     stamps = requiresHeatGrid(bundle?.manifest) ? (stateful ? STATEFUL_HEAT_GRID_PROGRAM_STAMPS : HEAT_GRID_PROGRAM_STAMPS)
+      : raster ? (stateful ? STATEFUL_RASTER_PROGRAM_STAMPS : RASTER_PROGRAM_STAMPS)
       : cyclic ? (stateful ? STATEFUL_CYCLIC_PROGRAM_STAMPS : CYCLIC_PROGRAM_STAMPS) : medium ? (stateful ? STATEFUL_MEDIUM_PROGRAM_STAMPS : MEDIUM_PROGRAM_STAMPS)
       : (stateful ? STATEFUL_VISUAL_PROGRAM_STAMPS : VISUAL_PROGRAM_STAMPS);
   }
