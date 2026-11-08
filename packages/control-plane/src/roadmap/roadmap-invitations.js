@@ -15,6 +15,9 @@ const FILE_KEY = /^file:([A-Za-z0-9_-]{1,64})$/;
 const KEY = /^[A-Za-z0-9_-]{8,128}$/;
 const MODES = ['auto', 'ask', 'tutor'];
 export const MAX_SOURCES = 8;
+// ROADMAP_ON_DROP_ENABLED (beneath ROADMAP_ENABLED, which the route checks first): the value 'false' stops a dropped source from starting the roadmap (no invitation);
+// unset or any other value is today's behavior. Global: one flag for every learner and canvas.
+export const roadmapOnDropEnabled = env => env?.ROADMAP_ON_DROP_ENABLED !== 'false';
 
 const view = (row, titles) => ({ id: row.id, state: row.state, sourceKeys: JSON.parse(row.source_keys_json), title: titles ?? row.title ?? '', choices: ['explain_on_canvas', 'keep_here'], offeredAt: new Date(row.offered_at * 1000).toISOString() });
 
@@ -30,15 +33,16 @@ async function supportedSources(db, access, sourceKeys) {
 }
 
 // deps.settings(db, access) -> { autoSuggest, mode } (R2's readers when merged; the default is on, Tutor). body.mode is only a hint that can suppress.
-export async function offerInvitation(db, access, { sourceKeys, idleKey, mode: hint, settings, now = nowSeconds() }) {
+export async function offerInvitation(db, access, { sourceKeys, idleKey, mode: hint, settings, onDrop = true, now = nowSeconds() }) {
   if (!Array.isArray(sourceKeys) || !sourceKeys.length || sourceKeys.length > MAX_SOURCES || !sourceKeys.every(k => typeof k === 'string')) throw new StateError('invalid_request', 'sourceKeys', 400);
   if (typeof idleKey !== 'string' || !KEY.test(idleKey)) throw new StateError('invalid_request', 'idleKey', 400);
+  const explicit = idleKey.startsWith('drop-');
+  if (explicit && !onDrop) return { status: 200, body: { invitation: null, suppressed: { reason: 'on_drop_off' } } }; // a quiet "not started": the source card was added by the client, nothing else happens
   const sources = await supportedSources(db, access, [...new Set(sourceKeys)].sort());
   const stored = (await settings?.(db, access)) || {};
   const mode = MODES.includes(stored.mode) ? stored.mode : MODES.includes(hint) ? hint : 'tutor';
   const setKey = await sha256(sources.map(s => `${s.key}@${s.rev}`).join('|'));
   const existing = sources.length ? await db.prepare('SELECT * FROM learn_roadmap_invitations WHERE org = ? AND owner_user_id = ? AND board_id = ? AND source_set_key = ?').bind(access.org, access.actorUserId, access.boardId, setKey).first() : null;
-  const explicit = idleKey.startsWith('drop-');
   const decision = decideInvitation({ sourceSupported: sources.length > 0, autoSuggest: explicit || stored.autoSuggest !== false, mode: explicit ? 'tutor' : mode, unfinishedRoadmap: !!(await readUnfinishedRoadmap(db, access)), alreadyOffered: !!existing });
   // An invitation that is still offered is returned as it is (reload, a second device, the same idle window sent twice).
   if (!decision.offer && existing?.state === 'offered' && decision.reason === 'already_offered') return { status: 200, body: { invitation: view(existing, sources.map(s => s.name).join(', ')) } };
