@@ -1,14 +1,14 @@
 
 :root {
-  color-scheme: dark;
-  --surface: #191919;
-  --ink: #d4d4d4;
-  --ink-2: #a1a1a1;
-  --line: #2f2f2f;
-  --hover: #2c2c2c;
-  --primary-fill: #1b6fc2;
+  color-scheme: light;
+  --surface: #fffefa;
+  --ink: #202723;
+  --ink-2: #5d675f;
+  --line: #dedfd8;
+  --hover: #eef1e9;
+  --primary-fill: #375d92;
   --primary-fill-hover: #165ca3;
-  --viz-surface: #212121;
+  --viz-surface: #f6f8f4;
   --blue: #8dbfef;
   --coral: #f58371;
 }
@@ -75,7 +75,7 @@ button {
   cursor: pointer;
 }
 button:hover { background: var(--hover); }
-button:focus-visible { outline: 2px solid #2383e2; outline-offset: 2px; }
+button:focus-visible { outline: 2px solid #375d92; outline-offset: 2px; }
 .primary { background: var(--primary-fill); color: #fff; }
 .primary:hover { background: var(--primary-fill-hover); }
 @media (max-width: 385px) {

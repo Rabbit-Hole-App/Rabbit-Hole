@@ -1,5 +1,5 @@
 
-  const toastRegion = document.getElementById('demo-toasts');
+  let toastRegion = document.getElementById('demo-toasts');
   const dialogOpeners = new WeakMap();
   const toneIcon = { success:'CircleCheck', info:'Info', warning:'TriangleAlert', error:'CircleAlert' };
   const toneMessage = { success:'Changes saved.', info:'Link copied.', warning:'Connection interrupted.', error:'Couldn’t save changes.' };
@@ -31,7 +31,7 @@
     dismiss.setAttribute('aria-label','Dismiss toast');
     dismiss.append(makeIcon('X'));
     toast.append(makeIcon(toneIcon[tone]),label,dismiss);
-    toastRegion.append(toast);
+    if(!toastRegion){toastRegion=document.createElement('div');toastRegion.className='toast-region';toastRegion.setAttribute('aria-live','polite');document.body.append(toastRegion);}toastRegion.append(toast);
     if (tone !== 'error') setTimeout(() => toast.remove(),3000);
   }
 
@@ -73,8 +73,7 @@
     if (tooltip) tooltip.dataset.tooltipDismissed = '';
     if (target.dataset.openDialog) {
       const dialog = document.getElementById(target.dataset.openDialog);
-      dialogOpeners.set(dialog,target);
-      dialog.showModal();
+      if(dialog){dialogOpeners.set(dialog,target);dialog.showModal();}
     }
     if (target.dataset.closeDialog) document.getElementById(target.dataset.closeDialog).close();
     if (target.dataset.openToast) showToast(target.dataset.openToast,target.dataset.toastMessage);

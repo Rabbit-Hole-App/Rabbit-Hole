@@ -41,7 +41,7 @@ def main():
    require(target.exists(),f'{c["id"]}: broken {tag} {attr} {value}')
    if target.suffix=='.svg' and target.exists() and u.fragment:
     require(re.search(r'\bid=["\']'+re.escape(u.fragment)+r'["\']',target.read_text()) is not None,f'{c["id"]}: missing SVG symbol {value}')
-  script_text='\n'.join((ROOT/'scripts'/(s+'.js')).read_text() for s in c['scripts'])
+  script_text='\n'.join((ROOT/'scripts'/(s+'.js')).read_text() for s in c['scripts'] if s not in ['standards','review-corrections'])
   for ident in re.findall(r"getElementById\(['\"]([^'\"]+)['\"]\)",script_text):
    # Standards uses event-delegated handlers shared by independent specimens, so absent unrelated roots are expected.
    if c['scripts']!=['standards'] and ident not in page.ids:warnings.append(f'{c["id"]}: script ID {ident} is dynamic or absent')
@@ -55,7 +55,7 @@ def main():
  for p in ROOT.rglob('*.html'):
   require('href="../../../icons/' not in p.read_text() or p.name in ['preview.html','markup.html'],'Unexpected sprite-relative path owner '+str(p))
  clean_files=sorted((ROOT/'clean').glob('*.html'))
- require(len(clean_files)==10,'Expected 10 separate clean previews')
+ require(len(clean_files)==11,'Expected 11 separate clean previews')
  for p in clean_files:
   content=p.read_text(); page=Page(content)
   require(len(page.ids)==len(set(page.ids)),f'{p.name}: duplicate IDs')

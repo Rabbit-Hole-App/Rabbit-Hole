@@ -6,11 +6,14 @@
   "source_file": "rabbit-hole-card-component-kit.html",
   "status": "Timed scenes",
   "styles": [
-    "control-kit"
+    "control-kit",
+    "review-corrections"
   ],
   "scripts": [
+    "resize",
     "control-kit",
-    "control-timeline"
+    "control-timeline",
+    "review-corrections"
   ],
   "implementation": [
     "packages/web/src/explain-program/ProgramScene.jsx"

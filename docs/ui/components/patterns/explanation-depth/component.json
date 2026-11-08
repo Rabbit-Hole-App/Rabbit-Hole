@@ -4,20 +4,24 @@
   "category": "patterns",
   "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/06-explanation-depth.html",
   "source_file": "06-explanation-depth.html",
-  "status": "behavior reference / older styling",
+  "status": "flow reference / current shell",
   "styles": [
-    "legacy-explanation-depth"
+    "legacy-explanation-depth",
+    "review-corrections"
   ],
   "scripts": [
-    "legacy-explanation-depth-0"
+    "resize",
+    "legacy-explanation-depth-0",
+    "review-corrections"
   ],
   "implementation": [
     "packages/web/src/LearningBlocks.jsx"
   ],
-  "notes": "Overview/Standard/Deep and keyboard tab navigation; preserve teaching content.",
+  "notes": "Overview/Standard/Deep and keyboard tab navigation; preserve teaching content. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
   "issues": [],
   "templates": [],
   "keywords": [],
   "path": "components/patterns/explanation-depth",
-  "paletteRole": "historical"
+  "paletteRole": "balanced-card",
+  "catalogVisible": false
 }

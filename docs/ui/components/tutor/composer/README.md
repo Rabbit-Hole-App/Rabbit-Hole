@@ -4,13 +4,13 @@ Stable ID: `tutor/composer` · Status: **reference**
 
 [Open preview](preview.html) · [Markup](markup.html) · [Metadata](component.json) · [Original source](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-source-header-and-chat-composer.html) · [Collection review](../../../REVIEW.md)
 
-Current aa2cfb1: textarea grows, capped body scrolls, footer actions and outlined grip stay visible. Arrow resize16 px; Shift48 px. Send/Stop use one rectangular action. Attach/Voice are preview-only.
+Owner screenshot correction: one enclosing composer with borderless prompt, context chip and inline toolbar inside. Compact custom dropdowns replace boxed native selects. Green toggle; blue circular Send/Stop. Multiline scroll and keyboard/pointer resize retained. Model list, attachment and voice are preview-only.
 
-Palette role: **shared**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Historical previews preserve their original palette. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
+Palette role: **shared**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Flow previews use the current palette; linked archived sources preserve their original styling. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
 
 ## Edit and find
 
-Edit `markup.html` and `component.json` here. Shared styles: `styles/source-headers.css`, `styles/composer.css`. Behavior: `scripts/composer.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
+Edit `markup.html` and `component.json` here. Shared styles: `styles/source-headers.css`, `styles/composer.css`, `styles/review-corrections.css`. Behavior: `scripts/resize.js`, `scripts/composer.js`, `scripts/review-corrections.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
 
 Template dependencies: none.
 

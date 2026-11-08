@@ -2,16 +2,14 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dropdowns, filters and sorting · Rabbit Hole UI</title>
 <link rel="stylesheet" href="../../../styles/standards.css">
+<link rel="stylesheet" href="../../../styles/review-corrections.css">
 <link rel="stylesheet" href="../../../foundations/palette.css">
 <link rel="stylesheet" href="../../../styles/preview.css"></head>
 <body data-ui-palette="shared"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html">Source</a><p>reference — Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.</p></div>
 <div class="catalog-preview"><article class="specimen" id="f-filter-sort">
   <h3>Dropdowns, filters and sorting</h3>
   <p class="muted">Show the active value on a dropdown and use a selected state for filters that can be toggled independently.</p>
-  <div class="sample-row">
-    <label class="field" for="f-model">Model <select class="control" id="f-model"><option selected>Auto</option><option>Choose a model</option></select></label>
-    <label class="field" for="f-sort">Sort by <select class="control" id="f-sort"><option selected>Recently updated</option><option>Stars</option><option>Title</option></select></label>
-  </div>
+<div class="sample-row"><div class="field"><span>Model</span><details class="popover ui-select" id="f-model-menu"><summary class="button secondary"><span data-current>Auto</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ChevronDown"/></svg></summary><div class="menu"><button type="button" class="menu-item" data-menu-value="Auto" aria-pressed="true">Auto</button><button type="button" class="menu-item" data-menu-value="Choose a model" aria-pressed="false">Choose a model</button></div></details></div><div class="field"><span>Sort by</span><details class="popover ui-select" id="f-sort-menu"><summary class="button secondary"><span data-current>Recently updated</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ChevronDown"/></svg></summary><div class="menu"><button type="button" class="menu-item" data-menu-value="Recently updated" aria-pressed="true">Recently updated</button><button type="button" class="menu-item" data-menu-value="Stars" aria-pressed="false">Stars</button><button type="button" class="menu-item" data-menu-value="Title" aria-pressed="false">Title</button></div></details></div></div>
   <div class="sample-row" role="group" aria-label="Filter examples">
     <button class="button secondary" type="button"><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ListFilter"></use></svg>Filters <svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ChevronDown"></use></svg></button>
     <button class="button secondary" type="button" aria-pressed="true" data-preview-filter><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Star"></use></svg>Starred</button>
@@ -20,5 +18,7 @@
 </article>
 </div>
 
+<script src="../../../scripts/resize.js"></script>
 <script src="../../../scripts/standards.js"></script>
+<script src="../../../scripts/review-corrections.js"></script>
 </body></html>

@@ -6,11 +6,14 @@
   "source_file": "rabbit-hole-card-component-kit.html",
   "status": "Register first",
   "styles": [
-    "control-kit"
+    "control-kit",
+    "review-corrections"
   ],
   "scripts": [
+    "resize",
     "control-kit",
-    "control-disclosure"
+    "control-disclosure",
+    "review-corrections"
   ],
   "implementation": [
     "packages/web/src/explain-program/ProgramScene.jsx"

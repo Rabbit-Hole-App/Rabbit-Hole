@@ -7,15 +7,18 @@
   "status": "reference",
   "styles": [
     "source-headers",
-    "composer"
+    "composer",
+    "review-corrections"
   ],
   "scripts": [
-    "composer"
+    "resize",
+    "composer",
+    "review-corrections"
   ],
   "implementation": [
     "packages/web/src/ChatComposer.jsx"
   ],
-  "notes": "Current aa2cfb1: textarea grows, capped body scrolls, footer actions and outlined grip stay visible. Arrow resize16 px; Shift48 px. Send/Stop use one rectangular action. Attach/Voice are preview-only.",
+  "notes": "Owner screenshot correction: one enclosing composer with borderless prompt, context chip and inline toolbar inside. Compact custom dropdowns replace boxed native selects. Green toggle; blue circular Send/Stop. Multiline scroll and keyboard/pointer resize retained. Model list, attachment and voice are preview-only.",
   "issues": [],
   "templates": [],
   "keywords": [

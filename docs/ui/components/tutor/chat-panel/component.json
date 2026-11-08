@@ -1,0 +1,38 @@
+{
+  "id": "tutor/chat-panel",
+  "title": "Chat panel",
+  "category": "tutor",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-source-header-and-chat-composer.html",
+  "source_file": "rabbit-hole-source-header-and-chat-composer.html",
+  "status": "reference",
+  "styles": [
+    "source-headers",
+    "composer",
+    "review-corrections",
+    "chat-panel"
+  ],
+  "scripts": [
+    "resize",
+    "composer",
+    "review-corrections",
+    "chat-panel"
+  ],
+  "implementation": [
+    "packages/web/src/ChatComposer.jsx"
+  ],
+  "notes": "Current chat panel review: no Jump to latest; secondary message actions on hover/focus; shared composer; acceptance removes Accept and Edit together; navigation stays on the same row. Local fixture responses only. Sidebar destinations are visual references.",
+  "issues": [],
+  "templates": [],
+  "keywords": [
+    "chat",
+    "sidebar",
+    "hover",
+    "accept",
+    "edit",
+    "go to card",
+    "message",
+    "composer"
+  ],
+  "path": "components/tutor/chat-panel",
+  "paletteRole": "shared"
+}

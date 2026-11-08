@@ -12,13 +12,15 @@
       "styles": [
         "control-kit",
         "card-shell",
-        "kit-shell"
+        "kit-shell",
+        "review-corrections"
       ],
       "scripts": [
+        "resize",
         "control-kit",
         "bootstrap-sampling",
-        "resize",
-        "adopt-kit-shell"
+        "adopt-kit-shell",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/LearningBlocks.jsx",
@@ -56,11 +58,14 @@
       "source_file": "rabbit-hole-resizable-card-shell.html",
       "status": "reference",
       "styles": [
-        "card-shell"
+        "card-shell",
+        "review-corrections"
       ],
       "scripts": [
+        "resize",
         "card-shell",
-        "decision-tracer"
+        "decision-tracer",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/LearningBlocks.jsx",
@@ -99,13 +104,15 @@
       "styles": [
         "control-kit",
         "card-shell",
-        "kit-shell"
+        "kit-shell",
+        "review-corrections"
       ],
       "scripts": [
+        "resize",
         "control-kit",
         "impurity-metrics",
-        "resize",
-        "adopt-kit-shell"
+        "adopt-kit-shell",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/LearningBlocks.jsx",
@@ -143,11 +150,14 @@
       "source_file": "rabbit-hole-resizable-card-shell.html",
       "status": "reference",
       "styles": [
-        "card-shell"
+        "card-shell",
+        "review-corrections"
       ],
       "scripts": [
+        "resize",
         "card-shell",
-        "split-comparison"
+        "split-comparison",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/LearningBlocks.jsx",
@@ -186,13 +196,15 @@
       "styles": [
         "control-kit",
         "card-shell",
-        "kit-shell"
+        "kit-shell",
+        "review-corrections"
       ],
       "scripts": [
+        "resize",
         "control-kit",
         "split-explorer",
-        "resize",
-        "adopt-kit-shell"
+        "adopt-kit-shell",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/LearningBlocks.jsx",
@@ -232,13 +244,15 @@
       "styles": [
         "control-kit",
         "card-shell",
-        "kit-shell"
+        "kit-shell",
+        "review-corrections"
       ],
       "scripts": [
+        "resize",
         "control-kit",
         "timed-toss",
-        "resize",
-        "adopt-kit-shell"
+        "adopt-kit-shell",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/LearningBlocks.jsx",
@@ -276,11 +290,14 @@
       "source_file": "rabbit-hole-card-component-kit.html",
       "status": "Core",
       "styles": [
-        "control-kit"
+        "control-kit",
+        "review-corrections"
       ],
       "scripts": [
+        "resize",
         "control-kit",
-        "control-action"
+        "control-action",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/explain-program/ProgramScene.jsx"
@@ -320,10 +337,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/home/CardMenu.jsx"
@@ -343,10 +363,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/NextStepPill.jsx",
@@ -369,10 +392,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/ui.jsx"
@@ -394,11 +420,14 @@
       "source_file": "rabbit-hole-card-component-kit.html",
       "status": "Core",
       "styles": [
-        "control-kit"
+        "control-kit",
+        "review-corrections"
       ],
       "scripts": [
+        "resize",
         "control-kit",
-        "control-choice"
+        "control-choice",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/explain-program/ProgramScene.jsx"
@@ -438,11 +467,14 @@
       "source_file": "rabbit-hole-card-component-kit.html",
       "status": "Register first",
       "styles": [
-        "control-kit"
+        "control-kit",
+        "review-corrections"
       ],
       "scripts": [
+        "resize",
         "control-kit",
-        "control-disclosure"
+        "control-disclosure",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/explain-program/ProgramScene.jsx"
@@ -482,10 +514,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/LibraryViews.jsx",
@@ -506,10 +541,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/CanvasMenubar.jsx"
@@ -529,10 +567,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/agent/slash.js"
@@ -552,11 +593,14 @@
       "source_file": "rabbit-hole-card-component-kit.html",
       "status": "Renderer dependent",
       "styles": [
-        "control-kit"
+        "control-kit",
+        "review-corrections"
       ],
       "scripts": [
+        "resize",
         "control-kit",
-        "control-multi"
+        "control-multi",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/explain-program/ProgramScene.jsx"
@@ -596,11 +640,14 @@
       "source_file": "rabbit-hole-card-component-kit.html",
       "status": "Renderer dependent",
       "styles": [
-        "control-kit"
+        "control-kit",
+        "review-corrections"
       ],
       "scripts": [
+        "resize",
         "control-kit",
-        "control-ordered"
+        "control-ordered",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/explain-program/ProgramScene.jsx"
@@ -640,10 +687,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/explain-program/ProgramScene.jsx"
@@ -663,11 +713,14 @@
       "source_file": "rabbit-hole-card-component-kit.html",
       "status": "Core",
       "styles": [
-        "control-kit"
+        "control-kit",
+        "review-corrections"
       ],
       "scripts": [
+        "resize",
         "control-kit",
-        "control-readout"
+        "control-readout",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/explain-program/ProgramScene.jsx"
@@ -707,41 +760,29 @@
       "source_file": "rabbit-hole-card-component-kit.html",
       "status": "Register first",
       "styles": [
-        "control-kit"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "control-kit",
-        "control-select"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/explain-program/ProgramScene.jsx"
       ],
-      "notes": "Use for longer labels or when too many segments would crowd the card. Renderer registration and persistence are separate from this HTML demo.",
+      "notes": "Approved custom app dropdown. No browser-native select UI and no dropdown inside teaching cards.",
       "issues": [
         "UI-07"
       ],
-      "templates": [
-        "kit/card-template",
-        "kit/range-template",
-        "kit/choice-template",
-        "kit/option-template",
-        "kit/button-template",
-        "kit/timeline-template",
-        "kit/select-template",
-        "kit/toggle-template",
-        "kit/stepper-template",
-        "kit/index-template",
-        "kit/disclosure-template",
-        "kit/readout-template",
-        "kit/sample-template"
-      ],
+      "templates": [],
       "keywords": [
         "input",
         "interaction",
         "select"
       ],
       "path": "components/controls/select",
-      "paletteRole": "experiment"
+      "paletteRole": "shared"
     },
     {
       "id": "controls/slash-command-pills",
@@ -751,10 +792,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/agent/slash.js",
@@ -777,11 +821,14 @@
       "source_file": "rabbit-hole-card-component-kit.html",
       "status": "Core",
       "styles": [
-        "control-kit"
+        "control-kit",
+        "review-corrections"
       ],
       "scripts": [
+        "resize",
         "control-kit",
-        "control-slider"
+        "control-slider",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/explain-program/ProgramScene.jsx"
@@ -821,11 +868,14 @@
       "source_file": "rabbit-hole-card-component-kit.html",
       "status": "Register first",
       "styles": [
-        "control-kit"
+        "control-kit",
+        "review-corrections"
       ],
       "scripts": [
+        "resize",
         "control-kit",
-        "control-stepper"
+        "control-stepper",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/explain-program/ProgramScene.jsx"
@@ -865,10 +915,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/ui.jsx",
@@ -889,11 +942,14 @@
       "source_file": "rabbit-hole-card-component-kit.html",
       "status": "Timed scenes",
       "styles": [
-        "control-kit"
+        "control-kit",
+        "review-corrections"
       ],
       "scripts": [
+        "resize",
         "control-kit",
-        "control-timeline"
+        "control-timeline",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/explain-program/ProgramScene.jsx"
@@ -933,11 +989,14 @@
       "source_file": "rabbit-hole-card-component-kit.html",
       "status": "Renderer dependent",
       "styles": [
-        "control-kit"
+        "control-kit",
+        "review-corrections"
       ],
       "scripts": [
+        "resize",
         "control-kit",
-        "control-toggle"
+        "control-toggle",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/explain-program/ProgramScene.jsx"
@@ -970,6 +1029,38 @@
       "paletteRole": "experiment"
     },
     {
+      "id": "feedback/follow-up-connectors",
+      "title": "Follow-up panel and card connectors",
+      "category": "feedback",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards",
+        "card-shell",
+        "review-corrections"
+      ],
+      "scripts": [
+        "resize",
+        "review-corrections"
+      ],
+      "implementation": [
+        "packages/web/src/NextStepPill.jsx",
+        "packages/web/src/RoadmapSurfaces.jsx"
+      ],
+      "notes": "Warm shared surface, sage border/connectors, blue Send. Local interaction preview; no backend request.",
+      "issues": [],
+      "templates": [],
+      "keywords": [
+        "follow-up",
+        "connector",
+        "sage",
+        "question"
+      ],
+      "path": "components/feedback/follow-up-connectors",
+      "paletteRole": "shared"
+    },
+    {
       "id": "feedback/menu-popover",
       "title": "Dropdown menu and popover",
       "category": "feedback",
@@ -977,10 +1068,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/home/CardMenu.jsx"
@@ -1000,10 +1094,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/home/CardMenu.jsx"
@@ -1023,10 +1120,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/comments/CommentInbox.jsx",
@@ -1047,10 +1147,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/ui.jsx"
@@ -1070,10 +1173,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/Sidebar.jsx"
@@ -1093,9 +1199,13 @@
       "source_file": "rabbit-hole-resizable-card-shell.html",
       "status": "reference",
       "styles": [
-        "card-shell"
+        "card-shell",
+        "review-corrections"
       ],
-      "scripts": [],
+      "scripts": [
+        "resize",
+        "review-corrections"
+      ],
       "implementation": [],
       "notes": "Copied exact-values tables; source discrepancies remain tracked, not silently normalized.",
       "issues": [],
@@ -1112,9 +1222,13 @@
       "source_file": "rabbit-hole-card-icon-template.html",
       "status": "reference",
       "styles": [
-        "icons"
+        "icons",
+        "review-corrections"
       ],
-      "scripts": [],
+      "scripts": [
+        "resize",
+        "review-corrections"
+      ],
       "implementation": [
         "packages/web/src/CardFeedback.jsx",
         "packages/web/src/ChatComposer.jsx"
@@ -1134,9 +1248,13 @@
       "source_file": "rabbit-hole-card-icon-template.html",
       "status": "reference",
       "styles": [
-        "icons"
+        "icons",
+        "review-corrections"
       ],
-      "scripts": [],
+      "scripts": [
+        "resize",
+        "review-corrections"
+      ],
       "implementation": [
         "packages/web/src/CardFeedback.jsx",
         "packages/web/src/ChatComposer.jsx"
@@ -1156,9 +1274,13 @@
       "source_file": "rabbit-hole-card-icon-template.html",
       "status": "reference",
       "styles": [
-        "icons"
+        "icons",
+        "review-corrections"
       ],
-      "scripts": [],
+      "scripts": [
+        "resize",
+        "review-corrections"
+      ],
       "implementation": [
         "packages/web/src/CardFeedback.jsx",
         "packages/web/src/ChatComposer.jsx"
@@ -1178,10 +1300,13 @@
       "source_file": "rabbit-hole-card-icon-template.html",
       "status": "reference",
       "styles": [
-        "icons"
+        "icons",
+        "review-corrections"
       ],
       "scripts": [
-        "icon-states"
+        "resize",
+        "icon-states",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/CardFeedback.jsx",
@@ -1204,10 +1329,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/index.css"
@@ -1227,10 +1355,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/Sidebar.jsx"
@@ -1248,23 +1379,27 @@
       "category": "patterns",
       "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/02-canvas-card-skeleton.html",
       "source_file": "02-canvas-card-skeleton.html",
-      "status": "behavior reference / older styling",
+      "status": "flow reference / current shell",
       "styles": [
-        "legacy-card-lifecycle"
+        "legacy-card-lifecycle",
+        "review-corrections"
       ],
       "scripts": [
-        "legacy-card-lifecycle-0"
+        "resize",
+        "legacy-card-lifecycle-0",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/SlotCard.jsx",
         "packages/web/src/NextStepPill.jsx"
       ],
-      "notes": "Pending, accept/cancel, generating, delivery, next proposal and source jump.",
+      "notes": "Pending, accept/cancel, generating, delivery, next proposal and source jump. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
       "issues": [],
       "templates": [],
       "keywords": [],
       "path": "components/patterns/card-lifecycle",
-      "paletteRole": "historical"
+      "paletteRole": "balanced-card",
+      "catalogVisible": false
     },
     {
       "id": "patterns/explanation-actions",
@@ -1272,17 +1407,20 @@
       "category": "patterns",
       "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/07-explanation-card-approved.html",
       "source_file": "07-explanation-card-approved.html",
-      "status": "behavior reference / older styling",
+      "status": "flow reference / current shell",
       "styles": [
-        "legacy-explanation-actions"
+        "legacy-explanation-actions",
+        "review-corrections"
       ],
       "scripts": [
-        "legacy-explanation-actions-0"
+        "resize",
+        "legacy-explanation-actions-0",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/LearningBlocks.jsx"
       ],
-      "notes": "Term definitions, Dig Rabbit Hole, Ask here/new card, same-card/branch threads, follow-up and connector ports. Canonical behavior in explain.md; styling needs reconciliation.",
+      "notes": "Term definitions, Dig Rabbit Hole, Ask here/new card, same-card/branch threads, follow-up and connector ports. Canonical behavior in explain.md; styling needs reconciliation. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
       "issues": [
         "UI-05",
         "UI-06"
@@ -1290,7 +1428,8 @@
       "templates": [],
       "keywords": [],
       "path": "components/patterns/explanation-actions",
-      "paletteRole": "historical"
+      "paletteRole": "balanced-card",
+      "catalogVisible": false
     },
     {
       "id": "patterns/explanation-depth",
@@ -1298,22 +1437,26 @@
       "category": "patterns",
       "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/06-explanation-depth.html",
       "source_file": "06-explanation-depth.html",
-      "status": "behavior reference / older styling",
+      "status": "flow reference / current shell",
       "styles": [
-        "legacy-explanation-depth"
+        "legacy-explanation-depth",
+        "review-corrections"
       ],
       "scripts": [
-        "legacy-explanation-depth-0"
+        "resize",
+        "legacy-explanation-depth-0",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/LearningBlocks.jsx"
       ],
-      "notes": "Overview/Standard/Deep and keyboard tab navigation; preserve teaching content.",
+      "notes": "Overview/Standard/Deep and keyboard tab navigation; preserve teaching content. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
       "issues": [],
       "templates": [],
       "keywords": [],
       "path": "components/patterns/explanation-depth",
-      "paletteRole": "historical"
+      "paletteRole": "balanced-card",
+      "catalogVisible": false
     },
     {
       "id": "patterns/generated-card-contract",
@@ -1321,20 +1464,25 @@
       "category": "patterns",
       "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/generated-card-shell.html",
       "source_file": "generated-card-shell.html",
-      "status": "behavior reference / older styling",
+      "status": "flow reference / current shell",
       "styles": [
-        "legacy-generated-card-contract"
+        "legacy-generated-card-contract",
+        "review-corrections"
       ],
-      "scripts": [],
+      "scripts": [
+        "resize",
+        "review-corrections"
+      ],
       "implementation": [
         "packages/web/src/LearningBlocks.jsx"
       ],
-      "notes": "Host-populated slots for source/title/body/thread/suggestions/term popup/follow-up. Not an autonomous demo.",
+      "notes": "Host-populated slots for source/title/body/thread/suggestions/term popup/follow-up. Not an autonomous demo. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
       "issues": [],
       "templates": [],
       "keywords": [],
       "path": "components/patterns/generated-card-contract",
-      "paletteRole": "historical"
+      "paletteRole": "balanced-card",
+      "catalogVisible": false
     },
     {
       "id": "patterns/generation-review",
@@ -1342,20 +1490,25 @@
       "category": "patterns",
       "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/08-interactive-review.html",
       "source_file": "08-interactive-review.html",
-      "status": "behavior reference / older styling",
+      "status": "flow reference / current shell",
       "styles": [
-        "legacy-generation-review"
+        "legacy-generation-review",
+        "review-corrections"
       ],
-      "scripts": [],
+      "scripts": [
+        "resize",
+        "review-corrections"
+      ],
       "implementation": [
         "packages/web/src/LearningBlocks.jsx"
       ],
-      "notes": "Summary, visual, takeaway and Generate/Edit. Static controls.",
+      "notes": "Summary, visual, takeaway and Generate/Edit. Static controls. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
       "issues": [],
       "templates": [],
       "keywords": [],
       "path": "components/patterns/generation-review",
-      "paletteRole": "historical"
+      "paletteRole": "balanced-card",
+      "catalogVisible": false
     },
     {
       "id": "patterns/generation-review-contract",
@@ -1363,43 +1516,52 @@
       "category": "patterns",
       "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/generation-review-shell.html",
       "source_file": "generation-review-shell.html",
-      "status": "behavior reference / older styling",
+      "status": "flow reference / current shell",
       "styles": [
-        "legacy-generation-review-contract"
+        "legacy-generation-review-contract",
+        "review-corrections"
       ],
-      "scripts": [],
+      "scripts": [
+        "resize",
+        "review-corrections"
+      ],
       "implementation": [
         "packages/web/src/LearningBlocks.jsx"
       ],
-      "notes": "Host-populated generation review slots. Not an autonomous demo.",
+      "notes": "Host-populated generation review slots. Not an autonomous demo. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
       "issues": [],
       "templates": [],
       "keywords": [],
       "path": "components/patterns/generation-review-contract",
-      "paletteRole": "historical"
+      "paletteRole": "balanced-card",
+      "catalogVisible": false
     },
     {
       "id": "patterns/historical-explanation",
-      "title": "Historical Explanation",
+      "title": "Explanation flow",
       "category": "patterns",
       "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/04-explanation-card.html",
       "source_file": "04-explanation-card.html",
-      "status": "behavior reference / older styling",
+      "status": "flow reference / current shell",
       "styles": [
-        "legacy-historical-explanation"
+        "legacy-historical-explanation",
+        "review-corrections"
       ],
       "scripts": [
-        "legacy-historical-explanation-0"
+        "resize",
+        "legacy-historical-explanation-0",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/LearningBlocks.jsx"
       ],
-      "notes": "Historical source jump and supplementary disclosure; not current styling.",
+      "notes": "Historical source jump and supplementary disclosure; current shell applied. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
       "issues": [],
       "templates": [],
       "keywords": [],
       "path": "components/patterns/historical-explanation",
-      "paletteRole": "historical"
+      "paletteRole": "balanced-card",
+      "catalogVisible": false
     },
     {
       "id": "patterns/interact-complete-workflow",
@@ -1407,20 +1569,25 @@
       "category": "patterns",
       "source": "https://chatgpt.com/library?file_id=libfile_b50bb8c5a890819180a2be40f8547931&account_id=personal",
       "source_file": "interact-complete-workflow.html",
-      "status": "behavior / workflow reference",
+      "status": "flow reference / current shell",
       "styles": [
-        "interact-complete-workflow"
+        "interact-complete-workflow",
+        "review-corrections"
       ],
-      "scripts": [],
+      "scripts": [
+        "resize",
+        "review-corrections"
+      ],
       "implementation": [],
-      "notes": "Preserved supplied workflow or behavior fixture. Its styling is historical and must not override current shared tokens.",
+      "notes": "Preserved supplied workflow or behavior fixture. Its styling is historical and must not override current shared tokens. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
       "issues": [
         "UI-05"
       ],
       "templates": [],
       "keywords": [],
       "path": "components/patterns/interact-complete-workflow",
-      "paletteRole": "historical"
+      "paletteRole": "balanced-card",
+      "catalogVisible": false
     },
     {
       "id": "patterns/interactive-card-composition-workflow",
@@ -1428,20 +1595,25 @@
       "category": "patterns",
       "source": "https://chatgpt.com/library?file_id=libfile_da441ff3913c819198ccb93f1f3063ba&account_id=personal",
       "source_file": "interactive-card-composition-workflow.html",
-      "status": "behavior / workflow reference",
+      "status": "flow reference / current shell",
       "styles": [
-        "interactive-card-composition-workflow"
+        "interactive-card-composition-workflow",
+        "review-corrections"
       ],
-      "scripts": [],
+      "scripts": [
+        "resize",
+        "review-corrections"
+      ],
       "implementation": [],
-      "notes": "Preserved supplied workflow or behavior fixture. Its styling is historical and must not override current shared tokens.",
+      "notes": "Preserved supplied workflow or behavior fixture. Its styling is historical and must not override current shared tokens. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
       "issues": [
         "UI-05"
       ],
       "templates": [],
       "keywords": [],
       "path": "components/patterns/interactive-card-composition-workflow",
-      "paletteRole": "historical"
+      "paletteRole": "balanced-card",
+      "catalogVisible": false
     },
     {
       "id": "patterns/original-component-kit",
@@ -1449,15 +1621,18 @@
       "category": "patterns",
       "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/ca0affecfb39caf6790f4b2636f1ed3c2dd90800/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
       "source_file": "original ca0affe component kit",
-      "status": "palette reference / older geometry",
+      "status": "flow reference / current shell",
       "styles": [
-        "original-kit"
+        "original-kit",
+        "review-corrections"
       ],
       "scripts": [
-        "original-kit"
+        "resize",
+        "original-kit",
+        "review-corrections"
       ],
       "implementation": [],
-      "notes": "Owner-selected palette reference. Four cards and eleven controls; use current geometry and the balanced semantic role map when adopting. Attached copy matches apart from trailing whitespace.",
+      "notes": "Owner-selected palette reference. Four cards and eleven controls; use current geometry and the balanced semantic role map when adopting. Attached copy matches apart from trailing whitespace. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
       "issues": [
         "UI-11"
       ],
@@ -1471,7 +1646,8 @@
         "palette"
       ],
       "path": "components/patterns/original-component-kit",
-      "paletteRole": "historical"
+      "paletteRole": "balanced-card",
+      "catalogVisible": false
     },
     {
       "id": "patterns/outline-editor",
@@ -1479,22 +1655,26 @@
       "category": "patterns",
       "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/01-table-of-contents.html",
       "source_file": "01-table-of-contents.html",
-      "status": "behavior reference / older styling",
+      "status": "flow reference / current shell",
       "styles": [
-        "legacy-outline-editor"
+        "legacy-outline-editor",
+        "review-corrections"
       ],
       "scripts": [
-        "legacy-outline-editor-0"
+        "resize",
+        "legacy-outline-editor-0",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/TableOfContents.jsx"
       ],
-      "notes": "Hierarchy, add/edit/fold and manual completion; keep behavior, reconcile old styling.",
+      "notes": "Hierarchy, add/edit/fold and manual completion; keep behavior, reconcile old styling. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
       "issues": [],
       "templates": [],
       "keywords": [],
       "path": "components/patterns/outline-editor",
-      "paletteRole": "historical"
+      "paletteRole": "balanced-card",
+      "catalogVisible": false
     },
     {
       "id": "patterns/roadmap-flow",
@@ -1502,23 +1682,27 @@
       "category": "patterns",
       "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/03-chat-roadmap.html",
       "source_file": "03-chat-roadmap.html",
-      "status": "behavior reference / older styling",
+      "status": "flow reference / current shell",
       "styles": [
-        "legacy-roadmap-flow"
+        "legacy-roadmap-flow",
+        "review-corrections"
       ],
       "scripts": [
-        "legacy-roadmap-flow-0"
+        "resize",
+        "legacy-roadmap-flow-0",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/RoadmapSurfaces.jsx",
         "packages/web/src/TableOfContents.jsx"
       ],
-      "notes": "Scope/depth/mode, edit restoration, accepted roadmap and chat/ToC transitions.",
+      "notes": "Scope/depth/mode, edit restoration, accepted roadmap and chat/ToC transitions. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
       "issues": [],
       "templates": [],
       "keywords": [],
       "path": "components/patterns/roadmap-flow",
-      "paletteRole": "historical"
+      "paletteRole": "balanced-card",
+      "catalogVisible": false
     },
     {
       "id": "patterns/source-navigation",
@@ -1526,23 +1710,27 @@
       "category": "patterns",
       "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/05-markdown-source-links.html",
       "source_file": "05-markdown-source-links.html",
-      "status": "behavior reference / older styling",
+      "status": "flow reference / current shell",
       "styles": [
-        "legacy-source-navigation"
+        "legacy-source-navigation",
+        "review-corrections"
       ],
       "scripts": [
-        "legacy-source-navigation-0"
+        "resize",
+        "legacy-source-navigation-0",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/FileDocMarkdown.jsx",
         "packages/web/src/LearningBlocks.jsx"
       ],
-      "notes": "Bidirectional prose/code/SVG/image/table source links and local scrolling.",
+      "notes": "Bidirectional prose/code/SVG/image/table source links and local scrolling. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
       "issues": [],
       "templates": [],
       "keywords": [],
       "path": "components/patterns/source-navigation",
-      "paletteRole": "historical"
+      "paletteRole": "balanced-card",
+      "catalogVisible": false
     },
     {
       "id": "patterns/standard-toss-drop-card",
@@ -1550,43 +1738,52 @@
       "category": "patterns",
       "source": "https://chatgpt.com/library?file_id=libfile_6112489040548191a9e1b9519276fb63&account_id=personal",
       "source_file": "standard-toss-drop-card.html",
-      "status": "behavior / workflow reference",
+      "status": "flow reference / current shell",
       "styles": [
-        "standard-toss-drop-card"
+        "standard-toss-drop-card",
+        "review-corrections"
       ],
       "scripts": [
+        "resize",
         "standard-toss-drop-card-0",
         "standard-toss-drop-card-1",
         "standard-toss-drop-card-2",
-        "standard-toss-drop-card-3"
+        "standard-toss-drop-card-3",
+        "review-corrections"
       ],
       "implementation": [],
-      "notes": "Preserved supplied workflow or behavior fixture. Its styling is historical and must not override current shared tokens.",
+      "notes": "Preserved supplied workflow or behavior fixture. Its styling is historical and must not override current shared tokens. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
       "issues": [
         "UI-05"
       ],
       "templates": [],
       "keywords": [],
       "path": "components/patterns/standard-toss-drop-card",
-      "paletteRole": "historical"
+      "paletteRole": "balanced-card",
+      "catalogVisible": false
     },
     {
       "id": "sources/document-headers",
-      "title": "Markdown and PDF headers",
+      "title": "Dropped document cards",
       "category": "sources",
       "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-source-header-and-chat-composer.html",
       "source_file": "rabbit-hole-source-header-and-chat-composer.html",
       "status": "static specimen",
       "styles": [
-        "source-headers"
+        "source-headers",
+        "card-shell",
+        "review-corrections"
       ],
-      "scripts": [],
+      "scripts": [
+        "resize",
+        "review-corrections"
+      ],
       "implementation": [
         "packages/web/src/FileDocCard.jsx",
         "packages/web/src/AdaptiveCanvas.jsx",
         "packages/web/src/FileDocMarkdown.jsx"
       ],
-      "notes": "Text-only blue document pills. Selection actions are visual examples, not wired app behavior.",
+      "notes": "Complete Markdown and PDF specimens with fixed header, full scrollable content and shared resize limits.",
       "issues": [],
       "templates": [],
       "keywords": [
@@ -1608,9 +1805,13 @@
       "source_file": "rabbit-hole-source-header-and-chat-composer.html",
       "status": "static specimen",
       "styles": [
-        "source-headers"
+        "source-headers",
+        "review-corrections"
       ],
-      "scripts": [],
+      "scripts": [
+        "resize",
+        "review-corrections"
+      ],
       "implementation": [
         "packages/web/src/FileDocCard.jsx",
         "packages/web/src/AdaptiveCanvas.jsx",
@@ -1633,6 +1834,44 @@
       "paletteRole": "shared"
     },
     {
+      "id": "tutor/chat-panel",
+      "title": "Chat panel",
+      "category": "tutor",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-source-header-and-chat-composer.html",
+      "source_file": "rabbit-hole-source-header-and-chat-composer.html",
+      "status": "reference",
+      "styles": [
+        "source-headers",
+        "composer",
+        "review-corrections",
+        "chat-panel"
+      ],
+      "scripts": [
+        "resize",
+        "composer",
+        "review-corrections",
+        "chat-panel"
+      ],
+      "implementation": [
+        "packages/web/src/ChatComposer.jsx"
+      ],
+      "notes": "Current chat panel review: no Jump to latest; secondary message actions on hover/focus; shared composer; acceptance removes Accept and Edit together; navigation stays on the same row. Local fixture responses only. Sidebar destinations are visual references.",
+      "issues": [],
+      "templates": [],
+      "keywords": [
+        "chat",
+        "sidebar",
+        "hover",
+        "accept",
+        "edit",
+        "go to card",
+        "message",
+        "composer"
+      ],
+      "path": "components/tutor/chat-panel",
+      "paletteRole": "shared"
+    },
+    {
       "id": "tutor/composer",
       "title": "Chat composer",
       "category": "tutor",
@@ -1641,15 +1880,18 @@
       "status": "reference",
       "styles": [
         "source-headers",
-        "composer"
+        "composer",
+        "review-corrections"
       ],
       "scripts": [
-        "composer"
+        "resize",
+        "composer",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/ChatComposer.jsx"
       ],
-      "notes": "Current aa2cfb1: textarea grows, capped body scrolls, footer actions and outlined grip stay visible. Arrow resize16 px; Shift48 px. Send/Stop use one rectangular action. Attach/Voice are preview-only.",
+      "notes": "Owner screenshot correction: one enclosing composer with borderless prompt, context chip and inline toolbar inside. Compact custom dropdowns replace boxed native selects. Green toggle; blue circular Send/Stop. Multiline scroll and keyboard/pointer resize retained. Model list, attachment and voice are preview-only.",
       "issues": [],
       "templates": [],
       "keywords": [
@@ -1673,10 +1915,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/SlotCard.jsx"
@@ -1696,10 +1941,14 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "card-shell",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/SlotCard.jsx"
@@ -1719,10 +1968,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/LearnProgress.jsx"
@@ -1742,10 +1994,14 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "card-shell",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/NextStepPill.jsx",
@@ -1768,10 +2024,13 @@
       "source_file": "rabbit-hole-interface-component-standards.html",
       "status": "reference",
       "styles": [
-        "standards"
+        "standards",
+        "review-corrections"
       ],
       "scripts": [
-        "standards"
+        "resize",
+        "standards",
+        "review-corrections"
       ],
       "implementation": [
         "packages/web/src/TableOfContents.jsx"

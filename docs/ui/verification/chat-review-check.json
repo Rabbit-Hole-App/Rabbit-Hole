@@ -1,0 +1,14 @@
+{
+  "result": "PASS",
+  "visible_components": 48,
+  "archived_flow_entries_hidden": 14,
+  "standalone_previews": 11,
+  "checks": [
+    "Acceptance actions share one row and disappear without confirmation text",
+    "All active resizers use shared installResize helper",
+    "Chat has no Jump to latest",
+    "48 embedded scripts parse and sprite IDs are unique",
+    "Flows excluded from visible catalog"
+  ],
+  "browser": "Not run; owner visual and interaction review pending."
+}

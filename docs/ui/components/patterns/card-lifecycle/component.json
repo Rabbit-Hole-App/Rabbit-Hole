@@ -4,21 +4,25 @@
   "category": "patterns",
   "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/02-canvas-card-skeleton.html",
   "source_file": "02-canvas-card-skeleton.html",
-  "status": "behavior reference / older styling",
+  "status": "flow reference / current shell",
   "styles": [
-    "legacy-card-lifecycle"
+    "legacy-card-lifecycle",
+    "review-corrections"
   ],
   "scripts": [
-    "legacy-card-lifecycle-0"
+    "resize",
+    "legacy-card-lifecycle-0",
+    "review-corrections"
   ],
   "implementation": [
     "packages/web/src/SlotCard.jsx",
     "packages/web/src/NextStepPill.jsx"
   ],
-  "notes": "Pending, accept/cancel, generating, delivery, next proposal and source jump.",
+  "notes": "Pending, accept/cancel, generating, delivery, next proposal and source jump. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
   "issues": [],
   "templates": [],
   "keywords": [],
   "path": "components/patterns/card-lifecycle",
-  "paletteRole": "historical"
+  "paletteRole": "balanced-card",
+  "catalogVisible": false
 }

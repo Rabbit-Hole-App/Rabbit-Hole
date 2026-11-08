@@ -1,18 +1,18 @@
 
 :root {
-  color-scheme: dark;
-  --surface: #191919;
-  --ink: #d4d4d4;
-  --ink-2: #a1a1a1;
-  --line: #2f2f2f;
-  --line-strong: #4a4a4a;
-  --scroll-thumb: #777777;
-  --hover: #2c2c2c;
-  --accent: #2383e2;
-  --blue-text: #add4ff;
+  color-scheme: light;
+  --surface: #fffefa;
+  --ink: #202723;
+  --ink-2: #5d675f;
+  --line: #dedfd8;
+  --line-strong: #c7cec0;
+  --scroll-thumb: #cfd5c7;
+  --hover: #eef1e9;
+  --accent: #375d92;
+  --blue-text: #375d92;
   --claude: #c15f3c;
   --claude-hover: #e2825d;
-  --inset: #212121;
+  --inset: #f6f8f4;
   --radius: 15px;
 }
 *, *::before, *::after { box-sizing: border-box; }
@@ -52,7 +52,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .product { display: block; color: var(--ink-2); font-size: 13px; }
 .page-head h1 {
   margin: 3px 0 0;
-  color: #eeeeee;
+  color: #202723;
   font-size: 30px;
   font-weight: 650;
   line-height: 1.18;
@@ -61,7 +61,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
 .page-head p { margin: 6px 0 0; color: var(--ink-2); font-size: 14px; }
 .examples { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .example { min-width: 0; }
-.example-title { margin: 0; padding: 0 27px; color: #eeeeee; font-size: 16px; font-weight: 650; }
+.example-title { margin: 0; padding: 0 27px; color: #202723; font-size: 16px; font-weight: 650; }
 .stage { position: relative; padding: 24px 27px 30px; }
 .card-wrap { position: relative; max-width: 550px; margin: 0 auto; }
 .card {
@@ -286,7 +286,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   place-items: center;
   border: 1px solid var(--line-strong);
   border-radius: 50%;
-  background: #222;
+  background: #f6f8f4;
   transition: transform 130ms ease, background-color 130ms ease, color 130ms ease;
 }
 .follow-up-toggle:is(:hover, :focus-visible) span {
@@ -305,7 +305,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   background: #232323;
   box-shadow: 0 5px 16px #0006;
 }
-.term-note strong { display: block; color: #eeeeee; font-size: 14px; }
+.term-note strong { display: block; color: #202723; font-size: 14px; }
 .term-note p { margin: 3px 0 9px; color: var(--ink); font-size: 13px; }
 .thread { display: grid; gap: 11px; }
 .thread:not(:empty) { margin-top: 13px; }

@@ -4,21 +4,25 @@
   "category": "patterns",
   "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/03-chat-roadmap.html",
   "source_file": "03-chat-roadmap.html",
-  "status": "behavior reference / older styling",
+  "status": "flow reference / current shell",
   "styles": [
-    "legacy-roadmap-flow"
+    "legacy-roadmap-flow",
+    "review-corrections"
   ],
   "scripts": [
-    "legacy-roadmap-flow-0"
+    "resize",
+    "legacy-roadmap-flow-0",
+    "review-corrections"
   ],
   "implementation": [
     "packages/web/src/RoadmapSurfaces.jsx",
     "packages/web/src/TableOfContents.jsx"
   ],
-  "notes": "Scope/depth/mode, edit restoration, accepted roadmap and chat/ToC transitions.",
+  "notes": "Scope/depth/mode, edit restoration, accepted roadmap and chat/ToC transitions. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
   "issues": [],
   "templates": [],
   "keywords": [],
   "path": "components/patterns/roadmap-flow",
-  "paletteRole": "historical"
+  "paletteRole": "balanced-card",
+  "catalogVisible": false
 }

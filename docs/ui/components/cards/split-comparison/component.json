@@ -6,11 +6,14 @@
   "source_file": "rabbit-hole-resizable-card-shell.html",
   "status": "reference",
   "styles": [
-    "card-shell"
+    "card-shell",
+    "review-corrections"
   ],
   "scripts": [
+    "resize",
     "card-shell",
-    "split-comparison"
+    "split-comparison",
+    "review-corrections"
   ],
   "implementation": [
     "packages/web/src/LearningBlocks.jsx",

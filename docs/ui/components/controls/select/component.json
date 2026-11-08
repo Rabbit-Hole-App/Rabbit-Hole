@@ -6,39 +6,27 @@
   "source_file": "rabbit-hole-card-component-kit.html",
   "status": "Register first",
   "styles": [
-    "control-kit"
+    "standards",
+    "review-corrections"
   ],
   "scripts": [
-    "control-kit",
-    "control-select"
+    "resize",
+    "standards",
+    "review-corrections"
   ],
   "implementation": [
     "packages/web/src/explain-program/ProgramScene.jsx"
   ],
-  "notes": "Use for longer labels or when too many segments would crowd the card. Renderer registration and persistence are separate from this HTML demo.",
+  "notes": "Approved custom app dropdown. No browser-native select UI and no dropdown inside teaching cards.",
   "issues": [
     "UI-07"
   ],
-  "templates": [
-    "kit/card-template",
-    "kit/range-template",
-    "kit/choice-template",
-    "kit/option-template",
-    "kit/button-template",
-    "kit/timeline-template",
-    "kit/select-template",
-    "kit/toggle-template",
-    "kit/stepper-template",
-    "kit/index-template",
-    "kit/disclosure-template",
-    "kit/readout-template",
-    "kit/sample-template"
-  ],
+  "templates": [],
   "keywords": [
     "input",
     "interaction",
     "select"
   ],
   "path": "components/controls/select",
-  "paletteRole": "experiment"
+  "paletteRole": "shared"
 }

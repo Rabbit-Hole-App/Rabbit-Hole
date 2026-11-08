@@ -1,16 +1,16 @@
 # Explanation Depth
 
-Stable ID: `patterns/explanation-depth` · Status: **behavior reference / older styling**
+Stable ID: `patterns/explanation-depth` · Status: **flow reference / current shell**
 
 [Open preview](preview.html) · [Markup](markup.html) · [Metadata](component.json) · [Original source](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/06-explanation-depth.html) · [Collection review](../../../REVIEW.md)
 
-Overview/Standard/Deep and keyboard tab navigation; preserve teaching content.
+Overview/Standard/Deep and keyboard tab navigation; preserve teaching content. Updated to the shared warm card shell and visible card controls; archived source retains provenance.
 
-Palette role: **historical**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Historical previews preserve their original palette. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
+Palette role: **balanced-card**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Flow previews use the current palette; linked archived sources preserve their original styling. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
 
 ## Edit and find
 
-Edit `markup.html` and `component.json` here. Shared styles: `styles/legacy-explanation-depth.css`. Behavior: `scripts/legacy-explanation-depth-0.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
+Edit `markup.html` and `component.json` here. Shared styles: `styles/legacy-explanation-depth.css`, `styles/review-corrections.css`. Behavior: `scripts/resize.js`, `scripts/legacy-explanation-depth-0.js`, `scripts/review-corrections.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
 
 Template dependencies: none.
 

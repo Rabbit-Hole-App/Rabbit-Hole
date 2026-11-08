@@ -2,6 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dropdown menu and popover · Rabbit Hole UI</title>
 <link rel="stylesheet" href="../../../styles/standards.css">
+<link rel="stylesheet" href="../../../styles/review-corrections.css">
 <link rel="stylesheet" href="../../../foundations/palette.css">
 <link rel="stylesheet" href="../../../styles/preview.css"></head>
 <body data-ui-palette="shared"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html">Source</a><p>reference — Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.</p></div>
@@ -16,11 +17,25 @@
       <button type="button" class="menu-item" data-demo-state="hover"><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Copy"></use></svg>Duplicate</button>
       <button type="button" class="menu-item" disabled><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ExternalLink"></use></svg>Open source</button>
       <hr>
-      <button type="button" class="menu-item danger" data-open-dialog="o-trash-dialog"><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Trash2"></use></svg>Move to Trash</button>
+      <button type="button" class="menu-item danger" data-open-dialog="o-trash-dialog"><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Trash2"></use></svg>Move to trash</button>
     </div>
   </details>
 </article>
-</div>
 
+<dialog class="dialog" id="o-trash-dialog" aria-labelledby="o-trash-title" aria-describedby="o-trash-description">
+    <div class="sample-row">
+      <h3 id="o-trash-title">Move to trash?</h3>
+      
+    </div>
+    <p class="muted" id="o-trash-description">The card will be removed from the canvas. You can restore it from Trash.</p>
+    <form method="dialog" class="sample-row">
+      
+      <button class="button danger" value="confirm" data-open-toast="success" data-toast-message="Card moved to Trash."><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Trash2"></use></svg>Move to trash</button>
+    <button class="button secondary" value="cancel" autofocus>Cancel</button></form>
+  </dialog>
+<div id="demo-toasts" class="toast-region" aria-live="polite"></div></div>
+
+<script src="../../../scripts/resize.js"></script>
 <script src="../../../scripts/standards.js"></script>
+<script src="../../../scripts/review-corrections.js"></script>
 </body></html>

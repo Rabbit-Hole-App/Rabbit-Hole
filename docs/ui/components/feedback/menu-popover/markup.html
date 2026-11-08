@@ -9,7 +9,20 @@
       <button type="button" class="menu-item" data-demo-state="hover"><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Copy"></use></svg>Duplicate</button>
       <button type="button" class="menu-item" disabled><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ExternalLink"></use></svg>Open source</button>
       <hr>
-      <button type="button" class="menu-item danger" data-open-dialog="o-trash-dialog"><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Trash2"></use></svg>Move to Trash</button>
+      <button type="button" class="menu-item danger" data-open-dialog="o-trash-dialog"><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Trash2"></use></svg>Move to trash</button>
     </div>
   </details>
 </article>
+
+<dialog class="dialog" id="o-trash-dialog" aria-labelledby="o-trash-title" aria-describedby="o-trash-description">
+    <div class="sample-row">
+      <h3 id="o-trash-title">Move to trash?</h3>
+      
+    </div>
+    <p class="muted" id="o-trash-description">The card will be removed from the canvas. You can restore it from Trash.</p>
+    <form method="dialog" class="sample-row">
+      
+      <button class="button danger" value="confirm" data-open-toast="success" data-toast-message="Card moved to Trash."><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Trash2"></use></svg>Move to trash</button>
+    <button class="button secondary" value="cancel" autofocus>Cancel</button></form>
+  </dialog>
+<div id="demo-toasts" class="toast-region" aria-live="polite"></div>

@@ -6,10 +6,14 @@
   "source_file": "rabbit-hole-interface-component-standards.html",
   "status": "reference",
   "styles": [
-    "standards"
+    "standards",
+    "card-shell",
+    "review-corrections"
   ],
   "scripts": [
-    "standards"
+    "resize",
+    "standards",
+    "review-corrections"
   ],
   "implementation": [
     "packages/web/src/SlotCard.jsx"

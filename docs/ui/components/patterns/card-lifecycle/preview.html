@@ -2,9 +2,10 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Card Lifecycle · Rabbit Hole UI</title>
 <link rel="stylesheet" href="../../../styles/legacy-card-lifecycle.css">
+<link rel="stylesheet" href="../../../styles/review-corrections.css">
 <link rel="stylesheet" href="../../../foundations/palette.css">
 <link rel="stylesheet" href="../../../styles/preview.css"></head>
-<body data-ui-palette="historical"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/02-canvas-card-skeleton.html">Source</a><p>behavior reference / older styling — Pending, accept/cancel, generating, delivery, next proposal and source jump.</p></div>
+<body data-ui-palette="balanced-card"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/02-canvas-card-skeleton.html">Source</a><p>flow reference / current shell — Pending, accept/cancel, generating, delivery, next proposal and source jump. Updated to the shared warm card shell and visible card controls; archived source retains provenance.</p></div>
 <div class="catalog-preview"><!-- Visual reference, not connected to Rabbit Hole. Reuses SlotCard's frame, 24px drag strip,
 12px radius, 16px padding and StepPill's 28px Accept [Tab] | Cancel, 8px beneath the frame.
 The same card remains mounted throughout pending → generating → delivered.
@@ -15,5 +16,7 @@ Preview buttons in the top header are demo controls only. -->
 <section class="aside" aria-label="Roadmap card"><article class="card" id="slot"><div class="handle"></div><div class="slot-body" id="content"></div></article><div id="actions"></div></section></div></main><div id="next" aria-label="Next card controls"></div><div id="announcement" aria-live="polite"></div>
 </div>
 
+<script src="../../../scripts/resize.js"></script>
 <script src="../../../scripts/legacy-card-lifecycle-0.js"></script>
+<script src="../../../scripts/review-corrections.js"></script>
 </body></html>

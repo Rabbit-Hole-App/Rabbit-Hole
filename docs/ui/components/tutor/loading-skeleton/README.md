@@ -6,11 +6,11 @@ Stable ID: `tutor/loading-skeleton` · Status: **reference**
 
 Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.
 
-Palette role: **shared**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Historical previews preserve their original palette. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
+Palette role: **shared**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Flow previews use the current palette; linked archived sources preserve their original styling. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
 
 ## Edit and find
 
-Edit `markup.html` and `component.json` here. Shared styles: `styles/standards.css`. Behavior: `scripts/standards.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
+Edit `markup.html` and `component.json` here. Shared styles: `styles/standards.css`, `styles/card-shell.css`, `styles/review-corrections.css`. Behavior: `scripts/resize.js`, `scripts/standards.js`, `scripts/review-corrections.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
 
 Template dependencies: none.
 

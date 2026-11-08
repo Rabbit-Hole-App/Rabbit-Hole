@@ -4,15 +4,18 @@
   "category": "patterns",
   "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/ca0affecfb39caf6790f4b2636f1ed3c2dd90800/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
   "source_file": "original ca0affe component kit",
-  "status": "palette reference / older geometry",
+  "status": "flow reference / current shell",
   "styles": [
-    "original-kit"
+    "original-kit",
+    "review-corrections"
   ],
   "scripts": [
-    "original-kit"
+    "resize",
+    "original-kit",
+    "review-corrections"
   ],
   "implementation": [],
-  "notes": "Owner-selected palette reference. Four cards and eleven controls; use current geometry and the balanced semantic role map when adopting. Attached copy matches apart from trailing whitespace.",
+  "notes": "Owner-selected palette reference. Four cards and eleven controls; use current geometry and the balanced semantic role map when adopting. Attached copy matches apart from trailing whitespace. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
   "issues": [
     "UI-11"
   ],
@@ -26,5 +29,6 @@
     "palette"
   ],
   "path": "components/patterns/original-component-kit",
-  "paletteRole": "historical"
+  "paletteRole": "balanced-card",
+  "catalogVisible": false
 }

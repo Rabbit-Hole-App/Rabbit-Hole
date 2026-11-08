@@ -8,13 +8,15 @@
   "styles": [
     "control-kit",
     "card-shell",
-    "kit-shell"
+    "kit-shell",
+    "review-corrections"
   ],
   "scripts": [
+    "resize",
     "control-kit",
     "impurity-metrics",
-    "resize",
-    "adopt-kit-shell"
+    "adopt-kit-shell",
+    "review-corrections"
   ],
   "implementation": [
     "packages/web/src/LearningBlocks.jsx",

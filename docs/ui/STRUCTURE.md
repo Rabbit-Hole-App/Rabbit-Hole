@@ -1,3 +1,5 @@
+> Current review corrections and exact resize limits: [REVIEW-UPDATES.md](REVIEW-UPDATES.md). These supersede conflicting archived decisions below.
+
 # Organization and maintenance decisions
 
 ## Goal
@@ -27,7 +29,8 @@ Alternatives considered: merely renaming the original monoliths would leave comp
 - [x] Add searchable catalog, README, source inventory and review findings.
 - [x] Apply explicit balanced-palette roles to current experiment specimens.
 - [x] Run deterministic checks and record results in VERIFICATION.md.
-- [x] Prepare reference assets for chatgpt/tutor without changing app runtime.
+- [x] Initial reference assets published on chatgpt/tutor in 2eddd1b.
+- [x] Prepare all subsequent owner-review corrections for publication on chatgpt/tutor.
 
 ## Review focus
 

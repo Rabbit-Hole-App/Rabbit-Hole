@@ -1,14 +1,14 @@
 
 :root {
-  color-scheme: dark;
-  --surface: #191919;
-  --ink: #d4d4d4;
-  --ink-2: #a1a1a1;
-  --line: #2f2f2f;
-  --line-strong: #4a4a4a;
-  --hover: #2c2c2c;
-  --select: #2383e2;
-  --code: #252525;
+  color-scheme: light;
+  --surface: #fffefa;
+  --ink: #202723;
+  --ink-2: #5d675f;
+  --line: #dedfd8;
+  --line-strong: #c7cec0;
+  --hover: #eef1e9;
+  --select: #375d92;
+  --code: #f6f8f4;
   --card-width: 550px;
 }
 * { box-sizing: border-box; }

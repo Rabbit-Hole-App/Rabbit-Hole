@@ -1,3 +1,7 @@
+# Current owner review
+
+See [REVIEW-UPDATES.md](../REVIEW-UPDATES.md): Interactive slash pills use Learn blue; only the Interactive card label keeps Claude red. Thumbs down and count badges use Claude red, selected stars use yellow, connectors and follow-up outlines use sage. Toggles remain green. These rules supersede conflicting older statements below.
+
 # Blue and Claude-red balance
 
 The owner's latest instruction returns to the balance in [the original ca0affe kit](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/ca0affecfb39caf6790f4b2636f1ed3c2dd90800/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html). The attached copy matches that file apart from trailing whitespace. This supersedes the later rule making every experiment control blue. It does not revert typography, rectangular Accept, composer scrolling or resizing.

@@ -1,14 +1,14 @@
 
 :root {
-  color-scheme: dark;
-  --surface: #191919;
-  --ink: #d4d4d4;
-  --ink-2: #a1a1a1;
+  color-scheme: light;
+  --surface: #fffefa;
+  --ink: #202723;
+  --ink-2: #5d675f;
   --ink-3: #6f6f6f;
-  --line: #2f2f2f;
-  --line-strong: #4a4a4a;
-  --hover: #2c2c2c;
-  --accent: #2383e2;
+  --line: #dedfd8;
+  --line-strong: #c7cec0;
+  --hover: #eef1e9;
+  --accent: #375d92;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -78,7 +78,7 @@ svg { display: block; flex-shrink: 0; fill: none; stroke: currentColor; stroke-w
 }
 @media (prefers-reduced-motion: reduce) { .disclosure svg { transition: none; } }
 
-:root { --frame-height: max(340px, min(650px, calc(100dvh - 40px))); --code: #252525; --selection: #2383e2; --mark: #80691666; --mark-edge: #a58b4c; }
+:root { --frame-height: max(340px, min(650px, calc(100dvh - 40px))); --code: #f6f8f4; --selection: #375d92; --mark: #80691666; --mark-edge: #a58b4c; }
 .canvas { display: grid; grid-template-columns: minmax(0, 470px) minmax(0, 550px); align-items: start; gap: 32px; }
 .canvas .card { width: 100%; }
 .markdown-card { display: flex; flex-direction: column; height: var(--frame-height); overflow: hidden; }

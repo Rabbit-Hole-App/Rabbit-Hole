@@ -175,6 +175,67 @@
     .design-spec code { white-space: nowrap; }
     .swatch { display: inline-block; width: 13px; height: 13px; margin-inline-end: 5px; vertical-align: -1px; border: 1px solid var(--card-border); border-radius: 3px; background: var(--swatch); }
   
+/* Owner review: one current card system across individual components and flows. */
+:root{--ui-scroll:#d5d9cf;--ui-scroll-hover:#bdc6b5;--ui-min-width:440px;--ui-max-width:960px;--ui-min-height:320px;--ui-max-height:760px;--scroll-thumb:#d5d9cf;--scroll-thumb-hover:#bdc6b5;--surface:#fffefa;--ink:#202723;--ink-2:#5d675f;--secondary:#5d675f;--line:#dedfd8;--inset:#f6f8f4;--accent:#426db2}
+html{color-scheme:light}body{background:#f5f4ed;color:#202723}
+*{scrollbar-width:thin!important;scrollbar-color:var(--ui-scroll) transparent!important}
+*::-webkit-scrollbar{width:7px;height:7px}*::-webkit-scrollbar-track{background:transparent}*::-webkit-scrollbar-thumb{background:var(--ui-scroll)!important;border:1px solid transparent;border-radius:99px;background-clip:padding-box}*::-webkit-scrollbar-thumb:hover{background:var(--ui-scroll-hover)!important}
+.catalog-preview,.clean-stage{overflow-x:auto}.examples{align-items:start}.examples:has(.teaching-card){grid-template-columns:1fr!important}
+.teaching-card:not(.rh-composer),.rh-current-card{--card-width:600px;--card-height:520px;--title-size:26.4px;--title-size-compact:26.4px;--card:#fffefa;--ink:#202723;--card-border:#dedfd8;width:var(--card-width)!important;min-width:440px!important;max-width:960px!important;max-height:min(760px,var(--card-height))!important;min-height:320px!important;box-sizing:border-box;position:relative;display:flex!important;flex-direction:column;background:#fffefa!important;border:1px solid #dedfd8!important;border-radius:18px!important;overflow:hidden;box-shadow:0 2px #e6e5de;container-type:normal!important;color:#202723}
+.rh-current-card .card-core{display:contents}
+.rh-current-card :is(.card-head,.card-header,.review-head),.teaching-card:not(.rh-composer)>.card-header{flex:none;background:#fffefa!important;border-bottom:1px solid #ecece6;padding:17px 24px 12px!important;color:#202723}
+.rh-current-card :is(.card-title,.review-head h1),.teaching-card:not(.rh-composer) .card-title{font-size:26.4px!important;line-height:1.17!important;font-weight:700!important;color:#202723!important;margin:9px 0 0;letter-spacing:-.023em;overflow-wrap:normal}
+.rh-current-card :is(.reading,.markdown-reading,.document,.slot-body,.card-body){flex:0 1 auto;min-height:0;overflow:auto;padding:14px 24px 24px;color:#202723;font-size:17px;line-height:1.55;background:#fffefa;max-height:none}
+.rh-current-card :is(.card-meta,.meta-row){display:flex;align-items:center;gap:12px;justify-content:space-between}
+.rh-current-card :is(.grip,.drag,.handle){display:none!important}
+.rh-current-card :is(.kind,.badge,.card-pill),.teaching-card .card-pill,.teaching-card .badge{display:inline-flex;align-items:center;min-height:26px;padding:2px 11px;border:0;border-radius:999px;font:700 13px/1.45 Inter,Arial,sans-serif;background:#eaf1fb!important;color:#375d92!important;width:fit-content}
+.rh-current-card .ui-interactive,.teaching-card .card-pill.interactive,.teaching-card .badge.interactive{background:#f8ece3!important;color:#934723!important}
+.rh-current-card :is(.kind,.badge) :is(svg,.dot){display:none!important}
+.rh-current-card :is(.source,.muted,.source-name){color:#5d675f!important}
+.teaching-card:not(.rh-composer) :is(.card-body,.card-visual,.scene){overflow:auto}
+.teaching-card:not(.rh-composer) :is(.card-visual,.scene)>:is(svg,img){min-width:var(--visual-min-width,520px);max-width:none!important;transform:none!important}
+.teaching-card :is(.card-copy,.card-why){font-size:18px!important}.teaching-card :is(.choice-text,.button,.control-label){font-size:13px!important;flex-shrink:0}.teaching-card .card-title{font-size:26.4px!important}
+.teaching-card .action-row{flex-wrap:nowrap;overflow:auto;align-items:center}.teaching-card .example-stat{display:grid;grid-template-columns:repeat(2,minmax(150px,1fr))}.teaching-card .stat{min-width:150px}.teaching-card .readout{min-width:340px}
+.ui-resize{position:absolute;right:3px;bottom:3px;width:25px;height:25px;border:0;border-radius:6px;background:#fffefa;color:#87947b;display:grid;place-items:center;cursor:nwse-resize;touch-action:none;z-index:3}.ui-resize:focus-visible{outline:2px solid #426db2;outline-offset:-2px}
+.command-group .pill.command{color:#375d92!important;background:#eaf1fb!important}.command-group .pill.search{color:#5d675f!important;background:#edf0e8!important}
+.ui-select{border:0!important;box-shadow:none!important;background:transparent!important;padding:0!important;position:relative;min-width:180px}.ui-select>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;list-style:none}.ui-select>summary::-webkit-details-marker{display:none}.ui-select>.menu{position:absolute;top:100%;left:0;z-index:20;min-width:100%;background:#fffefa}.ui-select .menu-item{white-space:nowrap}
+.ui-choices{display:flex;flex-wrap:wrap;gap:6px}.ui-choices button{border:1px solid #dedfd8;background:#fffefa;color:#5d675f;border-radius:8px;padding:7px 10px;font:600 13px/1.45 Inter,Arial,sans-serif}.ui-choices button[aria-pressed=true]{color:#934723;background:#f8ece3;border-color:#d7a383}
+button.ui-star[aria-pressed=true] svg{color:#a87812!important;fill:#e8ba48!important}
+button.ui-down,.icon-button.feedback[data-feedback="Still unclear"]{color:#b86232!important}button.ui-down[aria-pressed=true],.icon-button.feedback[data-feedback="Still unclear"][aria-pressed=true]{color:#934723!important;background:#f8ece3!important;border-color:#d7a383!important}
+button.ui-draw:active,button.ui-draw.is-pressed{background:#eac6ad!important;border-color:#c68c67!important;color:#743b22!important;box-shadow:inset 0 1px 2px #743b2220}button.ui-draw{transition:background-color 100ms,border-color 100ms}
+.proposal-stack{width:fit-content;max-width:none;margin:18px 0 26px}.acceptance-pill{display:flex;width:fit-content;align-items:stretch;margin:10px auto 0;border:1px solid #adc4e5;background:#fffefa;border-radius:999px;overflow:hidden;box-shadow:0 2px 6px #2027230a}.acceptance-pill button{min-height:35px;padding:6px 15px;border:0;background:transparent;font:600 13px/1.45 Inter,Arial,sans-serif;color:#5d675f;border-radius:0}.acceptance-pill button:first-child{background:#eaf1fb;color:#375d92;border-right:1px solid #adc4e5}.acceptance-pill button:hover{background:#edf0e8}.acceptance-pill button:first-child:hover{background:#dde9f8}.acceptance-pill kbd{font:inherit;font-size:11px;padding:1px 4px;margin-left:5px;border:1px solid #adc4e5;border-radius:4px}.approval-result{display:block;text-align:center;margin-top:8px;font-size:13px;color:#5d675f}.chat-proposal{padding:16px;background:#f6f8f4;border:1px solid #e3e7e0;border-radius:12px}.chat-result{font-size:13px;color:#5d675f}
+.skeleton.spacious{display:grid;gap:18px;padding-block:25px 34px;min-height:215px}.skeleton-visual{height:90px;border-radius:10px;background:#edf0e8}.generation-status{display:flex;align-items:center;gap:10px;padding:20px 0}
+.count-badge{display:inline-grid;place-items:center;min-width:21px;height:21px;padding:0 5px;border-radius:50%;background:#b86232;color:#fffefa;font:700 11px/1 Inter,Arial,sans-serif;flex:none}.badge-host{position:relative}.badge-host>.count-badge{position:absolute;right:-6px;top:-6px}.comment-thread{margin-top:22px;padding:18px;border:1px solid #dedfd8;border-radius:12px;background:#fffefa}.comment{display:flex;align-items:flex-start;gap:10px}.comment p{font-size:15px;line-height:1.5;margin:7px 0}.comment time{font-size:12px;color:#798373}.avatar{width:28px;height:28px;display:grid;place-items:center;flex:none;border-radius:50%;background:#edf0e8;color:#5d675f;font-size:12px}.replies{margin:14px 0 14px 14px;padding-left:22px;border-left:2px solid #dedfd8}.reply-form{display:grid;gap:8px}.reply-form textarea{border:1px solid #dedfd8;border-radius:8px;padding:10px;background:#fffefa;color:#202723;font:15px/1.5 Inter,Arial,sans-serif;resize:vertical}.reply-form button{justify-self:end}.reply-status{color:#5d675f;font-size:13px}
+.tooltip-preview .tooltip{visibility:visible!important;opacity:1!important}.tooltip{background:#394334!important;color:#fffefa!important}
+.pdf-page{background:#fffefa;border:1px solid #e3e7e0;padding:24px;margin-bottom:14px;min-height:430px}.page-counter{font-size:12px;color:#7c8575;text-align:right}.markdown-document,.pdf-page{font-size:17px;line-height:1.6}.markdown-document h4,.pdf-page h4{font-size:20px;margin:18px 0 8px}.source-card .card-body{padding:18px 24px 25px}.source-card .card-header h3{margin-top:8px}
+/* Follow-up and links between cards use quiet sage, never the old saturated blue. */
+:where(.stage,.card-wrap) :is(.connector,.follow-up-toggle span){background:#879b76!important;border-color:#d5ddce!important;color:#fffefa!important}.branch-link path,.connector-line{stroke:#a9b89b!important}.composer:not(.rh-form){background:#fffefa!important;border-color:#cbd4c2!important;color:#202723!important;box-shadow:none!important;border-radius:12px!important}.composer:not(.rh-form):focus-within{border-color:#92a481!important;box-shadow:0 0 0 2px #e9eee3!important}.composer:not(.rh-form) input{background:transparent!important;color:#202723!important}.composer:not(.rh-form) .send{background:#375d92!important;color:#fffefa!important}.suggestion-row,.thread-turn,.term-note,.diagram-surface{background:#f6f8f4!important;color:#202723!important;border-color:#dedfd8!important}.term{color:#934723!important}.question-copy{color:#202723!important}
+.ui-followup-example{margin-top:24px;width:600px}.ui-followup-example .composer{display:flex;gap:12px;padding:10px;border:1px solid #cbd4c2}.ui-followup-example input{flex:1;min-width:0;border:0;outline:0;font:15px/1.5 Inter,Arial,sans-serif}.ui-followup-example button{width:35px;height:35px;border:0;border-radius:50%;background:#375d92;color:white}.ui-connector-example{display:flex;justify-content:center;align-items:center;height:42px;color:#879b76}.ui-connector-example:before,.ui-connector-example:after{content:"";width:45px;height:2px;background:#a9b89b}.ui-connector-example span{display:grid;place-items:center;border:1px solid #a9b89b;width:24px;height:24px;border-radius:50%;background:#edf2e7}
+
+.rh-current-card .ui-card-content{flex:0 1 auto;overflow:auto;min-height:0;padding:14px 24px 24px;font-size:17px;line-height:1.55}
+.rh-current-card svg text{fill:#202723}.rh-current-card .diagram-surface svg text{fill:#202723}.rh-current-card .source-card{min-width:0}
+.ui-current-flow{background:#f5f4ed!important;color:#202723!important}.ui-current-flow :is(.page-head h1,.page-head h2,.example-title,.diagram-heading){color:#202723!important}
+.ui-current-flow :is(.card-meta,.meta-row,.card-foot,.review-foot){background:#fffefa!important;border-color:#dedfd8!important}
+.ui-current-flow :is(.panel,.message,.parameters,.thread,.panel-header,.chat-header,.toc-header,.conversation){background:#fffefa!important;color:#202723!important;border-color:#dedfd8!important}
+.ui-current-flow :is(.page,.canvas,.demo-canvas,.board){background:transparent!important}.ui-current-flow :is(.connector,.follow-up-toggle span){background:#879b76!important;border-color:#d5ddce!important}.ui-current-flow .branch-link path{stroke:#a9b89b!important}
+.rh-composer{min-width:360px!important;max-width:960px!important}.rh-composer .rh-draft{scrollbar-color:#d5d9cf transparent!important}
+
+/* Shared Cards grip: one geometry, glyph and state table everywhere. */
+:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel) .resize-handle{position:absolute!important;right:2px!important;bottom:2px!important;display:grid!important;place-items:center;width:26px!important;height:26px!important;min-height:26px!important;padding:0!important;border:1px solid transparent!important;border-radius:7px!important;background:#fffefa!important;color:#5d675f!important;cursor:nwse-resize;touch-action:none;z-index:4}
+:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel) .resize-handle svg{width:14px!important;height:14px!important;fill:none;stroke:currentColor;stroke-width:1.4}
+:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel) .resize-handle:hover{color:#375d92!important;background:#eaf1fb!important;border-color:#adc4e5!important}
+:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel) .resize-handle:active,:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel).is-resizing .resize-handle{color:#375d92!important;background:#d0e0f4!important;border-color:#adc4e5!important}
+:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel) .resize-handle:focus-visible{outline:2px solid #426db2!important;outline-offset:-2px!important}
+.rh-composer .rh-form{padding-bottom:30px}.rh-composer[data-embedded] .rh-form{padding-bottom:14px}
+.chat-proposal>.sample-row{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto}.chat-proposal>.sample-row button{flex:none;white-space:nowrap}.chat-proposal>.sample-row .icon{width:18px;height:18px;flex:none}
+.ui-followup-example{width:600px;max-width:100%;margin-top:0}.ui-connector-example{height:30px}.ui-connector-example:before{width:0}.ui-connector-example:after{width:1px;height:30px;background:#a9b89b;position:absolute;z-index:-1}.ui-connector-example{position:relative;isolation:isolate}.ui-connector-example span{width:22px;height:22px;font-size:15px;line-height:1}
+.ui-followup-example .followup-composer{display:flex;align-items:center;gap:10px;min-height:48px;padding:7px 10px;border:1px solid #cbd4c2;background:#fffefa;border-radius:12px;box-shadow:none}
+.ui-followup-example .followup-composer:focus-within{border-color:#92a481;outline:2px solid #e9eee3;outline-offset:0}
+.ui-followup-example .followup-composer input{flex:1;width:auto;min-width:0;padding:4px 5px;border:0;outline:0;background:transparent;color:#202723;font:15px/1.45 Inter,Arial,sans-serif}
+.ui-followup-example .followup-send{width:32px;height:32px;min-width:32px;flex:none;padding:0;border:0;border-radius:50%;display:grid;place-items:center;background:#375d92;color:#fffefa}
+.ui-followup-example .followup-send .icon{display:block;width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ui-followup-example .followup-send:hover:enabled{background:#2b4b78}.ui-followup-example .followup-send:disabled{opacity:.45;cursor:not-allowed}.followup-message{font-size:15px;color:#202723}
+
 /* Current balance, following the owner's return to ca0affe as the color reference.
    Scope colors by purpose; never recolor the entire card or app from its pill. */
 :root {
@@ -321,22 +382,24 @@ main.clean-stage { max-width:1020px; margin:0 auto; padding:28px 20px; }
     </fieldset>
   </template>
 <script>
-function cardSize(width, height, availableWidth) {
-  const maxWidth = Math.max(0, availableWidth);
+function cardSize(width, height, availableWidth, limits = {}) {
+  const maxWidth = Math.min(960, Math.max(limits.minWidth || 440, availableWidth));
   return {
-    width: Math.min(maxWidth, Math.max(300, width)),
-    height: Math.min(760, Math.max(245, height)),
+    width: Math.min(maxWidth, Math.max(limits.minWidth || 440, width)),
+    height: Math.min(760, Math.max(limits.minHeight || 320, height)),
   };
 }
 
 function installResize(card, handle) {
+  if (!handle || handle.dataset.resizeBound) return;
+  handle.dataset.resizeBound = 'true';
   let drag = null;
 
   function setSize(width, height) {
     const parent = card.parentElement;
     const style = getComputedStyle(parent);
     const padding = (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);
-    const size = cardSize(width, height, parent.clientWidth - padding);
+    const size = cardSize(width, height, parent.clientWidth - padding, card.matches(".rh-composer") ? {minWidth:360,minHeight:170} : {});
     card.style.setProperty('--card-width', `${size.width}px`);
     card.style.setProperty('--card-height', `${size.height}px`);
   }
@@ -383,7 +446,8 @@ function installResize(card, handle) {
   });
 }
 
-    const getTemplate = id => document.getElementById(id).content.firstElementChild.cloneNode(true);
+
+const getTemplate = id => document.getElementById(id).content.firstElementChild.cloneNode(true);
     let cardId = 0;
 
     // The visual and the controls are independent slots. The shell owns dimensions and scroll.
@@ -445,6 +509,72 @@ function installResize(card, handle) {
     });
     showExample('/explain · Raster image', explanation);
 
+
+(() => {
+ document.body.classList.toggle('ui-current-flow',!!document.querySelector('.stage,.canvas,.review,.panel,.demo-canvas'));
+ const focusIcon='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M14 9h3v3m0-3-6 6"/></svg>';
+ function resize(card){
+  let handle=card.querySelector(':scope > .resize-handle') || card.querySelector('.resize-handle');
+  if(!handle){handle=document.createElement('button');handle.type='button';handle.className='resize-handle';handle.setAttribute('aria-label','Resize card');handle.title='Resize card';card.append(handle);}
+  if(!handle.dataset.sharedGrip){handle.dataset.sharedGrip='true';handle.innerHTML='<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 12 12 3M8 12 12 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';}
+  installResize(card,handle);
+ }
+ function upgradeSelect(select){
+  if(select.dataset.uiReplaced)return;select.dataset.uiReplaced='true';select.hidden=true;select.tabIndex=-1;select.setAttribute('aria-hidden','true');
+  const inCard=!!select.closest('.card,.teaching-card,.review,.parameters');const wrapper=document.createElement(inCard?'div':'details');wrapper.className=inCard?'ui-choices':'popover ui-select';wrapper.setAttribute('aria-label',select.getAttribute('aria-label')||select.labels?.[0]?.textContent?.trim()||'Choose an option');
+  let options=wrapper,current;
+  if(!inCard){const summary=document.createElement('summary');summary.className='button secondary';current=document.createElement('span');current.textContent=select.selectedOptions[0]?.textContent;summary.append(current);summary.insertAdjacentHTML('beforeend','<span aria-hidden="true">⌄</span>');options=document.createElement('div');options.className='menu';wrapper.append(summary,options);}
+  for(const option of select.options){const button=document.createElement('button');button.type='button';button.className=inCard?'':'menu-item';button.textContent=option.textContent;button.disabled=option.disabled;button.setAttribute('aria-pressed',String(option.selected));button.addEventListener('click',()=>{select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));options.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));if(current){current.textContent=option.textContent;wrapper.open=false;}});options.append(button);}select.after(wrapper);
+ }
+ function refresh(){
+  document.querySelectorAll('select').forEach(upgradeSelect);
+  document.querySelectorAll('.rh-composer:not([data-embedded]),.rh-chat-panel').forEach(resize);
+  document.querySelectorAll('.teaching-card:not(.rh-composer),article.card,article.review').forEach(card=>{
+   if(!card.classList.contains('rh-current-card')){
+    card.classList.add('rh-current-card');card.dataset.minWidth='440';card.dataset.maxWidth='960';card.dataset.minHeight='320';card.dataset.maxHeight='760';
+    // Existing headers and listeners remain mounted; only cards missing a header receive one.
+    if(!card.querySelector('.card-head,.card-header,.review-head')){const title=card.querySelector('h1,h2,h3,h4,.filename');const h=document.createElement('header');h.className='card-header';const pill=document.createElement('span');pill.className='card-pill';pill.textContent=card.matches('.markdown-card,#source')?'Markdown':'Explanation';h.append(pill);if(title){title.classList.add('card-title');h.append(title);}card.prepend(h);}
+   }
+   const kitTitle=card.querySelector(':scope > h3');const kitHeader=card.querySelector(':scope > .card-header');if(kitTitle&&kitHeader){kitTitle.classList.add('card-title');kitHeader.append(kitTitle);}
+   if(!card.querySelector('.reading,.markdown-reading,.document,.slot-body,.card-body,.ui-card-content')&&card.children.length>1){const content=document.createElement('div');content.className='ui-card-content';for(const child of [...card.children])if(!child.matches('.card-head,.card-header,.review-head,.resize-handle,.ui-resize'))content.append(child);card.append(content);}
+   const header=card.querySelector('.card-head,.card-header,.review-head');const directTitle=[...card.children].find(n=>/^H[1-4]$/.test(n.tagName));if(header&&directTitle){directTitle.classList.add('card-title');header.append(directTitle);}
+   if(card.id==='slot'){const nextTitle=card.querySelector('.slot-body h3');if(nextTitle&&header){let title=header.querySelector('.card-title');if(!title){title=document.createElement('h3');title.className='card-title';header.append(title);}title.textContent=nextTitle.textContent;nextTitle.remove();}}
+   card.querySelectorAll('details').forEach(details=>{details.open=true;const summary=details.querySelector('summary');if(summary)summary.hidden=true;});
+   card.querySelectorAll('.kind,.badge,.card-pill').forEach(pill=>{if(pill.textContent.trim()==='Interactive')pill.classList.add('ui-interactive');});resize(card);
+   card.querySelectorAll('button[data-reveal]').forEach(b=>{b.hidden=true;const target=document.getElementById(b.getAttribute('aria-controls'));if(target)target.hidden=false;});
+   card.querySelectorAll('.card-visual>svg,.scene>svg').forEach(svg=>{const width=svg.viewBox?.baseVal?.width;if(width)svg.style.setProperty('--visual-min-width',Math.max(520,width)+'px');});
+  });
+  document.querySelectorAll('button').forEach(button=>{
+   const label=(button.getAttribute('aria-label')||button.title||button.textContent).trim();
+   if(button.querySelector('use[href$="Star"]'))button.classList.add('ui-star');
+   if(/Still unclear|Thumbs down/i.test(label)||button.querySelector('use[href$="ThumbsDown"]'))button.classList.add('ui-down');
+   if(button.textContent.trim()==='Generate'&&button.closest('.review'))button.textContent='Accept';
+   if(button.textContent.trim()==='Edit'&&button.closest('.review'))button.textContent='Edit card';
+   if(button.textContent.trim()==='Draw again')button.classList.add('ui-draw');
+   if((/^(Go to card|View card)/i.test(label))&&!button.dataset.uiFocus){button.dataset.uiFocus='true';const svg=button.querySelector('svg');if(svg)svg.outerHTML=focusIcon;else if(button.textContent.trim()==='↗')button.innerHTML=focusIcon;}
+  });
+ }
+ // Populate the formerly code-only contracts with concrete current-card content.
+ const template=document.getElementById('generated-card-shell');
+ if(template&&!document.querySelector('[data-generated-card]:not(template *)')){
+  const frag=template.content.cloneNode(true);const kind=frag.querySelector('[data-slot=kind]'),title=frag.querySelector('[data-slot=title]'),answer=frag.querySelector('[data-slot=answer]');if(kind)kind.textContent='Explanation';if(title)title.textContent='Follow one decision path';if(answer)answer.innerHTML='<p>A tree asks one question at a time. Follow the answer until you reach a prediction.</p>';document.querySelector('.catalog-preview')?.append(frag);
+ }
+ const reviewTemplate=document.getElementById('generation-review-shell');
+ if(reviewTemplate&&document.querySelectorAll('article.review').length===0){const frag=reviewTemplate.content.cloneNode(true);frag.querySelector('[data-slot=command-label]')?.replaceChildren(document.createTextNode('Interactive'));frag.querySelector('[data-slot=title]')?.replaceChildren(document.createTextNode('Explore a decision tree'));const summary=frag.querySelector('[data-slot=summary]');if(summary){summary.hidden=false;summary.textContent='Change one parameter and see how the decision changes.';}document.querySelector('.catalog-preview')?.append(frag);}
+ document.addEventListener('click',event=>{
+  const button=event.target.closest('button');if(!button)return;
+  if(button.hasAttribute('data-menu-value')){const menu=button.closest('details');menu.querySelector('[data-current]').textContent=button.dataset.menuValue;menu.querySelectorAll('[data-menu-value]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));menu.open=false;menu.querySelector('summary').focus();}
+  if(button.dataset.approve){const parent=button.closest('.proposal-stack,.specimen');const output=parent.querySelector('.approval-result');if(output)output.remove();button.closest('.acceptance-pill').hidden=true;}
+  if(button.hasAttribute('data-chat-approve')){const box=button.closest('.chat-proposal');box.querySelectorAll('[data-chat-approve],[data-chat-edit],.chat-result').forEach(n=>n.remove());}
+  if(button.hasAttribute('data-chat-edit')){const box=button.closest('.chat-proposal');if(!box.querySelector('textarea')){const input=document.createElement('textarea');input.setAttribute('aria-label','Edit card instructions');input.placeholder='Describe your changes…';input.style.cssText='width:100%;padding:10px;border:1px solid #dedfd8;border-radius:8px;font:15px/1.5 sans-serif';box.append(input);input.focus();}}
+  if(button.hasAttribute('data-reply-focus'))button.closest('.comment-thread').querySelector('textarea').focus();
+ });
+ document.addEventListener('keydown',event=>{if(event.key==='Tab'&&!event.shiftKey&&!event.ctrlKey&&!event.metaKey&&(event.target===document.body||event.target.closest('.proposal-stack .teaching-card'))){const accept=document.querySelector('.acceptance-pill:not([hidden]) [data-approve=accept]');if(accept){event.preventDefault();accept.click();}}if(event.key==='Escape')document.querySelectorAll('details.ui-select[open]').forEach(d=>{d.open=false;d.querySelector('summary').focus();});});
+ document.querySelectorAll('[data-followup-form]').forEach(form=>{const input=form.querySelector('input'),send=form.querySelector('button[type=submit]');send.disabled=!input.value.trim();input.addEventListener('input',()=>send.disabled=!input.value.trim());});
+ document.querySelectorAll('[data-followup-form]').forEach(form=>form.addEventListener('submit',e=>{e.preventDefault();const input=form.querySelector('input');if(!input.value.trim())return;const message=document.createElement('p');message.className='followup-message';message.textContent=input.value.trim();form.before(message);input.value='';form.querySelector('button[type=submit]').disabled=true;}));
+ document.querySelectorAll('.reply-form').forEach(form=>form.addEventListener('submit',e=>{e.preventDefault();const input=form.querySelector('textarea');if(!input.value.trim())return;const reply=document.createElement('article');reply.className='comment';const avatar=document.createElement('div');avatar.className='avatar';avatar.textContent='Y';const body=document.createElement('div');const name=document.createElement('strong');name.textContent='You';const time=document.createElement('time');time.textContent=' · Just now';const text=document.createElement('p');text.textContent=input.value.trim();body.append(name,time,text);reply.append(avatar,body);form.closest('.comment-thread').querySelector('.replies').append(reply);input.value='';form.closest('.comment-thread').querySelector('.reply-status').textContent='Reply posted in this preview.';}));
+ refresh();let scheduled=false;new MutationObserver(records=>{if(scheduled||!records.some(r=>r.addedNodes.length))return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;refresh();});}).observe(document.body,{childList:true,subtree:true});
+})();
 </script>
 <!--  Lucide React 1.41.0 icon notices
 ISC License

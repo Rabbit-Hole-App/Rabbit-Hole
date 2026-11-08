@@ -1,16 +1,16 @@
 # Generated Card Contract
 
-Stable ID: `patterns/generated-card-contract` · Status: **behavior reference / older styling**
+Stable ID: `patterns/generated-card-contract` · Status: **flow reference / current shell**
 
 [Open preview](preview.html) · [Markup](markup.html) · [Metadata](component.json) · [Original source](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/generated-card-shell.html) · [Collection review](../../../REVIEW.md)
 
-Host-populated slots for source/title/body/thread/suggestions/term popup/follow-up. Not an autonomous demo.
+Host-populated slots for source/title/body/thread/suggestions/term popup/follow-up. Not an autonomous demo. Updated to the shared warm card shell and visible card controls; archived source retains provenance.
 
-Palette role: **historical**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Historical previews preserve their original palette. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
+Palette role: **balanced-card**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Flow previews use the current palette; linked archived sources preserve their original styling. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
 
 ## Edit and find
 
-Edit `markup.html` and `component.json` here. Shared styles: `styles/legacy-generated-card-contract.css`. Behavior: static/native HTML only. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
+Edit `markup.html` and `component.json` here. Shared styles: `styles/legacy-generated-card-contract.css`, `styles/review-corrections.css`. Behavior: `scripts/resize.js`, `scripts/review-corrections.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
 
 Template dependencies: none.
 

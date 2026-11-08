@@ -1,3 +1,5 @@
+> Current review corrections and exact resize limits: [REVIEW-UPDATES.md](REVIEW-UPDATES.md). These supersede conflicting archived decisions below.
+
 # Verification
 
 ## Scope
@@ -16,7 +18,7 @@ python docs/ui/scripts/check.py
 
 The checker verifies the registry, component dependencies, unique HTML IDs, local preview asset links and SVG symbols, known shared template dependencies, JavaScript syntax with Node, palette metadata, source aliases and mapping path existence when a repository-tree receipt is present. It also checks that the documented critical source fixtures are retained.
 
-Source checks passed on 2026-11-08: 60 catalog entries, 37 shared JavaScript files and 10 self-contained previews. The exports pass embedded-asset, duplicate-ID, accessibility ID-reference and combined JavaScript syntax checks. See [machine-readable receipt](verification/structural-check.json).
+Source checks passed on 2026-11-08: 61 catalog entries, 38 shared JavaScript files and 10 self-contained previews. The exports pass embedded-asset, duplicate-ID, accessibility ID-reference and combined JavaScript syntax checks. See [machine-readable receipt](verification/structural-check.json).
 
 Four warnings concern `accept`, `cancel`, `cancelnext` and `nextcard` in the historical lifecycle flow. These IDs are created by its render strings; the static scanner cannot see the generated DOM. They are retained as warnings, not hidden or counted as browser verification.
 

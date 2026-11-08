@@ -13,7 +13,8 @@ EXPORTS=[
  ('07-chat-composer','tutor/composer'),
  ('08-markdown-header','sources/document-headers'),
  ('09-pdf-header','sources/document-headers'),
- ('10-green-toggle','controls/toggle')]
+ ('10-green-toggle','controls/toggle'),
+ ('11-chat-panel','tutor/chat-panel')]
 def main():
  out=ROOT/'clean';out.mkdir(exist_ok=True)
  for filename,ident in EXPORTS:
@@ -24,9 +25,13 @@ def main():
   scripts='\n'.join((ROOT/'scripts'/(s+'.js')).read_text() for s in c['scripts'])
   # Every sprite is embedded so files work standalone without network or neighboring files.
   sprites=set(re.findall(r'\.\./\.\./\.\./icons/([\w-]+)\.svg#',markup+scripts))
-  symbols=''.join(re.sub(r'^<svg[^>]*>|</svg>$','',(ROOT/'icons'/(s+'.svg')).read_text()) for s in sorted(sprites))
-  markup=re.sub(r'\.\./\.\./\.\./icons/[\w-]+\.svg#','#',markup)
-  scripts=re.sub(r'\.\./\.\./\.\./icons/[\w-]+\.svg#','#',scripts)
+  symbols=''
+  for sprite in sorted(sprites):
+   svg=re.sub(r'^<svg[^>]*>|</svg>$','',(ROOT/'icons'/(sprite+'.svg')).read_text())
+   svg=re.sub(r'id="([^"]+)"',lambda m:'id="'+sprite+'--'+m[1]+'"',svg)
+   symbols+=svg
+  markup=re.sub(r'\.\./\.\./\.\./icons/([\w-]+)\.svg#',lambda m:'#'+m[1]+'--',markup)
+  scripts=re.sub(r'\.\./\.\./\.\./icons/([\w-]+)\.svg#',lambda m:'#'+m[1]+'--',scripts)
   # The teaching example label is documentation chrome, not part of the card.
   scripts=scripts.replace('demo.append(name, card.node);','demo.append(card.node);')
   if ident=='sources/document-headers':

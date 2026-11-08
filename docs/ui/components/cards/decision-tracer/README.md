@@ -6,11 +6,11 @@ Stable ID: `cards/decision-tracer` · Status: **reference**
 
 Content-limited shared shell, pinned header, scroll body, SVG/raster examples. Applicant selector updates path and Why. The separate decision-tree-card-templates Library file is an alias of this source.
 
-Palette role: **balanced-card**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Historical previews preserve their original palette. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
+Palette role: **balanced-card**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Flow previews use the current palette; linked archived sources preserve their original styling. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
 
 ## Edit and find
 
-Edit `markup.html` and `component.json` here. Shared styles: `styles/card-shell.css`. Behavior: `scripts/card-shell.js`, `scripts/decision-tracer.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
+Edit `markup.html` and `component.json` here. Shared styles: `styles/card-shell.css`, `styles/review-corrections.css`. Behavior: `scripts/resize.js`, `scripts/card-shell.js`, `scripts/decision-tracer.js`, `scripts/review-corrections.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
 
 Template dependencies: `templates/shell/card-shell.html`, `templates/shell/image-example.html`, `templates/shell/svg-example.html`, `templates/shell/applicant-control.html`.
 

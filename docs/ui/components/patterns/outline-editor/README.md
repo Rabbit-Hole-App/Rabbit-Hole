@@ -1,16 +1,16 @@
 # Outline Editor
 
-Stable ID: `patterns/outline-editor` · Status: **behavior reference / older styling**
+Stable ID: `patterns/outline-editor` · Status: **flow reference / current shell**
 
 [Open preview](preview.html) · [Markup](markup.html) · [Metadata](component.json) · [Original source](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/01-table-of-contents.html) · [Collection review](../../../REVIEW.md)
 
-Hierarchy, add/edit/fold and manual completion; keep behavior, reconcile old styling.
+Hierarchy, add/edit/fold and manual completion; keep behavior, reconcile old styling. Updated to the shared warm card shell and visible card controls; archived source retains provenance.
 
-Palette role: **historical**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Historical previews preserve their original palette. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
+Palette role: **balanced-card**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Flow previews use the current palette; linked archived sources preserve their original styling. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
 
 ## Edit and find
 
-Edit `markup.html` and `component.json` here. Shared styles: `styles/legacy-outline-editor.css`. Behavior: `scripts/legacy-outline-editor-0.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
+Edit `markup.html` and `component.json` here. Shared styles: `styles/legacy-outline-editor.css`, `styles/review-corrections.css`. Behavior: `scripts/resize.js`, `scripts/legacy-outline-editor-0.js`, `scripts/review-corrections.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
 
 Template dependencies: none.
 

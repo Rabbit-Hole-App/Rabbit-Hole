@@ -6,9 +6,13 @@
   "source_file": "rabbit-hole-card-icon-template.html",
   "status": "reference",
   "styles": [
-    "icons"
+    "icons",
+    "review-corrections"
   ],
-  "scripts": [],
+  "scripts": [
+    "resize",
+    "review-corrections"
+  ],
   "implementation": [
     "packages/web/src/CardFeedback.jsx",
     "packages/web/src/ChatComposer.jsx"

@@ -1,6 +1,6 @@
 
-:root{color-scheme:dark;--surface:#191919;--ink:#d4d4d4;--secondary:#a1a1a1;--tertiary:#6f6f6f;--line:#2f2f2f;--line-strong:#4a4a4a;--hover:#2c2c2c;--accent:#2383e2;--primary:#1b6fc2;--nav-bg:#453060;--nav-fg:#e1cff9}
-*{box-sizing:border-box}body{margin:0;background:#111;color:var(--ink);font:14px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+:root{color-scheme:light;--surface:#fffefa;--ink:#202723;--secondary:#5d675f;--tertiary:#6f6f6f;--line:#dedfd8;--line-strong:#c7cec0;--hover:#eef1e9;--accent:#375d92;--primary:#375d92;--nav-bg:#eaf1fb;--nav-fg:#375d92}
+*{box-sizing:border-box}body{margin:0;background:#f5f4ed;color:var(--ink);font:14px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 .demo{width:min(100% - 32px,480px);margin:20px auto}
 .demo-caption{display:flex;justify-content:space-between;gap:16px;color:var(--secondary);font-size:11px;margin:0 0 10px}
 .demo-caption span:last-child{color:var(--tertiary)}
@@ -18,7 +18,7 @@ h1{font-size:16px;font-weight:600;line-height:24px;margin:0}
 .heading-tools button sub{font-size:9px;align-self:center;transform:translateY(3px);padding-left:1px}
 .heading-tools button:hover{background:var(--hover);color:var(--ink)}
 /* The only scrolling region in the panel: the accepted roadmap tree. */
-.toc-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 20px 20px;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:#4a4a4a transparent}
+.toc-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 20px 20px;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:#c7cec0 transparent}
 .tree,.tree ol{padding:0;margin:0;list-style:none}
 .tree>li+li{margin-top:28px}
 .tree>li{position:relative}

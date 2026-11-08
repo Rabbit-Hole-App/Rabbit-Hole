@@ -23,7 +23,7 @@ def render(record):
  templates='\n'.join((ROOT/'templates'/f'{t}.html').read_text() for t in record['templates'])
  css='\n'.join(f'<link rel="stylesheet" href="../../../styles/{escape(s)}.css">' for s in record['styles'])
  scripts='\n'.join(f'<script src="../../../scripts/{escape(s)}.js"></script>' for s in record['scripts'])
- if record['id'].endswith('-contract'):
+ if False and record['id'].endswith('-contract'):
   fragment='<p>This is a host-populated contract. The slots below need renderer data and event bindings.</p><pre>'+escape(fragment)+'</pre>'
  text=f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -48,7 +48,7 @@ Stable ID: `{record['id']}` · Status: **{record['status']}**
 
 {record['notes']}
 
-Palette role: **{record.get('paletteRole','shared')}**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Historical previews preserve their original palette. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
+Palette role: **{record.get('paletteRole','shared')}**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Flow previews use the current palette; linked archived sources preserve their original styling. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
 
 ## Edit and find
 
@@ -75,12 +75,13 @@ def main():
  write(ROOT/'registry.json',json.dumps({'schemaVersion':1,'baseline':'aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56','components':records},indent=2)+'\n')
  rows=[]
  for r in records:
+  if not r.get('catalogVisible',True):continue
   markup=(ROOT/r['path']/'markup.html').read_text()
   visible=html.unescape(re.sub(r'<[^>]+>',' ',markup))
   labels=' '.join(re.findall(r'(?:aria-label|title)=["\']([^"\']+)',markup))
   hay=' '.join([r['id'],r['title'],r['status'],r['source_file'],r['notes'],visible,labels,*r['keywords'],*r['implementation'],*r['issues']]).lower()
   rows.append(f'<article class="entry" data-search="{escape(hay)}" data-category="{escape(r["category"])}"><h2><a href="{escape(r["path"])}/preview.html">{escape(r["title"])}</a></h2><p class="id">{escape(r["id"])}</p><p>{escape(r["status"])}</p><p>{escape(r["notes"])}</p><a href="{escape(r["path"])}/README.md">Mapping and files</a></article>')
- cats=sorted({r['category'] for r in records})
+ cats=sorted({r['category'] for r in records if r.get('catalogVisible',True)})
  index='''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rabbit Hole UI assets</title><link rel="stylesheet" href="styles/catalog.css"></head><body><main><header><p class="eyebrow">Rabbit Hole · UI reference assets</p><h1>Find a component</h1><p>Search names, commands, source files, app paths, states and review IDs. References are separate from app integration.</p><nav><a href="README.md">Read me</a><a href="INVENTORY.md">All source files</a><a href="MAPPING.md">App mapping</a><a href="REVIEW.md">Inconsistencies and gaps</a><a href="VERIFICATION.md">Verification</a></nav><label for="search">Search</label><input id="search" type="search" placeholder="Try composer, slider, source, UI-01"><label for="category">Category</label><select id="category"><option value="">All categories</option>'''+''.join('<option>'+escape(c)+'</option>' for c in cats)+'''</select><p id="count" role="status"></p></header><section id="entries">'''+''.join(rows)+'''</section><p id="empty" hidden>No matching components. Try a broader term.</p></main><script src="scripts/catalog.js"></script></body></html>'''
  write(ROOT/'index.html',index)
  table='| ID | Preview | Status | App landmarks |\n| --- | --- | --- | --- |\n'

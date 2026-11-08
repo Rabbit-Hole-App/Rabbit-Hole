@@ -6,9 +6,13 @@
   "source_file": "rabbit-hole-source-header-and-chat-composer.html",
   "status": "static specimen",
   "styles": [
-    "source-headers"
+    "source-headers",
+    "review-corrections"
   ],
-  "scripts": [],
+  "scripts": [
+    "resize",
+    "review-corrections"
+  ],
   "implementation": [
     "packages/web/src/FileDocCard.jsx",
     "packages/web/src/AdaptiveCanvas.jsx",

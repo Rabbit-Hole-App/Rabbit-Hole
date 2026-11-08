@@ -2,6 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Icon button states · Rabbit Hole UI</title>
 <link rel="stylesheet" href="../../../styles/icons.css">
+<link rel="stylesheet" href="../../../styles/review-corrections.css">
 <link rel="stylesheet" href="../../../foundations/palette.css">
 <link rel="stylesheet" href="../../../styles/preview.css"></head>
 <body data-ui-palette="shared"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-icon-template.html">Source</a><p>reference — Glyph inventory preserves source and per-glyph size/stroke. Runtime catalog entries do not imply feature availability.</p></div>
@@ -38,7 +39,7 @@
     <div class="grid" style="margin-top:12px">
       <article class="panel">
         <h3>Try a persistent selection</h3>
-        <p class="technical">Both feedback choices use the shared 35 × 35 px button with 8 px corners and the original 13 px glyph. The outline fills with blue ink when selected.</p>
+        <p class="technical">Both feedback choices use the shared 35 × 35 px button with 8 px corners and the original 13 px glyph. Thumbs up uses blue; thumbs down uses Claude red.</p>
         <div class="actions" id="feedback-demo" role="group" aria-label="Card feedback preview"><button type="button" class="icon-button feedback" aria-label="Understood" title="Understood" aria-pressed="false" data-feedback="Understood"><svg class="glyph" width="13" height="13" viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="../../../icons/icons.svg#icon-ThumbsUp"></use></svg></button><button type="button" class="icon-button feedback" aria-label="Still unclear" title="Still unclear" aria-pressed="false" data-feedback="Still unclear"><svg class="glyph" width="13" height="13" viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="../../../icons/icons.svg#icon-ThumbsDown"></use></svg></button></div>
         <p class="demo-status" id="feedback-status" aria-live="polite">Unselected</p>
       </article>
@@ -52,5 +53,7 @@
   </section>
 </div>
 
+<script src="../../../scripts/resize.js"></script>
 <script src="../../../scripts/icon-states.js"></script>
+<script src="../../../scripts/review-corrections.js"></script>
 </body></html>

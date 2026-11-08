@@ -1,20 +1,22 @@
 
-function cardSize(width, height, availableWidth) {
-  const maxWidth = Math.max(0, availableWidth);
+function cardSize(width, height, availableWidth, limits = {}) {
+  const maxWidth = Math.min(960, Math.max(limits.minWidth || 440, availableWidth));
   return {
-    width: Math.min(maxWidth, Math.max(300, width)),
-    height: Math.min(760, Math.max(245, height)),
+    width: Math.min(maxWidth, Math.max(limits.minWidth || 440, width)),
+    height: Math.min(760, Math.max(limits.minHeight || 320, height)),
   };
 }
 
 function installResize(card, handle) {
+  if (!handle || handle.dataset.resizeBound) return;
+  handle.dataset.resizeBound = 'true';
   let drag = null;
 
   function setSize(width, height) {
     const parent = card.parentElement;
     const style = getComputedStyle(parent);
     const padding = (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);
-    const size = cardSize(width, height, parent.clientWidth - padding);
+    const size = cardSize(width, height, parent.clientWidth - padding, card.matches(".rh-composer") ? {minWidth:360,minHeight:170} : {});
     card.style.setProperty('--card-width', `${size.width}px`);
     card.style.setProperty('--card-height', `${size.height}px`);
   }

@@ -6,10 +6,13 @@
   "source_file": "rabbit-hole-interface-component-standards.html",
   "status": "reference",
   "styles": [
-    "standards"
+    "standards",
+    "review-corrections"
   ],
   "scripts": [
-    "standards"
+    "resize",
+    "standards",
+    "review-corrections"
   ],
   "implementation": [
     "packages/web/src/LibraryViews.jsx",

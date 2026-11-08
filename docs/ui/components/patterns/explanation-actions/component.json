@@ -4,17 +4,20 @@
   "category": "patterns",
   "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/07-explanation-card-approved.html",
   "source_file": "07-explanation-card-approved.html",
-  "status": "behavior reference / older styling",
+  "status": "flow reference / current shell",
   "styles": [
-    "legacy-explanation-actions"
+    "legacy-explanation-actions",
+    "review-corrections"
   ],
   "scripts": [
-    "legacy-explanation-actions-0"
+    "resize",
+    "legacy-explanation-actions-0",
+    "review-corrections"
   ],
   "implementation": [
     "packages/web/src/LearningBlocks.jsx"
   ],
-  "notes": "Term definitions, Dig Rabbit Hole, Ask here/new card, same-card/branch threads, follow-up and connector ports. Canonical behavior in explain.md; styling needs reconciliation.",
+  "notes": "Term definitions, Dig Rabbit Hole, Ask here/new card, same-card/branch threads, follow-up and connector ports. Canonical behavior in explain.md; styling needs reconciliation. Updated to the shared warm card shell and visible card controls; archived source retains provenance.",
   "issues": [
     "UI-05",
     "UI-06"
@@ -22,5 +25,6 @@
   "templates": [],
   "keywords": [],
   "path": "components/patterns/explanation-actions",
-  "paletteRole": "historical"
+  "paletteRole": "balanced-card",
+  "catalogVisible": false
 }

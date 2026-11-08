@@ -1,6 +1,6 @@
 # Component to app mapping
 
-60 searchable component and behavior entries. These are candidate integration landmarks. Path existence is checked against the pinned branch tree; full app integration is not claimed. The historical `InteractCardContent.jsx` starting point is absent from this branch; see UI-10.
+62 searchable component and behavior entries. These are candidate integration landmarks. Path existence is checked against the pinned branch tree; full app integration is not claimed. The historical `InteractCardContent.jsx` starting point is absent from this branch; see UI-10.
 
 | ID | Preview | Status | App landmarks |
 | --- | --- | --- | --- |
@@ -30,6 +30,7 @@
 | `controls/text-fields` | [Text fields](components/controls/text-fields/preview.html) | reference | `packages/web/src/ui.jsx`, `packages/web/src/ChatComposer.jsx` |
 | `controls/timeline` | [Playback and timeline](components/controls/timeline/preview.html) | Timed scenes | `packages/web/src/explain-program/ProgramScene.jsx` |
 | `controls/toggle` | [Switch](components/controls/toggle/preview.html) | Renderer dependent | `packages/web/src/explain-program/ProgramScene.jsx` |
+| `feedback/follow-up-connectors` | [Follow-up panel and card connectors](components/feedback/follow-up-connectors/preview.html) | reference | `packages/web/src/NextStepPill.jsx`, `packages/web/src/RoadmapSurfaces.jsx` |
 | `feedback/menu-popover` | [Dropdown menu and popover](components/feedback/menu-popover/preview.html) | reference | `packages/web/src/home/CardMenu.jsx` |
 | `feedback/modal-trash` | [Modal and trash confirmation](components/feedback/modal-trash/preview.html) | reference | `packages/web/src/home/CardMenu.jsx` |
 | `feedback/notifications-comments` | [Notifications and comments](components/feedback/notifications-comments/preview.html) | reference | `packages/web/src/comments/CommentInbox.jsx`, `packages/web/src/comments/CommentsPanel.jsx` |
@@ -42,22 +43,23 @@
 | `icons/icon-states` | [Icon button states](components/icons/icon-states/preview.html) | reference | `packages/web/src/CardFeedback.jsx`, `packages/web/src/ChatComposer.jsx` |
 | `layout/scroll-region` | [Scrollable region](components/layout/scroll-region/preview.html) | reference | `packages/web/src/index.css` |
 | `navigation/navigation` | [Navigation rows and empty states](components/navigation/navigation/preview.html) | reference | `packages/web/src/Sidebar.jsx` |
-| `patterns/card-lifecycle` | [Card Lifecycle](components/patterns/card-lifecycle/preview.html) | behavior reference / older styling | `packages/web/src/SlotCard.jsx`, `packages/web/src/NextStepPill.jsx` |
-| `patterns/explanation-actions` | [Explanation Actions](components/patterns/explanation-actions/preview.html) | behavior reference / older styling | `packages/web/src/LearningBlocks.jsx` |
-| `patterns/explanation-depth` | [Explanation Depth](components/patterns/explanation-depth/preview.html) | behavior reference / older styling | `packages/web/src/LearningBlocks.jsx` |
-| `patterns/generated-card-contract` | [Generated Card Contract](components/patterns/generated-card-contract/preview.html) | behavior reference / older styling | `packages/web/src/LearningBlocks.jsx` |
-| `patterns/generation-review` | [Generation Review](components/patterns/generation-review/preview.html) | behavior reference / older styling | `packages/web/src/LearningBlocks.jsx` |
-| `patterns/generation-review-contract` | [Generation Review Contract](components/patterns/generation-review-contract/preview.html) | behavior reference / older styling | `packages/web/src/LearningBlocks.jsx` |
-| `patterns/historical-explanation` | [Historical Explanation](components/patterns/historical-explanation/preview.html) | behavior reference / older styling | `packages/web/src/LearningBlocks.jsx` |
-| `patterns/interact-complete-workflow` | [Interact Complete Workflow](components/patterns/interact-complete-workflow/preview.html) | behavior / workflow reference |  |
-| `patterns/interactive-card-composition-workflow` | [Interactive Card Composition Workflow](components/patterns/interactive-card-composition-workflow/preview.html) | behavior / workflow reference |  |
-| `patterns/original-component-kit` | [Original blue and Claude-red kit](components/patterns/original-component-kit/preview.html) | palette reference / older geometry |  |
-| `patterns/outline-editor` | [Outline Editor](components/patterns/outline-editor/preview.html) | behavior reference / older styling | `packages/web/src/TableOfContents.jsx` |
-| `patterns/roadmap-flow` | [Roadmap Flow](components/patterns/roadmap-flow/preview.html) | behavior reference / older styling | `packages/web/src/RoadmapSurfaces.jsx`, `packages/web/src/TableOfContents.jsx` |
-| `patterns/source-navigation` | [Source Navigation](components/patterns/source-navigation/preview.html) | behavior reference / older styling | `packages/web/src/FileDocMarkdown.jsx`, `packages/web/src/LearningBlocks.jsx` |
-| `patterns/standard-toss-drop-card` | [Standard Toss Drop Card](components/patterns/standard-toss-drop-card/preview.html) | behavior / workflow reference |  |
-| `sources/document-headers` | [Markdown and PDF headers](components/sources/document-headers/preview.html) | static specimen | `packages/web/src/FileDocCard.jsx`, `packages/web/src/AdaptiveCanvas.jsx`, `packages/web/src/FileDocMarkdown.jsx` |
+| `patterns/card-lifecycle` | [Card Lifecycle](components/patterns/card-lifecycle/preview.html) | flow reference / current shell | `packages/web/src/SlotCard.jsx`, `packages/web/src/NextStepPill.jsx` |
+| `patterns/explanation-actions` | [Explanation Actions](components/patterns/explanation-actions/preview.html) | flow reference / current shell | `packages/web/src/LearningBlocks.jsx` |
+| `patterns/explanation-depth` | [Explanation Depth](components/patterns/explanation-depth/preview.html) | flow reference / current shell | `packages/web/src/LearningBlocks.jsx` |
+| `patterns/generated-card-contract` | [Generated Card Contract](components/patterns/generated-card-contract/preview.html) | flow reference / current shell | `packages/web/src/LearningBlocks.jsx` |
+| `patterns/generation-review` | [Generation Review](components/patterns/generation-review/preview.html) | flow reference / current shell | `packages/web/src/LearningBlocks.jsx` |
+| `patterns/generation-review-contract` | [Generation Review Contract](components/patterns/generation-review-contract/preview.html) | flow reference / current shell | `packages/web/src/LearningBlocks.jsx` |
+| `patterns/historical-explanation` | [Explanation flow](components/patterns/historical-explanation/preview.html) | flow reference / current shell | `packages/web/src/LearningBlocks.jsx` |
+| `patterns/interact-complete-workflow` | [Interact Complete Workflow](components/patterns/interact-complete-workflow/preview.html) | flow reference / current shell |  |
+| `patterns/interactive-card-composition-workflow` | [Interactive Card Composition Workflow](components/patterns/interactive-card-composition-workflow/preview.html) | flow reference / current shell |  |
+| `patterns/original-component-kit` | [Original blue and Claude-red kit](components/patterns/original-component-kit/preview.html) | flow reference / current shell |  |
+| `patterns/outline-editor` | [Outline Editor](components/patterns/outline-editor/preview.html) | flow reference / current shell | `packages/web/src/TableOfContents.jsx` |
+| `patterns/roadmap-flow` | [Roadmap Flow](components/patterns/roadmap-flow/preview.html) | flow reference / current shell | `packages/web/src/RoadmapSurfaces.jsx`, `packages/web/src/TableOfContents.jsx` |
+| `patterns/source-navigation` | [Source Navigation](components/patterns/source-navigation/preview.html) | flow reference / current shell | `packages/web/src/FileDocMarkdown.jsx`, `packages/web/src/LearningBlocks.jsx` |
+| `patterns/standard-toss-drop-card` | [Standard Toss Drop Card](components/patterns/standard-toss-drop-card/preview.html) | flow reference / current shell |  |
+| `sources/document-headers` | [Dropped document cards](components/sources/document-headers/preview.html) | static specimen | `packages/web/src/FileDocCard.jsx`, `packages/web/src/AdaptiveCanvas.jsx`, `packages/web/src/FileDocMarkdown.jsx` |
 | `sources/selected-text-actions` | [Source selected-text actions](components/sources/selected-text-actions/preview.html) | static specimen | `packages/web/src/FileDocCard.jsx`, `packages/web/src/AdaptiveCanvas.jsx`, `packages/web/src/FileDocMarkdown.jsx` |
+| `tutor/chat-panel` | [Chat panel](components/tutor/chat-panel/preview.html) | reference | `packages/web/src/ChatComposer.jsx` |
 | `tutor/composer` | [Chat composer](components/tutor/composer/preview.html) | reference | `packages/web/src/ChatComposer.jsx` |
 | `tutor/empty-error-retry` | [Empty, error and recovery](components/tutor/empty-error-retry/preview.html) | reference | `packages/web/src/SlotCard.jsx` |
 | `tutor/loading-skeleton` | [Skeleton and generation states](components/tutor/loading-skeleton/preview.html) | reference | `packages/web/src/SlotCard.jsx` |

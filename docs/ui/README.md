@@ -1,14 +1,20 @@
+> Current review corrections and exact resize limits: [REVIEW-UPDATES.md](REVIEW-UPDATES.md). These supersede conflicting archived decisions below.
+
 # Rabbit Hole UI assets
 
 Start with the [searchable catalog](index.html), [complete source inventory](INVENTORY.md), [component-to-app mapping](MAPPING.md), and [review of inconsistencies and gaps](REVIEW.md).
 
-This folder organizes the supplied card and interface references into **60 individually addressable component, card, and behavior entries**. It is the reference workspace for future UI updates. The application has not been restyled or deployed by this change.
+This folder organizes the supplied card and interface references into **62 component, card, and behavior entries (48 visible; 14 archived flows hidden)**. It is the reference workspace for future UI updates. The application has not been restyled or deployed by this change.
 
 ## Separate HTML for feedback
 
-The [clean folder](clean/) contains ten self-contained HTML files: six teaching cards, the composer, separate Markdown and PDF headers, and the green toggle. Each opens directly without a server or neighboring assets. Edit the component sources, then run `python docs/ui/scripts/export_clean.py` to refresh these exports. They omit catalog headings and review notes.
+The [clean folder](clean/) contains eleven self-contained HTML files: six teaching cards, the composer, separate Markdown and PDF headers, the green toggle, and the full chat panel. Each opens directly without a server or neighboring assets. Edit the component sources, then run `python docs/ui/scripts/export_clean.py` to refresh these exports. They omit catalog headings and review notes.
 
 The four original kit compositions now use the shared resizable shell, preserving their scene and control nodes. This is an explicit composition change; original historical fixtures remain intact.
+
+## Latest reviewed previews
+
+Open [the self-contained component library](rabbit-hole-component-library.html) or [the chat panel](clean/11-chat-panel.html). The current catalog hides Flows, shares one resize implementation, and incorporates the corrections in [REVIEW-UPDATES.md](REVIEW-UPDATES.md).
 
 ## Current design decisions
 

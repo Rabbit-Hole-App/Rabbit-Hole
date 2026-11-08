@@ -2,10 +2,11 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Generation Review Contract · Rabbit Hole UI</title>
 <link rel="stylesheet" href="../../../styles/legacy-generation-review-contract.css">
+<link rel="stylesheet" href="../../../styles/review-corrections.css">
 <link rel="stylesheet" href="../../../foundations/palette.css">
 <link rel="stylesheet" href="../../../styles/preview.css"></head>
-<body data-ui-palette="historical"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/generation-review-shell.html">Source</a><p>behavior reference / older styling — Host-populated generation review slots. Not an autonomous demo.</p></div>
-<div class="catalog-preview"><p>This is a host-populated contract. The slots below need renderer data and event bindings.</p><pre>&lt;!--
+<body data-ui-palette="balanced-card"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/generation-review-shell.html">Source</a><p>flow reference / current shell — Host-populated generation review slots. Not an autonomous demo. Updated to the shared warm card shell and visible card controls; archived source retains provenance.</p></div>
+<div class="catalog-preview"><!--
 Shared generation-review markup for the approved ../08-interactive-review.html.
 Use its review styles with the existing GenerationProposalCard and command schema.
 
@@ -19,30 +20,31 @@ show its existing description in summary. Show the settings slot only for
 commands whose review includes editable settings.
 
 Bind Generate and Edit to the existing proposal actions and action state.
---&gt;
-&lt;template id=&quot;generation-review-shell&quot;&gt;
-  &lt;article class=&quot;review&quot; data-review-shell&gt;
-    &lt;header class=&quot;review-head&quot;&gt;
-      &lt;span class=&quot;kind&quot; data-slot=&quot;command-label&quot;&gt;&lt;/span&gt;
-      &lt;h1 data-slot=&quot;title&quot;&gt;&lt;/h1&gt;
-    &lt;/header&gt;
+-->
+<template id="generation-review-shell">
+  <article class="review" data-review-shell>
+    <header class="review-head">
+      <span class="kind" data-slot="command-label"></span>
+      <h1 data-slot="title"></h1>
+    </header>
 
-    &lt;p data-slot=&quot;summary&quot; hidden&gt;&lt;/p&gt;
-    &lt;p data-slot=&quot;intro&quot; hidden&gt;&lt;/p&gt;
-    &lt;figure class=&quot;preview&quot; data-slot=&quot;visual&quot; hidden&gt;
-      &lt;figcaption data-slot=&quot;visual-title&quot; hidden&gt;&lt;/figcaption&gt;
-      &lt;div data-slot=&quot;visual-content&quot;&gt;&lt;/div&gt;
-    &lt;/figure&gt;
-    &lt;p data-slot=&quot;takeaway&quot; hidden&gt;&lt;/p&gt;
-    &lt;div data-slot=&quot;settings&quot; hidden&gt;&lt;/div&gt;
+    <p data-slot="summary" hidden></p>
+    <p data-slot="intro" hidden></p>
+    <figure class="preview" data-slot="visual" hidden>
+      <figcaption data-slot="visual-title" hidden></figcaption>
+      <div data-slot="visual-content"></div>
+    </figure>
+    <p data-slot="takeaway" hidden></p>
+    <div data-slot="settings" hidden></div>
 
-    &lt;footer class=&quot;actions&quot;&gt;
-      &lt;button type=&quot;button&quot; class=&quot;primary&quot; data-action=&quot;generate&quot;&gt;Generate&lt;/button&gt;
-      &lt;button type=&quot;button&quot; data-action=&quot;edit&quot;&gt;Edit&lt;/button&gt;
-    &lt;/footer&gt;
-  &lt;/article&gt;
-&lt;/template&gt;
-</pre></div>
+    <footer class="actions">
+      <button type="button" class="primary" data-action="generate">Generate</button>
+      <button type="button" data-action="edit">Edit</button>
+    </footer>
+  </article>
+</template>
+</div>
 
-
+<script src="../../../scripts/resize.js"></script>
+<script src="../../../scripts/review-corrections.js"></script>
 </body></html>

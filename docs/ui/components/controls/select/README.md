@@ -4,15 +4,15 @@ Stable ID: `controls/select` · Status: **Register first**
 
 [Open preview](preview.html) · [Markup](markup.html) · [Metadata](component.json) · [Original source](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html) · [Collection review](../../../REVIEW.md)
 
-Use for longer labels or when too many segments would crowd the card. Renderer registration and persistence are separate from this HTML demo.
+Approved custom app dropdown. No browser-native select UI and no dropdown inside teaching cards.
 
-Palette role: **experiment**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Historical previews preserve their original palette. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
+Palette role: **shared**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Flow previews use the current palette; linked archived sources preserve their original styling. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
 
 ## Edit and find
 
-Edit `markup.html` and `component.json` here. Shared styles: `styles/control-kit.css`. Behavior: `scripts/control-kit.js`, `scripts/control-select.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
+Edit `markup.html` and `component.json` here. Shared styles: `styles/standards.css`, `styles/review-corrections.css`. Behavior: `scripts/resize.js`, `scripts/standards.js`, `scripts/review-corrections.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
 
-Template dependencies: `templates/kit/card-template.html`, `templates/kit/range-template.html`, `templates/kit/choice-template.html`, `templates/kit/option-template.html`, `templates/kit/button-template.html`, `templates/kit/timeline-template.html`, `templates/kit/select-template.html`, `templates/kit/toggle-template.html`, `templates/kit/stepper-template.html`, `templates/kit/index-template.html`, `templates/kit/disclosure-template.html`, `templates/kit/readout-template.html`, `templates/kit/sample-template.html`.
+Template dependencies: none.
 
 ## App mapping candidates
 

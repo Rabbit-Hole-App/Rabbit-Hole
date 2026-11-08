@@ -1,3 +1,5 @@
+> Current review corrections and exact resize limits: [REVIEW-UPDATES.md](REVIEW-UPDATES.md). These supersede conflicting archived decisions below.
+
 # Reference review: inconsistencies and missing UI
 
 Reviewed the supplied HTML, the existing handoff files, lesson SVGs/README, relevant Explain/Interact spec sections, the pinned branch tree and selected runtime entry points. Sources are listed in [INVENTORY.md](INVENTORY.md). Latest palette correction is in [PALETTE.md](foundations/PALETTE.md). This is a source review; no browser visual acceptance or full runtime audit is claimed.

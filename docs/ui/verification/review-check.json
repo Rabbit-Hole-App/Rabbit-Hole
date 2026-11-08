@@ -1,0 +1,12 @@
+{
+  "result": "PASS",
+  "checks": [
+    "21 single-word command pills in Learn/Practice/Search",
+    "Canvas joined acceptance pill and chat without Cancel",
+    "Trash action order, no X",
+    "Full document bodies",
+    "61 embedded specimen scripts and catalog syntax",
+    "Resize min/max function boundaries"
+  ],
+  "browser": "Not run; visual/interaction acceptance pending."
+}

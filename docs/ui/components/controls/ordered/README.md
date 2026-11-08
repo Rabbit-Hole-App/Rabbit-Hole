@@ -6,11 +6,11 @@ Stable ID: `controls/ordered` · Status: **Renderer dependent**
 
 Use Previous and Next when ordered states are part of the explanation. Renderer registration and persistence are separate from this HTML demo.
 
-Palette role: **shared**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Historical previews preserve their original palette. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
+Palette role: **shared**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Flow previews use the current palette; linked archived sources preserve their original styling. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
 
 ## Edit and find
 
-Edit `markup.html` and `component.json` here. Shared styles: `styles/control-kit.css`. Behavior: `scripts/control-kit.js`, `scripts/control-ordered.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
+Edit `markup.html` and `component.json` here. Shared styles: `styles/control-kit.css`, `styles/review-corrections.css`. Behavior: `scripts/resize.js`, `scripts/control-kit.js`, `scripts/control-ordered.js`, `scripts/review-corrections.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
 
 Template dependencies: `templates/kit/card-template.html`, `templates/kit/range-template.html`, `templates/kit/choice-template.html`, `templates/kit/option-template.html`, `templates/kit/button-template.html`, `templates/kit/timeline-template.html`, `templates/kit/select-template.html`, `templates/kit/toggle-template.html`, `templates/kit/stepper-template.html`, `templates/kit/index-template.html`, `templates/kit/disclosure-template.html`, `templates/kit/readout-template.html`, `templates/kit/sample-template.html`.
 

@@ -6,9 +6,13 @@
   "source_file": "rabbit-hole-resizable-card-shell.html",
   "status": "reference",
   "styles": [
-    "card-shell"
+    "card-shell",
+    "review-corrections"
   ],
-  "scripts": [],
+  "scripts": [
+    "resize",
+    "review-corrections"
+  ],
   "implementation": [],
   "notes": "Copied exact-values tables; source discrepancies remain tracked, not silently normalized.",
   "issues": [],

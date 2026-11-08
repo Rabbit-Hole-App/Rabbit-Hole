@@ -1,33 +1,18 @@
-
-<div class="rh-composer-example" style="min-width:0">
-<article class="teaching-card rh-composer" id="rh-composer" aria-labelledby="rh-composer-title">
-  <header class="card-header"><h3 class="card-title" id="rh-composer-title">Chat composer</h3></header>
-  <form class="rh-form" id="rh-composer-form">
-    <div class="card-body" role="region" aria-label="Chat composer content" tabindex="0">
-      <div>
-        <label class="rh-input-label" for="rh-message">Message</label>
-        <textarea class="rh-field" id="rh-message" rows="2" placeholder="Ask a question"></textarea>
-      </div>
-      <div class="rh-context" role="group" aria-label="Context">
-        <span class="pill">This canvas</span>
-        <span class="pill"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-FileText"/></svg>lesson.md</span>
-      </div>
-      <p class="rh-depth-help" id="rh-depth-help">A balanced explanation.</p>
-      <p class="rh-status" id="rh-composer-status" role="status">Type a message to enable Send.</p>
-    </div>
-    <div class="rh-footer">
-      <div class="rh-actions" role="group" aria-label="Composer controls">
-        <button type="button" class="button secondary" data-rh-demo="Attach control preview."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-Plus"/></svg>Attach</button>
-        <label class="rh-depth">Depth <select class="rh-field" id="rh-depth" aria-describedby="rh-depth-help"><option>Overview</option><option selected>Standard</option><option>Deep</option></select></label>
-        <button type="button" class="icon-button" aria-label="Voice input" title="Voice input" data-rh-demo="Voice control preview."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-Mic"/></svg></button>
-        <button type="submit" class="button primary rh-send" id="rh-send" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-ArrowUp"/></svg><span>Send</span></button>
-      </div>
-      <button type="button" class="resize-handle" aria-describedby="rh-resize-guide" aria-label="Resize chat composer" title="Resize card">
-        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 12 12 3M8 12 12 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-      </button>
-    </div>
-  </form>
-</article>
-<p class="rh-grip-guide" id="rh-resize-guide">Drag the bottom-right grip or use its arrow keys to resize. Hold Shift for larger steps.</p>
-</div>
-
+<div class="rh-composer-example">
+<article class="rh-composer teaching-card" id="rh-composer" aria-label="Chat composer">
+<form class="rh-form" id="rh-composer-form">
+<div class="rh-draft"><label class="rh-sr-only" for="rh-message">Message</label><textarea id="rh-message" rows="2" placeholder="Ask about this canvas"></textarea></div>
+<div class="rh-context"><button type="button" class="rh-context-chip" data-rh-demo="This canvas is included as context."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-FileText"/></svg>This canvas</button></div>
+<div class="rh-footer"><div class="rh-actions" role="group" aria-label="Composer controls">
+<details class="rh-menu"><summary aria-label="Add context" title="Add context"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-Plus"/></svg></summary><div class="rh-options"><button type="button" data-rh-demo="Choose project preview.">Choose project</button><button type="button" data-rh-demo="Attach files preview.">Files</button><button type="button" data-rh-demo="Plugins preview.">Plugins</button></div></details>
+<details class="rh-menu"><summary aria-label="Model: Auto"><span>Auto</span><svg class="chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary><div class="rh-options"><button type="button" aria-current="true" data-rh-demo="Automatic model selection.">Auto <span aria-hidden="true">✓</span></button><button type="button" disabled>Choose model…</button></div></details>
+<button type="button" class="rh-toggle" id="rh-toggle" role="switch" aria-checked="true" aria-label="Tutor enabled"><span class="rh-track" aria-hidden="true"></span><span data-toggle-label>On</span></button>
+<details class="rh-menu"><summary aria-label="Explanation depth: Standard" id="rh-depth"><svg class="rh-depth-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 15v-3m5 3V8m5 7V4"/></svg><svg class="chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary><div class="rh-options"><button type="button" data-depth="Overview">Overview</button><button type="button" data-depth="Standard" aria-current="true">Standard</button><button type="button" data-depth="Deep">Deep</button></div></details>
+<details class="rh-menu"><summary aria-label="Slash commands" title="Slash commands">/</summary><div class="rh-options"><button type="button" data-command="/explain">/explain</button><button type="button" data-command="/interactive">/interactive</button><button type="button" data-command="/quiz">/quiz</button></div></details>
+<button type="button" class="rh-icon-button" aria-label="Voice input" title="Voice input" data-rh-demo="Voice input preview."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-Mic"/></svg></button>
+<button type="submit" class="rh-send" id="rh-send" aria-label="Send" title="Send" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-ArrowUp"/></svg></button>
+</div></div>
+<p id="rh-composer-status" class="rh-sr-only" role="status"></p>
+<button type="button" class="resize-handle" aria-label="Resize chat composer" aria-describedby="rh-resize-guide"><svg width="10" height="10" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 12 12 3M8 12 12 8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
+<p id="rh-resize-guide" class="rh-sr-only">Drag the grip or use arrow keys to resize. Hold Shift for larger steps.</p>
+</form></article></div>
