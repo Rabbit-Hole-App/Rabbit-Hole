@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { RASTER_LIMITS, rasterProblem } from './raster-pixels.js';
 import { GEOMETRY, HEAT_MODES, IDENTITY_SLOTS, ROLES, SOUNDS, TIMING, TYPE_ROLES } from './scene-vocab.js';
 import { adaptLegacyScene } from './scene-legacy.js';
 import { computeValueChainGroups, resolveDerived } from './scene-derive.js';
@@ -45,7 +46,7 @@ export const plainRuns = runs => runs.map(run => (run.kind === 'math' ? plainMat
 // Every type here has a branch in AnimatedScene.jsx. Adding a member without
 // one produces an object that validates and draws nothing, which is how arrow,
 // line and image shipped invisible. The renderer's own test reads this list.
-export const RENDERED_TYPES = ['box', 'text', 'circle', 'arrow', 'line', 'equation', 'code', 'image', 'grid', 'strip', 'bars', 'tokens', 'polyline'];
+export const RENDERED_TYPES = ['box', 'text', 'circle', 'arrow', 'line', 'equation', 'code', 'image', 'grid', 'strip', 'bars', 'tokens', 'polyline', 'raster'];
 
 const objectSchema = z.object({
   id: z.string().min(1).max(64),
@@ -121,6 +122,7 @@ const objectSchema = z.object({
     columnLabels: z.array(z.string().max(24)).max(64).optional(),
     tokens: z.array(z.string().max(24)).max(48).optional(),
     src: z.string().max(300).optional(),
+    pixels: z.array(z.number().int().min(0).max(255)).max(RASTER_LIMITS.pixels * 4).optional(),
     // Show only this region of the image, as fractions of the object's own
     // displayed box (0..1 each). The renderer maps the fractions through the
     // same centre-slice fit the full image uses, so a crop names exactly the
@@ -300,6 +302,8 @@ export function validateScene(raw) {
     throw new Error(`Invalid animation at ${issue.path.join('.') || 'root'}: ${issue.message}`);
   }
   const scene = parsed.data;
+  const rasterPixels = scene.objects.filter(object => object.type === 'raster').reduce((sum, object) => sum + object.initialState.rows * object.initialState.cols, 0);
+  if (rasterPixels > RASTER_LIMITS.framePixels) throw new Error('at most 8192 raster pixels per scene');
   const parts = [...new Set(scene.objects.map(object => object.part).filter(part => part !== undefined))];
   for (const part of parts.length ? parts : [undefined]) {
     const onScreen = scene.objects.filter(object => object.part === undefined || object.part === part).length;
@@ -363,6 +367,12 @@ export function validateScene(raw) {
     } else {
       if (!identitySlots.has(identity)) identitySlots.set(identity, IDENTITY_SLOTS[identitySlots.size % IDENTITY_SLOTS.length]);
       object.identitySlot = identitySlots.get(identity);
+    }
+    if (object.type === 'raster') {
+      const problem = rasterProblem(object.initialState);
+      if (problem) throw new Error(`Object "${object.id}": ${problem}`);
+      const { x, y, w, h } = object.initialState;
+      if (!(w && h) || x < 0 || y < 0 || x + w > scene.width || y + h > scene.height) throw new Error(`Object "${object.id}": raster must have a size inside the scene`);
     }
     if (object.type === 'image') {
       const src = object.initialState.src;
@@ -584,6 +594,7 @@ export function getSceneState(scene, time) {
     from: object.initialState.from ?? null,
     to: object.initialState.to ?? null,
     src: object.initialState.src ?? null,
+    ...(object.type === 'raster' ? { pixels: [...object.initialState.pixels] } : {}),
     label: object.initialState.label ?? object.initialState.text ?? (object.initialState.runs ? plainRuns(object.initialState.runs) : ''),
     runs: object.initialState.runs ?? null,
     textProgress: 1,

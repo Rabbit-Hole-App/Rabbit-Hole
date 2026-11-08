@@ -64,7 +64,9 @@ test('the author request with the program route: fixed size, room left for conte
     if (fits) lo = mid; else hi = mid - 1;
   }
   seen.push(`largest ASCII context the author call admits: ${lo} characters (the route allows 60000)`);
-  assert.ok(fixed < 40000, 'the fixed author request leaves most of its ceiling for context');
+  // 40000 -> 44000 at the integration of the Medium, cyclic, raster and heat-grid helper docs (each passed alone): the fixed request measured 41010 bytes with all four. The author ceiling is
+  // 60,000 input tokens, pinned by the role-ceiling test above, so 44000 bytes (about 11,000 tokens) still leaves most of it for context. Selecting helper docs per family is the lasting fix before more families.
+  assert.ok(fixed < 44000, 'the fixed author request leaves most of its ceiling for context');
   assert.ok(lo >= 24000, 'the 24,000 characters of reference text the route forwards fit');
   for (const line of seen) t.diagnostic(line);
 });
@@ -76,6 +78,8 @@ test('a typical 16 KiB program with the fullest manifest fits the real review an
   assert.ok(bytes(JSON.stringify(artifact.manifest)) <= PROGRAM_LIMITS.manifestBytes, 'the fullest legal manifest is within its limit');
   const job = { prompt: 'q'.repeat(MESSAGE_LIMIT), evidence: [], round: 0, artifact };
   assert.deepEqual(programFitProblems(ENV, artifact, job), []);
+  const heat = await buildProgramArtifact({ source, manifest: { ...artifact.manifest, capabilities: [...artifact.manifest.capabilities, 'heat_grid'] } });
+  assert.deepEqual(programFitProblems(ENV, heat, { ...job, artifact: heat }), []);
   // The review request at six images (the most it ever carries), traces at their cap.
   const captures = Array.from({ length: 6 }, (_, i) => ({ id: `s${i}`, compiledHash: 'x', theme: 'light', time: 0, inputs: {}, data: 'AAAA', mediaType: 'image/png' }));
   const { content } = buildReviewContent({ request: job.prompt, compiledHash: 'x', facts: programFacts(artifact.manifest), evidence: [], captures, program: { source, manifest: artifact.manifest, traces: [{ pad: 'x'.repeat(REVIEW_LIMITS.traceBytes - 32) }] } });

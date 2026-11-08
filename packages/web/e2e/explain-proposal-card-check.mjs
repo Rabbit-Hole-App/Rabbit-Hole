@@ -210,9 +210,18 @@ await step('a brief that waits for approval: Review explanation, title, request,
   assert.equal(await card.locator('[data-proposal-select="presentation"]').inputValue(), 'steps');
   assert.equal(await card.getAttribute('aria-label'), 'Review explanation');
   assert.match(await card.innerText(), /^Review explanation\s/);
-  assert.deepEqual(await card.locator('[data-proposal-section="assumptions"] li').allInnerTexts(), ASSUMPTIONS);
-  assert.deepEqual(await card.locator('[data-proposal-section="limitations"] li').allInnerTexts(), LIMITATIONS);
-  assert.match(await card.locator('[data-proposal-section="limitations"]').innerText(), /^Limitations/i); // a closed disclosure header with a count (owner 2026-11-07)
+  // The owner made these sections closed disclosures on 2026-11-07. Verify the initial state and the exact contents after opening.
+  for (const [section, title, expected] of [['assumptions', /^Assumptions/i, ASSUMPTIONS], ['limitations', /^Limitations/i, LIMITATIONS]]) {
+    const disclosure = card.locator(`[data-proposal-disclosure="${section}"]`);
+    const items = card.locator(`[data-proposal-section="${section}"] li`);
+    assert.match(await disclosure.innerText(), title);
+    assert.equal(await disclosure.getAttribute('aria-expanded'), 'false');
+    assert.equal(await items.count(), 0);
+    await disclosure.click();
+    await items.first().waitFor();
+    assert.deepEqual(await items.allInnerTexts(), expected);
+    await disclosure.click();
+  }
   assert.match(await card.locator('[data-proposal-usage]').innerText(), /Estimated cost: 40 AI credits/);
   assert.equal(await card.locator('[data-proposal-note]').count(), 0, 'no cost note on the Explain review card (owner 2026-11-07)');
   assert.doesNotMatch(await card.innerText(), /\$\d/);

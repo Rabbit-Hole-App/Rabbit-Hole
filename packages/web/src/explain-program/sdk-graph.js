@@ -176,3 +176,44 @@ export const GRAPH_SOURCE = String.raw`
   };
 })();
 `;
+
+// Loaded after GRAPH_SOURCE in the Medium SDK. Keep the older graph source unchanged.
+export const EXPANDABLE_GRAPH_SOURCE = String.raw`
+(function () {
+  const fail = message => { throw new RangeError('sdk.expandableGraph: ' + message); };
+
+  sdk.expandableGraph = function (id, config) {
+    // Lay out and check even hidden nodes, so changing the choice never reflows a node or edge.
+    const objects = sdk.graph(id, config);
+    const { nodes, edges, expanded = [] } = config;
+    const parents = new Map(edges.map(({ from, to }) => [to, from]));
+    // The DAG has one root exactly when all other nodes have one parent.
+    if (parents.size !== edges.length || edges.length !== nodes.length - 1) {
+      fail('expected a rooted tree with one parent per non-root node');
+    }
+    const root = nodes.find(node => !parents.has(node.id)).id;
+    const branches = new Set(parents.values());
+    if (!Array.isArray(expanded) || expanded.length > branches.size) fail('expanded must list branch node IDs');
+
+    const chosen = new Set();
+    const open = new Set([root]);
+    for (const key of expanded) {
+      if (!branches.has(key)) fail('expanded must list IDs of nodes with children');
+      if (chosen.has(key)) fail('expanded branch IDs must be unique: ' + key);
+      chosen.add(key);
+      // Choosing a nested branch also opens the ancestors that make it reachable.
+      for (let branch = key; !open.has(branch); branch = parents.get(branch)) open.add(branch);
+    }
+
+    const visible = new Set([id + '.node.' + root]);
+    for (const { from, to } of edges) {
+      if (!open.has(from)) continue;
+      visible.add(id + '.node.' + to);
+      // Keep every primitive of a visible edge under its original sdk.graph ID.
+      const prefix = id + '.e.' + from + ':' + to;
+      for (const suffix of ['.p', '.a', '.l']) visible.add(prefix + suffix);
+    }
+    return objects.filter(object => visible.has(object.id));
+  };
+})();
+`;

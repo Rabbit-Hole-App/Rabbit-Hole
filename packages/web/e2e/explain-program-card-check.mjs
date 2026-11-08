@@ -14,13 +14,15 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { axisScene } from '../src/demo-scenes.js';
+import { buildProgramArtifact } from '../../control-plane/src/explain-program.js';
+import spectrogramFixture from '../src/explain-program/testdata/spectrogram.json' with { type: 'json' };
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('explain-program-card-check runs against the local stack only');
 const SHOTS = process.argv[2] || 'explain-program-card-shots';
 mkdirSync(SHOTS, { recursive: true });
-const TOTAL = 21; // bump with the checks below; the printed line is what CI reads
+const TOTAL = 22; // bump with the checks below; the printed line is what CI reads
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `prog-${run}@example.com`, secret, handle: `prog_${run}` }) })).json();
@@ -60,6 +62,12 @@ const viewShare = await api(`/api/learn/boards/${viewCanvas.name}/main/share`, {
 const focusCanvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Program focus ${run}` }) });
 const focusKey = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${focusCanvas.name}:ink`;
 const focusSeed = { ...seed, blocks: [program('f-growth', 'Balance over time', 'fixture-growth'), program('f-search', 'Halving a sorted row', 'fixture-search'), program('f-sort', 'Sorting by neighbour swaps', 'fixture-sort')] };
+// Use a sealed result reference like a generated card. The fixture supplies the result body while the real canvas saves the inputs.
+const heatCanvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Spectrogram ${run}` }) });
+const heatKey = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${heatCanvas.name}:ink`;
+const heatArtifact = await buildProgramArtifact(spectrogramFixture);
+const heatIdentity = { resultId: 'er_spectrogram', cardId: 'p-heat', revision: 'xr_spectrogram', canvas: { boardId: heatCanvas.name }, kind: 'program' };
+const heatSeed = { ...seed, blocks: [{ ...program('p-heat', heatArtifact.manifest.title), program: { bundleHash: heatArtifact.bundleHash }, explain: heatIdentity }] };
 const viewBoard = async () => JSON.stringify((await api(`/api/learn/boards/${viewCanvas.name}/main`))?.state ?? null);
 
 const browser = await chromium.launch();
@@ -73,12 +81,16 @@ try {
   await context.addInitScript(([storageKey, value]) => { if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, JSON.stringify(value)); }, [editKey, editSeed]);
   await context.addInitScript(([storageKey, value]) => { if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, JSON.stringify(value)); }, [navKey, navSeed]);
   await context.addInitScript(([storageKey, value]) => { if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, JSON.stringify(value)); }, [focusKey, focusSeed]);
+  await context.addInitScript(([storageKey, value]) => { if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, JSON.stringify(value)); }, [heatKey, heatSeed]);
   // Playing, scrubbing and controls are local: no model route may be called. Any such POST fails the run.
   await context.route(/\/api\/learn\/(ask|tutor|artifact|home-ask|journeys?|explain)\b/, route => {
     if (route.request().method() === 'GET' || new URL(route.request().url()).pathname === '/api/learn/tutor/next-steps') return route.fallback();
     stray.push(route.request().url());
     return route.abort();
   });
+  await context.route(/\/api\/learn\/explain\/jobs\/results\/er_spectrogram\?/, route => route.fulfill({
+    json: { artifact: heatArtifact, identity: heatIdentity, execution: { allowed: true } },
+  }));
   // The app page itself mounts the Learn notebook frame, which loads from the product's own notebook origin (src/learn-notebook*.js
   // NOTEBOOK_ORIGIN). That is the product, not the card: it is the one origin allowed. Any other host is a failure.
   const NOTEBOOK_ORIGIN = 'https://small-learn-canvas-notebook-dev.tryrabbithole.workers.dev';
@@ -286,7 +298,8 @@ try {
     await page.waitForTimeout(1500);
     if (await page.locator('[data-focus-back]').count()) { await page.locator('[data-focus-back]').first().click(); await page.waitForTimeout(1200); } // a lead program that cannot be whole opens in Focus
     const { width, height } = page.viewportSize();
-    const title = () => placedCard.locator('p[data-drag-zone]').evaluate(e => { const r = e.getBoundingClientRect(); return { x: r.x + 30, y: r.y + Math.min(r.height / 2, 12) }; });
+    // The shared CardHeader exposes the title under its own marker (owner 2026-11-07).
+    const title = () => placedCard.locator('[data-card-title]').evaluate(e => { const r = e.getBoundingClientRect(); return { x: r.x + 30, y: r.y + Math.min(r.height / 2, 12) }; });
     for (let i = 0; i < 12; i++) { const { y } = await title(); if (y > 60 && y < height - 200) break; await page.mouse.move(width * 0.35, height - 120); await page.mouse.wheel(0, y >= height - 200 ? 250 : -250); await page.waitForTimeout(250); }
     const at = await title();
     await page.mouse.click(at.x, at.y);
@@ -385,7 +398,36 @@ try {
     assert.ok(reachable, 'the focused button is not covered by the minimap');
     await page.setViewportSize({ width: 1600, height: 1000 });
   });
-  await check('20 no model route was called, no host other than the app and its own notebook frame was contacted, and no page error', async () => {
+  await check('20 the spectrogram changes heat values, keeps its legend, and restores the chosen window on reload and in Focus', async () => {
+    await page.goto(`${BASE}/apps/${heatCanvas.name}`);
+    const heat = card('p-heat');
+    const frame = heat.locator('[data-program-frame]');
+    const paint = id => frame.locator(`[data-animation-object="${id}"] rect[style*="color-mix"]`);
+    const cells = paint('spectrogram');
+    const long = heat.locator('[data-input-control="window"][data-input-value="long"]');
+    const middleFrequency = cells.nth(6 * 19 + 18);
+    await cells.last().waitFor({ state: 'visible', timeout: 30000 });
+    assert.equal(await cells.count(), 247);
+    const legend = await paint('scale').evaluateAll(rects => rects.map(rect => rect.style.fill));
+    assert.equal(legend.length, 5);
+    const shortFill = await middleFrequency.evaluate(rect => rect.style.fill);
+    await long.click();
+    assert.ok(await until(async () => (await middleFrequency.evaluate(rect => rect.style.fill)) !== shortFill));
+    const longFill = await middleFrequency.evaluate(rect => rect.style.fill);
+    assert.deepEqual(await paint('scale').evaluateAll(rects => rects.map(rect => rect.style.fill)), legend);
+    assert.equal(await frame.getByText('Onset 0.40 s', { exact: true }).count(), 1);
+    await page.waitForTimeout(2500); // let the canvas finish its debounced save before reload
+    await page.reload();
+    await cells.last().waitFor({ state: 'visible', timeout: 30000 });
+    assert.equal(await long.getAttribute('aria-pressed'), 'true');
+    assert.equal(await middleFrequency.evaluate(rect => rect.style.fill), longFill);
+    await heat.click({ button: 'right', position: { x: 30, y: 10 } });
+    await page.locator('[data-menu-focus]').first().click();
+    const focused = page.locator('[data-focus-host][data-block-id="p-heat"]');
+    await focused.getByText('Onset 0.40 s', { exact: true }).waitFor({ timeout: 10000 });
+    assert.equal(await focused.locator('[data-animation-object="spectrogram"] rect[style*="color-mix"]').count(), 247);
+  });
+  await check('21 no model route was called, no host other than the app and its own notebook frame was contacted, and no page error', async () => {
     assert.deepEqual(stray, []);
     assert.deepEqual(offOrigin, []);
     assert.deepEqual(errors, []);
