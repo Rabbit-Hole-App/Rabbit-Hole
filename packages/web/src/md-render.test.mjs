@@ -182,3 +182,14 @@ test('fences: an unclosed math fence (still streaming) stays a growing code bloc
   assert.equal((html.match(/data-code-block/g) || []).length, 1);
   assert.ok(!html.includes('data-chat-math'));
 });
+
+test('a single backslash ending a line is a hard break, never text (the Gini card: "$$...$$\\"); LaTeX \\ and code keep theirs', () => {
+  const BS = String.fromCharCode(92); // one backslash, spelled out so no escaping can change it
+  const gini = `For a node the impurity is\n$$${BS}text{Gini}=1-${BS}sum_{i=1}^{k} p_i^2.$$${BS}\nA value of 0 means the node is pure.`;
+  for (const props of [{}, { explain: true }]) assert.ok(!visible(md(gini, props)).includes(BS), 'no stray backslash on screen');
+  assert.ok(visible(md(`first line${BS}\nsecond line`)).includes('first line'));
+  assert.ok(!visible(md(`first line${BS}\nsecond line`)).includes(BS));
+  const aligned = `$$\n${BS}begin{aligned} a &= 1 ${BS}${BS}\n b &= 2 ${BS}end{aligned}\n$$`;
+  assert.equal((md(aligned).match(/data-chat-math="display"/g) || []).length, 1, 'a multi-line formula still typesets');
+  assert.ok(visible(md('```\nC:' + BS + 'path' + BS + '\n```')).includes('C:' + BS + 'path' + BS), 'code keeps a trailing backslash');
+});
