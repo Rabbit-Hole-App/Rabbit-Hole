@@ -615,6 +615,23 @@ Three more hand-authored examples extend the teaching registry to **six examples
 
 **Pushed** [`chatgpt/decision-tree-split-explorer`](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/chatgpt/decision-tree-split-explorer) at [`3365b53e`](https://github.com/Rabbit-Hole-App/Rabbit-Hole/commit/3365b53e365d64ebd4c9aa3434bbbb940ae81826). This example uses existing components. The capability ledger and frozen topic audit retain their counts.
 
+## Phase 02 first teaching examples · implemented 2026-11-08
+
+This batch uses the existing 2D SDK, shared Frame and native card controls. The teaching registry has ten reference examples. The component capability counts and pinned topic audit remain unchanged.
+
+| Built example | Lessons | Verified behavior |
+| --- | --- | --- |
+| `fixture-ai-classifier-threshold` | 03, 09, 17 | Cutoff 0.70 catches one of two positives with zero false alarms. Cutoff 0.50 catches both with two false alarms. The grid and all three metrics update from the same predictions. |
+| `fixture-ai-regression-fit` | 02 | Slope and intercept move the model line on fixed axes. Six vertical residuals and squared-error readouts contribute to the displayed mean squared error. |
+| `fixture-ai-kmeans` | 07 | Drag two centers and alternate assigning points and moving to group means. Left/right and top/bottom starts stabilize at inertia 13.5 and 25.5 respectively. |
+
+- [x] Seventeen focused sandbox and fixture-resolver checks passed, including persisted controls and state, frame validation and Reset. Dev web build and diff check passed.
+- [x] Inspected the initial and changed shared-Frame scenes for all three cards.
+- [ ] Verify real generation through the existing Tutor router and /interact workflow. Record generated artifacts separately from references.
+- [ ] Live dev browser acceptance.
+
+**Pushed** [`chatgpt/phase-02-ml-examples`](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/chatgpt/phase-02-ml-examples) at [`679cd64c`](https://github.com/Rabbit-Hole-App/Rabbit-Hole/commit/679cd64c9d04bcd6e54f25043299bc5e3f5e16d2). [Generation prompts and checks](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/679cd64c9d04bcd6e54f25043299bc5e3f5e16d2/docs/features/explain-on-canvas/handoff/ai-example-regeneration-handoff.md#phase-02-generation-cases). Task `3a8fb8aa-d610-4e65-9007-8fbe00afc18a`.
+
 ## Review criteria
 
 - Read the story on its own. The ending should answer the opening question, and the explanation should account for the cause of the outcome.
