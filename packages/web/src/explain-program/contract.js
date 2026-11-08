@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { RASTER_LIMITS, rasterProblem } from '../raster-pixels.js';
 import { ROLES } from '../scene-vocab.js';
 import { IMAGE_FIXTURE_IDS } from './sdk-image.js';
-import { CYCLIC_CAPABILITY, CYCLIC_SDK_VERSION, MEDIUM_CAPABILITY, MEDIUM_SDK_VERSION } from './stamps.js';
+import { RASTER_CAPABILITY, RASTER_SDK_VERSION, CYCLIC_CAPABILITY, CYCLIC_SDK_VERSION, MEDIUM_CAPABILITY, MEDIUM_SDK_VERSION } from './stamps.js';
 
 // The frozen artifact and frame contract of the generic /explain sandbox (plan section 5.2, Task 2).
 // Subject-independent on purpose: nothing here names a topic. Every object is strict, every value bounded; the host
@@ -33,9 +34,9 @@ export const CONTRACT_LIMITS = Object.freeze({
 
 export const ERROR_CODES = Object.freeze(['invalid_program', 'unsupported_capability', 'runtime_limit', 'runtime_error', 'invalid_output', 'version_unavailable']);
 // Capabilities a manifest may require. An unknown one is unsupported_capability, never silently ignored.
-export const CAPABILITIES = Object.freeze(['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', MEDIUM_CAPABILITY, CYCLIC_CAPABILITY]);
+export const CAPABILITIES = Object.freeze(['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', MEDIUM_CAPABILITY, CYCLIC_CAPABILITY, RASTER_CAPABILITY]);
 // Frame object kinds: the closed set the trusted renderer draws. Equations are text objects with math runs (hardened path).
-export const OBJECT_KINDS = Object.freeze(['box', 'circle', 'text', 'line', 'arrow', 'polyline', 'image']);
+export const OBJECT_KINDS = Object.freeze(['box', 'circle', 'text', 'line', 'arrow', 'polyline', 'image', 'raster']);
 
 const finite = limit => z.number().min(-limit).max(limit); // z.number() already refuses NaN and Infinity
 const coordinate = finite(CONTRACT_LIMITS.coordinate);
@@ -201,6 +202,7 @@ const frameObject = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('text'), id, x: coordinate, y: coordinate, ...labelled, align: z.enum(['start', 'middle']).default('start'), ...style }).strict(),
   z.object({ kind: z.enum(['line', 'arrow']), id, from: z.object({ x: coordinate, y: coordinate }).strict(), to: z.object({ x: coordinate, y: coordinate }).strict(), ...labelled, ...style }).strict(),
   z.object({ kind: z.literal('image'), id, asset: z.enum(IMAGE_FIXTURE_IDS), x: coordinate, y: coordinate, w: size, h: size, crop: imageCrop.optional(), ...style }).strict(),
+  z.object({ kind: z.literal('raster'), id, x: coordinate, y: coordinate, w: size, h: size, rows: z.number().int().min(1).max(64), cols: z.number().int().min(1).max(64), pixels: z.array(z.number().int().min(0).max(255)).max(RASTER_LIMITS.pixels * 4), ...style }).strict(),
   z.object({
     kind: z.literal('polyline'), id, points: z.array(point).min(2).max(CONTRACT_LIMITS.pointsPerObject),
     // Everything outside this rectangle is not drawn: a plotted series cannot cover the rest of the picture.
@@ -214,11 +216,17 @@ export const Frame = z.object({
   readouts: z.array(z.object({ id: name, value: finite(1e12) }).strict()).max(CONTRACT_LIMITS.readouts).default([]),
 }).strict().superRefine((frame, context) => {
   const seen = new Set();
-  let points = 0, images = 0;
+  let points = 0, images = 0, rasterPixels = 0;
   frame.objects.forEach((object, index) => {
     if (seen.has(object.id)) context.addIssue({ code: 'custom', message: `duplicate object id "${object.id}"`, path: ['objects', index, 'id'] });
     seen.add(object.id);
     if (object.kind === 'polyline') points += object.points.length;
+    if (object.kind === 'raster') {
+      rasterPixels += object.rows * object.cols;
+      const problem = rasterProblem(object);
+      if (problem) context.addIssue({ code: 'custom', message: problem, path: ['objects', index] });
+      if (object.x < 0 || object.y < 0 || object.x + object.w > frame.width || object.y + object.h > frame.height) context.addIssue({ code: 'custom', message: 'raster must stay within the frame', path: ['objects', index] });
+    }
     if (object.kind === 'image') {
       images += 1;
       if (object.x < 0 || object.y < 0 || object.x + object.w > frame.width || object.y + object.h > frame.height) {
@@ -234,6 +242,7 @@ export const Frame = z.object({
     if ('text' in object && object.text && object.runs) context.addIssue({ code: 'custom', message: 'give text or runs, not both', path: ['objects', index] });
   });
   if (points > CONTRACT_LIMITS.pointsTotal) context.addIssue({ code: 'custom', message: `${points} polyline points in total (at most ${CONTRACT_LIMITS.pointsTotal})`, path: ['objects'] });
+  if (rasterPixels > RASTER_LIMITS.framePixels) context.addIssue({ code: 'custom', message: 'at most 8192 raster pixels per frame', path: ['objects'] });
   if (images > 4) context.addIssue({ code: 'custom', message: 'at most four image views per frame', path: ['objects'] });
 });
 
@@ -300,11 +309,14 @@ export const parseBundle = (raw, schemaVersion = SCHEMA_VERSION) => {
 export const parseArtifact = raw => {
   const schemaVersion = stateful(raw?.schemaVersion) ? STATEFUL_SCHEMA_VERSION : SCHEMA_VERSION;
   const manifest = parseManifest(raw?.manifest, schemaVersion);
-  if (manifest.ok && manifest.value.capabilities.includes(MEDIUM_CAPABILITY) && ![MEDIUM_SDK_VERSION, CYCLIC_SDK_VERSION].includes(raw.sdkVersion)) {
+  if (manifest.ok && manifest.value.capabilities.includes(MEDIUM_CAPABILITY) && ![MEDIUM_SDK_VERSION, CYCLIC_SDK_VERSION, RASTER_SDK_VERSION].includes(raw.sdkVersion)) {
     return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'the Medium capability requires its SDK version' };
   }
-  if (manifest.ok && manifest.value.capabilities.includes(CYCLIC_CAPABILITY) && raw.sdkVersion !== CYCLIC_SDK_VERSION) {
+  if (manifest.ok && manifest.value.capabilities.includes(CYCLIC_CAPABILITY) && ![CYCLIC_SDK_VERSION, RASTER_SDK_VERSION].includes(raw.sdkVersion)) {
     return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'cyclic networks require their SDK version' };
+  }
+  if (manifest.ok && manifest.value.capabilities.includes(RASTER_CAPABILITY) && raw.sdkVersion !== RASTER_SDK_VERSION) {
+    return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'raster visuals require their SDK version' };
   }
   return manifest.ok ? parseWith(stateful(schemaVersion) ? StatefulArtifact : ProgramArtifact, raw, 'invalid_program') : manifest;
 };
@@ -352,6 +364,7 @@ export function parseGuestResult(raw, manifest = null) {
   if (objects.some(object => object.kind === 'image') && !manifest?.capabilities?.includes(MEDIUM_CAPABILITY)) {
     return invalid('frame: image views require the Medium capability');
   }
+  if (objects.some(object => object.kind === 'raster') && !manifest?.capabilities?.includes(RASTER_CAPABILITY)) return invalid('frame: raster pixels require raster_visuals');
   const viewport = manifest?.viewport;
   if (!viewport) return result;
   if (width !== viewport.width || height !== viewport.height) return invalid(`frame: ${width} x ${height}, but the manifest viewport is ${viewport.width} x ${viewport.height}`);

@@ -24,6 +24,7 @@ function sceneObject(object) {
     case 'box': return { ...base, type: 'box', initialState: { x: object.x, y: object.y, w: object.w, h: object.h, rotation: object.rotation, ...label(object), ...common(object) } };
     case 'circle': return { ...base, type: 'circle', initialState: { x: object.x, y: object.y, w: object.w, rotation: object.rotation, ...label(object), ...common(object) } };
     case 'text': return { ...base, type: 'text', initialState: { x: object.x, y: object.y, align: object.align, ...label(object), ...common(object) } };
+    case 'raster': return { ...base, type: 'raster', initialState: { x: object.x, y: object.y, w: object.w, h: object.h, rows: object.rows, cols: object.cols, pixels: object.pixels, ...common(object) } };
     case 'image': return { ...base, type: 'image', initialState: { x: object.x, y: object.y, w: object.w, h: object.h, src: IMAGE_FIXTURE_PATHS[object.asset], crop: object.crop, ...common(object) } };
     case 'line':
     case 'arrow': return { ...base, type: object.kind, initialState: { x: object.from.x, y: object.from.y, from: object.from, to: object.to, ...label(object), ...common(object) } };

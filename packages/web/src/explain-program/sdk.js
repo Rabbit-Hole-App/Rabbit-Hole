@@ -1,3 +1,4 @@
+import { RASTER_SOURCE } from './sdk-raster.js';
 import { CYCLIC_GRAPH_SOURCE } from './sdk-cyclic.js';
 import { GEOMETRY_SOURCE } from './sdk-geometry.js';
 import { EXPANDABLE_GRAPH_SOURCE, GRAPH_SOURCE } from './sdk-graph.js';
@@ -8,7 +9,7 @@ import { IMAGE_SOURCE } from './sdk-image.js';
 import { PLOT_SOURCE } from './sdk-plot.js';
 import { TIMELINE_SOURCE } from './sdk-timeline.js';
 import { TRACE_SOURCE } from './sdk-trace.js';
-import { CYCLIC_SDK_VERSION, MEDIUM_SDK_VERSION, VISUAL_SDK_VERSION } from './stamps.js';
+import { RASTER_SDK_VERSION, CYCLIC_SDK_VERSION, MEDIUM_SDK_VERSION, VISUAL_SDK_VERSION } from './stamps.js';
 
 // The guest-side SDK (plan section 5.2): generic geometry and formatting helpers only. No subject formulas, no lesson catalogue.
 // SDK_SOURCE is plain script text the runtime evaluates in the guest BEFORE the generated module, defining one global, `sdk`.
@@ -53,7 +54,9 @@ var sdk = (function () {
 const VISUAL_SDK_SOURCE = [SDK_SOURCE, PLOT_SOURCE, GRAPH_SOURCE, GRID_SOURCE, GEOMETRY_SOURCE, TIMELINE_SOURCE].join('\n');
 const MEDIUM_SDK_SOURCE = [VISUAL_SDK_SOURCE, TRACE_SOURCE, FIELD_SOURCE, EVIDENCE_SOURCE, EXPANDABLE_GRAPH_SOURCE, IMAGE_SOURCE].join('\n');
 const CYCLIC_SDK_SOURCE = [MEDIUM_SDK_SOURCE, CYCLIC_GRAPH_SOURCE].join('\n');
+const RASTER_SDK_SOURCE = [CYCLIC_SDK_SOURCE, RASTER_SOURCE].join('\n');
 export function programSdkSource(version) {
+  if (version === RASTER_SDK_VERSION) return RASTER_SDK_SOURCE;
   if (version === CYCLIC_SDK_VERSION) return CYCLIC_SDK_SOURCE;
   if (version === SDK_VERSION) return SDK_SOURCE;
   if (version === VISUAL_SDK_VERSION) return VISUAL_SDK_SOURCE;

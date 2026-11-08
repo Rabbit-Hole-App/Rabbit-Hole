@@ -1,3 +1,4 @@
+import { rasterRuns } from './raster-pixels.js';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react';
@@ -556,17 +557,18 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
           const isStroke = object.type === 'arrow' || object.type === 'line';
           const isPolyline = object.type === 'polyline';
           const isImage = object.type === 'image';
+          const isRaster = object.type === 'raster';
           const maths = isEquation ? typeset(shown) : null;
           // A circle is placed by its centre, so its label is centred on the
           // same point; boxes centre inside their frame.
           const centre = centreOf(object);
-          const label = labelAt(object, { stroke: isStroke || isPolyline, above: isData || isImage, text: isText }, centre, visibleObjects);
+          const label = labelAt(object, { stroke: isStroke || isPolyline, above: isData || isImage || isRaster, text: isText }, centre, visibleObjects);
           // State never changes which role's colour is shown, only weight and
           // fill strength - one resolved look serves every shape below.
           // IDENTITY (if this object has one) takes the hue role would
           // otherwise have supplied - see shapeStyle's own comment.
           const look = sceneShapeStyle(role, { highlighted: object.highlighted, chosen }, undefined, object.identitySlot);
-          const isMark = isStroke || isPolyline || isImage;
+          const isMark = isStroke || isPolyline || isImage || isRaster;
           const wireInk = interact && isMark ? interactMarkColor(role, object.identitySlot) : look.stroke;
           // A label is named by what it is doing, not by what it looks like: a
           // text object carries its own typography, every other kind draws a
@@ -603,6 +605,12 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
               {isData
                 ? <DataShape object={object} role={role} pop={pop} chosen={chosen} inkAt={inkAt} interact={interact}
                     onInputPick={object.pickInput && lockedInputs.includes(object.pickInput) ? null : onInputPick} />
+                : isRaster
+                ? <svg data-raster-pixels x={object.x} y={object.y} width={object.w} height={object.h}
+                    viewBox={`0 0 ${object.cols} ${object.rows}`} preserveAspectRatio="none" overflow="hidden" shapeRendering="crispEdges">
+                    <rect width={object.cols} height={object.rows} fill="transparent" />
+                    {rasterRuns(object).map((run, i) => <rect key={i} x={run.x} y={run.y} width={run.w} height="1" fill={run.fill} fillOpacity={run.opacity} />)}
+                  </svg>
                 : isImage
                 ? (object.crop
                   // A crop is the same picture through a smaller window: the

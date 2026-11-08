@@ -126,6 +126,50 @@ this environment has no authorized deployment credentials or working browser
 capture. No planner mapping, repair-budget or browser-assertion changes are part
 of this implementation.
 
+### Numeric raster images and segmentation masks
+
+Programs declare `raster_visuals` and seal with SDK 6 / renderer 4. The earlier
+SDK sources and supported tuples remain unchanged. The shared `Frame` renders
+numeric RGBA rasters with nearest-neighbor scaling and transparent alpha, using
+bounded horizontal SVG runs. Guest URLs, markup and image decoders are not added.
+
+- `sdk.raster(id,{x,y,w,h,rows,cols,pixels})` returns **one** frame object. Pixels
+  are a flat row-major array of RGBA integer bytes (0–255), four per pixel.
+- `sdk.mask(id,{x,y,w,h,rows,cols,values,color?,opacity?})` returns one RGBA raster.
+  Each value is coverage 0–1. Color is `#RRGGBB`, default `#E5AA46`; opacity defaults
+  to 1. Alpha is rounded coverage × opacity × 255. Zero alpha paints nothing,
+  including holes within a region. Draw after the source using matching bounds
+  and pixel grid; multiple masks can represent different classes within the limits.
+- Each raster has 1–64 rows/columns and at most 4096 pixels. A frame permits at
+  most 8192 raster pixels total. Existing 256 KiB output, object, viewport and
+  execution budgets still apply. A raster counts as one frame object, but its
+  pixel workload is independently bounded. Resizing scales the pixel grid; it
+  does not recompute a higher-resolution segmentation.
+
+Examples are in `raster-fixtures.js`, available through the normal dev fixture
+resolver and existing select controls:
+
+| Fixture | Behavior |
+| --- | --- |
+| `fixture-raster-mask` | Select ring, rectangle or none on a synthetic 24 × 24 image. The ring mask keeps its center transparent. |
+| `fixture-raster-transform` | Switch original, 3 × 3 box blur, or Laplacian edges. Numeric pixels are recomputed by the sandbox. |
+
+Both examples are explicitly synthetic, not model predictions. Author and repair
+contexts include the signatures and limits. This closes bounded raster/mask
+rendering support, not full-resolution photo processing, learner attachment
+binding, automatic segmentation inference or GPU model execution. Those remain
+separate integrations. The other four deferred capability groups are unchanged.
+
+Verification: helper validation, real QuickJS fixture execution, capability/version
+gates, preserved SDK fingerprints, exact filter pixels, transparency and holes,
+shared-scene conversion, and unchanged external-image rejection are checked by
+focused tests: 61 integration/helper/compatibility checks passed, as did the shared
+scene checks and dev web build. Static shared-Frame output was inspected for the
+ring mask and blur (offline SVG export maps transparent paint to none). Raster
+selection uses whole-object bounds, not per-pixel hit testing.
+Dev deployment and live browser interaction remain pending because
+this environment lacks the authorized dev credentials and working browser capture.
+
 ## Limits (main: `contract.js CONTRACT_LIMITS`, `limits.js LIMITS`)
 
 | Limit | Value |

@@ -54,6 +54,17 @@ export const CYCLIC_PROGRAM_STAMPS = Object.freeze({
 });
 export const STATEFUL_CYCLIC_PROGRAM_STAMPS = Object.freeze({ ...CYCLIC_PROGRAM_STAMPS, schemaVersion: 2 });
 
+// Raster pixels are numeric data rendered by the trusted shared renderer.
+export const RASTER_CAPABILITY = 'raster_visuals';
+export const RASTER_SDK_VERSION = 'sdk-6';
+export const RASTER_PROGRAM_STAMPS = Object.freeze({
+  ...CYCLIC_PROGRAM_STAMPS,
+  sdkVersion: RASTER_SDK_VERSION,
+  rendererVersion: 'renderer-4',
+  fingerprints: Object.freeze({ ...CYCLIC_PROGRAM_STAMPS.fingerprints, sdk: 'fbfae318e08fc29cb9a6b8e3bbb69c5da3a9cd5d70ccf02d50526afa14170efa', renderer: 'renderer-4' }),
+});
+export const STATEFUL_RASTER_PROGRAM_STAMPS = Object.freeze({ ...RASTER_PROGRAM_STAMPS, schemaVersion: 2 });
+
 // Every version tuple host.js will run, whole: an artifact runs only if all of these fields equal one entry exactly. No "same major",
 // no field ignored. A new engine, SDK, renderer or policy is a new entry, added beside the old one while artifacts sealed with it remain.
 const tuple = (schemaVersion, stamps) => Object.freeze({ schemaVersion, sdkVersion: 'sdk-1', rendererVersion: RENDERER_VERSION, ...stamps });
@@ -62,4 +73,5 @@ export const SUPPORTED_PROGRAM_TUPLES = Object.freeze([
   tuple(1, VISUAL_PROGRAM_STAMPS), tuple(2, STATEFUL_VISUAL_PROGRAM_STAMPS),
   tuple(1, MEDIUM_PROGRAM_STAMPS), tuple(2, STATEFUL_MEDIUM_PROGRAM_STAMPS),
   tuple(1, CYCLIC_PROGRAM_STAMPS), tuple(2, STATEFUL_CYCLIC_PROGRAM_STAMPS),
+  tuple(1, RASTER_PROGRAM_STAMPS), tuple(2, STATEFUL_RASTER_PROGRAM_STAMPS),
 ]);
