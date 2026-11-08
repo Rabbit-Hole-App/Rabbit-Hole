@@ -35,6 +35,9 @@
       --blue: #426db2;
       --explanation-ink: #375d92;
       --blue-soft: #eaf1fb;
+      --control-selected-border: #adc4e5;
+      --control-selected-hover-bg: #dde9f8;
+      --control-active-bg: #d0e0f4;
       --orange: #b86232;
       --orange-dark: #934723;
       --orange-soft: #f8ece3;
@@ -46,8 +49,8 @@
       --control-bg: #ffffff;
       --control-hover-bg: #f6f8f4;
       --control-hover-border: #d2d9d2;
-      --control-selected-border: #e2ad8f;
-      --control-active-bg: #f5e0d2;
+      --experiment-selected-border: #e2ad8f;
+      --experiment-active-bg: #f5e0d2;
       --tree-line: #b9c3b9;
       --tree-active-border: #93c9af;
       --tree-deny-border: #dfae8e;
@@ -70,7 +73,7 @@
     body, h1, h2, p, figure { margin: 0; }
     main { max-width: 1256px; margin: 0 auto; padding: 27px 26px 44px; }
     .eyebrow { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .9375rem; font-weight: 700; }
-    .eyebrow::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--orange); }
+    .eyebrow::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--blue); }
     h1 { margin: 6px 0 5px; font-size: clamp(1.65rem, 4vw, 2.25rem); line-height: 1.2; letter-spacing: -.026em; }
     .page-note { color: var(--muted); max-width: 72ch; }
     .examples { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 22px; align-items: start; }
@@ -142,8 +145,8 @@
     .choice { display: grid; flex: 1 1 83px; cursor: pointer; }
     .choice-text { display: grid; place-items: center; min-height: 35px; padding: 5px 7px; text-align: center; border: 1px solid var(--panel-border); border-radius: var(--control-radius); background: var(--control-bg); color: var(--muted); font-size: var(--label-size); font-weight: var(--weight-label); }
     .choice:hover input:enabled + .choice-text { background: var(--control-hover-bg); border-color: var(--control-hover-border); }
-    .choice input:checked + .choice-text { border-color: var(--control-selected-border); background: var(--orange-soft); color: var(--orange-dark); }
-    .choice:hover input:checked:enabled + .choice-text, .choice:active input:enabled + .choice-text { background: var(--control-active-bg); border-color: var(--control-selected-border); color: var(--orange-dark); }
+    .choice input:checked + .choice-text { border-color: var(--experiment-selected-border); background: var(--orange-soft); color: var(--orange-dark); }
+    .choice:hover input:checked:enabled + .choice-text, .choice:active input:enabled + .choice-text { background: var(--experiment-active-bg); border-color: var(--experiment-selected-border); color: var(--orange-dark); }
     .choice input:focus-visible + .choice-text { outline: var(--focus-width) solid var(--blue); outline-offset: 2px; }
     .choice input:disabled + .choice-text { opacity: var(--disabled-opacity); cursor: not-allowed; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -155,7 +158,8 @@
       background: var(--card); color: var(--muted);
       cursor: nwse-resize; touch-action: none;
     }
-    .resize-handle:hover, .teaching-card.is-resizing .resize-handle { color: var(--orange-dark); background: var(--orange-soft); border-color: var(--control-selected-border); }
+    .resize-handle:hover { color: var(--explanation-ink); background: var(--blue-soft); border-color: var(--control-selected-border); }
+    .resize-handle:active, .teaching-card.is-resizing .resize-handle { color: var(--explanation-ink); background: var(--control-active-bg); border-color: var(--control-selected-border); }
     .resize-handle:focus-visible { outline: var(--focus-width) solid var(--blue); outline-offset: -2px; }
     .teaching-card.is-resizing { user-select: none; }
     @container (max-width: 370px) {
@@ -189,6 +193,7 @@
     <div class="examples" id="examples"></div>
     <section class="design-spec" id="design-spec" aria-labelledby="design-spec-title">
       <h2 id="design-spec-title">Exact card design values</h2>
+      <p>Blue is the shared action, selection, focus and playback color. Use #375D92 for primary action ink or fill, with #EAF1FB / #ADC4E5 for soft selection. Claude red (#934723 / #F8ECE3) identifies Interactive and colors its local experiment controls. Both mode pills are text-only. Green remains the affirmative and completion color.</p>
       <p>Use these values for both card variants. The preview reads the same named CSS tokens. The font stack is <code>Inter, Liberation Sans, Arial, sans-serif</code> with pixel equivalents based on a 16 px root size. Line heights below are multipliers.</p>
       <details open>
         <summary>Typography</summary>
@@ -239,8 +244,11 @@
             <tr><th scope="row">Control and inactive node surface</th><td><code>--control-bg</code></td><td><span class="swatch" style="--swatch: var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td>100%</td></tr>
             <tr><th scope="row">Unselected hover surface</th><td><code>--control-hover-bg</code></td><td><span class="swatch" style="--swatch: var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code></td><td>100%</td></tr>
             <tr><th scope="row">Unselected hover border</th><td><code>--control-hover-border</code></td><td><span class="swatch" style="--swatch: var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code></td><td>100%</td></tr>
-            <tr><th scope="row">Selected and resize-hover border</th><td><code>--control-selected-border</code></td><td><span class="swatch" style="--swatch: var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td>100%</td></tr>
-            <tr><th scope="row">Selected hover and press surface</th><td><code>--control-active-bg</code></td><td><span class="swatch" style="--swatch: var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code></td><td>100%</td></tr>
+            <tr><th scope="row">Shared blue selection border</th><td><code>--control-selected-border</code></td><td><span class="swatch" style="--swatch: var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code></td><td>100%</td></tr>
+            <tr><th scope="row">Shared blue selection hover</th><td><code>--control-selected-hover-bg</code></td><td><span class="swatch" style="--swatch: var(--control-selected-hover-bg)" aria-hidden="true"></span><code>#DDE9F8</code></td><td>100%</td></tr>
+            <tr><th scope="row">Shared blue pressed surface</th><td><code>--control-active-bg</code></td><td><span class="swatch" style="--swatch: var(--control-active-bg)" aria-hidden="true"></span><code>#D0E0F4</code></td><td>100%</td></tr>
+            <tr><th scope="row">Interactive experiment selected border</th><td><code>--experiment-selected-border</code></td><td><span class="swatch" style="--swatch: var(--experiment-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td>100%</td></tr>
+            <tr><th scope="row">Interactive experiment hover and press surface</th><td><code>--experiment-active-bg</code></td><td><span class="swatch" style="--swatch: var(--experiment-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code></td><td>100%</td></tr>
             <tr><th scope="row">Inactive tree line</th><td><code>--tree-line</code></td><td><span class="swatch" style="--swatch: var(--tree-line)" aria-hidden="true"></span><code>#B9C3B9</code></td><td>100%</td></tr>
             <tr><th scope="row">Active tree node outline</th><td><code>--tree-active-border</code></td><td><span class="swatch" style="--swatch: var(--tree-active-border)" aria-hidden="true"></span><code>#93C9AF</code></td><td>100%</td></tr>
             <tr><th scope="row">Denied tree node outline</th><td><code>--tree-deny-border</code></td><td><span class="swatch" style="--swatch: var(--tree-deny-border)" aria-hidden="true"></span><code>#DFAE8E</code></td><td>100%</td></tr>
@@ -274,10 +282,11 @@
           <tbody>
             <tr><th scope="row">Choice · default</th><td><span class="swatch" style="--swatch: var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--swatch: var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code></td><td><span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td></td></tr>
             <tr><th scope="row">Choice · hover</th><td><span class="swatch" style="--swatch: var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code></td><td><span class="swatch" style="--swatch: var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code></td><td><span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td></td></tr>
-            <tr><th scope="row">Choice · selected</th><td><span class="swatch" style="--swatch: var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td><span class="swatch" style="--swatch: var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td></td></tr>
-            <tr><th scope="row">Choice · selected hover or press</th><td><span class="swatch" style="--swatch: var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code></td><td><span class="swatch" style="--swatch: var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td></td></tr>
+            <tr><th scope="row">Choice · selected</th><td><span class="swatch" style="--swatch: var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td><span class="swatch" style="--swatch: var(--experiment-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td></td></tr>
+            <tr><th scope="row">Choice · selected hover or press</th><td><span class="swatch" style="--swatch: var(--experiment-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code></td><td><span class="swatch" style="--swatch: var(--experiment-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td></td></tr>
             <tr><th scope="row">Resize grip · default</th><td><span class="swatch" style="--swatch: var(--card)" aria-hidden="true"></span><code>#FFFEFA</code></td><td>Transparent</td><td><span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td></td></tr>
-            <tr><th scope="row">Resize grip · hover or drag</th><td><span class="swatch" style="--swatch: var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td><span class="swatch" style="--swatch: var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td></td></tr>
+            <tr><th scope="row">Resize grip · hover</th><td><span class="swatch" style="--swatch: var(--blue-soft)" aria-hidden="true"></span><code>#EAF1FB</code></td><td><span class="swatch" style="--swatch: var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code></td><td><span class="swatch" style="--swatch: var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td></td></tr>
+            <tr><th scope="row">Resize grip · press or drag</th><td><span class="swatch" style="--swatch: var(--control-active-bg)" aria-hidden="true"></span><code>#D0E0F4</code></td><td><span class="swatch" style="--swatch: var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code></td><td><span class="swatch" style="--swatch: var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td></td></tr>
             <tr><th scope="row">Why · approval</th><td><span class="swatch" style="--swatch: var(--green-soft)" aria-hidden="true"></span><code>#E5F2EA</code></td><td><span class="swatch" style="--swatch: var(--why-border)" aria-hidden="true"></span><code>#B8DCCC</code></td><td><span class="swatch" style="--swatch: var(--why-ink)" aria-hidden="true"></span><code>#205C45</code></td><td></td></tr>
             <tr><th scope="row">Why · denial</th><td><span class="swatch" style="--swatch: var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td><span class="swatch" style="--swatch: var(--deny-border)" aria-hidden="true"></span><code>#EAC6AD</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td></td></tr>
             <tr><th scope="row">Tree node · active approval path</th><td><span class="swatch" style="--swatch: var(--green-soft)" aria-hidden="true"></span><code>#E5F2EA</code></td><td><span class="swatch" style="--swatch: var(--tree-active-border)" aria-hidden="true"></span><code>#93C9AF</code></td><td><span class="swatch" style="--swatch: var(--green)" aria-hidden="true"></span><code>#267657</code></td><td></td></tr>

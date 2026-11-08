@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rabbit Hole · Source headers and chat composer</title>
+  <style>
+    :root {
+      color-scheme:light;
+      --paper:#f5f4ed; --card:#fffefa; --card-border:#dedfd8; --panel:#f6f8f4; --panel-border:#e3e7e0;
+      --control-bg:#ffffff; --ink:#202723; --muted:#5d675f; --control-hover-border:#d2d9d2;
+      --blue:#426db2; --action-blue:#375d92; --action-blue-hover:#2b4b78; --action-blue-pressed:#203858;
+      --blue-soft:#eaf1fb; --blue-line:#adc4e5; --blue-soft-hover:#dde9f8; --blue-soft-pressed:#d0e0f4;
+      --orange-dark:#934723; --orange-soft:#f8ece3; --orange:#b86232;
+      --green:#267657; --green-soft:#e5f2ea; --danger-ink:#9d3d39; --danger-soft:#f9ebea;
+      --disabled-opacity:.45; --card-radius:18px; --control-radius:8px; --focus-width:2px;
+      --title-size:1.65rem; --title-size-compact:1.35rem; --title-leading:1.17; --title-tracking:-.023em;
+      font:1rem/1.45 Inter,"Liberation Sans",Arial,sans-serif; background:var(--paper); color:var(--ink);
+    }
+    * { box-sizing:border-box; }
+    [hidden] { display:none !important; }
+    body,h1,h2,h3,p { margin:0; }
+    main { max-width:1040px; margin:auto; padding:28px 25px 45px; }
+    button,textarea { font:inherit; }
+    button { cursor:pointer; }
+    button:disabled { cursor:not-allowed; opacity:var(--disabled-opacity); }
+    :is(button,textarea):focus-visible { outline:var(--focus-width) solid var(--blue); outline-offset:2px; }
+    .eyebrow { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:.9rem; font-weight:700; }
+    .eyebrow::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--blue); }
+    h1 { font-size:clamp(1.75rem,4vw,2.4rem); line-height:1.12; letter-spacing:-.027em; margin:5px 0; }
+    h2 { font-size:1.45rem; margin-bottom:7px; }
+    .lede,.muted { color:var(--muted); }
+    .lede { max-width:76ch; }
+    section { margin-top:25px; }
+    .examples { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .panel,.source-card,.composer { border:1px solid var(--card-border); border-radius:var(--card-radius); background:var(--card); }
+    .source-card { container-type:inline-size; }
+    .source-header { padding:17px 24px 11px; }
+    .source-top { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+    .pill { display:inline-flex; align-items:center; min-height:26px; padding:1px 11px; border-radius:999px; font-size:13px; font-weight:700; }
+    .pill.source { color:var(--muted); background:var(--panel); }
+    .pill.explain { color:var(--action-blue); background:var(--blue-soft); }
+    .pill.interactive { color:var(--orange-dark); background:var(--orange-soft); }
+    .card-title { color:var(--ink); font-size:var(--title-size); line-height:var(--title-leading); letter-spacing:var(--title-tracking); font-weight:700; overflow-wrap:anywhere; }
+    .source-name { margin-top:4px; color:var(--muted); font-size:.875rem; font-weight:650; line-height:1.35; }
+    @container (max-width:370px) { .source-header { padding-inline:15px; } .card-title { font-size:var(--title-size-compact); } }
+    .composer { width:min(100%,755px); padding:9px; display:grid; gap:6px; container-type:inline-size; }
+    .context-row { display:flex; flex-wrap:wrap; align-items:center; gap:5px; padding:0 2px; }
+    .context-wrap { position:relative; }
+    .context-button,.tool { display:inline-flex; align-items:center; justify-content:center; gap:6px; border:1px solid transparent; background:transparent; color:var(--muted); }
+    .context-button { padding:0 9px; min-height:32px; border-radius:999px; font-size:13px; font-weight:650; }
+    :is(.context-button,.tool):hover:enabled { background:var(--panel); border-color:var(--control-hover-border); color:var(--ink); }
+    :is(.context-button,.tool):is([aria-pressed="true"],[aria-expanded="true"]) { background:var(--blue-soft); border-color:var(--blue-line); color:var(--action-blue); }
+    :is(.context-button,.tool):is([aria-pressed="true"],[aria-expanded="true"]):hover:enabled { background:var(--blue-soft-hover); color:var(--action-blue); }
+    :is(.context-button,.tool):active:enabled { background:var(--blue-soft-pressed); border-color:var(--blue-line); color:var(--action-blue); }
+    .icon { display:block; flex:none; width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+    .project-menu { position:absolute; z-index:1; left:0; top:calc(100% + 4px); min-width:170px; padding:4px; border:1px solid var(--card-border); border-radius:10px; background:var(--card); box-shadow:0 8px 28px rgba(32,39,35,.13); }
+    .project-menu .context-button { width:100%; justify-content:flex-start; border-radius:8px; }
+    .prompt { display:grid; grid-template-columns:35px minmax(0,1fr) auto; gap:6px; align-items:center; min-height:48px; padding:5px 6px; border:1px solid var(--card-border); border-radius:999px; background:var(--control-bg); }
+    .prompt:focus-within { border-color:var(--blue); outline:var(--focus-width) solid var(--blue); outline-offset:2px; }
+    .prompt textarea { width:100%; min-width:0; min-height:29px; max-height:96px; resize:vertical; padding:4px 2px; border:0; background:transparent; color:var(--ink); font-size:15px; line-height:1.45; }
+    .prompt textarea:focus-visible { outline:none; }
+    .prompt textarea::placeholder { color:var(--muted); opacity:1; }
+    .tools { display:flex; align-items:center; gap:4px; }
+    .tool { flex:none; width:35px; min-height:35px; padding:0; border-radius:var(--control-radius); }
+    .send { width:36px; height:36px; display:grid; place-items:center; border:1px solid var(--action-blue); border-radius:50%; background:var(--action-blue); color:var(--control-bg); padding:0; }
+    .send:hover:enabled { background:var(--action-blue-hover); border-color:var(--action-blue-hover); }
+    .send:active:enabled { background:var(--action-blue-pressed); border-color:var(--action-blue-pressed); }
+    .send .icon { width:17px; height:17px; }
+    .send[data-streaming="true"] .icon { fill:currentColor; width:13px; height:13px; }
+    .demo-status { padding:0 5px; font-size:12px; color:var(--muted); }
+    @container (max-width:420px) { .prompt { grid-template-columns:35px minmax(0,1fr); border-radius:18px; } .tools { grid-column:1/-1; justify-content:flex-end; } }
+    .panel { padding:11px 14px; }
+    .selection-sample { padding:10px 12px; }
+    .selection-toolbar { display:inline-flex; gap:3px; padding:4px; border:1px solid var(--card-border); border-radius:10px; background:var(--card); box-shadow:0 8px 28px rgba(32,39,35,.13); }
+    .selection-toolbar .tool { width:32px; min-height:32px; }
+    .selection-toolbar .icon { width:15px; height:15px; }
+    .selection-sample p { margin-top:7px; color:var(--ink); font-size:15px; }
+    .selection-sample mark,.selection-sample ::selection { background:var(--blue-soft-pressed); color:var(--ink); }
+
+    .table-scroll { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; text-align:left; font-size:.875rem; }
+    th,td { padding:7px 8px; border-bottom:1px solid var(--panel-border); vertical-align:top; }
+    thead th { background:var(--panel); }
+    tbody tr:last-child > * { border-bottom:0; }
+    code { white-space:nowrap; }
+    a { color:var(--action-blue); text-underline-offset:3px; }
+    .sources { margin-top:8px; color:var(--muted); font-size:.8125rem; }
+    @media (max-width:640px) { main { padding:18px 12px 32px; } .examples { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="0" height="0" style="position:absolute;overflow:hidden"><defs><symbol id="i-Highlighter" viewBox="0 0 24 24"><path d="m9 11-6 6v3h9l3-3"></path><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"></path></symbol>
+<symbol id="i-Lightbulb" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path></symbol>
+<symbol id="i-MessageSquarePlus" viewBox="0 0 24 24"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"></path><path d="M12 8v6"></path><path d="M9 11h6"></path></symbol>
+<symbol id="i-FolderOpen" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"></path></symbol>
+<symbol id="i-Files" viewBox="0 0 24 24"><path d="M15 2h-4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"></path><path d="M16.706 2.706A2.4 2.4 0 0 0 15 2v5a1 1 0 0 0 1 1h5a2.4 2.4 0 0 0-.706-1.706z"></path><path d="M5 7a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 1.732-1"></path></symbol>
+<symbol id="i-Puzzle" viewBox="0 0 24 24"><path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"></path></symbol>
+<symbol id="i-Plus" viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="M12 5v14"></path></symbol>
+<symbol id="i-SlidersHorizontal" viewBox="0 0 24 24"><path d="M10 5H3"></path><path d="M12 19H3"></path><path d="M14 3v4"></path><path d="M16 17v4"></path><path d="M21 12h-9"></path><path d="M21 19h-5"></path><path d="M21 5h-7"></path><path d="M8 10v4"></path><path d="M8 12H3"></path></symbol>
+<symbol id="i-Mic" viewBox="0 0 24 24"><path d="M12 19v3"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><rect x="9" y="2" width="6" height="13" rx="3"></rect></symbol>
+<symbol id="i-ArrowUp" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path></symbol>
+<symbol id="i-Square" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"></rect></symbol></defs></svg>
+<main>
+  <header>
+    <p class="eyebrow">Rabbit Hole · Shared UI reference</p>
+    <h1>Source headers and chat composer</h1>
+    <p class="lede">Two isolated components using the card shell’s typography and palette. Blue drives app actions and selection. Claude red identifies Interactive cards and their local controls.</p>
+  </header>
+  <section aria-labelledby="files-heading">
+    <h2 id="files-heading">Dropped document headers</h2>
+    <div class="examples">
+      <article class="source-card" aria-labelledby="markdown-title"><header class="source-header"><div class="source-top"><span class="pill source">Markdown</span></div><h3 class="card-title" id="markdown-title">en.md</h3></header></article>
+      <article class="source-card" aria-labelledby="pdf-title"><header class="source-header"><div class="source-top"><span class="pill source">PDF</span></div><h3 class="card-title" id="pdf-title">Decision Trees.pdf</h3></header></article>
+    </div>
+  </section>
+  <section aria-labelledby="selection-heading">
+    <h2 id="selection-heading">Selected text actions</h2>
+    <div class="panel selection-sample">
+      <div class="selection-toolbar" role="group" aria-label="Text selection actions">
+        <button type="button" class="tool" aria-label="Highlight" title="Highlight"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Highlighter"/></svg></button>
+        <button type="button" class="tool" aria-label="Explain" title="Explain"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Lightbulb"/></svg></button>
+        <button type="button" class="tool" aria-label="Add to chat" title="Add to chat"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-MessageSquarePlus"/></svg></button>
+      </div>
+      <p>Build a decision tree classifier <mark>from scratch</mark> to see how each split is chosen.</p>
+    </div>
+  </section>
+  <section aria-labelledby="composer-heading">
+    <h2 id="composer-heading">Chat composer</h2>
+    <div class="composer">
+      <div class="context-row" role="group" aria-label="Composer context">
+        <div class="context-wrap"><button type="button" class="context-button" id="project-toggle" aria-expanded="false" aria-controls="project-menu"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-FolderOpen"/></svg><span>Choose project</span></button><div id="project-menu" class="project-menu" hidden><button type="button" class="context-button" data-project="Decision tree lesson">Decision tree lesson</button><button type="button" class="context-button" data-project="">Clear project</button></div></div>
+        <button type="button" class="context-button" aria-pressed="true" data-context="Files"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Files"/></svg>Files</button>
+        <button type="button" class="context-button" aria-pressed="false" data-context="Plugins"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Puzzle"/></svg>Plugins</button>
+      </div>
+      <form class="prompt" id="prompt">
+        <button class="tool" type="button" aria-label="Add attachment" title="Add attachment" data-preview-label="Attachment control"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Plus"/></svg></button>
+        <textarea rows="1" id="message" aria-label="Ask about this file" placeholder="Ask about this file"></textarea>
+        <div class="tools" role="group" aria-label="Prompt actions">
+          <button class="tool" type="button" aria-label="Composer settings" title="Composer settings" data-preview-label="Settings control"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-SlidersHorizontal"/></svg></button>
+          <button class="tool" type="button" aria-label="Voice input" title="Voice input" data-preview-label="Voice control"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Mic"/></svg></button>
+          <button class="send" type="submit" id="send" aria-label="Send" title="Send" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ArrowUp"/></svg></button>
+        </div>
+      </form>
+      <p class="demo-status" id="demo-status" role="status">Type to preview Send and Stop.</p>
+    </div>
+  </section>
+  <section aria-labelledby="spec-heading">
+    <h2 id="spec-heading">Exact design values</h2>
+    <div class="panel table-scroll"><table>
+      <thead><tr><th scope="col">Part</th><th scope="col">Values and rules</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Blue · shared actions</th><td>Primary fill and selected ink <code>#375D92</code>. Filled hover <code>#2B4B78</code>, pressed <code>#203858</code>, white glyph. Selected surface <code>#EAF1FB</code>, border <code>#ADC4E5</code>, hover <code>#DDE9F8</code>, pressed <code>#D0E0F4</code>. Focus outline <code>#426DB2</code>, 2 px, +2 px offset.</td></tr>
+        <tr><th scope="row">Claude red · Interactive</th><td><code>#934723</code> ink and <code>#F8ECE3</code> surface for the Interactive identity and local experiment choices. Warm accent <code>#B86232</code> for experiment range fills. The mode pills are text-only.</td></tr>
+        <tr><th scope="row">Semantic color</th><td>Green <code>#267657</code> for completion and affirmative approval. Destructive and error roles use <code>#9D3D39</code> with <code>#F9EBEA</code> where a tint is needed.</td></tr>
+        <tr><th scope="row">Source header</th><td>Same title role as Explanation and Interactive. Inter → Liberation Sans → Arial → sans-serif, 26.4 px / 700 / 1.17, tracking −0.023 em, ink <code>#202723</code>. At card content width ≤370 px, use 21.6 px title and 15 px horizontal inset. Standard inset 24 px, top 17 px, bottom 11 px. Type pill is 26 px minimum, 13 px / 700, radius 999 px and padding 1 × 11 px. Use the rename when set, otherwise the filename. When a rename differs from the filename, the optional filename line is 14 px / 650 / 1.35 in <code>#5D675F</code>, 4 px below the title. Put technical file details in file info.</td></tr>
+        <tr><th scope="row">Selected text actions</th><td>Use the existing Highlighter, Lightbulb and MessageSquarePlus glyphs at 15 px, stroke 2. Targets 32 px, 8 px radius, gap 3 px. Popover surface #FFFEFA with 1 px #DEDFD8 border, 10 px radius and 4 px inset. Selected text uses #D0E0F4 with #202723 ink.</td></tr>
+        <tr><th scope="row">Composer shell</th><td><code>#FFFEFA</code> surface, <code>#DEDFD8</code> 1 px line, 18 px radius, 9 px inset and 6 px row gap. Context row above prompt. Context buttons 32 px minimum with 9 px horizontal padding, 6 px icon gap, 13 px / 650 labels and pill radius. Default ink <code>#5D675F</code>, neutral hover <code>#F6F8F4</code> / <code>#D2D9D2</code> border.</td></tr>
+        <tr><th scope="row">Prompt and tools</th><td>White prompt, 48 px minimum height, 999 px radius, 1 px <code>#DEDFD8</code> line, 5 × 6 px inset. Text 15 px / 1.45, <code>#202723</code>; placeholder <code>#5D675F</code> at 100%. Tools 35 × 35 px, 8 px radius, 16 px glyphs at stroke 2. Send 36 px circle, 17 px glyph; Stop uses a 13 px filled square. Empty draft disables Send at 45% opacity. At ≤420 px, move the tools below the input and use an 18 px prompt radius.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="sources"><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/FileDocCard.jsx#L137-L150">Markdown header source</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/AdaptiveCanvas.jsx#L629-L659">PDF header source</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/FileDocMarkdown.jsx#L298-L302">Selection actions</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/ChatComposer.jsx#L37-L95">Current composer primitives</a>. The context row is the layout from the review reference.</p>
+  </section>
+</main>
+<script>
+  const project = document.getElementById('project-toggle');
+  const projectMenu = document.getElementById('project-menu');
+  const prompt = document.getElementById('prompt');
+  const input = document.getElementById('message');
+  const send = document.getElementById('send');
+  const status = document.getElementById('demo-status');
+  let streaming = false;
+
+  function openProjects(open) {
+    projectMenu.hidden = !open;
+    project.setAttribute('aria-expanded',String(open));
+  }
+  function syncSend() {
+    const label = streaming ? 'Stop response' : 'Send';
+    send.disabled = !streaming && !input.value.trim();
+    send.dataset.streaming = String(streaming);
+    send.setAttribute('aria-label',label);
+    send.title = label;
+    send.querySelector('use').setAttribute('href',streaming ? '#i-Square' : '#i-ArrowUp');
+  }
+  project.addEventListener('click',() => openProjects(projectMenu.hidden));
+  projectMenu.addEventListener('click',event => {
+    const choice = event.target.closest('[data-project]');
+    if (!choice) return;
+    project.querySelector('span').textContent = choice.dataset.project || 'Choose project';
+    openProjects(false);
+    project.focus();
+  });
+  for (const button of document.querySelectorAll('[data-context]')) {
+    button.addEventListener('click',() => {
+      const on = button.getAttribute('aria-pressed') !== 'true';
+      button.setAttribute('aria-pressed',String(on));
+      status.textContent = `${button.dataset.context} ${on ? 'selected' : 'cleared'}.`;
+    });
+  }
+  for (const button of document.querySelectorAll('[data-preview-label]')) {
+    button.addEventListener('click',() => { status.textContent = `${button.dataset.previewLabel} preview.`; });
+  }
+  input.addEventListener('input',syncSend);
+  prompt.addEventListener('submit',event => {
+    event.preventDefault();
+    if (send.disabled) return;
+    streaming = !streaming;
+    syncSend();
+    status.textContent = streaming ? 'Streaming preview.' : 'Preview stopped.';
+  });
+  document.addEventListener('keydown',event => {
+    if (event.key === 'Escape' && !projectMenu.hidden) { openProjects(false); project.focus(); }
+  });
+  syncSend();
+</script>
+<!-- Lucide React 1.41.0 notices
+ISC License
+
+Copyright (c) 2026 Lucide Icons and Contributors
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+—-
+
+The following Lucide icons are derived from the Feather project:
+
+airplay, alert-circle, alert-octagon, alert-triangle, aperture, arrow-down-circle, arrow-down-left, arrow-down-right, arrow-down, arrow-left-circle, arrow-left, arrow-right-circle, arrow-right, arrow-up-circle, arrow-up-left, arrow-up-right, arrow-up, at-sign, calendar, cast, check, chevron-down, chevron-left, chevron-right, chevron-up, chevrons-down, chevrons-left, chevrons-right, chevrons-up, circle, clipboard, clock, code, columns, command, compass, corner-down-left, corner-down-right, corner-left-down, corner-left-up, corner-right-down, corner-right-up, corner-up-left, corner-up-right, crosshair, database, divide-circle, divide-square, dollar-sign, download, external-link, feather, frown, hash, headphones, help-circle, info, italic, key, layout, life-buoy, link-2, link, loader, lock, log-in, log-out, maximize, meh, minimize, minimize-2, minus-circle, minus-square, minus, monitor, moon, more-horizontal, more-vertical, move, music, navigation-2, navigation, octagon, pause-circle, percent, plus-circle, plus-square, plus, power, radio, rss, search, server, share, shopping-bag, sidebar, smartphone, smile, square, table-2, tablet, target, terminal, trash-2, trash, triangle, tv, type, upload, x-circle, x-octagon, x-square, x, zoom-in, zoom-out
+
+The MIT License (MIT) (for the icons listed above)
+
+Copyright (c) 2013-present Cole Bemis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+-->
+</body>
+</html>

@@ -7,16 +7,17 @@
   <style>
     :root {
       color-scheme:light;
-      /* Shared card palette. Semantic error colors extend the same system. */
+      /* Blue interaction palette with separate card identities and semantic feedback roles. */
       --paper:#f5f4ed; --card:#fffefa; --card-border:#dedfd8; --card-shadow:#e6e5de;
       --panel:#f6f8f4; --panel-border:#e3e7e0; --header-line:#ecece6;
       --ink:#202723; --muted:#5d675f; --copy-ink:#505b52; --control-bg:#ffffff;
-      --blue:#426db2; --explanation-ink:#375d92; --blue-soft:#eaf1fb;
-      --orange:#b86232; --orange-dark:#934723; --orange-soft:#f8ece3;
+      --blue:#426db2; --primary:#375d92; --explanation-ink:#375d92; --blue-soft:#eaf1fb;
+      --orange-dark:#934723; --orange-soft:#f8ece3;
       --control-hover-bg:#f6f8f4; --control-hover-border:#d2d9d2;
-      --control-selected-border:#e2ad8f; --control-active-bg:#f5e0d2;
+      --control-selected-border:#adc4e5; --control-selected-hover:#dde9f8; --control-active-bg:#d0e0f4;
       --green:#267657; --green-soft:#e5f2ea; --why-ink:#205c45; --why-border:#b8dccc;
-      --primary-hover:#7e3c1f; --primary-pressed:#6b321b; --confirm-hover:#1d6247; --confirm-pressed:#174f39;
+      --primary-hover:#2b4b78; --primary-pressed:#203858; --confirm-hover:#1d6247; --confirm-pressed:#174f39;
+      --warning-ink:#805619; --warning-soft:#fff1d3; --warning-border:#e4c585;
       --danger-ink:#9d3d39; --danger-soft:#f9ebea; --danger-border:#e7b9b6; --danger-active:#f4d9d6;
       --link-hover:#2b4b78; --link-pressed:#203858;
       --skeleton-base:#e8ece5; --skeleton-sheen:#f6f8f4;
@@ -38,7 +39,7 @@
     main { max-width:1256px; margin:auto; padding:27px 26px 46px; }
     header.page { display:grid; gap:6px; }
     .eyebrow { color:var(--muted); display:flex; gap:8px; align-items:center; font-size:14px; font-weight:700; }
-    .eyebrow::before { content:""; width:8px; height:8px; background:var(--orange); border-radius:50%; }
+    .eyebrow::before { content:""; width:8px; height:8px; background:var(--blue); border-radius:50%; }
     h1 { font-size:clamp(1.8rem,4vw,2.55rem); line-height:1.1; letter-spacing:-.03em; }
     h2 { font-size:1.45rem; letter-spacing:-.018em; }
     h3 { font-size:1rem; }
@@ -63,7 +64,7 @@
     .button,.icon-button,.menu-item {
       --button-bg:var(--control-bg); --button-line:var(--panel-border); --button-ink:var(--ink);
       --hover-bg:var(--control-hover-bg); --hover-line:var(--control-hover-border); --hover-ink:var(--ink);
-      --press-bg:var(--control-active-bg); --press-line:var(--control-selected-border); --press-ink:var(--orange-dark);
+      --press-bg:var(--control-active-bg); --press-line:var(--control-selected-border); --press-ink:var(--primary);
       display:inline-flex; align-items:center; justify-content:center; flex:none; gap:6px;
       min-height:var(--control-height); padding:0 10px; border:var(--line-width) solid var(--button-line);
       border-radius:var(--control-radius); color:var(--button-ink); background:var(--button-bg);
@@ -72,7 +73,7 @@
     }
     .icon-button { width:var(--control-height); padding:0; --button-ink:var(--muted); }
     :is(.button,.icon-button).primary {
-      --button-bg:var(--orange-dark); --button-line:var(--orange-dark); --button-ink:var(--control-bg);
+      --button-bg:var(--primary); --button-line:var(--primary); --button-ink:var(--control-bg);
       --hover-bg:var(--primary-hover); --hover-line:var(--primary-hover); --hover-ink:var(--control-bg);
       --press-bg:var(--primary-pressed); --press-line:var(--primary-pressed); --press-ink:var(--control-bg);
     }
@@ -83,9 +84,9 @@
       --press-bg:var(--danger-ink); --press-line:var(--danger-ink); --press-ink:var(--control-bg);
     }
     :is(.button,.icon-button,.menu-item):is(:hover:not(:disabled):not([aria-disabled="true"]),[data-demo-state="hover"]) { background:var(--hover-bg); border-color:var(--hover-line); color:var(--hover-ink); }
-    :is(.button,.icon-button,.menu-item):is([aria-pressed="true"],[aria-selected="true"],[data-demo-state="selected"]) { background:var(--orange-soft); border-color:var(--control-selected-border); color:var(--orange-dark); }
+    :is(.button,.icon-button,.menu-item):is([aria-pressed="true"],[aria-selected="true"],[data-demo-state="selected"]) { background:var(--blue-soft); border-color:var(--control-selected-border); color:var(--primary); }
+    :is(.button,.icon-button,.menu-item):is([aria-pressed="true"],[aria-selected="true"]):hover:not(:active):not(:disabled):not([aria-disabled="true"]) { background:var(--control-selected-hover); border-color:var(--control-selected-border); color:var(--primary); }
     :is(.button,.icon-button,.menu-item):is(:active:not(:disabled):not([aria-disabled="true"]),[data-demo-state="pressed"]) { background:var(--press-bg); border-color:var(--press-line); color:var(--press-ink); }
-    :is(.button,.icon-button,.menu-item)[aria-pressed="true"]:hover:enabled { background:var(--control-active-bg); border-color:var(--control-selected-border); color:var(--orange-dark); }
     :is(button,a,summary,input,textarea,select):focus-visible,[data-demo-state="focus"] { outline:var(--focus-width) solid var(--blue); outline-offset:2px; }
     :is(button,input,select,textarea):disabled,[aria-disabled="true"] { opacity:var(--disabled-opacity); cursor:not-allowed; }
     .compact,.compact .button,.compact .icon-button { min-height:var(--compact-height); }
@@ -94,7 +95,8 @@
     .kbd,kbd { display:inline-flex; align-items:center; min-height:17px; padding:0 4px; color:inherit; border:1px solid currentColor; border-radius:4px; font:600 10px/1.35 ui-monospace,monospace; white-space:nowrap; }
     .pill { display:inline-flex; align-items:center; gap:5px; min-height:26px; padding:1px 11px; border:1px solid transparent; border-radius:var(--pill-radius); font:700 13px/1.45 var(--font-family); white-space:nowrap; }
     .pill.explain,.pill.info { background:var(--blue-soft); color:var(--explanation-ink); }
-    .pill.interactive,.pill.warning { background:var(--orange-soft); color:var(--orange-dark); }
+    .pill.interactive { background:var(--orange-soft); color:var(--orange-dark); }
+    .pill.warning { background:var(--warning-soft); color:var(--warning-ink); }
     .pill.success { background:var(--green-soft); color:var(--why-ink); }
     .pill.error { background:var(--danger-soft); color:var(--danger-ink); }
     .pill.neutral { background:var(--panel); color:var(--muted); border-color:var(--panel-border); }
@@ -108,18 +110,18 @@
     }
     input::placeholder,textarea::placeholder { color:var(--muted); opacity:1; }
     [aria-invalid="true"] { border-color:var(--danger-ink) !important; }
-    input[type="checkbox"],input[type="radio"],input[type="range"] { accent-color:var(--orange-dark); }
+    input[type="checkbox"],input[type="radio"],input[type="range"] { accent-color:var(--primary); }
     input[type="checkbox"],input[type="radio"] { width:16px; height:16px; margin:0; }
     input[type="range"] { appearance:none; width:100%; min-height:26px; margin:0; background:transparent; cursor:pointer; }
-    input[type="range"]::-webkit-slider-runnable-track { height:4px; border-radius:999px; background:linear-gradient(to right,var(--orange) var(--range-fill,50%),var(--panel-border) var(--range-fill,50%)); }
-    input[type="range"]::-webkit-slider-thumb { appearance:none; width:14px; height:14px; margin-top:-5px; border:1px solid var(--orange-dark); border-radius:50%; background:var(--orange-dark); }
+    input[type="range"]::-webkit-slider-runnable-track { height:4px; border-radius:999px; background:linear-gradient(to right,var(--blue) var(--range-fill,50%),var(--panel-border) var(--range-fill,50%)); }
+    input[type="range"]::-webkit-slider-thumb { appearance:none; width:14px; height:14px; margin-top:-5px; border:1px solid var(--primary); border-radius:50%; background:var(--primary); }
     input[type="range"]::-moz-range-track { height:4px; border-radius:999px; background:var(--panel-border); }
-    input[type="range"]::-moz-range-progress { height:4px; border-radius:999px; background:var(--orange); }
-    input[type="range"]::-moz-range-thumb { width:14px; height:14px; border:1px solid var(--orange-dark); border-radius:50%; background:var(--orange-dark); }
+    input[type="range"]::-moz-range-progress { height:4px; border-radius:999px; background:var(--blue); }
+    input[type="range"]::-moz-range-thumb { width:14px; height:14px; border:1px solid var(--primary); border-radius:50%; background:var(--primary); }
     .switch,.checkbox { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:650; }
     .switch input[type="checkbox"],input.switch[type="checkbox"] { appearance:none; width:36px; height:20px; padding:0; border:1px solid var(--control-hover-border); border-radius:999px; background:var(--panel-border); position:relative; cursor:pointer; }
     .switch input[type="checkbox"]::before,input.switch[type="checkbox"]::before { content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:var(--control-bg); transition:transform var(--hover-ms); }
-    .switch input:checked,input.switch:checked { border-color:var(--green); background:var(--green); }
+    .switch input:checked,input.switch:checked { border-color:var(--primary); background:var(--primary); }
     .switch input:checked::before,input.switch:checked::before { transform:translateX(16px); }
     .menu,.popover,.dialog { background:var(--card); border:1px solid var(--card-border); box-shadow:var(--overlay-shadow); }
     .menu { display:grid; gap:2px; min-width:148px; padding:4px; border-radius:var(--menu-radius); }
@@ -150,21 +152,24 @@
     .toc-row { display:flex; align-items:center; gap:8px; min-height:34px; padding:6px 8px; border:1px solid transparent; border-radius:8px; font-size:13px; }
     .toc-row .icon { color:var(--muted); }
     .toc-row[data-status="complete"] .icon { color:var(--green); }
-    .toc-row[data-status="active"] { color:var(--orange-dark); background:var(--orange-soft); border-color:var(--control-selected-border); }
-    .toc-row[data-status="active"] .icon { color:var(--orange-dark); }
+    .toc-row[data-status="active"] { color:var(--primary); background:var(--blue-soft); border-color:var(--control-selected-border); }
+    .toc-row[data-status="active"] .icon { color:var(--primary); }
     .toc-row[data-status="upcoming"],.toc-row[data-status="blocked"] { color:var(--muted); }
     .progress,progress { display:block; height:6px; width:100%; max-width:100%; border:0; border-radius:999px; overflow:hidden; background:var(--panel-border); accent-color:var(--green); }
     progress::-webkit-progress-bar { background:var(--panel-border); }
     progress::-webkit-progress-value { background:var(--green); border-radius:999px; }
     progress::-moz-progress-bar { background:var(--green); border-radius:999px; }
+    progress:not([value]) { accent-color:var(--primary); }
+    progress:not([value])::-webkit-progress-value { background:var(--primary); }
+    progress:not([value])::-moz-progress-bar { background:var(--primary); }
     .progress > span,.progress > div { display:block; height:100%; border-radius:999px; background:var(--green); }
     .status-text { font-size:12px; color:var(--muted); }
     .proposal,.empty-state { padding:10px; border:1px solid var(--panel-border); border-radius:10px; background:var(--panel); }
     .proposal .sample-row,.empty-state .sample-row { margin-top:8px; }
     .skeleton { min-height:78px; padding:11px; border:1px solid var(--panel-border); border-radius:var(--card-radius); background:var(--card); display:grid; gap:7px; align-content:start; }
     .skeleton-line { display:block; height:11px; width:100%; border-radius:5px; background:linear-gradient(90deg,var(--skeleton-base) 25%,var(--skeleton-sheen) 50%,var(--skeleton-base) 75%); background-size:220% 100%; animation:sheen var(--shimmer-ms) ease-in-out infinite; }
-    .shimmer-text { color:var(--muted); background:linear-gradient(90deg,var(--muted) 25%,var(--orange-dark) 50%,var(--muted) 75%); background-size:220% 100%; background-clip:text; -webkit-text-fill-color:transparent; animation:sheen 1600ms ease-in-out infinite; }
-    .spinner { display:inline-block; vertical-align:middle; width:16px; height:16px; border:2px solid var(--panel-border); border-top-color:var(--orange-dark); border-radius:50%; animation:spin var(--spinner-ms) linear infinite; }
+    .shimmer-text { color:var(--muted); background:linear-gradient(90deg,var(--muted) 25%,var(--primary) 50%,var(--muted) 75%); background-size:220% 100%; background-clip:text; -webkit-text-fill-color:transparent; animation:sheen 1600ms ease-in-out infinite; }
+    .spinner { display:inline-block; vertical-align:middle; width:16px; height:16px; border:2px solid var(--panel-border); border-top-color:var(--primary); border-radius:50%; animation:spin var(--spinner-ms) linear infinite; }
     @keyframes sheen { from { background-position:110% 0; } to { background-position:-110% 0; } }
     @keyframes spin { to { transform:rotate(360deg); } }
     @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none !important; transition:none !important; } .shimmer-text { -webkit-text-fill-color:currentColor; } }
@@ -177,7 +182,7 @@
     .toast,.notification { --notice-bg:var(--card); --notice-line:var(--card-border); --notice-ink:var(--ink); display:flex; align-items:flex-start; gap:8px; padding:9px 10px; border:1px solid var(--notice-line); border-radius:10px; background:var(--notice-bg); color:var(--notice-ink); font-size:13px; }
     .toast[data-tone="success"] { --notice-bg:var(--green-soft); --notice-line:var(--why-border); --notice-ink:var(--why-ink); }
     .toast[data-tone="info"] { --notice-bg:var(--blue-soft); --notice-line:var(--blue); --notice-ink:var(--explanation-ink); }
-    .toast[data-tone="warning"] { --notice-bg:var(--orange-soft); --notice-line:var(--control-selected-border); --notice-ink:var(--orange-dark); }
+    .toast[data-tone="warning"] { --notice-bg:var(--warning-soft); --notice-line:var(--warning-border); --notice-ink:var(--warning-ink); }
     .toast[data-tone="error"],.toast[data-tone="danger"] { --notice-bg:var(--danger-soft); --notice-line:var(--danger-border); --notice-ink:var(--danger-ink); }
     .toast + .toast,.notification + .notification { margin-top:6px; }
     .toast .icon,.notification .icon { margin-top:1px; }
@@ -227,7 +232,7 @@
     .toc-completion input:disabled + .toc-check { opacity:var(--disabled-opacity); }
     .toc-row[data-status="active"] .toc-check { box-shadow:0 0 0 2px var(--control-selected-border); }
     .toc-link { flex:1; min-width:0; justify-content:flex-start; min-height:26px; padding:0 4px; text-align:left; white-space:normal; }
-    .toc-row[data-status="active"] .toc-link { color:var(--orange-dark); }
+    .toc-row[data-status="active"] .toc-link { color:var(--primary); }
     .skill-meter { display:flex; gap:3px; height:6px; margin:6px 0; }
     .skill-meter > span { flex:1; background:var(--panel-border); border-radius:999px; }
     .skill-meter > span.done { background:var(--green); }
@@ -247,12 +252,12 @@
     input[type="range"]:active:enabled::-moz-range-thumb { background:var(--primary-pressed); }
     .switch input:hover:enabled { border-color:var(--muted); }
     .switch input:active:enabled { background:var(--control-hover-border); }
-    .switch input:checked:hover:enabled { background:var(--confirm-hover); border-color:var(--confirm-hover); }
-    .switch input:checked:active:enabled { background:var(--confirm-pressed); border-color:var(--confirm-pressed); }
+    .switch input:checked:hover:enabled { background:var(--primary-hover); border-color:var(--primary-hover); }
+    .switch input:checked:active:enabled { background:var(--primary-pressed); border-color:var(--primary-pressed); }
     .checkbox > input[type="checkbox"] { appearance:none; position:relative; flex:none; width:16px; height:16px; border:1px solid var(--control-hover-border); border-radius:4px; background:var(--control-bg); cursor:pointer; }
     .checkbox > input:hover:enabled { background:var(--panel); border-color:var(--muted); }
     .checkbox > input:active:enabled { background:var(--control-active-bg); border-color:var(--control-selected-border); }
-    .checkbox > input:is(:checked,:indeterminate) { background:var(--orange-dark); border-color:var(--orange-dark); }
+    .checkbox > input:is(:checked,:indeterminate) { background:var(--primary); border-color:var(--primary); }
     .checkbox > input:is(:checked,:indeterminate):hover:enabled { background:var(--primary-hover); border-color:var(--primary-hover); }
     .checkbox > input:is(:checked,:indeterminate):active:enabled { background:var(--primary-pressed); border-color:var(--primary-pressed); }
     .checkbox > input:checked::before { content:""; position:absolute; left:50%; top:50%; width:8px; height:5px; border-left:2px solid var(--control-bg); border-bottom:2px solid var(--control-bg); transform:translate(-50%,-64%) rotate(-45deg); }
@@ -313,7 +318,7 @@
   <header class="page">
     <p class="eyebrow">Rabbit Hole · UI reference</p>
     <h1>Interface component standards</h1>
-    <p class="lede">Isolated UI specimens for the controls found in the review screenshots. The warm card palette, shared sizes and state rules drive the examples.</p>
+    <p class="lede">Isolated UI specimens for the controls found in the review screenshots. Shared card surfaces frame blue actions and selection. Warm rust identifies Interactive content or a local experiment, green marks affirmation or completion, amber signals warnings, and red marks danger.</p>
     <nav class="page-nav" aria-label="Reference sections"><a href="#controls">Controls</a><a href="#tutor">Tutor</a><a href="#overlays">Overlays and feedback</a><a href="#spec">Exact values</a><a href="#inventory">Screenshot inventory</a></nav>
   </header>
   <section class="section" id="controls" aria-labelledby="controls-title">
@@ -339,7 +344,7 @@
 
 <article class="specimen" id="f-approval">
   <h3>Review actions</h3>
-  <p class="muted">Accept is the primary action. Edit is secondary and Cancel is quiet. Show the shortcut on Accept when the focused context supports it.</p>
+  <p class="muted">Accept uses the affirmative action role. Edit is secondary and Cancel is quiet. Show the shortcut on Accept when the focused context supports it.</p>
   <div class="sample-row compact" role="group" aria-label="Proposal actions">
     <button class="button primary confirm" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Check"/></svg>Accept <kbd class="kbd">Tab</kbd></button>
     <span class="muted" aria-hidden="true">|</span>
@@ -690,23 +695,27 @@
 <tr><th scope="row">Primary ink</th><td><code>--ink</code></td><td><span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td>100%</td></tr>
 <tr><th scope="row">Muted ink</th><td><code>--muted</code></td><td><span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td>100%</td></tr>
 <tr><th scope="row">Body copy</th><td><code>--copy-ink</code></td><td><span class="swatch" style="--paint:var(--copy-ink)" aria-hidden="true"></span><code>#505B52</code></td><td>100%</td></tr>
-<tr><th scope="row">Focus / info border</th><td><code>--blue</code></td><td><span class="swatch" style="--paint:var(--blue)" aria-hidden="true"></span><code>#426DB2</code></td><td>100%</td></tr>
+<tr><th scope="row">Focus / info border / slider fill</th><td><code>--blue</code></td><td><span class="swatch" style="--paint:var(--blue)" aria-hidden="true"></span><code>#426DB2</code></td><td>100%</td></tr>
 <tr><th scope="row">Link / Explanation ink</th><td><code>--explanation-ink</code></td><td><span class="swatch" style="--paint:var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td>100%</td></tr>
-<tr><th scope="row">Explanation / info surface</th><td><code>--blue-soft</code></td><td><span class="swatch" style="--paint:var(--blue-soft)" aria-hidden="true"></span><code>#EAF1FB</code></td><td>100%</td></tr>
-<tr><th scope="row">Slider fill / warm accent</th><td><code>--orange</code></td><td><span class="swatch" style="--paint:var(--orange)" aria-hidden="true"></span><code>#B86232</code></td><td>100%</td></tr>
-<tr><th scope="row">Primary fill / Interactive ink</th><td><code>--orange-dark</code></td><td><span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td>100%</td></tr>
-<tr><th scope="row">Primary hover</th><td><code>--primary-hover</code></td><td><span class="swatch" style="--paint:var(--primary-hover)" aria-hidden="true"></span><code>#7E3C1F</code></td><td>100%</td></tr>
-<tr><th scope="row">Primary pressed</th><td><code>--primary-pressed</code></td><td><span class="swatch" style="--paint:var(--primary-pressed)" aria-hidden="true"></span><code>#6B321B</code></td><td>100%</td></tr>
-<tr><th scope="row">Selected / Interactive surface</th><td><code>--orange-soft</code></td><td><span class="swatch" style="--paint:var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td>100%</td></tr>
+<tr><th scope="row">Explanation / info / selected surface</th><td><code>--blue-soft</code></td><td><span class="swatch" style="--paint:var(--blue-soft)" aria-hidden="true"></span><code>#EAF1FB</code></td><td>100%</td></tr>
+<tr><th scope="row">Primary action / switch / check</th><td><code>--primary</code></td><td><span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code></td><td>100%</td></tr>
+<tr><th scope="row">Interactive identity / experiment ink</th><td><code>--orange-dark</code></td><td><span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td>100%</td></tr>
+<tr><th scope="row">Primary hover</th><td><code>--primary-hover</code></td><td><span class="swatch" style="--paint:var(--primary-hover)" aria-hidden="true"></span><code>#2B4B78</code></td><td>100%</td></tr>
+<tr><th scope="row">Primary pressed</th><td><code>--primary-pressed</code></td><td><span class="swatch" style="--paint:var(--primary-pressed)" aria-hidden="true"></span><code>#203858</code></td><td>100%</td></tr>
+<tr><th scope="row">Interactive identity / experiment surface</th><td><code>--orange-soft</code></td><td><span class="swatch" style="--paint:var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td>100%</td></tr>
 <tr><th scope="row">Hover border</th><td><code>--control-hover-border</code></td><td><span class="swatch" style="--paint:var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code></td><td>100%</td></tr>
-<tr><th scope="row">Selected border</th><td><code>--control-selected-border</code></td><td><span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td>100%</td></tr>
-<tr><th scope="row">Pressed / selected hover surface</th><td><code>--control-active-bg</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code></td><td>100%</td></tr>
-<tr><th scope="row">Accept / complete / switch on</th><td><code>--green</code></td><td><span class="swatch" style="--paint:var(--green)" aria-hidden="true"></span><code>#267657</code></td><td>100%</td></tr>
+<tr><th scope="row">Selected border</th><td><code>--control-selected-border</code></td><td><span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code></td><td>100%</td></tr>
+<tr><th scope="row">Selected hover surface</th><td><code>--control-selected-hover</code></td><td><span class="swatch" style="--paint:var(--control-selected-hover)" aria-hidden="true"></span><code>#DDE9F8</code></td><td>100%</td></tr>
+<tr><th scope="row">Pressed surface</th><td><code>--control-active-bg</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#D0E0F4</code></td><td>100%</td></tr>
+<tr><th scope="row">Accept / complete</th><td><code>--green</code></td><td><span class="swatch" style="--paint:var(--green)" aria-hidden="true"></span><code>#267657</code></td><td>100%</td></tr>
 <tr><th scope="row">Accept hover</th><td><code>--confirm-hover</code></td><td><span class="swatch" style="--paint:var(--confirm-hover)" aria-hidden="true"></span><code>#1D6247</code></td><td>100%</td></tr>
 <tr><th scope="row">Accept pressed</th><td><code>--confirm-pressed</code></td><td><span class="swatch" style="--paint:var(--confirm-pressed)" aria-hidden="true"></span><code>#174F39</code></td><td>100%</td></tr>
 <tr><th scope="row">Success surface</th><td><code>--green-soft</code></td><td><span class="swatch" style="--paint:var(--green-soft)" aria-hidden="true"></span><code>#E5F2EA</code></td><td>100%</td></tr>
 <tr><th scope="row">Success ink</th><td><code>--why-ink</code></td><td><span class="swatch" style="--paint:var(--why-ink)" aria-hidden="true"></span><code>#205C45</code></td><td>100%</td></tr>
 <tr><th scope="row">Success border</th><td><code>--why-border</code></td><td><span class="swatch" style="--paint:var(--why-border)" aria-hidden="true"></span><code>#B8DCCC</code></td><td>100%</td></tr>
+<tr><th scope="row">Warning surface</th><td><code>--warning-soft</code></td><td><span class="swatch" style="--paint:var(--warning-soft)" aria-hidden="true"></span><code>#FFF1D3</code></td><td>100%</td></tr>
+<tr><th scope="row">Warning border</th><td><code>--warning-border</code></td><td><span class="swatch" style="--paint:var(--warning-border)" aria-hidden="true"></span><code>#E4C585</code></td><td>100%</td></tr>
+<tr><th scope="row">Warning ink</th><td><code>--warning-ink</code></td><td><span class="swatch" style="--paint:var(--warning-ink)" aria-hidden="true"></span><code>#805619</code></td><td>100%</td></tr>
 <tr><th scope="row">Danger ink / pressed surface</th><td><code>--danger-ink</code></td><td><span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code></td><td>100%</td></tr>
 <tr><th scope="row">Danger surface</th><td><code>--danger-soft</code></td><td><span class="swatch" style="--paint:var(--danger-soft)" aria-hidden="true"></span><code>#F9EBEA</code></td><td>100%</td></tr>
 <tr><th scope="row">Danger border</th><td><code>--danger-border</code></td><td><span class="swatch" style="--paint:var(--danger-border)" aria-hidden="true"></span><code>#E7B9B6</code></td><td>100%</td></tr>
@@ -719,33 +728,33 @@
 <tr><th scope="row">Scrollbar thumb hover</th><td><code>--scroll-thumb-hover</code></td><td><span class="swatch" style="--paint:var(--scroll-thumb-hover)" aria-hidden="true"></span><code>#AAB6AB</code></td><td>100%</td></tr>
 <tr><th scope="row">Disabled composite</th><td><code>--disabled-opacity</code></td><td><code>0.45</code></td><td>45%</td></tr>
 <tr><th scope="row">Modal scrim</th><td><code>--scrim</code></td><td><code>rgba(32,39,35,.42)</code></td><td>42%</td></tr>
-<tr><th scope="row">Overlay shadow</th><td><code>--overlay-shadow</code></td><td><code>0 8px 28px rgba(32,39,35,.13)</code></td><td>13% ink</td></tr></tbody></table></div></details><details open><summary>Button states · surface / border / ink</summary><div class="table-scroll"><table><thead><tr><th scope="col">Role</th><th scope="col">Default</th><th scope="col">Hover</th><th scope="col">Pressed</th></tr></thead><tbody><tr><th scope="row">Primary · start, send, use example</th><td><span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code> / <span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--primary-hover)" aria-hidden="true"></span><code>#7E3C1F</code> / <span class="swatch" style="--paint:var(--primary-hover)" aria-hidden="true"></span><code>#7E3C1F</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--primary-pressed)" aria-hidden="true"></span><code>#6B321B</code> / <span class="swatch" style="--paint:var(--primary-pressed)" aria-hidden="true"></span><code>#6B321B</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td></tr>
+<tr><th scope="row">Overlay shadow</th><td><code>--overlay-shadow</code></td><td><code>0 8px 28px rgba(32,39,35,.13)</code></td><td>13% ink</td></tr></tbody></table></div></details><details open><summary>Button states · surface / border / ink</summary><div class="table-scroll"><table><thead><tr><th scope="col">Role</th><th scope="col">Default</th><th scope="col">Hover</th><th scope="col">Pressed</th></tr></thead><tbody><tr><th scope="row">Primary · start, send, use example</th><td><span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code> / <span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--primary-hover)" aria-hidden="true"></span><code>#2B4B78</code> / <span class="swatch" style="--paint:var(--primary-hover)" aria-hidden="true"></span><code>#2B4B78</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--primary-pressed)" aria-hidden="true"></span><code>#203858</code> / <span class="swatch" style="--paint:var(--primary-pressed)" aria-hidden="true"></span><code>#203858</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td></tr>
 <tr><th scope="row">Affirmative · Accept</th><td><span class="swatch" style="--paint:var(--green)" aria-hidden="true"></span><code>#267657</code> / <span class="swatch" style="--paint:var(--green)" aria-hidden="true"></span><code>#267657</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--confirm-hover)" aria-hidden="true"></span><code>#1D6247</code> / <span class="swatch" style="--paint:var(--confirm-hover)" aria-hidden="true"></span><code>#1D6247</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--confirm-pressed)" aria-hidden="true"></span><code>#174F39</code> / <span class="swatch" style="--paint:var(--confirm-pressed)" aria-hidden="true"></span><code>#174F39</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td></tr>
-<tr><th scope="row">Secondary · Edit, Save, Go to card</th><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code> / <span class="swatch" style="--paint:var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code> / <span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td><span class="swatch" style="--paint:var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code> / <span class="swatch" style="--paint:var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code> / <span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code> / <span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td></tr>
-<tr><th scope="row">Quiet · Cancel, compact tool</th><td>Transparent / Transparent / <span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td><span class="swatch" style="--paint:var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code> / Transparent / <span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code> / <span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td></tr>
-<tr><th scope="row">Icon-only control</th><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code> / <span class="swatch" style="--paint:var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code> / <span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td><span class="swatch" style="--paint:var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code> / <span class="swatch" style="--paint:var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code> / <span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code> / <span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td></tr>
-<tr><th scope="row">Selected filter or tool</th><td><span class="swatch" style="--paint:var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code> / <span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code> / <span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code> / <span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td></tr>
+<tr><th scope="row">Secondary · Edit, Save, Go to card</th><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code> / <span class="swatch" style="--paint:var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code> / <span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td><span class="swatch" style="--paint:var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code> / <span class="swatch" style="--paint:var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code> / <span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#D0E0F4</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code> / <span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code></td></tr>
+<tr><th scope="row">Quiet · Cancel, compact tool</th><td>Transparent / Transparent / <span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td><span class="swatch" style="--paint:var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code> / Transparent / <span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#D0E0F4</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code> / <span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code></td></tr>
+<tr><th scope="row">Icon-only control</th><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code> / <span class="swatch" style="--paint:var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code> / <span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td><span class="swatch" style="--paint:var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code> / <span class="swatch" style="--paint:var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code> / <span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#D0E0F4</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code> / <span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code></td></tr>
+<tr><th scope="row">Selected filter or tool</th><td><span class="swatch" style="--paint:var(--blue-soft)" aria-hidden="true"></span><code>#EAF1FB</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code> / <span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code></td><td><span class="swatch" style="--paint:var(--control-selected-hover)" aria-hidden="true"></span><code>#DDE9F8</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code> / <span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#D0E0F4</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code> / <span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code></td></tr>
 <tr><th scope="row">Destructive · Move to Trash</th><td><span class="swatch" style="--paint:var(--danger-soft)" aria-hidden="true"></span><code>#F9EBEA</code> / <span class="swatch" style="--paint:var(--danger-border)" aria-hidden="true"></span><code>#E7B9B6</code> / <span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code></td><td><span class="swatch" style="--paint:var(--danger-active)" aria-hidden="true"></span><code>#F4D9D6</code> / <span class="swatch" style="--paint:var(--danger-border)" aria-hidden="true"></span><code>#E7B9B6</code> / <span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code></td><td><span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code> / <span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td></tr></tbody></table></div></details><details open><summary>Dimensions and behavior</summary><div class="table-scroll"><table><thead><tr><th scope="col">Component</th><th scope="col">Exact values</th></tr></thead><tbody><tr><th scope="row">Typography</th><td>Inter → Liberation Sans → Arial → sans-serif. Base 16 px / 1.45. Button, pill and field labels 13 px. Button and field label weight 650; pill weight 700. Field text 14 px / 400. Helper and status text 12 px. Shortcut 10 px / 600 monospace.</td></tr>
 <tr><th scope="row">Buttons and icon controls</th><td>35 px minimum height, 8 px radius, 1 px border, 10 px horizontal padding and 6 px icon gap. Icon-only targets are 35 × 35 px, with 16 px Lucide glyphs, stroke 2. Compact rows use 28 px targets and 14 px glyphs. Existing per-glyph sizes are listed in the icon template.</td></tr>
 <tr><th scope="row">Focus, hover and disabled</th><td>Focus outline #426DB2, 2 px, +2 px offset. Hover and press use the role table above. Transitions 120 ms. Disabled uses 45% composite opacity and the disabled cursor, with a stable surface.</td></tr>
-<tr><th scope="row">Pills, tags and shortcut hints</th><td>Pill minimum 26 px high, 999 px radius, padding 1 × 11 px, 5 px gap, icon 13 px. Explanation #EAF1FB / #375D92. Interactive #F8ECE3 / #934723. Positive #E5F2EA / #205C45. Neutral #F6F8F4 / #5D675F with #E3E7E0 border. Shortcut min 17 px, radius 4 px, 1 px currentColor border and 4 px horizontal padding.</td></tr>
+<tr><th scope="row">Pills, tags and shortcut hints</th><td>Pill minimum 26 px high, 999 px radius, padding 1 × 11 px, 5 px gap, icon 13 px. Text-only Explanation #EAF1FB / #375D92 and Interactive #F8ECE3 / #934723. Positive #E5F2EA / #205C45. Neutral #F6F8F4 / #5D675F with #E3E7E0 border. Shortcut min 17 px, radius 4 px, 1 px currentColor border and 4 px horizontal padding.</td></tr>
 <tr><th scope="row">Text fields and dropdowns</th><td>35 px minimum height, 8 px radius, 1 px #E3E7E0 border, 6 × 9 px padding. White surface, #202723 text, #5D675F placeholder at 100% opacity. Invalid border #9D3D39 and linked validation text. Dropdowns retain the native caret and current value.</td></tr>
-<tr><th scope="row">Sliders</th><td>26 px control row, 4 px track, inactive #E3E7E0, active #B86232. 14 px circular thumb with #934723 fill and 1 px border. Show the current value and retain native arrow-key steps.</td></tr>
-<tr><th scope="row">Switches and checks</th><td>Switch 36 × 20 px, pill radius, 1 px border, 14 px white knob with 2 px inset and 16 px travel. Off #E3E7E0 with #D2D9D2 border. On #267657. Checkbox 16 × 16 px with 4 px radius, 1 px #D2D9D2 border, and 8 px label gap. Checked uses #934723 and an 8 × 5 px white mark with 2 px stroke. Mixed uses an 8 × 2 px white mark. Radio uses the native #934723 accent.</td></tr>
-<tr><th scope="row">Input interaction states</th><td>Field hover border #D2D9D2. Range thumb hover #7E3C1F and pressed #6B321B. Unchecked checkbox hover #F6F8F4 / #5D675F border, pressed #F5E0D2 / #E2AD8F border. Checked checkbox hover and pressed use the warm primary hover and pressed. Switch off hover border #5D675F and pressed surface #D2D9D2. Switch on hover #1D6247 and pressed #174F39. All keep the common focus ring and 45% disabled opacity.</td></tr>
+<tr><th scope="row">Sliders</th><td>26 px control row, 4 px track, inactive #E3E7E0, active #426DB2. 14 px circular thumb with #375D92 fill and 1 px border. Show the current value and retain native arrow-key steps.</td></tr>
+<tr><th scope="row">Switches and checks</th><td>Switch 36 × 20 px, pill radius, 1 px border, 14 px white knob with 2 px inset and 16 px travel. Off #E3E7E0 with #D2D9D2 border. On #375D92. Checkbox 16 × 16 px with 4 px radius, 1 px #D2D9D2 border, and 8 px label gap. Checked uses #375D92 and an 8 × 5 px white mark with 2 px stroke. Mixed uses an 8 × 2 px white mark. Radio uses the native #375D92 accent.</td></tr>
+<tr><th scope="row">Input interaction states</th><td>Field hover border #D2D9D2. Range thumb hover #2B4B78 and pressed #203858. Unchecked checkbox hover #F6F8F4 / #5D675F border, pressed #D0E0F4 / #ADC4E5 border. Checked checkbox and switch on use #2B4B78 on hover and #203858 when pressed. Switch off hover border #5D675F and pressed surface #D2D9D2. All keep the common focus ring and 45% disabled opacity.</td></tr>
 <tr><th scope="row">Menus, dropdown panels and popovers</th><td>Menu radius 10 px, 4 px inset, 2 px row gap. Rows at least 34 px, padding 6 × 8 px, 8 px icon gap, 8 px radius. Popover padding 10 px. Surface #FFFEFA, 1 px #DEDFD8 border. Elevation 0 8px 28px with 13% #202723. Section dividers use #ECECE6.</td></tr>
 <tr><th scope="row">Tooltip</th><td>12 px / 1.35 text, 6 px radius, padding 5 × 8 px, 240 px maximum width, 6 px anchor gap. #202723 surface, #FFFEFA ink. Show after 400 ms on hover or keyboard focus, fade 120 ms, dismiss on leave, blur, press or Escape. Keep the icon button’s accessible label.</td></tr>
-<tr><th scope="row">Chat composer</th><td>14 px radius, 1 px #DEDFD8 outline, 9 px inset, 7 px row gap. Textarea 14 px, 58 px minimum, 5 × 6 px inset. Context chips before one 6 px-gap toolbar. Tool target 28 px with 14 px glyph. Stacked Send or Stop 32 px circle with a 16 px glyph. Chip remove target 18 px with 12 px glyph. Empty draft disables Send. Streaming shows Stop.</td></tr>
-<tr><th scope="row">ToC and progress</th><td>ToC row at least 34 px with 6 × 8 px padding, 8 px gap and radius. Completion target 24 px with a 16 px ring, 1.5 px stroke and 11 px check. Active is warm with an independent ring. Completed uses #267657. Roadmap and skills progress bars are 6 px high; skills use 3 px gaps and confirmed counts.</td></tr>
+<tr><th scope="row">Chat composer</th><td>14 px radius, 1 px #DEDFD8 outline, 9 px inset, 7 px row gap. Textarea 14 px, 58 px minimum, 5 × 6 px inset. Context chips before one 6 px-gap toolbar. Tool target 28 px with 14 px glyph. Stacked Send or Stop 32 px circle with a 16 px glyph. Chip remove target 18 px with 12 px glyph. Send and Stop use the blue primary role with #375D92 default, #2B4B78 hover and #203858 pressed. Empty draft disables Send. Streaming shows Stop.</td></tr>
+<tr><th scope="row">ToC and progress</th><td>ToC row at least 34 px with 6 × 8 px padding, 8 px gap and radius. Completion target 24 px with a 16 px ring, 1.5 px stroke and 11 px check. Active uses #EAF1FB surface, #ADC4E5 border and an independent ring, and #375D92 ink. Completed uses #267657. Roadmap and skills progress bars are 6 px high. Completed portions are green and indeterminate progress is blue. Skills use 3 px gaps and confirmed counts.</td></tr>
 <tr><th scope="row">Accept, Edit and Cancel</th><td>Canvas proposal uses a compact 28 px capsule with 1 px inset, 1 px gap and the Tab keycap on Accept. Chat uses standard 35 px controls without the keycap. Accept is green, Edit outlined, Cancel quiet. Tab acceptance stays within the eligible Canvas proposal context.</td></tr>
-<tr><th scope="row">Skeleton, shimmer and spinner</th><td>Preserve the reserved card frame and 18 px radius. Sample skeleton inset 11 px, line height 11 px, radius 5 px and 7 px gaps. Base #E8ECE5, sheen #F6F8F4, 2.4 s ease-in-out loop. Status text shimmer 1.6 s. Spinner 16 px with a 2 px track #E3E7E0 and warm #934723 leading edge, 800 ms linear loop. Reduced motion uses static placeholders and status text.</td></tr>
+<tr><th scope="row">Skeleton, shimmer and spinner</th><td>Preserve the reserved card frame and 18 px radius. Sample skeleton inset 11 px, line height 11 px, radius 5 px and 7 px gaps. Base #E8ECE5, sheen #F6F8F4, 2.4 s ease-in-out loop. Status text shimmer 1.6 s. Spinner 16 px with a 2 px track #E3E7E0 and blue #375D92 leading edge, 800 ms linear loop. Reduced motion uses static placeholders and status text.</td></tr>
 <tr><th scope="row">Scrollbar</th><td>Keep one scrolling region per pane and reserve the gutter. WebKit-style width 8 px; thin fallback where native. Transparent track, #C7CEC6 pill thumb, #AAB6AB hover.</td></tr>
 <tr><th scope="row">Links</th><td>Ink #375D92, hover #2B4B78, pressed #203858. Underline offset 3 px. Use the standard blue focus outline.</td></tr>
 <tr><th scope="row">Modal and Trash</th><td>18 px radius, 1 px #DEDFD8 border, 16 px inset, 460 px maximum width for confirm, up to 92vw and 80vh. Scrim #202723 at 42%, same overlay shadow as menus. Place initial focus on Cancel for destructive confirmation and return it to the opener. Trash list uses Restore and an explicit empty state.</td></tr>
 <tr><th scope="row">Toast / Sonner recipe</th><td>355 px maximum width, 16 px viewport inset bottom and right. Each toast uses 10 px radius, 1 px semantic border, 9 × 10 px padding and 8 px gap. Dismiss target 26 px with 13 px icon. Non-error preview toasts expire after 3 s; errors persist for Retry or dismissal. Apply the same recipe to the existing stack or a later Sonner adapter.</td></tr>
 <tr><th scope="row">Notification and comments</th><td>Use the 10 px notice radius and 9 × 10 px inset. Unread #EAF1FB with #426DB2 border and explicit Unread label or count. Read uses the card surface. Use existing Bell, MessageCircle, MessageSquare and Reply glyphs.</td></tr></tbody></table></div></details><details open><summary>Toast tone and icon</summary><div class="table-scroll"><table><thead><tr><th scope="col">Tone</th><th scope="col">Surface</th><th scope="col">Border</th><th scope="col">Ink</th><th scope="col">Glyph</th></tr></thead><tbody><tr><th scope="row">Success</th><td><span class="swatch" style="--paint:var(--green-soft)" aria-hidden="true"></span><code>#E5F2EA</code></td><td><span class="swatch" style="--paint:var(--why-border)" aria-hidden="true"></span><code>#B8DCCC</code></td><td><span class="swatch" style="--paint:var(--why-ink)" aria-hidden="true"></span><code>#205C45</code></td><td><code>CircleCheck</code></td></tr>
 <tr><th scope="row">Info</th><td><span class="swatch" style="--paint:var(--blue-soft)" aria-hidden="true"></span><code>#EAF1FB</code></td><td><span class="swatch" style="--paint:var(--blue)" aria-hidden="true"></span><code>#426DB2</code></td><td><span class="swatch" style="--paint:var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td><code>Info</code></td></tr>
-<tr><th scope="row">Warning</th><td><span class="swatch" style="--paint:var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td><span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td><span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td><code>TriangleAlert</code></td></tr>
+<tr><th scope="row">Warning</th><td><span class="swatch" style="--paint:var(--warning-soft)" aria-hidden="true"></span><code>#FFF1D3</code></td><td><span class="swatch" style="--paint:var(--warning-border)" aria-hidden="true"></span><code>#E4C585</code></td><td><span class="swatch" style="--paint:var(--warning-ink)" aria-hidden="true"></span><code>#805619</code></td><td><code>TriangleAlert</code></td></tr>
 <tr><th scope="row">Error</th><td><span class="swatch" style="--paint:var(--danger-soft)" aria-hidden="true"></span><code>#F9EBEA</code></td><td><span class="swatch" style="--paint:var(--danger-border)" aria-hidden="true"></span><code>#E7B9B6</code></td><td><span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code></td><td><code>CircleAlert</code></td></tr></tbody></table></div></details></div>
   </section>
   <section class="section" id="inventory" aria-labelledby="inventory-title">
