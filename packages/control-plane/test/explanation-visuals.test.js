@@ -3,8 +3,8 @@
 // (generateArtifact / artifactFetch); no prebuilt success block stands in for the generator. Offline: no provider is called.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { deriveVisualRequirements, requiredVisualProblem, requirementText, danglingFigureProblem } from '../src/explanation-visuals.js';
-import { markdownVisuals, explanationProseChars, simplifiedDiagram } from '../src/learn-primitives.js';
+import { deriveVisualRequirements, repeats, requiredMix, requiredVisualProblem, requirementText, danglingFigureProblem } from '../src/explanation-visuals.js';
+import { EXPLANATION_GUIDANCE, chainsAsCycles, markdownVisuals, explanationProseChars, simplifiedDiagram } from '../src/learn-primitives.js';
 import { artifactFetch, generateArtifact, prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
 import { generateRoadmapCard } from '../src/roadmap/roadmap-generate.js';
 import { EXPLANATION_BUDGET } from '../src/chat-depth.js';
@@ -252,4 +252,64 @@ test('a topic word alone is not a request for a picture: a decision tree, a time
   for (const q of ['Explain how a decision tree works', 'What is the timeline of the French Revolution?', 'How does a t-account record a sale?', 'Explain the number line']) assert.deepEqual(deriveVisualRequirements(q).items, [], q);
   assert.equal(deriveVisualRequirements('Draw a decision tree diagram for loan approval').items[0].diagramKind, 'flow');
   assert.equal(deriveVisualRequirements('Show a timeline diagram of the French Revolution').items[0].diagramKind, 'timeline');
+});
+
+// EXP-13 visual choice (owner 2026-11-08, study C:/s/spec/benchmarks/explain-visual-choice-2026-11-08): fixes 1-4 ride in the author guidance.
+test('the guidance leads its visual choice with the firm type rule, then the kind by the shape of the answer, the cannot-draw rules and the count', () => {
+  const g = EXPLANATION_GUIDANCE, at = s => { const i = g.indexOf(s); assert.ok(i >= 0, s); return i; };
+  const order = ['objects, 3D shapes, anatomy, places, living things and how something looks always get a picture first, then a process diagram second only if the thing also does something; a diagram alone is wrong for them',
+    'processes, relationships, comparisons, hierarchies, quantities, algorithms and data structures get diagrams', 'never use a picture for a data structure, an algorithm or numbers',
+    'cycle when the last step feeds the first', 'sequence for messages between actors', 'timeline for dates or eras', 'transformation for inputs becoming outputs',
+    'tree for splits, sub-parts or sub-calls', 'relationship for causes', 'layers only for a real ordered stack', 'flow otherwise, a straight chain included',
+    'Layers, matrix, comparison, flow, tree and figure cannot draw a shape, object, place or appearance', 'figure is only for a cell, a free-body diagram or a layered cross-section',
+    'comparison is for 2-4 separate items, never the parts of one thing',
+    'two visuals when the question names two things (X and Y, X vs Y) or asks both how something looks and how it works; otherwise one'].map(at);
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'in the owner\'s order');
+  assert.ok(at('Choose visuals in this order') < at('Kinds: flow'), 'the choice comes before the kind catalogue');
+  assert.equal(g.includes('a diagram cannot draw'), false, 'the old negative rule is gone');
+});
+
+const meshPicture = illustrationFence({ id: 'pic-1', prompt: 'A 3D mesh of a teapot drawn as small triangles', alt: 'A teapot mesh made of triangles', caption: 'A 3D mesh is many small triangles' });
+const meshDiagram = diagramFence({ version: 1, diagram: { kind: 'tree', title: 'Parts of a 3D mesh', nodes: [{ id: 'm', label: 'Mesh' }, { id: 'v', label: 'Vertices', parent: 'm' }, { id: 'f', label: 'Faces', parent: 'm' }] } });
+const meshCard = visuals => ({ title: 'What a 3D mesh looks like', body: `A 3D mesh is a surface built from many flat triangles that share corners.\n\n${visuals}\n\nMore triangles make the mesh look smoother.` });
+const meshBoth = `${meshPicture}\n\nIts corners are vertices and its triangles are faces of the mesh.\n\n${meshDiagram}`;
+test('fix 6b: "look like", "3D" or "anatomy" with no diagram asked needs a picture on the card (the one repair), never "shape", and the mix stays free', async () => {
+  for (const q of ['What does a 3D mesh look like?', 'What does a neuron look like?', 'explain the anatomy of the eye', 'what a coral reef looks like']) assert.deepEqual(deriveVisualRequirements(q).items.map(i => [i.kind, i.implied]), [['illustration', true]], q);
+  for (const q of ['What is the shape of the curve?', 'Draw a diagram of what a 3D mesh looks like', 'Show a picture of what a cell looks like', 'How does a request reach the database?']) assert.equal(deriveVisualRequirements(q).items.some(i => i.implied), false, q);
+  assert.equal(deriveVisualRequirements('Show a picture of what a cell looks like').items.length, 1, 'an asked picture is the only one');
+  assert.equal(requiredMix(deriveVisualRequirements('What does a 3D mesh look like?')), null, 'an implied picture does not fix the mix');
+  // A diagram alone goes to the one repair; the author is not told the picture is the whole mix.
+  const { out, m } = await quiet(() => generate('What does a 3D mesh look like?', [meshCard(meshDiagram), meshCard(meshBoth)]));
+  assert.deepEqual([out.result, m.seen.length], ['artifact', 2]);
+  assert.match(m.seen[1].messages.at(-1).content[0].content, /required_visual_missing: the learner asked for an illustration/);
+  assert.equal(JSON.parse(m.seen[0].messages[0].content).requiredVisuals, undefined);
+  // A picture beside a diagram is kept as it is, first time.
+  const both = await quiet(() => generate('What does a 3D mesh look like?', [meshCard(meshBoth)]));
+  assert.deepEqual([both.out.result, both.m.seen.length, markdownVisuals(both.out.block.body).diagrams.length], ['artifact', 1, 1]);
+  // "the shape of the curve" asks for no picture: a diagram alone passes.
+  const curve = await quiet(() => generate('What is the shape of the curve?', [{ title: 'The shape of the curve', body: `The curve rises fast, then levels off.\n\n${diagramFence({ version: 1, diagram: { kind: 'cycle', title: 'The curve rises then levels', steps: ['Rises', 'Levels off'] } })}\n\nSo the curve flattens.` }]));
+  assert.deepEqual([curve.out.result, curve.m.seen.length], ['artifact', 1]);
+});
+
+const chain = (title, labels) => diagramFence({ version: 1, diagram: { kind: 'flow', title, caption: `${labels[0]} comes first.`, nodes: labels.map((label, i) => ({ id: `n${i}`, label, role: i === labels.length - 1 ? 'outcome' : 'process' })), edges: labels.slice(1).map((_, i) => ({ from: `n${i}`, to: `n${i + 1}` })) } });
+const drawnSpec = body => JSON.parse(body.match(/```rh-diagram\n(.*)\n```/)[1]).diagram;
+test('fix 6a: a branchless flow becomes a cycle of the same steps in order when the question repeats; otherwise, or with a decision, it stays a flow', async () => {
+  const water = ['Evaporation', 'Condensation', 'Precipitation', 'Collection'];
+  const waterCard = { title: 'How the water cycle works', body: `The sun heats water so it rises as vapour, then falls again as rain.\n\n${chain('The water cycle', water)}\n\nThe collected water evaporates once more.` };
+  const cycled = await quiet(() => generate('How does the water cycle work?', [waterCard]));
+  assert.deepEqual([cycled.out.result, cycled.m.seen.length], ['artifact', 1]);
+  assert.deepEqual(drawnSpec(cycled.out.block.body), { kind: 'cycle', title: 'The water cycle', caption: 'Evaporation comes first.', steps: water });
+  assert.ok(cycled.out.block.body.startsWith('The sun heats water') && cycled.out.block.body.endsWith('evaporates once more.'), 'the prose around it is kept');
+  const request = ['Request', 'Auth', 'Handler', 'Database'];
+  const requestCard = { title: 'How a request reaches the database', body: `A request passes several checks before it reaches the database.\n\n${chain('How a request reaches the database', request)}\n\nThe database answers the handler.` };
+  const flowed = await quiet(() => generate('How does a request reach the database?', [requestCard]));
+  assert.deepEqual([flowed.out.result, drawnSpec(flowed.out.block.body).kind], ['artifact', 'flow']);
+  assert.equal(flowed.out.block.body, requestCard.body, 'left exactly as it is');
+  // A flow with a decision is not a chain, whatever the words; a chain over the cycle's 7 steps stays a flow.
+  const branched = `Water.\n\n${diagramFence({ version: 1, diagram: { kind: 'flow', title: 'The water cycle check', nodes: [{ id: 'a', label: 'Is it warm?', role: 'decision' }, { id: 'b', label: 'Evaporation', role: 'outcome' }, { id: 'c', label: 'Freezing', role: 'outcome' }], edges: [{ from: 'a', to: 'b', label: 'Yes' }, { from: 'a', to: 'c', label: 'No' }] } })}\n\nMore.`;
+  assert.equal(chainsAsCycles(branched), branched);
+  const long = `Water.\n\n${chain('Too long', ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'])}\n\nMore.`;
+  assert.equal(chainsAsCycles(long), long);
+  for (const q of ['How do the phases of the Moon repeat?', 'why does it loop again', 'recurring seasons', 'one round of the game', 'the cell cycle']) assert.ok(repeats(q), q);
+  for (const q of ['How does a request reach the database?', 'explain bicycle gears', 'what goes around the sun']) assert.equal(repeats(q), false, q);
 });
