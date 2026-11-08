@@ -173,13 +173,15 @@ export async function authorDesign(job, ctx) {
   return authorOnce(job, ctx, { correction: { instruction: 'Your previous plan was refused by the validator. Return the WHOLE corrected plan (same design, same request, same depth) and change only what these problems name. Respect every length limit in limits.', problems } });
 }
 // Only a refusal of the plan's own content is worth a correction call: a transport, budget or capability failure is not.
+const correctionOf = (problems, what) => ({ instruction: `Your previous ${what} was refused by the validator. Return the WHOLE corrected ${what} and change only what these problems name. Respect every length limit.`, problems: problems.slice(0, 12).map(problem => (problem.path ? problem.path + ': ' : '') + problem.message) });
 const corrects = problems => problems.length > 0 && problems.every(problem => ['schema_mismatch', 'not_object', 'no_result', 'conflicting_results'].includes(problem.code) || /^(missing_field|invalid_|too_|unrecognized|expr|runtime)/.test(String(problem.code || '')) || problem.code === undefined);
 
 export async function reviewDesign(job, ctx) {
   const d = job.design, followUp = d.revisions.length > 0;
   const input = { request: job.prompt, depth: job.depth, plan: d.plan, planHash: d.planHash, evidence: modelEvidence(job.evidence), capabilities: capabilitiesForReview(ctx.capabilities),
     deterministicChecks: d.problems || [], followUp, ...(followUp ? { previous: { findings: d.review?.findings || [], changes: d.changes || [] } } : {}) };
-  const reply = await invoke(ctx, 'design_review', input);
+  let reply = await invoke(ctx, 'design_review', input);
+  if (reply.problems && job.design.counts.review < DESIGN_BOUNDS.review && corrects(reply.problems)) reply = await invoke(ctx, 'design_review', { ...input, correction: correctionOf(reply.problems, 'review') }); // live reviews were refused by the schema twice in one run
   if (reply.problems) return reply;
   // A blocker or major finding overrides a claimed pass (interact-plan.js would reject the pair; the finding wins, the review is kept).
   const raw = reply.output;
@@ -194,7 +196,8 @@ export async function reviseDesign(job, ctx) {
   const d = job.design;
   const input = { request: job.prompt, depth: job.depth, plan: d.plan, planHash: d.planHash, review: d.review, deterministicChecks: d.problems || [], evidence: modelEvidence(job.evidence),
     capabilities: capabilitiesForModel(ctx.capabilities), attempt: d.counts.revise + 1, followUp: d.revisions.length > 0 };
-  const reply = await invoke(ctx, 'design_revise', input);
+  let reply = await invoke(ctx, 'design_revise', input);
+  if (reply.problems && job.design.counts.revise < DESIGN_BOUNDS.revise && corrects(reply.problems)) reply = await invoke(ctx, 'design_revise', { ...input, correction: correctionOf(reply.problems, 'revision') });
   if (reply.problems) return reply;
   const parsed = DesignRevisionSchema.safeParse(reply.output);
   return parsed.success ? { revision: parsed.data } : { problems: issueProblems(parsed.error) };

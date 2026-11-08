@@ -56,9 +56,9 @@ test('each role records a version and a content hash, and every schema accepts w
   assert.ok(schemaProblems(designAuthorSchema(), (({ mode: _m, ...rest }) => rest)(PLAN.standard)).includes('$.mode: required'));
 });
 
-test('the bounds are author 2 (one of them a correction of a refused plan), reviewer 3, reviser 2 per plan attempt', () => {
-  assert.deepEqual(DESIGN_BOUNDS, { author: 2, review: 3, revise: 2 });
-  assert.deepEqual([INTERACT_LIMITS.calls.design_author, INTERACT_LIMITS.calls.design_review, INTERACT_LIMITS.calls.design_revise], [2, 3, 2]);
+test('the bounds are author 2, reviewer 4, reviser 3 per plan attempt (one extra call each is the correction of a refused answer)', () => {
+  assert.deepEqual(DESIGN_BOUNDS, { author: 2, review: 4, revise: 3 });
+  assert.deepEqual([INTERACT_LIMITS.calls.design_author, INTERACT_LIMITS.calls.design_review, INTERACT_LIMITS.calls.design_revise], [2, 4, 3]);
 });
 
 // ---- INT-02-C01: authorDesign and reviewDesign as units (a scripted ctx.interact, no job) ----
@@ -297,18 +297,18 @@ test('a factual change re-reviews; a cosmetic one does not', async t => {
   assert.equal(cosmetic.state.data.get(`job:${b.body.job.id}`).design.plan.title, 'Zero velocity is not zero acceleration at the top');
 });
 
-test('exhausted bounds: author 1, reviewer 3, reviser 2, then a failure that names the findings; never a loop and never a proposal', async t => {
+test('exhausted bounds: author 1, reviewer 4, reviser 3, then a failure that names the findings; never a loop and never a proposal', async t => {
   const s = designStack(t, { script: { review: blockedBy('f1'), revise: (n, input) => revision(withText(input.plan, { story: `${input.plan.story} Revision ${n}.` }), [change('f1', 'story')]) } });
   const { body } = await s.create(), id = body.job.id;
   const { job } = await s.design(id, 60);
   assert.deepEqual([job.stage, job.stopReason, job.failure.category], ['failed', 'design_blocked', 'spec']);
-  assert.deepEqual(s.model.roles(), ['author', 'review', 'revise', 'review', 'revise', 'review']);
-  assert.deepEqual(job.design.counts, { author: 1, review: 3, revise: 2 });
+  assert.deepEqual(s.model.roles(), ['author', 'review', 'revise', 'review', 'revise', 'review', 'revise', 'review']);
+  assert.deepEqual(job.design.counts, { author: 1, review: 4, revise: 3 });
   assert.match(job.failure.message, /still had 1 blocking finding.*Finding f1/);
   assert.equal(postedProposal(s.sqlite, id), null);
   assert.equal(s.model.builder.length + s.built.length, 0);
   // A further alarm makes no call: the job is terminal.
-  await s.actor.alarm(); assert.equal(s.model.log.length, 6);
+  await s.actor.alarm(); assert.equal(s.model.log.length, 8);
 });
 
 test('a reviser that declares a blocker unresolved ends the design with what is needed; nothing is fabricated', async t => {
@@ -354,7 +354,7 @@ test('an unsupported control in the draft is revised before approval; if it cann
   const out = await stuck.design(b.body.job.id);
   assert.deepEqual([out.job.stage, out.job.stopReason, out.job.failure.category], ['failed', 'capability_gap', 'capability']);
   assert.match(out.job.failure.gap.reason, /unknown_native_control|invented_widget|catalogue/);
-  assert.deepEqual(stuck.model.roles(), ['author', 'review', 'revise', 'revise'], 'two revisions, then the gap');
+  assert.deepEqual(stuck.model.roles(), ['author', 'review', 'revise', 'revise', 'revise'], 'three revisions, then the gap');
 });
 
 test('the description-fit receipt gates the plan: a description outside 2 to 4 lines goes back to the reviser, and no receipt service stops the design', async t => {

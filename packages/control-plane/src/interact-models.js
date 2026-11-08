@@ -29,8 +29,8 @@ const refuse = (code, message, extra) => new InteractModelError(code, message, {
 const NEW_FLOW_BUILD_TOKENS = { build_author: 16000, build_review: 10000, build_repair: 16000 };
 export const INTERACT_ROLES = deepFreeze({
   design_author: { task: 'interact_design_author', phase: 'preparation', kind: 'generation', calls: 2, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_author.maxTokens },
-  design_review: { task: 'interact_design_review', phase: 'preparation', kind: 'evaluation', calls: 3, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_review.maxTokens },
-  design_revise: { task: 'interact_design_revise', phase: 'preparation', kind: 'generation', calls: 2, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_revise.maxTokens },
+  design_review: { task: 'interact_design_review', phase: 'preparation', kind: 'evaluation', calls: 4, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_review.maxTokens },
+  design_revise: { task: 'interact_design_revise', phase: 'preparation', kind: 'generation', calls: 3, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_revise.maxTokens },
   build_author: { task: 'explain_author', phase: 'generation', kind: 'generation', calls: 2, maxInputBytes: 80000, maxImages: 4, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_author },
   build_review: { task: 'explain_review', phase: 'generation', kind: 'evaluation', calls: 5, maxInputBytes: 80000, maxImages: 6, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_review },
   build_repair: { task: 'explain_repair', phase: 'generation', kind: 'repair', calls: 4, maxInputBytes: 80000, maxImages: 2, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_repair },
