@@ -45,6 +45,8 @@ const ROUTES = [
   [/^\/api\/learn\/artifact$/, 'artifact'],
   [/^\/api\/learn\/board$/, 'board'],
   [/^\/api\/learn\/inline\/route$/, 'inline_route'],
+  // CR-1: the chat line's capability route (chat-capability-route.js) makes one paid classifier call (JEV). Without a context here the ledger refuses it (payer_unavailable) and every plain-words line falls back to a text answer.
+  [/^\/api\/learn\/chat\/route$/, 'inline_route'],
   [/^\/api\/learn\/inline\/decide$/, 'inline_decide'],
   [/^\/api\/learn\/inline\/generate$/, 'inline_generate'],
   [/^\/api\/learn\/assess$/, 'assess'],
