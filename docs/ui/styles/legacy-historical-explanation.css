@@ -1,0 +1,65 @@
+
+:root {
+  color-scheme: dark;
+  --surface: #191919;
+  --ink: #d4d4d4;
+  --ink-2: #a1a1a1;
+  --line: #2f2f2f;
+  --line-strong: #4a4a4a;
+  --hover: #2c2c2c;
+  --select: #2383e2;
+  --card-width: 550px;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--surface) radial-gradient(var(--line) 1px, transparent 1px) 6px 6px / 22px 22px;
+  color: var(--ink);
+  font: 15px/1.55 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+button { color: inherit; font: inherit; cursor: pointer; }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--select); outline-offset: 2px; }
+.review { padding: 24px 16px 40px; }
+.demo-canvas { display: flex; align-items: flex-start; justify-content: center; flex-wrap: wrap; gap: 24px; }
+.depth-panel { width: min(var(--card-width), 100%); min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 2px 6px #0003; }
+.explanation { overflow: hidden; }
+.card-core { display: flex; flex-direction: column; max-height: max(240px, min(355px, calc(100dvh - 42px))); }
+.card-head { flex: 0 0 auto; border-bottom: 1px solid var(--line); }
+.drag { display: grid; height: 25px; place-items: center; }
+.drag span { width: 48px; height: 4px; background: var(--line); border-radius: 9px; }
+.meta-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 20px; }
+.kind { display: inline-flex; align-items: center; flex-shrink: 0; gap: 7px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink); }
+.source { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.icon { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 4px; background: none; padding: 0; color: var(--ink-2); }
+.icon:hover { color: var(--ink); background: var(--hover); }
+.icon svg, .source svg, .disclosure svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.card-title { margin: 8px 20px 15px; font-size: 26px; line-height: 1.23; font-weight: 650; letter-spacing: -.025em; text-wrap: balance; }
+.reading { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; padding: 16px 20px 18px; overflow-wrap: anywhere; }
+.reading:focus-visible { outline-offset: -2px; }
+.reading h2 { margin: 0 0 7px; font-size: 16px; font-weight: 650; line-height: 1.35; }
+.reading p { margin: 0; }
+.card-expansion { flex: none; overflow: visible; border-top: 1px solid var(--line); }
+.sample { color: var(--ink-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+.card-expansion .rules { margin-top: 9px; }
+.answer { margin-top: 12px; padding-top: 9px; border-top: 1px solid var(--line); }
+.divided { border-top: 1px solid var(--line); margin-top: 15px; padding-top: 14px; }
+.rules { margin: 0; padding-left: 19px; }
+.rules li + li { margin-top: 6px; }
+.card-foot { flex: 0 0 auto; padding: 0 20px 4px; border-top: 1px solid var(--line); }
+.disclosure { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; min-height: 40px; width: 100%; border: 0; background: none; color: var(--ink-2); font-size: 14px; font-weight: 550; text-align: left; }
+.disclosure:hover, .disclosure[aria-expanded="true"] { color: var(--ink); }
+.disclosure[aria-expanded="true"] svg { transform: rotate(90deg); }
+.source-example { width: min(360px, 100%); padding: 14px 16px; }
+.source-example header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.source-example h2 { font-size: 16px; margin: 12px 0 6px; }
+.source-example p { margin: 0; }
+.source-example mark { color: inherit; background: #80691666; border-radius: 3px; }
+@media (max-width: 420px) {
+  .review { padding: 14px 12px 24px; }
+  .card-title { font-size: 23px; margin: 8px 14px 13px; }
+  .meta-row, .reading, .card-foot { padding-left: 14px; padding-right: 14px; }
+}

@@ -1,0 +1,21 @@
+<template id="card-shell">
+    <article class="teaching-card">
+      <header class="card-header">
+        <div class="card-top"><span class="card-pill" data-slot="pill"></span><div class="card-actions" data-slot="header-actions"></div></div>
+        <h2 class="card-title" data-slot="title"></h2>
+        <p class="card-subtitle" data-slot="subtitle" hidden></p>
+      </header>
+      <div class="card-body" data-slot="body" role="region" tabindex="0">
+        <div class="card-copy"><p data-slot="concept"></p><p data-slot="instruction" hidden></p></div>
+        <p class="card-why" data-slot="why" role="status" aria-atomic="true" hidden><strong>Why</strong><span data-slot="reason"></span></p>
+        <figure class="card-visual" data-slot="figure" hidden>
+          <div data-slot="visual"></div>
+          <figcaption class="card-caption" data-slot="caption" hidden></figcaption>
+        </figure>
+        <div class="card-controls" data-slot="controls"></div>
+      </div>
+      <button class="resize-handle" type="button" aria-describedby="resize-guide" title="Resize card">
+        <svg width="14" height="14" viewbox="0 0 14 14" aria-hidden="true"><path d="M3 12 12 3M8 12 12 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path></svg>
+      </button>
+    </article>
+  </template>

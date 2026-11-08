@@ -1,0 +1,80 @@
+<main>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1434 1358" role="img" aria-labelledby="workflow-title workflow-description">
+  <title id="workflow-title">Interactive Card Composition Workflow</title>
+  <desc id="workflow-description">Title and description, then supporting static visuals when needed. Static leads to a static illustration. Over time leads to live animation and playback below the scene. Experiment leads to an interactive visual, playback when timed, and experiment controls below the scene.</desc>
+  
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 16" refX="9" refY="8" markerWidth="10" markerHeight="16" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M2 2L8 8L2 14" fill="none" stroke="#afafaf" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <rect width="1434" height="1358" fill="#0f0f0f"/>
+
+  <path class="edge" d="M1091 136V201"/>
+  <path class="edge" d="M1091 347V412"/>
+  <path class="edge" d="M1015 547V574Q1015 587 1002 587H208Q194 587 194 601V784"/>
+  <path class="edge" d="M1091 547V614Q1091 627 1078 627H632Q618 627 618 641V784"/>
+  <path class="edge" d="M1167 547V784"/>
+  <path class="edge" d="M618 919V984"/>
+  <path class="edge" d="M1167 919V990"/>
+  <path class="edge" d="M1167 1124V1195"/>
+
+  <g id="A">
+    <rect class="node" x="889" y="16" width="405" height="120" rx="32"/>
+    <text x="1091" y="86">Title and description</text>
+  </g>
+  <g id="B">
+    <rect class="node" x="822" y="216" width="538" height="131" rx="32"/>
+    <text x="1091" y="276"><tspan x="1091">Supporting static visuals, when</tspan><tspan x="1091" dy="31">needed</tspan></text>
+  </g>
+  <g id="C">
+    <rect class="node decision" x="939" y="427" width="304" height="120" rx="32"/>
+    <text x="1091" y="497">Presentation</text>
+  </g>
+
+  <g>
+    <rect class="pill" x="137" y="667" width="113" height="53" rx="26"/>
+    <text class="branch-label" x="194" y="704">Static</text>
+    <rect class="pill" x="536" y="667" width="164" height="53" rx="26"/>
+    <text class="branch-label" x="618" y="704">Over time</text>
+    <rect class="pill" x="1076" y="667" width="181" height="53" rx="26"/>
+    <text class="branch-label" x="1167" y="704">Experiment</text>
+  </g>
+
+  <g id="D">
+    <rect class="node" x="16" y="799" width="357" height="120" rx="32"/>
+    <text x="194" y="869">Static illustration</text>
+  </g>
+  <g id="E">
+    <rect class="node" x="453" y="799" width="330" height="120" rx="32"/>
+    <text x="618" y="869">Live animation</text>
+  </g>
+  <g id="F">
+    <rect class="node" x="989" y="799" width="357" height="120" rx="32"/>
+    <text x="1167" y="869">Interactive visual</text>
+  </g>
+  <g id="G">
+    <rect class="node" x="356" y="999" width="524" height="132" rx="32"/>
+    <text x="618" y="1059"><tspan x="618">Playback and timeline outside</tspan><tspan x="618" dy="31">scene</tspan></text>
+  </g>
+  <g id="H">
+    <rect class="node" x="960" y="1005" width="414" height="119" rx="32"/>
+    <text x="1167" y="1074">Playback when timed</text>
+  </g>
+  <g id="I">
+    <rect class="node" x="916" y="1210" width="502" height="132" rx="32"/>
+    <text x="1167" y="1270"><tspan x="1167">Experiment controls outside</tspan><tspan x="1167" dy="31">scene</tspan></text>
+  </g>
+</svg>
+<script type="text/plain" id="mermaid-source">
+flowchart TD
+    A["Title and description"] --> B["Supporting static visuals, when needed"]
+    B --> C{"Presentation"}
+    C -->|Static| D["Static illustration"]
+    C -->|Over time| E["Live animation"]
+    C -->|Experiment| F["Interactive visual"]
+    E --> G["Playback and timeline outside scene"]
+    F --> H["Playback when timed"]
+    H --> I["Experiment controls outside scene"]
+</script>
+</main>

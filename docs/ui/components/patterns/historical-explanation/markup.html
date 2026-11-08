@@ -1,0 +1,56 @@
+<!--
+Tutor MVP delivered Explanation frame in its scrolled layout.
+File 06 shows the same frame at all three Depth settings and has the Markdown
+table and Mermaid source fixtures. This card uses the Standard sample copy.
+The main reading region has a compact height here to demonstrate scrolling.
+-->
+
+
+
+<main class="review" aria-label="Delivered Explanation card">
+  <div class="demo-canvas">
+    <div class="depth-panel">
+  <article class="card explanation" aria-labelledby="title-standard">
+    <div class="card-core">
+      <header class="card-head">
+      <div class="drag" aria-hidden="true"><span></span></div>
+      <div class="meta-row">
+        <span class="kind"><span class="dot" aria-hidden="true"></span>Explanation</span>
+        <div class="source"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 12h8m-8 4h8"/></svg><span>Source: en.md</span><button class="icon" type="button" data-source title="View section" aria-label="View section" aria-controls="source-example"><svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2m10 0h2a1 1 0 0 1 1 1v2m0 10v2a1 1 0 0 1-1 1h-2m-10 0H5a1 1 0 0 1-1-1v-2M8 10h8m-8 4h5"/></svg></button></div>
+      </div>
+      <h1 class="card-title" id="title-standard">Why trees, and what a tree actually does</h1>
+    </header>
+      <div class="reading" data-scroll tabindex="0" role="region" aria-label="Explanation text">
+        <section class="topic" aria-labelledby="standard-path">
+  <h2 id="standard-path">From root to leaf</h2>
+  <p>Start at the root, the tree’s first question. Each question tests one feature and sends the case down a branch. Stop at a leaf to get the prediction. You can explain that prediction by tracing the tests along its path.</p>
+</section>
+<section class="topic divided" aria-labelledby="standard-training">
+  <h2 id="standard-training">How the tree learns</h2>
+  <p>During training, the tree tries questions such as “Age under 25?” and “Age under 30?” It chooses a split that groups examples with more similar outcomes, then repeats the process within those groups.</p>
+</section>
+      </div>
+      <footer class="card-foot">
+        <button class="disclosure" type="button" data-reveal aria-expanded="false" aria-controls="details-standard">Try a prediction<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+      </footer>
+    </div>
+    <section class="reading card-expansion" id="details-standard" aria-label="Try a prediction" hidden>
+      <h2>Approve or deny?</h2>
+      <p class="sample">Age 25 · income $60k · credit score 640</p>
+      <ul class="rules">
+        <li><strong>Age under 30?</strong> Yes → check income. No → check credit score.</li>
+        <li><strong>Income over $50k?</strong> Yes → Approve. No → Deny.</li>
+      </ul>
+      <div class="answer">
+        <p><strong>Prediction</strong> Approve. Both answers are yes, so this path reaches the Approve leaf without checking credit score.</p>
+      </div>
+    </section>
+  </article>
+    </div>
+    <aside class="card source-example" id="source-example" tabindex="-1" aria-label="en.md source example" hidden>
+      <header><strong>en.md</strong><button class="icon" type="button" id="close-source" title="Close" aria-label="Close source example"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
+      <h2>What one tree does</h2>
+      <p><mark>Each internal node tests one feature against a threshold. Each leaf makes a prediction.</mark></p>
+    </aside>
+  </div>
+</main>

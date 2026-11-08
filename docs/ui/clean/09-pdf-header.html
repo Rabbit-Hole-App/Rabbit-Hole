@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Markdown and PDF headers</title><style>
+    :root {
+      color-scheme:light;
+      --paper:#f5f4ed; --card:#fffefa; --card-border:#dedfd8; --panel:#f6f8f4; --panel-border:#e3e7e0;
+      --control-bg:#ffffff; --ink:#202723; --muted:#5d675f; --control-hover-border:#d2d9d2;
+      --blue:#426db2; --action-blue:#375d92; --action-blue-hover:#2b4b78; --action-blue-pressed:#203858;
+      --blue-soft:#eaf1fb; --blue-line:#adc4e5; --blue-soft-hover:#dde9f8; --blue-soft-pressed:#d0e0f4;
+      --orange-dark:#934723; --orange-soft:#f8ece3; --orange:#b86232;
+      --green:#267657; --green-soft:#e5f2ea; --danger-ink:#9d3d39; --danger-soft:#f9ebea;
+      --disabled-opacity:.45; --card-radius:18px; --control-radius:8px; --focus-width:2px;
+      --title-size:1.65rem; --title-size-compact:1.35rem; --title-leading:1.17; --title-tracking:-.023em;
+      font:1rem/1.45 Inter,"Liberation Sans",Arial,sans-serif; background:var(--paper); color:var(--ink);
+    }
+    * { box-sizing:border-box; }
+    [hidden] { display:none !important; }
+    body,h1,h2,h3,p { margin:0; }
+    main { max-width:1040px; margin:auto; padding:28px 25px 45px; }
+    button,textarea { font:inherit; }
+    button { cursor:pointer; }
+    button:disabled { cursor:not-allowed; opacity:var(--disabled-opacity); }
+    :is(button,textarea):focus-visible { outline:var(--focus-width) solid var(--blue); outline-offset:2px; }
+    .eyebrow { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:.9rem; font-weight:700; }
+    .eyebrow::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--blue); }
+    h1 { font-size:clamp(1.75rem,4vw,2.4rem); line-height:1.12; letter-spacing:-.027em; margin:5px 0; }
+    h2 { font-size:1.45rem; margin-bottom:7px; }
+    .lede,.muted { color:var(--muted); }
+    .lede { max-width:76ch; }
+    section { margin-top:25px; }
+    .examples { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .panel,.source-card { border:1px solid var(--card-border); border-radius:var(--card-radius); background:var(--card); }
+    .source-card { container-type:inline-size; }
+    .source-header { padding:17px 24px 11px; }
+    .source-top { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+    .pill { display:inline-flex; align-items:center; min-height:26px; padding:1px 11px; border:1px solid transparent; border-radius:999px; font-size:13px; font-weight:700; line-height:1.45; }
+    .pill.source { color:var(--action-blue); background:var(--blue-soft); border-color:var(--blue-line); }
+    .pill.explain { color:var(--action-blue); background:var(--blue-soft); }
+    .pill.interactive { color:var(--orange-dark); background:var(--orange-soft); }
+    .card-title { color:var(--ink); font-size:var(--title-size); line-height:var(--title-leading); letter-spacing:var(--title-tracking); font-weight:700; overflow-wrap:anywhere; }
+    .source-name { margin-top:4px; color:var(--muted); font-size:.875rem; font-weight:650; line-height:1.35; }
+    @container (max-width:370px) { .source-header { padding-inline:15px; } .card-title { font-size:var(--title-size-compact); } }
+    .panel { padding:11px 14px; }
+    .selection-sample { padding:10px 12px; }
+    .selection-toolbar { display:inline-flex; gap:3px; padding:4px; border:1px solid var(--card-border); border-radius:10px; background:var(--card); box-shadow:0 8px 28px rgba(32,39,35,.13); }
+    .selection-toolbar .tool {
+      display:inline-grid; place-items:center; width:35px; min-height:35px; padding:0;
+      border:1px solid var(--panel-border); border-radius:var(--control-radius);
+      background:var(--control-bg); color:var(--muted);
+    }
+    .selection-toolbar .tool:hover { background:var(--panel); border-color:var(--control-hover-border); color:var(--ink); }
+    .selection-toolbar .tool:active { background:var(--blue-soft-pressed); border-color:var(--blue-line); color:var(--action-blue-pressed); }
+    .selection-toolbar .icon { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+    .selection-sample p { margin-top:7px; color:var(--ink); font-size:15px; }
+    .selection-sample mark,.selection-sample ::selection { background:var(--blue-soft-pressed); color:var(--ink); }
+
+    .table-scroll { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; text-align:left; font-size:.875rem; }
+    th,td { padding:7px 8px; border-bottom:1px solid var(--panel-border); vertical-align:top; }
+    thead th { background:var(--panel); }
+    tbody tr:last-child > * { border-bottom:0; }
+    code { white-space:nowrap; }
+    a { color:var(--action-blue); text-underline-offset:3px; }
+    .sources { margin-top:8px; color:var(--muted); font-size:.8125rem; }
+    @media (max-width:640px) { main { padding:18px 12px 32px; } .examples { grid-template-columns:1fr; } }
+  
+/* Current balance, following the owner's return to ca0affe as the color reference.
+   Scope colors by purpose; never recolor the entire card or app from its pill. */
+:root {
+  --rh-action:#375d92; --rh-action-hover:#2b4b78; --rh-action-pressed:#203858;
+  --rh-action-soft:#eaf1fb; --rh-action-line:#adc4e5;
+  --rh-experiment:#b86232; --rh-experiment-ink:#934723;
+  --rh-experiment-soft:#f8ece3; --rh-experiment-line:#e2ad8f;
+  --rh-experiment-hover:#f5e0d2; --rh-experiment-pressed:#eac6ad;
+  --rh-focus:#426db2;
+  --rh-toggle-on:#267657; --rh-toggle-hover:#1d6247; --rh-toggle-pressed:#174f39;
+}
+/* Isolated experiment widgets and the experiment row of composed cards. */
+body[data-ui-palette="experiment"] .catalog-preview,
+body[data-ui-palette="balanced-card"] .card-controls {
+  --blue-soft:var(--rh-experiment-soft);
+  --blue-border:var(--rh-experiment-line);
+  --blue-ink:var(--rh-experiment-ink);
+  --blue-hover:var(--rh-experiment-hover);
+  --blue-pressed:var(--rh-experiment-pressed);
+  --explanation-ink:var(--rh-experiment-ink);
+  --control-selected-border:var(--rh-experiment-line);
+  --control-selected-hover-bg:var(--rh-experiment-hover);
+  --control-active-bg:var(--rh-experiment-pressed);
+}
+body[data-ui-palette="experiment"] .control-row input[type="range"],
+body[data-ui-palette="balanced-card"] .card-controls input[type="range"] { accent-color:var(--rh-experiment); }
+body[data-ui-palette="experiment"] .control-row .value,
+body[data-ui-palette="balanced-card"] .card-controls .control-row .value { color:var(--rh-experiment-ink); }
+/* Owner correction: toggles are green in app settings and experiments. */
+body:not([data-ui-palette="historical"]) :is(.switch input,input.switch):checked,
+body:not([data-ui-palette="historical"]) .toggle input:checked + .toggle-track { background:var(--rh-toggle-on); border-color:var(--rh-toggle-on); }
+body:not([data-ui-palette="historical"]) :is(.switch input,input.switch):checked:hover:enabled,
+body:not([data-ui-palette="historical"]) .toggle:hover input:checked:enabled + .toggle-track { background:var(--rh-toggle-hover); border-color:var(--rh-toggle-hover); }
+body:not([data-ui-palette="historical"]) :is(.switch input,input.switch):checked:active:enabled,
+body:not([data-ui-palette="historical"]) .toggle:active input:checked:enabled + .toggle-track { background:var(--rh-toggle-pressed); border-color:var(--rh-toggle-pressed); }
+/* Reset/Previous/Next remain neutral; experiment identity must not tint every action. */
+body:is([data-ui-palette="experiment"],[data-ui-palette="balanced-card"]) .button.secondary:hover:enabled { background:#f6f8f4; border-color:#d2d9d2; color:#202723; }
+body:is([data-ui-palette="experiment"],[data-ui-palette="balanced-card"]) .button.secondary:active:enabled { background:#e3e7e0; color:#202723; }
+/* The focus ring remains blue even within an experiment. */
+body[data-ui-palette="experiment"] :is(button,input,select,summary):focus-visible,
+body[data-ui-palette="balanced-card"] .card-controls :is(button,input,select,summary):focus-visible { outline-color:var(--rh-focus); }
+
+
+html,body { min-height:100%; }
+body { margin:0; background:#f5f4ed; }
+main.clean-stage { max-width:1020px; margin:0 auto; padding:28px 20px; }
+.clean-stage .demo { margin-top:0; }
+.clean-stage #examples,.clean-stage #example-cards { display:block; }
+.clean-stage .demo-label,.clean-stage .rh-grip-guide { display:none; }
+.clean-stage > section { margin-top:0; }
+.clean-stage .examples { display:grid; gap:16px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+#resize-guide,#clean-resize-help { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+@media(max-width:600px) { main.clean-stage{padding:16px 12px;} .clean-stage .examples{grid-template-columns:1fr;} }
+</style></head>
+<body data-ui-palette="shared">
+<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true"></svg>
+<main class="clean-stage"><article class="source-card" aria-labelledby="pdf-title"><header class="source-header"><div class="source-top"><span class="pill source">PDF</span></div><h3 class="card-title" id="pdf-title">Decision Trees.pdf</h3></header></article></main>
+<script></script>
+<!--  Lucide React 1.41.0 icon notices
+ISC License
+
+Copyright (c) 2026 Lucide Icons and Contributors
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+—-
+
+The following Lucide icons are derived from the Feather project:
+
+airplay, alert-circle, alert-octagon, alert-triangle, aperture, arrow-down-circle, arrow-down-left, arrow-down-right, arrow-down, arrow-left-circle, arrow-left, arrow-right-circle, arrow-right, arrow-up-circle, arrow-up-left, arrow-up-right, arrow-up, at-sign, calendar, cast, check, chevron-down, chevron-left, chevron-right, chevron-up, chevrons-down, chevrons-left, chevrons-right, chevrons-up, circle, clipboard, clock, code, columns, command, compass, corner-down-left, corner-down-right, corner-left-down, corner-left-up, corner-right-down, corner-right-up, corner-up-left, corner-up-right, crosshair, database, divide-circle, divide-square, dollar-sign, download, external-link, feather, frown, hash, headphones, help-circle, info, italic, key, layout, life-buoy, link-2, link, loader, lock, log-in, log-out, maximize, meh, minimize, minimize-2, minus-circle, minus-square, minus, monitor, moon, more-horizontal, more-vertical, move, music, navigation-2, navigation, octagon, pause-circle, percent, plus-circle, plus-square, plus, power, radio, rss, search, server, share, shopping-bag, sidebar, smartphone, smile, square, table-2, tablet, target, terminal, trash-2, trash, triangle, tv, type, upload, x-circle, x-octagon, x-square, x, zoom-in, zoom-out
+
+The MIT License (MIT) (for the icons listed above)
+
+Copyright (c) 2013-present Cole Bemis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+ -->
+</body></html>

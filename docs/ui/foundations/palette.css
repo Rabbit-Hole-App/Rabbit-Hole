@@ -1,0 +1,41 @@
+/* Current balance, following the owner's return to ca0affe as the color reference.
+   Scope colors by purpose; never recolor the entire card or app from its pill. */
+:root {
+  --rh-action:#375d92; --rh-action-hover:#2b4b78; --rh-action-pressed:#203858;
+  --rh-action-soft:#eaf1fb; --rh-action-line:#adc4e5;
+  --rh-experiment:#b86232; --rh-experiment-ink:#934723;
+  --rh-experiment-soft:#f8ece3; --rh-experiment-line:#e2ad8f;
+  --rh-experiment-hover:#f5e0d2; --rh-experiment-pressed:#eac6ad;
+  --rh-focus:#426db2;
+  --rh-toggle-on:#267657; --rh-toggle-hover:#1d6247; --rh-toggle-pressed:#174f39;
+}
+/* Isolated experiment widgets and the experiment row of composed cards. */
+body[data-ui-palette="experiment"] .catalog-preview,
+body[data-ui-palette="balanced-card"] .card-controls {
+  --blue-soft:var(--rh-experiment-soft);
+  --blue-border:var(--rh-experiment-line);
+  --blue-ink:var(--rh-experiment-ink);
+  --blue-hover:var(--rh-experiment-hover);
+  --blue-pressed:var(--rh-experiment-pressed);
+  --explanation-ink:var(--rh-experiment-ink);
+  --control-selected-border:var(--rh-experiment-line);
+  --control-selected-hover-bg:var(--rh-experiment-hover);
+  --control-active-bg:var(--rh-experiment-pressed);
+}
+body[data-ui-palette="experiment"] .control-row input[type="range"],
+body[data-ui-palette="balanced-card"] .card-controls input[type="range"] { accent-color:var(--rh-experiment); }
+body[data-ui-palette="experiment"] .control-row .value,
+body[data-ui-palette="balanced-card"] .card-controls .control-row .value { color:var(--rh-experiment-ink); }
+/* Owner correction: toggles are green in app settings and experiments. */
+body:not([data-ui-palette="historical"]) :is(.switch input,input.switch):checked,
+body:not([data-ui-palette="historical"]) .toggle input:checked + .toggle-track { background:var(--rh-toggle-on); border-color:var(--rh-toggle-on); }
+body:not([data-ui-palette="historical"]) :is(.switch input,input.switch):checked:hover:enabled,
+body:not([data-ui-palette="historical"]) .toggle:hover input:checked:enabled + .toggle-track { background:var(--rh-toggle-hover); border-color:var(--rh-toggle-hover); }
+body:not([data-ui-palette="historical"]) :is(.switch input,input.switch):checked:active:enabled,
+body:not([data-ui-palette="historical"]) .toggle:active input:checked:enabled + .toggle-track { background:var(--rh-toggle-pressed); border-color:var(--rh-toggle-pressed); }
+/* Reset/Previous/Next remain neutral; experiment identity must not tint every action. */
+body:is([data-ui-palette="experiment"],[data-ui-palette="balanced-card"]) .button.secondary:hover:enabled { background:#f6f8f4; border-color:#d2d9d2; color:#202723; }
+body:is([data-ui-palette="experiment"],[data-ui-palette="balanced-card"]) .button.secondary:active:enabled { background:#e3e7e0; color:#202723; }
+/* The focus ring remains blue even within an experiment. */
+body[data-ui-palette="experiment"] :is(button,input,select,summary):focus-visible,
+body[data-ui-palette="balanced-card"] .card-controls :is(button,input,select,summary):focus-visible { outline-color:var(--rh-focus); }

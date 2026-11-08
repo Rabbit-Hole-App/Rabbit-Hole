@@ -1,0 +1,26 @@
+{
+  "id": "icons/icon-states",
+  "title": "Icon button states",
+  "category": "icons",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-icon-template.html",
+  "source_file": "rabbit-hole-card-icon-template.html",
+  "status": "reference",
+  "styles": [
+    "icons"
+  ],
+  "scripts": [
+    "icon-states"
+  ],
+  "implementation": [
+    "packages/web/src/CardFeedback.jsx",
+    "packages/web/src/ChatComposer.jsx"
+  ],
+  "notes": "Glyph inventory preserves source and per-glyph size/stroke. Runtime catalog entries do not imply feature availability.",
+  "issues": [
+    "UI-04"
+  ],
+  "templates": [],
+  "keywords": [],
+  "path": "components/icons/icon-states",
+  "paletteRole": "shared"
+}

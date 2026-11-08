@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chat composer</title><style>
+    :root {
+      color-scheme:light;
+      --paper:#f5f4ed; --card:#fffefa; --card-border:#dedfd8; --panel:#f6f8f4; --panel-border:#e3e7e0;
+      --control-bg:#ffffff; --ink:#202723; --muted:#5d675f; --control-hover-border:#d2d9d2;
+      --blue:#426db2; --action-blue:#375d92; --action-blue-hover:#2b4b78; --action-blue-pressed:#203858;
+      --blue-soft:#eaf1fb; --blue-line:#adc4e5; --blue-soft-hover:#dde9f8; --blue-soft-pressed:#d0e0f4;
+      --orange-dark:#934723; --orange-soft:#f8ece3; --orange:#b86232;
+      --green:#267657; --green-soft:#e5f2ea; --danger-ink:#9d3d39; --danger-soft:#f9ebea;
+      --disabled-opacity:.45; --card-radius:18px; --control-radius:8px; --focus-width:2px;
+      --title-size:1.65rem; --title-size-compact:1.35rem; --title-leading:1.17; --title-tracking:-.023em;
+      font:1rem/1.45 Inter,"Liberation Sans",Arial,sans-serif; background:var(--paper); color:var(--ink);
+    }
+    * { box-sizing:border-box; }
+    [hidden] { display:none !important; }
+    body,h1,h2,h3,p { margin:0; }
+    main { max-width:1040px; margin:auto; padding:28px 25px 45px; }
+    button,textarea { font:inherit; }
+    button { cursor:pointer; }
+    button:disabled { cursor:not-allowed; opacity:var(--disabled-opacity); }
+    :is(button,textarea):focus-visible { outline:var(--focus-width) solid var(--blue); outline-offset:2px; }
+    .eyebrow { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:.9rem; font-weight:700; }
+    .eyebrow::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--blue); }
+    h1 { font-size:clamp(1.75rem,4vw,2.4rem); line-height:1.12; letter-spacing:-.027em; margin:5px 0; }
+    h2 { font-size:1.45rem; margin-bottom:7px; }
+    .lede,.muted { color:var(--muted); }
+    .lede { max-width:76ch; }
+    section { margin-top:25px; }
+    .examples { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .panel,.source-card { border:1px solid var(--card-border); border-radius:var(--card-radius); background:var(--card); }
+    .source-card { container-type:inline-size; }
+    .source-header { padding:17px 24px 11px; }
+    .source-top { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+    .pill { display:inline-flex; align-items:center; min-height:26px; padding:1px 11px; border:1px solid transparent; border-radius:999px; font-size:13px; font-weight:700; line-height:1.45; }
+    .pill.source { color:var(--action-blue); background:var(--blue-soft); border-color:var(--blue-line); }
+    .pill.explain { color:var(--action-blue); background:var(--blue-soft); }
+    .pill.interactive { color:var(--orange-dark); background:var(--orange-soft); }
+    .card-title { color:var(--ink); font-size:var(--title-size); line-height:var(--title-leading); letter-spacing:var(--title-tracking); font-weight:700; overflow-wrap:anywhere; }
+    .source-name { margin-top:4px; color:var(--muted); font-size:.875rem; font-weight:650; line-height:1.35; }
+    @container (max-width:370px) { .source-header { padding-inline:15px; } .card-title { font-size:var(--title-size-compact); } }
+    .panel { padding:11px 14px; }
+    .selection-sample { padding:10px 12px; }
+    .selection-toolbar { display:inline-flex; gap:3px; padding:4px; border:1px solid var(--card-border); border-radius:10px; background:var(--card); box-shadow:0 8px 28px rgba(32,39,35,.13); }
+    .selection-toolbar .tool {
+      display:inline-grid; place-items:center; width:35px; min-height:35px; padding:0;
+      border:1px solid var(--panel-border); border-radius:var(--control-radius);
+      background:var(--control-bg); color:var(--muted);
+    }
+    .selection-toolbar .tool:hover { background:var(--panel); border-color:var(--control-hover-border); color:var(--ink); }
+    .selection-toolbar .tool:active { background:var(--blue-soft-pressed); border-color:var(--blue-line); color:var(--action-blue-pressed); }
+    .selection-toolbar .icon { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+    .selection-sample p { margin-top:7px; color:var(--ink); font-size:15px; }
+    .selection-sample mark,.selection-sample ::selection { background:var(--blue-soft-pressed); color:var(--ink); }
+
+    .table-scroll { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; text-align:left; font-size:.875rem; }
+    th,td { padding:7px 8px; border-bottom:1px solid var(--panel-border); vertical-align:top; }
+    thead th { background:var(--panel); }
+    tbody tr:last-child > * { border-bottom:0; }
+    code { white-space:nowrap; }
+    a { color:var(--action-blue); text-underline-offset:3px; }
+    .sources { margin-top:8px; color:var(--muted); font-size:.8125rem; }
+    @media (max-width:640px) { main { padding:18px 12px 32px; } .examples { grid-template-columns:1fr; } }
+  
+
+    .rh-composer {
+      --card-inset-default: 24px;
+      --card-inset-compact: 15px;
+      --card: #fffefa;
+      --card-border: #dedfd8;
+      --card-radius: 18px;
+      --card-shadow: #e6e5de;
+      --header-line: #ecece6;
+      --ink: #202723;
+      --title-size: 1.65rem;
+      --title-size-compact: 1.35rem;
+      --weight-bold: 700;
+      --title-leading: 1.17;
+      --title-tracking: -.023em;
+      --focus-width: 2px;
+      --blue: #426db2;
+      --muted: #5d675f;
+      --grip-radius: 7px;
+      --explanation-ink: #375d92;
+      --blue-soft: #eaf1fb;
+      --control-selected-border: #adc4e5;
+      --control-active-bg: #d0e0f4;
+    }
+    .rh-composer.teaching-card {
+      --card-width: 548px;
+      --card-height: 430px;
+      --card-inset: var(--card-inset-default);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      width: min(100%, var(--card-width));
+      max-height: var(--card-height);
+      min-width: 0;
+      min-height: 0;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      box-shadow: 0 2px var(--card-shadow);
+      overflow: hidden;
+      container-type: inline-size;
+    }
+    .rh-composer .card-header { flex: none; padding: 17px var(--card-inset) 11px; background: var(--card); border-bottom: 1px solid var(--header-line); }
+    .rh-composer .card-title { color: var(--ink); font-size: var(--title-size); font-weight: var(--weight-bold); line-height: var(--title-leading); letter-spacing: var(--title-tracking); overflow-wrap: anywhere; }
+    .rh-composer .card-body {
+      flex: 0 1 auto;
+      min-height: 0;
+      padding: 11px var(--card-inset) 24px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+      scrollbar-width: thin;
+    }
+    .rh-composer .card-body:focus-visible { outline: var(--focus-width) solid var(--blue); outline-offset: -3px; }
+    .rh-composer .resize-handle {
+      flex: none;
+      display: grid; place-items: center;
+      width: 26px; height: 26px; padding: 0;
+      border: 1px solid var(--composer-control-line); border-radius: var(--grip-radius);
+      background: var(--card); color: var(--muted);
+      cursor: nwse-resize; touch-action: none;
+    }
+    .rh-composer .resize-handle:hover { color: var(--explanation-ink); background: var(--blue-soft); border-color: var(--control-selected-border); }
+    .rh-composer .resize-handle:active, .rh-composer.teaching-card.is-resizing .resize-handle { color: var(--explanation-ink); background: var(--control-active-bg); border-color: var(--control-selected-border); }
+    .rh-composer .resize-handle:focus-visible { outline: var(--focus-width) solid var(--blue); outline-offset: -2px; }
+    .rh-composer.teaching-card.is-resizing { user-select: none; }
+    @container (max-width: 370px) {
+      .rh-composer .card-header, .rh-composer .card-body, .rh-composer .rh-footer { padding-inline: var(--card-inset-compact); }
+      .rh-composer .card-title { font-size: var(--title-size-compact); }
+    }
+    .rh-composer {
+      --composer-strong: #375d92;
+      --composer-strong-hover: #2b4b78;
+      --composer-strong-pressed: #203858;
+      --composer-selected: #eaf1fb;
+      --composer-selected-line: #adc4e5;
+      --composer-selected-hover: #dde9f8;
+      --composer-pressed: #d0e0f4;
+      --composer-focus: #426db2;
+      --composer-card: #fffefa;
+      --composer-white: #ffffff;
+      --composer-line: #dedfd8;
+      --composer-control-line: #e3e7e0;
+      --composer-hover-line: #d2d9d2;
+      --composer-hover: #f6f8f4;
+      --composer-ink: #202723;
+      --composer-muted: #5d675f;
+
+
+
+      font: 1rem/1.45 Inter,"Liberation Sans",Arial,sans-serif;
+      color: var(--composer-ink);
+    }
+    .rh-composer .rh-form { display:flex; flex:0 1 auto; flex-direction:column; min-height:0; }
+    .rh-composer .card-body { display:grid; align-content:start; gap:10px; padding-bottom:12px; }
+    .rh-composer .rh-footer {
+      display:flex; flex:none; align-items:flex-end; gap:8px;
+      padding:8px var(--card-inset);
+      border-top:1px solid var(--header-line);
+    }
+    .rh-composer .rh-actions { flex:1; min-width:0; }
+    .rh-composer .rh-context,.rh-composer .rh-actions { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+    .rh-composer .rh-input-label { display:block; margin-bottom:4px; font-size:13px; font-weight:650; }
+    .rh-composer .rh-field { min-width:0; min-height:35px; padding:6px 9px; border:1px solid var(--composer-control-line); border-radius:8px; color:var(--composer-ink); background:var(--composer-white); font:400 15px/1.45 Inter,"Liberation Sans",Arial,sans-serif; }
+    .rh-composer textarea.rh-field { display:block; width:100%; min-height:75px; overflow:hidden; overflow-wrap:anywhere; resize:none; }
+    .rh-composer .rh-field::placeholder { color:var(--composer-muted); opacity:1; }
+    .rh-composer .rh-field:hover:enabled { border-color:var(--composer-hover-line); }
+    .rh-composer .rh-depth { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:650; }
+    .rh-composer .rh-status { color:var(--composer-muted); font-size:12px; line-height:1.45; margin:0; }
+    .rh-composer .rh-depth-help { color:var(--composer-muted); font-size:14px; line-height:1.45; margin:0; }
+    .rh-composer .rh-context .pill { display:inline-flex; align-items:center; gap:5px; min-height:26px; border-radius:999px; padding:1px 11px; background:var(--composer-selected); border:1px solid var(--composer-selected-line); color:var(--composer-strong); font:700 13px/1.45 Inter,"Liberation Sans",Arial,sans-serif; }
+    .rh-composer .rh-context .icon { width:13px; height:13px; }
+    .rh-composer :is(.button,.icon-button) { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:35px; padding:0 10px; border:1px solid var(--composer-control-line); border-radius:8px; background:var(--composer-white); color:var(--composer-ink); font:650 13px/1.45 Inter,"Liberation Sans",Arial,sans-serif; cursor:pointer; transition:background-color 120ms,border-color 120ms,color 120ms; }
+    .rh-composer .icon-button { width:35px; padding:0; color:var(--composer-muted); }
+    .rh-composer .button.primary { background:var(--composer-strong); border-color:var(--composer-strong); color:var(--composer-white); }
+    .rh-composer :is(.button,.icon-button):hover:enabled { background:var(--composer-hover); border-color:var(--composer-hover-line); color:var(--composer-ink); }
+    .rh-composer :is(.button,.icon-button):active:enabled { background:var(--composer-pressed); border-color:var(--composer-selected-line); color:var(--composer-strong); }
+    .rh-composer .button.primary:hover:enabled { background:var(--composer-strong-hover); border-color:var(--composer-strong-hover); color:var(--composer-white); }
+    .rh-composer .button.primary:active:enabled { background:var(--composer-strong-pressed); border-color:var(--composer-strong-pressed); color:var(--composer-white); }
+    .rh-composer :is(.button,.icon-button,.rh-field):focus-visible { outline:2px solid var(--composer-focus); outline-offset:2px; }
+    .rh-composer :is(.button,.icon-button,.rh-field):disabled { opacity:.45; cursor:not-allowed; }
+    .rh-composer .rh-send { margin-inline-start:auto; }
+    .rh-composer .icon { display:block; width:16px; height:16px; flex:none; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+    .rh-composer .rh-send[data-streaming="true"] .icon { fill:currentColor; }
+    .rh-grip-guide { margin:5px 0 0; font-size:12px; color:var(--muted); }
+    @media (prefers-reduced-motion:reduce) { .rh-composer :is(.button,.icon-button) { transition:none; } }
+
+/* Current balance, following the owner's return to ca0affe as the color reference.
+   Scope colors by purpose; never recolor the entire card or app from its pill. */
+:root {
+  --rh-action:#375d92; --rh-action-hover:#2b4b78; --rh-action-pressed:#203858;
+  --rh-action-soft:#eaf1fb; --rh-action-line:#adc4e5;
+  --rh-experiment:#b86232; --rh-experiment-ink:#934723;
+  --rh-experiment-soft:#f8ece3; --rh-experiment-line:#e2ad8f;
+  --rh-experiment-hover:#f5e0d2; --rh-experiment-pressed:#eac6ad;
+  --rh-focus:#426db2;
+  --rh-toggle-on:#267657; --rh-toggle-hover:#1d6247; --rh-toggle-pressed:#174f39;
+}
+/* Isolated experiment widgets and the experiment row of composed cards. */
+body[data-ui-palette="experiment"] .catalog-preview,
+body[data-ui-palette="balanced-card"] .card-controls {
+  --blue-soft:var(--rh-experiment-soft);
+  --blue-border:var(--rh-experiment-line);
+  --blue-ink:var(--rh-experiment-ink);
+  --blue-hover:var(--rh-experiment-hover);
+  --blue-pressed:var(--rh-experiment-pressed);
+  --explanation-ink:var(--rh-experiment-ink);
+  --control-selected-border:var(--rh-experiment-line);
+  --control-selected-hover-bg:var(--rh-experiment-hover);
+  --control-active-bg:var(--rh-experiment-pressed);
+}
+body[data-ui-palette="experiment"] .control-row input[type="range"],
+body[data-ui-palette="balanced-card"] .card-controls input[type="range"] { accent-color:var(--rh-experiment); }
+body[data-ui-palette="experiment"] .control-row .value,
+body[data-ui-palette="balanced-card"] .card-controls .control-row .value { color:var(--rh-experiment-ink); }
+/* Owner correction: toggles are green in app settings and experiments. */
+body:not([data-ui-palette="historical"]) :is(.switch input,input.switch):checked,
+body:not([data-ui-palette="historical"]) .toggle input:checked + .toggle-track { background:var(--rh-toggle-on); border-color:var(--rh-toggle-on); }
+body:not([data-ui-palette="historical"]) :is(.switch input,input.switch):checked:hover:enabled,
+body:not([data-ui-palette="historical"]) .toggle:hover input:checked:enabled + .toggle-track { background:var(--rh-toggle-hover); border-color:var(--rh-toggle-hover); }
+body:not([data-ui-palette="historical"]) :is(.switch input,input.switch):checked:active:enabled,
+body:not([data-ui-palette="historical"]) .toggle:active input:checked:enabled + .toggle-track { background:var(--rh-toggle-pressed); border-color:var(--rh-toggle-pressed); }
+/* Reset/Previous/Next remain neutral; experiment identity must not tint every action. */
+body:is([data-ui-palette="experiment"],[data-ui-palette="balanced-card"]) .button.secondary:hover:enabled { background:#f6f8f4; border-color:#d2d9d2; color:#202723; }
+body:is([data-ui-palette="experiment"],[data-ui-palette="balanced-card"]) .button.secondary:active:enabled { background:#e3e7e0; color:#202723; }
+/* The focus ring remains blue even within an experiment. */
+body[data-ui-palette="experiment"] :is(button,input,select,summary):focus-visible,
+body[data-ui-palette="balanced-card"] .card-controls :is(button,input,select,summary):focus-visible { outline-color:var(--rh-focus); }
+
+
+html,body { min-height:100%; }
+body { margin:0; background:#f5f4ed; }
+main.clean-stage { max-width:1020px; margin:0 auto; padding:28px 20px; }
+.clean-stage .demo { margin-top:0; }
+.clean-stage #examples,.clean-stage #example-cards { display:block; }
+.clean-stage .demo-label,.clean-stage .rh-grip-guide { display:none; }
+.clean-stage > section { margin-top:0; }
+.clean-stage .examples { display:grid; gap:16px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+#resize-guide,#clean-resize-help { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+@media(max-width:600px) { main.clean-stage{padding:16px 12px;} .clean-stage .examples{grid-template-columns:1fr;} }
+</style></head>
+<body data-ui-palette="shared">
+<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true"><symbol id="i-Highlighter" viewBox="0 0 24 24"><path d="m9 11-6 6v3h9l3-3"></path><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"></path></symbol><symbol id="i-Lightbulb" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path></symbol><symbol id="i-MessageSquarePlus" viewBox="0 0 24 24"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"></path><path d="M12 8v6"></path><path d="M9 11h6"></path></symbol><symbol id="i-Plus" viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="M12 5v14"></path></symbol><symbol id="i-Mic" viewBox="0 0 24 24"><path d="M12 19v3"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><rect x="9" y="2" width="6" height="13" rx="3"></rect></symbol><symbol id="i-ArrowUp" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path></symbol><symbol id="i-Square" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"></rect></symbol><symbol id="i-FileText" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></symbol></svg>
+<main class="clean-stage">
+<div class="rh-composer-example" style="min-width:0">
+<article class="teaching-card rh-composer" id="rh-composer" aria-labelledby="rh-composer-title">
+  <header class="card-header"><h3 class="card-title" id="rh-composer-title">Chat composer</h3></header>
+  <form class="rh-form" id="rh-composer-form">
+    <div class="card-body" role="region" aria-label="Chat composer content" tabindex="0">
+      <div>
+        <label class="rh-input-label" for="rh-message">Message</label>
+        <textarea class="rh-field" id="rh-message" rows="2" placeholder="Ask a question"></textarea>
+      </div>
+      <div class="rh-context" role="group" aria-label="Context">
+        <span class="pill">This canvas</span>
+        <span class="pill"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-FileText"/></svg>lesson.md</span>
+      </div>
+      <p class="rh-depth-help" id="rh-depth-help">A balanced explanation.</p>
+      <p class="rh-status" id="rh-composer-status" role="status">Type a message to enable Send.</p>
+    </div>
+    <div class="rh-footer">
+      <div class="rh-actions" role="group" aria-label="Composer controls">
+        <button type="button" class="button secondary" data-rh-demo="Attach control preview."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Plus"/></svg>Attach</button>
+        <label class="rh-depth">Depth <select class="rh-field" id="rh-depth" aria-describedby="rh-depth-help"><option>Overview</option><option selected>Standard</option><option>Deep</option></select></label>
+        <button type="button" class="icon-button" aria-label="Voice input" title="Voice input" data-rh-demo="Voice control preview."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Mic"/></svg></button>
+        <button type="submit" class="button primary rh-send" id="rh-send" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ArrowUp"/></svg><span>Send</span></button>
+      </div>
+      <button type="button" class="resize-handle" aria-describedby="rh-resize-guide" aria-label="Resize chat composer" title="Resize card">
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 12 12 3M8 12 12 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </form>
+</article>
+<p class="rh-grip-guide" id="rh-resize-guide">Drag the bottom-right grip or use its arrow keys to resize. Hold Shift for larger steps.</p>
+</div>
+
+</main>
+<script>
+  (() => {
+function cardSize(width, height, availableWidth) {
+  const maxWidth = Math.max(0, availableWidth);
+  return {
+    width: Math.min(maxWidth, Math.max(300, width)),
+    height: Math.min(760, Math.max(245, height)),
+  };
+}
+
+function installResize(card, handle) {
+  let drag = null;
+
+  function setSize(width, height) {
+    const parent = card.parentElement;
+    const style = getComputedStyle(parent);
+    const padding = (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);
+    const size = cardSize(width, height, parent.clientWidth - padding);
+    card.style.setProperty('--card-width', `${size.width}px`);
+    card.style.setProperty('--card-height', `${size.height}px`);
+  }
+
+  handle.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || drag) return;
+    const { width, height } = card.getBoundingClientRect();
+    drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, width, height };
+    handle.setPointerCapture(event.pointerId);
+    card.classList.add('is-resizing');
+    handle.focus({ preventScroll: true });
+    event.preventDefault();
+  });
+
+  handle.addEventListener('pointermove', event => {
+    if (drag?.pointerId !== event.pointerId) return;
+    setSize(drag.width + event.clientX - drag.x, drag.height + event.clientY - drag.y);
+  });
+
+  function finish(event) {
+    if (drag?.pointerId !== event.pointerId) return;
+    drag = null;
+    card.classList.remove('is-resizing');
+    if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+  }
+
+  handle.addEventListener('pointerup', finish);
+  handle.addEventListener('pointercancel', finish);
+  handle.addEventListener('lostpointercapture', finish);
+
+  handle.addEventListener('keydown', event => {
+    const axes = {
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+      ArrowUp: [0, -1],
+      ArrowDown: [0, 1],
+    };
+    const axis = axes[event.key];
+    if (!axis) return;
+    const { width, height } = card.getBoundingClientRect();
+    const step = event.shiftKey ? 48 : 16;
+    setSize(width + step * axis[0], height + step * axis[1]);
+    event.preventDefault();
+  });
+}
+
+    const composer = document.getElementById('rh-composer');
+    const form = document.getElementById('rh-composer-form');
+    const message = document.getElementById('rh-message');
+    const send = document.getElementById('rh-send');
+    const depth = document.getElementById('rh-depth');
+    const help = document.getElementById('rh-depth-help');
+    const status = document.getElementById('rh-composer-status');
+    const depthHelp = { Overview:'The central idea in a short explanation.', Standard:'A balanced explanation.', Deep:'Reasoning, a worked example and edge cases.' };
+    let streaming = false;
+    function updateSend() {
+      send.disabled = !streaming && !message.value.trim();
+      send.dataset.streaming = String(streaming);
+      send.querySelector('span').textContent = streaming ? 'Stop' : 'Send';
+      send.querySelector('use').setAttribute('href',streaming ? '#i-Square' : '#i-ArrowUp');
+    }
+    function fitMessage() {
+      message.style.height = 'auto';
+      const borderHeight = message.offsetHeight - message.clientHeight;
+      message.style.height = `${message.scrollHeight + borderHeight}px`;
+    }
+
+    let messageWidth = message.clientWidth;
+    new ResizeObserver(() => {
+      if (messageWidth === message.clientWidth) return;
+      messageWidth = message.clientWidth;
+      fitMessage();
+    }).observe(message);
+
+    message.addEventListener('input',() => {
+      fitMessage();
+      updateSend();
+    });
+    depth.addEventListener('change',() => { help.textContent = depthHelp[depth.value]; });
+    form.addEventListener('submit',event => {
+      event.preventDefault();
+      if (send.disabled) return;
+      streaming = !streaming;
+      updateSend();
+      status.textContent = streaming ? 'Streaming preview.' : 'Preview stopped.';
+    });
+    for (const button of composer.querySelectorAll('[data-rh-demo]')) {
+      button.addEventListener('click',() => { status.textContent = button.dataset.rhDemo; });
+    }
+    installResize(composer,composer.querySelector('.resize-handle'));
+    fitMessage();
+    updateSend();
+  })();
+</script>
+<!--  Lucide React 1.41.0 icon notices
+ISC License
+
+Copyright (c) 2026 Lucide Icons and Contributors
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+—-
+
+The following Lucide icons are derived from the Feather project:
+
+airplay, alert-circle, alert-octagon, alert-triangle, aperture, arrow-down-circle, arrow-down-left, arrow-down-right, arrow-down, arrow-left-circle, arrow-left, arrow-right-circle, arrow-right, arrow-up-circle, arrow-up-left, arrow-up-right, arrow-up, at-sign, calendar, cast, check, chevron-down, chevron-left, chevron-right, chevron-up, chevrons-down, chevrons-left, chevrons-right, chevrons-up, circle, clipboard, clock, code, columns, command, compass, corner-down-left, corner-down-right, corner-left-down, corner-left-up, corner-right-down, corner-right-up, corner-up-left, corner-up-right, crosshair, database, divide-circle, divide-square, dollar-sign, download, external-link, feather, frown, hash, headphones, help-circle, info, italic, key, layout, life-buoy, link-2, link, loader, lock, log-in, log-out, maximize, meh, minimize, minimize-2, minus-circle, minus-square, minus, monitor, moon, more-horizontal, more-vertical, move, music, navigation-2, navigation, octagon, pause-circle, percent, plus-circle, plus-square, plus, power, radio, rss, search, server, share, shopping-bag, sidebar, smartphone, smile, square, table-2, tablet, target, terminal, trash-2, trash, triangle, tv, type, upload, x-circle, x-octagon, x-square, x, zoom-in, zoom-out
+
+The MIT License (MIT) (for the icons listed above)
+
+Copyright (c) 2013-present Cole Bemis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+ -->
+</body></html>

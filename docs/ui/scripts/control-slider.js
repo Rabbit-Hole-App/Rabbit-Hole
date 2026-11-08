@@ -1,0 +1,1 @@
+  sample('slider', 'Core', 'Labeled slider', 'Use for a continuous or ordered numeric range. Keep the value and unit visible.', slider({ label:'Height', min:1.6, max:3, step:.1, value:2.2, format:value=>`${value.toFixed(1)} m` }));

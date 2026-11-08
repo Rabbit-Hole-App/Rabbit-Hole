@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Split Comparison</title><style>
+    :root {
+      color-scheme: light;
+      /* Card tokens. The design tables below describe these same values. */
+      --font-family: Inter, "Liberation Sans", Arial, sans-serif;
+      --font-base: 1rem;
+      --leading-default: 1.45;
+      --title-size: 1.65rem;
+      --title-size-compact: 1.35rem;
+      --title-leading: 1.17;
+      --title-tracking: -.023em;
+      --copy-size: .9375rem;
+      --detail-size: .875rem;
+      --label-size: .8125rem;
+      --weight-normal: 400;
+      --weight-label: 650;
+      --weight-bold: 700;
+      --subtitle-leading: 1.35;
+      --paper: #f5f4ed;
+      --card: #fffefa;
+      --card-border: #dedfd8;
+      --card-shadow: #e6e5de;
+      --header-line: #ecece6;
+      --panel: #f6f8f4;
+      --panel-border: #e3e7e0;
+      --ink: #202723;
+      --muted: #5d675f;
+      --copy-ink: #505b52;
+      --blue: #426db2;
+      --explanation-ink: #375d92;
+      --blue-soft: #eaf1fb;
+      --control-selected-border: #adc4e5;
+      --control-selected-hover-bg: #dde9f8;
+      --control-active-bg: #d0e0f4;
+      --orange: #b86232;
+      --orange-dark: #934723;
+      --orange-soft: #f8ece3;
+      --green: #267657;
+      --green-soft: #e5f2ea;
+      --why-ink: #205c45;
+      --why-border: #b8dccc;
+      --deny-border: #eac6ad;
+      --control-bg: #ffffff;
+      --control-hover-bg: #f6f8f4;
+      --control-hover-border: #d2d9d2;
+      --tree-line: #b9c3b9;
+      --tree-active-border: #93c9af;
+      --tree-deny-border: #dfae8e;
+      --disabled-opacity: .45;
+      --card-radius: 18px;
+      --card-inset-default: 24px;
+      --card-inset-compact: 15px;
+      --pill-height: 26px;
+      --pill-radius: 999px;
+      --why-radius: 9px;
+      --control-radius: 8px;
+      --grip-radius: 7px;
+      --focus-width: 2px;
+      font: var(--font-base)/var(--leading-default) var(--font-family);
+      background: var(--paper);
+      color: var(--ink);
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body, h1, h2, p, figure { margin: 0; }
+    main { max-width: 1256px; margin: 0 auto; padding: 27px 26px 44px; }
+    .eyebrow { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .9375rem; font-weight: 700; }
+    .eyebrow::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--blue); }
+    h1 { margin: 6px 0 5px; font-size: clamp(1.65rem, 4vw, 2.25rem); line-height: 1.2; letter-spacing: -.026em; }
+    .page-note { color: var(--muted); max-width: 72ch; }
+    .examples { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 22px; align-items: start; }
+    .demo { min-width: 0; }
+    .demo-label { color: var(--muted); font-size: .8125rem; font-weight: 650; margin: 0 0 7px 2px; }
+
+    /* The resize height is a ceiling. Short content keeps its natural height. */
+    .teaching-card {
+      --card-width: 548px;
+      --card-height: 430px;
+      --card-inset: var(--card-inset-default);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      width: min(100%, var(--card-width));
+      max-height: var(--card-height);
+      min-width: 0;
+      min-height: 0;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      box-shadow: 0 2px var(--card-shadow);
+      overflow: hidden;
+      container-type: inline-size;
+    }
+    .card-header { flex: none; padding: 17px var(--card-inset) 11px; background: var(--card); border-bottom: 1px solid var(--header-line); }
+    .card-top { display: flex; gap: 10px; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .card-pill { display: inline-flex; align-items: center; min-height: var(--pill-height); padding: 1px 11px; border-radius: var(--pill-radius); font-size: var(--label-size); font-weight: var(--weight-bold); }
+    .card-pill.explain { color: var(--explanation-ink); background: var(--blue-soft); }
+    .card-pill.interactive { color: var(--orange-dark); background: var(--orange-soft); }
+    .card-title { color: var(--ink); font-size: var(--title-size); font-weight: var(--weight-bold); line-height: var(--title-leading); letter-spacing: var(--title-tracking); overflow-wrap: anywhere; }
+    .card-subtitle { margin-top: 4px; color: var(--muted); font-size: var(--detail-size); font-weight: var(--weight-label); line-height: var(--subtitle-leading); }
+    .card-actions:empty { display: none; }
+    .card-body {
+      flex: 0 1 auto;
+      min-height: 0;
+      padding: 11px var(--card-inset) 24px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+      scrollbar-width: thin;
+    }
+    .card-body:focus-visible { outline: var(--focus-width) solid var(--blue); outline-offset: -3px; }
+    .card-copy { display: grid; gap: 5px; margin-bottom: 10px; color: var(--copy-ink); font-size: var(--copy-size); font-weight: var(--weight-normal); }
+    .card-why { margin-bottom: 9px; padding: 7px 10px; border: 1px solid var(--why-border); border-radius: var(--why-radius); background: var(--green-soft); color: var(--why-ink); font-size: var(--detail-size); }
+    .card-why strong { margin-inline-end: 5px; font-weight: var(--weight-bold); }
+    .card-why[data-decision="deny"] { border-color: var(--deny-border); background: var(--orange-soft); color: var(--orange-dark); }
+    .card-visual { width: 100%; min-width: 0; }
+    .card-visual :is(svg, img) { display: block; width: 100%; max-width: 100%; height: auto; }
+    .card-visual img { object-fit: contain; }
+    .card-caption { margin-top: 6px; color: var(--muted); font-size: var(--detail-size); }
+    .card-controls:not(:empty) { margin-top: 10px; }
+    .tree-background { fill: var(--panel); stroke: var(--panel-border); }
+    .branch { stroke: var(--tree-line); stroke-width: 1.6; }
+    .branch.is-active { stroke: var(--green); stroke-width: 3; }
+    .edge-label { fill: var(--muted); }
+    .edge-label.is-active { fill: var(--green); }
+    .tree-node rect { fill: var(--control-bg); stroke: var(--panel-border); }
+    .tree-node text { fill: var(--ink); }
+    .tree-node:is([data-route$="-approve"], [data-route$="-deny"]) text { fill: var(--muted); }
+    .tree-node.is-active rect { fill: var(--green-soft); stroke: var(--tree-active-border); }
+    .tree-node.is-active text { fill: var(--green); }
+    .tree-node.is-active[data-route$="-deny"] rect { fill: var(--orange-soft); stroke: var(--tree-deny-border); }
+    .tree-node.is-active[data-route$="-deny"] text { fill: var(--orange-dark); }
+    fieldset { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+    .choices { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .choice-label { margin-inline-end: 4px; font-weight: var(--weight-label); font-size: var(--detail-size); }
+    .choice { display: grid; flex: 1 1 83px; cursor: pointer; }
+    .choice-text { display: grid; place-items: center; min-height: 35px; padding: 5px 7px; text-align: center; border: 1px solid var(--panel-border); border-radius: var(--control-radius); background: var(--control-bg); color: var(--muted); font-size: var(--label-size); font-weight: var(--weight-label); }
+    .choice:hover input:enabled + .choice-text { background: var(--control-hover-bg); border-color: var(--control-hover-border); }
+    .choice input:checked + .choice-text { border-color: var(--control-selected-border); background: var(--blue-soft); color: var(--explanation-ink); }
+    .choice:hover input:checked:enabled + .choice-text { background: var(--control-selected-hover-bg); border-color: var(--control-selected-border); color: var(--explanation-ink); }
+    .choice:active input:enabled + .choice-text { background: var(--control-active-bg); border-color: var(--control-selected-border); color: var(--explanation-ink); }
+    .choice input:focus-visible + .choice-text { outline: var(--focus-width) solid var(--blue); outline-offset: 2px; }
+    .choice input:disabled + .choice-text { opacity: var(--disabled-opacity); cursor: not-allowed; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .resize-handle {
+      position: absolute; right: 2px; bottom: 2px;
+      display: grid; place-items: center;
+      width: 26px; height: 26px; padding: 0;
+      border: 1px solid transparent; border-radius: var(--grip-radius);
+      background: var(--card); color: var(--muted);
+      cursor: nwse-resize; touch-action: none;
+    }
+    .resize-handle:hover { color: var(--explanation-ink); background: var(--blue-soft); border-color: var(--control-selected-border); }
+    .resize-handle:active, .teaching-card.is-resizing .resize-handle { color: var(--explanation-ink); background: var(--control-active-bg); border-color: var(--control-selected-border); }
+    .resize-handle:focus-visible { outline: var(--focus-width) solid var(--blue); outline-offset: -2px; }
+    .teaching-card.is-resizing { user-select: none; }
+    @container (max-width: 370px) {
+      .card-header, .card-body { padding-inline: var(--card-inset-compact); }
+      .card-title { font-size: var(--title-size-compact); }
+      .choices .choice-label { flex-basis: 100%; }
+    }
+    @media (max-width: 790px) { .examples { grid-template-columns: 1fr; } }
+    @media (max-width: 510px) { main { padding: 18px 12px 32px; } }
+    .spec-link { display: inline-block; margin-top: 8px; color: var(--explanation-ink); font-size: var(--detail-size); }
+    .design-spec { margin-top: 32px; }
+    .design-spec > p { margin: 7px 0 13px; color: var(--muted); }
+    .design-spec details { margin-bottom: 10px; padding: 10px 13px; background: var(--card); border: 1px solid var(--card-border); border-radius: 10px; }
+    .design-spec summary { cursor: pointer; font-weight: var(--weight-bold); }
+    .spec-table { margin-top: 8px; overflow-x: auto; }
+    .design-spec table { width: 100%; border-collapse: collapse; text-align: left; font-size: var(--detail-size); }
+    .design-spec th, .design-spec td { border-bottom: 1px solid var(--header-line); padding: 7px 8px; vertical-align: top; }
+    .design-spec th { background: var(--panel); }
+    .design-spec code { white-space: nowrap; }
+    .swatch { display: inline-block; width: 13px; height: 13px; margin-inline-end: 5px; vertical-align: -1px; border: 1px solid var(--card-border); border-radius: 3px; background: var(--swatch); }
+  
+/* Current balance, following the owner's return to ca0affe as the color reference.
+   Scope colors by purpose; never recolor the entire card or app from its pill. */
+:root {
+  --rh-action:#375d92; --rh-action-hover:#2b4b78; --rh-action-pressed:#203858;
+  --rh-action-soft:#eaf1fb; --rh-action-line:#adc4e5;
+  --rh-experiment:#b86232; --rh-experiment-ink:#934723;
+  --rh-experiment-soft:#f8ece3; --rh-experiment-line:#e2ad8f;
+  --rh-experiment-hover:#f5e0d2; --rh-experiment-pressed:#eac6ad;
+  --rh-focus:#426db2;
+  --rh-toggle-on:#267657; --rh-toggle-hover:#1d6247; --rh-toggle-pressed:#174f39;
+}
+/* Isolated experiment widgets and the experiment row of composed cards. */
+body[data-ui-palette="experiment"] .catalog-preview,
+body[data-ui-palette="balanced-card"] .card-controls {
+  --blue-soft:var(--rh-experiment-soft);
+  --blue-border:var(--rh-experiment-line);
+  --blue-ink:var(--rh-experiment-ink);
+  --blue-hover:var(--rh-experiment-hover);
+  --blue-pressed:var(--rh-experiment-pressed);
+  --explanation-ink:var(--rh-experiment-ink);
+  --control-selected-border:var(--rh-experiment-line);
+  --control-selected-hover-bg:var(--rh-experiment-hover);
+  --control-active-bg:var(--rh-experiment-pressed);
+}
+body[data-ui-palette="experiment"] .control-row input[type="range"],
+body[data-ui-palette="balanced-card"] .card-controls input[type="range"] { accent-color:var(--rh-experiment); }
+body[data-ui-palette="experiment"] .control-row .value,
+body[data-ui-palette="balanced-card"] .card-controls .control-row .value { color:var(--rh-experiment-ink); }
+/* Owner correction: toggles are green in app settings and experiments. */
+body:not([data-ui-palette="historical"]) :is(.switch input,input.switch):checked,
+body:not([data-ui-palette="historical"]) .toggle input:checked + .toggle-track { background:var(--rh-toggle-on); border-color:var(--rh-toggle-on); }
+body:not([data-ui-palette="historical"]) :is(.switch input,input.switch):checked:hover:enabled,
+body:not([data-ui-palette="historical"]) .toggle:hover input:checked:enabled + .toggle-track { background:var(--rh-toggle-hover); border-color:var(--rh-toggle-hover); }
+body:not([data-ui-palette="historical"]) :is(.switch input,input.switch):checked:active:enabled,
+body:not([data-ui-palette="historical"]) .toggle:active input:checked:enabled + .toggle-track { background:var(--rh-toggle-pressed); border-color:var(--rh-toggle-pressed); }
+/* Reset/Previous/Next remain neutral; experiment identity must not tint every action. */
+body:is([data-ui-palette="experiment"],[data-ui-palette="balanced-card"]) .button.secondary:hover:enabled { background:#f6f8f4; border-color:#d2d9d2; color:#202723; }
+body:is([data-ui-palette="experiment"],[data-ui-palette="balanced-card"]) .button.secondary:active:enabled { background:#e3e7e0; color:#202723; }
+/* The focus ring remains blue even within an experiment. */
+body[data-ui-palette="experiment"] :is(button,input,select,summary):focus-visible,
+body[data-ui-palette="balanced-card"] .card-controls :is(button,input,select,summary):focus-visible { outline-color:var(--rh-focus); }
+
+
+html,body { min-height:100%; }
+body { margin:0; background:#f5f4ed; }
+main.clean-stage { max-width:1020px; margin:0 auto; padding:28px 20px; }
+.clean-stage .demo { margin-top:0; }
+.clean-stage #examples,.clean-stage #example-cards { display:block; }
+.clean-stage .demo-label,.clean-stage .rh-grip-guide { display:none; }
+.clean-stage > section { margin-top:0; }
+.clean-stage .examples { display:grid; gap:16px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+#resize-guide,#clean-resize-help { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+@media(max-width:600px) { main.clean-stage{padding:16px 12px;} .clean-stage .examples{grid-template-columns:1fr;} }
+</style></head>
+<body data-ui-palette="balanced-card">
+<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true"></svg>
+<main class="clean-stage"><div id="examples"></div>
+<p id="resize-guide">Drag the grip or use arrow keys; hold Shift for larger steps.</p>
+</main><template id="card-shell">
+    <article class="teaching-card">
+      <header class="card-header">
+        <div class="card-top"><span class="card-pill" data-slot="pill"></span><div class="card-actions" data-slot="header-actions"></div></div>
+        <h2 class="card-title" data-slot="title"></h2>
+        <p class="card-subtitle" data-slot="subtitle" hidden></p>
+      </header>
+      <div class="card-body" data-slot="body" role="region" tabindex="0">
+        <div class="card-copy"><p data-slot="concept"></p><p data-slot="instruction" hidden></p></div>
+        <p class="card-why" data-slot="why" role="status" aria-atomic="true" hidden><strong>Why</strong><span data-slot="reason"></span></p>
+        <figure class="card-visual" data-slot="figure" hidden>
+          <div data-slot="visual"></div>
+          <figcaption class="card-caption" data-slot="caption" hidden></figcaption>
+        </figure>
+        <div class="card-controls" data-slot="controls"></div>
+      </div>
+      <button class="resize-handle" type="button" aria-describedby="resize-guide" title="Resize card">
+        <svg width="14" height="14" viewbox="0 0 14 14" aria-hidden="true"><path d="M3 12 12 3M8 12 12 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path></svg>
+      </button>
+    </article>
+  </template>
+<template id="image-example">
+    <img alt="Two candidate splits of four A and four B samples. Age below 30 gives weighted Gini 0.375 and gain 0.125. Income above 50,000 gives weighted Gini 0.5 and gain zero." src="data:image/png;base64,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">
+  </template>
+<template id="svg-example">
+<svg class="loan-tree" xmlns="http://www.w3.org/2000/svg" viewbox="0 0 540 190" role="img" aria-label="Loan decision tree">
+  <title>Loan decision tree</title>
+  <desc>The age check routes younger applicants to an income check and older applicants to a credit score check. Each check ends in approval or denial.</desc>
+  <rect class="tree-background" x="1" y="1" width="538" height="188" rx="10" fill="#f6f8f4" stroke="#e3e7e0"></rect>
+  <g fill="none" stroke="#b9c3b9" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path class="branch" data-route="root" d="M270 42 V51"></path>
+    <path class="branch" data-route="young" d="M270 51 H141 V69 M141 104 V119"></path>
+    <path class="branch" data-route="older" d="M270 51 H399 V69 M399 104 V119"></path>
+    <path class="branch" data-route="young-approve" d="M141 119 H78 V138"></path>
+    <path class="branch" data-route="young-deny" d="M141 119 H205 V138"></path>
+    <path class="branch" data-route="older-approve" d="M399 119 H336 V138"></path>
+    <path class="branch" data-route="older-deny" d="M399 119 H462 V138"></path>
+  </g>
+  <g fill="#5d675f" font-size="13" font-weight="650">
+    <text class="edge-label" data-route="young" x="151" y="65">Yes</text>
+    <text class="edge-label" data-route="older" x="366" y="65">No</text>
+    <text class="edge-label" data-route="young-approve" x="86" y="134">Yes</text>
+    <text class="edge-label" data-route="young-deny" x="171" y="134">No</text>
+    <text class="edge-label" data-route="older-approve" x="343" y="134">Yes</text>
+    <text class="edge-label" data-route="older-deny" x="429" y="134">No</text>
+  </g>
+  <g font-size="14" font-weight="650" text-anchor="middle">
+    <g class="tree-node" data-route="root">
+      <rect x="199" y="10" width="142" height="32" rx="9" fill="#fff" stroke="#e3e7e0"></rect>
+      <text x="270" y="31" fill="#202723" font-size="15">Age &lt; 30?</text>
+    </g>
+    <g class="tree-node" data-route="young">
+      <rect x="67" y="69" width="148" height="35" rx="9" fill="#fff" stroke="#e3e7e0"></rect>
+      <text x="141" y="91.5" fill="#202723">Income &gt; $50k?</text>
+    </g>
+    <g class="tree-node" data-route="older">
+      <rect x="324" y="69" width="150" height="35" rx="9" fill="#fff" stroke="#e3e7e0"></rect>
+      <text x="399" y="91.5" fill="#202723">Credit score &gt; 700?</text>
+    </g>
+    <g class="tree-node" data-route="young-approve">
+      <rect x="35" y="138" width="86" height="33" rx="9" fill="#fff" stroke="#e3e7e0"></rect>
+      <text x="78" y="159.5" fill="#5d675f">Approve</text>
+    </g>
+    <g class="tree-node" data-route="young-deny">
+      <rect x="162" y="138" width="86" height="33" rx="9" fill="#fff" stroke="#e3e7e0"></rect>
+      <text x="205" y="159.5" fill="#5d675f">Deny</text>
+    </g>
+    <g class="tree-node" data-route="older-approve">
+      <rect x="293" y="138" width="86" height="33" rx="9" fill="#fff" stroke="#e3e7e0"></rect>
+      <text x="336" y="159.5" fill="#5d675f">Approve</text>
+    </g>
+    <g class="tree-node" data-route="older-deny">
+      <rect x="419" y="138" width="86" height="33" rx="9" fill="#fff" stroke="#e3e7e0"></rect>
+      <text x="462" y="159.5" fill="#5d675f">Deny</text>
+    </g>
+  </g>
+</svg>
+  </template>
+<template id="applicant-control">
+    <fieldset class="choices">
+      <legend class="sr-only">Choose an applicant</legend>
+      <span class="choice-label" aria-hidden="true">Applicant</span>
+      <label class="choice"><input class="sr-only" type="radio" name="applicant" value="a" checked><span class="choice-text">A · 25 years</span></label>
+      <label class="choice"><input class="sr-only" type="radio" name="applicant" value="b"><span class="choice-text">B · 28 years</span></label>
+      <label class="choice"><input class="sr-only" type="radio" name="applicant" value="c"><span class="choice-text">C · 42 years</span></label>
+    </fieldset>
+  </template>
+<script>
+function cardSize(width, height, availableWidth) {
+  const maxWidth = Math.max(0, availableWidth);
+  return {
+    width: Math.min(maxWidth, Math.max(300, width)),
+    height: Math.min(760, Math.max(245, height)),
+  };
+}
+
+function installResize(card, handle) {
+  let drag = null;
+
+  function setSize(width, height) {
+    const parent = card.parentElement;
+    const style = getComputedStyle(parent);
+    const padding = (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);
+    const size = cardSize(width, height, parent.clientWidth - padding);
+    card.style.setProperty('--card-width', `${size.width}px`);
+    card.style.setProperty('--card-height', `${size.height}px`);
+  }
+
+  handle.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || drag) return;
+    const { width, height } = card.getBoundingClientRect();
+    drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, width, height };
+    handle.setPointerCapture(event.pointerId);
+    card.classList.add('is-resizing');
+    handle.focus({ preventScroll: true });
+    event.preventDefault();
+  });
+
+  handle.addEventListener('pointermove', event => {
+    if (drag?.pointerId !== event.pointerId) return;
+    setSize(drag.width + event.clientX - drag.x, drag.height + event.clientY - drag.y);
+  });
+
+  function finish(event) {
+    if (drag?.pointerId !== event.pointerId) return;
+    drag = null;
+    card.classList.remove('is-resizing');
+    if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+  }
+
+  handle.addEventListener('pointerup', finish);
+  handle.addEventListener('pointercancel', finish);
+  handle.addEventListener('lostpointercapture', finish);
+
+  handle.addEventListener('keydown', event => {
+    const axes = {
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+      ArrowUp: [0, -1],
+      ArrowDown: [0, 1],
+    };
+    const axis = axes[event.key];
+    if (!axis) return;
+    const { width, height } = card.getBoundingClientRect();
+    const step = event.shiftKey ? 48 : 16;
+    setSize(width + step * axis[0], height + step * axis[1]);
+    event.preventDefault();
+  });
+}
+
+    const getTemplate = id => document.getElementById(id).content.firstElementChild.cloneNode(true);
+    let cardId = 0;
+
+    // The visual and the controls are independent slots. The shell owns dimensions and scroll.
+    function createCard({ type, title, subtitle = '', concept, instruction = '', visual = null, caption = '' }) {
+      const node = getTemplate('card-shell');
+      const slot = name => node.querySelector(`[data-slot="${name}"]`);
+      const titleId = `card-title-${++cardId}`;
+      slot('title').id = titleId;
+      slot('title').textContent = title;
+      slot('subtitle').textContent = subtitle;
+      slot('subtitle').hidden = !subtitle;
+      node.setAttribute('aria-labelledby', titleId);
+      node.dataset.command = type === 'explain' ? '/explain' : '/interactive';
+      slot('pill').classList.add(type);
+      slot('pill').textContent = type === 'explain' ? 'Explanation' : 'Interactive';
+      slot('body').setAttribute('aria-label', `${title} content`);
+      slot('concept').textContent = concept;
+      slot('instruction').textContent = instruction;
+      slot('instruction').hidden = !instruction;
+      const handle = node.querySelector('.resize-handle');
+      handle.setAttribute('aria-label', `Resize ${title}`);
+      installResize(node, handle);
+      function setVisual(element, text = '') {
+        slot('visual').replaceChildren(...(element ? [element] : []));
+        slot('figure').hidden = !element;
+        slot('caption').textContent = text;
+        slot('caption').hidden = !text;
+      }
+      setVisual(visual, caption);
+      return {
+        node,
+        setVisual,
+        headerActions: slot('header-actions'),
+        controls: slot('controls'),
+        showReason(message, decision) {
+          slot('why').dataset.decision = decision;
+          slot('why').hidden = !message;
+          slot('reason').textContent = message;
+        },
+      };
+    }
+
+    function showExample(label, card) {
+      const demo = document.createElement('section');
+      demo.className = 'demo';
+      const name = document.createElement('p');
+      name.className = 'demo-label';
+      name.textContent = label;
+      demo.append(card.node);
+      document.getElementById('examples').append(demo);
+    }
+
+
+    const explanation = createCard({
+      type: 'explain',
+      title: 'How a Tree Chooses Its First Split',
+      concept: 'A tree compares candidate questions and picks the one with the biggest drop in impurity. It repeats that search within each resulting branch.',
+      visual: getTemplate('image-example'),
+    });
+    showExample('/explain · Raster image', explanation);
+
+</script>
+<!--  Lucide React 1.41.0 icon notices
+ISC License
+
+Copyright (c) 2026 Lucide Icons and Contributors
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+—-
+
+The following Lucide icons are derived from the Feather project:
+
+airplay, alert-circle, alert-octagon, alert-triangle, aperture, arrow-down-circle, arrow-down-left, arrow-down-right, arrow-down, arrow-left-circle, arrow-left, arrow-right-circle, arrow-right, arrow-up-circle, arrow-up-left, arrow-up-right, arrow-up, at-sign, calendar, cast, check, chevron-down, chevron-left, chevron-right, chevron-up, chevrons-down, chevrons-left, chevrons-right, chevrons-up, circle, clipboard, clock, code, columns, command, compass, corner-down-left, corner-down-right, corner-left-down, corner-left-up, corner-right-down, corner-right-up, corner-up-left, corner-up-right, crosshair, database, divide-circle, divide-square, dollar-sign, download, external-link, feather, frown, hash, headphones, help-circle, info, italic, key, layout, life-buoy, link-2, link, loader, lock, log-in, log-out, maximize, meh, minimize, minimize-2, minus-circle, minus-square, minus, monitor, moon, more-horizontal, more-vertical, move, music, navigation-2, navigation, octagon, pause-circle, percent, plus-circle, plus-square, plus, power, radio, rss, search, server, share, shopping-bag, sidebar, smartphone, smile, square, table-2, tablet, target, terminal, trash-2, trash, triangle, tv, type, upload, x-circle, x-octagon, x-square, x, zoom-in, zoom-out
+
+The MIT License (MIT) (for the icons listed above)
+
+Copyright (c) 2013-present Cole Bemis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+ -->
+</body></html>

@@ -1,0 +1,40 @@
+<!-- UI REFERENCE ONLY. Reuses the approved ToC panel navigation and tokens, ChatPane's thread
+header and AskPanel-style conversation/composer. Parameters and actions live inside a Tutor
+message, never in strips above/below the conversation. Only the accepted tree appears in ToC.
+The accepted ToC reuses 01-table-of-contents.html markup and tree renderer.
+Local interactions simulate draft changes; no model, backend, persistence or production changes.
+Header utilities are visual references. Production uses the existing ResizableSidePanel.
+Scope is full content; selected passage is disabled because this example has no valid selection.
+--><main class="demo"><aside class="panel" aria-label="Tutor Chat UI preview"><nav class="panel-header" aria-label="Existing panel header">
+   <div class="tabs">
+    <button class="icon active" title="Chat" aria-label="Chat (visual reference)"><svg viewBox="0 0 24 24"><path d="M21 15a3 3 0 0 1-3 3H7l-4 3V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/><path d="M7 7h10M7 11h7"/></svg></button>
+    <button class="icon" title="Find" aria-label="Find (visual reference)"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/></svg></button>
+    <button class="icon" title="Table of contents" aria-label="Table of contents"><svg viewBox="0 0 24 24"><path d="M12 5c-3-2-6-2-9-1v15c3-1 6-1 9 1 3-2 6-2 9-1V4c-3-1-6-1-9 1v15"/></svg></button>
+    <button class="icon" title="Comments" aria-label="Comments (visual reference)"><svg viewBox="0 0 24 24"><path d="M21 11a9 9 0 0 1-13 8l-6 2 2-6A9 9 0 1 1 21 11Z"/></svg></button>
+    <button class="icon" title="Progress" aria-label="Progress (visual reference)"><svg viewBox="0 0 24 24"><path d="M3 3v18h18M7 16v-4M12 16V7M17 16V4"/></svg></button>
+   </div>
+   <div class="utilities">
+    <button class="icon" title="Context" aria-label="Context (visual reference)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></button>
+    <button class="icon pinned" title="Keep sidebar open" aria-label="Keep sidebar open (visual reference)"><svg viewBox="0 0 24 24"><path d="M8 3h8l-1 7 4 4v2H5v-2l4-4-1-7ZM12 16v6"/></svg></button>
+    <button class="icon" title="Close sidebar" aria-label="Close sidebar (visual reference)"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+   </div>
+  </nav>
+<div class="pane" id="chat-pane"><div class="chat-header"><h1>Decision trees &amp; random forests</h1><button title="History (visual reference)" aria-label="History (visual reference)"><svg viewBox="0 0 24 24"><path d="M3 11a9 9 0 1 1 3 7M3 4v7h7M12 7v5l3 2"/></svg></button><button title="New chat (visual reference)">+ New chat</button><button aria-label="More chat actions (visual reference)">···</button></div>
+<div class="conversation" id="conversation"><div class="user-message">Explain on canvas</div><article class="message"><div class="sender">Tutor</div><p id="intro">I’ve prepared a roadmap for <span class="source-pill">Decision Trees.md</span>.</p>
+<div class="parameters" id="parameters"><div class="meta"><span>Roadmap parameters</span></div><p class="outcome" id="outcome">Explain how a tree chooses a split, why forests reduce variance, and how to interpret feature importance.</p>
+<div class="setting-row"><label for="scope">Scope</label><select id="scope"><option>Full content · Decision Trees.md</option><option disabled>Selected passage</option></select></div>
+<div class="depth"><div class="depth-head"><label for="depth">Depth</label><output id="depth-value" for="depth">Standard</output></div><input type="range" id="depth" min="0" max="2" step="1" value="1" aria-valuetext="Standard"><div class="depth-labels" aria-hidden="true"><span>Overview</span><span class="chosen">Standard</span><span>Deep</span></div></div>
+<div class="setting-row"><label for="mode">Roadmap</label><select id="mode"><option value="explain">Explanations only</option><option value="practice">Explanations + practice</option></select></div></div>
+<div id="preview" role="region" aria-label="Roadmap preview"><div class="meta roadmap-heading" id="draft-label">Roadmap draft</div><ol class="roadmap-preview" id="steps"></ol></div><div class="inline-status" role="status" aria-live="polite" id="status"></div>
+<div class="actions" id="draft-actions"><button class="action accept" id="accept">Accept roadmap</button><button class="action" id="edit">Edit roadmap</button></div>
+<div id="accepted-actions" class="actions hidden"><button class="action" id="open-toc">Open table of contents</button><button class="action" id="edit-accepted">Edit roadmap</button></div></article></div>
+<form class="composer" id="composer"><div class="edit-pill hidden" id="edit-pill">Edit roadmap<button type="button" id="close-edit" aria-label="Cancel roadmap editing">×</button></div><textarea id="input" rows="2" placeholder="Message Tutor…" aria-label="Message Tutor"></textarea><div class="composer-tools"><button type="button" class="tool" title="Attach (visual reference)" aria-label="Attach (visual reference)"><svg viewBox="0 0 24 24"><path d="m8 12 6-6a3 3 0 0 1 4 4l-8 8a5 5 0 0 1-7-7l9-9"/></svg></button><button type="submit" class="tool send" id="send" disabled aria-label="Send"><svg viewBox="0 0 24 24"><path d="M12 19V5m-6 6 6-6 6 6"/></svg></button></div></form></div>
+<section id="toc-pane" class="toc-only hidden" aria-label="Accepted roadmap">  <div class="toc-header">
+   <h1>Table of contents</h1>
+   <div class="heading-tools" aria-label="Existing section tools"><span aria-hidden="true">+</span><button data-add="1" title="Add section" aria-label="Add section">H<sub>1</sub></button><button data-add="2" title="Add sub-section" aria-label="Add sub-section">H<sub>2</sub></button><button data-add="3" title="Add sub-sub-section" aria-label="Add sub-sub-section">H<sub>3</sub></button></div>
+  </div>
+  <div class="toc-scroll" id="toc-scroll">
+   <ol class="tree" id="tree"></ol>
+  </div>
+  <div class="sr-only" aria-live="polite" id="announcement"></div>
+</section></aside></main>

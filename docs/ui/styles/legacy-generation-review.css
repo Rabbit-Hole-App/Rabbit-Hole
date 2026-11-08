@@ -1,0 +1,87 @@
+
+:root {
+  color-scheme: dark;
+  --surface: #191919;
+  --ink: #d4d4d4;
+  --ink-2: #a1a1a1;
+  --line: #2f2f2f;
+  --hover: #2c2c2c;
+  --primary-fill: #1b6fc2;
+  --primary-fill-hover: #165ca3;
+  --viz-surface: #212121;
+  --blue: #8dbfef;
+  --coral: #f58371;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--surface);
+  color: var(--ink);
+  font: 15px/1.55 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.chat { width: min(100%, 522px); margin: 0 auto; padding: 22px 14px; }
+.review { padding: 17px 18px 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.review-head { display: flex; align-items: flex-start; gap: 9px; }
+.kind {
+  flex: none;
+  margin-top: 2px;
+  padding: 2px 7px;
+  border: 1px solid #306454;
+  border-radius: 5px;
+  background: #183329;
+  color: #a5e7cd;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+h1 { margin: 0; color: #ebebeb; font-size: 18px; font-weight: 650; line-height: 1.34; letter-spacing: -.01em; }
+p { margin: 12px 0 0; }
+strong { color: #ebebeb; font-weight: 650; }
+.preview {
+  margin: 12px 0 0;
+  padding: 13px 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--viz-surface);
+}
+.preview figcaption { color: #ebebeb; font-size: 14px; font-weight: 700; text-align: center; }
+.plot-labels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin: 10px 0 5px;
+  color: var(--ink-2);
+  font-size: 12px;
+  text-align: center;
+}
+.diagram { display: block; width: 100%; height: auto; }
+.region-blue { fill: #233548; }
+.region-coral { fill: #3a2926; }
+.frame, .split { fill: none; stroke: #66696e; stroke-width: 1.1; }
+.split { stroke: #a8bbd0; }
+.blue-point { fill: var(--blue); }
+.coral-point { fill: var(--coral); }
+.actions { display: flex; gap: 8px; margin-top: 13px; }
+button {
+  min-height: 36px;
+  padding: 5px 11px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 550;
+  cursor: pointer;
+}
+button:hover { background: var(--hover); }
+button:focus-visible { outline: 2px solid #2383e2; outline-offset: 2px; }
+.primary { background: var(--primary-fill); color: #fff; }
+.primary:hover { background: var(--primary-fill-hover); }
+@media (max-width: 385px) {
+  .chat { padding: 12px 9px; }
+  .review { padding-inline: 12px; }
+  h1 { font-size: 16px; }
+  .review-head { gap: 7px; }
+  .preview { padding-inline: 8px; }
+}

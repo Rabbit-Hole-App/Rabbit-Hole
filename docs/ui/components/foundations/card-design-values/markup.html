@@ -1,0 +1,107 @@
+<section class="design-spec" id="design-spec" aria-labelledby="design-spec-title">
+      <h2 id="design-spec-title">Exact card design values</h2>
+      <p>Blue is the primary UI color for actions, controls, selection, focus and playback. Use #375D92 for primary fill or selected ink, with #EAF1FB / #ADC4E5 for soft selection. Claude red (#934723 / #F8ECE3) is secondary, for Interactive identity and scene data accents. Both mode pills are text-only. Green is a status color for positive outcomes and completion.</p>
+      <p>Use these values for both card variants. The preview reads the same named CSS tokens. The font stack is <code>Inter, Liberation Sans, Arial, sans-serif</code> with pixel equivalents based on a 16 px root size. Line heights below are multipliers.</p>
+      <details open>
+        <summary>Typography</summary>
+        <div class="spec-table"><table>
+          <thead><tr><th scope="col">Role</th><th scope="col">Font size</th><th scope="col">Weight</th><th scope="col">Line height</th><th scope="col">Text color</th><th scope="col">Placement</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Title</th><td><code>26.4 px (1.65rem)</code></td><td><code>700</code></td><td><code>1.17</code></td><td><span class="swatch" style="--swatch: var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td>Tracking −0.023 em.</td></tr>
+            <tr><th scope="row">Title · compact</th><td><code>21.6 px (1.35rem)</code></td><td><code>700</code></td><td><code>1.17</code></td><td><span class="swatch" style="--swatch: var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td>Same tracking. Use at card content width ≤370 px.</td></tr>
+            <tr><th scope="row">Subtitle · optional</th><td><code>14 px (.875rem)</code></td><td><code>650</code></td><td><code>1.35</code></td><td><span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td>4 px below the title. The slot collapses when empty.</td></tr>
+            <tr><th scope="row">Description and instructions</th><td><code>15 px (.9375rem)</code></td><td><code>400</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--copy-ink)" aria-hidden="true"></span><code>#505B52</code></td><td>5 px between the two text blocks.</td></tr>
+            <tr><th scope="row">Why · approval</th><td><code>14 px (.875rem)</code></td><td><code>400</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--why-ink)" aria-hidden="true"></span><code>#205C45</code></td><td>Why label weight 700.</td></tr>
+            <tr><th scope="row">Why · denial</th><td><code>14 px (.875rem)</code></td><td><code>400</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td>Why label weight 700.</td></tr>
+            <tr><th scope="row">Figure caption</th><td><code>14 px (.875rem)</code></td><td><code>400</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td>6 px above the caption.</td></tr>
+            <tr><th scope="row">Explanation pill</th><td><code>13 px (.8125rem)</code></td><td><code>700</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td></td></tr>
+            <tr><th scope="row">Interactive pill</th><td><code>13 px (.8125rem)</code></td><td><code>700</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td></td></tr>
+            <tr><th scope="row">Control group label</th><td><code>14 px (.875rem)</code></td><td><code>650</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td></td></tr>
+            <tr><th scope="row">Choice · default</th><td><code>13 px (.8125rem)</code></td><td><code>650</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td></td></tr>
+            <tr><th scope="row">Choice · selected</th><td><code>13 px (.8125rem)</code></td><td><code>650</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td></td></tr>
+          </tbody>
+        </table></div>
+      </details>
+      <details open>
+        <summary>Palette and transparency</summary>
+        <div class="spec-table"><table>
+          <thead><tr><th scope="col">Role</th><th scope="col">CSS token</th><th scope="col">Value</th><th scope="col">Opacity</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Canvas background</th><td><code>--paper</code></td><td><span class="swatch" style="--swatch: var(--paper)" aria-hidden="true"></span><code>#F5F4ED</code></td><td>100%</td></tr>
+            <tr><th scope="row">Card and header</th><td><code>--card</code></td><td><span class="swatch" style="--swatch: var(--card)" aria-hidden="true"></span><code>#FFFEFA</code></td><td>100%</td></tr>
+            <tr><th scope="row">Card outline</th><td><code>--card-border</code></td><td><span class="swatch" style="--swatch: var(--card-border)" aria-hidden="true"></span><code>#DEDFD8</code></td><td>100%</td></tr>
+            <tr><th scope="row">Card shadow</th><td><code>--card-shadow</code></td><td><span class="swatch" style="--swatch: var(--card-shadow)" aria-hidden="true"></span><code>#E6E5DE</code></td><td>100%</td></tr>
+            <tr><th scope="row">Header divider</th><td><code>--header-line</code></td><td><span class="swatch" style="--swatch: var(--header-line)" aria-hidden="true"></span><code>#ECECE6</code></td><td>100%</td></tr>
+            <tr><th scope="row">Scene panel</th><td><code>--panel</code></td><td><span class="swatch" style="--swatch: var(--panel)" aria-hidden="true"></span><code>#F6F8F4</code></td><td>100%</td></tr>
+            <tr><th scope="row">Scene and control outline</th><td><code>--panel-border</code></td><td><span class="swatch" style="--swatch: var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code></td><td>100%</td></tr>
+            <tr><th scope="row">Primary ink</th><td><code>--ink</code></td><td><span class="swatch" style="--swatch: var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td>100%</td></tr>
+            <tr><th scope="row">Secondary ink</th><td><code>--muted</code></td><td><span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td>100%</td></tr>
+            <tr><th scope="row">Description ink</th><td><code>--copy-ink</code></td><td><span class="swatch" style="--swatch: var(--copy-ink)" aria-hidden="true"></span><code>#505B52</code></td><td>100%</td></tr>
+            <tr><th scope="row">Blue accent and keyboard focus</th><td><code>--blue</code></td><td><span class="swatch" style="--swatch: var(--blue)" aria-hidden="true"></span><code>#426DB2</code></td><td>100%</td></tr>
+            <tr><th scope="row">Explanation pill background</th><td><code>--blue-soft</code></td><td><span class="swatch" style="--swatch: var(--blue-soft)" aria-hidden="true"></span><code>#EAF1FB</code></td><td>100%</td></tr>
+            <tr><th scope="row">Explanation pill ink</th><td><code>--explanation-ink</code></td><td><span class="swatch" style="--swatch: var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td>100%</td></tr>
+            <tr><th scope="row">Orange accent</th><td><code>--orange</code></td><td><span class="swatch" style="--swatch: var(--orange)" aria-hidden="true"></span><code>#B86232</code></td><td>100%</td></tr>
+            <tr><th scope="row">Interactive pill and selected control background</th><td><code>--orange-soft</code></td><td><span class="swatch" style="--swatch: var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td>100%</td></tr>
+            <tr><th scope="row">Interactive pill and selected control ink</th><td><code>--orange-dark</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td>100%</td></tr>
+            <tr><th scope="row">Approval path and node ink</th><td><code>--green</code></td><td><span class="swatch" style="--swatch: var(--green)" aria-hidden="true"></span><code>#267657</code></td><td>100%</td></tr>
+            <tr><th scope="row">Approval tint</th><td><code>--green-soft</code></td><td><span class="swatch" style="--swatch: var(--green-soft)" aria-hidden="true"></span><code>#E5F2EA</code></td><td>100%</td></tr>
+            <tr><th scope="row">Approval Why ink</th><td><code>--why-ink</code></td><td><span class="swatch" style="--swatch: var(--why-ink)" aria-hidden="true"></span><code>#205C45</code></td><td>100%</td></tr>
+            <tr><th scope="row">Approval Why border</th><td><code>--why-border</code></td><td><span class="swatch" style="--swatch: var(--why-border)" aria-hidden="true"></span><code>#B8DCCC</code></td><td>100%</td></tr>
+            <tr><th scope="row">Denial Why border</th><td><code>--deny-border</code></td><td><span class="swatch" style="--swatch: var(--deny-border)" aria-hidden="true"></span><code>#EAC6AD</code></td><td>100%</td></tr>
+            <tr><th scope="row">Control and inactive node surface</th><td><code>--control-bg</code></td><td><span class="swatch" style="--swatch: var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td>100%</td></tr>
+            <tr><th scope="row">Unselected hover surface</th><td><code>--control-hover-bg</code></td><td><span class="swatch" style="--swatch: var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code></td><td>100%</td></tr>
+            <tr><th scope="row">Unselected hover border</th><td><code>--control-hover-border</code></td><td><span class="swatch" style="--swatch: var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code></td><td>100%</td></tr>
+            <tr><th scope="row">Shared blue selection border</th><td><code>--control-selected-border</code></td><td><span class="swatch" style="--swatch: var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code></td><td>100%</td></tr>
+            <tr><th scope="row">Shared blue selection hover</th><td><code>--control-selected-hover-bg</code></td><td><span class="swatch" style="--swatch: var(--control-selected-hover-bg)" aria-hidden="true"></span><code>#DDE9F8</code></td><td>100%</td></tr>
+            <tr><th scope="row">Shared blue pressed surface</th><td><code>--control-active-bg</code></td><td><span class="swatch" style="--swatch: var(--control-active-bg)" aria-hidden="true"></span><code>#D0E0F4</code></td><td>100%</td></tr>
+            <tr><th scope="row">Inactive tree line</th><td><code>--tree-line</code></td><td><span class="swatch" style="--swatch: var(--tree-line)" aria-hidden="true"></span><code>#B9C3B9</code></td><td>100%</td></tr>
+            <tr><th scope="row">Active tree node outline</th><td><code>--tree-active-border</code></td><td><span class="swatch" style="--swatch: var(--tree-active-border)" aria-hidden="true"></span><code>#93C9AF</code></td><td>100%</td></tr>
+            <tr><th scope="row">Denied tree node outline</th><td><code>--tree-deny-border</code></td><td><span class="swatch" style="--swatch: var(--tree-deny-border)" aria-hidden="true"></span><code>#DFAE8E</code></td><td>100%</td></tr>
+            <tr><th scope="row">Disabled choice composite</th><td><code>--disabled-opacity</code></td><td><code>.45</code></td><td>45%</td></tr>
+            <tr><th scope="row">Resize grip border · default</th><td><code>transparent</code></td><td>No visible paint</td><td>0%</td></tr>
+          </tbody>
+        </table></div>
+      </details>
+      <details open>
+        <summary>Dimensions, spacing and borders</summary>
+        <div class="spec-table"><table>
+          <thead><tr><th scope="col">Part</th><th scope="col">Exact values</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Card frame</th><td>Default width 548 px and height ceiling 430 px. Width is capped by the parent. Resize bounds use a 300 px preferred minimum width and a 245–760 px requested height. Actual height follows content up to the ceiling.</td></tr>
+            <tr><th scope="row">Card edge</th><td>1 px solid #DEDFD8, 18 px radius, opaque #E6E5DE shadow at x 0, y 2 px, blur 0.</td></tr>
+            <tr><th scope="row">Insets</th><td>24 px horizontal, 15 px at card content width ≤370 px. Header padding 17 px top and 11 px bottom. Body padding 11 px top and 24 px bottom.</td></tr>
+            <tr><th scope="row">Header row</th><td>10 px gap between the pill and actions, 8 px below the row, 1 px #ECECE6 divider below the header.</td></tr>
+            <tr><th scope="row">Pill</th><td>26 px minimum height, 1 px vertical and 11 px horizontal padding, 999 px radius.</td></tr>
+            <tr><th scope="row">Copy and feedback</th><td>5 px between copy blocks and 10 px below copy. Why padding 7 px vertical and 10 px horizontal, 1 px border, 9 px radius, 9 px below the box.</td></tr>
+            <tr><th scope="row">Control row</th><td>10 px above controls, 6 px between choices, 4 px trailing margin on the group label. Choice minimum 35 px high, 83 px flex basis, 5 px vertical and 7 px horizontal padding, 1 px border, 8 px radius.</td></tr>
+            <tr><th scope="row">Resize handle</th><td>26 × 26 px, 7 px radius, 2 px from the lower and right edges, 1 px border. Grip glyph is 14 × 14 px with 1.4 px stroke.</td></tr>
+            <tr><th scope="row">Scroll and visual</th><td>Header stays in its own row. The body scrolls vertically when needed. SVG and image fill available width with auto height and preserve aspect ratio.</td></tr>
+            <tr><th scope="row">Loan tracer visual</th><td>540 × 190 SVG viewBox. Scene panel radius 10, node radius 9. Branch strokes 1.6 inactive and 3 active. Edge labels 13, node labels 14, root label 15, all weight 650 and sized in SVG units.</td></tr>
+          </tbody>
+        </table></div>
+      </details>
+      <details open>
+        <summary>Control and feedback states</summary>
+        <div class="spec-table"><table>
+          <thead><tr><th scope="col">State</th><th scope="col">Surface</th><th scope="col">Border or outline</th><th scope="col">Ink</th><th scope="col">Behavior</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Choice · default</th><td><span class="swatch" style="--swatch: var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--swatch: var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code></td><td><span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td></td></tr>
+            <tr><th scope="row">Choice · hover</th><td><span class="swatch" style="--swatch: var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code></td><td><span class="swatch" style="--swatch: var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code></td><td><span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td></td></tr>
+            <tr><th scope="row">Choice · selected</th><td><span class="swatch" style="--swatch: var(--blue-soft)" aria-hidden="true"></span><code>#EAF1FB</code></td><td><span class="swatch" style="--swatch: var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code></td><td><span class="swatch" style="--swatch: var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td></td></tr>
+            <tr><th scope="row">Choice · selected hover</th><td><span class="swatch" style="--swatch: var(--control-selected-hover-bg)" aria-hidden="true"></span><code>#DDE9F8</code></td><td><span class="swatch" style="--swatch: var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code></td><td><span class="swatch" style="--swatch: var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td></td></tr>
+            <tr><th scope="row">Choice · press</th><td><span class="swatch" style="--swatch: var(--control-active-bg)" aria-hidden="true"></span><code>#D0E0F4</code></td><td><span class="swatch" style="--swatch: var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code></td><td><span class="swatch" style="--swatch: var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td></td></tr>
+            <tr><th scope="row">Resize grip · default</th><td><span class="swatch" style="--swatch: var(--card)" aria-hidden="true"></span><code>#FFFEFA</code></td><td>Transparent</td><td><span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td></td></tr>
+            <tr><th scope="row">Resize grip · hover</th><td><span class="swatch" style="--swatch: var(--blue-soft)" aria-hidden="true"></span><code>#EAF1FB</code></td><td><span class="swatch" style="--swatch: var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code></td><td><span class="swatch" style="--swatch: var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td></td></tr>
+            <tr><th scope="row">Resize grip · press or drag</th><td><span class="swatch" style="--swatch: var(--control-active-bg)" aria-hidden="true"></span><code>#D0E0F4</code></td><td><span class="swatch" style="--swatch: var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code></td><td><span class="swatch" style="--swatch: var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td></td></tr>
+            <tr><th scope="row">Why · approval</th><td><span class="swatch" style="--swatch: var(--green-soft)" aria-hidden="true"></span><code>#E5F2EA</code></td><td><span class="swatch" style="--swatch: var(--why-border)" aria-hidden="true"></span><code>#B8DCCC</code></td><td><span class="swatch" style="--swatch: var(--why-ink)" aria-hidden="true"></span><code>#205C45</code></td><td></td></tr>
+            <tr><th scope="row">Why · denial</th><td><span class="swatch" style="--swatch: var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td><span class="swatch" style="--swatch: var(--deny-border)" aria-hidden="true"></span><code>#EAC6AD</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td></td></tr>
+            <tr><th scope="row">Tree node · active approval path</th><td><span class="swatch" style="--swatch: var(--green-soft)" aria-hidden="true"></span><code>#E5F2EA</code></td><td><span class="swatch" style="--swatch: var(--tree-active-border)" aria-hidden="true"></span><code>#93C9AF</code></td><td><span class="swatch" style="--swatch: var(--green)" aria-hidden="true"></span><code>#267657</code></td><td></td></tr>
+            <tr><th scope="row">Tree node · active denial leaf</th><td><span class="swatch" style="--swatch: var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td><span class="swatch" style="--swatch: var(--tree-deny-border)" aria-hidden="true"></span><code>#DFAE8E</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td></td></tr>
+            <tr><th scope="row">Keyboard focus</th><td>Same state</td><td>2 px <span class="swatch" style="--swatch: var(--blue)" aria-hidden="true"></span><code>#426DB2</code></td><td>Same state</td><td>Outline offset +2 px on choices, −2 px on the grip and −3 px on the scroll body.</td></tr>
+            <tr><th scope="row">Disabled choice</th><td>Same state</td><td>Same state</td><td>Same state</td><td>45% opacity. Suppress hover and press; use the disabled cursor.</td></tr>
+            <tr><th scope="row">Tree lines</th><td>Scene panel</td><td><span class="swatch" style="--swatch: var(--tree-line)" aria-hidden="true"></span><code>#B9C3B9</code> inactive / <span class="swatch" style="--swatch: var(--green)" aria-hidden="true"></span><code>#267657</code> active</td><td>Inactive labels use <span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code>. Active labels use <span class="swatch" style="--swatch: var(--green)" aria-hidden="true"></span><code>#267657</code>.</td><td>1.6 SVG units inactive, 3 active.</td></tr>
+          </tbody>
+        </table></div>
+      </details>
+      <p>See the <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/ca0affecfb39caf6790f4b2636f1ed3c2dd90800/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html">component kit</a> for the slider, playback row, and other control templates.</p>
+    </section>

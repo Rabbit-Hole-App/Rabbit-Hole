@@ -1,0 +1,32 @@
+{
+  "id": "sources/selected-text-actions",
+  "title": "Source selected-text actions",
+  "category": "sources",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-source-header-and-chat-composer.html",
+  "source_file": "rabbit-hole-source-header-and-chat-composer.html",
+  "status": "static specimen",
+  "styles": [
+    "source-headers"
+  ],
+  "scripts": [],
+  "implementation": [
+    "packages/web/src/FileDocCard.jsx",
+    "packages/web/src/AdaptiveCanvas.jsx",
+    "packages/web/src/FileDocMarkdown.jsx"
+  ],
+  "notes": "Text-only blue document pills. Selection actions are visual examples, not wired app behavior.",
+  "issues": [
+    "UI-06"
+  ],
+  "templates": [],
+  "keywords": [
+    "Markdown",
+    "PDF",
+    "highlight",
+    "explain",
+    "add to chat",
+    "file info"
+  ],
+  "path": "components/sources/selected-text-actions",
+  "paletteRole": "shared"
+}

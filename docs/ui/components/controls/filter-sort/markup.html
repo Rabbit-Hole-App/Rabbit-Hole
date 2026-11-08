@@ -1,0 +1,13 @@
+<article class="specimen" id="f-filter-sort">
+  <h3>Dropdowns, filters and sorting</h3>
+  <p class="muted">Show the active value on a dropdown and use a selected state for filters that can be toggled independently.</p>
+  <div class="sample-row">
+    <label class="field" for="f-model">Model <select class="control" id="f-model"><option selected>Auto</option><option>Choose a model</option></select></label>
+    <label class="field" for="f-sort">Sort by <select class="control" id="f-sort"><option selected>Recently updated</option><option>Stars</option><option>Title</option></select></label>
+  </div>
+  <div class="sample-row" role="group" aria-label="Filter examples">
+    <button class="button secondary" type="button"><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ListFilter"></use></svg>Filters <svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ChevronDown"></use></svg></button>
+    <button class="button secondary" type="button" aria-pressed="true" data-preview-filter><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Star"></use></svg>Starred</button>
+    <button class="button quiet" type="button" data-clear-preview-filters>Clear filters</button>
+  </div>
+</article>

@@ -1,0 +1,30 @@
+{
+  "id": "patterns/original-component-kit",
+  "title": "Original blue and Claude-red kit",
+  "category": "patterns",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/ca0affecfb39caf6790f4b2636f1ed3c2dd90800/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+  "source_file": "original ca0affe component kit",
+  "status": "palette reference / older geometry",
+  "styles": [
+    "original-kit"
+  ],
+  "scripts": [
+    "original-kit"
+  ],
+  "implementation": [],
+  "notes": "Owner-selected palette reference. Four cards and eleven controls; use current geometry and the balanced semantic role map when adopting. Attached copy matches apart from trailing whitespace.",
+  "issues": [
+    "UI-11"
+  ],
+  "templates": [],
+  "keywords": [
+    "blue",
+    "red",
+    "Claude",
+    "original",
+    "ca0affe",
+    "palette"
+  ],
+  "path": "components/patterns/original-component-kit",
+  "paletteRole": "historical"
+}

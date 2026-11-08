@@ -1,0 +1,46 @@
+{
+  "id": "cards/bootstrap-sampling",
+  "title": "Bootstrap sampling",
+  "category": "cards",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+  "source_file": "rabbit-hole-card-component-kit.html",
+  "status": "reference",
+  "styles": [
+    "control-kit",
+    "card-shell",
+    "kit-shell"
+  ],
+  "scripts": [
+    "control-kit",
+    "bootstrap-sampling",
+    "resize",
+    "adopt-kit-shell"
+  ],
+  "implementation": [
+    "packages/web/src/LearningBlocks.jsx",
+    "packages/web/src/explain-program/ProgramScene.jsx"
+  ],
+  "notes": "Composed behavior example. Shared control source drift must be reconciled before app adoption. The organized preview composes these preserved kit slots into the shared resizable shell.",
+  "issues": [
+    "UI-02",
+    "UI-03"
+  ],
+  "templates": [
+    "kit/card-template",
+    "kit/range-template",
+    "kit/choice-template",
+    "kit/option-template",
+    "kit/button-template",
+    "kit/timeline-template",
+    "kit/select-template",
+    "kit/toggle-template",
+    "kit/stepper-template",
+    "kit/index-template",
+    "kit/disclosure-template",
+    "kit/readout-template",
+    "kit/sample-template"
+  ],
+  "keywords": [],
+  "path": "components/cards/bootstrap-sampling",
+  "paletteRole": "balanced-card"
+}

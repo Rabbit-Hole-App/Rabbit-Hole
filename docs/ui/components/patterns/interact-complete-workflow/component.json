@@ -1,0 +1,21 @@
+{
+  "id": "patterns/interact-complete-workflow",
+  "title": "Interact Complete Workflow",
+  "category": "patterns",
+  "source": "https://chatgpt.com/library?file_id=libfile_b50bb8c5a890819180a2be40f8547931&account_id=personal",
+  "source_file": "interact-complete-workflow.html",
+  "status": "behavior / workflow reference",
+  "styles": [
+    "interact-complete-workflow"
+  ],
+  "scripts": [],
+  "implementation": [],
+  "notes": "Preserved supplied workflow or behavior fixture. Its styling is historical and must not override current shared tokens.",
+  "issues": [
+    "UI-05"
+  ],
+  "templates": [],
+  "keywords": [],
+  "path": "components/patterns/interact-complete-workflow",
+  "paletteRole": "historical"
+}

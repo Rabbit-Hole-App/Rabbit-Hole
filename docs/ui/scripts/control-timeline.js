@@ -1,0 +1,1 @@
+  sample('timeline', 'Timed scenes', 'Playback and timeline', 'One transport controls the scene. Play, pause, scrub, and replay at the end.', transport({ min:-.5, max:.5, initial:-.1, step:.01, signed:true }));

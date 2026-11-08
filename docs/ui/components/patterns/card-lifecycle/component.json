@@ -1,0 +1,24 @@
+{
+  "id": "patterns/card-lifecycle",
+  "title": "Card Lifecycle",
+  "category": "patterns",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/02-canvas-card-skeleton.html",
+  "source_file": "02-canvas-card-skeleton.html",
+  "status": "behavior reference / older styling",
+  "styles": [
+    "legacy-card-lifecycle"
+  ],
+  "scripts": [
+    "legacy-card-lifecycle-0"
+  ],
+  "implementation": [
+    "packages/web/src/SlotCard.jsx",
+    "packages/web/src/NextStepPill.jsx"
+  ],
+  "notes": "Pending, accept/cancel, generating, delivery, next proposal and source jump.",
+  "issues": [],
+  "templates": [],
+  "keywords": [],
+  "path": "components/patterns/card-lifecycle",
+  "paletteRole": "historical"
+}

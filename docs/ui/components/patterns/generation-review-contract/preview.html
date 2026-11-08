@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Generation Review Contract · Rabbit Hole UI</title>
+<link rel="stylesheet" href="../../../styles/legacy-generation-review-contract.css">
+<link rel="stylesheet" href="../../../foundations/palette.css">
+<link rel="stylesheet" href="../../../styles/preview.css"></head>
+<body data-ui-palette="historical"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/generation-review-shell.html">Source</a><p>behavior reference / older styling — Host-populated generation review slots. Not an autonomous demo.</p></div>
+<div class="catalog-preview"><p>This is a host-populated contract. The slots below need renderer data and event bindings.</p><pre>&lt;!--
+Shared generation-review markup for the approved ../08-interactive-review.html.
+Use its review styles with the existing GenerationProposalCard and command schema.
+
+Clone the shell per proposal. Fill command-label from the shared command label
+and title from the proposal. Give the title and any visual caption unique IDs
+and wire their aria-labelledby relationships before mounting.
+
+For a visual preview, show intro, visual and takeaway in that order. Insert the
+rendered TutorDiagram or image into visual-content. For a text-only proposal,
+show its existing description in summary. Show the settings slot only for
+commands whose review includes editable settings.
+
+Bind Generate and Edit to the existing proposal actions and action state.
+--&gt;
+&lt;template id=&quot;generation-review-shell&quot;&gt;
+  &lt;article class=&quot;review&quot; data-review-shell&gt;
+    &lt;header class=&quot;review-head&quot;&gt;
+      &lt;span class=&quot;kind&quot; data-slot=&quot;command-label&quot;&gt;&lt;/span&gt;
+      &lt;h1 data-slot=&quot;title&quot;&gt;&lt;/h1&gt;
+    &lt;/header&gt;
+
+    &lt;p data-slot=&quot;summary&quot; hidden&gt;&lt;/p&gt;
+    &lt;p data-slot=&quot;intro&quot; hidden&gt;&lt;/p&gt;
+    &lt;figure class=&quot;preview&quot; data-slot=&quot;visual&quot; hidden&gt;
+      &lt;figcaption data-slot=&quot;visual-title&quot; hidden&gt;&lt;/figcaption&gt;
+      &lt;div data-slot=&quot;visual-content&quot;&gt;&lt;/div&gt;
+    &lt;/figure&gt;
+    &lt;p data-slot=&quot;takeaway&quot; hidden&gt;&lt;/p&gt;
+    &lt;div data-slot=&quot;settings&quot; hidden&gt;&lt;/div&gt;
+
+    &lt;footer class=&quot;actions&quot;&gt;
+      &lt;button type=&quot;button&quot; class=&quot;primary&quot; data-action=&quot;generate&quot;&gt;Generate&lt;/button&gt;
+      &lt;button type=&quot;button&quot; data-action=&quot;edit&quot;&gt;Edit&lt;/button&gt;
+    &lt;/footer&gt;
+  &lt;/article&gt;
+&lt;/template&gt;
+</pre></div>
+
+
+</body></html>

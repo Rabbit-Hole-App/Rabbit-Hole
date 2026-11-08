@@ -1,0 +1,1787 @@
+{
+  "schemaVersion": 1,
+  "baseline": "aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56",
+  "components": [
+    {
+      "id": "cards/bootstrap-sampling",
+      "title": "Bootstrap sampling",
+      "category": "cards",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+      "source_file": "rabbit-hole-card-component-kit.html",
+      "status": "reference",
+      "styles": [
+        "control-kit",
+        "card-shell",
+        "kit-shell"
+      ],
+      "scripts": [
+        "control-kit",
+        "bootstrap-sampling",
+        "resize",
+        "adopt-kit-shell"
+      ],
+      "implementation": [
+        "packages/web/src/LearningBlocks.jsx",
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "Composed behavior example. Shared control source drift must be reconciled before app adoption. The organized preview composes these preserved kit slots into the shared resizable shell.",
+      "issues": [
+        "UI-02",
+        "UI-03"
+      ],
+      "templates": [
+        "kit/card-template",
+        "kit/range-template",
+        "kit/choice-template",
+        "kit/option-template",
+        "kit/button-template",
+        "kit/timeline-template",
+        "kit/select-template",
+        "kit/toggle-template",
+        "kit/stepper-template",
+        "kit/index-template",
+        "kit/disclosure-template",
+        "kit/readout-template",
+        "kit/sample-template"
+      ],
+      "keywords": [],
+      "path": "components/cards/bootstrap-sampling",
+      "paletteRole": "balanced-card"
+    },
+    {
+      "id": "cards/decision-tracer",
+      "title": "Loan Decision Tracer",
+      "category": "cards",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-resizable-card-shell.html",
+      "source_file": "rabbit-hole-resizable-card-shell.html",
+      "status": "reference",
+      "styles": [
+        "card-shell"
+      ],
+      "scripts": [
+        "card-shell",
+        "decision-tracer"
+      ],
+      "implementation": [
+        "packages/web/src/LearningBlocks.jsx",
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "Content-limited shared shell, pinned header, scroll body, SVG/raster examples. Applicant selector updates path and Why. The separate decision-tree-card-templates Library file is an alias of this source.",
+      "issues": [
+        "UI-02",
+        "UI-08"
+      ],
+      "templates": [
+        "shell/card-shell",
+        "shell/image-example",
+        "shell/svg-example",
+        "shell/applicant-control"
+      ],
+      "keywords": [
+        "explanation",
+        "interactive",
+        "applicant",
+        "why",
+        "SVG",
+        "raster",
+        "resize"
+      ],
+      "path": "components/cards/decision-tracer",
+      "paletteRole": "balanced-card"
+    },
+    {
+      "id": "cards/impurity-metrics",
+      "title": "Impurity metrics",
+      "category": "cards",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+      "source_file": "rabbit-hole-card-component-kit.html",
+      "status": "reference",
+      "styles": [
+        "control-kit",
+        "card-shell",
+        "kit-shell"
+      ],
+      "scripts": [
+        "control-kit",
+        "impurity-metrics",
+        "resize",
+        "adopt-kit-shell"
+      ],
+      "implementation": [
+        "packages/web/src/LearningBlocks.jsx",
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "Composed behavior example. Shared control source drift must be reconciled before app adoption. The organized preview composes these preserved kit slots into the shared resizable shell.",
+      "issues": [
+        "UI-02",
+        "UI-03"
+      ],
+      "templates": [
+        "kit/card-template",
+        "kit/range-template",
+        "kit/choice-template",
+        "kit/option-template",
+        "kit/button-template",
+        "kit/timeline-template",
+        "kit/select-template",
+        "kit/toggle-template",
+        "kit/stepper-template",
+        "kit/index-template",
+        "kit/disclosure-template",
+        "kit/readout-template",
+        "kit/sample-template"
+      ],
+      "keywords": [],
+      "path": "components/cards/impurity-metrics",
+      "paletteRole": "balanced-card"
+    },
+    {
+      "id": "cards/split-comparison",
+      "title": "Split Comparison",
+      "category": "cards",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-resizable-card-shell.html",
+      "source_file": "rabbit-hole-resizable-card-shell.html",
+      "status": "reference",
+      "styles": [
+        "card-shell"
+      ],
+      "scripts": [
+        "card-shell",
+        "split-comparison"
+      ],
+      "implementation": [
+        "packages/web/src/LearningBlocks.jsx",
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "Content-limited shared shell, pinned header, scroll body, SVG/raster examples. Applicant selector updates path and Why. The separate decision-tree-card-templates Library file is an alias of this source.",
+      "issues": [
+        "UI-02",
+        "UI-08"
+      ],
+      "templates": [
+        "shell/card-shell",
+        "shell/image-example",
+        "shell/svg-example",
+        "shell/applicant-control"
+      ],
+      "keywords": [
+        "explanation",
+        "interactive",
+        "applicant",
+        "why",
+        "SVG",
+        "raster",
+        "resize"
+      ],
+      "path": "components/cards/split-comparison",
+      "paletteRole": "balanced-card"
+    },
+    {
+      "id": "cards/split-explorer",
+      "title": "Tree Split Explorer",
+      "category": "cards",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+      "source_file": "rabbit-hole-card-component-kit.html",
+      "status": "reference",
+      "styles": [
+        "control-kit",
+        "card-shell",
+        "kit-shell"
+      ],
+      "scripts": [
+        "control-kit",
+        "split-explorer",
+        "resize",
+        "adopt-kit-shell"
+      ],
+      "implementation": [
+        "packages/web/src/LearningBlocks.jsx",
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "Composed behavior example. Shared control source drift must be reconciled before app adoption. The organized preview composes these preserved kit slots into the shared resizable shell.",
+      "issues": [
+        "UI-02",
+        "UI-03"
+      ],
+      "templates": [
+        "kit/card-template",
+        "kit/range-template",
+        "kit/choice-template",
+        "kit/option-template",
+        "kit/button-template",
+        "kit/timeline-template",
+        "kit/select-template",
+        "kit/toggle-template",
+        "kit/stepper-template",
+        "kit/index-template",
+        "kit/disclosure-template",
+        "kit/readout-template",
+        "kit/sample-template"
+      ],
+      "keywords": [],
+      "path": "components/cards/split-explorer",
+      "paletteRole": "balanced-card"
+    },
+    {
+      "id": "cards/timed-toss",
+      "title": "Timed toss",
+      "category": "cards",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+      "source_file": "rabbit-hole-card-component-kit.html",
+      "status": "reference",
+      "styles": [
+        "control-kit",
+        "card-shell",
+        "kit-shell"
+      ],
+      "scripts": [
+        "control-kit",
+        "timed-toss",
+        "resize",
+        "adopt-kit-shell"
+      ],
+      "implementation": [
+        "packages/web/src/LearningBlocks.jsx",
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "Composed behavior example. Shared control source drift must be reconciled before app adoption. The organized preview composes these preserved kit slots into the shared resizable shell.",
+      "issues": [
+        "UI-02",
+        "UI-03"
+      ],
+      "templates": [
+        "kit/card-template",
+        "kit/range-template",
+        "kit/choice-template",
+        "kit/option-template",
+        "kit/button-template",
+        "kit/timeline-template",
+        "kit/select-template",
+        "kit/toggle-template",
+        "kit/stepper-template",
+        "kit/index-template",
+        "kit/disclosure-template",
+        "kit/readout-template",
+        "kit/sample-template"
+      ],
+      "keywords": [],
+      "path": "components/cards/timed-toss",
+      "paletteRole": "balanced-card"
+    },
+    {
+      "id": "controls/action",
+      "title": "Action and secondary Reset",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+      "source_file": "rabbit-hole-card-component-kit.html",
+      "status": "Core",
+      "styles": [
+        "control-kit"
+      ],
+      "scripts": [
+        "control-kit",
+        "control-action"
+      ],
+      "implementation": [
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "An action changes state. Its outcome stays visible as a readout. Renderer registration and persistence are separate from this HTML demo.",
+      "issues": [
+        "UI-02"
+      ],
+      "templates": [
+        "kit/card-template",
+        "kit/range-template",
+        "kit/choice-template",
+        "kit/option-template",
+        "kit/button-template",
+        "kit/timeline-template",
+        "kit/select-template",
+        "kit/toggle-template",
+        "kit/stepper-template",
+        "kit/index-template",
+        "kit/disclosure-template",
+        "kit/readout-template",
+        "kit/sample-template"
+      ],
+      "keywords": [
+        "input",
+        "interaction",
+        "action"
+      ],
+      "path": "components/controls/action",
+      "paletteRole": "experiment"
+    },
+    {
+      "id": "controls/action-menu",
+      "title": "Action menu rows",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/home/CardMenu.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/controls/action-menu",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "controls/approval-actions",
+      "title": "Related card actions",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/NextStepPill.jsx",
+        "packages/web/src/RoadmapSurfaces.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [
+        "UI-01"
+      ],
+      "templates": [],
+      "keywords": [],
+      "path": "components/controls/approval-actions",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "controls/buttons",
+      "title": "Button hierarchy",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/ui.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [
+        "UI-01"
+      ],
+      "templates": [],
+      "keywords": [],
+      "path": "components/controls/buttons",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "controls/choice",
+      "title": "Segmented choice",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+      "source_file": "rabbit-hole-card-component-kit.html",
+      "status": "Core",
+      "styles": [
+        "control-kit"
+      ],
+      "scripts": [
+        "control-kit",
+        "control-choice"
+      ],
+      "implementation": [
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "Use for two or three short, mutually exclusive choices. Renderer registration and persistence are separate from this HTML demo.",
+      "issues": [
+        "UI-02"
+      ],
+      "templates": [
+        "kit/card-template",
+        "kit/range-template",
+        "kit/choice-template",
+        "kit/option-template",
+        "kit/button-template",
+        "kit/timeline-template",
+        "kit/select-template",
+        "kit/toggle-template",
+        "kit/stepper-template",
+        "kit/index-template",
+        "kit/disclosure-template",
+        "kit/readout-template",
+        "kit/sample-template"
+      ],
+      "keywords": [
+        "input",
+        "interaction",
+        "choice"
+      ],
+      "path": "components/controls/choice",
+      "paletteRole": "experiment"
+    },
+    {
+      "id": "controls/disclosure",
+      "title": "Secondary settings",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+      "source_file": "rabbit-hole-card-component-kit.html",
+      "status": "Register first",
+      "styles": [
+        "control-kit"
+      ],
+      "scripts": [
+        "control-kit",
+        "control-disclosure"
+      ],
+      "implementation": [
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "Group optional settings behind one disclosure, with a cue when a setting differs from its default. Renderer registration and persistence are separate from this HTML demo.",
+      "issues": [
+        "UI-07"
+      ],
+      "templates": [
+        "kit/card-template",
+        "kit/range-template",
+        "kit/choice-template",
+        "kit/option-template",
+        "kit/button-template",
+        "kit/timeline-template",
+        "kit/select-template",
+        "kit/toggle-template",
+        "kit/stepper-template",
+        "kit/index-template",
+        "kit/disclosure-template",
+        "kit/readout-template",
+        "kit/sample-template"
+      ],
+      "keywords": [
+        "input",
+        "interaction",
+        "disclosure"
+      ],
+      "path": "components/controls/disclosure",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "controls/filter-sort",
+      "title": "Dropdowns, filters and sorting",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/LibraryViews.jsx",
+        "packages/web/src/home/CardSize.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/controls/filter-sort",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "controls/icon-toolbar",
+      "title": "Icon toolbar",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/CanvasMenubar.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/controls/icon-toolbar",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "controls/links-pills-shortcuts",
+      "title": "Links, pills and shortcuts",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/agent/slash.js"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/controls/links-pills-shortcuts",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "controls/multi",
+      "title": "Independent multi-select",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+      "source_file": "rabbit-hole-card-component-kit.html",
+      "status": "Renderer dependent",
+      "styles": [
+        "control-kit"
+      ],
+      "scripts": [
+        "control-kit",
+        "control-multi"
+      ],
+      "implementation": [
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "Use when a learner can meaningfully combine options. Renderer registration and persistence are separate from this HTML demo.",
+      "issues": [
+        "UI-07"
+      ],
+      "templates": [
+        "kit/card-template",
+        "kit/range-template",
+        "kit/choice-template",
+        "kit/option-template",
+        "kit/button-template",
+        "kit/timeline-template",
+        "kit/select-template",
+        "kit/toggle-template",
+        "kit/stepper-template",
+        "kit/index-template",
+        "kit/disclosure-template",
+        "kit/readout-template",
+        "kit/sample-template"
+      ],
+      "keywords": [
+        "input",
+        "interaction",
+        "multi"
+      ],
+      "path": "components/controls/multi",
+      "paletteRole": "experiment"
+    },
+    {
+      "id": "controls/ordered",
+      "title": "Ordered index",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+      "source_file": "rabbit-hole-card-component-kit.html",
+      "status": "Renderer dependent",
+      "styles": [
+        "control-kit"
+      ],
+      "scripts": [
+        "control-kit",
+        "control-ordered"
+      ],
+      "implementation": [
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "Use Previous and Next when ordered states are part of the explanation. Renderer registration and persistence are separate from this HTML demo.",
+      "issues": [
+        "UI-07"
+      ],
+      "templates": [
+        "kit/card-template",
+        "kit/range-template",
+        "kit/choice-template",
+        "kit/option-template",
+        "kit/button-template",
+        "kit/timeline-template",
+        "kit/select-template",
+        "kit/toggle-template",
+        "kit/stepper-template",
+        "kit/index-template",
+        "kit/disclosure-template",
+        "kit/readout-template",
+        "kit/sample-template"
+      ],
+      "keywords": [
+        "input",
+        "interaction",
+        "ordered"
+      ],
+      "path": "components/controls/ordered",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "controls/range-switch-checkbox",
+      "title": "Sliders, switches and checkboxes",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/controls/range-switch-checkbox",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "controls/readout",
+      "title": "Read-only result",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+      "source_file": "rabbit-hole-card-component-kit.html",
+      "status": "Core",
+      "styles": [
+        "control-kit"
+      ],
+      "scripts": [
+        "control-kit",
+        "control-readout"
+      ],
+      "implementation": [
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "Use for a score, tally, gain, or other derived value. Renderer registration and persistence are separate from this HTML demo.",
+      "issues": [
+        "UI-02"
+      ],
+      "templates": [
+        "kit/card-template",
+        "kit/range-template",
+        "kit/choice-template",
+        "kit/option-template",
+        "kit/button-template",
+        "kit/timeline-template",
+        "kit/select-template",
+        "kit/toggle-template",
+        "kit/stepper-template",
+        "kit/index-template",
+        "kit/disclosure-template",
+        "kit/readout-template",
+        "kit/sample-template"
+      ],
+      "keywords": [
+        "input",
+        "interaction",
+        "readout"
+      ],
+      "path": "components/controls/readout",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "controls/select",
+      "title": "Dropdown",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+      "source_file": "rabbit-hole-card-component-kit.html",
+      "status": "Register first",
+      "styles": [
+        "control-kit"
+      ],
+      "scripts": [
+        "control-kit",
+        "control-select"
+      ],
+      "implementation": [
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "Use for longer labels or when too many segments would crowd the card. Renderer registration and persistence are separate from this HTML demo.",
+      "issues": [
+        "UI-07"
+      ],
+      "templates": [
+        "kit/card-template",
+        "kit/range-template",
+        "kit/choice-template",
+        "kit/option-template",
+        "kit/button-template",
+        "kit/timeline-template",
+        "kit/select-template",
+        "kit/toggle-template",
+        "kit/stepper-template",
+        "kit/index-template",
+        "kit/disclosure-template",
+        "kit/readout-template",
+        "kit/sample-template"
+      ],
+      "keywords": [
+        "input",
+        "interaction",
+        "select"
+      ],
+      "path": "components/controls/select",
+      "paletteRole": "experiment"
+    },
+    {
+      "id": "controls/slash-command-pills",
+      "title": "Slash-command pills",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/agent/slash.js",
+        "packages/web/src/SlashCommandsSheet.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [
+        "UI-10"
+      ],
+      "templates": [],
+      "keywords": [],
+      "path": "components/controls/slash-command-pills",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "controls/slider",
+      "title": "Labeled slider",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+      "source_file": "rabbit-hole-card-component-kit.html",
+      "status": "Core",
+      "styles": [
+        "control-kit"
+      ],
+      "scripts": [
+        "control-kit",
+        "control-slider"
+      ],
+      "implementation": [
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "Use for a continuous or ordered numeric range. Keep the value and unit visible. Renderer registration and persistence are separate from this HTML demo.",
+      "issues": [
+        "UI-02"
+      ],
+      "templates": [
+        "kit/card-template",
+        "kit/range-template",
+        "kit/choice-template",
+        "kit/option-template",
+        "kit/button-template",
+        "kit/timeline-template",
+        "kit/select-template",
+        "kit/toggle-template",
+        "kit/stepper-template",
+        "kit/index-template",
+        "kit/disclosure-template",
+        "kit/readout-template",
+        "kit/sample-template"
+      ],
+      "keywords": [
+        "input",
+        "interaction",
+        "slider"
+      ],
+      "path": "components/controls/slider",
+      "paletteRole": "experiment"
+    },
+    {
+      "id": "controls/stepper",
+      "title": "Number stepper",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+      "source_file": "rabbit-hole-card-component-kit.html",
+      "status": "Register first",
+      "styles": [
+        "control-kit"
+      ],
+      "scripts": [
+        "control-kit",
+        "control-stepper"
+      ],
+      "implementation": [
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "Use when a learner needs precise numeric entry. Renderer registration and persistence are separate from this HTML demo.",
+      "issues": [
+        "UI-07"
+      ],
+      "templates": [
+        "kit/card-template",
+        "kit/range-template",
+        "kit/choice-template",
+        "kit/option-template",
+        "kit/button-template",
+        "kit/timeline-template",
+        "kit/select-template",
+        "kit/toggle-template",
+        "kit/stepper-template",
+        "kit/index-template",
+        "kit/disclosure-template",
+        "kit/readout-template",
+        "kit/sample-template"
+      ],
+      "keywords": [
+        "input",
+        "interaction",
+        "stepper"
+      ],
+      "path": "components/controls/stepper",
+      "paletteRole": "experiment"
+    },
+    {
+      "id": "controls/text-fields",
+      "title": "Text fields",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/ui.jsx",
+        "packages/web/src/ChatComposer.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/controls/text-fields",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "controls/timeline",
+      "title": "Playback and timeline",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+      "source_file": "rabbit-hole-card-component-kit.html",
+      "status": "Timed scenes",
+      "styles": [
+        "control-kit"
+      ],
+      "scripts": [
+        "control-kit",
+        "control-timeline"
+      ],
+      "implementation": [
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "One transport controls the scene. Play, pause, scrub, and replay at the end. Renderer registration and persistence are separate from this HTML demo.",
+      "issues": [
+        "UI-02"
+      ],
+      "templates": [
+        "kit/card-template",
+        "kit/range-template",
+        "kit/choice-template",
+        "kit/option-template",
+        "kit/button-template",
+        "kit/timeline-template",
+        "kit/select-template",
+        "kit/toggle-template",
+        "kit/stepper-template",
+        "kit/index-template",
+        "kit/disclosure-template",
+        "kit/readout-template",
+        "kit/sample-template"
+      ],
+      "keywords": [
+        "input",
+        "interaction",
+        "timeline"
+      ],
+      "path": "components/controls/timeline",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "controls/toggle",
+      "title": "Switch",
+      "category": "controls",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+      "source_file": "rabbit-hole-card-component-kit.html",
+      "status": "Renderer dependent",
+      "styles": [
+        "control-kit"
+      ],
+      "scripts": [
+        "control-kit",
+        "control-toggle"
+      ],
+      "implementation": [
+        "packages/web/src/explain-program/ProgramScene.jsx"
+      ],
+      "notes": "Green on-state for every toggle, per owner correction. Neutral off-state. Renderer registration and persistence remain separate from this HTML preview.",
+      "issues": [
+        "UI-07"
+      ],
+      "templates": [
+        "kit/card-template",
+        "kit/range-template",
+        "kit/choice-template",
+        "kit/option-template",
+        "kit/button-template",
+        "kit/timeline-template",
+        "kit/select-template",
+        "kit/toggle-template",
+        "kit/stepper-template",
+        "kit/index-template",
+        "kit/disclosure-template",
+        "kit/readout-template",
+        "kit/sample-template"
+      ],
+      "keywords": [
+        "input",
+        "interaction",
+        "toggle"
+      ],
+      "path": "components/controls/toggle",
+      "paletteRole": "experiment"
+    },
+    {
+      "id": "feedback/menu-popover",
+      "title": "Dropdown menu and popover",
+      "category": "feedback",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/home/CardMenu.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/feedback/menu-popover",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "feedback/modal-trash",
+      "title": "Modal and trash confirmation",
+      "category": "feedback",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/home/CardMenu.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/feedback/modal-trash",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "feedback/notifications-comments",
+      "title": "Notifications and comments",
+      "category": "feedback",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/comments/CommentInbox.jsx",
+        "packages/web/src/comments/CommentsPanel.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/feedback/notifications-comments",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "feedback/toast",
+      "title": "Toast notifications",
+      "category": "feedback",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/ui.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/feedback/toast",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "feedback/tooltip",
+      "title": "Tooltip and icon label",
+      "category": "feedback",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/Sidebar.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/feedback/tooltip",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "foundations/card-design-values",
+      "title": "Exact card design values",
+      "category": "foundations",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-resizable-card-shell.html",
+      "source_file": "rabbit-hole-resizable-card-shell.html",
+      "status": "reference",
+      "styles": [
+        "card-shell"
+      ],
+      "scripts": [],
+      "implementation": [],
+      "notes": "Copied exact-values tables; source discrepancies remain tracked, not silently normalized.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/foundations/card-design-values",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "icons/action-glyphs",
+      "title": "Card action glyphs",
+      "category": "icons",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-icon-template.html",
+      "source_file": "rabbit-hole-card-icon-template.html",
+      "status": "reference",
+      "styles": [
+        "icons"
+      ],
+      "scripts": [],
+      "implementation": [
+        "packages/web/src/CardFeedback.jsx",
+        "packages/web/src/ChatComposer.jsx"
+      ],
+      "notes": "Glyph inventory preserves source and per-glyph size/stroke. Runtime catalog entries do not imply feature availability.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/icons/action-glyphs",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "icons/card-type-glyphs",
+      "title": "Card-type glyphs",
+      "category": "icons",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-icon-template.html",
+      "source_file": "rabbit-hole-card-icon-template.html",
+      "status": "reference",
+      "styles": [
+        "icons"
+      ],
+      "scripts": [],
+      "implementation": [
+        "packages/web/src/CardFeedback.jsx",
+        "packages/web/src/ChatComposer.jsx"
+      ],
+      "notes": "Glyph inventory preserves source and per-glyph size/stroke. Runtime catalog entries do not imply feature availability.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/icons/card-type-glyphs",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "icons/icon-dimensions",
+      "title": "Exact implementation values",
+      "category": "icons",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-icon-template.html",
+      "source_file": "rabbit-hole-card-icon-template.html",
+      "status": "reference",
+      "styles": [
+        "icons"
+      ],
+      "scripts": [],
+      "implementation": [
+        "packages/web/src/CardFeedback.jsx",
+        "packages/web/src/ChatComposer.jsx"
+      ],
+      "notes": "Glyph inventory preserves source and per-glyph size/stroke. Runtime catalog entries do not imply feature availability.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/icons/icon-dimensions",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "icons/icon-states",
+      "title": "Icon button states",
+      "category": "icons",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-icon-template.html",
+      "source_file": "rabbit-hole-card-icon-template.html",
+      "status": "reference",
+      "styles": [
+        "icons"
+      ],
+      "scripts": [
+        "icon-states"
+      ],
+      "implementation": [
+        "packages/web/src/CardFeedback.jsx",
+        "packages/web/src/ChatComposer.jsx"
+      ],
+      "notes": "Glyph inventory preserves source and per-glyph size/stroke. Runtime catalog entries do not imply feature availability.",
+      "issues": [
+        "UI-04"
+      ],
+      "templates": [],
+      "keywords": [],
+      "path": "components/icons/icon-states",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "layout/scroll-region",
+      "title": "Scrollable region",
+      "category": "layout",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/index.css"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/layout/scroll-region",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "navigation/navigation",
+      "title": "Navigation rows and empty states",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/Sidebar.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/navigation/navigation",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "patterns/card-lifecycle",
+      "title": "Card Lifecycle",
+      "category": "patterns",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/02-canvas-card-skeleton.html",
+      "source_file": "02-canvas-card-skeleton.html",
+      "status": "behavior reference / older styling",
+      "styles": [
+        "legacy-card-lifecycle"
+      ],
+      "scripts": [
+        "legacy-card-lifecycle-0"
+      ],
+      "implementation": [
+        "packages/web/src/SlotCard.jsx",
+        "packages/web/src/NextStepPill.jsx"
+      ],
+      "notes": "Pending, accept/cancel, generating, delivery, next proposal and source jump.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/patterns/card-lifecycle",
+      "paletteRole": "historical"
+    },
+    {
+      "id": "patterns/explanation-actions",
+      "title": "Explanation Actions",
+      "category": "patterns",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/07-explanation-card-approved.html",
+      "source_file": "07-explanation-card-approved.html",
+      "status": "behavior reference / older styling",
+      "styles": [
+        "legacy-explanation-actions"
+      ],
+      "scripts": [
+        "legacy-explanation-actions-0"
+      ],
+      "implementation": [
+        "packages/web/src/LearningBlocks.jsx"
+      ],
+      "notes": "Term definitions, Dig Rabbit Hole, Ask here/new card, same-card/branch threads, follow-up and connector ports. Canonical behavior in explain.md; styling needs reconciliation.",
+      "issues": [
+        "UI-05",
+        "UI-06"
+      ],
+      "templates": [],
+      "keywords": [],
+      "path": "components/patterns/explanation-actions",
+      "paletteRole": "historical"
+    },
+    {
+      "id": "patterns/explanation-depth",
+      "title": "Explanation Depth",
+      "category": "patterns",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/06-explanation-depth.html",
+      "source_file": "06-explanation-depth.html",
+      "status": "behavior reference / older styling",
+      "styles": [
+        "legacy-explanation-depth"
+      ],
+      "scripts": [
+        "legacy-explanation-depth-0"
+      ],
+      "implementation": [
+        "packages/web/src/LearningBlocks.jsx"
+      ],
+      "notes": "Overview/Standard/Deep and keyboard tab navigation; preserve teaching content.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/patterns/explanation-depth",
+      "paletteRole": "historical"
+    },
+    {
+      "id": "patterns/generated-card-contract",
+      "title": "Generated Card Contract",
+      "category": "patterns",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/generated-card-shell.html",
+      "source_file": "generated-card-shell.html",
+      "status": "behavior reference / older styling",
+      "styles": [
+        "legacy-generated-card-contract"
+      ],
+      "scripts": [],
+      "implementation": [
+        "packages/web/src/LearningBlocks.jsx"
+      ],
+      "notes": "Host-populated slots for source/title/body/thread/suggestions/term popup/follow-up. Not an autonomous demo.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/patterns/generated-card-contract",
+      "paletteRole": "historical"
+    },
+    {
+      "id": "patterns/generation-review",
+      "title": "Generation Review",
+      "category": "patterns",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/08-interactive-review.html",
+      "source_file": "08-interactive-review.html",
+      "status": "behavior reference / older styling",
+      "styles": [
+        "legacy-generation-review"
+      ],
+      "scripts": [],
+      "implementation": [
+        "packages/web/src/LearningBlocks.jsx"
+      ],
+      "notes": "Summary, visual, takeaway and Generate/Edit. Static controls.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/patterns/generation-review",
+      "paletteRole": "historical"
+    },
+    {
+      "id": "patterns/generation-review-contract",
+      "title": "Generation Review Contract",
+      "category": "patterns",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/generation-review-shell.html",
+      "source_file": "generation-review-shell.html",
+      "status": "behavior reference / older styling",
+      "styles": [
+        "legacy-generation-review-contract"
+      ],
+      "scripts": [],
+      "implementation": [
+        "packages/web/src/LearningBlocks.jsx"
+      ],
+      "notes": "Host-populated generation review slots. Not an autonomous demo.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/patterns/generation-review-contract",
+      "paletteRole": "historical"
+    },
+    {
+      "id": "patterns/historical-explanation",
+      "title": "Historical Explanation",
+      "category": "patterns",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/04-explanation-card.html",
+      "source_file": "04-explanation-card.html",
+      "status": "behavior reference / older styling",
+      "styles": [
+        "legacy-historical-explanation"
+      ],
+      "scripts": [
+        "legacy-historical-explanation-0"
+      ],
+      "implementation": [
+        "packages/web/src/LearningBlocks.jsx"
+      ],
+      "notes": "Historical source jump and supplementary disclosure; not current styling.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/patterns/historical-explanation",
+      "paletteRole": "historical"
+    },
+    {
+      "id": "patterns/interact-complete-workflow",
+      "title": "Interact Complete Workflow",
+      "category": "patterns",
+      "source": "https://chatgpt.com/library?file_id=libfile_b50bb8c5a890819180a2be40f8547931&account_id=personal",
+      "source_file": "interact-complete-workflow.html",
+      "status": "behavior / workflow reference",
+      "styles": [
+        "interact-complete-workflow"
+      ],
+      "scripts": [],
+      "implementation": [],
+      "notes": "Preserved supplied workflow or behavior fixture. Its styling is historical and must not override current shared tokens.",
+      "issues": [
+        "UI-05"
+      ],
+      "templates": [],
+      "keywords": [],
+      "path": "components/patterns/interact-complete-workflow",
+      "paletteRole": "historical"
+    },
+    {
+      "id": "patterns/interactive-card-composition-workflow",
+      "title": "Interactive Card Composition Workflow",
+      "category": "patterns",
+      "source": "https://chatgpt.com/library?file_id=libfile_da441ff3913c819198ccb93f1f3063ba&account_id=personal",
+      "source_file": "interactive-card-composition-workflow.html",
+      "status": "behavior / workflow reference",
+      "styles": [
+        "interactive-card-composition-workflow"
+      ],
+      "scripts": [],
+      "implementation": [],
+      "notes": "Preserved supplied workflow or behavior fixture. Its styling is historical and must not override current shared tokens.",
+      "issues": [
+        "UI-05"
+      ],
+      "templates": [],
+      "keywords": [],
+      "path": "components/patterns/interactive-card-composition-workflow",
+      "paletteRole": "historical"
+    },
+    {
+      "id": "patterns/original-component-kit",
+      "title": "Original blue and Claude-red kit",
+      "category": "patterns",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/ca0affecfb39caf6790f4b2636f1ed3c2dd90800/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+      "source_file": "original ca0affe component kit",
+      "status": "palette reference / older geometry",
+      "styles": [
+        "original-kit"
+      ],
+      "scripts": [
+        "original-kit"
+      ],
+      "implementation": [],
+      "notes": "Owner-selected palette reference. Four cards and eleven controls; use current geometry and the balanced semantic role map when adopting. Attached copy matches apart from trailing whitespace.",
+      "issues": [
+        "UI-11"
+      ],
+      "templates": [],
+      "keywords": [
+        "blue",
+        "red",
+        "Claude",
+        "original",
+        "ca0affe",
+        "palette"
+      ],
+      "path": "components/patterns/original-component-kit",
+      "paletteRole": "historical"
+    },
+    {
+      "id": "patterns/outline-editor",
+      "title": "Outline Editor",
+      "category": "patterns",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/01-table-of-contents.html",
+      "source_file": "01-table-of-contents.html",
+      "status": "behavior reference / older styling",
+      "styles": [
+        "legacy-outline-editor"
+      ],
+      "scripts": [
+        "legacy-outline-editor-0"
+      ],
+      "implementation": [
+        "packages/web/src/TableOfContents.jsx"
+      ],
+      "notes": "Hierarchy, add/edit/fold and manual completion; keep behavior, reconcile old styling.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/patterns/outline-editor",
+      "paletteRole": "historical"
+    },
+    {
+      "id": "patterns/roadmap-flow",
+      "title": "Roadmap Flow",
+      "category": "patterns",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/03-chat-roadmap.html",
+      "source_file": "03-chat-roadmap.html",
+      "status": "behavior reference / older styling",
+      "styles": [
+        "legacy-roadmap-flow"
+      ],
+      "scripts": [
+        "legacy-roadmap-flow-0"
+      ],
+      "implementation": [
+        "packages/web/src/RoadmapSurfaces.jsx",
+        "packages/web/src/TableOfContents.jsx"
+      ],
+      "notes": "Scope/depth/mode, edit restoration, accepted roadmap and chat/ToC transitions.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/patterns/roadmap-flow",
+      "paletteRole": "historical"
+    },
+    {
+      "id": "patterns/source-navigation",
+      "title": "Source Navigation",
+      "category": "patterns",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/05-markdown-source-links.html",
+      "source_file": "05-markdown-source-links.html",
+      "status": "behavior reference / older styling",
+      "styles": [
+        "legacy-source-navigation"
+      ],
+      "scripts": [
+        "legacy-source-navigation-0"
+      ],
+      "implementation": [
+        "packages/web/src/FileDocMarkdown.jsx",
+        "packages/web/src/LearningBlocks.jsx"
+      ],
+      "notes": "Bidirectional prose/code/SVG/image/table source links and local scrolling.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/patterns/source-navigation",
+      "paletteRole": "historical"
+    },
+    {
+      "id": "patterns/standard-toss-drop-card",
+      "title": "Standard Toss Drop Card",
+      "category": "patterns",
+      "source": "https://chatgpt.com/library?file_id=libfile_6112489040548191a9e1b9519276fb63&account_id=personal",
+      "source_file": "standard-toss-drop-card.html",
+      "status": "behavior / workflow reference",
+      "styles": [
+        "standard-toss-drop-card"
+      ],
+      "scripts": [
+        "standard-toss-drop-card-0",
+        "standard-toss-drop-card-1",
+        "standard-toss-drop-card-2",
+        "standard-toss-drop-card-3"
+      ],
+      "implementation": [],
+      "notes": "Preserved supplied workflow or behavior fixture. Its styling is historical and must not override current shared tokens.",
+      "issues": [
+        "UI-05"
+      ],
+      "templates": [],
+      "keywords": [],
+      "path": "components/patterns/standard-toss-drop-card",
+      "paletteRole": "historical"
+    },
+    {
+      "id": "sources/document-headers",
+      "title": "Markdown and PDF headers",
+      "category": "sources",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-source-header-and-chat-composer.html",
+      "source_file": "rabbit-hole-source-header-and-chat-composer.html",
+      "status": "static specimen",
+      "styles": [
+        "source-headers"
+      ],
+      "scripts": [],
+      "implementation": [
+        "packages/web/src/FileDocCard.jsx",
+        "packages/web/src/AdaptiveCanvas.jsx",
+        "packages/web/src/FileDocMarkdown.jsx"
+      ],
+      "notes": "Text-only blue document pills. Selection actions are visual examples, not wired app behavior.",
+      "issues": [],
+      "templates": [],
+      "keywords": [
+        "Markdown",
+        "PDF",
+        "highlight",
+        "explain",
+        "add to chat",
+        "file info"
+      ],
+      "path": "components/sources/document-headers",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "sources/selected-text-actions",
+      "title": "Source selected-text actions",
+      "category": "sources",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-source-header-and-chat-composer.html",
+      "source_file": "rabbit-hole-source-header-and-chat-composer.html",
+      "status": "static specimen",
+      "styles": [
+        "source-headers"
+      ],
+      "scripts": [],
+      "implementation": [
+        "packages/web/src/FileDocCard.jsx",
+        "packages/web/src/AdaptiveCanvas.jsx",
+        "packages/web/src/FileDocMarkdown.jsx"
+      ],
+      "notes": "Text-only blue document pills. Selection actions are visual examples, not wired app behavior.",
+      "issues": [
+        "UI-06"
+      ],
+      "templates": [],
+      "keywords": [
+        "Markdown",
+        "PDF",
+        "highlight",
+        "explain",
+        "add to chat",
+        "file info"
+      ],
+      "path": "components/sources/selected-text-actions",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "tutor/composer",
+      "title": "Chat composer",
+      "category": "tutor",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-source-header-and-chat-composer.html",
+      "source_file": "rabbit-hole-source-header-and-chat-composer.html",
+      "status": "reference",
+      "styles": [
+        "source-headers",
+        "composer"
+      ],
+      "scripts": [
+        "composer"
+      ],
+      "implementation": [
+        "packages/web/src/ChatComposer.jsx"
+      ],
+      "notes": "Current aa2cfb1: textarea grows, capped body scrolls, footer actions and outlined grip stay visible. Arrow resize16 px; Shift48 px. Send/Stop use one rectangular action. Attach/Voice are preview-only.",
+      "issues": [],
+      "templates": [],
+      "keywords": [
+        "message",
+        "send",
+        "stop",
+        "resize",
+        "multiline",
+        "draft",
+        "context",
+        "depth"
+      ],
+      "path": "components/tutor/composer",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "tutor/empty-error-retry",
+      "title": "Empty, error and recovery",
+      "category": "tutor",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/SlotCard.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/tutor/empty-error-retry",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "tutor/loading-skeleton",
+      "title": "Skeleton and generation states",
+      "category": "tutor",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/SlotCard.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/tutor/loading-skeleton",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "tutor/progress",
+      "title": "Learning progress meter",
+      "category": "tutor",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/LearnProgress.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/tutor/progress",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "tutor/proposal-acceptance",
+      "title": "Tutor proposal and acceptance",
+      "category": "tutor",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/NextStepPill.jsx",
+        "packages/web/src/RoadmapSurfaces.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [
+        "UI-01"
+      ],
+      "templates": [],
+      "keywords": [],
+      "path": "components/tutor/proposal-acceptance",
+      "paletteRole": "shared"
+    },
+    {
+      "id": "tutor/table-of-contents",
+      "title": "Table of contents",
+      "category": "tutor",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+      "source_file": "rabbit-hole-interface-component-standards.html",
+      "status": "reference",
+      "styles": [
+        "standards"
+      ],
+      "scripts": [
+        "standards"
+      ],
+      "implementation": [
+        "packages/web/src/TableOfContents.jsx"
+      ],
+      "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+      "issues": [],
+      "templates": [],
+      "keywords": [],
+      "path": "components/tutor/table-of-contents",
+      "paletteRole": "shared"
+    }
+  ]
+}

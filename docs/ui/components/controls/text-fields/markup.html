@@ -1,0 +1,15 @@
+<article class="specimen" id="f-fields">
+  <h3>Text fields</h3>
+  <p class="muted">Keep the field label visible. Put supporting copy and validation below the field, associated with the input.</p>
+  <div class="sample-row">
+    <label class="field" for="f-name">Canvas name <input class="control" id="f-name" type="text" value="Decision trees"></label>
+    <label class="field" for="f-search">Search <input class="control" id="f-search" type="search" placeholder="Find a command"></label>
+  </div>
+  <div class="sample-row">
+    <label class="field" for="f-field-focus">Keyboard focus <input class="control" id="f-field-focus" type="text" data-demo-state="focus" value="Decision trees"></label>
+    <label class="field" for="f-email">Email <input class="control" id="f-email" type="email" value="reader@example.com" disabled></label>
+  </div>
+  <label class="field" for="f-description">Description <textarea class="control" id="f-description" rows="2" aria-describedby="f-description-hint" placeholder="Describe this canvas"></textarea></label>
+  <p class="muted" id="f-description-hint">Shown on the canvas profile.</p>
+  <label class="field" for="f-invalid">Canvas slug <input class="control" id="f-invalid" type="text" value="tree notes" aria-invalid="true" aria-describedby="f-invalid-error"><span class="field-error" id="f-invalid-error">Use letters, numbers and dashes.</span></label>
+</article>

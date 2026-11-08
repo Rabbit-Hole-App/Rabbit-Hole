@@ -1,0 +1,44 @@
+{
+  "id": "controls/readout",
+  "title": "Read-only result",
+  "category": "controls",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+  "source_file": "rabbit-hole-card-component-kit.html",
+  "status": "Core",
+  "styles": [
+    "control-kit"
+  ],
+  "scripts": [
+    "control-kit",
+    "control-readout"
+  ],
+  "implementation": [
+    "packages/web/src/explain-program/ProgramScene.jsx"
+  ],
+  "notes": "Use for a score, tally, gain, or other derived value. Renderer registration and persistence are separate from this HTML demo.",
+  "issues": [
+    "UI-02"
+  ],
+  "templates": [
+    "kit/card-template",
+    "kit/range-template",
+    "kit/choice-template",
+    "kit/option-template",
+    "kit/button-template",
+    "kit/timeline-template",
+    "kit/select-template",
+    "kit/toggle-template",
+    "kit/stepper-template",
+    "kit/index-template",
+    "kit/disclosure-template",
+    "kit/readout-template",
+    "kit/sample-template"
+  ],
+  "keywords": [
+    "input",
+    "interaction",
+    "readout"
+  ],
+  "path": "components/controls/readout",
+  "paletteRole": "shared"
+}

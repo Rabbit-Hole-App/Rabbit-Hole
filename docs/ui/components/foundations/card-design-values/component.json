@@ -1,0 +1,19 @@
+{
+  "id": "foundations/card-design-values",
+  "title": "Exact card design values",
+  "category": "foundations",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-resizable-card-shell.html",
+  "source_file": "rabbit-hole-resizable-card-shell.html",
+  "status": "reference",
+  "styles": [
+    "card-shell"
+  ],
+  "scripts": [],
+  "implementation": [],
+  "notes": "Copied exact-values tables; source discrepancies remain tracked, not silently normalized.",
+  "issues": [],
+  "templates": [],
+  "keywords": [],
+  "path": "components/foundations/card-design-values",
+  "paletteRole": "shared"
+}

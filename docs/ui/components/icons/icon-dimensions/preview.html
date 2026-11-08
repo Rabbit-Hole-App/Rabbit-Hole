@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Exact implementation values · Rabbit Hole UI</title>
+<link rel="stylesheet" href="../../../styles/icons.css">
+<link rel="stylesheet" href="../../../foundations/palette.css">
+<link rel="stylesheet" href="../../../styles/preview.css"></head>
+<body data-ui-palette="shared"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-icon-template.html">Source</a><p>reference — Glyph inventory preserves source and per-glyph size/stroke. Runtime catalog entries do not imply feature availability.</p></div>
+<div class="catalog-preview"><section id="dimensions" aria-labelledby="dimensions-title">
+    <h2 id="dimensions-title">Exact implementation values</h2>
+    <div class="panel table-wrap" style="margin-top:8px"><table>
+      <thead><tr><th scope="col">Part</th><th scope="col">Values for this template</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Icon-only control</th><td>35 × 35 px box, 8 px radius, 1 px border, centered glyph. Use the per-icon size in the catalogue.</td></tr>
+        <tr><th scope="row">Icon with label</th><td>35 px minimum height, 8 px radius, 1 px border, 6 px gap, 10 px horizontal padding. Label 13 px, weight 650, line-height 1.45. Text and icon share currentColor.</td></tr>
+        <tr><th scope="row">Type pill</th><td>Text only, 13 px and weight 700. Minimum height 26 px, radius 999 px, padding 1 px vertical and 11 px horizontal. Explanation uses <code>#EAF1FB</code> / <code>#375D92</code>. Interactive uses <code>#F8ECE3</code> / <code>#934723</code>.</td></tr>
+        <tr><th scope="row">Reference resize grip</th><td>26 × 26 px box, 7 px radius, 1 px transparent border at rest. Use card <code>#FFFEFA</code> with ink <code>#5D675F</code> at rest. Hover uses <code>#EAF1FB</code> and press or drag uses <code>#D0E0F4</code>, both with border <code>#ADC4E5</code> and ink <code>#375D92</code>. Glyph 14 × 14 px, stroke 1.4.</td></tr>
+        <tr><th scope="row">Keyboard focus</th><td>2 px solid <code>#426DB2</code>, outline offset +2 px. Resize grip offset −2 px.</td></tr>
+        <tr><th scope="row">Feedback and playback</th><td>Feedback uses the shared 35 × 35 px icon button with a 13 px glyph. Playback uses the shared labelled button with a 14 px glyph.</td></tr>
+        <tr><th scope="row">SVG paint</th><td>Stroke inherits currentColor. The default fill is none and caps and joins are round. Both feedback glyphs fill with blue ink <code>#375D92</code> when selected. Enabled surfaces and glyphs are opaque. Disabled controls use 45% opacity.</td></tr>
+        <tr><th scope="row">Accessible names</th><td>Give icon-only buttons an aria-label. Put aria-hidden on the icon when its button already supplies the name. Use aria-pressed for toggles and aria-expanded for disclosures.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="technical">The resizable card shell supplies the neutral surfaces and type colors. Shared controls use the blue palette for selection, focus, playback and filled primary actions. Warm orange is reserved for the Interactive pill and scene data accents. Runtime links document existing glyphs and their dimensions.</p>
+    <p class="footer-links"><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/3c62884697de2dda94956f7615d6b9149d367a25/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-resizable-card-shell.html">Resizable card shell</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/card-icons.js#L6-L24">Card-type registry</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/CardHeader.jsx#L20-L27">Header sizes</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/3c62884697de2dda94956f7615d6b9149d367a25/docs/features/explain-on-canvas/handoff/ui/07-explanation-card-approved.html">Approved Explanation UI</a></p>
+  </section>
+</div>
+
+
+</body></html>

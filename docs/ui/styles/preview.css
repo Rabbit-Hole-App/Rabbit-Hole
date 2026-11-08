@@ -1,0 +1,7 @@
+/* Documentation chrome only; do not import into the app. */
+.catalog-note { position:relative; margin:16px; padding:12px 16px; border:1px solid #adc4e5; border-radius:8px; background:#eaf1fb; color:#202723; font:14px/1.45 Inter,"Liberation Sans",Arial,sans-serif; }
+.catalog-note a { color:#375d92; text-decoration:underline; }
+.catalog-note p { margin:6px 0 0; }
+.catalog-preview { min-width:0; max-width:1120px; margin:24px auto; padding:0 16px 32px; }
+.catalog-preview > .specimen { max-width:800px; margin:auto; }
+.catalog-preview pre { overflow:auto; white-space:pre-wrap; }

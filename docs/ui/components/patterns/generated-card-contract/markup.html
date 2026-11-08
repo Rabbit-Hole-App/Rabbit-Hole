@@ -1,0 +1,74 @@
+<!--
+Reusable generated-card markup for the frame in ../07-explanation-card-approved.html.
+Use that reference's styles and the application's existing Canvas and Chat handlers.
+
+Clone generated-card-shell for each card. Fill kind, title, and any verified
+source label as text. Append the rendered artifact to answer in reading order.
+Assign unique IDs and wire aria-labelledby, aria-controls, and the input label
+before mounting. Reveal the optional source, suggestions, and follow-up action
+when that card supports them. Bind ports to the existing Canvas connector path.
+
+For an SVG, use a figure with a .diagram-surface, a bold .diagram-heading above
+the SVG, and a figcaption after the surface. Images and tables can occupy the
+same answer slot. Clone generated-card-suggestion for each suggested question.
+Bind its two actions to the current thread and linked-card paths respectively.
+-->
+<template id="generated-card-shell">
+  <div class="stage" data-generated-card>
+    <div class="card-wrap">
+      <article class="card explain-card" data-slot="card">
+        <header class="card-head">
+          <div class="grip" aria-hidden="true"><span></span></div>
+          <div class="card-meta">
+            <span class="kind" data-slot="kind"></span>
+            <span class="source" data-slot="source" hidden>
+              <svg class="icon" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Zm0 0v6h6M8 12h8m-8 4h5"/></svg>
+              <span class="source-name" data-slot="source-name"></span>
+              <span class="source-jump" data-action="view-passage" title="View passage">
+                <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2m10 0h2a1 1 0 0 1 1 1v2m0 10v2a1 1 0 0 1-1 1h-2m-10 0H5a1 1 0 0 1-1-1v-2M8 10h8m-8 4h5"/></svg>
+              </span>
+            </span>
+          </div>
+          <h3 class="card-title" data-slot="title"></h3>
+        </header>
+        <div class="reading" tabindex="0" role="region" aria-label="Scrollable card answer">
+          <div data-slot="answer"></div>
+          <div class="thread parent-thread" data-slot="thread" aria-label="Follow-up conversation"></div>
+          <ul class="suggestions" data-slot="suggestions" aria-label="Suggested next questions" hidden></ul>
+        </div>
+      </article>
+      <span class="connector connector-top" data-port="top" aria-hidden="true"></span>
+      <span class="connector connector-left" data-port="left" aria-hidden="true"></span>
+      <span class="connector connector-right" data-port="right" aria-hidden="true"></span>
+      <button class="follow-up-toggle" data-action="toggle-follow-up" type="button" title="Ask a follow-up" aria-label="Ask a follow-up" aria-expanded="false" hidden>
+        <span><svg class="icon" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+      </button>
+      <aside class="term-note" data-slot="term-note" hidden>
+        <strong data-slot="term-title"></strong>
+        <p data-slot="term-definition"></p>
+        <button class="primary-light" data-action="dig-rabbit-hole" type="button">Dig Rabbit Hole</button>
+      </aside>
+    </div>
+    <form class="composer" data-slot="composer" autocomplete="off" hidden>
+      <label class="sr-only">Ask a follow-up</label>
+      <input data-slot="follow-up" type="text" placeholder="Ask a follow-up…" required>
+      <button class="send" type="submit" aria-label="Send follow-up" disabled>
+        <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg>
+      </button>
+    </form>
+  </div>
+</template>
+
+<template id="generated-card-suggestion">
+  <li class="suggestion-row">
+    <span class="question-copy" data-slot="question"></span>
+    <span class="suggestion-actions">
+      <button class="suggestion-action" type="button" data-ask="here" title="Ask here" aria-label="Ask here">
+        <svg class="icon" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l1.7-3.2A7.5 7.5 0 1 1 20 11.5Z"/><path d="M9 11.5h7m-7 3h4"/></svg>
+      </button>
+      <button class="suggestion-action" type="button" data-ask="branch" title="Ask in a new card" aria-label="Ask in a new card">
+        <svg class="icon" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M6 8v8m0-3h5a7 7 0 0 0 7-5"/></svg>
+      </button>
+    </span>
+  </li>
+</template>

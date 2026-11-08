@@ -1,0 +1,26 @@
+{
+  "id": "patterns/standard-toss-drop-card",
+  "title": "Standard Toss Drop Card",
+  "category": "patterns",
+  "source": "https://chatgpt.com/library?file_id=libfile_6112489040548191a9e1b9519276fb63&account_id=personal",
+  "source_file": "standard-toss-drop-card.html",
+  "status": "behavior / workflow reference",
+  "styles": [
+    "standard-toss-drop-card"
+  ],
+  "scripts": [
+    "standard-toss-drop-card-0",
+    "standard-toss-drop-card-1",
+    "standard-toss-drop-card-2",
+    "standard-toss-drop-card-3"
+  ],
+  "implementation": [],
+  "notes": "Preserved supplied workflow or behavior fixture. Its styling is historical and must not override current shared tokens.",
+  "issues": [
+    "UI-05"
+  ],
+  "templates": [],
+  "keywords": [],
+  "path": "components/patterns/standard-toss-drop-card",
+  "paletteRole": "historical"
+}

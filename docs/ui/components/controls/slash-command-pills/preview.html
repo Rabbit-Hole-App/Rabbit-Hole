@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Slash-command pills · Rabbit Hole UI</title>
+<link rel="stylesheet" href="../../../styles/standards.css">
+<link rel="stylesheet" href="../../../foundations/palette.css">
+<link rel="stylesheet" href="../../../styles/preview.css"></head>
+<body data-ui-palette="shared"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html">Source</a><p>reference — Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.</p></div>
+<div class="catalog-preview"><article class="specimen" id="f-slash-pills">
+  <h3>Slash-command pills</h3>
+  <p class="muted">Use the text-only pill for the selected command. The slash spelling alongside each pill shows what the learner types. Blue identifies Tutor and Create actions, Claude red identifies Interactive, and filled neutral pills identify Search.</p>
+  <h4>Tutor</h4>
+  <ul class="command-group" aria-label="Tutor command pills">
+    <li><code>/explain</code> <span class="pill command">Explanation</span></li>
+    <li><code>/interactive</code> <span class="pill command interactive">Interactive</span></li>
+    <li><code>/practice</code> <span class="pill command">Practice</span></li>
+    <li><code>/quiz</code> <span class="pill command">Quiz</span></li>
+    <li><code>/flashcards</code> <span class="pill command">Flashcards</span></li>
+    <li><code>/goal</code> <span class="pill command">Learning goal</span></li>
+  </ul>
+  <h4>Create</h4>
+  <ul class="command-group" aria-label="Create command pills">
+    <li><code>/code</code> <span class="pill command">Code example</span></li>
+    <li><code>/graph</code> <span class="pill command">Graph</span></li>
+    <li><code>/diagram</code> <span class="pill command">Diagram</span></li>
+    <li><code>/notebook</code> <span class="pill command">Notebook</span></li>
+    <li><code>/image</code> <span class="pill command">Image generation</span></li>
+    <li><code>/motion</code> <span class="pill command">Animated explainer</span></li>
+    <li><code>/cad</code> <span class="pill command">CAD model</span></li>
+    <li><code>/animation</code> <span class="pill command">3D animation</span></li>
+    <li><code>/whiteboard</code> <span class="pill command">Whiteboard</span></li>
+    <li><code>/3d</code> <span class="pill command">3D scene</span></li>
+    <li><code>/browser</code> <span class="pill command">Browser</span></li>
+  </ul>
+  <h4>Search</h4>
+  <ul class="command-group" aria-label="Search command pills">
+    <li><code>/photos</code> <span class="pill command search">Photo search</span></li>
+    <li><code>/youtube</code> <span class="pill command search">YouTube search</span></li>
+    <li><code>/arxiv</code> <span class="pill command search">arXiv search</span></li>
+    <li><code>/wikipedia</code> <span class="pill command search">Wikipedia search</span></li>
+  </ul>
+  <p class="muted">Command availability follows the <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/agent/slash.js">command registry</a> and its feature flags. <code>/generate-image</code> and <code>/photo</code> reuse the pills for <code>/image</code> and <code>/photos</code>.</p>
+</article>
+</div>
+
+<script src="../../../scripts/standards.js"></script>
+</body></html>

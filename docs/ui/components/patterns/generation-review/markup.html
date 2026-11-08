@@ -1,0 +1,65 @@
+<!--
+Proposed Chat review for /interactive (internal command ID explain).
+The example SVG previews the plan. Generate and Edit represent the existing
+proposal actions. The presentation is a server-owned choice.
+Styling uses deployed main's dark surface, text, border and primary fill.
+-->
+
+
+
+<main class="chat" aria-label="Chat review">
+  <article class="review" aria-labelledby="review-title">
+    <header class="review-head">
+      <span class="kind">Interactive</span>
+      <h1 id="review-title">How max depth and min samples limit a decision tree's growth</h1>
+    </header>
+
+    <p>A decision tree sorts examples by asking yes-or-no questions. <strong>Max depth</strong> caps how many questions it can ask in a row.</p>
+
+    <figure class="preview" aria-labelledby="preview-heading">
+      <figcaption id="preview-heading">More questions make smaller groups</figcaption>
+      <div class="plot-labels" aria-hidden="true"><span>One question</span><span>Two questions in a row</span></div>
+      <svg class="diagram" viewBox="0 0 394 110" role="img" aria-labelledby="diagram-title diagram-description">
+        <title id="diagram-title">The same examples with two depth limits</title>
+        <desc id="diagram-description">One question divides the points into two groups. A second question on each side divides the same points into four smaller groups.</desc>
+        <defs>
+          <g id="example-points">
+            <circle class="blue-point" cx="17" cy="20" r="4"/>
+            <circle class="blue-point" cx="40" cy="29" r="4"/>
+            <circle class="blue-point" cx="65" cy="18" r="4"/>
+            <circle class="blue-point" cx="57" cy="43" r="4"/>
+            <circle class="blue-point" cx="120" cy="68" r="4"/>
+            <circle class="blue-point" cx="154" cy="87" r="4"/>
+            <rect class="coral-point" x="22" y="67" width="8" height="8" rx="1.5"/>
+            <rect class="coral-point" x="57" y="83" width="8" height="8" rx="1.5"/>
+            <rect class="coral-point" x="98" y="20" width="8" height="8" rx="1.5"/>
+            <rect class="coral-point" x="125" y="12" width="8" height="8" rx="1.5"/>
+            <rect class="coral-point" x="150" y="34" width="8" height="8" rx="1.5"/>
+            <rect class="coral-point" x="119" y="42" width="8" height="8" rx="1.5"/>
+          </g>
+        </defs>
+        <g transform="translate(3 3)">
+          <path class="region-blue" d="M0 0h88v104H0z"/>
+          <path class="region-coral" d="M88 0h88v104H88z"/>
+          <rect class="frame" width="176" height="104" rx="3"/>
+          <path class="split" d="M88 0v104"/>
+          <use href="#example-points"/>
+        </g>
+        <g transform="translate(215 3)">
+          <path class="region-blue" d="M0 0h88v54H0zm88 54h88v50H88z"/>
+          <path class="region-coral" d="M88 0h88v54H88zM0 54h88v50H0z"/>
+          <rect class="frame" width="176" height="104" rx="3"/>
+          <path class="split" d="M88 0v104M0 54h176"/>
+          <use href="#example-points"/>
+        </g>
+      </svg>
+    </figure>
+
+    <p><strong>Min samples</strong> is how many examples a group needs before the tree can split it again. Raise it and small groups stay together.</p>
+
+    <footer class="actions">
+      <button type="button" class="primary">Generate</button>
+      <button type="button">Edit</button>
+    </footer>
+  </article>
+</main>

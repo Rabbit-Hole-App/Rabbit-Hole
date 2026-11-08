@@ -1,0 +1,24 @@
+{
+  "id": "patterns/source-navigation",
+  "title": "Source Navigation",
+  "category": "patterns",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/05-markdown-source-links.html",
+  "source_file": "05-markdown-source-links.html",
+  "status": "behavior reference / older styling",
+  "styles": [
+    "legacy-source-navigation"
+  ],
+  "scripts": [
+    "legacy-source-navigation-0"
+  ],
+  "implementation": [
+    "packages/web/src/FileDocMarkdown.jsx",
+    "packages/web/src/LearningBlocks.jsx"
+  ],
+  "notes": "Bidirectional prose/code/SVG/image/table source links and local scrolling.",
+  "issues": [],
+  "templates": [],
+  "keywords": [],
+  "path": "components/patterns/source-navigation",
+  "paletteRole": "historical"
+}

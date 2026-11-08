@@ -1,0 +1,15 @@
+<article class="specimen" aria-labelledby="t-toc-title">
+  <div class="sample-row">
+    <h3 id="t-toc-title"><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ListTree"></use></svg> Table of contents</h3>
+    <button type="button" class="button secondary"><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Pencil"></use></svg>Edit roadmap</button>
+  </div>
+  <div class="sample-row"><label for="t-toc-progress">Roadmap completion</label><span class="status-text">1 of 4 complete</span></div>
+  <progress class="progress" id="t-toc-progress" max="4" value="1">1 of 4 complete</progress>
+  <ol class="toc-list" aria-label="Roadmap steps">
+    <li class="toc-row" data-status="complete"><label class="toc-completion"><input type="checkbox" aria-label="Mark What a tree does complete" checked><span class="toc-check" aria-hidden="true"><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Check"></use></svg></span></label><button type="button" class="button quiet toc-link">What a tree does</button><span class="status-text">Complete</span></li>
+    <li class="toc-row" data-status="active"><label class="toc-completion"><input type="checkbox" aria-label="Mark Choose the first split complete"><span class="toc-check" aria-hidden="true"><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Check"></use></svg></span></label><button type="button" class="button quiet toc-link" aria-current="step">Choose the first split</button><span class="status-text">Current</span></li>
+    <li class="toc-row" data-status="upcoming"><label class="toc-completion"><input type="checkbox" aria-label="Mark Read an impurity score complete"><span class="toc-check" aria-hidden="true"><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Check"></use></svg></span></label><button type="button" class="button quiet toc-link">Read an impurity score</button><span class="status-text">Upcoming</span></li>
+    <li class="toc-row" data-status="blocked"><label class="toc-completion"><input type="checkbox" aria-label="Mark Combine trees into a forest complete" disabled><span class="toc-check" aria-hidden="true"><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Check"></use></svg></span></label><button type="button" class="button quiet toc-link" disabled>Combine trees into a forest</button><span class="status-text">Blocked</span></li>
+  </ol>
+  <p class="muted">Use a 16 px completion mark in a 24 px target. The current-step ring is independent of completion.</p>
+</article>

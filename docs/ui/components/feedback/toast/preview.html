@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Toast notifications · Rabbit Hole UI</title>
+<link rel="stylesheet" href="../../../styles/standards.css">
+<link rel="stylesheet" href="../../../foundations/palette.css">
+<link rel="stylesheet" href="../../../styles/preview.css"></head>
+<body data-ui-palette="shared"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html">Source</a><p>reference — Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.</p></div>
+<div class="catalog-preview"><article class="specimen" id="o-toast">
+  <h3>Toast notifications</h3>
+  <p class="muted">Use this visual recipe for the current toast stack and any later Sonner mapping. Lead with the outcome and offer an action when it helps.</p>
+  <div class="toast" data-tone="success">
+    <svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-CircleCheck"></use></svg>
+    <div><strong>Moved to Trash</strong><p class="muted">The card can be restored.</p></div>
+    <button class="button quiet" type="button" data-open-toast="info" data-toast-message="Card restored.">Undo</button>
+    <button class="icon-button" type="button" aria-label="Dismiss success toast" data-dismiss-toast><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-X"></use></svg></button>
+  </div>
+  <div class="toast" data-tone="info">
+    <svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Info"></use></svg>
+    <div><strong>Link copied</strong><p class="muted">Share it with someone who has access.</p></div>
+    <button class="icon-button" type="button" aria-label="Dismiss info toast" data-dismiss-toast><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-X"></use></svg></button>
+  </div>
+  <div class="toast" data-tone="warning">
+    <svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-TriangleAlert"></use></svg>
+    <div><strong>Connection interrupted</strong><p class="muted">We’ll retry when you’re back online.</p></div>
+    <button class="icon-button" type="button" aria-label="Dismiss warning toast" data-dismiss-toast><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-X"></use></svg></button>
+  </div>
+  <div class="toast" data-tone="error">
+    <svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-CircleAlert"></use></svg>
+    <div><strong>Couldn’t save changes</strong><p class="muted">Your draft is still here.</p></div>
+    <button class="button quiet" type="button" data-open-toast="success" data-toast-message="Changes saved.">Retry</button>
+    <button class="icon-button" type="button" aria-label="Dismiss error toast" data-dismiss-toast><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-X"></use></svg></button>
+  </div>
+</article><div id="demo-toasts" class="toast-region" aria-live="polite" aria-label="Notifications"></div>
+</div>
+
+<script src="../../../scripts/standards.js"></script>
+</body></html>

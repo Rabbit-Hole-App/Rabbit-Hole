@@ -1,0 +1,6 @@
+/* Slot composition only. Palette roles remain in foundations/palette.css. */
+#example-cards > .teaching-card > .card-header { display:block; margin:0; }
+#example-cards > .teaching-card .card-top { margin-bottom:8px; }
+#example-cards > .teaching-card .card-copy { margin-top:0; }
+#example-cards > .teaching-card .card-controls { margin-top:10px; }
+#example-cards > .teaching-card .card-timeline:not(:empty) { margin-top:9px; }

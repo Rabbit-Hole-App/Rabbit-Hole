@@ -1,0 +1,14 @@
+{
+  "standalone_previews": 10,
+  "result": "PASS",
+  "components": 60,
+  "javascript_files": 37,
+  "errors": [],
+  "warnings": [
+    "patterns/card-lifecycle: script ID accept is dynamic or absent",
+    "patterns/card-lifecycle: script ID cancel is dynamic or absent",
+    "patterns/card-lifecycle: script ID cancelnext is dynamic or absent",
+    "patterns/card-lifecycle: script ID nextcard is dynamic or absent"
+  ],
+  "browser": "Not run; visual and interaction acceptance pending."
+}

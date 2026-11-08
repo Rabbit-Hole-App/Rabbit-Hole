@@ -1,0 +1,170 @@
+[
+  {
+    "file": "01-table-of-contents.html",
+    "path": "docs/features/explain-on-canvas/handoff/ui/01-table-of-contents.html",
+    "url": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/01-table-of-contents.html",
+    "status": "behavior reference / older styling",
+    "sha256": "00bc16062105eabf53838c43f9398b7087d03fbd38609a2b19549302a2d66b7f",
+    "bytes": 14414
+  },
+  {
+    "file": "02-canvas-card-skeleton.html",
+    "path": "docs/features/explain-on-canvas/handoff/ui/02-canvas-card-skeleton.html",
+    "url": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/02-canvas-card-skeleton.html",
+    "status": "behavior reference / older styling",
+    "sha256": "43cb718dd6d2c220b1ae24abc6731a50d86e0c51798ca004c9573a4a9d1b623b",
+    "bytes": 11287
+  },
+  {
+    "file": "03-chat-roadmap.html",
+    "path": "docs/features/explain-on-canvas/handoff/ui/03-chat-roadmap.html",
+    "url": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/03-chat-roadmap.html",
+    "status": "behavior reference / older styling",
+    "sha256": "19dcda9badcc0e1f3637b026b24b500d9ae7bb20f3577b50164de1b0607d2cc2",
+    "bytes": 25909
+  },
+  {
+    "file": "04-explanation-card.html",
+    "path": "docs/features/explain-on-canvas/handoff/ui/04-explanation-card.html",
+    "url": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/04-explanation-card.html",
+    "status": "behavior reference / older styling",
+    "sha256": "7332ce2dda3a4ba1f9d6c81cd4f5c252a1801c474d9e0cc6f193f780da025fe6",
+    "bytes": 9214
+  },
+  {
+    "file": "05-markdown-source-links.html",
+    "path": "docs/features/explain-on-canvas/handoff/ui/05-markdown-source-links.html",
+    "url": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/05-markdown-source-links.html",
+    "status": "behavior reference / older styling",
+    "sha256": "3095c1627bcd0a639b83866d1b8182f7180534f411617c0e99797191e060f31c",
+    "bytes": 27095
+  },
+  {
+    "file": "06-explanation-depth.html",
+    "path": "docs/features/explain-on-canvas/handoff/ui/06-explanation-depth.html",
+    "url": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/06-explanation-depth.html",
+    "status": "behavior reference / older styling",
+    "sha256": "e867057c88a2c97674f8355c831c403bfca8a05352101e8bf860a83cf916519a",
+    "bytes": 21347
+  },
+  {
+    "file": "07-explanation-card-approved.html",
+    "path": "docs/features/explain-on-canvas/handoff/ui/07-explanation-card-approved.html",
+    "url": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/07-explanation-card-approved.html",
+    "status": "behavior reference / older styling",
+    "sha256": "4e4f2e3aa674b0e3962f460c87e061f0a618a597cfc4a54503a814f4adbaed03",
+    "bytes": 73254
+  },
+  {
+    "file": "08-interactive-review.html",
+    "path": "docs/features/explain-on-canvas/handoff/ui/08-interactive-review.html",
+    "url": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/08-interactive-review.html",
+    "status": "behavior reference / older styling",
+    "sha256": "af40fd071827a0d8e5e7f41e4220ee99f5927435933ba82008d0f4d257b84501",
+    "bytes": 6123
+  },
+  {
+    "file": "generated-card-shell.html",
+    "path": "docs/features/explain-on-canvas/handoff/ui/templates/generated-card-shell.html",
+    "url": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/generated-card-shell.html",
+    "status": "behavior reference / older styling",
+    "sha256": "b7bd72ea4040e436cbe7c1aaaed54a7d3b1f9a08310b1ace3ccb163b75a3701f",
+    "bytes": 4646
+  },
+  {
+    "file": "generation-review-shell.html",
+    "path": "docs/features/explain-on-canvas/handoff/ui/templates/generation-review-shell.html",
+    "url": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/generation-review-shell.html",
+    "status": "behavior reference / older styling",
+    "sha256": "a949d17858c3991843f235ccc7d79100ad62c350ed30edba8ea7b88175fcab34",
+    "bytes": 1530
+  },
+  {
+    "file": "rabbit-hole-card-component-kit.html",
+    "path": "docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+    "url": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+    "status": "current visual reference",
+    "sha256": "4f59e9746efa594bd9286d25edaf4b5d54ab73471e29619521bdb255ff3078d3",
+    "bytes": 35695
+  },
+  {
+    "file": "rabbit-hole-card-icon-template.html",
+    "path": "docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-icon-template.html",
+    "url": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-icon-template.html",
+    "status": "current visual reference",
+    "sha256": "1f314d83d1221218de81cd476bceb32288eb1e9433d9655c71f4abc8eaadc970",
+    "bytes": 74249
+  },
+  {
+    "file": "rabbit-hole-interface-component-standards.html",
+    "path": "docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+    "url": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+    "status": "current visual reference",
+    "sha256": "512f9e0328789265c3ea1bde3a87acec06838ec6b86224d751d33efc4f298717",
+    "bytes": 117311
+  },
+  {
+    "file": "rabbit-hole-resizable-card-shell.html",
+    "path": "docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-resizable-card-shell.html",
+    "url": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-resizable-card-shell.html",
+    "status": "current visual reference",
+    "sha256": "dfeb23a9dd3b33239d1be1a46168ef5fa3cb3c24428c087489bf0cc8f621b53d",
+    "bytes": 62702
+  },
+  {
+    "file": "rabbit-hole-source-header-and-chat-composer.html",
+    "path": "docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-source-header-and-chat-composer.html",
+    "url": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-source-header-and-chat-composer.html",
+    "status": "current visual reference",
+    "sha256": "f2d933c0f2be5edc0151b7e84ee71c1776fb8a6da4158b57004214bdc73332dd",
+    "bytes": 30500
+  },
+  {
+    "file": "decision-tree-card-templates.html",
+    "path": "Library: decision-tree-card-templates.html",
+    "url": "https://chatgpt.com/library?file_id=libfile_edf2b2ff0b848191aeb0e31030b10417&account_id=personal",
+    "status": "alias of resizable shell",
+    "sha256": "387dfa5897f45290cd2fff5055be86993181ecb7f9e23b94f552414e9bd850ab",
+    "bytes": 62701
+  },
+  {
+    "file": "interact-complete-workflow.html",
+    "path": "Library: interact-complete-workflow.html",
+    "url": "https://chatgpt.com/library?file_id=libfile_b50bb8c5a890819180a2be40f8547931&account_id=personal",
+    "status": "behavior / workflow reference",
+    "sha256": "8195bd0acf6710a1e0157cf17a306946e1e1a7339ac24891f02bde3ba1f15e77",
+    "bytes": 12650
+  },
+  {
+    "file": "interactive-card-composition-workflow.html",
+    "path": "Library: interactive-card-composition-workflow.html",
+    "url": "https://chatgpt.com/library?file_id=libfile_da441ff3913c819198ccb93f1f3063ba&account_id=personal",
+    "status": "behavior / workflow reference",
+    "sha256": "7d39ffd817ebd1d18b8c171c70543f02988b431d41ec655a5d6199bb1b1d7055",
+    "bytes": 4643
+  },
+  {
+    "file": "standard-toss-drop-card.html",
+    "path": "Library: standard-toss-drop-card.html",
+    "url": "https://chatgpt.com/library?file_id=libfile_6112489040548191a9e1b9519276fb63&account_id=personal",
+    "status": "behavior / workflow reference",
+    "sha256": "732d3c538ac51d96e3e45d9dbcddf84040c9de95e9f645c3b3918d41fc328354",
+    "bytes": 68072
+  },
+  {
+    "file": "rabbit-hole-card-component-kit.html @ ca0affe",
+    "path": "Original GitHub commit",
+    "url": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/ca0affecfb39caf6790f4b2636f1ed3c2dd90800/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html",
+    "status": "owner-selected color reference / older geometry",
+    "sha256": "4c4d4bc200f3f9d131d12b9a5d764d9b938dffe9e9cad5e864cd96f2a4440311",
+    "bytes": 33625
+  },
+  {
+    "file": "rabbit-hole-card-component-kit (1).html",
+    "path": "Attached file",
+    "url": "https://chatgpt.com/library?file_id=libfile_eb2106f407448191bfd65be9cea9eaa0&account_id=personal",
+    "status": "alias of original ca0affe kit; trailing whitespace only",
+    "sha256": "ecb45ee33beb6ea4ce6842064b95f60deb83a07f51c512148ea175d11c2058f8",
+    "bytes": 33624
+  }
+]

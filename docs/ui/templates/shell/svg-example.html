@@ -1,0 +1,54 @@
+<template id="svg-example">
+<svg class="loan-tree" xmlns="http://www.w3.org/2000/svg" viewbox="0 0 540 190" role="img" aria-label="Loan decision tree">
+  <title>Loan decision tree</title>
+  <desc>The age check routes younger applicants to an income check and older applicants to a credit score check. Each check ends in approval or denial.</desc>
+  <rect class="tree-background" x="1" y="1" width="538" height="188" rx="10" fill="#f6f8f4" stroke="#e3e7e0"></rect>
+  <g fill="none" stroke="#b9c3b9" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path class="branch" data-route="root" d="M270 42 V51"></path>
+    <path class="branch" data-route="young" d="M270 51 H141 V69 M141 104 V119"></path>
+    <path class="branch" data-route="older" d="M270 51 H399 V69 M399 104 V119"></path>
+    <path class="branch" data-route="young-approve" d="M141 119 H78 V138"></path>
+    <path class="branch" data-route="young-deny" d="M141 119 H205 V138"></path>
+    <path class="branch" data-route="older-approve" d="M399 119 H336 V138"></path>
+    <path class="branch" data-route="older-deny" d="M399 119 H462 V138"></path>
+  </g>
+  <g fill="#5d675f" font-size="13" font-weight="650">
+    <text class="edge-label" data-route="young" x="151" y="65">Yes</text>
+    <text class="edge-label" data-route="older" x="366" y="65">No</text>
+    <text class="edge-label" data-route="young-approve" x="86" y="134">Yes</text>
+    <text class="edge-label" data-route="young-deny" x="171" y="134">No</text>
+    <text class="edge-label" data-route="older-approve" x="343" y="134">Yes</text>
+    <text class="edge-label" data-route="older-deny" x="429" y="134">No</text>
+  </g>
+  <g font-size="14" font-weight="650" text-anchor="middle">
+    <g class="tree-node" data-route="root">
+      <rect x="199" y="10" width="142" height="32" rx="9" fill="#fff" stroke="#e3e7e0"></rect>
+      <text x="270" y="31" fill="#202723" font-size="15">Age &lt; 30?</text>
+    </g>
+    <g class="tree-node" data-route="young">
+      <rect x="67" y="69" width="148" height="35" rx="9" fill="#fff" stroke="#e3e7e0"></rect>
+      <text x="141" y="91.5" fill="#202723">Income &gt; $50k?</text>
+    </g>
+    <g class="tree-node" data-route="older">
+      <rect x="324" y="69" width="150" height="35" rx="9" fill="#fff" stroke="#e3e7e0"></rect>
+      <text x="399" y="91.5" fill="#202723">Credit score &gt; 700?</text>
+    </g>
+    <g class="tree-node" data-route="young-approve">
+      <rect x="35" y="138" width="86" height="33" rx="9" fill="#fff" stroke="#e3e7e0"></rect>
+      <text x="78" y="159.5" fill="#5d675f">Approve</text>
+    </g>
+    <g class="tree-node" data-route="young-deny">
+      <rect x="162" y="138" width="86" height="33" rx="9" fill="#fff" stroke="#e3e7e0"></rect>
+      <text x="205" y="159.5" fill="#5d675f">Deny</text>
+    </g>
+    <g class="tree-node" data-route="older-approve">
+      <rect x="293" y="138" width="86" height="33" rx="9" fill="#fff" stroke="#e3e7e0"></rect>
+      <text x="336" y="159.5" fill="#5d675f">Approve</text>
+    </g>
+    <g class="tree-node" data-route="older-deny">
+      <rect x="419" y="138" width="86" height="33" rx="9" fill="#fff" stroke="#e3e7e0"></rect>
+      <text x="462" y="159.5" fill="#5d675f">Deny</text>
+    </g>
+  </g>
+</svg>
+  </template>

@@ -1,0 +1,23 @@
+{
+  "id": "controls/range-switch-checkbox",
+  "title": "Sliders, switches and checkboxes",
+  "category": "controls",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html",
+  "source_file": "rabbit-hole-interface-component-standards.html",
+  "status": "reference",
+  "styles": [
+    "standards"
+  ],
+  "scripts": [
+    "standards"
+  ],
+  "implementation": [
+    "packages/web/src/explain-program/ProgramScene.jsx"
+  ],
+  "notes": "Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.",
+  "issues": [],
+  "templates": [],
+  "keywords": [],
+  "path": "components/controls/range-switch-checkbox",
+  "paletteRole": "shared"
+}

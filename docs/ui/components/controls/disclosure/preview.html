@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Secondary settings · Rabbit Hole UI</title>
+<link rel="stylesheet" href="../../../styles/control-kit.css">
+<link rel="stylesheet" href="../../../foundations/palette.css">
+<link rel="stylesheet" href="../../../styles/preview.css"></head>
+<body data-ui-palette="shared"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html">Source</a><p>Register first — Group optional settings behind one disclosure, with a cue when a setting differs from its default. Renderer registration and persistence are separate from this HTML demo.</p></div>
+<div class="catalog-preview"><div id="control-catalog"></div>
+</div>
+<template id="card-template">
+  <article class="card"><header class="card-header"><span class="badge" data-slot="pill"></span><span class="slot-tag" data-slot="mode"></span></header>
+  <h3 data-slot="title"></h3><div class="card-copy"><p data-slot="concept"></p><p data-slot="instruction" hidden></p></div>
+  <p class="why" data-slot="why" hidden><strong>Why</strong><span data-slot="reason"></span></p>
+  <figure class="scene" data-slot="scene"></figure><div class="card-timeline" data-slot="timeline"></div><div class="card-controls" data-slot="controls" hidden></div></article>
+</template>
+<template id="range-template"><div class="control-row"><label class="control-label"></label><input type="range"><output class="value"></output></div></template>
+<template id="choice-template"><fieldset class="selector"><legend class="sr-only"></legend><span class="control-label" aria-hidden="true"></span><div class="choice-list"></div></fieldset></template>
+<template id="option-template"><label class="choice"><input class="sr-only" type="radio"><span class="choice-text"></span></label></template>
+<template id="button-template"><button type="button" class="button"></button></template>
+<template id="timeline-template"><div class="transport"><button type="button" class="button" data-play></button><input type="range" aria-label="Timeline"><output class="value" aria-label="Current time"></output></div></template>
+<template id="select-template"><label class="select-row"><span class="control-label"></span><select></select></label></template>
+<template id="toggle-template"><label class="toggle"><span class="control-label"></span><input type="checkbox" class="sr-only" role="switch"><span class="toggle-track" aria-hidden="true"></span></label></template>
+<template id="stepper-template"><div class="select-row"><label class="control-label"></label><div class="stepper"><button type="button" class="button secondary" aria-label="Decrease">−</button><input type="number"><button type="button" class="button secondary" aria-label="Increase">+</button></div></div></template>
+<template id="index-template"><div class="index-row"><button type="button" class="button secondary" aria-label="Previous stage">Previous</button><output class="status" aria-live="polite"></output><button type="button" class="button secondary" aria-label="Next stage">Next</button></div></template>
+<template id="disclosure-template"><details class="settings"><summary>More settings <span class="status" hidden>· changed</span></summary><div class="settings-body"></div></details></template>
+<template id="readout-template"><output class="readout"><span></span><strong></strong></output></template>
+<template id="sample-template"><article class="sample"><span class="availability"></span><h3></h3><p></p><div data-mount></div></article></template>
+<script src="../../../scripts/control-kit.js"></script>
+<script src="../../../scripts/control-disclosure.js"></script>
+</body></html>

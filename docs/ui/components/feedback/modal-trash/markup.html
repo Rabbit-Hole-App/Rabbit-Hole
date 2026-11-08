@@ -1,0 +1,20 @@
+<article class="specimen" id="o-modal">
+  <h3>Modal and trash confirmation</h3>
+  <p class="muted">Use a title, a short consequence, and two clear actions. Place initial focus on Cancel for a destructive confirmation.</p>
+  <div class="sample-row">
+    <button class="button danger" type="button" data-open-dialog="o-trash-dialog"><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Trash2"></use></svg>Preview confirmation</button>
+  </div>
+  <dialog class="dialog" id="o-trash-dialog" aria-labelledby="o-trash-title" aria-describedby="o-trash-description">
+    <div class="sample-row">
+      <h3 id="o-trash-title">Move card to Trash?</h3>
+      <button class="icon-button" type="button" aria-label="Close dialog" data-close-dialog="o-trash-dialog"><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-X"></use></svg></button>
+    </div>
+    <p class="muted" id="o-trash-description">The card will be removed from the canvas. You can restore it from Trash.</p>
+    <form method="dialog" class="sample-row">
+      <button class="button secondary" value="cancel" autofocus>Cancel</button>
+      <button class="button danger" value="confirm" data-open-toast="success" data-toast-message="Card moved to Trash."><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Trash2"></use></svg>Move to Trash</button>
+    </form>
+  </dialog>
+</article>
+
+<div id="demo-toasts" class="toast-region" aria-live="polite" aria-label="Notifications"></div>

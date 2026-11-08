@@ -1,0 +1,26 @@
+<article class="specimen" id="o-toast">
+  <h3>Toast notifications</h3>
+  <p class="muted">Use this visual recipe for the current toast stack and any later Sonner mapping. Lead with the outcome and offer an action when it helps.</p>
+  <div class="toast" data-tone="success">
+    <svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-CircleCheck"></use></svg>
+    <div><strong>Moved to Trash</strong><p class="muted">The card can be restored.</p></div>
+    <button class="button quiet" type="button" data-open-toast="info" data-toast-message="Card restored.">Undo</button>
+    <button class="icon-button" type="button" aria-label="Dismiss success toast" data-dismiss-toast><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-X"></use></svg></button>
+  </div>
+  <div class="toast" data-tone="info">
+    <svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Info"></use></svg>
+    <div><strong>Link copied</strong><p class="muted">Share it with someone who has access.</p></div>
+    <button class="icon-button" type="button" aria-label="Dismiss info toast" data-dismiss-toast><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-X"></use></svg></button>
+  </div>
+  <div class="toast" data-tone="warning">
+    <svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-TriangleAlert"></use></svg>
+    <div><strong>Connection interrupted</strong><p class="muted">We’ll retry when you’re back online.</p></div>
+    <button class="icon-button" type="button" aria-label="Dismiss warning toast" data-dismiss-toast><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-X"></use></svg></button>
+  </div>
+  <div class="toast" data-tone="error">
+    <svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-CircleAlert"></use></svg>
+    <div><strong>Couldn’t save changes</strong><p class="muted">Your draft is still here.</p></div>
+    <button class="button quiet" type="button" data-open-toast="success" data-toast-message="Changes saved.">Retry</button>
+    <button class="icon-button" type="button" aria-label="Dismiss error toast" data-dismiss-toast><svg class="icon" viewbox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-X"></use></svg></button>
+  </div>
+</article><div id="demo-toasts" class="toast-region" aria-live="polite" aria-label="Notifications"></div>

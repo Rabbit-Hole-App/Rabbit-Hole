@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Card Lifecycle · Rabbit Hole UI</title>
+<link rel="stylesheet" href="../../../styles/legacy-card-lifecycle.css">
+<link rel="stylesheet" href="../../../foundations/palette.css">
+<link rel="stylesheet" href="../../../styles/preview.css"></head>
+<body data-ui-palette="historical"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/02-canvas-card-skeleton.html">Source</a><p>behavior reference / older styling — Pending, accept/cancel, generating, delivery, next proposal and source jump.</p></div>
+<div class="catalog-preview"><!-- Visual reference, not connected to Rabbit Hole. Reuses SlotCard's frame, 24px drag strip,
+12px radius, 16px padding and StepPill's 28px Accept [Tab] | Cancel, 8px beneath the frame.
+The same card remains mounted throughout pending → generating → delivered.
+Next card | Cancel is anchored to the bottom center of the canvas viewport, outside the scrolling card layout. Cancel dismisses the next-card offer and preserves delivered cards.
+Preview buttons in the top header are demo controls only. -->
+<header><strong>Rabbit Hole <span> / Canvas UI preview</span></strong><div class="preview-tools"><button id="preview">Show Next card state</button><button id="reset">Reset</button></div></header>
+<main class="canvas"><div class="board"><article class="card" id="source"><div class="handle"></div><div class="document"><div class="filename">Decision Trees.md</div><h1>Decision trees &amp; random forests</h1><p>A decision tree turns a prediction problem into a series of simple questions. Each question divides the examples into smaller groups.</p><h2>How a split is chosen</h2><p id="passage"><span class="highlight">A split is useful when it creates child groups that are more homogeneous than the parent group.</span><button class="jump" id="jump" aria-label="Go to card" title="Go to card">↗</button></p><p>The tree compares candidate features and thresholds, then chooses the split that most reduces impurity. This process repeats until a stopping rule is reached.</p><h2>Why use a forest?</h2><p>A single tree can change a lot when its training examples change. A forest combines trees trained with randomness, reducing the variance of their combined prediction.</p><h2>Feature importance</h2><p>Importance describes how a model used its inputs. It does not establish that a feature causes an outcome.</p></div></article>
+<section class="aside" aria-label="Roadmap card"><article class="card" id="slot"><div class="handle"></div><div class="slot-body" id="content"></div></article><div id="actions"></div></section></div></main><div id="next" aria-label="Next card controls"></div><div id="announcement" aria-live="polite"></div>
+</div>
+
+<script src="../../../scripts/legacy-card-lifecycle-0.js"></script>
+</body></html>

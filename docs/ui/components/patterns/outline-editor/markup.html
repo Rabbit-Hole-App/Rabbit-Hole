@@ -1,0 +1,43 @@
+<!--
+MOCKUP ONLY. Existing UI checked against main 72d6536657af269bb894511220975fd2254246ed.
+Updated from the supplied tutor-unified-toc(2).html; this is the Table of contents only.
+Reuse TableOfContents.jsx and learn-outline-model.js: outlineTree, H1/H2/H3,
+descriptions, manual Circle checkboxes, fold controls and onShow navigation.
+Retain the existing panel header, typography, colors, numbering and tree spacing.
+Show only the accepted roadmap tree here. Parameters, draft review, roadmap acceptance,
+roadmap editing, ending and the Tutor conversation belong in Chat.
+One flex:1/min-height:0/overflow-y:auto tree body; no split panel or conversation footer.
+Mockup panel width 480px; production retains ResizableSidePanel and saved learner width.
+Manual completion does not imply delivery or assessed understanding.
+HTML is a visual reference, not an application implementation or a live canvas connection.
+-->
+
+
+
+<div class="demo">
+ <div class="demo-caption"><span>Unified ToC · proposed UI</span><span>One tree · one scroll area</span></div>
+ <aside class="panel" aria-label="Table of contents mockup">
+  <nav class="panel-header" aria-label="Existing panel header">
+   <div class="tabs">
+    <button class="icon" title="Chat" aria-label="Chat (visual reference)"><svg viewBox="0 0 24 24"><path d="M21 15a3 3 0 0 1-3 3H7l-4 3V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/><path d="M7 7h10M7 11h7"/></svg></button>
+    <button class="icon" title="Find" aria-label="Find (visual reference)"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/></svg></button>
+    <button class="icon active" title="Table of contents" aria-label="Table of contents" aria-current="page"><svg viewBox="0 0 24 24"><path d="M12 5c-3-2-6-2-9-1v15c3-1 6-1 9 1 3-2 6-2 9-1V4c-3-1-6-1-9 1v15"/></svg></button>
+    <button class="icon" title="Comments" aria-label="Comments (visual reference)"><svg viewBox="0 0 24 24"><path d="M21 11a9 9 0 0 1-13 8l-6 2 2-6A9 9 0 1 1 21 11Z"/></svg></button>
+    <button class="icon" title="Progress" aria-label="Progress (visual reference)"><svg viewBox="0 0 24 24"><path d="M3 3v18h18M7 16v-4M12 16V7M17 16V4"/></svg></button>
+   </div>
+   <div class="utilities">
+    <button class="icon" title="Context" aria-label="Context (visual reference)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></button>
+    <button class="icon pinned" title="Keep sidebar open" aria-label="Keep sidebar open (visual reference)"><svg viewBox="0 0 24 24"><path d="M8 3h8l-1 7 4 4v2H5v-2l4-4-1-7ZM12 16v6"/></svg></button>
+    <button class="icon" title="Close sidebar" aria-label="Close sidebar (visual reference)"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+   </div>
+  </nav>
+  <div class="toc-header">
+   <h1>Table of contents</h1>
+   <div class="heading-tools" aria-label="Existing section tools"><span aria-hidden="true">+</span><button data-add="1" title="Add section" aria-label="Add section">H<sub>1</sub></button><button data-add="2" title="Add sub-section" aria-label="Add sub-section">H<sub>2</sub></button><button data-add="3" title="Add sub-sub-section" aria-label="Add sub-sub-section">H<sub>3</sub></button></div>
+  </div>
+  <div class="toc-scroll" id="toc-scroll">
+   <ol class="tree" id="tree"></ol>
+  </div>
+  <div class="sr-only" aria-live="polite" id="announcement"></div>
+ </aside>
+</div>

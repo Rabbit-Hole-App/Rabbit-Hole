@@ -1,0 +1,1 @@
+  sample('select', 'Register first', 'Dropdown', 'Use for longer labels or when too many segments would crowd the card.', dropdown('Feature', [['age','Applicant age'],['income','Annual income'],['credit','Credit score'],['history','Payment history']]));

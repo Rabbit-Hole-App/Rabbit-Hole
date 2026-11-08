@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sliders, switches and checkboxes · Rabbit Hole UI</title>
+<link rel="stylesheet" href="../../../styles/standards.css">
+<link rel="stylesheet" href="../../../foundations/palette.css">
+<link rel="stylesheet" href="../../../styles/preview.css"></head>
+<body data-ui-palette="shared"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-interface-component-standards.html">Source</a><p>reference — Extracted specimen; browser rendering unverified. Read the source review before adopting its CSS.</p></div>
+<div class="catalog-preview"><article class="specimen" id="f-range">
+  <h3>Sliders, switches and checkboxes</h3>
+  <p class="muted">Use a slider for a range, a switch for an immediate setting, and checkboxes for independent choices.</p>
+  <div class="sample-row">
+    <label class="field" for="f-size">Preview size <input class="control" id="f-size" type="range" min="1" max="5" step="1" value="3" aria-describedby="f-size-help"></label>
+    <output class="status-text" for="f-size" data-range-output>3 of 5</output><span class="muted" id="f-size-help">Small to large</span>
+  </div>
+  <div class="sample-row" role="group" aria-label="Switch examples">
+    <label class="switch" for="f-auto"><input id="f-auto" type="checkbox" role="switch" checked><span>Auto</span></label>
+    <label class="switch" for="f-grid"><input id="f-grid" type="checkbox" role="switch"><span>Show grid</span></label>
+    <label class="switch" for="f-switch-disabled"><input id="f-switch-disabled" type="checkbox" role="switch" disabled><span>Disabled</span></label>
+  </div>
+  <div class="sample-row" role="group" aria-label="Checkbox examples">
+    <label class="checkbox" for="f-check-star"><input id="f-check-star" type="checkbox" checked><span>Starred</span></label>
+    <label class="checkbox" for="f-check-archive"><input id="f-check-archive" type="checkbox"><span>Archived</span></label>
+    <label class="checkbox" for="f-check-disabled"><input id="f-check-disabled" type="checkbox" checked disabled><span>Disabled</span></label>
+  </div>
+</article>
+</div>
+
+<script src="../../../scripts/standards.js"></script>
+</body></html>

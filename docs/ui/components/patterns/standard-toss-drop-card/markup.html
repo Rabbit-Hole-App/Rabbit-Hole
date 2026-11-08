@@ -1,0 +1,339 @@
+<main class="page" aria-labelledby="page-title"><header class="page-head"><span class="product">Rabbit Hole</span><h1 id="page-title">Explanation cards</h1></header><div class="examples"><section class="example" aria-labelledby="overview-label"><h2 class="example-title" id="overview-label">Overview · Static</h2><div id="mount-overview"></div></section>
+<section class="example" aria-labelledby="standard-label"><h2 class="example-title" id="standard-label">Standard · Over time</h2><div id="mount-standard"></div></section>
+<section class="example" aria-labelledby="deep-label"><h2 class="example-title" id="deep-label">Deep · Interact</h2><div id="mount-deep"></div></section></div></main>
+<!--
+Reusable generated-card markup for the frame in ../07-explanation-card-approved.html.
+Use that reference's styles and the application's existing Canvas and Chat handlers.
+
+Clone generated-card-shell for each card. Fill kind, title, and any verified
+source label as text. Append the rendered artifact to answer in reading order.
+Assign unique IDs and wire aria-labelledby, aria-controls, and the input label
+before mounting. Reveal the optional source, suggestions, and follow-up action
+when that card supports them. Bind ports to the existing Canvas connector path.
+
+For an interactive SVG, place the explanation above the figure and the controls
+directly below the live view. Images and tables can occupy the same answer slot.
+Clone generated-card-suggestion for each suggested question.
+Bind its two actions to the current thread and linked-card paths respectively.
+-->
+<template id="generated-card-shell">
+  <div class="stage" data-generated-card>
+    <div class="card-wrap">
+      <article class="card explain-card" data-slot="card">
+        <header class="card-head">
+          <div class="grip" aria-hidden="true"><span></span></div>
+          <div class="card-meta">
+            <span class="kind" data-slot="kind"></span>
+            <span class="source" data-slot="source" hidden>
+              <svg class="icon" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Zm0 0v6h6M8 12h8m-8 4h5"/></svg>
+              <span class="source-name" data-slot="source-name"></span>
+              <span class="source-jump" data-action="view-passage" title="View passage">
+                <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2m10 0h2a1 1 0 0 1 1 1v2m0 10v2a1 1 0 0 1-1 1h-2m-10 0H5a1 1 0 0 1-1-1v-2M8 10h8m-8 4h5"/></svg>
+              </span>
+            </span>
+          </div>
+          <h3 class="card-title" data-slot="title"></h3>
+        </header>
+        <div class="reading" tabindex="0" role="region" aria-label="Scrollable card answer">
+          <div data-slot="answer"></div>
+          <div class="thread parent-thread" data-slot="thread" aria-label="Follow-up conversation"></div>
+          <ul class="suggestions" data-slot="suggestions" aria-label="Suggested next questions" hidden></ul>
+        </div>
+      </article>
+      <span class="connector connector-top" data-port="top" aria-hidden="true"></span>
+      <span class="connector connector-left" data-port="left" aria-hidden="true"></span>
+      <span class="connector connector-right" data-port="right" aria-hidden="true"></span>
+      <button class="follow-up-toggle" data-action="toggle-follow-up" type="button" title="Ask a follow-up" aria-label="Ask a follow-up" aria-expanded="false" hidden>
+        <span><svg class="icon" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+      </button>
+      <aside class="term-note" data-slot="term-note" hidden>
+        <strong data-slot="term-title"></strong>
+        <p data-slot="term-definition"></p>
+        <button class="primary-light" data-action="dig-rabbit-hole" type="button">Dig Rabbit Hole</button>
+      </aside>
+    </div>
+    <form class="composer" data-slot="composer" autocomplete="off" hidden>
+      <label class="sr-only">Ask a follow-up</label>
+      <input data-slot="follow-up" type="text" placeholder="Ask a follow-up…" required>
+      <button class="send" type="submit" aria-label="Send follow-up" disabled>
+        <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg>
+      </button>
+    </form>
+  </div>
+</template>
+
+<template id="generated-card-suggestion">
+  <li class="suggestion-row">
+    <span class="question-copy" data-slot="question"></span>
+    <span class="suggestion-actions">
+      <button class="suggestion-action" type="button" data-ask="here" title="Ask here" aria-label="Ask here">
+        <svg class="icon" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l1.7-3.2A7.5 7.5 0 1 1 20 11.5Z"/><path d="M9 11.5h7m-7 3h4"/></svg>
+      </button>
+      <button class="suggestion-action" type="button" data-ask="branch" title="Ask in a new card" aria-label="Ask in a new card">
+        <svg class="icon" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M6 8v8m0-3h5a7 7 0 0 0 7-5"/></svg>
+      </button>
+    </span>
+  </li>
+</template>
+
+<template id="linked-card-shell"><article class="card linked-card" aria-labelledby="diagram-branch-title" hidden>
+          <span class="connector connector-top" data-port="top" data-linked aria-hidden="true"></span>
+          <span class="connector connector-left" data-port="left" aria-hidden="true"></span>
+          <span class="connector connector-right" data-port="right" aria-hidden="true"></span>
+          <header class="card-head">
+            <div class="grip" aria-hidden="true"><span></span></div>
+            <span class="kind">Explanation</span>
+            <h3 class="card-title" id="diagram-branch-title" tabindex="-1"></h3>
+          </header>
+          <div class="reading">
+            <div class="thread" aria-label="Branch conversation"></div>
+          </div>
+        </article></template>
+<template id="scene-content-overview"><div class="toss-drop-scene"><p class="intro">At the top of a toss, the ball’s velocity is zero for an instant and gravity still accelerates it downward. Compare that moment with a ball just released from rest.</p>
+      <figure class="scene-figure"><div class="diagram-surface"><h4 class="diagram-heading">Two starting points</h4><div class="experiment" role="group" aria-label="Two still comparisons of a toss and a drop">
+        <svg class="extra-svg" viewBox="0 0 620 306" role="img" aria-labelledby="overview-plot-title overview-plot-description">
+          <title id="overview-plot-title">The top of a toss and a release from rest</title>
+          <desc id="overview-plot-description">Both balls have zero velocity at the same starting height while gravity pulls down. One tenth of a second later, both have fallen 4.9 centimetres.</desc>
+          <text class="plot-heading" x="178" y="26" text-anchor="middle">Top of the toss</text>
+          <text class="plot-heading" x="439" y="26" text-anchor="middle">Just released</text>
+          <rect class="moment-panel" x="14" y="42" width="592" height="115" rx="10"></rect>
+          <text class="plot-label" x="29" y="66">At that instant</text>
+          <path class="guide" d="M29 104H591"></path>
+          <path class="lane-axis" d="M178 119V143M168 143H188"></path>
+          <path class="gate" transform="translate(439 104)" d="M-34-15V7Q-34 12-29 12H-22M34-15V7Q34 12 29 12H22"></path>
+          <use href="#tennis-ball" x="163" y="89" width="30" height="30"></use><use href="#tennis-ball" x="424" y="89" width="30" height="30"></use>
+          <line class="acceleration" x1="211" x2="211" y1="104" y2="133" marker-end="url(#acceleration-tip)"></line><line class="acceleration" x1="477" x2="477" y1="104" y2="133" marker-end="url(#acceleration-tip)"></line>
+          <text class="plot-velocity" x="151" y="97" text-anchor="end">Velocity 0</text>
+          <text class="plot-velocity" x="399" y="97" text-anchor="end">Velocity 0</text>
+          <text class="plot-force" x="221" y="125">Earth’s pull</text>
+          <text class="plot-force" x="487" y="125">Earth’s pull</text>
+          <rect class="moment-panel" x="14" y="168" width="592" height="125" rx="10"></rect>
+          <text class="plot-label" x="29" y="191">0.10 s later</text>
+          <path class="guide" d="M29 219H591"></path>
+          <circle class="ghost-ball" cx="178" cy="219" r="13"></circle>
+          <circle class="ghost-ball" cx="439" cy="219" r="13"></circle>
+          <use href="#tennis-ball" x="163" y="234" width="30" height="30"></use><use href="#tennis-ball" x="424" y="234" width="30" height="30"></use>
+          <path class="interval" d="M219 219H227V249H219M480 219H488V249H480"></path>
+          <text class="plot-label" x="235" y="239">4.9 cm</text>
+          <text class="plot-label" x="496" y="239">4.9 cm</text>
+          <text class="plot-label" x="310" y="278" text-anchor="middle">Now moving down</text>
+        </svg>
+        
+      </div></div></figure></div></template>
+<template id="scene-content-standard"><div class="toss-drop-scene"><p class="intro">At <strong>0 s</strong>, the tossed ball reaches its highest point and the second ball is released at the same height. Both have zero velocity at that instant and begin to fall together.</p>
+
+    <figure class="scene-figure"><div class="diagram-surface"><h4 class="diagram-heading">Toss and drop</h4><div class="experiment" role="group" aria-label="A vertical toss and a drop from rest">
+      <div class="snapshot-heading">
+        <h2>Three moments around the top</h2>
+        <span>Up is positive</span>
+      </div>
+      <svg class="moments" viewBox="0 0 620 166" role="img" aria-labelledby="moments-title moments-desc">
+        <title id="moments-title">Equal changes in velocity before and after the top</title>
+        <desc id="moments-desc">At minus 0.10 seconds the ball moves upward at 0.98 metres per second. At zero seconds its velocity is zero. At plus 0.10 seconds it moves downward at 0.98 metres per second. In each interval, velocity changes by 0.98 metres per second downward.</desc>
+        <g class="moment" id="moment-before" transform="translate(107 0)">
+          <rect class="moment-panel" x="-93" y="2" width="186" height="121" rx="10"></rect>
+          <text class="moment-time" x="0" y="24" text-anchor="middle">−0.10 s</text>
+          <path class="moment-guide" d="M-65 55H65"></path>
+          <g id="before-picture" transform="translate(0 69)">
+            <use href="#tennis-ball" x="-15" y="-15" width="30" height="30"></use>
+            <line class="velocity" x1="-36" x2="-36" y1="0" y2="-12.74" marker-end="url(#velocity-tip)"></line>
+            <line class="acceleration" x1="36" x2="36" y1="0" y2="34" marker-end="url(#acceleration-tip)"></line>
+          </g>
+          <text class="moment-velocity" x="0" y="111" text-anchor="middle">+0.98 m/s</text>
+        </g>
+        <g class="moment moment-apex" id="moment-top" transform="translate(310 0)">
+          <rect class="moment-panel" x="-93" y="2" width="186" height="121" rx="10"></rect>
+          <text class="moment-time" x="0" y="24" text-anchor="middle">Top · 0 s</text>
+          <path class="moment-guide" d="M-65 55H65"></path>
+          <g transform="translate(0 55)">
+            <use href="#tennis-ball" x="-15" y="-15" width="30" height="30"></use>
+            <circle class="velocity-dot" cx="-36" cy="0" r="3"></circle>
+            <line class="acceleration" x1="36" x2="36" y1="0" y2="34" marker-end="url(#acceleration-tip)"></line>
+          </g>
+          <text class="moment-velocity" x="0" y="111" text-anchor="middle">0 m/s</text>
+        </g>
+        <g class="moment" id="moment-after" transform="translate(513 0)">
+          <rect class="moment-panel" x="-93" y="2" width="186" height="121" rx="10"></rect>
+          <text class="moment-time" x="0" y="24" text-anchor="middle">+0.10 s</text>
+          <path class="moment-guide" d="M-65 55H65"></path>
+          <g id="after-picture" transform="translate(0 69)">
+            <use href="#tennis-ball" x="-15" y="-15" width="30" height="30"></use>
+            <line class="velocity" x1="-36" x2="-36" y1="0" y2="12.74" marker-end="url(#velocity-tip)"></line>
+            <line class="acceleration" x1="36" x2="36" y1="0" y2="34" marker-end="url(#acceleration-tip)"></line>
+          </g>
+          <text class="moment-velocity" x="0" y="111" text-anchor="middle">−0.98 m/s</text>
+        </g>
+        <path class="interval" d="M107 129V135H310V129M310 135H513V129"></path>
+        <text class="interval-label" x="208.5" y="155" text-anchor="middle">0.98 m/s downward</text>
+        <text class="interval-label" x="411.5" y="155" text-anchor="middle">0.98 m/s downward</text>
+      </svg>
+
+      <div class="lane-heads">
+        <div class="lane-head"><h2>Toss</h2><span class="state" id="toss-state">Rising</span></div>
+        <div class="lane-head"><h2>Drop</h2><span class="state" id="drop-state">Held</span></div>
+      </div>
+
+      <svg class="toss-stage" viewBox="0 0 620 242" role="img" aria-labelledby="stage-title stage-desc">
+        <title id="stage-title">Two balls on a shared height scale</title>
+        <desc id="stage-desc">The left ball rises. At its highest point the gate releases the right ball. The balls have the same zero velocity and downward acceleration at that moment and fall together.</desc>
+        <defs>
+          <symbol id="tennis-ball" viewBox="-15 -15 30 30">
+            <circle class="ball-disc" r="13"></circle>
+            <path class="ball-seam" d="M-10-8C-3-7-2 1-8 10M8-10C2-3 3 5 10 8"></path>
+          </symbol>
+          <marker id="velocity-tip" viewBox="0 0 8 8" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M0 0L8 4L0 8Z" fill="#87c4fc"></path>
+          </marker>
+          <marker id="acceleration-tip" viewBox="0 0 8 8" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M0 0L8 4L0 8Z" fill="#efa888"></path>
+          </marker>
+        </defs>
+
+        <rect class="lane-field" x="111" y="20" width="162" height="211" rx="12"></rect>
+        <rect class="lane-field" x="354" y="20" width="162" height="211" rx="12"></rect>
+        <path class="lane-axis" d="M192 28V224M435 28V224"></path>
+        <path class="guide apex-guide" d="M23 59H597"></path>
+        <path class="guide" d="M23 189H597"></path>
+        <text class="guide-label" x="23" y="49">Top</text>
+        <text class="guide-label" x="23" y="210">Launch height</text>
+
+        <g transform="translate(435 59)" aria-hidden="true">
+          <path id="gate-left" class="gate" d="M-29-16V7Q-29 12-24 12H-7"></path>
+          <path id="gate-right" class="gate" d="M29-16V7Q29 12 24 12H7"></path>
+        </g>
+
+        <line id="toss-v" class="velocity" x1="155" x2="155" y1="189" y2="150" marker-end="url(#velocity-tip)"></line>
+        <circle id="toss-zero" class="velocity-dot" cx="155" cy="189" r="3" visibility="hidden"></circle>
+        <line id="toss-a" class="acceleration" x1="229" x2="229" y1="189" y2="223" marker-end="url(#acceleration-tip)"></line>
+        <g id="toss-ball" transform="translate(192 189)"><use href="#tennis-ball" x="-15" y="-15" width="30" height="30"></use></g>
+
+        <line id="drop-v" class="velocity" x1="398" x2="398" y1="59" y2="59" marker-end="url(#velocity-tip)" visibility="hidden"></line>
+        <circle id="drop-zero" class="velocity-dot" cx="398" cy="59" r="3"></circle>
+        <line id="drop-a" class="acceleration" x1="472" x2="472" y1="59" y2="93" marker-end="url(#acceleration-tip)" visibility="hidden"></line>
+        <g id="drop-ball" transform="translate(435 59)"><use href="#tennis-ball" x="-15" y="-15" width="30" height="30"></use></g>
+      </svg>
+
+      <div class="live-values">
+        <div class="lane-values" aria-label="Toss measurements">
+          <span class="readout velocity-reading"><i class="legend-mark" aria-hidden="true"></i><span>Velocity</span><b id="toss-velocity">+3.00 m/s</b></span>
+          <span class="readout acceleration-reading"><i class="legend-mark" aria-hidden="true"></i><span>Acceleration</span><b>9.8 m/s² ↓</b></span>
+        </div>
+        <div class="lane-values" aria-label="Drop measurements">
+          <span class="readout velocity-reading"><i class="legend-mark" aria-hidden="true"></i><span>Velocity</span><b id="drop-velocity">0 m/s</b></span>
+          <span class="readout acceleration-reading"><i class="legend-mark" aria-hidden="true"></i><span>Acceleration</span><b id="drop-acceleration">0 m/s²</b></span>
+        </div>
+      </div>
+
+      <span id="experiment-status" class="sr-only" aria-live="polite"></span>
+    </div></div></figure>
+    <div class="native-controls">
+      <div data-animation-transport="true" role="group" aria-label="Playback">
+        <button data-animation-play="true" type="button" id="playback">
+          <svg aria-hidden="true" class="lucide lucide-play" stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="currentColor" fill="none" viewBox="0 0 24 24" height="14" width="14" xmlns="http://www.w3.org/2000/svg" id="native-icon"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg>
+          <span id="playback-label">Play</span>
+        </button>
+        <input value="-0.3061224489795918" type="range" step="any" max="0.3061224489795918" min="-0.3061224489795918" aria-label="Time from the top" id="time">
+        <span data-program-time="true" id="time-value">−0.306 s</span>
+      </div>
+    </div>
+</div></template>
+<template id="scene-content-deep"><div class="toss-drop-scene"><p class="intro">Adjust launch speed to compare the throws. A faster toss peaks higher and later. Both balls spend <strong>0.20 s</strong> within <strong>4.9 cm</strong> of their own peak.</p>
+      <figure class="scene-figure"><div class="diagram-surface"><h4 class="diagram-heading">Compare two throws</h4><div class="experiment" role="group" aria-label="An adjustable throw and a fixed reference">
+        <div class="deep-heading"><h2>Compare the two peaks</h2><span>Both throws</span></div>
+        <svg class="extra-svg" viewBox="0 0 620 322" role="img" aria-labelledby="deep-closeup-title deep-closeup-desc">
+          <title id="deep-closeup-title">Apex-aligned height and velocity for both throws</title>
+          <desc id="deep-closeup-desc">After aligning each throw to its own top, the curves overlap. Both centres spend 0.20 seconds within 4.9 centimetres of their top. Velocity crosses zero with a constant downward slope.</desc>
+          <text class="plot-label" x="87" y="19">Height relative to top (cm)</text>
+          <text class="plot-label" x="507" y="19" text-anchor="end">y<tspan baseline-shift="sub">top</tspan> − y = ½gτ²</text>
+          <rect class="peak-band" x="87" y="39" width="423" height="39.2"></rect>
+          <path class="guide" d="M87 39H510"></path><path class="guide" d="M87 78.2H510"></path>
+          <text class="plot-label" x="76" y="43" text-anchor="end">0</text>
+          <text class="plot-label" x="76" y="82" text-anchor="end">−4.9</text>
+          <path class="trial-curve" d="M87.00 127.20L94.05 121.42L101.10 115.83L108.15 110.44L115.20 105.25L122.25 100.25L129.30 95.45L136.35 90.84L143.40 86.43L150.45 82.22L157.50 78.20L164.55 74.38L171.60 70.75L178.65 67.32L185.70 64.09L192.75 61.05L199.80 58.21L206.85 55.56L213.90 53.11L220.95 50.86L228.00 48.80L235.05 46.94L242.10 45.27L249.15 43.80L256.20 42.53L263.25 41.45L270.30 40.57L277.35 39.88L284.40 39.39L291.45 39.10L298.50 39.00L305.55 39.10L312.60 39.39L319.65 39.88L326.70 40.57L333.75 41.45L340.80 42.53L347.85 43.80L354.90 45.27L361.95 46.94L369.00 48.80L376.05 50.86L383.10 53.11L390.15 55.56L397.20 58.21L404.25 61.05L411.30 64.09L418.35 67.32L425.40 70.75L432.45 74.38L439.50 78.20L446.55 82.22L453.60 86.43L460.65 90.84L467.70 95.45L474.75 100.25L481.80 105.25L488.85 110.44L495.90 115.83L502.95 121.42L510.00 127.20"></path>
+          <circle class="ball-outline" cx="560" cy="65" r="26.8"></circle>
+          <text class="plot-label" x="560" y="110" text-anchor="middle">Ball width</text>
+          <path class="interval" d="M157.5 129V135H439.5V129"></path>
+          <text class="plot-label" x="298.5" y="154" text-anchor="middle">0.20 s within 4.9 cm of the top</text>
+          <text class="plot-label" x="87" y="176">Vertical velocity (m/s)</text>
+          <text class="plot-label" x="507" y="176" text-anchor="end">vᵧ = −gτ</text>
+          <path class="guide" d="M87 231H510"></path>
+          <path class="trial-curve" d="M87 188.37L510 273.63"></path>
+          <text class="plot-label" x="76" y="206.57999999999998" text-anchor="end">+0.98</text>
+          <text class="plot-label" x="76" y="235" text-anchor="end">0</text>
+          <text class="plot-label" x="76" y="263.42" text-anchor="end">−0.98</text>
+          <text class="plot-label" x="560" y="221" text-anchor="middle">Slope</text>
+          <text class="plot-force" x="560" y="241" text-anchor="middle">−9.8 m/s²</text>
+          
+          <path class="guide" d="M157.5 34V129M157.5 186V276"></path>
+          <circle class="measure-dot" cx="157.5" cy="78.20000000000002" r="3.5"></circle>
+          <circle class="measure-dot" cx="157.5" cy="202.57999999999998" r="3.5"></circle>
+          <text class="plot-label" x="157.5" y="293" text-anchor="middle">−0.10</text>
+
+          <path class="guide" d="M298.5 34V129M298.5 186V276"></path>
+          <circle class="measure-dot" cx="298.5" cy="39" r="3.5"></circle>
+          <circle class="measure-dot" cx="298.5" cy="231" r="3.5"></circle>
+          <text class="plot-label" x="298.5" y="293" text-anchor="middle">Top · 0</text>
+
+          <path class="guide" d="M439.5 34V129M439.5 186V276"></path>
+          <circle class="measure-dot" cx="439.5" cy="78.20000000000002" r="3.5"></circle>
+          <circle class="measure-dot" cx="439.5" cy="259.42" r="3.5"></circle>
+          <text class="plot-label" x="439.5" y="293" text-anchor="middle">+0.10</text>
+
+          <text class="plot-label" x="298.5" y="315" text-anchor="middle">Time from each throw’s own top (s)</text>
+        </svg>
+
+        <svg class="extra-svg" viewBox="0 0 620 105" role="img" aria-labelledby="deep-force-title">
+          <title id="deep-force-title">Zero velocity and downward acceleration at the top and at release</title>
+          <rect class="moment-panel" x="14" y="12" width="289" height="79" rx="10"></rect>
+          <rect class="moment-panel" x="317" y="12" width="289" height="79" rx="10"></rect>
+          <use href="#tennis-ball" x="38" y="37" width="30" height="30"></use><line class="acceleration" x1="80" x2="80" y1="46" y2="75" marker-end="url(#acceleration-tip)"></line>
+          <path class="gate" transform="translate(359 52)" d="M-34-15V7Q-34 12-29 12H-22M34-15V7Q34 12 29 12H22"></path><use href="#tennis-ball" x="344" y="37" width="30" height="30"></use><line class="acceleration" x1="402" x2="402" y1="46" y2="75" marker-end="url(#acceleration-tip)"></line>
+          <text class="plot-heading" x="109" y="36">At the top</text>
+          <text class="plot-velocity" x="109" y="56">vᵧ = 0 m/s</text>
+          <text class="plot-force" x="109" y="76">Fᵧ = −mg, so aᵧ = −g</text>
+          <text class="plot-heading" x="429" y="36">Just released</text>
+          <text class="plot-velocity" x="429" y="56">vᵧ = 0 m/s</text>
+          <text class="plot-force" x="429" y="76">aᵧ = −9.8 m/s²</text>
+        </svg>
+
+        <div class="deep-heading flight-heading"><h2>Full flight</h2><span id="deep-live-height">Trial height 0.00 m</span></div>
+        <svg class="extra-svg" viewBox="0 0 620 225" role="img" aria-labelledby="deep-flight-title deep-flight-desc">
+          <title id="deep-flight-title">Height above release over the full flight</title>
+          <desc id="deep-flight-desc">A dashed three metre per second reference and an adjustable trial share a height and time scale. The current trial ball is linked to a moving dot on the height curve.</desc>
+          <text class="plot-label" x="118" y="17">Height above release (m)</text>
+          <path class="lane-axis" d="M54 24V180"></path>
+          <path class="guide" d="M118 180H584M47 180H61"></path><text class="plot-label" x="108" y="184" text-anchor="end">0.0</text><path class="guide" d="M118 124.28571428571428H584M47 124.28571428571428H61"></path><text class="plot-label" x="108" y="128.28571428571428" text-anchor="end">0.5</text><path class="guide" d="M118 68.57142857142857H584M47 68.57142857142857H61"></path><text class="plot-label" x="108" y="72.57142857142857" text-anchor="end">1.0</text>
+          <path class="plot-axis" d="M118 24V180H584"></path>
+          <path class="plot-axis" d="M118 180V185"></path><text class="plot-label" x="118" y="201" text-anchor="middle">0.00</text><path class="plot-axis" d="M232.17000000000002 180V185"></path><text class="plot-label" x="232.17000000000002" y="201" text-anchor="middle">0.25</text><path class="plot-axis" d="M346.34000000000003 180V185"></path><text class="plot-label" x="346.34000000000003" y="201" text-anchor="middle">0.50</text><path class="plot-axis" d="M460.51 180V185"></path><text class="plot-label" x="460.51" y="201" text-anchor="middle">0.75</text><path class="plot-axis" d="M574.6800000000001 180V185"></path><text class="plot-label" x="574.6800000000001" y="201" text-anchor="middle">1.00</text>
+          <text class="plot-label" x="351" y="220" text-anchor="middle">Time since launch (s)</text>
+          <path class="reference-curve" d="M118.00 180.00L124.99 175.01L131.98 170.28L138.97 165.80L145.96 161.58L152.95 157.61L159.94 153.91L166.93 150.45L173.92 147.25L180.91 144.31L187.90 141.63L194.89 139.19L201.88 137.02L208.87 135.10L215.86 133.44L222.85 132.03L229.84 130.88L236.83 129.99L243.82 129.35L250.81 128.96L257.80 128.83L264.79 128.96L271.78 129.35L278.77 129.99L285.76 130.88L292.75 132.03L299.74 133.44L306.73 135.10L313.72 137.02L320.71 139.19L327.70 141.63L334.69 144.31L341.68 147.25L348.67 150.45L355.66 153.91L362.65 157.61L369.64 161.58L376.63 165.80L383.62 170.28L390.61 175.01L397.60 180.00"></path>
+          <path id="deep-trial-path" class="trial-curve" d="M118.00 180.00L129.65 166.14L141.30 153.00L152.95 140.56L164.60 128.83L176.25 117.82L187.90 107.51L199.55 97.92L211.20 89.04L222.85 80.87L234.50 73.40L246.15 66.65L257.80 60.61L269.45 55.28L281.10 50.66L292.75 46.75L304.40 43.56L316.05 41.07L327.70 39.29L339.35 38.23L351.00 37.87L362.65 38.23L374.30 39.29L385.95 41.07L397.60 43.56L409.25 46.75L420.90 50.66L432.55 55.28L444.20 60.61L455.85 66.65L467.50 73.40L479.15 80.87L490.80 89.04L502.45 97.92L514.10 107.51L525.75 117.82L537.40 128.83L549.05 140.56L560.70 153.00L572.35 166.14L584.00 180.00"></path>
+          <circle class="reference-peak" cx="257.79999999999995" cy="128.8338192419825" r="4"></circle>
+          <circle id="deep-trial-peak" class="measure-dot" cx="351" cy="37.871720116618064" r="4"></circle>
+          <line id="deep-cursor" class="cursor-guide" x1="118" x2="118" y1="180" y2="180"></line>
+          <circle id="deep-trial-dot" class="trial-dot" cx="118" cy="180" r="5"></circle>
+          <g id="deep-ball" transform="translate(54 180)"><use href="#tennis-ball" x="-15" y="-15" width="30" height="30"></use></g>
+        </svg>
+        <div class="flight-legend">
+          <span><i class="trace-key reference-key" aria-hidden="true"></i>Reference 3.0 m/s · peak 0.46 m at 0.31 s</span>
+          <span><i class="trace-key trial-key" aria-hidden="true"></i><b id="deep-trial-summary">Trial 5.0 m/s · peak 1.28 m at 0.51 s</b></span>
+          <span id="deep-coincidence" class="coincidence" hidden>Both traces coincide at 3.0 m/s.</span>
+        </div>
+
+      </div></div></figure>
+    <div class="native-controls">
+      <div data-animation-transport="true" role="group" aria-label="Playback">
+        <button data-animation-play="true" type="button" id="deep-playback">
+          <svg aria-hidden="true" class="lucide lucide-play" stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="currentColor" fill="none" viewBox="0 0 24 24" height="14" width="14" xmlns="http://www.w3.org/2000/svg" id="deep-native-icon"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg>
+          <span id="deep-playback-label">Play</span>
+        </button>
+        <input value="0" type="range" step="any" max="1.0204081632653061" min="0" aria-label="Time since launch" id="deep-time">
+        <span data-program-time="true" id="deep-time-value">0.000 s</span>
+      </div>
+      <div data-scene-controls="true" role="group" aria-label="Experiment settings">
+        <label for="deep-speed">Launch speed</label>
+        <input value="5" type="range" aria-valuetext="5.0 m/s" step="0.1" max="5" min="3" data-input-control="launch-speed" id="deep-speed">
+        <span data-input-readout="launch-speed" id="deep-speed-value">5.0 m/s</span>
+      </div>
+    </div>
+</div></template>

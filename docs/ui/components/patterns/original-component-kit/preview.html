@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Original blue and Claude-red kit · Rabbit Hole UI</title>
+<link rel="stylesheet" href="../../../styles/original-kit.css">
+<link rel="stylesheet" href="../../../foundations/palette.css">
+<link rel="stylesheet" href="../../../styles/preview.css"></head>
+<body data-ui-palette="historical"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/ca0affecfb39caf6790f4b2636f1ed3c2dd90800/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html">Source</a><p>palette reference / older geometry — Owner-selected palette reference. Four cards and eleven controls; use current geometry and the balanced semantic role map when adopting. Attached copy matches apart from trailing whitespace.</p></div>
+<div class="catalog-preview"><main>
+  <header>
+    <p class="eyebrow">Rabbit Hole · HTML design reference</p>
+    <h1>Card component kit</h1>
+    <p class="lede">A shared Explanation and Interactive shell, with working native controls in the same visual style as the 12 card references.</p>
+    <nav class="page-nav" aria-label="Kit sections"><a href="#examples">Card examples</a><a href="#controls">Control templates</a><a href="#inventory">UI inventory</a></nav>
+  </header>
+  <section id="examples" aria-labelledby="examples-title">
+    <h2 id="examples-title">Card examples</h2>
+    <p class="section-description">The shell sets the pill, title, copy, scene and controls. Untimed scenes put the experiment controls directly under the visual.</p>
+    <div class="grid" id="example-cards"></div>
+  </section>
+  <section id="controls" aria-labelledby="controls-title">
+    <h2 id="controls-title">Control templates</h2>
+    <p class="section-description">Each template works on its own. A card typically needs zero to three primary controls.</p>
+    <div class="catalog" id="control-catalog"></div>
+  </section>
+  <section id="inventory" aria-labelledby="inventory-title">
+    <h2 id="inventory-title">UI inventory</h2>
+    <p class="section-description">Use the first three rows to build the 12 references. The remaining rows cover other lesson types and existing card actions.</p>
+    <dl class="inventory">
+      <div class="line"><dt>Shared card shell</dt><dd>Explanation or Interactive pill, title, teaching copy, optional figure and caption, optional source and Focus actions, spacing, responsive sizing, and loading or recovery states.</dd></div>
+      <div class="line"><dt>Teaching visuals</dt><dd>Class dots and legend, split comparison rows, formula rows, numeric table with a featured row, metric tiles, callout bands, paired bar rows, active decision paths, plots, vote tiles, and highlighted data grids.</dd></div>
+      <div class="line"><dt>Inputs for the 12</dt><dd>Labeled slider and value, compact exclusive selector, and a single action button. Show the result through a Why line, active path, current score, tally, or other state-linked readout.</dd></div>
+      <div class="line"><dt>Timed and richer scenes</dt><dd>Play, pause, replay, scrubber and current time. Reset is a secondary action. Ordered index, multi-select, switch, and selectable or draggable targets depend on the renderer.</dd></div>
+      <div class="line"><dt>Controls to register</dt><dd>Dropdown for many or long choices, precise number input or stepper, and collapsed secondary settings with a changed-state cue. The examples below the card shells show their appearance and behavior.</dd></div>
+      <div class="line"><dt>Explanation actions</dt><dd>Source passage, term definitions, suggested questions, same-card or linked-card follow-up, and selection highlights or notes. Use the app’s existing actions and persist their card and source context.</dd></div>
+    </dl>
+  </section>
+</main><!-- Clone these components into the host card and bind them to the card's state. --><template id="card-template">
+  <article class="card"><header class="card-header"><span class="badge" data-slot="pill"></span><span class="slot-tag" data-slot="mode"></span></header>
+  <h3 data-slot="title"></h3><div class="card-copy"><p data-slot="concept"></p><p data-slot="instruction" hidden></p></div>
+  <p class="why" data-slot="why" hidden><strong>Why</strong><span data-slot="reason"></span></p>
+  <figure class="scene" data-slot="scene"></figure><div class="card-timeline" data-slot="timeline"></div><div class="card-controls" data-slot="controls" hidden></div></article>
+</template><template id="range-template"><div class="control-row"><label class="control-label"></label><input type="range"><output class="value"></output></div></template><template id="choice-template"><fieldset class="selector"><legend class="sr-only"></legend><span class="control-label" aria-hidden="true"></span><div class="choice-list"></div></fieldset></template><template id="option-template"><label class="choice"><input class="sr-only" type="radio"><span class="choice-text"></span></label></template><template id="button-template"><button type="button" class="button"></button></template><template id="timeline-template"><div class="transport"><button type="button" class="button" data-play></button><input type="range" aria-label="Timeline"><output class="value" aria-label="Current time"></output></div></template><template id="select-template"><label class="select-row"><span class="control-label"></span><select></select></label></template><template id="toggle-template"><label class="toggle"><span class="control-label"></span><input type="checkbox" class="sr-only" role="switch"><span class="toggle-track" aria-hidden="true"></span></label></template><template id="stepper-template"><div class="select-row"><label class="control-label"></label><div class="stepper"><button type="button" class="button secondary" aria-label="Decrease">−</button><input type="number"><button type="button" class="button secondary" aria-label="Increase">+</button></div></div></template><template id="index-template"><div class="index-row"><button type="button" class="button secondary" aria-label="Previous stage">Previous</button><output class="status" aria-live="polite"></output><button type="button" class="button secondary" aria-label="Next stage">Next</button></div></template><template id="disclosure-template"><details class="settings"><summary>More settings <span class="status" hidden>· changed</span></summary><div class="settings-body"></div></details></template><template id="readout-template"><output class="readout"><span></span><strong></strong></output></template><template id="sample-template"><article class="sample"><span class="availability"></span><h3></h3><p></p><div data-mount></div></article></template></div>
+
+<script src="../../../scripts/original-kit.js"></script>
+</body></html>

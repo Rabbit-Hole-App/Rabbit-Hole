@@ -1,0 +1,41 @@
+{
+  "id": "cards/split-comparison",
+  "title": "Split Comparison",
+  "category": "cards",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-resizable-card-shell.html",
+  "source_file": "rabbit-hole-resizable-card-shell.html",
+  "status": "reference",
+  "styles": [
+    "card-shell"
+  ],
+  "scripts": [
+    "card-shell",
+    "split-comparison"
+  ],
+  "implementation": [
+    "packages/web/src/LearningBlocks.jsx",
+    "packages/web/src/explain-program/ProgramScene.jsx"
+  ],
+  "notes": "Content-limited shared shell, pinned header, scroll body, SVG/raster examples. Applicant selector updates path and Why. The separate decision-tree-card-templates Library file is an alias of this source.",
+  "issues": [
+    "UI-02",
+    "UI-08"
+  ],
+  "templates": [
+    "shell/card-shell",
+    "shell/image-example",
+    "shell/svg-example",
+    "shell/applicant-control"
+  ],
+  "keywords": [
+    "explanation",
+    "interactive",
+    "applicant",
+    "why",
+    "SVG",
+    "raster",
+    "resize"
+  ],
+  "path": "components/cards/split-comparison",
+  "paletteRole": "balanced-card"
+}

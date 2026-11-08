@@ -1,0 +1,1 @@
+  sample('multi', 'Renderer dependent', 'Independent multi-select', 'Use when a learner can meaningfully combine options.', choices({ label:'Visible classes', options:[['a','Class A'],['b','Class B']], selected:['a','b'], multiple:true }));

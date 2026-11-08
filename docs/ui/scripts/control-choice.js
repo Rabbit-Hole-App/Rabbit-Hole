@@ -1,0 +1,1 @@
+  sample('choice', 'Core', 'Segmented choice', 'Use for two or three short, mutually exclusive choices.', choices({ label:'Criterion', options:[['gini','Gini'],['entropy','Entropy']], selected:'gini' }));
