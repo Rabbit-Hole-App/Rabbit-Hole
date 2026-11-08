@@ -1,26 +1,37 @@
-// The 'fast-chain' adapter of the written /explain model profiles (explanation-models.js cerebras-low|medium|high, owner 2026-11-08): a written card must
-// not fail, and it must be fast. The author call runs on Cerebras gpt-oss-120b; when that step fails (HTTP 429 or 5xx, a timeout, a malformed or
-// schema-invalid answer still invalid after its one repair) the SAME request runs on Fireworks gpt-oss-120b, then on Gemini gemini-3.5-flash-lite. Never
-// the plan model (Opus). A step whose credential is not set on this server is skipped. Each step is the real generateArtifact (validation, the one repair,
+// The 'fast-chain' adapter of the written /explain model profiles (explanation-models.js fireworks-* and cerebras-*, owner 2026-11-08): a written card must
+// not fail, and it must be fast. Production (fireworks-low) runs the author call on Fireworks gpt-oss-120b; when that step fails (HTTP 429 or 5xx, a
+// timeout, a malformed or schema-invalid answer still invalid after its one repair) the SAME request runs on Gemini gemini-3.5-flash-lite. Cerebras is
+// never a fallback step (owner, 2026-11-08); a cerebras-* profile, chosen on its own, runs Cerebras, then Fireworks, then Gemini. Never the plan model (Opus). A step whose credential is not set on this server is skipped. Each step is the real generateArtifact (validation, the one repair,
 // the saved card) with this step's transport injected, so every step's calls are admitted, priced and settled by spendTransport like any paid call.
 // EXPLANATION_FALLBACK=off (benchmarks: a fallback is a failure) runs the profile's own provider only, and its failure is reported as one.
 // The request (stepRequest): the system prompt plus the make_explanation tool description (EXPLANATION_GUIDANCE, this Depth's explanationTarget and, when
 // on, INTERACTION_GUIDANCE, verbatim) as the system message; the user JSON (learner request, Depth, required visuals) and any text context documents as
-// the user message; the tool's own input_schema as a strict json_schema (exclusive oneOf sent as anyOf: Cerebras refuses oneOf with HTTP 400). The body
-// is free Markdown, so the author writes any rh-diagram or rh-illustration fence where it belongs (explain.md "Card layout v2").
+// the user message; the tool's own input_schema as a strict json_schema (exclusive oneOf sent as anyOf: Cerebras refuses oneOf with HTTP 400). The visuals
+// are fields before the body, placed in it by markers (explain.md "Card layout v2", fix 2).
+// EXP-13 fix 3 (owner 2026-11-08): the author call is streamed (OpenAI-compatible SSE) and read as it arrives; each complete picture in visuals starts its
+// Recraft generation at once (explanation-figures.js figureStarter), while the rest of the answer is still being written. The whole answer is then
+// validated as before, and the card waits for every picture it started. EXPLANATION_STREAM=off sends stream:false and starts pictures after validation.
 import { loggedModel } from './learn-models.js';
+import { figureStarter } from './explanation-figures.js';
+import { authorPicture, parseIllustration } from './learn-primitives.js';
 import { spendTransport } from './learn-spend.js';
 import { exclusiveOneOfToAnyOf } from './interact-model-adapters.js';
 import { chainSteps } from './explanation-models.js';
 
 export const FALLBACK_SETTING = 'EXPLANATION_FALLBACK';
+export const STREAM_SETTING = 'EXPLANATION_STREAM';
+const streaming = env => env?.[STREAM_SETTING] !== 'off';
 // Per-call deadlines (owner target: the whole card in 1-4 s). Cerebras answered the 2026-11-07 benchmark's whole card at p90 1.8 s, so a call still open
 // at 6 s (over 3x that) is better abandoned for the next step than awaited. Fireworks (8 s) is unmeasured here; Gemini, the last step, gets 12 s because a
 // late card beats no card. Worst case, every step timing out on its call and its repair: 2 x (6 + 8 + 12) = 52 s.
 export const CHAIN_ENDPOINTS = Object.freeze({
   cerebras: { url: 'https://api.cerebras.ai/v1/chat/completions', deadlineMs: 6000 },
   fireworks: { url: 'https://api.fireworks.ai/inference/v1/chat/completions', deadlineMs: 8000 },
-  google: { url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', deadlineMs: 12000 },
+  // Usage while streaming: Fireworks sends a final usage chunk by default ("Fireworks includes a final SSE chunk carrying usage totals by default",
+  // docs.fireworks.ai post-chatcompletions, read 2026-11-08) and Cerebras's streaming example ends with a usage block (inference-docs.cerebras.ai, read
+  // 2026-11-08; stream_options is not in its schema, so it is not sent there); Gemini's OpenAI-compatible example asks with stream_options.include_usage.
+  // A stream that reports no usage settles as unknown cost, its reservation kept, as a missing usage does today.
+  google: { url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', deadlineMs: 12000, streamOptions: { include_usage: true } },
 });
 const TOOL = 'make_explanation';
 const ADDENDUM = `
@@ -41,12 +52,13 @@ const textOf = content => (typeof content === 'string' ? content : content.map(p
   throw final('input_unsupported', 'The explanation model reads text only, and this request has an image or a PDF, so nothing was sent or charged.');
 }).join('\n\n'));
 
-export function stepRequest(step, effort, body) {
+export function stepRequest(step, effort, body, stream = false) {
   const tool = body.tools?.find(t => t.name === TOOL);
   if (!tool) throw final('tool_unsupported', `The fast explanation chain makes only ${TOOL}.`);
   // ponytail: ask_clarifying_question is not offered in json_schema mode; the author always writes the card.
   const system = [].concat(body.system ?? []).map(b => (typeof b === 'string' ? b : b.text)).join('\n');
-  return { model: step.model, stream: false, max_tokens: body.max_tokens, reasoning_effort: effort,
+  const options = stream && CHAIN_ENDPOINTS[step.provider]?.streamOptions;
+  return { model: step.model, stream, ...(options ? { stream_options: options } : {}), max_tokens: body.max_tokens, reasoning_effort: effort,
     messages: [{ role: 'system', content: `${system}\n\n${tool.description}\n${ADDENDUM}` }, ...body.messages.map(m => ({ role: m.role, content: textOf(m.content) }))],
     response_format: { type: 'json_schema', json_schema: { name: TOOL, strict: true, schema: exclusiveOneOfToAnyOf(tool.input_schema) } } };
 }
@@ -63,13 +75,61 @@ export function anthropicReply(json, id) {
     content: [{ type: 'tool_use', id, name: TOOL, input: input && typeof input === 'object' && !Array.isArray(input) ? input : {} }] };
 }
 
+// Fix 3: the streamed JSON read incrementally. -> feed(text): onVisual(item, index) is called once for each top-level visuals[i] object as soon as its
+// closing brace arrives (the schema puts visuals before body). Strings and escapes are tracked, so a brace inside text is not structure.
+export function visualScanner(onVisual) {
+  let text = '', i = 0, depth = 0, inString = false, escaped = false, stringStart = 0, lastString = '', key = null, inVisuals = false, itemStart = -1, n = 0;
+  return chunk => {
+    text += chunk;
+    for (; i < text.length; i++) {
+      const c = text[i];
+      if (inString) { if (escaped) escaped = false; else if (c === '\\') escaped = true; else if (c === '"') { inString = false; lastString = text.slice(stringStart, i + 1); } continue; }
+      if (c === '"') { inString = true; stringStart = i; }
+      else if (c === ':' && depth === 1) { try { key = JSON.parse(lastString); } catch { key = null; } }
+      else if (c === '{' || c === '[') { depth++; if (depth === 2 && c === '[' && key === 'visuals') inVisuals = true; else if (inVisuals && depth === 3 && c === '{') itemStart = i; }
+      else if (c === '}' || c === ']') {
+        if (inVisuals && depth === 3 && c === '}' && itemStart >= 0) { let item = null; try { item = JSON.parse(text.slice(itemStart, i + 1)); } catch { /* not an object after all */ } itemStart = -1; if (item) onVisual(item, n++); }
+        if (depth === 2 && c === ']') inVisuals = false;
+        depth--;
+      }
+    }
+  };
+}
+
+// An OpenAI-compatible SSE stream -> the same JSON a stream:false call returns ({ model, choices: [{ finish_reason, message: { content } }], usage }), with
+// every content delta also passed to onText as it arrives.
+async function readStream(response, onText) {
+  const reader = response.body.getReader(), decoder = new TextDecoder();
+  let pending = '', content = '', model = null, finish = null, usage, done = false;
+  const take = data => {
+    if (data === '[DONE]') { done = true; return; }
+    let chunk; try { chunk = JSON.parse(data); } catch { return; }
+    if (typeof chunk?.model === 'string') model = chunk.model;
+    if (chunk?.usage) usage = chunk.usage;
+    const choice = chunk?.choices?.[0];
+    if (choice?.finish_reason) finish = choice.finish_reason;
+    const delta = choice?.delta?.content;
+    if (typeof delta === 'string' && delta) { content += delta; onText(delta); }
+  };
+  while (!done) {
+    const { value, done: ended } = await reader.read();
+    if (ended) break;
+    pending += decoder.decode(value, { stream: true });
+    const events = pending.split(/\r?\n\r?\n/); pending = events.pop();
+    for (const event of events) take(event.split(/\r?\n/).filter(line => line.startsWith('data:')).map(line => line.slice(5).trim()).join('\n'));
+  }
+  if (pending.trim()) take(pending.split(/\r?\n/).filter(line => line.startsWith('data:')).map(line => line.slice(5).trim()).join('\n'));
+  return { model, choices: [{ finish_reason: finish, message: { content } }], ...(usage ? { usage } : {}) };
+}
+
 // One step's callModel(env, body, model, org). seen collects what the provider said it served and whether the chain must stop.
-export function stepCall(step, effort, seen = {}) {
+// onVisual(item, index): each streamed visuals[i] as it completes (fix 3); omitted, or EXPLANATION_STREAM=off, nothing is read early.
+export function stepCall(step, effort, seen = {}, onVisual = null) {
   const { url, deadlineMs } = CHAIN_ENDPOINTS[step.provider];
   let calls = 0;
   return async (env, body, _model, org) => {
     if (env.SUBSCRIPTION_ONLY === 'true') throw final('subscription_only', 'Subscription mode runs only the subscription model, so the explanation model was not called.');
-    const request = stepRequest(step, effort, body);
+    const request = stepRequest(step, effort, body, streaming(env));
     const id = `${step.provider}_${++calls}`;
     let late = false;
     // The admission bounds and reserves the request actually sent; the transport hands settlement the Anthropic-shaped usage it prices.
@@ -78,7 +138,8 @@ export function stepCall(step, effort, seen = {}) {
       try {
         const sent = await fetch(url, { method: 'POST', signal: abort.signal, headers: { Authorization: `Bearer ${env[step.credentialRef]}`, 'Content-Type': 'application/json' }, body: JSON.stringify(request) });
         if (!sent.ok) return sent;
-        const json = await sent.json();
+        // A provider that answers a streamed request with one JSON body is read as before.
+        const json = sent.headers.get('content-type')?.includes('text/event-stream') ? await readStream(sent, onVisual ? visualScanner(onVisual) : () => {}) : await sent.json();
         seen.model = typeof json?.model === 'string' ? json.model : null;
         return Response.json(anthropicReply(json, id));
       } finally { clearTimeout(timer); }
@@ -101,12 +162,17 @@ export async function generateWithFallbacks(env, input, options, generate) {
   const steps = env[FALLBACK_SETTING] === 'off' ? chainSteps(role).slice(0, 1) : chainSteps(role);
   const attempts = [];
   let last = null;
+  // Fix 3: one starter for the whole chain, so a later step or a repair that keeps a picture's prompt reuses its picture.
+  const early = options.figures && streaming(env) ? figureStarter(env, options.figures) : null;
+  const onVisual = early ? (item, i) => { const spec = i < 2 ? authorPicture(item, i) : null; if (spec && parseIllustration(JSON.stringify(spec)).ok) early.start(spec); } : null;
+  try { return await runSteps(); } finally { await early?.settled(); } // every started picture is settled, card or not, before the request ends
+  async function runSteps() {
   for (const step of steps) {
     const note = outcome => { attempts.push({ provider: step.provider, model: step.model, outcome }); console.log(JSON.stringify({ event: 'explanation_step', ...attempts.at(-1) })); };
     if (!env[step.credentialRef]) { note('skipped'); continue; }
     const seen = {};
     let out = null;
-    try { out = await generate(env, input, { ...options, callModel: loggedModel('artifact', stepCall(step, role.settings.reasoning_effort, seen)) }); }
+    try { out = await generate(env, input, { ...options, early, callModel: loggedModel('artifact', stepCall(step, role.settings.reasoning_effort, seen, onVisual)) }); }
     catch (error) {
       last = Object.assign(error, { code: error.code || 'provider_error' });
       note(last.code);
@@ -120,4 +186,5 @@ export async function generateWithFallbacks(env, input, options, generate) {
   }
   if (last instanceof Error) throw Object.assign(last, { attempts });
   return last ? { ...last, attempts } : { result: 'unsupported', message: 'Explanations are not set up on this server yet, so nothing was sent or charged.', reason: 'credential_missing', attempts };
+  }
 }

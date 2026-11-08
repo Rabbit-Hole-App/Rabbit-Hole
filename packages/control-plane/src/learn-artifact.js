@@ -14,12 +14,12 @@ import { BRIEF_LIMITS, generationArgs, isBriefCommand } from '../../web/src/mate
 import { consumeProposal, releaseProposal, verifyProposal } from './generation-proposal.js';
 import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
-import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, dropInvalidDiagrams } from './learn-primitives.js';
+import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, dropInvalidDiagrams, markdownVisuals, settleExplanationBody } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
-import { INTERACTION_GUIDANCE, INTERACTION_PROPERTIES, bindInteractions, interactionsEnabled, interactionsProblem } from './explanation-interactions.js';
-import { boundRequirements, danglingFigureProblem, deriveVisualRequirements, requiredVisualProblem, requirementText } from './explanation-visuals.js';
+import { INTERACTION_GUIDANCE, INTERACTION_PROPERTIES, bindInteractions, interactionsEnabled, keptInteractions } from './explanation-interactions.js';
+import { boundRequirements, danglingFigureProblem, deriveVisualRequirements, requiredMix, requiredVisualProblem, requirementText } from './explanation-visuals.js';
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { tutorImageContext } from './learn-image-context.js';
@@ -36,6 +36,13 @@ const toolName = id => `make_${id}`;
 // E2 (explanation-interactions.js): while EXPLANATION_INTERACTIONS is on, the written Explanation tool also takes the three questions and the anchored terms. They are validated
 // apart from the card (the card's own schema stays the one that was), then bound to the final text with server-assigned ids and revision.
 const interactiveSchema = schema => ({ ...schema, required: [...schema.required, 'questions'], properties: { ...schema.properties, ...INTERACTION_PROPERTIES } });
+// EXP-13 fix 2: the author is always asked for one or two visuals as fields (every property required, as a strict json_schema needs); the validator also
+// reads a body that holds its fences already, and more visuals, whose extras it drops (learn-primitives.js PRIMITIVES.explanation).
+const authorSchema = env => {
+  const { schema } = PRIMITIVES.explanation;
+  const s = { ...schema, required: Object.keys(schema.properties), properties: { ...schema.properties, visuals: { ...schema.properties.visuals, maxItems: 2 } } };
+  return interactionsEnabled(env) ? interactiveSchema(s) : s;
+};
 const VERIFIER = 'scene verifier', VERIFY_MAX_TOKENS = 2000;
 // A long text field's limit, said in words in the tool's description: a schema maxLength alone was overrun twice, repair
 // included (inline lane R, 2026-10-13: an explanation body over 2,000 characters, nothing added, $0.12).
@@ -100,7 +107,7 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   const tools = [...ready.map(id => ({
     name: toolName(id),
     description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? ` ${EXPLANATION_GUIDANCE} ${explanationTarget(input.depth)}${interactionsEnabled(env) ? ` ${INTERACTION_GUIDANCE}` : ''}` : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget
-    input_schema: id === 'explanation' && interactionsEnabled(env) ? interactiveSchema(PRIMITIVES[id].schema) : PRIMITIVES[id].schema,
+    input_schema: id === 'explanation' ? authorSchema(env) : PRIMITIVES[id].schema,
   })).map(tool => input.imageSource ? imageExtractionTool(tool) : tool), CLARIFY];
   // R2: the learner's Depth for this canvas, for the commands that make an explanation (chat-depth.js DEPTH_COMMANDS); Standard sends nothing.
   const depthNote = depthInstruction(input.depth, 'card');
@@ -115,11 +122,12 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   return { request, ready, messages, model: bound ? bound.roles.author.model : LEARN_TASKS.artifact.model, profile: bound, repairModel: bound ? bound.roles.repair.model : null, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
 }
 
-export async function generateArtifact(env, input, { callModel: injected = null, only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null, figures = null } = {}) {
+export async function generateArtifact(env, input, { callModel: injected = null, only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null, figures = null, early = null } = {}) {
   // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls.
   // R4 trusted options: `only` restricts the primitives offered, `systemSuffix` is appended to the system prompt of every call (initial and repair),
   // `title` (the roadmap's accepted step title) replaces the model's title before any check.
   // `figures` (EXP-13, trusted): { store, scope?, adapter? } for explanation-figures.js illustrateExplanation; omitted, no picture is made and every rh-illustration fence is removed.
+  // `early` (EXP-13 fix 3, trusted, the fast chain only): explanation-figures.js figureStarter, the pictures already started from the streamed answer.
   const prepared = prepareArtifactAuthorRequest(env, input, { only, systemSuffix, profile });
   if (prepared.result) return prepared;
   // A fast-chain profile runs each provider step through this same function with that step's transport injected (explanation-fast-chain.js).
@@ -168,22 +176,27 @@ export async function generateArtifact(env, input, { callModel: injected = null,
       // No repair left: an rh-diagram that cannot be drawn is dropped and the written explanation is delivered (the prose still passes its own checks).
       if (id === 'explanation') {
         const wanted = input.visualRequirements?.items?.length ? input.visualRequirements : null;
+        // EXP-13 fix 1: extra visuals dropped, a wrong order of existing parts reordered, prose over the hard limit trimmed by whole sentences, before any check.
+        const settled = settleExplanationBody(block.body, requiredMix(wanted));
+        diagramsDropped = markdownVisuals(block.body).diagrams.length - markdownVisuals(settled).diagrams.length; // recorded with the result, as a dropped invalid diagram is
+        block = { ...block, body: settled };
         if (attempt >= repairs) {
           const trimmed = dropInvalidDiagrams(block);
           // E1: only an OPTIONAL diagram may be dropped. With a required one, the drop stands only if the card still holds a valid diagram for each requirement
           // and no text points at the dropped figure; otherwise the card keeps its invalid diagram and fails the checks below, truthfully.
           if (trimmed.dropped && !requiredVisualProblem(trimmed.block, wanted)) {
             const dangling = danglingFigureProblem(trimmed.block); if (dangling) throw new Error(dangling);
-            ({ block, dropped: diagramsDropped } = trimmed);
+            block = trimmed.block; diagramsDropped += trimmed.dropped;
           }
         }
-        // E2: the questions and term anchors are checked against the FINAL text (accepted title applied, diagrams settled), in the same message as every other problem.
+        // E2 + fix 1b: the questions and term anchors are read against the FINAL text (accepted title applied, diagrams settled); what is not valid is dropped, never repaired.
         const interactive = interactionsEnabled(env);
-        const problem = [explanationProblem(block, input.depth, input.args), requiredVisualProblem(block, wanted), interactive ? interactionsProblem(block, { questions, terms }) : null].filter(Boolean).join(' '); if (problem) throw new Error(problem);
+        if (interactive) ({ questions, terms } = keptInteractions(block, { questions, terms }));
+        const problem = [explanationProblem(block, input.depth, input.args), requiredVisualProblem(block, wanted)].filter(Boolean).join(' '); if (problem) throw new Error(problem);
         if (wanted) block = { ...block, visualRequirements: boundRequirements(wanted) }; // saved provenance: what was asked for and that the card holds it
         block = { ...block, depth: validDepth(input.depth) || DEFAULT_DEPTH }; // E3: the budget this card was written to, so a later illustration caption is checked against it
         // EXP-13: the pictures, made before the card is returned and saved; one that cannot be made loses its fence, never the card. It shows no text, so the anchors checked above still hold.
-        block = await illustrateExplanation(env, block, figures || {});
+        block = await illustrateExplanation(env, block, { ...(figures || {}), early });
         if (interactive) block = { ...block, interactions: await bindInteractions(block, { questions, terms }) };
       }
       if (GATES[id]) block = GATES[id](block);

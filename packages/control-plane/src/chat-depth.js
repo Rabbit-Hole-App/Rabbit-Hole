@@ -31,8 +31,9 @@ export const DEPTH_COMMANDS = Object.freeze(['explain', 'explanation', 'walkthro
 // CORE.09: an Explanation card's teaching objective and prose budget per Depth (EXP-13: prose only), the same on the direct and roadmap paths.
 // Unlike depthInstruction, Standard has an explicit target too. An omitted or unknown Depth is the default.
 // Owner 2026-11-08: one budget for every Depth, about 10 lines of the 440 px card (408 px of 14 px text, about 60 characters a line).
-// Owner 2026-11-08 (EXP-13): the 600 is a soft target the author is asked for; the server refuses only above the hard limit (a 100-character tolerance).
-export const EXPLANATION_BUDGET = Object.freeze({ target: 600, hard: 700 });
+// Owner 2026-11-08 (EXP-13, revised after the gpt-oss benchmark): the author is asked for 450; the server accepts up to 700 without a repair, and above 700 it
+// trims whole sentences or list items (learn-primitives.js trimExplanationProse) before anything goes to the one repair.
+export const EXPLANATION_BUDGET = Object.freeze({ target: 450, hard: 700 });
 export const EXPLANATION_CAPS = Object.freeze({ overview: EXPLANATION_BUDGET.target, standard: EXPLANATION_BUDGET.target, deep: EXPLANATION_BUDGET.target });
 export const EXPLANATION_OBJECTIVES = Object.freeze({
   overview: 'Depth: Overview. Explain the central idea and essential mechanism in everyday language. A concrete example can make the idea easier to follow.',

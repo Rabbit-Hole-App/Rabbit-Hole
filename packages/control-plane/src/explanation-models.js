@@ -46,10 +46,16 @@ export const CHAIN_STEPS = Object.freeze({
   cerebras: { provider: 'cerebras', model: CEREBRAS_MODEL, credentialRef: 'CEREBRAS_API_KEY' },
   google: { provider: 'google', model: 'gemini-3.5-flash-lite', credentialRef: 'GEMINI_API_KEY' },
 });
-// Owner order 2026-11-08: the profile's gpt-oss provider, then the other gpt-oss provider, then Gemini. Never the plan model.
-// shortcut: 8,000 output tokens for every effort and step (the benchmark ran Cerebras low at 4,000); reasoning counts in them, so raise high's if it truncates.
-const chainRole = (primary, effort) => ({ role: 'author', task: 'artifact', ...CHAIN_STEPS[primary], adapter: 'fast-chain', maxOutputTokens: 8000, settings: { reasoning_effort: effort },
-  fallbacks: [CHAIN_STEPS[primary === 'fireworks' ? 'cerebras' : 'fireworks'], CHAIN_STEPS.google].map(step => ({ ...step })) });
+// Owner order 2026-11-08 (revised the same day): a fireworks-* profile is Fireworks gpt-oss-120b, then Gemini; Cerebras is never a fallback step. A
+// cerebras-* profile stays selectable on its own (Cerebras, then Fireworks, then Gemini). Production uses fireworks-low. Never the plan model.
+// Output cap per effort (owner review 2026-11-08: output tokens are latency, so the model must not run long). Measured 2026-11-08 on Fireworks gpt-oss-120b
+// (C:/s/spec/benchmarks/explain-gpt-oss-2026-11-08): the largest delivered card is 2,395 JSON characters (title, body, questions, terms; about 700 tokens at
+// ~3.4 characters a token), and output including reasoning averaged 643 tokens a call at low (56,604 over 88 calls) and 1,356 at medium (44,740 over 33).
+// Low 3,000 is about twice the largest card plus low's mean reasoning; medium 5,000 the same with medium's; high keeps 8,000 (only 1 of 40 high calls
+// finished inside the 8 s deadline, so there is no measurement to tighten it). Reasoning counts in the cap: a truncated answer is a max_tokens failure.
+export const CHAIN_MAX_TOKENS = Object.freeze({ low: 3000, medium: 5000, high: 8000 });
+const chainRole = (primary, effort) => ({ role: 'author', task: 'artifact', ...CHAIN_STEPS[primary], adapter: 'fast-chain', maxOutputTokens: CHAIN_MAX_TOKENS[effort], settings: { reasoning_effort: effort },
+  fallbacks: (primary === 'fireworks' ? [CHAIN_STEPS.google] : [CHAIN_STEPS.fireworks, CHAIN_STEPS.google]).map(step => ({ ...step })) });
 // The steps of a fast-chain role, primary first.
 export const chainSteps = c => [{ provider: c.provider, model: c.model, credentialRef: c.credentialRef }, ...(c.fallbacks || [])];
 

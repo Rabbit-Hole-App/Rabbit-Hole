@@ -179,12 +179,14 @@ test('fixture run: successful, failed, timed-out, invalid and defective attempts
     assert.deepEqual([cal('cal-dropped-table').status, cal('cal-dropped-table').failureStage, cal('cal-dropped-table').calls], ['failed', 'validation', 2]);
     assert.match(cal('cal-dropped-table').failureReason, /required_visual_missing/);
     assert.match(cal('cal-malformed-diagram').failureReason, /explanation_bad_diagram/);
-    assert.match(cal('cal-over-cap').failureReason, /explanation_over_budget/);
+    // EXP-13 fix 1a (owner 2026-11-08): an over-long card made of whole sentences is trimmed by the server, not refused, so the frozen v2 corpus's over-cap
+    // calibration is now delivered inside the hard limit and no longer a defect the validator catches (the corpus is not edited here).
+    assert.deepEqual([cal('cal-over-cap').status, cal('cal-over-cap').calls], ['success', 1]);
     // every call identity is unique and was persisted as 'dispatched' before its 'settled' line
     const dispatched = r.calls.filter(c => c.state === 'dispatched').map(c => c.callId), settled = r.calls.filter(c => c.state === 'settled' && c.role !== 'evaluator').map(c => c.callId);
     assert.equal(new Set(dispatched).size, dispatched.length); assert.deepEqual([...dispatched].sort(), [...settled].sort());
     for (const id of dispatched) assert.ok(r.calls.findIndex(c => c.callId === id && c.state === 'dispatched') < r.calls.findIndex(c => c.callId === id && c.state === 'settled'));
-    assert.deepEqual(r.result.calibration, { seeded: 4, detected: 4, missed: [], controls: 1, falsePositives: [] }, 'every seeded defect is flagged and the clean control is not');
+    assert.deepEqual(r.result.calibration, { seeded: 4, detected: 3, missed: ['cal-over-cap'], controls: 1, falsePositives: [] }, 'every seeded defect but the now-trimmed over-cap is flagged, and the clean control is not');
   } finally { await cleanup(r.dir); }
 });
 
@@ -341,7 +343,7 @@ test('summary.csv and report.md recompute from the raw rows, failures stay in th
       assert.deepEqual([cells[2], cells[3]], [get(p, 'all', 'total'), get(p, 'all', 'success')], `${p}: the report table is the summary`);
     }
     for (const failed of r.rows.filter(x => x.kind === 'benchmark' && x.status !== 'success')) assert.ok(report.includes(failed.attemptId), `${failed.attemptId} is listed in the report`);
-    assert.match(report, /Seeded defects flagged: 4 of 4/);
+    assert.match(report, /Seeded defects flagged: 3 of 4 \(missed: cal-over-cap\)/);
   } finally { await cleanup(r.dir); }
 });
 

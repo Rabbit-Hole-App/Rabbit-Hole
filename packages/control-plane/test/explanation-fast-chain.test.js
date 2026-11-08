@@ -1,5 +1,5 @@
-// The fast chain of the written /explain (explanation-fast-chain.js, owner 2026-11-08): fireworks-* and cerebras-* profiles, the other gpt-oss provider
-// and then Gemini as fallbacks, EXPLANATION_FALLBACK=off for benchmarks. Offline: global fetch is a provider double, and the spend ledger is the real
+// The fast chain of the written /explain (explanation-fast-chain.js, owner 2026-11-08): a fireworks-* profile falls back to Gemini only (Cerebras is never a
+// fallback step, owner 2026-11-08); a cerebras-* profile, chosen on its own, falls back to Fireworks then Gemini. EXPLANATION_FALLBACK=off for benchmarks. Offline: global fetch is a provider double, and the spend ledger is the real
 // one on node:sqlite (the credits-provider-failure.test.js wrapper). No provider is contacted, nothing is paid.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { EXPLANATION_PROFILE_SETTING, EXPLANATION_REGISTRY, explanationProfileBinding, explanationProfileFor, resolveExplanationProfile } from '../src/explanation-models.js';
 import { CHAIN_ENDPOINTS, FALLBACK_SETTING, stepRequest } from '../src/explanation-fast-chain.js';
 import { generateArtifact } from '../src/learn-artifact.js';
-import { EXPLANATION_GUIDANCE, artifactBlock, explanationProblem } from '../src/learn-primitives.js';
+import { EXPLANATION_GUIDANCE, artifactBlock, explanationProblem, settleExplanationBody } from '../src/learn-primitives.js';
 import { explanationTarget } from '../src/chat-depth.js';
 import { INTERACTION_GUIDANCE, INTERACTIONS_SETTING } from '../src/explanation-interactions.js';
 import { requestSpendBound } from '../src/learn-spend.js';
@@ -74,16 +74,17 @@ const metered = (LEARN_DB, profile) => {
 };
 const rows = (sqlite, table) => sqlite.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all().map(row => ({ ...row }));
 
-test('profiles: fireworks-* and cerebras-* chain the other gpt-oss provider then Gemini; plan-default stays the default', async () => {
+test('profiles: fireworks-* chains Gemini only, cerebras-* chains Fireworks then Gemini; plan-default stays the default', async () => {
   assert.equal(EXPLANATION_REGISTRY.defaultProfile, 'plan-default');
   assert.equal(explanationProfileFor({}).id, 'plan-default', 'production is unchanged until the setting names another profile');
   const hashes = new Set();
-  for (const [primary, model, second] of [['fireworks', FW, 'cerebras'], ['cerebras', 'gpt-oss-120b', 'fireworks']]) for (const effort of ['low', 'medium', 'high']) {
+  for (const [primary, model, fallbacks] of [['fireworks', FW, ['google']], ['cerebras', 'gpt-oss-120b', ['fireworks', 'google']]]) for (const effort of ['low', 'medium', 'high']) {
     const p = explanationProfileFor({ [EXPLANATION_PROFILE_SETTING]: `${primary}-${effort}`, ...KEYS });
     const a = p.roles.author;
     assert.deepEqual([a.adapter, a.provider, a.model, a.settings.reasoning_effort], ['fast-chain', primary, model, effort]);
-    assert.deepEqual(a.fallbacks.map(s => s.provider), [second, 'google']);
-    assert.deepEqual(a.fallbacks.map(s => s.credentialRef), [second === 'cerebras' ? 'CEREBRAS_API_KEY' : 'FIREWORKS_API_KEY', 'GEMINI_API_KEY']);
+    assert.deepEqual(a.fallbacks.map(s => s.provider), fallbacks, 'no fireworks-* step calls Cerebras');
+    assert.deepEqual(a.fallbacks.map(s => s.credentialRef), fallbacks.map(p => ({ fireworks: 'FIREWORKS_API_KEY', google: 'GEMINI_API_KEY' })[p]));
+    assert.equal(a.maxOutputTokens, { low: 3000, medium: 5000, high: 8000 }[effort], 'a tight output cap per effort');
     assert.deepEqual({ ...p.roles.repair, role: 'author' }, a, 'each step repairs on itself');
     hashes.add((await explanationProfileBinding(p)).hash);
   }
@@ -105,12 +106,12 @@ test('credentials: a chain with no step credential is refused before anything is
   assert.equal(refused.result, 'unsupported');
   assert.match(refused.message, /not set up/);
   assert.equal(sent.length, 0);
-  // FIREWORKS_API_KEY not set: the fireworks-* profile goes straight to Cerebras.
+  // FIREWORKS_API_KEY not set: the fireworks-* profile goes straight to Gemini.
   const out = await ask(offline('fireworks-low', { FIREWORKS_API_KEY: '' }));
   assert.equal(out.result, 'artifact');
-  assert.deepEqual(steps(out), [['fireworks', 'skipped'], ['cerebras', 'artifact']]);
-  assert.deepEqual(sent.map(s => s.provider), ['cerebras']);
-  assert.deepEqual(out.block.authoredBy, { provider: 'cerebras', model: 'gpt-oss-120b' });
+  assert.deepEqual(steps(out), [['fireworks', 'skipped'], ['google', 'artifact']]);
+  assert.deepEqual(sent.map(s => s.provider), ['google']);
+  assert.deepEqual(out.block.authoredBy, { provider: 'google', model: 'gemini-3.5-flash-lite' });
 });
 
 test('the request: provider endpoint and key, model, reasoning_effort, strict json_schema of the make_explanation input, and the same guidance, request, Depth and required visuals', async t => {
@@ -120,9 +121,14 @@ test('the request: provider endpoint and key, model, reasoning_effort, strict js
   const [{ provider, init, body }] = sent;
   assert.equal(provider, 'fireworks');
   assert.equal(init.headers.Authorization, `Bearer ${KEYS.FIREWORKS_API_KEY}`);
-  assert.deepEqual([body.model, body.reasoning_effort, body.stream, body.max_tokens], [FW, 'high', false, 8000]);
+  assert.deepEqual([body.model, body.reasoning_effort, body.stream, body.max_tokens], [FW, 'high', true, 8000], 'streamed by default (fix 3)');
+  assert.equal(body.stream_options, undefined, 'Fireworks sends its usage chunk by default');
   assert.deepEqual([body.response_format.type, body.response_format.json_schema.strict, body.response_format.json_schema.name], ['json_schema', true, 'make_explanation']);
-  assert.deepEqual(body.response_format.json_schema.schema.required, ['title', 'body']);
+  const schema = body.response_format.json_schema.schema;
+  assert.deepEqual(schema.required, ['title', 'visuals', 'body']);
+  assert.deepEqual(Object.keys(schema.properties), ['title', 'visuals', 'body'], 'visuals before body, so pictures can start while the body streams');
+  assert.ok(!JSON.stringify(schema).includes('"oneOf"'), 'every exclusive oneOf (the visual kinds, the diagram kinds) is sent as anyOf');
+  assert.deepEqual(schema.properties.visuals.items.anyOf.map(b => b.properties.k.const), ['diagram', 'picture']);
   const [system, user] = body.messages;
   for (const text of [EXPLANATION_GUIDANCE, explanationTarget('deep')]) assert.ok(system.content.includes(text), 'the tool description is sent verbatim');
   assert.ok(!system.content.includes(INTERACTION_GUIDANCE), 'interactions off: no interaction guidance');
@@ -167,7 +173,7 @@ test('end to end on the real ledger: the card records who wrote it, and the call
 
 test('the one repair runs on the same step with the validator\'s exact problem and the previous answer', async t => {
   quiet(t);
-  const problem = explanationProblem(artifactBlock('explanation', long));
+  const problem = explanationProblem({ ...artifactBlock('explanation', long), body: settleExplanationBody(long.body) }); // the server trims the prose first (fix 1a)
   assert.ok(problem, 'the first answer is invalid');
   const sent = providers(t, ok(long), ok(card));
   const out = await ask(offline('cerebras-low'));
@@ -184,11 +190,11 @@ test('fallback transitions: 429, 5xx, an answer still invalid after its repair, 
   quiet(t);
   const { sqlite, LEARN_DB } = d1(t);
   let sent = providers(t, status(429), ok(card));
-  let out = await ask(metered(LEARN_DB, 'fireworks-low'));
-  assert.deepEqual(steps(out), [['fireworks', 'provider_busy'], ['cerebras', 'artifact']]);
-  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'cerebras']);
-  assert.deepEqual(out.block.authoredBy, { provider: 'cerebras', model: 'gpt-oss-120b' });
-  assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.provider, a.status, a.cost_micros]), [['fireworks', 'failed', 0], ['cerebras', 'settled', 1850]], 'every step admitted and settled; Cerebras $0.35/$0.75');
+  let out = await ask(metered(LEARN_DB, 'cerebras-low'));
+  assert.deepEqual(steps(out), [['cerebras', 'provider_busy'], ['fireworks', 'artifact']]);
+  assert.deepEqual(sent.map(s => s.provider), ['cerebras', 'fireworks']);
+  assert.deepEqual(out.block.authoredBy, { provider: 'fireworks', model: FW });
+  assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.provider, a.status, a.cost_micros]), [['cerebras', 'failed', 0], ['fireworks', 'settled', 1350]], 'every step admitted and settled; Fireworks $0.15/$0.60');
 
   sent = providers(t, status(503), ok(card));
   out = await ask(offline('cerebras-medium'));
@@ -197,12 +203,12 @@ test('fallback transitions: 429, 5xx, an answer still invalid after its repair, 
 
   sent = providers(t, ok(long), ok(long), ok(card));
   out = await ask(offline('fireworks-medium'));
-  assert.deepEqual(steps(out), [['fireworks', 'validation_error'], ['cerebras', 'artifact']]);
-  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'cerebras'], 'the step\'s own repair first, then the next step');
+  assert.deepEqual(steps(out), [['fireworks', 'validation_error'], ['google', 'artifact']]);
+  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'google'], 'the step\'s own repair first, then the next step');
   assert.equal(out.repaired, false, 'the delivered step answered first time');
 });
 
-test('fallback transitions: a timeout moves on; both gpt-oss steps failing reach Gemini, which writes the card', async t => {
+test('fallback transitions: a timeout moves on to Gemini; on a cerebras-* profile both gpt-oss steps failing reach Gemini, which writes the card', async t => {
   quiet(t);
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const sent = providers(t, hang, ok(card));
@@ -210,7 +216,7 @@ test('fallback transitions: a timeout moves on; both gpt-oss steps failing reach
   while (sent.length < 1) await new Promise(resolve => setImmediate(resolve));
   t.mock.timers.tick(CHAIN_ENDPOINTS.fireworks.deadlineMs);
   const out = await pending;
-  assert.deepEqual(steps(out), [['fireworks', 'provider_timeout'], ['cerebras', 'artifact']]);
+  assert.deepEqual(steps(out), [['fireworks', 'provider_timeout'], ['google', 'artifact']]);
   t.mock.timers.reset();
 
   const third = providers(t, status(429), status(500), ok(card, { model: 'gemini-3.5-flash-lite' }));
@@ -225,8 +231,8 @@ test('every step failing is a failure with its reason and steps, never Opus; an 
   quiet(t);
   const sent = providers(t, status(429));
   await assert.rejects(ask(offline('fireworks-low')), e => e.code === 'provider_busy' && e.retryable === true && /busy right now/.test(e.message)
-    && JSON.stringify(e.attempts.map(a => [a.provider, a.outcome])) === JSON.stringify([['fireworks', 'provider_busy'], ['cerebras', 'provider_busy'], ['google', 'provider_busy']]));
-  assert.deepEqual(sent.map(s => s.url), [URL_OF.fireworks, URL_OF.cerebras, URL_OF.google], 'an Anthropic key is set, and never used');
+    && JSON.stringify(e.attempts.map(a => [a.provider, a.outcome])) === JSON.stringify([['fireworks', 'provider_busy'], ['google', 'provider_busy']]));
+  assert.deepEqual(sent.map(s => s.url), [URL_OF.fireworks, URL_OF.google], 'an Anthropic key and a Cerebras key are set, and never used');
   const invalid = providers(t, ok(long));
   const out = await ask(offline('cerebras-low'));
   assert.deepEqual([out.result, out.reason], ['validation_error', 'validation_error']);
@@ -259,5 +265,5 @@ test('EXPLANATION_FALLBACK=off: only the profile\'s own provider, and its failur
   // On (the default): the same 429 is followed by the next step.
   sent = providers(t, status(429), ok(card));
   assert.equal((await ask(offline('fireworks-low'))).result, 'artifact');
-  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'cerebras']);
+  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'google']);
 });

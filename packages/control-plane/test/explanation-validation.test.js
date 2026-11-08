@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { diagramProblem, explanationProblem, explanationProseChars } from '../src/learn-primitives.js';
+import { diagramProblem, explanationProblem, explanationProseChars, settleExplanationBody } from '../src/learn-primitives.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { generateRoadmapCard } from '../src/roadmap/roadmap-generate.js';
 import { EXPLANATION_BUDGET, EXPLANATION_CAPS } from '../src/chat-depth.js';
@@ -52,12 +52,17 @@ for (const [name, build] of Object.entries(SHAPES)) {
       const direct = await viaDirect(depth, build(hard));
       assert.equal(direct.out.result, 'artifact', `direct ${depth} at ${hard}`);
       assert.match(JSON.stringify(direct.m.seen[0].tools), new RegExp(`at most ${target} characters of prose`), 'the request asks for the 600 target');
+      // EXP-13 fix 1a (owner 2026-11-08): over the hard limit the server first trims whole sentences or list items (each prose part keeps one); only a card
+      // that still does not fit goes to the repair (direct) or fails (roadmap). The 'list item and heading' shape trims; the others are one long sentence each.
+      const trims = explanationProseChars({ body: settleExplanationBody(build(hard + 1).body) }) <= hard;
       const directOver = await viaDirect(depth, build(hard + 1));
-      assert.deepEqual([directOver.out.result, /^explanation_over_budget:/.test(directOver.out.error)], ['validation_error', true], `direct ${depth} over`);
+      if (trims) assert.deepEqual([directOver.out.result, explanationProseChars(directOver.out.block) <= hard, directOver.m.seen.length], ['artifact', true, 1], `direct ${depth} over, trimmed`);
+      else assert.deepEqual([directOver.out.result, /^explanation_over_budget:/.test(directOver.out.error)], ['validation_error', true], `direct ${depth} over`);
       const roadmap = await viaRoadmap(depth, build(hard));
       assert.equal(roadmap.out.outcome, 'ok', `roadmap ${depth} at ${hard}`);
       const roadmapOver = await viaRoadmap(depth, build(hard + 1));
-      assert.deepEqual([roadmapOver.out.failure_class, roadmapOver.out.code, roadmapOver.m.seen.length], ['terminal_validation_failure', 'explanation_over_budget', 1], `roadmap ${depth} over`);
+      if (trims) assert.deepEqual([roadmapOver.out.outcome, roadmapOver.m.seen.length], ['ok', 1], `roadmap ${depth} over, trimmed`);
+      else assert.deepEqual([roadmapOver.out.failure_class, roadmapOver.out.code, roadmapOver.m.seen.length], ['terminal_validation_failure', 'explanation_over_budget', 1], `roadmap ${depth} over`);
     }
   });
 }

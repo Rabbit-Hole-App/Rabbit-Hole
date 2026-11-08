@@ -53,7 +53,7 @@ test('a new card has no folded sections: `more` is refused by the schema, so the
   const { out, m } = await direct({ ...card(withVisual(ICE)), more: [{ label: 'Example', text: 'A cube.' }] });
   assert.equal(out.result, 'validation_error');
   assert.equal(m.seen.length, 2, 'one call and its one repair');
-  assert.match(m.seen[1].messages.at(-1).content[0].content, /unexpected field; allowed fields: title, body/);
+  assert.match(m.seen[1].messages.at(-1).content[0].content, /unexpected field; allowed fields: title, visuals, body/);
   assert.equal(m.seen[0].tools.find(t => t.name === 'make_explanation').input_schema.properties.more, undefined);
 });
 
@@ -201,9 +201,12 @@ test('no RECRAFT_API_KEY (or image generation off, or no board): no provider cal
 // ---- the Tutor roadmap path ----------------------------------------------------------------------------------------------------------------------------------
 const viaRoadmap = (block, deps = {}) => { const m = scripted(['make_explanation', block]); const stages = []; return generateRoadmapCard({}, access, ref, { loadAccepted: async () => record(), withProviderCall: (env, fields) => { stages.push(fields); return { ...env }; }, callModel: m.callModel, ...deps }).then(out => ({ out, m, stages })); };
 
-test('the roadmap path applies the same rules: missing visual, layout, too many visuals, relevance and the prose budget are terminal after one call', async () => {
+test('the roadmap path applies the same rules: missing visual, a layout with no valid order, relevance and the prose budget are terminal after one call', async () => {
   const fence = diagramFence(cycleSpec('Ice floats'));
-  for (const [body, code] of [[ICE, 'explanation_missing_visual'], [`${fence}\n\n${ICE}`, 'explanation_layout'], [`${ICE}\n\n${fence}\n\nIce one.\n\n${fence}\n\nIce two.\n\n${fence}\n\nIce three.`, 'explanation_too_many_visuals'],
+  // Owner review 2026-11-08: a third visual is dropped by the server (the first two kept), so it no longer fails the card.
+  const three = await viaRoadmap(card(`${ICE}\n\n${fence}\n\nIce one.\n\n${fence}\n\nIce two.\n\n${fence}\n\nIce three.`));
+  assert.deepEqual([three.out.outcome, markdownVisuals(three.out.block.body).diagrams.length, three.m.seen.length], ['ok', 2, 1]);
+  for (const [body, code] of [[ICE, 'explanation_missing_visual'], [`${fence}\n\n${ICE}`, 'explanation_layout'],
     [`${ICE}\n\n${diagramFence(cycleSpec('Stock market'))}\n\nSo it floats.`, 'explanation_visual_unrelated'], [withVisual(`Ice ${'é'.repeat(800)}`), 'explanation_over_budget']]) {
     const { out, m } = await viaRoadmap(card(body));
     assert.deepEqual([out.failure_class, out.code, m.seen.length], ['terminal_validation_failure', code, 1], code);

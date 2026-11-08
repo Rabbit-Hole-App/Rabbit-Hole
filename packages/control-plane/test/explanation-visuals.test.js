@@ -104,7 +104,7 @@ test('EX-07: a valid flow with Yes/No branches and outcomes is delivered and sav
   assert.deepEqual(JSON.parse(JSON.stringify(ok.out.block)), ok.out.block, 'the saved block survives a save/read round trip unchanged');
   // An illustration is a visual but not a diagram: the card has its visual, the learner's diagram is still missing.
   const missing = await quiet(() => generate(EX07, [{ title: 'T', body: `The 25-year-old is approved.\n\n${illustrationFence({ caption: 'The 25-year-old approved', alt: 'An approved applicant' })}\n\nThat is the result.` }]));
-  assert.match(missing.out.error, /^required_visual_missing:/);
+  assert.match(missing.out.error, /required_visual_missing:/); // the picture is not the asked mix, so the server drops it (owner review 2026-11-08)
   const unclosed = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.\n\n\`\`\`rh-diagram\n${JSON.stringify({ version: 1, diagram: flowSpec })}` }]));
   assert.equal(unclosed.out.result, 'validation_error');
   assert.match(unclosed.out.error, /required_visual_invalid:/);

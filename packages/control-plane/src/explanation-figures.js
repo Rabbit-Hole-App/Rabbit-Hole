@@ -92,19 +92,35 @@ async function figure(env, spec, index, o) {
   return null;
 }
 
+// The pictures of one card, one per prompt, each started once: the same attempts, retries, ledger rows and silent removal whoever starts it.
+// EXP-13 fix 3 (owner 2026-11-08): the fast chain starts a picture as soon as the streamed answer holds it, while the author is still writing
+// (explanation-fast-chain.js); a repaired answer that keeps a prompt reuses its picture, and a picture whose prompt left the card is still settled, then not used.
+export function figureStarter(env, { store = null, scope = null, adapter = null, log = console.log } = {}) {
+  const started = new Map();
+  let owner = null;
+  const resolved = () => (owner ??= Promise.resolve().then(() => (typeof store === 'function' ? store() : store)).catch(() => null));
+  return {
+    start(spec) {
+      if (!started.has(spec.prompt)) { const index = started.size; started.set(spec.prompt, resolved().then(o => figure(env, spec, index, { store: o, scope, adapter, log })).catch(() => null)); }
+      return started.get(spec.prompt);
+    },
+    settled: () => Promise.all(started.values()),
+  };
+}
+
 // -> the block with `figures` for the pictures made and the fences of the others removed (the same block when it has no rh-illustration fence).
 //   store: { org, email, app, boardId } (the board owner the file source belongs to), or an async function giving it, or null (no picture is made: fences removed).
 //   scope(env, call): the env one provider call runs under (the roadmap's stable operation drawing on the step hold); default the request's own env.
 //   adapter: an image adapter double (tests); default imageAdapter.
-export async function illustrateExplanation(env, block, { store = null, scope = null, adapter = null, log = console.log } = {}) {
+//   early: a figureStarter that already holds pictures started from the streamed answer; the card waits for every picture it started.
+export async function illustrateExplanation(env, block, { store = null, scope = null, adapter = null, log = console.log, early = null } = {}) {
   const specs = markdownIllustrations(block?.body).filter(p => p.ok).map(p => p.spec);
+  const starter = early || figureStarter(env, { store, scope, adapter, log });
+  const results = await Promise.all(specs.map(spec => starter.start(spec)));
+  await starter.settled();
   if (!specs.length) return block;
-  let results;
-  try {
-    const owner = typeof store === 'function' ? await store() : store;
-    results = await Promise.all(specs.map((spec, i) => figure(env, spec, i, { store: owner, scope, adapter, log })));
-  } catch { results = specs.map(() => null); }
   const figures = {}, drop = new Set();
-  specs.forEach((spec, i) => { if (results[i]) figures[spec.id] = results[i]; else drop.add(spec.id); });
+  // A picture started for an earlier answer with the same prompt shows this answer's alt and caption.
+  specs.forEach((spec, i) => { if (results[i]) figures[spec.id] = { ...results[i], alt: spec.alt, caption: spec.caption }; else drop.add(spec.id); });
   return { ...block, ...(drop.size ? { body: withoutIllustrations(block.body, drop) } : {}), ...(Object.keys(figures).length ? { figures } : {}) };
 }

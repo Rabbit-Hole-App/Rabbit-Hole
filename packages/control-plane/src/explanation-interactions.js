@@ -19,13 +19,15 @@ const FIELD = /^body$/; // EXP-13: a new card has no sections, so a new anchor i
 const WORD = /[\p{L}\p{N}]/u;
 
 // ---- author-facing schema (appended to the Explanation tool's schema while the switch is on) ----
+// Owner review 2026-11-08 (output tokens are latency): a term is { t, d, n }, the term as written in the prose, its definition and which prose occurrence
+// (zero-based) to mark. The field is always the body and the quote is the term itself, so neither is asked for; the server fills both (authorTerms).
 const text = (maxLength, minLength = 1) => ({ type: 'string', minLength, maxLength });
 export const INTERACTION_PROPERTIES = Object.freeze({
   questions: { type: 'array', minItems: 3, maxItems: 3, items: text(INTERACTION_LIMITS.question * 2) },
-  terms: { type: 'array', minItems: 0, maxItems: INTERACTION_LIMITS.terms, items: { type: 'object', additionalProperties: false, required: ['label', 'definition', 'field', 'quote', 'occurrence'],
-    properties: { label: text(INTERACTION_LIMITS.quote), definition: text(INTERACTION_LIMITS.definition * 2), field: { type: 'string', enum: ['body'] }, quote: text(INTERACTION_LIMITS.quote), occurrence: { type: 'integer', minimum: 0, maximum: INTERACTION_LIMITS.occurrence } } } },
+  terms: { type: 'array', minItems: 0, maxItems: INTERACTION_LIMITS.terms, items: { type: 'object', additionalProperties: false, required: ['t', 'd', 'n'],
+    properties: { t: text(INTERACTION_LIMITS.quote), d: text(INTERACTION_LIMITS.definition * 2), n: { type: 'integer', minimum: 0, maximum: INTERACTION_LIMITS.occurrence } } } },
 });
-export const INTERACTION_GUIDANCE = 'Also return, in this same call, "questions": exactly three distinct questions a curious learner would ask next about this explanation (each at most 120 characters, a question to ask, never an answer), and optionally "terms": up to six one- or two-word terms that appear in the prose of the body (paragraph, heading or list text, never a table cell, a diagram label or an illustration), each with "label" (the term), "definition" (at most 160 characters), "field" ("body") and "quote" (exactly the term as written there) and "occurrence" (zero-based: which occurrence of that exact word or phrase in the body to mark, counting whole-word matches in reading order, table cells and diagram labels included). Use terms only for a real concept the learner may not know; no terms is fine. Questions and definitions are not part of the lesson text.';
+export const INTERACTION_GUIDANCE = 'Also return, in this same call, "questions": exactly three distinct questions a curious learner would ask next about this explanation (each at most 120 characters, a question to ask, never an answer), and optionally "terms": up to six one- or two-word terms that appear in the prose of the body (paragraph, heading or list text, never a table cell, a diagram label or an illustration), each {"t": the term exactly as written there, "d": its definition in at most 160 characters, "n": which occurrence of that exact word or phrase in the prose of the body to mark, zero-based, counting whole-word matches in reading order}. Use terms only for a real concept the learner may not know; no terms is fine. Questions and definitions are not part of the lesson text.';
 
 // -> the Markdown field's canonical display text (the one mapping selection, anchors and term decorations share).
 export const fieldText = (block, field) => {
@@ -53,6 +55,33 @@ export function occurrences(textValue, quote) {
 export const contentRevisionInput = block => JSON.stringify({ v: DISPLAY_TEXT_VERSION, title: block?.title ?? '', body: block?.body ?? '', more: (block?.more || []).map(s => ({ label: s?.label ?? '', text: s?.text ?? '' })) });
 export const contentRevision = async block => `r${DISPLAY_TEXT_VERSION}-${(await sha256Hex(contentRevisionInput(block))).slice(0, 16)}`;
 
+// EXP-13 fix 1b (owner 2026-11-08): what the server keeps of the author's questions and terms instead of a repair. A question that is blank, too long or a
+// repeat is dropped, the others kept (owner's choice between a repair below three and keeping what is valid: keeping never fails a card, and the questions
+// are suggestions under the card, not the lesson); a term that is invalid or cannot be anchored in the prose is dropped, the others kept. Both forms of a
+// term are read: the author's short { t, d, n } (n counts prose occurrences only, as the author sees the body) and the saved long form. -> { questions, terms }
+// that interactionsProblem accepts for this block, ready for bindInteractions.
+export function keptInteractions(block, meta) {
+  const questions = [], seen = new Set();
+  for (const q of Array.isArray(meta?.questions) ? meta.questions : []) {
+    const t = String(q ?? '').replace(/\s+/g, ' ').trim();
+    if (t && len(t) <= INTERACTION_LIMITS.question && !seen.has(t.toLowerCase()) && questions.length < INTERACTION_LIMITS.questions) { seen.add(t.toLowerCase()); questions.push(t); }
+  }
+  const field = fieldText(block, 'body') ?? '', prose = explanationFieldProse(block?.body), chars = cp(field);
+  const inProse = hit => { for (let k = hit.start; k < hit.end; k++) if (chars[k] !== ' ' && !prose[k]) return false; return true; };
+  const terms = [];
+  for (const raw of Array.isArray(meta?.terms) ? meta.terms : []) {
+    if (terms.length >= INTERACTION_LIMITS.terms || !raw || typeof raw !== 'object') continue;
+    let term = raw;
+    if ('t' in raw) {
+      const label = String(raw.t ?? '').trim(), all = occurrences(field, label), hits = all.filter(inProse);
+      const hit = hits[Number.isInteger(raw.n) ? raw.n : 0] ?? hits[0];
+      term = { label, definition: raw.d, field: 'body', quote: label, occurrence: hit ? all.indexOf(hit) : -1 };
+    }
+    if (!termsProblem(block, [...terms, term])) terms.push(term);
+  }
+  return { questions, terms };
+}
+
 // -> null, or the validator's words (starting explanation_bad_interactions:, so the one repair and the roadmap's terminal reason read the same). `meta` is the author's
 // { questions, terms }; the block is the FINAL card (accepted title applied, diagrams settled).
 export function interactionsProblem(block, meta) {
@@ -67,6 +96,10 @@ export function interactionsProblem(block, meta) {
     if (seen.has(t.toLowerCase())) return bad(`question ${i + 1} repeats another question.`);
     seen.add(t.toLowerCase());
   }
+  return termsProblem(block, terms);
+}
+function termsProblem(block, terms) {
+  const L = INTERACTION_LIMITS, bad = message => `explanation_bad_interactions: ${message}`;
   if (!Array.isArray(terms) || terms.length > L.terms) return bad(`at most ${L.terms} terms.`);
   const taken = [];
   for (const [i, term] of terms.entries()) {
