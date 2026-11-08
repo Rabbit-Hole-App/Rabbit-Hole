@@ -276,7 +276,7 @@ function manifestLimits(schema, path = '') {
   const own = ['maxLength', 'maxItems', 'maximum'].filter(key => typeof schema[key] === 'number').map(key => `${path} ${schema[key]}`);
   return [...(path ? own : []), ...Object.entries(schema.properties ?? {}).flatMap(([name, child]) => manifestLimits(child, path ? `${path}.${name}` : name)), ...(schema.items ? manifestLimits(schema.items, `${path}[]`) : [])];
 }
-export const MANIFEST_LIMITS_TEXT = `Manifest limits (a longer text, a longer list or a larger number is refused, never cut: characters for text, items for a list, the value for a number): ${manifestLimits({ properties: { ...PROGRAM_MANIFEST.properties, ...STATEFUL_MANIFEST } }).join(', ')}.`;
+export const MANIFEST_LIMITS_TEXT = `Manifest limits (a longer text, a longer list or a larger number is refused, never cut: characters for text, items for a list, the value for a number): ${manifestLimits({ properties: { ...PROGRAM_MANIFEST.properties, ...STATEFUL_MANIFEST } }).join(', ')}. Wording (owner 2026-11-07): manifest.description is 2 to 4 short sentences; manifest.summary is 1 to 2 sentences; manifest.instructions is optional, only when the card needs usage instructions, and is 1 to 2 short sentences (at most 300 characters) shown below the description. Never put instructions or explanation in the drawn frame.`;
 
 export const INTERACT_BUILD_SYSTEM = `You build the runnable artifacts of ONE already approved scene plan (a ScenePlan). Trusted code seals, checks, composes and renders what you return; an independent reviewer then looks at the actual rendered card. The plan was designed, reviewed and approved by the learner: you implement it exactly and you never change it.
 
