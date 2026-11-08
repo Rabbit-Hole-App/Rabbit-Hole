@@ -378,6 +378,14 @@ test('repeated text in two sections: a selection in the section is anchored to t
   assert.equal(segment.prefix.endsWith('A second '), true);
 });
 
+test('selecting a suggested question offers nothing: the questions are controls, not words of the card', async () => {
+  const card = await envelope();
+  await mount(card, { host: { ask: async () => true }, chat: { addToChat() {} } });
+  const question = textNodes($('[data-explanation-suggestion]'))[0];
+  await selection(question, 0, question, 5, 'How d');
+  assert.equal($('[data-explanation-selection-toolbar]'), null);
+});
+
 test('selection that ends outside the reading flow, or is collapsed, offers nothing', async () => {
   const card = await envelope();
   await mount(card, { host: { ask: async () => true }, chat: { addToChat() {} } });

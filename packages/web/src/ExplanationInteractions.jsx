@@ -112,7 +112,9 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
   const evaluate = () => {
     const flow = flowRef.current, selection = window.getSelection?.();
     const range = flow && selection?.rangeCount && !selection.isCollapsed ? selection.getRangeAt(0) : null;
-    if (!range || !flow.contains(range.startContainer) || !flow.contains(range.endContainer) || !collapse(selection.toString())) { setBar(null); return; }
+    // The suggested questions are controls, not the card's words: selecting them offers nothing.
+    const inQuestions = node => !!(node?.nodeType === 1 ? node : node?.parentNode)?.closest?.('[data-explanation-suggestions]');
+    if (!range || !flow.contains(range.startContainer) || !flow.contains(range.endContainer) || inQuestions(range.startContainer) || inQuestions(range.endContainer) || !collapse(selection.toString())) { setBar(null); return; }
     const entries = fieldsOf(latest.current.block).filter(name => fields.current.has(name)).map(name => { const { root } = fields.current.get(name), canonical = fieldText(latest.current.block, name); return { field: name, root, canonical, aligned: canonical == null ? null : alignField(root, canonical) }; });
     const segments = latest.current.revision ? anchorsFromRange(range, entries, latest.current.revision) : [];
     // The exact visible text: the mapped quote when the fields align, else what the browser selected. Captured now, before a button press moves focus.
