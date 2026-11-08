@@ -7,9 +7,12 @@ import { CAPABILITIES, CONTRACT_LIMITS, parseGuestResult, verifyHashes } from '.
 import { normalizeFrame } from './frame.js';
 import { RASTER_FIXTURES } from './raster-fixtures.js';
 import { resolveProgram, resetProgram } from './program-card.js';
-import { loadEngine, runProgram } from './runtime.js';
+import { loadEngine, runProgram as runWithDefaultLimits } from './runtime.js';
 import { programSdkSource } from './sdk.js';
 import { RASTER_PROGRAM_STAMPS, CYCLIC_PROGRAM_STAMPS, MEDIUM_PROGRAM_STAMPS, VISUAL_PROGRAM_STAMPS, PROGRAM_STAMPS } from './stamps.js';
+import { LIMITS as DEFAULT_LIMITS } from './limits.js';
+// These tests check numbers, not the evaluation deadline: a loaded machine can pass the default 50 ms (genuine-card.test.mjs does the same).
+const runProgram = (engine, input) => runWithDefaultLimits(engine, input, { ...DEFAULT_LIMITS, interruptMs: 5000 });
 
 const engine=await loadEngine();
 async function setup(fixture) {

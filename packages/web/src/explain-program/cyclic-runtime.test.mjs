@@ -7,9 +7,12 @@ import { CAPABILITIES, CONTRACT_LIMITS, parseGuestResult, verifyHashes } from '.
 import { cyclicNetworkFixture as fixture } from './cyclic-fixture.js';
 import { normalizeFrame } from './frame.js';
 import { programStateFor, resetProgram, resolveProgram } from './program-card.js';
-import { loadEngine, runProgram } from './runtime.js';
+import { loadEngine, runProgram as runWithDefaultLimits } from './runtime.js';
 import { programSdkSource } from './sdk.js';
 import { CYCLIC_PROGRAM_STAMPS, MEDIUM_PROGRAM_STAMPS, PROGRAM_STAMPS } from './stamps.js';
+import { LIMITS as DEFAULT_LIMITS } from './limits.js';
+// These tests check numbers, not the evaluation deadline: a loaded machine can pass the default 50 ms (genuine-card.test.mjs does the same).
+const runProgram = (engine, input) => runWithDefaultLimits(engine, input, { ...DEFAULT_LIMITS, interruptMs: 5000 });
 
 const engine = await loadEngine();
 const artifact = await buildProgramArtifact({ manifest: fixture.manifest, source: fixture.source });
