@@ -193,7 +193,7 @@ test('the role ceilings of the whole run are enforced before anything is sent', 
   const ctx = await ctxFor(), store = createMemoryStore();
   await runInteract(REQUEST, { ctx, store, until: 'plan' });
   const saved = await store.load(REQUEST.runId);
-  const used = { ...saved, stage: 'approved', approval: { planHash: saved.planHash }, calls: [{ role: 'build_author', id: 'x:build_author:1' }] };
+  const used = { ...saved, stage: 'approved', approval: { planHash: saved.planHash }, calls: [{ role: 'build_author', id: 'x:build_author:1' }, { role: 'build_author', id: 'x:build_author:2' }] }; // the ceiling is 2: the build and its one correction
   const step = await advanceInteract(used, { ...ctx });
   assert.equal(step.stage, 'failed'); assert.equal(step.patch.failure.kind, 'call_ceiling'); assert.equal(ctx.adapter.log.length, 0);
 });

@@ -76,6 +76,7 @@ const STATEFUL_MANIFEST = {
   actions: { type: 'array', maxItems: 8, description: 'Stateful programs only: buttons the learner presses; each press is one event {type:"action", action: id}.', items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: NAME, label: { type: 'string', maxLength: 60 } } } },
   targets: { type: 'array', maxItems: 8, description: 'Stateful programs only: frame objects the learner selects (by clicking or a button); id is the frame object id, drawn in every frame; each selection is one event {type:"select", target: id}.', items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: { type: 'string', maxLength: 64 }, label: { type: 'string', maxLength: 60 }, drag: { type: 'boolean', description: 'true: the learner can also drag it; each drag is events drag_start, drag_move (merged when fast) and drag_end with x, y in frame coordinates.' } } } },
 };
+export const STATEFUL_MANIFEST_PROPERTIES = STATEFUL_MANIFEST;
 export const programToolSchema = ({ stateful = false } = {}) => ({
   type: 'object', additionalProperties: false, required: ['source', 'manifest'], description: 'Required when kind is program.',
   properties: {
@@ -268,6 +269,15 @@ export function interactBuildSchema({ catalogue = [], stateful = false, specPane
   });
 }
 
+// Every length, count and range limit of the program manifest, read from the schema the provider is given, so the prompt and the schema cannot drift. A reply over one of them is refused
+// whole (then corrected once, interact-build.js), so the builder is told the numbers instead of having to learn them from a refusal.
+function manifestLimits(schema, path = '') {
+  if (!schema || typeof schema !== 'object') return [];
+  const own = ['maxLength', 'maxItems', 'maximum'].filter(key => typeof schema[key] === 'number').map(key => `${path} ${schema[key]}`);
+  return [...(path ? own : []), ...Object.entries(schema.properties ?? {}).flatMap(([name, child]) => manifestLimits(child, path ? `${path}.${name}` : name)), ...(schema.items ? manifestLimits(schema.items, `${path}[]`) : [])];
+}
+export const MANIFEST_LIMITS_TEXT = `Manifest limits (a longer text, a longer list or a larger number is refused, never cut: characters for text, items for a list, the value for a number): ${manifestLimits({ properties: { ...PROGRAM_MANIFEST.properties, ...STATEFUL_MANIFEST } }).join(', ')}.`;
+
 export const INTERACT_BUILD_SYSTEM = `You build the runnable artifacts of ONE already approved scene plan (a ScenePlan). Trusted code seals, checks, composes and renders what you return; an independent reviewer then looks at the actual rendered card. The plan was designed, reviewed and approved by the learner: you implement it exactly and you never change it.
 
 Input fields: approvedPlan (the whole plan: title, story, cardDescription, scene, mode, controls, supportingVisuals, claims), planHash, depth, panels (for main and each supporting panel: its approved runtime, and for a support its readoutIds and parameterBindings), controlBindings (the exact native declaration each approved control must have), timeline (the exact endpoint, origin, pacing and markers the program must declare), program (limits, capabilities, SDK helpers), and, only when a panel is a spec, spec (catalogue, composition, limits). evidence (records) when supplied.
@@ -281,4 +291,5 @@ Rules:
 - Time: evaluate receives elapsed seconds from 0 and must not draw a clock of its own. manifest.duration is the LONGEST endpoint over the whole input range (timeline.durationSeconds); manifest.timeline carries label, displayOffset, playbackRate and markers exactly as timeline gives them for the default inputs. Compute positions from the elapsed time and the inputs only, so the same time gives the same picture however fast it plays; playbackRate paces the wall clock only. The held, released or compared objects must agree at every time you are asked about, including time 0.
 - Numbers: compute every quantity from its equation in the program, in the plan's units and sign convention (up positive when the plan says so). Report each quantity named in scene.quantities that an observation uses, and each scene.readoutIds entry, in the returned quantities and frame.readouts under the plan's own id, from the same variables that draw the picture, so the drawing and the numbers cannot disagree. Show learner-facing measurements inside the scene (text objects) or in a declared readout; never in a footer.
 - Stay in program.limits, use only the program.sdk helpers, keep one idea per card, no import statements, no network, no hash, version, permission or limit fields. Do not copy any example wording.
+- ${MANIFEST_LIMITS_TEXT} Keep every frame at most 1120 x 860 pixels (the default is 960 x 540): the reviewer receives each capture as an image.
 Call ${INTERACT_BUILD_TOOL_NAME} exactly once.`;
