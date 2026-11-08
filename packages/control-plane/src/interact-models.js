@@ -37,7 +37,7 @@ export const INTERACT_ROLES = deepFreeze({
 });
 export const INTERACT_ROLE_IDS = Object.freeze(Object.keys(INTERACT_ROLES));
 export const INTERACT_LIMITS = deepFreeze({ calls: Object.fromEntries(INTERACT_ROLE_IDS.map(r => [r, INTERACT_ROLES[r].calls])), refinements: 5, correctionRounds: 3,
-  deadlines: { callMs: 120000, preparationMs: 600000, jobMs: 600000 } });
+  deadlines: { callMs: 300000, preparationMs: 600000, jobMs: 1200000 } });
 // The job's call-kind map and usage-phase selection (C10): design roles use the preparation usage action, build roles the generation one.
 export const interactCallKind = role => interactRoleSpec(role).kind;
 export const interactPhase = role => interactRoleSpec(role).phase;
@@ -51,7 +51,7 @@ const ADAPTERS = ['anthropic', 'openai-compatible'];
 const opusRole = role => ({
   role, task: INTERACT_ROLES[role].task, provider: 'anthropic', model: 'claude-opus-5-5', adapter: 'anthropic', credentialRef: 'ANTHROPIC_API_KEY',
   maxOutputTokens: INTERACT_ROLES[role].maxOutputTokens, maxInputBytes: INTERACT_ROLES[role].maxInputBytes, maxImages: INTERACT_ROLES[role].maxImages,
-  timeoutMs: 120000, settings: {}, pricingKey: { provider: 'anthropic', model: 'claude-opus-5-5', tier: 'standard' },
+  timeoutMs: 300000, settings: {}, pricingKey: { provider: 'anthropic', model: 'claude-opus-5-5', tier: 'standard' },
   // imageTokens: the per-image reservation of requestSpendBound for Opus (learn-spend.js), so reservation and admission agree.
   capabilities: { vision: true, structuredOutput: 'tool_call', oneOf: 'native', cache: true, settings: [], imageTokens: 4784 },
   // servedMatch 'snapshot': claude-opus-5-5-YYYYMMDD is the same model. servedModelAliases: other approved served ids, exact.

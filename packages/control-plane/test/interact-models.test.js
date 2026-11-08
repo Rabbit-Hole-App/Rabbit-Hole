@@ -55,7 +55,7 @@ test('opus-baseline is the default all-Opus profile with the section 5 limits pe
   assert.deepEqual(Object.keys(profile.roles), INTERACT_ROLE_IDS);
   for (const [role, [out, input, images]] of Object.entries(expected)) {
     const c = profile.roles[role];
-    assert.deepEqual([c.provider, c.model, c.adapter, c.credentialRef, c.maxOutputTokens, c.maxInputBytes, c.maxImages, c.timeoutMs], ['anthropic', 'claude-opus-5-5', 'anthropic', 'ANTHROPIC_API_KEY', out, input, images, 120000], role);
+    assert.deepEqual([c.provider, c.model, c.adapter, c.credentialRef, c.maxOutputTokens, c.maxInputBytes, c.maxImages, c.timeoutMs], ['anthropic', 'claude-opus-5-5', 'anthropic', 'ANTHROPIC_API_KEY', out, input, images, 300000], role);
     assert.deepEqual(c.settings, {}, 'no hidden thinking or effort');
     assert.deepEqual(c.pricingKey, { provider: 'anthropic', model: 'claude-opus-5-5', tier: 'standard' });
     assert.equal(c.task, INTERACT_ROLES[role].task);
@@ -90,7 +90,7 @@ test('the registry refuses configs a server profile must not contain', () => {
   bad('design_review', { settings: { temperature: 0.1 } }, 'invalid_profile'); // not a listed supported setting
   bad('design_review', { maxImages: 5 }, 'invalid_profile'); // above the design image cap
   bad('build_repair', { maxImages: 3 }, 'invalid_profile'); // above the repairer's 2
-  bad('design_review', { timeoutMs: 120001 }, 'invalid_profile');
+  bad('design_review', { timeoutMs: 300001 }, 'invalid_profile');
   bad('design_review', { adapter: 'anthropic', endpoint: undefined }, 'invalid_profile'); // json_schema output on the tool-call adapter
   bad('design_review', { capabilities: { vision: false, structuredOutput: 'tool_call', oneOf: 'native', settings: [] } }, 'invalid_profile'); // tool_call on the json adapter
   assert.throws(() => resolveInteractProfile('x', registryWith({ x: { version: 1, extends: 'opus-baseline', roles: { not_a_role: {} } } })), { code: 'unknown_role' });
@@ -197,7 +197,7 @@ test('role bounds and phase reservations come from the profile, with design in p
   const r = interactReservation(profile);
   assert.deepEqual([r.preparationMicros, r.generationMicros, r.unknownRoles], [2 * 635680 + 4 * 595680 + 3 * 675680, 2 * 815680 + 5 * 743520 + 4 * 767840, []]);
   assert.deepEqual(Object.values(INTERACT_LIMITS.calls), [2, 4, 3, 2, 5, 4]); // the second author call is the one correction of a refused plan; the build roles get one correction each (build_author 1+1, build_review 1+3+1, build_repair 3+1)
-  assert.deepEqual(INTERACT_LIMITS.deadlines, { callMs: 120000, preparationMs: 600000, jobMs: 600000 });
+  assert.deepEqual(INTERACT_LIMITS.deadlines, { callMs: 300000, preparationMs: 600000, jobMs: 1200000 });
   for (const role of ['design_author', 'design_review', 'design_revise']) assert.equal(interactPhase(role), 'preparation', role);
   for (const role of ['build_author', 'build_review', 'build_repair']) assert.equal(interactPhase(role), 'generation', role);
   assert.deepEqual(INTERACT_ROLE_IDS.map(interactCallKind), ['generation', 'evaluation', 'generation', 'generation', 'evaluation', 'repair']);
