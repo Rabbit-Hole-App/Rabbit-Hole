@@ -174,7 +174,7 @@ this environment lacks the authorized dev credentials and working browser captur
 
 ### AI teaching examples
 
-Six hand-authored examples compose the existing 2D SDK in normal program cards.
+Nineteen hand-authored examples compose the existing 2D SDK in normal program cards.
 They are exported together by `ai-teaching-fixtures.js`, admitted only through the
 existing dev fixture gate. They are reusable source examples, not a new automatic
 lesson-routing system and not proof of LLM generation quality.
@@ -187,6 +187,7 @@ lesson-routing system and not proof of LLM generation quality.
 | `fixture-ai-point-in-time-join` | Move the label day across feature snapshots. Compare the eligible row with the newest row and see when the latter leaks future data. [Phase 02 Lesson 21](https://github.com/rohitg00/ai-engineering-from-scratch/blob/e7db050e64bde3be17a9381476f748da26d85692/phases/02-ml-fundamentals/21-feature-stores-and-training-serving-skew/docs/en.md#L184) | `ai-point-in-time-join-fixture.js` |
 | `fixture-ai-feature-scaling` | Scale one feature in the distance calculation. The plot keeps its original coordinates while the nearest neighbor changes. | `ai-feature-scaling-fixture.js` |
 | `fixture-ai-forest-voting` | Change one input to three fixed trees. Trace their selected branches, count the votes, and see when the majority changes. | `ai-forest-voting-fixture.js` |
+| [13 Phase 02 follow-up cards](#phase-02-fixture-playback) | Explore class imbalance, validation splits, leakage, model behavior, tuning and monitoring with one control per card. | Listed by fixture ID in the handoff below. |
 
 All source paths above are under `packages/web/src/explain-program/`. The examples
 reuse `ProgramScene`, shared `Frame`, existing input controls and their persistence
@@ -268,6 +269,31 @@ checks. Keep fixture playback and fresh generation as separate evidence.
 - [ ] **Feature Scaling and Forest Voting.** Seed both fixtures on the dev
   build and run the cases in the table above. Reopen each card after moving the
   slider, then verify Reset and reopen again.
+
+#### Phase 02 fixture playback
+
+Seed one canvas per fixture on the signed-in dev build using the existing
+[dev fixture seeder](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/309aa89e0ddfac2c6f12697b978551abccc7daf8/packages/web/scripts/seed-dev-fixture.mjs).
+For each card, check the expected scene and labels, change the control, reopen
+the card, then verify Reset and reopen again. These cards use fixed teaching
+datasets. The local checks run the real SDK 2 frames at each slider tick and
+select option. Browser acceptance is pending.
+
+| Lesson | Fixture ID | Browser check |
+| --- | --- | --- |
+| 17 · Class Imbalance | `fixture-ai-class-imbalance` | Change positive share from 1% to 50%. Precision rises from 7.5% to 88.9% while recall stays at 80%. At 1%, the matrix shows 8 true positives and 99 false positives. |
+| 09 · Stratified Folds | `fixture-ai-stratified-folds` | Step through all three folds. Two regular test folds contain zero B samples. Every stratified test fold contains 3 A and 1 B. Each example is held out once per strategy. |
+| 13 · Pipeline Leakage | `fixture-ai-pipeline-leakage` | Fit the scaler on training rows, then all rows. The fitted mean changes from 4 to 6, the held-out values change, and the all-rows case flags leakage. |
+| 15 · Walk-Forward Validation | `fixture-ai-walk-forward` | Move the cutoff from day 4 to day 8. Train expands from days 1–4 to days 1–8, the two-day gap moves, and the test window moves from days 7–9 to days 11–13. |
+| 07 · DBSCAN | `fixture-ai-dbscan` | At radius 0.5 all 11 points are noise. At 2, E is border and F is still noise. At 2.5, E becomes core and F becomes border while K stays noise. |
+| 05 · SVM Margin | `fixture-ai-svm-margin` | Compare the smallest and largest C. The fitted full margin narrows from about 6.15 to 1.00 and the number of margin violations falls from 8 to 2. |
+| 10 · Overfitting | `fixture-ai-overfitting` | Switch from degree 1 to degree 4. Training MSE falls from 0.640 to 0, while held-out MSE rises from 0.160 to about 1.587. |
+| 14 · Naive Bayes Smoothing | `fixture-ai-bayes-smoothing` | Move alpha from 0 to 1. The unseen word's likelihood in Not spam goes from 0 to about 0.091, and its posterior rises to 23.5%. |
+| 20 · Data and Concept Drift | `fixture-ai-data-concept-drift` | Compare baseline, data drift and concept drift. Recent error reads 15%, 25% and 60%, respectively. Data drift changes the input mix while concept drift changes the class rates within each group. |
+| 12 · Hyperparameter Search | `fixture-ai-hyperparameter-search` | Reveal the four validation trials. The best penalty goes 0 → 10 → 10 → 6. At step 5, penalty 6 locks and its holdout MSE of 0.3516 appears. |
+| 18 · Feature Elimination | `fixture-ai-feature-elimination` | Advance through three removals. C, D and A drop in that order. The remaining features are refit and reranked. Held-out MSE falls from 0.2969 to 0.0156 after removing C, then rises on further removal. |
+| 16 · Anomaly Isolation | `fixture-ai-anomaly-isolation` | Advance split depth from 0 to 3. E is isolated at depth 1 and B is isolated at depth 3. |
+| 11 · Boosting | `fixture-ai-boosting` | Advance rounds 0–2. All six samples start equal. D gets half the weight after round 1 and C gets half after round 2. |
 
 Push a short receipt with the dev build SHA, the fixture or generation job ID,
 the visible outcomes, and the reopen and Reset results for each card. Record any
