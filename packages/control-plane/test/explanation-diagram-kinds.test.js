@@ -33,6 +33,22 @@ test('the authoring guidance teaches all 17 kinds, each with a when-to-use line,
   assert.match(EXPLANATION_GUIDANCE, /Never invent numbers/);
 });
 
+test('a binary-tree question advertises and saves a top-down diagram with explicit child sides', async () => {
+  const spec = { version: 1, diagram: { kind: 'tree', layout: 'binary', title: 'Binary tree', nodes: [
+    { id: 'a', label: 'A' },
+    { id: 'b', label: 'B', parent: 'a', side: 'left' },
+    { id: 'c', label: 'C', parent: 'a', side: 'right' },
+  ] } };
+  const body = 'A binary tree gives each node up to two children.\n\n[[visual:1]]\n\nB is the left child of A, and C is its right child.';
+  const m = scripted(['make_explanation', { title: 'Binary trees', body, visuals: [{ k: 'diagram', spec }] }]);
+  const out = await generateArtifact({}, { command: 'explanation', args: 'How does a binary tree work?', depth: 'standard' }, { callModel: m.callModel });
+  const tool = m.seen[0].tools.find(item => item.name === 'make_explanation');
+  assert.match(tool.description, /binary trees use kind "tree" with layout "binary"/i);
+  assert.equal(out.result, 'artifact');
+  assert.equal(out.block.body, body.replace('[[visual:1]]', fence(spec)));
+  assert.equal(m.seen.length, 1);
+});
+
 // EXP-13 (owner 2026-11-08): prose, visual, prose; the prose names the diagram's title, so the visual is related to the text around it.
 const around = (example, extra = '') => `See ${example.diagram.title}.\n\n${fence(example)}\n\nThat is ${example.diagram.title}.${extra}`;
 
