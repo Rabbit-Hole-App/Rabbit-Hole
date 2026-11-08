@@ -198,6 +198,25 @@ Generated `/interact` programs can call `sdk.heatGrid` with a flat array of nume
 
 The spectrogram fixture switches between **20 ms** and **120 ms** Hann windows for two synthetic tones at **440 Hz** and **480 Hz** starting at **0.40 s**. Both views use a **13 × 19** grid and the same **−60 to 0 dB** legend. The shorter window locates the onset more precisely. The longer window separates the two frequency bands. The offline preview was checked in both states with the legend held fixed. [Spectrogram fixture](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/f1b3ffbb6115fe7077120fd02d997dc753bf50bc/packages/web/src/explain-program/testdata/spectrogram.json)
 
+
+## Additional AI illustration audit · 2026-11-08
+
+The 12-capability batch is a bounded implementation plan, not an exhaustive inventory of every possible AI illustration. Excluding its four remaining items (document panes, dense exploration, filmstrip playback and audio alignment), the code audit found these boundaries:
+
+| Exact requested illustration | Current boundary | What is still possible |
+| --- | --- | --- |
+| Pixel-accurate instance/semantic segmentation overlay on a photograph | Image regions are normalized rectangles. No mask raster or filled arbitrary polygon object is exposed by the generated frame contract. | Bounding boxes, schematic outlines or small toy cell grids; these are not equivalent to a real segmentation mask. |
+| Apply a convolution, blur, perturbation or feature-map transformation to a real image and update the displayed pixels | No guest pixel-buffer/image-output API. Images resolve only through the trusted asset registry. | Arithmetic on a small numeric pixel patch and plots of supplied values. |
+| Explain a learner's own photograph with aligned overlays and synchronized crops | Implemented image helpers accept only the bundled vlm-patch-source asset. Permission-aware attachment binding is not implemented. | The bundled sample demonstrates rectangle/crop behavior. |
+| Orbit a NeRF reconstruction, point cloud, 3D loss surface or latent-space volume inside this 2D card | No 3D scene, camera, mesh or volume primitive in this frame contract. This needs the separate 3D path and its own verification. | 2D projections, cross-sections and schematic ray diagrams. |
+| Compute authentic trained-model feature visualizations or inference outputs inside the card | The sandbox is a bounded JavaScript evaluator, not a model runtime; model weights/data and execution must come from another path. | Small synthetic mechanisms or externally supplied results, labeled accurately. This is an execution/data dependency, not automatically another visual component. |
+
+Code evidence: sdk-image.js (trusted asset registry, rectangular regions, crops); contract.js (closed object kinds, 60 objects, 8 selectable targets, 4 inputs); sdk-field.js (contour/vector outputs); limits.js (bounded interpreter). Audited feature candidate: 801776b077c17eedf9815b555c43e67c6d64f4c3. The separate heat-grid branch supplies numeric grids, not arbitrary RGB/RGBA images or image masks.
+
+External examples motivating the distinction: [Mask R-CNN masks](https://github.com/matterport/Mask_RCNN), [feature visualization by optimization](https://distill.pub/2017/feature-visualization/), [NeRF view synthesis](https://www.matthewtancik.com/nerf). These references describe the desired outputs; local source establishes whether this implementation supports them.
+
+Do not count large graphs or million-point scatterplots as newly discovered gaps here: they overlap the already-listed dense-exploration work. Likewise, static denoising-image inspection and pixel transformation are distinct from sequential filmstrip playback. A toy drawing can explain these AI concepts without reproducing the exact requested output. The original 8-of-12 build count remains a count of the original plan; it does not close the additional gaps above.
+
 ## Phase maps
 
 The linked phase headings lead to every numbered lesson and named subphase in the uploaded outline. The maps identify a representative teaching mechanism, a bounded depiction, and the boundary where a richer scene or observed evidence is useful. Exact course titles and grouping remain in the [source outline](./All_Curricula.md).
