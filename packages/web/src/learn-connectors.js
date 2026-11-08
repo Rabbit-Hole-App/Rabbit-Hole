@@ -7,6 +7,8 @@ export const ROUTES = ['straight', 'curved', 'elbow'];
 const DIRECTION = { top: { x: 0, y: -1 }, right: { x: 1, y: 0 }, bottom: { x: 0, y: 1 }, left: { x: -1, y: 0 } };
 // How far an elbow runs straight out of a port before its first turn.
 const STUB = 24;
+// Ports closer to level than this count as aligned: a bowed link arcs instead of drawing a straight line.
+const ALIGNED = 16;
 
 export const shapeBox = shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) });
 
@@ -86,7 +88,8 @@ export function elbowPoints(a, aSide, b, bSide) {
 
 // The path of a connector: its SVG `d`, its middle (for the label), the
 // point its end arrowhead points away from, and `next`, the point its start head points away from.
-export function routePath(a, aSide, b, bSide, route) {
+// bow (E2 child cards and notes, explain.md section 4): a curved link between ports that line up would be a straight line; with bow it takes a gentle sideways arc instead.
+export function routePath(a, aSide, b, bSide, route, bow = false) {
   const toSide = bSide || entering(a, b);
   if (route === 'straight') return { d: `M${a.x} ${a.y} L${b.x} ${b.y}`, mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, from: a, next: b };
   if (route === 'elbow') {
@@ -96,6 +99,13 @@ export function routePath(a, aSide, b, bSide, route) {
   const bend = Math.max(40, Math.hypot(b.x - a.x, b.y - a.y) / 3);
   const c1 = { x: a.x + DIRECTION[aSide].x * bend, y: a.y + DIRECTION[aSide].y * bend };
   const c2 = { x: b.x + DIRECTION[toSide].x * bend, y: b.y + DIRECTION[toSide].y * bend };
+  if (bow) {
+    const run = Math.hypot(b.x - a.x, b.y - a.y), across = DIRECTION[aSide].x ? b.y - a.y : b.x - a.x;
+    if (run > 0 && Math.abs(across) < ALIGNED) {
+      const push = Math.min(28, run * 0.14), nx = -(b.y - a.y) / run, ny = (b.x - a.x) / run;
+      c1.x += nx * push; c1.y += ny * push; c2.x += nx * push; c2.y += ny * push;
+    }
+  }
   const mid = { x: 0.125 * a.x + 0.375 * c1.x + 0.375 * c2.x + 0.125 * b.x, y: 0.125 * a.y + 0.375 * c1.y + 0.375 * c2.y + 0.125 * b.y };
   return { d: `M${a.x} ${a.y} C${c1.x} ${c1.y},${c2.x} ${c2.y},${b.x} ${b.y}`, mid, from: c2, next: c1 };
 }

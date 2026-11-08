@@ -86,14 +86,14 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
   // Down into a hole. Every hole has one originating card: the selected one (diveFromCard), or a
   // topic anchor card made on this canvas from the learner's request (diveFromTopic).
   // `block` is the originating block when the canvas has not rendered it yet (a new anchor card).
-  const openHole = (card, title, via, anchored = false, fresh = null) => {
+  const openHole = (card, title, via, anchored = false, fresh = null, term = null) => {
     const block = fresh || canvasApi.current?.block?.(card.id) || { id: card.id };
     const current = treeRef.current, name = newHoleName(), draft = composer()?.value || '';
     keepPending(sessionStorage, {
       name, title, parent: here, origin_block_id: card.id, base: baseFor(name),
       // A PDF excerpt card's hole opens on a copy of it (pdf-excerpt.js excerptSeed): its words or crop and source anchor, never the PDF.
       ...(excerptSeed(block, here.app) ? { seed: excerptSeed(block, here.app) } : {}),
-      dive: diveRecord({ name, title, via, parent: here, target: resolveTarget(block), block, view: canvasApi.current?.getView?.(), question: draft.startsWith('/') ? '' : draft, level: current.path.length, journey: journeyContext(block) }),
+      dive: diveRecord({ name, title, via, parent: here, target: resolveTarget(block), block, view: canvasApi.current?.getView?.(), question: draft.startsWith('/') ? '' : draft, level: current.path.length, journey: journeyContext(block), term }),
     });
     // ponytail: the canvas saves 400ms after a change and an unmount drops the timer, so a new
     // anchor card waits for that save before the page leaves. Flush on unmount if this ever races.
@@ -106,7 +106,7 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
     openHole({ id, title: block.title }, block.title, via, true, { ...block, id });
     return { notice: null };
   };
-  const dive = (args = '', via = 'learner_slash', cardOverride = null) => {
+  const dive = (args = '', via = 'learner_slash', cardOverride = null, term = null) => {
     const card = cardOverride || stateRef.current.card, current = treeRef.current;
     if (!current) return { notice: { tone: 'info', text: 'Rabbit Holes open from a canvas or a project board.' } };
     if (pending) return { notice: { tone: 'info', text: 'Add something to this hole first, then go deeper.' } };
@@ -115,7 +115,7 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
     if (plan.anchor) return diveFromTopic(plan.anchor.request, via);
     if (plan.enter) { navigate(levelHref({ app: plan.enter })); return { notice: null }; }
     if (plan.resume) { navigate(holeHref(here, plan.resume)); return { notice: null }; }
-    openHole(card, plan.create.title, via);
+    openHole(card, plan.create.title, via, false, null, term);
     return { notice: null };
   };
   const diveRef = useRef(dive); diveRef.current = dive;
@@ -230,9 +230,9 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
     // Opening a card (double-click, Enter, its Open pill: card-open.js) or double-clicking a group goes down its hole,
     // making it first when it has none; `via` records which.
     // The first click of the double-click selected the card, so its title is already known.
-    portals: { portals, enter, open: (id, title, via = 'learner_dblclick') => {
+    portals: { portals, enter, open: (id, title, via = 'learner_dblclick', term = null) => {
       const known = stateRef.current.card?.id === id ? stateRef.current.card : null;
-      const { notice } = dive('', via, title ? { id, title } : known || { id, title: canvasApi.current?.block?.(id)?.title || '' });
+      const { notice } = dive('', via, title ? { id, title } : known || { id, title: canvasApi.current?.block?.(id)?.title || '' }, term);
       if (notice?.text) toast(notice.text);
     },
     // The canvas right-click menu's Delete Rabbit Hole (owner, 2026-10-27): a card's kept hole, or the hole open now, through

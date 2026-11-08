@@ -15,6 +15,7 @@ import { Md } from './ask.jsx';
 import { diagramsAsText } from './diagram-fence.js';
 import { MdInline } from './Md.jsx';
 import IllustrationFigure from './IllustrationFigure.jsx';
+import { FollowUp, SelectionBar, Suggestions, TermNote, useExplanationLayer, wrapField } from './ExplanationInteractions.jsx';
 import { splitLead } from './explanation-lead.js';
 import { api, wsHeaders } from './api.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
@@ -2027,19 +2028,24 @@ export const headerSource = block => block?.type === 'explanation' && !block.anc
 // fences on. Full content and Focus keep working through data-card-layout and data-focus-hide; a card without sections has no toggles.
 // An Explanation with an illustration (block.illustration: { cacheKey | src, alt, caption, callouts? }): the opening paragraph, the figure in its own container with the caption below, then
 // the rest of the body. Without an illustration the body is the one Md it always was.
-function IllustratedBody({ block, onFile }) {
+function IllustratedBody({ block, onFile, interactive = false }) {
   const { lead, rest } = splitLead(block.body);
+  const figure = <IllustrationFigure illustration={block.illustration} />;
   return (
     <>
       {lead && <Md text={lead} onFile={onFile} fences explain />}
-      <IllustrationFigure illustration={block.illustration} />
+      {/* E2: the picture's caption and callouts are not the body's words; the interaction layer reads the field without them. */}
+      {interactive ? <div data-explanation-skip>{figure}</div> : figure}
       {rest && <Md text={rest} onFile={onFile} fences explain />}
     </>
   );
 }
 
-function ExplanationBody({ block, onFile, appName, onExpandHeight }) {
+function ExplanationBody({ block, onFile, appName, onExpandHeight, onChange, onChangeQuiet, readOnly = false }) {
   const [open, setOpen] = useState({});
+  // E2 (explain.md section 4): null unless the card carries the interactions envelope; then terms, suggestions, follow-up and the selection toolbar (ExplanationInteractions.jsx).
+  const layer = useExplanationLayer(block, { onChange, onChangeQuiet, readOnly, enabled: !block.anchor });
+  const bodyNode = block.illustration && (block.illustration.src || block.illustration.cacheKey || block.illustration.fileRef?.source?.id) ? <IllustratedBody block={block} onFile={onFile} interactive={!!layer} /> : block.body && <Md text={block.body} onFile={onFile} fences explain />;
   const id = useId(), more = block.more || [], sections = useRef({});
   const opened = more.some((_, index) => open[index]);
   useEffect(() => {
@@ -2064,8 +2070,8 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight }) {
           : <Kicker block={block} size="lg" sticky={false} className="px-4 pt-3 pb-2" action={headerSource(block) ? <SourceRefHeader block={block} app={appName} /> : null}>Explanation</Kicker>}
       </div>
       {/* E1 (approved card 07): one continuous reading flow. The body, its visuals and the supplementary sections all scroll together under the pinned head. */}
-      <div data-scroll data-explanation-flow className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 text-sm">
-        {block.illustration && (block.illustration.src || block.illustration.cacheKey || block.illustration.fileRef?.source?.id) ? <IllustratedBody block={block} onFile={onFile} /> : block.body && <Md text={block.body} onFile={onFile} fences explain />}
+      <div ref={layer?.flowRef} data-scroll data-explanation-flow {...layer?.flowProps} className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 text-sm">
+        {bodyNode && wrapField(layer, 'body', block.body, bodyNode)}
         {more.map((section, index) => (
           <div key={index} data-explanation-section className="mt-3 border-t border-line">
             <button type="button" data-explain-more aria-expanded={!!open[index]} aria-controls={`${id}-more-${index}`} onPointerDown={e => e.stopPropagation()}
@@ -2074,10 +2080,12 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight }) {
               <MdInline text={section.label} />
               <ChevronRight size={13} aria-hidden="true" className={open[index] ? 'rotate-90 transition-transform' : 'transition-transform'} />
             </button>
-            {open[index] && <section ref={node => { sections.current[index] = node; }} id={`${id}-more-${index}`} aria-label={section.label} className="pb-2 text-sm text-ink-2"><Md text={section.text} onFile={onFile} fences explain /></section>}
+            {open[index] && <section ref={node => { sections.current[index] = node; }} id={`${id}-more-${index}`} aria-label={section.label} className="pb-2 text-sm text-ink-2">{wrapField(layer, `more[${index}].text`, section.text, <Md text={section.text} onFile={onFile} fences explain />)}</section>}
           </div>
         ))}
+        {layer && <Suggestions layer={layer} />}
       </div>
+      {layer && <><TermNote layer={layer} /><SelectionBar layer={layer} /><FollowUp layer={layer} /></>}
     </div>
   );
 }
@@ -2352,7 +2360,7 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'code') return <CodeBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'snippet') return <SnippetBody block={block} onFile={onFile} />;
   if (block.type === 'explanation' && isExcerpt(block)) return <ExcerptBody block={block} onChange={onChange} appName={appName} readOnly={readOnly} />;
-  if (block.type === 'explanation') return <SurfaceBoundary artifact="explanation_card" fallback={<p className="m-0 whitespace-pre-wrap text-sm text-ink">{String(block.text ?? block.body ?? '')}</p>}><ExplanationBody block={block} onFile={onFile} appName={appName} onExpandHeight={onExpandHeight} /></SurfaceBoundary>;
+  if (block.type === 'explanation') return <SurfaceBoundary artifact="explanation_card" fallback={<p className="m-0 whitespace-pre-wrap text-sm text-ink">{String(block.text ?? block.body ?? '')}</p>}><ExplanationBody block={block} onFile={onFile} appName={appName} onExpandHeight={onExpandHeight} onChange={onChange} onChangeQuiet={onChangeQuiet} readOnly={readOnly} /></SurfaceBoundary>;
   if (block.type === 'table') return <TableBody block={block} onFile={onFile} />;
   if (block.type === 'cad') return <CadCard block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} appName={appName} selected={selected} readOnly={readOnly} onEdit={onCadEdit} account={cadAccount} />;
   // Its own Suspense (as WhiteboardBlock): a lazy card inserted on a live canvas must not suspend the canvas, which unmounted the
