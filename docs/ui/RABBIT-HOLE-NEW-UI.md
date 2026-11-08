@@ -48,6 +48,16 @@ The latest explicit owner decision takes precedence over older references. Withi
 - Edit canonical component/template sources, then regenerate exports. Do not independently maintain the assembled HTML as a second design.
 - Keep this master file as the index. Put detailed screen decisions and component mappings in the linked screen handoff so there is one maintained source for each contract.
 
+## UI copy rule: avoid over-explaining
+
+- Let titles, labels and actions explain themselves. Do not add helper text that repeats their meaning.
+- Add supporting copy only when it communicates a necessary action, non-obvious consequence, constraint or recovery step.
+- Keep preview disclaimers, sample-data labels, implementation notes and testing instructions out of the product interface. Record demonstration limitations in the handoff or review message instead.
+- Use concise empty states and action feedback. Do not add a second sentence merely to fill space.
+- Remove unused footer containers when their copy is removed.
+
+Owner examples: remove “Restore a canvas to your library.”, “Sample items · Changes last until you reload this preview.” and “Preview only · Feedback is not sent.” from the sidebar panels.
+
 ## Completion hand-back
 
 For the requested screen, report:
