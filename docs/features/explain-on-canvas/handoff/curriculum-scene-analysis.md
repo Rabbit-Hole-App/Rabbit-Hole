@@ -215,7 +215,22 @@ Code evidence: sdk-image.js (trusted asset registry, rectangular regions, crops)
 
 External examples motivating the distinction: [Mask R-CNN masks](https://github.com/matterport/Mask_RCNN), [feature visualization by optimization](https://distill.pub/2017/feature-visualization/), [NeRF view synthesis](https://www.matthewtancik.com/nerf). These references describe the desired outputs; local source establishes whether this implementation supports them.
 
-Do not count large graphs or million-point scatterplots as newly discovered gaps here: they overlap the already-listed dense-exploration work. Likewise, static denoising-image inspection and pixel transformation are distinct from sequential filmstrip playback. A toy drawing can explain these AI concepts without reproducing the exact requested output. The original 8-of-12 build count remains a count of the original plan; it does not close the additional gaps above.
+
+### Raster/mask implementation update · 2026-11-08
+
+The two additional rendering gaps above now have **bounded implementations**, pushed to `chatgpt/interactive-raster-masks`, commit `81336c0c008e2dd5b1a6250f6ef7e5daddd9ca6f`. That branch includes the previous Medium, linked-comparison and cyclic-network work; the separate heat-grid SDK 3 branch still needs integration without losing version compatibility.
+
+- `sdk.raster` emits numeric row-major RGBA pixels that can be recomputed from controls or state. `fixture-raster-transform` demonstrates Original, Box blur and Edges.
+- `sdk.mask` converts binary/soft coverage to transparent RGBA pixels. `fixture-raster-mask` selects a ring, rectangle or none; holes and outside pixels remain transparent.
+- Both reuse the shared Frame and existing card controls. Explicit capability `raster_visuals` selects SDK 6 / renderer 4. Older SDK source bytes and tuples remain supported.
+- Bounds: at most 64 × 64 pixels per raster, 8192 raster pixels per frame, with existing output/runtime limits. Whole-raster selection only; no per-pixel hit testing. These limits support small teaching images, not arbitrary full-resolution segmentation overlays.
+- Evidence: 61 focused integration/helper/compatibility tests passed; the shared-scene checks passed; dev web build passed. Static output of the shared renderer was inspected for mask transparency/alignment and blur. Live browser, real model generation and dev deployment remain unverified because this environment lacks the required access.
+- Still open: permission-aware learner-image binding, decoding/resampling real images into supplied pixels, actual model inference, high-resolution image work and the separate 3D path.
+
+**Counts:** original batch stays **8/12 built**, with its **4 remaining**. Adding these two newly discovered bounded capabilities gives **10/14 built**, plus the linked-comparison composition example. This expanded count is not a claim that every possible AI illustration is supported or that these branches are deployed.
+
+
+Do not count large graphs or million-point scatterplots as newly discovered gaps here: they overlap the already-listed dense-exploration work. Likewise, static denoising-image inspection and pixel transformation are distinct from sequential filmstrip playback. A toy drawing can explain these AI concepts without reproducing the exact requested output. The original 8-of-12 build count remains a count of the original plan; the implementation update above tracks bounded support for the two additional rendering gaps separately.
 
 ## Phase maps
 
