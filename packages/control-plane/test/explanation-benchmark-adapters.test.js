@@ -74,10 +74,10 @@ test('capability and credential preflight happen before any parsing, so nothing 
   assert.throws(() => normalizeProviderResult('mystery', {}, {}), /Unknown provider response shape/);
 });
 
-test('fixtures name only synthetic ids, and no Cerebras or Gemini profile is registered in the product', () => {
+test('fixtures name only synthetic ids, and the product registers only the plan transport and the fast chain', () => {
   const ids = fixtures.cases.flatMap(f => [f.ctx.model, f.ctx.provider]);
   assert.ok(ids.every(id => id.startsWith('synthetic-')));
   assert.match(fixtures.note, /SYNTHETIC/); assert.match(fixtures.note, /NOT verified/);
-  assert.deepEqual(EXPLANATION_ADAPTERS, ['plan'], 'the product still wires only the plan transport');
-  assert.deepEqual(Object.keys(EXPLANATION_REGISTRY.profiles), ['plan-default']);
+  assert.deepEqual(EXPLANATION_ADAPTERS, ['plan', 'fast-chain'], 'the product wires the plan transport and the fast chain (explanation-fast-chain.js)');
+  assert.deepEqual(Object.keys(EXPLANATION_REGISTRY.profiles), ['plan-default', 'fireworks-low', 'fireworks-medium', 'fireworks-high', 'cerebras-low', 'cerebras-medium', 'cerebras-high']);
 });

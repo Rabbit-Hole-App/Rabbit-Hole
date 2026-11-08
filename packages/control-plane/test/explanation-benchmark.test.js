@@ -111,7 +111,7 @@ test('dry run: prints the matrix, capability gaps, call ceilings and spend bound
     assert.equal(m.type, 'dry'); assert.equal(m.status, 'complete'); assert.equal(m.authorizedCapUsd, null);
     assert.equal((await readFile(join(r.dir, 'results.jsonl'), 'utf8')), ''); assert.equal((await readFile(join(r.dir, 'calls.jsonl'), 'utf8')), '');
     const plan = r.result.plan;
-    assert.deepEqual(plan.gaps.candidates.map(c => [c.family, c.status, c.blocked]), [['opus', 'supported', false], ['celeris', 'dev_route_only', true], ['cerebras', 'unsupported', true], ['gemini-flash', 'unsupported', true]]);
+    assert.deepEqual(plan.gaps.candidates.map(c => [c.family, c.status, c.blocked]), [['opus', 'supported', false], ['celeris', 'dev_route_only', true], ['cerebras', 'supported', false], ['gemini-flash', 'supported', false]]);
     assert.equal(plan.attemptCount, 3 * 8);
     for (const p of plan.profiles) assert.deepEqual([p.ceilings.authorCalls, p.ceilings.repairCalls, p.ceilings.evaluatorModelCalls, p.ceilings.maxProviderCallsPerAttempt], [1, 1, 0, 2]);
     assert.deepEqual(plan.spend.unknownCostProfiles, ['plan-default', 'fixture-flaky'], 'a profile without a pricing key has an unknown cost bound, not zero');
@@ -144,7 +144,7 @@ test('the dry-run CLI prints the resolved output path first and last and the pla
     assert.equal(cli.status, 0, cli.stderr);
     const printed = cli.stdout.split('\n').filter(l => l.startsWith('Output: '));
     assert.deepEqual(printed, [`Output: ${out}`, `Output: ${out}`], 'the absolute output path is printed at start and at the end');
-    assert.match(cli.stdout, /cerebras: unsupported \(blocked/); assert.match(cli.stdout, /gemini-flash: unsupported/); assert.match(cli.stdout, /celeris: dev_route_only/);
+    assert.match(cli.stdout, /cerebras: supported - /); assert.match(cli.stdout, /gemini-flash: supported - /); assert.match(cli.stdout, /celeris: dev_route_only/);
     assert.match(cli.stdout, /Authorized paid cap: none/);
     assert.ok((await stat(join(out, 'manifest.json'))).isFile());
     assert.deepEqual(await readdir(join(dir)), ['dry'], 'nothing is written outside --out');
