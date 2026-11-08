@@ -6,7 +6,7 @@ import { createImageJobClient } from './inline-image-job-client.js';
 import { cadClient, submitCadOnce } from './cad-client.js';
 import { SKELETON_DROPPED_EVENT, EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainDisabled, skeletonJobOf, CHAT_DELETED_EVENT, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock } from './explain-client.js';
 import { HIGHLIGHT_EXPLAIN_COMMAND, heldPassageTarget } from './source-refs.js';
-import { withCardSink } from './chat-output-refs.js';
+import { withCardSink, withSlotSink } from './chat-output-refs.js';
 import { withPrompt } from './card-prompt.js';
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, FileText, House, Type, PanelRightClose, PanelRightOpen, Pause, Play, Share2 } from 'lucide-react';
@@ -1019,7 +1019,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         target: handoff ? heldPassageTarget(handoff.target, text, passageRef) : askTarget,
         // The composer's attached image (its uploaded media id), as a question carries it (ask.jsx image_context); never a handoff's.
         attachedImage: !handoff && imageAttached && imageContext?.id ? imageContext.id : null,
-        canvas: withCardSink({
+        // withSlotSink: the Chat's line shows its waiting row while this canvas holds the command's skeleton (ask.jsx recordCommand onSlot).
+        canvas: withCardSink(withSlotSink({
           startCad: async (prompt, options) => { const result = await startCad(prompt, options); if (result?.block?.id) sink?.(result.block.id); return result; },
           // turn (ask.jsx recordCommand): the thread its line was saved in (a reviewed brief is posted there) and the Chat's
           // pinned and temporary refs, which the server resolves under this canvas's authorization.
@@ -1038,7 +1039,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           goal: args => chat.goals?.open(args), // /goal: goal management in Progress (chat-workspace.jsx goals.open)
           // A Chat canvas prepares an explicit material command's brief before generating it (learn-slash.js, material-brief.js).
           briefs: !!chat?.thread,
-        }, sink),
+        }, turn?.onSlot), sink),
         // A Chat source command's finder (the shared opener): settles { added } when it closes, so the composer keeps its
         // draft until then; focus goes back to the composer.
         openSearch: seed => openSourceFinder({ source: seed.source, query: seed.query, origin: { returnFocus: document.activeElement } }).then(done => { if (done?.blockId) sink?.(done.blockId); return done; }),

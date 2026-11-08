@@ -146,6 +146,6 @@ test('a whiteboard-video proposal message draws no answer body; animation, motio
   assert.equal(proposalOnly(null), false);
   const source = readFileSync(new URL('../ChatMessages.jsx', import.meta.url), 'utf8');
   assert.ok(source.includes('{!proposalOnly(m) && <div data-answer-body><Md doc text={m.content}'), 'only the body is gated');
-  assert.ok(source.includes('{m.meta?.proposal?.proposal_id && <ProposalSlot '), 'the card still renders');
+  assert.ok(source.includes('{m.meta?.proposal?.proposal_id && !accepted && <ProposalSlot '), 'the card still renders until it is accepted (owner 2026-11-08)');
   assert.ok(readFileSync(new URL('../AnswerFooter.jsx', import.meta.url), 'utf8').includes("querySelector('[data-answer-body]')?.innerHTML || null"), 'Copy copes with no body');
 });

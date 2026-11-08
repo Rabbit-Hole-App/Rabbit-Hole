@@ -14,7 +14,7 @@ import { cn } from './ui.jsx';
 import AnswerSuggestions from './AnswerSuggestions.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
 import GenerationProposalCard from './GenerationProposalCard.jsx';
-import { EXPLAIN_STOPPED, durationRefinement, jobReviewCopy, proposalOnly, PROPOSAL_REFUSED_EVENT, approvesJob, editPath, editTarget, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
+import { EXPLAIN_STOPPED, durationRefinement, jobReviewCopy, proposalAccepted, proposalOnly, PROPOSAL_REFUSED_EVENT, approvesJob, editPath, editTarget, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
 import { confirmProposal, fetchProposal, problemOf, saveProposal } from './generation-review-client.js';
 import { withPrompt } from './card-prompt.js';
 import { reportClientError } from './client-telemetry.js';
@@ -60,6 +60,8 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   const chat = useChatWorkspace(); // a reference pill opens its source beside the Chat, as an attached chip does
   const [busy, setBusy] = useState(false), [error, setError] = useState(null), [pressed, setPressed] = useState(false), [released, setReleased] = useState(0);
   const making = useRef(false); // one material Generate in flight, even across two clicks in one frame
+  // Generate admitted: this review card leaves the Chat (ChatMessage, proposalAccepted). Never on a refusal or a failure.
+  const accept = () => setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, accepted: true } : x)));
   const saved = /^\d+$/.test(String(m.messageId ?? ''));
   // Bug 2 (chat generation UX): the proposal's visual state is its REAL job's, read from the card it made on the canvas (the same block
   // the canvas card and the Chat's watch read), or from the output this turn saved for it after a reload; the local pressed flag only
@@ -139,7 +141,7 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   const generateImage = () => {
     if (pressed) return;
     setPressed(true); setPressedAt(new Date().toISOString()); setError(null); setImage(null);
-    runImageJob({ api, proposal: p, app: p.input.app, ops, onStatus: setImage }).then(job => { if (job.cardId) { setImageCard(job.cardId); ops.locate?.(job.cardId); } }).catch(failure => {
+    runImageJob({ api, proposal: p, app: p.input.app, ops, onStatus: setImage }).then(job => { if (job.cardId) { setImageCard(job.cardId); ops.locate?.(job.cardId); keepOutput(job.cardId); accept(); } }).catch(failure => {
       const why = problemOf(failure);
       if (why.kind !== 'used') setPressed(false);
       // Already made (a reload, another tab): said on the card's status line, not as a job still starting.
@@ -174,7 +176,7 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
       if (pressed || !ops.approveExplain) return;
       setPressed(true); setError(null);
       // One approve per revision (generation-review-client.js): a second press, or this card drawn again, shares the first.
-      confirmProposal(p, ops.approveExplain).then(id => { if (id) ops.locate?.(id); }).catch(failure => {
+      confirmProposal(p, ops.approveExplain).then(id => { if (id) ops.locate?.(id); accept(); }).catch(failure => {
         const why = problemOf(failure);
         // already made (a reload, another tab): the proposal is spent, so it is shown as made rather than pressable again
         if (why.kind !== 'used') setPressed(false);
@@ -187,7 +189,7 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
     if (startAdapter(p, ops) === 'material') {
       if (pressed || making.current) return;
       making.current = true; setBusy(true); setError(null); setPressedAt(new Date().toISOString());
-      ops.generateMaterial(p).then(({ blockId }) => { setPressed(true); if (blockId) { ops.locate?.(blockId); keepOutput(blockId); } })
+      ops.generateMaterial(p).then(({ blockId }) => { setPressed(true); if (blockId) { ops.locate?.(blockId); keepOutput(blockId); accept(); } })
         .catch(failure => { const why = problemOf(failure); if (why.kind === 'used') setPressed(true); setError(why.message); })
         .finally(() => { making.current = false; setBusy(false); });
       return;
@@ -375,6 +377,9 @@ export class AnswerBoundary extends Component {
 // anything else is done unless it is the reply still arriving.
 const answerStatus = (m, arriving) => (['streaming', 'done', 'stopped', 'error'].includes(m.status) ? m.status : arriving ? 'streaming' : 'done');
 
+// The Chat's waiting row: a spinner and the shimmering words (index.css .shimmer, still under reduced motion).
+const Waiting = ({ text, className = '', ...rest }) => <span {...rest} className={cn('flex items-center gap-2 text-xs text-ink-2', className)}><Loader2 size={14} className="animate-spin text-claude" /><span className="shimmer">{text}</span></span>;
+
 // One message. Everything it reads from AskPanel comes in as a prop.
 export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateChat, fileApp, appName, onGraph, onAddToCanvas, onRegenerate = null, setMsgs, setInput, inputRef, setFilePeek, setRunPeek, threadId, prepare, insertNotebook, hasCard = null, outputOps = null }) {
   // Add as card: insertChat is idempotent on the card id, so a click on Added locates the card (and puts it back if the
@@ -387,6 +392,9 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
   // Explore next, no Add as card (the generated output is reached by its own card, Go to card) and no generic Regenerate (a command
   // turn re-sent as plain words would answer in prose, skipping the command's own confirmation). Ordinary answers keep all three.
   const kind = responseKind(m, msgs[turnIndex(msgs, i)] ?? null);
+  // An accepted review card is gone from the Chat (generation-proposal-chat.js proposalAccepted); a plan message that was only that card goes with it.
+  const accepted = m.role !== 'user' && proposalAccepted(m, msgs);
+  if (accepted && proposalOnly(m)) return null;
   return (
     <div key={i} className={cn('py-1.5', m.role === 'step' && 'flex justify-end', m.role === 'user' && 'flex flex-col items-end')}>
       {m.role === 'step' ? (
@@ -400,6 +408,9 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
           {m.passage && <blockquote className="mb-2 max-h-24 overflow-auto border-l-2 border-accent/40 pl-2 text-xs text-ink-2">{m.passage}</blockquote>}
           <SentText m={m} />
         </div>
+        {/* A card this command is making (m.making: its canvas slot's label, ask.jsx recordCommand onSlot): the Chat's waiting row while
+            the canvas shows that slot's skeleton, gone in the same update as the slot (chat-output-refs.js withSlotSink). */}
+        {m.making && <Waiting text={m.making} data-chat-making="" className="mt-1" />}
         {/* What this prompt made on the canvas (UI changes brief 5): a thumbnail or a compact card link each. */}
         <ChatOutputs outputs={m.outputs} ops={outputOps} />
       </>) : m.role === 'proposal' ? (
@@ -422,7 +433,7 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
           <AnswerBoundary key={m.messageId ?? i} text={m.content}>
           <div data-answer className="group/answer min-w-0">
             {!proposalOnly(m) && <div data-answer-body><Md doc text={m.content} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} /></div>}
-            {m.meta?.proposal?.proposal_id && <ProposalSlot m={m} i={i} msgs={msgs} setMsgs={setMsgs} ops={outputOps} />}
+            {m.meta?.proposal?.proposal_id && !accepted && <ProposalSlot m={m} i={i} msgs={msgs} setMsgs={setMsgs} ops={outputOps} />}
             {m.meta?.animationChoice?.alternatives?.length > 0 && <AnimationChoices choice={m.meta.animationChoice} ops={outputOps} />}
             <AnswerFooter key={m.messageId ?? i} message={{ ...m, status: answerStatus(m, busy && i === msgs.length - 1) }} latest={!msgs.slice(i + 1).some(x => x.role === 'assistant')}
               onAddAsCard={kind.ordinary && onAddToCanvas && addAsCard} onLocateCard={kind.ordinary && onAddToCanvas && (id => addAsCard({ id, answer: m.content, sources: m.meta?.contextRefs ?? null }))} cardExists={() => !!m.added || !!hasCard?.(cardIdFor(m))}
@@ -434,19 +445,18 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
         {m.graph&&onGraph&&<div className="mt-2"><EvidencePill icon={Network} type="button" onClick={()=>onGraph(m.graph)} title={m.graph.title}>Show on graph</EvidencePill></div>}
 </>
       ) : (
-        <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-claude" /><span className="shimmer">{waitingText(m.stage ?? m.status)}</span></span>
+        <Waiting text={waitingText(m.stage ?? m.status)} />
       )}
     </div>
   );
 }
 
-// follow: useFollowLatest's { atBottom, jump } for the scroll box this list sits in (chat-scroll.js).
 // The Chat workspace (chat-workspace.jsx, contract A6) supplies the composer's prepare, regenerate, the open thread and the
 // canvas operations; it is null outside a Learn canvas. Without it (the old sheet) Explore next and generation actions put
 // their words in the composer through setInput - a command as its typed /line, which Send runs through the slash path -
 // and Regenerate stays hidden.
 // renderTutor(m): a saved Tutor entry (meta.tutor) drawn by the roadmap transcript, in its own place (RoadmapTranscript.jsx TutorMessage).
-export function ChatMessages({ follow = null, renderTutor = null, ...given }) {
+export function ChatMessages({ renderTutor = null, ...given }) {
   const chat = useChatWorkspace();
   const ops = chat?.canvasOps;
   const typeIn = given.setInput && (({ text = '', command = null }) => {
@@ -460,20 +470,18 @@ ${line}` : line));
     prepare: chat?.composer?.prepare ?? given.prepare ?? typeIn, onRegenerate: chat?.regenerate ?? given.onRegenerate ?? null,
     threadId: chat?.thread?.id ?? given.threadId ?? null, insertNotebook: ops?.insertNotebook ?? given.insertNotebook,
     onAddToCanvas: ops ? (card => ops.insertChat(card)) : given.onAddToCanvas, hasCard: ops?.hasBlock ?? null, outputOps: ops ?? null };
-  const { msgs, sheetMode, busy } = props;
-  const atBottom = !follow || follow.atBottom;
-  // A message that lands while the reader is scrolled up stays new until they are back at the bottom.
-  const [seen, setSeen] = useState(msgs.length);
-  useEffect(() => { if (atBottom) setSeen(msgs.length); }, [atBottom, msgs.length]);
+  const { msgs, sheetMode } = props;
+  return msgs.map((m, i) => (sheetMode && m.card) ? null : renderTutor && m.meta?.tutor ? <div key={i}>{renderTutor(m)}</div> : <ChatMessage key={i} {...props} m={m} i={i} />);
+}
+
+// Jump to latest (owner 2026-11-08): shown exactly while the list is scrolled away from the bottom (chat-scroll.js atEnd), as its own
+// row between the list and the composer, centred, so it covers neither the messages' controls nor the composer. follow: useFollowLatest's.
+export function JumpToLatest({ follow }) {
+  if (!follow || follow.atBottom) return null;
   return (
-    <>
-      {msgs.map((m, i) => (sheetMode && m.card) ? null : renderTutor && m.meta?.tutor ? <div key={i}>{renderTutor(m)}</div> : <ChatMessage key={i} {...props} m={m} i={i} />)}
-      {!atBottom && (busy || msgs.length > seen) && (
-        <div className="pointer-events-none sticky bottom-2 z-10 flex h-0 justify-center">
-          <button type="button" data-jump-latest onClick={follow.jump} className="pointer-events-auto flex h-7 -translate-y-full cursor-pointer items-center gap-1.5 rounded-full border border-line bg-white px-3 text-xs text-ink-2 shadow-pop hover:text-ink"><ArrowDown size={13} />Jump to latest</button>
-        </div>
-      )}
-    </>
+    <div className="flex shrink-0 justify-center pt-2">
+      <button type="button" data-jump-latest onClick={follow.jump} className="flex h-7 cursor-pointer items-center gap-1.5 rounded-full border border-line bg-white px-3 text-xs text-ink-2 shadow-pop hover:text-ink"><ArrowDown size={13} />Jump to latest</button>
+    </div>
   );
 }
 
