@@ -143,11 +143,11 @@ async function invoke(ctx, role, input) {
 }
 const issueProblems = error => dedupe(error.issues.map(issue => ({ path: issue.path.join('.'), code: issue.params?.code || issue.code, message: issue.message })));
 
-export async function authorDesign(job, ctx) {
+async function authorOnce(job, ctx, extra = {}) {
   const d = job.design, capabilities = ctx.capabilities;
   const input = { request: job.prompt, depth: job.depth, context: job.context ?? null, evidence: modelEvidence(job.evidence),
     ...(d.plan && job.refinement ? { previous: d.plan, edit: job.refinement } : {}), ...(d.problems?.length ? { constraints: d.problems } : {}),
-    capabilities: capabilitiesForModel(capabilities), limits: PLAN_LIMITS };
+    capabilities: capabilitiesForModel(capabilities), limits: PLAN_LIMITS, ...extra };
   const reply = await invoke(ctx, 'design_author', input);
   if (reply.problems) return reply;
   // Shape first: a plan missing Mode, Controls or anything required is rejected whole (never completed or stripped). A well-formed plan whose
@@ -162,6 +162,18 @@ export async function authorDesign(job, ctx) {
   if (plan.depth !== job.depth) return { problems: [{ path: 'depth', code: 'depth_changed', message: `the plan's depth is "${plan.depth}"; the request's depth "${job.depth}" is never changed by a model` }] };
   return { plan, planHash: await planHash(plan), bindingProblems: dedupe([...bindingProblems, ...runtimeProblems(plan, capabilities)]) };
 }
+
+// A plan the schema refuses is not thrown away on the first slip: real Opus runs lost the whole plan to one over-long entry, a result nested under one key and a malformed timeline
+// (3 of 3 live runs, while the same call usually succeeds). The Author gets ONE correction call that names the exact problems and must return the whole corrected plan; a second
+// refusal stops the design with the problems, as before. The second call is counted and bounded like any other (INTERACT_LIMITS.calls.design_author is 2).
+export async function authorDesign(job, ctx) {
+  const first = await authorOnce(job, ctx);
+  if (!first.problems || job.design.counts.author >= DESIGN_BOUNDS.author || !corrects(first.problems)) return first;
+  const problems = first.problems.slice(0, 12).map(problem => (problem.path ? problem.path + ': ' : '') + problem.message);
+  return authorOnce(job, ctx, { correction: { instruction: 'Your previous plan was refused by the validator. Return the WHOLE corrected plan (same design, same request, same depth) and change only what these problems name. Respect every length limit in limits.', problems } });
+}
+// Only a refusal of the plan's own content is worth a correction call: a transport, budget or capability failure is not.
+const corrects = problems => problems.length > 0 && problems.every(problem => ['schema_mismatch', 'not_object', 'no_result', 'conflicting_results'].includes(problem.code) || /^(missing_field|invalid_|too_|unrecognized|expr|runtime)/.test(String(problem.code || '')) || problem.code === undefined);
 
 export async function reviewDesign(job, ctx) {
   const d = job.design, followUp = d.revisions.length > 0;

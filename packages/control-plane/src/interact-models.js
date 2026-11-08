@@ -24,7 +24,7 @@ const refuse = (code, message, extra) => new InteractModelError(code, message, {
 // limits of 10,000/3,000/6,000 stay for legacy jobs). Section 5: 12,000 / 6,000 / 14,000 / 16,000 / 6,000 / 16,000.
 const NEW_FLOW_BUILD_TOKENS = { build_author: 16000, build_review: 6000, build_repair: 16000 };
 export const INTERACT_ROLES = deepFreeze({
-  design_author: { task: 'interact_design_author', phase: 'preparation', kind: 'generation', calls: 1, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_author.maxTokens },
+  design_author: { task: 'interact_design_author', phase: 'preparation', kind: 'generation', calls: 2, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_author.maxTokens },
   design_review: { task: 'interact_design_review', phase: 'preparation', kind: 'evaluation', calls: 3, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_review.maxTokens },
   design_revise: { task: 'interact_design_revise', phase: 'preparation', kind: 'generation', calls: 2, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_revise.maxTokens },
   build_author: { task: 'explain_author', phase: 'generation', kind: 'generation', calls: 1, maxInputBytes: 80000, maxImages: 4, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_author },

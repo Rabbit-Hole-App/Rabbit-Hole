@@ -195,8 +195,8 @@ test('role bounds and phase reservations come from the profile, with design in p
   // (input bytes + images x 4,784) x $5 (the 5-minute cache write) + max output x $20, per MTok.
   assert.deepEqual(INTERACT_ROLE_IDS.map(bound), [635680, 515680, 675680, 815680, 663520, 767840]);
   const r = interactReservation(profile);
-  assert.deepEqual([r.preparationMicros, r.generationMicros, r.unknownRoles], [635680 + 3 * 515680 + 2 * 675680, 815680 + 4 * 663520 + 3 * 767840, []]);
-  assert.deepEqual(Object.values(INTERACT_LIMITS.calls), [1, 3, 2, 1, 4, 3]);
+  assert.deepEqual([r.preparationMicros, r.generationMicros, r.unknownRoles], [2 * 635680 + 3 * 515680 + 2 * 675680, 815680 + 4 * 663520 + 3 * 767840, []]);
+  assert.deepEqual(Object.values(INTERACT_LIMITS.calls), [2, 3, 2, 1, 4, 3]); // the second author call is the one correction of a refused plan
   assert.deepEqual(INTERACT_LIMITS.deadlines, { callMs: 120000, preparationMs: 600000, jobMs: 600000 });
   for (const role of ['design_author', 'design_review', 'design_revise']) assert.equal(interactPhase(role), 'preparation', role);
   for (const role of ['build_author', 'build_review', 'build_repair']) assert.equal(interactPhase(role), 'generation', role);

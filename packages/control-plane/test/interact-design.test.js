@@ -56,9 +56,9 @@ test('each role records a version and a content hash, and every schema accepts w
   assert.ok(schemaProblems(designAuthorSchema(), (({ mode: _m, ...rest }) => rest)(PLAN.standard)).includes('$.mode: required'));
 });
 
-test('the bounds are author 1, reviewer 3, reviser 2 per plan attempt', () => {
-  assert.deepEqual(DESIGN_BOUNDS, { author: 1, review: 3, revise: 2 });
-  assert.deepEqual([INTERACT_LIMITS.calls.design_author, INTERACT_LIMITS.calls.design_review, INTERACT_LIMITS.calls.design_revise], [1, 3, 2]);
+test('the bounds are author 2 (one of them a correction of a refused plan), reviewer 3, reviser 2 per plan attempt', () => {
+  assert.deepEqual(DESIGN_BOUNDS, { author: 2, review: 3, revise: 2 });
+  assert.deepEqual([INTERACT_LIMITS.calls.design_author, INTERACT_LIMITS.calls.design_review, INTERACT_LIMITS.calls.design_revise], [2, 3, 2]);
 });
 
 // ---- INT-02-C01: authorDesign and reviewDesign as units (a scripted ctx.interact, no job) ----
@@ -247,10 +247,22 @@ test('a plan missing Mode or Controls stops the design with the missing fields a
   assert.deepEqual([job.stage, job.stopReason], ['failed', 'design_invalid']);
   assert.match(job.failure.message, /mode: required/);
   assert.match(job.failure.message, /controls: required|\$\.controls/);
-  assert.deepEqual(s.model.roles(), ['author'], 'no review of an incomplete plan');
+  assert.deepEqual(s.model.roles(), ['author', 'author'], 'one correction call, then no review of an incomplete plan');
   assert.equal(postedProposal(s.sqlite, body.job.id), null);
   assert.equal(s.model.builder.length + s.built.length, 0);
   assert.deepEqual((await s.job(body.job.id)).job.recovery, ['new_attempt', 'edit_request']);
+});
+
+test('a plan the schema refuses gets ONE correction call that names the problems; a corrected plan continues to review', async t => {
+  const { mode: _mode, ...partial } = PLAN.standard;
+  const s = designStack(t, { script: { author: n => (n === 1 ? partial : clone(PLAN.standard)) } });
+  const { body } = await s.create();
+  const { job } = await s.design(body.job.id);
+  assert.equal(job.stage, 'awaiting_approval');
+  assert.deepEqual(s.model.roles(), ['author', 'author', 'review', 'revise']);
+  const second = s.model.log.filter(call => call.role === 'author')[1].input;
+  assert.match(second.correction.instruction, /WHOLE corrected plan/);
+  assert.ok(second.correction.problems.some(problem => /mode/.test(problem)), 'the correction names the missing field');
 });
 
 test('a blocking review overrides a claimed pass: the design is revised and reviewed again before it can be offered', async t => {
@@ -428,16 +440,16 @@ test('a call interrupted by a restart is recorded unknown and never resent; Retr
 
 test('Retry after a design that stopped on its own is a fresh plan attempt with its own counts', async t => {
   const { mode: _mode, ...partial } = PLAN.standard;
-  const s = designStack(t, { script: { author: n => (n === 1 ? partial : clone(PLAN.standard)) } });
+  const s = designStack(t, { script: { author: n => (n <= 2 ? partial : clone(PLAN.standard)) } });
   const { body } = await s.create(), id = body.job.id;
   const first = await s.design(id);
-  assert.deepEqual([first.job.stage, first.job.stopReason, first.job.design.counts.author], ['failed', 'design_invalid', 1]);
+  assert.deepEqual([first.job.stage, first.job.stopReason, first.job.design.counts.author], ['failed', 'design_invalid', 2]);
   const retry = await s.send('retry', { expectedAttempt: first.job.attempt }, id);
   assert.deepEqual([retry.status, retry.body.job.stage], [202, 'design_authoring']);
   const now = s.state.data.get(`job:${id}`);
   assert.deepEqual([now.design.counts, now.design.attempts], [{ author: 0, review: 0, revise: 0 }, 2]);
   const done = await s.design(id);
   assert.equal(done.job.stage, 'awaiting_approval');
-  assert.deepEqual(s.model.roles(), ['author', 'author', 'review', 'revise']);
+  assert.deepEqual(s.model.roles(), ['author', 'author', 'author', 'review', 'revise']);
   assert.equal(done.job.round, 0, 'a design attempt is not a repair round');
 });
