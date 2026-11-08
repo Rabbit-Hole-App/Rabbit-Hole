@@ -20,7 +20,7 @@ import { codeRef } from './chat-sources.js';
 // ambiguity comes back as { choose } and renders candidate pills. ───
 import { useEffect, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
-import { ChatMessages, RunResultCard } from './ChatMessages.jsx';
+import { ChatMessages, JumpToLatest, RunResultCard } from './ChatMessages.jsx';
 import { useFollowLatest } from './chat-scroll.js';
 import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
@@ -490,7 +490,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const recordCommand = (raw, handoff = null) => {
     const content = raw.trim();
     if (!chatThread || !content || answersInChat(content, { selected: !!(handoff ? handoff.target?.id : canvasTarget?.id) })) return null;
-    const turnId = crypto.randomUUID(), title = content.slice(0, 120), sentKey = chatThread.liveKey();
+    const turnId = crypto.randomUUID(), title = content.slice(0, 120), sentKey = chatThread.liveKey(), restore = chatThread.restore;
     chatThread.claim(); // a restore still on its way never replaces this line
     generation.dismissSettled();
     const saver = turnSaver({ app: chat.canvas, threadId: chatThread.id || newThreadId(), turnId, mode: askMode(chatThread.mode, tocView), title: chatThread.id ? null : title,
@@ -501,7 +501,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     saved.catch(error => console.info('[chat] command not saved:', error.message));
     // thread and refs (EXP-T20 slice 3): an /explain job posts a reviewed brief in the thread this line is saved in, and gets this
     // chat's pinned and temporary refs (resolved by the server, as for a question).
+    // onSlot: the canvas slot this line's card is held in (chat-output-refs.js withSlotSink); its label is the line's waiting row until it fills or goes.
     return { onCard: outputOps ? outputSink({ messageId: saved.catch(() => null), ops: outputOps, onOutput: keepOutput(turnId) }) : null,
+      // The thread's kept transcript too, so a Chat pane reopened meanwhile never shows a row whose slot is gone.
+      onSlot: slot => { const mark = ms => ms.map(x => (x.outputsKey === turnId ? { ...x, making: slot?.label ?? null } : x)); setMsgs(mark); if (restore.messages) restore.messages = mark(restore.messages); },
       thread: saved.then(() => saver.threadId, () => null), refs: refsForSend(codeTurnRefs.refs) };
   };
   // A reviewed /explain brief was posted on the thread this pane shows (ExplainPending): show it, with its Generate, unless a
@@ -1151,7 +1154,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
             ))}
           </div>
         )}
-        {!(sheetMode && sheetHistory) && <ChatMessages renderTutor={chat && !tocView && roadmap?.on ? m => <SurfaceBoundary artifact="tutor_entry" fallback={<div className="min-w-0 whitespace-pre-wrap text-sm">{String(m.content ?? '')}</div>}><TutorMessage m={m} roadmap={roadmap} chat={chat} /></SurfaceBoundary> : null} msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} follow={follow} />}
+        {!(sheetMode && sheetHistory) && <ChatMessages renderTutor={chat && !tocView && roadmap?.on ? m => <SurfaceBoundary artifact="tutor_entry" fallback={<div className="min-w-0 whitespace-pre-wrap text-sm">{String(m.content ?? '')}</div>}><TutorMessage m={m} roadmap={roadmap} chat={chat} /></SurfaceBoundary> : null} msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} />}
         {/* Fix B: the explain-on-canvas roadmap's lines, in this transcript after the thread's messages (RoadmapTranscript.jsx). */}
         {chat && !tocView && roadmap?.on && <RoadmapTranscript roadmap={roadmap} chat={chat} msgs={msgs} />}
         {choices && (
@@ -1172,6 +1175,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           </div>
         )}
       </div>
+      {!(contentPanel || hideConversation || composerOnly) && <JumpToLatest follow={follow} />}
       {/* non-compact: the box sticks to the viewport bottom - the page can scroll, the input never leaves */}
       <div ref={composerBox} className={cn('relative mt-2 shrink-0', !compact && 'sticky bottom-0 bg-white pt-1 pb-2')}>
         {/* @-mention suggestions above the input */}
