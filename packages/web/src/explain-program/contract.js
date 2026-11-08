@@ -92,6 +92,7 @@ const manifestShape = {
   description: plain(600), // the accessible description of what the picture shows
   inputs: z.array(inputSchema).max(CONTRACT_LIMITS.inputs),
   duration: z.number().positive().max(CONTRACT_LIMITS.duration).optional(), // seconds; absent means a static, time-free card
+  instructions: plain(300).optional(), // owner 2026-11-07: 1 to 2 short sentences below the description, only when the card needs them (how to use the controls)
   cardDescription: plain(500).optional(), // the visible 2 to 4 line introduction above the scene (description stays the accessible one)
   timeline: timelineSchema.optional(),
   readouts: z.array(readoutSchema).max(CONTRACT_LIMITS.readouts),
