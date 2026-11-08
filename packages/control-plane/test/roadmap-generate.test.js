@@ -8,11 +8,12 @@ import { ROADMAP_FORMATS, FORMATS } from '../src/roadmap/roadmap-tools.js';
 import { ROADMAP_LIMITS } from '../src/roadmap/roadmap-policy.js';
 import { roadmapCardSuffix } from '../src/agents/roadmap-card.js';
 import { ARTIFACT_SYSTEM } from '../src/agents/learn-artifact.js';
+import { withVisual } from './explanation-layout-fixture.js';
 
 const access = { org: 'o', actorUserId: 'u1', actorEmail: 'a@x.test', boardId: 'b1', boardOwnerEmail: 'a@x.test', role: 'owner', payerUserId: 'u1' };
 const ref = { authorizationId: 'auth_00000001', resultId: 'res_00000001', resultVersion: 1 };
 const record = (over = {}) => ({ cardId: 'card_0000001', stepId: 'step_0000001', proposalId: 'prop_0000001', proposalVersion: 1, format: 'explanation', stepTitle: 'Slopes', stepGoal: 'Read the slope.', passageText: 'The gradient points uphill.', sourceRef: { v: 1, id: 'sref_abc' }, language: 'en', depth: 'standard', retry: 0, ...over });
-const explanation = { title: 'Slopes', body: 'The gradient points uphill.' };
+const explanation = { title: 'Slopes', body: withVisual('The gradient points uphill.') }; // EXP-13, owner 2026-11-08: prose, a visual, prose
 const table = { title: 'Rates', caption: '', columns: ['rate', 'effect'], rows: [['small', 'slow'], ['large', 'diverges']] };
 // A provider double that answers each call with the next scripted tool call and records the body and the env it was given.
 const scripted = (...replies) => { const seen = []; return { seen, callModel: async (env, body) => { seen.push({ env, body }); const [name, input] = replies[seen.length - 1]; return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `c${seen.length}`, name, input }] }); } }; };
@@ -148,16 +149,19 @@ test('the passage is the only source material: it rides as context, is never tru
 
 // --- CORE.09 / BE.06a: shared Explanation guidance, Depth targets, display-text caps and the rh-diagram format ------------------------------------
 import { explanationChars, explanationProblem, diagramProblem, EXPLANATION_GUIDANCE } from '../src/learn-primitives.js';
-import { EXPLANATION_CAPS, EXPLANATION_OBJECTIVES } from '../src/chat-depth.js';
+import { EXPLANATION_BUDGET, EXPLANATION_CAPS, EXPLANATION_OBJECTIVES } from '../src/chat-depth.js';
 
 // File 06 fixtures (fixture-deep-body / fixture-deep-more), as the shared renderer reads them.
 const DEEP_BODY = '## One leaf, one region\n\nThe Approve path requires both age under 30 and income over $50k. Plot those two thresholds on separate axes and the intersection forms a rectangle.\n\n```rh-diagram\n{"version":1,"diagram":{"kind":"flow","title":"Approval path","nodes":[{"id":"a","label":"Age under 30?","role":"decision"},{"id":"b","label":"Income over $50k?","role":"decision"},{"id":"c","label":"Check credit score","role":"outcome"},{"id":"d","label":"Approve","role":"outcome"},{"id":"e","label":"Deny","role":"outcome"}],"edges":[{"from":"a","to":"b","label":"Yes"},{"from":"a","to":"c","label":"No"},{"from":"b","to":"d","label":"Yes"},{"from":"b","to":"e","label":"No"}]}}\n```\n\n## Why a diagonal is harder\n\nEach split is horizontal or vertical. A slanted boundary takes several cuts, forming a staircase.';
 const DEEP_MORE = '## Which split wins?\n\nGroup counts are approvals / denials.\n\n| Split | Group 1 | Group 2 | Gini after |\n| --- | --- | --- | --- |\n| A | 3 / 1 | 1 / 3 | 0.375 |\n| B | 2 / 2 | 2 / 2 | 0.5 |\n\nFor A, each group has Gini 1 − (¾)² − (¼)² = 0.375.';
-// A block of exactly n counted code points: a title plus Unicode body text (é and 😀 are one code point each).
-const sized = (n, title = 'T') => ({ title, body: 'é'.repeat(n - 2) });
+// A block of exactly n visible code points (explanationChars, still the saved-card counter): a title plus Unicode body text (é and 😀 are one code point each).
+const visible = (n, title = 'T') => ({ title, body: 'é'.repeat(n - 2) });
+// EXP-13, owner 2026-11-08: a v2 block whose PROSE is exactly n code points (the title and the diagram do not count).
+const AFTER = 'Slope done.';
+const sized = (n, title = 'T') => ({ title, body: withVisual(`Slope ${'é'.repeat(n - 'Slope '.length - 1 - AFTER.length)}`, { after: AFTER }) });
 
 test('CORE.09: the counter counts code points of the visible text: title, prose, table cells, diagram labels and collapsed sections; markup is free', () => {
-  for (const n of [600, 1000, 1500]) assert.equal(explanationChars(sized(n)), n);
+  for (const n of [600, 1000, 1500]) assert.equal(explanationChars(visible(n)), n);
   assert.equal(explanationChars({ title: '😀', body: 'é😀' }), 4, 'an astral character is one code point');
   assert.equal(explanationChars({ title: 'T', body: '  a \n\n   b  ' }), 5, 'whitespace runs collapse to one space');
   assert.equal(explanationChars({ title: 'T', body: '## **Bold** and `code` [link](https://x.test)' }), 'T Bold and code link'.length);
@@ -168,13 +172,15 @@ test('CORE.09: the counter counts code points of the visible text: title, prose,
   assert.ok(explanationChars({ title: 'Decision trees', body: DEEP_BODY, more: [{ label: 'Worked example', text: DEEP_MORE }] }) <= EXPLANATION_CAPS.deep);
 });
 
-test('CORE.09: each Depth passes exactly at its cap and fails one code point over; an invalid diagram is refused', () => {
-  for (const [depth, cap] of Object.entries(EXPLANATION_CAPS)) {
+// EXP-13, owner 2026-11-08: one prose budget for every Depth, asked for at 600 and refused only above the 700 hard limit.
+test('CORE.09: each Depth passes exactly at the hard limit and fails one code point over; an invalid diagram is refused', () => {
+  const cap = EXPLANATION_BUDGET.hard;
+  for (const depth of Object.keys(EXPLANATION_CAPS)) {
     assert.equal(explanationProblem(sized(cap), depth), null, `${depth} at ${cap}`);
-    assert.match(explanationProblem(sized(cap + 1), depth), /^explanation_over_budget:/, `${depth} at ${cap + 1}`);
+    assert.match(explanationProblem(sized(cap + 1), depth), /^explanation_over_budget:.*limit is 700/, `${depth} at ${cap + 1}`);
   }
-  assert.equal(explanationProblem(sized(600)), null, 'an omitted Depth is Standard');
-  assert.match(explanationProblem(sized(601)), /^explanation_over_budget:/, 'Standard has the one 600 budget too');
+  assert.equal(explanationProblem(sized(cap)), null, 'an omitted Depth is Standard');
+  assert.match(explanationProblem(sized(cap + 1)), /^explanation_over_budget:/, 'Standard has the one budget too');
   assert.equal(diagramProblem(DEEP_BODY), null, 'the file 06 diagram, written as an rh-diagram spec, is valid');
   for (const bad of ['```mermaid\nflowchart TD\n  A["x"] --> B', '```mermaid\nsequenceDiagram\n  A->>B: hi\n```', '```mermaid\nflowchart TD\n  click A "https://x.test"\n```', '```mermaid\nflowchart TD\n  style A fill:#f00\n```', '```mermaid\n%%{init: {}}%%\nflowchart TD\n```', '```mermaid\nflowchart TD\n  A["<b>x</b>"]\n```'])
     assert.match(diagramProblem(bad), /^explanation_bad_diagram:/, bad);
@@ -185,13 +191,13 @@ const scriptedArtifact = (...replies) => { const seen = []; return { seen, callM
 
 test('CORE.09: a direct question and a roadmap step get the same Explanation guidance, Depth objective and budget; the roadmap keeps its accepted title', async () => {
   for (const [depth, cap] of Object.entries(EXPLANATION_CAPS)) {
-    const direct = scriptedArtifact(['make_explanation', { title: 'Why trees split', body: 'Prose with a table.\n\n| a | b |\n| --- | --- |\n| 1 | 2 |' }]);
+    const direct = scriptedArtifact(['make_explanation', { title: 'Why trees split', body: withVisual('Prose with a table.\n\n| a | b |\n| --- | --- |\n| 1 | 2 |') }]);
     const out = await generateArtifact({}, { command: 'explain', args: 'Why do decision trees split on one feature?', ...(depth === 'standard' ? {} : { depth }) }, { callModel: direct.callModel });
     assert.equal(out.result, 'artifact', depth);
     const desc = direct.seen[0].tools.find(t => t.name === 'make_explanation').description;
     assert.ok(desc.includes(EXPLANATION_GUIDANCE) && desc.includes(EXPLANATION_OBJECTIVES[depth]) && desc.includes(`at most ${cap.toLocaleString('en-US')} characters`), depth);
     assert.ok(JSON.parse(direct.seen[0].messages[0].content).learnerText.includes('Why do decision trees split'), 'the question rides in the request');
-    const roadmap = await run(record({ depth, stepTitle: 'Splits' }), [['make_explanation', { title: 'A different model title', body: 'b' }]]);
+    const roadmap = await run(record({ depth, stepTitle: 'Splits' }), [['make_explanation', { title: 'A different model title', body: withVisual('Splits divide the data.') }]]);
     assert.equal(roadmap.out.outcome, 'ok', depth);
     assert.equal(roadmap.out.block.title, 'Splits', 'the accepted title wins over the model title');
     assert.equal(roadmap.m.seen[0].body.tools.find(t => t.name === 'make_explanation').description, desc, `${depth}: identical teaching target on both paths`);
@@ -202,7 +208,8 @@ test('CORE.09: a direct question and a roadmap step get the same Explanation gui
 });
 
 test('CORE.09: over budget or an invalid diagram is a terminal roadmap validation failure after one call; the direct path keeps its one repair', async () => {
-  for (const [depth, cap] of Object.entries(EXPLANATION_CAPS)) {
+  const cap = EXPLANATION_BUDGET.hard; // EXP-13, owner 2026-11-08
+  for (const depth of Object.keys(EXPLANATION_CAPS)) {
     const at = await run(record({ depth, stepTitle: 'T' }), [['make_explanation', sized(cap, 'model title')]]);
     assert.equal(at.out.outcome, 'ok', `${depth} exactly at the cap with the accepted title`);
     const over = await run(record({ depth, stepTitle: 'T' }), [['make_explanation', sized(cap + 1)], ['make_explanation', explanation]]);
@@ -210,7 +217,7 @@ test('CORE.09: over budget or an invalid diagram is a terminal roadmap validatio
   }
   const mermaid = await run(record(), [['make_explanation', { title: 'T', body: '```mermaid\nflowchart TD\n  A["x"] --> B["y"]\n```' }]]);
   assert.deepEqual([mermaid.out.code, mermaid.m.seen.length], ['explanation_bad_diagram', 1]);
-  const direct = scriptedArtifact(['make_explanation', sized(1001)], ['make_explanation', { title: 'Short', body: 'fits' }]);
+  const direct = scriptedArtifact(['make_explanation', sized(cap + 1)], ['make_explanation', explanation]);
   const out = await generateArtifact({}, { command: 'explain', args: 'ideas' }, { callModel: direct.callModel });
   assert.deepEqual([out.result, direct.seen.length], ['artifact', 2], 'the direct lifecycle: one repair quoting the budget');
   assert.match(JSON.stringify(direct.seen[1].messages.at(-1)), /explanation_over_budget/);

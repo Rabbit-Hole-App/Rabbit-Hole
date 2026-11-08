@@ -2,7 +2,7 @@
 // through the real generateArtifact with scripted provider doubles, `live` is a refusal that performs nothing. It reads no credential and contacts no provider.
 //   node benchmarks/explain/run.mjs --mode dry [--profile plan-default,...] [--config path] [--role repair=<profile>] [--trials N] [--out dir]
 //   node benchmarks/explain/run.mjs --mode fixture [--config benchmarks/explain/fixture-config.json] [--resume <run-id>] [--out dir]
-//   node benchmarks/explain/run.mjs --freeze-corpus        (deliberately re-hash benchmarks/explain/corpus/v1)
+//   node benchmarks/explain/run.mjs --freeze-corpus        (deliberately re-hash benchmarks/explain/corpus/v2)
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -22,7 +22,7 @@ for (let i = 2; i < process.argv.length; i++) {
 const git = (...a) => { try { return execFileSync('git', a, { cwd: repo, encoding: 'utf8' }).trim(); } catch { return null; } };
 
 try {
-  const corpusDir = resolve(repo, args.corpus ?? 'benchmarks/explain/corpus/v1');
+  const corpusDir = resolve(repo, args.corpus ?? 'benchmarks/explain/corpus/v2');
   if (args['freeze-corpus']) { const h = await freezeCorpus(corpusDir); console.log(`Froze ${Object.keys(h.files).length} files: corpus ${h.corpusHash.slice(0, 16)}, expected facts ${h.expectedFactsHash.slice(0, 16)}`); process.exit(0); }
   const mode = args.mode ?? 'dry';
   if (mode === 'live') throw new LiveRefusedError(args['cap-usd'] ? `${LIVE_REFUSAL} (a cap of ${args['cap-usd']} was given, but no live adapter exists in this harness version.)` : LIVE_REFUSAL);

@@ -15,6 +15,7 @@ import { usageTotals, periodOf } from '../src/learn-usage.js';
 import { routes } from '../../web/src/roadmap-client.js';
 import { world } from './roadmap-fixture.js';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { withVisual } from './explanation-layout-fixture.js'; // EXP-13: every new card has a visual
 
 export const ORIGIN = 'https://rabbit.test';
 export const PERIOD = periodOf(Math.floor(Date.now() / 1000));
@@ -65,7 +66,7 @@ export const calm = { scores: { sexual_explicit: 0, sexual_minors: 0, nonconsens
 export const unsafe = { ...calm, scores: { ...calm.scores, violence: 0.99 } };
 // An author reply: the served model is the requested one; input usage tracks the real serialized request.
 export const reply = (name, input, { served } = {}) => (model, body) => Response.json({ model: served || model, stop_reason: 'tool_use', usage: { input_tokens: Math.ceil(JSON.stringify(body).length / 4), output_tokens: 300 }, content: [{ type: 'tool_use', id: 'tu_author', name, input }] });
-export const explanation = (title = 'A model-chosen title', body = 'Gini impurity measures how mixed a node is; a split lowers it.', more) => reply('make_explanation', { title, body, ...(more ? { more } : {}) });
+export const explanation = (title = 'A model-chosen title', body = withVisual('Gini impurity measures how mixed a node is; a split lowers it.'), more) => reply('make_explanation', { title, body, ...(more ? { more } : {}) });
 export const table = () => reply('make_table', { title: 'Gini or entropy', caption: '', columns: ['criterion', 'range'], rows: [['Gini', '0 to 0.5'], ['Entropy', '0 to 1']] });
 export const httpError = status => () => new Response(JSON.stringify({ error: { type: 'error', message: `status ${status}` } }), { status, headers: { 'content-type': 'application/json' } });
 export const timeout = () => () => { throw Object.assign(new TypeError('fetch failed: timeout'), {}); };

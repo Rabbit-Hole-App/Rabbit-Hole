@@ -11,6 +11,7 @@ import { requestSpendBound } from '../src/learn-spend.js';
 import { toMicros } from '../src/learn-usage.js';
 import { routes, tabAccepts, pillOf, planDelivery } from '../../web/src/roadmap-client.js';
 import { draftKey } from '../../web/src/chat-draft.js';
+import { withVisual } from './explanation-layout-fixture.js';
 import {
   AT, FILE_NAME, INSTRUCTION, KEY, MARKER, MD, PLAN, STEPS, USERS, acceptCard, acceptPlan, boardBlocks, calm, deliver, explain, explanation, httpError,
   SHORT_PLAN, planOf, readThread, receipt, reply, saveMessage, sha, started, status, table, threadId, timeout, unsafe, workflow,
@@ -350,26 +351,26 @@ test('BE.06 actual author request and both output formats (CORE.03-07)', async t
   });
 });
 
-// CORE.09 caps: Overview 600, Standard 1,000, Deep 1,500 code points of card content (title + body + every `more` label and text). Assumption noted in
-// verify-status.md: the title and body are counted as separate fields and summed (no joining space counted).
-const CAPS = { overview: 600, standard: 600, deep: 600 }; // one budget for every Depth (owner 2026-11-08)
-// The real counter (be, learn-primitives.js explanationChars) when it has landed; before that the plain sum CORE.09 lists (title + body, no joining space asserted).
-const primitives = await import('../src/learn-primitives.js');
-const charsOf = block => (primitives.explanationChars ? primitives.explanationChars(block) : Array.from(block.title).length + Array.from(block.body).length);
-// A body that makes the whole block exactly `target` counted code points (Unicode filler).
-const bodyFor = (title, target) => { let body = 'é'.repeat(target); body = 'é'.repeat(Math.max(0, target - (charsOf({ title, body }) - target))); return body; };
+// EXP-13 (owner 2026-11-08): one budget for every Depth, counting prose only (paragraph, heading and list text); the request asks for the 600 target and the server
+// refuses only above the 700 hard limit. The title, tables and diagrams do not count.
+const { EXPLANATION_BUDGET } = await import('../src/chat-depth.js');
+const CAPS = { overview: EXPLANATION_BUDGET.hard, standard: EXPLANATION_BUDGET.hard, deep: EXPLANATION_BUDGET.hard };
+const { explanationProseChars } = await import('../src/learn-primitives.js');
+const charsOf = block => explanationProseChars(block);
+// A v2 body (prose, diagram, prose) whose prose is exactly `target` code points (Unicode filler); the diagram is titled from the prose before it.
+const AFTER = 'Gini splits.';
+const bodyFor = (title, target) => withVisual(`Gini ${'é'.repeat(target - 'Gini '.length - 1 - AFTER.length)}`, { after: AFTER });
 const RICH_BODY = 'Compare the two criteria:\n\n| criterion | range |\n| --- | --- |\n| Gini | 0 to 0.5 |\n| Entropy | 0 to 1 |\n\n```rh-diagram\n{"version":1,"diagram":{"kind":"flow","title":"Splitting a node","nodes":[{"id":"a","label":"Node","role":"process"},{"id":"b","label":"Purer children","role":"outcome"}],"edges":[{"from":"a","to":"b","label":"split"}]}}\n```\n\nNotice both reach zero for a pure node.';
-const RICH_MORE = [{ label: 'Worked example', text: '| share | Gini |\n| --- | --- |\n| 0.5 | 0.5 |\n\n```rh-diagram\n{"version":1,"diagram":{"kind":"flow","title":"Parent to child","nodes":[{"id":"p","label":"Parent","role":"process"},{"id":"c","label":"Child","role":"outcome"}],"edges":[{"from":"p","to":"c"}]}}\n```' }];
 
 test('BE.06a Tutor Explanation authoring, saved output and caps (CORE.09)', async t => {
   for (const [depth, cap] of Object.entries(CAPS)) {
-    await t.test(`BE.06a ${depth}: the accepted title wins, the request carries the ${cap} cap, exactly ${cap} passes and survives reload`, async () => {
+    await t.test(`BE.06a ${depth}: the accepted title wins, the request asks for ${EXPLANATION_BUDGET.target}, exactly ${cap} prose characters pass and survive reload`, async () => {
       const title = STEPS[0].title;
       const body = bodyFor(title, cap);
       assert.equal(charsOf({ title, body }), cap);
       const { h, accepted, resultId } = await firstCard(t, [explanation('A different model title', body)], { depth });
       assert.equal(accepted.status, 202);
-      assert.ok(h.authorCalls[0].text.includes(String(cap)) || h.authorCalls[0].text.includes(cap.toLocaleString('en-US')), `the dispatched request names the ${cap} cap`);
+      assert.ok(h.authorCalls[0].text.includes(`at most ${EXPLANATION_BUDGET.target} characters of prose`), `the dispatched request names the ${EXPLANATION_BUDGET.target} target`);
       const row = resultRow(h, resultId);
       assert.equal(row.generation, 'generated', `exactly ${cap} code points pass`);
       assert.equal(JSON.parse(row.body_json).title, title, 'the canonical accepted title wins over the model title');
@@ -388,16 +389,18 @@ test('BE.06a Tutor Explanation authoring, saved output and caps (CORE.09)', asyn
       assert.equal((await h.send('alice', 'GET', `/api/learn/roadmap/${view.roadmap.id}/results/${resultId}?boardId=${h.boards.alice}`)).status, 404, 'no ready card');
     });
   }
-  await t.test('BE.06a a table and a valid rh-diagram spec in body and an expanded section survive validation intact', async () => {
-    const { h, resultId } = await firstCard(t, [explanation(STEPS[0].title, RICH_BODY, RICH_MORE)]);
+  await t.test('BE.06a a table and a valid rh-diagram spec in the body survive validation intact', async () => {
+    const { h, resultId } = await firstCard(t, [explanation(STEPS[0].title, RICH_BODY)]);
     const row = resultRow(h, resultId);
     assert.equal(row.generation, 'generated');
-    assert.deepEqual([JSON.parse(row.body_json).body, JSON.parse(row.body_json).more], [RICH_BODY, RICH_MORE]);
+    assert.deepEqual([JSON.parse(row.body_json).body, JSON.parse(row.body_json).more], [RICH_BODY, undefined]);
   });
-  await t.test('BE.06a absent and empty `more` both pass', async () => {
-    for (const more of [undefined, []]) {
-      const { h, resultId } = await firstCard(t, [explanation(STEPS[0].title, 'Gini measures how mixed a node is.', more)]);
-      assert.equal(resultRow(h, resultId).generation, 'generated', JSON.stringify(more));
+  await t.test('BE.06a EXP-13: absent `more` passes; a folded section on a new card is refused (owner decision C1)', async () => {
+    const ok = await firstCard(t, [explanation(STEPS[0].title, withVisual('Gini measures how mixed a node is.'))]);
+    assert.equal(resultRow(ok.h, ok.resultId).generation, 'generated');
+    for (const more of [[], [{ label: 'Worked example', text: 'A pure node has Gini 0.' }]]) {
+      const { h, resultId } = await firstCard(t, [explanation(STEPS[0].title, withVisual('Gini measures how mixed a node is.'), more), explanation()]);
+      assert.deepEqual([resultRow(h, resultId).generation, h.authorCalls.length], ['failed', 1], JSON.stringify(more));
     }
   });
   await t.test('BE.06a a new Mermaid fence (the superseded format) is a terminal validation failure, not a saved card', async () => {
@@ -407,7 +410,7 @@ test('BE.06a Tutor Explanation authoring, saved output and caps (CORE.09)', asyn
     assert.deepEqual([row.generation, row.failure_class, h.authorCalls.length], ['failed', 'terminal_validation_failure', 1]);
   });
   await t.test('BE.06a a later Depth change leaves the accepted Depth of an in-flight card intact', async () => {
-    const h = await workflow(t, { script: [explanation(STEPS[0].title, 'Gini measures how mixed a node is.')], hold: true });
+    const h = await workflow(t, { script: [explanation(STEPS[0].title, withVisual('Gini measures how mixed a node is.'))], hold: true });
     const view = await started(h);
     assert.equal((await acceptCard(h, view, 'accept1')).status, 202);
     const changed = await h.route('alice', routes.revise(await status(h), { settings: { depth: 'deep' } }, KEY('depth')));

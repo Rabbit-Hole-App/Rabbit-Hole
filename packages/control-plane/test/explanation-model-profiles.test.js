@@ -5,8 +5,9 @@ import { EXPLANATION_ADAPTERS, EXPLANATION_CANDIDATES, EXPLANATION_REGISTRY, EXP
 import { generateArtifact, prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
 import { LEARN_TASKS } from '../src/learn-models.js';
 import { generateRoadmapCard, quoteRoadmapCard } from '../src/roadmap/roadmap-generate.js';
+import { withVisual } from './explanation-layout-fixture.js';
 
-const explanation = { title: 'Why coffee cools', body: 'A hot cup loses heat faster because the gap to the room is larger.' };
+const explanation = { title: 'Why coffee cools', body: withVisual('A hot cup loses heat faster because the gap to the room is larger.') }; // EXP-13, owner 2026-11-08: a new card has a visual
 const scripted = (...inputs) => { const seen = []; return { seen, callModel: async (env, body, model) => { seen.push({ body, model }); return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `c${seen.length}`, name: 'make_explanation', input: inputs[seen.length - 1] ?? inputs.at(-1) }] }); } }; };
 const registryWith = profiles => ({ ...EXPLANATION_REGISTRY, profiles: { ...EXPLANATION_REGISTRY.profiles, ...profiles } });
 
@@ -59,7 +60,7 @@ test('a one-role override changes only that role: the repair role may pin anothe
   assert.equal(profile.roles.author.model, author.model);
   assert.equal(profile.roles.repair.model, 'claude-sonnet-5');
   assert.notEqual((await explanationProfileBinding(profile)).hash, (await explanationProfileBinding(explanationProfileFor({}))).hash);
-  const over = { title: 'T', body: 'x'.repeat(2000) }; // over the Standard budget: forces the one repair
+  const over = { title: 'T', body: withVisual('x'.repeat(2000)) }; // over the 700 prose limit: forces the one repair
   const { callModel, seen } = scripted(over, explanation);
   const out = await generateArtifact({}, { command: 'explanation', args: 'q' }, { callModel, profile });
   assert.equal(out.result, 'artifact');
@@ -76,7 +77,7 @@ test('a quote carries the profile binding, and an accepted record that kept a bi
   const quote = await quoteRoadmapCard({}, rec);
   assert.equal(quote.outcome, 'quoted');
   assert.deepEqual(quote.profile, await explanationProfileBinding(explanationProfileFor({})));
-  const run = async accepted => { const m = scripted({ title: 'Slopes', body: 'The gradient points uphill.' }); const out = await generateRoadmapCard({}, access, ref, { loadAccepted: async () => accepted, withProviderCall: async e => e, callModel: m.callModel }); return { out, calls: m.seen.length }; };
+  const run = async accepted => { const m = scripted({ title: 'Slopes', body: withVisual('The gradient points uphill.') }); const out = await generateRoadmapCard({}, access, ref, { loadAccepted: async () => accepted, withProviderCall: async e => e, callModel: m.callModel }); return { out, calls: m.seen.length }; };
   const same = await run({ ...rec, profile: quote.profile });
   assert.deepEqual([same.out.outcome, same.calls], ['ok', 1]);
   const stale = await run({ ...rec, profile: { ...quote.profile, hash: '0000000000000000' } });

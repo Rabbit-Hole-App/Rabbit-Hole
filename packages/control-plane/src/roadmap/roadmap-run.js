@@ -123,7 +123,7 @@ async function generateOne(env, access, roadmap, result, ids, deps) {
   if (got.error) { await fail(got.error === 'source' ? 'denied_access' : 'terminal_validation_failure'); return 'failed'; }
   const rec = { ...got.rec, cardId: result.card_id, retry: 0 };
   // The learner's usage context (payer from the access object, never a body) with the step hold; each call is checkpointed around the transport.
-  const withProviderCall = (e, fields) => withRoadmapProviderCall(e, fields, { kind: fields.stage === 'generate' ? 'generation' : 'repair' });
+  const withProviderCall = (e, fields) => withRoadmapProviderCall(e, fields, { kind: fields.stage === 'generate' ? 'generation' : fields.stage === 'illustration' ? 'media' : 'repair' });
   const callModel = async (e, body, model, org) => {
     const op = operationOf(e), f = fieldsOfKey(op.key), route = authorRoute(e, model);
     await planCall(db, access, { opId: op.opId, key: op.key, roadmapId: roadmap.id, resultId: result.id, authorizationId: ids.authorizationId, stage: f.stage, call: f.call, retry: f.retry, payer: 'learner', task: 'artifact',
@@ -131,7 +131,7 @@ async function generateOne(env, access, roadmap, result, ids, deps) {
     return checkpointed(db, op.opId, now, () => base(e, body, model, org));
   };
   const out = await generateRoadmapCard(learnerUsageEnv(env, access, ids.proposalId, ids.proposalVersion), access, { authorizationId: ids.authorizationId, resultId: result.id, resultVersion: result.result_version },
-    { loadAccepted: async () => rec, withProviderCall, callModel, ...(deps.generate ? { generate: deps.generate } : {}) });
+    { loadAccepted: async () => rec, withProviderCall, callModel, figureStore: { org: roadmap.org, email: roadmap.owner_email, app: roadmap.app, boardId: roadmap.board_id }, ...(deps.figureAdapter ? { figureAdapter: deps.figureAdapter } : {}), ...(deps.generate ? { generate: deps.generate } : {}) });
   // CORE.06: the learner-intent screen reads the learner's own accepted words (original plus accepted revisions), never quoted document text.
   const learnerWords = [rec.learnerInstruction.original, ...rec.learnerInstruction.revisions.map(r => r.text)].filter(text => text.trim()).join('\n');
   if (out.outcome === 'ok') return finish(env, access, roadmap, result, ids, out, { passage: rec.passageText, original: learnerWords, rev: current.source_rev }, deps, now, fail);

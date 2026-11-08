@@ -1,0 +1,13 @@
+{
+  "caseId": "ex01-coffee-overview",
+  "replies": {
+    "clean": {
+      "title": "Why hot coffee cools fastest at first",
+      "body": "Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room. Fresh coffee is far hotter than the air, so it loses heat quickly; as it cools the gap shrinks and the loss slows.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"kind\":\"cycle\",\"title\":\"Why hot coffee cools fastest at first\",\"steps\":[\"Start\",\"Change\",\"Result\"]}}\n```\n\n| Stage | Coffee vs room | Heat loss |\n| --- | --- | --- |\n| Early | Large gap | Faster |\n| Late | Small gap | Slower |\n\nSo early cooling is faster than late cooling."
+    },
+    "over-cap": {
+      "title": "Why hot coffee cools fastest at first",
+      "body": "Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. \n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"kind\":\"cycle\",\"title\":\"Why hot coffee cools fastest at first\",\"steps\":[\"Start\",\"Change\",\"Result\"]}}\n```\n\n| Stage | Coffee vs room | Heat loss |\n| --- | --- | --- |\n| Early | Large gap | Faster |\n| Late | Small gap | Slower |\n\nSo early cooling is faster than late cooling."
+    }
+  }
+}

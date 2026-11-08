@@ -1,0 +1,12 @@
+{
+  "kind": "benchmark",
+  "entry": "direct",
+  "command": "explanation",
+  "heldOut": false,
+  "id": "ex02p-gini-standard",
+  "ref": "EX-02-style",
+  "args": "Two ways to split eight training examples: split A gives two groups with class counts 3 and 1, and 1 and 3. Split B gives two groups with class counts 2 and 2, and 2 and 2. Using Gini impurity, which split would a tree-growing classifier choose, and why? Show the numbers.",
+  "depth": "standard",
+  "promptLabel": "reconstructed",
+  "promptSource": "EX-02 facts (split A 3/1 and 1/3, split B 2/2 and 2/2) as a prose-only question; the original standalone prompt is not recorded"
+}

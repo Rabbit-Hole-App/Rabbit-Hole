@@ -17,7 +17,7 @@ import { deterministicEvaluator, evaluateCard, modelEvaluatorStub, EvaluatorRefu
 import { prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
 
 const repo = fileURLToPath(new URL('../../../', import.meta.url));
-const corpusDir = resolve(repo, 'benchmarks/explain/corpus/v1');
+const corpusDir = resolve(repo, 'benchmarks/explain/corpus/v2');
 const config = JSON.parse(await readFile(resolve(repo, 'benchmarks/explain/fixture-config.json'), 'utf8'));
 const registry = registryFromConfig(config);
 const corpus = await loadCorpus(corpusDir);

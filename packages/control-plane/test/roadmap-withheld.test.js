@@ -6,6 +6,7 @@ import { registerRoadmapHandlers } from '../src/roadmap/roadmap-wire.js';
 import { runDueRoadmapEvents } from '../src/roadmap/roadmap-events.js';
 import { withheldCause } from '../src/roadmap/roadmap-check.js';
 import { rows } from './roadmap-fixture.js';
+import { withVisual } from './explanation-layout-fixture.js'; // EXP-13, owner 2026-11-08: prose, a visual, prose
 import { STRINGS } from '../../web/src/roadmap-strings.js';
 import { BOARD, FAIL, FULL, GOOD, ID_B, INSTRUCTION, KEY, answer, calm, loop, planInput } from './roadmap-loop-fixture.js';
 
@@ -19,7 +20,7 @@ const acceptBody = (view, key) => ({ boardId: BOARD, revision: view.roadmap.revi
 const accept = async (h, id, view) => (await h.json('POST', `/api/learn/roadmap/${id}/proposals/${view.proposal.id}/accept`, acceptBody(view, KEY('accept')))).body.results[0];
 
 // A card that quotes words the passage never says (a model's own example in double quotes looks the same to the verifier).
-const INVENTED = answer('make_explanation', { title: 'The gradient', body: 'The notes say "an invented sentence from nowhere" about it.' });
+const INVENTED = answer('make_explanation', { title: 'The gradient', body: withVisual('The notes say "an invented sentence from nowhere" about it.') });
 
 test('owner MVP: a card that quotes or paraphrases freely is not held by a citation check; it is delivered and recorded as not run', async t => {
   const h = await loop(t, { script: [INVENTED] });

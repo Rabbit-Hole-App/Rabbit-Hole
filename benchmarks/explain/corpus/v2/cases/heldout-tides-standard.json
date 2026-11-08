@@ -1,0 +1,12 @@
+{
+  "kind": "benchmark",
+  "entry": "direct",
+  "command": "explanation",
+  "heldOut": true,
+  "id": "heldout-tides-standard",
+  "ref": "held-out",
+  "args": "Why do most coasts have two high tides a day, and roughly how long passes between one high tide and the next?",
+  "depth": "standard",
+  "promptLabel": "newly-specified",
+  "promptSource": "held-out unfamiliar topic, written for this corpus; never used to tune a prompt"
+}

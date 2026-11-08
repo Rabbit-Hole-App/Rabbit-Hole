@@ -62,8 +62,8 @@ const cardSchema = required => ({
 const ADDENDUM = required => `
 Answer format for this request (it replaces the tool call and the fence instructions above): reply with exactly one JSON object {"title","body","diagram"}.
 - title and body are required: the card's text, as the guidance describes, with no rh-diagram fence in the body.
-- diagram: ${required ? 'REQUIRED, the learner asked for a diagram.' : 'the TutorDiagram spec object, or null when you choose no diagram.'} It is the same object the fence would hold, {"version":1,"diagram":{...}}, as a JSON object and never as a string. The app draws it; do not describe it twice.
-- The whole card (title, body, table cells and every word in the diagram) must stay under the visible-character budget above; do not pad it: the Depth's objective and any required table or diagram decide how much text is needed.`;
+- diagram: ${required ? 'REQUIRED, the learner asked for a diagram.' : 'the TutorDiagram spec object; a card without one is refused (EXP-13: every card has a visual).'} It is the same object the fence would hold, {"version":1,"diagram":{...}}, as a JSON object and never as a string. The app draws it before the last paragraph of the body, so write at least two paragraphs; do not describe it twice.
+- Only the body's prose (paragraph, heading and list text) counts toward the budget above; the title, table cells and diagram words do not. Do not pad it.`;
 
 // -> { options, served() } for generateArtifact, or null when the switch is off. served() is what the provider said it ran (the response's model field)
 // and what became of each attempt's diagram (omitted, present and valid, present and invalid).
@@ -125,7 +125,9 @@ export function celerisExplainRoute(env, command) {
     seen.attempts.push({ required, diagram: diagram ? (valid ? 'valid' : 'invalid') : 'omitted', chars: card ? String(card.title || '').length + String(card.body || '').length : null });
     if (capture) seen.capture.push({ attempt: seen.calls, finish: json.choices?.[0]?.finish_reason ?? null, usage: json.usage || null, raw: scrub(json.choices?.[0]?.message?.content, env).slice(0, 12000), diagramParseErrors: issues, feedback });
     last = json.choices?.[0]?.message?.content ?? "";
-    const input = card ? { title: card.title, body: diagram ? `${String(card.body ?? '').trimEnd()}\n\n\`\`\`rh-diagram\n${JSON.stringify(diagram)}\n\`\`\`` : card.body } : {};
+    // EXP-13: the diagram goes before the body's last paragraph, so it has prose before and after it (a one-paragraph body keeps it last and the layout check names it).
+    const paras = String(card?.body ?? '').trim().split(/\n\s*\n/), fence = `\`\`\`rh-diagram\n${JSON.stringify(diagram)}\n\`\`\``;
+    const input = card ? { title: card.title, body: diagram ? (paras.length > 1 ? [...paras.slice(0, -1), fence, paras.at(-1)] : [...paras, fence]).join('\n\n') : card.body } : {};
     return Response.json({ model: json.model, stop_reason: json.choices?.[0]?.finish_reason === 'length' ? 'max_tokens' : 'tool_use', usage: json.usage || {},
       content: [{ type: 'tool_use', id: `t_${seen.calls}`, name: 'make_explanation', input }] });
   };

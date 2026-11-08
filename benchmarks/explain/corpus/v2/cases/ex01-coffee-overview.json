@@ -1,0 +1,12 @@
+{
+  "kind": "benchmark",
+  "entry": "direct",
+  "command": "explanation",
+  "heldOut": false,
+  "id": "ex01-coffee-overview",
+  "ref": "EX-01",
+  "args": "Why does coffee cool faster at first? Include a small table comparing early and late cooling.",
+  "depth": "overview",
+  "promptLabel": "original",
+  "promptSource": "explain.md EX-01 exact supplied prompt (the /explain prefix removed)"
+}

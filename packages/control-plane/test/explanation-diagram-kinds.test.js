@@ -1,13 +1,13 @@
-// S7-EXPAND: all 17 TutorDiagram kinds (19 library examples) go through the same two gates as the flow: every rh-diagram fence in the body and in
-// More sections passes parseTutorDiagram before delivery (an invalid one is repaired once, then dropped), and the visible-text caps count the
-// words each kind DRAWS, from ONE source (tutorDiagramVisibleText), exactly at the cap and one code point over.
+// S7-EXPAND: all 17 TutorDiagram kinds (19 library examples) go through the same gates as the flow: every rh-diagram fence passes parseTutorDiagram before
+// delivery (an invalid one is repaired once, then dropped when another visual remains). EXP-13 (owner 2026-11-08): new cards have no More sections, and the
+// budget counts prose only, so a diagram's drawn words (tutorDiagramVisibleText) are free.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { diagramProblem, explanationChars, explanationProblem, EXPLANATION_GUIDANCE } from '../src/learn-primitives.js';
+import { diagramProblem, explanationProblem, explanationProseChars, EXPLANATION_GUIDANCE } from '../src/learn-primitives.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { generateRoadmapCard } from '../src/roadmap/roadmap-generate.js';
-import { EXPLANATION_CAPS } from '../src/chat-depth.js';
+import { EXPLANATION_BUDGET, EXPLANATION_CAPS } from '../src/chat-depth.js';
 import { parseTutorDiagram, tutorDiagramVisibleText } from '../../web/src/tutor-diagrams/spec.js';
 
 const EXAMPLES = JSON.parse(readFileSync(new URL('../../web/src/tutor-diagrams/examples.json', import.meta.url), 'utf8'));
@@ -33,81 +33,65 @@ test('the authoring guidance teaches all 17 kinds, each with a when-to-use line,
   assert.match(EXPLANATION_GUIDANCE, /Never invent numbers/);
 });
 
+// EXP-13 (owner 2026-11-08): prose, visual, prose; the prose names the diagram's title, so the visual is related to the text around it.
+const around = (example, extra = '') => `See ${example.diagram.title}.\n\n${fence(example)}\n\nThat is ${example.diagram.title}.${extra}`;
+
 for (const [i, example] of EXAMPLES.entries()) {
   const kind = example.diagram.kind, name = `${i + 1}. ${kind}`;
-  test(`${name}: valid example is delivered verbatim in the body and in a More section; an invalid variant is repaired once, then dropped, at both entry points`, async () => {
+  test(`${name}: valid example is delivered verbatim in the body; an invalid second diagram is repaired once, then dropped, at both entry points`, async () => {
     assert.equal(diagramProblem(fence(example)), null);
     assert.ok(words(example).length > 0, 'a kind with no visible words could hide text');
-    const body = { title: 'T', body: 'See:\n\n' + fence(example), more: [{ label: 'L', text: fence(example) }] };
-    // the library cap is generous; the Depth caps here only matter for the counting tests below
-    const depth = 'deep' in EXPLANATION_CAPS ? 'deep' : Object.keys(EXPLANATION_CAPS).at(-1);
-    const direct = await viaDirect(depth, body);
-    assert.deepEqual([direct.out.result, direct.out.block?.body, direct.out.block?.more?.[0]?.text, direct.out.diagramsDropped], ['artifact', body.body, body.more[0].text, undefined], 'direct');
-    const road = await viaRoadmap(depth, body);
+    const body = { title: 'T', body: around(example) };
+    const direct = await viaDirect('deep', body);
+    assert.deepEqual([direct.out.result, direct.out.block?.body, direct.out.diagramsDropped], ['artifact', body.body, undefined], 'direct');
+    const road = await viaRoadmap('deep', body);
     assert.deepEqual([road.out.outcome, road.out.block?.body, road.out.diagramsDropped], ['ok', body.body, undefined], 'roadmap');
 
     // invalid variant: the schema is strict, so an unknown key refuses every kind
     const bad = { ...example, diagram: { ...example.diagram, bogus: 1 } };
     assert.throws(() => parseTutorDiagram(JSON.stringify(bad)), undefined, 'parse refuses');
     assert.match(diagramProblem(fence(bad)) || '', /^explanation_bad_diagram:/);
-    const badBlock = { title: 'T', body: 'See:\n\n' + fence(bad), more: [{ label: 'L', text: 'p\n\n' + fence(bad) }] };
-    const d = await viaDirect(depth, badBlock);
-    assert.deepEqual([d.out.result, d.out.block?.body, d.out.block?.more?.[0]?.text, d.out.diagramsDropped, d.m.seen.length], ['artifact', 'See:', 'p', 2, 2], 'direct drop after one repair');
-    const r = await viaRoadmap(depth, badBlock);
-    assert.deepEqual([r.out.outcome, r.out.block?.body, r.out.block?.more?.[0]?.text, r.out.diagramsDropped, r.m.seen.length], ['ok', 'See:', 'p', 2, 1], 'roadmap drop, one call');
+    const badBlock = { title: 'T', body: around(example, `\n\n${fence(bad)}\n\nDone.`) };
+    const d = await viaDirect('deep', badBlock);
+    assert.deepEqual([d.out.result, d.out.block?.body, d.out.diagramsDropped, d.m.seen.length], ['artifact', around(example, '\n\nDone.'), 1, 2], 'direct drop after one repair');
+    const r = await viaRoadmap('deep', badBlock);
+    assert.deepEqual([r.out.outcome, r.out.block?.body, r.out.diagramsDropped, r.m.seen.length], ['ok', around(example, '\n\nDone.'), 1, 1], 'roadmap drop, one call');
   });
 }
 
-// Cap counting, exactly at the cap and one over, for kinds whose drawn words are not the flow's: figure, tree, argument, bar-chart, waterfall.
-// The expected length is computed here from tutorDiagramVisibleText (what the card draws), not from explanationChars.
+// EXP-13 budget: a diagram's drawn words never count, whatever the kind; only the prose around it does (exactly at the hard limit passes, one over fails).
 for (const kind of ['figure', 'tree', 'argument', 'bar-chart', 'waterfall']) {
-  for (const place of ['body', 'More section']) {
-    test(`${kind} in the ${place}: visible text is counted exactly at each Depth cap and one over fails`, async () => {
-      const example = EXAMPLES.find(e => e.diagram.kind === kind), drawn = words(example), drawnLen = drawn.reduce((n, w) => n + 1 + points(w), 0);
-      const build = n => {
-        if (place === 'body') { // 'T' + ' ' + pad + words
-          const pad = n - 1 - 1 - drawnLen; return { pad, block: { title: 'T', body: 'é'.repeat(pad) + '\n\n' + fence(example) } };
-        }
-        const pad = n - 'T b L'.length - 1 - ' L'.length - drawnLen; // 'T b L' + ' ' + pad + ' L' + words
-        return { pad, block: { title: 'T', body: 'b', more: [{ label: 'L', text: 'é'.repeat(pad) }, { label: 'L', text: fence(example) }] } };
-      };
-      let tested = 0;
-      for (const [depth, cap] of Object.entries(EXPLANATION_CAPS)) {
-        const at = build(cap), over = build(cap + 1);
-        if (at.pad < 1) continue; // this example alone is longer than the shallow caps; the deeper ones still prove the rule
-        tested++;
-        assert.equal(explanationChars(at.block), cap, `${depth}: counter equals the drawn words`);
-        assert.equal(explanationProblem(at.block, depth), null, `${depth} at ${cap}`);
-        assert.match(explanationProblem(over.block, depth) || '', /^explanation_over_budget:/, `${depth} at ${cap + 1}`);
-        assert.equal((await viaDirect(depth, at.block)).out.result, 'artifact', `direct ${depth} at cap`);
-        const directOver = await viaDirect(depth, over.block);
-        assert.deepEqual([directOver.out.result, /^explanation_over_budget:/.test(directOver.out.error)], ['validation_error', true], `direct ${depth} over`);
-        assert.equal((await viaRoadmap(depth, at.block)).out.outcome, 'ok', `roadmap ${depth} at cap`);
-        const roadOver = await viaRoadmap(depth, over.block);
-        assert.deepEqual([roadOver.out.failure_class, roadOver.out.code], ['terminal_validation_failure', 'explanation_over_budget'], `roadmap ${depth} over`);
-      }
-      assert.ok(tested >= 1, 'at least one Depth cap fits this example');
-    });
-  }
+  test(`${kind}: its drawn words are free; the prose around it is counted exactly at the limit and one over fails`, async () => {
+    const example = EXAMPLES.find(e => e.diagram.kind === kind), title = example.diagram.title;
+    const build = n => { const before = `See ${title}. `, after = 'Done.'; return { title: 'T', body: before + 'é'.repeat(n - points(before) - 1 - points(after)) + '\n\n' + fence(example) + '\n\n' + after }; };
+    const { hard } = EXPLANATION_BUDGET;
+    assert.equal(explanationProseChars(build(hard)), hard, 'the counter sees the prose only');
+    for (const depth of Object.keys(EXPLANATION_CAPS)) {
+      assert.equal(explanationProblem(build(hard), depth, 'x'), null, `${depth} at ${hard}`);
+      assert.match(explanationProblem(build(hard + 1), depth, 'x') || '', /^explanation_over_budget:/, `${depth} at ${hard + 1}`);
+      assert.equal((await viaDirect(depth, build(hard))).out.result, 'artifact', `direct ${depth} at the limit`);
+      const roadOver = await viaRoadmap(depth, build(hard + 1));
+      assert.deepEqual([roadOver.out.failure_class, roadOver.out.code], ['terminal_validation_failure', 'explanation_over_budget'], `roadmap ${depth} over`);
+    }
+  });
 }
 
-test('unseen text cannot hide: an unparseable fence counts as its literal lines, a parseable one counts only what it draws', () => {
+test('unseen text cannot hide: an unparseable fence is refused, a parseable one adds no prose', () => {
   const hidden = '```rh-diagram\n' + 'x'.repeat(700) + '\n```';
-  assert.match(explanationProblem({ title: 'T', body: hidden }, 'overview') || '', /^explanation_over_budget:/);
+  assert.match(explanationProblem({ title: 'T', body: 'See x.\n\n' + hidden + '\n\nDone.' }, 'overview') || '', /explanation_bad_diagram:/);
   const ids = { ...EXAMPLES.find(e => e.diagram.kind === 'tree') };
-  assert.ok(explanationChars({ title: 'T', body: fence(ids) }) < JSON.stringify(ids).length, 'ids, roles and numbers are not counted');
+  assert.equal(explanationProseChars({ title: 'T', body: fence(ids) }), 0, 'ids, roles, numbers and labels are not prose');
 });
 
 test('single-call roadmap path: an authored rh-diagram fence (every one of the 19 examples) is delivered verbatim from ONE author call with no repair, and survives a board JSON round trip', async () => {
   for (const [i, example] of EXAMPLES.entries()) {
-    const block = { title: 'T', body: 'Read this.\n\n' + fence(example), more: [{ label: 'L', text: 'Why.\n\n' + fence(example) }] };
+    const block = { title: 'T', body: around(example) };
     const { out, m } = await viaRoadmap('deep', block);
     assert.equal(out.outcome, 'ok', `${i + 1}. ${example.diagram.kind}`);
     assert.equal(m.seen.length, 1, 'one author call, repairs 0');
     assert.equal(out.repaired, false);
     assert.equal(out.diagramsDropped, undefined);
     assert.equal(out.block.body, block.body, 'the fence is delivered verbatim');
-    assert.equal(out.block.more[0].text, block.more[0].text);
     assert.deepEqual(JSON.parse(JSON.stringify(out.block)), out.block, 'board JSON round trip');
   }
 });

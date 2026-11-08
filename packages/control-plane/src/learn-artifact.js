@@ -27,6 +27,7 @@ import { IMAGE_EXTRACTION_SYSTEM, imageExtractionTool, checkImageExtraction } fr
 import { SCENE_AUTHORING } from './agents/learn-scene-author.js';
 import { calculationProblem, cardAtSettings, sceneProblem, withDataSizes, withSamplesNote } from './learn-scene-gates.js';
 import { DEFAULT_DEPTH, DEPTH_COMMANDS, depthInstruction, explanationTarget, validDepth } from './chat-depth.js';
+import { illustrateExplanation } from './explanation-figures.js';
 import { readDepth } from './learn-user-settings.js';
 import { VERIFY_SYSTEM, VERIFY_TOOL, falseItems, verifyMessage } from './agents/learn-scene-verify.js';
 
@@ -113,10 +114,11 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   return { request, ready, messages, model: bound ? bound.roles.author.model : LEARN_TASKS.artifact.model, profile: bound, repairModel: bound ? bound.roles.repair.model : null, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
 }
 
-export async function generateArtifact(env, input, { callModel: baseCall = loggedModel('artifact', planModel), only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null } = {}) {
+export async function generateArtifact(env, input, { callModel: baseCall = loggedModel('artifact', planModel), only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null, figures = null } = {}) {
   // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls.
   // R4 trusted options: `only` restricts the primitives offered, `systemSuffix` is appended to the system prompt of every call (initial and repair),
   // `title` (the roadmap's accepted step title) replaces the model's title before any check.
+  // `figures` (EXP-13, trusted): { store, scope?, adapter? } for explanation-figures.js illustrateExplanation; omitted, no picture is made and every rh-illustration fence is removed.
   const prepared = prepareArtifactAuthorRequest(env, input, { only, systemSuffix, profile });
   if (prepared.result) return prepared;
   const { request, ready, messages, body, model } = prepared;
@@ -173,9 +175,11 @@ export async function generateArtifact(env, input, { callModel: baseCall = logge
         }
         // E2: the questions and term anchors are checked against the FINAL text (accepted title applied, diagrams settled), in the same message as every other problem.
         const interactive = interactionsEnabled(env);
-        const problem = [explanationProblem(block, input.depth), requiredVisualProblem(block, wanted), interactive ? interactionsProblem(block, { questions, terms }) : null].filter(Boolean).join(' '); if (problem) throw new Error(problem);
+        const problem = [explanationProblem(block, input.depth, input.args), requiredVisualProblem(block, wanted), interactive ? interactionsProblem(block, { questions, terms }) : null].filter(Boolean).join(' '); if (problem) throw new Error(problem);
         if (wanted) block = { ...block, visualRequirements: boundRequirements(wanted) }; // saved provenance: what was asked for and that the card holds it
         block = { ...block, depth: validDepth(input.depth) || DEFAULT_DEPTH }; // E3: the budget this card was written to, so a later illustration caption is checked against it
+        // EXP-13: the pictures, made before the card is returned and saved; one that cannot be made loses its fence, never the card. It shows no text, so the anchors checked above still hold.
+        block = await illustrateExplanation(env, block, figures || {});
         if (interactive) block = { ...block, interactions: await bindInteractions(block, { questions, terms }) };
       }
       if (GATES[id]) block = GATES[id](block);
@@ -290,7 +294,15 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
     const visuals = body.command === 'explanation' ? deriveVisualRequirements(requirementText({ args: body.args })) : null;
     if (visuals?.unsupported) { await giveBack(); return json({ result: 'unsupported', message: visuals.unsupported }); }
     celeris = celerisExplainRoute(env, body.command); // DEV ONLY (explain-celeris-dev.js): off unless a dev or test Worker turns it on; production never takes it
-    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, celeris?.options);
+    // EXP-13: a picture the card asks for is kept as a file source of the board's owner (as an image job keeps its output), read only when the card has one.
+    const store = async () => {
+      const { boardOwner, ownerRow } = await import('./learn-boards.js');
+      const owner = await boardOwner(req, env, body.app);
+      if (owner instanceof Response || !owner?.org || !owner?.email) return null;
+      const row = await ownerRow(env, owner, body.app, typeof body.board === 'string' ? body.board : 'main').catch(() => null);
+      return { org: owner.org, email: owner.email, app: body.app, boardId: row?.id ?? null };
+    };
+    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, { ...celeris?.options, figures: { store } });
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
     if (out?.result !== 'artifact' && out?.result !== 'paid_proposal') await giveBack();
     const done = celeris ? { ...out, devModel: celeris.served() } : out;

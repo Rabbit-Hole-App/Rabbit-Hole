@@ -13,6 +13,7 @@ import { roadmapCardSuffix } from '../agents/roadmap-card.js';
 import { deriveVisualRequirements, requirementText } from '../explanation-visuals.js';
 import { ROADMAP_LIMITS } from './roadmap-policy.js';
 import { ROADMAP_FORMATS } from './roadmap-tools.js';
+import { figuresBoundMicros } from '../explanation-figures.js';
 import { validateAccess } from './roadmap-contract.js';
 
 const fail = (failure_class, code, extra = {}) => ({ outcome: 'failed', failure_class, code, ...extra });
@@ -60,7 +61,8 @@ export async function quoteRoadmapCard(env, rec, { limits = ROADMAP_LIMITS } = {
   if (built.failed) return built.failed;
   const prepared = prepareArtifactAuthorRequest(env, built.input, built.options);
   if (prepared.result) return fail('unsupported_capability', String(prepared.result));
-  const route = authorRoute(env, prepared.model), boundMicros = boundOf(prepared.body, route);
+  // EXP-13: an explanation step's hold also covers its pictures (two, three attempts each) at the image quote; a deployment that cannot price a picture adds nothing and makes none.
+  const route = authorRoute(env, prepared.model), author = boundOf(prepared.body, route), boundMicros = author + (rec.format === 'explanation' && Number.isSafeInteger(author) ? figuresBoundMicros(env) : 0);
   if (!Number.isSafeInteger(boundMicros) || boundMicros <= 0) return fail('unsupported_capability', 'unpriced_request');
   // EXP-11-C02: the profile the request was built from rides with the quote, for the accepted record to keep (the model is already in the fingerprint).
   return { outcome: 'quoted', boundMicros, requestFingerprint: await requestFingerprint(prepared.body, route), provider: route.provider, model: route.model, ...(prepared.profile ? { profile: await explanationProfileBinding(prepared.profile) } : {}) };
@@ -74,9 +76,10 @@ export async function quoteRoadmapCard(env, rec, { limits = ROADMAP_LIMITS } = {
 //   deps.withProviderCall(env, { proposalId, proposalVersion, cardId, stage, call, retry, authorizationId }) -> env carrying the
 //       deterministic operation identity (State/Money's withRoadmapProviderCall). Required: without it nothing is spent.
 //   deps.callModel / deps.generate: the provider transport and generateArtifact; defaults are the production ones.
+//   deps.figureStore: { org, email, app, boardId } the roadmap's board owner, where an EXP-13 picture is kept; deps.figureAdapter: an image adapter double (tests).
 export async function generateRoadmapCard(env, access, ref, deps = {}) {
   if (!validateAccess(access).ok) return { outcome: 'forbidden' };
-  const { loadAccepted, withProviderCall, limits = ROADMAP_LIMITS, generate = generateArtifact, callModel = loggedModel('artifact', planModel) } = deps;
+  const { loadAccepted, withProviderCall, limits = ROADMAP_LIMITS, generate = generateArtifact, callModel = loggedModel('artifact', planModel), figureStore = null, figureAdapter = null } = deps;
   if (typeof loadAccepted !== 'function' || typeof withProviderCall !== 'function') return { outcome: 'unavailable', code: 'adapter_not_wired' };
   const rec = await loadAccepted(env, access, ref);
   if (!rec) return { outcome: 'unavailable', code: 'not_accepted' };
@@ -103,8 +106,10 @@ export async function generateRoadmapCard(env, access, ref, deps = {}) {
     const scoped = await withProviderCall(e, { proposalId: rec.proposalId, proposalVersion: rec.proposalVersion, cardId: rec.cardId, stage: n === 0 ? 'generate' : 'repair', call: n, retry: rec.retry ?? 0, authorizationId: ref.authorizationId });
     return callModel(scoped?.opId ? scoped.env : scoped, body, model, org);
   };
+  // EXP-13: each picture attempt is its own stable operation on the step hold (stage illustration), never the author's one call.
+  const scope = async (e, n) => { const scoped = await withProviderCall(e, { proposalId: rec.proposalId, proposalVersion: rec.proposalVersion, cardId: rec.cardId, stage: 'illustration', call: n, retry: rec.retry ?? 0, authorizationId: ref.authorizationId }); return scoped?.opId ? scoped.env : scoped; };
   let out;
-  try { out = await generate(env, built.input, { callModel: metered, ...built.options }); }
+  try { out = await generate(env, built.input, { callModel: metered, ...built.options, figures: { store: figureStore, scope, ...(figureAdapter ? { adapter: figureAdapter } : {}) } }); }
   catch (error) {
     if (['operation_budget', 'request_mismatch', 'request_over_bound'].includes(error?.message)) return fail('terminal_validation_failure', error.message, { calls: call });
     // A call that may have reached the provider (roadmap-run.js marks it) is never retried blind: its outcome is reconciled first.

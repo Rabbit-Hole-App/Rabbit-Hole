@@ -3,7 +3,7 @@
 // exact occurrence in the card's canonical display text. The author writes questions and anchors in the existing ONE author call; the SERVER validates them
 // against the final normalized text, assigns the IDs and the content revision, and saves the envelope with the card. Off by default (EXPLANATION_INTERACTIONS).
 // Pure and Worker/browser compatible: the web imports the display-text mapping and the revision check from here. No fixture answer is ever part of a question.
-import { explanationFieldText } from './learn-primitives.js';
+import { explanationFieldProse, explanationFieldText } from './learn-primitives.js';
 import { sha256Hex } from './learn-grade-jev.js';
 
 export const INTERACTIONS_VERSION = 1;
@@ -15,7 +15,7 @@ export const INTERACTION_LIMITS = Object.freeze({ questions: 3, question: 120, t
 
 const cp = s => Array.from(String(s ?? ''));
 const len = s => cp(s).length;
-const FIELD = /^(?:body|more\[[0-2]\]\.text)$/;
+const FIELD = /^body$/; // EXP-13: a new card has no sections, so a new anchor is always in the body (saved anchors in more[n].text still read through fieldText)
 const WORD = /[\p{L}\p{N}]/u;
 
 // ---- author-facing schema (appended to the Explanation tool's schema while the switch is on) ----
@@ -23,9 +23,9 @@ const text = (maxLength, minLength = 1) => ({ type: 'string', minLength, maxLeng
 export const INTERACTION_PROPERTIES = Object.freeze({
   questions: { type: 'array', minItems: 3, maxItems: 3, items: text(INTERACTION_LIMITS.question * 2) },
   terms: { type: 'array', minItems: 0, maxItems: INTERACTION_LIMITS.terms, items: { type: 'object', additionalProperties: false, required: ['label', 'definition', 'field', 'quote', 'occurrence'],
-    properties: { label: text(INTERACTION_LIMITS.quote), definition: text(INTERACTION_LIMITS.definition * 2), field: { type: 'string', pattern: '^(body|more\\[[0-2]\\]\\.text)$' }, quote: text(INTERACTION_LIMITS.quote), occurrence: { type: 'integer', minimum: 0, maximum: INTERACTION_LIMITS.occurrence } } } },
+    properties: { label: text(INTERACTION_LIMITS.quote), definition: text(INTERACTION_LIMITS.definition * 2), field: { type: 'string', enum: ['body'] }, quote: text(INTERACTION_LIMITS.quote), occurrence: { type: 'integer', minimum: 0, maximum: INTERACTION_LIMITS.occurrence } } } },
 });
-export const INTERACTION_GUIDANCE = 'Also return, in this same call, "questions": exactly three distinct questions a curious learner would ask next about this explanation (each at most 120 characters, a question to ask, never an answer), and optionally "terms": up to six one- or two-word terms that appear in the body or in a section text, each with "label" (the term), "definition" (at most 160 characters), "field" ("body" or "more[0].text" to "more[2].text") and "quote" (exactly the term as written there) and "occurrence" (zero-based: which occurrence of that exact word or phrase in that field to mark, counting whole-word matches in reading order). Use terms only for a real concept the learner may not know; no terms is fine. Questions and definitions are not part of the lesson text.';
+export const INTERACTION_GUIDANCE = 'Also return, in this same call, "questions": exactly three distinct questions a curious learner would ask next about this explanation (each at most 120 characters, a question to ask, never an answer), and optionally "terms": up to six one- or two-word terms that appear in the prose of the body (paragraph, heading or list text, never a table cell, a diagram label or an illustration), each with "label" (the term), "definition" (at most 160 characters), "field" ("body") and "quote" (exactly the term as written there) and "occurrence" (zero-based: which occurrence of that exact word or phrase in the body to mark, counting whole-word matches in reading order, table cells and diagram labels included). Use terms only for a real concept the learner may not know; no terms is fine. Questions and definitions are not part of the lesson text.';
 
 // -> the Markdown field's canonical display text (the one mapping selection, anchors and term decorations share).
 export const fieldText = (block, field) => {
@@ -76,13 +76,15 @@ export function interactionsProblem(block, meta) {
     if (!label || label.split(/\s+/).length > L.termWords) return bad(`term ${n} must be one or two words.`);
     if (!String(term.definition ?? '').trim()) return bad(`term ${n} has no definition.`);
     if (len(String(term.definition).trim()) > L.definition) return bad(`term ${n} definition has ${len(String(term.definition).trim())} characters; the limit is ${L.definition}.`);
-    if (!FIELD.test(String(term.field))) return bad(`term ${n} field must be body or more[0].text to more[2].text.`);
+    if (!FIELD.test(String(term.field))) return bad(`term ${n} field must be body.`);
     if (term.quote !== label) return bad(`term ${n} quote must be exactly the label "${label.slice(0, 40)}".`);
     if (!Number.isInteger(term.occurrence) || term.occurrence < 0) return bad(`term ${n} occurrence must be a zero-based integer.`);
     const field = fieldText(block, term.field);
     if (field == null) return bad(`term ${n} names ${term.field}, which this card does not have.`);
     const hit = occurrences(field, label)[term.occurrence];
     if (!hit) return bad(`term ${n} "${label.slice(0, 40)}" has no occurrence ${term.occurrence} in ${term.field} (whole-word matches in the displayed text: ${occurrences(field, label).length}).`);
+    const prose = explanationFieldProse(block?.body), chars = Array.from(field);
+    for (let k = hit.start; k < hit.end; k++) if (chars[k] !== ' ' && !prose[k]) return bad(`term ${n} "${label.slice(0, 40)}" occurrence ${term.occurrence} is in a table, a diagram or an illustration; anchor terms in the prose only.`);
     if (taken.some(t => t.field === term.field && hit.start < t.end && t.start < hit.end)) return bad(`term ${n} overlaps another term in ${term.field}.`);
     taken.push({ field: term.field, ...hit });
   }
