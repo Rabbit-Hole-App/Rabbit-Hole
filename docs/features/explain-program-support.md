@@ -231,6 +231,44 @@ day** to day 2 to see no match, day 6 to see the same-day snapshot qualify, and
 day 9 to see both methods use the same row. Reopen at day 2 and after Reset to
 verify persistence. Browser acceptance and a real generated card are pending.
 
+### Next Phase 02 builds
+
+1. **Feature Scaling Explorer (Lesson 08).** Keep the original points and query
+   fixed. Use one feature-scale control to update the weighted distances and show
+   when the nearest neighbor changes. Show the distances for the two candidates
+   closest to the query so the learner can see why the winner changes.
+2. **Forest Voting Explorer (Lessons 04 and 11).** Change one query feature and
+   show the path and vote from each of three small trees. Update the vote tally
+   and majority prediction together. Use an example where an individual tree
+   changes its vote before the majority changes.
+
+### Note for Claude Code
+
+Use a signed-in dev build with ScenePlan enabled for the live `/interactive`
+checks. Keep fixture playback and fresh generation as separate evidence.
+
+- [ ] **K-means.** Replay the original accepted `fixture-generated-ai-kmeans`
+  from the [retry branch](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/309aa89e0ddfac2c6f12697b978551abccc7daf8).
+  Run Assign and Update for both starts. Check the membership colors, centroids
+  and inertia. Reopen after an update and after Reset.
+- [ ] **Gradient descent.** Run the prompt above through ScenePlan. At learning
+  rate 1.2 and step 8, check nine readable numbered slots, alternating signs,
+  the current highlight, and nonzero weight and loss. Reopen and verify Reset.
+- [ ] **Regression Fit.** Retry the prompt above through the current ScenePlan
+  reviewer. Check the six residuals, squared errors, and MSE at the slider
+  extremes. Confirm that the labels stay readable. Reopen and verify Reset.
+- [ ] **Point-in-Time Join.** Replay `fixture-ai-point-in-time-join` on a dev
+  build containing the fixture. Verify days 2, 6 and 9, reopen, and Reset. Then
+  generate one card using the prompt below and repeat the checks on its output.
+
+```text
+/interactive Show me how joining on the latest feature row can leak future data. Use one user with visit snapshots of 2 visits on day 3, 5 on day 6, and 8 on day 9, each available that day. Let me move the label day from 1 to 10. On a shared timeline, compare the latest snapshot available as of the label day with the newest snapshot overall. Show when there is no eligible snapshot and flag when the newest snapshot comes from the future.
+```
+
+Push a short receipt with the dev build SHA, the fixture or generation job ID,
+the visible outcomes, and the reopen and Reset results for each card. Record any
+blocked run with the stage and failure reason.
+
 ## Dev verification evidence (integrated branch, 2026-11-08)
 
 One branch carries the heat-grid line (SDK 3), Medium (SDK 4), linked comparison, cyclic networks (SDK 5), raster and masks (SDK 6) and the three AI teaching examples. Each SDK line keeps its own
