@@ -7,7 +7,7 @@ import { StateError, ERROR_CODES, conflictReply } from './roadmap-contract.js';
 import { acceptPlan, acceptRoadmapStep, acknowledgeDelivery, createRoadmap, readEntitledResult, readRoadmap, readResult } from './roadmap-store.js';
 import { bindTutorThread, cancelProposal, endRoadmap, markResultRemoved, markResultRestored, proposeNextStep, retakeUnreadyOffer, setMode } from './roadmap-lifecycle.js';
 import { currentView, roadmapHistory } from './roadmap-view.js';
-import { acceptInvitation, dismissInvitation, offerInvitation, pendingInvitation } from './roadmap-invitations.js';
+import { acceptInvitation, dismissInvitation, offerInvitation, pendingInvitation, roadmapOnDropEnabled } from './roadmap-invitations.js';
 import { answerQuestion, revisePlan } from './roadmap-planning.js';
 import { applyProposalDraft, discardProposalDraft, roadmapEditEnabled, saveProposalDraft } from './roadmap-proposal-drafts.js';
 import { acceptLinkProposal, offerLinkProposal, readLink } from './roadmap-links.js';
@@ -15,6 +15,7 @@ import { readSlots, saveSlot } from './roadmap-slots.js';
 
 const PREFIX = '/api/learn/roadmap';
 export const roadmapEnabled = env => env?.ROADMAP_ENABLED === 'true';
+// Other flags beneath it: ROADMAP_AUTO_ENABLED, ROADMAP_EDIT_ENABLED, ROADMAP_LONG_MARKDOWN_ENABLED, and ROADMAP_ON_DROP_ENABLED (roadmap-invitations.js: the value 'false' means a dropped source starts no roadmap; unset is on).
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const NOT_AVAILABLE = { error: 'Not available', code: 'not_found' };
 const EDIT_SEGMENTS = new Set(['drafts', 'link']);
@@ -75,7 +76,7 @@ export async function roadmapRoute(path, req, env, deps = {}) {
     // Invitations (api.md routes 1 to 3): deterministic, no model, dismissal scoped to one invitation.
     if (rest[0] === 'invitations') {
       if (req.method === 'GET' && rest.length === 1) { const got = await pendingInvitation(db, access); return json(got.body, got.status); }
-      if (req.method === 'POST' && rest.length === 1) { const got = await offerInvitation(db, access, { sourceKeys: body.sourceKeys, idleKey: body.idleKey, mode: body.mode, settings: deps.settings, ...(now ? { now } : {}) }); return json(got.body, got.status); }
+      if (req.method === 'POST' && rest.length === 1) { const got = await offerInvitation(db, access, { sourceKeys: body.sourceKeys, idleKey: body.idleKey, mode: body.mode, settings: deps.settings, onDrop: roadmapOnDropEnabled(env), ...(now ? { now } : {}) }); return json(got.body, got.status); }
       if (req.method === 'POST' && rest.length === 3 && rest[2] === 'dismiss') { const got = await dismissInvitation(db, access, { invitationId: rest[1], actionKey: body.actionKey, ...(now ? { now } : {}) }); return json(got.body, got.status); }
       return json({ error: 'Not found', code: 'not_found' }, 404);
     }
