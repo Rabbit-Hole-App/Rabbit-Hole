@@ -62,5 +62,31 @@ export function deepTossDropOracle(plan) {
   return expect.length ? { id: 'toss-drop-deep', expect } : null;
 }
 
+// ---- Overview / Static (section 7): a tossed ball at its top and a ball just released, both at one height with zero velocity --------------------------------
+// After 0.10 s each has moved g * 0.1^2 / 2 = 0.049 m down. A static scene is one state (case id 'default'; the plan's checkpoints have no time, so they are aliases of it).
+// Exists only for the plan that IS this Overview (a program scene, static, no controls, gravity fixed at 9.8).
+export function overviewDropOracle(plan) {
+  if (plan?.depth !== 'overview' || plan.mode.kind !== 'static' || plan.scene.runtime.renderer !== 'program' || plan.mode.timeline || plan.controls.length || plan.mode.adjustableIds.length) return null;
+  if (plan.mode.fixedValues.gravity !== G || !plan.scene.quantities.some(q => q.id === 'drop')) return null;
+  const drop = G * WINDOW ** 2 / 2, values = { drop, dropReadout: drop };
+  const required = new Set([...plan.scene.observations.flatMap(o => o.quantityIds).filter(q => !(q in plan.mode.fixedValues)), ...plan.scene.readoutIds]);
+  const expect = Object.entries(values).filter(([name]) => required.has(name)).map(([name, expected]) => ({ case: 'default', panel: 'main', name, expected, tol: TOL }));
+  return expect.length ? { id: 'toss-drop-overview', expect } : null;
+}
+
+// ---- A different subject: the period of a simple pendulum (small swings), T = 2 pi sqrt(L / g) ------------------------------------------------------------------
+// An untimed Experiment with one adjustable input, 'length' in metres, and gravity fixed at 9.8. Case ids as buildPlanCaptureCases makes them for an untimed scene:
+// default, cp-<id>, bound-/probe-<control>-min|max. Exists only for a plan that IS this pendulum, never by guessing.
+export function pendulumPeriodOracle(plan) {
+  const length = plan?.controls.find(c => c.type === 'number' && c.binding.kind === 'input' && c.binding.id === 'length');
+  if (!length || plan.mode.kind !== 'experiment' || plan.mode.timeline || plan.scene.runtime.renderer !== 'program' || plan.mode.fixedValues.gravity !== G || plan.mode.adjustableIds.join() !== 'length') return null;
+  if (!plan.scene.quantities.some(q => q.id === 'period')) return null;
+  const period = L => 2 * Math.PI * Math.sqrt(L / G), required = new Set([...plan.scene.observations.flatMap(o => o.quantityIds).filter(q => !(q in plan.mode.fixedValues)), ...plan.scene.readoutIds]);
+  const lengths = { default: length.default, [`bound-${length.id}-min`]: length.min, [`bound-${length.id}-max`]: length.max, [`probe-${length.id}-min`]: length.min, [`probe-${length.id}-max`]: length.max };
+  for (const cp of plan.scene.checkpoints) lengths[`cp-${cp.id}`] = cp.inputOverrides.length ?? length.default;
+  const expect = Object.entries(lengths).flatMap(([id, L]) => Object.entries({ period: period(L), periodReadout: period(L) }).filter(([name]) => required.has(name)).map(([name, expected]) => ({ case: id, panel: 'main', name, expected, tol: TOL })));
+  return expect.length ? { id: 'pendulum-period', expect } : null;
+}
+
 // The trusted expected values for this plan, or null when no oracle exists for it (the checks then say so).
-export const interactOracle = plan => standardTossDropOracle(plan) ?? deepTossDropOracle(plan);
+export const interactOracle = plan => standardTossDropOracle(plan) ?? deepTossDropOracle(plan) ?? overviewDropOracle(plan) ?? pendulumPeriodOracle(plan);

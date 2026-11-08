@@ -13,10 +13,10 @@ import { INTERACT_REPAIR_TOOL_NAME } from '../src/agents/explain-repair.js';
 import { evaluateRequestFor } from '../../web/src/explain-program/program-card.js';
 import { parseGuestResult } from '../../web/src/explain-program/contract.js';
 import { verifyComposition } from '../../web/src/interact-composition.js';
-import { deepOracle, fixtureDraft, standardOracle } from '../../web/src/interact-build-fixtures.js';
+import { deepOracle, fixtureDraft, overviewOracle, pendulumOracle, standardOracle } from '../../web/src/interact-build-fixtures.js';
 import { undeliverable } from '../src/interact-job.js';
 import { checkSceneAgainstPlan, buildPlanCaptureCases } from '../src/interact-checks.js';
-import { deepTossDropOracle, interactOracle, standardTossDropOracle } from '../src/interact-oracle.js';
+import { deepTossDropOracle, interactOracle, overviewDropOracle, pendulumPeriodOracle, standardTossDropOracle } from '../src/interact-oracle.js';
 import { OWNER, BOARD, PLAN, clone, designStack, postedProposal } from './interact-design-fixture.js';
 
 test.beforeEach(t => { const log = console.log; console.log = () => {}; t.after(() => { console.log = log; }); });
@@ -75,13 +75,13 @@ function buildProvider(t, script = {}, depth = 'standard') {
 }
 
 // A new-flow stack with the REAL build: the switch on, no legacy builder seam, the fake render browser and a media store.
-function interactStack(t, { design, build, fit, depth = 'standard' } = {}) {
-  const s = designStack(t, { script: depth === 'standard' ? design : { author: () => clone(PLAN[depth]), ...design }, fit });
+function interactStack(t, { design, build, fit, depth = 'standard', plan = depth } = {}) {
+  const s = designStack(t, { script: plan === 'standard' ? design : { author: () => clone(PLAN[plan]), ...design }, fit });
   const browser = fakeBrowser(), store = media();
   s.deps.buildScene = undefined;
   s.deps.render = { browser: browser.browser };
   Object.assign(s.env, { ASSETS: { fetch: async () => new Response('x') }, LEARN_MEDIA: store });
-  const calls = buildProvider(t, build, depth);
+  const calls = buildProvider(t, build, { overviewProgram: 'overview', pendulum: 'pendulum' }[plan] ?? depth);
   const jobOf = id => s.state.data.get(`job:${id}`);
   // Press Generate on the posted plan, then advance one alarm at a time to a stop; returns the stages seen.
   const generate = async (id, max = 30) => {
@@ -105,8 +105,8 @@ function interactStack(t, { design, build, fit, depth = 'standard' } = {}) {
   };
   return { ...s, browser, store, calls, jobOf, generate, drive, route };
 }
-const designed = async (t, build, depth = 'standard') => {
-  const s = interactStack(t, { build, depth });
+const designed = async (t, build, depth = 'standard', plan = depth) => {
+  const s = interactStack(t, { build, depth, plan });
   const { body } = await s.create(depth === 'standard' ? {} : { depth }), id = body.job.id;
   const { job } = await s.design(id);
   assert.equal(job.stage, 'awaiting_approval', JSON.stringify([job.stopReason, job.failure]));
@@ -528,4 +528,145 @@ test('Deep: a main scene or a comparison that ignores the launch speed is refuse
     assert.equal(s.calls.review.length, job.stage === 'ready' ? 1 : 0, 'the refused candidate was never reviewed');
     assert.equal(job.stage, 'ready', 'the bounded repair delivers the correct card');
   }
+});
+
+// ---- Overview / Static (I3): the static program scene through the same job ------------------------------------------------------------------------------------
+test('the Overview oracle is computed from the equations and exists only for the static program Overview', () => {
+  const production = overviewDropOracle(PLAN.overviewProgram), fixture = overviewOracle();
+  assert.deepEqual(production.expect.map(e => [e.case, e.name]), [['default', 'drop'], ['default', 'dropReadout']]);
+  for (const e of production.expect) assert.ok(Math.abs(fixture.expect.find(f => f.name === e.name).expected - e.expected) < 1e-12 && Math.abs(e.expected - 0.049) < 1e-12);
+  assert.equal(overviewDropOracle(PLAN.overview), null, 'the declarative Overview has no program to compare');
+  for (const other of ['standard', 'deep', 'untimedExperiment', 'staticAdjustable']) assert.equal(overviewDropOracle(PLAN[other]), null, other);
+  assert.equal(interactOracle(PLAN.overviewProgram).id, 'toss-drop-overview');
+});
+
+test('Overview: prompt -> design -> Generate -> a saved static card with no timeline and no controls, checked against the oracle', async t => {
+  const { s, id } = await designed(t, undefined, 'overview', 'overviewProgram');
+  assert.deepEqual(s.calls.build.concat(s.calls.review, s.calls.repair), []);
+  const { job, seen } = await s.generate(id);
+  assert.deepEqual(seen, ['authoring', 'validating', 'rendering', 'reviewing', 'ready']);
+  assert.equal(job.build.check.oracle.checked, 2);
+  const saved = s.state.data.get(`result:${job.resultId}`), composition = saved.composition;
+  assert.deepEqual([composition.order, composition.main.mode, composition.main.timeline, composition.main.controls, composition.supporting], [['title', 'description', 'main'], 'static', null, [], []]);
+  assert.equal(saved.artifact.manifest.duration, undefined, 'a static scene declares no duration');
+  const runs = s.browser.state.evaluated;
+  assert.equal(runs.length >= 1 && runs.every(r => r.time === 0), true, 'one state, captured at time zero');
+  const got = (await s.route(`/${id}?board=${BOARD.id}`)).body;
+  assert.equal(got.job.stage, 'ready');
+  assert.equal(got.block.interact.composition.main.mode, 'static');
+});
+
+// ---- Durable, access and accounting properties of the new flow (I3, INT-10-C04 on the actual routes) --------------------------------------------------------------
+const ledger = s => ({ actions: s.sqlite.prepare('SELECT feature, status FROM usage_actions').all().map(r => ({ ...r })), attempts: s.sqlite.prepare('SELECT kind, status, cost_micros FROM usage_attempts').all().map(r => ({ ...r })) });
+const OTHER = { ...OWNER, email: 'other@example.com', userId: 'u-2' };
+
+test('a restart in the middle of the build resumes the same candidate on a new object: no second model call, no second render, one settlement', async t => {
+  const { s, id } = await designed(t);
+  assert.equal((await s.approve(id)).status, 202);
+  for (let i = 0; i < 30 && !['rendering', 'reviewing'].includes(s.jobOf(id).stage); i++) await s.actor.alarm();
+  assert.ok(['rendering', 'reviewing'].includes(s.jobOf(id).stage), 'the build is done and the candidate is stored');
+  const builds = s.calls.build.length, fresh = s.object();
+  for (let i = 0; i < 30 && !['ready', 'failed'].includes(s.jobOf(id).stage); i++) await fresh.alarm();
+  const job = s.jobOf(id);
+  assert.equal(job.stage, 'ready');
+  assert.deepEqual([s.calls.build.length, builds, s.calls.review.length, s.calls.repair.length], [1, 1, 1, 0], 'the restarted object never builds again');
+  assert.deepEqual(job.build.counts, { build_author: 1, build_review: 1, build_repair: 0 });
+  const settled = ledger(s);
+  assert.ok(settled.attempts.every(a => a.status === 'settled'), 'nothing is left reserved');
+  for (let i = 0; i < 5; i++) await fresh.alarm();
+  await s.actor.alarm(); // the old object, late
+  assert.deepEqual(ledger(s), settled, 'late alarms on either object settle nothing twice');
+  assert.equal(s.jobOf(id).stage, 'ready');
+});
+
+test('a build call whose outcome is unknown (the connection dropped after the request was sent) is not resent and is not booked as a free call', async t => {
+  const { s, id } = await designed(t, { build: () => { throw new TypeError('network connection lost'); } });
+  const { job } = await s.generate(id);
+  assert.notEqual(job.stage, 'ready');
+  assert.equal(s.calls.build.length, 1, 'no automatic resend of a call that may have been billed');
+  assert.equal(s.state.data.get(`result:${job.resultId}`), undefined, 'no card');
+  assert.equal(s.calls.review.length + s.calls.repair.length, 0);
+  for (let i = 0; i < 4; i++) await s.actor.alarm();
+  assert.equal(s.calls.build.length, 1, 'late alarms do not resend either');
+  assert.deepEqual([job.stage, job.failure.category, job.failure.stage], ['failed', 'transport', 'authoring']);
+  assert.match(job.failure.message, /not resent and its cost is unknown/);
+  const unknown = ledger(s).attempts.filter(x => x.status === 'failed');
+  assert.deepEqual(unknown, [{ kind: 'generation', status: 'failed', cost_micros: null }], 'the call stays on the ledger with an unknown cost, never as zero and never as settled');
+  assert.ok((await s.send('get', {}, id)).body.job.recovery.includes('new_attempt'), 'the learner can start a new attempt'); 
+});
+
+test('another learner cannot read, cancel or approve the job, its plan, its result or its support panel; the answer is the same as for a job that does not exist', async t => {
+  const { s, id, proposal } = await designed(t);
+  const { job } = await s.generate(id);
+  const missing = await s.route(`/no-such-job?board=${BOARD.id}`);
+  for (const path of [`/${id}?board=${BOARD.id}`, `/results/${job.resultId}?board=${BOARD.id}`, `/results/${job.resultId}?board=${BOARD.id}&panel=threeMoments`]) {
+    const got = await s.route(path, OTHER);
+    assert.deepEqual([got.status, got.body], [404, { error: 'Not available' }], path);
+  }
+  assert.equal(missing.status, 404);
+  assert.equal((await s.send('cancel', {}, id, OTHER)).status, 404);
+  assert.equal((await s.send('approve', { proposal }, id, OTHER)).status, 404);
+  assert.equal(s.jobOf(id).stage, 'ready', 'the owner card was not touched');
+  assert.equal((await s.route(`/results/${job.resultId}?board=${BOARD.id}&panel=threeMoments`)).status, 200, 'the owner still reads it');
+});
+
+test('a late render result after Stop is fenced: the cancelled job keeps no capture, no result and no extra review', async t => {
+  const { s, id } = await designed(t);
+  assert.equal((await s.approve(id)).status, 202);
+  for (let i = 0; i < 30 && s.jobOf(id).stage !== 'rendering'; i++) await s.actor.alarm();
+  assert.equal(s.jobOf(id).stage, 'rendering');
+  assert.equal((await s.send('cancel', {}, id)).body.job.stage, 'cancelled');
+  for (let i = 0; i < 6; i++) await s.actor.alarm();
+  const job = s.jobOf(id);
+  assert.equal(job.stage, 'cancelled');
+  assert.equal(s.calls.review.length, 0, 'a cancelled job asks the reviewer for nothing');
+  assert.equal(s.state.data.get(`result:${job.resultId}`), undefined);
+  assert.equal((await s.route(`/${id}?board=${BOARD.id}`)).body.block, undefined, 'no card is offered');
+});
+
+// ---- A different subject through the same job and card (I3) ------------------------------------------------------------------------------------------------------
+test('the pendulum oracle is computed from T = 2 pi sqrt(L / g) and exists only for the pendulum plan', () => {
+  const production = pendulumPeriodOracle(PLAN.pendulum), fixture = pendulumOracle();
+  assert.ok(production.expect.length >= 10);
+  for (const e of production.expect) assert.ok(Math.abs(fixture.expect.find(f => f.case === e.case && f.name === e.name).expected - e.expected) < 1e-12, `${e.case} ${e.name}`);
+  const at = (kase, name) => production.expect.find(e => e.case === kase && e.name === name).expected;
+  assert.equal(at('cp-short', 'period').toFixed(4), '1.0035'); assert.equal(at('cp-long', 'period').toFixed(4), '2.0071');
+  assert.ok(Math.abs(at('cp-long', 'period') - 2 * at('cp-short', 'period')) < 1e-12, 'four times the length, twice the period');
+  for (const other of ['overview', 'overviewProgram', 'standard', 'deep', 'untimedExperiment', 'staticAdjustable']) assert.equal(pendulumPeriodOracle(PLAN[other]), null, other);
+  for (const other of ['pendulum']) for (const oracle of [standardTossDropOracle, deepTossDropOracle, overviewDropOracle]) assert.equal(oracle(PLAN[other]), null);
+  assert.equal(interactOracle(PLAN.pendulum).id, 'pendulum-period');
+});
+
+test('Pendulum: another subject takes the same stages, checks and card: untimed Experiment, a number control, the period compared with 2 pi sqrt(L / g) at three lengths', async t => {
+  const { s, id } = await designed(t, undefined, 'standard', 'pendulum');
+  assert.deepEqual(s.calls.build.concat(s.calls.review, s.calls.repair), []);
+  const { job, seen } = await s.generate(id);
+  assert.deepEqual(seen, ['authoring', 'validating', 'rendering', 'reviewing', 'ready']);
+  assert.ok(job.build.check.oracle.checked >= 6, `the oracle checked ${job.build.check.oracle.checked} values`);
+  const runs = s.browser.state.evaluated;
+  for (const length of [0.25, 0.5, 1]) assert.ok(runs.some(r => r.inputs.length === length && r.time === 0), `captured at ${length} m`);
+  const composition = s.state.data.get(`result:${job.resultId}`).composition;
+  assert.deepEqual([composition.order, composition.main.mode, composition.main.onInputChange, composition.main.timeline, composition.supporting], [['title', 'description', 'main', 'controls'], 'experiment', 'recompute_still', null, []]);
+  assert.deepEqual(composition.main.controls.map(c => [c.type, c.row]), [['number', 'controls'], ['reset', 'controls']]);
+  assert.equal((await s.route(`/${id}?board=${BOARD.id}`)).body.block.interact.composition.main.inputDefaults.length, 0.5);
+  // The same defect class is caught for this subject: a program that ignores the length is refused and one repair fixes it.
+  const wrong = await designed(t, { build: () => ({ kind: 'scene', ...(d => { d.main.program.source = d.main.program.source.replace('L = inputs.length', 'L = 0.5'); return d; })(fixtureDraft('pendulum')) }) }, 'standard', 'pendulum');
+  const second = await wrong.s.generate(wrong.id);
+  assert.deepEqual(second.seen, ['authoring', 'validating', 'rendering', 'repairing', 'validating', 'rendering', 'reviewing', 'ready']);
+  assert.ok(second.job.findings.find(f => f.stage === 'rendering').problems.some(p => /numeric_mismatch|control_no_effect/.test(p)));
+  assert.equal(wrong.s.calls.review.length, 1, 'the wrong program was never shown to the reviewer');
+});
+
+test('an Edit of a composed card is refused with the existing honest message: no job, no model call, the saved card is untouched (Current / Proposed for an /interact card is not built)', async t => {
+  const { s, id } = await designed(t);
+  const { job } = await s.generate(id);
+  const block = (await s.route(`/${id}?board=${BOARD.id}`)).body.block;
+  s.sqlite.prepare('UPDATE learn_boards SET state_json = ? WHERE id = ?').run(JSON.stringify({ blocks: [block] }), BOARD.id);
+  const before = [s.model.log.length, s.calls.build.length, s.calls.review.length, s.calls.repair.length, s.state.data.size, s.browser.state.evaluated.length];
+  const edit = await s.create({ requestId: 'req-00000002', requestClass: 'edit', cardId: block.id, baseRevision: block.explain.revision, prompt: 'Make the tossed ball red.' });
+  assert.deepEqual([edit.status, edit.body.code], [409, 'edit_unsupported']);
+  assert.match(edit.body.error, /cannot be edited this way yet/);
+  await s.actor.alarm();
+  assert.deepEqual([s.model.log.length, s.calls.build.length, s.calls.review.length, s.calls.repair.length, s.state.data.size, s.browser.state.evaluated.length], before, 'nothing was started or stored');
+  assert.equal(s.state.data.get(`result:${job.resultId}`).composition.envelopeHash, block.interact.composition.envelopeHash);
 });

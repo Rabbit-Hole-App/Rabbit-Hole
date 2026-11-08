@@ -12,7 +12,7 @@ import { resolveInteractProfile } from '../../packages/control-plane/src/interac
 import { runInteract } from '../../packages/control-plane/src/interact-runner.js';
 import { createRunDirStore } from './run-dir-store.mjs';
 
-const DEFAULT_PROMPT = { 'toss-drop-standard': 'Why does a ball thrown straight up still accelerate at the top, when its velocity is zero?' };
+const DEFAULT_PROMPT = { 'toss-drop-standard': 'Why does a ball thrown straight up still accelerate at the top, when its velocity is zero?', 'pendulum-period': 'Does a longer pendulum swing more slowly, and by how much?' };
 const say = line => console.log(line);
 const die = (code, line) => { console.error(`x ${line}`); process.exit(code); };
 

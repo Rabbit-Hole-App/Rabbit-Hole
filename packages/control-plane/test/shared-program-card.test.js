@@ -277,3 +277,41 @@ test('the owner\'s result answer lists its sources per revision, with what was r
   assert.equal('sources' in link.body, false);
   for (const secret of ['octo/heat', 'cool.py', 'Lab notes']) assert.equal(link.text.includes(secret), false, `the link answered with ${secret}`);
 });
+
+// An /interact card on a link (I3, INT-10-C04 share): the link serves the main program with the composition, and each supporting panel only by the id the composition names.
+test('a link plays a composed Deep card: the composition and the main program, and the comparison panel only as the composition names it; a swapped panel or an unknown id is refused', async t => {
+  const f = world(t);
+  const { fixtureDraft, sealEnvelope } = await import('../../web/src/interact-build-fixtures.js');
+  const { interactFixtures } = await import('../../web/src/interact-plan-fixtures.js');
+  const { compileCardComposition } = await import('../../web/src/interact-composition.js');
+  const { plans } = await interactFixtures();
+  const sealed = await sealEnvelope(fixtureDraft('deep')), composition = await compileCardComposition(plans.deep, sealed);
+  const canvas = (await f.call('POST', '/api/canvases', { as: 'ana', body: { title: 'Composed' } })).body;
+  const first = await f.call('PUT', `/api/learn/boards/${canvas.name}/main`, { as: 'ana', body: { state: { blocks: [] } } });
+  const boardId = f.boardOf(canvas.name), main = sealed.main.program, panel = sealed.supporting[0].artifact.program;
+  const identity = { jobId: 'ej_deep', resultId: 'er_deep', cardId: 'card-deep', canvas: { boardId }, promptRef: 'prompt-ref-0001', revision: 'xr_deep', baseRevision: null, kind: 'program', bundleHash: main.bundleHash, sourceHash: main.sourceHash, manifestHash: main.manifestHash,
+    versions: { schema: main.schemaVersion, runtime: main.runtimeVersion, sdk: main.sdkVersion, renderer: main.rendererVersion }, policyVersion: 'p1' };
+  const record = { kind: 'interact', artifact: main, supporting: [{ id: 'comparePeaks', artifact: panel }], composition, identity, owner: { org: 'ana-ws', email: 'ana@test' }, boardId, cardId: 'card-deep',
+    authoredBy: { requested: 'model-a', served: 'model-a' }, provenance: { request: 'prompt-ref-0001', context: 'ctx', evidence: [], edited: null } };
+  f.store(boardId).set('result:er_deep', record);
+  const block = { id: 'card-deep', type: 'animation', title: 'Deep', program: { kind: main.kind, resultId: 'er_deep', bundleHash: main.bundleHash }, explain: identity, interact: { version: 1, planHash: composition.planHash, composition } };
+  assert.equal((await f.call('PUT', `/api/learn/boards/${canvas.name}/main`, { as: 'ana', body: { state: { blocks: [block] }, version: first.body.version } })).status, 200);
+  const token = (await f.call('POST', `/api/learn/boards/${canvas.name}/main/share`, { as: 'ana', body: { shared: true, view: true, public_view: true } })).body.sharing.view;
+  const read = (query = '') => f.call('GET', `/api/learn/boards/shared/${token}/cards/card-deep/program${query}`);
+
+  const whole = await read();
+  assert.equal(whole.status, 200, whole.text);
+  assert.deepEqual([whole.body.artifact.bundleHash, whole.body.composition.envelopeHash], [main.bundleHash, composition.envelopeHash]);
+  const support = await read('?panel=comparePeaks');
+  assert.equal(support.status, 200, support.text);
+  assert.equal(support.body.artifact.bundleHash, composition.supporting[0].artifact.hash, 'the panel served is the one the composition names');
+  assert.notEqual(support.body.artifact.bundleHash, main.bundleHash);
+  for (const secret of ['ana@test', 'ana-ws', 'prompt-ref-0001', 'authoredBy', 'provenance', 'Maya']) assert.equal(support.text.includes(secret) || whole.text.includes(secret), false, secret);
+  assert.equal((await read('?panel=nope')).status, 404);
+  assert.equal((await read('?panel=bad%20id')).status, 404);
+  assert.equal((await read('?panel=main')).body.artifact.bundleHash, main.bundleHash);
+  // A panel swapped in storage no longer matches the composition's hash: the link refuses the whole card, not just that panel.
+  f.store(boardId).set('result:er_deep', { ...record, supporting: [{ id: 'comparePeaks', artifact: { ...panel, source: panel.source.replace('0.10 s from it', '0.20 s from it') } }] });
+  assert.equal((await read('?panel=comparePeaks')).status, 404);
+  assert.equal((await read()).status, 404);
+});
