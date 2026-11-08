@@ -38,8 +38,8 @@ const fat = (extra = '') => ({ ...MANIFEST, summary: 'S'.repeat(399) + extra, de
 test('the role ceilings the program path must live inside are unchanged (changing one needs the consent tests)', () => {
   assert.deepEqual(Object.fromEntries(Object.entries(EXPLAIN_ROLES).map(([role, r]) => [role, [r.maxInputTokens, r.maxImages]])), { brief: [40000, 4], author: [60000, 4], review: [40000, 6], repair: [40000, 2] });
   assert.deepEqual(EXPLAIN_LIMITS.calls, { brief: 1, author: 1, review: 4, repair: 3 });
-  assert.deepEqual([roleBoundMicros('author'), roleBoundMicros('review'), roleBoundMicros('repair'), roleBoundMicros('brief')], [595680, 403520, 367840, 375680]);
-  assert.deepEqual(explainReservation(), { version: 1, preparationMicros: 375680, generationMicros: 3313280 });
+  assert.deepEqual([roleBoundMicros('author'), roleBoundMicros('review'), roleBoundMicros('repair'), roleBoundMicros('brief')], [595680, 403520, 447840, 375680]);
+  assert.deepEqual(explainReservation(), { version: 1, preparationMicros: 375680, generationMicros: 3553280 });
   assert.deepEqual([PROGRAM_LIMITS.sourceBytes, PROGRAM_LIMITS.manifestBytes], [16384, 4096]);
 });
 
@@ -102,6 +102,6 @@ test('worst-case spend of one genuine program run and of the validation batches,
   // author once, review on the first candidate and after each of three repairs, three repairs: the policy's own per-job bound.
   assert.equal(generation, roleBoundMicros('author') + 4 * roleBoundMicros('review') + 3 * roleBoundMicros('repair'));
   const usd = micros => micros / 1e6;
-  assert.equal(usd(generation), 3.31328);
-  assert.equal(usd(generation + brief), 3.68896);
+  assert.equal(usd(generation), 3.55328);
+  assert.equal(usd(generation + brief), 3.92896);
 });

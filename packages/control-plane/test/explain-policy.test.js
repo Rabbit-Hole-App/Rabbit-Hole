@@ -42,6 +42,10 @@ test('the four /explain roles are pinned to Opus 5.5 with no picker or fallback;
   assert.equal(LEARN_TASKS.artifact.toolChoice, 'any');
 });
 
+test('a repair returns the whole corrected program, so it has the output room of the author (6000 cut three repairs off at exactly 6000 tokens: "The repair returned no program")', () => {
+  assert.ok(LEARN_TASKS.explain_repair.maxTokens >= LEARN_TASKS.explain_author.maxTokens);
+});
+
 test('picker keys, Auto, a default or a request override cannot substitute the pinned model', () => {
   for (const role of ROLES) {
     assert.equal(explainModel(role), 'claude-opus-5-5');
@@ -122,7 +126,7 @@ test('prior prices come from MODEL_PRICES; preparation and generation are separa
   for (const role of ROLES) assert.equal(roleBoundMicros(role), bound(role), role);
   assert.deepEqual(explainReservation(), { version: 1, preparationMicros: bound('brief'), generationMicros: bound('author') + 4 * bound('review') + 3 * bound('repair') });
   // Numbers as of MODEL_PRICES 2026-09-25 ($4/$20 per MTok, cache write 1.25x): about $0.38 to prepare, $3.31 worst case to generate.
-  assert.deepEqual(explainReservation(), { version: 1, preparationMicros: 375680, generationMicros: 3313280 });
+  assert.deepEqual(explainReservation(), { version: 1, preparationMicros: 375680, generationMicros: 3553280 });
 });
 
 test('a request is checked against its role before it can be sent: images, transport and the per-call bound', () => {
