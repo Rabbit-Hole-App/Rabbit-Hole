@@ -172,7 +172,7 @@ this environment lacks the authorized dev credentials and working browser captur
 
 ### AI teaching examples
 
-Three hand-authored examples compose the existing 2D SDK in normal program cards.
+Six hand-authored examples compose the existing 2D SDK in normal program cards.
 They are exported together by `ai-teaching-fixtures.js`, admitted only through the
 existing dev fixture gate. They are reusable source examples, not a new automatic
 lesson-routing system and not proof of LLM generation quality.
@@ -182,19 +182,29 @@ lesson-routing system and not proof of LLM generation quality.
 | `fixture-ai-convolution` | Move a 3 × 3 kernel across a small synthetic image and inspect the calculated response. Uses the CNN cross-correlation convention. | `ai-convolution-fixture.js` |
 | `fixture-ai-attention` | Select a query and causal masking; compare scaled scores, normalized weights and their weighted value output. Numbers are synthetic. | `ai-attention-fixture.js` |
 | `fixture-ai-gradient` | Vary learning rate and update count for a known quadratic loss; compare convergence, overshoot and divergence. | `ai-gradient-fixture.js` |
+| `fixture-ai-backprop` | Inspect a tanh unit forward pass, local derivatives, chain-rule gradient and one proposed weight update. | `ai-backprop-fixture.js` |
+| `fixture-ai-boundary` | Drag six training points and a query; compare 1/3-neighbor regions, prediction and leave-one-out error. | `ai-boundary-fixture.js` |
+| `fixture-ai-qlearning` | Take actions in a 3 × 3 world; inspect terminal/wall rewards, Q updates and greedy policy. New episode retains Q; parameter changes clear it. | `ai-qlearning-fixture.js` |
 
 All source paths above are under `packages/web/src/explain-program/`. The examples
 reuse `ProgramScene`, shared `Frame`, existing input controls and their persistence
 and Reset behavior. No new SDK version, planner mapping or repair budget is added.
 Focused tests check the numerical mechanisms independently and exercise the real
 QuickJS and frame-normalization paths. The normal fixture resolver and saved input
-round trips have their own integration checks. Verification: all 14 focused AI
-tests pass; the dev web build passes. Shared-Frame SVG renders were inspected for
-all three scenes (offline rasterization does not render the gradient's KaTeX
-foreignObject formulas). This is static scene inspection, not browser acceptance.
-Live browser/dev acceptance and
-real model generation remain pending; the authorized deployment environment is
-not available here.
+round trips have their own integration checks. The two stateful examples also
+exercise initialize/reduce/evaluate, saved state round trips and Reset.
+Verification on 2026-11-08: all **28 focused AI tests pass**, using
+`node --test --test-concurrency=1 packages/web/src/explain-program/ai-*.test.mjs`
+with unchanged runtime budgets; the dev web build passes. Independent code review
+found no concrete defects. Shared-Frame static renders were inspected, including
+initial and changed states of the new stateful examples. Offline PNG export omits
+KaTeX foreignObject formulas and drops the unsupported shadow filter; it is not
+full-card browser acceptance. Live browser/dev acceptance and real model generation
+remain pending; the authorized deployment environment is not available here.
+
+See the [generation and dev acceptance handoff](./explain-on-canvas/handoff/ai-example-regeneration-handoff.md)
+for exact prompts and checks. These six examples do not increase the reusable
+component capability count or retroactively change the frozen 508-topic audit.
 
 ## Limits (main: `contract.js CONTRACT_LIMITS`, `limits.js LIMITS`)
 
