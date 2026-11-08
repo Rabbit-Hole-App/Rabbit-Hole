@@ -83,6 +83,49 @@ It uses the existing saved-state handling. This is a reusable composition exampl
 the broader inventory's seven linked-comparison designs still describe potential
 applications of that pattern.
 
+### Cyclic networks
+
+Programs declare `cyclic_networks` to seal with `sdk-5`. The new source appends
+`sdk.cyclicGraph` while retaining the exact SDK 1, 2 and 4 sources and tuples.
+Both schemas use the existing renderer; no new frame object kind is introduced.
+Declare `medium_visuals` as well if using Medium image objects.
+
+```js
+sdk.cyclicGraph(id, {
+  x, y, w, h,
+  nodes: [{ id, label, x, y, role }],
+  edges: [{ from, to, label, via: [[x, y]], labelAt: [x, y] }],
+  selected: null,
+})
+```
+
+`role`, `via`, `labelAt`, and `selected` are optional. Node positions are centers
+in local pixel coordinates; route waypoints and label positions are local too.
+Use 2–8 nodes and 1–12 directed edges. Labels are required: up to 24 characters
+for nodes and 14 for relationships. Cycles, reciprocal edges and self-loops are
+supported. Reciprocal links separate automatically; a self-loop routes above its
+node unless an explicit route is supplied. Route points, node boxes and labels
+must fit the supplied rectangle. Crowded layouts fail with a specific diagnostic;
+this is a bounded teaching helper, not an automatic layout for dense networks.
+
+The selected node and its outgoing arrows use the existing learner color.
+Selection preserves positions and object IDs. Node targets are
+`<graphId>.node.<nodeId>`; edges use `<graphId>.e.<from>:<to>` with primitive
+suffixes `.p`, `.a`, `.l`. At most 44 objects are emitted, within the existing
+60-object frame budget; other scene content shares that budget.
+
+`fixture-cyclic-network` in `cyclic-fixture.js` shows Plan → Act → Observe → Plan.
+It uses the existing card selection, persistence and Reset handling. The author
+and repair context both describe the helper. Focused checks cover routing,
+invalid input, sealing/version compatibility, every node selection, restoration
+and reset. All 50 affected checks passed, and the dev web build passed. A static
+render of the shared Frame was inspected with Observe selected (SVG color-mix
+and context-stroke resolved for the offline rasterizer only). This is not browser
+interaction evidence. Deployed generation and live browser interaction remain unverified;
+this environment has no authorized deployment credentials or working browser
+capture. No planner mapping, repair-budget or browser-assertion changes are part
+of this implementation.
+
 ## Limits (main: `contract.js CONTRACT_LIMITS`, `limits.js LIMITS`)
 
 | Limit | Value |

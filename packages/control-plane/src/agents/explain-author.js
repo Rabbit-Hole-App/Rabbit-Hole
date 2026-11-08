@@ -3,7 +3,7 @@
 // D's (explain-review.js), a separate call that never sees the author's reasoning.
 import { LIMITS as RUNTIME_LIMITS } from '../../../web/src/explain-program/limits.js';
 import { CONTRACT_LIMITS, STATEFUL_CONTRACT } from '../../../web/src/explain-program/contract.js';
-import { MEDIUM_CAPABILITY } from '../../../web/src/explain-program/stamps.js';
+import { CYCLIC_CAPABILITY, MEDIUM_CAPABILITY } from '../../../web/src/explain-program/stamps.js';
 
 export const GAP_NEEDS = Object.freeze(['math', 'steps', 'experiment', 'component', 'evidence', 'other']);
 
@@ -219,6 +219,10 @@ export function programContext(limits, capabilities, { stateful = false, repair 
         evidence: 'sdk.evidence(id,{x,y,w,h,text,spans:[{id,start,end,citation?}],selected?}) uses half-open UTF-16 offsets into the exact text. Use plain citation labels from supplied evidence.',
         expandableGraph: 'sdk.expandableGraph(id,{x,y,w,h,nodes:[{id,label,role?}],edges:[{from,to,label?}],expanded?:[id],active?:[id]}) for 2–10 nodes in a rooted tree. Select which branch to open with an input.',
         image: 'For a demonstration on the bundled sample only, use sdk.imageRegions(id,{asset:"vlm-patch-source",x,y,w,h,regions:[{id,x,y,w,h}],selected?}) or sdk.imageViews(id,{asset:"vlm-patch-source",views:[{id,x,y,w,h,mode:"overview"|"detail"}],regions,selected?}). Region coordinates are normalized to the source image. This sample cannot represent a learner attachment.',
+      } } : {}), ...(capabilities?.includes(CYCLIC_CAPABILITY) ? { cyclicGraph: {
+        usage: 'Declare cyclic_networks in manifest.capabilities. sdk.cyclicGraph returns existing frame objects; spread them into frame.objects. Node target IDs are <graphId>.node.<nodeId>; keep selected node ID in schema 2 state. The normal card Reset clears state.',
+        signature: 'sdk.cyclicGraph(id,{x,y,w,h,nodes:[{id,label,x,y,role?}],edges:[{from,to,label,via?:[[x,y],...],labelAt?:[x,y]}],selected?:nodeId|null})',
+        layout: 'For 2–8 nodes and 1–12 directed edges. Cycles, reciprocal links and self-loops are supported. Node centers, via waypoints and labelAt are local to the graph rectangle. Supply well-separated positions and short edge labels explaining the relationship. Use via and labelAt when default routes collide. This is a bounded teaching diagram, not a force-directed graph explorer.',
       } } : {}) },
   };
 }

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ROLES } from '../scene-vocab.js';
 import { IMAGE_FIXTURE_IDS } from './sdk-image.js';
-import { MEDIUM_CAPABILITY, MEDIUM_SDK_VERSION } from './stamps.js';
+import { CYCLIC_CAPABILITY, CYCLIC_SDK_VERSION, MEDIUM_CAPABILITY, MEDIUM_SDK_VERSION } from './stamps.js';
 
 // The frozen artifact and frame contract of the generic /explain sandbox (plan section 5.2, Task 2).
 // Subject-independent on purpose: nothing here names a topic. Every object is strict, every value bounded; the host
@@ -33,7 +33,7 @@ export const CONTRACT_LIMITS = Object.freeze({
 
 export const ERROR_CODES = Object.freeze(['invalid_program', 'unsupported_capability', 'runtime_limit', 'runtime_error', 'invalid_output', 'version_unavailable']);
 // Capabilities a manifest may require. An unknown one is unsupported_capability, never silently ignored.
-export const CAPABILITIES = Object.freeze(['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', MEDIUM_CAPABILITY]);
+export const CAPABILITIES = Object.freeze(['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', MEDIUM_CAPABILITY, CYCLIC_CAPABILITY]);
 // Frame object kinds: the closed set the trusted renderer draws. Equations are text objects with math runs (hardened path).
 export const OBJECT_KINDS = Object.freeze(['box', 'circle', 'text', 'line', 'arrow', 'polyline', 'image']);
 
@@ -300,8 +300,11 @@ export const parseBundle = (raw, schemaVersion = SCHEMA_VERSION) => {
 export const parseArtifact = raw => {
   const schemaVersion = stateful(raw?.schemaVersion) ? STATEFUL_SCHEMA_VERSION : SCHEMA_VERSION;
   const manifest = parseManifest(raw?.manifest, schemaVersion);
-  if (manifest.ok && manifest.value.capabilities.includes(MEDIUM_CAPABILITY) && raw.sdkVersion !== MEDIUM_SDK_VERSION) {
+  if (manifest.ok && manifest.value.capabilities.includes(MEDIUM_CAPABILITY) && ![MEDIUM_SDK_VERSION, CYCLIC_SDK_VERSION].includes(raw.sdkVersion)) {
     return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'the Medium capability requires its SDK version' };
+  }
+  if (manifest.ok && manifest.value.capabilities.includes(CYCLIC_CAPABILITY) && raw.sdkVersion !== CYCLIC_SDK_VERSION) {
+    return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'cyclic networks require their SDK version' };
   }
   return manifest.ok ? parseWith(stateful(schemaVersion) ? StatefulArtifact : ProgramArtifact, raw, 'invalid_program') : manifest;
 };

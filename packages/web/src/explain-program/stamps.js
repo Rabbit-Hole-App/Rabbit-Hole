@@ -44,6 +44,16 @@ export const MEDIUM_PROGRAM_STAMPS = Object.freeze({
 });
 export const STATEFUL_MEDIUM_PROGRAM_STAMPS = Object.freeze({ ...MEDIUM_PROGRAM_STAMPS, schemaVersion: 2 });
 
+// Cyclic layouts append to, rather than mutate, the saved Medium SDK.
+export const CYCLIC_CAPABILITY = 'cyclic_networks';
+export const CYCLIC_SDK_VERSION = 'sdk-5';
+export const CYCLIC_PROGRAM_STAMPS = Object.freeze({
+  ...MEDIUM_PROGRAM_STAMPS,
+  sdkVersion: CYCLIC_SDK_VERSION,
+  fingerprints: Object.freeze({ ...MEDIUM_PROGRAM_STAMPS.fingerprints, sdk: '31d2a648fd3b26ab9369dd24cd51da972f7801622289a3abdfbaff78d357b083' }),
+});
+export const STATEFUL_CYCLIC_PROGRAM_STAMPS = Object.freeze({ ...CYCLIC_PROGRAM_STAMPS, schemaVersion: 2 });
+
 // Every version tuple host.js will run, whole: an artifact runs only if all of these fields equal one entry exactly. No "same major",
 // no field ignored. A new engine, SDK, renderer or policy is a new entry, added beside the old one while artifacts sealed with it remain.
 const tuple = (schemaVersion, stamps) => Object.freeze({ schemaVersion, sdkVersion: 'sdk-1', rendererVersion: RENDERER_VERSION, ...stamps });
@@ -51,4 +61,5 @@ export const SUPPORTED_PROGRAM_TUPLES = Object.freeze([
   tuple(1, PROGRAM_STAMPS), tuple(2, STATEFUL_PROGRAM_STAMPS),
   tuple(1, VISUAL_PROGRAM_STAMPS), tuple(2, STATEFUL_VISUAL_PROGRAM_STAMPS),
   tuple(1, MEDIUM_PROGRAM_STAMPS), tuple(2, STATEFUL_MEDIUM_PROGRAM_STAMPS),
+  tuple(1, CYCLIC_PROGRAM_STAMPS), tuple(2, STATEFUL_CYCLIC_PROGRAM_STAMPS),
 ]);
