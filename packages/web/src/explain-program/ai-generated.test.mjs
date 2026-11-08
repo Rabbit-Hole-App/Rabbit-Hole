@@ -33,7 +33,7 @@ const objectText = (frame, id) => frame.objects.find(object => object.id === id)
 const dataBefore = (source, marker, names) => new Function(`${source.slice(0, source.indexOf(marker))}; return { ${names.join(', ')} };`)();
 
 test('the saved generated cards are exactly what the backend stored: the bundle hash is reproduced from the manifest and source', async () => {
-  for (const name of ['convolution', 'attention', 'tree-split-routed', 'classifier-threshold']) {
+  for (const name of ['convolution', 'attention', 'tree-split-routed', 'classifier-threshold', 'kmeans', 'gradient-retry']) {
     const record = load(name), rebuilt = await buildProgramArtifact({ manifest: record.artifact.manifest, source: record.artifact.source });
     assert.equal(rebuilt.bundleHash, record.artifact.bundleHash, name);
     assert.equal(rebuilt.sdkVersion, record.artifact.sdkVersion, name);
@@ -262,22 +262,97 @@ test('regression fit, rejected candidate: at two input extremes the frame has mo
   for (const [slope, intercept] of [[1.5, 5], [0, -2]]) assert.throws(() => make({ slope, intercept }).evaluate(), /Too big|60 items/, `slope ${slope}, intercept ${intercept}`);
 });
 
+test('k-means, ACCEPTED card from plain words (its own 12 points, stateful): Assign colours each point by its nearest centroid, Update moves each centroid to its group mean, two starts reach different groups and inertia, Reset restores the start', async () => {
+  const record = load('kmeans');
+  assert.equal(record.job.outcome, 'card'); assert.ok(record.artifact);
+  assert.equal(record.routing.recordedInBrowser[0].body.via, 'jev'); assert.equal(record.routing.recordedInBrowser[0].body.capability, 'explain');
+  const { PTS } = dataBefore(record.artifact.source, 'const SX', ['PTS']);
+  assert.equal(PTS.length, 12);
+  const make = await statefulRunner(record.artifact);
+  const d2 = (p, c) => (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2, groupOf = c => PTS.map(p => (d2(p, c[0]) <= d2(p, c[1]) ? 0 : 1));
+  const meanOf = (a, c) => [0, 1].map(k => { const own = PTS.filter((_, i) => a[i] === k); return own.length ? [own.reduce((t, p) => t + p[0], 0) / own.length, own.reduce((t, p) => t + p[1], 0) / own.length] : c[k]; });
+  const inertia = (a, c) => PTS.reduce((t, p, i) => t + d2(p, c[a[i]]), 0);
+  const roleOf = (frame, id) => frame.objects.find(object => object.id === id)?.role, ROLE = ['input', 'output'];
+  const centroidText = (frame, id) => objectText(frame, id).match(/\(([-\d.]+), ([-\d.]+)\)/).slice(1).map(Number);
+  const hasLines = frame => frame.objects.some(object => /^ln\d+$/.test(object.id));
+  const outcomes = {};
+  for (const [name, start] of [['top-bottom', { c1x: 5, c1y: 6.5, c2x: 5, c2y: 1 }], ['left-right', { c1x: 1, c1y: 3.5, c2x: 9, c2y: 3.5 }]]) {
+    const run = make(start), first = run.evaluate();
+    let c = [[start.c1x, start.c1y], [start.c2x, start.c2y]], a = null, last;
+    assert.ok(!hasLines(first.frame), 'no assignment lines before the first Assign');
+    for (let n = 0; n < 12; n++) {
+      a = groupOf(c); last = run.press('assign');
+      PTS.forEach((p, i) => assert.equal(roleOf(last.frame, 'p' + i), ROLE[a[i]], `${name}: point ${i} after Assign ${n + 1}`));
+      near(last.quantities.sse, inertia(a, c), 1e-9);
+      near(centroidText(last.frame, 'h1')[0], c[0][0], 0.005); near(centroidText(last.frame, 'h2')[1], c[1][1], 0.005); // Assign moves no centroid
+      if (last.quantities.converged === 1) break;
+      c = meanOf(a, c); last = run.press('update');
+      centroidText(last.frame, 'h1').forEach((v, j) => near(v, c[0][j], 0.005)); centroidText(last.frame, 'h2').forEach((v, j) => near(v, c[1][j], 0.005));
+      near(last.quantities.sse, inertia(a, c), 1e-9);
+      if (last.quantities.converged === 1) break;
+    }
+    assert.equal(last.quantities.converged, 1, `${name}: reaches convergence`);
+    outcomes[name] = { groups: a.join(''), inertia: inertia(a, c) };
+    near(last.quantities.sse, outcomes[name].inertia, 1e-9);
+    const reset = run.press('reset');
+    assert.equal(reset.quantities.rounds, 0); near(centroidText(reset.frame, 'h1')[1], start.c1y, 0.005); near(centroidText(reset.frame, 'h2')[1], start.c2y, 0.005);
+    assert.ok(!hasLines(reset.frame), 'Reset clears the assignment');
+  }
+  assert.notEqual(outcomes['top-bottom'].groups, outcomes['left-right'].groups, 'the two starts reach different groups');
+  assert.ok(outcomes['top-bottom'].inertia > outcomes['left-right'].inertia, 'top/bottom groups have the larger total squared distance, as the card says');
+});
+
+// Retry batch (repair output cap raised to 10000 tokens; build 6a0e43cfd).
+test('gradient descent retry, ACCEPTED by the pipeline (round 1): w and the loss follow 3(1 - rate)^k for four rates and steps 0 to 8, but at rate 1.2 the markers of steps 4 to 8 sit on top of each other (the owner criterion fails)', async () => {
+  const record = load('gradient-retry');
+  assert.equal(record.job.outcome, 'card'); assert.ok(record.artifact);
+  const evaluate = await evaluator(record);
+  for (const eta of ['0.2', '0.8', '1.2', '2.1']) for (let k = 0; k <= 8; k++) {
+    const { quantities: q } = evaluate({ eta, step: k }), w = 3 * (1 - Number(eta)) ** k;
+    near(q.w_now, w, 1e-9); near(q.loss_now, w * w / 2, 1e-9);
+  }
+  const { frame } = evaluate({ eta: '1.2', step: 8 });
+  const centers = [4, 5, 6, 7, 8].map(i => frame.objects.find(object => object.id === 'p' + i)).map(object => { assert.ok(object, 'marker drawn'); return [object.x, object.y]; });
+  let nearest = Infinity; centers.forEach((a, i) => centers.slice(i + 1).forEach(b => { nearest = Math.min(nearest, Math.hypot(a[0] - b[0], a[1] - b[1])); }));
+  assert.ok(nearest < 1, `closest pair of the step 4 to 8 markers is ${nearest.toFixed(3)} px apart (marker radius 7 to 11): not distinguishable`);
+});
+
+test('regression fit retry, FAILED (incomplete_review after round 2; its own six points, stateless): residuals end at the prediction for the same x, MSE is the mean of the squares, and no slider extreme exceeds the 60-object limit', async () => {
+  const record = load('regression-fit-retry'), candidate = record.rejectedCandidate;
+  assert.equal(record.job.outcome, 'failed'); assert.equal(record.artifact, null); assert.equal(record.job.failure.message, 'The explanation could not be reviewed (incomplete_review).');
+  const { XS, YS } = dataBefore(candidate.source, 'export function', ['XS', 'YS']);
+  const evaluate = await evaluator({ artifact: candidate });
+  const py = y => 30 + 460 - (y + 1.5) * 40, px = x => 60 + x * 40;
+  let worst = 0;
+  for (const slope of [-1, 0, 0.6, 3]) for (const intercept of [-2, 1.5, 6]) for (const focus of ['none', 'p3']) {
+    const { frame, quantities: q } = evaluate({ slope, intercept, focus });
+    worst = Math.max(worst, frame.objects.length);
+    const e2 = XS.map((x, i) => (YS[i] - (slope * x + intercept)) ** 2), sse = e2.reduce((a, b) => a + b, 0);
+    near(q.sse, sse, 1e-9); near(q.mse, sse / 6, 1e-9);
+    XS.forEach((x, i) => { const segment = frame.objects.find(object => object.id === `err${i}`); near(segment.points[0][0], px(x), 1e-9); near(segment.points[1][0], px(x), 1e-9); near(segment.points[0][1], py(YS[i]), 1e-9); near(segment.points[1][1], py(slope * x + intercept), 1e-9); });
+    near(q.focus_share, focus === 'p3' && sse > 1e-12 ? 100 * e2[2] / sse : 0, 1e-9);
+  }
+  assert.ok(worst <= 60, `most objects at any slider corner: ${worst}`);
+});
+
 test('every generated card and every rejected candidate loads through the dev fixture resolver', async () => {
   for (const fixture of AI_GENERATED_FIXTURES) {
     const resolved = await resolveProgram({ program: { fixtureId: fixture.id } }, { fixtures: true, stamps: PROGRAM_STAMPS });
     assert.equal(resolved.ok, true, `${fixture.id}: ${resolved.error?.message}`);
   }
-  assert.deepEqual(Object.keys(AI_REJECTED_RECORDS).sort(), ['gradient-run1', 'gradient-run2', 'regression-fit', 'tree-split']);
+  assert.deepEqual(Object.keys(AI_REJECTED_RECORDS).sort(), ['gradient-run1', 'gradient-run2', 'regression-fit', 'regression-fit-retry', 'tree-split']);
   assert.ok(AI_GENERATED_FIXTURES.filter(fixture => fixture.generated.rejected).every(fixture => fixture.id.endsWith('-rejected')));
 });
 
 test('every record names its prompt, the routing decision, the model, the job and the cost', () => {
-  for (const name of ['convolution', 'attention', 'gradient-run1', 'gradient-run2', 'tree-split', 'tree-split-routed', 'classifier-threshold', 'regression-fit']) {
+  for (const name of ['convolution', 'attention', 'gradient-run1', 'gradient-run2', 'tree-split', 'tree-split-routed', 'classifier-threshold', 'regression-fit', 'kmeans', 'gradient-retry', 'regression-fit-retry']) {
     const record = load(name);
     assert.ok(record.prompt.length > 40, name);
     assert.equal(record.routing.replayedExplicit.via, 'command', name);
     assert.equal(record.routing.replayedExplicit.capability, 'explain', name);
-    if (name === 'tree-split-routed' || name === 'classifier-threshold' || name === 'regression-fit') { assert.equal(record.routing.replayedPlainWords.via, 'jev'); assert.equal(record.routing.replayedPlainWords.capability, 'explain'); }
+    if (name === 'tree-split-routed' || name === 'classifier-threshold' || name === 'regression-fit' || name === 'kmeans' || name === 'gradient-retry' || name === 'regression-fit-retry') { assert.equal(record.routing.replayedPlainWords.via, 'jev'); assert.equal(record.routing.recordedInBrowser[0].body.capability, 'explain');
+      // The gradient prompt sits at the classifier's threshold (0.57 when generated, a 0.56 clarify on replay): the replay is informational there.
+      if (name !== 'gradient-retry') assert.equal(record.routing.replayedPlainWords.capability, 'explain'); }
     else assert.equal(record.routing.replayedPlainWords.via, 'fallback', `${name}: plain words never reached the classifier on the dev clone`);
     assert.match(record.job.jobId, /^ej_[0-9a-f]{32}$/, name);
     assert.ok(record.job.calls.every(call => call.model === 'claude-opus-5-5' && call.costUsd > 0), name);

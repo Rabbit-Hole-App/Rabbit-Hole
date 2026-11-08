@@ -81,7 +81,7 @@ test('a reviewed brief: one brief call, original wording kept, posted as the sig
   assert.match(meta.proposal.sig, /^v3\./, 'signed without a Motion secret');
   assert.deepEqual(meta.proposal.input, { org: OWNER.org, app: BOARD.app, job: body.job.id, brief_hash: waiting.briefHash, request: 'explain   where RAIN comes from' });
   assert.deepEqual(meta.proposal.settings, { presentation: 'static' });
-  assert.equal(meta.proposal.usage.reserve_credits, 332);
+  assert.equal(meta.proposal.usage.reserve_credits, 356);
   assert.equal(meta.proposalState.version, 1);
   // Another learner's thread, or one on another canvas, cannot receive it.
   s.sqlite.prepare("INSERT INTO threads (id, org, user, scope_ref) VALUES ('th-other', ?, 'someone@example.com', ?)").run(OWNER.org, BOARD.app);

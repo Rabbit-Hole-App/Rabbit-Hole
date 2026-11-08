@@ -125,7 +125,7 @@ test('prior prices come from MODEL_PRICES; preparation and generation are separa
   const bound = role => Math.ceil((EXPLAIN_ROLES[role].maxInputTokens + EXPLAIN_ROLES[role].maxImages * 4784) * input * 1.25 + LEARN_TASKS[`explain_${role}`].maxTokens * output);
   for (const role of ROLES) assert.equal(roleBoundMicros(role), bound(role), role);
   assert.deepEqual(explainReservation(), { version: 1, preparationMicros: bound('brief'), generationMicros: bound('author') + 4 * bound('review') + 3 * bound('repair') });
-  // Numbers as of MODEL_PRICES 2026-09-25 ($4/$20 per MTok, cache write 1.25x): about $0.38 to prepare, $3.31 worst case to generate.
+  // Numbers as of MODEL_PRICES 2026-09-25 ($4/$20 per MTok, cache write 1.25x): about $0.38 to prepare, $3.55 worst case to generate (2026-11-08: the repair output cap went from 6000 to 10000 tokens).
   assert.deepEqual(explainReservation(), { version: 1, preparationMicros: 375680, generationMicros: 3553280 });
 });
 

@@ -1,0 +1,2221 @@
+{
+ "schema": 1,
+ "case": "kmeans",
+ "attempt": 1,
+ "prompt": "Let me move two starting centroids and step through assigning points and updating the centroids. Use a small example where different starts can lead to different groups.",
+ "path": "The dev clone's composer with the learner's own words (no slash command): the chat router classified the line, then the brief's Generate. No fixture was seeded or copied; the author, review and repair ran on the real backend.",
+ "routing": {
+  "recordedInBrowser": [
+   {
+    "status": 200,
+    "body": {
+     "route": "capability:explain",
+     "via": "jev",
+     "capability": "explain",
+     "flow": "direct",
+     "confidence": 0.78,
+     "probability": 0.79,
+     "code": null,
+     "message": null,
+     "meta": {
+      "protocol": "chat-route-c1",
+      "model": "jev-1.13.0",
+      "ms": 729,
+      "input_tokens": 997,
+      "cost": null,
+      "transport": "direct"
+     }
+    }
+   }
+  ],
+  "replayedExplicit": {
+   "route": "capability:explain",
+   "via": "command",
+   "capability": "explain",
+   "flow": "direct",
+   "code": null,
+   "message": null,
+   "confidence": null,
+   "probability": null
+  },
+  "replayedPlainWords": {
+   "route": "capability:explain",
+   "via": "jev",
+   "capability": "explain",
+   "flow": "direct",
+   "code": null,
+   "message": null,
+   "confidence": 0.82,
+   "probability": 0.83
+  },
+  "note": "Plain words went through the chat router (JEV classifier, transport direct); recordedInBrowser is the router response the page received. The replays were made later against the same dev clone."
+ },
+ "environment": {
+  "clone": "rabbit-hole-web-dev-tc-s7d2",
+  "deployedCommit": "611e1e55c22ac386a6b97bea01a769cbf5cdc57b",
+  "startedAt": "2026-11-08T02:46:31.576Z"
+ },
+ "job": {
+  "jobId": "ej_f70edc57de6d4bfd9005b69c073ee162",
+  "boardId": "79d70dab-8154-4003-a1ca-183991c18b54",
+  "resultId": "er_ea643acd7d6844df9686854defa51739",
+  "outcome": "card",
+  "stage": "ready",
+  "stopReason": "accepted",
+  "round": 2,
+  "failure": null,
+  "totalMs": 204980,
+  "calls": [
+   {
+    "role": "brief",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.0275,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "author",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.1712,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "repair",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.1184,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "review",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.0927,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "repair",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.118,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "review",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.0866,
+    "ms": null,
+    "status": "settled"
+   }
+  ],
+  "costUsd": 0.614
+ },
+ "brief": "Review explanation\n\nK-means with two centroids: how the starting points shape the groups\n\ninteractive\nLet me move two starting centroids and step through assigning points and updating the centroids. Use a small example where different starts can lead to different groups.\n\nPresentation\nStatic\nSteps\nOver time\nExperiment\n\nYou will see about a dozen points in four small clumps at the corners of a rectangle, plus two marked starting centroids, and the total squared distance from each point to its centroid. Set where each centroid starts with the two position controls for each one. Then press Assign to colour every point by its nearest centroid, and press Update to move each centroid to the average of its points. Keep alternating until nothing changes. Starting the centroids on the left and right gives a different final grouping from starting them at the top and bottom, and the total distance shows which result fits better. Reset puts the centroids back at their starting positions so you can try a new start.\n\nASSUMPTIONS 2\nLIMITATIONS 2\nGenerate\nEdit\nCancel\nGo to card",
+ "reviewFindings": [
+  {
+   "round": 0,
+   "stage": "validating",
+   "problems": [
+    "manifest.summary: Too big: expected string to have <=400 characters",
+    "manifest.targets: Invalid input: expected array, received undefined"
+   ]
+  },
+  {
+   "round": 1,
+   "stage": "reviewing",
+   "accepted": false,
+   "findings": [
+    {
+     "version": 1,
+     "id": "rf1",
+     "verdict": "semantic",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "light"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "These behaviours were not sampled, so I could not judge them: dragging a centroid (drag_start/move/end), a run reaching convergence, and a left/right start that ends in left/right groups. Reading the source, the logic for all three looks correct."
+    },
+    {
+     "version": 1,
+     "id": "rf2",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "e0-light",
+      "object": "ln4"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "The thin line from B to the right-bottom point at (8.4,1.9) runs straight through the dot at (7.7,1.7). The two lines from A to the left-top points also nearly coincide. You can still read it."
+    },
+    {
+     "version": 1,
+     "id": "rf3",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "major",
+     "target": {
+      "capture": "e1-light",
+      "object": "c0"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "Both starts are set to (10,7), so circle B is drawn exactly on top of circle A. The A label, A's circle and both faint start dots disappear, and the learner can't see or grab A to drag it. Offset or outline centroids that coincide, or add a note when they do."
+    },
+    {
+     "version": 1,
+     "id": "rf4",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "e3-light",
+      "object": "ln4"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "The assignment line from B to (8.4,1.9) passes through the dot at (7.7,1.7), and the line from A to (8.3,5.1) passes close to the dot at (7.6,4.8). Minor clutter."
+    }
+   ]
+  },
+  {
+   "round": 2,
+   "stage": "reviewing",
+   "accepted": true,
+   "findings": [
+    {
+     "version": 1,
+     "id": "rf1",
+     "verdict": "semantic",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "light"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "Not sampled: dragging a centroid, the left/right versus top/bottom runs to convergence, and the converged message. These cannot be judged from the captures. In the source, a dragged start is not written back to the Start x/y number controls, so the controls can show different values from the start actually used."
+    },
+    {
+     "version": 1,
+     "id": "rf2",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "e0-light",
+      "object": "ln2"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "The faint line from the left-bottom point to A passes almost through the neighbouring point at about (185,219). This makes it a little unclear which point the line belongs to."
+    },
+    {
+     "version": 1,
+     "id": "rf3",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "e1-light",
+      "object": "c1"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "Because A and B start together at the corner (10,7), they are drawn side by side and B's circle extends past the right border of the plot box. A also touches the top edge. The circles should be kept inside the plot area."
+    }
+   ]
+  }
+ ],
+ "artifact": {
+  "kind": "explain_program",
+  "schemaVersion": 2,
+  "runtimeVersion": "quickjs-release-sync@0.32.0",
+  "sdkVersion": "sdk-2",
+  "rendererVersion": "renderer-1",
+  "runtimePolicyVersion": "policy-1",
+  "permissionProfileVersion": "perm-1",
+  "fingerprints": {
+   "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+   "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+   "renderer": "renderer-1"
+  },
+  "dependencies": [],
+  "manifest": {
+   "title": "K-means with two centroids: how the starting points shape the groups",
+   "summary": "Twelve points sit in four clumps at the corners of a rectangle. Drag or set where centroids A and B start, then alternate Assign (each point joins its nearest centroid) and Update (each centroid moves to the average of its points) until nothing changes. Left/right starts give left and right groups; top/bottom starts give top and bottom groups with a larger total squared distance.",
+   "assumptions": [
+    "Two groups and straight-line (Euclidean) distance.",
+    "The 12 points are fixed and kept small so each step can be followed.",
+    "A point tied between the two centroids goes to A; an empty group keeps its centroid where it is.",
+    "Changing a start control or dragging a centroid resets the run to the new starting centroids.",
+    "Centroids at the same spot are drawn slightly apart so both stay visible."
+   ],
+   "description": "A plot with 12 dots in four clumps of three at the corners of a rectangle (left-bottom, right-bottom, left-top, right-top). Two large circles labelled A and B mark the centroids, with faint dots at their starting positions and lines tracing their path. If A and B coincide they are drawn side by side and a note says so. After Assign, every dot is coloured like its nearest centroid and joined to it by a thin line. A side panel lists both centroid coordinates, the number of updates, the total squared distance and a message describing the last step, including when the run has converged.",
+   "inputs": [
+    {
+     "type": "number",
+     "id": "c1x",
+     "label": "Start A: x",
+     "default": 5,
+     "min": 0,
+     "max": 10,
+     "step": 0.5
+    },
+    {
+     "type": "number",
+     "id": "c1y",
+     "label": "Start A: y",
+     "default": 6.5,
+     "min": 0,
+     "max": 7,
+     "step": 0.5
+    },
+    {
+     "type": "number",
+     "id": "c2x",
+     "label": "Start B: x",
+     "default": 5,
+     "min": 0,
+     "max": 10,
+     "step": 0.5
+    },
+    {
+     "type": "number",
+     "id": "c2y",
+     "label": "Start B: y",
+     "default": 1,
+     "min": 0,
+     "max": 7,
+     "step": 0.5
+    }
+   ],
+   "readouts": [
+    {
+     "id": "sse",
+     "label": "Total squared distance",
+     "decimals": 2
+    },
+    {
+     "id": "rounds",
+     "label": "Updates done",
+     "decimals": 0
+    }
+   ],
+   "capabilities": [
+    "number_inputs",
+    "math_text",
+    "polyline"
+   ],
+   "viewport": {
+    "width": 960,
+    "height": 540
+   },
+   "actions": [
+    {
+     "id": "assign",
+     "label": "Assign points"
+    },
+    {
+     "id": "update",
+     "label": "Update centroids"
+    },
+    {
+     "id": "reset",
+     "label": "Reset to start"
+    }
+   ],
+   "targets": [
+    {
+     "id": "c0",
+     "label": "Centroid A (drag to set its start)",
+     "drag": true
+    },
+    {
+     "id": "c1",
+     "label": "Centroid B (drag to set its start)",
+     "drag": true
+    }
+   ]
+  },
+  "source": "const PTS=[[1.6,1.6],[2.3,1.8],[1.9,2.4],[7.7,1.7],[8.4,1.9],[8.0,2.4],[1.7,4.7],[2.4,5.0],[2.0,5.4],[7.6,4.8],[8.3,5.1],[8.0,5.5]];\nconst SX=x=>60+x*52, SY=y=>480-y*52;\nconst ROLE=['input','output'];\nconst NAME=['A','B'];\nfunction d2(p,c){const dx=p[0]-c[0],dy=p[1]-c[1];return dx*dx+dy*dy;}\nfunction freshC(c0){const c=[c0[0].slice(),c0[1].slice()];return {start:[c0[0].slice(),c0[1].slice()],c:c,trail:[[c[0].slice()],[c[1].slice()]],a:null,rounds:0,done:false,msg:'Press Assign: each point joins its nearest centroid.'};}\nfunction fresh(inp){return freshC([[inp.c1x,inp.c1y],[inp.c2x,inp.c2y]]);}\nfunction sep(a,b,minD,half){const dx=b[0]-a[0],dy=b[1]-a[1];const d=Math.hypot(dx,dy);if(d>=minD)return [a,b,false];let ux=1,uy=0;if(d>1e-6){ux=dx/d;uy=dy/d;}const mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;return [[mx-ux*half,my-uy*half],[mx+ux*half,my+uy*half],true];}\nexport function initialState({inputs}){return fresh(inputs);}\nexport function reduce({state,event,inputs}){\n const s=state;\n if(event.type==='input'){const inp=Object.assign({},inputs);inp[event.input]=event.value;return fresh(inp);}\n if(event.type==='drag_start'||event.type==='drag_move'||event.type==='drag_end'){\n  const k=event.target==='c0'?0:event.target==='c1'?1:-1;\n  if(k<0||typeof event.x!=='number'||typeof event.y!=='number')return s;\n  const x=Math.round(sdk.clamp((event.x-60)/52,0,10)*10)/10;\n  const y=Math.round(sdk.clamp((480-event.y)/52,0,7)*10)/10;\n  const st=[s.start[0].slice(),s.start[1].slice()];st[k]=[x,y];\n  const n=freshC(st);\n  n.msg='Start '+NAME[k]+' moved. Press Assign to begin.';\n  return n;\n }\n if(event.type!=='action')return s;\n if(event.action==='reset')return freshC(s.start||[[inputs.c1x,inputs.c1y],[inputs.c2x,inputs.c2y]]);\n if(event.action==='assign'){\n  const a=PTS.map(p=>d2(p,s.c[0])<=d2(p,s.c[1])?0:1);\n  const same=s.a&&a.every((v,i)=>v===s.a[i]);\n  const n=s.a?a.filter((v,i)=>v!==s.a[i]).length:a.length;\n  if(same)return Object.assign({},s,{done:true,msg:'No point changed group: converged.'});\n  return Object.assign({},s,{a:a,done:false,msg:(s.a?n+' point(s) switched group.':'Every point is coloured by its nearest centroid.')+' Now press Update.'});\n }\n if(event.action==='update'){\n  if(!s.a)return Object.assign({},s,{msg:'Press Assign first: no points belong to a centroid yet.'});\n  const c=[0,1].map(k=>{let sx=0,sy=0,n=0;PTS.forEach((p,i)=>{if(s.a[i]===k){sx+=p[0];sy+=p[1];n++;}});return n?[sx/n,sy/n]:s.c[k].slice();});\n  const moved=c.some((q,k)=>Math.abs(q[0]-s.c[k][0])+Math.abs(q[1]-s.c[k][1])>1e-9);\n  if(!moved)return Object.assign({},s,{done:true,msg:'Centroids did not move: converged.'});\n  const trail=[s.trail[0].concat([c[0]]).slice(-12),s.trail[1].concat([c[1]]).slice(-12)];\n  return Object.assign({},s,{c:c,trail:trail,rounds:s.rounds+1,done:false,msg:'Each centroid moved to the average of its points. Press Assign again.'});\n }\n return s;\n}\nexport function evaluate({inputs,state}){\n const s=state||fresh(inputs);\n const o=[];\n o.push(sdk.box('plot',40,90,560,410,{role:'neutral',opacity:0.15}));\n o.push(sdk.text('ttl',40,40,'12 points in 4 clumps, 2 centroids (A, B)'));\n o.push(sdk.text('ax',320,525,'x from 0 to 10, y from 0 to 7 (same scale)',{align:'middle'}));\n const C=sep([SX(s.c[0][0]),SY(s.c[0][1])],[SX(s.c[1][0]),SY(s.c[1][1])],36,19);\n const S0=sep([SX(s.trail[0][0][0]),SY(s.trail[0][0][1])],[SX(s.trail[1][0][0]),SY(s.trail[1][0][1])],20,11);\n let sse=0;\n PTS.forEach((p,i)=>{const k=s.a?s.a[i]:(d2(p,s.c[0])<=d2(p,s.c[1])?0:1);sse+=d2(p,s.c[k]);\n  if(s.a)o.push(sdk.line('ln'+i,SX(p[0]),SY(p[1]),C[k][0],C[k][1],{role:ROLE[k],opacity:0.25}));});\n PTS.forEach((p,i)=>{o.push(sdk.circle('p'+i,SX(p[0]),SY(p[1]),14,{role:s.a?ROLE[s.a[i]]:'neutral'}));});\n [0,1].forEach(k=>{const tr=s.trail[k];\n  if(tr.length>1)o.push(sdk.polyline('tr'+k,tr.map(q=>[SX(q[0]),SY(q[1])]),{role:ROLE[k],opacity:0.6}));\n  o.push(sdk.circle('st'+k,S0[k][0],S0[k][1],18,{role:ROLE[k],opacity:0.3}));});\n [0,1].forEach(k=>{o.push(sdk.circle('c'+k,C[k][0],C[k][1],34,{text:NAME[k],role:ROLE[k]}));});\n if(C[2])o.push(sdk.text('ovl',40,70,'A and B are at (almost) the same spot, drawn side by side; ties go to A.',{role:'warning'}));\n const X=640;\n o.push(sdk.text('h1',X,110,'Centroid A: ('+sdk.format(s.c[0][0],2)+', '+sdk.format(s.c[0][1],2)+')',{role:'input'}));\n o.push(sdk.text('h2',X,140,'Centroid B: ('+sdk.format(s.c[1][0],2)+', '+sdk.format(s.c[1][1],2)+')',{role:'output'}));\n o.push(sdk.text('h3',X,180,'Updates done: '+s.rounds));\n o.push(sdk.text('h4',X,215,(s.a?'Total squared distance to own centroid:':'Total squared distance to nearest centroid:')));\n o.push(sdk.text('h5',X,245,sdk.format(sse,2),{role:'prediction'}));\n o.push(sdk.math('h6',X,285,'\\\\sum_i \\\\lVert x_i - c_{g(i)} \\\\rVert^2'));\n const words=s.msg.split(' ');let line='',ln=[];words.forEach(w=>{if((line+' '+w).length>36){ln.push(line);line=w;}else line=line?line+' '+w:w;});ln.push(line);\n ln.slice(0,4).forEach((t,j)=>o.push(sdk.text('m'+j,X,335+j*26,t,{role:s.done?'success':'neutral'})));\n o.push(sdk.text('k1',X,460,'Drag A or B to set a new start.'));\n o.push(sdk.text('k2',X,488,'Try left/right starts, then top/bottom.'));\n return {frame:{width:960,height:540,objects:o,readouts:[{id:'sse',value:sse},{id:'rounds',value:s.rounds}]},quantities:{sse:sse,rounds:s.rounds,converged:s.done?1:0}};\n}\n",
+  "sourceHash": "f0df43bbdb61ad1475de3307129db7f1e53a1293705756b74a28ef5e78dba1fe",
+  "manifestHash": "6d5d7dd9eb17ea8cb8fe0a2d515d1df5102faa4b448a239b2a3dd899468993f1",
+  "bundleHash": "44105c8b61f6ecf3a5cbf01ed8f6ae12ef19a7915a5e896eed79c4b9cd0d5d51"
+ },
+ "rejectedCandidate": null,
+ "stamps": {
+  "sdkVersion": "sdk-2",
+  "rendererVersion": "renderer-1",
+  "schemaVersion": 2,
+  "capabilities": [
+   "number_inputs",
+   "math_text",
+   "polyline"
+  ],
+  "bundleHash": "44105c8b61f6ecf3a5cbf01ed8f6ae12ef19a7915a5e896eed79c4b9cd0d5d51"
+ },
+ "rawJobDetail": {
+  "job": {
+   "id": "ej_f70edc57de6d4bfd9005b69c073ee162",
+   "version": 1,
+   "boardId": "79d70dab-8154-4003-a1ca-183991c18b54",
+   "cardId": "a915110e-43e6-4056-9ca0-380df7bf5068",
+   "requestClass": "simple",
+   "stage": "ready",
+   "attempt": 1,
+   "terminal": true,
+   "round": 2,
+   "stopReason": "accepted",
+   "failure": null,
+   "recovery": [],
+   "usage": {
+    "credits": 62,
+    "unknown": false
+   },
+   "result": {
+    "jobId": "ej_f70edc57de6d4bfd9005b69c073ee162",
+    "resultId": "er_ea643acd7d6844df9686854defa51739",
+    "cardId": "a915110e-43e6-4056-9ca0-380df7bf5068",
+    "canvas": {
+     "boardId": "79d70dab-8154-4003-a1ca-183991c18b54"
+    },
+    "promptRef": "61e3e2dabf3ea50d",
+    "revision": "xr_a1d4ee9e27c44c5899e9b1a381acfaa4",
+    "baseRevision": null,
+    "kind": "program",
+    "bundleHash": "44105c8b61f6ecf3a5cbf01ed8f6ae12ef19a7915a5e896eed79c4b9cd0d5d51",
+    "sourceHash": "f0df43bbdb61ad1475de3307129db7f1e53a1293705756b74a28ef5e78dba1fe",
+    "manifestHash": "6d5d7dd9eb17ea8cb8fe0a2d515d1df5102faa4b448a239b2a3dd899468993f1",
+    "versions": {
+     "schema": 2,
+     "runtime": "quickjs-release-sync@0.32.0",
+     "sdk": "sdk-2",
+     "renderer": "renderer-1"
+    },
+    "policyVersion": 1,
+    "program": {
+     "kind": "explain_program",
+     "schemaVersion": 2,
+     "runtimeVersion": "quickjs-release-sync@0.32.0",
+     "sdkVersion": "sdk-2",
+     "rendererVersion": "renderer-1",
+     "runtimePolicyVersion": "policy-1",
+     "permissionProfileVersion": "perm-1",
+     "fingerprints": {
+      "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+      "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+      "renderer": "renderer-1"
+     },
+     "dependencies": [],
+     "manifest": {
+      "title": "K-means with two centroids: how the starting points shape the groups",
+      "summary": "Twelve points sit in four clumps at the corners of a rectangle. Drag or set where centroids A and B start, then alternate Assign (each point joins its nearest centroid) and Update (each centroid moves to the average of its points) until nothing changes. Left/right starts give left and right groups; top/bottom starts give top and bottom groups with a larger total squared distance.",
+      "assumptions": [
+       "Two groups and straight-line (Euclidean) distance.",
+       "The 12 points are fixed and kept small so each step can be followed.",
+       "A point tied between the two centroids goes to A; an empty group keeps its centroid where it is.",
+       "Changing a start control or dragging a centroid resets the run to the new starting centroids.",
+       "Centroids at the same spot are drawn slightly apart so both stay visible."
+      ],
+      "description": "A plot with 12 dots in four clumps of three at the corners of a rectangle (left-bottom, right-bottom, left-top, right-top). Two large circles labelled A and B mark the centroids, with faint dots at their starting positions and lines tracing their path. If A and B coincide they are drawn side by side and a note says so. After Assign, every dot is coloured like its nearest centroid and joined to it by a thin line. A side panel lists both centroid coordinates, the number of updates, the total squared distance and a message describing the last step, including when the run has converged.",
+      "inputs": [
+       {
+        "type": "number",
+        "id": "c1x",
+        "label": "Start A: x",
+        "default": 5,
+        "min": 0,
+        "max": 10,
+        "step": 0.5
+       },
+       {
+        "type": "number",
+        "id": "c1y",
+        "label": "Start A: y",
+        "default": 6.5,
+        "min": 0,
+        "max": 7,
+        "step": 0.5
+       },
+       {
+        "type": "number",
+        "id": "c2x",
+        "label": "Start B: x",
+        "default": 5,
+        "min": 0,
+        "max": 10,
+        "step": 0.5
+       },
+       {
+        "type": "number",
+        "id": "c2y",
+        "label": "Start B: y",
+        "default": 1,
+        "min": 0,
+        "max": 7,
+        "step": 0.5
+       }
+      ],
+      "readouts": [
+       {
+        "id": "sse",
+        "label": "Total squared distance",
+        "decimals": 2
+       },
+       {
+        "id": "rounds",
+        "label": "Updates done",
+        "decimals": 0
+       }
+      ],
+      "capabilities": [
+       "number_inputs",
+       "math_text",
+       "polyline"
+      ],
+      "viewport": {
+       "width": 960,
+       "height": 540
+      },
+      "actions": [
+       {
+        "id": "assign",
+        "label": "Assign points"
+       },
+       {
+        "id": "update",
+        "label": "Update centroids"
+       },
+       {
+        "id": "reset",
+        "label": "Reset to start"
+       }
+      ],
+      "targets": [
+       {
+        "id": "c0",
+        "label": "Centroid A (drag to set its start)",
+        "drag": true
+       },
+       {
+        "id": "c1",
+        "label": "Centroid B (drag to set its start)",
+        "drag": true
+       }
+      ]
+     },
+     "source": "const PTS=[[1.6,1.6],[2.3,1.8],[1.9,2.4],[7.7,1.7],[8.4,1.9],[8.0,2.4],[1.7,4.7],[2.4,5.0],[2.0,5.4],[7.6,4.8],[8.3,5.1],[8.0,5.5]];\nconst SX=x=>60+x*52, SY=y=>480-y*52;\nconst ROLE=['input','output'];\nconst NAME=['A','B'];\nfunction d2(p,c){const dx=p[0]-c[0],dy=p[1]-c[1];return dx*dx+dy*dy;}\nfunction freshC(c0){const c=[c0[0].slice(),c0[1].slice()];return {start:[c0[0].slice(),c0[1].slice()],c:c,trail:[[c[0].slice()],[c[1].slice()]],a:null,rounds:0,done:false,msg:'Press Assign: each point joins its nearest centroid.'};}\nfunction fresh(inp){return freshC([[inp.c1x,inp.c1y],[inp.c2x,inp.c2y]]);}\nfunction sep(a,b,minD,half){const dx=b[0]-a[0],dy=b[1]-a[1];const d=Math.hypot(dx,dy);if(d>=minD)return [a,b,false];let ux=1,uy=0;if(d>1e-6){ux=dx/d;uy=dy/d;}const mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;return [[mx-ux*half,my-uy*half],[mx+ux*half,my+uy*half],true];}\nexport function initialState({inputs}){return fresh(inputs);}\nexport function reduce({state,event,inputs}){\n const s=state;\n if(event.type==='input'){const inp=Object.assign({},inputs);inp[event.input]=event.value;return fresh(inp);}\n if(event.type==='drag_start'||event.type==='drag_move'||event.type==='drag_end'){\n  const k=event.target==='c0'?0:event.target==='c1'?1:-1;\n  if(k<0||typeof event.x!=='number'||typeof event.y!=='number')return s;\n  const x=Math.round(sdk.clamp((event.x-60)/52,0,10)*10)/10;\n  const y=Math.round(sdk.clamp((480-event.y)/52,0,7)*10)/10;\n  const st=[s.start[0].slice(),s.start[1].slice()];st[k]=[x,y];\n  const n=freshC(st);\n  n.msg='Start '+NAME[k]+' moved. Press Assign to begin.';\n  return n;\n }\n if(event.type!=='action')return s;\n if(event.action==='reset')return freshC(s.start||[[inputs.c1x,inputs.c1y],[inputs.c2x,inputs.c2y]]);\n if(event.action==='assign'){\n  const a=PTS.map(p=>d2(p,s.c[0])<=d2(p,s.c[1])?0:1);\n  const same=s.a&&a.every((v,i)=>v===s.a[i]);\n  const n=s.a?a.filter((v,i)=>v!==s.a[i]).length:a.length;\n  if(same)return Object.assign({},s,{done:true,msg:'No point changed group: converged.'});\n  return Object.assign({},s,{a:a,done:false,msg:(s.a?n+' point(s) switched group.':'Every point is coloured by its nearest centroid.')+' Now press Update.'});\n }\n if(event.action==='update'){\n  if(!s.a)return Object.assign({},s,{msg:'Press Assign first: no points belong to a centroid yet.'});\n  const c=[0,1].map(k=>{let sx=0,sy=0,n=0;PTS.forEach((p,i)=>{if(s.a[i]===k){sx+=p[0];sy+=p[1];n++;}});return n?[sx/n,sy/n]:s.c[k].slice();});\n  const moved=c.some((q,k)=>Math.abs(q[0]-s.c[k][0])+Math.abs(q[1]-s.c[k][1])>1e-9);\n  if(!moved)return Object.assign({},s,{done:true,msg:'Centroids did not move: converged.'});\n  const trail=[s.trail[0].concat([c[0]]).slice(-12),s.trail[1].concat([c[1]]).slice(-12)];\n  return Object.assign({},s,{c:c,trail:trail,rounds:s.rounds+1,done:false,msg:'Each centroid moved to the average of its points. Press Assign again.'});\n }\n return s;\n}\nexport function evaluate({inputs,state}){\n const s=state||fresh(inputs);\n const o=[];\n o.push(sdk.box('plot',40,90,560,410,{role:'neutral',opacity:0.15}));\n o.push(sdk.text('ttl',40,40,'12 points in 4 clumps, 2 centroids (A, B)'));\n o.push(sdk.text('ax',320,525,'x from 0 to 10, y from 0 to 7 (same scale)',{align:'middle'}));\n const C=sep([SX(s.c[0][0]),SY(s.c[0][1])],[SX(s.c[1][0]),SY(s.c[1][1])],36,19);\n const S0=sep([SX(s.trail[0][0][0]),SY(s.trail[0][0][1])],[SX(s.trail[1][0][0]),SY(s.trail[1][0][1])],20,11);\n let sse=0;\n PTS.forEach((p,i)=>{const k=s.a?s.a[i]:(d2(p,s.c[0])<=d2(p,s.c[1])?0:1);sse+=d2(p,s.c[k]);\n  if(s.a)o.push(sdk.line('ln'+i,SX(p[0]),SY(p[1]),C[k][0],C[k][1],{role:ROLE[k],opacity:0.25}));});\n PTS.forEach((p,i)=>{o.push(sdk.circle('p'+i,SX(p[0]),SY(p[1]),14,{role:s.a?ROLE[s.a[i]]:'neutral'}));});\n [0,1].forEach(k=>{const tr=s.trail[k];\n  if(tr.length>1)o.push(sdk.polyline('tr'+k,tr.map(q=>[SX(q[0]),SY(q[1])]),{role:ROLE[k],opacity:0.6}));\n  o.push(sdk.circle('st'+k,S0[k][0],S0[k][1],18,{role:ROLE[k],opacity:0.3}));});\n [0,1].forEach(k=>{o.push(sdk.circle('c'+k,C[k][0],C[k][1],34,{text:NAME[k],role:ROLE[k]}));});\n if(C[2])o.push(sdk.text('ovl',40,70,'A and B are at (almost) the same spot, drawn side by side; ties go to A.',{role:'warning'}));\n const X=640;\n o.push(sdk.text('h1',X,110,'Centroid A: ('+sdk.format(s.c[0][0],2)+', '+sdk.format(s.c[0][1],2)+')',{role:'input'}));\n o.push(sdk.text('h2',X,140,'Centroid B: ('+sdk.format(s.c[1][0],2)+', '+sdk.format(s.c[1][1],2)+')',{role:'output'}));\n o.push(sdk.text('h3',X,180,'Updates done: '+s.rounds));\n o.push(sdk.text('h4',X,215,(s.a?'Total squared distance to own centroid:':'Total squared distance to nearest centroid:')));\n o.push(sdk.text('h5',X,245,sdk.format(sse,2),{role:'prediction'}));\n o.push(sdk.math('h6',X,285,'\\\\sum_i \\\\lVert x_i - c_{g(i)} \\\\rVert^2'));\n const words=s.msg.split(' ');let line='',ln=[];words.forEach(w=>{if((line+' '+w).length>36){ln.push(line);line=w;}else line=line?line+' '+w:w;});ln.push(line);\n ln.slice(0,4).forEach((t,j)=>o.push(sdk.text('m'+j,X,335+j*26,t,{role:s.done?'success':'neutral'})));\n o.push(sdk.text('k1',X,460,'Drag A or B to set a new start.'));\n o.push(sdk.text('k2',X,488,'Try left/right starts, then top/bottom.'));\n return {frame:{width:960,height:540,objects:o,readouts:[{id:'sse',value:sse},{id:'rounds',value:s.rounds}]},quantities:{sse:sse,rounds:s.rounds,converged:s.done?1:0}};\n}\n",
+     "sourceHash": "f0df43bbdb61ad1475de3307129db7f1e53a1293705756b74a28ef5e78dba1fe",
+     "manifestHash": "6d5d7dd9eb17ea8cb8fe0a2d515d1df5102faa4b448a239b2a3dd899468993f1",
+     "bundleHash": "44105c8b61f6ecf3a5cbf01ed8f6ae12ef19a7915a5e896eed79c4b9cd0d5d51"
+    },
+    "execution": {
+     "allowed": true
+    }
+   },
+   "brief": {
+    "version": 1,
+    "title": "K-means with two centroids: how the starting points shape the groups",
+    "summary": "You will see about a dozen points in four small clumps at the corners of a rectangle, plus two marked starting centroids, and the total squared distance from each point to its centroid. Set where each centroid starts with the two position controls for each one. Then press Assign to colour every point by its nearest centroid, and press Update to move each centroid to the average of its points. Keep alternating until nothing changes. Starting the centroids on the left and right gives a different final grouping from starting them at the top and bottom, and the total distance shows which result fits better. Reset puts the centroids back at their starting positions so you can try a new start.",
+    "assumptions": [
+     "Two groups and straight-line distance are used.",
+     "The point set is fixed and kept small so you can follow each step."
+    ],
+    "presentation": "experiment",
+    "components": [],
+    "evidenceIds": [],
+    "limitations": [
+     "It does not show smarter ways to choose starting centroids or how to pick the number of groups.",
+     "Ties and empty groups are not explored. A tied point goes to the first centroid."
+    ],
+    "ambiguous": false,
+    "expanded": false
+   },
+   "briefHash": "d9b348da5eaf44447a1f5a09584e778160a68614d3df8f9a0976dde717948b9c",
+   "timing": {
+    "requestClass": "simple",
+    "cache": null,
+    "firstFeedbackMs": 98,
+    "proposalMs": 11109,
+    "generateToResultMs": 178061,
+    "processingMs": 189072,
+    "approvalWaitMs": 1318,
+    "calls": 6,
+    "repairs": 2,
+    "stages": [
+     {
+      "stage": "preparing",
+      "ms": 11011,
+      "calls": 1,
+      "inputTokens": 424,
+      "outputTokens": 831,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "awaiting_approval",
+      "ms": 1318,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": null
+     },
+     {
+      "stage": "authoring",
+      "ms": 46453,
+      "calls": 1,
+      "inputTokens": 8718,
+      "outputTokens": 5001,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "ms": 15,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "rejected"
+     },
+     {
+      "stage": "repairing",
+      "ms": 32326,
+      "calls": 1,
+      "inputTokens": 5012,
+      "outputTokens": 4272,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "ms": 137,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "ms": 8560,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 6,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "ms": 22684,
+      "calls": 1,
+      "inputTokens": 11286,
+      "outputTokens": 1945,
+      "images": 6,
+      "captures": 0,
+      "outcome": "rejected"
+     },
+     {
+      "stage": "repairing",
+      "ms": 36254,
+      "calls": 1,
+      "inputTokens": 5842,
+      "outputTokens": 4706,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "ms": 19,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "ms": 10434,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 6,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "ms": 21179,
+      "calls": 1,
+      "inputTokens": 11739,
+      "outputTokens": 1966,
+      "images": 6,
+      "captures": 0,
+      "outcome": "accepted"
+     }
+    ]
+   },
+   "createdAt": 1794106005500,
+   "updatedAt": 1794106195988
+  },
+  "block": {
+   "type": "animation",
+   "id": "a915110e-43e6-4056-9ca0-380df7bf5068",
+   "title": "K-means with two centroids: how the starting points shape the groups",
+   "program": {
+    "kind": "explain_program",
+    "resultId": "er_ea643acd7d6844df9686854defa51739",
+    "bundleHash": "44105c8b61f6ecf3a5cbf01ed8f6ae12ef19a7915a5e896eed79c4b9cd0d5d51"
+   },
+   "explain": {
+    "jobId": "ej_f70edc57de6d4bfd9005b69c073ee162",
+    "resultId": "er_ea643acd7d6844df9686854defa51739",
+    "cardId": "a915110e-43e6-4056-9ca0-380df7bf5068",
+    "canvas": {
+     "boardId": "79d70dab-8154-4003-a1ca-183991c18b54"
+    },
+    "promptRef": "61e3e2dabf3ea50d",
+    "revision": "xr_a1d4ee9e27c44c5899e9b1a381acfaa4",
+    "baseRevision": null,
+    "kind": "program",
+    "bundleHash": "44105c8b61f6ecf3a5cbf01ed8f6ae12ef19a7915a5e896eed79c4b9cd0d5d51",
+    "sourceHash": "f0df43bbdb61ad1475de3307129db7f1e53a1293705756b74a28ef5e78dba1fe",
+    "manifestHash": "6d5d7dd9eb17ea8cb8fe0a2d515d1df5102faa4b448a239b2a3dd899468993f1",
+    "versions": {
+     "schema": 2,
+     "runtime": "quickjs-release-sync@0.32.0",
+     "sdk": "sdk-2",
+     "renderer": "renderer-1"
+    },
+    "policyVersion": 1
+   }
+  },
+  "diagnostics": {
+   "spec": null,
+   "program": {
+    "source": "const PTS=[[1.6,1.6],[2.3,1.8],[1.9,2.4],[7.7,1.7],[8.4,1.9],[8.0,2.4],[1.7,4.7],[2.4,5.0],[2.0,5.4],[7.6,4.8],[8.3,5.1],[8.0,5.5]];\nconst SX=x=>60+x*52, SY=y=>480-y*52;\nconst ROLE=['input','output'];\nconst NAME=['A','B'];\nfunction d2(p,c){const dx=p[0]-c[0],dy=p[1]-c[1];return dx*dx+dy*dy;}\nfunction freshC(c0){const c=[c0[0].slice(),c0[1].slice()];return {start:[c0[0].slice(),c0[1].slice()],c:c,trail:[[c[0].slice()],[c[1].slice()]],a:null,rounds:0,done:false,msg:'Press Assign: each point joins its nearest centroid.'};}\nfunction fresh(inp){return freshC([[inp.c1x,inp.c1y],[inp.c2x,inp.c2y]]);}\nfunction sep(a,b,minD,half){const dx=b[0]-a[0],dy=b[1]-a[1];const d=Math.hypot(dx,dy);if(d>=minD)return [a,b,false];let ux=1,uy=0;if(d>1e-6){ux=dx/d;uy=dy/d;}const mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;return [[mx-ux*half,my-uy*half],[mx+ux*half,my+uy*half],true];}\nexport function initialState({inputs}){return fresh(inputs);}\nexport function reduce({state,event,inputs}){\n const s=state;\n if(event.type==='input'){const inp=Object.assign({},inputs);inp[event.input]=event.value;return fresh(inp);}\n if(event.type==='drag_start'||event.type==='drag_move'||event.type==='drag_end'){\n  const k=event.target==='c0'?0:event.target==='c1'?1:-1;\n  if(k<0||typeof event.x!=='number'||typeof event.y!=='number')return s;\n  const x=Math.round(sdk.clamp((event.x-60)/52,0,10)*10)/10;\n  const y=Math.round(sdk.clamp((480-event.y)/52,0,7)*10)/10;\n  const st=[s.start[0].slice(),s.start[1].slice()];st[k]=[x,y];\n  const n=freshC(st);\n  n.msg='Start '+NAME[k]+' moved. Press Assign to begin.';\n  return n;\n }\n if(event.type!=='action')return s;\n if(event.action==='reset')return freshC(s.start||[[inputs.c1x,inputs.c1y],[inputs.c2x,inputs.c2y]]);\n if(event.action==='assign'){\n  const a=PTS.map(p=>d2(p,s.c[0])<=d2(p,s.c[1])?0:1);\n  const same=s.a&&a.every((v,i)=>v===s.a[i]);\n  const n=s.a?a.filter((v,i)=>v!==s.a[i]).length:a.length;\n  if(same)return Object.assign({},s,{done:true,msg:'No point changed group: converged.'});\n  return Object.assign({},s,{a:a,done:false,msg:(s.a?n+' point(s) switched group.':'Every point is coloured by its nearest centroid.')+' Now press Update.'});\n }\n if(event.action==='update'){\n  if(!s.a)return Object.assign({},s,{msg:'Press Assign first: no points belong to a centroid yet.'});\n  const c=[0,1].map(k=>{let sx=0,sy=0,n=0;PTS.forEach((p,i)=>{if(s.a[i]===k){sx+=p[0];sy+=p[1];n++;}});return n?[sx/n,sy/n]:s.c[k].slice();});\n  const moved=c.some((q,k)=>Math.abs(q[0]-s.c[k][0])+Math.abs(q[1]-s.c[k][1])>1e-9);\n  if(!moved)return Object.assign({},s,{done:true,msg:'Centroids did not move: converged.'});\n  const trail=[s.trail[0].concat([c[0]]).slice(-12),s.trail[1].concat([c[1]]).slice(-12)];\n  return Object.assign({},s,{c:c,trail:trail,rounds:s.rounds+1,done:false,msg:'Each centroid moved to the average of its points. Press Assign again.'});\n }\n return s;\n}\nexport function evaluate({inputs,state}){\n const s=state||fresh(inputs);\n const o=[];\n o.push(sdk.box('plot',40,90,560,410,{role:'neutral',opacity:0.15}));\n o.push(sdk.text('ttl',40,40,'12 points in 4 clumps, 2 centroids (A, B)'));\n o.push(sdk.text('ax',320,525,'x from 0 to 10, y from 0 to 7 (same scale)',{align:'middle'}));\n const C=sep([SX(s.c[0][0]),SY(s.c[0][1])],[SX(s.c[1][0]),SY(s.c[1][1])],36,19);\n const S0=sep([SX(s.trail[0][0][0]),SY(s.trail[0][0][1])],[SX(s.trail[1][0][0]),SY(s.trail[1][0][1])],20,11);\n let sse=0;\n PTS.forEach((p,i)=>{const k=s.a?s.a[i]:(d2(p,s.c[0])<=d2(p,s.c[1])?0:1);sse+=d2(p,s.c[k]);\n  if(s.a)o.push(sdk.line('ln'+i,SX(p[0]),SY(p[1]),C[k][0],C[k][1],{role:ROLE[k],opacity:0.25}));});\n PTS.forEach((p,i)=>{o.push(sdk.circle('p'+i,SX(p[0]),SY(p[1]),14,{role:s.a?ROLE[s.a[i]]:'neutral'}));});\n [0,1].forEach(k=>{const tr=s.trail[k];\n  if(tr.length>1)o.push(sdk.polyline('tr'+k,tr.map(q=>[SX(q[0]),SY(q[1])]),{role:ROLE[k],opacity:0.6}));\n  o.push(sdk.circle('st'+k,S0[k][0],S0[k][1],18,{role:ROLE[k],opacity:0.3}));});\n [0,1].forEach(k=>{o.push(sdk.circle('c'+k,C[k][0],C[k][1],34,{text:NAME[k],role:ROLE[k]}));});\n if(C[2])o.push(sdk.text('ovl',40,70,'A and B are at (almost) the same spot, drawn side by side; ties go to A.',{role:'warning'}));\n const X=640;\n o.push(sdk.text('h1',X,110,'Centroid A: ('+sdk.format(s.c[0][0],2)+', '+sdk.format(s.c[0][1],2)+')',{role:'input'}));\n o.push(sdk.text('h2',X,140,'Centroid B: ('+sdk.format(s.c[1][0],2)+', '+sdk.format(s.c[1][1],2)+')',{role:'output'}));\n o.push(sdk.text('h3',X,180,'Updates done: '+s.rounds));\n o.push(sdk.text('h4',X,215,(s.a?'Total squared distance to own centroid:':'Total squared distance to nearest centroid:')));\n o.push(sdk.text('h5',X,245,sdk.format(sse,2),{role:'prediction'}));\n o.push(sdk.math('h6',X,285,'\\\\sum_i \\\\lVert x_i - c_{g(i)} \\\\rVert^2'));\n const words=s.msg.split(' ');let line='',ln=[];words.forEach(w=>{if((line+' '+w).length>36){ln.push(line);line=w;}else line=line?line+' '+w:w;});ln.push(line);\n ln.slice(0,4).forEach((t,j)=>o.push(sdk.text('m'+j,X,335+j*26,t,{role:s.done?'success':'neutral'})));\n o.push(sdk.text('k1',X,460,'Drag A or B to set a new start.'));\n o.push(sdk.text('k2',X,488,'Try left/right starts, then top/bottom.'));\n return {frame:{width:960,height:540,objects:o,readouts:[{id:'sse',value:sse},{id:'rounds',value:s.rounds}]},quantities:{sse:sse,rounds:s.rounds,converged:s.done?1:0}};\n}\n",
+    "manifest": {
+     "title": "K-means with two centroids: how the starting points shape the groups",
+     "summary": "Twelve points sit in four clumps at the corners of a rectangle. Drag or set where centroids A and B start, then alternate Assign (each point joins its nearest centroid) and Update (each centroid moves to the average of its points) until nothing changes. Left/right starts give left and right groups; top/bottom starts give top and bottom groups with a larger total squared distance.",
+     "assumptions": [
+      "Two groups and straight-line (Euclidean) distance.",
+      "The 12 points are fixed and kept small so each step can be followed.",
+      "A point tied between the two centroids goes to A; an empty group keeps its centroid where it is.",
+      "Changing a start control or dragging a centroid resets the run to the new starting centroids.",
+      "Centroids at the same spot are drawn slightly apart so both stay visible."
+     ],
+     "description": "A plot with 12 dots in four clumps of three at the corners of a rectangle (left-bottom, right-bottom, left-top, right-top). Two large circles labelled A and B mark the centroids, with faint dots at their starting positions and lines tracing their path. If A and B coincide they are drawn side by side and a note says so. After Assign, every dot is coloured like its nearest centroid and joined to it by a thin line. A side panel lists both centroid coordinates, the number of updates, the total squared distance and a message describing the last step, including when the run has converged.",
+     "inputs": [
+      {
+       "type": "number",
+       "id": "c1x",
+       "label": "Start A: x",
+       "default": 5,
+       "min": 0,
+       "max": 10,
+       "step": 0.5
+      },
+      {
+       "type": "number",
+       "id": "c1y",
+       "label": "Start A: y",
+       "default": 6.5,
+       "min": 0,
+       "max": 7,
+       "step": 0.5
+      },
+      {
+       "type": "number",
+       "id": "c2x",
+       "label": "Start B: x",
+       "default": 5,
+       "min": 0,
+       "max": 10,
+       "step": 0.5
+      },
+      {
+       "type": "number",
+       "id": "c2y",
+       "label": "Start B: y",
+       "default": 1,
+       "min": 0,
+       "max": 7,
+       "step": 0.5
+      }
+     ],
+     "readouts": [
+      {
+       "id": "sse",
+       "label": "Total squared distance",
+       "decimals": 2
+      },
+      {
+       "id": "rounds",
+       "label": "Updates done",
+       "decimals": 0
+      }
+     ],
+     "capabilities": [
+      "number_inputs",
+      "math_text",
+      "polyline"
+     ],
+     "viewport": {
+      "width": 960,
+      "height": 540
+     },
+     "actions": [
+      {
+       "id": "assign",
+       "label": "Assign points"
+      },
+      {
+       "id": "update",
+       "label": "Update centroids"
+      },
+      {
+       "id": "reset",
+       "label": "Reset to start"
+      }
+     ],
+     "targets": [
+      {
+       "id": "c0",
+       "label": "Centroid A (drag to set its start)",
+       "drag": true
+      },
+      {
+       "id": "c1",
+       "label": "Centroid B (drag to set its start)",
+       "drag": true
+      }
+     ]
+    }
+   },
+   "artifact": {
+    "kind": "explain_program",
+    "schemaVersion": 2,
+    "runtimeVersion": "quickjs-release-sync@0.32.0",
+    "sdkVersion": "sdk-2",
+    "rendererVersion": "renderer-1",
+    "runtimePolicyVersion": "policy-1",
+    "permissionProfileVersion": "perm-1",
+    "fingerprints": {
+     "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+     "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+     "renderer": "renderer-1"
+    },
+    "dependencies": [],
+    "manifest": {
+     "title": "K-means with two centroids: how the starting points shape the groups",
+     "summary": "Twelve points sit in four clumps at the corners of a rectangle. Drag or set where centroids A and B start, then alternate Assign (each point joins its nearest centroid) and Update (each centroid moves to the average of its points) until nothing changes. Left/right starts give left and right groups; top/bottom starts give top and bottom groups with a larger total squared distance.",
+     "assumptions": [
+      "Two groups and straight-line (Euclidean) distance.",
+      "The 12 points are fixed and kept small so each step can be followed.",
+      "A point tied between the two centroids goes to A; an empty group keeps its centroid where it is.",
+      "Changing a start control or dragging a centroid resets the run to the new starting centroids.",
+      "Centroids at the same spot are drawn slightly apart so both stay visible."
+     ],
+     "description": "A plot with 12 dots in four clumps of three at the corners of a rectangle (left-bottom, right-bottom, left-top, right-top). Two large circles labelled A and B mark the centroids, with faint dots at their starting positions and lines tracing their path. If A and B coincide they are drawn side by side and a note says so. After Assign, every dot is coloured like its nearest centroid and joined to it by a thin line. A side panel lists both centroid coordinates, the number of updates, the total squared distance and a message describing the last step, including when the run has converged.",
+     "inputs": [
+      {
+       "type": "number",
+       "id": "c1x",
+       "label": "Start A: x",
+       "default": 5,
+       "min": 0,
+       "max": 10,
+       "step": 0.5
+      },
+      {
+       "type": "number",
+       "id": "c1y",
+       "label": "Start A: y",
+       "default": 6.5,
+       "min": 0,
+       "max": 7,
+       "step": 0.5
+      },
+      {
+       "type": "number",
+       "id": "c2x",
+       "label": "Start B: x",
+       "default": 5,
+       "min": 0,
+       "max": 10,
+       "step": 0.5
+      },
+      {
+       "type": "number",
+       "id": "c2y",
+       "label": "Start B: y",
+       "default": 1,
+       "min": 0,
+       "max": 7,
+       "step": 0.5
+      }
+     ],
+     "readouts": [
+      {
+       "id": "sse",
+       "label": "Total squared distance",
+       "decimals": 2
+      },
+      {
+       "id": "rounds",
+       "label": "Updates done",
+       "decimals": 0
+      }
+     ],
+     "capabilities": [
+      "number_inputs",
+      "math_text",
+      "polyline"
+     ],
+     "viewport": {
+      "width": 960,
+      "height": 540
+     },
+     "actions": [
+      {
+       "id": "assign",
+       "label": "Assign points"
+      },
+      {
+       "id": "update",
+       "label": "Update centroids"
+      },
+      {
+       "id": "reset",
+       "label": "Reset to start"
+      }
+     ],
+     "targets": [
+      {
+       "id": "c0",
+       "label": "Centroid A (drag to set its start)",
+       "drag": true
+      },
+      {
+       "id": "c1",
+       "label": "Centroid B (drag to set its start)",
+       "drag": true
+      }
+     ]
+    },
+    "sourceHash": "f0df43bbdb61ad1475de3307129db7f1e53a1293705756b74a28ef5e78dba1fe",
+    "manifestHash": "6d5d7dd9eb17ea8cb8fe0a2d515d1df5102faa4b448a239b2a3dd899468993f1",
+    "bundleHash": "44105c8b61f6ecf3a5cbf01ed8f6ae12ef19a7915a5e896eed79c4b9cd0d5d51",
+    "sourceBytes": 5319
+   },
+   "coverage": {
+    "compiledHash": "ad3ad29dd5be1a60b6857f92aea9941489d991584f3a12d73c23f59472ae4993",
+    "states": 1,
+    "moments": 1,
+    "frames": 6,
+    "themes": [
+     "light"
+    ],
+    "sampled": [
+     {
+      "id": "light",
+      "label": "default",
+      "inputs": {},
+      "time": 0,
+      "events": []
+     },
+     {
+      "id": "e0-light",
+      "label": "press assign",
+      "inputs": {},
+      "time": 0,
+      "events": [
+       {
+        "type": "action",
+        "action": "assign"
+       }
+      ]
+     },
+     {
+      "id": "e1-light",
+      "label": "move c1x to 10, c1y to 7, c2x to 10, c2y to 7",
+      "inputs": {},
+      "time": 0,
+      "events": [
+       {
+        "type": "input",
+        "input": "c1x",
+        "value": 10
+       },
+       {
+        "type": "input",
+        "input": "c1y",
+        "value": 7
+       },
+       {
+        "type": "input",
+        "input": "c2x",
+        "value": 10
+       },
+       {
+        "type": "input",
+        "input": "c2y",
+        "value": 7
+       }
+      ]
+     },
+     {
+      "id": "e2-light",
+      "label": "press assign, then Reset",
+      "inputs": {},
+      "time": 0,
+      "events": [
+       {
+        "type": "action",
+        "action": "assign"
+       },
+       {
+        "type": "reset"
+       }
+      ]
+     },
+     {
+      "id": "e3-light",
+      "label": "press assign, then update",
+      "inputs": {},
+      "time": 0,
+      "events": [
+       {
+        "type": "action",
+        "action": "assign"
+       },
+       {
+        "type": "action",
+        "action": "update"
+       }
+      ]
+     },
+     {
+      "id": "e4-light",
+      "label": "press assign, then reset",
+      "inputs": {},
+      "time": 0,
+      "events": [
+       {
+        "type": "action",
+        "action": "assign"
+       },
+       {
+        "type": "action",
+        "action": "reset"
+       }
+      ]
+     }
+    ],
+    "omitted": [
+     "drag c0 from (480, 270) to (720, 270)",
+     "drag c1 from (480, 270) to (720, 270)",
+     "select c0",
+     "select c1",
+     "press assign 4 times",
+     "min of c1x",
+     "max of c1x",
+     "min of c1y",
+     "max of c1y",
+     "min of c2x",
+     "max of c2x",
+     "min of c2y",
+     "max of c2y",
+     "combined: every input at its max/last"
+    ],
+    "transitions": {
+     "sampled": 5,
+     "declared": 10,
+     "events": 11,
+     "seed": 0
+    }
+   },
+   "history": [
+    {
+     "round": 0,
+     "attempt": 1,
+     "stage": "validating",
+     "outcome": "invalid",
+     "at": 1794106064395,
+     "hashes": {
+      "programHash": "4c1b68accb9a826c",
+      "sourceHash": "9318d66895df70ab9cce2c4ccee250c87ab459cda4a8771354ca93eba6fa3c8a"
+     },
+     "sizes": {
+      "sourceBytes": 4101,
+      "manifestBytes": 2080
+     },
+     "problems": [
+      {
+       "message": "manifest.summary: Too big: expected string to have <=400 characters",
+       "programHash": "4c1b68accb9a826c"
+      },
+      {
+       "message": "manifest.targets: Invalid input: expected array, received undefined",
+       "programHash": "4c1b68accb9a826c"
+      }
+     ],
+     "findings": [],
+     "truncated": false,
+     "cut": [],
+     "version": {
+      "stored": true,
+      "key": "explainver:ej_f70edc57de6d4bfd9005b69c073ee162:4c1b68accb9a826c"
+     }
+    },
+    {
+     "round": 1,
+     "attempt": 1,
+     "stage": "reviewing",
+     "outcome": "rejected",
+     "at": 1794106128102,
+     "hashes": {
+      "programHash": "e84b23be233f9500",
+      "sourceHash": "1e06ee945f531a2193e377d69793e6cf2c388e9c9bf2abc26686f901b2daf36c",
+      "manifestHash": "36d39e4d8c995e38f3c9b97dc6c7f2b8f4711d4af1e303b7efc47b2def424b44",
+      "bundleHash": "bbb7234949fbb88b861132eebb5d74f870035aa8103490ec2806a1e417de7470"
+     },
+     "sizes": {
+      "sourceBytes": 4746,
+      "manifestBytes": 2222
+     },
+     "problems": [],
+     "findings": [
+      {
+       "id": "rf1",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "semantic",
+       "capture": "light",
+       "object": "",
+       "message": "These behaviours were not sampled, so I could not judge them: dragging a centroid (drag_start/move/end), a run reaching convergence, and a left/right start that ends in left/right groups. Reading the source, the logic for all three looks correct.",
+       "programHash": "e84b23be233f9500"
+      },
+      {
+       "id": "rf2",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "visual",
+       "capture": "e0-light",
+       "object": "ln4",
+       "message": "The thin line from B to the right-bottom point at (8.4,1.9) runs straight through the dot at (7.7,1.7). The two lines from A to the left-top points also nearly coincide. You can still read it.",
+       "programHash": "e84b23be233f9500"
+      },
+      {
+       "id": "rf3",
+       "category": "spec",
+       "severity": "major",
+       "verdict": "visual",
+       "capture": "e1-light",
+       "object": "c0",
+       "message": "Both starts are set to (10,7), so circle B is drawn exactly on top of circle A. The A label, A's circle and both faint start dots disappear, and the learner can't see or grab A to drag it. Offset or outline centroids that coincide, or add a note when they do.",
+       "programHash": "e84b23be233f9500"
+      },
+      {
+       "id": "rf4",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "visual",
+       "capture": "e3-light",
+       "object": "ln4",
+       "message": "The assignment line from B to (8.4,1.9) passes through the dot at (7.7,1.7), and the line from A to (8.3,5.1) passes close to the dot at (7.6,4.8). Minor clutter.",
+       "programHash": "e84b23be233f9500"
+      }
+     ],
+     "truncated": false,
+     "cut": [],
+     "version": {
+      "stored": true,
+      "key": "explainver:ej_f70edc57de6d4bfd9005b69c073ee162:e84b23be233f9500"
+     }
+    },
+    {
+     "round": 2,
+     "attempt": 1,
+     "stage": "reviewing",
+     "outcome": "accepted",
+     "at": 1794106195988,
+     "hashes": {
+      "programHash": "18a6c59662279504",
+      "sourceHash": "f0df43bbdb61ad1475de3307129db7f1e53a1293705756b74a28ef5e78dba1fe",
+      "manifestHash": "6d5d7dd9eb17ea8cb8fe0a2d515d1df5102faa4b448a239b2a3dd899468993f1",
+      "bundleHash": "44105c8b61f6ecf3a5cbf01ed8f6ae12ef19a7915a5e896eed79c4b9cd0d5d51"
+     },
+     "sizes": {
+      "sourceBytes": 5319,
+      "manifestBytes": 2366
+     },
+     "problems": [],
+     "findings": [
+      {
+       "id": "rf1",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "semantic",
+       "capture": "light",
+       "object": "",
+       "message": "Not sampled: dragging a centroid, the left/right versus top/bottom runs to convergence, and the converged message. These cannot be judged from the captures. In the source, a dragged start is not written back to the Start x/y number controls, so the controls can show different values from the start actually used.",
+       "programHash": "18a6c59662279504"
+      },
+      {
+       "id": "rf2",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "visual",
+       "capture": "e0-light",
+       "object": "ln2",
+       "message": "The faint line from the left-bottom point to A passes almost through the neighbouring point at about (185,219). This makes it a little unclear which point the line belongs to.",
+       "programHash": "18a6c59662279504"
+      },
+      {
+       "id": "rf3",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "visual",
+       "capture": "e1-light",
+       "object": "c1",
+       "message": "Because A and B start together at the corner (10,7), they are drawn side by side and B's circle extends past the right border of the plot box. A also touches the top edge. The circles should be kept inside the plot area.",
+       "programHash": "18a6c59662279504"
+      }
+     ],
+     "truncated": false,
+     "cut": [],
+     "version": {
+      "stored": true,
+      "key": "explainver:ej_f70edc57de6d4bfd9005b69c073ee162:18a6c59662279504"
+     }
+    }
+   ],
+   "historyDropped": 0,
+   "findings": [
+    {
+     "round": 0,
+     "stage": "validating",
+     "problems": [
+      "manifest.summary: Too big: expected string to have <=400 characters",
+      "manifest.targets: Invalid input: expected array, received undefined"
+     ]
+    },
+    {
+     "round": 1,
+     "stage": "reviewing",
+     "accepted": false,
+     "findings": [
+      {
+       "version": 1,
+       "id": "rf1",
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "light"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "These behaviours were not sampled, so I could not judge them: dragging a centroid (drag_start/move/end), a run reaching convergence, and a left/right start that ends in left/right groups. Reading the source, the logic for all three looks correct."
+      },
+      {
+       "version": 1,
+       "id": "rf2",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "e0-light",
+        "object": "ln4"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The thin line from B to the right-bottom point at (8.4,1.9) runs straight through the dot at (7.7,1.7). The two lines from A to the left-top points also nearly coincide. You can still read it."
+      },
+      {
+       "version": 1,
+       "id": "rf3",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "target": {
+        "capture": "e1-light",
+        "object": "c0"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "Both starts are set to (10,7), so circle B is drawn exactly on top of circle A. The A label, A's circle and both faint start dots disappear, and the learner can't see or grab A to drag it. Offset or outline centroids that coincide, or add a note when they do."
+      },
+      {
+       "version": 1,
+       "id": "rf4",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "e3-light",
+        "object": "ln4"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The assignment line from B to (8.4,1.9) passes through the dot at (7.7,1.7), and the line from A to (8.3,5.1) passes close to the dot at (7.6,4.8). Minor clutter."
+      }
+     ]
+    },
+    {
+     "round": 2,
+     "stage": "reviewing",
+     "accepted": true,
+     "findings": [
+      {
+       "version": 1,
+       "id": "rf1",
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "light"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "Not sampled: dragging a centroid, the left/right versus top/bottom runs to convergence, and the converged message. These cannot be judged from the captures. In the source, a dragged start is not written back to the Start x/y number controls, so the controls can show different values from the start actually used."
+      },
+      {
+       "version": 1,
+       "id": "rf2",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "e0-light",
+        "object": "ln2"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The faint line from the left-bottom point to A passes almost through the neighbouring point at about (185,219). This makes it a little unclear which point the line belongs to."
+      },
+      {
+       "version": 1,
+       "id": "rf3",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "e1-light",
+        "object": "c1"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "Because A and B start together at the corner (10,7), they are drawn side by side and B's circle extends past the right border of the plot box. A also touches the top edge. The circles should be kept inside the plot area."
+      }
+     ]
+    }
+   ],
+   "candidates": [
+    {
+     "round": 1,
+     "operation": "program",
+     "progress": true,
+     "specHash": null,
+     "programHash": "2d9bea9762851405"
+    },
+    {
+     "round": 2,
+     "operation": "program",
+     "progress": true,
+     "specHash": null,
+     "programHash": "18a6c59662279504"
+    }
+   ],
+   "settings": {
+    "presentation": "experiment"
+   },
+   "calls": [
+    {
+     "key": "ej_f70edc57de6d4bfd9005b69c073ee162-brief-1",
+     "role": "brief",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 115480,
+     "images": 0,
+     "costMicros": 27516,
+     "inputTokens": 424,
+     "outputTokens": 831,
+     "startedAt": 1794106006598,
+     "endedAt": 1794106016483,
+     "error": null
+    },
+    {
+     "key": "ej_f70edc57de6d4bfd9005b69c073ee162-author-2",
+     "role": "author",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 419505,
+     "images": 0,
+     "costMicros": 171222,
+     "inputTokens": 8718,
+     "outputTokens": 5001,
+     "startedAt": 1794106017927,
+     "endedAt": 1794106064380,
+     "error": null
+    },
+    {
+     "key": "ej_f70edc57de6d4bfd9005b69c073ee162-repair-3",
+     "role": "repair",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 212970,
+     "images": 0,
+     "costMicros": 118393,
+     "inputTokens": 5012,
+     "outputTokens": 4272,
+     "startedAt": 1794106065395,
+     "endedAt": 1794106096721,
+     "error": null
+    },
+    {
+     "key": "ej_f70edc57de6d4bfd9005b69c073ee162-review-4",
+     "role": "review",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 312805,
+     "images": 6,
+     "costMicros": 92709,
+     "inputTokens": 11286,
+     "outputTokens": 1945,
+     "startedAt": 1794106106505,
+     "endedAt": 1794106128102,
+     "error": null
+    },
+    {
+     "key": "ej_f70edc57de6d4bfd9005b69c073ee162-repair-5",
+     "role": "repair",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 222950,
+     "images": 0,
+     "costMicros": 118005,
+     "inputTokens": 5842,
+     "outputTokens": 4706,
+     "startedAt": 1794106129102,
+     "endedAt": 1794106164356,
+     "error": null
+    },
+    {
+     "key": "ej_f70edc57de6d4bfd9005b69c073ee162-review-6",
+     "role": "review",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 317145,
+     "images": 6,
+     "costMicros": 86623,
+     "inputTokens": 11739,
+     "outputTokens": 1966,
+     "startedAt": 1794106176060,
+     "endedAt": 1794106195988,
+     "error": null
+    }
+   ],
+   "captures": [
+    {
+     "id": "light",
+     "aliases": [],
+     "stateHash": "a4a90b146cf75c8f058912e8f654feaf2e84005033ea54ce9ea8424ced11fd76",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "c1x": 5,
+      "c1y": 6.5,
+      "c2x": 5,
+      "c2y": 1
+     },
+     "bundleHash": "44105c8b61f6ecf3a5cbf01ed8f6ae12ef19a7915a5e896eed79c4b9cd0d5d51",
+     "seed": 0,
+     "events": [],
+     "trace": {
+      "inputs": {
+       "c1x": 5,
+       "c1y": 6.5,
+       "c2x": 5,
+       "c2y": 1
+      },
+      "time": 0,
+      "quantities": {
+       "sse": 128.38,
+       "rounds": 0,
+       "converged": 0
+      },
+      "metrics": {
+       "ms": 22.2
+      },
+      "seed": 0,
+      "events": [],
+      "stateHash": "72a9b52b89c0450672ba0f18b2d4aee72a1f25a87687ffd6d5ecdcfa2b4f5fae",
+      "state": {
+       "start": [
+        [
+         5,
+         6.5
+        ],
+        [
+         5,
+         1
+        ]
+       ],
+       "c": [
+        [
+         5,
+         6.5
+        ],
+        [
+         5,
+         1
+        ]
+       ],
+       "trail": [
+        [
+         [
+          5,
+          6.5
+         ]
+        ],
+        [
+         [
+          5,
+          1
+         ]
+        ]
+       ],
+       "a": null,
+       "rounds": 0,
+       "done": false,
+       "msg": "Press Assign: each point joins its nearest centroid."
+      }
+     },
+     "sha256": "00c8c8e5f4f06876ae4d4d64c6aebe935ca955d7b364d33fe583fe3d1d79f636",
+     "key": "explain/ej_f70edc57de6d4bfd9005b69c073ee162/a4a90b146cf75c8f.png",
+     "compiledHash": "ad3ad29dd5be1a60b6857f92aea9941489d991584f3a12d73c23f59472ae4993",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "e0-light",
+     "aliases": [],
+     "stateHash": "889b40ba6bfb64ee91158d124867dfb46603beee08845ddf929144610f4f8ab3",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "c1x": 5,
+      "c1y": 6.5,
+      "c2x": 5,
+      "c2y": 1
+     },
+     "bundleHash": "44105c8b61f6ecf3a5cbf01ed8f6ae12ef19a7915a5e896eed79c4b9cd0d5d51",
+     "seed": 0,
+     "events": [
+      {
+       "type": "action",
+       "action": "assign"
+      }
+     ],
+     "trace": {
+      "inputs": {
+       "c1x": 5,
+       "c1y": 6.5,
+       "c2x": 5,
+       "c2y": 1
+      },
+      "time": 0,
+      "quantities": {
+       "sse": 128.38,
+       "rounds": 0,
+       "converged": 0
+      },
+      "metrics": {
+       "ms": 10.5
+      },
+      "seed": 0,
+      "events": [
+       {
+        "type": "action",
+        "action": "assign"
+       }
+      ],
+      "stateHash": "599a33e0c27e82710c0e936d1b4a41f39627531e48dc3a63e2f3a0c0844d4964",
+      "state": {
+       "start": [
+        [
+         5,
+         6.5
+        ],
+        [
+         5,
+         1
+        ]
+       ],
+       "c": [
+        [
+         5,
+         6.5
+        ],
+        [
+         5,
+         1
+        ]
+       ],
+       "trail": [
+        [
+         [
+          5,
+          6.5
+         ]
+        ],
+        [
+         [
+          5,
+          1
+         ]
+        ]
+       ],
+       "a": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+       ],
+       "rounds": 0,
+       "done": false,
+       "msg": "Every point is coloured by its nearest centroid. Now press Update."
+      }
+     },
+     "sha256": "f77b7fe84afc898c2c2f810623ed742e75a678d2c907fc335a135ed352a7cb60",
+     "key": "explain/ej_f70edc57de6d4bfd9005b69c073ee162/889b40ba6bfb64ee.png",
+     "compiledHash": "ad3ad29dd5be1a60b6857f92aea9941489d991584f3a12d73c23f59472ae4993",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "e1-light",
+     "aliases": [],
+     "stateHash": "6b3c0cf49da0f88a778e979cc9117dbb618a70c8735cb5b2fddd9a91882acc0d",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "c1x": 5,
+      "c1y": 6.5,
+      "c2x": 5,
+      "c2y": 1
+     },
+     "bundleHash": "44105c8b61f6ecf3a5cbf01ed8f6ae12ef19a7915a5e896eed79c4b9cd0d5d51",
+     "seed": 0,
+     "events": [
+      {
+       "type": "input",
+       "input": "c1x",
+       "value": 10
+      },
+      {
+       "type": "input",
+       "input": "c1y",
+       "value": 7
+      },
+      {
+       "type": "input",
+       "input": "c2x",
+       "value": 10
+      },
+      {
+       "type": "input",
+       "input": "c2y",
+       "value": 7
+      }
+     ],
+     "trace": {
+      "inputs": {
+       "c1x": 10,
+       "c1y": 7,
+       "c2x": 10,
+       "c2y": 7
+      },
+      "time": 0,
+      "quantities": {
+       "sse": 585.78,
+       "rounds": 0,
+       "converged": 0
+      },
+      "metrics": {
+       "ms": 9.1
+      },
+      "seed": 0,
+      "events": [
+       {
+        "type": "input",
+        "input": "c1x",
+        "value": 10
+       },
+       {
+        "type": "input",
+        "input": "c1y",
+        "value": 7
+       },
+       {
+        "type": "input",
+        "input": "c2x",
+        "value": 10
+       },
+       {
+        "type": "input",
+        "input": "c2y",
+        "value": 7
+       }
+      ],
+      "stateHash": "81c5133bcdb45c5de835a91553ce6170d5c615678f49ae8d01d7bbe33bb02a44",
+      "state": {
+       "start": [
+        [
+         10,
+         7
+        ],
+        [
+         10,
+         7
+        ]
+       ],
+       "c": [
+        [
+         10,
+         7
+        ],
+        [
+         10,
+         7
+        ]
+       ],
+       "trail": [
+        [
+         [
+          10,
+          7
+         ]
+        ],
+        [
+         [
+          10,
+          7
+         ]
+        ]
+       ],
+       "a": null,
+       "rounds": 0,
+       "done": false,
+       "msg": "Press Assign: each point joins its nearest centroid."
+      }
+     },
+     "sha256": "8b8988eace7df4709bc82ddbaa58c37d16767f5bb5a2ea7787f16a20bfc003c1",
+     "key": "explain/ej_f70edc57de6d4bfd9005b69c073ee162/6b3c0cf49da0f88a.png",
+     "compiledHash": "ad3ad29dd5be1a60b6857f92aea9941489d991584f3a12d73c23f59472ae4993",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "e2-light",
+     "aliases": [],
+     "stateHash": "a9d5de0b1f9f8cc4987fbd9a86e927343962341c1ac39b5ab38f91fdef7a4662",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "c1x": 5,
+      "c1y": 6.5,
+      "c2x": 5,
+      "c2y": 1
+     },
+     "bundleHash": "44105c8b61f6ecf3a5cbf01ed8f6ae12ef19a7915a5e896eed79c4b9cd0d5d51",
+     "seed": 0,
+     "events": [
+      {
+       "type": "action",
+       "action": "assign"
+      },
+      {
+       "type": "reset"
+      }
+     ],
+     "trace": {
+      "inputs": {
+       "c1x": 5,
+       "c1y": 6.5,
+       "c2x": 5,
+       "c2y": 1
+      },
+      "time": 0,
+      "quantities": {
+       "sse": 128.38,
+       "rounds": 0,
+       "converged": 0
+      },
+      "metrics": {
+       "ms": 7.7
+      },
+      "seed": 0,
+      "events": [
+       {
+        "type": "action",
+        "action": "assign"
+       },
+       {
+        "type": "reset"
+       }
+      ],
+      "stateHash": "72a9b52b89c0450672ba0f18b2d4aee72a1f25a87687ffd6d5ecdcfa2b4f5fae",
+      "state": {
+       "start": [
+        [
+         5,
+         6.5
+        ],
+        [
+         5,
+         1
+        ]
+       ],
+       "c": [
+        [
+         5,
+         6.5
+        ],
+        [
+         5,
+         1
+        ]
+       ],
+       "trail": [
+        [
+         [
+          5,
+          6.5
+         ]
+        ],
+        [
+         [
+          5,
+          1
+         ]
+        ]
+       ],
+       "a": null,
+       "rounds": 0,
+       "done": false,
+       "msg": "Press Assign: each point joins its nearest centroid."
+      }
+     },
+     "sha256": "00c8c8e5f4f06876ae4d4d64c6aebe935ca955d7b364d33fe583fe3d1d79f636",
+     "key": "explain/ej_f70edc57de6d4bfd9005b69c073ee162/a9d5de0b1f9f8cc4.png",
+     "compiledHash": "ad3ad29dd5be1a60b6857f92aea9941489d991584f3a12d73c23f59472ae4993",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "e3-light",
+     "aliases": [],
+     "stateHash": "5a58def4ff755decf751d2e53cb1aa0bf8c124c07cf81bfe1f5b0245898d1956",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "c1x": 5,
+      "c1y": 6.5,
+      "c2x": 5,
+      "c2y": 1
+     },
+     "bundleHash": "44105c8b61f6ecf3a5cbf01ed8f6ae12ef19a7915a5e896eed79c4b9cd0d5d51",
+     "seed": 0,
+     "events": [
+      {
+       "type": "action",
+       "action": "assign"
+      },
+      {
+       "type": "action",
+       "action": "update"
+      }
+     ],
+     "trace": {
+      "inputs": {
+       "c1x": 5,
+       "c1y": 6.5,
+       "c2x": 5,
+       "c2y": 1
+      },
+      "time": 0,
+      "quantities": {
+       "sse": 110.73,
+       "rounds": 1,
+       "converged": 0
+      },
+      "metrics": {
+       "ms": 9.3
+      },
+      "seed": 0,
+      "events": [
+       {
+        "type": "action",
+        "action": "assign"
+       },
+       {
+        "type": "action",
+        "action": "update"
+       }
+      ],
+      "stateHash": "addc6cf31b7267b7bb54b6fc67e11bad483763adff837af4ba1ca23cc7b2e606",
+      "state": {
+       "start": [
+        [
+         5,
+         6.5
+        ],
+        [
+         5,
+         1
+        ]
+       ],
+       "c": [
+        [
+         5,
+         5.083333333333333
+        ],
+        [
+         4.983333333333333,
+         1.9666666666666668
+        ]
+       ],
+       "trail": [
+        [
+         [
+          5,
+          6.5
+         ],
+         [
+          5,
+          5.083333333333333
+         ]
+        ],
+        [
+         [
+          5,
+          1
+         ],
+         [
+          4.983333333333333,
+          1.9666666666666668
+         ]
+        ]
+       ],
+       "a": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+       ],
+       "rounds": 1,
+       "done": false,
+       "msg": "Each centroid moved to the average of its points. Press Assign again."
+      }
+     },
+     "sha256": "26d4178f4954659d1f4b784fea599c3fb4d5a916103aa3da97cb7ad0cf0f0639",
+     "key": "explain/ej_f70edc57de6d4bfd9005b69c073ee162/5a58def4ff755dec.png",
+     "compiledHash": "ad3ad29dd5be1a60b6857f92aea9941489d991584f3a12d73c23f59472ae4993",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "e4-light",
+     "aliases": [],
+     "stateHash": "96246ba3062f59731bfef9760dac285ff1c47712b361f743fcd9003e7447fb8b",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "c1x": 5,
+      "c1y": 6.5,
+      "c2x": 5,
+      "c2y": 1
+     },
+     "bundleHash": "44105c8b61f6ecf3a5cbf01ed8f6ae12ef19a7915a5e896eed79c4b9cd0d5d51",
+     "seed": 0,
+     "events": [
+      {
+       "type": "action",
+       "action": "assign"
+      },
+      {
+       "type": "action",
+       "action": "reset"
+      }
+     ],
+     "trace": {
+      "inputs": {
+       "c1x": 5,
+       "c1y": 6.5,
+       "c2x": 5,
+       "c2y": 1
+      },
+      "time": 0,
+      "quantities": {
+       "sse": 128.38,
+       "rounds": 0,
+       "converged": 0
+      },
+      "metrics": {
+       "ms": 8.1
+      },
+      "seed": 0,
+      "events": [
+       {
+        "type": "action",
+        "action": "assign"
+       },
+       {
+        "type": "action",
+        "action": "reset"
+       }
+      ],
+      "stateHash": "72a9b52b89c0450672ba0f18b2d4aee72a1f25a87687ffd6d5ecdcfa2b4f5fae",
+      "state": {
+       "start": [
+        [
+         5,
+         6.5
+        ],
+        [
+         5,
+         1
+        ]
+       ],
+       "c": [
+        [
+         5,
+         6.5
+        ],
+        [
+         5,
+         1
+        ]
+       ],
+       "trail": [
+        [
+         [
+          5,
+          6.5
+         ]
+        ],
+        [
+         [
+          5,
+          1
+         ]
+        ]
+       ],
+       "a": null,
+       "rounds": 0,
+       "done": false,
+       "msg": "Press Assign: each point joins its nearest centroid."
+      }
+     },
+     "sha256": "00c8c8e5f4f06876ae4d4d64c6aebe935ca955d7b364d33fe583fe3d1d79f636",
+     "key": "explain/ej_f70edc57de6d4bfd9005b69c073ee162/96246ba3062f5973.png",
+     "compiledHash": "ad3ad29dd5be1a60b6857f92aea9941489d991584f3a12d73c23f59472ae4993",
+     "mediaType": "image/png"
+    }
+   ],
+   "counts": {
+    "brief": 1,
+    "author": 1,
+    "review": 2,
+    "repair": 2
+   },
+   "timing": {
+    "requestClass": "simple",
+    "cache": null,
+    "marks": {
+     "submitted": 1794106005500,
+     "firstFeedback": 1794106005598,
+     "proposalReady": 1794106016609,
+     "generate": 1794106017927,
+     "result": 1794106195988
+    },
+    "stages": [
+     {
+      "stage": "preparing",
+      "startedAt": 1794106005598,
+      "endedAt": 1794106016609,
+      "calls": 1,
+      "inputTokens": 424,
+      "outputTokens": 831,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "awaiting_approval",
+      "startedAt": 1794106016609,
+      "endedAt": 1794106017927,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": null
+     },
+     {
+      "stage": "authoring",
+      "startedAt": 1794106017927,
+      "endedAt": 1794106064380,
+      "calls": 1,
+      "inputTokens": 8718,
+      "outputTokens": 5001,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "startedAt": 1794106064380,
+      "endedAt": 1794106064395,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "rejected"
+     },
+     {
+      "stage": "repairing",
+      "startedAt": 1794106064395,
+      "endedAt": 1794106096721,
+      "calls": 1,
+      "inputTokens": 5012,
+      "outputTokens": 4272,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "startedAt": 1794106096721,
+      "endedAt": 1794106096858,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "startedAt": 1794106096858,
+      "endedAt": 1794106105418,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 6,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "startedAt": 1794106105418,
+      "endedAt": 1794106128102,
+      "calls": 1,
+      "inputTokens": 11286,
+      "outputTokens": 1945,
+      "images": 6,
+      "captures": 0,
+      "outcome": "rejected"
+     },
+     {
+      "stage": "repairing",
+      "startedAt": 1794106128102,
+      "endedAt": 1794106164356,
+      "calls": 1,
+      "inputTokens": 5842,
+      "outputTokens": 4706,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "startedAt": 1794106164356,
+      "endedAt": 1794106164375,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "startedAt": 1794106164375,
+      "endedAt": 1794106174809,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 6,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "startedAt": 1794106174809,
+      "endedAt": 1794106195988,
+      "calls": 1,
+      "inputTokens": 11739,
+      "outputTokens": 1966,
+      "images": 6,
+      "captures": 0,
+      "outcome": "accepted"
+     }
+    ]
+   }
+  }
+ }
+}

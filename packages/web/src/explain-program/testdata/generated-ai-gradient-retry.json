@@ -1,0 +1,1496 @@
+{
+ "schema": 1,
+ "case": "gradient",
+ "attempt": 3,
+ "prompt": "Show gradient descent from w = 3 on L(w) = w²/2. Let me choose learning rates 0.2, 0.8, 1.2 and 2.1 and inspect steps 0 through 8. Show convergence, shrinking overshoots and divergence with all points visible.",
+ "path": "The dev clone's composer with the learner's own words (no slash command): the chat router classified the line, then the brief's Generate. No fixture was seeded or copied; the author, review and repair ran on the real backend.",
+ "routing": {
+  "recordedInBrowser": [
+   {
+    "status": 200,
+    "body": {
+     "route": "capability:explain",
+     "via": "jev",
+     "capability": "explain",
+     "flow": "direct",
+     "confidence": 0.57,
+     "probability": 0.6,
+     "code": null,
+     "message": null,
+     "meta": {
+      "protocol": "chat-route-c1",
+      "model": "jev-1.13.0",
+      "ms": 400,
+      "input_tokens": 1031,
+      "cost": null,
+      "transport": "direct"
+     }
+    }
+   }
+  ],
+  "replayedExplicit": {
+   "route": "capability:explain",
+   "via": "command",
+   "capability": "explain",
+   "flow": "direct",
+   "code": null,
+   "message": null,
+   "confidence": null,
+   "probability": null
+  },
+  "replayedPlainWords": {
+   "route": "clarify",
+   "via": "jev",
+   "capability": null,
+   "flow": null,
+   "code": null,
+   "message": null,
+   "confidence": 0.56,
+   "probability": 0.59
+  },
+  "note": "Plain words went through the chat router (JEV classifier, transport direct); recordedInBrowser is the router response the page received. The replays were made later against the same dev clone."
+ },
+ "environment": {
+  "clone": "rabbit-hole-web-dev-tc-s7d2",
+  "deployedCommit": "6a0e43cfda0e672377e192799885c421c243ae05",
+  "startedAt": "2026-11-08T02:51:50.481Z"
+ },
+ "job": {
+  "jobId": "ej_a0f0cafe9a8b4c83a99ffe2d49b7fa33",
+  "boardId": "8b7e3448-cc7f-46fa-adf4-35193269ba10",
+  "resultId": "er_6d7803e10b0b416ea5245b48427190c3",
+  "outcome": "card",
+  "stage": "ready",
+  "stopReason": "accepted",
+  "round": 1,
+  "failure": null,
+  "totalMs": 142043,
+  "calls": [
+   {
+    "role": "brief",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.0311,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "author",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.1075,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "review",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.059,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "repair",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.102,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "review",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.0624,
+    "ms": null,
+    "status": "settled"
+   }
+  ],
+  "costUsd": 0.362
+ },
+ "brief": "Review explanation\n\nGradient descent on L(w) = w²/2 with four learning rates\n\ninteractive\nShow gradient descent from w = 3 on L(w) = w²/2. Let me choose learning rates 0.2, 0.8, 1.2 and 2.1 and inspect steps 0 through 8. Show convergence, shrinking overshoots and divergence with all points visible.\n\nPresentation\nStatic\nSteps\nOver time\nExperiment\n\nYou'll see the bowl-shaped curve L(w) = w²/2 with gradient descent points starting at w = 3. Arrows connect each point to the next, and the update rule w ← (1 − η)·w is shown with the current w and loss values. When you choose a step from 0 to 8, the path grows one point at a time. The axes are sized so every point stays visible, even the far-out ones for the largest rate. Choosing a learning rate of 0.2, 0.8, 1.2 or 2.1 lets you see that each step multiplies w by 1 − η. That gives slow steady convergence, fast convergence, overshoots that switch sides and shrink, or overshoots that grow until the path diverges.\n\nASSUMPTIONS 1\nLIMITATIONS 3\nGenerate\nEdit\nCancel\nGo to card",
+ "reviewFindings": [
+  {
+   "round": 0,
+   "stage": "reviewing",
+   "accepted": false,
+   "findings": [
+    {
+     "version": 1,
+     "id": "rf1",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "major",
+     "target": {
+      "capture": "light",
+      "object": "rule"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "The update-rule formula at the top right runs past the right edge of the card, so the final w_k in '(1−η)w_k' is cut off. Move the panel left, shrink the formula or break it onto two lines."
+    },
+    {
+     "version": 1,
+     "id": "rf2",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "major",
+     "target": {
+      "capture": "a0-light",
+      "object": "rule"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "The update-rule formula is cut off at the right edge of the card: the trailing w_k is missing."
+    },
+    {
+     "version": 1,
+     "id": "rf3",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "major",
+     "target": {
+      "capture": "a1-light",
+      "object": "rule"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "The update-rule formula is cut off at the right edge of the card: the trailing w_k is missing."
+    },
+    {
+     "version": 1,
+     "id": "rf4",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "a1-light",
+      "object": "p7"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "Near w≈0.5–0.8 the late iterates sit about 6 px apart. The large current-point dot (radius 14) mostly hides the step-7 point, and the short arrows between them are hidden under the dots. The request asks for all points to be visible. Smaller dots, or an inset or zoom for small rates, would fix this."
+    },
+    {
+     "version": 1,
+     "id": "rf5",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "major",
+     "target": {
+      "capture": "a2-light",
+      "object": "rule"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "The update-rule formula is cut off at the right edge of the card: the trailing w_k is missing."
+    },
+    {
+     "version": 1,
+     "id": "rf6",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "a2-light",
+      "object": "yt10"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "The arrow from step 4 to step 5 passes just above the y-tick label '10' and nearly touches it. Moving the tick labels away from the axis line, or giving them a background, would separate them."
+    }
+   ]
+  },
+  {
+   "round": 1,
+   "stage": "reviewing",
+   "accepted": true,
+   "findings": [
+    {
+     "version": 1,
+     "id": "rf1",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "a1-light",
+      "object": "p7"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "Iterates near the minimum crowd together; the dots for steps 7 and 8 touch and the short arrowheads crowd them. Each point can still be told apart."
+    },
+    {
+     "version": 1,
+     "id": "rf2",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "a1-light"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "A faint lighter rectangle appears in the plot around the first iterate (about x 597–657, y 172–240). It looks like a drawing artifact and should be checked."
+    },
+    {
+     "version": 1,
+     "id": "rf3",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "a2-light"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "A faint lighter horizontal band appears in the plot near the third and fourth arrows (about y 205–240). It looks like a drawing artifact and should be checked."
+    }
+   ]
+  }
+ ],
+ "artifact": {
+  "kind": "explain_program",
+  "schemaVersion": 1,
+  "runtimeVersion": "quickjs-release-sync@0.32.0",
+  "sdkVersion": "sdk-2",
+  "rendererVersion": "renderer-1",
+  "runtimePolicyVersion": "policy-1",
+  "permissionProfileVersion": "perm-1",
+  "fingerprints": {
+   "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+   "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+   "renderer": "renderer-1"
+  },
+  "dependencies": [],
+  "manifest": {
+   "title": "Gradient descent on L(w) = w²/2 with four learning rates",
+   "summary": "Gradient descent starts at w = 3 on the bowl L(w) = w²/2. Because the gradient is w, each step is w ← w − ηw = (1 − η)·w. Pick a learning rate and move the step from 0 to 8 to grow the path one point at a time: 0.2 converges slowly, 0.8 converges fast without crossing, 1.2 crosses sides with shrinking overshoots, 2.1 crosses sides with growing overshoots and diverges.",
+   "assumptions": [
+    "Plain gradient descent with a fixed learning rate and exact gradient L'(w) = w; no momentum or noise.",
+    "Only steps 0 to 8 are shown. Axes span w from −3.5 to 3.5 for rates 0.2, 0.8 and 1.2, and widen to −7 to 7 for rate 2.1 so its path (|w| ≈ 6.4 at step 8) stays visible.",
+    "Iterates that converge very close to 0 (rate 0.8) can still overlap at the minimum.",
+    "One learning rate is drawn at a time."
+   ],
+   "description": "A parabola L(w) = w²/2 is drawn over w from −3.5 to 3.5 (or −7 to 7 for rate 2.1), with a loss scale on the left. Dots mark gradient descent iterates starting at w = 3, joined by arrows from each point to the next; the latest point is larger. A panel on the right shows the update rule w_{k+1} = w_k − ηw_k = (1 − η)w_k over two lines, the chosen η and factor 1 − η, the step k, the current w and loss, and whether the path converges or diverges based on whether |1 − η| is below 1.",
+   "inputs": [
+    {
+     "type": "select",
+     "id": "eta",
+     "label": "Learning rate η",
+     "default": "0.2",
+     "options": [
+      {
+       "value": "0.2",
+       "label": "0.2"
+      },
+      {
+       "value": "0.8",
+       "label": "0.8"
+      },
+      {
+       "value": "1.2",
+       "label": "1.2"
+      },
+      {
+       "value": "2.1",
+       "label": "2.1"
+      }
+     ]
+    },
+    {
+     "type": "number",
+     "id": "step",
+     "label": "Step k",
+     "default": 0,
+     "min": 0,
+     "max": 8,
+     "step": 1
+    }
+   ],
+   "readouts": [
+    {
+     "id": "w_now",
+     "label": "Current w",
+     "decimals": 3
+    },
+    {
+     "id": "loss_now",
+     "label": "Current loss L(w)",
+     "decimals": 3
+    },
+    {
+     "id": "factor",
+     "label": "Factor 1 − η",
+     "decimals": 1
+    }
+   ],
+   "capabilities": [
+    "select_inputs",
+    "number_inputs",
+    "polyline",
+    "math_text"
+   ]
+  },
+  "source": "const X0 = 60, X1 = 700, Y0 = 480, Y1 = 40;\nconst L = (w) => w * w / 2;\n\nexport function evaluate({ inputs }) {\n  const eta = parseFloat(inputs.eta);\n  const k = Math.round(sdk.clamp(inputs.step, 0, 8));\n  const f = 1 - eta;\n  const big = eta > 2;\n  const wMax = big ? 7 : 3.5;\n  const lMax = big ? 23 : 6.5;\n  const X = sdk.linear([-wMax, wMax], [X0, X1]);\n  const Y = sdk.linear([0, lMax], [Y0, Y1]);\n  const ws = [3];\n  for (let i = 1; i <= k; i++) ws.push(ws[i - 1] * f);\n  const w = ws[k];\n  const loss = L(w);\n  const o = [];\n  o.push(sdk.line('xaxis', X0, Y0, X1, Y0, { role: 'neutral' }));\n  o.push(sdk.line('yaxis', X(0), Y0, X(0), Y1, { role: 'neutral', opacity: 0.4 }));\n  o.push(sdk.line('yscale', X0, Y0, X0, Y1, { role: 'neutral', opacity: 0.6 }));\n  const xt = big ? [-6, -3, 0, 3, 6] : [-3, -2, -1, 0, 1, 2, 3];\n  xt.forEach((t) => o.push(sdk.text('xt' + (t + 6), X(t), Y0 + 20, String(t), { align: 'middle' })));\n  const yt = big ? [10, 20] : [2, 4, 6];\n  yt.forEach((t) => {\n    o.push(sdk.line('ytk' + t, X0 - 5, Y(t), X0, Y(t), { role: 'neutral' }));\n    o.push(sdk.text('yt' + t, X0 - 22, Y(t) + 4, String(t), { align: 'middle' }));\n  });\n  o.push(sdk.text('xlab', X1 - 10, Y0 + 44, 'w', { align: 'middle' }));\n  o.push(sdk.math('ylab', X(0) + 14, Y1 + 4, 'L(w)=\\\\tfrac{w^2}{2}'));\n  const span = wMax - (big ? 0.3 : 0.1);\n  o.push(sdk.polyline('curve', sdk.sample(L, -span, span, 120).map(([a, b]) => [X(a), Y(b)]), { role: 'neutral' }));\n  for (let i = 0; i < k; i++) {\n    const x1 = X(ws[i]), y1 = Y(L(ws[i])), x2 = X(ws[i + 1]), y2 = Y(L(ws[i + 1]));\n    if (Math.hypot(x2 - x1, y2 - y1) > 3) o.push(sdk.arrow('a' + i, x1, y1, x2, y2, { role: 'learner', opacity: 0.8 }));\n  }\n  for (let i = 0; i <= k; i++) {\n    const cur = i === k;\n    o.push(sdk.circle('p' + i, X(ws[i]), Y(L(ws[i])), cur ? 11 : 7, { role: cur ? 'output' : 'learner' }));\n  }\n  const px = 730;\n  o.push(sdk.math('rule', px, 60, 'w_{k+1} = w_k - \\\\eta\\\\,w_k'));\n  o.push(sdk.math('rule2', px + 30, 95, '= (1-\\\\eta)\\\\,w_k'));\n  o.push(sdk.math('etat', px, 140, '\\\\eta = ' + sdk.format(eta, 1) + ',\\\\; 1-\\\\eta = ' + sdk.format(f, 1)));\n  o.push(sdk.math('kt', px, 180, 'k = ' + k));\n  o.push(sdk.math('wt', px, 220, 'w_{' + k + '} = ' + sdk.format(w, 3)));\n  o.push(sdk.math('lt', px, 260, 'L(w_{' + k + '}) = ' + sdk.format(loss, 3)));\n  let reg, role;\n  if (eta < 1 && eta <= 0.5) { reg = 'Slow steady convergence'; role = 'success'; }\n  else if (eta < 1) { reg = 'Fast convergence, same side'; role = 'success'; }\n  else if (eta < 2) { reg = 'Overshoots shrink: converges'; role = 'prediction'; }\n  else { reg = 'Overshoots grow: diverges'; role = 'warning'; }\n  o.push(sdk.text('regime', px, 310, reg, { role }));\n  o.push(sdk.math('ratio', px, 350, '|1-\\\\eta| = ' + sdk.format(Math.abs(f), 1) + (Math.abs(f) < 1 ? ' < 1' : ' > 1')));\n  return {\n    frame: sdk.frame(o, { width: 960, height: 540, readouts: [{ id: 'w_now', value: w }, { id: 'loss_now', value: loss }, { id: 'factor', value: f }] }),\n    quantities: { w_now: w, loss_now: loss, factor: f, eta, k }\n  };\n}\n",
+  "sourceHash": "120b6358953e45c63938fa137d8cddb5383c17f478b2d394841caa4c41a51ce5",
+  "manifestHash": "31180d432f7ac3fedaa089732894f2533c644d05095787b592b1a82b32773469",
+  "bundleHash": "c953f2159f3a990d5933ff76ee3a4bee4fbde5b616c81a56d87211c3bb79a0ae"
+ },
+ "rejectedCandidate": null,
+ "stamps": {
+  "sdkVersion": "sdk-2",
+  "rendererVersion": "renderer-1",
+  "schemaVersion": 1,
+  "capabilities": [
+   "select_inputs",
+   "number_inputs",
+   "polyline",
+   "math_text"
+  ],
+  "bundleHash": "c953f2159f3a990d5933ff76ee3a4bee4fbde5b616c81a56d87211c3bb79a0ae"
+ },
+ "rawJobDetail": {
+  "job": {
+   "id": "ej_a0f0cafe9a8b4c83a99ffe2d49b7fa33",
+   "version": 1,
+   "boardId": "8b7e3448-cc7f-46fa-adf4-35193269ba10",
+   "cardId": "1163334a-c179-4844-ad5d-2d9f73536d45",
+   "requestClass": "simple",
+   "stage": "ready",
+   "attempt": 1,
+   "terminal": true,
+   "round": 1,
+   "stopReason": "accepted",
+   "failure": null,
+   "recovery": [],
+   "usage": {
+    "credits": 37,
+    "unknown": false
+   },
+   "result": {
+    "jobId": "ej_a0f0cafe9a8b4c83a99ffe2d49b7fa33",
+    "resultId": "er_6d7803e10b0b416ea5245b48427190c3",
+    "cardId": "1163334a-c179-4844-ad5d-2d9f73536d45",
+    "canvas": {
+     "boardId": "8b7e3448-cc7f-46fa-adf4-35193269ba10"
+    },
+    "promptRef": "eef079fa7ce8ab52",
+    "revision": "xr_e37039d42c824c91aefcb4c7615b66c8",
+    "baseRevision": null,
+    "kind": "program",
+    "bundleHash": "c953f2159f3a990d5933ff76ee3a4bee4fbde5b616c81a56d87211c3bb79a0ae",
+    "sourceHash": "120b6358953e45c63938fa137d8cddb5383c17f478b2d394841caa4c41a51ce5",
+    "manifestHash": "31180d432f7ac3fedaa089732894f2533c644d05095787b592b1a82b32773469",
+    "versions": {
+     "schema": 1,
+     "runtime": "quickjs-release-sync@0.32.0",
+     "sdk": "sdk-2",
+     "renderer": "renderer-1"
+    },
+    "policyVersion": 1,
+    "program": {
+     "kind": "explain_program",
+     "schemaVersion": 1,
+     "runtimeVersion": "quickjs-release-sync@0.32.0",
+     "sdkVersion": "sdk-2",
+     "rendererVersion": "renderer-1",
+     "runtimePolicyVersion": "policy-1",
+     "permissionProfileVersion": "perm-1",
+     "fingerprints": {
+      "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+      "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+      "renderer": "renderer-1"
+     },
+     "dependencies": [],
+     "manifest": {
+      "title": "Gradient descent on L(w) = w²/2 with four learning rates",
+      "summary": "Gradient descent starts at w = 3 on the bowl L(w) = w²/2. Because the gradient is w, each step is w ← w − ηw = (1 − η)·w. Pick a learning rate and move the step from 0 to 8 to grow the path one point at a time: 0.2 converges slowly, 0.8 converges fast without crossing, 1.2 crosses sides with shrinking overshoots, 2.1 crosses sides with growing overshoots and diverges.",
+      "assumptions": [
+       "Plain gradient descent with a fixed learning rate and exact gradient L'(w) = w; no momentum or noise.",
+       "Only steps 0 to 8 are shown. Axes span w from −3.5 to 3.5 for rates 0.2, 0.8 and 1.2, and widen to −7 to 7 for rate 2.1 so its path (|w| ≈ 6.4 at step 8) stays visible.",
+       "Iterates that converge very close to 0 (rate 0.8) can still overlap at the minimum.",
+       "One learning rate is drawn at a time."
+      ],
+      "description": "A parabola L(w) = w²/2 is drawn over w from −3.5 to 3.5 (or −7 to 7 for rate 2.1), with a loss scale on the left. Dots mark gradient descent iterates starting at w = 3, joined by arrows from each point to the next; the latest point is larger. A panel on the right shows the update rule w_{k+1} = w_k − ηw_k = (1 − η)w_k over two lines, the chosen η and factor 1 − η, the step k, the current w and loss, and whether the path converges or diverges based on whether |1 − η| is below 1.",
+      "inputs": [
+       {
+        "type": "select",
+        "id": "eta",
+        "label": "Learning rate η",
+        "default": "0.2",
+        "options": [
+         {
+          "value": "0.2",
+          "label": "0.2"
+         },
+         {
+          "value": "0.8",
+          "label": "0.8"
+         },
+         {
+          "value": "1.2",
+          "label": "1.2"
+         },
+         {
+          "value": "2.1",
+          "label": "2.1"
+         }
+        ]
+       },
+       {
+        "type": "number",
+        "id": "step",
+        "label": "Step k",
+        "default": 0,
+        "min": 0,
+        "max": 8,
+        "step": 1
+       }
+      ],
+      "readouts": [
+       {
+        "id": "w_now",
+        "label": "Current w",
+        "decimals": 3
+       },
+       {
+        "id": "loss_now",
+        "label": "Current loss L(w)",
+        "decimals": 3
+       },
+       {
+        "id": "factor",
+        "label": "Factor 1 − η",
+        "decimals": 1
+       }
+      ],
+      "capabilities": [
+       "select_inputs",
+       "number_inputs",
+       "polyline",
+       "math_text"
+      ]
+     },
+     "source": "const X0 = 60, X1 = 700, Y0 = 480, Y1 = 40;\nconst L = (w) => w * w / 2;\n\nexport function evaluate({ inputs }) {\n  const eta = parseFloat(inputs.eta);\n  const k = Math.round(sdk.clamp(inputs.step, 0, 8));\n  const f = 1 - eta;\n  const big = eta > 2;\n  const wMax = big ? 7 : 3.5;\n  const lMax = big ? 23 : 6.5;\n  const X = sdk.linear([-wMax, wMax], [X0, X1]);\n  const Y = sdk.linear([0, lMax], [Y0, Y1]);\n  const ws = [3];\n  for (let i = 1; i <= k; i++) ws.push(ws[i - 1] * f);\n  const w = ws[k];\n  const loss = L(w);\n  const o = [];\n  o.push(sdk.line('xaxis', X0, Y0, X1, Y0, { role: 'neutral' }));\n  o.push(sdk.line('yaxis', X(0), Y0, X(0), Y1, { role: 'neutral', opacity: 0.4 }));\n  o.push(sdk.line('yscale', X0, Y0, X0, Y1, { role: 'neutral', opacity: 0.6 }));\n  const xt = big ? [-6, -3, 0, 3, 6] : [-3, -2, -1, 0, 1, 2, 3];\n  xt.forEach((t) => o.push(sdk.text('xt' + (t + 6), X(t), Y0 + 20, String(t), { align: 'middle' })));\n  const yt = big ? [10, 20] : [2, 4, 6];\n  yt.forEach((t) => {\n    o.push(sdk.line('ytk' + t, X0 - 5, Y(t), X0, Y(t), { role: 'neutral' }));\n    o.push(sdk.text('yt' + t, X0 - 22, Y(t) + 4, String(t), { align: 'middle' }));\n  });\n  o.push(sdk.text('xlab', X1 - 10, Y0 + 44, 'w', { align: 'middle' }));\n  o.push(sdk.math('ylab', X(0) + 14, Y1 + 4, 'L(w)=\\\\tfrac{w^2}{2}'));\n  const span = wMax - (big ? 0.3 : 0.1);\n  o.push(sdk.polyline('curve', sdk.sample(L, -span, span, 120).map(([a, b]) => [X(a), Y(b)]), { role: 'neutral' }));\n  for (let i = 0; i < k; i++) {\n    const x1 = X(ws[i]), y1 = Y(L(ws[i])), x2 = X(ws[i + 1]), y2 = Y(L(ws[i + 1]));\n    if (Math.hypot(x2 - x1, y2 - y1) > 3) o.push(sdk.arrow('a' + i, x1, y1, x2, y2, { role: 'learner', opacity: 0.8 }));\n  }\n  for (let i = 0; i <= k; i++) {\n    const cur = i === k;\n    o.push(sdk.circle('p' + i, X(ws[i]), Y(L(ws[i])), cur ? 11 : 7, { role: cur ? 'output' : 'learner' }));\n  }\n  const px = 730;\n  o.push(sdk.math('rule', px, 60, 'w_{k+1} = w_k - \\\\eta\\\\,w_k'));\n  o.push(sdk.math('rule2', px + 30, 95, '= (1-\\\\eta)\\\\,w_k'));\n  o.push(sdk.math('etat', px, 140, '\\\\eta = ' + sdk.format(eta, 1) + ',\\\\; 1-\\\\eta = ' + sdk.format(f, 1)));\n  o.push(sdk.math('kt', px, 180, 'k = ' + k));\n  o.push(sdk.math('wt', px, 220, 'w_{' + k + '} = ' + sdk.format(w, 3)));\n  o.push(sdk.math('lt', px, 260, 'L(w_{' + k + '}) = ' + sdk.format(loss, 3)));\n  let reg, role;\n  if (eta < 1 && eta <= 0.5) { reg = 'Slow steady convergence'; role = 'success'; }\n  else if (eta < 1) { reg = 'Fast convergence, same side'; role = 'success'; }\n  else if (eta < 2) { reg = 'Overshoots shrink: converges'; role = 'prediction'; }\n  else { reg = 'Overshoots grow: diverges'; role = 'warning'; }\n  o.push(sdk.text('regime', px, 310, reg, { role }));\n  o.push(sdk.math('ratio', px, 350, '|1-\\\\eta| = ' + sdk.format(Math.abs(f), 1) + (Math.abs(f) < 1 ? ' < 1' : ' > 1')));\n  return {\n    frame: sdk.frame(o, { width: 960, height: 540, readouts: [{ id: 'w_now', value: w }, { id: 'loss_now', value: loss }, { id: 'factor', value: f }] }),\n    quantities: { w_now: w, loss_now: loss, factor: f, eta, k }\n  };\n}\n",
+     "sourceHash": "120b6358953e45c63938fa137d8cddb5383c17f478b2d394841caa4c41a51ce5",
+     "manifestHash": "31180d432f7ac3fedaa089732894f2533c644d05095787b592b1a82b32773469",
+     "bundleHash": "c953f2159f3a990d5933ff76ee3a4bee4fbde5b616c81a56d87211c3bb79a0ae"
+    },
+    "execution": {
+     "allowed": true
+    }
+   },
+   "brief": {
+    "version": 1,
+    "title": "Gradient descent on L(w) = w²/2 with four learning rates",
+    "summary": "You'll see the bowl-shaped curve L(w) = w²/2 with gradient descent points starting at w = 3. Arrows connect each point to the next, and the update rule w ← (1 − η)·w is shown with the current w and loss values. When you choose a step from 0 to 8, the path grows one point at a time. The axes are sized so every point stays visible, even the far-out ones for the largest rate. Choosing a learning rate of 0.2, 0.8, 1.2 or 2.1 lets you see that each step multiplies w by 1 − η. That gives slow steady convergence, fast convergence, overshoots that switch sides and shrink, or overshoots that grow until the path diverges.",
+    "assumptions": [
+     "Plain gradient descent with a fixed learning rate and exact gradient L'(w) = w, with no momentum or noise."
+    ],
+    "presentation": "experiment",
+    "components": [],
+    "evidenceIds": [],
+    "limitations": [
+     "With rate 0.8 the factor is 0.2, so it converges quickly without overshooting. The shrinking overshoots come from rate 1.2.",
+     "Only steps 0 to 8 are shown. With rate 2.1, w reaches about 6.4 by step 8, so the axes are wide and early steps for small rates look tightly bunched.",
+     "Only one rate is drawn at a time, not all four side by side."
+    ],
+    "ambiguous": false,
+    "expanded": false
+   },
+   "briefHash": "067ef48b9140bec289ceb56249c110765013db6352e15d24085dba5697cc4401",
+   "timing": {
+    "requestClass": "simple",
+    "cache": null,
+    "firstFeedbackMs": 82,
+    "proposalMs": 12502,
+    "generateToResultMs": 118409,
+    "processingMs": 130829,
+    "approvalWaitMs": 1617,
+    "calls": 5,
+    "repairs": 1,
+    "stages": [
+     {
+      "stage": "preparing",
+      "ms": 12420,
+      "calls": 1,
+      "inputTokens": 473,
+      "outputTokens": 998,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "awaiting_approval",
+      "ms": 1617,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": null
+     },
+     {
+      "stage": "authoring",
+      "ms": 31916,
+      "calls": 1,
+      "inputTokens": 8938,
+      "outputTokens": 3511,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "ms": 50,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "ms": 7485,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 4,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "ms": 15171,
+      "calls": 1,
+      "inputTokens": 6607,
+      "outputTokens": 1266,
+      "images": 4,
+      "captures": 0,
+      "outcome": "rejected"
+     },
+     {
+      "stage": "repairing",
+      "ms": 36040,
+      "calls": 1,
+      "inputTokens": 4197,
+      "outputTokens": 4241,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "ms": 58,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "ms": 7040,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 4,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "ms": 20649,
+      "calls": 1,
+      "inputTokens": 7077,
+      "outputTokens": 1690,
+      "images": 4,
+      "captures": 0,
+      "outcome": "accepted"
+     }
+    ]
+   },
+   "createdAt": 1794106319568,
+   "updatedAt": 1794106452096
+  },
+  "block": {
+   "type": "animation",
+   "id": "1163334a-c179-4844-ad5d-2d9f73536d45",
+   "title": "Gradient descent on L(w) = w²/2 with four learning rates",
+   "program": {
+    "kind": "explain_program",
+    "resultId": "er_6d7803e10b0b416ea5245b48427190c3",
+    "bundleHash": "c953f2159f3a990d5933ff76ee3a4bee4fbde5b616c81a56d87211c3bb79a0ae"
+   },
+   "explain": {
+    "jobId": "ej_a0f0cafe9a8b4c83a99ffe2d49b7fa33",
+    "resultId": "er_6d7803e10b0b416ea5245b48427190c3",
+    "cardId": "1163334a-c179-4844-ad5d-2d9f73536d45",
+    "canvas": {
+     "boardId": "8b7e3448-cc7f-46fa-adf4-35193269ba10"
+    },
+    "promptRef": "eef079fa7ce8ab52",
+    "revision": "xr_e37039d42c824c91aefcb4c7615b66c8",
+    "baseRevision": null,
+    "kind": "program",
+    "bundleHash": "c953f2159f3a990d5933ff76ee3a4bee4fbde5b616c81a56d87211c3bb79a0ae",
+    "sourceHash": "120b6358953e45c63938fa137d8cddb5383c17f478b2d394841caa4c41a51ce5",
+    "manifestHash": "31180d432f7ac3fedaa089732894f2533c644d05095787b592b1a82b32773469",
+    "versions": {
+     "schema": 1,
+     "runtime": "quickjs-release-sync@0.32.0",
+     "sdk": "sdk-2",
+     "renderer": "renderer-1"
+    },
+    "policyVersion": 1
+   }
+  },
+  "diagnostics": {
+   "spec": null,
+   "program": {
+    "source": "const X0 = 60, X1 = 700, Y0 = 480, Y1 = 40;\nconst L = (w) => w * w / 2;\n\nexport function evaluate({ inputs }) {\n  const eta = parseFloat(inputs.eta);\n  const k = Math.round(sdk.clamp(inputs.step, 0, 8));\n  const f = 1 - eta;\n  const big = eta > 2;\n  const wMax = big ? 7 : 3.5;\n  const lMax = big ? 23 : 6.5;\n  const X = sdk.linear([-wMax, wMax], [X0, X1]);\n  const Y = sdk.linear([0, lMax], [Y0, Y1]);\n  const ws = [3];\n  for (let i = 1; i <= k; i++) ws.push(ws[i - 1] * f);\n  const w = ws[k];\n  const loss = L(w);\n  const o = [];\n  o.push(sdk.line('xaxis', X0, Y0, X1, Y0, { role: 'neutral' }));\n  o.push(sdk.line('yaxis', X(0), Y0, X(0), Y1, { role: 'neutral', opacity: 0.4 }));\n  o.push(sdk.line('yscale', X0, Y0, X0, Y1, { role: 'neutral', opacity: 0.6 }));\n  const xt = big ? [-6, -3, 0, 3, 6] : [-3, -2, -1, 0, 1, 2, 3];\n  xt.forEach((t) => o.push(sdk.text('xt' + (t + 6), X(t), Y0 + 20, String(t), { align: 'middle' })));\n  const yt = big ? [10, 20] : [2, 4, 6];\n  yt.forEach((t) => {\n    o.push(sdk.line('ytk' + t, X0 - 5, Y(t), X0, Y(t), { role: 'neutral' }));\n    o.push(sdk.text('yt' + t, X0 - 22, Y(t) + 4, String(t), { align: 'middle' }));\n  });\n  o.push(sdk.text('xlab', X1 - 10, Y0 + 44, 'w', { align: 'middle' }));\n  o.push(sdk.math('ylab', X(0) + 14, Y1 + 4, 'L(w)=\\\\tfrac{w^2}{2}'));\n  const span = wMax - (big ? 0.3 : 0.1);\n  o.push(sdk.polyline('curve', sdk.sample(L, -span, span, 120).map(([a, b]) => [X(a), Y(b)]), { role: 'neutral' }));\n  for (let i = 0; i < k; i++) {\n    const x1 = X(ws[i]), y1 = Y(L(ws[i])), x2 = X(ws[i + 1]), y2 = Y(L(ws[i + 1]));\n    if (Math.hypot(x2 - x1, y2 - y1) > 3) o.push(sdk.arrow('a' + i, x1, y1, x2, y2, { role: 'learner', opacity: 0.8 }));\n  }\n  for (let i = 0; i <= k; i++) {\n    const cur = i === k;\n    o.push(sdk.circle('p' + i, X(ws[i]), Y(L(ws[i])), cur ? 11 : 7, { role: cur ? 'output' : 'learner' }));\n  }\n  const px = 730;\n  o.push(sdk.math('rule', px, 60, 'w_{k+1} = w_k - \\\\eta\\\\,w_k'));\n  o.push(sdk.math('rule2', px + 30, 95, '= (1-\\\\eta)\\\\,w_k'));\n  o.push(sdk.math('etat', px, 140, '\\\\eta = ' + sdk.format(eta, 1) + ',\\\\; 1-\\\\eta = ' + sdk.format(f, 1)));\n  o.push(sdk.math('kt', px, 180, 'k = ' + k));\n  o.push(sdk.math('wt', px, 220, 'w_{' + k + '} = ' + sdk.format(w, 3)));\n  o.push(sdk.math('lt', px, 260, 'L(w_{' + k + '}) = ' + sdk.format(loss, 3)));\n  let reg, role;\n  if (eta < 1 && eta <= 0.5) { reg = 'Slow steady convergence'; role = 'success'; }\n  else if (eta < 1) { reg = 'Fast convergence, same side'; role = 'success'; }\n  else if (eta < 2) { reg = 'Overshoots shrink: converges'; role = 'prediction'; }\n  else { reg = 'Overshoots grow: diverges'; role = 'warning'; }\n  o.push(sdk.text('regime', px, 310, reg, { role }));\n  o.push(sdk.math('ratio', px, 350, '|1-\\\\eta| = ' + sdk.format(Math.abs(f), 1) + (Math.abs(f) < 1 ? ' < 1' : ' > 1')));\n  return {\n    frame: sdk.frame(o, { width: 960, height: 540, readouts: [{ id: 'w_now', value: w }, { id: 'loss_now', value: loss }, { id: 'factor', value: f }] }),\n    quantities: { w_now: w, loss_now: loss, factor: f, eta, k }\n  };\n}\n",
+    "manifest": {
+     "title": "Gradient descent on L(w) = w²/2 with four learning rates",
+     "summary": "Gradient descent starts at w = 3 on the bowl L(w) = w²/2. Because the gradient is w, each step is w ← w − ηw = (1 − η)·w. Pick a learning rate and move the step from 0 to 8 to grow the path one point at a time: 0.2 converges slowly, 0.8 converges fast without crossing, 1.2 crosses sides with shrinking overshoots, 2.1 crosses sides with growing overshoots and diverges.",
+     "assumptions": [
+      "Plain gradient descent with a fixed learning rate and exact gradient L'(w) = w; no momentum or noise.",
+      "Only steps 0 to 8 are shown. Axes span w from −3.5 to 3.5 for rates 0.2, 0.8 and 1.2, and widen to −7 to 7 for rate 2.1 so its path (|w| ≈ 6.4 at step 8) stays visible.",
+      "Iterates that converge very close to 0 (rate 0.8) can still overlap at the minimum.",
+      "One learning rate is drawn at a time."
+     ],
+     "description": "A parabola L(w) = w²/2 is drawn over w from −3.5 to 3.5 (or −7 to 7 for rate 2.1), with a loss scale on the left. Dots mark gradient descent iterates starting at w = 3, joined by arrows from each point to the next; the latest point is larger. A panel on the right shows the update rule w_{k+1} = w_k − ηw_k = (1 − η)w_k over two lines, the chosen η and factor 1 − η, the step k, the current w and loss, and whether the path converges or diverges based on whether |1 − η| is below 1.",
+     "inputs": [
+      {
+       "type": "select",
+       "id": "eta",
+       "label": "Learning rate η",
+       "default": "0.2",
+       "options": [
+        {
+         "value": "0.2",
+         "label": "0.2"
+        },
+        {
+         "value": "0.8",
+         "label": "0.8"
+        },
+        {
+         "value": "1.2",
+         "label": "1.2"
+        },
+        {
+         "value": "2.1",
+         "label": "2.1"
+        }
+       ]
+      },
+      {
+       "type": "number",
+       "id": "step",
+       "label": "Step k",
+       "default": 0,
+       "min": 0,
+       "max": 8,
+       "step": 1
+      }
+     ],
+     "readouts": [
+      {
+       "id": "w_now",
+       "label": "Current w",
+       "decimals": 3
+      },
+      {
+       "id": "loss_now",
+       "label": "Current loss L(w)",
+       "decimals": 3
+      },
+      {
+       "id": "factor",
+       "label": "Factor 1 − η",
+       "decimals": 1
+      }
+     ],
+     "capabilities": [
+      "select_inputs",
+      "number_inputs",
+      "polyline",
+      "math_text"
+     ]
+    }
+   },
+   "artifact": {
+    "kind": "explain_program",
+    "schemaVersion": 1,
+    "runtimeVersion": "quickjs-release-sync@0.32.0",
+    "sdkVersion": "sdk-2",
+    "rendererVersion": "renderer-1",
+    "runtimePolicyVersion": "policy-1",
+    "permissionProfileVersion": "perm-1",
+    "fingerprints": {
+     "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+     "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+     "renderer": "renderer-1"
+    },
+    "dependencies": [],
+    "manifest": {
+     "title": "Gradient descent on L(w) = w²/2 with four learning rates",
+     "summary": "Gradient descent starts at w = 3 on the bowl L(w) = w²/2. Because the gradient is w, each step is w ← w − ηw = (1 − η)·w. Pick a learning rate and move the step from 0 to 8 to grow the path one point at a time: 0.2 converges slowly, 0.8 converges fast without crossing, 1.2 crosses sides with shrinking overshoots, 2.1 crosses sides with growing overshoots and diverges.",
+     "assumptions": [
+      "Plain gradient descent with a fixed learning rate and exact gradient L'(w) = w; no momentum or noise.",
+      "Only steps 0 to 8 are shown. Axes span w from −3.5 to 3.5 for rates 0.2, 0.8 and 1.2, and widen to −7 to 7 for rate 2.1 so its path (|w| ≈ 6.4 at step 8) stays visible.",
+      "Iterates that converge very close to 0 (rate 0.8) can still overlap at the minimum.",
+      "One learning rate is drawn at a time."
+     ],
+     "description": "A parabola L(w) = w²/2 is drawn over w from −3.5 to 3.5 (or −7 to 7 for rate 2.1), with a loss scale on the left. Dots mark gradient descent iterates starting at w = 3, joined by arrows from each point to the next; the latest point is larger. A panel on the right shows the update rule w_{k+1} = w_k − ηw_k = (1 − η)w_k over two lines, the chosen η and factor 1 − η, the step k, the current w and loss, and whether the path converges or diverges based on whether |1 − η| is below 1.",
+     "inputs": [
+      {
+       "type": "select",
+       "id": "eta",
+       "label": "Learning rate η",
+       "default": "0.2",
+       "options": [
+        {
+         "value": "0.2",
+         "label": "0.2"
+        },
+        {
+         "value": "0.8",
+         "label": "0.8"
+        },
+        {
+         "value": "1.2",
+         "label": "1.2"
+        },
+        {
+         "value": "2.1",
+         "label": "2.1"
+        }
+       ]
+      },
+      {
+       "type": "number",
+       "id": "step",
+       "label": "Step k",
+       "default": 0,
+       "min": 0,
+       "max": 8,
+       "step": 1
+      }
+     ],
+     "readouts": [
+      {
+       "id": "w_now",
+       "label": "Current w",
+       "decimals": 3
+      },
+      {
+       "id": "loss_now",
+       "label": "Current loss L(w)",
+       "decimals": 3
+      },
+      {
+       "id": "factor",
+       "label": "Factor 1 − η",
+       "decimals": 1
+      }
+     ],
+     "capabilities": [
+      "select_inputs",
+      "number_inputs",
+      "polyline",
+      "math_text"
+     ]
+    },
+    "sourceHash": "120b6358953e45c63938fa137d8cddb5383c17f478b2d394841caa4c41a51ce5",
+    "manifestHash": "31180d432f7ac3fedaa089732894f2533c644d05095787b592b1a82b32773469",
+    "bundleHash": "c953f2159f3a990d5933ff76ee3a4bee4fbde5b616c81a56d87211c3bb79a0ae",
+    "sourceBytes": 3068
+   },
+   "coverage": {
+    "compiledHash": "1ccb1d617715ac70ea978f619539125f7117a3fa25beb3d1fe58fa9d66c9aa55",
+    "states": 4,
+    "moments": 1,
+    "frames": 4,
+    "themes": [
+     "light"
+    ],
+    "sampled": [
+     {
+      "id": "light",
+      "label": "default",
+      "inputs": {},
+      "time": 0
+     },
+     {
+      "id": "a0-light",
+      "label": "last of eta",
+      "inputs": {
+       "eta": "2.1"
+      },
+      "time": 0
+     },
+     {
+      "id": "a1-light",
+      "label": "max of step",
+      "inputs": {
+       "step": 8
+      },
+      "time": 0
+     },
+     {
+      "id": "a2-light",
+      "label": "combined: every input at its max/last",
+      "inputs": {
+       "eta": "2.1",
+       "step": 8
+      },
+      "time": 0
+     }
+    ],
+    "omitted": []
+   },
+   "history": [
+    {
+     "round": 0,
+     "attempt": 1,
+     "stage": "reviewing",
+     "outcome": "rejected",
+     "at": 1794106388309,
+     "hashes": {
+      "programHash": "d6ef1aeaeb6c6565",
+      "sourceHash": "4a71333ef505fd0f79c233a3323f5f6a48eb2c9bfab38d6a7d4af6c92ce3f8f9",
+      "manifestHash": "55c18bc69afed31d782c266376833e19579a2f56bb7773d22069489d37916bb0",
+      "bundleHash": "ed673590373952fcee83ddfc7b5b38aaa542552721dbe3f1f8cfa4bbc6641552"
+     },
+     "sizes": {
+      "sourceBytes": 2630,
+      "manifestBytes": 1746
+     },
+     "problems": [],
+     "findings": [
+      {
+       "id": "rf1",
+       "category": "spec",
+       "severity": "major",
+       "verdict": "visual",
+       "capture": "light",
+       "object": "rule",
+       "message": "The update-rule formula at the top right runs past the right edge of the card, so the final w_k in '(1−η)w_k' is cut off. Move the panel left, shrink the formula or break it onto two lines.",
+       "programHash": "d6ef1aeaeb6c6565"
+      },
+      {
+       "id": "rf2",
+       "category": "spec",
+       "severity": "major",
+       "verdict": "visual",
+       "capture": "a0-light",
+       "object": "rule",
+       "message": "The update-rule formula is cut off at the right edge of the card: the trailing w_k is missing.",
+       "programHash": "d6ef1aeaeb6c6565"
+      },
+      {
+       "id": "rf3",
+       "category": "spec",
+       "severity": "major",
+       "verdict": "visual",
+       "capture": "a1-light",
+       "object": "rule",
+       "message": "The update-rule formula is cut off at the right edge of the card: the trailing w_k is missing.",
+       "programHash": "d6ef1aeaeb6c6565"
+      },
+      {
+       "id": "rf4",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "visual",
+       "capture": "a1-light",
+       "object": "p7",
+       "message": "Near w≈0.5–0.8 the late iterates sit about 6 px apart. The large current-point dot (radius 14) mostly hides the step-7 point, and the short arrows between them are hidden under the dots. The request asks for all points to be visible. Smaller dots, or an inset or zoom for small rates, would fix this.",
+       "programHash": "d6ef1aeaeb6c6565"
+      },
+      {
+       "id": "rf5",
+       "category": "spec",
+       "severity": "major",
+       "verdict": "visual",
+       "capture": "a2-light",
+       "object": "rule",
+       "message": "The update-rule formula is cut off at the right edge of the card: the trailing w_k is missing.",
+       "programHash": "d6ef1aeaeb6c6565"
+      },
+      {
+       "id": "rf6",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "visual",
+       "capture": "a2-light",
+       "object": "yt10",
+       "message": "The arrow from step 4 to step 5 passes just above the y-tick label '10' and nearly touches it. Moving the tick labels away from the axis line, or giving them a background, would separate them.",
+       "programHash": "d6ef1aeaeb6c6565"
+      }
+     ],
+     "truncated": false,
+     "cut": [],
+     "version": {
+      "stored": true,
+      "key": "explainver:ej_a0f0cafe9a8b4c83a99ffe2d49b7fa33:d6ef1aeaeb6c6565"
+     }
+    },
+    {
+     "round": 1,
+     "attempt": 1,
+     "stage": "reviewing",
+     "outcome": "accepted",
+     "at": 1794106452096,
+     "hashes": {
+      "programHash": "9893a7ebe36c3633",
+      "sourceHash": "120b6358953e45c63938fa137d8cddb5383c17f478b2d394841caa4c41a51ce5",
+      "manifestHash": "31180d432f7ac3fedaa089732894f2533c644d05095787b592b1a82b32773469",
+      "bundleHash": "c953f2159f3a990d5933ff76ee3a4bee4fbde5b616c81a56d87211c3bb79a0ae"
+     },
+     "sizes": {
+      "sourceBytes": 3068,
+      "manifestBytes": 1948
+     },
+     "problems": [],
+     "findings": [
+      {
+       "id": "rf1",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "visual",
+       "capture": "a1-light",
+       "object": "p7",
+       "message": "Iterates near the minimum crowd together; the dots for steps 7 and 8 touch and the short arrowheads crowd them. Each point can still be told apart.",
+       "programHash": "9893a7ebe36c3633"
+      },
+      {
+       "id": "rf2",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "visual",
+       "capture": "a1-light",
+       "object": "",
+       "message": "A faint lighter rectangle appears in the plot around the first iterate (about x 597–657, y 172–240). It looks like a drawing artifact and should be checked.",
+       "programHash": "9893a7ebe36c3633"
+      },
+      {
+       "id": "rf3",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "visual",
+       "capture": "a2-light",
+       "object": "",
+       "message": "A faint lighter horizontal band appears in the plot near the third and fourth arrows (about y 205–240). It looks like a drawing artifact and should be checked.",
+       "programHash": "9893a7ebe36c3633"
+      }
+     ],
+     "truncated": false,
+     "cut": [],
+     "version": {
+      "stored": true,
+      "key": "explainver:ej_a0f0cafe9a8b4c83a99ffe2d49b7fa33:9893a7ebe36c3633"
+     }
+    }
+   ],
+   "historyDropped": 0,
+   "findings": [
+    {
+     "round": 0,
+     "stage": "reviewing",
+     "accepted": false,
+     "findings": [
+      {
+       "version": 1,
+       "id": "rf1",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "target": {
+        "capture": "light",
+        "object": "rule"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The update-rule formula at the top right runs past the right edge of the card, so the final w_k in '(1−η)w_k' is cut off. Move the panel left, shrink the formula or break it onto two lines."
+      },
+      {
+       "version": 1,
+       "id": "rf2",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "target": {
+        "capture": "a0-light",
+        "object": "rule"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The update-rule formula is cut off at the right edge of the card: the trailing w_k is missing."
+      },
+      {
+       "version": 1,
+       "id": "rf3",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "target": {
+        "capture": "a1-light",
+        "object": "rule"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The update-rule formula is cut off at the right edge of the card: the trailing w_k is missing."
+      },
+      {
+       "version": 1,
+       "id": "rf4",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "a1-light",
+        "object": "p7"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "Near w≈0.5–0.8 the late iterates sit about 6 px apart. The large current-point dot (radius 14) mostly hides the step-7 point, and the short arrows between them are hidden under the dots. The request asks for all points to be visible. Smaller dots, or an inset or zoom for small rates, would fix this."
+      },
+      {
+       "version": 1,
+       "id": "rf5",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "target": {
+        "capture": "a2-light",
+        "object": "rule"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The update-rule formula is cut off at the right edge of the card: the trailing w_k is missing."
+      },
+      {
+       "version": 1,
+       "id": "rf6",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "a2-light",
+        "object": "yt10"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The arrow from step 4 to step 5 passes just above the y-tick label '10' and nearly touches it. Moving the tick labels away from the axis line, or giving them a background, would separate them."
+      }
+     ]
+    },
+    {
+     "round": 1,
+     "stage": "reviewing",
+     "accepted": true,
+     "findings": [
+      {
+       "version": 1,
+       "id": "rf1",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "a1-light",
+        "object": "p7"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "Iterates near the minimum crowd together; the dots for steps 7 and 8 touch and the short arrowheads crowd them. Each point can still be told apart."
+      },
+      {
+       "version": 1,
+       "id": "rf2",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "a1-light"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "A faint lighter rectangle appears in the plot around the first iterate (about x 597–657, y 172–240). It looks like a drawing artifact and should be checked."
+      },
+      {
+       "version": 1,
+       "id": "rf3",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "a2-light"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "A faint lighter horizontal band appears in the plot near the third and fourth arrows (about y 205–240). It looks like a drawing artifact and should be checked."
+      }
+     ]
+    }
+   ],
+   "candidates": [
+    {
+     "round": 1,
+     "operation": "program",
+     "progress": true,
+     "specHash": null,
+     "programHash": "9893a7ebe36c3633"
+    }
+   ],
+   "settings": {
+    "presentation": "experiment"
+   },
+   "calls": [
+    {
+     "key": "ej_a0f0cafe9a8b4c83a99ffe2d49b7fa33-brief-1",
+     "role": "brief",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 115685,
+     "images": 0,
+     "costMicros": 31052,
+     "inputTokens": 473,
+     "outputTokens": 998,
+     "startedAt": 1794106320650,
+     "endedAt": 1794106331940,
+     "error": null
+    },
+    {
+     "key": "ej_a0f0cafe9a8b4c83a99ffe2d49b7fa33-author-2",
+     "role": "author",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 422520,
+     "images": 0,
+     "costMicros": 107452,
+     "inputTokens": 8938,
+     "outputTokens": 3511,
+     "startedAt": 1794106333737,
+     "endedAt": 1794106365603,
+     "error": null
+    },
+    {
+     "key": "ej_a0f0cafe9a8b4c83a99ffe2d49b7fa33-review-3",
+     "role": "review",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 222125,
+     "images": 4,
+     "costMicros": 59033,
+     "inputTokens": 6607,
+     "outputTokens": 1266,
+     "startedAt": 1794106374239,
+     "endedAt": 1794106388309,
+     "error": null
+    },
+    {
+     "key": "ej_a0f0cafe9a8b4c83a99ffe2d49b7fa33-repair-4",
+     "role": "repair",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 276000,
+     "images": 0,
+     "costMicros": 102001,
+     "inputTokens": 4197,
+     "outputTokens": 4241,
+     "startedAt": 1794106389309,
+     "endedAt": 1794106424349,
+     "error": null
+    },
+    {
+     "key": "ej_a0f0cafe9a8b4c83a99ffe2d49b7fa33-review-5",
+     "role": "review",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 226400,
+     "images": 4,
+     "costMicros": 62400,
+     "inputTokens": 7077,
+     "outputTokens": 1690,
+     "startedAt": 1794106432522,
+     "endedAt": 1794106452096,
+     "error": null
+    }
+   ],
+   "captures": [
+    {
+     "id": "light",
+     "aliases": [],
+     "stateHash": "6391c131a5ea10889a1fed42e2cf810b87660847a5ae79d66864d917c96e1f64",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "eta": "0.2",
+      "step": 0
+     },
+     "bundleHash": "c953f2159f3a990d5933ff76ee3a4bee4fbde5b616c81a56d87211c3bb79a0ae",
+     "trace": {
+      "inputs": {
+       "eta": "0.2",
+       "step": 0
+      },
+      "time": 0,
+      "quantities": {
+       "w_now": 3,
+       "loss_now": 4.5,
+       "factor": 0.8,
+       "eta": 0.2,
+       "k": 0
+      },
+      "metrics": {
+       "ms": 93.4
+      }
+     },
+     "sha256": "3d6aba3ec31d82fff7e8e7e6ad33fcd09935837bea888f422204bc19de6b98c3",
+     "key": "explain/ej_a0f0cafe9a8b4c83a99ffe2d49b7fa33/6391c131a5ea1088.png",
+     "compiledHash": "1ccb1d617715ac70ea978f619539125f7117a3fa25beb3d1fe58fa9d66c9aa55",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a0-light",
+     "aliases": [],
+     "stateHash": "3f933c6676aaf0a9c2ee27dbf27434a1a5d15ed139542918081dcd6aad98fb44",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "eta": "2.1",
+      "step": 0
+     },
+     "bundleHash": "c953f2159f3a990d5933ff76ee3a4bee4fbde5b616c81a56d87211c3bb79a0ae",
+     "trace": {
+      "inputs": {
+       "eta": "2.1",
+       "step": 0
+      },
+      "time": 0,
+      "quantities": {
+       "w_now": 3,
+       "loss_now": 4.5,
+       "factor": -1.1,
+       "eta": 2.1,
+       "k": 0
+      },
+      "metrics": {
+       "ms": 41.8
+      }
+     },
+     "sha256": "a09f85cf9074274eb598f2dfc2398ae63998be7c6cb748dcb310293cd454e503",
+     "key": "explain/ej_a0f0cafe9a8b4c83a99ffe2d49b7fa33/3f933c6676aaf0a9.png",
+     "compiledHash": "1ccb1d617715ac70ea978f619539125f7117a3fa25beb3d1fe58fa9d66c9aa55",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a1-light",
+     "aliases": [],
+     "stateHash": "47df9fef1d80c59533c397900441b56f12303a99b4fcbe0ff519bf9c4840b79c",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "eta": "0.2",
+      "step": 8
+     },
+     "bundleHash": "c953f2159f3a990d5933ff76ee3a4bee4fbde5b616c81a56d87211c3bb79a0ae",
+     "trace": {
+      "inputs": {
+       "eta": "0.2",
+       "step": 8
+      },
+      "time": 0,
+      "quantities": {
+       "w_now": 0.5033164800000004,
+       "loss_now": 0.1266637395197954,
+       "factor": 0.8,
+       "eta": 0.2,
+       "k": 8
+      },
+      "metrics": {
+       "ms": 34.6
+      }
+     },
+     "sha256": "799ff6e4c165f4ceb6f7772d2a31c32b0f21f2e41b52c0959f0d2d895809f10c",
+     "key": "explain/ej_a0f0cafe9a8b4c83a99ffe2d49b7fa33/47df9fef1d80c595.png",
+     "compiledHash": "1ccb1d617715ac70ea978f619539125f7117a3fa25beb3d1fe58fa9d66c9aa55",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a2-light",
+     "aliases": [],
+     "stateHash": "082415bede9dfbd39f538589606c74aa592cb8b7be473a6e290b4ea1a5d7a5f6",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "eta": "2.1",
+      "step": 8
+     },
+     "bundleHash": "c953f2159f3a990d5933ff76ee3a4bee4fbde5b616c81a56d87211c3bb79a0ae",
+     "trace": {
+      "inputs": {
+       "eta": "2.1",
+       "step": 8
+      },
+      "time": 0,
+      "quantities": {
+       "w_now": 6.430766430000004,
+       "loss_now": 20.677378438607498,
+       "factor": -1.1,
+       "eta": 2.1,
+       "k": 8
+      },
+      "metrics": {
+       "ms": 43.2
+      }
+     },
+     "sha256": "7ed6a7a9d55265bcd6ce195de0a86df454310399b902742c7f7d6b7dcbc48831",
+     "key": "explain/ej_a0f0cafe9a8b4c83a99ffe2d49b7fa33/082415bede9dfbd3.png",
+     "compiledHash": "1ccb1d617715ac70ea978f619539125f7117a3fa25beb3d1fe58fa9d66c9aa55",
+     "mediaType": "image/png"
+    }
+   ],
+   "counts": {
+    "brief": 1,
+    "author": 1,
+    "review": 2,
+    "repair": 1
+   },
+   "timing": {
+    "requestClass": "simple",
+    "cache": null,
+    "marks": {
+     "submitted": 1794106319568,
+     "firstFeedback": 1794106319650,
+     "proposalReady": 1794106332070,
+     "generate": 1794106333687,
+     "result": 1794106452096
+    },
+    "stages": [
+     {
+      "stage": "preparing",
+      "startedAt": 1794106319650,
+      "endedAt": 1794106332070,
+      "calls": 1,
+      "inputTokens": 473,
+      "outputTokens": 998,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "awaiting_approval",
+      "startedAt": 1794106332070,
+      "endedAt": 1794106333687,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": null
+     },
+     {
+      "stage": "authoring",
+      "startedAt": 1794106333687,
+      "endedAt": 1794106365603,
+      "calls": 1,
+      "inputTokens": 8938,
+      "outputTokens": 3511,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "startedAt": 1794106365603,
+      "endedAt": 1794106365653,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "startedAt": 1794106365653,
+      "endedAt": 1794106373138,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 4,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "startedAt": 1794106373138,
+      "endedAt": 1794106388309,
+      "calls": 1,
+      "inputTokens": 6607,
+      "outputTokens": 1266,
+      "images": 4,
+      "captures": 0,
+      "outcome": "rejected"
+     },
+     {
+      "stage": "repairing",
+      "startedAt": 1794106388309,
+      "endedAt": 1794106424349,
+      "calls": 1,
+      "inputTokens": 4197,
+      "outputTokens": 4241,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "startedAt": 1794106424349,
+      "endedAt": 1794106424407,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "startedAt": 1794106424407,
+      "endedAt": 1794106431447,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 4,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "startedAt": 1794106431447,
+      "endedAt": 1794106452096,
+      "calls": 1,
+      "inputTokens": 7077,
+      "outputTokens": 1690,
+      "images": 4,
+      "captures": 0,
+      "outcome": "accepted"
+     }
+    ]
+   }
+  }
+ }
+}

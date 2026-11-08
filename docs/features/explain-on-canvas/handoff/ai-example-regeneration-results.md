@@ -112,3 +112,69 @@ Visual, interaction and saved-state acceptance of both cards is **pending** (Cod
 node --test packages/web/src/explain-program/ai-generated.test.mjs
 RABBIT_HOLE_DEV_TEST_BYPASS=<dev bypass> node packages/web/scripts/seed-dev-fixture.mjs fixture-generated-ai-classifier-threshold https://rabbit-hole-web-dev-<worktree>.tryrabbithole.workers.dev
 ```
+
+## Retry batch (2026-11-08)
+
+Dev clone `rabbit-hole-web-dev-tc-s7d2`, router usage fix included, `claude-opus-5-5`. Plain words through the router. Spend for the batch **$1.519** (K-means $0.614, gradient $0.362, regression $0.543); the running total since the $3.10 pool is $4.757. The originals above are untouched; each retry has its own record.
+
+| Case | Routing (recorded in browser) | Job | Outcome | Cost | Calls |
+|---|---|---|---|---|---|
+| K-means Stepper | `explain` via `jev`, 0.78 | `ej_f70edc57de6d4bfd9005b69c073ee162` | **card, accepted at round 2** | $0.614 | brief, author, repair, review, repair, review |
+| Gradient descent, retry | `explain` via `jev`, 0.57 | `ej_a0f0cafe9a8b4c83a99ffe2d49b7fa33` | **card, accepted at round 1** | $0.362 | brief, author, review, repair, review |
+| Regression fit, retry | `explain` via `jev`, 0.81 | `ej_bc9696da910345359e60afecb7586c65` | **failed**, `incomplete_review` (stage reviewing, round 2, retryable) | $0.543 | brief, author, repair, review, repair, review |
+
+The gradient prompt sits at the router's threshold: 0.57 when generated, a `clarify` at 0.56 when the same words were replayed later.
+
+### Why the repair returned no program
+
+`explain_repair` had `maxTokens: 6000` (`learn-models.js`). The stored call diagnostics of the three jobs that ended "The repair returned no program" (gradient run 1, gradient run 2, regression) show the repair call with **exactly 6000 output tokens**, the cap. Repairs that finished under it (3098, 3450, 4036, 4241 and 5122 tokens) returned programs. A program repair returns the whole program and the model thinks inside the cap, so the tool call was cut off and `programRepairStage` rejected it (`input.program` missing, `explain-repair.js`). Fix (commit 6a0e43cfd): `explain_repair.maxTokens` 6000 to 10000, the same room as the author. Test: the repair cap is at least the author's.
+
+**Cost consequence, for review:** the policy's worst-case bound for one repair rises from $0.368 to $0.448 and the generation reservation from $3.313 to $3.553. The consent number a learner sees (`reserve_credits`) rises from 332 to 356 credits. Actual spend only rises for a repair that needs the room. The pinned budget and credit tests were updated for these numbers; reverting the one line in `learn-models.js` undoes it.
+
+The gradient retry's repair used 4241 tokens, below the old cap too, so its success does not by itself show that the raised cap mattered. The earlier failures do.
+
+### New finding: the review has the same cap problem
+
+The regression retry ended because its last review call returned **exactly 3000 output tokens**, the `explain_review` cap, so the verdicts were cut off and the review was refused as `incomplete_review`. The program before that review had passed validation. I did not change the review cap: it needs a decision (cost and the pinned consent numbers) and another retry.
+
+### Author rule added (same commit)
+
+One bullet in the program authoring rules: explanatory sentences belong in `manifest.summary` and `manifest.description` (shown above the scene); the frame holds the picture, short labels and numbers, with no explanatory sentence below or beside it; count frame objects at the extreme of every control and stay under `program.limits.objects`. The K-means card was generated before this rule. The gradient and regression retries came after it and have no explanatory sentences in the frame.
+
+### Numerical acceptance (offline)
+
+`ai-generated.test.mjs` (16 tests, all pass):
+
+- **K-means (accepted):** from its own 12 points in four clumps and two start layouts (top/bottom and left/right): Assign colours each point by its nearest centroid (ties to A) and moves no centroid; Update moves each centroid to the mean of its group; the total squared distance after each step equals the independent computation; both runs reach convergence; the two layouts end in different groups, and the top/bottom groups have the larger total (as the card says); Reset restores the start and clears the assignment lines.
+- **Gradient retry (accepted by the pipeline):** w and the loss equal 3(1 - rate)^k and its half square for the four rates and steps 0 to 8. **It fails the owner criterion:** at rate 1.2, step 8, the markers of steps 4 to 8 are less than 1 px apart (w is 0.0048 at step 4, on a parabola drawn at 91 px per unit); the reviewer called this a minor crowding finding. The card is kept as found.
+- **Regression retry (failed):** on its own six points, residual segments end at the prediction for the same x, MSE is the mean of the six squares, the focus share is right, and the object count stays within 60 at all twelve slope and intercept corners tested (it is nearly constant, 51 objects).
+
+### Live acceptance on the dev clone (owner-authorised, 2026-11-08)
+
+Playwright against `rabbit-hole-web-dev-tc-s7d2`, seeded canvases with one fixture card each, no model call: change controls, reload, a brand-new browser context, Reset, reload. Build 6a0e43cfd.
+
+| Card | Result |
+|---|---|
+| Convolution | 10/10: kernel, window row and column changes redraw; saved values and drawing survive reload and a new context; Reset restores the opening state and survives reload; the equation O[i,j] = sum sum I[i+m, j+n] K[m,n] renders cleanly |
+| Attention | 9/9: query and mask changes, same checks |
+| Tree split | 9/9: Entropy, cutoff 2.9, Reveal; reload and a fresh context keep cutoff, measure and the revealed drawing; Reset hides the reveal and restores 2.5 and Gini. The formulas (I, I_L, I_R, W) render without overlap |
+| Classifier threshold | 8/8: cutoffs 1 and 0.85; the saved value survives; Reset restores 0.5 (a first run ended on the default value, so no Reset control existed; the steps were corrected and rerun) |
+
+**Tree, cutoff 2.9:** confirmed. The cutoff line is drawn at x = 216.6, exactly the centre of the circle for the point at 2.9, so the line runs through that B label. The card is kept as generated.
+
+The K-means, gradient retry and regression retry fixtures are not in that build and were not driven in a browser.
+
+### Retry artifacts and replay
+
+| Path (`packages/web/src/explain-program/testdata/`) | What |
+|---|---|
+| `generated-ai-kmeans.json` | record + accepted artifact |
+| `generated-ai-gradient-retry.json` | record + accepted artifact |
+| `generated-ai-regression-fit-retry.json` | failure record + `rejectedCandidate` |
+
+Fixture ids: `fixture-generated-ai-kmeans` and `fixture-generated-ai-gradient-retry` (accepted), `fixture-generated-ai-regression-fit-retry-rejected`.
+
+```
+node --test packages/web/src/explain-program/ai-generated.test.mjs
+cd packages/control-plane && node --test test/explain-policy.test.js test/explain-program-budget.test.js test/explain-brief.test.js test/explain-proposal.test.js
+```

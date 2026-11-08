@@ -1,0 +1,1473 @@
+{
+ "schema": 1,
+ "case": "regression",
+ "attempt": 2,
+ "prompt": "Let me change a line's slope and intercept and see how far six points are from its predictions. Show how each error contributes to the mean squared error.",
+ "path": "The dev clone's composer with the learner's own words (no slash command): the chat router classified the line, then the brief's Generate. No fixture was seeded or copied; the author, review and repair ran on the real backend.",
+ "routing": {
+  "recordedInBrowser": [
+   {
+    "status": 200,
+    "body": {
+     "route": "capability:explain",
+     "via": "jev",
+     "capability": "explain",
+     "flow": "direct",
+     "confidence": 0.8,
+     "probability": 0.81,
+     "code": null,
+     "message": null,
+     "meta": {
+      "protocol": "chat-route-c1",
+      "model": "jev-1.13.0",
+      "ms": 648,
+      "input_tokens": 997,
+      "cost": null,
+      "transport": "direct"
+     }
+    }
+   }
+  ],
+  "replayedExplicit": {
+   "route": "capability:explain",
+   "via": "command",
+   "capability": "explain",
+   "flow": "direct",
+   "code": null,
+   "message": null,
+   "confidence": null,
+   "probability": null
+  },
+  "replayedPlainWords": {
+   "route": "capability:explain",
+   "via": "jev",
+   "capability": "explain",
+   "flow": "direct",
+   "code": null,
+   "message": null,
+   "confidence": 0.81,
+   "probability": 0.82
+  },
+  "note": "Plain words went through the chat router (JEV classifier, transport direct); recordedInBrowser is the router response the page received. The replays were made later against the same dev clone."
+ },
+ "environment": {
+  "clone": "rabbit-hole-web-dev-tc-s7d2",
+  "deployedCommit": "6a0e43cfda0e672377e192799885c421c243ae05",
+  "startedAt": "2026-11-08T02:51:50.463Z"
+ },
+ "job": {
+  "jobId": "ej_bc9696da910345359e60afecb7586c65",
+  "boardId": "a2ecf188-7236-480e-affd-52471a3d2b1d",
+  "resultId": null,
+  "outcome": "failed",
+  "stage": "failed",
+  "stopReason": "error",
+  "round": 2,
+  "failure": {
+   "stage": "reviewing",
+   "category": "spec",
+   "message": "The explanation could not be reviewed (incomplete_review).",
+   "retryable": true
+  },
+  "totalMs": 437437,
+  "calls": [
+   {
+    "role": "brief",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.0236,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "author",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.1705,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "repair",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.0868,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "review",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.0697,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "repair",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.0972,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "review",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.0952,
+    "ms": null,
+    "status": "settled"
+   }
+  ],
+  "costUsd": 0.543
+ },
+ "brief": "Review explanation\n\nHow a line's errors build up the mean squared error\n\ninteractive\nLet me change a line's slope and intercept and see how far six points are from its predictions. Show how each error contributes to the mean squared error.\n\nPresentation\nStatic\nSteps\nOver time\nExperiment\n\nYou will see six fixed data points on a grid and a straight line, with a vertical segment from each point to the line showing its error, and a square drawn on each segment whose area is that error squared. Next to the plot, six bars show each squared error's share of the total, and the mean squared error is written out as the average of those six squares. When you change the slope or the intercept, the line tilts or shifts, the segments and squares grow or shrink, and the bars and the total update right away. This shows that squaring makes large misses count much more than small ones, so one far-off point can dominate the total. You can adjust the slope and intercept to find the line with the smallest mean squared error, and select any point to highlight its error, its square and its share of the total.\n\nASSUMPTIONS 2\nLIMITATIONS 3\nGenerate\nEdit\nCancel\nGo to card",
+ "reviewFindings": [
+  {
+   "round": 0,
+   "stage": "validating",
+   "problems": [
+    "manifest.summary: Too big: expected string to have <=400 characters"
+   ]
+  },
+  {
+   "round": 1,
+   "stage": "reviewing",
+   "accepted": false,
+   "findings": [
+    {
+     "version": 1,
+     "id": "rf1",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "major",
+     "target": {
+      "capture": "a0-light",
+      "object": "x5"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "The x-axis tick label '5' is crossed by point 5's vertical error segment at x=260, and point 2's square's bottom edge (y≈450) runs through it, so the label is hard to read."
+    },
+    {
+     "version": 1,
+     "id": "rf2",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "a0-light",
+      "object": "sq1"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "The large squares are clipped at the plot edge and overlap each other heavily, so you can't compare their areas by eye. The bars still show the shares."
+    },
+    {
+     "version": 1,
+     "id": "rf3",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "a2-light",
+      "object": "x5"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "Point 3's square has its top edge at y≈438, right against the top of the x-axis tick label '5'. Many squares also overlap below the x-axis in a crowded area."
+    }
+   ]
+  },
+  {
+   "round": 2,
+   "stage": "reviewing",
+   "error": "Error"
+  }
+ ],
+ "artifact": null,
+ "rejectedCandidate": {
+  "manifest": {
+   "title": "How a line's errors build up the mean squared error",
+   "summary": "Six fixed points and a line you control. Each vertical segment is a point's error (actual minus prediction). The square beside it has an area proportional to that error squared. Bars on the right show each square's share of the total. The mean squared error (MSE) is the average of the six squared errors. Change the slope or intercept to see big misses dominate, and look for the smallest MSE.",
+   "assumptions": [
+    "The six data points are fixed example values that lie roughly along a line.",
+    "Error is measured vertically: actual y minus the line's predicted y.",
+    "Both axes use the same scale (40 pixels per unit). Each square's side is half its error's length, so its area is one quarter of the error squared on that scale and stays proportional to it.",
+    "Lines and squares outside the plot area are cut off at its edge, but the numbers on the right always use the full values."
+   ],
+   "description": "Left: a plot with six dots labelled 1 to 6 and a straight prediction line. A vertical segment joins each dot to the line. A translucent square starts at each dot and grows toward the line, with sides half as long as the segment. Right: the line's equation, then six rows. Each row gives a point's error, its square and its percentage of the total, with a horizontal bar whose length is that percentage. Below the rows, the MSE formula and its value are written out as the sum of the six squares divided by 6. A selector highlights one point's segment, square and bar.",
+   "inputs": [
+    {
+     "type": "number",
+     "id": "slope",
+     "label": "Slope",
+     "default": 0.6,
+     "min": -1,
+     "max": 3,
+     "step": 0.1
+    },
+    {
+     "type": "number",
+     "id": "intercept",
+     "label": "Intercept",
+     "default": 1.5,
+     "min": -2,
+     "max": 6,
+     "step": 0.1
+    },
+    {
+     "type": "select",
+     "id": "focus",
+     "label": "Highlight point",
+     "default": "none",
+     "options": [
+      {
+       "value": "none",
+       "label": "None"
+      },
+      {
+       "value": "p1",
+       "label": "Point 1"
+      },
+      {
+       "value": "p2",
+       "label": "Point 2"
+      },
+      {
+       "value": "p3",
+       "label": "Point 3"
+      },
+      {
+       "value": "p4",
+       "label": "Point 4"
+      },
+      {
+       "value": "p5",
+       "label": "Point 5"
+      },
+      {
+       "value": "p6",
+       "label": "Point 6"
+      }
+     ]
+    }
+   ],
+   "readouts": [
+    {
+     "id": "mse",
+     "label": "Mean squared error",
+     "decimals": 3
+    },
+    {
+     "id": "sse",
+     "label": "Sum of squared errors",
+     "decimals": 3
+    },
+    {
+     "id": "focus_share",
+     "label": "Highlighted point's share of total",
+     "unit": "%",
+     "decimals": 1
+    }
+   ],
+   "capabilities": [
+    "number_inputs",
+    "select_inputs",
+    "polyline",
+    "math_text"
+   ]
+  },
+  "source": "const XS=[1,2,3,4,5,6];\nconst YS=[1.6,3.1,3.4,5.2,7.6,6.4];\nconst X0=60,Y0=30,W=400,H=460,S=40;\nfunction px(x){return X0+x*S;}\nfunction py(y){return Y0+H-(y+1.5)*S;}\nfunction sg(v){return (v>=0?'+':'')+sdk.format(v,2);}\nexport function evaluate({inputs}){\n const m=inputs.slope,b=inputs.intercept;\n const f=inputs.focus;\n const sel=f==='none'?-1:(parseInt(f.slice(1),10)-1);\n const clip={x:X0,y:Y0,w:W,h:H};\n const o=[];\n o.push(sdk.line('xaxis',px(0),py(0),px(10),py(0),{role:'neutral'}));\n o.push(sdk.line('yaxis',px(0),Y0,px(0),Y0+H,{role:'neutral'}));\n o.push(sdk.text('xl',px(10)-12,py(0)+20,'x'));\n o.push(sdk.text('yl',px(0)+12,Y0+14,'y'));\n o.push(sdk.line('xt5',px(5),py(0)-4,px(5),py(0)+4,{role:'neutral'}));\n o.push(sdk.line('xt5b',px(5),Y0+H-4,px(5),Y0+H,{role:'neutral'}));\n o.push(sdk.text('x5',px(5)-4,Y0+H+18,'5'));\n o.push(sdk.line('yt5',px(0)-4,py(5),px(0)+4,py(5),{role:'neutral'}));\n o.push(sdk.text('y5',px(0)-18,py(5)+4,'5'));\n o.push({kind:'polyline',id:'fit',points:[[px(0),py(b)],[px(10),py(b+10*m)]],clip:clip,role:'prediction'});\n const e=[],e2=[];let sse=0;\n for(let i=0;i<6;i++){const p=m*XS[i]+b;const r=YS[i]-p;e.push(r);e2.push(r*r);sse+=r*r;}\n const mse=sse/6;\n for(let i=0;i<6;i++){\n  const hi=i===sel;const dim=sel>=0&&!hi;\n  const xp=px(XS[i]),yp=py(YS[i]),yl=py(m*XS[i]+b);const d=yl-yp;const s=Math.abs(d)*0.5;const ys=yp+Math.sign(d)*s;\n  o.push({kind:'polyline',id:'sq'+i,points:[[xp,yp],[xp+s,yp],[xp+s,ys],[xp,ys],[xp,yp]],clip:clip,role:hi?'warning':'neutral',opacity:hi?0.9:(dim?0.15:0.4)});\n  o.push({kind:'polyline',id:'err'+i,points:[[xp,yp],[xp,yl]],clip:clip,role:'warning',opacity:dim?0.3:1});\n  o.push(sdk.circle('pt'+i,xp,yp,10,{role:'observed'}));\n  o.push(sdk.text('pl'+i,xp-16,yp-8,String(i+1)));\n }\n const sb=b>=0?'+ '+sdk.format(b,2):'- '+sdk.format(-b,2);\n o.push(sdk.math('eq',520,50,'\\\\hat{y} = '+sdk.format(m,2)+'x '+sb));\n o.push(sdk.text('hdr',520,95,'Error e, square e², share of total'));\n for(let i=0;i<6;i++){\n  const hi=i===sel;const dim=sel>=0&&!hi;\n  const share=sse>1e-12?e2[i]/sse:0;\n  const y=125+i*44;\n  o.push(sdk.text('row'+i,520,y,'Point '+(i+1)+':  e = '+sg(e[i])+',  e² = '+sdk.format(e2[i],2)+'  ('+sdk.format(share*100,1)+'%)',{role:hi?'warning':'neutral',opacity:dim?0.5:1}));\n  o.push(sdk.box('bar'+i,520,y+8,Math.max(2,share*380),14,{role:hi?'warning':'prediction',opacity:dim?0.35:1}));\n }\n o.push(sdk.math('mf',520,410,'\\\\text{MSE} = \\\\frac{1}{6}\\\\sum_{i=1}^{6} e_i^2'));\n o.push(sdk.text('mn',520,465,'= ('+e2.map(v=>sdk.format(v,2)).join(' + ')+') / 6'));\n o.push(sdk.text('mv',520,495,'= '+sdk.format(mse,3),{role:'output'}));\n const fs=sel>=0&&sse>1e-12?100*e2[sel]/sse:0;\n return {frame:{width:960,height:540,objects:o,readouts:[{id:'mse',value:mse},{id:'sse',value:sse},{id:'focus_share',value:fs}]},quantities:{mse:mse,sse:sse,focus_share:fs}};\n}\n",
+  "sealed": {
+   "kind": "explain_program",
+   "schemaVersion": 1,
+   "runtimeVersion": "quickjs-release-sync@0.32.0",
+   "sdkVersion": "sdk-2",
+   "rendererVersion": "renderer-1",
+   "runtimePolicyVersion": "policy-1",
+   "permissionProfileVersion": "perm-1",
+   "fingerprints": {
+    "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+    "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+    "renderer": "renderer-1"
+   },
+   "dependencies": [],
+   "manifest": {
+    "title": "How a line's errors build up the mean squared error",
+    "summary": "Six fixed points and a line you control. Each vertical segment is a point's error (actual minus prediction). The square beside it has an area proportional to that error squared. Bars on the right show each square's share of the total. The mean squared error (MSE) is the average of the six squared errors. Change the slope or intercept to see big misses dominate, and look for the smallest MSE.",
+    "assumptions": [
+     "The six data points are fixed example values that lie roughly along a line.",
+     "Error is measured vertically: actual y minus the line's predicted y.",
+     "Both axes use the same scale (40 pixels per unit). Each square's side is half its error's length, so its area is one quarter of the error squared on that scale and stays proportional to it.",
+     "Lines and squares outside the plot area are cut off at its edge, but the numbers on the right always use the full values."
+    ],
+    "description": "Left: a plot with six dots labelled 1 to 6 and a straight prediction line. A vertical segment joins each dot to the line. A translucent square starts at each dot and grows toward the line, with sides half as long as the segment. Right: the line's equation, then six rows. Each row gives a point's error, its square and its percentage of the total, with a horizontal bar whose length is that percentage. Below the rows, the MSE formula and its value are written out as the sum of the six squares divided by 6. A selector highlights one point's segment, square and bar.",
+    "inputs": [
+     {
+      "type": "number",
+      "id": "slope",
+      "label": "Slope",
+      "default": 0.6,
+      "min": -1,
+      "max": 3,
+      "step": 0.1
+     },
+     {
+      "type": "number",
+      "id": "intercept",
+      "label": "Intercept",
+      "default": 1.5,
+      "min": -2,
+      "max": 6,
+      "step": 0.1
+     },
+     {
+      "type": "select",
+      "id": "focus",
+      "label": "Highlight point",
+      "default": "none",
+      "options": [
+       {
+        "value": "none",
+        "label": "None"
+       },
+       {
+        "value": "p1",
+        "label": "Point 1"
+       },
+       {
+        "value": "p2",
+        "label": "Point 2"
+       },
+       {
+        "value": "p3",
+        "label": "Point 3"
+       },
+       {
+        "value": "p4",
+        "label": "Point 4"
+       },
+       {
+        "value": "p5",
+        "label": "Point 5"
+       },
+       {
+        "value": "p6",
+        "label": "Point 6"
+       }
+      ]
+     }
+    ],
+    "readouts": [
+     {
+      "id": "mse",
+      "label": "Mean squared error",
+      "decimals": 3
+     },
+     {
+      "id": "sse",
+      "label": "Sum of squared errors",
+      "decimals": 3
+     },
+     {
+      "id": "focus_share",
+      "label": "Highlighted point's share of total",
+      "unit": "%",
+      "decimals": 1
+     }
+    ],
+    "capabilities": [
+     "number_inputs",
+     "select_inputs",
+     "polyline",
+     "math_text"
+    ]
+   },
+   "sourceHash": "5781ecea67a141280caf87c885fe35dc3774f007cee1e84aabffa159770055d0",
+   "manifestHash": "8cd77f4e8853788d295e6837ec96fdc9d6c45f146dbf914ca31cb7c00e039372",
+   "bundleHash": "3527e79d9caaf91f755dfe1369fe6652b133b5a97201bd0b87ddbef2c567901c",
+   "sourceBytes": 2840
+  },
+  "candidates": [
+   {
+    "round": 1,
+    "operation": "program",
+    "progress": true,
+    "specHash": null,
+    "programHash": "3a490d60a7e07fd5"
+   },
+   {
+    "round": 2,
+    "operation": "program",
+    "progress": true,
+    "specHash": null,
+    "programHash": "59f04a51f3cd5ed6"
+   }
+  ]
+ },
+ "stamps": null,
+ "rawJobDetail": {
+  "job": {
+   "id": "ej_bc9696da910345359e60afecb7586c65",
+   "version": 1,
+   "boardId": "a2ecf188-7236-480e-affd-52471a3d2b1d",
+   "cardId": "3dce82e8-af58-405b-b268-d662f0dbdd0c",
+   "requestClass": "simple",
+   "stage": "failed",
+   "attempt": 1,
+   "terminal": true,
+   "round": 2,
+   "stopReason": "error",
+   "failure": {
+    "stage": "reviewing",
+    "category": "spec",
+    "message": "The explanation could not be reviewed (incomplete_review).",
+    "retryable": true
+   },
+   "recovery": [
+    "new_attempt",
+    "edit_request"
+   ],
+   "usage": {
+    "credits": 55,
+    "unknown": false
+   },
+   "result": null,
+   "brief": {
+    "version": 1,
+    "title": "How a line's errors build up the mean squared error",
+    "summary": "You will see six fixed data points on a grid and a straight line, with a vertical segment from each point to the line showing its error, and a square drawn on each segment whose area is that error squared. Next to the plot, six bars show each squared error's share of the total, and the mean squared error is written out as the average of those six squares. When you change the slope or the intercept, the line tilts or shifts, the segments and squares grow or shrink, and the bars and the total update right away. This shows that squaring makes large misses count much more than small ones, so one far-off point can dominate the total. You can adjust the slope and intercept to find the line with the smallest mean squared error, and select any point to highlight its error, its square and its share of the total.",
+    "assumptions": [
+     "The six data points are fixed example values chosen to lie roughly along a line.",
+     "Error is measured vertically, as the actual value minus the line's prediction."
+    ],
+    "presentation": "experiment",
+    "components": [],
+    "evidenceIds": [],
+    "limitations": [
+     "The data points cannot be moved or edited.",
+     "The best-fit line is not calculated for you; you look for it by adjusting the controls.",
+     "Squares are drawn in the plot's own units, so they look true-to-scale only when both axes use the same scale."
+    ],
+    "ambiguous": false,
+    "expanded": false
+   },
+   "briefHash": "4a18d9f1eb18a41e4d62d1740fb17625704961ac102a3d8f7aa483e81e8c5e53",
+   "timing": {
+    "requestClass": "simple",
+    "cache": null,
+    "firstFeedbackMs": 82,
+    "proposalMs": 8411,
+    "generateToResultMs": null,
+    "processingMs": 182876,
+    "approvalWaitMs": 1812,
+    "calls": 6,
+    "repairs": 2,
+    "stages": [
+     {
+      "stage": "preparing",
+      "ms": 8329,
+      "calls": 1,
+      "inputTokens": 424,
+      "outputTokens": 637,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "awaiting_approval",
+      "ms": 1812,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": null
+     },
+     {
+      "stage": "authoring",
+      "ms": 48386,
+      "calls": 1,
+      "inputTokens": 8779,
+      "outputTokens": 4921,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "ms": 15,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "rejected"
+     },
+     {
+      "stage": "repairing",
+      "ms": 22509,
+      "calls": 1,
+      "inputTokens": 3762,
+      "outputTokens": 3098,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "ms": 1000,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "ms": 7169,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 6,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "ms": 21147,
+      "calls": 1,
+      "inputTokens": 8463,
+      "outputTokens": 1780,
+      "images": 6,
+      "captures": 0,
+      "outcome": "rejected"
+     },
+     {
+      "stage": "repairing",
+      "ms": 35243,
+      "calls": 1,
+      "inputTokens": 4012,
+      "outputTokens": 4036,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "ms": 17,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "ms": 6631,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 6,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "ms": 32430,
+      "calls": 1,
+      "inputTokens": 8729,
+      "outputTokens": 3000,
+      "images": 6,
+      "captures": 0,
+      "outcome": "failed"
+     }
+    ]
+   },
+   "createdAt": 1794106319327,
+   "updatedAt": 1794106504097
+  },
+  "diagnostics": {
+   "spec": null,
+   "program": {
+    "source": "const XS=[1,2,3,4,5,6];\nconst YS=[1.6,3.1,3.4,5.2,7.6,6.4];\nconst X0=60,Y0=30,W=400,H=460,S=40;\nfunction px(x){return X0+x*S;}\nfunction py(y){return Y0+H-(y+1.5)*S;}\nfunction sg(v){return (v>=0?'+':'')+sdk.format(v,2);}\nexport function evaluate({inputs}){\n const m=inputs.slope,b=inputs.intercept;\n const f=inputs.focus;\n const sel=f==='none'?-1:(parseInt(f.slice(1),10)-1);\n const clip={x:X0,y:Y0,w:W,h:H};\n const o=[];\n o.push(sdk.line('xaxis',px(0),py(0),px(10),py(0),{role:'neutral'}));\n o.push(sdk.line('yaxis',px(0),Y0,px(0),Y0+H,{role:'neutral'}));\n o.push(sdk.text('xl',px(10)-12,py(0)+20,'x'));\n o.push(sdk.text('yl',px(0)+12,Y0+14,'y'));\n o.push(sdk.line('xt5',px(5),py(0)-4,px(5),py(0)+4,{role:'neutral'}));\n o.push(sdk.line('xt5b',px(5),Y0+H-4,px(5),Y0+H,{role:'neutral'}));\n o.push(sdk.text('x5',px(5)-4,Y0+H+18,'5'));\n o.push(sdk.line('yt5',px(0)-4,py(5),px(0)+4,py(5),{role:'neutral'}));\n o.push(sdk.text('y5',px(0)-18,py(5)+4,'5'));\n o.push({kind:'polyline',id:'fit',points:[[px(0),py(b)],[px(10),py(b+10*m)]],clip:clip,role:'prediction'});\n const e=[],e2=[];let sse=0;\n for(let i=0;i<6;i++){const p=m*XS[i]+b;const r=YS[i]-p;e.push(r);e2.push(r*r);sse+=r*r;}\n const mse=sse/6;\n for(let i=0;i<6;i++){\n  const hi=i===sel;const dim=sel>=0&&!hi;\n  const xp=px(XS[i]),yp=py(YS[i]),yl=py(m*XS[i]+b);const d=yl-yp;const s=Math.abs(d)*0.5;const ys=yp+Math.sign(d)*s;\n  o.push({kind:'polyline',id:'sq'+i,points:[[xp,yp],[xp+s,yp],[xp+s,ys],[xp,ys],[xp,yp]],clip:clip,role:hi?'warning':'neutral',opacity:hi?0.9:(dim?0.15:0.4)});\n  o.push({kind:'polyline',id:'err'+i,points:[[xp,yp],[xp,yl]],clip:clip,role:'warning',opacity:dim?0.3:1});\n  o.push(sdk.circle('pt'+i,xp,yp,10,{role:'observed'}));\n  o.push(sdk.text('pl'+i,xp-16,yp-8,String(i+1)));\n }\n const sb=b>=0?'+ '+sdk.format(b,2):'- '+sdk.format(-b,2);\n o.push(sdk.math('eq',520,50,'\\\\hat{y} = '+sdk.format(m,2)+'x '+sb));\n o.push(sdk.text('hdr',520,95,'Error e, square e², share of total'));\n for(let i=0;i<6;i++){\n  const hi=i===sel;const dim=sel>=0&&!hi;\n  const share=sse>1e-12?e2[i]/sse:0;\n  const y=125+i*44;\n  o.push(sdk.text('row'+i,520,y,'Point '+(i+1)+':  e = '+sg(e[i])+',  e² = '+sdk.format(e2[i],2)+'  ('+sdk.format(share*100,1)+'%)',{role:hi?'warning':'neutral',opacity:dim?0.5:1}));\n  o.push(sdk.box('bar'+i,520,y+8,Math.max(2,share*380),14,{role:hi?'warning':'prediction',opacity:dim?0.35:1}));\n }\n o.push(sdk.math('mf',520,410,'\\\\text{MSE} = \\\\frac{1}{6}\\\\sum_{i=1}^{6} e_i^2'));\n o.push(sdk.text('mn',520,465,'= ('+e2.map(v=>sdk.format(v,2)).join(' + ')+') / 6'));\n o.push(sdk.text('mv',520,495,'= '+sdk.format(mse,3),{role:'output'}));\n const fs=sel>=0&&sse>1e-12?100*e2[sel]/sse:0;\n return {frame:{width:960,height:540,objects:o,readouts:[{id:'mse',value:mse},{id:'sse',value:sse},{id:'focus_share',value:fs}]},quantities:{mse:mse,sse:sse,focus_share:fs}};\n}\n",
+    "manifest": {
+     "title": "How a line's errors build up the mean squared error",
+     "summary": "Six fixed points and a line you control. Each vertical segment is a point's error (actual minus prediction). The square beside it has an area proportional to that error squared. Bars on the right show each square's share of the total. The mean squared error (MSE) is the average of the six squared errors. Change the slope or intercept to see big misses dominate, and look for the smallest MSE.",
+     "assumptions": [
+      "The six data points are fixed example values that lie roughly along a line.",
+      "Error is measured vertically: actual y minus the line's predicted y.",
+      "Both axes use the same scale (40 pixels per unit). Each square's side is half its error's length, so its area is one quarter of the error squared on that scale and stays proportional to it.",
+      "Lines and squares outside the plot area are cut off at its edge, but the numbers on the right always use the full values."
+     ],
+     "description": "Left: a plot with six dots labelled 1 to 6 and a straight prediction line. A vertical segment joins each dot to the line. A translucent square starts at each dot and grows toward the line, with sides half as long as the segment. Right: the line's equation, then six rows. Each row gives a point's error, its square and its percentage of the total, with a horizontal bar whose length is that percentage. Below the rows, the MSE formula and its value are written out as the sum of the six squares divided by 6. A selector highlights one point's segment, square and bar.",
+     "inputs": [
+      {
+       "type": "number",
+       "id": "slope",
+       "label": "Slope",
+       "default": 0.6,
+       "min": -1,
+       "max": 3,
+       "step": 0.1
+      },
+      {
+       "type": "number",
+       "id": "intercept",
+       "label": "Intercept",
+       "default": 1.5,
+       "min": -2,
+       "max": 6,
+       "step": 0.1
+      },
+      {
+       "type": "select",
+       "id": "focus",
+       "label": "Highlight point",
+       "default": "none",
+       "options": [
+        {
+         "value": "none",
+         "label": "None"
+        },
+        {
+         "value": "p1",
+         "label": "Point 1"
+        },
+        {
+         "value": "p2",
+         "label": "Point 2"
+        },
+        {
+         "value": "p3",
+         "label": "Point 3"
+        },
+        {
+         "value": "p4",
+         "label": "Point 4"
+        },
+        {
+         "value": "p5",
+         "label": "Point 5"
+        },
+        {
+         "value": "p6",
+         "label": "Point 6"
+        }
+       ]
+      }
+     ],
+     "readouts": [
+      {
+       "id": "mse",
+       "label": "Mean squared error",
+       "decimals": 3
+      },
+      {
+       "id": "sse",
+       "label": "Sum of squared errors",
+       "decimals": 3
+      },
+      {
+       "id": "focus_share",
+       "label": "Highlighted point's share of total",
+       "unit": "%",
+       "decimals": 1
+      }
+     ],
+     "capabilities": [
+      "number_inputs",
+      "select_inputs",
+      "polyline",
+      "math_text"
+     ]
+    }
+   },
+   "artifact": {
+    "kind": "explain_program",
+    "schemaVersion": 1,
+    "runtimeVersion": "quickjs-release-sync@0.32.0",
+    "sdkVersion": "sdk-2",
+    "rendererVersion": "renderer-1",
+    "runtimePolicyVersion": "policy-1",
+    "permissionProfileVersion": "perm-1",
+    "fingerprints": {
+     "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+     "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+     "renderer": "renderer-1"
+    },
+    "dependencies": [],
+    "manifest": {
+     "title": "How a line's errors build up the mean squared error",
+     "summary": "Six fixed points and a line you control. Each vertical segment is a point's error (actual minus prediction). The square beside it has an area proportional to that error squared. Bars on the right show each square's share of the total. The mean squared error (MSE) is the average of the six squared errors. Change the slope or intercept to see big misses dominate, and look for the smallest MSE.",
+     "assumptions": [
+      "The six data points are fixed example values that lie roughly along a line.",
+      "Error is measured vertically: actual y minus the line's predicted y.",
+      "Both axes use the same scale (40 pixels per unit). Each square's side is half its error's length, so its area is one quarter of the error squared on that scale and stays proportional to it.",
+      "Lines and squares outside the plot area are cut off at its edge, but the numbers on the right always use the full values."
+     ],
+     "description": "Left: a plot with six dots labelled 1 to 6 and a straight prediction line. A vertical segment joins each dot to the line. A translucent square starts at each dot and grows toward the line, with sides half as long as the segment. Right: the line's equation, then six rows. Each row gives a point's error, its square and its percentage of the total, with a horizontal bar whose length is that percentage. Below the rows, the MSE formula and its value are written out as the sum of the six squares divided by 6. A selector highlights one point's segment, square and bar.",
+     "inputs": [
+      {
+       "type": "number",
+       "id": "slope",
+       "label": "Slope",
+       "default": 0.6,
+       "min": -1,
+       "max": 3,
+       "step": 0.1
+      },
+      {
+       "type": "number",
+       "id": "intercept",
+       "label": "Intercept",
+       "default": 1.5,
+       "min": -2,
+       "max": 6,
+       "step": 0.1
+      },
+      {
+       "type": "select",
+       "id": "focus",
+       "label": "Highlight point",
+       "default": "none",
+       "options": [
+        {
+         "value": "none",
+         "label": "None"
+        },
+        {
+         "value": "p1",
+         "label": "Point 1"
+        },
+        {
+         "value": "p2",
+         "label": "Point 2"
+        },
+        {
+         "value": "p3",
+         "label": "Point 3"
+        },
+        {
+         "value": "p4",
+         "label": "Point 4"
+        },
+        {
+         "value": "p5",
+         "label": "Point 5"
+        },
+        {
+         "value": "p6",
+         "label": "Point 6"
+        }
+       ]
+      }
+     ],
+     "readouts": [
+      {
+       "id": "mse",
+       "label": "Mean squared error",
+       "decimals": 3
+      },
+      {
+       "id": "sse",
+       "label": "Sum of squared errors",
+       "decimals": 3
+      },
+      {
+       "id": "focus_share",
+       "label": "Highlighted point's share of total",
+       "unit": "%",
+       "decimals": 1
+      }
+     ],
+     "capabilities": [
+      "number_inputs",
+      "select_inputs",
+      "polyline",
+      "math_text"
+     ]
+    },
+    "sourceHash": "5781ecea67a141280caf87c885fe35dc3774f007cee1e84aabffa159770055d0",
+    "manifestHash": "8cd77f4e8853788d295e6837ec96fdc9d6c45f146dbf914ca31cb7c00e039372",
+    "bundleHash": "3527e79d9caaf91f755dfe1369fe6652b133b5a97201bd0b87ddbef2c567901c",
+    "sourceBytes": 2840
+   },
+   "coverage": {
+    "compiledHash": "2b81b63fde22fecb31d5ed689a7cc652bba18590297d94afb866a42750d648bc",
+    "states": 6,
+    "moments": 1,
+    "frames": 6,
+    "themes": [
+     "light"
+    ],
+    "sampled": [
+     {
+      "id": "light",
+      "label": "default",
+      "inputs": {},
+      "time": 0
+     },
+     {
+      "id": "a0-light",
+      "label": "min of slope",
+      "inputs": {
+       "slope": -1
+      },
+      "time": 0
+     },
+     {
+      "id": "a1-light",
+      "label": "max of slope",
+      "inputs": {
+       "slope": 3
+      },
+      "time": 0
+     },
+     {
+      "id": "a2-light",
+      "label": "min of intercept",
+      "inputs": {
+       "intercept": -2
+      },
+      "time": 0
+     },
+     {
+      "id": "a3-light",
+      "label": "max of intercept",
+      "inputs": {
+       "intercept": 6
+      },
+      "time": 0
+     },
+     {
+      "id": "a4-light",
+      "label": "last of focus",
+      "inputs": {
+       "focus": "p6"
+      },
+      "time": 0
+     }
+    ],
+    "omitted": [
+     "combined: every input at its max/last"
+    ]
+   },
+   "history": [
+    {
+     "round": 0,
+     "attempt": 1,
+     "stage": "validating",
+     "outcome": "invalid",
+     "at": 1794106377951,
+     "hashes": {
+      "programHash": "a0c056f0c5db6865",
+      "sourceHash": "2da92a55a2e2f9fa73068fa5559ad3718842afdc4b851b66fb034cd581217296"
+     },
+     "sizes": {
+      "sourceBytes": 2592,
+      "manifestBytes": 2212
+     },
+     "problems": [
+      {
+       "message": "manifest.summary: Too big: expected string to have <=400 characters",
+       "programHash": "a0c056f0c5db6865"
+      }
+     ],
+     "findings": [],
+     "truncated": false,
+     "cut": [],
+     "version": {
+      "stored": true,
+      "key": "explainver:ej_bc9696da910345359e60afecb7586c65:a0c056f0c5db6865"
+     }
+    },
+    {
+     "round": 1,
+     "attempt": 1,
+     "stage": "reviewing",
+     "outcome": "rejected",
+     "at": 1794106429776,
+     "hashes": {
+      "programHash": "01ce15005aa9ee4d",
+      "sourceHash": "2da92a55a2e2f9fa73068fa5559ad3718842afdc4b851b66fb034cd581217296",
+      "manifestHash": "0681efb5ed76aab65564cc6c3c1ab625172f905abdf35e5704540ad29d1f7194",
+      "bundleHash": "81952f1d114ddfd0c93691932aee5df78f4763eddbcf475fff751aac0d8915bf"
+     },
+     "sizes": {
+      "sourceBytes": 2592,
+      "manifestBytes": 2170
+     },
+     "problems": [],
+     "findings": [
+      {
+       "id": "rf1",
+       "category": "spec",
+       "severity": "major",
+       "verdict": "visual",
+       "capture": "a0-light",
+       "object": "x5",
+       "message": "The x-axis tick label '5' is crossed by point 5's vertical error segment at x=260, and point 2's square's bottom edge (y≈450) runs through it, so the label is hard to read.",
+       "programHash": "01ce15005aa9ee4d"
+      },
+      {
+       "id": "rf2",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "visual",
+       "capture": "a0-light",
+       "object": "sq1",
+       "message": "The large squares are clipped at the plot edge and overlap each other heavily, so you can't compare their areas by eye. The bars still show the shares.",
+       "programHash": "01ce15005aa9ee4d"
+      },
+      {
+       "id": "rf3",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "visual",
+       "capture": "a2-light",
+       "object": "x5",
+       "message": "Point 3's square has its top edge at y≈438, right against the top of the x-axis tick label '5'. Many squares also overlap below the x-axis in a crowded area.",
+       "programHash": "01ce15005aa9ee4d"
+      }
+     ],
+     "truncated": false,
+     "cut": [],
+     "version": {
+      "stored": true,
+      "key": "explainver:ej_bc9696da910345359e60afecb7586c65:01ce15005aa9ee4d"
+     }
+    }
+   ],
+   "historyDropped": 0,
+   "findings": [
+    {
+     "round": 0,
+     "stage": "validating",
+     "problems": [
+      "manifest.summary: Too big: expected string to have <=400 characters"
+     ]
+    },
+    {
+     "round": 1,
+     "stage": "reviewing",
+     "accepted": false,
+     "findings": [
+      {
+       "version": 1,
+       "id": "rf1",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "target": {
+        "capture": "a0-light",
+        "object": "x5"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The x-axis tick label '5' is crossed by point 5's vertical error segment at x=260, and point 2's square's bottom edge (y≈450) runs through it, so the label is hard to read."
+      },
+      {
+       "version": 1,
+       "id": "rf2",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "a0-light",
+        "object": "sq1"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The large squares are clipped at the plot edge and overlap each other heavily, so you can't compare their areas by eye. The bars still show the shares."
+      },
+      {
+       "version": 1,
+       "id": "rf3",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "a2-light",
+        "object": "x5"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "Point 3's square has its top edge at y≈438, right against the top of the x-axis tick label '5'. Many squares also overlap below the x-axis in a crowded area."
+      }
+     ]
+    },
+    {
+     "round": 2,
+     "stage": "reviewing",
+     "error": "Error"
+    }
+   ],
+   "candidates": [
+    {
+     "round": 1,
+     "operation": "program",
+     "progress": true,
+     "specHash": null,
+     "programHash": "3a490d60a7e07fd5"
+    },
+    {
+     "round": 2,
+     "operation": "program",
+     "progress": true,
+     "specHash": null,
+     "programHash": "59f04a51f3cd5ed6"
+    }
+   ],
+   "settings": {
+    "presentation": "experiment"
+   },
+   "calls": [
+    {
+     "key": "ej_bc9696da910345359e60afecb7586c65-brief-1",
+     "role": "brief",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 115405,
+     "images": 0,
+     "costMicros": 23636,
+     "inputTokens": 424,
+     "outputTokens": 637,
+     "startedAt": 1794106320409,
+     "endedAt": 1794106327630,
+     "error": null
+    },
+    {
+     "key": "ej_bc9696da910345359e60afecb7586c65-author-2",
+     "role": "author",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 422670,
+     "images": 0,
+     "costMicros": 170531,
+     "inputTokens": 8779,
+     "outputTokens": 4921,
+     "startedAt": 1794106329600,
+     "endedAt": 1794106377936,
+     "error": null
+    },
+    {
+     "key": "ej_bc9696da910345359e60afecb7586c65-repair-3",
+     "role": "repair",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 269930,
+     "images": 0,
+     "costMicros": 86823,
+     "inputTokens": 3762,
+     "outputTokens": 3098,
+     "startedAt": 1794106378951,
+     "endedAt": 1794106400460,
+     "error": null
+    },
+    {
+     "key": "ej_bc9696da910345359e60afecb7586c65-review-4",
+     "role": "review",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 278550,
+     "images": 6,
+     "costMicros": 69744,
+     "inputTokens": 8463,
+     "outputTokens": 1780,
+     "startedAt": 1794106409708,
+     "endedAt": 1794106429776,
+     "error": null
+    },
+    {
+     "key": "ej_bc9696da910345359e60afecb7586c65-repair-5",
+     "role": "repair",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 273585,
+     "images": 0,
+     "costMicros": 97161,
+     "inputTokens": 4012,
+     "outputTokens": 4036,
+     "startedAt": 1794106430776,
+     "endedAt": 1794106465019,
+     "error": null
+    },
+    {
+     "key": "ej_bc9696da910345359e60afecb7586c65-review-6",
+     "role": "review",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 281475,
+     "images": 6,
+     "costMicros": 95208,
+     "inputTokens": 8729,
+     "outputTokens": 3000,
+     "startedAt": 1794106472803,
+     "endedAt": 1794106504097,
+     "error": null
+    }
+   ],
+   "captures": [
+    {
+     "id": "light",
+     "aliases": [],
+     "stateHash": "7a2b3231c870803428f3bbe2b2ea27d82b5d19c7bc4c56d8c385b3a35bf20783",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "slope": 0.6,
+      "intercept": 1.5,
+      "focus": "none"
+     },
+     "bundleHash": "3527e79d9caaf91f755dfe1369fe6652b133b5a97201bd0b87ddbef2c567901c",
+     "trace": {
+      "inputs": {
+       "slope": 0.6,
+       "intercept": 1.5,
+       "focus": "none"
+      },
+      "time": 0,
+      "quantities": {
+       "mse": 2.235,
+       "sse": 13.41,
+       "focus_share": 0
+      },
+      "metrics": {
+       "ms": 47.7
+      }
+     },
+     "sha256": "27d51e3c34ca887ba3d6ec3447bfbaa9d7efcb1b2b6c8d22ff4311939167aaaf",
+     "key": "explain/ej_bc9696da910345359e60afecb7586c65/7a2b3231c8708034.png",
+     "compiledHash": "2b81b63fde22fecb31d5ed689a7cc652bba18590297d94afb866a42750d648bc",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a0-light",
+     "aliases": [],
+     "stateHash": "ca2eebbba5d661da81f558d0c0c4e43dd58403e084f7835b92eb0b28b4e6f97a",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "slope": -1,
+      "intercept": 1.5,
+      "focus": "none"
+     },
+     "bundleHash": "3527e79d9caaf91f755dfe1369fe6652b133b5a97201bd0b87ddbef2c567901c",
+     "trace": {
+      "inputs": {
+       "slope": -1,
+       "intercept": 1.5,
+       "focus": "none"
+      },
+      "time": 0,
+      "quantities": {
+       "mse": 56.58166666666667,
+       "sse": 339.49,
+       "focus_share": 0
+      },
+      "metrics": {
+       "ms": 14.4
+      }
+     },
+     "sha256": "780827705dc84e26e527c1f0ce218c5a0762c3706f279576847ff0b71544a68a",
+     "key": "explain/ej_bc9696da910345359e60afecb7586c65/ca2eebbba5d661da.png",
+     "compiledHash": "2b81b63fde22fecb31d5ed689a7cc652bba18590297d94afb866a42750d648bc",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a1-light",
+     "aliases": [],
+     "stateHash": "c3169583d3ee1e5350c32ea1d83fab75c06474544de11a8104ea00b594ecd305",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "slope": 3,
+      "intercept": 1.5,
+      "focus": "none"
+     },
+     "bundleHash": "3527e79d9caaf91f755dfe1369fe6652b133b5a97201bd0b87ddbef2c567901c",
+     "trace": {
+      "inputs": {
+       "slope": 3,
+       "intercept": 1.5,
+       "focus": "none"
+      },
+      "time": 0,
+      "quantities": {
+       "mse": 66.315,
+       "sse": 397.89,
+       "focus_share": 0
+      },
+      "metrics": {
+       "ms": 14.4
+      }
+     },
+     "sha256": "5a649a5e1eb77be20b7ad6ac33a45df9a6d49c6a878fad3f350bf2d2f99c3e79",
+     "key": "explain/ej_bc9696da910345359e60afecb7586c65/c3169583d3ee1e53.png",
+     "compiledHash": "2b81b63fde22fecb31d5ed689a7cc652bba18590297d94afb866a42750d648bc",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a2-light",
+     "aliases": [],
+     "stateHash": "d3a0c11f5b61b81a8e4ea9ee76a7cf4747a1213133f19b117df4f14006444a57",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "slope": 0.6,
+      "intercept": -2,
+      "focus": "none"
+     },
+     "bundleHash": "3527e79d9caaf91f755dfe1369fe6652b133b5a97201bd0b87ddbef2c567901c",
+     "trace": {
+      "inputs": {
+       "slope": 0.6,
+       "intercept": -2,
+       "focus": "none"
+      },
+      "time": 0,
+      "quantities": {
+       "mse": 21.135,
+       "sse": 126.81000000000002,
+       "focus_share": 0
+      },
+      "metrics": {
+       "ms": 13.3
+      }
+     },
+     "sha256": "c968ad47d32de46fdca8f1a30893dbd406a9acd7d5d4d13a6de3689b1a726404",
+     "key": "explain/ej_bc9696da910345359e60afecb7586c65/d3a0c11f5b61b81a.png",
+     "compiledHash": "2b81b63fde22fecb31d5ed689a7cc652bba18590297d94afb866a42750d648bc",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a3-light",
+     "aliases": [],
+     "stateHash": "8f98b4b2c5b979192128344ff61e22f569edd5297abcff8cd18b8e21ab21e3c1",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "slope": 0.6,
+      "intercept": 6,
+      "focus": "none"
+     },
+     "bundleHash": "3527e79d9caaf91f755dfe1369fe6652b133b5a97201bd0b87ddbef2c567901c",
+     "trace": {
+      "inputs": {
+       "slope": 0.6,
+       "intercept": 6,
+       "focus": "none"
+      },
+      "time": 0,
+      "quantities": {
+       "mse": 13.935,
+       "sse": 83.61,
+       "focus_share": 0
+      },
+      "metrics": {
+       "ms": 12.1
+      }
+     },
+     "sha256": "a7d4e82a0b4b45f99e60ca84f50fb2d483cb702fadb592f2f66299630707058e",
+     "key": "explain/ej_bc9696da910345359e60afecb7586c65/8f98b4b2c5b97919.png",
+     "compiledHash": "2b81b63fde22fecb31d5ed689a7cc652bba18590297d94afb866a42750d648bc",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a4-light",
+     "aliases": [],
+     "stateHash": "088f3f144e86c098cd53f106aa06e450e7262b49a67f392f0f1797ab13207f4f",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "slope": 0.6,
+      "intercept": 1.5,
+      "focus": "p6"
+     },
+     "bundleHash": "3527e79d9caaf91f755dfe1369fe6652b133b5a97201bd0b87ddbef2c567901c",
+     "trace": {
+      "inputs": {
+       "slope": 0.6,
+       "intercept": 1.5,
+       "focus": "p6"
+      },
+      "time": 0,
+      "quantities": {
+       "mse": 2.235,
+       "sse": 13.41,
+       "focus_share": 12.602535421327381
+      },
+      "metrics": {
+       "ms": 15.3
+      }
+     },
+     "sha256": "07d3347acfbc2fb82655c66d18f71439570a2957b38ed04e4cd92d7173c00f0d",
+     "key": "explain/ej_bc9696da910345359e60afecb7586c65/088f3f144e86c098.png",
+     "compiledHash": "2b81b63fde22fecb31d5ed689a7cc652bba18590297d94afb866a42750d648bc",
+     "mediaType": "image/png"
+    }
+   ],
+   "counts": {
+    "brief": 1,
+    "author": 1,
+    "review": 2,
+    "repair": 2
+   },
+   "timing": {
+    "requestClass": "simple",
+    "cache": null,
+    "marks": {
+     "submitted": 1794106319327,
+     "firstFeedback": 1794106319409,
+     "proposalReady": 1794106327738,
+     "generate": 1794106329550
+    },
+    "stages": [
+     {
+      "stage": "preparing",
+      "startedAt": 1794106319409,
+      "endedAt": 1794106327738,
+      "calls": 1,
+      "inputTokens": 424,
+      "outputTokens": 637,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "awaiting_approval",
+      "startedAt": 1794106327738,
+      "endedAt": 1794106329550,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": null
+     },
+     {
+      "stage": "authoring",
+      "startedAt": 1794106329550,
+      "endedAt": 1794106377936,
+      "calls": 1,
+      "inputTokens": 8779,
+      "outputTokens": 4921,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "startedAt": 1794106377936,
+      "endedAt": 1794106377951,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "rejected"
+     },
+     {
+      "stage": "repairing",
+      "startedAt": 1794106377951,
+      "endedAt": 1794106400460,
+      "calls": 1,
+      "inputTokens": 3762,
+      "outputTokens": 3098,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "startedAt": 1794106400460,
+      "endedAt": 1794106401460,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "startedAt": 1794106401460,
+      "endedAt": 1794106408629,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 6,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "startedAt": 1794106408629,
+      "endedAt": 1794106429776,
+      "calls": 1,
+      "inputTokens": 8463,
+      "outputTokens": 1780,
+      "images": 6,
+      "captures": 0,
+      "outcome": "rejected"
+     },
+     {
+      "stage": "repairing",
+      "startedAt": 1794106429776,
+      "endedAt": 1794106465019,
+      "calls": 1,
+      "inputTokens": 4012,
+      "outputTokens": 4036,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "startedAt": 1794106465019,
+      "endedAt": 1794106465036,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "startedAt": 1794106465036,
+      "endedAt": 1794106471667,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 6,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "startedAt": 1794106471667,
+      "endedAt": 1794106504097,
+      "calls": 1,
+      "inputTokens": 8729,
+      "outputTokens": 3000,
+      "images": 6,
+      "captures": 0,
+      "outcome": "failed"
+     }
+    ]
+   }
+  }
+ }
+}
