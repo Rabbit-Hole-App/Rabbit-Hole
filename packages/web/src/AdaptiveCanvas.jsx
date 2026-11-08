@@ -330,7 +330,12 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   const opener = useContext(CardOpen);
   const opens = !chat && opener ? opener.can(id) : null;
   const edit = useContext(CanvasEdit), locked = edit.readOnly || edit.locked.has(id);
-  const full = cardLayout?.mode === 'full';
+  const [cornerDrag, setCornerDrag] = useState(null);
+  // A Full card keeps the corner resize (owner 2026-11-08); while it is dragged it is drawn at the dragged size, and a card that opened full
+  // (card-layout.js fullLength, no slot) as the ordinary sized card it becomes on release (resizeCardLayout corner).
+  const opensSized = cardLayout?.mode === 'full' && !cardLayout.slot;
+  if (cornerDrag && opensSized) cardLayout = null;
+  const full = cardLayout?.mode === 'full' && !cornerDrag;
   // A text card is never taller than its content (card-layout.js fitFrame, FX-EB-10); a Full/Scrollable card layout keeps its frame.
   const fit = fitContent && !cardLayout;
   const [minimum, setMinimum] = useState(320), [layoutDrag, setLayoutDrag] = useState(null);
@@ -340,7 +345,6 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   const selectedAtPress = useRef(false), lastPress = useRef(-Infinity);
   // A resized node keeps its size in its own data, so a reload restores it.
   const [size, setSize] = useState({ w: saved?.w || null, h: saved?.h || null });
-  const [cornerDrag, setCornerDrag] = useState(null);
   const [refsHeight, setRefsHeight] = useState(0); // the footer under the content: Rabbit Hole and reference rows (CanvasRefChips)
   const card = useRef(null);
   useEffect(() => { setSize({ w: saved?.w || null, h: saved?.h || null }); }, [saved?.w, saved?.h]);
@@ -390,17 +394,17 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
     startDrag(event, { x: dx, y: dy }, apply, zoom, onSnap?.(id));
   };
   const resize = event => {
-    if (event.button !== 0 || locked || full) return;
-    const element = card.current;
+    if (event.button !== 0 || locked) return;
+    const element = card.current, sized = fit || opensSized; // a card that opened full is sized as a text card is: never taller than its content
     // The drag sizes the body: rows under it (Sources, the Prompt row, references) are added on top, during the drag and after
     // it is saved, so releasing never grows the card by them. A card layout's saved height is its whole frame.
-    const extra = cardLayout ? 0 : extraHeight + refsHeight + grow;
+    const extra = cardLayout && !opensSized ? 0 : extraHeight + refsHeight + grow;
     let last = null;
-    const apply = (w, h) => { last = clampBox(w, h, fit ? naturalHeight(element, extra) : undefined); setSize(last); setCornerDrag(last); };
+    const apply = (w, h) => { last = clampBox(w, h, sized ? naturalHeight(element, extra) : undefined); setSize(last); setCornerDrag(last); };
     apply.done = () => {
       // The commit is limited as the drag was, measured at the released width (flushSync draws it first: its text may wrap).
-      if (last && fit) { flushSync(() => setCornerDrag(last)); last = clampBox(last.w, last.h, naturalHeight(element, extra)); setSize(last); }
-      if (last) { if (cardLayout) edit.resizeCard?.(id, last.w, last.h); else if (onSize) onSize(id, last.w, last.h); else edit.patchBlock?.(id, last); } setCornerDrag(null); };
+      if (last && sized) { flushSync(() => setCornerDrag(last)); last = clampBox(last.w, last.h, naturalHeight(element, extra)); setSize(last); }
+      if (last) { if (cardLayout) edit.resizeCard?.(id, last.w, last.h, null, undefined, false, true); else if (onSize) onSize(id, last.w, last.h); else edit.patchBlock?.(id, last); } setCornerDrag(null); };
     startDrag(event, { x: element.offsetWidth, y: element.offsetHeight - extra }, apply, zoom);
   };
   const node = (
@@ -475,7 +479,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         <span aria-hidden="true" className="h-3 w-3 rounded-full bg-success ring-2 ring-surface" />
       </button>}
       {full && !locked && edit.selectionCount <= 1 && ['left','right'].map(side => <button key={side} type="button" role="slider" aria-orientation="horizontal" aria-label={`Resize card width from ${side}`} aria-valuemin={limits.min} aria-valuemax={limits.max} aria-valuenow={Math.round(displayWidth)} data-node-tool className={`absolute top-6 bottom-2 z-20 w-2 cursor-ew-resize focus-visible:bg-accent/30 ${side === 'left' ? '-left-1' : '-right-1'}`} onPointerDown={event => resizeWidth(event, side)} onKeyDown={event => resizeWidthKey(event, side)} />)}
-      {!full && !locked && resizable && <button type="button" aria-label="Resize chat block" title="Resize block" className="absolute right-0 bottom-0 z-10 cursor-nwse-resize p-1 text-ink-3 opacity-0 group-hover:opacity-100 hover:text-ink-2 focus:opacity-100"
+      {!locked && resizable && <button type="button" aria-label="Resize chat block" title="Resize block" className="absolute right-0 bottom-0 z-10 cursor-nwse-resize p-1 text-ink-3 opacity-0 group-hover:opacity-100 hover:text-ink-2 focus:opacity-100"
         data-node-tool onPointerDown={resize}><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg></button>}
     </div>
   );
@@ -5237,10 +5241,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const item = itemsRef.current.find(entry => entry.id === id);
     if (item) shift(x - item.x, y - item.y, groupTargets(id));
   };
-  const resizeCard = (id, w, h, x, minimum, quiet = false) => {
+  const resizeCard = (id, w, h, x, minimum, quiet = false, corner = false) => {
     if (readOnly || lockedRef.current.has(id) || id === focusRef.current?.id) return; // Focus's temporary size is never saved
     if (!quiet) snapshot();
-    setBlocks(previous => previous.map(block => block.id === id ? resizeCardLayout(block, w, h, x, minimum) : block));
+    setBlocks(previous => previous.map(block => block.id === id ? resizeCardLayout(block, w, h, x, minimum, corner) : block));
   };
   const setCardLayout = (id, mode) => {
     if (readOnly || lockedRef.current.has(id) || selection.length !== 1) return;

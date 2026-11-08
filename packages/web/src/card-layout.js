@@ -27,9 +27,15 @@ export function switchCardLayout(block, mode, box, minimum) {
  const fullWidth = positive(old?.fullWidth) ? old.fullWidth : fitWidth(current.w, widthLimits(minimum));
  return { ...block, cardLayout: { mode, scrollableSize: { ...scrollableSize }, fullWidth, slot: { ...slot } } };
 }
-export function resizeCardLayout(block, width, height, dx, minimum) {
+// corner: the bottom-right resize (owner 2026-11-08: a Full content card keeps it). It takes a Full card out of Full at the dragged size: a card that
+// opened full (fullLength, no slot) becomes an ordinary sized card (its w and h, no layout), one with a slot turns Scrollable at that size in it.
+export function resizeCardLayout(block, width, height, dx, minimum, corner = false) {
  if (!block.cardLayout || !supportsCardLayout(block)) return block;
  const layout = block.cardLayout;
+ if (layout.mode === 'full' && corner) {
+  if (!layout.slot) { const { cardLayout: _full, ...sized } = block; return { ...sized, w: width, h: height }; }
+  return { ...block, cardLayout: { ...layout, mode: 'scrollable', scrollableSize: { w: width, h: height } } };
+ }
  if (layout.mode === 'full') return { ...block, dx: Number.isFinite(dx) ? dx : block.dx, cardLayout: { ...layout, fullWidth: fitWidth(width, widthLimits(minimum)) } };
  return { ...block, cardLayout: { ...layout, scrollableSize: { w: width, h: height } } };
 }
