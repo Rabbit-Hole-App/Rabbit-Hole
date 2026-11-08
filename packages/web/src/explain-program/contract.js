@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { ROLES } from '../scene-vocab.js';
+import { IMAGE_FIXTURE_IDS } from './sdk-image.js';
+import { MEDIUM_CAPABILITY, MEDIUM_SDK_VERSION } from './stamps.js';
 
 // The frozen artifact and frame contract of the generic /explain sandbox (plan section 5.2, Task 2).
 // Subject-independent on purpose: nothing here names a topic. Every object is strict, every value bounded; the host
@@ -31,9 +33,9 @@ export const CONTRACT_LIMITS = Object.freeze({
 
 export const ERROR_CODES = Object.freeze(['invalid_program', 'unsupported_capability', 'runtime_limit', 'runtime_error', 'invalid_output', 'version_unavailable']);
 // Capabilities a manifest may require. An unknown one is unsupported_capability, never silently ignored.
-export const CAPABILITIES = Object.freeze(['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text']);
+export const CAPABILITIES = Object.freeze(['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', MEDIUM_CAPABILITY]);
 // Frame object kinds: the closed set the trusted renderer draws. Equations are text objects with math runs (hardened path).
-export const OBJECT_KINDS = Object.freeze(['box', 'circle', 'text', 'line', 'arrow', 'polyline']);
+export const OBJECT_KINDS = Object.freeze(['box', 'circle', 'text', 'line', 'arrow', 'polyline', 'image']);
 
 const finite = limit => z.number().min(-limit).max(limit); // z.number() already refuses NaN and Infinity
 const coordinate = finite(CONTRACT_LIMITS.coordinate);
@@ -44,8 +46,8 @@ const version = z.string().regex(/^[A-Za-z0-9._@+-]{1,64}$/);
 
 // Text is data. It is always drawn through escaped text nodes (React children and SVG text), never parsed as HTML, so a lesson may
 // quote a URL or a tag ("A URL starts with https://", "The <div> tag groups content") as literal words. What stays forbidden is
-// FIELDS that make the host load or run something: every object below is strict, so an href, src, url, image, handler or
-// function-valued key is refused as an unknown key, and zod types refuse a function where a string or number belongs.
+// arbitrary resource fields: every object below is strict, so an href, src, url, image, handler or function-valued key is
+// refused. An image object may name only an asset in the app's closed fixture list.
 const plain = max => z.string().min(1).max(max);
 const maybePlain = max => z.string().max(max);
 
@@ -190,11 +192,15 @@ const style = { role: z.enum(ROLES).default('neutral'), opacity: z.number().min(
 const labelled = { text: plain(CONTRACT_LIMITS.text).optional(), runs: z.array(run).min(1).max(CONTRACT_LIMITS.runs).optional() };
 const point = z.tuple([coordinate, coordinate]);
 const size = z.number().positive().max(CONTRACT_LIMITS.size);
+const cropFraction = z.number().positive().max(1);
+const imageCrop = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), w: cropFraction, h: cropFraction }).strict()
+  .refine(({ x, y, w, h }) => x + w <= 1 && y + h <= 1, 'crop must stay within the source');
 const frameObject = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('box'), id, x: coordinate, y: coordinate, w: size, h: size, ...labelled, ...style, rotation: finite(360).default(0) }).strict(),
   z.object({ kind: z.literal('circle'), id, x: coordinate, y: coordinate, w: size, ...labelled, ...style, rotation: finite(360).default(0) }).strict(), // w is the diameter
   z.object({ kind: z.literal('text'), id, x: coordinate, y: coordinate, ...labelled, align: z.enum(['start', 'middle']).default('start'), ...style }).strict(),
   z.object({ kind: z.enum(['line', 'arrow']), id, from: z.object({ x: coordinate, y: coordinate }).strict(), to: z.object({ x: coordinate, y: coordinate }).strict(), ...labelled, ...style }).strict(),
+  z.object({ kind: z.literal('image'), id, asset: z.enum(IMAGE_FIXTURE_IDS), x: coordinate, y: coordinate, w: size, h: size, crop: imageCrop.optional(), ...style }).strict(),
   z.object({
     kind: z.literal('polyline'), id, points: z.array(point).min(2).max(CONTRACT_LIMITS.pointsPerObject),
     // Everything outside this rectangle is not drawn: a plotted series cannot cover the rest of the picture.
@@ -208,15 +214,27 @@ export const Frame = z.object({
   readouts: z.array(z.object({ id: name, value: finite(1e12) }).strict()).max(CONTRACT_LIMITS.readouts).default([]),
 }).strict().superRefine((frame, context) => {
   const seen = new Set();
-  let points = 0;
+  let points = 0, images = 0;
   frame.objects.forEach((object, index) => {
     if (seen.has(object.id)) context.addIssue({ code: 'custom', message: `duplicate object id "${object.id}"`, path: ['objects', index, 'id'] });
     seen.add(object.id);
     if (object.kind === 'polyline') points += object.points.length;
+    if (object.kind === 'image') {
+      images += 1;
+      if (object.x < 0 || object.y < 0 || object.x + object.w > frame.width || object.y + object.h > frame.height) {
+        context.addIssue({ code: 'custom', message: 'image must stay within the frame', path: ['objects', index] });
+      }
+      // The shared renderer displays a centered crop of a square source. A matching viewport preserves the exact ROI.
+      const scaledW = object.w * (object.crop?.h ?? 1), scaledH = object.h * (object.crop?.w ?? 1);
+      if (Math.abs(scaledW - scaledH) > 1e-9 * Math.max(scaledW, scaledH)) {
+        context.addIssue({ code: 'custom', message: 'image viewport must match the source crop aspect ratio', path: ['objects', index] });
+      }
+    }
     if (object.kind === 'text' && !object.text && !object.runs) context.addIssue({ code: 'custom', message: 'a text object needs text or runs', path: ['objects', index] });
     if ('text' in object && object.text && object.runs) context.addIssue({ code: 'custom', message: 'give text or runs, not both', path: ['objects', index] });
   });
   if (points > CONTRACT_LIMITS.pointsTotal) context.addIssue({ code: 'custom', message: `${points} polyline points in total (at most ${CONTRACT_LIMITS.pointsTotal})`, path: ['objects'] });
+  if (images > 4) context.addIssue({ code: 'custom', message: 'at most four image views per frame', path: ['objects'] });
 });
 
 export const Quantities = z.record(name, finite(1e12)).refine(record => Object.keys(record).length <= CONTRACT_LIMITS.quantities, 'too many quantities');
@@ -282,6 +300,9 @@ export const parseBundle = (raw, schemaVersion = SCHEMA_VERSION) => {
 export const parseArtifact = raw => {
   const schemaVersion = stateful(raw?.schemaVersion) ? STATEFUL_SCHEMA_VERSION : SCHEMA_VERSION;
   const manifest = parseManifest(raw?.manifest, schemaVersion);
+  if (manifest.ok && manifest.value.capabilities.includes(MEDIUM_CAPABILITY) && raw.sdkVersion !== MEDIUM_SDK_VERSION) {
+    return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'the Medium capability requires its SDK version' };
+  }
   return manifest.ok ? parseWith(stateful(schemaVersion) ? StatefulArtifact : ProgramArtifact, raw, 'invalid_program') : manifest;
 };
 export const parseEvaluateRequest = raw => parseWith(EvaluateRequest, raw, 'invalid_program');
@@ -322,9 +343,14 @@ export const parseFrame = raw => parseOutput(Frame, raw);
 // (stable ids: a learner can always select what the card offers). The Frame's object and point limits apply to every result as before.
 export function parseGuestResult(raw, manifest = null) {
   const result = parseOutput(GuestResult, raw);
-  if (!result.ok || !manifest?.viewport) return result;
-  const { width, height, objects } = result.value.frame, viewport = manifest.viewport;
+  if (!result.ok) return result;
+  const { width, height, objects } = result.value.frame;
   const invalid = issue => ({ ok: false, error: new RuntimeError('invalid_output'), issue });
+  if (objects.some(object => object.kind === 'image') && !manifest?.capabilities?.includes(MEDIUM_CAPABILITY)) {
+    return invalid('frame: image views require the Medium capability');
+  }
+  const viewport = manifest?.viewport;
+  if (!viewport) return result;
   if (width !== viewport.width || height !== viewport.height) return invalid(`frame: ${width} x ${height}, but the manifest viewport is ${viewport.width} x ${viewport.height}`);
   const drawn = new Set(objects.map(object => object.id)), missing = (manifest.targets || []).filter(target => !drawn.has(target.id)).map(target => target.id);
   return missing.length ? invalid(`frame: declared targets are not drawn: ${missing.slice(0, 4).join(', ')} (draw every target in every frame under its own id)`) : result;
