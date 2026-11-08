@@ -243,6 +243,13 @@ Not verified: a plain-words Tutor request routing to `/interactive` on the dev c
 
 Generation access: the fixtures are resolved only by `program-card.js` from a saved card's `program.fixtureId`, and only in dev builds (`fixturesAdmitted`). The author, brief and example selection do not import them, so the generation workflow cannot use them. The author is taught the helper signatures (authoring context only).
 
+## Backend generation results for the AI teaching examples (2026-11-08)
+
+Separate from the hand-authored fixtures above, and separate from visual and browser acceptance. Five prompts were run through the real `/interactive` pipeline (brief, author, review, repair; `claude-opus-5-5`; dev clone; $1.559 in total).
+Convolution and attention were generated and accepted on the first attempt; the gradient-descent prompt failed twice and the decision-tree prompt failed once, all with `unsupported_repair` (the repair step returned no program, or the reviewer rejected the repaired program).
+The generated programs' numbers pass offline acceptance from their own data. Visual, interaction and saved-state acceptance of the generated cards is **pending**. The records, the saved programs and the dev fixture ids (`fixture-generated-ai-*`) are in
+[ai-example-regeneration-results.md](explain-on-canvas/handoff/ai-example-regeneration-results.md); the generation workflow cannot use any fixture, hand-authored or generated.
+
 ## Limits (main: `contract.js CONTRACT_LIMITS`, `limits.js LIMITS`)
 
 | Limit | Value |
