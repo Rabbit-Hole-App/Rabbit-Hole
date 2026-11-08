@@ -174,7 +174,7 @@ this environment lacks the authorized dev credentials and working browser captur
 
 ### AI teaching examples
 
-Four hand-authored examples compose the existing 2D SDK in normal program cards.
+Six hand-authored examples compose the existing 2D SDK in normal program cards.
 They are exported together by `ai-teaching-fixtures.js`, admitted only through the
 existing dev fixture gate. They are reusable source examples, not a new automatic
 lesson-routing system and not proof of LLM generation quality.
@@ -185,6 +185,8 @@ lesson-routing system and not proof of LLM generation quality.
 | `fixture-ai-attention` | Select a query and causal masking; compare scaled scores, normalized weights and their weighted value output. Numbers are synthetic. | `ai-attention-fixture.js` |
 | `fixture-ai-gradient` | Vary learning rate and update count for a known quadratic loss. A nine-slot step strip separates updates that cluster on the parabola and shows the sign of each visited weight. | `ai-gradient-fixture.js` |
 | `fixture-ai-point-in-time-join` | Move the label day across feature snapshots. Compare the eligible row with the newest row and see when the latter leaks future data. [Phase 02 Lesson 21](https://github.com/rohitg00/ai-engineering-from-scratch/blob/e7db050e64bde3be17a9381476f748da26d85692/phases/02-ml-fundamentals/21-feature-stores-and-training-serving-skew/docs/en.md#L184) | `ai-point-in-time-join-fixture.js` |
+| `fixture-ai-feature-scaling` | Scale one feature in the distance calculation. The plot keeps its original coordinates while the nearest neighbor changes. | `ai-feature-scaling-fixture.js` |
+| `fixture-ai-forest-voting` | Change one input to three fixed trees. Trace their selected branches, count the votes, and see when the majority changes. | `ai-forest-voting-fixture.js` |
 
 All source paths above are under `packages/web/src/explain-program/`. The examples
 reuse `ProgramScene`, shared `Frame`, existing input controls and their persistence
@@ -231,16 +233,14 @@ day** to day 2 to see no match, day 6 to see the same-day snapshot qualify, and
 day 9 to see both methods use the same row. Reopen at day 2 and after Reset to
 verify persistence. Browser acceptance and a real generated card are pending.
 
-### Next Phase 02 builds
+### Feature Scaling and Forest Voting
 
-1. **Feature Scaling Explorer (Lesson 08).** Keep the original points and query
-   fixed. Use one feature-scale control to update the weighted distances and show
-   when the nearest neighbor changes. Show the distances for the two candidates
-   closest to the query so the learner can see why the winner changes.
-2. **Forest Voting Explorer (Lessons 04 and 11).** Change one query feature and
-   show the path and vote from each of three small trees. Update the vote tally
-   and majority prediction together. Use an example where an individual tree
-   changes its vote before the majority changes.
+| Reference | Dev acceptance cases |
+| --- | --- |
+| **Feature Scaling Explorer (Lesson 08)** | Move the x-scale from 0.5 to 1 to 1.5. B is closer, then the distances tie, then A is closer. Both distance readouts update and the query and candidates stay fixed. |
+| **Forest Voting Explorer (Lessons 04 and 11)** | Move the input from 2 to 3 to 5 to 7. The votes go from A/A/A to B/A/A to B/B/A to B/B/B. The majority remains A at 3 and becomes B at 5. Each tree highlights the path it took. |
+
+Both are dev fixtures with one slider. Signed-in browser acceptance is pending.
 
 ### Note for Claude Code
 
@@ -264,6 +264,10 @@ checks. Keep fixture playback and fresh generation as separate evidence.
 ```text
 /interactive Show me how joining on the latest feature row can leak future data. Use one user with visit snapshots of 2 visits on day 3, 5 on day 6, and 8 on day 9, each available that day. Let me move the label day from 1 to 10. On a shared timeline, compare the latest snapshot available as of the label day with the newest snapshot overall. Show when there is no eligible snapshot and flag when the newest snapshot comes from the future.
 ```
+
+- [ ] **Feature Scaling and Forest Voting.** Seed both fixtures on the dev
+  build and run the cases in the table above. Reopen each card after moving the
+  slider, then verify Reset and reopen again.
 
 Push a short receipt with the dev build SHA, the fixture or generation job ID,
 the visible outcomes, and the reopen and Reset results for each card. Record any
