@@ -80,7 +80,7 @@ Applies to every NEW written Explanation card (direct `/explain` and Tutor steps
 | Budget | One budget for every Depth: 600 characters, about 10 lines of the 440 px card. Only prose counts: paragraph and list text. Title, tables, diagrams, illustration prompts and captions do not count. Depth still sets how the card teaches, not its length. (Owner decision B.) |
 | Folded sections | No `more` sections (no dropdowns) on new cards; saved cards that have them still show them. (Owner decision C1.) |
 | Interactions | The three suggested questions and term pills stay as in E2; term anchors are taken from prose only. |
-| "Add illustration" | Stays on cards for adding a picture by hand. |
+| "Add illustration" | Removed (owner 2026-11-08): the card menu no longer offers it; pictures come only from the author's `rh-illustration` fences. Saved cards that already hold an `illustration` keep showing it. |
 
 A learner asks a question, optionally supplies source material and chooses a Depth. Rabbit Hole delivers a readable Explanation card that answers the question, with useful prose, comparisons or visual evidence. An accepted Tutor step uses the same teaching and rendering rules with its own immutable title, scope and source bindings.
 
