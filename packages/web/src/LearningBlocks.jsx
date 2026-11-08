@@ -15,7 +15,7 @@ import { Md } from './ask.jsx';
 import { diagramsAsText } from './diagram-fence.js';
 import { MdInline } from './Md.jsx';
 import IllustrationFigure from './IllustrationFigure.jsx';
-import { FollowUp, SelectionBar, Suggestions, TermNote, useExplanationLayer, wrapField } from './ExplanationInteractions.jsx';
+import { FollowUp, HighlightMenu, SelectionBar, Suggestions, TermNote, useExplanationLayer, wrapField } from './ExplanationInteractions.jsx';
 import { splitLead } from './explanation-lead.js';
 import { api, wsHeaders } from './api.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
@@ -2085,7 +2085,7 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight, onChange, onC
         ))}
         {layer && <Suggestions layer={layer} />}
       </div>
-      {layer && <><TermNote layer={layer} /><SelectionBar layer={layer} /><FollowUp layer={layer} /></>}
+      {layer && <><TermNote layer={layer} /><SelectionBar layer={layer} /><HighlightMenu layer={layer} /><FollowUp layer={layer} /></>}
     </div>
   );
 }

@@ -102,7 +102,7 @@ export const TYPE_ACTIONS = [
     applies: (t, ctx) => !!ctx.canvas.pinForStudy && !!eligible(t.object),
     run: (t, ctx) => ctx.canvas.pinForStudy(t.id),
   },
-  // Add note (a written Explanation with the E2 interactions envelope, explain.md section 4): ONE blank Sticky note linked to this card, no quote, opened for typing;
+  // Add note (a written Explanation with the E2 interactions envelope, explain.md section 4): ONE blank Sticky note beside this card (no connector, owner 2026-11-08), no quote, opened for typing;
   // the page supplies addCardNote. The same edit permission as Edit text, so a view-only viewer cannot invoke it.
   {
     id: 'explanation.add-note', label: 'Add note', icon: 'StickyNote', group: 'type', order: 14,
