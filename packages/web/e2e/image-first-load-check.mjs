@@ -189,9 +189,8 @@ await step('first load, in Auto: /image gets its plan card; a spinner and Loadin
     assert.match(await card.locator('[data-media-state="loading"]').innerText(), /^Loading image$/);
     assert.equal(await card.locator('[data-media-state="loading"] .animate-spin').count(), 1, 'a spinner');
     assert.equal(await card.locator('[data-media-state="missing"]').count(), 0);
-    // Generation complete and preview displayed are separate: Chat says Ready and the charge while the card still loads.
-    assert.equal(await first.plan.locator('[data-proposal-generate]').getAttribute('data-proposal-phase'), 'done');
-    assert.match(await first.plan.locator('[data-proposal-job-detail]').innerText(), /The image is ready on the canvas\. Charged 1 AI credit\./);
+    // Owner 2026-11-08 (item 36; losing the charge line in Chat accepted): once the image card is placed, its accepted review card leaves the Chat, even while the image still loads.
+    await first.plan.waitFor({ state: 'detached', timeout: 30000 });
     await card.screenshot({ path: `${OUT}/01-loading.png` });
   } finally { release(); boardHolds.shift(); }
   await until(async () => !!(await decoded(page, first.id)), 'the image decoded in its card', 30000);
@@ -255,14 +254,12 @@ await step('a reload shows the image again; no card is placed again and no job i
     await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 });
     await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 30000 });
     await until(async () => !!(await decoded(page, first.id)), 'the image after the reload');
-    await dock.locator('[data-generation-proposal="generate-image"]', { hasText: 'a red square' }).waitFor({ timeout: 30000 });
-    await page.waitForTimeout(3000); // the restored plan reads its job (MOCKED ready) and must not place a card
+    await page.waitForTimeout(3000); // nothing restored may place a card or start a job again
     assert.equal((await blockIds(page)).length, cards, 'no card placed again');
     assert.equal(posts.length, jobs, 'no job started or resubmitted');
     assert.equal(posts.filter(id => id === `img-${plans.get('a red square').proposal.proposal_id}`).length, 1, 'one job POST for the first image, never a second');
     const restored = dock.locator('[data-generation-proposal="generate-image"]', { hasText: 'a red square' });
-    assert.equal(await restored.count(), 1, 'one plan card for it');
-    assert.match(await restored.locator('[data-proposal-job-detail]').innerText(), /Charged 1 AI credit\./, 'one charge, as before');
+    assert.equal(await restored.count(), 0, 'the accepted review card stays out of the Chat after a reload');
     assert.equal((await blockIds(page)).filter(id => id === first.id).length, 1, 'exactly one card for it');
     assert.equal(model.includes('/api/learn/ask'), false, 'the ask route was still never asked');
     await page.screenshot({ path: `${OUT}/04-reloaded.png` });
