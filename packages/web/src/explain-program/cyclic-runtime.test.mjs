@@ -60,10 +60,11 @@ test('normal card fixture resolves, selects every loop stage, restores state and
   assert.deepEqual(evaluate(run('initialize',null)),baseline);
 });
 
-test('author and repair both receive the cyclic helper contract', () => {
-  for(const repair of [false,true]) {
-    const context=programContext(CONTRACT_LIMITS,CAPABILITIES,{stateful:true,repair});
-    assert.match(context.sdk.cyclicGraph.signature,/sdk.cyclicGraph/);
-    assert.match(context.sdk.cyclicGraph.usage,/cyclic_networks/);
-  }
+// Integration decision (cyclic + Medium + heat grid): like the Medium and heat-grid docs, the cyclic helper contract is for authoring. With all three stacked, a maximal valid
+// program no longer fits the repair request's size budget (explain-program-budget.test.js), so the repair request carries the program itself and the validator's problems.
+test('the author receives the cyclic helper contract; the repair request leaves it out, as it does the Medium and heat-grid docs', () => {
+  const author=programContext(CONTRACT_LIMITS,CAPABILITIES,{stateful:true,repair:false});
+  assert.match(author.sdk.cyclicGraph.signature,/sdk.cyclicGraph/);
+  assert.match(author.sdk.cyclicGraph.usage,/cyclic_networks/);
+  assert.equal(programContext(CONTRACT_LIMITS,CAPABILITIES,{stateful:true,repair:true}).sdk.cyclicGraph,undefined);
 });
