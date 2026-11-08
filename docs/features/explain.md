@@ -13,6 +13,7 @@ Built from [slash-command-template.md](slash-command-template.md), version 1. Th
 | Product source | [Tutor roadmap v1.4](explain-on-canvas/handoff/tutor-roadmap-v1.4.md), Git blob `942ca2330bf1b80429f2dec73d06051d8c37fcdc` |
 | Implementation source | [Tutor checklist v1.2](explain-on-canvas/handoff/tutor-implementation-checklist.md), Git blob `cae2d23e391f0c00b1c469bc3eb3c52c33942b75` |
 | Deliverable | Standalone written `/explain` and the same Explanation content/renderer used by accepted Tutor steps |
+| Implementation status | E0 built on `explain/e0` (`3a26c8c03`, offline fixtures only): [receipt](explain/reviews/2026-11-08-3a26c8c03.md). No browser, real-model or deployed acceptance. E1 onward: see the latest receipt under `explain/reviews/`. |
 | Evidence for this document | Source and reference review. Runtime tests, browser acceptance and paid generation remain candidate-specific evidence. |
 
 ## Navigation
