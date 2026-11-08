@@ -123,7 +123,13 @@ export function normalizeStructured({ candidates, schema, truncated = false, ref
   const distinct = [...new Map(parsed.map(v => [canonical(v), v])).values()];
   if (!distinct.length) throw bad('no_result', 'The model reply held no structured result.');
   if (distinct.length > 1) throw bad('conflicting_results', `The model reply held ${distinct.length} different structured results.`);
-  const output = normalizeToolInput(schema, distinct[0]); // the schema-directed JSON-string unwrapping the tools already get; nothing else
+  let output = normalizeToolInput(schema, distinct[0]); // the schema-directed JSON-string unwrapping the tools already get
+  // One syntactic slip is accepted (seen from real Opus runs, about one call in three): the whole result nested under a single key the schema does not define, {"plan": {...}}.
+  // It is unwrapped only when the inner value then satisfies the schema in full; anything else stays a schema_mismatch. No field is added, removed or changed.
+  if (isObject(output) && isObject(schema?.properties) && Object.keys(output).length === 1) {
+    const [key, inner] = Object.entries(output)[0];
+    if (!Object.hasOwn(schema.properties, key) && isObject(inner)) { const candidate = normalizeToolInput(schema, inner); if (isObject(candidate) && schemaProblems(schema, candidate).length === 0) output = candidate; }
+  }
   if (!isObject(output)) throw bad('not_object', 'The structured result was not an object.');
   const problems = schemaProblems(schema, output);
   if (problems.length) throw bad('schema_mismatch', `The structured result does not match its schema: ${problems.slice(0, 5).join('; ')}`, { problems: problems.slice(0, 20) });
