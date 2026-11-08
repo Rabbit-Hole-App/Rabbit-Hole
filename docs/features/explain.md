@@ -68,6 +68,20 @@ This is what `/explain` is for now. It supersedes the later-stage parts of this 
 
 **Still to verify:** one live real-model `/explain` run that asks for a table and a traced flow diagram, then checks the questions, term pills, highlighted path and reopen. Tick the matching checkboxes below only with that evidence.
 
+### Card layout v2 (owner decisions, 2026-11-08) — EXP-13
+
+Applies to every NEW written Explanation card (direct  and Tutor steps). Saved cards keep rendering exactly as before.
+
+| Rule | Decision |
+| --- | --- |
+| Layout | Title, then prose ▸ visual ▸ prose, optionally ▸ visual ▸ prose. One or two visuals; every visual has prose before and after it. A table may sit inside a prose part; a table is not a visual. |
+| Visual required | At least one visual on every card: an SVG TutorDiagram ( fence, drawn by our renderer) or a Recraft illustration. Both kinds may appear on one card. |
+| Recraft illustration | The author places a fence \ holding  where the picture goes. The server generates it automatically with Recraft V4.1 Flash (IMG-01, model ) as part of the same , no separate confirmation; its cost (about US$0.007) is part of the  charge. The card shows a placeholder until the picture is ready and an honest failure note if it fails; the card itself is never lost because a picture failed. (Owner decision A1.) |
+| Budget | One budget for every Depth: 600 characters, about 10 lines of the 440 px card. Only prose counts: paragraph and list text. Title, tables, diagrams, illustration prompts and captions do not count. Depth still sets how the card teaches, not its length. (Owner decision B.) |
+| Folded sections | No  sections (no dropdowns) on new cards; saved cards that have them still show them. (Owner decision C1.) |
+| Interactions | The three suggested questions and term pills stay as in E2; term anchors are taken from prose only. |
+| "Add illustration" | Stays on cards for adding a picture by hand. |
+
 A learner asks a question, optionally supplies source material and chooses a Depth. Rabbit Hole delivers a readable Explanation card that answers the question, with useful prose, comparisons or visual evidence. An accepted Tutor step uses the same teaching and rendering rules with its own immutable title, scope and source bindings.
 
 | Contract | Required behavior | Source |
