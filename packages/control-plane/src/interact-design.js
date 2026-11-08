@@ -208,7 +208,8 @@ export async function verifyDesignRevision(previous, revision, review, capabilit
   const parsed = parseScenePlan(revision.plan, capabilities);
   const problems = [...(parsed.ok ? [] : parsed.problems), ...runtimeProblems(revision.plan, capabilities), ...revisionProblems(previous, revision)];
   const bad = (path, code, message) => problems.push({ path, code, message });
-  const ids = new Set([...review.findings.map(finding => finding.id), ...deterministic.flatMap(check => [check.code, check.path].filter(Boolean))]);
+  // The description-fit codes are always answerable: the check runs after closure, so the problem list may not hold it yet when the reviser (rightly) answers it.
+  const ids = new Set([...review.findings.map(finding => finding.id), 'description_fit', 'stale_receipt', 'invalid_receipt', ...deterministic.flatMap(check => [check.code, check.path].filter(Boolean))]);
   revision.changes.forEach((change, i) => { if (!ids.has(change.findingId)) bad(`changes.${i}.findingId`, 'unknown_finding', `"${change.findingId}" is not a finding of the review`); });
   revision.unresolvedFindingIds.forEach((id, i) => { if (!ids.has(id)) bad(`unresolvedFindingIds.${i}`, 'unknown_finding', `"${id}" is not a finding of the review`); });
   const diff = planDiff(previous, revision.plan);
