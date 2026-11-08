@@ -13,7 +13,7 @@ Built from [slash-command-template.md](slash-command-template.md), version 1. Th
 | Product source | [Tutor roadmap v1.4](explain-on-canvas/handoff/tutor-roadmap-v1.4.md), Git blob `942ca2330bf1b80429f2dec73d06051d8c37fcdc` |
 | Implementation source | [Tutor checklist v1.2](explain-on-canvas/handoff/tutor-implementation-checklist.md), Git blob `cae2d23e391f0c00b1c469bc3eb3c52c33942b75` |
 | Deliverable | Standalone written `/explain` and the same Explanation content/renderer used by accepted Tutor steps |
-| Implementation status | E0 (`3a26c8c03`) and E1 (`407a8d384`, branch `explain/e1`) built, offline fixtures only: [E0 receipt](explain/reviews/2026-11-08-3a26c8c03.md), [E1 receipt](explain/reviews/2026-11-08-407a8d384.md). No browser, real-model or deployed acceptance; live EX-01/EX-07 runs pending. E2 backend (`b0c4ffd54`, `explain/e2`) and E3 (`ea758815b`, `explain/e3`): [receipt](explain/reviews/2026-11-08-ea758815b.md). Later rungs: see the latest receipt under `explain/reviews/`. |
+| Implementation status | Owner scope 2026-11-08 (section 2, "Current scope"): every feature in that list is built and deployed in production (main `39d19f28c`, release 113). Live real-model acceptance of the newest parts (E2 interaction layer, E3 highlighted path) is still pending. E4, E5 and E6 are deferred. Receipts: [E0](explain/reviews/2026-11-08-3a26c8c03.md), [E1](explain/reviews/2026-11-08-407a8d384.md), and the E2/E3 receipts under [explain/reviews](explain/reviews/). |
 | Evidence for this document | Source and reference review. Runtime tests, browser acceptance and paid generation remain candidate-specific evidence. |
 
 ## Navigation
@@ -51,6 +51,22 @@ Scope covers written generation, teaching/depth, content validation, shared rend
 
 <a id="product"></a>
 ## 2. Product contract and decisions
+
+### Current scope (owner decision, 2026-11-08)
+
+This is what `/explain` is for now. It supersedes the later-stage parts of this specification until the owner reopens them.
+
+| Feature | Status | Production flag |
+| --- | --- | --- |
+| Written Explanation card: Markdown, tables, Depth (Overview, Standard, Deep), selected source, pinned title, one reading flow, same card on reopen | Built, deployed | on |
+| SVG diagrams: the author writes a TutorDiagram spec (labels, roles, links); our renderer (`packages/web/src/tutor-diagrams/`) lays it out and draws SVG, 17 kinds (flow, comparison, timeline, sequence, matrix, layers and others). A requested table or diagram is required, and a broken one goes back for repair | Built, deployed (release 103; required-visual check release 112) | on |
+| Highlighted path through a flow diagram for a worked case (E3) | Built, deployed (release 112) | on |
+| Recraft illustration: "Add illustration" on the card opens Chat with `/image` and a prompt about the card (never sent by itself); Recraft V4.1 Flash makes the picture, attached as a figure with a caption (`IllustrationFigure.jsx`) | Built, deployed (release 103); `RECRAFT_API_KEY` set on `rabbit-hole-app` | image generation on |
+| Interaction layer (E2): three suggested questions, orange term pills with a definition and Dig Rabbit Hole, the bottom + Ask a follow-up field, and the selection toolbar (Ask in chat, Highlight, Create note) | Built, deployed (release 112) | `EXPLANATION_INTERACTIONS` = true (release 113) |
+
+**Deferred (owner, 2026-11-08): not needed for now.** E4 researched explanations (R8a), E5 adaptive explanations (R10) and E6 prepared explanations (R11), with their EXP-07 tasks. Do not build them or report them as missing until the owner reopens them.
+
+**Still to verify:** one live real-model `/explain` run that asks for a table and a traced flow diagram, then checks the questions, term pills, highlighted path and reopen. Tick the matching checkboxes below only with that evidence.
 
 A learner asks a question, optionally supplies source material and chooses a Depth. Rabbit Hole delivers a readable Explanation card that answers the question, with useful prose, comparisons or visual evidence. An accepted Tutor step uses the same teaching and rendering rules with its own immutable title, scope and source bindings.
 
@@ -339,9 +355,9 @@ Separate reference reconstruction from original-prompt generation. Where a refer
 | E1 — first usable written card | Exact EX-01 → actual written author → correct explanation with requested table → same saved card on reopen; pinned header and one reading flow. Supported diagram requests also work through EX-07. | EXP-02, teaching/cap/title/renderer and required-visual subset of EXP-03/04/06; EXP-12-C02–C03; local gate E-B1 and build before preview. Coffee table at all three Depths; Standard EX-07 diagram generation/reload and missing-required-visual failures. Keep unfinished actions hidden. | Terms/suggestions/notes, optional image jobs, optional provider adapters/matrix and model comparison. E1 tree caption is a scoped substitute; full blue-path reference acceptance stays E3. |
 | E2 — approved interaction layer | Orange definitions, three questions, bottom follow-up, selection/highlight and linked notes backed by real APIs | Section 5's resolved metadata/ranges/ownership contract; EXP-03, EXP-04-C16–20 / EXP-05 and EXP-12-C05–C06; local gate E-B2. Owner tests one newly authored card's real actions, routing, quote preservation, duplicate prevention, keyboard actions and reload. | Extra animations, visual variants, elaborate empty states beyond the approved usable behavior. |
 | E3 — Tutor/visual completion | Same written card through accepted Tutor steps, two-card continuity, approved highlighted tree path and current optional illustration attachment | EXP-06, EXP-12-C04 and affected EXP-08; local gate E-B3. Owner tests accepted title/Depth/source, two saved cards, source jumps, image attachment and failure states. Reuse already working Tutor/image code. | R8a/R10/R11 and a full provider benchmark. If Tutor or illustration pieces are already verified, deliver their small delta earlier rather than waiting artificially. |
-| E4 — researched explanations | R8a evidence and cited sources | EXP-07-C01–03: source-supported zero-search case, evidence binding, privacy, saved sources | E5 adaptation, E6 preparation, E7 optimization |
-| E5 — adaptive explanations | R10 future-step adaptation and deeper exploration | EXP-07-C04–05: explicit feedback, revision acceptance, preserved delivered cards and zero-charge existing links | E6 preparation, E7 optimization |
-| E6 — prepared explanations | R11 private preparation and accepted reuse | EXP-07-C06–08: fingerprints, private output, one settlement and no extra author on reuse | E7 optimization |
+| E4 — researched explanations (deferred by owner 2026-11-08) | R8a evidence and cited sources | EXP-07-C01–03: source-supported zero-search case, evidence binding, privacy, saved sources | E5 adaptation, E6 preparation, E7 optimization |
+| E5 — adaptive explanations (deferred by owner 2026-11-08) | R10 future-step adaptation and deeper exploration | EXP-07-C04–05: explicit feedback, revision acceptance, preserved delivered cards and zero-charge existing links | E6 preparation, E7 optimization |
+| E6 — prepared explanations (deferred by owner 2026-11-08) | R11 private preparation and accepted reuse | EXP-07-C06–08: fingerprints, private output, one settlement and no extra author on reuse | E7 optimization |
 | E7 — measured optimization and final closure | Factuality/speed comparison and complete-feature acceptance audit | EXP-09 plus all in-scope requirements, integrated regression/manual evidence and verified release state | Nothing silently deferred; blocked work remains open |
 
 - [ ] **EXP-10-R01** Deliver E0–E7 as separate small MVP candidates, each mapped to exact existing requirement subsets and a main commit; keep unfinished full-feature parent boxes open.
@@ -397,6 +413,8 @@ All boxes start open for this extracted spec. Existing source/code evidence is r
   - [ ] **EXP-06-R03** Optional illustrations reuse the existing quoted image workflow and target binding, with appropriate alt text, caption, loading/failure and authorized reload behavior.
 
 ### EXP-07 — Explicit later Tutor integrations
+
+**Deferred (owner, 2026-11-08):** not needed for now; see section 2, "Current scope".
 
 - [ ] **EXP-07-R01** When each shared stage is authorized and ready, Explanation integrates R8a research, R10 adaptation and R11 prepared content through their existing contracts.
   - [ ] **EXP-07-R02** Research uses existing evidence first, binds used sources to the accepted/card revision and preserves source privacy and platform-funded limits.
@@ -607,6 +625,8 @@ These sprint gates select a minimum for the affected increment, not permission t
 - [ ] **EXP-06-C06** Verify file access/revocation and authorized share/fork/read through the existing image path. Retain current provider selection and capability limits. Record any real-image budget/run separately; an HTML fixture or provider registry entry is not generation acceptance.
 
 ### EXP-07 checklist — Later shared Tutor stages
+
+**Deferred (owner, 2026-11-08):** not needed for now; see section 2, "Current scope".
 
 **Dependencies:** accepted core, then the corresponding R8a/R10/R11 prerequisites in REF-01/02. **Ownership:** shared Tutor work stays there; these are Explanation integration obligations. Do not mark the whole stage complete from one card fixture.
 
