@@ -169,13 +169,21 @@ test('a stranger gets 404 by id; a link viewer reads only what the board shows, 
   assert.equal((await call('GET', `/api/learn/files/${shown}?app=demo-app&board=main`, { as: 'friend' })).status, 404, 'not their board');
 });
 
-test('the owner reads through their own board too, and only a source that board references', async t => {
+test('the owner reads a source they own through their own board before the save that references it lands; nobody else does', async t => {
+  // A new written Explanation's picture is stored for the board owner and shown before the board save indexes it (2026-11-08 benchmark).
   const { call, saveBoard, store } = setup(t);
   await saveBoard(STATE);
   const id = (await store(webm(400))).body.source.id;
-  assert.equal((await call('GET', `/api/learn/files/${id}?app=demo-app&board=main`, { as: 'owner' })).status, 404, 'the board does not reference it');
+  const early = await call('GET', `/api/learn/files/${id}?app=demo-app&board=main`, { as: 'owner' });
+  assert.equal(early.status, 200, 'the owner, before the board references it (canvas-file-imports.md 4.1 rule 1)');
+  assert.equal(early.body.byteLength, 400);
+  const links = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true } })).body.sharing;
+  assert.equal((await call('GET', `/api/learn/files/${id}?share=${links.view}`, { as: 'friend' })).status, 404, 'a link viewer: the board does not reference it');
+  assert.equal((await call('GET', `/api/learn/files/${id}?app=demo-app&board=main`, { as: 'friend' })).status, 404, 'not their board');
+  assert.equal((await call('GET', `/api/learn/files/${id}`, { as: 'friend' })).status, 404, 'nor by id');
   await saveBoard({ ...STATE, blocks: [card(id)] });
   assert.equal((await call('GET', `/api/learn/files/${id}?app=demo-app&board=main`, { as: 'owner' })).status, 200);
+  assert.equal((await call('GET', `/api/learn/files/${id}?share=${links.view}`, { as: 'friend' })).status, 200, 'once saved, the link reads it as before');
 });
 
 test('canvas members: an active member reads through ?member=, a removed member gets 404, and no member adds files', async t => {
