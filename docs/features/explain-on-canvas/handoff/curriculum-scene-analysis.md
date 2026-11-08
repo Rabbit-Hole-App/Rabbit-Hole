@@ -600,8 +600,8 @@ Three more hand-authored examples extend the teaching registry to **six examples
 - [x] Reuse shared Frame, existing controls/actions/drag events, saved state and Reset. No new renderer or SDK version.
 - [x] **28 focused AI tests passed** with unchanged runtime budgets and test concurrency 1; dev web build and git diff check passed. Independent code review found no concrete defects.
 - [x] Inspect static shared-Frame scenes, including changed state. Offline export omits KaTeX foreignObject math and the shadow filter; this is not full browser acceptance.
-- [ ] Live dev/browser interaction and reopen acceptance.
-- [ ] Real generation acceptance through the normal `/interact` workflow, starting with the earlier convolution, attention and gradient examples.
+- [x] Live dev browser acceptance of the three fixtures on the integrated dev branch `regen/ai-examples` (the `/interactive` line plus these fixtures), deployed to a dev clone (35 checks, none failing). **Backprop** (10): the displayed loss, the chain-rule gradient and the update match the formulas and a finite difference computed from the displayed x and w; the proposed step lowers the loss; reload, a fresh browser context and Reset keep and restore the state. **Decision boundary** (12): dropping the query on A1 or B3 makes that point its nearest neighbour with the matching prediction; moving a training point across the boundary changes the leave-one-out error and lists the misses; 3 neighbors lists three; the dragged query and point geometry (not only the saved inputs) and the readouts persist on reload and in a fresh context; Reset restores. **Q-learning** (13): a wall move keeps the cell with the step cost; moving to the goal gives the goal reward and Q update and ends the episode; a terminal action changes nothing; New episode keeps the learned Q; a parameter change starts a fresh run; the pit gives -1; reopen and Reset pass.
+- [x] Backend generation through the normal `/interactive` workflow (explicit command; plain-words routing was not available on the dev clone). Results are in [ai-example-regeneration-results.md](./ai-example-regeneration-results.md) on `regen/ai-examples`. **Convolution and attention were generated and accepted on the first attempt; gradient descent failed twice; the decision-tree prompt failed once** (see below). Generated-card **visual and browser acceptance remains pending**.
 
 **Pushed:** [`chatgpt/ai-learning-examples`](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/chatgpt/ai-learning-examples), commit [`08dd0847`](https://github.com/Rabbit-Hole-App/Rabbit-Hole/commit/08dd084784f6551c844a2afa332372dac89854ea). Includes the earlier three examples and topic audit; the separate heat-grid branch remains outside this lineage. No planner mapping, repair-budget changes, broad CI, paid calls or deployment.
 
@@ -612,9 +612,24 @@ Three more hand-authored examples extend the teaching registry to **six examples
 - [x] Added `fixture-ai-tree-split` as the seventh hand-authored AI teaching example. Ten labeled points on one feature illustrate the first decision tree split using the existing 2D plot and card controls.
 - [x] The cutoff updates the left and right class counts, original impurity, weighted child impurity and gain. Reveal preserves the learner's cutoff and marks the best of nine midpoints. Gini picks 9 and entropy picks 15 on this dataset.
 - [x] Nine focused sandbox and resolver checks passed, including persisted reveal state and Reset. The dev web build passed. Initial and revealed static scenes were inspected.
-- [ ] Live browser acceptance and real generation through `/interact`.
+- [ ] Live browser acceptance of the **hand-authored reference** `fixture-ai-tree-split` (not run here).
+- [x] Backend generation through `/interactive` ran once (job `ej_005698df108f46a4a90f40cb250dc7fa`, $0.407) and **failed**: the first program was invalid, the repair fixed it, the reviewer then rejected the repaired program on two minor findings (`unsupported_repair`). The last generated program is kept as a rejected candidate (`fixture-generated-ai-tree-split-rejected`), not an accepted result. It uses its **own 12-point dataset**, so the reference answers (Gini 9, entropy 15) do not apply; on its own data the counts, impurities and gains follow the cutoff for both criteria, both pick cutoff 4.55, and Reveal marks the best cutoff while keeping the learner's cutoff visible (offline tests). Visual and browser acceptance of the candidate is pending.
 
 **Pushed** [`chatgpt/decision-tree-split-explorer`](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/chatgpt/decision-tree-split-explorer) at [`3365b53e`](https://github.com/Rabbit-Hole-App/Rabbit-Hole/commit/3365b53e365d64ebd4c9aa3434bbbb940ae81826). This example uses existing components. The capability ledger and frozen topic audit retain their counts.
+
+## Backend generation results, separate from browser acceptance · 2026-11-08
+
+Five prompts through the real `/interactive` author, review and repair pipeline (`claude-opus-5-5`, dev clone, explicit command; $1.559 in total). Nothing was seeded or copied from the hand-authored fixtures, and no failure was replaced by a hand-authored card.
+
+| Case | Backend result | Job | Cost |
+| --- | --- | --- | ---: |
+| Convolution | **generated, accepted** on the first attempt; offline acceptance passes across all 27 window and kernel settings including corner windows and the blur divided by nine | `ej_fe8805df…` | $0.256 |
+| Attention | **generated, accepted** on the first attempt; scaled scores, zero weight on blocked keys, weights summing to one and the weighted output all pass for every query and mask setting | `ej_8a536a2c…` | $0.213 |
+| Gradient descent, run 1 | **failed** (`unsupported_repair`): the reviewer's major finding is that points near the minimum are hidden; the repair step returned no program | `ej_5c50212f…` | $0.345 |
+| Gradient descent, run 2 | **failed** (same stop reason and finding family) | `ej_94a55d38…` | $0.338 |
+| Decision-tree split | **failed** (`unsupported_repair`, minor findings only after one repair) | `ej_005698df…` | $0.407 |
+
+The numbers of the rejected gradient candidates are right (w at step t is 3(1 - rate)^t); their failure is visual. **Pending, not done:** visual, interaction and saved-state acceptance of the generated cards (Codex tests the committed outputs), the plain-words routing path (the dev clone has no router key), and any fix of the repair step. Committed outputs, fixture ids (`fixture-generated-ai-*`) and replay commands are in the results document; the generation workflow still cannot use any fixture.
 
 ## Review criteria
 
