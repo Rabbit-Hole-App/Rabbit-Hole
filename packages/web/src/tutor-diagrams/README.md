@@ -25,7 +25,7 @@ Every spec has the shape `{ "version": 1, "diagram": { "kind": "...", "title": "
 | `layers` | Ordered layers with `label`, optional `detail` | Stacked color blocks with wrapped labels and details |
 | `cycle` | Ordered step labels | Step boxes, arrows, outer return connector |
 | `figure` | Figure preset and named callouts. Free-body figures take direction, magnitude, and unit | Cell, cross-section, or free-body drawing; linked callout badges; proportional force arrows |
-| `tree` | Nodes with `id`, `label`, and optional `parent` | Indented hierarchy with parent-to-child connectors |
+| `tree` | Nodes with `id`, `label`, and optional `parent`. With `layout: "binary"`, each child also supplies `side: "left"` or `"right"`. | Indented hierarchy or a top-down binary tree with the approved branch styling |
 | `relationship` | Labeled nodes and directed links with relationship labels | Directional lanes with clear endpoints, including reciprocal links |
 | `transformation` | Before and after item lists, operation, optional zero-based item mappings | Two states, operation banner, and labeled mappings |
 | `argument` | Claim, support, objections, conclusion. Evidence can include a source label | Evidence lanes joined to a conclusion |

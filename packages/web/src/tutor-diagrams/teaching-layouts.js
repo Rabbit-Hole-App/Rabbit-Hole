@@ -1,4 +1,5 @@
-import { box, connector, label, lineHeight, textWidth, words, wrap } from './primitives.js';
+import { cloneElement, createElement as h } from 'react';
+import { box, connector, label, lineHeight, textWidth, widestFormula, words, wrap } from './primitives.js';
 
 const PAD = 12;
 const GAP = 8;
@@ -27,7 +28,72 @@ function card(x, y, width, content, { role = 'plain', height = content.height, a
   ];
 }
 
+const BRANCH_GAP = 18;
+const ROW_GAP = 30;
+
+function binaryTree({ nodes }, preferredWidth) {
+  const children = new Map(nodes.map(node => [node.id, {}]));
+  for (const node of nodes) {
+    if (node.parent !== undefined) children.get(node.parent)[node.side] = node;
+  }
+  const positions = new Map();
+  const rows = [];
+  const wrapAt = Math.min(150, Math.floor((preferredWidth - 2 * PAD - BRANCH_GAP) / 2));
+
+  function arrange(node, depth) {
+    const maxLine = Math.min(wrapAt - 2 * TEXT_PAD, textWidth(node.label, TEXT));
+    const width = Math.max(86, Math.ceil(Math.max(maxLine, widestFormula(node.label, TEXT)) + 2 * TEXT_PAD));
+    const pos = { x: 0, width, content: measure(node.label, width) };
+    positions.set(node.id, pos);
+    (rows[depth] ??= []).push(pos);
+    const branches = children.get(node.id);
+    const left = branches.left && arrange(branches.left, depth + 1);
+    const right = branches.right && arrange(branches.right, depth + 1);
+    // Keep sibling subtrees in separate horizontal space, so their wires cannot
+    // cross. With just one child, still give the branch a clear left or right turn.
+    const offset = Math.max(36, left && right ? (left.max - right.min + BRANCH_GAP) / 2 : 0);
+    const subtree = { cards: [pos], min: -width / 2, max: width / 2 };
+    for (const [child, shift] of [[left, -offset], [right, offset]]) {
+      if (!child) continue;
+      for (const card of child.cards) card.x += shift;
+      subtree.cards.push(...child.cards);
+      subtree.min = Math.min(subtree.min, child.min + shift);
+      subtree.max = Math.max(subtree.max, child.max + shift);
+    }
+    return subtree;
+  }
+
+  const { min, max } = arrange(nodes.find(node => node.parent === undefined), 0);
+  const width = Math.max(preferredWidth, Math.ceil(max - min + 2 * PAD));
+  const shift = (width - (max - min)) / 2 - min;
+  let y = PAD;
+  for (const row of rows) {
+    for (const pos of row) {
+      pos.x += shift;
+      pos.y = y;
+    }
+    y += Math.max(...row.map(pos => pos.content.height)) + ROW_GAP;
+  }
+
+  // The decision-tracer reference uses warm nodes and orthogonal sage wires.
+  // Scope the approved dark ink to those light nodes so it also reads in dark mode.
+  const wires = [], cards = [];
+  for (const node of nodes) {
+    const { x, y, width, content } = positions.get(node.id);
+    if (node.parent !== undefined) {
+      const parent = positions.get(node.parent);
+      const elbow = y - ROW_GAP / 2;
+      wires.push(cloneElement(connector([[parent.x, parent.y + parent.content.height], [parent.x, elbow],
+        [x, elbow], [x, y]], { arrow: false }), { stroke: '#a9b89b', strokeWidth: 1.6 }));
+    }
+    const [background, ...labels] = card(x - width / 2, y, width, content);
+    cards.push(cloneElement(background, { rx: 9, fill: '#fffefa', stroke: '#e3e7e0', strokeWidth: 1 }), ...labels);
+  }
+  return { width, height: y - ROW_GAP + PAD, elements: [...wires, h('g', { style: { '--color-ink': '#202723' } }, ...cards)] };
+}
+
 function tree(diagram, width) {
+  if (diagram.layout === 'binary') return binaryTree(diagram, width);
   const children = new Map(diagram.nodes.map(node => [node.id, []]));
   for (const node of diagram.nodes) {
     if (node.parent !== undefined) children.get(node.parent).push(node);
