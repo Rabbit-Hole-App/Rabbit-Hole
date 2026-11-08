@@ -67,7 +67,7 @@ export const LEARN_TASKS = Object.freeze({
   // pins them like the explain roles; the call settings live in interact-models.js (a profile may serve any role from another provider, which these
   // task entries then only label). The build roles reuse explain_author/review/repair above, with their new-flow limits set by the profile.
   interact_design_author: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 12000 }),
-  interact_design_review: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 6000 }),
+  interact_design_review: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 10000 }),
   interact_design_revise: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 14000 }),
   // /animation (AN-05, docs/superpowers/plans/2026-10-30-animation.md section 7): its own roles on /explain's model and token ceilings,
   // never the picker, Auto or `artifact`. One tool on auto, exactly one call of it. Limits, prices and the build graph: animation-policy.js.

@@ -236,7 +236,7 @@ test('cards, the whiteboard and a picked chat model log their task, source and p
 });
 
 test('the /interact design roles are pinned like the explain roles; the legacy explain limits are unchanged (INT-07A-C02)', () => {
-  for (const [task, maxTokens] of [['interact_design_author', 12000], ['interact_design_review', 6000], ['interact_design_revise', 14000]]) {
+  for (const [task, maxTokens] of [['interact_design_author', 12000], ['interact_design_review', 10000], ['interact_design_revise', 14000]]) {
     assert.ok(Object.isFrozen(LEARN_TASKS[task]), task);
     assert.deepEqual({ ...LEARN_TASKS[task] }, { provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens }, task);
   }

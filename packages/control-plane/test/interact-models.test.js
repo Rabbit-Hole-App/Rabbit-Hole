@@ -38,7 +38,7 @@ const ask = (ctx, role = 'design_author', extra = {}) => callInteractRole(ctx, r
 
 // ---- C02 task registration, C01 profiles ----
 test('the three design roles are registered and nothing else in the task list changed shape', () => {
-  for (const [task, maxTokens] of [['interact_design_author', 12000], ['interact_design_review', 6000], ['interact_design_revise', 14000]]) {
+  for (const [task, maxTokens] of [['interact_design_author', 12000], ['interact_design_review', 10000], ['interact_design_revise', 14000]]) {
     assert.ok(Object.isFrozen(LEARN_TASKS[task]), task);
     assert.deepEqual({ ...LEARN_TASKS[task] }, { provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens });
   }
@@ -51,7 +51,7 @@ test('opus-baseline is the default all-Opus profile with the section 5 limits pe
   const profile = resolveInteractProfile('opus-baseline');
   assert.deepEqual([profile.id, profile.version], ['opus-baseline', 1]);
   assert.ok(Object.isFrozen(profile) && Object.isFrozen(profile.roles) && Object.isFrozen(profile.roles.design_author.settings));
-  const expected = { design_author: [12000, 60000, 4], design_review: [6000, 60000, 4], design_revise: [14000, 60000, 4], build_author: [16000, 80000, 4], build_review: [6000, 80000, 6], build_repair: [16000, 80000, 2] };
+  const expected = { design_author: [12000, 60000, 4], design_review: [10000, 60000, 4], design_revise: [14000, 60000, 4], build_author: [16000, 80000, 4], build_review: [6000, 80000, 6], build_repair: [16000, 80000, 2] };
   assert.deepEqual(Object.keys(profile.roles), INTERACT_ROLE_IDS);
   for (const [role, [out, input, images]] of Object.entries(expected)) {
     const c = profile.roles[role];
@@ -193,9 +193,9 @@ test('callInteractRole runs a design and a build role on the all-Opus profile an
 test('role bounds and phase reservations come from the profile, with design in preparation and build in generation', () => {
   const profile = resolveInteractProfile('opus-baseline'), bound = role => roleBoundMicros(profile.roles[role]);
   // (input bytes + images x 4,784) x $5 (the 5-minute cache write) + max output x $20, per MTok.
-  assert.deepEqual(INTERACT_ROLE_IDS.map(bound), [635680, 515680, 675680, 815680, 663520, 767840]);
+  assert.deepEqual(INTERACT_ROLE_IDS.map(bound), [635680, 595680, 675680, 815680, 663520, 767840]);
   const r = interactReservation(profile);
-  assert.deepEqual([r.preparationMicros, r.generationMicros, r.unknownRoles], [2 * 635680 + 3 * 515680 + 2 * 675680, 815680 + 4 * 663520 + 3 * 767840, []]);
+  assert.deepEqual([r.preparationMicros, r.generationMicros, r.unknownRoles], [2 * 635680 + 3 * 595680 + 2 * 675680, 815680 + 4 * 663520 + 3 * 767840, []]);
   assert.deepEqual(Object.values(INTERACT_LIMITS.calls), [2, 3, 2, 1, 4, 3]); // the second author call is the one correction of a refused plan
   assert.deepEqual(INTERACT_LIMITS.deadlines, { callMs: 120000, preparationMs: 600000, jobMs: 600000 });
   for (const role of ['design_author', 'design_review', 'design_revise']) assert.equal(interactPhase(role), 'preparation', role);
