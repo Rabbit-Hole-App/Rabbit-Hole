@@ -292,9 +292,12 @@ Separate reference reconstruction from original-prompt generation. Where a refer
 | E1 — first usable written card | `/explain` question → actual shared author route → saved/reloaded card; approved pinned header and one reading flow, prose plus table/valid SVG when useful | EXP-02, current teaching/cap/title/renderer subset of EXP-03/04/06; local gate E-B1 below. Owner first tests all Depths and source/no-source output in the existing app on the exact preview. Keep unfinished actions hidden rather than showing dead controls. | Terms/suggestions/notes that need the new metadata contract; optional image jobs; model comparison. Do not mark full approved UI complete. |
 | E2 — approved interaction layer | Orange definitions, three questions, bottom follow-up, selection/highlight and linked notes backed by real APIs | EXP-03 metadata/ranges and EXP-04-C16–20 / EXP-05; local gate E-B2. Owner tests routing, quote preservation, duplicate prevention, keyboard actions and reload. | Extra animations, visual variants, elaborate empty states beyond the approved usable behavior. |
 | E3 — Tutor/visual completion | Same written card through accepted Tutor steps, two-card continuity and current optional illustration attachment | EXP-06 and affected EXP-08; local gate E-B3. Owner tests accepted title/Depth/source, two saved cards, source jumps, image attachment and failure states. Reuse already working Tutor/image code. | R8a/R10/R11 and a full provider benchmark. If Tutor or illustration pieces are already verified, deliver their small delta earlier rather than waiting artificially. |
-| E4 — separately scheduled extensions | R8a/R10/R11 and commissioned model comparison in independently reviewable slices | Their own dependencies, budgets and evidence; never implied complete by E1–E3 | Any uncommissioned research or provider work. |
+| E4 — researched explanations | R8a evidence and cited sources | EXP-07-C01–03: source-supported zero-search case, evidence binding, privacy, saved sources | E5 adaptation, E6 preparation, E7 optimization |
+| E5 — adaptive explanations | R10 future-step adaptation and deeper exploration | EXP-07-C04–05: explicit feedback, revision acceptance, preserved delivered cards and zero-charge existing links | E6 preparation, E7 optimization |
+| E6 — prepared explanations | R11 private preparation and accepted reuse | EXP-07-C06–08: fingerprints, private output, one settlement and no extra author on reuse | E7 optimization |
+| E7 — measured optimization and final closure | Factuality/speed comparison and complete-feature acceptance audit | EXP-09 plus all in-scope requirements, integrated regression/manual evidence and verified release state | Nothing silently deferred; blocked work remains open |
 
-- [ ] **EXP-10-R01** Deliver E0–E3 as separate small MVP candidates, each mapped to exact existing requirement subsets and a main commit; keep unfinished full-feature parent boxes open.
+- [ ] **EXP-10-R01** Deliver E0–E7 as separate small MVP candidates, each mapped to exact existing requirement subsets and a main commit; keep unfinished full-feature parent boxes open.
   - [ ] **EXP-10-R02** The owner receives E1 for first manual testing only after the local backend/contract gate and required build/smoke succeed.
   - [ ] **EXP-10-R03** Run independent lanes with one integration owner; progress E2/E3 while the earlier frozen candidate is under manual review or release handling.
   - [ ] **EXP-10-R04** Ship functional increments without blocking on optional model comparison, later Tutor integrations or speculative polish; retain those tasks open.
@@ -367,6 +370,26 @@ All boxes start open for this extracted spec. Existing source/code evidence is r
   - [ ] **EXP-09-R02** A frozen multi-depth corpus, correctness rubric, required-visual rules, thresholds and paid cap are recorded before runs; no winner is inferred from a demo or a successful subset.
   - [ ] **EXP-09-R03** Requested/served model, repair time, failures, end-to-end card time and known/unknown cost are retained, with no automatic production promotion.
 
+### Complete-feature coverage and final MVP exit
+
+The MVP ladder runs until the entire in-scope feature is built. An earlier usable MVP is a release milestone, not the stopping point. Every deferred requirement must name its later MVP; a missing budget or dependency leaves that MVP blocked and its tasks open.
+
+Each MVP must record the exact requirement subset, local tests, manual acceptance steps, candidate/main commits and remaining work. Access, billing, factuality, persistence and compatibility checks apply at the first affected increment, not only at the end.
+
+The final MVP closes only after every in-scope roadmap/checklist requirement has evidence, the integrated feature passes its applicable manual/live acceptance, and its release state is verified. Until then report partial delivery. Explicitly excluded/shared work retains its stated scope and owner; no additional paid execution or deployment authority is implied.
+
+| Requirement groups | MVP assignment |
+| --- | --- |
+| EXP-01 preflight | E0; maintain per candidate |
+| EXP-02 direct entry | E1 |
+| EXP-03 contracts and EXP-04 complete CORE.09 | E1 core author/reading flow; E2 interaction metadata; E3 Tutor/visual completion |
+| EXP-05 interactions | E2 |
+| EXP-06 visuals | E1 diagrams; E3 illustration and required-visual acceptance |
+| EXP-07 later Tutor integrations | E4 research; E5 adaptation; E6 preparation |
+| EXP-08 acceptance | Affected checks in each increment; complete initial matrix E3; final audit E7 |
+| EXP-09 benchmark | E7; prepare unpaid fixtures earlier |
+| EXP-10 sprint gates | Every MVP, final reconciliation E7 |
+
 <a id="checklist"></a>
 ## 9. Implementation checklist — HOW
 
@@ -394,7 +417,7 @@ All boxes start open for this extracted spec. Existing source/code evidence is r
 
 - [ ] **EXP-10-C05 — one handoff per frozen MVP.** Provide MVP label, exact candidate SHA/preview URL and activation state; commands with executed counts/pass/fail/skips; deterministic versus real-provider evidence; three to five manual steps with expected outcomes; known limitations/deferred IDs; recovery/rollback reference and the concrete next main-release action if still required. First E1 script: send EX-01, repeat at three Depths, inspect prose/table/SVG if selected, reload, then try authorized source context. E2/E3 scripts focus only on their changed interactions/integration plus a first-card smoke. Do not say ready if required local tests failed or selected zero cases.
 
-- [ ] **EXP-10-C06 — main delivery and next rung.** Integrator reviews the exact combined diff and required receipts, performs/prepares the authorized small main release immediately, verifies the resulting main SHA/deployment state and updates the affected EXP boxes. Keep the next runnable lane working while awaiting only the existing final owner release action. Do not hold E1 for E4 benchmarking or ask for an additional blanket design review after the approved requirements are implemented.
+- [ ] **EXP-10-C06 — main delivery and next rung.** Integrator reviews the exact combined diff and required receipts, performs/prepares the authorized small main release immediately, verifies the resulting main SHA/deployment state and updates the affected EXP boxes. Keep the next runnable lane working while awaiting only the existing final owner release action. Do not hold E1 for E7 benchmarking or ask for an additional blanket design review after the approved requirements are implemented.
 
 These sprint gates select a minimum for the affected increment, not permission to skip other affected tests required by repository policy. Never re-run broad unrelated suites after every small correction simply to appear thorough. Reuse unaffected evidence with a documented delta; rerun the failed/changed path and its affected integration checks.
 

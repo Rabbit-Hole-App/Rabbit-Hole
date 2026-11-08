@@ -481,6 +481,25 @@ These are the full intended outcomes. All remain open pending implementation and
   - [ ] **INT-09-R04** Record actual artifacts, captures, timings and focused test results against a commit.
   - [ ] **INT-09-R05** Update these checkboxes only when their evidence exists; distinguish fixture, paid generation, dev and production results.
 
+### Complete-feature coverage and final MVP exit
+
+The MVP ladder runs until the entire in-scope feature is built. An earlier usable MVP is a release milestone, not the stopping point. Every deferred requirement must name its later MVP; a missing budget or dependency leaves that MVP blocked and its tasks open.
+
+Each MVP must record the exact requirement subset, local tests, manual acceptance steps, candidate/main commits and remaining work. Access, billing, factuality, persistence and compatibility checks apply at the first affected increment, not only at the end.
+
+The final MVP closes only after every in-scope roadmap/checklist requirement has evidence, the integrated feature passes its applicable manual/live acceptance, and its release state is verified. Until then report partial delivery. Explicitly excluded/shared work retains its stated scope and owner; no additional paid execution or deployment authority is implied.
+
+| Requirement groups | MVP assignment |
+| --- | --- |
+| INT-01 contracts and INT-07A model/accounting | I0; preserve through later rungs |
+| INT-02 reviewed design and INT-03 approval | I1; extend coverage I2–I3 |
+| INT-04 build and INT-06 composition | I1 Static/Over time; I2 Experiment/support/control completion |
+| INT-05 checks/captures/review/repair | Required from I1; full reference/failure matrix I3 |
+| INT-07B runner/persistence | Working app route I1; all CLI/resume/compatibility obligations I3 |
+| INT-08 benchmark | All-Opus reference regeneration I3; substitutions/mixed profiles/report I4 |
+| INT-09 acceptance | Real-route fixtures I1; complete feature matrix I3; final audit I4 |
+| INT-10 sprint gates | Every MVP, final reconciliation I4 |
+
 <a id="checklist"></a>
 ## 9. Implementation checklist — HOW
 
