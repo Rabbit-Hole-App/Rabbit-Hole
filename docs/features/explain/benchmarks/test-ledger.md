@@ -42,3 +42,17 @@ Columns: **Pass/Fail** is the test's own verdict against its goal. **Prod** says
 - **TCP handshake failed 3 of 3: the rule is not firing, not variance.** Temperature 0, the server diagram fixes and the structure-first rule do not touch it. Cheap fix first: the sequence line now reads "sequence whenever two or more named parties send things to each other (client and server, sender and receiver, a protocol, request and response)"; tested on the handshake alone. Only if that fails: one example per kind in the prompt (D), measured on the handshake and the long loops first.
 - **Picture vs SVG is "solved" only once it holds at temperature 0.** The 3 misses in test 7 share one pattern (rule gap, not noise): "how does a volcano erupt / a solar eclipse happen / a four-stroke engine work" got a flow only. Fix: a "how does X work / happen" question about a physical object, place or natural event gets a picture and the process diagram.
 - **Binary trees: "4/4 correct" covers only the wrong-use direction.** The test-9 regression was the other direction (binary where it fits); those 8 are re-checked after the next release before the binary rule is marked done.
+
+## Tested and refuted (do not re-propose without new data)
+
+| Date | Hypothesis | Test | Result |
+|---|---|---|---|
+| 2026-11-08 | The flow example "(request, auth, handler, database)" steers the handshake to flow | Q3(b): gpt-oss, only that example changed to "(lex, parse, type-check, generate code)", handshake x3 at temperature 0 | flow 3/3: refuted. The same request to Gemini 3.5 Flash Lite gave sequence 3/3 (Q3a), so the prompt can produce sequence; gpt-oss low does not |
+| 2026-11-08 | Some repairs are prose-length violations | Repair causes, test 7 (37 repaired) and row 17-20 run (18 repaired) | 0 length repairs in both: refuted. Repairs are diagram structure (loops/unreachable, edge rules, two roots, decision branches) |
+| 2026-11-08 | The response schema carries description fields that duplicate the prompt and can be trimmed | Q7: walk of the 15,422-character schema sent to Fireworks | 0 description fields: refuted, trim dropped |
+| 2026-11-08 | A sequence example in the prompt fixes the handshake (fix D) | Row 15 | sequence 0/9; the email card broke the "two roots" rule 3/3 with the example and 0/3 without it; removed |
+
+## Model comparison: pass criteria written before the run (owner, 2026-11-08)
+
+Arms: A gpt-oss-120b low (current), B gpt-oss-120b medium, C Gemini 3.5 Flash Lite (same system prompt and schema). Sets per arm: 6-card kind regression x3, handshake/DNS/email x3, the 42-prompt picture set, the AI/ML set x1. Temperature 0.
+Switch the primary to C only if ALL hold: (1) kind regression at least 5/6; (2) pictures not worse than A on the picture set, both directions; (3) repair rate not higher than A; (4) model-call p90 not more than 0.5 s over A; (5) cost per card including repairs known and reported from actual tokens (owner judges it against the quality gain). If C becomes primary, gpt-oss becomes the fallback and the fallback path is tested end to end.
