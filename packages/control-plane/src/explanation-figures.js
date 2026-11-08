@@ -16,7 +16,7 @@ import { learnMedia } from './learn-storage.js';
 
 export const FIGURE_MODEL = 'recraftv4_1_flash';
 export const FIGURE_ATTEMPTS = 3; // owner 2026-11-08: the first try and up to two retries
-export const FIGURES_MAX = 2; // one or two visuals a card (learn-primitives.js explanationLayoutProblem)
+export const FIGURES_MAX = 2; // at most two pictures a card, of up to three visuals (owner 2026-11-08; learn-primitives.js explanationLayoutProblem)
 // Recraft measured 1.1-1.5 s per API call and 1.6-1.9 s to a visible picture, 5.0 s cold (C:/s/spec/latency-lab/recraft/run1.log): 20 s per attempt is generous.
 export const FIGURE_TIMEOUT_MS = 20000;
 const SETTINGS = Object.freeze({ model: FIGURE_MODEL, aspect_ratio: '1:1', resolution: '1K' });

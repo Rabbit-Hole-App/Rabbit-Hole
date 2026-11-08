@@ -53,6 +53,9 @@ export const CHAIN_STEPS = Object.freeze({
 // ~3.4 characters a token), and output including reasoning averaged 643 tokens a call at low (56,604 over 88 calls) and 1,356 at medium (44,740 over 33).
 // Low 3,000 is about twice the largest card plus low's mean reasoning; medium 5,000 the same with medium's; high keeps 8,000 (only 1 of 40 high calls
 // finished inside the 8 s deadline, so there is no measurement to tighten it). Reasoning counts in the cap: a truncated answer is a max_tokens failure.
+// Re-derived for three visuals (owner 2026-11-08): the prose budget is unchanged, and the largest third visual the guidance asks for, a 4-column comparison
+// of 5 short items each, is about 900 JSON characters (~265 tokens), so the largest card grows to ~3,300 characters (~970 tokens). Low: 2 x 970 + 643 =
+// 2,583, inside 3,000; medium: 2 x 970 + 1,356 = 3,296, inside 5,000. The caps stay; unmeasured with a real three-visual card.
 export const CHAIN_MAX_TOKENS = Object.freeze({ low: 3000, medium: 5000, high: 8000 });
 const chainRole = (primary, effort) => ({ role: 'author', task: 'artifact', ...CHAIN_STEPS[primary], adapter: 'fast-chain', maxOutputTokens: CHAIN_MAX_TOKENS[effort], settings: { reasoning_effort: effort },
   fallbacks: (primary === 'fireworks' ? [CHAIN_STEPS.google] : [CHAIN_STEPS.fireworks, CHAIN_STEPS.google]).map(step => ({ ...step })) });

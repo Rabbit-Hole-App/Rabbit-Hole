@@ -21,11 +21,11 @@ const UNSUPPORTED = /\b(venn diagram|pie chart|mind ?map|uml|class diagram|er di
 // EXP-13 fix 5b (owner 2026-11-08): plurals count too ("two diagrams", "diagrams"), and a picture word asks for an illustration ("two pictures", "a diagram and a picture").
 const DIAGRAM_WORD = /\b(diagrams?|flow ?charts?|bar charts?|bar graphs?|(?:coordinate|scatter|line) (?:plots?|charts?))\b/gi;
 const PICTURE_WORD = /\b(pictures?|illustrations?|drawings?|images? of)\b/gi;
-// How many of a kind a mention asks for: a number word just before it, else a plural is two (a card holds at most two visuals) and a singular one.
+// How many of a kind a mention asks for: a number word just before it, else a plural is two and a singular one (a card holds at most three visuals, at most two pictures: owner 2026-11-08).
 // The kind's count is the larger of one mention's count and the number of mentions brought in by an article or a number ("a flowchart and a bar chart"),
 // so "a diagram ... the diagram" stays one. shortcut: wording heuristics like the rest of this record; upgrade when real requests show a miscount.
-const NUMBER_WORD = /\b(a|an|one|single|1|two|2|both|pair of|couple of)\s+(?:[\w-]+\s+){0,2}$/i;
-const NUMBERS = { a: 1, an: 1, one: 1, single: 1, 1: 1, two: 2, 2: 2, both: 2, 'pair of': 2, 'couple of': 2 };
+const NUMBER_WORD = /\b(a|an|one|single|1|two|2|both|pair of|couple of|three|3)\s+(?:[\w-]+\s+){0,2}$/i;
+const NUMBERS = { a: 1, an: 1, one: 1, single: 1, 1: 1, two: 2, 2: 2, both: 2, 'pair of': 2, 'couple of': 2, three: 3, 3: 3 };
 function asked(words, re) {
   let most = 0, introduced = 0, first = null;
   for (const m of words.matchAll(re)) {
@@ -34,7 +34,7 @@ function asked(words, re) {
     const n = number ? NUMBERS[number[1].toLowerCase()] : /s$/i.test(m[1].replace(/ of$/i, '')) ? 2 : 1;
     most = Math.max(most, n); if (number) introduced++; first ??= m;
   }
-  return { count: Math.min(2, Math.max(most, introduced)), first };
+  return { count: Math.min(3, Math.max(most, introduced)), first };
 }
 // A table the learner is asking for, not the word in another sense. shortcut: wording heuristics (EX-01/EX-07 plus their variations), not a classifier; an
 // unrecognised phrasing simply leaves the visual optional, as it was before this record. Upgrade when real requests show a missed phrasing.
@@ -61,7 +61,7 @@ export function deriveVisualRequirements(text) {
   const table = TABLE_CUE.exec(words);
   if (table && !negated(words, table.index + table[0].search(/tables?/i))) items.push({ kind: 'table', purpose: clip(words) });
   const diagrams = asked(words, DIAGRAM_WORD), pictures = asked(words, PICTURE_WORD);
-  if (diagrams.count + pictures.count > 2) return { unsupported: 'A card holds at most two visuals (diagrams and pictures together), so nothing was made or charged. Ask for one or two.' };
+  if (diagrams.count + pictures.count > 3 || pictures.count > 2) return { unsupported: 'A card holds at most three visuals (diagrams and pictures together), at most two of them pictures, so nothing was made or charged. Ask for fewer.' };
   const kind = diagrams.count ? KINDS.find(([re]) => re.test(words))?.[1] : null;
   // The named kind and a trace go with the first diagram; a second asked diagram may be any kind.
   for (let n = 0; n < diagrams.count; n++) items.push({ kind: 'diagram', ...(kind && !n ? { diagramKind: kind } : {}), ...(kind === 'flow' && !n && TRACE.test(words) ? { trace: true } : {}), purpose: clip(words) });
@@ -73,7 +73,7 @@ export function deriveVisualRequirements(text) {
 // The text a requirement is read from: a direct question's own words, or a Tutor step's accepted learner instruction (the planner's own title and goal are not the learner's request).
 export const requirementText = ({ args, original, revisions } = {}) => [args, original, ...(revisions || []).map(r => (typeof r === 'string' ? r : r?.text))].filter(Boolean).join('\n');
 
-// EXP-13 fix 5c: the visual mix the learner's words fix, { diagram, illustration } counts, or null when they name no diagram or picture (the author then chooses 1-2).
+// EXP-13 fix 5c: the visual mix the learner's words fix, { diagram, illustration } counts, or null when they name no diagram or picture (the author then chooses 1-3).
 export const requiredMix = requirements => {
   const items = requirements?.items ?? [], n = kind => items.filter(i => i.kind === kind && !i.implied).length;
   const kind = items.find(i => i.kind === 'diagram' && i.diagramKind)?.diagramKind;

@@ -175,7 +175,9 @@ export async function generateWithFallbacks(env, input, options, generate) {
   let last = null;
   // Fix 3: one starter for the whole chain, so a later step or a repair that keeps a picture's prompt reuses its picture.
   const early = options.figures && streaming(env) ? figureStarter(env, options.figures) : null;
-  const onVisual = early ? (item, i) => { const spec = i < 2 ? authorPicture(item, i) : null; if (spec && parseIllustration(JSON.stringify(spec)).ok) early.start(spec); } : null;
+  // Only a picture the server will keep starts: among the first three visuals and the first two pictures (learn-primitives.js settleExplanationBody).
+  let pictures = 0;
+  const onVisual = early ? (item, i) => { if (i === 0) pictures = 0; /* each streamed answer counts its own */ const spec = i < 3 && pictures < 2 ? authorPicture(item, i) : null; if (spec && parseIllustration(JSON.stringify(spec)).ok) { pictures++; early.start(spec); } } : null;
   try { return await runSteps(); } finally { await early?.settled(); } // every started picture is settled, card or not, before the request ends
   async function runSteps() {
   for (const step of steps) {

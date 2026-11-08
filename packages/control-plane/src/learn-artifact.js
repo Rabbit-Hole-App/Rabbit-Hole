@@ -14,7 +14,7 @@ import { BRIEF_LIMITS, generationArgs, isBriefCommand } from '../../web/src/mate
 import { consumeProposal, releaseProposal, verifyProposal } from './generation-proposal.js';
 import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
-import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, chainsAsCycles, dropInvalidDiagrams, markdownIllustrations, markdownVisuals, settleExplanationBody } from './learn-primitives.js';
+import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, chainsAsCycles, dropInvalidDiagrams, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
@@ -36,11 +36,11 @@ const toolName = id => `make_${id}`;
 // E2 (explanation-interactions.js): while EXPLANATION_INTERACTIONS is on, the written Explanation tool also takes the three questions and the anchored terms. They are validated
 // apart from the card (the card's own schema stays the one that was), then bound to the final text with server-assigned ids and revision.
 const interactiveSchema = schema => ({ ...schema, required: [...schema.required, 'questions'], properties: { ...schema.properties, ...INTERACTION_PROPERTIES } });
-// EXP-13 fix 2: the author is always asked for one or two visuals as fields (every property required, as a strict json_schema needs); the validator also
+// EXP-13 fix 2: the author is always asked for one to three visuals as fields (owner 2026-11-08: three, so a list can become a comparison) (every property required, as a strict json_schema needs); the validator also
 // reads a body that holds its fences already, and more visuals, whose extras it drops (learn-primitives.js PRIMITIVES.explanation).
 const authorSchema = env => {
   const { schema } = PRIMITIVES.explanation;
-  const s = { ...schema, required: Object.keys(schema.properties), properties: { ...schema.properties, visuals: { ...schema.properties.visuals, maxItems: 2 } } };
+  const s = { ...schema, required: Object.keys(schema.properties), properties: { ...schema.properties, visuals: { ...schema.properties.visuals, maxItems: 3 } } };
   return interactionsEnabled(env) ? interactiveSchema(s) : s;
 };
 const VERIFIER = 'scene verifier', VERIFY_MAX_TOKENS = 2000;
@@ -208,6 +208,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         const problem = [explanationProblem(block, input.depth, input.args), requiredVisualProblem(block, wanted)].filter(Boolean).join(' '); if (problem) throw new Error(problem);
         if (wanted) block = { ...block, visualRequirements: boundRequirements(wanted) }; // saved provenance: what was asked for and that the card holds it
         block = { ...block, depth: validDepth(input.depth) || DEFAULT_DEPTH }; // E3: the budget this card was written to, so a later illustration caption is checked against it
+        block = { ...block, proseLists: proseListCount(block.body) }; // owner 2026-11-08: lists are asked against, never checked; this counts them for measurement
         // EXP-13: the pictures, made before the card is returned and saved; one that cannot be made loses its fence, never the card. It shows no text, so the anchors checked above still hold.
         block = await illustrateExplanation(env, block, { ...(figures || {}), early });
         if (interactive) block = { ...block, interactions: await bindInteractions(block, { questions, terms }) };
