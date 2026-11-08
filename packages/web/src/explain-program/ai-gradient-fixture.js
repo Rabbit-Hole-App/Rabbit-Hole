@@ -6,8 +6,8 @@ export const gradientFixture = {
   id: 'fixture-ai-gradient',
   manifest: {
     title: 'Why a bigger learning rate can overshoot',
-    summary: 'Start at w = 3 on L(w) = w²/2. Each update subtracts the learning rate times the gradient w. Compare a slow approach, a fast approach, shrinking overshoots and growing overshoots. Move Step to follow the updates; all plotted steps stay visible.',
-    description: 'A quadratic loss curve with a connected sequence of gradient-descent positions and the current position highlighted. Readouts show the step, parameter, loss and gradient.',
+    summary: 'Start at w = 3 on L(w) = w²/2. Each update subtracts the learning rate times the gradient w. Compare a slow approach, a fast approach, shrinking overshoots and growing overshoots.',
+    description: 'Set the learning rate to 1.2 and move Step to 8. The signs alternate as w crosses zero. The step strip keeps each update readable even when the points cluster on the loss curve.',
     assumptions: ['One scalar parameter with exact gradient dL/dw = w.', 'This is an illustrative quadratic, not a trained model.', 'At most eight updates from w = 3; the plot bounds include the complete trajectory for the chosen rate.'],
     capabilities: [RASTER_CAPABILITY, 'number_inputs', 'select_inputs'],
     inputs: [
@@ -39,11 +39,19 @@ export function evaluate({ inputs }) {
     ...sdk.plot('descent',{x:16,y:48,w:492,h:342,xDomain:[-extent,extent],yDomain:[0,loss(extent)],
       xLabel:'Parameter w',yLabel:'Loss L(w)',series,marker:{x:w,y:value,role:'learner'}}),
     ...sdk.readout('step-value',{x:530,y:66,w:250,h:46,label:'Step',value:step,decimals:0}),
-    ...sdk.readout('weight-value',{x:530,y:128,w:250,h:46,label:'w',value:w,decimals:4}),
-    ...sdk.readout('loss-value',{x:530,y:190,w:250,h:46,label:'Loss',value,decimals:4}),
-    ...sdk.readout('gradient-value',{x:530,y:252,w:250,h:46,label:'Gradient',value:w,decimals:4}),
-    ...sdk.readout('change-value',{x:530,y:314,w:250,h:46,label:'Next change',value:-rate*w,decimals:4}),
+    sdk.box('weight-value',530,128,250,46,{text:'w: '+w.toPrecision(4),role:'output'}),
+    sdk.box('loss-value',530,190,250,46,{text:'Loss: '+value.toPrecision(4),role:'output'}),
+    sdk.box('gradient-value',530,252,250,46,{text:'Gradient: '+w.toPrecision(4),role:'output'}),
+    sdk.box('change-value',530,314,250,46,{text:'Next change: '+(-rate*w).toPrecision(4),role:'output'}),
+    sdk.text('step-strip-label',24,418,'Step · sign of w'),
+    ...weights.map((weight, index) => {
+      const sign = weight < 0 ? '−' : '+';
+      return sdk.box('step-slot-'+index,24+85*index,432,72,36,{
+        text:index <= step ? index+' '+sign : String(index),
+        role:index === step ? 'learner' : 'neutral',
+      });
+    }),
   ];
-  return {frame:sdk.frame(objects,{width:804,height:410}),quantities:{weight:w,loss:value,gradient:w,change:-rate*w,extent,step}};
+  return {frame:sdk.frame(objects,{width:804,height:488}),quantities:{weight:w,loss:value,gradient:w,change:-rate*w,extent,step}};
 }`,
 };

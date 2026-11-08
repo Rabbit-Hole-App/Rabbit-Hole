@@ -183,7 +183,7 @@ lesson-routing system and not proof of LLM generation quality.
 | --- | --- | --- |
 | `fixture-ai-convolution` | Move a 3 × 3 kernel across a small synthetic image and inspect the calculated response. Uses the CNN cross-correlation convention. | `ai-convolution-fixture.js` |
 | `fixture-ai-attention` | Select a query and causal masking; compare scaled scores, normalized weights and their weighted value output. Numbers are synthetic. | `ai-attention-fixture.js` |
-| `fixture-ai-gradient` | Vary learning rate and update count for a known quadratic loss; compare convergence, overshoot and divergence. | `ai-gradient-fixture.js` |
+| `fixture-ai-gradient` | Vary learning rate and update count for a known quadratic loss. A nine-slot step strip separates updates that cluster on the parabola and shows the sign of each visited weight. | `ai-gradient-fixture.js` |
 
 All source paths above are under `packages/web/src/explain-program/`. The examples
 reuse `ProgramScene`, shared `Frame`, existing input controls and their persistence
@@ -197,6 +197,31 @@ foreignObject formulas). This is static scene inspection, not browser acceptance
 Live browser/dev acceptance and
 real model generation remain pending; the authorized deployment environment is
 not available here.
+
+### Phase 02 follow-up
+
+The saved backend outputs and the legacy pipeline receipts are pinned to the
+[retry branch](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/309aa89e0ddfac2c6f12697b978551abccc7daf8/docs/features/explain-on-canvas/handoff/ai-example-regeneration-results.md#L116).
+The 16 saved-artifact replay tests passed, including K-means on both initializations and the regression retry at all 12 sampled control extremes.
+
+| Card | Evidence | Remaining dev acceptance |
+| --- | --- | --- |
+| K-means Stepper | The original accepted artifact replays Assign, Update, inertia and Reset correctly. | Seed `fixture-generated-ai-kmeans` on a signed-in dev build containing that fixture. Run Assign then Update for both starts. Reopen after an update and again after Reset. |
+| Gradient descent | The hand-authored reference keeps the loss coordinates and shows each visited step in a separate slot. The original generated card still has overlapping steps 4–8. | Generate once through the ScenePlan flow. At rate 1.2 and step 8, check nine separate slots, alternating signs, the current highlight, and readable nonzero weight and loss. Reopen and verify Reset. |
+| Regression Fit | The saved candidate passed the numeric checks but the legacy 3,000-token review was truncated. The current ScenePlan flow has a separate 10,000-token build reviewer. | Retry once through the ScenePlan flow. Verify the six residuals and their squares, MSE, label readability at the slope and intercept extremes, reopen and Reset. |
+
+Use the typed `/interactive` command. On a dev build with ScenePlan enabled,
+inspect the plan and select **Generate**. Keep the new job IDs and outcomes separate from the saved retry evidence.
+
+```text
+/interactive Show me why gradient descent can overshoot. Start at w = 3 on L(w) = w²/2. Let me choose learning rates 0.2, 0.8, 1.2 and 2.1 and move from step 0 to 8. Keep the points at their true coordinates on the loss curve and show each visited step in a separate numbered slot with the sign of w. Highlight the current step and show its weight and loss without rounding small values to zero.
+```
+
+```text
+/interactive Let me change a line's slope and intercept and see how far six points are from its predictions. Show how each error contributes to the mean squared error.
+```
+
+The updated reference and the saved K-means card still need browser acceptance. Start the Lesson 21 Point-in-Time Join Explorer after the three dev checks pass.
 
 ## Dev verification evidence (integrated branch, 2026-11-08)
 

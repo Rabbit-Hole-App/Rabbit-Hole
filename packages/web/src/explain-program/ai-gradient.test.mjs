@@ -41,6 +41,24 @@ test('the example distinguishes monotone convergence, shrinking overshoots and d
   near(grow1.weight,-3.3);near(grow2.weight,3.63);assert.ok(grow2.loss>grow1.loss);
 });
 
+test('the step strip separates the shrinking overshoots and follows the selected step', () => {
+  const slotsAt = step => evaluate(1.2, step).frame.objects.filter(object => object.id.startsWith('step-slot-'));
+  const slots = slotsAt(8);
+  assert.deepEqual(slots.map(slot => slot.text), ['0 +', '1 −', '2 +', '3 −', '4 +', '5 −', '6 +', '7 −', '8 +']);
+  assert.ok(slots.slice(1).every((slot, index) => slot.x > slots[index].x + slots[index].w));
+  for (let step = 0; step <= 8; step++) {
+    const current = slotsAt(step);
+    assert.deepEqual(current.filter(slot => slot.role === 'learner').map(slot => slot.id), [`step-slot-${step}`]);
+    assert.deepEqual(current.slice(step + 1).map(slot => slot.text), slots.slice(step + 1).map((_, index) => String(step + 1 + index)));
+  }
+});
+
+test('the step 8 readouts distinguish a tiny weight and loss from zero', () => {
+  const { frame } = evaluate(1.2, 8);
+  assert.equal(frame.objects.find(object => object.id === 'weight-value')?.text, 'w: 0.000007680');
+  assert.equal(frame.objects.find(object => object.id === 'loss-value')?.text, 'Loss: 2.949e-11');
+});
+
 test('step zero is the same starting value and bounds do not move as steps advance',()=>{
   for(const rate of [.2,.8,1.2,2.1]) {
     const first=evaluate(rate,0),last=evaluate(rate,8);
