@@ -245,6 +245,26 @@ The server creates `CardComposition v1` containing the approved `planHash`, Titl
 
 Store composition with the accepted result alongside main/support artifacts. Include the composition in the result route and a bounded, versioned reference in the Canvas block; retain the full Story in the versioned design record and avoid duplicating it or program source in Canvas block fields. Legacy results without composition continue through the old renderer path. Hash the entire result envelope so support visuals cannot be swapped independently of the approved revision.
 
+### Swappable models and mixed-profile benchmark — owner requirement, 2026-11-08
+
+Support **Opus, Celeris, Cerebras-served models and Gemini Flash candidates**, plus other providers through the same adapter contract. These are candidate families/services, not verified API model IDs or declared winners. Cerebras is a provider: record its actual served model separately. Resolve exact IDs, access and supported parameters from the existing repository configuration and provider capability checks before an authorized run; never guess a model ID or silently substitute a service.
+
+**Configuration, not pipeline rewrites.** Use server-owned, versioned profiles mapping each existing LLM role to provider, exact model ID, adapter, credential environment-variable reference, supported settings, input/output/vision limits, timeout, pricing key and explicit fallback policy. A profile selection or one role override must require only configuration plus validation once that provider adapter exists. New providers may require one adapter; individual runs must not require editing prompts, routing branches or renderer code. Provider endpoints are allowlisted server configuration, never user-supplied URLs. Credentials stay outside checked-in profiles.
+
+Pin profile ID/version/hash, resolved role configurations and prompt/schema versions at request/job creation. Quote/admit the actual selected model request and include those bindings in accepted-request fingerprints. An edit requiring a new request creates a new bound revision; reload/resume cannot silently adopt changed defaults. Preserve the existing command's authorization, call ceilings, cancellation, billing and repair rules. Explicit fallback must have an admitted bound and its own recorded model/attempt; no hidden fallback or extra retry makes a failed candidate appear successful.
+
+Use a normalized adapter result containing validated output, requested/served provider/model, attempt/stop/error classification, usage/cache/reasoning fields where supplied and timing. Reuse existing admitted provider transports. An OpenAI-compatible endpoint does not prove identical schema, streaming, tool or image behavior. Implement Gemini through a supported existing adapter or a dedicated verified adapter if necessary. Fail capability preflight when an assigned role needs images or structured output that the candidate cannot supply; do not drop captures or weaken the original schema.
+
+**Benchmark objective:** factual correctness and end-to-end usable-output speed, with cost reported alongside them. Freeze prompts/context/Depth, expected facts/calculations/tolerances, required visuals/observations and evaluator rubric before candidate runs. Run all-Opus reference baseline, eligible candidate profiles, one-role substitutions, then promising combinations through the complete pipeline. An unavailable role/provider is explicitly unsupported, not a reason to omit that role.
+
+Compare matched cases with interleaved/randomized order, fixed declared concurrency, cache-hit/miss separation and repeated confirmation runs. Keep failures, invalid output, refusals, timeouts and exhausted repairs in the denominator. Record completion/factual pass rate, major/minor errors, omissions, diagram/control correctness, Send/Accept-to-client-usable-card latency, stage and repair times, median/p95 with counts, and known/unknown cost. Do not rank fast invalid output as success. Blind provider identity for subjective evaluation; use independent facts and seeded defects to test evaluator reliability. The evaluator profile and spend are separate from production roles.
+
+Promote only after the factual/behavioral acceptance criteria pass on the paired confirmation and held-out cases. Report no winner if none qualifies. A mixed profile must be measured end to end; isolated stage averages do not establish its speed or factuality. Configuration promotion is an explicit reviewed change with rollback to a known profile, not an automatic benchmark side effect. Paid runs still require a concrete cap; this requirement authorizes implementation of swapping/fixtures/dry runs, not unbounded spend.
+
+**Interactive roles:** retain the six existing configurable roles—Design Author, Design Reviewer, Design Reviser, Scene Builder, Rendered Scene Reviewer and Scene Repairer. Any eligible candidate may replace one role independently. For example, test Celeris or a Cerebras-served model for design/build with Opus or a vision-capable Gemini candidate for rendered review, while retaining independently configured reviser/repairer roles. These are hypotheses, not provider capability claims or recommended winners. Text-only roles can use text-only models; rendered review still requires actual captures.
+
+Extend the existing proposed `resolveInteractProfile` / `callInteractRole` interfaces and `INTERACT_MODEL_PROFILE` setting, rather than creating another runner. Implement adapter/profile swapping in I0/INT-07A; the all-Opus baseline and factual reference acceptance remain I3, with substitutions/mixed-profile comparison in I4. Keep the benchmark evaluator separate from the six production roles and do not add calls merely because another provider is configured.
+
 <a id="code-map"></a>
 ## 6. Implementation map and branch differences
 
@@ -499,6 +519,13 @@ The final MVP closes only after every in-scope roadmap/checklist requirement has
 | INT-08 benchmark | All-Opus reference regeneration I3; substitutions/mixed profiles/report I4 |
 | INT-09 acceptance | Real-route fixtures I1; complete feature matrix I3; final audit I4 |
 | INT-10 sprint gates | Every MVP, final reconciliation I4 |
+| INT-11 swappable models and mixed profiles | Profile/adapters I0; all-Opus acceptance I3; full comparison/final closure I4 |
+
+### INT-11 — Easy model swapping and factuality/speed selection
+
+- [ ] **INT-11-R01** Select an eligible single-provider or mixed-role profile without changing pipeline, UI or renderer code; persist the exact resolved profile for repeatable approval, billing and resume.
+  - [ ] **INT-11-R02** Opus, Celeris, Cerebras-served and Gemini Flash candidates have explicit adapter/capability status and exact requested/served identities; unsupported assignments fail before spending.
+  - [ ] **INT-11-R03** Complete paired factuality and usable-card speed comparisons for eligible individual and mixed profiles, retaining failures, retries and cost; promote only a verified eligible result.
 
 <a id="checklist"></a>
 ## 9. Implementation checklist — HOW
@@ -803,6 +830,18 @@ Case records use `{id,split,prompt,depth,context,evidence,requiredMode,fixtureId
 - [ ] **INT-09-C12** Record acceptance separately for implemented contracts, fixture behavior, approved-runner browser behavior, paid generation, dev deployment and production activation. The commit-review process in section 11 controls checkboxes; a docs-only commit, a model self-report or an earlier fixture receipt cannot satisfy a later phase. Preserve pending real-run work when no paid cap is authorized.
 
 
+### INT-11 checklist — Profiles, provider adapters and comparison
+
+**Dependencies:** shared contract and actual admitted request builder; implement the swap interface in the foundation MVP. Reuse INT-07A/08 and I0; full comparison belongs to I4. These tasks extend existing model work, not a second client or benchmark.
+
+- [ ] **INT-11-C01** Inventory existing transports/configuration for each requested provider and record exact candidate IDs, credential variable names, supported settings and capabilities. Reuse available adapters; add only missing provider support. Keep unavailable credentials/capabilities explicit and continue offline fixtures for every profile.
+- [ ] **INT-11-C02** Implement the versioned server-owned role profile and configuration-only role overrides. Resolve once, persist/hash, bind quote/dispatch/approval and preserve on resume. Add normalized errors/usage/identity/timing to existing traces. Ensure changing the default does not mutate an accepted or in-flight request.
+- [ ] **INT-11-C03** Exercise offline adapter fixtures for Opus, Celeris, Cerebras and Gemini response shapes: valid tool/JSON output, malformed/truncated output, schema incompatibility, explicit served-model mismatch, missing identity, missing credentials, unsupported images, timeout/cancel and reported/unknown usage. Assert identical original output validation, no hidden fallbacks and existing call/settlement ceilings.
+- [ ] **INT-11-C04** Test a single-model profile, one-role override and a mixed profile through the real command request path with deterministic replies. Verify only intended stages change, accepted fingerprint/model/cost bounds match dispatch, saved/resumed jobs keep the selected profile, and unrelated commands retain their settings. Extend `interact-models.test.js`, `interact-model-adapters.test.js`, `interact-design.test.js` and `interact-runner.test.js` from the existing plan. Run these focused local checks before the owner's first manual model-switch test; record nonzero case counts and exact candidate.
+- [ ] **INT-11-C05** Make the trusted benchmark entry accept a profile ID/config path and validated role overrides, with a dry-run that prints the resolved matrix, capability gaps, stage call ceilings and known/unknown spend bounds without provider calls. Freeze corpus, expected facts and scoring before real runs. Keep arbitrary provider URLs and credentials out of learner requests.
+- [ ] **INT-11-C06** Run the permitted baseline/candidate/one-role/mixed-profile sequence under an explicit shared paid cap, first screening and then repeated paired confirmation/held-out cases. Capture usable-card timing and stage/repair latency, factual/visual/behavior failures and cost for every attempt. Preserve exact profile/prompt/schema/runtime hashes and artifacts for reproduction.
+- [ ] **INT-11-C07** Produce the factuality-versus-speed comparison with sample counts, failures, median/p95, evaluator checks and cost. Recommend a specific measured profile only if it passes the correctness threshold; otherwise report no winner. Record explicit promotion/rollback configuration and leave unrun or failed comparisons open.
+
 <a id="validation"></a>
 ## 10. Validation, benchmark and delivery
 
@@ -870,4 +909,10 @@ No implementation commit sequence has been reviewed to completion by this restru
 
 Owner requested local backend checks before first manual testing, a ladder of small MVPs delivered to main promptly, no overpolishing, and explicit parallel agent counts. Added INT-10 roadmap/checklist and the two navigation links without removing or compacting existing INT-01–09 tasks. Retained the SDK clarification from branch `6129c9362796132d4ac4966ca532b6012ee07393`. Full-workflow acceptance remains open; partial MVP release does not close unmet requirements. This amendment ran documentation integrity checks only, with no runtime tests, paid calls or deployment.
 
-**Documentation validation result:** passed local integrity checks: 52 roadmap and 152 HOW tasks, unique IDs, all 13 required navigation/sprint anchors, 74 relative links, and no missing existing-reference targets. All runtime boxes remain unchecked. All pre-existing checkbox lines are preserved verbatim; only sprint additions, navigation/metadata and staged acceptance dependency guidance were added. New proposed test/module paths are distinguished from existing files. This result is documentation evidence only.
+**Initial extraction documentation validation result (before later amendments):** passed local integrity checks: 52 roadmap and 152 HOW tasks, unique IDs, all 13 required navigation/sprint anchors, 74 relative links, and no missing existing-reference targets. All runtime boxes remain unchecked. All pre-existing checkbox lines are preserved verbatim; only sprint additions, navigation/metadata and staged acceptance dependency guidance were added. New proposed test/module paths are distinguished from existing files. This result is documentation evidence only.
+
+### Model-swapping documentation amendment — 2026-11-08
+
+Owner explicitly requested swappable Celeris, Cerebras, Gemini Flash and other models, including combinations, benchmarked for factuality and speed. Added INT-11 outcomes/tasks and role-profile contracts without removing earlier requirements. Provider access/exact IDs remain runtime preflight facts; no model winner, paid execution or implementation pass is claimed. Foundation work includes profile swapping; final comparison remains on the command's last MVP rung. All earlier task IDs are retained.
+
+Model amendment validation: all 204 prior checkbox IDs retained; 214 total unique checkbox IDs after this amendment; no runtime checkbox marked complete. Existing navigation anchors preserved. Provider/model behavior requires implementation and the listed local/live evidence.
