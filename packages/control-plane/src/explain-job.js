@@ -675,7 +675,9 @@ export class ExplainJobs {
   // The new flow's transport: the same admitted Anthropic dispatch, under the usage action of the role's phase (design = preparation, build = generation).
   interactTransport(job, role) {
     return (env, body, model) => spendTransport(this.usageEnv(job, interactPhase(role) === 'preparation' ? job.prepKey : job.actionKey), body, model, null,
-      admitted => anthropic(admitted, body, model, null), { userId: job.owner.userId || job.owner.email, category: 'explain', provider: 'anthropic', kind: interactCallKind(role) });
+      // Every /interact role answers as a stream under its call deadline (anthropic-stream.js), so no gateway waits on a silent connection: a long
+      // build_author reply drew a 524 from Cloudflare (dev run i1-17, 2026-11-08), as the animation author did (FX-AN-041). INTERACT_STREAMING=false is the recovery switch.
+      admitted => anthropic(this.env.INTERACT_STREAMING === 'false' ? admitted : { ...admitted, MODEL_STREAM: { stream: true, deadlineMs: INTERACT_LIMITS.deadlines.callMs } }, body, model, null), { userId: job.owner.userId || job.owner.email, category: 'explain', provider: 'anthropic', kind: interactCallKind(role) });
   }
   // Closes a phase's usage action once the job ends (usage_actions.status), so its record is terminal.
   async finishUsage(job, status) {

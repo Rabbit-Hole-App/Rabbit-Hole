@@ -355,7 +355,7 @@ async function anthropicTransport(env, body, model, org, ai) {
     },
     body: JSON.stringify(streaming ? { ...request, stream: true } : request),
   });
-  // env.MODEL_STREAM is set only by the animation job's transport (animation-policy.js animationStreaming): the answer is read as a stream and
+  // env.MODEL_STREAM is set by the animation, whiteboard and /interact job transports (animation-policy.js animationStreaming, explain-job.js interactTransport): the answer is read as a stream and
   // returned as the one message below, under an abort deadline. Every other caller sends the same single request it always did.
   const resp = env.MODEL_STREAM ? await streamedMessage(send, env.MODEL_STREAM) : await send(env.CAD_MODEL_ABORT_SIGNAL);
   // Surface the API's own reason in logs; callers only relay the status code.
