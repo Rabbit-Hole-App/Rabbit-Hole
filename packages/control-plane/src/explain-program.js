@@ -7,7 +7,7 @@
 import {
   CAPABILITIES, CONTRACT_LIMITS, ProgramBundle, STATEFUL_SCHEMA_VERSION, StatefulBundle, draftSchemaVersion, requiresHeatGrid, resolveInputs, sealProgram, unsupportedCapabilities, verifyHashes,
 } from '../../web/src/explain-program/contract.js';
-import { CYCLIC_CAPABILITY, CYCLIC_PROGRAM_STAMPS, HEAT_GRID_PROGRAM_STAMPS, RASTER_CAPABILITY, RASTER_PROGRAM_STAMPS, STATEFUL_CYCLIC_PROGRAM_STAMPS, STATEFUL_HEAT_GRID_PROGRAM_STAMPS, STATEFUL_RASTER_PROGRAM_STAMPS, MEDIUM_CAPABILITY, MEDIUM_PROGRAM_STAMPS, STATEFUL_MEDIUM_PROGRAM_STAMPS, STATEFUL_VISUAL_PROGRAM_STAMPS, VISUAL_PROGRAM_STAMPS } from '../../web/src/explain-program/stamps.js';
+import { RENDERER_VERSION, CYCLIC_CAPABILITY, CYCLIC_PROGRAM_STAMPS, HEAT_GRID_PROGRAM_STAMPS, RASTER_CAPABILITY, RASTER_PROGRAM_STAMPS, STATEFUL_CYCLIC_PROGRAM_STAMPS, STATEFUL_HEAT_GRID_PROGRAM_STAMPS, STATEFUL_RASTER_PROGRAM_STAMPS, MEDIUM_CAPABILITY, MEDIUM_PROGRAM_STAMPS, STATEFUL_MEDIUM_PROGRAM_STAMPS, STATEFUL_VISUAL_PROGRAM_STAMPS, VISUAL_PROGRAM_STAMPS } from '../../web/src/explain-program/stamps.js';
 
 export const programEnabled = env => env.EXPLAIN_PROGRAM_ENABLED === 'true';
 // The one switch for stateful programs (schema 2: buttons, selections and state, Task 8.3): it offers the capability to the brief, the
@@ -61,18 +61,19 @@ export function checkProgramDraft(draft, { stateful = false } = {}) {
 
 // The one stored artifact: the bundle plus the host's version stamps and computed hashes (contract.js sealProgram). A stateful bundle
 // (it declares a viewport, actions or targets) is sealed as schema 2.
+// The stamps the server seals a program with, from the capabilities it declares and its schema: the one rule buildProgramArtifact applies,
+// and what /interact's per-panel runtime binding (interact-design.js) resolves a planned tuple against.
+export function programStampsFor(capabilities, stateful) {
+  const has = capability => Array.isArray(capabilities) && capabilities.includes(capability);
+  return requiresHeatGrid({ capabilities }) ? (stateful ? STATEFUL_HEAT_GRID_PROGRAM_STAMPS : HEAT_GRID_PROGRAM_STAMPS)
+    : has(RASTER_CAPABILITY) ? (stateful ? STATEFUL_RASTER_PROGRAM_STAMPS : RASTER_PROGRAM_STAMPS)
+    : has(CYCLIC_CAPABILITY) ? (stateful ? STATEFUL_CYCLIC_PROGRAM_STAMPS : CYCLIC_PROGRAM_STAMPS) : has(MEDIUM_CAPABILITY) ? (stateful ? STATEFUL_MEDIUM_PROGRAM_STAMPS : MEDIUM_PROGRAM_STAMPS)
+    : (stateful ? STATEFUL_VISUAL_PROGRAM_STAMPS : VISUAL_PROGRAM_STAMPS);
+}
+// The whole version tuple of a sealed artifact (stamps.js SUPPORTED_PROGRAM_TUPLES entries are built the same way).
+export const programTupleFor = (capabilities, stateful) => ({ schemaVersion: 1, sdkVersion: 'sdk-1', rendererVersion: RENDERER_VERSION, ...programStampsFor(capabilities, stateful) });
 export async function buildProgramArtifact(bundle, stamps) {
-  if (stamps === undefined) {
-    const stateful = draftSchemaVersion(bundle) === STATEFUL_SCHEMA_VERSION;
-    const capabilities = bundle?.manifest?.capabilities;
-    const medium = Array.isArray(capabilities) && capabilities.includes(MEDIUM_CAPABILITY);
-    const cyclic = Array.isArray(capabilities) && capabilities.includes(CYCLIC_CAPABILITY);
-    const raster = Array.isArray(capabilities) && capabilities.includes(RASTER_CAPABILITY);
-    stamps = requiresHeatGrid(bundle?.manifest) ? (stateful ? STATEFUL_HEAT_GRID_PROGRAM_STAMPS : HEAT_GRID_PROGRAM_STAMPS)
-      : raster ? (stateful ? STATEFUL_RASTER_PROGRAM_STAMPS : RASTER_PROGRAM_STAMPS)
-      : cyclic ? (stateful ? STATEFUL_CYCLIC_PROGRAM_STAMPS : CYCLIC_PROGRAM_STAMPS) : medium ? (stateful ? STATEFUL_MEDIUM_PROGRAM_STAMPS : MEDIUM_PROGRAM_STAMPS)
-      : (stateful ? STATEFUL_VISUAL_PROGRAM_STAMPS : VISUAL_PROGRAM_STAMPS);
-  }
+  if (stamps === undefined) stamps = programStampsFor(bundle?.manifest?.capabilities, draftSchemaVersion(bundle) === STATEFUL_SCHEMA_VERSION);
   const sealed = await sealProgram(bundle, stamps);
   if (!sealed.ok) throw Object.assign(new Error(sealed.issue || 'the program could not be sealed'), { code: 'invalid_program' });
   return sealed.value;

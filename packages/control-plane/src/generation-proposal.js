@@ -168,7 +168,9 @@ export function proposalUsage(env, command, settings, input = null) {
   // as what the job checks the allowance for. Never Motion's estimate or hold.
   if (command === 'explain') {
     const estimate = Number(String(env.EXPLAIN_ESTIMATE_USD ?? '').trim() || NaN);
-    return { estimate_credits: credits(estimate), reserve_credits: credits(explainReservation().generationMicros / 1e6) };
+    // A scene-plan proposal (INT-03) signs its own profile's generation bound; the legacy brief shows the legacy policy's.
+    const bound = input?.scene_plan_version === 1 && Number.isSafeInteger(input.generation_reserve_micros) ? input.generation_reserve_micros : explainReservation().generationMicros;
+    return { estimate_credits: credits(estimate), reserve_credits: credits(bound / 1e6) };
   }
   // /animation (AN-05): its estimate when configured (ANIMATION_ESTIMATE_USD), and the build's worst case (animation-policy.js) as the most it
   // can cost. Nothing is held: the worst case is an admission check and every call is admitted on its own, so no reserve is shown.

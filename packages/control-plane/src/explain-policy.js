@@ -163,7 +163,8 @@ export async function callExplainRole(env, role, { system, tool, content }, { ca
 
 // ---- Stage timing (section 3.6) ----
 export const REQUEST_CLASSES = Object.freeze(['simple', 'researched', 'edit']);
-export const EXPLAIN_STAGES = Object.freeze(['queued', 'preparing', 'awaiting_approval', 'authoring', 'validating', 'rendering', 'reviewing', 'repairing']);
+// The design_* stages are the /interact scene-plan flow's preparation (interact-design.js); a legacy job never enters them.
+export const EXPLAIN_STAGES = Object.freeze(['queued', 'preparing', 'design_authoring', 'design_reviewing', 'design_revising', 'design_verifying', 'awaiting_approval', 'authoring', 'validating', 'rendering', 'reviewing', 'repairing']);
 // Targets frozen by L4 from observed runs only, before qualification (viz-benchmarks/visualization-cases/runs/t22-targets.json,
 // 2026-10-22 10:05 PT, with its rationale): never relaxed after seeing results. Classes with no observation stay null.
 const UNMEASURED = Object.freeze({ firstFeedbackMs: null, proposalMs: null, resultMs: null, basis: 'unmeasured' });
