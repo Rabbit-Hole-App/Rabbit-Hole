@@ -26,7 +26,7 @@ const refuse = (code, message, extra) => new InteractModelError(code, message, {
 // build_review 1 + three re-reviews after repairs + 1 (interact-build.js callWithCorrection). A correction is counted and bounded like any call.
 // build_review 10,000: a review writes a verdict and up to several findings (about 150 to 250 tokens each, a message is no longer cut before it is read) for each of up to 6 captures,
 // and the design reviewer already needed more than 6,000 for one plan. A reply cut off at the cap is a lost review (stopReason truncated), so the cap is generous.
-const NEW_FLOW_BUILD_TOKENS = { build_author: 16000, build_review: 10000, build_repair: 16000 };
+const NEW_FLOW_BUILD_TOKENS = { build_author: 32000, build_review: 10000, build_repair: 16000 }; // build_author 32000: owner 2026-11-08 after dev run i1-20 used all 16000 in 178 s
 export const INTERACT_ROLES = deepFreeze({
   design_author: { task: 'interact_design_author', phase: 'preparation', kind: 'generation', calls: 2, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_author.maxTokens },
   design_review: { task: 'interact_design_review', phase: 'preparation', kind: 'evaluation', calls: 4, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_review.maxTokens },

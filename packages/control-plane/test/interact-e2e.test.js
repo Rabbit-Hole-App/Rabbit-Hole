@@ -129,7 +129,7 @@ test('prompt -> design -> Review scene plan -> Generate -> build, capture, check
   assert.equal(job.counts.author, 0, 'the legacy author, review and repair roles were never called');
   assert.equal(s.model.builder.length, 0);
   assert.deepEqual([s.calls.build.length, s.calls.review.length, s.calls.repair.length], [1, 1, 0]);
-  assert.equal(s.calls.build[0].max, 16000, 'the new-flow build limit');
+  assert.equal(s.calls.build[0].max, 32000, 'the new-flow build limit');
   assert.ok(JSON.parse(s.calls.build[0].text).approvedPlan.title === PLAN.standard.title, 'the builder reads the whole approved plan');
   // The reviewer was shown real pixels: the five planned states of the main scene and the supporting panel, with the layout as trusted text and the honest rule set.
   assert.equal(s.calls.review[0].images, 6);
