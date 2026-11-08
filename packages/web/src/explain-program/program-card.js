@@ -64,6 +64,21 @@ export const programInputs = (manifest, block) => resolveInputs(manifest, block.
 export const programDuration = manifest => manifest.duration ?? 0;
 export const clampTime = (manifest, time) => Math.min(programDuration(manifest), Math.max(0, Number.isFinite(time) ? time : 0));
 export const programTime = (manifest, block) => clampTime(manifest, block.time ?? 0);
+// Optional manifest.timeline (interact.md INT-01 mode.timeline). Elapsed time always starts at zero; the label shows elapsed + displayOffset.
+export const playbackRate = manifest => manifest.timeline?.playbackRate ?? 1;
+export const scrubStep = manifest => (manifest.timeline ? 0.001 : 0.05);
+export const savedTime = (manifest, time) => Number(clampTime(manifest, time).toFixed(manifest.timeline ? 4 : 2));
+// A scrub within half a step of a named marker lands exactly on it, so a pointer or key seek reaches the stated moment.
+export const snapToMarker = (manifest, value) => {
+  const near = (manifest.timeline?.markers || []).find(marker => Math.abs(marker.time - value) <= scrubStep(manifest) / 2);
+  return near ? near.time : value;
+};
+export const timeLabel = (manifest, elapsed) => {
+  const timeline = manifest.timeline;
+  if (!timeline) return `${elapsed.toFixed(1)}s`;
+  const shown = Number((elapsed + (timeline.displayOffset ?? 0)).toFixed(2));
+  return `${shown > 0 && timeline.displayOffset ? '+' : shown < 0 ? '\u2212' : ''}${Math.abs(shown).toFixed(2)}s`;
+};
 
 // A changed input: same block when nothing changes (so no write and no revision bump), else new inputs and a new revision.
 export function setProgramInput(block, manifest, name, value) {

@@ -78,11 +78,22 @@ const selectInput = z.object({
 const inputSchema = z.union([numberInput, selectInput]);
 const readoutSchema = z.object({ id: name, label: plain(60), unit: maybePlain(16).optional(), decimals: z.number().int().min(0).max(6).default(2) }).strict();
 
+// interact.md INT-01 mode.timeline, as far as a program card needs it now: shown time = elapsed + displayOffset, a trusted playback rate in simulated
+// seconds per wall second, and named exact-seek markers. Optional and additive: a saved card without it plays and saves exactly as before.
+const timelineMarker = z.object({ id: name, label: plain(40), time: z.number().min(0).max(CONTRACT_LIMITS.duration) }).strict();
+const timelineSchema = z.object({
+  label: plain(40).optional(), // names the displayed time origin, for example "Time from the apex"
+  displayOffset: z.number().min(-CONTRACT_LIMITS.duration).max(CONTRACT_LIMITS.duration).optional(),
+  playbackRate: z.number().positive().max(10).optional(),
+  markers: z.array(timelineMarker).max(8).optional(),
+}).strict();
 const manifestShape = {
   title: plain(120), summary: plain(400), assumptions: z.array(plain(300)).max(CONTRACT_LIMITS.assumptions),
   description: plain(600), // the accessible description of what the picture shows
   inputs: z.array(inputSchema).max(CONTRACT_LIMITS.inputs),
   duration: z.number().positive().max(CONTRACT_LIMITS.duration).optional(), // seconds; absent means a static, time-free card
+  cardDescription: plain(500).optional(), // the visible 2 to 4 line introduction above the scene (description stays the accessible one)
+  timeline: timelineSchema.optional(),
   readouts: z.array(readoutSchema).max(CONTRACT_LIMITS.readouts),
   capabilities: z.array(z.string().min(1).max(32)).max(16),
 };
@@ -93,6 +104,13 @@ const manifestChecks = (manifest, context) => {
     const taken = new Set(), twice = [...new Set(ids.filter(id => taken.size === taken.add(id).size))].slice(0, 4);
     const where = id => [manifest.inputs.some(input => input.id === id) && 'an input', manifest.readouts.some(readout => readout.id === id) && 'a readout'].filter(Boolean).join(' and ');
     context.addIssue({ code: 'custom', message: `input and readout ids must be unique (they share one namespace): ${twice.map(id => `"${id}" is used more than once, as ${where(id)}`).join('; ')}; rename one of each pair`, path: ['inputs'] });
+  }
+  if (manifest.timeline) {
+    if (!manifest.duration) context.addIssue({ code: 'custom', message: 'a timeline needs a duration', path: ['timeline'] });
+    const late = (manifest.timeline.markers || []).filter(marker => marker.time > (manifest.duration ?? 0));
+    if (late.length) context.addIssue({ code: 'custom', message: `timeline marker ${late[0].id} is after the end of the card (${manifest.duration} s)`, path: ['timeline', 'markers'] });
+    const ids = (manifest.timeline.markers || []).map(marker => marker.id);
+    if (new Set(ids).size !== ids.length) context.addIssue({ code: 'custom', message: 'timeline marker ids must be unique', path: ['timeline', 'markers'] });
   }
   const combinations = manifest.inputs.filter(input => input.type === 'select').reduce((total, input) => total * input.options.length, 1);
   if (combinations > CONTRACT_LIMITS.optionCombinations) context.addIssue({ code: 'custom', message: `select options combine to ${combinations} states (at most ${CONTRACT_LIMITS.optionCombinations})`, path: ['inputs'] });
