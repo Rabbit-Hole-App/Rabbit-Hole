@@ -103,6 +103,8 @@ First confirm that the configured provider accepts the expanded tool schema and 
 
 ### Execution receipt
 
+- Implementation pushed and branch head verified: `e1627df972cc4c581d4f360cbe992a1dde318038`. Remote tree `ac45762efa9a8a1900e0c8cfaf723f1f1f6b13fe` equals the tested local implementation tree. This receipt update changes documentation only.
+
 - Final integrated check: **373 tests passed, zero failed or skipped**. The serialized provider JSON Schema is **86,419 bytes**. All 130 references passed parse/save/read/render checks at 320, 408 and 720 px. Independent review findings were fixed and covered by failing-before/passing-after regressions.
 - Web build passed. The existing bundle-size warning remains; no broad CI was run.
 - Generated all 130 reference SVG/JSON pairs from the actual renderer. Inspected 16 representative static SVG rasters covering the four new kinds and nine extensions. CSS variables were resolved only in disposable raster-inspection copies; repository SVGs retain the real output. This converter does not render KaTeX foreignObjects; formula/browser appearance is not claimed from those images.

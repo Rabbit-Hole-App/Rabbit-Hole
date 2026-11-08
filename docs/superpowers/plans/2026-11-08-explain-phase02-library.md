@@ -118,7 +118,7 @@ Names are module-level design choices within the approved semantics. Each domain
 - [x] Update `docs/features/explain-program-support.md`, the diagram README, this checklist and a Claude handoff with implemented versus pending live evidence.
 - [x] Check deployment/model access without printing secrets. If unavailable, record the exact blocker and provide ready-to-run reference/acceptance inputs for Claude; do not claim provider acceptance or deployment.
 - [x] Review the integrated diff and prepare the verified code and Claude handoff for publication.
-- [ ] Push and verify remote head (publication receipt is the final branch/commit delivered to the owner).
+- [x] Push and verify remote head: implementation `e1627df972cc4c581d4f360cbe992a1dde318038` on `chatgpt/explain-phase02-library`. Remote tree `ac45762efa9a8a1900e0c8cfaf723f1f1f6b13fe` exactly matches the locally tested implementation tree.
 
 ## Lesson coverage checklist
 
