@@ -28,7 +28,7 @@ export function SlotCard({ slot, actions = null }) {
   // An anchored slot (canvas-slots.js anchoredSlots) stands at its own world position, out of the column's flow; any other slot is the column's, as always.
   const place = slot.at ? { position: 'absolute', left: slot.at.x, top: slot.at.y } : { marginTop: slot.top || undefined };
   const frame = `relative ${slot.at ? '' : 'mx-auto '}flex shrink-0 cursor-default flex-col overflow-hidden rounded-xl border border-line bg-white shadow-sm`;
-  const strip = <div className="flex h-6 shrink-0 items-center justify-center"><span className="h-1 w-12 rounded-full bg-line" /></div>;
+  const strip = <div className="h-6 shrink-0" />;
   const lines = <div aria-hidden="true" className="flex flex-col gap-3 px-4">
     <span className="skeleton-line h-4 w-2/3 rounded" />
     {['w-full', 'w-11/12', 'w-full', 'w-3/4'].map((width, index) => <span key={index} className={`skeleton-line h-3 rounded ${width}`} />)}

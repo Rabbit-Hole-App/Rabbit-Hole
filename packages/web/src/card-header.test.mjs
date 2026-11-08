@@ -70,7 +70,7 @@ test('sources: the dot Kicker is gone, every body hands its block to the header,
   const kickers = blocks.match(/<Kicker\b[^>]*>/g) || [];
   assert.ok(kickers.length >= 20 && kickers.every(tag => /block=\{block\}/.test(tag)), 'every Kicker names its block');
   assert.match(blocks, /<div data-explanation-head data-focus-hide className="shrink-0">/, 'the Explanation card keeps its pinned head');
-  assert.match(blocks, /return <CardHeader block=\{block\} meta=\{children\} trailing=\{trailing\} size=\{size\} sticky=\{sticky\} className=\{className\} \/>;/);
+  assert.match(blocks, /return <CardHeader block=\{block\} meta=\{children\} trailing=\{trailing\} size=\{size\} sticky=\{sticky\} className=\{className\} icon=\{icon\} \/>;/);
   const canvas = read('AdaptiveCanvas.jsx');
   assert.match(canvas, /<CardRename\.Provider value=\{readOnly \|\| localCopy \? null : startRename\}>/);
   assert.match(canvas, /rename: id => startRename\(id\),/, 'the right-click Rename and the header open the same editor');

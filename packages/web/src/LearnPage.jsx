@@ -489,7 +489,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       if (result.result === 'artifact' || result.result === 'paid_proposal') {
         // A paid card (a 3D scene) starts at once: this Generate on its brief is the confirmation.
         const block = { ...withPrompt(result.block, proposal.input?.request), proposalId: proposal.proposal_id, ...(result.result === 'paid_proposal' ? { confirmedStart: true } : {}) };
-        return { blockId: canvasApi.current?.insertBlock(block, { into: slot }) ?? null };
+        return { blockId: canvasApi.current?.insertBlock(block, { into: slot, fit: block.type === 'explanation' }) ?? null }; // fit: learn-slash.js's, a new Explanation shown whole
       }
       if (slot) live.release?.(slot);
       throw new Error(result.question || result.message || result.error || 'That could not be made. Press Generate to try again.');
