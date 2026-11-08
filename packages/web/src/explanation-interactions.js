@@ -152,6 +152,9 @@ export function anchorsFromRange(range, fields, revision) {
   return out;
 }
 export const quoteOf = segments => segments.map(segment => segment.quote).join(' ').trim();
+// Create note (owner 2026-11-08): the Sticky note's own words start with the selected text in italics, then an empty line for the learner's note
+// (learn-rich-text.js: `text` stays the plain string, `runs` carry the italics). -> { text, runs }
+export const quotedNote = quote => ({ text: `${quote}\n\n`, runs: [{ t: quote, i: true }, { t: '\n\n' }] });
 
 // A stored segment still belongs to this text: the field exists and its slice is the quote.
 export const segmentHolds = (block, segment) => {

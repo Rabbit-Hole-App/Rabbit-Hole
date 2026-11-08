@@ -5,13 +5,13 @@
 // before, with no wrapper, no spacer row and no listener. Actions go through the canvas host (explanation-host.js) and the Chat workspace; a surface
 // without them omits the controls it cannot run. Pure mapping, anchors and state: explanation-interactions.js.
 import { createElement, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowUp, GitBranch, Highlighter, MessageSquare, MessageSquarePlus, Plus, StickyNote } from 'lucide-react';
+import { ArrowUp, GitBranch, Highlighter, MessageSquare, MessageSquarePlus, Plus, StickyNote, Trash2 } from 'lucide-react';
 import { Button, toast } from './ui.jsx';
 import { ToolButton } from './selection-toolbar.jsx';
 import { selectionRef } from './selection-ref.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { ExplanationHost } from './explanation-host.js';
-import { alignField, anchorsFromRange, contentRevision, contentRevisionInput, decorate, fieldText, fieldsOf, highlightsFor, quoteOf, suggestionsFor, termsFor, undecorate, withConsumed, withHighlight } from './explanation-interactions.js';
+import { alignField, anchorsFromRange, contentRevision, contentRevisionInput, decorate, fieldText, fieldsOf, highlightsFor, quoteOf, suggestionsFor, termsFor, undecorate, withConsumed, withHighlight, withoutHighlight } from './explanation-interactions.js';
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const newId = () => crypto.randomUUID();
@@ -28,7 +28,9 @@ function place(el, rect, origin, prefer = 'below') {
 }
 
 const pillFor = (flow, id) => Array.from(flow?.querySelectorAll('[data-term-first]') || []).find(el => el.getAttribute('data-term-id') === id) || null;
-const PILL = 'cursor-pointer rounded-[5px] border border-claude bg-claude px-[5px] text-[0.92em] leading-[1.35] font-medium whitespace-nowrap text-black hover:brightness-110';
+// Owner 2026-11-08: no solid fill. The term colour is on the text (claude-deep reads as text in both themes) with a thin outline; hover and the open
+// pill only tint faintly; keyboard focus keeps the Button outline.
+const PILL = 'cursor-pointer rounded-[5px] border border-claude/50 px-[5px] text-[0.92em] leading-[1.35] font-medium whitespace-nowrap text-claude-deep hover:bg-claude/10 aria-expanded:bg-claude/10 focus-visible:outline-2 focus-visible:outline-accent/35';
 const MARKED = 'rounded-[2px] bg-yellow-300/40';
 
 // The layer for one card: null when the card has no envelope. block: the card now; onChange (undoable) and onChangeQuiet (not) save it through the board.
@@ -52,6 +54,8 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
   const inflight = useRef(null);
   const [bar, setBar] = useState(null);           // { rect, quote, segments } for the selection offered the toolbar
   const barEl = useRef(null), noteEl = useRef(null);
+  const [menu, setMenu] = useState(null);         // { id, rect }: the saved highlight offered Remove highlight (the file and webpage cards' highlight menu)
+  const menuEl = useRef(null);
   const canEdit = !readOnly;
 
   // ---- terms ----
@@ -65,7 +69,13 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
   const flowProps = {
     // Pointer handlers on a pill never reach the card (it would select or start a drag): the pill is a control, like the section toggles.
     onPointerDown: event => { if (pillOf(event)) event.stopPropagation(); },
-    onClick: event => { const pill = pillOf(event); if (pill) { const id = pill.getAttribute('data-term-id'); setOpenTerm(current => (current?.id === id ? null : { id, via: event.detail === 0 ? 'key' : 'pointer' })); } },
+    onClick: event => {
+      const pill = pillOf(event);
+      if (pill) { const id = pill.getAttribute('data-term-id'); setOpenTerm(current => (current?.id === id ? null : { id, via: event.detail === 0 ? 'key' : 'pointer' })); return; }
+      // A press on a saved highlight (not a drag that selected text) offers Remove highlight, as the file and webpage cards do.
+      const mark = event.target?.closest?.('[data-highlight-ids]'), selection = window.getSelection?.();
+      if (mark && canEdit && (!selection || selection.isCollapsed)) setMenu({ id: mark.getAttribute('data-highlight-ids').split(' ')[0], rect: mark.getBoundingClientRect() });
+    },
     onKeyDown: event => {
       const pill = pillOf(event);
       // Enter on a pill opens its definition, never the card (the canvas opens the selected card on Enter).
@@ -80,7 +90,19 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
     document.addEventListener('keydown', escape, true); document.addEventListener('pointerdown', away, true);
     return () => { document.removeEventListener('keydown', escape, true); document.removeEventListener('pointerdown', away, true); };
   }, [openTerm, closeTerm]);
-  useEffect(() => { setOpenTerm(null); }, [revision]);
+  useEffect(() => { setOpenTerm(null); setMenu(null); }, [revision]);
+  useEffect(() => {
+    if (!menu) return undefined;
+    const escape = event => { if (event.key === 'Escape') { event.stopPropagation(); setMenu(null); } };
+    const away = event => { if (!menuEl.current?.contains(event.target)) setMenu(null); };
+    document.addEventListener('keydown', escape, true); document.addEventListener('pointerdown', away, true);
+    return () => { document.removeEventListener('keydown', escape, true); document.removeEventListener('pointerdown', away, true); };
+  }, [menu]);
+  const removeHighlight = () => {
+    const now = latest.current;
+    if (menu && canEdit) now.onChange?.(withoutHighlight(now.block, menu.id));
+    setMenu(null);
+  };
 
   // ---- sends (suggestions and the follow-up field share one authorized conversation and one in-flight slot) ----
   const send = async ({ text, qid = null, destination, afterAdmit = null }) => {
@@ -156,7 +178,7 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
   };
 
   if (!enabled) return null;
-  return { block, revision, host, chat, canEdit, flowRef, rootRef, fields, flowProps, openTerm, closeTerm, noteEl, barEl, bar, pending, askSuggestion, askFollowUp, askInChat, highlight, createNote,
+  return { block, revision, host, chat, canEdit, flowRef, rootRef, fields, flowProps, openTerm, closeTerm, noteEl, barEl, bar, pending, askSuggestion, askFollowUp, askInChat, highlight, createNote, menu, menuEl, removeHighlight,
     terms: termsFor(block, revision), suggestions: suggestionsFor(block, revision), highlights: highlightsFor(block, revision) };
 }
 
@@ -180,7 +202,10 @@ export function InteractiveField({ layer, field, children }) {
     undecorate(root);
     last.current = signature;
     if (!marks.length) return;
-    decorate(aligned, marks, root.ownerDocument);
+    // Align again on the unwrapped text: undecorate merges the split text nodes back, so the alignment above points at nodes that are gone (a new
+    // highlight on a card that already had pills threw here and the card fell back to its plain words).
+    const fresh = alignField(root, canonical);
+    if (fresh) decorate(fresh, marks, root.ownerDocument);
     for (const piece of root.querySelectorAll('[data-term-id]')) {
       piece.className = PILL;
       if (piece.hasAttribute('data-term-first')) { piece.setAttribute('role', 'button'); piece.setAttribute('tabindex', '0'); piece.setAttribute('aria-haspopup', 'dialog'); piece.setAttribute('aria-expanded', layer.openTerm?.id === piece.getAttribute('data-term-id') ? 'true' : 'false'); }
@@ -211,7 +236,7 @@ export function TermNote({ layer }) {
       className="absolute z-30 w-[265px] max-w-[calc(100%-12px)] rounded-lg border border-line bg-white p-3 text-left shadow-pop outline-none select-text">
       <strong className="block text-sm text-ink">{term.label}</strong>
       <p className="mt-1 mb-2 text-[13px] leading-snug text-ink">{term.definition}</p>
-      {host?.dig && <Button type="button" size="sm" variant="soft" data-dig-rabbit-hole onClick={() => { host.dig({ id: block.id, term: term.label, termId: term.id, revision }); layer.closeTerm(false); }}>Dig Rabbit Hole</Button>}
+      {host?.dig && <Button type="button" size="sm" variant="primary" data-dig-rabbit-hole onClick={() => { host.dig({ id: block.id, term: term.label, termId: term.id, revision }); layer.closeTerm(false); }}>Dig Rabbit Hole</Button>}
     </div>
   );
 }
@@ -239,7 +264,9 @@ export function Suggestions({ layer }) {
   );
 }
 
-// The separate bottom + and the Ask a follow-up field under the card (approved card 07 .follow-up-toggle, .composer). Sits under the card's bottom port, never on it;
+// The separate bottom + and the Ask a follow-up field under the card (approved card 07 .follow-up-toggle, .composer). Sits under the card's bottom port, never on it:
+// the port (AdaptiveCanvas data-port="bottom", h-4 centred on the edge) reaches 8 px below the card, so the + starts 24 px down (the port's 16 px plus a gap,
+// owner 2026-11-08) and the field 12 px under the +;
 // the round send is inside the field; a press outside closes it and keeps the unsent words.
 export function FollowUp({ layer }) {
   const { host, canEdit, pending } = layer;
@@ -265,12 +292,12 @@ export function FollowUp({ layer }) {
     <>
       <button ref={toggle} type="button" data-follow-up-toggle title="Ask a follow-up" aria-label="Ask a follow-up" aria-expanded={open} aria-controls="explanation-follow-up"
         onPointerDown={event => event.stopPropagation()} onClick={() => setOpen(value => !value)}
-        className="absolute top-full left-1/2 z-20 mt-3 grid h-7 w-7 -translate-x-1/2 place-items-center rounded-full border border-line-strong bg-surface p-0 text-ink-2 opacity-0 transition-transform group-focus-within:opacity-100 group-hover:opacity-100 hover:scale-110 hover:border-accent hover:bg-accent hover:text-white focus-visible:opacity-100 aria-expanded:opacity-100">
+        className="absolute top-full left-1/2 z-20 mt-6 grid h-7 w-7 -translate-x-1/2 place-items-center rounded-full border border-line-strong bg-surface p-0 text-ink-2 opacity-0 transition-transform group-focus-within:opacity-100 group-hover:opacity-100 hover:scale-110 hover:border-accent hover:bg-accent hover:text-white focus-visible:opacity-100 aria-expanded:opacity-100">
         <Plus size={14} aria-hidden="true" />
       </button>
       {open && (
         <form ref={form} id="explanation-follow-up" data-follow-up onSubmit={submit} onPointerDown={event => event.stopPropagation()}
-          className="absolute top-full right-0 left-0 z-20 mt-[52px] flex items-center gap-2 rounded-xl border border-line-strong bg-white py-1.5 pr-1.5 pl-3 shadow-pop focus-within:border-accent">
+          className="absolute top-full right-0 left-0 z-20 mt-16 flex items-center gap-2 rounded-xl border border-line-strong bg-white py-1.5 pr-1.5 pl-3 shadow-pop focus-within:border-accent">
           <label className="sr-only" htmlFor="explanation-follow-up-text">Ask a follow-up</label>
           <input id="explanation-follow-up-text" type="text" autoComplete="off" maxLength={200} placeholder="Ask a follow-up" value={text} onChange={event => setText(event.target.value)}
             className="min-h-8 min-w-0 flex-1 border-0 bg-transparent p-0 text-sm text-ink outline-none placeholder:text-ink-2" />
@@ -300,4 +327,20 @@ export function SelectionBar({ layer }) {
   );
 }
 
-export const wrapField = (layer, field, source, node) => (layer ? createElement(InteractiveField, { layer, field, source, key: `${field}:${source}` }, node) : node);
+// Remove highlight on a saved highlight: the file and webpage cards' highlight menu (FileDocMarkdown.jsx, WebpageCard.jsx), the same markup.
+export function HighlightMenu({ layer }) {
+  const { menu, menuEl } = layer;
+  useLayoutEffect(() => {
+    if (!menu) return;
+    place(menuEl.current, menu.rect, layer.flowRef.current?.closest('[data-block-id]') || layer.flowRef.current?.parentElement);
+  });
+  if (!menu) return null;
+  return (
+    <div ref={menuEl} data-explanation-highlight-menu data-explanation-ui role="menu" aria-label="Highlight" style={{ left: 0, top: 0 }} onPointerDown={event => event.stopPropagation()}
+      className="absolute z-30 flex w-44 flex-col rounded-lg border border-line bg-white p-1 shadow-pop">
+      <button type="button" role="menuitem" autoFocus onClick={layer.removeHighlight} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><Trash2 size={14} className="shrink-0 text-ink-2" />Remove highlight</button>
+    </div>
+  );
+}
+
+export const wrapField =(layer, field, source, node) => (layer ? createElement(InteractiveField, { layer, field, source, key: `${field}:${source}` }, node) : node);

@@ -89,8 +89,9 @@ import { MathText } from './MathText.jsx';
 import { EQUATION_LEVELS, EQUATION_SIZE, equationLevel, levelSize, newEquation, scaledSize, typingIn } from './canvas-equation.js';
 import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
 import { buildContext, buildCreationContext, createContextCache, freezeTarget } from './inline-ai-context.js';
-import { FACING, applyTx, obstaclesOf, placeAnswers, placeNote } from './inline-ai-apply.js';
+import { applyTx, obstaclesOf, placeAnswers, placeNote } from './inline-ai-apply.js';
 import { ExplanationHost } from './explanation-host.js';
+import { quotedNote } from './explanation-interactions.js';
 import { REF_CARD, refCardSpot, reIdRefs, withRef, withoutRef } from './canvas-refs-model.js';
 import { holdsTocLink, resolvedLinks, sectionChoices, withLiveLinks, withTocLink, withoutTocLink } from './toc-links.js';
 import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.js';
@@ -5438,19 +5439,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     }
     if (moves.size) setBlocks(previous => previous.map(block => (moves.has(block.id) ? { ...block, ...moves.get(block.id) } : block)));
   }, [bounds]); // eslint-disable-line react-hooks/exhaustive-deps
-  // E2 (explain.md section 4, Create note and Add note): ONE editable Sticky note beside an Explanation card, joined to it by a curved connector, opened for typing.
-  // The same item insertSticky builds, placed by placeNote clear of everything else (nothing moves); quote: the exact selected text, shown above the body and kept
-  // on the note even if the card later changes (Add note passes none). One undo step; a view-only or locked card makes none.
+  // E2 (explain.md section 4, Create note and Add note): ONE editable Sticky note beside an Explanation card, opened for typing, with no connector to the card (owner
+  // 2026-11-08). The same item insertSticky builds, placed by placeNote clear of everything else (nothing moves). Add note: a blank note. Create note (quote): the
+  // note's own text starts with the exact selected text in italics, then an empty line to type on. One undo step; a view-only or locked card makes none.
+  // Notes saved earlier keep their separate quote (item.quote, drawn above the body) and their connector.
   const addCardNote = (id, { quote = null, revision = null } = {}) => {
     const parent = blocksRef.current.find(entry => entry.id === id), target = boxesOf([id])[0];
     if (!parent || !target || readOnlyRef.current || lockedRef.current.has(id)) return null;
     const noteId = crypto.randomUUID(), size = { w: 160, h: quote ? 220 : 160 };
     const spot = placeNote(target, size, [...inlineCanvas.obstacles([id]), ...placementChrome()], inlineCanvas.visibleWorld());
-    const [fromSide, toSide] = FACING[spot.side] || FACING.right;
     snapshot();
     setItems(previous => [...previous, { id: noteId, kind: 'sticky', x: spot.x, y: spot.y, text: '', color, opacity, ...armedText('sticky'), fresh: true, parentCard: { id, ...(revision ? { revision } : {}) },
-      ...(quote ? { quote: { text: quote, cardId: id, ...(revision ? { contentRevision: revision } : {}) } } : {}) }]);
-    setLinks(previous => [...previous, { id: crypto.randomUUID(), from: id, fromSide, to: noteId, toSide, color: '#6b7280', route: 'curved', bow: true, head: true, kind: 'annotation' }]);
+      ...(quote ? quotedNote(quote) : {}) }]);
     setSelection([noteId]);
     if (spot.offscreen) inlineCanvas.reveal({ x: spot.x, y: spot.y, ...size });
     return noteId;
