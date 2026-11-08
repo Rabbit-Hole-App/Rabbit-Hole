@@ -10,6 +10,8 @@ export const PALETTE = Object.freeze({
   rose: '#E8A3B7',
   slate: '#A8BBD0',
 });
+// E3: the one fixed style of a highlighted worked route (a diagram author picks no colour): a blue wire and a blue ring, the approved card 07 look.
+export const PATH = '#2F80D8';
 export const SURFACE = 'var(--viz-surface, #fbfbfa)';
 export const INK = 'var(--color-ink, #32211c)';
 export const MUTED = 'var(--color-ink-2, #665951)';
@@ -74,20 +76,20 @@ export function label(lines, x, y, { size = 14, weight = 400, anchor = 'middle',
     ...values.map((value, index) => h('tspan', { x, y: y + (index - (values.length - 1) / 2) * step + size * 0.34 }, value)));
 }
 
-export function box(x, y, width, height, { role = 'plain', radius = 7 } = {}) {
+export function box(x, y, width, height, { role = 'plain', radius = 7, active = false } = {}) {
   return h('rect', {
     x, y, width, height, rx: radius,
     fill: PALETTE[role] ?? SURFACE,
-    stroke: role === 'plain' ? INK : FILLED_INK, strokeWidth: 1.5,
+    stroke: active ? PATH : role === 'plain' ? INK : FILLED_INK, strokeWidth: active ? 3.5 : 1.5,
   });
 }
 
-export function diamond(x, y, width, height) {
+export function diamond(x, y, width, height, { active = false } = {}) {
   const points = [[x + width / 2, y], [x + width, y + height / 2],
     [x + width / 2, y + height], [x, y + height / 2]];
   return h('polygon', {
     points: points.map(point => point.join(',')).join(' '),
-    fill: PALETTE.decision, stroke: FILLED_INK, strokeWidth: 1.5, strokeLinejoin: 'round',
+    fill: PALETTE.decision, stroke: active ? PATH : FILLED_INK, strokeWidth: active ? 3.5 : 1.5, strokeLinejoin: 'round',
   });
 }
 
@@ -95,10 +97,10 @@ export function dot(x, y, r, role = 'outcome') {
   return h('circle', { cx: x, cy: y, r, fill: PALETTE[role] ?? SURFACE, stroke: FILLED_INK, strokeWidth: 1.3 });
 }
 
-export function connector(points, { arrow = true, dashed = false } = {}) {
+export function connector(points, { arrow = true, dashed = false, path = false } = {}) {
   const wire = h('polyline', {
-    points: points.map(point => point.join(',')).join(' '), fill: 'none', stroke: dashed ? MUTED : INK,
-    strokeWidth: dashed ? 1 : 1.5, strokeDasharray: dashed ? '4 4' : undefined,
+    points: points.map(point => point.join(',')).join(' '), fill: 'none', stroke: path ? PATH : dashed ? MUTED : INK,
+    strokeWidth: path ? 3 : dashed ? 1 : 1.5, strokeDasharray: dashed ? '4 4' : undefined,
     strokeLinecap: 'round', strokeLinejoin: 'round',
   });
   if (!arrow) return wire;
@@ -111,6 +113,6 @@ export function connector(points, { arrow = true, dashed = false } = {}) {
   const baseX = x - dx * tip, baseY = y - dy * tip;
   const head = [[x, y], [baseX - dy * 3.4, baseY + dx * 3.4], [baseX + dy * 3.4, baseY - dx * 3.4]];
   return h('g', null, wire, h('polygon', {
-    points: head.map(point => point.join(',')).join(' '), fill: INK, 'data-tutor-arrowhead': '',
+    points: head.map(point => point.join(',')).join(' '), fill: path ? PATH : INK, 'data-tutor-arrowhead': '',
   }));
 }

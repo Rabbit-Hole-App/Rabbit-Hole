@@ -25,6 +25,8 @@ const TABLE_CUE = /\b(?:include|add|with|use|using|give|show|make|put|provide|cr
 const NEGATION = /\b(?:no|not|without|don'?t|do not|never|avoid|skip|exclude|rather than|instead of)\b[^.?!\n]*$/i;
 const negated = (text, index) => NEGATION.test(text.slice(Math.max(0, index - 40), index));
 
+// E3: a request to trace a worked case through a flow needs the validated highlightPath, not only a caption (EXP-12-C04).
+const TRACE = /\b(trace|follow|walk(?:ing)? (?:me )?through|highlight(?:ing)?|mark the path|show the path)\b/i;
 const clip = (text, max = 200) => String(text).replace(/\s+/g, ' ').trim().slice(0, max);
 
 // -> { version, items: [{ id, kind: 'table'|'diagram', diagramKind?, purpose }] } (items may be empty), or { unsupported: 'one line for the learner' }.
@@ -38,7 +40,7 @@ export function deriveVisualRequirements(text) {
   const diagram = DIAGRAM_WORD.exec(words);
   if (diagram && !negated(words, diagram.index)) {
     const kind = KINDS.find(([re]) => re.test(words))?.[1];
-    items.push({ kind: 'diagram', ...(kind ? { diagramKind: kind } : {}), purpose: clip(words) });
+    items.push({ kind: 'diagram', ...(kind ? { diagramKind: kind } : {}), ...(kind === 'flow' && TRACE.test(words) ? { trace: true } : {}), purpose: clip(words) });
   }
   return { version: VISUAL_REQUIREMENTS_VERSION, items: items.map((item, i) => ({ id: `vr-${i + 1}`, ...item })) };
 }
@@ -63,6 +65,7 @@ export function requiredVisualProblem(block, requirements) {
         ? `required_visual_invalid: the learner asked for a ${kind} (${item.id}) and the card's ${kind} is not complete${broken[0].problem ? ` (${broken[0].problem})` : ''}; write it again as a complete ${kind === 'table' ? 'pipe table with leading and trailing pipes, a header row, a separator row and the same number of cells in every row' : 'closed rh-diagram fence that the diagram library accepts'}.`
         : `required_visual_missing: the learner asked for a ${kind} (${item.id}: "${item.purpose.slice(0, 120)}") and the card has none; add it in the card body, shortening the prose to stay inside the budget.`);
       else if (kind === 'diagram' && item.diagramKind && mine.kind !== item.diagramKind) problems.push(`required_visual_invalid: the learner asked for a ${item.diagramKind} diagram (${item.id}) and the card's diagram is a ${mine.kind}; use the ${item.diagramKind} kind.`);
+      else if (kind === 'diagram' && item.trace && mine.kind === 'flow' && !mine.highlightPath) problems.push(`required_visual_invalid: the learner asked to trace a worked case through the flow (${item.id}); give the flow a highlightPath, the node ids of the route in order from the start node to an end node.`);
       else if (kind === 'diagram' && mine.kind === 'flow' && /\byes\b/i.test(item.purpose) && /\bno\b/i.test(item.purpose)) {
         const labels = (mine.edgeLabels || []).map(l => String(l).trim().toLowerCase());
         if (!labels.includes('yes') || !labels.includes('no') || !mine.hasDecision || !mine.hasOutcome) problems.push(`required_visual_invalid: the learner described Yes and No branches (${item.id}); the flow needs a decision node, edges labelled Yes and No, and an outcome node.`);

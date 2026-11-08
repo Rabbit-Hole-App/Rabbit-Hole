@@ -19,7 +19,8 @@ const proseOnly = { title: 'Why coffee cools fast at first', body: prose };
 const diagram = spec => `\`\`\`rh-diagram\n${JSON.stringify({ version: 1, diagram: spec })}\n\`\`\``;
 const flowSpec = { kind: 'flow', title: 'Toy approval rule', caption: 'A 25-year-old earning $60,000 takes Yes, then Yes, and is approved.', nodes: [
   { id: 'age', label: 'Age under 30?', role: 'decision' }, { id: 'inc', label: 'Income over $50k?', role: 'decision' }, { id: 'ok', label: 'Approve', role: 'outcome' }, { id: 'no', label: 'Deny', role: 'outcome' }, { id: 'cs', label: 'Check credit score', role: 'outcome' }],
-  edges: [{ from: 'age', to: 'inc', label: 'Yes' }, { from: 'age', to: 'cs', label: 'No' }, { from: 'inc', to: 'ok', label: 'Yes' }, { from: 'inc', to: 'no', label: 'No' }] };
+  edges: [{ from: 'age', to: 'inc', label: 'Yes' }, { from: 'age', to: 'cs', label: 'No' }, { from: 'inc', to: 'ok', label: 'Yes' }, { from: 'inc', to: 'no', label: 'No' }],
+  highlightPath: ['age', 'inc', 'ok'] }; // E3: the worked route the request asks to trace
 const withFlow = { title: 'The approval rule', body: `The rule asks about age first, then income. The 25-year-old earning $60,000 answers Yes to both questions and is approved.\n\n${diagram(flowSpec)}` };
 
 // A provider double: each call answers the next scripted explanation input and records the request body.
@@ -105,8 +106,21 @@ test('EX-07: a valid flow with Yes/No branches and outcomes is delivered and sav
   assert.match(badTopology.out.error, /required_visual_invalid:/, 'an invalid required diagram is never silently dropped');
   const wrongKind = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.\n\n${diagram({ kind: 'timeline', title: 'Steps', events: [{ time: 'Now', label: 'Check age' }, { time: 'Then', label: 'Check income' }] })}` }]));
   assert.match(wrongKind.out.error, /asked for a flow diagram.*is a timeline/);
-  const noBranches = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.\n\n${diagram({ kind: 'flow', title: 'Steps', nodes: [{ id: 'a', label: 'Start', role: 'process' }, { id: 'b', label: 'Approve', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }] })}` }]));
+  const noBranches = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.\n\n${diagram({ kind: 'flow', title: 'Steps', nodes: [{ id: 'a', label: 'Start', role: 'process' }, { id: 'b', label: 'Approve', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }], highlightPath: ['a', 'b'] })}` }]));
   assert.match(noBranches.out.error, /Yes and No branches/);
+  // E3: the request says "Trace ...", so a caption alone is not enough: the flow needs its validated highlightPath.
+  const { highlightPath: _route, ...unmarked } = flowSpec;
+  const noRoute = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.
+
+${diagram(unmarked)}` }]));
+  assert.equal(noRoute.out.result, 'validation_error');
+  assert.match(noRoute.out.error, /^required_visual_invalid: .*highlightPath/);
+  assert.deepEqual(deriveVisualRequirements(EX07).items[0].trace, true);
+  assert.equal(deriveVisualRequirements('Show a flowchart of how a request is handled').items[0].trace, undefined, 'no trace wording, no route required');
+  const badRoute = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.
+
+${diagram({ ...flowSpec, highlightPath: ['age', 'ok'] })}` }]));
+  assert.match(badRoute.out.error, /required_visual_invalid:/, 'a route that is not on existing edges is an invalid diagram');
   // Standard EX-07 with a Tutor-style zero repair is one call and the same refusal.
   const m = scripted({ title: 'T', body: 'Approved.' });
   const zero = await quiet(() => generateArtifact({}, { command: 'explanation', args: EX07, visualRequirements: deriveVisualRequirements(EX07) }, { callModel: m.callModel, repairs: 0 }));

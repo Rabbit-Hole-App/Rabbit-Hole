@@ -175,6 +175,7 @@ export async function generateArtifact(env, input, { callModel: baseCall = logge
         const interactive = interactionsEnabled(env);
         const problem = [explanationProblem(block, input.depth), requiredVisualProblem(block, wanted), interactive ? interactionsProblem(block, { questions, terms }) : null].filter(Boolean).join(' '); if (problem) throw new Error(problem);
         if (wanted) block = { ...block, visualRequirements: boundRequirements(wanted) }; // saved provenance: what was asked for and that the card holds it
+        block = { ...block, depth: validDepth(input.depth) || DEFAULT_DEPTH }; // E3: the budget this card was written to, so a later illustration caption is checked against it
         if (interactive) block = { ...block, interactions: await bindInteractions(block, { questions, terms }) };
       }
       if (GATES[id]) block = GATES[id](block);
