@@ -1,0 +1,943 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rabbit Hole · Interface component standards</title>
+  <style>
+    :root {
+      color-scheme:light;
+      /* Shared card palette. Semantic error colors extend the same system. */
+      --paper:#f5f4ed; --card:#fffefa; --card-border:#dedfd8; --card-shadow:#e6e5de;
+      --panel:#f6f8f4; --panel-border:#e3e7e0; --header-line:#ecece6;
+      --ink:#202723; --muted:#5d675f; --copy-ink:#505b52; --control-bg:#ffffff;
+      --blue:#426db2; --explanation-ink:#375d92; --blue-soft:#eaf1fb;
+      --orange:#b86232; --orange-dark:#934723; --orange-soft:#f8ece3;
+      --control-hover-bg:#f6f8f4; --control-hover-border:#d2d9d2;
+      --control-selected-border:#e2ad8f; --control-active-bg:#f5e0d2;
+      --green:#267657; --green-soft:#e5f2ea; --why-ink:#205c45; --why-border:#b8dccc;
+      --primary-hover:#7e3c1f; --primary-pressed:#6b321b; --confirm-hover:#1d6247; --confirm-pressed:#174f39;
+      --danger-ink:#9d3d39; --danger-soft:#f9ebea; --danger-border:#e7b9b6; --danger-active:#f4d9d6;
+      --link-hover:#2b4b78; --link-pressed:#203858;
+      --skeleton-base:#e8ece5; --skeleton-sheen:#f6f8f4;
+      --scroll-thumb:#c7cec6; --scroll-thumb-hover:#aab6ab;
+      --scrim:rgba(32,39,35,.42); --overlay-shadow:0 8px 28px rgba(32,39,35,.13);
+      --font-family:Inter,"Liberation Sans",Arial,sans-serif;
+      --control-font:13px; --control-weight:650; --leading:1.45; --disabled-opacity:.45;
+      --control-height:35px; --compact-height:28px; --control-radius:8px; --card-radius:18px;
+      --menu-radius:10px; --tooltip-radius:6px; --pill-radius:999px;
+      --line-width:1px; --focus-width:2px; --icon-size:16px; --icon-stroke:2;
+      --hover-ms:120ms; --tooltip-delay:400ms; --spinner-ms:800ms; --shimmer-ms:2400ms;
+      font:16px/var(--leading) var(--font-family); background:var(--paper); color:var(--ink);
+    }
+    *,*::before,*::after { box-sizing:border-box; }
+    [hidden] { display:none !important; }
+    body,h1,h2,h3,h4,p,figure,dl,dd,ul,ol { margin:0; }
+    button,input,textarea,select { font:inherit; }
+    button { cursor:pointer; }
+    main { max-width:1256px; margin:auto; padding:27px 26px 46px; }
+    header.page { display:grid; gap:6px; }
+    .eyebrow { color:var(--muted); display:flex; gap:8px; align-items:center; font-size:14px; font-weight:700; }
+    .eyebrow::before { content:""; width:8px; height:8px; background:var(--orange); border-radius:50%; }
+    h1 { font-size:clamp(1.8rem,4vw,2.55rem); line-height:1.1; letter-spacing:-.03em; }
+    h2 { font-size:1.45rem; letter-spacing:-.018em; }
+    h3 { font-size:1rem; }
+    h4 { font-size:.9rem; }
+    .lede,.section-copy,.muted { color:var(--muted); }
+    .lede,.section-copy { max-width:85ch; }
+    nav.page-nav { display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:6px; font-size:14px; }
+    a,.link { color:var(--explanation-ink); text-decoration:underline; text-underline-offset:3px; }
+    a:hover,.link:hover,[data-demo-state="hover"].link { color:var(--link-hover); }
+    a:active,.link:active,[data-demo-state="pressed"].link { color:var(--link-pressed); }
+    a[aria-disabled="true"],.link[aria-disabled="true"] { color:var(--muted); opacity:var(--disabled-opacity); cursor:not-allowed; text-decoration:none; }
+    .section { margin-top:27px; scroll-margin-top:14px; }
+    .section-copy { margin:4px 0 12px; }
+    .specimens { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; align-items:start; }
+    .specimen,.reference-panel { padding:14px; min-width:0; border:1px solid var(--card-border); border-radius:var(--card-radius); background:var(--card); }
+    .specimen > :is(h3,h4) { margin-bottom:6px; }
+    .specimen > p { margin-bottom:8px; font-size:.875rem; }
+    .specimen > :last-child { margin-bottom:0; }
+    .sample-row { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+    .sample-row + .sample-row { margin-top:8px; }
+    .icon { display:block; flex:none; width:var(--icon-size); height:var(--icon-size); fill:none; stroke:currentColor; stroke-width:var(--icon-stroke); stroke-linecap:round; stroke-linejoin:round; }
+    .button,.icon-button,.menu-item {
+      --button-bg:var(--control-bg); --button-line:var(--panel-border); --button-ink:var(--ink);
+      --hover-bg:var(--control-hover-bg); --hover-line:var(--control-hover-border); --hover-ink:var(--ink);
+      --press-bg:var(--control-active-bg); --press-line:var(--control-selected-border); --press-ink:var(--orange-dark);
+      display:inline-flex; align-items:center; justify-content:center; flex:none; gap:6px;
+      min-height:var(--control-height); padding:0 10px; border:var(--line-width) solid var(--button-line);
+      border-radius:var(--control-radius); color:var(--button-ink); background:var(--button-bg);
+      font:var(--control-weight) var(--control-font)/var(--leading) var(--font-family); text-decoration:none;
+      transition:background-color var(--hover-ms),border-color var(--hover-ms),color var(--hover-ms);
+    }
+    .icon-button { width:var(--control-height); padding:0; --button-ink:var(--muted); }
+    :is(.button,.icon-button).primary {
+      --button-bg:var(--orange-dark); --button-line:var(--orange-dark); --button-ink:var(--control-bg);
+      --hover-bg:var(--primary-hover); --hover-line:var(--primary-hover); --hover-ink:var(--control-bg);
+      --press-bg:var(--primary-pressed); --press-line:var(--primary-pressed); --press-ink:var(--control-bg);
+    }
+    :is(.button,.icon-button).quiet,.menu-item { --button-bg:transparent; --button-line:transparent; --button-ink:var(--muted); --hover-line:transparent; }
+    :is(.button,.icon-button).danger {
+      --button-bg:var(--danger-soft); --button-line:var(--danger-border); --button-ink:var(--danger-ink);
+      --hover-bg:var(--danger-active); --hover-line:var(--danger-border); --hover-ink:var(--danger-ink);
+      --press-bg:var(--danger-ink); --press-line:var(--danger-ink); --press-ink:var(--control-bg);
+    }
+    :is(.button,.icon-button,.menu-item):is(:hover:not(:disabled):not([aria-disabled="true"]),[data-demo-state="hover"]) { background:var(--hover-bg); border-color:var(--hover-line); color:var(--hover-ink); }
+    :is(.button,.icon-button,.menu-item):is([aria-pressed="true"],[aria-selected="true"],[data-demo-state="selected"]) { background:var(--orange-soft); border-color:var(--control-selected-border); color:var(--orange-dark); }
+    :is(.button,.icon-button,.menu-item):is(:active:not(:disabled):not([aria-disabled="true"]),[data-demo-state="pressed"]) { background:var(--press-bg); border-color:var(--press-line); color:var(--press-ink); }
+    :is(.button,.icon-button,.menu-item)[aria-pressed="true"]:hover:enabled { background:var(--control-active-bg); border-color:var(--control-selected-border); color:var(--orange-dark); }
+    :is(button,a,summary,input,textarea,select):focus-visible,[data-demo-state="focus"] { outline:var(--focus-width) solid var(--blue); outline-offset:2px; }
+    :is(button,input,select,textarea):disabled,[aria-disabled="true"] { opacity:var(--disabled-opacity); cursor:not-allowed; }
+    .compact,.compact .button,.compact .icon-button { min-height:var(--compact-height); }
+    .compact.icon-button,.compact .icon-button { width:var(--compact-height); }
+    .compact .icon,.compact.icon-button .icon { width:14px; height:14px; }
+    .kbd,kbd { display:inline-flex; align-items:center; min-height:17px; padding:0 4px; color:inherit; border:1px solid currentColor; border-radius:4px; font:600 10px/1.35 ui-monospace,monospace; white-space:nowrap; }
+    .pill { display:inline-flex; align-items:center; gap:5px; min-height:26px; padding:1px 11px; border:1px solid transparent; border-radius:var(--pill-radius); font:700 13px/1.45 var(--font-family); white-space:nowrap; }
+    .pill.explain,.pill.info { background:var(--blue-soft); color:var(--explanation-ink); }
+    .pill.interactive,.pill.warning { background:var(--orange-soft); color:var(--orange-dark); }
+    .pill.success { background:var(--green-soft); color:var(--why-ink); }
+    .pill.error { background:var(--danger-soft); color:var(--danger-ink); }
+    .pill.neutral { background:var(--panel); color:var(--muted); border-color:var(--panel-border); }
+    .pill .icon { width:13px; height:13px; }
+    .field { display:grid; gap:4px; min-width:0; color:var(--ink); font-weight:650; font-size:13px; }
+    .field + .field { margin-top:8px; }
+    .field small,.field-help { color:var(--muted); font-size:12px; font-weight:400; }
+    :is(input,textarea,select).field,.field :is(input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),textarea,select),.control:not([type="range"]):not([type="checkbox"]):not([type="radio"]) {
+      min-height:var(--control-height); min-width:0; padding:6px 9px; background:var(--control-bg);
+      color:var(--ink); border:1px solid var(--panel-border); border-radius:var(--control-radius); font-size:14px; font-weight:400;
+    }
+    input::placeholder,textarea::placeholder { color:var(--muted); opacity:1; }
+    [aria-invalid="true"] { border-color:var(--danger-ink) !important; }
+    input[type="checkbox"],input[type="radio"],input[type="range"] { accent-color:var(--orange-dark); }
+    input[type="checkbox"],input[type="radio"] { width:16px; height:16px; margin:0; }
+    input[type="range"] { appearance:none; width:100%; min-height:26px; margin:0; background:transparent; cursor:pointer; }
+    input[type="range"]::-webkit-slider-runnable-track { height:4px; border-radius:999px; background:linear-gradient(to right,var(--orange) var(--range-fill,50%),var(--panel-border) var(--range-fill,50%)); }
+    input[type="range"]::-webkit-slider-thumb { appearance:none; width:14px; height:14px; margin-top:-5px; border:1px solid var(--orange-dark); border-radius:50%; background:var(--orange-dark); }
+    input[type="range"]::-moz-range-track { height:4px; border-radius:999px; background:var(--panel-border); }
+    input[type="range"]::-moz-range-progress { height:4px; border-radius:999px; background:var(--orange); }
+    input[type="range"]::-moz-range-thumb { width:14px; height:14px; border:1px solid var(--orange-dark); border-radius:50%; background:var(--orange-dark); }
+    .switch,.checkbox { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:650; }
+    .switch input[type="checkbox"],input.switch[type="checkbox"] { appearance:none; width:36px; height:20px; padding:0; border:1px solid var(--control-hover-border); border-radius:999px; background:var(--panel-border); position:relative; cursor:pointer; }
+    .switch input[type="checkbox"]::before,input.switch[type="checkbox"]::before { content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:var(--control-bg); transition:transform var(--hover-ms); }
+    .switch input:checked,input.switch:checked { border-color:var(--green); background:var(--green); }
+    .switch input:checked::before,input.switch:checked::before { transform:translateX(16px); }
+    .menu,.popover,.dialog { background:var(--card); border:1px solid var(--card-border); box-shadow:var(--overlay-shadow); }
+    .menu { display:grid; gap:2px; min-width:148px; padding:4px; border-radius:var(--menu-radius); }
+    .menu-item { justify-content:flex-start; min-height:34px; padding:6px 8px; gap:8px; width:100%; text-align:left; color:var(--ink); }
+    .menu-item.danger { color:var(--danger-ink); }
+    .menu-item.danger:hover:enabled { background:var(--danger-soft); color:var(--danger-ink); }
+    .menu-divider { margin:3px 4px; border:0; border-top:1px solid var(--header-line); }
+    .popover { padding:10px; border-radius:var(--menu-radius); }
+    details > summary { cursor:pointer; }
+    details > .menu,details > .popover { margin-top:6px; }
+    .tooltip-trigger,.tooltip-wrap,[data-tooltip] { position:relative; }
+    .tooltip { display:inline-block; padding:5px 8px; max-width:240px; border-radius:var(--tooltip-radius); background:var(--ink); color:var(--card); font-size:12px; line-height:1.35; }
+    .tooltip-trigger .tooltip,.tooltip-wrap .tooltip,[data-tooltip] .tooltip { position:absolute; z-index:2; left:0; bottom:calc(100% + 6px); opacity:0; visibility:hidden; pointer-events:none; width:max-content; transition:opacity var(--hover-ms),visibility var(--hover-ms); }
+    .tooltip-trigger:is(:hover,:focus-within) .tooltip,.tooltip-wrap:is(:hover,:focus-within) .tooltip,[data-tooltip]:is(:hover,:focus-within) .tooltip { opacity:1; visibility:visible; transition-delay:var(--tooltip-delay); }
+    .dialog { color:var(--ink); width:min(92vw,460px); max-height:80vh; overflow:auto; border-radius:var(--card-radius); padding:16px; }
+    dialog.dialog::backdrop { background:var(--scrim); }
+    .dialog h3,.dialog h4 { margin-bottom:5px; }
+    .dialog p { margin-bottom:11px; color:var(--copy-ink); font-size:14px; }
+    .composer { display:grid; gap:7px; min-width:0; padding:9px; background:var(--control-bg); border:1px solid var(--card-border); border-radius:14px; }
+    .composer:focus-within,.composer[data-demo-state="focus"] { outline:var(--focus-width) solid var(--blue); outline-offset:2px; }
+    .composer textarea { display:block; width:100%; min-height:58px; padding:5px 6px; color:var(--ink); background:transparent; border:0; outline:none; resize:vertical; font-size:14px; }
+    .composer-tools,.composer-context { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+    .composer-tools .icon-button,.composer-tools .button { min-height:28px; }
+    .composer-tools .icon-button { width:28px; }
+    .composer-tools .icon { width:14px; height:14px; }
+    .composer-tools .send { margin-inline-start:auto; width:35px; min-height:35px; border-radius:50%; }
+    .toc-list { list-style:none; padding:0; display:grid; gap:4px; }
+    .toc-row { display:flex; align-items:center; gap:8px; min-height:34px; padding:6px 8px; border:1px solid transparent; border-radius:8px; font-size:13px; }
+    .toc-row .icon { color:var(--muted); }
+    .toc-row[data-status="complete"] .icon { color:var(--green); }
+    .toc-row[data-status="active"] { color:var(--orange-dark); background:var(--orange-soft); border-color:var(--control-selected-border); }
+    .toc-row[data-status="active"] .icon { color:var(--orange-dark); }
+    .toc-row[data-status="upcoming"],.toc-row[data-status="blocked"] { color:var(--muted); }
+    .progress,progress { display:block; height:6px; width:100%; max-width:100%; border:0; border-radius:999px; overflow:hidden; background:var(--panel-border); accent-color:var(--green); }
+    progress::-webkit-progress-bar { background:var(--panel-border); }
+    progress::-webkit-progress-value { background:var(--green); border-radius:999px; }
+    progress::-moz-progress-bar { background:var(--green); border-radius:999px; }
+    .progress > span,.progress > div { display:block; height:100%; border-radius:999px; background:var(--green); }
+    .status-text { font-size:12px; color:var(--muted); }
+    .proposal,.empty-state { padding:10px; border:1px solid var(--panel-border); border-radius:10px; background:var(--panel); }
+    .proposal .sample-row,.empty-state .sample-row { margin-top:8px; }
+    .skeleton { min-height:78px; padding:11px; border:1px solid var(--panel-border); border-radius:var(--card-radius); background:var(--card); display:grid; gap:7px; align-content:start; }
+    .skeleton-line { display:block; height:11px; width:100%; border-radius:5px; background:linear-gradient(90deg,var(--skeleton-base) 25%,var(--skeleton-sheen) 50%,var(--skeleton-base) 75%); background-size:220% 100%; animation:sheen var(--shimmer-ms) ease-in-out infinite; }
+    .shimmer-text { color:var(--muted); background:linear-gradient(90deg,var(--muted) 25%,var(--orange-dark) 50%,var(--muted) 75%); background-size:220% 100%; background-clip:text; -webkit-text-fill-color:transparent; animation:sheen 1600ms ease-in-out infinite; }
+    .spinner { display:inline-block; vertical-align:middle; width:16px; height:16px; border:2px solid var(--panel-border); border-top-color:var(--orange-dark); border-radius:50%; animation:spin var(--spinner-ms) linear infinite; }
+    @keyframes sheen { from { background-position:110% 0; } to { background-position:-110% 0; } }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none !important; transition:none !important; } .shimmer-text { -webkit-text-fill-color:currentColor; } }
+    .scroll-demo { max-height:98px; overflow:auto; overscroll-behavior:contain; scrollbar-gutter:stable; scrollbar-width:thin; scrollbar-color:var(--scroll-thumb) transparent; border:1px solid var(--panel-border); border-radius:8px; padding:6px 8px; }
+    .scroll-demo::-webkit-scrollbar { width:8px; height:8px; }
+    .scroll-demo::-webkit-scrollbar-thumb { background:var(--scroll-thumb); border-radius:999px; }
+    .scroll-demo::-webkit-scrollbar-thumb:hover { background:var(--scroll-thumb-hover); }
+    @supports selector(::-webkit-scrollbar) { .scroll-demo { scrollbar-width:auto; scrollbar-color:auto; } }
+    .scroll-demo > p { padding:5px 0; font-size:13px; }
+    .toast,.notification { --notice-bg:var(--card); --notice-line:var(--card-border); --notice-ink:var(--ink); display:flex; align-items:flex-start; gap:8px; padding:9px 10px; border:1px solid var(--notice-line); border-radius:10px; background:var(--notice-bg); color:var(--notice-ink); font-size:13px; }
+    .toast[data-tone="success"] { --notice-bg:var(--green-soft); --notice-line:var(--why-border); --notice-ink:var(--why-ink); }
+    .toast[data-tone="info"] { --notice-bg:var(--blue-soft); --notice-line:var(--blue); --notice-ink:var(--explanation-ink); }
+    .toast[data-tone="warning"] { --notice-bg:var(--orange-soft); --notice-line:var(--control-selected-border); --notice-ink:var(--orange-dark); }
+    .toast[data-tone="error"],.toast[data-tone="danger"] { --notice-bg:var(--danger-soft); --notice-line:var(--danger-border); --notice-ink:var(--danger-ink); }
+    .toast + .toast,.notification + .notification { margin-top:6px; }
+    .toast .icon,.notification .icon { margin-top:1px; }
+    .toast p,.notification p { margin:0; }
+    .toast > .button,.notification > .button { margin-inline-start:auto; min-height:26px; }
+    .notification[data-unread="true"],.notification.unread { --notice-bg:var(--blue-soft); --notice-line:var(--blue); }
+    .notification-dot { width:7px; height:7px; margin-top:5px; background:var(--blue); border-radius:50%; flex:none; }
+    .toast-region { position:fixed; z-index:4; inset:auto 16px 16px auto; width:min(355px,calc(100vw - 32px)); }
+    .toast-region .toast { box-shadow:var(--overlay-shadow); }
+    .table-scroll { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; text-align:left; font-size:13px; }
+    th,td { padding:7px 8px; border-bottom:1px solid var(--header-line); vertical-align:top; }
+    thead th { background:var(--panel); }
+    tbody tr:last-child > * { border-bottom:0; }
+    code { white-space:nowrap; }
+    .swatch { display:inline-block; width:12px; height:12px; margin-inline-end:4px; border:1px solid var(--card-border); border-radius:3px; background:var(--paint); vertical-align:-1px; }
+    .reference-panel details + details { border-top:1px solid var(--header-line); margin-top:9px; padding-top:9px; }
+    .reference-panel summary { font-weight:700; }
+    .reference-panel .table-scroll { margin-top:7px; }
+    .source-links { color:var(--muted); margin-top:9px; font-size:13px; }
+    .button.confirm { --button-bg:var(--green); --button-line:var(--green); --button-ink:var(--control-bg); --hover-bg:var(--confirm-hover); --hover-line:var(--confirm-hover); --hover-ink:var(--control-bg); --press-bg:var(--confirm-pressed); --press-line:var(--confirm-pressed); --press-ink:var(--control-bg); }
+    .toast .icon-button,.notification .icon-button { width:26px; min-height:26px; margin-inline-start:auto; background:transparent; border-color:transparent; }
+    .toast .icon-button:hover,.notification .icon-button:hover { background:var(--control-hover-bg); border-color:var(--control-hover-border); }
+    .toast .icon-button .icon,.notification .icon-button .icon { width:13px; height:13px; margin:0; }
+    .composer-select { display:flex; align-items:center; gap:4px; font-size:12px; }
+    .composer-select select.field { display:block; min-height:28px; padding:3px 5px; font-size:13px; }
+    .composer textarea.field { min-height:58px; border:0; padding:5px 6px; background:transparent; }
+    .composer textarea:focus-visible { outline:none; }
+    .composer-tools .composer-send,.composer-send { width:32px; min-height:32px; border-radius:50%; }
+    .composer-tools .composer-send { margin-inline-start:auto; }
+    .composer-send .icon { width:16px; height:16px; }
+    .composer-context .pill .icon-button { width:18px; min-height:18px; border-radius:5px; }
+    .composer-context .pill .icon-button .icon { width:12px; height:12px; }
+    .composer-context .source-selection { border-style:dashed; }
+    .proposal + .proposal,.composer + .sample-row,.empty-state,.notification:first-of-type,.toast:first-of-type { margin-top:8px; }
+    .proposal-pair { display:inline-flex; align-items:center; gap:1px; border:1px solid var(--panel-border); border-radius:999px; padding:1px; background:var(--card); }
+    .proposal-pair .button { min-height:var(--compact-height); border-radius:999px; }
+    .proposal-pair .button + .button { margin-inline-start:2px; }
+    .toc-list { margin-top:7px; }
+    .toc-completion { position:relative; flex:none; display:grid; place-items:center; width:24px; height:24px; cursor:pointer; }
+    .toc-completion input { position:absolute; inset:0; width:24px; height:24px; opacity:0; }
+    .toc-check { display:grid; place-items:center; width:16px; height:16px; border:1.5px solid var(--muted); border-radius:50%; background:var(--control-bg); }
+    .toc-check .icon { width:11px; height:11px; opacity:0; }
+    .toc-completion input:checked + .toc-check { background:var(--green); border-color:var(--green); }
+    .toc-completion input:checked + .toc-check .icon { opacity:1; color:var(--control-bg); }
+    .toc-completion input:focus-visible + .toc-check { outline:2px solid var(--blue); outline-offset:2px; }
+    .toc-completion input:disabled + .toc-check { opacity:var(--disabled-opacity); }
+    .toc-row[data-status="active"] .toc-check { box-shadow:0 0 0 2px var(--control-selected-border); }
+    .toc-link { flex:1; min-width:0; justify-content:flex-start; min-height:26px; padding:0 4px; text-align:left; white-space:normal; }
+    .toc-row[data-status="active"] .toc-link { color:var(--orange-dark); }
+    .skill-meter { display:flex; gap:3px; height:6px; margin:6px 0; }
+    .skill-meter > span { flex:1; background:var(--panel-border); border-radius:999px; }
+    .skill-meter > span.done { background:var(--green); }
+    .menu p { padding:4px 8px 2px; font-size:11px; text-transform:uppercase; font-weight:700; letter-spacing:.035em; }
+    .menu hr { margin:3px 4px; border:0; border-top:1px solid var(--header-line); }
+    .popover > .menu { box-shadow:none; }
+    .tooltip-trigger[data-tooltip-dismissed] .tooltip { opacity:0; visibility:hidden; transition-delay:0ms; }
+    .dialog .sample-row > .icon-button { margin-inline-start:auto; }
+    .toast,.notification { flex-wrap:wrap; }
+    .toast > div,.notification > div { flex:1; min-width:130px; }
+    .sample-row > a { display:inline-flex; align-items:center; gap:5px; }
+    .field .control:hover:enabled,.composer-select select:hover:enabled { border-color:var(--control-hover-border); }
+    .field-error { color:var(--danger-ink); font-size:12px; font-weight:400; }
+    input[type="range"]:hover:enabled::-webkit-slider-thumb { background:var(--primary-hover); }
+    input[type="range"]:active:enabled::-webkit-slider-thumb { background:var(--primary-pressed); }
+    input[type="range"]:hover:enabled::-moz-range-thumb { background:var(--primary-hover); }
+    input[type="range"]:active:enabled::-moz-range-thumb { background:var(--primary-pressed); }
+    .switch input:hover:enabled { border-color:var(--muted); }
+    .switch input:active:enabled { background:var(--control-hover-border); }
+    .switch input:checked:hover:enabled { background:var(--confirm-hover); border-color:var(--confirm-hover); }
+    .switch input:checked:active:enabled { background:var(--confirm-pressed); border-color:var(--confirm-pressed); }
+    .checkbox > input[type="checkbox"] { appearance:none; position:relative; flex:none; width:16px; height:16px; border:1px solid var(--control-hover-border); border-radius:4px; background:var(--control-bg); cursor:pointer; }
+    .checkbox > input:hover:enabled { background:var(--panel); border-color:var(--muted); }
+    .checkbox > input:active:enabled { background:var(--control-active-bg); border-color:var(--control-selected-border); }
+    .checkbox > input:is(:checked,:indeterminate) { background:var(--orange-dark); border-color:var(--orange-dark); }
+    .checkbox > input:is(:checked,:indeterminate):hover:enabled { background:var(--primary-hover); border-color:var(--primary-hover); }
+    .checkbox > input:is(:checked,:indeterminate):active:enabled { background:var(--primary-pressed); border-color:var(--primary-pressed); }
+    .checkbox > input:checked::before { content:""; position:absolute; left:50%; top:50%; width:8px; height:5px; border-left:2px solid var(--control-bg); border-bottom:2px solid var(--control-bg); transform:translate(-50%,-64%) rotate(-45deg); }
+    .checkbox > input:indeterminate::before { content:""; position:absolute; left:3px; top:6px; width:8px; height:2px; background:var(--control-bg); }
+    @media (max-width:740px) { main { padding:18px 12px 33px; } .specimens { grid-template-columns:1fr; } .specimen,.reference-panel { padding:10px; } }
+  </style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="0" height="0" style="position:absolute;overflow:hidden"><defs>
+<symbol id="i-ArrowRight" viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></symbol>
+<symbol id="i-ArrowUp" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path></symbol>
+<symbol id="i-ArrowUpRight" viewBox="0 0 24 24"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></symbol>
+<symbol id="i-Bell" viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0"></path><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"></path></symbol>
+<symbol id="i-Check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"></path></symbol>
+<symbol id="i-ChevronDown" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></symbol>
+<symbol id="i-CircleAlert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line></symbol>
+<symbol id="i-CircleCheck" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="m16 9-5.5 5.5L8 12"></path></symbol>
+<symbol id="i-Copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></symbol>
+<symbol id="i-Ellipsis" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></symbol>
+<symbol id="i-ExternalLink" viewBox="0 0 24 24"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></symbol>
+<symbol id="i-FileText" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></symbol>
+<symbol id="i-Gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"></path><path d="M3.34 19a10 10 0 1 1 17.32 0"></path></symbol>
+<symbol id="i-Globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></symbol>
+<symbol id="i-Hand" viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"></path><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"></path><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"></path><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></symbol>
+<symbol id="i-Highlighter" viewBox="0 0 24 24"><path d="m9 11-6 6v3h9l3-3"></path><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"></path></symbol>
+<symbol id="i-Info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></symbol>
+<symbol id="i-Link2" viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 1 1 0 10h-2"></path><line x1="8" x2="16" y1="12" y2="12"></line></symbol>
+<symbol id="i-ListFilter" viewBox="0 0 24 24"><path d="M2 5h20"></path><path d="M6 12h12"></path><path d="M9 19h6"></path></symbol>
+<symbol id="i-ListTree" viewBox="0 0 24 24"><path d="M8 5h13"></path><path d="M13 12h8"></path><path d="M13 19h8"></path><path d="M3 10a2 2 0 0 0 2 2h3"></path><path d="M3 5v12a2 2 0 0 0 2 2h3"></path></symbol>
+<symbol id="i-Lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></symbol>
+<symbol id="i-MessageCircle" viewBox="0 0 24 24"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"></path></symbol>
+<symbol id="i-MessageSquare" viewBox="0 0 24 24"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"></path></symbol>
+<symbol id="i-MessageSquarePlus" viewBox="0 0 24 24"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"></path><path d="M12 8v6"></path><path d="M9 11h6"></path></symbol>
+<symbol id="i-Mic" viewBox="0 0 24 24"><path d="M12 19v3"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><rect x="9" y="2" width="6" height="13" rx="3"></rect></symbol>
+<symbol id="i-MousePointer2" viewBox="0 0 24 24"><path d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z"></path></symbol>
+<symbol id="i-NotebookPen" viewBox="0 0 24 24"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"></path><path d="M2 6h4"></path><path d="M2 10h4"></path><path d="M2 14h4"></path><path d="M2 18h4"></path><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"></path></symbol>
+<symbol id="i-Pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path><path d="m15 5 4 4"></path></symbol>
+<symbol id="i-Pin" viewBox="0 0 24 24"><path d="M12 17v5"></path><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"></path></symbol>
+<symbol id="i-Plus" viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="M12 5v14"></path></symbol>
+<symbol id="i-RefreshCw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></symbol>
+<symbol id="i-Reply" viewBox="0 0 24 24"><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path><path d="m9 17-5-5 5-5"></path></symbol>
+<symbol id="i-Shapes" viewBox="0 0 24 24"><path d="M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.198-.043L16.3 8.9a.7.7 0 0 1-.572 1.1Z"></path><rect x="3" y="14" width="7" height="7" rx="1"></rect><circle cx="17.5" cy="17.5" r="3.5"></circle></symbol>
+<symbol id="i-Sigma" viewBox="0 0 24 24"><path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2"></path></symbol>
+<symbol id="i-Slash" viewBox="0 0 24 24"><path d="M22 2 2 22"></path></symbol>
+<symbol id="i-SlidersHorizontal" viewBox="0 0 24 24"><path d="M10 5H3"></path><path d="M12 19H3"></path><path d="M14 3v4"></path><path d="M16 17v4"></path><path d="M21 12h-9"></path><path d="M21 19h-5"></path><path d="M21 5h-7"></path><path d="M8 10v4"></path><path d="M8 12H3"></path></symbol>
+<symbol id="i-Square" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"></rect></symbol>
+<symbol id="i-Star" viewBox="0 0 24 24"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></symbol>
+<symbol id="i-StickyNote" viewBox="0 0 24 24"><path d="M21 9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"></path><path d="M15 3v5a1 1 0 0 0 1 1h5"></path></symbol>
+<symbol id="i-Trash2" viewBox="0 0 24 24"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></symbol>
+<symbol id="i-TriangleAlert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></symbol>
+<symbol id="i-Type" viewBox="0 0 24 24"><path d="M12 4v16"></path><path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2"></path><path d="M9 20h6"></path></symbol>
+<symbol id="i-Upload" viewBox="0 0 24 24"><path d="M12 3v12"></path><path d="m17 8-5-5-5 5"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path></symbol>
+<symbol id="i-UserRound" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 0 0-16 0"></path></symbol>
+<symbol id="i-Wand" viewBox="0 0 24 24"><path d="M15 4V2"></path><path d="M15 16v-2"></path><path d="M8 9h2"></path><path d="M20 9h2"></path><path d="M17.8 11.8 19 13"></path><path d="M15 9h.01"></path><path d="M17.8 6.2 19 5"></path><path d="m3 21 9-9"></path><path d="M12.2 6.2 11 5"></path></symbol>
+<symbol id="i-X" viewBox="0 0 24 24"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></symbol>
+</defs></svg>
+<main>
+  <header class="page">
+    <p class="eyebrow">Rabbit Hole · UI reference</p>
+    <h1>Interface component standards</h1>
+    <p class="lede">Isolated UI specimens for the controls found in the review screenshots. The warm card palette, shared sizes and state rules drive the examples.</p>
+    <nav class="page-nav" aria-label="Reference sections"><a href="#controls">Controls</a><a href="#tutor">Tutor</a><a href="#overlays">Overlays and feedback</a><a href="#spec">Exact values</a><a href="#inventory">Screenshot inventory</a></nav>
+  </header>
+  <section class="section" id="controls" aria-labelledby="controls-title">
+    <h2 id="controls-title">Actions and inputs</h2>
+    <p class="section-copy">Use one primary action per decision group. Edit is secondary, Cancel is quiet, and a destructive action uses the danger role.</p>
+    <div class="specimens"><article class="specimen" id="f-buttons">
+  <h3>Button hierarchy</h3>
+  <p class="muted">Give the main action the strongest fill. Use outlined buttons for alternatives, quiet buttons for Cancel, and the danger style for a destructive action.</p>
+  <div class="sample-row" role="group" aria-label="Button hierarchy examples">
+    <button class="button primary" type="button">Start a rabbit hole</button>
+    <button class="button secondary" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Pencil"/></svg>Edit card</button>
+    <button class="button quiet" type="button">Cancel</button>
+    <button class="button danger" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Trash2"/></svg>Move to Trash</button>
+  </div>
+  <div class="sample-row" role="group" aria-label="Button state examples">
+    <button class="button primary" type="button" data-demo-state="hover">Hover</button>
+    <button class="button primary" type="button" data-demo-state="pressed">Pressed</button>
+    <button class="button primary" type="button" data-demo-state="focus">Keyboard focus</button>
+    <button class="button primary" type="button" disabled>Disabled</button>
+    <button class="button secondary" type="button" disabled>Save</button>
+  </div>
+</article>
+
+<article class="specimen" id="f-approval">
+  <h3>Review actions</h3>
+  <p class="muted">Accept is the primary action. Edit is secondary and Cancel is quiet. Show the shortcut on Accept when the focused context supports it.</p>
+  <div class="sample-row compact" role="group" aria-label="Proposal actions">
+    <button class="button primary confirm" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Check"/></svg>Accept <kbd class="kbd">Tab</kbd></button>
+    <span class="muted" aria-hidden="true">|</span>
+    <button class="button quiet" type="button">Cancel</button>
+  </div>
+  <div class="sample-row" role="group" aria-label="Other proposal actions">
+    <button class="button secondary" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Pencil"/></svg>Edit card</button>
+    <button class="button quiet" type="button">Go to card <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ArrowUpRight"/></svg></button>
+    <a href="#f-links">Go to highlighted text</a>
+  </div>
+</article>
+
+<article class="specimen" id="f-fields">
+  <h3>Text fields</h3>
+  <p class="muted">Keep the field label visible. Put supporting copy and validation below the field, associated with the input.</p>
+  <div class="sample-row">
+    <label class="field" for="f-name">Canvas name <input class="control" id="f-name" type="text" value="Decision trees"></label>
+    <label class="field" for="f-search">Search <input class="control" id="f-search" type="search" placeholder="Find a command"></label>
+  </div>
+  <div class="sample-row">
+    <label class="field" for="f-field-focus">Keyboard focus <input class="control" id="f-field-focus" type="text" data-demo-state="focus" value="Decision trees"></label>
+    <label class="field" for="f-email">Email <input class="control" id="f-email" type="email" value="reader@example.com" disabled></label>
+  </div>
+  <label class="field" for="f-description">Description <textarea class="control" id="f-description" rows="2" aria-describedby="f-description-hint" placeholder="Describe this canvas"></textarea></label>
+  <p class="muted" id="f-description-hint">Shown on the canvas profile.</p>
+  <label class="field" for="f-invalid">Canvas slug <input class="control" id="f-invalid" type="text" value="tree notes" aria-invalid="true" aria-describedby="f-invalid-error"><span class="field-error" id="f-invalid-error">Use letters, numbers and dashes.</span></label>
+</article>
+
+<article class="specimen" id="f-range">
+  <h3>Sliders, switches and checkboxes</h3>
+  <p class="muted">Use a slider for a range, a switch for an immediate setting, and checkboxes for independent choices.</p>
+  <div class="sample-row">
+    <label class="field" for="f-size">Preview size <input class="control" id="f-size" type="range" min="1" max="5" step="1" value="3" aria-describedby="f-size-help"></label>
+    <output class="status-text" for="f-size" data-range-output>3 of 5</output><span class="muted" id="f-size-help">Small to large</span>
+  </div>
+  <div class="sample-row" role="group" aria-label="Switch examples">
+    <label class="switch" for="f-auto"><input id="f-auto" type="checkbox" role="switch" checked><span>Auto</span></label>
+    <label class="switch" for="f-grid"><input id="f-grid" type="checkbox" role="switch"><span>Show grid</span></label>
+    <label class="switch" for="f-switch-disabled"><input id="f-switch-disabled" type="checkbox" role="switch" disabled><span>Disabled</span></label>
+  </div>
+  <div class="sample-row" role="group" aria-label="Checkbox examples">
+    <label class="checkbox" for="f-check-star"><input id="f-check-star" type="checkbox" checked><span>Starred</span></label>
+    <label class="checkbox" for="f-check-archive"><input id="f-check-archive" type="checkbox"><span>Archived</span></label>
+    <label class="checkbox" for="f-check-disabled"><input id="f-check-disabled" type="checkbox" checked disabled><span>Disabled</span></label>
+  </div>
+</article>
+
+<article class="specimen" id="f-filter-sort">
+  <h3>Dropdowns, filters and sorting</h3>
+  <p class="muted">Show the active value on a dropdown and use a selected state for filters that can be toggled independently.</p>
+  <div class="sample-row">
+    <label class="field" for="f-model">Model <select class="control" id="f-model"><option selected>Auto</option><option>Choose a model</option></select></label>
+    <label class="field" for="f-sort">Sort by <select class="control" id="f-sort"><option selected>Recently updated</option><option>Stars</option><option>Title</option></select></label>
+  </div>
+  <div class="sample-row" role="group" aria-label="Filter examples">
+    <button class="button secondary" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ListFilter"/></svg>Filters <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ChevronDown"/></svg></button>
+    <button class="button secondary" type="button" aria-pressed="true" data-preview-filter><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Star"/></svg>Starred</button>
+    <button class="button quiet" type="button" data-clear-preview-filters>Clear filters</button>
+  </div>
+</article>
+
+<article class="specimen" id="f-links">
+  <h3>Links, pills and shortcuts</h3>
+  <p class="muted">Links navigate. Pills carry a type, status or context, and shortcut keys use their own compact treatment.</p>
+  <div class="sample-row">
+    <a href="#f-approval">Continue <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ArrowRight"/></svg></a>
+    <a href="#f-toolbar">View public profile <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ExternalLink"/></svg></a>
+    <a href="#f-buttons" data-demo-state="hover">Hovered link</a>
+    <a href="#f-fields" data-demo-state="focus">Focused link</a>
+  </div>
+  <div class="sample-row">
+    <span class="pill explain">Explanation</span>
+    <span class="pill interactive">Interactive</span>
+    <span class="pill success">Roadmap accepted</span>
+    <span class="pill neutral">Proposed card</span>
+    <span class="pill neutral"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Lock"/></svg>Private</span>
+  </div>
+  <div class="sample-row">
+    <button class="button secondary" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-MessageSquarePlus"/></svg>Add to chat <kbd class="kbd">Ctrl+L</kbd></button>
+    <button class="button secondary" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Wand"/></svg>Quick Edit <kbd class="kbd">Ctrl+K</kbd></button>
+  </div>
+</article>
+
+<article class="specimen" id="f-toolbar">
+  <h3>Icon toolbar</h3>
+  <p class="muted">Use the existing glyphs with one hit area, one radius and one state system. Mark the current tool as selected and name every icon-only button.</p>
+  <div class="sample-row" role="group" aria-label="Canvas tool specimens">
+    <button class="icon-button" type="button" aria-label="Select and move" aria-pressed="true" data-demo-state="selected" title="Select and move"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-MousePointer2"/></svg></button>
+    <button class="icon-button" type="button" aria-label="Pan" aria-pressed="false" title="Pan"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Hand"/></svg></button>
+    <button class="icon-button" type="button" aria-label="Draw" aria-pressed="false" title="Draw" data-demo-state="hover"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Pencil"/></svg></button>
+    <button class="icon-button" type="button" aria-label="Highlight" aria-pressed="false" title="Highlight"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Highlighter"/></svg></button>
+    <button class="icon-button" type="button" aria-label="Add text" title="Add text"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Type"/></svg></button>
+    <button class="icon-button" type="button" aria-label="Add sticky note" title="Add sticky note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-StickyNote"/></svg></button>
+    <button class="icon-button" type="button" aria-label="Add equation" title="Add equation"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Sigma"/></svg></button>
+  </div>
+  <div class="sample-row" role="group" aria-label="Card action specimens">
+    <button class="icon-button" type="button" aria-label="Comments" title="Comments" data-demo-state="focus"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-MessageCircle"/></svg></button>
+    <button class="icon-button" type="button" aria-label="Notifications" title="Notifications"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Bell"/></svg></button>
+    <button class="icon-button" type="button" aria-label="More actions" title="More actions"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Ellipsis"/></svg></button>
+    <button class="icon-button" type="button" aria-label="Trash" title="Trash" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Trash2"/></svg></button>
+  </div>
+</article>
+
+<article class="specimen" id="f-menu">
+  <h3>Action menu rows</h3>
+  <p class="muted">Align the leading glyph, label, and any trailing submenu cue. Keep unrelated action groups separated.</p>
+  <div class="menu" role="group" aria-label="Insert actions">
+    <button class="menu-item" type="button" data-demo-state="hover"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Type"/></svg>Text box</button>
+    <button class="menu-item" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-StickyNote"/></svg>Sticky note</button>
+    <button class="menu-item" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-NotebookPen"/></svg>Notebook</button>
+    <hr>
+    <button class="menu-item" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Upload"/></svg>Upload a file</button>
+    <button class="menu-item" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Globe"/></svg>Webpage</button>
+    <button class="menu-item" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Link2"/></svg>Add a link</button>
+  </div>
+</article>
+</div>
+  </section>
+  <section class="section" id="tutor" aria-labelledby="tutor-title">
+    <h2 id="tutor-title">Tutor components</h2>
+    <p class="section-copy">The composer, outline, approval strip and loading components use the same controls. Each specimen represents a single reusable component.</p>
+    <div class="specimens"><article class="specimen" aria-labelledby="t-composer-title">
+  <h3 id="t-composer-title">Chat composer</h3>
+  <p class="muted">Text first, context below it, then one tool row. The send action becomes Stop while a response is streaming.</p>
+  <div class="composer" aria-label="Empty composer example">
+    <textarea class="field" rows="2" aria-label="Ask about this canvas" placeholder="Ask about this canvas" data-demo-composer-input></textarea>
+    <div class="composer-context" aria-label="Attached context">
+      <span class="pill neutral source-selection"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Shapes"/></svg>This canvas</span>
+      <span class="pill neutral"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-FileText"/></svg>lesson.md<button type="button" class="icon-button quiet" aria-label="Remove lesson.md" title="Remove lesson.md" data-demo-remove-chip><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-X"/></svg></button></span>
+    </div>
+    <div class="composer-tools" role="group" aria-label="Composer actions">
+      <button type="button" class="icon-button quiet" aria-label="Attach a source" title="Attach a source"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Plus"/></svg></button>
+      <label class="composer-select"><span class="muted">Model</span> <select class="field" aria-label="Model"><option>Auto</option><option>Choose model</option></select></label>
+      <label class="composer-select"><span class="muted">Depth</span> <select class="field" aria-label="Depth"><option>Standard</option><option>Overview</option><option>Deep</option></select></label>
+      <button type="button" class="icon-button quiet" aria-label="Slash commands" title="Slash commands"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Slash"/></svg></button>
+      <button type="button" class="icon-button quiet" aria-label="Voice" title="Voice"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Mic"/></svg></button>
+      <button type="button" class="icon-button primary composer-send" aria-label="Send" title="Send" disabled data-demo-composer-send><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ArrowUp"/></svg></button>
+    </div>
+  </div>
+  <div class="sample-row" aria-label="Composer states">
+    <span class="muted">Ready</span><button type="button" class="icon-button primary composer-send" aria-label="Send ready message" title="Send"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ArrowUp"/></svg></button>
+    <span class="muted">Keyboard focus</span><button type="button" class="icon-button primary composer-send" aria-label="Send focused message" title="Send" data-demo-state="focus"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ArrowUp"/></svg></button>
+    <span class="muted">Streaming</span><button type="button" class="icon-button primary composer-send" aria-label="Stop response" title="Stop response"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Square"/></svg></button>
+  </div>
+</article>
+
+<article class="specimen" aria-labelledby="t-toc-title">
+  <div class="sample-row">
+    <h3 id="t-toc-title"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ListTree"/></svg> Table of contents</h3>
+    <button type="button" class="button secondary"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Pencil"/></svg>Edit roadmap</button>
+  </div>
+  <div class="sample-row"><label for="t-toc-progress">Roadmap completion</label><span class="status-text">1 of 4 complete</span></div>
+  <progress class="progress" id="t-toc-progress" max="4" value="1">1 of 4 complete</progress>
+  <ol class="toc-list" aria-label="Roadmap steps">
+    <li class="toc-row" data-status="complete"><label class="toc-completion"><input type="checkbox" aria-label="Mark What a tree does complete" checked><span class="toc-check" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Check"/></svg></span></label><button type="button" class="button quiet toc-link">What a tree does</button><span class="status-text">Complete</span></li>
+    <li class="toc-row" data-status="active"><label class="toc-completion"><input type="checkbox" aria-label="Mark Choose the first split complete"><span class="toc-check" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Check"/></svg></span></label><button type="button" class="button quiet toc-link" aria-current="step">Choose the first split</button><span class="status-text">Current</span></li>
+    <li class="toc-row" data-status="upcoming"><label class="toc-completion"><input type="checkbox" aria-label="Mark Read an impurity score complete"><span class="toc-check" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Check"/></svg></span></label><button type="button" class="button quiet toc-link">Read an impurity score</button><span class="status-text">Upcoming</span></li>
+    <li class="toc-row" data-status="blocked"><label class="toc-completion"><input type="checkbox" aria-label="Mark Combine trees into a forest complete" disabled><span class="toc-check" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Check"/></svg></span></label><button type="button" class="button quiet toc-link" disabled>Combine trees into a forest</button><span class="status-text">Blocked</span></li>
+  </ol>
+  <p class="muted">Use a 16 px completion mark in a 24 px target. The current-step ring is independent of completion.</p>
+</article>
+
+<article class="specimen" aria-labelledby="t-proposal-title">
+  <h3 id="t-proposal-title">Tutor proposal and acceptance</h3>
+  <div class="proposal">
+    <div class="sample-row"><span class="pill explain">Explanation</span><span class="pill neutral">Proposed card</span></div>
+    <h4>Why a tree chooses its first split</h4>
+    <p class="muted">See how a tree uses a yes-or-no question to make two groups more distinct.</p>
+    <div class="sample-row" role="group" aria-label="Canvas proposal actions">
+      <span class="proposal-pair" role="group" aria-label="Accept or cancel"><button type="button" class="button primary confirm">Accept <kbd class="kbd" aria-hidden="true">Tab</kbd></button><button type="button" class="button quiet">Cancel</button></span>
+      <button type="button" class="button secondary"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Pencil"/></svg>Edit card</button>
+    </div>
+  </div>
+  <div class="sample-row" role="group" aria-label="Chat proposal actions"><button type="button" class="button primary confirm">Accept</button><button type="button" class="button secondary">Edit card</button><button type="button" class="button quiet">Cancel</button><button type="button" class="button secondary">Go to card</button><button type="button" class="button quiet">View passage</button></div>
+  <p class="muted">The Tab hint belongs to the active Canvas offer. Chat uses the same action labels with ordinary keyboard focus.</p>
+</article>
+
+<article class="specimen" aria-labelledby="t-loading-title">
+  <h3 id="t-loading-title">Skeleton and generation states</h3>
+  <div class="proposal" aria-label="Pending card placeholder">
+    <div class="sample-row"><span class="pill explain">Explanation</span><span class="status-text">Proposed</span></div>
+    <div class="skeleton" aria-hidden="true"><span class="skeleton-line" style="width:58%"></span><span class="skeleton-line" style="width:93%"></span><span class="skeleton-line" style="width:74%"></span></div>
+  </div>
+  <div class="proposal" aria-label="Card generation status">
+    <div class="sample-row" role="status"><span class="spinner" aria-hidden="true"></span><span class="shimmer-text">Generating card</span></div>
+    <progress class="progress" aria-label="Card generation in progress"></progress>
+    <p class="muted">Generating, checking and saving share the reserved card frame.</p>
+  </div>
+  <div class="sample-row"><span class="status-text">Preparing proposal</span><button type="button" class="button primary confirm" disabled>Accept <kbd class="kbd" aria-hidden="true">Tab</kbd></button><button type="button" class="button quiet">Cancel</button></div>
+</article>
+
+<article class="specimen" aria-labelledby="t-empty-title">
+  <h3 id="t-empty-title">Empty, error and recovery</h3>
+  <div class="proposal">
+    <div class="sample-row"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-MessageCircle"/></svg><strong>No messages yet</strong></div>
+    <p class="muted">Ask a question to start learning from this canvas.</p>
+  </div>
+  <div class="proposal" role="status">
+    <div class="sample-row"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-CircleAlert"/></svg><strong>The file preview could not load</strong></div>
+    <p class="muted">A newer version may be available.</p>
+    <button type="button" class="button secondary"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-RefreshCw"/></svg>Retry preview</button>
+  </div>
+  <div class="proposal" role="status"><strong>The card could not be generated</strong><p class="muted">Show the generation failure in the reserved card frame.</p></div>
+</article>
+<article class="specimen">
+  <h3>Learning progress meter</h3>
+  <p class="muted">Count skills independently demonstrated. The ToC completion count measures outline steps separately.</p>
+  <div class="sample-row"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Gauge"/></svg><strong>2 of 5 skills demonstrated</strong></div>
+  <div class="skill-meter" role="progressbar" aria-label="Skills independently demonstrated" aria-valuemin="0" aria-valuemax="5" aria-valuenow="2"><span class="done"></span><span class="done"></span><span></span><span></span><span></span></div>
+</article>
+<article class="specimen">
+  <h3>Scrollable region</h3>
+  <p class="muted">Keep one scroll area per pane. Reserve the scrollbar gutter so the text and adjacent controls stay aligned.</p>
+  <div class="scroll-demo" role="region" tabindex="0" aria-label="Scrollable reference list">
+    <p>What a tree does</p><p>Pick a first split</p><p>Read an impurity score</p><p>Try a different cutoff</p><p>Combine trees into a forest</p>
+  </div>
+</article>
+</div>
+  </section>
+  <section class="section" id="overlays" aria-labelledby="overlays-title">
+    <h2 id="overlays-title">Overlays, feedback and notifications</h2>
+    <p class="section-copy">Use the same button and icon states inside menus, tooltips, dialogs, comments and toast surfaces.</p>
+    <div class="specimens"><article class="specimen" id="o-tooltip">
+  <h3>Tooltip and icon label</h3>
+  <p class="muted">Use a brief action label. Keep the icon button’s accessible name available before the tooltip appears.</p>
+  <div class="sample-row">
+    <span class="tooltip-trigger">
+      <button class="icon-button" type="button" aria-label="Pin card" aria-describedby="o-pin-hint" data-demo-state="hover"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Pin"/></svg></button>
+      <span class="tooltip" id="o-pin-hint" role="tooltip">Pin card</span>
+    </span>
+    <span class="tooltip-trigger">
+      <button class="icon-button" type="button" aria-label="More actions" aria-describedby="o-more-hint" data-demo-state="focus"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Ellipsis"/></svg></button>
+      <span class="tooltip" id="o-more-hint" role="tooltip">More actions</span>
+    </span>
+  </div>
+</article>
+
+<article class="specimen" id="o-menu">
+  <h3>Dropdown menu and popover</h3>
+  <p class="muted">Keep the trigger next to its panel. Separate menu groups with a divider and reserve danger styling for destructive actions.</p>
+  <details class="popover" open>
+    <summary class="button secondary">Card actions <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ChevronDown"/></svg></summary>
+    <div class="menu" aria-label="Card actions">
+      <p class="muted">Card</p>
+      <button type="button" class="menu-item"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Pencil"/></svg>Rename</button>
+      <button type="button" class="menu-item" data-demo-state="hover"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Copy"/></svg>Duplicate</button>
+      <button type="button" class="menu-item" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ExternalLink"/></svg>Open source</button>
+      <hr>
+      <button type="button" class="menu-item danger" data-open-dialog="o-trash-dialog"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Trash2"/></svg>Move to Trash</button>
+    </div>
+  </details>
+</article>
+
+<article class="specimen" id="o-modal">
+  <h3>Modal and trash confirmation</h3>
+  <p class="muted">Use a title, a short consequence, and two clear actions. Place initial focus on Cancel for a destructive confirmation.</p>
+  <div class="sample-row">
+    <button class="button danger" type="button" data-open-dialog="o-trash-dialog"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Trash2"/></svg>Preview confirmation</button>
+  </div>
+  <dialog class="dialog" id="o-trash-dialog" aria-labelledby="o-trash-title" aria-describedby="o-trash-description">
+    <div class="sample-row">
+      <h3 id="o-trash-title">Move card to Trash?</h3>
+      <button class="icon-button" type="button" aria-label="Close dialog" data-close-dialog="o-trash-dialog"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-X"/></svg></button>
+    </div>
+    <p class="muted" id="o-trash-description">The card will be removed from the canvas. You can restore it from Trash.</p>
+    <form method="dialog" class="sample-row">
+      <button class="button secondary" value="cancel" autofocus>Cancel</button>
+      <button class="button danger" value="confirm" data-open-toast="success" data-toast-message="Card moved to Trash."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Trash2"/></svg>Move to Trash</button>
+    </form>
+  </dialog>
+</article>
+
+<article class="specimen" id="o-toast">
+  <h3>Toast notifications</h3>
+  <p class="muted">Use this visual recipe for the current toast stack and any later Sonner mapping. Lead with the outcome and offer an action when it helps.</p>
+  <div class="toast" data-tone="success">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-CircleCheck"/></svg>
+    <div><strong>Moved to Trash</strong><p class="muted">The card can be restored.</p></div>
+    <button class="button quiet" type="button" data-open-toast="info" data-toast-message="Card restored.">Undo</button>
+    <button class="icon-button" type="button" aria-label="Dismiss success toast" data-dismiss-toast><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-X"/></svg></button>
+  </div>
+  <div class="toast" data-tone="info">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Info"/></svg>
+    <div><strong>Link copied</strong><p class="muted">Share it with someone who has access.</p></div>
+    <button class="icon-button" type="button" aria-label="Dismiss info toast" data-dismiss-toast><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-X"/></svg></button>
+  </div>
+  <div class="toast" data-tone="warning">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-TriangleAlert"/></svg>
+    <div><strong>Connection interrupted</strong><p class="muted">We’ll retry when you’re back online.</p></div>
+    <button class="icon-button" type="button" aria-label="Dismiss warning toast" data-dismiss-toast><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-X"/></svg></button>
+  </div>
+  <div class="toast" data-tone="error">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-CircleAlert"/></svg>
+    <div><strong>Couldn’t save changes</strong><p class="muted">Your draft is still here.</p></div>
+    <button class="button quiet" type="button" data-open-toast="success" data-toast-message="Changes saved.">Retry</button>
+    <button class="icon-button" type="button" aria-label="Dismiss error toast" data-dismiss-toast><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-X"/></svg></button>
+  </div>
+</article>
+
+<article class="specimen" id="o-notifications">
+  <h3>Notifications and comments</h3>
+  <p class="muted">Use a label or count as well as color to distinguish unread items. Read items use the resting surface and a Read label.</p>
+  <div class="sample-row">
+    <button class="icon-button" type="button" aria-label="Notifications, 1 unread"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Bell"/></svg></button>
+    <button class="button secondary" type="button" aria-label="Open comments, 2 comments"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-MessageCircle"/></svg>Comments <span class="pill neutral" aria-hidden="true">2</span></button>
+  </div>
+  <div class="notification" data-unread="true">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-MessageSquare"/></svg>
+    <div><strong>New comment</strong><p class="muted">A collaborator replied to your note.</p></div>
+    <span class="pill neutral">Unread</span>
+    <button class="button quiet" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Reply"/></svg>Reply</button>
+  </div>
+  <div class="notification" data-unread="false">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-CircleCheck"/></svg>
+    <div><strong>Roadmap updated</strong><p class="muted">A section is ready to review.</p></div>
+    <span class="muted">Read</span>
+  </div>
+</article>
+
+<article class="specimen" id="o-navigation">
+  <h3>Navigation rows and empty states</h3>
+  <p class="muted">Show the current destination with a selected surface and a text label. Give empty collections a direct next step when one exists.</p>
+  <nav class="menu" aria-label="Navigation row specimen">
+    <p class="muted">Settings</p>
+    <a class="menu-item" href="#o-navigation" aria-current="page" data-demo-state="selected"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-UserRound"/></svg>Profile</a>
+    <a class="menu-item" href="#o-navigation"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-SlidersHorizontal"/></svg>Appearance &amp; input</a>
+    <hr>
+    <a class="menu-item" href="#o-empty"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Trash2"/></svg>Trash</a>
+  </nav>
+  <div class="empty-state" id="o-empty">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Trash2"/></svg>
+    <strong>Trash is empty</strong>
+    <p class="muted">Cards you move to Trash will appear here.</p>
+  </div>
+</article>
+</div>
+  </section>
+  <section class="section" id="spec" aria-labelledby="spec-title">
+    <h2 id="spec-title">Exact implementation values</h2>
+    <p class="section-copy">The live specimens use the named CSS values below. Preserve the existing card shell and icon geometry when composing these controls.</p>
+    <div class="reference-panel"><details open><summary>Palette and opacity</summary><div class="table-scroll"><table><thead><tr><th scope="col">Role</th><th scope="col">CSS token</th><th scope="col">Value</th><th scope="col">Opacity</th></tr></thead><tbody><tr><th scope="row">Canvas</th><td><code>--paper</code></td><td><span class="swatch" style="--paint:var(--paper)" aria-hidden="true"></span><code>#F5F4ED</code></td><td>100%</td></tr>
+<tr><th scope="row">Card surface</th><td><code>--card</code></td><td><span class="swatch" style="--paint:var(--card)" aria-hidden="true"></span><code>#FFFEFA</code></td><td>100%</td></tr>
+<tr><th scope="row">Inset panel / quiet hover</th><td><code>--panel</code></td><td><span class="swatch" style="--paint:var(--panel)" aria-hidden="true"></span><code>#F6F8F4</code></td><td>100%</td></tr>
+<tr><th scope="row">Control surface</th><td><code>--control-bg</code></td><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td>100%</td></tr>
+<tr><th scope="row">Card border</th><td><code>--card-border</code></td><td><span class="swatch" style="--paint:var(--card-border)" aria-hidden="true"></span><code>#DEDFD8</code></td><td>100%</td></tr>
+<tr><th scope="row">Control border</th><td><code>--panel-border</code></td><td><span class="swatch" style="--paint:var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code></td><td>100%</td></tr>
+<tr><th scope="row">Divider</th><td><code>--header-line</code></td><td><span class="swatch" style="--paint:var(--header-line)" aria-hidden="true"></span><code>#ECECE6</code></td><td>100%</td></tr>
+<tr><th scope="row">Primary ink</th><td><code>--ink</code></td><td><span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td>100%</td></tr>
+<tr><th scope="row">Muted ink</th><td><code>--muted</code></td><td><span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td>100%</td></tr>
+<tr><th scope="row">Body copy</th><td><code>--copy-ink</code></td><td><span class="swatch" style="--paint:var(--copy-ink)" aria-hidden="true"></span><code>#505B52</code></td><td>100%</td></tr>
+<tr><th scope="row">Focus / info border</th><td><code>--blue</code></td><td><span class="swatch" style="--paint:var(--blue)" aria-hidden="true"></span><code>#426DB2</code></td><td>100%</td></tr>
+<tr><th scope="row">Link / Explanation ink</th><td><code>--explanation-ink</code></td><td><span class="swatch" style="--paint:var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td>100%</td></tr>
+<tr><th scope="row">Explanation / info surface</th><td><code>--blue-soft</code></td><td><span class="swatch" style="--paint:var(--blue-soft)" aria-hidden="true"></span><code>#EAF1FB</code></td><td>100%</td></tr>
+<tr><th scope="row">Slider fill / warm accent</th><td><code>--orange</code></td><td><span class="swatch" style="--paint:var(--orange)" aria-hidden="true"></span><code>#B86232</code></td><td>100%</td></tr>
+<tr><th scope="row">Primary fill / Interactive ink</th><td><code>--orange-dark</code></td><td><span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td>100%</td></tr>
+<tr><th scope="row">Primary hover</th><td><code>--primary-hover</code></td><td><span class="swatch" style="--paint:var(--primary-hover)" aria-hidden="true"></span><code>#7E3C1F</code></td><td>100%</td></tr>
+<tr><th scope="row">Primary pressed</th><td><code>--primary-pressed</code></td><td><span class="swatch" style="--paint:var(--primary-pressed)" aria-hidden="true"></span><code>#6B321B</code></td><td>100%</td></tr>
+<tr><th scope="row">Selected / Interactive surface</th><td><code>--orange-soft</code></td><td><span class="swatch" style="--paint:var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td>100%</td></tr>
+<tr><th scope="row">Hover border</th><td><code>--control-hover-border</code></td><td><span class="swatch" style="--paint:var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code></td><td>100%</td></tr>
+<tr><th scope="row">Selected border</th><td><code>--control-selected-border</code></td><td><span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td>100%</td></tr>
+<tr><th scope="row">Pressed / selected hover surface</th><td><code>--control-active-bg</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code></td><td>100%</td></tr>
+<tr><th scope="row">Accept / complete / switch on</th><td><code>--green</code></td><td><span class="swatch" style="--paint:var(--green)" aria-hidden="true"></span><code>#267657</code></td><td>100%</td></tr>
+<tr><th scope="row">Accept hover</th><td><code>--confirm-hover</code></td><td><span class="swatch" style="--paint:var(--confirm-hover)" aria-hidden="true"></span><code>#1D6247</code></td><td>100%</td></tr>
+<tr><th scope="row">Accept pressed</th><td><code>--confirm-pressed</code></td><td><span class="swatch" style="--paint:var(--confirm-pressed)" aria-hidden="true"></span><code>#174F39</code></td><td>100%</td></tr>
+<tr><th scope="row">Success surface</th><td><code>--green-soft</code></td><td><span class="swatch" style="--paint:var(--green-soft)" aria-hidden="true"></span><code>#E5F2EA</code></td><td>100%</td></tr>
+<tr><th scope="row">Success ink</th><td><code>--why-ink</code></td><td><span class="swatch" style="--paint:var(--why-ink)" aria-hidden="true"></span><code>#205C45</code></td><td>100%</td></tr>
+<tr><th scope="row">Success border</th><td><code>--why-border</code></td><td><span class="swatch" style="--paint:var(--why-border)" aria-hidden="true"></span><code>#B8DCCC</code></td><td>100%</td></tr>
+<tr><th scope="row">Danger ink / pressed surface</th><td><code>--danger-ink</code></td><td><span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code></td><td>100%</td></tr>
+<tr><th scope="row">Danger surface</th><td><code>--danger-soft</code></td><td><span class="swatch" style="--paint:var(--danger-soft)" aria-hidden="true"></span><code>#F9EBEA</code></td><td>100%</td></tr>
+<tr><th scope="row">Danger border</th><td><code>--danger-border</code></td><td><span class="swatch" style="--paint:var(--danger-border)" aria-hidden="true"></span><code>#E7B9B6</code></td><td>100%</td></tr>
+<tr><th scope="row">Danger hover surface</th><td><code>--danger-active</code></td><td><span class="swatch" style="--paint:var(--danger-active)" aria-hidden="true"></span><code>#F4D9D6</code></td><td>100%</td></tr>
+<tr><th scope="row">Link hover</th><td><code>--link-hover</code></td><td><span class="swatch" style="--paint:var(--link-hover)" aria-hidden="true"></span><code>#2B4B78</code></td><td>100%</td></tr>
+<tr><th scope="row">Link pressed</th><td><code>--link-pressed</code></td><td><span class="swatch" style="--paint:var(--link-pressed)" aria-hidden="true"></span><code>#203858</code></td><td>100%</td></tr>
+<tr><th scope="row">Skeleton base</th><td><code>--skeleton-base</code></td><td><span class="swatch" style="--paint:var(--skeleton-base)" aria-hidden="true"></span><code>#E8ECE5</code></td><td>100%</td></tr>
+<tr><th scope="row">Skeleton sheen</th><td><code>--skeleton-sheen</code></td><td><span class="swatch" style="--paint:var(--skeleton-sheen)" aria-hidden="true"></span><code>#F6F8F4</code></td><td>100%</td></tr>
+<tr><th scope="row">Scrollbar thumb</th><td><code>--scroll-thumb</code></td><td><span class="swatch" style="--paint:var(--scroll-thumb)" aria-hidden="true"></span><code>#C7CEC6</code></td><td>100%</td></tr>
+<tr><th scope="row">Scrollbar thumb hover</th><td><code>--scroll-thumb-hover</code></td><td><span class="swatch" style="--paint:var(--scroll-thumb-hover)" aria-hidden="true"></span><code>#AAB6AB</code></td><td>100%</td></tr>
+<tr><th scope="row">Disabled composite</th><td><code>--disabled-opacity</code></td><td><code>0.45</code></td><td>45%</td></tr>
+<tr><th scope="row">Modal scrim</th><td><code>--scrim</code></td><td><code>rgba(32,39,35,.42)</code></td><td>42%</td></tr>
+<tr><th scope="row">Overlay shadow</th><td><code>--overlay-shadow</code></td><td><code>0 8px 28px rgba(32,39,35,.13)</code></td><td>13% ink</td></tr></tbody></table></div></details><details open><summary>Button states · surface / border / ink</summary><div class="table-scroll"><table><thead><tr><th scope="col">Role</th><th scope="col">Default</th><th scope="col">Hover</th><th scope="col">Pressed</th></tr></thead><tbody><tr><th scope="row">Primary · start, send, use example</th><td><span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code> / <span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--primary-hover)" aria-hidden="true"></span><code>#7E3C1F</code> / <span class="swatch" style="--paint:var(--primary-hover)" aria-hidden="true"></span><code>#7E3C1F</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--primary-pressed)" aria-hidden="true"></span><code>#6B321B</code> / <span class="swatch" style="--paint:var(--primary-pressed)" aria-hidden="true"></span><code>#6B321B</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td></tr>
+<tr><th scope="row">Affirmative · Accept</th><td><span class="swatch" style="--paint:var(--green)" aria-hidden="true"></span><code>#267657</code> / <span class="swatch" style="--paint:var(--green)" aria-hidden="true"></span><code>#267657</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--confirm-hover)" aria-hidden="true"></span><code>#1D6247</code> / <span class="swatch" style="--paint:var(--confirm-hover)" aria-hidden="true"></span><code>#1D6247</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--confirm-pressed)" aria-hidden="true"></span><code>#174F39</code> / <span class="swatch" style="--paint:var(--confirm-pressed)" aria-hidden="true"></span><code>#174F39</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td></tr>
+<tr><th scope="row">Secondary · Edit, Save, Go to card</th><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code> / <span class="swatch" style="--paint:var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code> / <span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td><span class="swatch" style="--paint:var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code> / <span class="swatch" style="--paint:var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code> / <span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code> / <span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td></tr>
+<tr><th scope="row">Quiet · Cancel, compact tool</th><td>Transparent / Transparent / <span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td><span class="swatch" style="--paint:var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code> / Transparent / <span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code> / <span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td></tr>
+<tr><th scope="row">Icon-only control</th><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code> / <span class="swatch" style="--paint:var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code> / <span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td><span class="swatch" style="--paint:var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code> / <span class="swatch" style="--paint:var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code> / <span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code> / <span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td></tr>
+<tr><th scope="row">Selected filter or tool</th><td><span class="swatch" style="--paint:var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code> / <span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code> / <span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code> / <span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td></tr>
+<tr><th scope="row">Destructive · Move to Trash</th><td><span class="swatch" style="--paint:var(--danger-soft)" aria-hidden="true"></span><code>#F9EBEA</code> / <span class="swatch" style="--paint:var(--danger-border)" aria-hidden="true"></span><code>#E7B9B6</code> / <span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code></td><td><span class="swatch" style="--paint:var(--danger-active)" aria-hidden="true"></span><code>#F4D9D6</code> / <span class="swatch" style="--paint:var(--danger-border)" aria-hidden="true"></span><code>#E7B9B6</code> / <span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code></td><td><span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code> / <span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td></tr></tbody></table></div></details><details open><summary>Dimensions and behavior</summary><div class="table-scroll"><table><thead><tr><th scope="col">Component</th><th scope="col">Exact values</th></tr></thead><tbody><tr><th scope="row">Typography</th><td>Inter → Liberation Sans → Arial → sans-serif. Base 16 px / 1.45. Button, pill and field labels 13 px. Button and field label weight 650; pill weight 700. Field text 14 px / 400. Helper and status text 12 px. Shortcut 10 px / 600 monospace.</td></tr>
+<tr><th scope="row">Buttons and icon controls</th><td>35 px minimum height, 8 px radius, 1 px border, 10 px horizontal padding and 6 px icon gap. Icon-only targets are 35 × 35 px, with 16 px Lucide glyphs, stroke 2. Compact rows use 28 px targets and 14 px glyphs. Existing per-glyph sizes are listed in the icon template.</td></tr>
+<tr><th scope="row">Focus, hover and disabled</th><td>Focus outline #426DB2, 2 px, +2 px offset. Hover and press use the role table above. Transitions 120 ms. Disabled uses 45% composite opacity and the disabled cursor, with a stable surface.</td></tr>
+<tr><th scope="row">Pills, tags and shortcut hints</th><td>Pill minimum 26 px high, 999 px radius, padding 1 × 11 px, 5 px gap, icon 13 px. Explanation #EAF1FB / #375D92. Interactive #F8ECE3 / #934723. Positive #E5F2EA / #205C45. Neutral #F6F8F4 / #5D675F with #E3E7E0 border. Shortcut min 17 px, radius 4 px, 1 px currentColor border and 4 px horizontal padding.</td></tr>
+<tr><th scope="row">Text fields and dropdowns</th><td>35 px minimum height, 8 px radius, 1 px #E3E7E0 border, 6 × 9 px padding. White surface, #202723 text, #5D675F placeholder at 100% opacity. Invalid border #9D3D39 and linked validation text. Dropdowns retain the native caret and current value.</td></tr>
+<tr><th scope="row">Sliders</th><td>26 px control row, 4 px track, inactive #E3E7E0, active #B86232. 14 px circular thumb with #934723 fill and 1 px border. Show the current value and retain native arrow-key steps.</td></tr>
+<tr><th scope="row">Switches and checks</th><td>Switch 36 × 20 px, pill radius, 1 px border, 14 px white knob with 2 px inset and 16 px travel. Off #E3E7E0 with #D2D9D2 border. On #267657. Checkbox 16 × 16 px with 4 px radius, 1 px #D2D9D2 border, and 8 px label gap. Checked uses #934723 and an 8 × 5 px white mark with 2 px stroke. Mixed uses an 8 × 2 px white mark. Radio uses the native #934723 accent.</td></tr>
+<tr><th scope="row">Input interaction states</th><td>Field hover border #D2D9D2. Range thumb hover #7E3C1F and pressed #6B321B. Unchecked checkbox hover #F6F8F4 / #5D675F border, pressed #F5E0D2 / #E2AD8F border. Checked checkbox hover and pressed use the warm primary hover and pressed. Switch off hover border #5D675F and pressed surface #D2D9D2. Switch on hover #1D6247 and pressed #174F39. All keep the common focus ring and 45% disabled opacity.</td></tr>
+<tr><th scope="row">Menus, dropdown panels and popovers</th><td>Menu radius 10 px, 4 px inset, 2 px row gap. Rows at least 34 px, padding 6 × 8 px, 8 px icon gap, 8 px radius. Popover padding 10 px. Surface #FFFEFA, 1 px #DEDFD8 border. Elevation 0 8px 28px with 13% #202723. Section dividers use #ECECE6.</td></tr>
+<tr><th scope="row">Tooltip</th><td>12 px / 1.35 text, 6 px radius, padding 5 × 8 px, 240 px maximum width, 6 px anchor gap. #202723 surface, #FFFEFA ink. Show after 400 ms on hover or keyboard focus, fade 120 ms, dismiss on leave, blur, press or Escape. Keep the icon button’s accessible label.</td></tr>
+<tr><th scope="row">Chat composer</th><td>14 px radius, 1 px #DEDFD8 outline, 9 px inset, 7 px row gap. Textarea 14 px, 58 px minimum, 5 × 6 px inset. Context chips before one 6 px-gap toolbar. Tool target 28 px with 14 px glyph. Stacked Send or Stop 32 px circle with a 16 px glyph. Chip remove target 18 px with 12 px glyph. Empty draft disables Send. Streaming shows Stop.</td></tr>
+<tr><th scope="row">ToC and progress</th><td>ToC row at least 34 px with 6 × 8 px padding, 8 px gap and radius. Completion target 24 px with a 16 px ring, 1.5 px stroke and 11 px check. Active is warm with an independent ring. Completed uses #267657. Roadmap and skills progress bars are 6 px high; skills use 3 px gaps and confirmed counts.</td></tr>
+<tr><th scope="row">Accept, Edit and Cancel</th><td>Canvas proposal uses a compact 28 px capsule with 1 px inset, 1 px gap and the Tab keycap on Accept. Chat uses standard 35 px controls without the keycap. Accept is green, Edit outlined, Cancel quiet. Tab acceptance stays within the eligible Canvas proposal context.</td></tr>
+<tr><th scope="row">Skeleton, shimmer and spinner</th><td>Preserve the reserved card frame and 18 px radius. Sample skeleton inset 11 px, line height 11 px, radius 5 px and 7 px gaps. Base #E8ECE5, sheen #F6F8F4, 2.4 s ease-in-out loop. Status text shimmer 1.6 s. Spinner 16 px with a 2 px track #E3E7E0 and warm #934723 leading edge, 800 ms linear loop. Reduced motion uses static placeholders and status text.</td></tr>
+<tr><th scope="row">Scrollbar</th><td>Keep one scrolling region per pane and reserve the gutter. WebKit-style width 8 px; thin fallback where native. Transparent track, #C7CEC6 pill thumb, #AAB6AB hover.</td></tr>
+<tr><th scope="row">Links</th><td>Ink #375D92, hover #2B4B78, pressed #203858. Underline offset 3 px. Use the standard blue focus outline.</td></tr>
+<tr><th scope="row">Modal and Trash</th><td>18 px radius, 1 px #DEDFD8 border, 16 px inset, 460 px maximum width for confirm, up to 92vw and 80vh. Scrim #202723 at 42%, same overlay shadow as menus. Place initial focus on Cancel for destructive confirmation and return it to the opener. Trash list uses Restore and an explicit empty state.</td></tr>
+<tr><th scope="row">Toast / Sonner recipe</th><td>355 px maximum width, 16 px viewport inset bottom and right. Each toast uses 10 px radius, 1 px semantic border, 9 × 10 px padding and 8 px gap. Dismiss target 26 px with 13 px icon. Non-error preview toasts expire after 3 s; errors persist for Retry or dismissal. Apply the same recipe to the existing stack or a later Sonner adapter.</td></tr>
+<tr><th scope="row">Notification and comments</th><td>Use the 10 px notice radius and 9 × 10 px inset. Unread #EAF1FB with #426DB2 border and explicit Unread label or count. Read uses the card surface. Use existing Bell, MessageCircle, MessageSquare and Reply glyphs.</td></tr></tbody></table></div></details><details open><summary>Toast tone and icon</summary><div class="table-scroll"><table><thead><tr><th scope="col">Tone</th><th scope="col">Surface</th><th scope="col">Border</th><th scope="col">Ink</th><th scope="col">Glyph</th></tr></thead><tbody><tr><th scope="row">Success</th><td><span class="swatch" style="--paint:var(--green-soft)" aria-hidden="true"></span><code>#E5F2EA</code></td><td><span class="swatch" style="--paint:var(--why-border)" aria-hidden="true"></span><code>#B8DCCC</code></td><td><span class="swatch" style="--paint:var(--why-ink)" aria-hidden="true"></span><code>#205C45</code></td><td><code>CircleCheck</code></td></tr>
+<tr><th scope="row">Info</th><td><span class="swatch" style="--paint:var(--blue-soft)" aria-hidden="true"></span><code>#EAF1FB</code></td><td><span class="swatch" style="--paint:var(--blue)" aria-hidden="true"></span><code>#426DB2</code></td><td><span class="swatch" style="--paint:var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td><code>Info</code></td></tr>
+<tr><th scope="row">Warning</th><td><span class="swatch" style="--paint:var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td><span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td><span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td><code>TriangleAlert</code></td></tr>
+<tr><th scope="row">Error</th><td><span class="swatch" style="--paint:var(--danger-soft)" aria-hidden="true"></span><code>#F9EBEA</code></td><td><span class="swatch" style="--paint:var(--danger-border)" aria-hidden="true"></span><code>#E7B9B6</code></td><td><span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code></td><td><code>CircleAlert</code></td></tr></tbody></table></div></details></div>
+  </section>
+  <section class="section" id="inventory" aria-labelledby="inventory-title">
+    <h2 id="inventory-title">Screenshot inventory</h2>
+    <p class="section-copy">Use this list to start a later component mapping. Names refer to visible controls and the current code that owns their behavior.</p>
+    <div class="reference-panel"><div class="table-scroll"><table><thead><tr><th scope="col">Screenshot area</th><th scope="col">Components to carry forward</th><th scope="col">Existing source landmarks</th></tr></thead><tbody><tr><th scope="row">Canvas and Tutor</th><td>Insert and tool groups, active tool, icon-only actions, source link, composer context and tools, proposal review, card loading and file Retry.</td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/CanvasMenubar.jsx#L10-L51">Menubar</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/ChatComposer.jsx#L37-L95">Composer</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/ContextChips.jsx#L68-L110">Context chips</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/NextStepPill.jsx#L6-L22">Canvas approval</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/RoadmapTranscript.jsx#L27-L83">Chat approval</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/SlotCard.jsx#L8-L73">Card placeholder</a></td></tr>
+<tr><th scope="row">Home and navigation</th><td>Account menu, selected sidebar row, card-size range, Stars and sort, filter chips, primary start, privacy pill, links, overflow and Trash.</td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/Home.jsx#L202-L226">Home controls</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/home/CardSize.jsx#L5-L13">Size slider</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/LibraryViews.jsx#L78-L118">Filters</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/Sidebar.jsx#L1458-L1503">Sidebar Trash</a></td></tr>
+<tr><th scope="row">Settings</th><td>Modal surface and close, section navigation, label/helper/value rows, fields, textarea, disabled Save, external link, scroll body.</td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/RabbitHoleSettings.jsx#L32-L100">Settings dialog</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/ui.jsx#L25-L49">Shared button</a></td></tr>
+<tr><th scope="row">Slash Commands</th><td>Search field, list groups, active command row, command pill, close, Use example, preview container and scrollbar.</td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/SlashCommandsSheet.jsx#L77-L120">Search and modal keyboard</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/index.css#L710-L728">Scrollbar</a></td></tr>
+<tr><th scope="row">Shared feedback</th><td>ToC completion, learning gauge, tooltip, loading/skeleton, toast, comments, notification read state, destructive confirmation.</td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/TableOfContents.jsx#L130-L230">ToC</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/LearnProgress.jsx#L113-L127">Learning progress</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/Sidebar.jsx#L647-L668">Tooltip timing</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/ui.jsx#L229-L275">Current toast stack</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/comments/CommentInbox.jsx#L20-L30">Notifications</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/comments/CommentsPanel.jsx#L265-L296">Comment actions</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/home/CardMenu.jsx#L209-L212">Trash confirmation</a></td></tr></tbody></table></div><p class="source-links">Card references <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/dfca4665b5376993850e1d8518cceae5d55c83c4/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-resizable-card-shell.html">shell and typography</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/dfca4665b5376993850e1d8518cceae5d55c83c4/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html">card controls and playback</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/dfca4665b5376993850e1d8518cceae5d55c83c4/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-icon-template.html">existing card glyphs and icon states</a>.</p></div>
+  </section>
+</main>
+<div class="toast-region" id="demo-toasts" aria-label="Preview messages"></div>
+<script>
+  const toastRegion = document.getElementById('demo-toasts');
+  const dialogOpeners = new WeakMap();
+  const toneIcon = { success:'CircleCheck', info:'Info', warning:'TriangleAlert', error:'CircleAlert' };
+  const toneMessage = { success:'Changes saved.', info:'Link copied.', warning:'Connection interrupted.', error:'Couldn’t save changes.' };
+
+  function makeIcon(name) {
+    const namespace = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(namespace,'svg');
+    const use = document.createElementNS(namespace,'use');
+    svg.setAttribute('class','icon');
+    svg.setAttribute('viewBox','0 0 24 24');
+    svg.setAttribute('aria-hidden','true');
+    use.setAttribute('href',`#i-${name}`);
+    svg.append(use);
+    return svg;
+  }
+
+  function showToast(tone, message) {
+    if (!Object.hasOwn(toneIcon,tone)) return;
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.dataset.tone = tone;
+    toast.setAttribute('role',tone === 'error' ? 'alert' : 'status');
+    const label = document.createElement('div');
+    label.textContent = message || toneMessage[tone];
+    const dismiss = document.createElement('button');
+    dismiss.type = 'button';
+    dismiss.className = 'icon-button';
+    dismiss.dataset.dismissToast = '';
+    dismiss.setAttribute('aria-label','Dismiss toast');
+    dismiss.append(makeIcon('X'));
+    toast.append(makeIcon(toneIcon[tone]),label,dismiss);
+    toastRegion.append(toast);
+    if (tone !== 'error') setTimeout(() => toast.remove(),3000);
+  }
+
+  function setComposerState(composer, streaming) {
+    const input = composer.querySelector('[data-demo-composer-input]');
+    const send = composer.querySelector('[data-demo-composer-send]');
+    composer.dataset.streaming = String(streaming);
+    const label = streaming ? 'Stop response' : 'Send';
+    send.setAttribute('aria-label',label);
+    send.title = label;
+    send.querySelector('use').setAttribute('href',streaming ? '#i-Square' : '#i-ArrowUp');
+    send.querySelector('svg').style.fill = streaming ? 'currentColor' : 'none';
+    send.disabled = !streaming && !input.value.trim();
+  }
+
+  function updateRange(input) {
+    const min = Number(input.min || 0);
+    const max = Number(input.max || 100);
+    const value = Number(input.value);
+    input.style.setProperty('--range-fill',`${100 * (value-min) / Math.max(1,max-min)}%`);
+    const output = input.closest('.sample-row')?.querySelector('[data-range-output]');
+    if (output) output.textContent = `${value} of ${max}`;
+  }
+
+  function updateOutline(input) {
+    const list = input.closest('.toc-list');
+    if (!list) return;
+    const row = input.closest('.toc-row');
+    if (row.dataset.status !== 'active') {
+      row.dataset.status = input.checked ? 'complete' : 'upcoming';
+      row.querySelector('.status-text').textContent = input.checked ? 'Complete' : 'Upcoming';
+    }
+    const total = list.querySelectorAll('input[type="checkbox"]').length;
+    const done = list.querySelectorAll('input[type="checkbox"]:checked').length;
+    const progress = list.parentElement.querySelector('progress');
+    progress.value = done;
+    progress.previousElementSibling.querySelector('.status-text').textContent = `${done} of ${total} complete`;
+  }
+
+  document.addEventListener('input',event => {
+    const input = event.target;
+    if (input.matches('input[type="range"]')) updateRange(input);
+    if (input.matches('[data-demo-composer-input]')) {
+      const composer = input.closest('.composer');
+      setComposerState(composer,composer.dataset.streaming === 'true');
+    }
+  });
+  document.addEventListener('change',event => {
+    if (event.target.matches('.toc-completion input')) updateOutline(event.target);
+  });
+  document.addEventListener('click',event => {
+    const target = event.target.closest('button');
+    if (!target || target.disabled) return;
+    const tooltip = target.closest('.tooltip-trigger');
+    if (tooltip) tooltip.dataset.tooltipDismissed = '';
+    if (target.dataset.openDialog) {
+      const dialog = document.getElementById(target.dataset.openDialog);
+      dialogOpeners.set(dialog,target);
+      dialog.showModal();
+    }
+    if (target.dataset.closeDialog) document.getElementById(target.dataset.closeDialog).close();
+    if (target.dataset.openToast) showToast(target.dataset.openToast,target.dataset.toastMessage);
+    if (target.hasAttribute('data-dismiss-toast')) target.closest('.toast')?.remove();
+    if (target.hasAttribute('data-demo-remove-chip')) target.closest('.pill')?.remove();
+    if (target.hasAttribute('data-demo-composer-send')) {
+      const composer = target.closest('.composer');
+      const streaming = composer.dataset.streaming !== 'true';
+      setComposerState(composer,streaming);
+      showToast('info',streaming ? 'Streaming preview started.' : 'Streaming preview stopped.');
+    }
+    if (target.hasAttribute('data-preview-filter')) target.setAttribute('aria-pressed',String(target.getAttribute('aria-pressed') !== 'true'));
+    if (target.hasAttribute('data-clear-preview-filters')) {
+      for (const filter of target.closest('.specimen').querySelectorAll('[data-preview-filter]')) filter.setAttribute('aria-pressed','false');
+    }
+    const tools = target.closest('[aria-label="Canvas tool specimens"]');
+    if (tools && target.hasAttribute('aria-pressed')) {
+      for (const tool of tools.querySelectorAll('[aria-pressed]')) {
+        tool.removeAttribute('data-demo-state');
+        tool.setAttribute('aria-pressed',String(tool===target));
+      }
+    }
+  });
+  document.addEventListener('keydown',event => {
+    if (event.key !== 'Escape') return;
+    const tooltip = event.target.closest('.tooltip-trigger');
+    if (tooltip) tooltip.dataset.tooltipDismissed = '';
+    const details = event.target.closest('details.popover[open]');
+    if (details) { details.open = false; details.querySelector('summary').focus(); }
+  });
+  for (const tooltip of document.querySelectorAll('.tooltip-trigger')) {
+    const reset = () => { delete tooltip.dataset.tooltipDismissed; };
+    tooltip.addEventListener('pointerleave',reset);
+    tooltip.addEventListener('focusout',reset);
+  }
+  for (const dialog of document.querySelectorAll('dialog')) {
+    dialog.addEventListener('close',() => dialogOpeners.get(dialog)?.focus());
+  }
+  for (const range of document.querySelectorAll('input[type="range"]')) updateRange(range);
+
+</script>
+<!-- Lucide React 1.41.0 notices
+ISC License
+
+Copyright (c) 2026 Lucide Icons and Contributors
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+—-
+
+The following Lucide icons are derived from the Feather project:
+
+airplay, alert-circle, alert-octagon, alert-triangle, aperture, arrow-down-circle, arrow-down-left, arrow-down-right, arrow-down, arrow-left-circle, arrow-left, arrow-right-circle, arrow-right, arrow-up-circle, arrow-up-left, arrow-up-right, arrow-up, at-sign, calendar, cast, check, chevron-down, chevron-left, chevron-right, chevron-up, chevrons-down, chevrons-left, chevrons-right, chevrons-up, circle, clipboard, clock, code, columns, command, compass, corner-down-left, corner-down-right, corner-left-down, corner-left-up, corner-right-down, corner-right-up, corner-up-left, corner-up-right, crosshair, database, divide-circle, divide-square, dollar-sign, download, external-link, feather, frown, hash, headphones, help-circle, info, italic, key, layout, life-buoy, link-2, link, loader, lock, log-in, log-out, maximize, meh, minimize, minimize-2, minus-circle, minus-square, minus, monitor, moon, more-horizontal, more-vertical, move, music, navigation-2, navigation, octagon, pause-circle, percent, plus-circle, plus-square, plus, power, radio, rss, search, server, share, shopping-bag, sidebar, smartphone, smile, square, table-2, tablet, target, terminal, trash-2, trash, triangle, tv, type, upload, x-circle, x-octagon, x-square, x, zoom-in, zoom-out
+
+The MIT License (MIT) (for the icons listed above)
+
+Copyright (c) 2013-present Cole Bemis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+-->
+</body>
+</html>
