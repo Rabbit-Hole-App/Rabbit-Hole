@@ -10,7 +10,7 @@ Built from [slash-command-template.md](slash-command-template.md), template vers
 | Target branch inspected | `1f4f6953850c0ed2011a4f2ffc0cd156119e7f33` |
 | Earlier source-map audit | `34a63b7d2322d0bb70a086612f4bfb749776496a`; detailed historical audit uses `80eb86183de67e2baabaa4b8edb58b4d932e40bc` |
 | Source document | `interact.md`, version 11; full roadmap/checklist retained with stable requirement IDs |
-| Current implementation evidence | Existing brief-first engine inspected; proposed scene-plan modules absent at target head. New workflow checkboxes remain unchecked. |
+| Current implementation evidence | **I0 foundation** on a main base: ScenePlan schema, control catalogue, role profiles with an all-Opus adapter (disabled switch), and the player support for signed time, display pacing, exact-seek markers and a card description. Receipt: [2026-11-08-6576e731.md](interact/reviews/2026-11-08-6576e731.md). The new design, approval and build workflow (I1) is not built or accepted; no checkbox is checked. |
 | Acceptance scope | Standalone 2D `/interact` design → Chat approval → runnable card; fixture, browser and real-generation evidence tracked separately |
 | Runtime rollout | Proposed new flow behind a per-job versioned server switch; this documentation push does not deploy or activate it |
 
