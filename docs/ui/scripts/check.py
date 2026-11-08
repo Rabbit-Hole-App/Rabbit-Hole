@@ -3,6 +3,7 @@
 from pathlib import Path
 from html.parser import HTMLParser
 from collections import Counter
+from export_clean import EXPORTS
 from urllib.parse import urlsplit,unquote
 import json,re,subprocess,sys,xml.etree.ElementTree as ET
 ROOT=Path(__file__).resolve().parents[1]
@@ -56,7 +57,7 @@ def main():
  for p in ROOT.rglob('*.html'):
   require('href="../../../icons/' not in p.read_text() or p.name in ['preview.html','markup.html'] or p.parent==ROOT/'templates','Unexpected sprite-relative path owner '+str(p))
  clean_files=sorted((ROOT/'clean').glob('*.html'))
- require(len(clean_files)==15,'Expected 15 separate clean previews')
+ require({p.stem for p in clean_files}=={name for name,_ in EXPORTS},'Clean preview files must match export manifest')
  for p in clean_files:
   content=p.read_text(); page=Page(content)
   require(len(page.ids)==len(set(page.ids)),f'{p.name}: duplicate IDs')

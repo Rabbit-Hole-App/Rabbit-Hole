@@ -1,6 +1,6 @@
 # Component to app mapping
 
-66 searchable component and behavior entries. These are candidate integration landmarks. Path existence is checked against the pinned branch tree; full app integration is not claimed. The historical `InteractCardContent.jsx` starting point is absent from this branch; see UI-10.
+71 searchable component and behavior entries. These are candidate integration landmarks. Path existence is checked against the pinned branch tree; full app integration is not claimed. The historical `InteractCardContent.jsx` starting point is absent from this branch; see UI-10.
 
 | ID | Preview | Status | App landmarks |
 | --- | --- | --- | --- |
@@ -43,6 +43,11 @@
 | `icons/icon-states` | [Icon button states](components/icons/icon-states/preview.html) | reference | `packages/web/src/CardFeedback.jsx`, `packages/web/src/ChatComposer.jsx` |
 | `layout/scroll-region` | [Scrollable region](components/layout/scroll-region/preview.html) | reference | `packages/web/src/index.css` |
 | `navigation/navigation` | [Navigation rows and empty states](components/navigation/navigation/preview.html) | reference | `packages/web/src/Sidebar.jsx` |
+| `navigation/sidebar` | [Sidebar and panels](components/navigation/sidebar/preview.html) | Owner-reviewed reference / browser verification pending | `packages/web/src/Sidebar.jsx`, `packages/web/src/Search.jsx`, `packages/web/src/FeedbackButton.jsx` |
+| `navigation/sidebar-feedback` | [Sidebar feedback](components/navigation/sidebar-feedback/preview.html) | Owner-reviewed reference / browser verification pending | `packages/web/src/Sidebar.jsx`, `packages/web/src/Search.jsx`, `packages/web/src/FeedbackButton.jsx` |
+| `navigation/sidebar-notifications` | [Sidebar notifications](components/navigation/sidebar-notifications/preview.html) | Owner-reviewed reference / browser verification pending | `packages/web/src/Sidebar.jsx`, `packages/web/src/Search.jsx`, `packages/web/src/FeedbackButton.jsx` |
+| `navigation/sidebar-search` | [Sidebar search](components/navigation/sidebar-search/preview.html) | Owner-reviewed reference / browser verification pending | `packages/web/src/Sidebar.jsx`, `packages/web/src/Search.jsx`, `packages/web/src/FeedbackButton.jsx` |
+| `navigation/sidebar-trash` | [Sidebar trash](components/navigation/sidebar-trash/preview.html) | Owner-reviewed reference / browser verification pending | `packages/web/src/Sidebar.jsx`, `packages/web/src/Search.jsx`, `packages/web/src/FeedbackButton.jsx` |
 | `patterns/card-lifecycle` | [Card Lifecycle](components/patterns/card-lifecycle/preview.html) | flow reference / current shell | `packages/web/src/SlotCard.jsx`, `packages/web/src/NextStepPill.jsx` |
 | `patterns/explanation-actions` | [Explanation Actions](components/patterns/explanation-actions/preview.html) | flow reference / current shell | `packages/web/src/LearningBlocks.jsx` |
 | `patterns/explanation-depth` | [Explanation Depth](components/patterns/explanation-depth/preview.html) | flow reference / current shell | `packages/web/src/LearningBlocks.jsx` |

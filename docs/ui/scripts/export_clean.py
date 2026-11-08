@@ -19,7 +19,12 @@ EXPORTS=[
  ('12-start-rabbit-hole','sources/start-rabbit-hole'),
  ('13-source-picker-tabs','sources/source-picker-tabs'),
  ('14-file-upload-drop-zone','sources/file-upload-drop-zone'),
- ('15-added-source-row','sources/added-source-row')]
+ ('15-added-source-row','sources/added-source-row'),
+ ('16-sidebar','navigation/sidebar'),
+ ('17-sidebar-search','navigation/sidebar-search'),
+ ('18-sidebar-trash','navigation/sidebar-trash'),
+ ('19-sidebar-notifications','navigation/sidebar-notifications'),
+ ('20-sidebar-feedback','navigation/sidebar-feedback')]
 def main():
  out=ROOT/'clean';out.mkdir(exist_ok=True)
  for filename,ident in EXPORTS:
@@ -54,6 +59,8 @@ main.clean-stage { max-width:1020px; margin:0 auto; padding:28px 20px; }
 #resize-guide,#clean-resize-help { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
 @media(max-width:600px) { main.clean-stage{padding:16px 12px;} .clean-stage .examples{grid-template-columns:1fr;} }
 '''
+  if ident.startswith('navigation/sidebar'):
+   extra+='\nmain.clean-stage{max-width:none;margin:0;padding:0;}\n'
   if ident=='controls/toggle':
    # A single switch with its label, without availability and usage documentation.
    scripts+='\nconst sampleNode=document.querySelector(".sample"); if(sampleNode){const mount=sampleNode.querySelector("[data-mount]");sampleNode.replaceChildren(mount);}\n'

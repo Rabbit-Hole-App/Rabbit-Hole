@@ -9,8 +9,11 @@ This document routes work to the detailed screen handoffs and shared component l
 | Screen | Required implementation handoff | Complete HTML reference | Status |
 | --- | --- | --- | --- |
 | Start a rabbit hole | [START-DIALOG.md](START-DIALOG.md) | [12-start-rabbit-hole.html](clean/12-start-rabbit-hole.html) | Templates and source mapping pushed; runtime integration and browser verification pending |
+| Sidebar, Search, Trash, Notifications and Feedback | [SIDEBAR.md](SIDEBAR.md) | [16-sidebar.html](clean/16-sidebar.html) | Owner-reviewed reference; runtime integration and browser verification pending |
 
 **For Start a rabbit hole, read START-DIALOG.md in full.** It maps every visible element to its canonical template, component, CSS selector, behavior script and icon. It distinguishes existing primitives from the four newly authorized templates and records the latest copy, button, resize and focus corrections.
+
+**For the sidebar and its panels, read SIDEBAR.md in full.** It maps the shell, four panels, shared primitives, icons and behavior, including feedback submission confirmation and concise copy.
 
 Add future screen-specific handoffs to this table as they are prepared. A component appearing in the library does not by itself establish that its full screen flow has been reviewed or integrated.
 

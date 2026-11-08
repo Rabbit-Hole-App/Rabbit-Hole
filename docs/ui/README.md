@@ -88,3 +88,7 @@ Baseline: `chatgpt/tutor` at `aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56`, plus su
 [Start dialog mapping and maintenance](START-DIALOG.md) documents the four reusable source-entry templates and their app landmarks. The [complete standalone HTML](clean/12-start-rabbit-hole.html) is generated from these same templates. Individual tabs, upload and source-row previews are also searchable under **Source documents** in the component library.
 
 Template includes use `<!-- ui:include template-name -->`. The catalog, clean exporter and searchable library all use `scripts/ui_fragments.py` to resolve them. Edit the template once, then regenerate all previews; do not edit the exported HTML independently.
+
+## Sidebar reference
+
+Read [SIDEBAR.md](SIDEBAR.md) for the sidebar and Search, Trash, Notifications and Feedback panels. [Open the clean HTML](clean/16-sidebar.html). Editable templates live in `templates/sidebar*.html`; searchable records live in `components/navigation/sidebar*`.

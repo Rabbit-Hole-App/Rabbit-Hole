@@ -1,0 +1,51 @@
+{
+  "id": "navigation/sidebar-feedback",
+  "title": "Sidebar feedback",
+  "category": "navigation",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/SIDEBAR.md",
+  "source_file": "sidebar.html",
+  "status": "Owner-reviewed reference / browser verification pending",
+  "styles": [
+    "standards",
+    "review-corrections",
+    "sidebar"
+  ],
+  "scripts": [
+    "sidebar",
+    "sidebar-panels"
+  ],
+  "implementation": [
+    "packages/web/src/Sidebar.jsx",
+    "packages/web/src/Search.jsx",
+    "packages/web/src/FeedbackButton.jsx"
+  ],
+  "notes": "Shared UI composition. See SIDEBAR.md for exact source mapping and demo boundaries. Panels use local sample data; no API or runtime integration.",
+  "issues": [],
+  "templates": [],
+  "includes": [
+    "sidebar",
+    "sidebar-shell",
+    "sidebar-search",
+    "sidebar-trash",
+    "sidebar-notifications",
+    "sidebar-feedback"
+  ],
+  "keywords": [
+    "sidebar",
+    "account",
+    "recent",
+    "collapse",
+    "resize",
+    "search",
+    "trash",
+    "restore",
+    "notifications",
+    "feedback",
+    "submit",
+    "success",
+    "empty"
+  ],
+  "path": "components/navigation/sidebar-feedback",
+  "paletteRole": "shared",
+  "catalogVisible": true
+}

@@ -5,6 +5,7 @@
     "packages/web/src/CanvasMenubar.jsx",
     "packages/web/src/CardFeedback.jsx",
     "packages/web/src/ChatComposer.jsx",
+    "packages/web/src/FeedbackButton.jsx",
     "packages/web/src/FileDocCard.jsx",
     "packages/web/src/FileDocMarkdown.jsx",
     "packages/web/src/LearnProgress.jsx",
@@ -12,6 +13,7 @@
     "packages/web/src/LibraryViews.jsx",
     "packages/web/src/NextStepPill.jsx",
     "packages/web/src/RoadmapSurfaces.jsx",
+    "packages/web/src/Search.jsx",
     "packages/web/src/Sidebar.jsx",
     "packages/web/src/SlashCommandsSheet.jsx",
     "packages/web/src/SlotCard.jsx",
@@ -28,5 +30,11 @@
   ],
   "additional_verification": {
     "packages/web/src/StartDialog.jsx": "Verified by git ls-tree at 632945f8ee2fa9ecdacaa24f74f21f4a030a5804"
+  },
+  "additional_path_checks": {
+    "5fb21d4de736f0403c79cca3ebdae07138e95f03": [
+      "packages/web/src/Search.jsx",
+      "packages/web/src/FeedbackButton.jsx"
+    ]
   }
 }

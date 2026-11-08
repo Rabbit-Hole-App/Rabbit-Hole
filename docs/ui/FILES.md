@@ -370,3 +370,11 @@
 - [verification/repository-paths.json](verification/repository-paths.json)
 - [verification/review-check.json](verification/review-check.json)
 - [verification/structural-check.json](verification/structural-check.json)
+
+## Sidebar additions
+
+- Handoff: `SIDEBAR.md`; indexed in `RABBIT-HOLE-NEW-UI.md`.
+- Templates: `templates/sidebar.html`, `sidebar-shell.html`, `sidebar-search.html`, `sidebar-trash.html`, `sidebar-notifications.html`, `sidebar-feedback.html`.
+- Shared composition styling: `styles/sidebar.css`; behavior: `scripts/sidebar.js`, `scripts/sidebar-panels.js`; glyphs: `icons/sidebar.svg`.
+- Searchable records: `components/navigation/sidebar`, `sidebar-search`, `sidebar-trash`, `sidebar-notifications`, `sidebar-feedback`.
+- Generated clean references: `clean/16-sidebar.html` through `clean/20-sidebar-feedback.html`.
