@@ -1,4 +1,4 @@
-// CORE.09 / owner item 3 + the TutorDiagram switch: the 600 / 1,000 / 1,500 caps count VISIBLE text (literal inline code, collapsed sections,
+// CORE.09 / owner item 3 + the TutorDiagram switch: the caps (one 600 budget since 2026-11-08; the 1,000 and 1,500 sizes stay as counting fixtures) count VISIBLE text (literal inline code, collapsed sections,
 // table cells, a diagram's title, caption and labels) exactly at the cap and one code point over, every rh-diagram spec goes through
 // parseTutorDiagram before delivery, and a NEW Mermaid fence is refused, through BOTH entry points: the standalone written command
 // (generateArtifact) and roadmap generation (generateRoadmapCard).

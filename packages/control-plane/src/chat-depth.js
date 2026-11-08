@@ -30,7 +30,8 @@ export const DEPTH_COMMANDS = Object.freeze(['explain', 'explanation', 'walkthro
 
 // CORE.09: an Explanation card's teaching objective and inclusive display-text budget per Depth, the same on the direct and roadmap paths.
 // Unlike depthInstruction, Standard has an explicit target too. An omitted or unknown Depth is the default.
-export const EXPLANATION_CAPS = Object.freeze({ overview: 600, standard: 1000, deep: 1500 });
+// Owner 2026-11-08: one budget for every Depth, about 10 lines of the 440 px card (408 px of 14 px text, about 60 characters a line).
+export const EXPLANATION_CAPS = Object.freeze({ overview: 600, standard: 600, deep: 600 });
 export const EXPLANATION_OBJECTIVES = Object.freeze({
   overview: 'Depth: Overview. Explain the central idea and essential mechanism in everyday language. A concrete example can make the idea easier to follow.',
   standard: 'Depth: Standard. Explain how and why the mechanism works, with enough reasoning to apply it to another case.',

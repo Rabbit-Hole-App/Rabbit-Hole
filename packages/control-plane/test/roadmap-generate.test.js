@@ -173,7 +173,8 @@ test('CORE.09: each Depth passes exactly at its cap and fails one code point ove
     assert.equal(explanationProblem(sized(cap), depth), null, `${depth} at ${cap}`);
     assert.match(explanationProblem(sized(cap + 1), depth), /^explanation_over_budget:/, `${depth} at ${cap + 1}`);
   }
-  assert.equal(explanationProblem(sized(1000)), null, 'an omitted Depth is Standard');
+  assert.equal(explanationProblem(sized(600)), null, 'an omitted Depth is Standard');
+  assert.match(explanationProblem(sized(601)), /^explanation_over_budget:/, 'Standard has the one 600 budget too');
   assert.equal(diagramProblem(DEEP_BODY), null, 'the file 06 diagram, written as an rh-diagram spec, is valid');
   for (const bad of ['```mermaid\nflowchart TD\n  A["x"] --> B', '```mermaid\nsequenceDiagram\n  A->>B: hi\n```', '```mermaid\nflowchart TD\n  click A "https://x.test"\n```', '```mermaid\nflowchart TD\n  style A fill:#f00\n```', '```mermaid\n%%{init: {}}%%\nflowchart TD\n```', '```mermaid\nflowchart TD\n  A["<b>x</b>"]\n```'])
     assert.match(diagramProblem(bad), /^explanation_bad_diagram:/, bad);

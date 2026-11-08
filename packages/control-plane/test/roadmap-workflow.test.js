@@ -352,7 +352,7 @@ test('BE.06 actual author request and both output formats (CORE.03-07)', async t
 
 // CORE.09 caps: Overview 600, Standard 1,000, Deep 1,500 code points of card content (title + body + every `more` label and text). Assumption noted in
 // verify-status.md: the title and body are counted as separate fields and summed (no joining space counted).
-const CAPS = { overview: 600, standard: 1000, deep: 1500 };
+const CAPS = { overview: 600, standard: 600, deep: 600 }; // one budget for every Depth (owner 2026-11-08)
 // The real counter (be, learn-primitives.js explanationChars) when it has landed; before that the plain sum CORE.09 lists (title + body, no joining space asserted).
 const primitives = await import('../src/learn-primitives.js');
 const charsOf = block => (primitives.explanationChars ? primitives.explanationChars(block) : Array.from(block.title).length + Array.from(block.body).length);
