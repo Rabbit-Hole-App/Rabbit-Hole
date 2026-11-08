@@ -203,11 +203,12 @@ export async function reviseDesign(job, ctx) {
 // ---- deterministic closure (design_verifying) ----
 // Never trusts the reviser: the new hash and the diff are computed here, every claimed change must really have changed something, every
 // blocker or major finding must be answered by a change or listed unresolved, and the plan must pass the same schema, binding and runtime checks as the draft.
-export async function verifyDesignRevision(previous, revision, review, capabilities) {
+// deterministic: the server's own checks the reviser was shown (description fit, bindings); it may answer one by its code or path as it answers a finding by id (a live run did: "description_fit").
+export async function verifyDesignRevision(previous, revision, review, capabilities, deterministic = []) {
   const parsed = parseScenePlan(revision.plan, capabilities);
   const problems = [...(parsed.ok ? [] : parsed.problems), ...runtimeProblems(revision.plan, capabilities), ...revisionProblems(previous, revision)];
   const bad = (path, code, message) => problems.push({ path, code, message });
-  const ids = new Set(review.findings.map(finding => finding.id));
+  const ids = new Set([...review.findings.map(finding => finding.id), ...deterministic.flatMap(check => [check.code, check.path].filter(Boolean))]);
   revision.changes.forEach((change, i) => { if (!ids.has(change.findingId)) bad(`changes.${i}.findingId`, 'unknown_finding', `"${change.findingId}" is not a finding of the review`); });
   revision.unresolvedFindingIds.forEach((id, i) => { if (!ids.has(id)) bad(`unresolvedFindingIds.${i}`, 'unknown_finding', `"${id}" is not a finding of the review`); });
   const diff = planDiff(previous, revision.plan);
@@ -238,7 +239,7 @@ const planFailure = (problems, what) => (isCapabilityGap(problems)
 export async function verifyDesign(job, ctx) {
   const d = job.design, capabilities = ctx.capabilities;
   if (d.pending) {
-    const v = await verifyDesignRevision(d.plan, d.pending, d.review, capabilities);
+    const v = await verifyDesignRevision(d.plan, d.pending, d.review, capabilities, d.problems || []);
     if (v.unresolved.length) return stop('design_unresolved', v.unresolved[0].category === 'fact' ? 'fact' : 'spec', `The design cannot settle ${v.unresolved.length === 1 ? 'a point' : 'some points'} with what was supplied: ${v.unresolved.slice(0, 3).map(finding => finding.message).join(' ')} Add the missing information and try again.`);
     if (v.problems.length) return d.counts.revise < DESIGN_BOUNDS.revise ? { next: 'revise', feedback: v.problems, rejected: { planHash: v.planHash, diff: v.diff } } : planFailure(v.problems, 'The revised scene plan was not valid after two revisions:');
     if (v.needsReview) return d.counts.review < DESIGN_BOUNDS.review ? { next: 'review', plan: v.plan, planHash: v.planHash, diff: v.diff, substantive: v.substantive } : stop('design_exhausted', 'spec', 'The scene plan changed after its last allowed review, so it was not offered. Edit the request and try again.');

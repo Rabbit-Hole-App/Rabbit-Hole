@@ -119,6 +119,15 @@ test('verifyDesignRevision computes the hash and the diff itself and decides wha
   assert.deepEqual(blocked.problems.map(p => p.code), ['finding_ignored'], 'a blocking finding must be answered or listed unresolved');
 });
 
+test('a revision may answer one of the deterministic checks by its code, as a live reviser answered "description_fit"; any other unknown id is still refused', async () => {
+  const checks = [{ path: 'cardDescription', code: 'description_fit', message: 'the description renders in 6 lines at 320 px' }];
+  const changed = withText(PLAN.standard, { title: 'New title' });
+  const ok = await verifyDesignRevision(PLAN.standard, revision(changed, [change('description_fit', 'title')]), review('x'), fixtures.capabilities, checks);
+  assert.ok(!ok.problems.some(p => p.code === 'unknown_finding'), 'answering a deterministic check is not an unknown finding');
+  const bad = await verifyDesignRevision(PLAN.standard, revision(changed, [change('invented', 'title')]), review('x'), fixtures.capabilities, checks);
+  assert.ok(bad.problems.some(p => p.code === 'unknown_finding'));
+});
+
 test('verifyDesignRevision rejects a claimed change that did not happen, unknown ids, a changed depth, and a revision the catalogue cannot back', async () => {
   const f1 = review('x', { verdict: 'revise', findings: [finding('f1')] });
   let v = await verify(revision(clone(PLAN.standard), [change('f1', 'scene.description')]), f1);
