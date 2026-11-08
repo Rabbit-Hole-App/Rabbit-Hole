@@ -445,12 +445,13 @@ function chainAsCycle(spec) {
   if (steps.length !== d.nodes.length) return null;
   try { return parseTutorDiagram({ version: 1, diagram: { title: d.title, ...(d.caption ? { caption: d.caption } : {}), kind: 'cycle', steps } }); } catch { return null; }
 }
-export function chainsAsCycles(md) {
+// Rewrites each valid rh-diagram fence through fn(parsed spec) -> a new spec or null (unchanged); an invalid diagram is left to the drop or repair path.
+function mapDiagrams(md, fn) {
   const out = []; let open = null, changed = false;
   for (const line of String(md ?? '').split('\n')) {
     if (open) {
       if (/^\s*```/.test(line)) {
-        let spec = null; try { spec = chainAsCycle(parseTutorDiagram(open.lines.join('\n'))); } catch { /* an invalid diagram is the drop or repair path's */ }
+        let spec = null; try { spec = fn(parseTutorDiagram(open.lines.join('\n'))); } catch { /* an invalid diagram is the drop or repair path's */ }
         out.push(open.raw, ...(spec ? [JSON.stringify(spec)] : open.lines), line); changed ||= !!spec; open = null;
       } else open.lines.push(line);
       continue;
@@ -462,6 +463,29 @@ export function chainsAsCycles(md) {
   if (open) out.push(open.raw, ...open.lines);
   return changed ? out.join('\n') : md;
 }
+export const chainsAsCycles = md => mapDiagrams(md, chainAsCycle);
+// The binary tree layout fits only trees whose nodes have at most two children by definition (owner check 2026-11-08: a family tree and a folder tree came
+// back binary in 4 of 4 runs). Outside a binary / heap / BST question, a binary tree is drawn as the ordinary tree: layout and sides removed, nothing else changed.
+export const BINARY_WORDS = /\b(binary|heaps?|bst)\b/i;
+const plainTree = doc => {
+  const d = doc?.diagram;
+  if (d?.kind !== 'tree' || d.layout !== 'binary') return null;
+  const { layout, ...rest } = d;
+  return parseTutorDiagram({ ...doc, diagram: { ...rest, nodes: d.nodes.map(({ side, ...node }) => node) } });
+};
+// The other direction (owner check 2026-11-08, second run: a stricter wording made the model skip the binary layout for heaps and traversals, 3 of 8): inside a
+// binary / heap / BST question, an ordinary tree whose nodes all have at most two children is drawn binary, sides assigned in the order the children were written.
+const binaryTree = doc => {
+  const d = doc?.diagram;
+  if (d?.kind !== 'tree' || d.layout === 'binary') return null;
+  const kids = new Map();
+  for (const n of d.nodes) if (n.parent !== undefined) kids.set(n.parent, [...(kids.get(n.parent) || []), n.id]);
+  if ([...kids.values()].some(list => list.length > 2)) return null;
+  const side = new Map([...kids.values()].flatMap(list => list.map((id, i) => [id, i ? 'right' : 'left'])));
+  try { return parseTutorDiagram({ ...doc, diagram: { ...d, layout: 'binary', nodes: d.nodes.map(n => (side.has(n.id) ? { ...n, side: side.get(n.id) } : n)) } }); } catch { return null; }
+};
+// Trees follow the question, not the model's guess: binary layout exactly for binary / heap / BST questions (when the tree allows it), ordinary layout otherwise.
+export const plainTreesUnlessBinary = (md, args) => mapDiagrams(md, BINARY_WORDS.test(String(args ?? '')) ? binaryTree : plainTree);
 
 // E1: the tables and diagrams a Markdown string really holds, for the required-visual check (explanation-visuals.js). A pipe table is complete only with a header row, a
 // separator row, at least one body row, at least two columns, the same cell count in every row and no empty header cell; a closed rh-diagram fence is ok only if

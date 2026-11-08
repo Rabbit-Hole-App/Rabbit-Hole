@@ -14,7 +14,7 @@ import { BRIEF_LIMITS, generationArgs, isBriefCommand } from '../../web/src/mate
 import { consumeProposal, releaseProposal, verifyProposal } from './generation-proposal.js';
 import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
-import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, chainsAsCycles, dropInvalidDiagrams, markdownIllustrations, markdownVisuals, settleExplanationBody } from './learn-primitives.js';
+import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, chainsAsCycles, plainTreesUnlessBinary, dropInvalidDiagrams, markdownIllustrations, markdownVisuals, settleExplanationBody } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
@@ -184,6 +184,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         block = { ...block, body: settled };
         // EXP-13 fix 6a: repeat words in the question turn a branchless flow into a cycle (no call), unless the learner named another diagram kind.
         if (repeats(input.args) && [undefined, 'cycle'].includes(requiredMix(wanted)?.diagramKind)) block = { ...block, body: chainsAsCycles(block.body) };
+        block = { ...block, body: plainTreesUnlessBinary(block.body, input.args) }; // owner check 2026-11-08: binary layout only for binary/heap/BST questions
         if (attempt >= repairs) {
           let trimmed = dropInvalidDiagrams(block), fallback = null;
           // Owner 2026-11-08, a card should not fail: when dropping would leave the card no visual, each invalid diagram becomes a simpler valid one built from
