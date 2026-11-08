@@ -175,7 +175,15 @@ test('the Gemini step request: array and numeric bounds dropped from its schema 
   await ask(offline('fireworks-low', { GEMINI_API_KEY: '' }), 'how does the human heart pump blood?', {}).catch(() => null);
   const [gemini, fireworks] = sent.map(s => s.body);
   assert.deepEqual(sent.map(s => s.provider), ['google', 'fireworks']);
-  assert.deepEqual(shapeOf(gemini), GEMINI_FIXTURE.sent, 'the Gemini request shape changed: check it against the real endpoint, then update test/fixtures/explanation-gemini-request.json');
+  // Keep the recorded request intact. This comparison pins the two new fields offline.
+  const expected = structuredClone(GEMINI_FIXTURE.sent);
+  const visuals = expected.response_format.json_schema.schema.properties.visuals;
+  const diagram = visuals.items.anyOf.find(visual => visual.properties.spec).properties.spec.properties.diagram;
+  const tree = diagram.anyOf.find(kind => kind.properties.kind.const === 'tree');
+  tree.properties.layout = { type: 'string', const: 'binary' };
+  tree.properties.nodes.items.properties.side = { type: 'string', enum: ['left', 'right'] };
+  expected.temperature = 0; // item 47: the author samples at 0; Gemini documents no seed, so none is sent
+  assert.deepEqual(shapeOf(gemini), expected, 'the Gemini request must match the recorded shape plus binary tree fields and the author temperature');
   assert.ok(hasMaxItems(fireworks.response_format.json_schema.schema), 'the Fireworks step still sends the bounded schema');
   assert.deepEqual(withoutBounds(fireworks.response_format), gemini.response_format, 'the bounds are the only difference');
   // A property NAMED like a bound is a field, not a keyword: it is kept.

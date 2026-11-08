@@ -71,7 +71,8 @@ const diagramShape = z.discriminatedUnion('kind', [
     vectors: z.array(z.strictObject({ direction: z.enum(directions), magnitude: numeric.positive(), label: text(32) })).min(1).max(4).optional(),
   }),
   z.strictObject({
-    ...titled, kind: z.literal('tree'), nodes: z.array(z.strictObject({ ...node, parent: id.optional() })).min(2).max(12),
+    ...titled, kind: z.literal('tree'), layout: z.literal('binary').optional(),
+    nodes: z.array(z.strictObject({ ...node, parent: id.optional(), side: z.enum(['left', 'right']).optional() })).min(2).max(12),
   }),
   z.strictObject({
     ...titled, kind: z.literal('relationship'), nodes: z.array(z.strictObject(node)).min(2).max(8),
@@ -187,7 +188,7 @@ function checkFigure({ figure, callouts, vectors, unit }, issue) {
   });
 }
 
-function checkTree({ nodes }, issue) {
+function checkTree({ nodes, layout }, issue) {
   const byId = new Map(nodes.map(item => [item.id, item]));
   if (byId.size !== nodes.length) return issue(['nodes'], 'Tree nodes need unique IDs');
   if (nodes.filter(item => item.parent === undefined).length !== 1) return issue(['nodes'], 'A tree needs one root');
@@ -199,6 +200,20 @@ function checkTree({ nodes }, issue) {
       if (!byId.has(parent)) return issue(['nodes', i, 'parent'], 'Tree parent refers to an unknown node');
       seen.add(parent);
       parent = byId.get(parent).parent;
+    }
+  }
+  const occupied = new Set();
+  for (const [i, { parent, side }] of nodes.entries()) {
+    const at = ['nodes', i, 'side'];
+    if (layout !== 'binary') {
+      if (side !== undefined) return issue(at, 'A tree node side requires the binary layout');
+    } else if (parent === undefined) {
+      if (side !== undefined) return issue(at, 'The root cannot have a side');
+    } else {
+      if (side === undefined) return issue(at, 'A binary tree child needs a left or right side');
+      const position = `${parent}:${side}`;
+      if (occupied.has(position)) return issue(at, `A parent can have at most one ${side} child`);
+      occupied.add(position);
     }
   }
 }
@@ -287,7 +302,7 @@ export const tutorDiagramSchema = shape.superRefine(({ diagram }, ctx) => {
 });
 
 // Provider constraints describe the JSON shape. The local parse additionally
-// checks topology, labels and row widths that JSON Schema cannot express here.
+// checks topology, labels, child slots and row widths that JSON Schema cannot express here.
 const { $schema, ...jsonSchema } = z.toJSONSchema(shape, { target: 'draft-7', io: 'input' });
 // A flow node's title is written by the server only (a trimmed label's full text), so the author is never asked for it.
 const flowNode = (jsonSchema.properties.diagram.oneOf ?? jsonSchema.properties.diagram.anyOf).find(s => s.properties.kind.const === 'flow').properties.nodes.items;
@@ -328,7 +343,11 @@ function describeContent(diagram) {
       ];
     case 'tree': {
       const labels = new Map(diagram.nodes.map(({ id, label }) => [id, label]));
-      return diagram.nodes.map(({ label, parent }) => parent ? `${labels.get(parent)} → ${label}` : `Root: ${label}`);
+      return diagram.nodes.map(({ label, parent, side }) => {
+        if (!parent) return `Root: ${label}`;
+        if (diagram.layout === 'binary') return `${label} is the ${side} child of ${labels.get(parent)}`;
+        return `${labels.get(parent)} → ${label}`;
+      });
     }
     case 'relationship': return describeConnections(diagram.nodes, diagram.edges);
     case 'transformation':
