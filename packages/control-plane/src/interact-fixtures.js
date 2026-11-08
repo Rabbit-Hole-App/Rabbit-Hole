@@ -6,13 +6,13 @@
 import { evaluateRequestFor } from '../../web/src/explain-program/program-card.js';
 import { canonicalJson, parseGuestResult, resolveInputs, sha256Hex } from '../../web/src/explain-program/contract.js';
 import { createSnapshotResolver } from '../../web/src/interact-composition.js';
-import { deepOracle, fixtureDraft, overviewOracle, pendulumOracle, standardOracle } from '../../web/src/interact-build-fixtures.js';
+import { fixtureDraft, standardOracle } from '../../web/src/interact-build-fixtures.js';
 import { interactFixtures } from '../../web/src/interact-plan-fixtures.js';
 import { InteractModelError, schemaProblems } from './interact-model-adapters.js';
 import { resolveInteractProfile } from './interact-models.js';
 
-export const FIXTURE_IDS = Object.freeze(['toss-drop-standard', 'pendulum-period']);
-const FIXTURE_DEPTHS = Object.freeze({ 'toss-drop-standard': ['overview', 'standard', 'deep'], 'pendulum-period': ['standard'] });
+export const FIXTURE_IDS = Object.freeze(['toss-drop-standard']);
+const FIXTURE_DEPTHS = Object.freeze({ 'toss-drop-standard': ['standard', 'deep'] });
 
 // script: { <role>: ({ input, images, system, schema, config, n }) => output }, keyed by the logical role. The adapter validates every reply
 // against the schema the role was asked for, exactly as a provider adapter does, and records each call (inputs included) in .log.
@@ -98,7 +98,7 @@ export function fixtureDesignRoles(fixtureId) {
     async design({ request }) {
       if (!FIXTURE_DEPTHS[fixtureId]?.includes(request.depth)) throw new Error(`fixture ${fixtureId} has depths ${FIXTURE_DEPTHS[fixtureId]?.join(', ')} only`);
       const { plans } = await interactFixtures();
-      return { plan: fixtureId === 'pendulum-period' ? plans.pendulum : request.depth === 'overview' ? plans.overviewProgram : plans[request.depth], reviews: [{ source: 'fixture', verdict: 'pass', note: 'canonical plan; no design model was called' }], revisions: [], calls: [] };
+      return { plan: plans[request.depth], reviews: [{ source: 'fixture', verdict: 'pass', note: 'canonical plan; no design model was called' }], revisions: [], calls: [] };
     },
   };
 }
@@ -107,7 +107,7 @@ export function fixtureDesignRoles(fixtureId) {
 export async function fixtureRun(fixtureId, depth = 'standard') {
   if (!FIXTURE_IDS.includes(fixtureId)) throw new Error(`unknown fixture "${fixtureId}"; available: ${FIXTURE_IDS.join(', ')}`);
   const { capabilities } = await interactFixtures();
-  const adapter = scriptedAdapter(fixtureScript(fixtureId === 'pendulum-period' ? 'pendulum' : ['overview', 'deep'].includes(depth) ? depth : 'standard'));
-  return { capabilities, designRoles: fixtureDesignRoles(fixtureId), captureCard: fixtureCaptureCard(), oracle: (fixtureId === 'pendulum-period' ? pendulumOracle : { standard: standardOracle, deep: deepOracle, overview: overviewOracle }[depth])?.() ?? null, adapters: { anthropic: adapter }, adapter, fixture: true, env: {} };
+  const adapter = scriptedAdapter(fixtureScript(depth === 'deep' ? 'deep' : 'standard'));
+  return { capabilities, designRoles: fixtureDesignRoles(fixtureId), captureCard: fixtureCaptureCard(), oracle: depth === 'standard' ? standardOracle() : null, adapters: { anthropic: adapter }, adapter, fixture: true, env: {} };
 }
 

@@ -92,45 +92,6 @@ export function evaluate({ inputs }) {
     quantities: { referenceOffset: offset, trialOffset: offset, referencePeak: peak(U0), trialPeak: peak(U) } };
 }`;
 
-const OVERVIEW_MAIN = String.raw`
-export function evaluate() {
-  const G = 9.8, T = 0.1, S = 1200, PEAKY = 130, XT = 220, XR = 440, GROUND = 340;
-  const drop = G * T * T / 2, fall = S * drop;
-  const objects = [
-    sdk.line('ground', 60, GROUND + 12, 580, GROUND + 12),
-    sdk.line('shared-height', 150, PEAKY, 520, PEAKY, { role: 'prediction', opacity: 0.5 }),
-    sdk.text('shared-label', 330, PEAKY - 14, 'same height, zero velocity'),
-    sdk.circle('tossed-ball', XT, PEAKY, 24, { role: 'output' }),
-    sdk.circle('released-ball', XR, PEAKY, 24, { role: 'input' }),
-    sdk.circle('tossed-after', XT, PEAKY + fall, 24, { role: 'output', opacity: 0.35 }),
-    sdk.circle('released-after', XR, PEAKY + fall, 24, { role: 'input', opacity: 0.35 }),
-    sdk.arrow('tossed-gravity', XT - 44, PEAKY, XT - 44, PEAKY + 40, { role: 'warning' }),
-    sdk.arrow('released-gravity', XR - 44, PEAKY, XR - 44, PEAKY + 40, { role: 'warning' }),
-    sdk.text('tossed-label', XT - 70, GROUND + 56, 'tossed ball at its top'),
-    sdk.text('released-label', XR - 50, GROUND + 56, 'just released'),
-    sdk.text('drop-readout', 20, 28, 'after 0.10 s each ball has moved ' + sdk.format(drop, 3) + ' m down'),
-    sdk.text('gravity-readout', 20, 52, 'gravity ' + sdk.format(G, 1) + ' m/s^2 on both'),
-  ];
-  return { frame: sdk.frame(objects, { width: 640, height: 400, readouts: [{ id: 'dropReadout', value: drop }] }), quantities: { drop, gravity: G } };
-}`;
-
-const PENDULUM_MAIN = String.raw`
-export function evaluate({ inputs }) {
-  const G = 9.8, L = inputs.length, PX = 320, PY = 60, S = 300, ANGLE = 0.3;
-  const period = 2 * Math.PI * Math.sqrt(L / G);
-  const bx = PX - S * L * Math.sin(ANGLE), by = PY + S * L * Math.cos(ANGLE);
-  const objects = [
-    sdk.line('ceiling', 240, PY - 6, 400, PY - 6),
-    sdk.line('rest-line', PX, PY, PX, PY + S * L, { role: 'prediction', opacity: 0.4 }),
-    sdk.line('string', PX, PY, bx, by),
-    sdk.circle('weight', bx, by, 22, { role: 'output' }),
-    sdk.text('length-label', PX + 14, PY + S * L / 2, 'length ' + sdk.format(L, 2) + ' m'),
-    sdk.text('period-readout', 20, 28, 'period ' + sdk.format(period, 3) + ' s'),
-    sdk.text('gravity-readout', 20, 52, 'gravity ' + sdk.format(G, 1) + ' m/s^2'),
-  ];
-  return { frame: sdk.frame(objects, { width: 640, height: 400, readouts: [{ id: 'periodReadout', value: period }] }), quantities: { length: L, gravity: G, period } };
-}`;
-
 const readout = (id, label, unit = 'm/s', decimals = 2) => ({ id, label, unit, decimals });
 const base = (title, summary, description, assumptions) => ({ title, summary, description, assumptions });
 const T = tossDrop();
@@ -146,16 +107,6 @@ const threeMomentsManifest = {
   ...base('Three moments around the top', 'The tossed ball 0.10 s before the top, at the top and 0.10 s after, up positive, on one height scale.',
     'Three balls at three moments, all on one height scale. The velocity arrows point up, vanish and point down while the acceleration stays the same.', ['Constant downward acceleration of 9.8 m/s^2, no air resistance, up is positive.']),
   inputs: [], readouts: [readout('velocityBefore', 'Velocity 0.10 s before'), readout('velocityTop', 'Velocity at the top'), readout('velocityAfter', 'Velocity 0.10 s after')], capabilities: ['time_playback'],
-};
-const overviewMainManifest = {
-  ...base('Is a ball at the top of a throw weightless?', 'A tossed ball at its top and a ball just released from rest, at one height, each drawn again after 0.10 s.',
-    'Two balls at the same height with zero velocity. Gravity pulls both down, so each ball is 0.049 m lower after 0.10 s.', ['Constant downward acceleration of 9.8 m/s^2, no air resistance, up is positive.']),
-  inputs: [], readouts: [readout('dropReadout', 'Distance fallen in 0.10 s', 'm', 3)], capabilities: [],
-};
-const pendulumMainManifest = {
-  ...base('Does a longer pendulum swing more slowly?', 'A weight on a string of the chosen length at the top of a small swing, with the period of one full swing.',
-    'A pendulum drawn to scale with the chosen string length. The period grows with the square root of the length: four times the length takes twice as long.', ['Small swings, no air resistance, a constant 9.8 m/s^2.']),
-  inputs: [{ type: 'number', id: 'length', label: 'String length', unit: 'm', default: 0.5, min: 0.25, max: 1, step: 0.05 }], readouts: [readout('periodReadout', 'Period', 's', 3)], capabilities: [],
 };
 const deepEnd = 2 * 5 / G;
 const deepMainManifest = {
@@ -173,8 +124,6 @@ const deepCompareManifest = {
 
 // What the Scene Builder returns: unsealed drafts {manifest, source} per panel. Keys: standard, deep.
 export const FIXTURE_DRAFTS = Object.freeze({
-  pendulum: { main: { kind: 'program', program: { manifest: pendulumMainManifest, source: PENDULUM_MAIN } }, supporting: [] },
-  overview: { main: { kind: 'program', program: { manifest: overviewMainManifest, source: OVERVIEW_MAIN } }, supporting: [] },
   standard: { main: { kind: 'program', program: { manifest: standardMainManifest, source: STANDARD_MAIN } }, supporting: [{ id: 'threeMoments', artifact: { kind: 'program', program: { manifest: threeMomentsManifest, source: THREE_MOMENTS } } }] },
   deep: { main: { kind: 'program', program: { manifest: deepMainManifest, source: DEEP_MAIN } }, supporting: [{ id: 'comparePeaks', artifact: { kind: 'program', program: { manifest: deepCompareManifest, source: DEEP_COMPARE } } }] },
 });
@@ -204,34 +153,4 @@ export function standardOracle() {
   for (const [name, expected] of [['velocityBefore', m(-0.1).velocity], ['velocityTop', m(0).velocity], ['velocityAfter', m(0.1).velocity], ['acceleration', -G],
     ['belowPeakBefore', m(-0.1).belowPeak], ['belowPeakAfter', m(0.1).belowPeak]]) expect.push({ case: 'start', panel: 'threeMoments', name, expected, tol: 1e-6 });
   return { id: 'toss-drop-standard', expect };
-}
-
-// Expected values for the Deep checks, by capture case id, computed from the equations of section 7 and the plan fixture's own case names:
-// start, cp-<id>, end, and a number control's bound-/probe- cases at its minimum and maximum. u is the trial launch speed of that case; the
-// reference throw is fixed at 3.0 m/s. Return time 2u/g and peak height u^2/(2g) do not depend on the elapsed time, so one row serves every instant.
-// The apex-relative comparison: each ball 0.10 s from its own top is g * 0.1^2 / 2 = 0.049 m below it, whatever the launch speed.
-export function deepOracle() {
-  const speeds = { start: 5, 'cp-launch': 5, 'cp-trialTop': 5, 'cp-trialReturn': 5, 'cp-referenceReturn': 3, end: 5, 'bound-speed-min': 3, 'bound-speed-max': 5, 'probe-speed-min': 3, 'probe-speed-max': 5 };
-  const expect = [];
-  for (const [caseId, u] of Object.entries(speeds)) {
-    const t = tossDrop({ u }), ref = tossDrop({ u: 3 }), offset = G * 0.1 ** 2 / 2;
-    for (const [name, expected] of [['flightTime', t.end], ['trialTime', t.end], ['peakHeight', t.peak], ['trialPeak', t.peak]]) expect.push({ case: caseId, panel: 'main', name, expected, tol: 1e-6 });
-    for (const [name, expected] of [['referenceOffset', offset], ['trialOffset', offset], ['referencePeak', ref.peak], ['trialPeak', t.peak]]) expect.push({ case: caseId, panel: 'comparePeaks', name, expected, tol: 1e-6 });
-  }
-  return { id: 'toss-drop-deep', expect };
-}
-
-// Expected values for the Overview (static program) checks: the distance either ball falls in 0.10 s from rest, g * 0.1^2 / 2 = 0.049 m. The static scene
-// is one state, so one case ('default'; the plan's two checkpoints are aliases of it).
-export function overviewOracle() {
-  const drop = G * 0.1 ** 2 / 2;
-  return { id: 'toss-drop-overview', expect: [{ case: 'default', panel: 'main', name: 'drop', expected: drop, tol: 1e-6 }, { case: 'default', panel: 'main', name: 'dropReadout', expected: drop, tol: 1e-6 }] };
-}
-
-// Expected values for the pendulum (a different subject): the period of a small swing, T = 2 pi sqrt(L / g), for the string length of each capture case.
-// Case ids are the ones buildPlanCaptureCases makes for an untimed Experiment: default, cp-<id>, bound-/probe-<control>-min|max.
-export const pendulumPeriod = length => 2 * Math.PI * Math.sqrt(length / G);
-export function pendulumOracle() {
-  const lengths = { default: 0.5, 'cp-short': 0.25, 'cp-long': 1, 'bound-length-min': 0.25, 'bound-length-max': 1, 'probe-length-min': 0.25, 'probe-length-max': 1 };
-  return { id: 'pendulum-period', expect: Object.entries(lengths).flatMap(([caseId, length]) => ['period', 'periodReadout'].map(name => ({ case: caseId, panel: 'main', name, expected: pendulumPeriod(length), tol: 1e-6 }))) };
 }

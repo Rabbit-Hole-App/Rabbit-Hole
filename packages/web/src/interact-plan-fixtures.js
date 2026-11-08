@@ -187,42 +187,5 @@ export async function interactFixtures() {
     claims: [],
   };
 
-  // The Overview as a static PROGRAM scene (I3): the same teaching, built through the runtime that can be delivered end to end today. `overview` above keeps the
-  // declarative renderer for the plan and catalogue tests; a composed card with a declarative panel is not wired yet (interact-job.js undeliverable).
-  const overviewProgram = {
-    ...overview,
-    scene: {
-      ...overview.scene,
-      description: 'Two balls side by side at one shared height, each drawn again 0.049 m lower. Gravity arrows point down on both and share one length scale; the tossed ball is at its top, the other has just been released.',
-      runtime: { ...programRuntime(h), requiredCapabilities: [] },
-    },
-  };
-
-  // A different subject (I3): the period of a simple pendulum, an untimed Experiment through the same job, runner and card as the toss-and-drop. T = 2 pi sqrt(L / g) for
-  // small swings; the string length is the one adjustable input.
-  const pendulum = {
-    ...common, depth: 'standard',
-    title: 'Does a longer pendulum swing more slowly?',
-    story: 'Maya hung her house key from a string and let it swing a little. She wondered whether a longer string would make each swing slower, and by how much. For small swings the time of one full swing, the period, is two pi times the square root of the string length divided by g. So a string four times as long takes twice as long, not four times as long. The weight of the key does not appear at all.',
-    cardDescription: 'Change the string length and read how long one full swing takes. A string four times as long swings twice as slowly, because the period grows with the square root of the length.',
-    learningGoal: 'Predict how the period of a pendulum changes when its string is made longer.',
-    supportingVisuals: [],
-    scene: {
-      description: 'A weight on a string hangs from a fixed pivot and is drawn at the top of a small swing. The string is drawn to scale with the chosen length, and the period is written beside it.',
-      runtime: { ...programRuntime(h), requiredCapabilities: [] },
-      entities: [entity('weight', 'Weight', 'The key at the end of the string.'), entity('string', 'String', 'Drawn to scale with the chosen length.')],
-      quantities: [quantity('length', 'String length', 'm', 'Distance from the pivot to the weight.', 'Measured down from the pivot.'), quantity('gravity', 'Gravitational acceleration', 'm/s^2', 'Magnitude of the constant downward acceleration.', 'Idealized.'), quantity('period', 'Period', 's', 'Time of one full swing, out and back.', 'Small swings only.', 'period = 2 * pi * sqrt(length / gravity)')],
-      observations: [{ id: 'slowerWhenLonger', text: 'A longer string gives a longer period.', quantityIds: ['period'], readoutIds: ['periodReadout'] }],
-      checkpoints: [{ id: 'short', label: 'Short string', time: null, inputOverrides: { length: 0.25 }, actions: [], expected: 'Period about 1.00 s.' }, { id: 'long', label: 'Long string', time: null, inputOverrides: { length: 1.0 }, actions: [], expected: 'Period about 2.01 s, twice the short string.' }],
-      readoutIds: ['periodReadout'],
-    },
-    mode: { kind: 'experiment', initialState: 'String length 0.50 m, the weight at the top of a small swing, period about 1.42 s.', fixedValues: { gravity: G }, adjustableIds: ['length'], timeline: null, onInputChange: 'recompute_still' },
-    controls: [
-      { id: 'length', label: 'String length', type: 'number', purpose: 'See how the period responds to the string length.', selectionReason: 'The length varies continuously and the square-root pattern needs intermediate values; two presets would hide it.', nativeControlId: 'program.number', binding: { kind: 'input', id: 'length' }, unit: 'm', default: 0.5, min: 0.25, max: 1.0, step: 0.05, affects: affects(['main', 'quantity', 'period'], ['main', 'readout', 'periodReadout']) },
-      { id: 'resetAll', label: 'Reset experiment', type: 'reset', purpose: 'Return to a 0.50 m string.', selectionReason: 'One step back to the starting length.', nativeControlId: 'program.reset', binding: { kind: 'reset' }, effect: 'Restores string length 0.50 m.', affects: affects(['main', 'quantity', 'length']) },
-    ],
-    claims: [],
-  };
-
-  return { capabilities, plans: { overview, overviewProgram, standard, deep, untimedExperiment, staticAdjustable, pendulum } };
+  return { capabilities, plans: { overview, standard, deep, untimedExperiment, staticAdjustable } };
 }

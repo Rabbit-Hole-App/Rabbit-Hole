@@ -21,8 +21,8 @@ export const ACTION_QUEUE_CAP = 16;
 
 // The one validation rule for a state, used by the card (use-program-state.js) and by the review replay: its frame at the inputs and
 // time it was computed for, evaluated through the same host (never superseded) and normalised. Throws the contract error; returns the frame.
-export async function checkStateFrame({ host, manifest, block = {}, composition = null, inputs, time = 0, state, requestId }) {
-  const reply = await host.evaluate(evaluateRequestFor(manifest, { ...block, inputs }, time, requestId, state, composition), { supersede: false });
+export async function checkStateFrame({ host, manifest, block = {}, inputs, time = 0, state, requestId }) {
+  const reply = await host.evaluate(evaluateRequestFor(manifest, { ...block, inputs }, time, requestId, state), { supersede: false });
   const view = normalizeFrame(reply.frame, manifest);
   if (!view.ok) throw view.error;
   return { reply, view };

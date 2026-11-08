@@ -216,27 +216,6 @@ test('the run-directory store writes atomically, refuses a stale revision and re
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('the script builds every reference row and a different subject from the same stages: the printed hash, zero paid calls, the matching oracle compared', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'interact-cli-rows-'));
-  const cli = (...args) => spawnSync(process.execPath, [join(ROOT, 'scripts/interact/run.mjs'), ...args], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, ANTHROPIC_API_KEY: '', CELERIS_API_KEY: '' } });
-  const rows = [['toss-drop-standard', 'overview', 2, 'static', null], ['toss-drop-standard', 'deep', 20, 'experiment', 'Time since launch'], ['pendulum-period', 'standard', 6, 'experiment', null]];
-  try {
-    for (const [fixture, depth, minimum, mode, label] of rows) {
-      const run = join(dir, `${fixture}-${depth}`);
-      const plan = cli('--fixture', fixture, '--depth', depth, '--until', 'plan', '--run-dir', run);
-      assert.equal(plan.status, 0, plan.stderr); assert.match(plan.stdout, /zero paid calls/);
-      const hash = plan.stdout.match(/planHash=([0-9a-f]{64})/)[1];
-      const card = cli('--resume', run, '--until', 'card', '--approve-plan-hash', hash);
-      assert.equal(card.status, 0, card.stderr + card.stdout); assert.match(card.stdout, /card_ready: 2 scripted role calls, 0 paid calls/);
-      const compared = Number(card.stdout.match(/(\d+) oracle comparisons/)?.[1]);
-      assert.ok(compared >= minimum, `${fixture} ${depth}: the oracle compared ${compared} values`);
-      const composition = JSON.parse(readFileSync(join(run, 'composition.json'), 'utf8'));
-      assert.deepEqual([composition.main.mode, composition.main.timeline?.label ?? null], [mode, label], `${fixture} ${depth}`);
-    }
-    assert.notEqual(cli('--fixture', 'pendulum-period', '--depth', 'deep', '--until', 'plan', '--run-dir', join(dir, 'bad')).status, 0, 'a depth the fixture does not have makes no plan');
-  } finally { rmSync(dir, { recursive: true, force: true }); }
-});
-
 test('the script runs the same stages: plan only, then the printed hash builds a fixture card with zero paid calls; a wrong hash and a reused directory exit 2', () => {
   const dir = mkdtempSync(join(tmpdir(), 'interact-cli-')), run = dir2 => join(dir, dir2);
   const cli = (...args) => spawnSync(process.execPath, [join(ROOT, 'scripts/interact/run.mjs'), ...args], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, ANTHROPIC_API_KEY: '', CELERIS_API_KEY: '' } });

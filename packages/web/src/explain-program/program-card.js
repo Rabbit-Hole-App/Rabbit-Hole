@@ -1,6 +1,5 @@
 import { RuntimeError, STATEFUL_SCHEMA_VERSION, draftSchemaVersion, parseArtifact, resolveInputs, sealProgram, stateProblem, verifyHashes } from './contract.js';
 import { resolveTimeline } from '../interact-composition.js';
-import { compositionOf } from '../interact-composition-adapter.js';
 import { RASTER_CAPABILITY, RASTER_PROGRAM_STAMPS, CYCLIC_CAPABILITY, CYCLIC_PROGRAM_STAMPS, MEDIUM_CAPABILITY, MEDIUM_PROGRAM_STAMPS } from './stamps.js';
 
 // The program card's pure logic (no React): what a block holds, how a saved reference becomes a runnable artifact, and how
@@ -100,23 +99,9 @@ export function setProgramInput(block, manifest, name, value) {
 }
 // The same change under a composition (new /interact cards): a timed scene's onInputChange policy is reset_pause, so a changed input also returns time to zero
 // (the caller pauses; frames in flight for the old inputs are dropped by the new inputRevision). recompute_still and a legacy card keep their time.
-export const resetsOnInput = composition => composition?.main?.onInputChange === 'reset_pause';
 export function setProgramInputUnder(block, manifest, name, value, composition = null) {
   const next = setProgramInput(block, manifest, name, value);
-  return next !== block && resetsOnInput(composition) ? { ...next, time: 0 } : next;
-}
-// What ProgramScene does for a changed input (INT-04-C08): null when nothing changed, else the block to save, the moment the card goes to and that it is
-// paused. A timed composition (reset_pause) returns to time zero, so the endpoint, markers and supporting comparison are read for the new inputs from the
-// start; the caller also bumps the card's epoch (a jump in time), and the new inputRevision keys out frames still in flight for the old inputs.
-export function inputChange(block, manifest, name, value, composition = null, time = 0) {
-  const next = setProgramInputUnder(block, manifest, name, value, composition);
-  return next === block ? null : { block: next, time: resetsOnInput(composition) ? 0 : time, playing: false };
-}
-// The one transport button (Play, Pause, Replay): where it seeks first (null: stays) and whether it then toggles playing. At the endpoint of the CURRENT
-// inputs it is Replay: back to zero and play, the inputs untouched. Reduced motion shows the end instead of travelling to it.
-export function pressPlay({ time, duration, playing, reduced }) {
-  const end = time >= duration - 0.001;
-  return reduced ? { seek: end ? 0 : duration, toggle: false } : { seek: end && !playing ? 0 : null, toggle: true };
+  return next !== block && composition?.main?.onInputChange === 'reset_pause' ? { ...next, time: 0 } : next;
 }
 export const programChanged = (manifest, block) => JSON.stringify(programInputs(manifest, block)) !== JSON.stringify(resolveInputs(manifest, {}));
 // Reset: defaults for every input and time zero, and no saved program state (the card initializes again with its seed). It does
@@ -192,9 +177,7 @@ export const PROGRAM_DESCRIPTION = 2000;
 // artifact's (by default what this page loaded for this exact card). The moment and readouts are the drawn frame's, and only while
 // it was drawn at the card's current inputs (the shown moment runs ahead of the saved time during Play); else the saved time, with
 // the readouts said to be not drawn. Without a loaded manifest it says what is not known rather than guessing.
-export function describeProgram(block, manifest = loadedProgram(block)?.manifest ?? null, composition = undefined) {
-  // An /interact card states the endpoint of its own inputs: its saved composition (null for a legacy card or one that does not hold together) unless the caller gave one.
-  if (composition === undefined) { const saved = compositionOf(block); composition = saved && !saved.problems ? saved : null; }
+export function describeProgram(block, manifest = loadedProgram(block)?.manifest ?? null, composition = null) {
   const lines = [`Interactive explanation on the canvas: ${block.title}`];
   if (manifest) {
     lines.push(manifest.summary, `What it shows: ${manifest.description}`);

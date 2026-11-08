@@ -16,7 +16,7 @@ import { InteractIntro } from '../InteractSupportPanels.jsx';
 import { focusFixed, focusRoom } from '../interact-card-layout.js';
 import {
   clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programActivity, programInputs, programPlayback, programTime, rememberProgram, resetProgram, resolveProgram,
-  inputChange, pressPlay, shownProgram, playbackRate, savedTime, scrubStep, snapToMarker, timeLabel, programDuration,
+  setProgramInput, shownProgram, playbackRate, savedTime, scrubStep, snapToMarker, timeLabel, programDuration,
 } from './program-card.js';
 
 // The interactive program card (plan sections 5.2 and 8): the existing Explanation card shell around the shared Frame. This file
@@ -116,7 +116,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // Its inputs are saved only together with the state they were committed with (never before their transition succeeds); until then the
   // controls show the pending values. A completed Reset is one undo step that saves the defaults and the new initial state together.
   const [pendingInputs, setPendingInputs] = useState(null);
-  const programState = useProgramState({ host: host.current, hostKey: hostReady, artifact, block, time, composition,
+  const programState = useProgramState({ host: host.current, hostKey: hostReady, artifact, block, time,
     persist: (next, how) => {
       if (how?.reset) { onChange({ ...resetProgram(latest.current), programState: next }); return; }
       const moved = JSON.stringify(programInputs(artifact.manifest, latest.current)) !== JSON.stringify(next.inputs);
@@ -164,12 +164,6 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
 
   // programDuration(manifest, composition, inputs): the build lane's input-dependent endpoint; until it lands it is manifest.duration.
   const duration = manifest ? programDuration(manifest, composition, inputs) : 0;
-  // A composed card's endpoint depends on its inputs: a saved moment past the endpoint of the saved inputs (an older or edited block) opens at that endpoint, never past it.
-  useEffect(() => {
-    if (!composed || !manifest || playing) return;
-    const inside = clampTime(manifest, time, composition, inputs);
-    if (inside !== time) setTime(inside);
-  }, [composed, manifest, duration]); // eslint-disable-line react-hooks/exhaustive-deps
   // Play advances real simulation time (the readouts are never rescaled); the loop is the scene card's.
   useEffect(() => {
     if (!playing || !duration) return undefined;
@@ -283,21 +277,19 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   if (!manifest || !view) return <div data-program-loading className="grid min-h-24 place-content-center p-4 text-center text-xs text-ink-2">Preparing the explanation</div>;
 
   const setInput = (name, value, { live = false } = {}) => {
-    // A changed input pauses the card and, on a timed composition (reset_pause), returns it to time zero: the endpoint, the markers and the supporting
-    // comparison are then read for the new inputs from the start, and frames still in flight for the old inputs are never drawn (program-card.js inputChange).
     // A schema 2 change is a transition first: shown at once, saved only when it commits; one the queue refuses is neither.
-    const change = inputChange(programState.stateful ? { ...latest.current, inputs } : latest.current, manifest, name, value, composition, time);
-    if (!change) return;
     if (programState.stateful) {
-      if (!programState.dispatch({ type: 'input', input: name, value: change.block.inputs[name] }, { inputs: change.block.inputs, time: change.time })) return;
+      const next = setProgramInput({ ...latest.current, inputs }, manifest, name, value);
+      if (next.inputs === inputs || next.inputs[name] === inputs[name]) return;
+      if (!programState.dispatch({ type: 'input', input: name, value: next.inputs[name] }, { inputs: next.inputs, time })) return;
       setPlaying(false);
-      if (change.time !== time) seek(change.time);
-      setPendingInputs(change.block.inputs);
+      setPendingInputs(next.inputs);
       return;
     }
+    const next = setProgramInput(latest.current, manifest, name, value);
+    if (next === latest.current) return;
     setPlaying(false);
-    if (change.time !== time) seek(change.time);
-    (live && onChangeQuiet ? onChangeQuiet : onChange)(change.block);
+    (live && onChangeQuiet ? onChangeQuiet : onChange)(next);
   };
   // Buttons and selections (schema 2): ordered transitions of the committed state, never a save of their own (the commit saves).
   // The latest inputs: any input change made before this press is already queued ahead of it.
@@ -337,9 +329,9 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // A jump in time (not the clock running): answers asked for before it are never drawn after it.
   const seek = next => { setTime(next); setEpoch(count => count + 1); };
   const play = () => {
-    const press = pressPlay({ time, duration, playing, reduced: still }); // at the endpoint of the current inputs the button is Replay: the inputs stay
-    if (press.seek !== null) seek(press.seek);
-    if (press.toggle) setPlaying(value => !value);
+    if (still) { seek(atEnd ? 0 : duration); return; } // reduced motion: show the end, do not travel to it
+    if (atEnd && !playing) seek(0);
+    setPlaying(value => !value);
   };
   // A schema 2 Reset saves only once its initial state has been checked (persist above); a failed one keeps the last good state.
   const reset = () => { dragging.current = null; setPlaying(false); seek(0); if (programState.stateful) { setPendingInputs(null); programState.reset(programInputs(manifest, {})); } else onChange(resetProgram(latest.current)); };
