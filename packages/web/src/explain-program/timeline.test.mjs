@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ProgramManifest } from './contract.js';
-import { playbackRate, savedTime, scrubStep, snapToMarker, timeLabel } from './program-card.js';
+import { playbackRate, programTime, savedTime, scrubStep, snapToMarker, timeLabel } from './program-card.js';
 
 // The optional manifest.cardDescription and manifest.timeline (interact.md INT-01 mode.timeline). Standard toss-and-drop: launch 3.0 m/s, elapsed 0 to 2u/g,
 // shown time = elapsed - u/g, so the scrubber reads about -0.306 to +0.306 s; markers at 0.10 s either side of the apex.
@@ -30,6 +30,13 @@ test('a scrub within half a step of a marker lands exactly on it; elsewhere it i
   for (const marker of manifest.timeline.markers) { assert.equal(snapToMarker(manifest, Number(marker.time.toFixed(3))), marker.time); assert.equal(snapToMarker(manifest, Number((marker.time + 0.001).toFixed(3))), Number((marker.time + 0.001).toFixed(3))); }
   assert.equal(savedTime(manifest, APEX), Number(APEX.toFixed(4)));
   assert.ok(Math.abs(savedTime(manifest, APEX - 0.1) - (APEX - 0.1)) < 1e-4, 'a reopened card still sits on the -0.10 s moment to four decimals');
+});
+
+test('a saved moment reopens exactly on its marker even though the saved time keeps four decimals', () => {
+  const manifest = ProgramManifest.parse(standard);
+  for (const marker of manifest.timeline.markers) assert.equal(programTime(manifest, { time: savedTime(manifest, marker.time) }), marker.time);
+  assert.equal(programTime(manifest, { time: 0.1 }), 0.1);
+  assert.equal(programTime(ProgramManifest.parse({ ...base, duration: 4 }), { time: 1.23 }), 1.23);
 });
 
 test('the timeline is refused when it cannot work: no duration, a marker after the end, duplicate markers, unknown fields, a non-positive rate', () => {

@@ -63,7 +63,8 @@ export async function resolveProgram(block, { client, fixtures = false, stamps =
 export const programInputs = (manifest, block) => resolveInputs(manifest, block.inputs);
 export const programDuration = manifest => manifest.duration ?? 0;
 export const clampTime = (manifest, time) => Math.min(programDuration(manifest), Math.max(0, Number.isFinite(time) ? time : 0));
-export const programTime = (manifest, block) => clampTime(manifest, block.time ?? 0);
+// A saved moment within half a step of a timeline marker reopens exactly on it (savedTime keeps four decimals, the marker time has more).
+export const programTime = (manifest, block) => snapToMarker(manifest, clampTime(manifest, block.time ?? 0));
 // Optional manifest.timeline (interact.md INT-01 mode.timeline). Elapsed time always starts at zero; the label shows elapsed + displayOffset.
 export const playbackRate = manifest => manifest.timeline?.playbackRate ?? 1;
 export const scrubStep = manifest => (manifest.timeline ? 0.001 : 0.05);
