@@ -23,23 +23,17 @@ const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 export const canonical = v => (Array.isArray(v) ? `[${v.map(canonical).join(',')}]` : isObject(v) ? `{${Object.keys(v).sort().map(k => `${JSON.stringify(k)}:${canonical(v[k])}`).join(',')}}` : JSON.stringify(v));
 
 // ---- JSON Schema subset ----
-// shortcut: a validator for the keywords the /interact schemas use. Any other structural keyword (allOf, not, if, patternProperties...)
-// is refused instead of ignored (a local #/ $ref is resolved), so a schema this checker cannot enforce never passes silently. Upgrade when a plan schema needs one.
+// shortcut: a validator for the keywords the /interact schemas use. Any other structural keyword ($ref, allOf, not, if, patternProperties...)
+// is refused instead of ignored, so a schema this checker cannot enforce never passes silently. Upgrade when a plan schema needs one.
 const ANNOTATIONS = new Set(['description', 'title', 'default', 'examples', 'format', '$schema', '$id', '$comment']);
-const KEYWORDS = new Set(['type', 'properties', 'required', 'additionalProperties', 'items', 'enum', 'const', 'anyOf', 'oneOf', 'minimum', 'maximum', 'minLength', 'maxLength', 'minItems', 'maxItems', 'pattern',
-  '$ref', '$defs', 'propertyNames', 'exclusiveMinimum']); // the last four: what the ScenePlan/DesignReview schemas (zod toJSONSchema + the recursive ScalarExpr def) emit
+const KEYWORDS = new Set(['type', 'properties', 'required', 'additionalProperties', 'items', 'enum', 'const', 'anyOf', 'oneOf', 'minimum', 'maximum', 'minLength', 'maxLength', 'minItems', 'maxItems', 'pattern']);
 const typeOk = (type, v) => (type === 'null' ? v === null : type === 'array' ? Array.isArray(v) : type === 'object' ? isObject(v) : type === 'integer' ? Number.isInteger(v) : type === 'number' ? typeof v === 'number' && Number.isFinite(v) : typeof v === type);
 
 // -> list of problems (schema paths and constraints only, never the content). Empty when the value matches.
-export function schemaProblems(schema, value, path = '$', root = schema) {
+export function schemaProblems(schema, value, path = '$') {
   if (schema === true || schema == null) return [];
   if (!isObject(schema)) throw refuse('unsupported_schema', `Schema at ${path} is not an object.`);
   for (const key of Object.keys(schema)) if (!KEYWORDS.has(key) && !ANNOTATIONS.has(key)) throw refuse('unsupported_schema', `Schema keyword ${key} at ${path} is not supported.`);
-  if (schema.$ref !== undefined) { // a local reference only (#/$defs/Name); one that does not resolve is refused, never ignored
-    const target = typeof schema.$ref === 'string' && schema.$ref.startsWith('#/') ? schema.$ref.slice(2).split('/').reduce((node, key) => (isObject(node) ? node[key] : undefined), root) : undefined;
-    if (!isObject(target)) throw refuse('unsupported_schema', `Schema reference ${String(schema.$ref).slice(0, 60)} at ${path} does not resolve.`);
-    return schemaProblems(target, value, path, root);
-  }
   const out = [], types = [].concat(schema.type ?? []);
   if (types.length && !types.some(t => typeOk(t, value))) return [`${path}: expected ${types.join(' or ')}`];
   if (schema.enum && !schema.enum.some(e => canonical(e) === canonical(value))) out.push(`${path}: not one of the allowed values`);
@@ -52,24 +46,22 @@ export function schemaProblems(schema, value, path = '$', root = schema) {
   if (typeof value === 'number') {
     if (schema.minimum !== undefined && value < schema.minimum) out.push(`${path}: below ${schema.minimum}`);
     if (schema.maximum !== undefined && value > schema.maximum) out.push(`${path}: above ${schema.maximum}`);
-    if (schema.exclusiveMinimum !== undefined && value <= schema.exclusiveMinimum) out.push(`${path}: not above ${schema.exclusiveMinimum}`);
   }
   if (Array.isArray(value)) {
     if (schema.minItems !== undefined && value.length < schema.minItems) out.push(`${path}: fewer than ${schema.minItems} items`);
     if (schema.maxItems !== undefined && value.length > schema.maxItems) out.push(`${path}: more than ${schema.maxItems} items`);
-    if (schema.items) value.forEach((item, i) => out.push(...schemaProblems(schema.items, item, `${path}[${i}]`, root)));
+    if (schema.items) value.forEach((item, i) => out.push(...schemaProblems(schema.items, item, `${path}[${i}]`)));
   } else if (isObject(value)) {
-    if (schema.propertyNames) for (const key of Object.keys(value)) out.push(...schemaProblems(schema.propertyNames, key, `${path}.${key} (name)`, root));
     for (const key of schema.required || []) if (!(key in value)) out.push(`${path}.${key}: required`);
     for (const [key, item] of Object.entries(value)) {
-      if (schema.properties?.[key]) out.push(...schemaProblems(schema.properties[key], item, `${path}.${key}`, root));
+      if (schema.properties?.[key]) out.push(...schemaProblems(schema.properties[key], item, `${path}.${key}`));
       else if (schema.additionalProperties === false) out.push(`${path}.${key}: not an allowed field`);
-      else if (isObject(schema.additionalProperties)) out.push(...schemaProblems(schema.additionalProperties, item, `${path}.${key}`, root));
+      else if (isObject(schema.additionalProperties)) out.push(...schemaProblems(schema.additionalProperties, item, `${path}.${key}`));
     }
   }
-  if (schema.anyOf && !schema.anyOf.some(s => !schemaProblems(s, value, path, root).length)) out.push(`${path}: matches none of the alternatives`);
+  if (schema.anyOf && !schema.anyOf.some(s => !schemaProblems(s, value, path).length)) out.push(`${path}: matches none of the alternatives`);
   if (schema.oneOf) {
-    const matches = schema.oneOf.filter(s => !schemaProblems(s, value, path, root).length).length;
+    const matches = schema.oneOf.filter(s => !schemaProblems(s, value, path).length).length;
     if (matches !== 1) out.push(`${path}: matches ${matches} of the exclusive alternatives, not exactly one`);
   }
   return out;
@@ -123,13 +115,7 @@ export function normalizeStructured({ candidates, schema, truncated = false, ref
   const distinct = [...new Map(parsed.map(v => [canonical(v), v])).values()];
   if (!distinct.length) throw bad('no_result', 'The model reply held no structured result.');
   if (distinct.length > 1) throw bad('conflicting_results', `The model reply held ${distinct.length} different structured results.`);
-  let output = normalizeToolInput(schema, distinct[0]); // the schema-directed JSON-string unwrapping the tools already get
-  // One syntactic slip is accepted (seen from real Opus runs, about one call in three): the whole result nested under a single key the schema does not define, {"plan": {...}}.
-  // It is unwrapped only when the inner value then satisfies the schema in full; anything else stays a schema_mismatch. No field is added, removed or changed.
-  if (isObject(output) && isObject(schema?.properties) && Object.keys(output).length === 1) {
-    const [key, inner] = Object.entries(output)[0];
-    if (!Object.hasOwn(schema.properties, key) && isObject(inner)) { const candidate = normalizeToolInput(schema, inner); if (isObject(candidate) && schemaProblems(schema, candidate).length === 0) output = candidate; }
-  }
+  const output = normalizeToolInput(schema, distinct[0]); // the schema-directed JSON-string unwrapping the tools already get; nothing else
   if (!isObject(output)) throw bad('not_object', 'The structured result was not an object.');
   const problems = schemaProblems(schema, output);
   if (problems.length) throw bad('schema_mismatch', `The structured result does not match its schema: ${problems.slice(0, 5).join('; ')}`, { problems: problems.slice(0, 20) });

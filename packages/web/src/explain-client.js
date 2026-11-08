@@ -1,7 +1,6 @@
 // /explain v2 jobs in the browser (EXP-T20 slice 1; server API C:/s/spec/explain/job-api-c.md, Lane C explain-job.js).
 // The card is placed before the job runs, under a card id chosen once per press; polling only observes the job, and the
 // result attaches to that card on that canvas, never another. The server never writes boards.
-import { interactStageText } from './interact-stage.js';
 export const EXPLAIN_ROOT = '/api/learn/explain/jobs';
 
 // What the card says while the job works: the server's stage, never a guess. No ellipses (UI copy rule).
@@ -10,9 +9,7 @@ const STAGES = {
   validating: 'Checking it', rendering: 'Rendering it', reviewing: 'Reviewing the render', repairing: 'Fixing what the review found',
   ready: 'Ready', cancelled: 'Stopped',
 };
-// A new /interact job's design stages read in the public words of interact-stage.js (Designing scene ... Ready to review); the real stage stays
-// on the card as data-explain-pending. Its build stages keep the words below.
-export const explainStage = job => (interactStageText(job) ?? (explainUnavailable(job) ? job.failure?.message || EXPLAIN_UNAVAILABLE : job?.stage === 'failed' ? job.failure?.message || 'The explanation could not be made.' : STAGES[job?.stage] || 'Checking status'));
+export const explainStage = job => (explainUnavailable(job) ? job.failure?.message || EXPLAIN_UNAVAILABLE : job?.stage === 'failed' ? job.failure?.message || 'The explanation could not be made.' : STAGES[job?.stage] || 'Checking status');
 // Provider-cap resilience (owner, 2026-10-22): the AI provider refused for a spend cap, a usage limit or overload. The server
 // pauses the job with its finished stages kept (Lane L1, provider_unavailable); the learner's request stays on the card and
 // Retry continues the same job, never a second one. The server's words (job-api-c.md, Provider unavailable), else these. Credits
@@ -33,8 +30,7 @@ export function explainClient(api, boardId) {
     create: request => post(EXPLAIN_ROOT, request),
     get: id => api(`${EXPLAIN_ROOT}/${encodeURIComponent(id)}?board=${encodeURIComponent(boardId)}`),
     // An accepted program by its saved result (kept when its job is pruned): { artifact, identity, execution }, owner-only.
-    // panel: one supporting panel of an /interact card by its id (the card's main program without it).
-    result: (resultId, _cardId, panel) => api(`${EXPLAIN_ROOT}/results/${encodeURIComponent(resultId)}?board=${encodeURIComponent(boardId)}${panel ? `&panel=${encodeURIComponent(panel)}` : ''}`),
+    result: resultId => api(`${EXPLAIN_ROOT}/results/${encodeURIComponent(resultId)}?board=${encodeURIComponent(boardId)}`),
     action: (id, action, body = {}) => post(`${EXPLAIN_ROOT}/${encodeURIComponent(id)}/${action}`, body),
   };
 }
@@ -42,8 +38,8 @@ export function explainClient(api, boardId) {
 // The same read on a share link or publication (learn-boards.js sharedProgram): by the link and the card's id, signed out too.
 // A plain fetch, as a link's card source reads (use-card-source.js), so a refusal is the card's own state, never a sign-in redirect.
 export const sharedProgramClient = (token, fetcher = (...args) => fetch(...args)) => ({
-  result: async (_resultId, cardId, panel) => {
-    const response = await fetcher(`/api/learn/boards/shared/${encodeURIComponent(token)}/cards/${encodeURIComponent(cardId)}/program${panel ? `?panel=${encodeURIComponent(panel)}` : ''}`);
+  result: async (_resultId, cardId) => {
+    const response = await fetcher(`/api/learn/boards/shared/${encodeURIComponent(token)}/cards/${encodeURIComponent(cardId)}/program`);
     const data = await response.json().catch(() => null);
     if (!response.ok || !data) throw Object.assign(new Error(data?.error || 'Not available'), { status: response.status });
     return data;
@@ -57,7 +53,7 @@ export const explainDisabled = error => error?.status === 404 && (error.data?.co
 // threadId: the chat thread a reviewed brief is posted on, so that thread shows it when the job waits for Generate.
 export const explainPendingBlock = ({ job, title, prompt, threadId = null }) => ({
   id: job.cardId, type: 'animation', title: String(title || prompt || 'Explanation').slice(0, 200), scene: null,
-  explainJob: { id: job.id, boardId: job.boardId, stage: job.stage, ...(job.flow ? { flow: job.flow } : {}), ...(threadId ? { threadId } : {}) },
+  explainJob: { id: job.id, boardId: job.boardId, stage: job.stage, ...(threadId ? { threadId } : {}) },
   // R3: the passage this explanation is about, as the server read it when the job was made (source-ref.js); the chip shows from the first moment.
   ...(job.sourceRef ? { sourceRef: job.sourceRef } : {}),
 });

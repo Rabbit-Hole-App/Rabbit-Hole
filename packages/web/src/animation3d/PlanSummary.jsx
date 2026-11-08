@@ -44,7 +44,7 @@ export function planSummary(proposal) {
   };
 }
 
-export function Disclosure({ name, title, items }) {
+function Disclosure({ name, title, items }) {
   if (!items.length) return null;
   return (
     <details data-plan-disclosure={name} className="group text-xs">
@@ -54,7 +54,7 @@ export function Disclosure({ name, title, items }) {
   );
 }
 
-export const heading = 'text-[11px] font-semibold tracking-wide text-ink-3 uppercase';
+const heading = 'text-[11px] font-semibold tracking-wide text-ink-3 uppercase';
 export default function PlanSummary({ summary }) {
   if (!summary) return null;
   return (

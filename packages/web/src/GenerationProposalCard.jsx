@@ -22,9 +22,6 @@
 // Generating, Ready) with a spinner while it runs, a status line under the actions (announced politely, elapsed time shown but never
 // announced), Go to card (onGoToCard) and, where the job can be stopped, Stop (onStop: the canvas card's own stop request). Without a
 // status the card is as before (made reads Added to the canvas). startedAt: when the job was pressed, for the elapsed time.
-// plan (a new /interact proposal, interact-plan-review.js reviewModel): Generate waits for plan.ready, its reason is said on the problem line,
-// and the presentation selector offers no Steps and is read only: the Mode is part of the reviewed plan, so every change (and the old direct
-// Save of the details form) goes through Edit, a new design revision in Chat. Other commands never pass plan and keep their behavior.
 // An adapter may add: settingsMode, eyebrow, requestLabel, note, extraSections, compact (the review strip above the composer), isolate, and attrs(slot, arg) -> data
 // attributes for its own element names (the CAD review keeps its data-cad-review-* names this way).
 import { useEffect, useId, useRef, useState } from 'react';
@@ -202,8 +199,8 @@ function GroupField({ f, group, value = {}, disabled, readOnly, onChange, proble
 const FIELDS = { select: SelectField, integer: NumberField, number: NumberField, boolean: ToggleField, text: TextField, textarea: TextField, string_list: ListField };
 
 // values: the settings drawn (the live settings, or the form's draft). mode 'form' draws only parameter groups when the form is closed.
-function Settings({ command, settings, disabled, onChange, groups, groupProblem, mode, editing, attrs, newFlow = false }) {
-  const fields = fieldsFor(command, settings, {}, { newFlow }).filter(f => mode !== 'form' || (editing ? f.editable !== false && isEditable(command, f.key) : f.type === 'parameter_group'));
+function Settings({ command, settings, disabled, onChange, groups, groupProblem, mode, editing, attrs }) {
+  const fields = fieldsFor(command, settings).filter(f => mode !== 'form' || (editing ? f.editable !== false && isEditable(command, f.key) : f.type === 'parameter_group'));
   if (!fields.length) return null; // a command with no settings draws no Settings section
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2" data-proposal-settings={command}>
@@ -304,7 +301,7 @@ export function StopConfirm({ noun, onKeep, onStop }) {
 // made: this proposal already added its card (inactive, but not superseded).
 export default function GenerationProposalCard({ proposal = null, view: given = null, defaultEditing = false, settingsMode = 'live', active = true, onGenerate, onSave, onSettingsChange, onCancel, skeleton = false, defaultOpen = [], onOpenReference, busy = false, made = false, states = null, problem = null, groups = null,
   groupProblem = null, onEdit = null, targeted = false, released = 0, status = null, startedAt = null, noun = 'video', onStop = null, onGoToCard = null, onStopFailed = null, Editor = DefaultEditor, eyebrow = null, requestLabel = null, note = null, extraSections = [], compact = false, isolate = false, attrs: attrsFn = none,
-  summary = null, editLabel = 'Edit', plan = null }) {
+  summary = null, editLabel = 'Edit' }) {
   const view = given ?? proposalView(proposal, states ? { validation_errors: states.filter(s => s.state !== 'ok').map(s => ({ path: `references.${s.id}`, message: s.message })) } : {});
   const def = commandDefinition(view.command);
   const tokenized = proposal ? isReviewProposal(proposal) : false;
@@ -327,7 +324,7 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
   // A parameter the capability refuses (a CAD value out of range) blocks Save.
   const bad = !!draft?.settings && fieldsFor(view.command, draft.settings).some(f => f.type === 'parameter_group' && (groups?.[f.key]?.defs ?? []).some(p => groupProblem?.(f.key, p.id, draft.settings[f.key]?.[p.id])));
   // Generate is for the saved, current, valid revision: not while the details form is open or holds unsaved edits.
-  const canGenerate = view.allowed_actions.includes('generate') && !editing && !dirty && !(view.validation_errors?.length) && (!plan || plan.ready);
+  const canGenerate = view.allowed_actions.includes('generate') && !editing && !dirty && !(view.validation_errors?.length);
   // One state for the row: a job started from this card is running (spinner or active), so Stop is the only control (Edit, Cancel and Go to card are not drawn).
   const running = !!(status && (status.spinner || status.active)), stoppable = running && !!(status.canStop && onStop);
   const generate = () => {
@@ -357,9 +354,9 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
     .filter(s => !(summary && !editing && ['requirements', 'assumptions', 'limitations'].includes(s)));
   // A reference's own words sit beside its pill when the references are drawn; the list below carries the rest.
   const errors = (view.validation_errors || []).filter(e => !(e.path.startsWith('references.') && sections.includes('references')));
-  const message = problem?.message || saveError || (plan && !plan.ready ? plan.reason : null);
+  const message = problem?.message || saveError;
   const settingsBlock = (
-    <Settings command={view.command} newFlow={!!plan} settings={editing && form && draft?.settings ? draft.settings : view.settings} disabled={!active || working || (form && !editing) || !!plan} mode={settingsMode} editing={editing} groups={groups} groupProblem={groupProblem} attrs={attrs}
+    <Settings command={view.command} settings={editing && form && draft?.settings ? draft.settings : view.settings} disabled={!active || working || (form && !editing)} mode={settingsMode} editing={editing} groups={groups} groupProblem={groupProblem} attrs={attrs}
       onChange={settings => (form ? set('settings', settings) : change(settings))} />
   );
   const request = !summary && view.original_request && view.original_request.replace(/^\/[a-z0-9-]+\s*/i, '');
@@ -459,7 +456,7 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
             <Button type="button" variant="secondary" size="sm" className={cn(!compact && '[@media(pointer:coarse)]:min-h-11!')} data-proposal-discard {...attrs('discard')} disabled={saving} onClick={close}>Discard</Button>
             <Button type="button" variant="secondary" size="sm" className={cn(!compact && '[@media(pointer:coarse)]:min-h-11!')} data-proposal-save {...attrs('save')} disabled={saving || !dirty || bad} onClick={save}>Save</Button>
           </>
-          : running ? null : onEdit || plan ? active && view.allowed_actions.includes('edit') && <Button type="button" variant="secondary" size="sm" className={cn(!compact && '[@media(pointer:coarse)]:min-h-11!')} data-proposal-edit {...attrs('edit')} disabled={working || !onEdit} onClick={() => onEdit?.(proposal ?? view)}>{editLabel}</Button>
+          : running ? null : onEdit ? active && view.allowed_actions.includes('edit') && <Button type="button" variant="secondary" size="sm" className={cn(!compact && '[@media(pointer:coarse)]:min-h-11!')} data-proposal-edit {...attrs('edit')} disabled={working} onClick={() => onEdit(proposal ?? view)}>{editLabel}</Button>
           : detailKeys.length > 0 && active && view.allowed_actions.includes('edit') && <Button type="button" variant="secondary" size="sm" className={cn(!compact && '[@media(pointer:coarse)]:min-h-11!')} data-proposal-edit {...attrs('edit')} disabled={working} onClick={open}>Edit details</Button>}
         {!running && def?.cancel && onCancel && skeleton && active && !editing && view.allowed_actions.includes('cancel') && <Button type="button" variant="ghost" size="sm" className={cn(!compact && '[@media(pointer:coarse)]:min-h-11!')} data-proposal-cancel {...attrs('cancel')} disabled={working} onClick={() => onCancel(proposal ?? view)}>Cancel</Button>}
         {!running && (status?.cardId || skeleton) && onGoToCard && <Button type="button" variant="secondary" size="sm" data-proposal-go-to-card className={cn(!compact && '[@media(pointer:coarse)]:min-h-11!')} onClick={onGoToCard}>Go to card</Button>}

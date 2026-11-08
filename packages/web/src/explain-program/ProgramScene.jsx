@@ -12,11 +12,9 @@ import { createFrameScheduler, frameKey, watchSeen } from './playback.js';
 import { useProgramState } from './use-program-state.js';
 import ProgramNotes from './ProgramNotes.jsx';
 import SourcesDisclosure from '../SourcesDisclosure.jsx';
-import { InteractIntro } from '../InteractSupportPanels.jsx';
-import { focusFixed, focusRoom } from '../interact-card-layout.js';
 import {
   clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programActivity, programInputs, programPlayback, programTime, rememberProgram, resetProgram, resolveProgram,
-  setProgramInput, shownProgram, playbackRate, savedTime, scrubStep, snapToMarker, timeLabel, programDuration,
+  setProgramInput, shownProgram, playbackRate, savedTime, scrubStep, snapToMarker, timeLabel,
 } from './program-card.js';
 
 // The interactive program card (plan sections 5.2 and 8): the existing Explanation card shell around the shared Frame. This file
@@ -42,10 +40,7 @@ function NumberInput({ input, value, onInput }) {
   );
 }
 
-// composition (an /interact card, interact-composition-adapter.js; null for every legacy card, which renders exactly as before): the card draws
-// its description and supporting panels above the scene (InteractIntro), keeps the external timeline directly under the scene, and draws no
-// Notes below the scene or controls (interact.md INT-06-C03).
-export default function ProgramScene({ block: saved, onChange: save, onChangeQuiet: saveQuiet, preview = false, onControlsHeight = null, onProgramFrame = null, onFile = null, composition = null }) {
+export default function ProgramScene({ block: saved, onChange: save, onChangeQuiet: saveQuiet, preview = false, onControlsHeight = null, onProgramFrame = null, onFile = null }) {
   // On a share link (SharedBoardPage's CardSourceScope) the program is read by the link, and the visitor's inputs and time stay in
   // this card's memory: never saved (not the owner's board, not the visitor's tab copy), so a reload starts from the saved card.
   // A Proposed preview (an Edit's candidate, ExplainEditBar) is the same: its inputs and time are this preview's own, and it never
@@ -75,8 +70,6 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   const still = useReducedMotion();
   const latest = useRef(block);
   latest.current = block;
-  const compositionRef = useRef(composition); // the scheduler's request builder reads the card's composition as it is now (null for every legacy card)
-  compositionRef.current = composition;
   const host = useRef(null);
   const scheduler = useRef(null);
   const counter = useRef(0);
@@ -85,7 +78,6 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   const root = useRef(null);
   const [focusBox, setFocusBox] = useState(null); // in Focus only: the drawing's box (frame.js focusFrameBox)
   const manifest = artifact?.manifest ?? null;
-  const composed = !!composition && !composition.problems;
 
   // Resolve the saved reference to a runnable artifact. A fixture card needs the build flag; an accepted program is fetched through
   // its saved result (the owner's result route, or the link's program read) and must match this card's identity and saved hash (program-card.js).
@@ -140,7 +132,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     // message: without it a transient failure flashed the message for a few frames and the drawing came back.
     const stop = error => { setPlaying(false); setFailure(error); };
     const created = createFrameScheduler({
-      evaluate: job => target.evaluate(evaluateRequestFor(manifest, { ...latest.current, inputs: job.inputs }, job.time, ++counter.current, job.state, compositionRef.current)),
+      evaluate: job => target.evaluate(evaluateRequestFor(manifest, { ...latest.current, inputs: job.inputs }, job.time, ++counter.current, job.state)),
       show: (reply, job) => {
         const out = normalizeFrame(reply.frame, manifest);
         if (out.ok) { if (!preview) rememberProgram(latest.current, manifest, { inputs: job.inputs, time: job.time, readouts: out.readouts, revision: job.revision ?? null }); setView({ ...out, time: job.time }); setFailure(null); } else stop(out.error);
@@ -151,7 +143,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     return () => { created.dispose(); if (scheduler.current === created) scheduler.current = null; };
   }, [manifest, hostReady]);
   useEffect(() => {
-    if (manifest && programState.ready) scheduler.current?.want({ key: frameKey(frameInputs, epoch, programState.envelope), time: clampTime(manifest, time, composition, inputs), inputs: frameInputs, state: programState.envelope?.state ?? null, revision: programState.envelope?.revision ?? null });
+    if (manifest && programState.ready) scheduler.current?.want({ key: frameKey(frameInputs, epoch, programState.envelope), time: clampTime(manifest, time), inputs: frameInputs, state: programState.envelope?.state ?? null, revision: programState.envelope?.revision ?? null });
   }, [manifest, hostReady, inputsKey, epoch, time, programState.ready, programState.envelope]);
   // The card's size comes from the artifact's first frame only (LearningBlocks sizeFor), so playback never resizes it.
   useEffect(() => { setBox(null); }, [artifact]);
@@ -162,12 +154,11 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     onProgramFrame?.(legible);
   }, [view, box, onProgramFrame]);
 
-  // programDuration(manifest, composition, inputs): the build lane's input-dependent endpoint; until it lands it is manifest.duration.
-  const duration = manifest ? programDuration(manifest, composition, inputs) : 0;
+  const duration = manifest?.duration ?? 0;
   // Play advances real simulation time (the readouts are never rescaled); the loop is the scene card's.
   useEffect(() => {
     if (!playing || !duration) return undefined;
-    const rate = playbackRate(manifest, composition, inputs), origin = performance.now() - time * 1000 / rate;
+    const rate = playbackRate(manifest), origin = performance.now() - time * 1000 / rate;
     const tick = now => {
       const next = (now - origin) / 1000 * rate;
       if (next >= duration) { setTime(duration); setPlaying(false); return; }
@@ -180,7 +171,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // The paused moment is saved quietly (a view change, never an undo step), as the scene card does.
   useEffect(() => {
     if (playing || !manifest) return;
-    const saved = savedTime(manifest, time, composition, inputs);
+    const saved = savedTime(manifest, time);
     if (saved !== (latest.current.time ?? 0)) (onChangeQuiet || onChange)({ ...latest.current, time: saved });
   }, [playing, time, manifest]);
   useEffect(() => { if (!preview) programPlayback(latest.current, playing); }, [playing, preview]); // Task 9.3: the described moment is playing or paused
@@ -194,13 +185,10 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   useEffect(() => watchSeen(root.current, () => setPlaying(false)), [drawn]);
   useLayoutEffect(() => {
     if (!onControlsHeight || !controls.current) return undefined;
-    // A composed card also reports its introduction (description and supporting panels), so the card grows by their measured height.
-    const intro = composed ? root.current?.querySelector('[data-interact-intro]') : null;
-    const observer = new ResizeObserver(() => onControlsHeight((controls.current ? controls.current.offsetHeight + 8 : 0) + (intro ? intro.offsetHeight + 8 : 0)));
+    const observer = new ResizeObserver(() => onControlsHeight(controls.current ? controls.current.offsetHeight + 8 : 0));
     observer.observe(controls.current);
-    if (intro) observer.observe(intro);
     return () => { observer.disconnect(); onControlsHeight(0); };
-  }, [onControlsHeight, drawn, composed]);
+  }, [onControlsHeight, drawn]);
   // Focus (focus-adapter-explanation.js gives the card the whole pane): the drawing takes the room the pane leaves after the
   // card's own chrome and rows (collapsed Notes included), fitted by the smaller of the width and height scales and centred; it
   // shrinks to fit down to its readable scale (frame.js readableScale), and only under that is it drawn whole at that scale while
@@ -217,21 +205,17 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       if ((!example && !card.hasAttribute('data-focus-host')) || !viewport || !rowsEl) { fixed = null; setFocusBox(null); return; }
       const notes = rowsEl.querySelector('[data-program-notes] > ul:not([hidden])');
       const rowsHeight = rowsEl.offsetHeight - (notes?.offsetHeight ?? 0);
-      // A composed card's description and supporting panels are measured live (they load late and rewrap), not folded into the fixed part.
-      const introH = (composed && root.current?.querySelector('[data-interact-intro]')?.offsetHeight) || 0, cardW = card.clientWidth, cardH = card.clientHeight;
-      if (fixed === null) fixed = focusFixed({ cardW, cardH, viewportW: viewport.clientWidth, viewportH: viewport.clientHeight, rowsH: rowsHeight, introH });
-      const next = focusFrameBox(box, focusRoom({ cardW, cardH, fixed, rowsH: rowsHeight, introH }), example ? 0 : box.minScale);
+      if (fixed === null) fixed = { w: card.clientWidth - viewport.clientWidth, h: card.clientHeight - viewport.clientHeight - rowsHeight };
+      const next = focusFrameBox(box, { w: card.clientWidth - fixed.w, h: card.clientHeight - fixed.h - rowsHeight }, example ? 0 : box.minScale);
       setFocusBox(prev => (prev && prev.w === next.w && prev.h === next.h && prev.scroll === next.scroll ? prev : next));
     };
     const observer = new ResizeObserver(measure);
     observer.observe(card);
     if (controls.current) observer.observe(controls.current);
-    const introEl = composed ? root.current?.querySelector('[data-interact-intro]') : null;
-    if (introEl) observer.observe(introEl);
     const marks = new MutationObserver(measure); // Focus sets data-focus-host on the card itself
     marks.observe(card, { attributes: true, attributeFilter: ['data-focus-host'] });
     return () => { observer.disconnect(); marks.disconnect(); };
-  }, [box, drawn, composed]);
+  }, [box, drawn]);
   // The drawing changes only when a new frame is drawn, not on every clock tick.
   const pick = useRef(NOOP); // a click on a declared target (set below with the current state); any other object is not interactive
   const dragTo = useRef(NOOP), dragging = useRef(null); // a drag of a declared drag target (set below), and the one in progress
@@ -336,7 +320,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // A schema 2 Reset saves only once its initial state has been checked (persist above); a failed one keeps the last good state.
   const reset = () => { dragging.current = null; setPlaying(false); seek(0); if (programState.stateful) { setPendingInputs(null); programState.reset(programInputs(manifest, {})); } else onChange(resetProgram(latest.current)); };
   const rows = manifest.inputs;
-  const changed = programChanged(manifest, latest.current) || programTime(manifest, latest.current, composition) > 0 || programState.changed;
+  const changed = programChanged(manifest, latest.current) || programTime(manifest, latest.current) > 0 || programState.changed;
   // While playing, the time shown is the drawn frame's own moment, so the label never runs ahead of the picture; paused, it is
   // the requested moment, which the picture settles on within one evaluation (data-program-settling until then).
   const shownTime = playing ? view.time : time;
@@ -344,12 +328,10 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // drawing inside its viewport instead of shrinking its text below the floors. In Focus, focusBox sizes it (see the measure above).
   const legible = box ?? legibleFrame(view.scene);
   return (
-    <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time, composition, inputs)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
+    <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
       onPointerDown={event => event.stopPropagation()}>
-      {composed
-        ? <InteractIntro composition={composition} block={block} mainInputs={inputs} />
-        : manifest.cardDescription && <p data-card-description className="shrink-0 text-sm leading-snug text-ink-2">{manifest.cardDescription}</p>}
-      <div data-program-viewport {...(composed ? { 'data-interact-scene': '' } : {})} className="flex min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white"
+      {manifest.cardDescription && <p data-card-description className="shrink-0 text-sm leading-snug text-ink-2">{manifest.cardDescription}</p>}
+      <div data-program-viewport className="flex min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white"
         style={focusBox ? { flex: 'none', width: focusBox.w + 2, height: focusBox.h + 2, overflow: 'hidden', alignSelf: 'safe center' } : undefined}>
         <div data-program-frame role="group" aria-label={manifest.description} className="flex-1" {...(dragIds.length ? pointerDrag : {})}
           style={{ ...(focusBox ? { flex: 'none', width: focusBox.w, height: focusBox.h, margin: '0 auto' } : { minWidth: legible.w, minHeight: legible.h }), ...(dragIds.length ? { touchAction: 'none' } : {}) }}>{picture}</div>
@@ -361,9 +343,9 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
           <button type="button" data-animation-play onClick={play} className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">
             {playing ? <Pause size={14} /> : <Play size={14} />}{playing ? 'Pause' : atEnd ? 'Replay' : 'Play'}
           </button>
-          <input type="range" aria-label={manifest.timeline?.label ?? 'Explanation time'} min={0} max={duration} step={scrubStep(manifest, composition)} value={time}
-            onChange={event => { setPlaying(false); seek(clampTime(manifest, snapToMarker(manifest, Number(event.target.value), composition, inputs), composition, inputs)); }} className="h-8 min-w-0 flex-1 accent-accent" />
-          <span data-program-time className="w-16 shrink-0 text-right text-xs tabular-nums text-ink-2">{timeLabel(manifest, shownTime, composition, inputs)}</span>
+          <input type="range" aria-label={manifest.timeline?.label ?? 'Explanation time'} min={0} max={duration} step={scrubStep(manifest)} value={time}
+            onChange={event => { setPlaying(false); seek(clampTime(manifest, snapToMarker(manifest, Number(event.target.value)))); }} className="h-8 min-w-0 flex-1 accent-accent" />
+          <span data-program-time className="w-16 shrink-0 text-right text-xs tabular-nums text-ink-2">{timeLabel(manifest, shownTime)}</span>
         </div>
       )}
       {(rows.length > 0 || actions.length > 0 || targets.length > 0) && (
@@ -402,7 +384,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       )}
       {/* Notes (the drawn frame's readouts as Values, the manifest's assumptions): collapsed under the controls; opening grows
           the card by the rows' measured height. */}
-      {!composed && <ProgramNotes id={notesId} notes={manifest.assumptions} values={view.readouts} open={notesOpen} onToggle={() => setNotesOpen(value => !value)} />}
+      <ProgramNotes id={notesId} notes={manifest.assumptions} values={view.readouts} open={notesOpen} onToggle={() => setNotesOpen(value => !value)} />
       {sources?.length > 0 && <SourcesDisclosure sources={sources} onFile={onFile} />}
       </div>
     </div>
