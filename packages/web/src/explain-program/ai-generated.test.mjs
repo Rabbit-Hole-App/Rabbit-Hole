@@ -33,7 +33,7 @@ const objectText = (frame, id) => frame.objects.find(object => object.id === id)
 const dataBefore = (source, marker, names) => new Function(`${source.slice(0, source.indexOf(marker))}; return { ${names.join(', ')} };`)();
 
 test('the saved generated cards are exactly what the backend stored: the bundle hash is reproduced from the manifest and source', async () => {
-  for (const name of ['convolution', 'attention']) {
+  for (const name of ['convolution', 'attention', 'tree-split-routed']) {
     const record = load(name), rebuilt = await buildProgramArtifact({ manifest: record.artifact.manifest, source: record.artifact.source });
     assert.equal(rebuilt.bundleHash, record.artifact.bundleHash, name);
     assert.equal(rebuilt.sdkVersion, record.artifact.sdkVersion, name);
@@ -177,6 +177,42 @@ test('decision tree split, rejected candidate (its own 12-point dataset): counts
   assert.notEqual(XS.length, 10, 'this card uses its own 12-point data, not the 10-point reference, so the reference answers (Gini 9, entropy 15) do not apply to it');
 });
 
+test('decision tree split, ACCEPTED card from plain words through the router (its own 12-point dataset): counts, impurity, weighted impurity and gain follow the cutoff for Gini and entropy; Reveal marks the best cutoff and keeps the learner cutoff', async () => {
+  const record = load('tree-split-routed');
+  assert.equal(record.job.outcome, 'card'); assert.ok(record.artifact);
+  assert.equal(record.routing.recordedInBrowser[0].body.via, 'jev'); assert.equal(record.routing.recordedInBrowser[0].body.capability, 'explain');
+  const { XS, CL, N } = dataBefore(record.artifact.source, 'function imp', ['XS', 'CL', 'N']);
+  assert.equal(N, XS.length); assert.equal(N, 12);
+  const impurity = (a, b, measure) => { const n = a + b; if (!n) return 0; const p = a / n, q = b / n; return measure === 'gini' ? 1 - p * p - q * q : -[p, q].filter(v => v > 0).reduce((t, v) => t + v * Math.log2(v), 0); };
+  const split = (cutoff, measure) => {
+    let la = 0, lb = 0, ra = 0, rb = 0;
+    XS.forEach((x, i) => { if (x < cutoff) { if (CL[i]) lb++; else la++; } else if (CL[i]) rb++; else ra++; });
+    const IL = impurity(la, lb, measure), IR = impurity(ra, rb, measure), P = impurity(la + ra, lb + rb, measure), W = (la + lb) / N * IL + (ra + rb) / N * IR;
+    return { la, lb, ra, rb, IL, IR, P, W, G: P - W };
+  };
+  const mids = XS.slice(1).map((x, i) => (XS[i] + x) / 2);
+  const bestOf = measure => mids.reduce((best, c) => (split(c, measure).W < best.w - 1e-12 ? { c, w: split(c, measure).W } : best), { c: 0, w: Infinity });
+  const make = await statefulRunner(record.artifact);
+  for (const measure of ['gini', 'entropy']) {
+    const best = bestOf(measure);
+    for (const cutoff of [0.5, 1.0, 2.4, 3.0, 4.5, 6.0, 7.7, 9.5, ...mids]) {
+      const { frame, quantities: q } = make({ cutoff, measure }).evaluate(), e = split(cutoff, measure);
+      near(q.weighted, e.W); near(q.gain, e.G); near(q.parent, e.P); near(q.best, best.c); near(q.bestW, best.w);
+      assert.equal(objectText(frame, 'left'), `Left side: ${e.la} A, ${e.lb} B  (n = ${e.la + e.lb})`, `left counts at ${cutoff}`);
+      assert.equal(objectText(frame, 'right'), `Right side: ${e.ra} A, ${e.rb} B  (n = ${e.ra + e.rb})`, `right counts at ${cutoff}`);
+    }
+    const learner = 3.3, runner = make({ cutoff: learner, measure }), before = runner.evaluate().frame, after = runner.press('reveal').frame;
+    const ids = frame => new Set(frame.objects.map(object => object.id));
+    assert.ok(!ids(before).has('bestline') && !ids(before).has('bestpt'), 'no best marker before Reveal');
+    for (const id of ['bestline', 'bestlabel', 'bestpt', 'cut', 'cutlabel', 'youpt']) assert.ok(ids(after).has(id), `${measure}: ${id} is drawn after Reveal`);
+    const object = id => after.objects.find(item => item.id === id);
+    near(object('bestline').from.x, 60 + 54 * best.c, 1e-6); near(object('cut').from.x, 60 + 54 * learner, 1e-6);
+    assert.ok(objectText(after, 'bestlabel').includes(`best cutoff x = ${best.c.toFixed(2)}`), 'the label names the best cutoff for this criterion');
+    assert.ok(!ids(runner.press('hide').frame).has('bestline'), 'hide removes the best marker again');
+  }
+  assert.notEqual(N, 10, 'own 12-point data: the 10-point reference answers (Gini 9, entropy 15) do not apply');
+});
+
 test('every generated card and every rejected candidate loads through the dev fixture resolver', async () => {
   for (const fixture of AI_GENERATED_FIXTURES) {
     const resolved = await resolveProgram({ program: { fixtureId: fixture.id } }, { fixtures: true, stamps: PROGRAM_STAMPS });
@@ -187,12 +223,13 @@ test('every generated card and every rejected candidate loads through the dev fi
 });
 
 test('every record names its prompt, the routing decision, the model, the job and the cost', () => {
-  for (const name of ['convolution', 'attention', 'gradient-run1', 'gradient-run2', 'tree-split']) {
+  for (const name of ['convolution', 'attention', 'gradient-run1', 'gradient-run2', 'tree-split', 'tree-split-routed']) {
     const record = load(name);
     assert.ok(record.prompt.length > 40, name);
     assert.equal(record.routing.replayedExplicit.via, 'command', name);
     assert.equal(record.routing.replayedExplicit.capability, 'explain', name);
-    assert.equal(record.routing.replayedPlainWords.via, 'fallback', `${name}: plain words never reached the classifier on the dev clone`);
+    if (name === 'tree-split-routed') { assert.equal(record.routing.replayedPlainWords.via, 'jev'); assert.equal(record.routing.replayedPlainWords.capability, 'explain'); }
+    else assert.equal(record.routing.replayedPlainWords.via, 'fallback', `${name}: plain words never reached the classifier on the dev clone`);
     assert.match(record.job.jobId, /^ej_[0-9a-f]{32}$/, name);
     assert.ok(record.job.calls.every(call => call.model === 'claude-opus-5-5' && call.costUsd > 0), name);
     near(record.job.costUsd, record.job.calls.reduce((sum, call) => sum + call.costUsd, 0), 0.0015);

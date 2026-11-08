@@ -245,8 +245,9 @@ Generation access: the fixtures are resolved only by `program-card.js` from a sa
 
 ## Backend generation results for the AI teaching examples (2026-11-08)
 
-Separate from the hand-authored fixtures above, and separate from visual and browser acceptance. Five prompts were run through the real `/interactive` pipeline (brief, author, review, repair; `claude-opus-5-5`; dev clone; $1.559 in total).
+Separate from the hand-authored fixtures above, and separate from visual and browser acceptance. Five prompts were run through the real `/interactive` pipeline (brief, author, review, repair; `claude-opus-5-5`; dev clone; $1.559 in total for the first five).
 Convolution and attention were generated and accepted on the first attempt; the gradient-descent prompt failed twice and the decision-tree prompt failed once, all with `unsupported_repair` (the repair step returned no program, or the reviewer rejected the repaired program).
+A sixth run sent the decision-tree prompt as plain words (no slash command) through the chat router, after the one-line router usage fix on `fix/chat-route-usage` (611e1e55c, not released): it routed to `explain` (jev 0.84), and the job was **accepted in round 3** ($0.718, job `ej_98db85deeebe4a1d95625808e741f276`, fixture `fixture-generated-ai-tree-split`). Total generation spend $2.277.
 The generated programs' numbers pass offline acceptance from their own data. Visual, interaction and saved-state acceptance of the generated cards is **pending**. The records, the saved programs and the dev fixture ids (`fixture-generated-ai-*`) are in
 [ai-example-regeneration-results.md](explain-on-canvas/handoff/ai-example-regeneration-results.md); the generation workflow cannot use any fixture, hand-authored or generated.
 
