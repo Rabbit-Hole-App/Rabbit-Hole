@@ -1,0 +1,433 @@
+{
+ "schema": 1,
+ "label": "legacy-pipeline Standard acceptance supporting I0 (not I1): the existing /interactive backend with the approved toss-and-drop design supplied in the request. It shows the player and renderer capability, not the new scene-generation workflow.",
+ "clone": "rabbit-hole-web-dev-tc-s7d2",
+ "build": "interact/i0 (player with manifest.timeline and cardDescription)",
+ "routing": "explicit /interactive command (no classifier call)",
+ "runs": [
+  {
+   "prompt": "prompt-toss-standard.txt (first, longer request)",
+   "jobId": "ej_af30cda08d3d48289d268614f16c55f5",
+   "outcome": "failed: The author returned no program (output stopped at exactly 10000 tokens, the explain_author cap)",
+   "costUsd": 0.316
+  },
+  {
+   "prompt": "prompt-toss-standard-v2.txt (compact request, below)",
+   "jobId": "ej_33f6b1d63e554e669595ad418db69e2f",
+   "outcome": "card accepted at round 2; the first Retry came after the dev platform daily spend guard refused a review",
+   "stage": "ready",
+   "stopReason": "accepted",
+   "calls": [
+    {
+     "role": "brief",
+     "model": "claude-opus-5-5",
+     "costUsd": 0.0347,
+     "outputTokens": 1043,
+     "status": "settled"
+    },
+    {
+     "role": "author",
+     "model": "claude-opus-5-5",
+     "costUsd": 0.2454,
+     "outputTokens": 8314,
+     "status": "settled"
+    },
+    {
+     "role": "review",
+     "model": "claude-opus-5-5",
+     "costUsd": 0.1003,
+     "outputTokens": 2984,
+     "status": "settled"
+    },
+    {
+     "role": "repair",
+     "model": "claude-opus-5-5",
+     "costUsd": 0.1105,
+     "outputTokens": 3989,
+     "status": "settled"
+    },
+    {
+     "role": "review",
+     "model": null,
+     "costUsd": 0,
+     "outputTokens": null,
+     "status": "refused"
+    },
+    {
+     "role": "review",
+     "model": "claude-opus-5-5",
+     "costUsd": 0.1003,
+     "outputTokens": 2981,
+     "status": "settled"
+    },
+    {
+     "role": "repair",
+     "model": "claude-opus-5-5",
+     "costUsd": 0.0979,
+     "outputTokens": 3410,
+     "status": "settled"
+    },
+    {
+     "role": "review",
+     "model": "claude-opus-5-5",
+     "costUsd": 0.0753,
+     "outputTokens": 2084,
+     "status": "settled"
+    }
+   ],
+   "costUsd": 0.764,
+   "findings": [
+    {
+     "round": 0,
+     "stage": "reviewing",
+     "accepted": false,
+     "findings": [
+      {
+       "version": 1,
+       "id": "rf1",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "target": {
+        "capture": "t0-light",
+        "object": "gtl"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The 'Held' gate label is drawn at the same height as the apex guide line, so the line runs through the text. Offset the label above or below the line."
+      },
+      {
+       "version": 1,
+       "id": "rf2",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "target": {
+        "capture": "t1-light",
+        "object": "gtl"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The 'Held' gate label sits on the apex guide line, which strikes through the text."
+      },
+      {
+       "version": 1,
+       "id": "rf3",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "target": {
+        "capture": "t2-light",
+        "object": "gtl"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The 'Held' label sits on the apex guide line and is crowded between the tossed ball's 'v = 0 m/s' / 'a = 9.8 m/s² ↓' readouts and the held ball's velocity dot."
+      },
+      {
+       "version": 1,
+       "id": "rf4",
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "t2-light",
+        "object": "gate"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "At the Top marker (t = 0.306122, just below u/g) the gate still reads 'Held' because release uses t >= TP. The request says the gate opens at the apex, so release should snap to the marker or use a small tolerance."
+      },
+      {
+       "version": 1,
+       "id": "rf5",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "target": {
+        "capture": "t3-light",
+        "object": "gtl"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The 'Open' label is drawn on the apex guide line, which strikes through it."
+      },
+      {
+       "version": 1,
+       "id": "rf6",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "t3-light",
+        "object": "gt1"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The left post of the opened gate lines up with the dropped ball's velocity arrow and nearly touches it."
+      },
+      {
+       "version": 1,
+       "id": "rf7",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "t3-light",
+        "object": "tst"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "Velocity readouts use a hyphen ('-0.98') while the time labels use a true minus sign ('−0.10 s')."
+      },
+      {
+       "version": 1,
+       "id": "rf8",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "target": {
+        "capture": "t4-light",
+        "object": "gtl"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The 'Open' label is drawn on the apex guide line, which strikes through it."
+      },
+      {
+       "version": 1,
+       "id": "rf9",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "t4-light",
+        "object": "tsv"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The −3.00 m/s velocity arrows reach almost to the bottom edge of the frame. Shorten the arrow scale or add bottom margin."
+      }
+     ]
+    },
+    {
+     "round": 1,
+     "stage": "reviewing",
+     "error": "spend_refused"
+    },
+    {
+     "round": 1,
+     "stage": "reviewing",
+     "accepted": false,
+     "findings": [
+      {
+       "version": 1,
+       "id": "rf1",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "t0-light",
+        "object": "tst"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The 'v = +3.00 m/s' label sits very close above the launch-height line. It is readable, but there is almost no gap."
+      },
+      {
+       "version": 1,
+       "id": "rf2",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "t2-light",
+        "object": "gt2"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The opened gate's right post (vertical stub near x≈601) sits against the start of the Drop ball's 'a = 9.8 m/s² ↓' label and crowds it."
+      },
+      {
+       "version": 1,
+       "id": "rf3",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "major",
+       "target": {
+        "capture": "t3-light",
+        "object": "gt2"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The opened gate's right post touches the Drop ball's velocity label, so it reads as '|v = −0.98 m/s', which looks like absolute-value bars. Move the gate posts away from the label column or shorten them, or offset the labels further right."
+      },
+      {
+       "version": 1,
+       "id": "rf4",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "t4-light",
+        "object": "tsv"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The −3.00 m/s velocity arrows reach almost to the bottom edge of the frame, and the labels sit right on the launch line. Nothing is clipped, but the bottom margin is very tight."
+      }
+     ]
+    },
+    {
+     "round": 2,
+     "stage": "reviewing",
+     "accepted": true,
+     "findings": [
+      {
+       "version": 1,
+       "id": "rf1",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "t0-light",
+        "object": "drv"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The zero-velocity dot on the held ball is drawn 18 units from the ball's centre with radius 8, so it overlaps the ball's 20-unit edge. It is still readable, but it looks stuck to the ball. Moving it about 30 units out would separate it."
+      },
+      {
+       "version": 1,
+       "id": "rf2",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "t2-light",
+        "object": "gt1"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "At the apex, the open gate's left bar sits right against the drop ball's green zero-velocity dot, and the right bar sits right against its acceleration arrow. The drop lane is crowded, though still legible. Moving the gate bars outward or offsetting the dots would fix it."
+      },
+      {
+       "version": 1,
+       "id": "rf3",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "t2-light",
+        "object": "tsv"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The tossed ball's 0 m/s dot overlaps the ball's edge (18-unit offset against a 20-unit radius plus 8-unit dot radius)."
+      },
+      {
+       "version": 1,
+       "id": "rf4",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "t3-light",
+        "object": "gt1"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The open gate's left bar runs very close to the dropped ball's downward velocity arrow. This is a slight crowding issue that a wider gate gap would fix."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "request": "At the highest point of a vertical throw, is acceleration zero because velocity is zero? Make a Standard-depth interactive card that plays over time. Keep the program compact (well under 9,000 characters of source; compute positions in small helper functions and loop over the objects instead of repeating code).\n\nLayout, top to bottom, all inside one frame: (1) \"Three moments around the top\": a strip of three small snapshots of the tossed ball at -0.10 s, Top 0 s and +0.10 s, up positive, with velocity readouts +0.98 m/s, 0 m/s, -0.98 m/s, the same downward acceleration arrow in each, and the caption \"Velocity changes by 0.98 m/s downward\" between the pairs. The outer two snapshots put the ball at the same height (0.049 m below the peak) with opposite velocity arrows. (2) Below it, the live animation: two lanes labelled Toss and Drop on one height scale, a lower guide at the toss's launch height and an upper guide through the apex and the centre of the held ball. The tossed ball rises with a velocity arrow (up, shrinking) and a separate, differently styled acceleration arrow (always down, 9.8 m/s2). The second ball sits in a closed gate labelled Held until the apex, then the gate opens and it falls from rest with the same 0 m/s reading; at the apex the tossed ball's velocity arrow becomes a dot labelled 0 m/s. After the top both balls descend together to the lower guide.\n\nPhysics: g = 9.8 m/s2 downward, launch speed 3.0 m/s, no air resistance, up positive; compute everything from these equations in the program. The held ball is supported by the gate and must not fall before release.\n\nMode: Over time, fixed (no sliders). Elapsed time runs 0 to 2u/g (about 0.612 s). Use the manifest timeline: label \"Time from the top\", displayOffset -u/g (shown time about -0.306 to +0.306 s), playbackRate 0.1, and markers at 0.10 s before the top, the top, and 0.10 s after. Controls: only the native Play/Pause/Replay and the time scrubber.\n\nPut the teaching explanation in manifest.cardDescription (2 to 4 short lines). No explanatory paragraph below the scene or controls.",
+ "artifact": {
+  "kind": "explain_program",
+  "schemaVersion": 1,
+  "runtimeVersion": "quickjs-release-sync@0.32.0",
+  "sdkVersion": "sdk-2",
+  "rendererVersion": "renderer-1",
+  "runtimePolicyVersion": "policy-1",
+  "permissionProfileVersion": "perm-1",
+  "fingerprints": {
+   "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+   "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+   "renderer": "renderer-1"
+  },
+  "dependencies": [],
+  "manifest": {
+   "title": "At the Top of a Throw: Velocity Is Zero, Acceleration Is Not",
+   "summary": "Three snapshots around the top read +0.98, 0 and −0.98 m/s with the same downward acceleration arrow. Below, a tossed ball rises to the apex, where a held ball is released from its gate; both then fall in step to the launch height.",
+   "assumptions": [
+    "Air resistance is ignored.",
+    "g = 9.8 m/s² downward, up taken as positive.",
+    "The ball is thrown straight up at 3.0 m/s and treated as a point.",
+    "The held ball is supported by the gate and does not move until it is released at the top.",
+    "Motion starts after the ball leaves the hand and ends back at launch height; playback runs at one tenth of real speed."
+   ],
+   "description": "Top strip: three panels at −0.10 s, the top and +0.10 s. The outer balls sit 0.049 m below the peak with velocity arrows up (+0.98 m/s) and down (−0.98 m/s). The top ball shows a dot labelled 0 m/s. Every panel has the same downward acceleration arrow, and the captions say velocity changes by 0.98 m/s downward. Below: Toss and Drop lanes on one height scale with launch and apex guides. The tossed ball rises with a shrinking up arrow and a constant down acceleration arrow. At the apex the held ball's gate opens and both balls fall together.",
+   "inputs": [],
+   "duration": 0.612245,
+   "cardDescription": "At the top, velocity is 0 m/s for an instant, but it is still changing.\nJust before the top it is +0.98 m/s, and 0.10 s later it is −0.98 m/s, so gravity still gives 9.8 m/s² downward.\nA ball dropped from rest at the apex then falls exactly in step with the tossed ball.",
+   "timeline": {
+    "label": "Time from the top",
+    "displayOffset": -0.306122,
+    "playbackRate": 0.1,
+    "markers": [
+     {
+      "id": "before",
+      "label": "0.10 s before the top",
+      "time": 0.206122
+     },
+     {
+      "id": "top",
+      "label": "Top",
+      "time": 0.306122
+     },
+     {
+      "id": "after",
+      "label": "0.10 s after the top",
+      "time": 0.406122
+     }
+    ]
+   },
+   "readouts": [
+    {
+     "id": "tTop",
+     "label": "Time from the top",
+     "unit": "s",
+     "decimals": 3
+    },
+    {
+     "id": "vToss",
+     "label": "Tossed ball velocity",
+     "unit": "m/s",
+     "decimals": 2
+    },
+    {
+     "id": "vDrop",
+     "label": "Dropped ball velocity",
+     "unit": "m/s",
+     "decimals": 2
+    },
+    {
+     "id": "hToss",
+     "label": "Tossed ball height above launch",
+     "unit": "m",
+     "decimals": 3
+    }
+   ],
+   "capabilities": [
+    "time_playback"
+   ]
+  },
+  "source": "const U=3,G=9.8,TP=U/G,T=2*TP,H=U*U/(2*G);\nconst f=sdk.format;\nfunction st(t){return {y:U*t-G*t*t/2,v:U-G*t};}\nfunction vs(v){return Math.abs(v)<0.005?'0 m/s':(v>0?'+':'\\u2212')+f(Math.abs(v),2)+' m/s';}\nfunction kin(id,x,y,v,k,lx,aLen,aOn,role){\n  const o=[sdk.circle(id+'b',x,y,20,{role:role||'input'})];\n  const L=v*k;\n  if(Math.abs(L)<4)o.push(sdk.circle(id+'v',x-18,y,8,{role:'output'}));\n  else o.push(sdk.arrow(id+'v',x-18,y,x-18,y-L,{role:'output'}));\n  if(aOn)o.push(sdk.arrow(id+'a',x+18,y,x+18,y+aLen,{role:'warning'}));\n  o.push(sdk.text(id+'t',lx,y-10,'v = '+vs(v),{align:'start',role:'output'}));\n  if(aOn)o.push(sdk.text(id+'g',lx,y+20,'a = 9.8 m/s\\u00b2 \\u2193',{align:'start',role:'warning'}));\n  return o;\n}\nexport function evaluate({time}){\n  const t=sdk.clamp(time||0,0,T);const o=[];\n  o.push(sdk.text('h1',40,26,'Three moments around the top (up positive)',{align:'start'}));\n  [[-0.1,'\\u22120.10 s'],[0,'Top 0 s'],[0.1,'+0.10 s']].forEach(([d,lab],i)=>{\n    const cx=150+i*330,s=st(TP+d),y=110+(H-s.y)*600;\n    o.push(sdk.box('p'+i,cx-110,40,220,190,{role:'neutral'}),sdk.text('pl'+i,cx,64,lab,{align:'middle'}));\n    o.push(...kin('s'+i,cx-60,y,s.v,40,cx-25,36,true));\n    if(i<2)o.push(sdk.arrow('pa'+i,cx+114,135,cx+216,135),sdk.text('pc'+i,cx+165,254,'Velocity changes by 0.98 m/s downward',{align:'middle'}));\n  });\n  const Y0=680,K=650,ya=Y0-H*K;\n  o.push(sdk.text('h2',40,292,'Live: two lanes on one height scale',{align:'start'}));\n  o.push(sdk.line('ax',120,Y0,120,ya-24),sdk.text('axl',120,ya-32,'height (m)',{align:'middle'}));\n  [0,0.2,0.4].forEach((h,i)=>o.push(sdk.text('tk'+i,88,Y0-h*K+4,f(h,1),{align:'middle'})));\n  o.push(sdk.text('ln1',380,316,'Toss',{align:'middle'}),sdk.text('ln2',620,316,'Drop',{align:'middle'}));\n  o.push(sdk.line('gl',140,Y0,920,Y0),sdk.line('gu',140,ya,920,ya));\n  o.push(sdk.text('gll',800,Y0-8,'launch height',{align:'start'}),sdk.text('gul',800,ya-8,'apex level',{align:'start'}));\n  const s=st(t);\n  o.push(...kin('ts',380,Y0-s.y*K,s.v,30,440,40,true,'input'));\n  const rel=t>=TP-1e-4,dt=Math.max(0,t-TP),yd=rel?H-G*dt*dt/2:H,vd=rel?-G*dt:0;\n  o.push(...kin('dr',620,Y0-yd*K,vd,30,680,40,rel,'learner'));\n  const yb=ya+11;\n  o.push(sdk.line('gt1',596,yb,rel?596:620,rel?yb+14:yb,{role:'neutral'}),sdk.line('gt2',644,yb,rel?644:620,rel?yb+14:yb,{role:'neutral'}));\n  o.push(sdk.text('gtl',560,ya-14,rel?'Open':'Held',{align:'middle'}));\n  const q={tTop:t-TP,vToss:s.v,vDrop:vd,hToss:s.y};\n  return {frame:sdk.frame(o,{width:960,height:840,readouts:Object.keys(q).map(k=>({id:k,value:q[k]}))}),quantities:q};\n}\n",
+  "sourceHash": "c1be28564691df93e6c82045c4b1d2605560a792d25cade5ff5993088159540b",
+  "manifestHash": "f49565115805bf17ef2ed3f3d07fd54e0c1bdd57e52bc0265fa427c2df8175d7",
+  "bundleHash": "96f958da27771cf65b0902105341fdf205d7ba4b4f582b1e6bde2d9f6c907975"
+ }
+}
