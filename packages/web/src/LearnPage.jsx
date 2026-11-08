@@ -18,8 +18,7 @@ import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
 import SharePanel from './SharePanel.jsx';
 import { ChooseHandle } from './HandleGate.jsx';
 import { assetKeysOf, requestWorkspaceExports, setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
-import { ILLUSTRATION_CAPTION, markedBlock, pendingBlock } from './illustration-target.js';
-import { illustrationProblem } from '../../control-plane/src/learn-primitives.js';
+import { pendingBlock } from './illustration-target.js';
 import { setFileScope, fileScope, uploadSource } from './file-source-client.js';
 import {verifySourceReadings} from './inline-source-readings.js';
 import { verifyExtractionRead } from './inline-extraction.js';
@@ -588,14 +587,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       window.dispatchEvent(new CustomEvent(event, { detail: { jobId: proposal.input.job } }));
       return job;
     },
-    // A written Explanation's illustration (IllustrationFigure.jsx, generate-image.js illustrationFrom). markIllustration writes the /image plan's id on the card the learner pressed
-    // Add illustration on; attachIllustration, when that plan's job is ready, replaces the mark with the finished picture. Both go through the canvas's own updateBlock (one undo step each).
-    // E3: the picture's caption counts toward the card's Depth budget (GAP-03). A card with no room for it is not marked: say so now, before anything is generated.
-    markIllustration: (blockId, proposalId) => {
-      const problem = illustrationProblem(canvasApi.current?.blocks?.().find(entry => entry.id === blockId), { caption: ILLUSTRATION_CAPTION });
-      if (problem) { toast(problem); return false; }
-      return !!canvasApi.current?.updateBlock?.(blockId, block => markedBlock(block, proposalId));
-    },
+    // A written Explanation's illustration (IllustrationFigure.jsx, generate-image.js illustrationFrom). Add illustration is removed (EXP-13, owner 2026-11-08), so no card is marked
+    // any more; a card marked before then still takes its picture when that plan's job is ready (through the canvas's own updateBlock, one undo step).
     attachIllustration: (proposalId, illustration) => {
       const block = illustration && pendingBlock(canvasApi.current?.blocks?.(), proposalId);
       if (!block) return null;
