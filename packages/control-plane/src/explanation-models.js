@@ -58,7 +58,9 @@ export function resolveExplanationProfile(profileId, registry = EXPLANATION_REGI
   const base = def.extends ? resolveExplanationProfile(def.extends, registry, depth + 1).roles : {};
   for (const role of Object.keys(def.roles || {})) if (!EXPLANATION_ROLES.includes(role)) throw refuse('unknown_role', `No written /explain role ${role}.`);
   const author = { ...(base.author ?? {}), ...(def.roles?.author ?? {}), role: 'author' };
-  const repair = def.roles?.repair ? { ...(base.repair ?? {}), ...def.roles.repair, role: 'repair' } : { ...(base.repair ?? author), role: 'repair' };
+  // A repair role follows the author unless this profile, or one it extends, names a repair role itself.
+  const explicitRepair = d => !!d && (!!d.roles?.repair || explicitRepair(d.extends ? registry.profiles[d.extends] : null));
+  const repair = def.roles?.repair ? { ...(base.repair ?? {}), ...def.roles.repair, role: 'repair' } : { ...(explicitRepair(def) ? base.repair : author), role: 'repair' };
   const roles = { author, repair };
   for (const role of EXPLANATION_ROLES) checkRole(role, roles[role]);
   return deepFreeze({ id: profileId, version: def.version, roles: structuredClone(roles) });

@@ -84,3 +84,13 @@ test('a quote carries the profile binding, and an accepted record that kept a bi
   const unknown = await run({ ...rec, profile: { id: 'gone', version: 1, hash: quote.profile.hash } });
   assert.deepEqual([unknown.out.code, unknown.calls], ['profile_changed', 0]);
 });
+
+test('a profile that extends another and overrides only the author repairs with that author, unless a repair role is named anywhere in the chain', () => {
+  const base = EXPLANATION_REGISTRY.profiles['plan-default'].roles.author;
+  const registry = registryWith({ 'author-sonnet': { version: 1, extends: 'plan-default', roles: { author: { ...base, model: 'claude-sonnet-5' } } },
+    'repair-pinned': { version: 1, extends: 'plan-default', roles: { repair: { ...base, model: 'claude-haiku-4-5-20251001' } } },
+    'pinned-then-author': { version: 1, extends: 'repair-pinned', roles: { author: { ...base, model: 'claude-sonnet-5' } } } });
+  assert.equal(resolveExplanationProfile('author-sonnet', registry).roles.repair.model, 'claude-sonnet-5');
+  assert.equal(resolveExplanationProfile('repair-pinned', registry).roles.repair.model, 'claude-haiku-4-5-20251001');
+  assert.deepEqual(['claude-sonnet-5', 'claude-haiku-4-5-20251001'], [resolveExplanationProfile('pinned-then-author', registry).roles.author.model, resolveExplanationProfile('pinned-then-author', registry).roles.repair.model]);
+});

@@ -17,7 +17,8 @@ const KINDS = [
 ];
 // Pictures that look like a request for a diagram but that the library does not draw: a clear outcome before any author call, never prose standing in.
 const UNSUPPORTED = /\b(venn diagram|pie chart|mind ?map|uml|class diagram|er diagram|entity[- ]relationship|gantt|state (?:diagram|machine)|heat ?map|sankey|histogram|org(?:anisation|anization)? chart)\b/i;
-const DIAGRAM_WORD = /\b(diagram|flow ?chart|decision[- ]?tree|bar chart|bar graph|number ?line|t-?account|(?:coordinate|scatter|line) (?:plot|chart)|timeline)\b/i;
+// A topic word alone ("how a decision tree works", "the timeline of the war", "a t-account") is not a request for a picture: only the picture words are.
+const DIAGRAM_WORD = /\b(diagram|flow ?chart|bar chart|bar graph|(?:coordinate|scatter|line) (?:plot|chart))\b/i;
 // A table the learner is asking for, not the word in another sense. shortcut: wording heuristics (EX-01/EX-07 plus their variations), not a classifier; an
 // unrecognised phrasing simply leaves the visual optional, as it was before this record. Upgrade when real requests show a missed phrasing.
 const NOT_A_REQUEST = /\b(periodic table|table salt|table tennis|time ?table|water table|turn(?:ing)? the tables|table of contents)\b/gi;

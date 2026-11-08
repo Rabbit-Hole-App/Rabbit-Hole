@@ -209,3 +209,9 @@ test('requiredVisualProblem is null without a requirement, and counts one table 
   assert.equal(requiredVisualProblem({ ...withTable, more: [{ label: 'x', text: TABLE }] }, { items: [{ id: 'vr-1', kind: 'table', purpose: 'p' }, { id: 'vr-2', kind: 'table', purpose: 'p' }] }), null);
   assert.ok(two.items.length >= 1);
 });
+
+test('a topic word alone is not a request for a picture: a decision tree, a timeline or a t-account question stays prose-only', () => {
+  for (const q of ['Explain how a decision tree works', 'What is the timeline of the French Revolution?', 'How does a t-account record a sale?', 'Explain the number line']) assert.deepEqual(deriveVisualRequirements(q).items, [], q);
+  assert.equal(deriveVisualRequirements('Draw a decision tree diagram for loan approval').items[0].diagramKind, 'flow');
+  assert.equal(deriveVisualRequirements('Show a timeline diagram of the French Revolution').items[0].diagramKind, 'timeline');
+});
